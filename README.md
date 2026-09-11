@@ -1,86 +1,185 @@
 # Timeline
 
-**Turn dated events into a clear, inspectable visual chronology — entirely in the browser.**
+**Build a chronology, then tell the story inside it.**
 
 [![GitHub Pages](https://img.shields.io/github/actions/workflow/status/xtreemze/timeline/pages.yml?branch=main&label=GitHub%20Pages)](https://xtreemze.github.io/timeline/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![No backend](https://img.shields.io/badge/backend-none-2ea44f)](#architecture)
 
-**Timeline** is a small, local-first timeline generator designed for evidence review, project histories, incident reconstruction, research, and any situation where sequence matters. Enter events, sort them chronologically, inspect them as a visual timeline, and export the result without sending the data to a server.
+Timeline is a local-first visual chronology workspace for research, incident reconstruction, project histories, evidence review, biographies, historical analysis, and other work where sequence and context matter.
 
-> **Project status:** early public prototype. The hosted application is intentionally dependency-light while the interaction model and data format are being refined.
+It models two different questions separately:
+
+1. **What happened, and when?** — the canonical chronology contains point events and date ranges.
+2. **Which moments matter to this explanation?** — stories reference selected chronology items in an intentional narrative order.
+
+That distinction lets one event participate in several stories without duplicating or rewriting the underlying timeline.
 
 ## Live application
 
 **https://xtreemze.github.io/timeline/**
 
-The GitHub Pages build is a static application. All timeline data stays in the browser unless you explicitly export it.
+The application is static and runs entirely in the browser. Timeline data is stored locally unless you explicitly export it.
 
-## Why Timeline
-
-Chronologies are deceptively difficult to work with. A spreadsheet is good at rows but poor at communicating sequence; prose is readable but hard to scan; large investigation systems can be excessive when the immediate task is simply to understand *what happened, when, and in what order*.
-
-Timeline focuses on that narrow problem:
-
-- **Local-first by default** — no account, API, database, or upload step.
-- **Chronology is the primary model** — events are normalized and sorted by date rather than arranged manually.
-- **Readable at a glance** — visual rhythm, category markers, and date treatment make sequence easy to scan.
-- **Portable data** — export JSON for machines or Markdown for documents and notes.
-- **Progressive complexity** — useful immediately, while leaving room for ranges, uncertainty, provenance, grouping, and richer evidence workflows.
+> GitHub Pages must be enabled for the repository with **Settings → Pages → Source → GitHub Actions** before the deployment workflow can publish the site.
 
 ## Current capabilities
 
-The hosted prototype currently supports:
+### Chronology
 
-- creating, editing, and deleting events;
-- ISO-style dates with optional time precision;
-- event categories;
-- automatic chronological sorting;
-- local persistence with `localStorage`;
-- JSON import and export;
-- Markdown export;
-- a sample dataset for immediate exploration;
-- responsive layouts and keyboard-accessible controls;
-- zero runtime dependencies and no backend.
+- Create point **events** with a date or date + time.
+- Create **ranges** with explicit start and end boundaries.
+- Edit and delete items without manually re-sorting the chronology.
+- Deterministic sorting by start, end, and title.
+- Search titles and descriptions.
+- Filter the visible chronology by category.
+- Responsive timeline rendering for desktop, tablet, and narrow mobile layouts.
+
+### Categories
+
+- Create unlimited custom categories.
+- Edit category names and accent colors.
+- Reclassify chronology visually without changing temporal data.
+- Delete categories safely; referenced items are reassigned rather than orphaned.
+- See item usage counts for every category.
+
+### Stories
+
+A story is an ordered list of references to chronology items.
+
+- Select any events or ranges for a story.
+- Arrange them independently of chronological order.
+- Edit and delete stories without altering the referenced items.
+- Focus a story to hide unrelated chronology.
+- Step through its selected moments with Previous / Next navigation.
+- Reuse one chronology item in any number of stories.
+
+This is deliberately a reference model rather than a copy model: stories do not own events.
+
+### Data and portability
+
+- Browser-local persistence with `localStorage`.
+- Automatic migration of the original v1 `events[]` browser data to v2.
+- Strict JSON validation at import boundaries.
+- JSON export preserving categories, chronology items, ranges, and stories.
+- Markdown export containing the canonical chronology plus each narrative story.
+- Imported text is rendered through DOM text nodes, never injected as HTML.
+- No runtime packages, telemetry, account system, database, or backend.
 
 ## Data format
 
-A timeline is represented by a small, explicit structure:
+Version 2 uses four top-level concepts:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "title": "Launch chronology",
-  "events": [
+  "categories": [
     {
-      "id": "evt-001",
-      "date": "2026-09-11T09:30",
+      "id": "project",
+      "name": "Project",
+      "color": "#c4320a"
+    }
+  ],
+  "items": [
+    {
+      "id": "evt-created",
+      "kind": "event",
+      "start": "2026-09-11T09:30",
+      "end": null,
       "title": "Repository created",
       "description": "Initial public repository established.",
-      "category": "project"
+      "categoryId": "project"
+    },
+    {
+      "id": "range-build",
+      "kind": "range",
+      "start": "2026-09-12",
+      "end": "2026-09-14",
+      "title": "Prototype implementation",
+      "description": "Implementation and review period.",
+      "categoryId": "project"
+    }
+  ],
+  "stories": [
+    {
+      "id": "story-launch",
+      "title": "Path to launch",
+      "description": "The decisions and work that produced the first release.",
+      "itemIds": ["evt-created", "range-build"]
     }
   ]
 }
 ```
 
-The format is intentionally straightforward so timelines can be generated by scripts, AI tools, notebooks, document-processing pipelines, or other applications without depending on the UI.
+### Temporal values
+
+Dates are explicit, timezone-free strings in either form:
+
+```text
+YYYY-MM-DD
+YYYY-MM-DDTHH:MM
+```
+
+Ranges require both `start` and `end`, and `end` must not precede `start`.
+
+### Referential rules
+
+- `item.categoryId` references `categories[].id`.
+- `story.itemIds[]` references `items[].id`.
+- Story item IDs are unique within each story.
+- Import normalization removes story references to missing items.
+- Unknown imported category IDs are preserved by creating a matching category rather than silently discarding classification.
+
+## Interaction model
+
+The application has three editing surfaces and one canonical viewer:
+
+```text
+┌──────────────── Editor ───────────────┐  ┌──────── Chronology ────────┐
+│ Items | Stories | Categories         │  │ Search + category filter   │
+│                                       │  │                            │
+│ Event/range editor                   │  │ chronological items        │
+│ Story sequence builder               │  │          or                │
+│ Category manager                     │  │ focused story sequence     │
+└───────────────────────────────────────┘  └────────────────────────────┘
+```
+
+On smaller screens the editor stacks above the chronology. The information architecture and data model remain identical rather than switching to a reduced mobile feature set.
+
+## Story design
+
+Stories are intentionally orthogonal to chronological order.
+
+For example, a research timeline might contain 300 events sorted by date. A story called **Decision failures before launch** can select eight of those events and arrange them in the order that best explains the argument. A second story can reuse four of the same events to explain a different causal thread.
+
+The canonical items remain unchanged in both cases.
+
+This permits future extensions such as:
+
+- presentations and guided walkthroughs;
+- saved analytical lenses;
+- branching stories;
+- citations or evidence trails attached to individual moments;
+- shareable read-only story URLs;
+- story-specific annotations without mutating source chronology.
 
 ## Architecture
 
-The first public version deliberately uses the web platform directly:
+Timeline deliberately uses the browser platform directly:
 
 ```text
 GitHub Pages
 └── site/
     ├── index.html       semantic application shell
     ├── styles.css       responsive visual system
-    ├── app.js           state, validation, import/export, rendering
+    ├── app.js           model, migration, validation, state, rendering
     └── icon.svg         application mark
 ```
 
-There is no framework, bundler, telemetry layer, backend, or runtime package installation. This keeps the hosted artifact auditable and makes the core interaction model easy to evolve before introducing infrastructure that the product may not need.
+There is no framework, bundler, backend, telemetry SDK, or runtime dependency tree. The deployment workflow performs a JavaScript syntax check before uploading the static Pages artifact.
 
-GitHub Actions publishes `site/` to GitHub Pages whenever `main` changes.
+This makes the current implementation easy to audit and keeps architectural complexity proportional to the product.
 
 ## Run locally
 
@@ -92,31 +191,47 @@ cd timeline
 python3 -m http.server 8080 --directory site
 ```
 
-Then open `http://localhost:8080`.
+Open `http://localhost:8080`.
 
-Opening `site/index.html` directly also works in modern browsers, although a local HTTP server is closer to the GitHub Pages environment.
+For a fast JavaScript syntax check:
+
+```bash
+node --check site/app.js
+```
+
+## Backward compatibility
+
+The initial public prototype stored this shape under `timeline:v1`:
+
+```json
+{
+  "version": 1,
+  "title": "Example",
+  "events": []
+}
+```
+
+v2 checks for `timeline:v2` first. If none exists but v1 data does, the application migrates each legacy event to a v2 point item and writes the normalized result under `timeline:v2`.
+
+The migration leaves the old browser-storage key untouched as a conservative fallback.
 
 ## Development principles
 
-This project is being developed around a few constraints:
+1. **Chronology is canonical.** Stories and presentation layers reference it rather than owning copies.
+2. **Temporal invariants are validated.** Invalid calendar dates and inverted ranges are rejected at boundaries.
+3. **Imported data is untrusted.** Normalize before state entry; never render imported HTML.
+4. **Deletion preserves referential integrity.** Removing an item removes its story references; removing a category reassigns its items.
+5. **Local-first is a product property.** Static hosting must not imply custody of user timeline content.
+6. **Mobile is not a reduced product.** Responsive layout changes presentation, not capability.
+7. **Complexity must earn its place.** Add dependencies only when the web platform stops being the simpler reliable solution.
 
-1. **The chronology must remain understandable without the UI.** The data model comes first.
-2. **Untrusted imported data is validated at the boundary.** Rendering never relies on imported HTML.
-3. **A hosted instance must not imply data custody.** Static hosting keeps private timeline content on the client.
-4. **Accessibility is part of the interaction model.** Keyboard operation, focus visibility, semantic controls, reduced-motion support, and readable contrast are baseline requirements.
-5. **Complexity must earn its place.** Dependencies and abstractions should solve demonstrated problems rather than anticipated ones.
+## Next directions
 
-## Direction
+The v2 model provides a stable base for richer chronology work. Strong next additions include approximate/uncertain dates, provenance and citations, tags, attachments, spatial locations, scalable navigation for very large timelines, printable layouts, image/PDF export, story annotations, presentation mode, and shareable read-only artifacts.
 
-Likely next steps include richer temporal precision (date ranges, approximate dates, and uncertainty), event provenance and citations, grouping and filtering, shareable read-only artifacts, printable/exportable layouts, and a schema suitable for programmatic generation.
+## Licensing boundary
 
-The repository will keep the distinction between **software** and **timeline content** explicit. The MIT license covers this project's software; imported evidence, user data, media, and third-party material retain their own rights and are not relicensed by Timeline.
-
-## Contributing
-
-Issues and focused pull requests are welcome. For substantial changes, open an issue first so the data model and interaction consequences can be discussed before implementation.
-
-When contributing, preserve the local-first privacy model and avoid adding a network dependency unless the feature explicitly requires one.
+Timeline's MIT license covers this project's software. It does **not** relicense timelines, evidence, user data, imported documents, media, or third-party material processed with the application.
 
 ## License
 
