@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#111111">
-  <meta name="description" content="A local-first timeline generator for clear, portable chronologies.">
-  <meta property="og:title" content="Timeline — visual chronology generator">
-  <meta property="og:description" content="Create, inspect, and export chronological event timelines entirely in your browser.">
+  <meta name="description" content="Create events, ranges, categories, and focused stories in a local-first visual timeline.">
+  <meta property="og:title" content="Timeline — events, ranges, and stories">
+  <meta property="og:description" content="A responsive, local-first chronology workspace with categories and narrative story focus.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://xtreemze.github.io/timeline/">
-  <title>Timeline — visual chronology generator</title>
+  <title>Timeline — events, ranges, and stories</title>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css">
 </head>
@@ -30,78 +30,164 @@
 
   <main id="workspace">
     <section class="hero" aria-labelledby="hero-title">
-      <p class="eyebrow">Local-first chronology tool</p>
-      <h1 id="hero-title">Sequence should be obvious.</h1>
-      <p class="hero-copy">Turn dated events into a readable visual timeline. Nothing is uploaded; the application runs entirely in your browser.</p>
-      <div class="hero-meta" aria-label="Application characteristics">
-        <span>No account</span>
-        <span>No backend</span>
-        <span>JSON + Markdown export</span>
+      <div>
+        <p class="eyebrow">Local-first chronology workspace</p>
+        <h1 id="hero-title">Events become structure. Structure becomes a story.</h1>
+      </div>
+      <div class="hero-copy-wrap">
+        <p class="hero-copy">Build precise events and ranges, organize them with your own categories, then create focused narrative paths through the chronology without duplicating the underlying data.</p>
+        <div class="hero-meta" aria-label="Application characteristics">
+          <span>Events + ranges</span>
+          <span>Custom categories</span>
+          <span>Story focus</span>
+          <span>Local-only data</span>
+        </div>
       </div>
     </section>
 
-    <section class="app-shell" aria-label="Timeline generator">
-      <aside class="editor-panel" aria-labelledby="editor-title">
-        <div class="panel-heading">
-          <div>
-            <p class="kicker">Editor</p>
-            <h2 id="editor-title">Build the chronology</h2>
-          </div>
-          <button id="load-sample" class="button secondary" type="button">Load example</button>
+    <section class="project-bar" aria-label="Timeline project controls">
+      <label class="project-title-field">
+        <span class="sr-only">Timeline title</span>
+        <input id="timeline-title" type="text" maxlength="120" autocomplete="off" placeholder="Untitled timeline">
+      </label>
+      <div class="project-stats" aria-label="Timeline statistics">
+        <span id="item-count">0 items</span>
+        <span id="story-count">0 stories</span>
+        <span id="category-count">0 categories</span>
+      </div>
+      <div class="project-actions">
+        <button id="load-sample" class="button secondary" type="button">Load example</button>
+        <label class="button secondary file-button">Import JSON<input id="import-json" type="file" accept="application/json,.json"></label>
+        <button id="export-json" class="button secondary" type="button">JSON</button>
+        <button id="export-markdown" class="button secondary" type="button">Markdown</button>
+        <button id="clear-timeline" class="button danger" type="button">Clear</button>
+      </div>
+    </section>
+
+    <section class="app-shell" aria-label="Timeline application">
+      <aside class="control-panel" aria-label="Timeline editors">
+        <div class="tabs" role="tablist" aria-label="Editor sections">
+          <button class="tab is-active" id="tab-items" role="tab" aria-selected="true" aria-controls="panel-items" data-panel="items" type="button">Items</button>
+          <button class="tab" id="tab-stories" role="tab" aria-selected="false" aria-controls="panel-stories" data-panel="stories" type="button">Stories</button>
+          <button class="tab" id="tab-categories" role="tab" aria-selected="false" aria-controls="panel-categories" data-panel="categories" type="button">Categories</button>
         </div>
 
-        <label class="field">
-          <span>Timeline title</span>
-          <input id="timeline-title" type="text" maxlength="120" autocomplete="off" placeholder="Untitled timeline">
-        </label>
+        <section id="panel-items" class="editor-section" role="tabpanel" aria-labelledby="tab-items">
+          <div class="section-heading">
+            <div>
+              <p class="kicker">Chronology item</p>
+              <h2>Create an event or range</h2>
+            </div>
+          </div>
 
-        <form id="event-form" novalidate>
-          <input id="event-id" type="hidden">
-          <div class="field-grid">
-            <label class="field field-wide">
-              <span>Date <small>YYYY-MM-DD or YYYY-MM-DDTHH:MM</small></span>
-              <input id="event-date" type="text" inputmode="numeric" autocomplete="off" placeholder="2026-09-11T09:30" required>
-            </label>
-            <label class="field field-wide">
-              <span>Event title</span>
-              <input id="event-title" type="text" maxlength="140" autocomplete="off" placeholder="Repository created" required>
-            </label>
-            <label class="field field-wide">
-              <span>Description <small>optional</small></span>
-              <textarea id="event-description" rows="4" maxlength="1200" placeholder="What happened, and why does it matter?"></textarea>
+          <form id="item-form" novalidate>
+            <input id="item-id" type="hidden">
+            <div class="field-grid">
+              <label class="field">
+                <span>Type</span>
+                <select id="item-kind">
+                  <option value="event">Event</option>
+                  <option value="range">Range</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Category</span>
+                <select id="item-category"></select>
+              </label>
+              <label class="field field-wide">
+                <span>Start <small>YYYY-MM-DD or YYYY-MM-DDTHH:MM</small></span>
+                <input id="item-start" type="text" inputmode="numeric" autocomplete="off" placeholder="2026-09-11T09:30" required>
+              </label>
+              <label id="end-field" class="field field-wide" hidden>
+                <span>End <small>required for ranges</small></span>
+                <input id="item-end" type="text" inputmode="numeric" autocomplete="off" placeholder="2026-09-14T17:00">
+              </label>
+              <label class="field field-wide">
+                <span>Title</span>
+                <input id="item-title" type="text" maxlength="160" autocomplete="off" placeholder="Prototype implementation" required>
+              </label>
+              <label class="field field-wide">
+                <span>Description <small>optional</small></span>
+                <textarea id="item-description" rows="4" maxlength="2000" placeholder="What happened, what changed, or why this period matters."></textarea>
+              </label>
+            </div>
+            <p id="item-form-error" class="form-error" role="alert" hidden></p>
+            <div class="form-actions">
+              <button id="save-item" class="button primary" type="submit">Add item</button>
+              <button id="cancel-item-edit" class="button ghost" type="button" hidden>Cancel edit</button>
+            </div>
+          </form>
+          <p class="privacy-note">Dates are intentionally explicit and timezone-free. Imported text is always rendered as text, never HTML.</p>
+        </section>
+
+        <section id="panel-stories" class="editor-section" role="tabpanel" aria-labelledby="tab-stories" hidden>
+          <div class="section-heading">
+            <div>
+              <p class="kicker">Narrative path</p>
+              <h2>Build a story</h2>
+            </div>
+          </div>
+
+          <form id="story-form" novalidate>
+            <input id="story-id" type="hidden">
+            <label class="field">
+              <span>Story title</span>
+              <input id="story-title" type="text" maxlength="160" autocomplete="off" placeholder="How the project reached launch" required>
             </label>
             <label class="field">
-              <span>Category</span>
-              <select id="event-category">
-                <option value="event">Event</option>
-                <option value="decision">Decision</option>
-                <option value="milestone">Milestone</option>
-                <option value="evidence">Evidence</option>
-                <option value="communication">Communication</option>
-                <option value="project">Project</option>
-              </select>
+              <span>Story introduction <small>optional</small></span>
+              <textarea id="story-description" rows="3" maxlength="1500" placeholder="Explain the lens through which these moments should be read."></textarea>
             </label>
+
+            <div class="story-builder">
+              <div>
+                <div class="subheading-row"><h3>Available items</h3><span id="story-picker-count">0</span></div>
+                <div id="story-picker" class="picker-list" aria-label="Items available to this story"></div>
+              </div>
+              <div>
+                <div class="subheading-row"><h3>Story sequence</h3><span id="story-sequence-count">0</span></div>
+                <ol id="story-sequence" class="sequence-list" aria-label="Ordered story items"></ol>
+              </div>
+            </div>
+
+            <p id="story-form-error" class="form-error" role="alert" hidden></p>
+            <div class="form-actions">
+              <button id="save-story" class="button primary" type="submit">Create story</button>
+              <button id="cancel-story-edit" class="button ghost" type="button" hidden>Cancel edit</button>
+            </div>
+          </form>
+
+          <div class="divider"></div>
+          <div class="subheading-row"><h3>Saved stories</h3><span id="saved-story-count">0</span></div>
+          <div id="story-list" class="story-list"></div>
+        </section>
+
+        <section id="panel-categories" class="editor-section" role="tabpanel" aria-labelledby="tab-categories" hidden>
+          <div class="section-heading">
+            <div>
+              <p class="kicker">Classification</p>
+              <h2>Manage categories</h2>
+            </div>
           </div>
 
-          <p id="form-error" class="form-error" role="alert" hidden></p>
-
-          <div class="form-actions">
-            <button id="save-event" class="button primary" type="submit">Add event</button>
-            <button id="cancel-edit" class="button ghost" type="button" hidden>Cancel edit</button>
-          </div>
-        </form>
-
-        <div class="data-actions" aria-label="Timeline data actions">
-          <label class="button secondary file-button">
-            Import JSON
-            <input id="import-json" type="file" accept="application/json,.json">
-          </label>
-          <button id="export-json" class="button secondary" type="button">Export JSON</button>
-          <button id="export-markdown" class="button secondary" type="button">Export Markdown</button>
-          <button id="clear-timeline" class="button danger" type="button">Clear</button>
-        </div>
-
-        <p class="privacy-note">Stored locally in this browser. Imported text is rendered as text, never as HTML.</p>
+          <form id="category-form" class="category-form" novalidate>
+            <input id="category-id" type="hidden">
+            <label class="field field-grow">
+              <span>Name</span>
+              <input id="category-name" type="text" maxlength="60" autocomplete="off" placeholder="Research" required>
+            </label>
+            <label class="field color-field">
+              <span>Accent</span>
+              <input id="category-color" type="color" value="#667085">
+            </label>
+            <div class="form-actions category-actions">
+              <button id="save-category" class="button primary" type="submit">Add category</button>
+              <button id="cancel-category-edit" class="button ghost" type="button" hidden>Cancel</button>
+            </div>
+          </form>
+          <p id="category-form-error" class="form-error" role="alert" hidden></p>
+          <div id="category-list" class="category-list"></div>
+        </section>
       </aside>
 
       <section class="timeline-panel" aria-labelledby="timeline-heading">
@@ -110,13 +196,45 @@
             <p class="kicker">Chronology</p>
             <h2 id="timeline-heading">Untitled timeline</h2>
           </div>
-          <p id="event-count" class="event-count">0 events</p>
+          <p id="visible-count" class="visible-count">0 shown</p>
         </div>
 
+        <div class="timeline-toolbar" aria-label="Timeline filters">
+          <label class="search-field">
+            <span class="sr-only">Search timeline</span>
+            <input id="timeline-search" type="search" autocomplete="off" placeholder="Search title or description">
+          </label>
+          <label class="compact-field">
+            <span class="sr-only">Filter by category</span>
+            <select id="category-filter"><option value="all">All categories</option></select>
+          </label>
+          <button id="clear-filters" class="button ghost compact-button" type="button">Reset filters</button>
+        </div>
+
+        <section id="story-focus" class="story-focus" aria-live="polite" hidden>
+          <div class="story-focus-copy">
+            <p class="kicker">Story focus</p>
+            <h3 id="story-focus-title"></h3>
+            <p id="story-focus-description"></p>
+          </div>
+          <div class="story-focus-controls">
+            <span id="story-focus-position">1 / 1</span>
+            <button id="story-prev" class="button secondary" type="button">Previous</button>
+            <button id="story-next" class="button secondary" type="button">Next</button>
+            <button id="story-exit" class="button ghost" type="button">Exit story</button>
+          </div>
+        </section>
+
         <div id="empty-state" class="empty-state">
-          <p class="empty-symbol" aria-hidden="true">01 → 02 → 03</p>
-          <h3>Add the first event</h3>
-          <p>Events are sorted automatically. Use the example dataset to see the visual model immediately.</p>
+          <p class="empty-symbol" aria-hidden="true">POINT • RANGE • STORY</p>
+          <h3>Add the first timeline item</h3>
+          <p>Create a point event or a start/end range. Categories and stories become available immediately as the chronology grows.</p>
+        </div>
+
+        <div id="filtered-empty-state" class="empty-state" hidden>
+          <p class="empty-symbol" aria-hidden="true">NO MATCHES</p>
+          <h3>Nothing matches this view</h3>
+          <p>Change the search, category filter, or leave story focus to restore the full chronology.</p>
         </div>
 
         <ol id="timeline-list" class="timeline-list" aria-live="polite"></ol>
@@ -125,7 +243,7 @@
   </main>
 
   <footer>
-    <p>Timeline is open-source software released under the MIT License.</p>
+    <p>Timeline runs entirely in your browser and is released under the MIT License.</p>
     <a href="https://github.com/xtreemze/timeline">Source on GitHub</a>
   </footer>
 
