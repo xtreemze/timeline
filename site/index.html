@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#111111">
+  <meta name="description" content="A local-first timeline generator for clear, portable chronologies.">
+  <meta property="og:title" content="Timeline — visual chronology generator">
+  <meta property="og:description" content="Create, inspect, and export chronological event timelines entirely in your browser.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://xtreemze.github.io/timeline/">
+  <title>Timeline — visual chronology generator</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Skip to timeline workspace</a>
+
+  <header class="site-header">
+    <a class="brand" href="./" aria-label="Timeline home">
+      <img src="./icon.svg" alt="" width="32" height="32">
+      <span>Timeline</span>
+    </a>
+    <nav aria-label="Project links">
+      <a href="https://github.com/xtreemze/timeline">GitHub</a>
+      <a href="https://github.com/xtreemze/timeline#data-format">Data format</a>
+    </nav>
+  </header>
+
+  <main id="workspace">
+    <section class="hero" aria-labelledby="hero-title">
+      <p class="eyebrow">Local-first chronology tool</p>
+      <h1 id="hero-title">Sequence should be obvious.</h1>
+      <p class="hero-copy">Turn dated events into a readable visual timeline. Nothing is uploaded; the application runs entirely in your browser.</p>
+      <div class="hero-meta" aria-label="Application characteristics">
+        <span>No account</span>
+        <span>No backend</span>
+        <span>JSON + Markdown export</span>
+      </div>
+    </section>
+
+    <section class="app-shell" aria-label="Timeline generator">
+      <aside class="editor-panel" aria-labelledby="editor-title">
+        <div class="panel-heading">
+          <div>
+            <p class="kicker">Editor</p>
+            <h2 id="editor-title">Build the chronology</h2>
+          </div>
+          <button id="load-sample" class="button secondary" type="button">Load example</button>
+        </div>
+
+        <label class="field">
+          <span>Timeline title</span>
+          <input id="timeline-title" type="text" maxlength="120" autocomplete="off" placeholder="Untitled timeline">
+        </label>
+
+        <form id="event-form" novalidate>
+          <input id="event-id" type="hidden">
+          <div class="field-grid">
+            <label class="field field-wide">
+              <span>Date <small>YYYY-MM-DD or YYYY-MM-DDTHH:MM</small></span>
+              <input id="event-date" type="text" inputmode="numeric" autocomplete="off" placeholder="2026-09-11T09:30" required>
+            </label>
+            <label class="field field-wide">
+              <span>Event title</span>
+              <input id="event-title" type="text" maxlength="140" autocomplete="off" placeholder="Repository created" required>
+            </label>
+            <label class="field field-wide">
+              <span>Description <small>optional</small></span>
+              <textarea id="event-description" rows="4" maxlength="1200" placeholder="What happened, and why does it matter?"></textarea>
+            </label>
+            <label class="field">
+              <span>Category</span>
+              <select id="event-category">
+                <option value="event">Event</option>
+                <option value="decision">Decision</option>
+                <option value="milestone">Milestone</option>
+                <option value="evidence">Evidence</option>
+                <option value="communication">Communication</option>
+                <option value="project">Project</option>
+              </select>
+            </label>
+          </div>
+
+          <p id="form-error" class="form-error" role="alert" hidden></p>
+
+          <div class="form-actions">
+            <button id="save-event" class="button primary" type="submit">Add event</button>
+            <button id="cancel-edit" class="button ghost" type="button" hidden>Cancel edit</button>
+          </div>
+        </form>
+
+        <div class="data-actions" aria-label="Timeline data actions">
+          <label class="button secondary file-button">
+            Import JSON
+            <input id="import-json" type="file" accept="application/json,.json">
+          </label>
+          <button id="export-json" class="button secondary" type="button">Export JSON</button>
+          <button id="export-markdown" class="button secondary" type="button">Export Markdown</button>
+          <button id="clear-timeline" class="button danger" type="button">Clear</button>
+        </div>
+
+        <p class="privacy-note">Stored locally in this browser. Imported text is rendered as text, never as HTML.</p>
+      </aside>
+
+      <section class="timeline-panel" aria-labelledby="timeline-heading">
+        <div class="timeline-heading-row">
+          <div>
+            <p class="kicker">Chronology</p>
+            <h2 id="timeline-heading">Untitled timeline</h2>
+          </div>
+          <p id="event-count" class="event-count">0 events</p>
+        </div>
+
+        <div id="empty-state" class="empty-state">
+          <p class="empty-symbol" aria-hidden="true">01 → 02 → 03</p>
+          <h3>Add the first event</h3>
+          <p>Events are sorted automatically. Use the example dataset to see the visual model immediately.</p>
+        </div>
+
+        <ol id="timeline-list" class="timeline-list" aria-live="polite"></ol>
+      </section>
+    </section>
+  </main>
+
+  <footer>
+    <p>Timeline is open-source software released under the MIT License.</p>
+    <a href="https://github.com/xtreemze/timeline">Source on GitHub</a>
+  </footer>
+
+  <div id="status" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
+  <script src="./app.js" defer></script>
+</body>
+</html>
