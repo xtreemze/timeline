@@ -27,6 +27,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate application JavaScript
+        run: node --check site/app.js
+
+      - name: Validate static entry point
+        run: test -f site/index.html && test -f site/styles.css && test -f site/icon.svg
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
