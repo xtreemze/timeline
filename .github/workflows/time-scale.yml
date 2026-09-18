@@ -1,0 +1,28 @@
+name: Time scale kernel
+
+on:
+  pull_request:
+    paths:
+      - 'site/time-scale.js'
+      - 'tests/time-scale.test.mjs'
+      - '.github/workflows/time-scale.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'site/time-scale.js'
+      - 'tests/time-scale.test.mjs'
+      - '.github/workflows/time-scale.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node --check site/time-scale.js
+      - run: node --test tests/time-scale.test.mjs
