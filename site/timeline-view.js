@@ -286,7 +286,6 @@
       const usable = Math.max(1, primaryLength - padding * 2);
 
       const stage = createElement("div", "timeline-stage");
-      stage.setAttribute("aria-hidden", "true");
       this.surface.append(stage);
 
       const axis = createElement("div", "timeline-axis");
@@ -399,10 +398,10 @@
         }
       }
       let bestLane = 0;
-      let bestDistance = Infinity;
+      let bestDistance = -1;
       for (let lane = 0; lane < occupied.length; lane += 1) {
         const distance = Math.abs(position - occupied[lane]);
-        if (distance < bestDistance) {
+        if (distance > bestDistance) {
           bestDistance = distance;
           bestLane = lane;
         }
