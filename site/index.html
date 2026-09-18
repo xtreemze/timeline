@@ -13,6 +13,7 @@
   <title>Timeline — events, ranges, and stories</title>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./timeline-view.css">
 </head>
 <body>
   <a class="skip-link" href="#workspace">Skip to timeline workspace</a>
@@ -211,6 +212,26 @@
           <button id="clear-filters" class="button ghost compact-button" type="button">Reset filters</button>
         </div>
 
+        <section id="timeline-view" class="timeline-view" aria-label="Interactive timeline" hidden>
+          <div class="timeline-view-toolbar">
+            <div class="timeline-orientation-control" role="group" aria-label="Timeline orientation">
+              <button id="timeline-orientation-landscape" class="button secondary" type="button" aria-pressed="true">Landscape</button>
+              <button id="timeline-orientation-portrait" class="button secondary" type="button" aria-pressed="false">Portrait</button>
+            </div>
+            <div class="timeline-zoom-controls" aria-label="Timeline zoom">
+              <button id="timeline-zoom-out" class="button secondary" type="button" aria-label="Zoom out">−</button>
+              <button id="timeline-fit" class="button secondary" type="button">Fit</button>
+              <button id="timeline-zoom-in" class="button secondary" type="button" aria-label="Zoom in">+</button>
+            </div>
+            <span id="timeline-window-readout" class="timeline-window-readout" aria-live="polite">No visible events</span>
+          </div>
+          <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan. Use the plus and minus controls, mouse wheel, or plus and minus keys to zoom. Press Home to fit all visible events.</p>
+          <div id="timeline-surface" class="timeline-surface is-landscape" tabindex="0" role="group" aria-describedby="timeline-surface-help"></div>
+          <aside id="timeline-detail" class="timeline-detail" aria-live="polite" hidden></aside>
+        </section>
+
+        <p class="timeline-list-heading">Detailed chronology</p>
+
         <section id="story-focus" class="story-focus" aria-live="polite" hidden>
           <div class="story-focus-copy">
             <p class="kicker">Story focus</p>
@@ -248,6 +269,8 @@
   </footer>
 
   <div id="status" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
+  <script src="./time-scale.js" defer></script>
+  <script src="./timeline-view.js" defer></script>
   <script src="./app.js" defer></script>
 </body>
 </html>
