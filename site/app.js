@@ -136,6 +136,7 @@
     search: document.querySelector("#timeline-search"),
     categoryFilter: document.querySelector("#category-filter"),
     clearFilters: document.querySelector("#clear-filters"),
+    timelineViewRoot: document.querySelector("#timeline-view"),
     storyFocus: document.querySelector("#story-focus"),
     storyFocusTitle: document.querySelector("#story-focus-title"),
     storyFocusDescription: document.querySelector("#story-focus-description"),
@@ -159,6 +160,8 @@
     activeStoryId: null,
     storyCursor: 0
   };
+
+  const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
 
   function newId(prefix = "id") {
     const random = globalThis.crypto && typeof globalThis.crypto.randomUUID === "function"
@@ -497,6 +500,23 @@
     }
 
     els.list.replaceChildren(...visible.map((item) => renderItem(item, activeStory)));
+
+    const storyCurrentId = activeStory?.itemIds[ui.storyCursor] || null;
+    timelineView?.setItems(visible.map((item) => {
+      const category = getCategory(item.categoryId);
+      return {
+        id: item.id,
+        kind: item.kind,
+        title: item.title,
+        description: item.description,
+        categoryName: category.name,
+        color: category.color,
+        start: parseDate(item.start).sortKey,
+        end: item.end ? parseDate(item.end).sortKey : null,
+        startLabel: formatDateInline(item.start),
+        endLabel: item.end ? formatDateInline(item.end) : ""
+      };
+    }), { focusId: storyCurrentId });
   }
 
   function renderItem(item, activeStory) {
