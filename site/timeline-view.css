@@ -277,6 +277,7 @@
   .timeline-surface.is-portrait { height: 720px; }
   .is-portrait .timeline-axis { left: 42px; }
   .is-portrait .timeline-tick { left: 36px; }
+  .is-portrait .timeline-range-segment { left: 39px; }
   .is-portrait .timeline-tick-label {
     left: 16px;
     max-width: 80px;
