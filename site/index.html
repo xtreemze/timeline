@@ -212,6 +212,21 @@
           <button id="clear-filters" class="button ghost compact-button" type="button">Reset filters</button>
         </div>
 
+
+        <section id="story-focus" class="story-focus" aria-live="polite" hidden>
+          <div class="story-focus-copy">
+            <p class="kicker">Story focus</p>
+            <h3 id="story-focus-title"></h3>
+            <p id="story-focus-description"></p>
+          </div>
+          <div class="story-focus-controls">
+            <span id="story-focus-position">1 / 1</span>
+            <button id="story-prev" class="button secondary" type="button">Previous</button>
+            <button id="story-next" class="button secondary" type="button">Next</button>
+            <button id="story-exit" class="button ghost" type="button">Exit story</button>
+          </div>
+        </section>
+
         <section id="timeline-view" class="timeline-view" aria-label="Interactive timeline" hidden>
           <div class="timeline-view-toolbar">
             <div class="timeline-orientation-control" role="group" aria-label="Timeline orientation">
@@ -230,21 +245,6 @@
           <aside id="timeline-detail" class="timeline-detail" aria-live="polite" hidden></aside>
         </section>
 
-        <p class="timeline-list-heading">Detailed chronology</p>
-
-        <section id="story-focus" class="story-focus" aria-live="polite" hidden>
-          <div class="story-focus-copy">
-            <p class="kicker">Story focus</p>
-            <h3 id="story-focus-title"></h3>
-            <p id="story-focus-description"></p>
-          </div>
-          <div class="story-focus-controls">
-            <span id="story-focus-position">1 / 1</span>
-            <button id="story-prev" class="button secondary" type="button">Previous</button>
-            <button id="story-next" class="button secondary" type="button">Next</button>
-            <button id="story-exit" class="button ghost" type="button">Exit story</button>
-          </div>
-        </section>
 
         <div id="empty-state" class="empty-state">
           <p class="empty-symbol" aria-hidden="true">POINT • RANGE • STORY</p>
@@ -258,6 +258,7 @@
           <p>Change the search, category filter, or leave story focus to restore the full chronology.</p>
         </div>
 
+        <p class="timeline-list-heading">Detailed chronology</p>
         <ol id="timeline-list" class="timeline-list" aria-live="polite"></ol>
       </section>
     </section>
