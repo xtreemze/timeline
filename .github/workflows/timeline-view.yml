@@ -1,0 +1,36 @@
+name: Timeline view
+
+on:
+  pull_request:
+    paths:
+      - 'site/index.html'
+      - 'site/app.js'
+      - 'site/timeline-view.js'
+      - 'site/timeline-view.css'
+      - 'site/time-scale.js'
+      - '.github/workflows/timeline-view.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'site/index.html'
+      - 'site/app.js'
+      - 'site/timeline-view.js'
+      - 'site/timeline-view.css'
+      - 'site/time-scale.js'
+      - '.github/workflows/timeline-view.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node --check site/time-scale.js
+      - run: node --check site/timeline-view.js
+      - run: node --check site/app.js
+      - run: node --test tests/time-scale.test.mjs
