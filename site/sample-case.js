@@ -149,6 +149,7 @@
         categoryId: "evidence", location: SAMPLE_LOCATIONS.stockholm,
         presentation: { variant: "evidence-dossier" },
         evidenceIds: ["ev-record-1"],
+        relationChanges: [{ relationshipId:"r-bridge", operation:"activate" }],
         tags: [{ label: "Audit", icon: "evidence", hue: 150 }]
       },
       {
@@ -158,6 +159,11 @@
         categoryId: "communication", location: SAMPLE_LOCATIONS.malmo,
         presentation: { variant: "hero-split" },
         evidenceIds: ["ev-note-2"],
+        relationChanges: [{
+          relationshipId:"r-bridge",
+          operation:"update",
+          properties:{ phase:"formal investigation", trigger:"initial tip" }
+        }],
         tags: [{ label: "Tip", icon: "note", hue: 225 }]
       },
       {
@@ -167,6 +173,7 @@
         categoryId: "witness", location: SAMPLE_LOCATIONS.copenhagen,
         presentation: { variant: "editorial-mosaic" },
         evidenceIds: ["ev-note-1"],
+        relationChanges: [{ relationshipId:"r-bridge-public", operation:"activate" }],
         tags: [{ label: "Witnesses", icon: "person", hue: 285 }]
       },
       {
@@ -194,6 +201,13 @@
         categoryId: "witness", location: SAMPLE_LOCATIONS.malmo,
         presentation: { variant: "evidence-dossier" },
         evidenceIds: ["ev-note-1"],
+        relationChanges: [{
+          relationshipId:"r-bridge-public",
+          operation:"update",
+          predicate:"corroboratedWith",
+          role:"witness contact",
+          properties:{ corroborated:true }
+        }],
         tags: [{ label: "Witness", icon: "person", hue: 292 }]
       },
       {
@@ -238,6 +252,7 @@
             caption: "Third photograph demonstrates the maximum three-image event slideshow."
           }
         ],
+        relationChanges: [{ relationshipId:"r-bridge-public", operation:"deactivate" }],
         tags: [{ label: "Disclosure", icon: "milestone", hue: 18 }]
       },
       {
@@ -247,6 +262,7 @@
         categoryId: "decision", location: SAMPLE_LOCATIONS.malmo,
         presentation: { variant: "evidence-dossier" },
         evidenceIds: ["ev-record-1", "ev-note-2"],
+        relationChanges: [{ relationshipId:"r-bridge", operation:"deactivate" }],
         tags: [{ label: "Closure", icon: "decision", hue: 50 }]
       }
     ],
@@ -326,8 +342,8 @@
       { id:"r-story-reconstruction-o", subjectId:"group-organization", objectId:"story-reconstruction", predicate:"subjectOf" },
       { id:"r-story-institutional-o", subjectId:"group-organization", objectId:"story-institutional", predicate:"participatesIn" },
       { id:"r-story-institutional-p", subjectId:"group-public", objectId:"story-institutional", predicate:"observes" },
-      { id:"r-bridge", subjectId:"group-investigators", objectId:"group-organization", predicate:"investigated", time:dayExtent("2025-11-18","2026-09-30"), attributes:{ scope:"case phase" } },
-      { id:"r-bridge-public", subjectId:"group-investigators", objectId:"group-public", predicate:"interviewed", time:dayExtent("2026-07-07","2026-09-19"), attributes:{ scope:"witness programme" } }
+      { id:"r-bridge", subjectId:"group-investigators", objectId:"group-organization", predicate:"investigated", initialState:"inactive", attributes:{ scope:"case phase" } },
+      { id:"r-bridge-public", subjectId:"group-investigators", objectId:"group-public", predicate:"interviewed", initialState:"inactive", attributes:{ scope:"witness programme" } }
     ]
   };
   
