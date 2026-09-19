@@ -74,6 +74,8 @@ test("browse exposes focusable stories before collapsed focusable categories", a
   assert.match(app, /function focusCategory\([\s\S]*categoryFilter = id[\s\S]*fitVisible/);
   assert.match(css, /\.browser-story-card/);
   assert.match(css, /\.timeline-category-focus/);
+  assert.match(css, /\.timeline-category-shell\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) auto/);
+  assert.doesNotMatch(css, /\.timeline-category-focus\s*\{[\s\S]{0,160}position:\s*absolute/);
 });
 
 test("month accents are emitted only for months containing up to three visible segments", () => {
