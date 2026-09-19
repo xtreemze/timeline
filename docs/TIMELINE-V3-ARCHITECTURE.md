@@ -462,7 +462,7 @@ Hero titles use container-relative `cqi` sizing rather than viewport width and d
 
 ## Responsive presentation stage
 
-The timeline view and temporal relation graph are one presentation surface even though they retain independent interaction models.
+The timeline is the persistent application and presentation canvas. The temporal relation graph retains an independent interaction model, but appears as an explicit overlay exploration surface in normal application mode and as a contextual backdrop inside focused Relations.
 
 Presentation state records two independent dimensions:
 
@@ -481,7 +481,21 @@ Physical screen orientation never rewrites the timeline orientation.
 - The detail overlay progressively reduces hero height, typography, gaps and section sizes as available width/height shrinks.
 - All visual surfaces use `min-width: 0` / `min-height: 0` contracts so maps, canvases and media can shrink without causing overflow.
 
-Fullscreen targets `#presentation-stage`, not the entire editor or document. The authoring sidebar, search controls, detailed chronology list, site navigation and footer therefore remain outside the fullscreen presentation.
+### Application-shell ownership
+
+Normal application mode follows the same ownership principle as fullscreen: the timeline remains viewport-sized and utility UI never participates in its layout geometry.
+
+- Mobile is the baseline. The editor and Browse experience are bottom sheets above the timeline, using safe-area insets and touch-sized controls.
+- At wider viewports those sheets progressively become bounded sidebars without changing timeline dimensions.
+- Browse owns search, category filtering, story navigation, empty-state explanation and the detailed chronology list. Those are not repeated on the primary canvas.
+- Item, Story, Category and Graph forms reuse the existing data model inside one editor surface with internal tabs.
+- Relation-graph exploration is opened explicitly as an overlay rather than occupying a permanent sibling column.
+- Timeline orientation, zoom, auto-advance and presentation controls are progressively disclosed in a compact View surface.
+- Project import/export/example/destructive actions live behind the Project disclosure menu in the floating command bar.
+- One large utility surface is shown at a time. Event focus remains a separate top-layer interaction and the timeline stays visually present beneath it.
+- With no events the timeline still renders its neutral axis; guidance for the empty project lives in Browse rather than replacing the workspace.
+
+Fullscreen targets `#presentation-stage`, not editor/browser/project surfaces. Browser fullscreen therefore naturally excludes application chrome and preserves the timeline-plus-focused-event presentation.
 
 Focus/unfocus changes use named Web View Transitions for the timeline and detail overlay. Reduced-motion preferences bypass animated transitions.
 
