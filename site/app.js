@@ -124,7 +124,7 @@
         categoryId: "document", location: SAMPLE_LOCATIONS.stockholm,
         presentation: { variant: "evidence-dossier" },
         evidenceIds: ["ev-note-2"],
-        tags: [{ label: "Policy", icon: "document", hue: 215 }]
+        tags: [{ label: "Policy", icon: "evidence", hue: 215 }]
       },
       {
         id: "evt-procedure-2021", kind: "event", start: "2021-10-08", end: null,
@@ -169,7 +169,7 @@
         categoryId: "communication", location: SAMPLE_LOCATIONS.malmo,
         presentation: { variant: "hero-split" },
         evidenceIds: ["ev-note-2"],
-        tags: [{ label: "Tip", icon: "communication", hue: 225 }]
+        tags: [{ label: "Tip", icon: "note", hue: 225 }]
       },
       {
         id: "evt-interviews-2026", kind: "range", start: "2026-07-07", end: "2026-08-26",
@@ -196,7 +196,7 @@
         categoryId: "communication", location: SAMPLE_LOCATIONS.stockholm,
         presentation: { variant: "hero-split" },
         evidenceIds: ["ev-note-2"],
-        tags: [{ label: "Alert", icon: "communication", hue: 228 }]
+        tags: [{ label: "Alert", icon: "note", hue: 228 }]
       },
       {
         id: "evt-witness-day", kind: "event", start: "2026-09-19T09:20+02:00", end: null,
@@ -214,7 +214,7 @@
         categoryId: "communication", location: SAMPLE_LOCATIONS.copenhagen,
         presentation: { variant: "editorial-mosaic" },
         evidenceIds: ["ev-news-1"],
-        tags: [{ label: "Verification", icon: "communication", hue: 210 }]
+        tags: [{ label: "Verification", icon: "note", hue: 210 }]
       },
       {
         id: "evt-decision-day", kind: "event", start: "2026-09-19T14:45+02:00", end: null,
@@ -232,11 +232,23 @@
         categoryId: "incident", location: SAMPLE_LOCATIONS.copenhagen,
         presentation: { variant: "editorial-mosaic" },
         evidenceIds: ["ev-news-1"],
-        media: [{
-          src: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1600&q=80",
-          alt: "Newsroom used as demonstration imagery",
-          caption: "Editorial-mosaic example for the public disclosure event."
-        }],
+        media: [
+          {
+            src: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1600&q=80",
+            alt: "Newsroom used as demonstration imagery",
+            caption: "Editorial-mosaic example for the public disclosure event."
+          },
+          {
+            src: "https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=1600&q=80",
+            alt: "Printed newspapers used as demonstration imagery",
+            caption: "Second photograph in the disclosure slideshow."
+          },
+          {
+            src: "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1600&q=80",
+            alt: "Journalism workspace used as demonstration imagery",
+            caption: "Third photograph demonstrates the maximum three-image event slideshow."
+          }
+        ],
         tags: [{ label: "Disclosure", icon: "milestone", hue: 18 }]
       },
       {
