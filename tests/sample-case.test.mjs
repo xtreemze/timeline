@@ -183,3 +183,41 @@ test("storybook scenes remain recognizable through distributed media and semanti
     for (const icon of icons) assert.ok(supported.has(icon), `${story.title}: unsupported icon ${icon}`);
   }
 });
+
+
+test("categories classify event semantics independently from story membership", () => {
+  const categoryIds = new Set(sample.categories.map((category) => category.id));
+  const categoryNames = new Set(sample.categories.map((category) => category.name));
+  const storyTitles = new Set(sample.stories.map((story) => story.title));
+
+  assert.equal(sample.categories.length, 9);
+  for (const title of storyTitles) assert.equal(categoryNames.has(title), false, title);
+  for (const item of sample.items) assert.ok(categoryIds.has(item.categoryId), item.id);
+
+  for (const story of sample.stories) {
+    const categories = new Set(storyItems(story).map((item) => item.categoryId));
+    assert.ok(categories.size >= 4, `${story.title} should span multiple event categories`);
+  }
+
+  const storyIdsByCategory = new Map(sample.categories.map((category) => [category.id, new Set()]));
+  for (const item of sample.items) {
+    storyIdsByCategory.get(item.categoryId)?.add(item.extensions?.narrative?.storyId);
+  }
+  const sharedCategories = [...storyIdsByCategory.values()].filter((storyIds) => storyIds.size > 1);
+  assert.ok(sharedCategories.length >= 4, "taxonomy should be reusable across stories");
+
+  assert.deepEqual(
+    sample.categories.map((category) => category.id),
+    [
+      "context",
+      "movement",
+      "creation",
+      "conflict",
+      "decision",
+      "discovery",
+      "relationship",
+      "state-change",
+      "resolution"
+    ]
+  );
+});
