@@ -1139,7 +1139,9 @@
       }
       changes.push(change);
     }
-    return graph.normalizeRelationChanges(changes);
+    const existing = getItem(els.itemId.value)?.relationChanges || [];
+    const overflow = existing.slice(els.itemRelationChangeRows.length);
+    return graph.normalizeRelationChanges([...changes, ...overflow]);
   }
 
   function fillRelationChangeForm(item) {
