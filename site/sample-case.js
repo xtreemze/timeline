@@ -168,7 +168,7 @@
       "tags": [
         {
           "label": "Journey",
-          "icon": "milestone",
+          "icon": "relation",
           "hue": 28
         }
       ],
@@ -228,7 +228,7 @@
       "tags": [
         {
           "label": "Place",
-          "icon": "place",
+          "icon": "home",
           "hue": 28
         }
       ],
@@ -242,7 +242,14 @@
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1600&q=80",
+          "alt": "Illustrative house exterior for the fictional brick house",
+          "caption": "Mood image only; not evidence or a real location."
+        }
+      ]
     },
     {
       "id": "pigs-stick-house",
@@ -288,7 +295,7 @@
       "tags": [
         {
           "label": "Place",
-          "icon": "place",
+          "icon": "home",
           "hue": 28
         }
       ],
@@ -302,7 +309,14 @@
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1600&q=80",
+          "alt": "Illustrative house exterior for the fictional brick house",
+          "caption": "Mood image only; not evidence or a real location."
+        }
+      ]
     },
     {
       "id": "pigs-brick-build",
@@ -356,7 +370,7 @@
       "tags": [
         {
           "label": "Place",
-          "icon": "place",
+          "icon": "home",
           "hue": 28
         }
       ],
@@ -423,7 +437,7 @@
       "tags": [
         {
           "label": "Turning point",
-          "icon": "milestone",
+          "icon": "danger",
           "hue": 28
         }
       ],
@@ -489,7 +503,7 @@
       "tags": [
         {
           "label": "Escalation",
-          "icon": "milestone",
+          "icon": "danger",
           "hue": 28
         }
       ],
@@ -557,7 +571,7 @@
       "tags": [
         {
           "label": "Conflict",
-          "icon": "milestone",
+          "icon": "danger",
           "hue": 28
         }
       ],
@@ -627,7 +641,7 @@
       "tags": [
         {
           "label": "Climax",
-          "icon": "milestone",
+          "icon": "danger",
           "hue": 28
         }
       ],
@@ -688,7 +702,7 @@
       "tags": [
         {
           "label": "Resolution",
-          "icon": "milestone",
+          "icon": "home",
           "hue": 28
         }
       ],
@@ -707,6 +721,13 @@
         {
           "relationshipId": "rel-pigs-wolf-threat",
           "operation": "deactivate"
+        }
+      ],
+      "media": [
+        {
+          "src": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1600&q=80",
+          "alt": "Illustrative house exterior for the fictional brick house",
+          "caption": "Mood image only; not evidence or a real location."
         }
       ]
     },
@@ -814,7 +835,7 @@
       "tags": [
         {
           "label": "Inciting incident",
-          "icon": "milestone",
+          "icon": "object",
           "hue": 282
         }
       ],
@@ -874,7 +895,7 @@
       "tags": [
         {
           "label": "Threat",
-          "icon": "milestone",
+          "icon": "danger",
           "hue": 282
         }
       ],
@@ -940,7 +961,7 @@
       "tags": [
         {
           "label": "Choice",
-          "icon": "milestone",
+          "icon": "decision",
           "hue": 282
         }
       ],
@@ -954,7 +975,14 @@
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1600&q=80",
+          "alt": "Dense forest used as Snow White mood art",
+          "caption": "Illustrative fictional forest."
+        }
+      ]
     },
     {
       "id": "snow-finds-cottage",
@@ -1000,7 +1028,7 @@
       "tags": [
         {
           "label": "Discovery",
-          "icon": "milestone",
+          "icon": "home",
           "hue": 282
         }
       ],
@@ -1085,7 +1113,7 @@
       "tags": [
         {
           "label": "Alliance",
-          "icon": "milestone",
+          "icon": "person",
           "hue": 282
         }
       ],
@@ -1145,7 +1173,7 @@
       "tags": [
         {
           "label": "Discovery",
-          "icon": "milestone",
+          "icon": "search",
           "hue": 282
         }
       ],
@@ -1213,7 +1241,7 @@
       "tags": [
         {
           "label": "Escalation",
-          "icon": "milestone",
+          "icon": "danger",
           "hue": 282
         }
       ],
@@ -1284,7 +1312,7 @@
       "tags": [
         {
           "label": "Climax",
-          "icon": "milestone",
+          "icon": "object",
           "hue": 282
         }
       ],
@@ -1362,7 +1390,7 @@
       "tags": [
         {
           "label": "Consequence",
-          "icon": "milestone",
+          "icon": "object",
           "hue": 282
         }
       ],
@@ -1376,7 +1404,14 @@
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1600&q=80",
+          "alt": "Mountain landscape used as story mood art",
+          "caption": "Illustrative landscape."
+        }
+      ]
     },
     {
       "id": "snow-revival",
@@ -1423,7 +1458,7 @@
       "tags": [
         {
           "label": "Reversal",
-          "icon": "milestone",
+          "icon": "magic",
           "hue": 282
         }
       ],
@@ -1484,7 +1519,7 @@
       "tags": [
         {
           "label": "Resolution",
-          "icon": "milestone",
+          "icon": "crown",
           "hue": 282
         }
       ],
@@ -1503,6 +1538,13 @@
         {
           "relationshipId": "rel-snow-queen-threat",
           "operation": "deactivate"
+        }
+      ],
+      "media": [
+        {
+          "src": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1600&q=80",
+          "alt": "Old stone structure used as story mood art",
+          "caption": "Illustrative architecture; exercises the three-image slideshow."
         }
       ]
     },
@@ -1618,7 +1660,7 @@
       "tags": [
         {
           "label": "Conflict",
-          "icon": "milestone",
+          "icon": "danger",
           "hue": 214
         }
       ],
@@ -1678,7 +1720,7 @@
       "tags": [
         {
           "label": "Invitation",
-          "icon": "milestone",
+          "icon": "note",
           "hue": 214
         }
       ],
@@ -1692,7 +1734,14 @@
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?auto=format&fit=crop&w=1600&q=80",
+          "alt": "Palace-like architecture used as Cinderella mood art",
+          "caption": "Mood image only; not evidence or a real location."
+        }
+      ]
     },
     {
       "id": "cinderella-denied",
@@ -1738,7 +1787,7 @@
       "tags": [
         {
           "label": "Setback",
-          "icon": "milestone",
+          "icon": "decision",
           "hue": 214
         }
       ],
@@ -1798,7 +1847,7 @@
       "tags": [
         {
           "label": "Transformation",
-          "icon": "milestone",
+          "icon": "magic",
           "hue": 214
         }
       ],
@@ -1873,7 +1922,7 @@
       "tags": [
         {
           "label": "Encounter",
-          "icon": "milestone",
+          "icon": "crown",
           "hue": 214
         }
       ],
@@ -1887,7 +1936,14 @@
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?auto=format&fit=crop&w=1600&q=80",
+          "alt": "Palace-like architecture used as Cinderella mood art",
+          "caption": "Mood image only; not evidence or a real location."
+        }
+      ]
     },
     {
       "id": "cinderella-second-ball",
@@ -1941,7 +1997,7 @@
       "tags": [
         {
           "label": "Escalation",
-          "icon": "milestone",
+          "icon": "crown",
           "hue": 214
         }
       ],
@@ -1955,7 +2011,14 @@
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?auto=format&fit=crop&w=1600&q=80",
+          "alt": "Palace-like architecture used as Cinderella mood art",
+          "caption": "Mood image only; not evidence or a real location."
+        }
+      ]
     },
     {
       "id": "cinderella-slipper",
@@ -2001,7 +2064,7 @@
       "tags": [
         {
           "label": "Clue",
-          "icon": "milestone",
+          "icon": "object",
           "hue": 214
         }
       ],
@@ -2020,6 +2083,13 @@
         {
           "relationshipId": "rel-cinderella-prince-search",
           "operation": "activate"
+        }
+      ],
+      "media": [
+        {
+          "src": "https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?auto=format&fit=crop&w=1600&q=80",
+          "alt": "Palace-like architecture used as Cinderella mood art",
+          "caption": "Mood image only; not evidence or a real location."
         }
       ]
     },
@@ -2075,7 +2145,7 @@
       "tags": [
         {
           "label": "Investigation",
-          "icon": "milestone",
+          "icon": "search",
           "hue": 214
         }
       ],
@@ -2136,7 +2206,7 @@
       "tags": [
         {
           "label": "Recognition",
-          "icon": "milestone",
+          "icon": "search",
           "hue": 214
         }
       ],
@@ -2207,7 +2277,7 @@
       "tags": [
         {
           "label": "Resolution",
-          "icon": "milestone",
+          "icon": "crown",
           "hue": 214
         }
       ],
@@ -2230,6 +2300,13 @@
         {
           "relationshipId": "rel-cinderella-stepfamily-control",
           "operation": "deactivate"
+        }
+      ],
+      "media": [
+        {
+          "src": "https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?auto=format&fit=crop&w=1600&q=80",
+          "alt": "Palace-like architecture used as Cinderella mood art",
+          "caption": "Mood image only; not evidence or a real location."
         }
       ]
     }
