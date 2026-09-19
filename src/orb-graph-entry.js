@@ -7,6 +7,10 @@ const TOUCH_NODE_MOVE_TOLERANCE_PX = 12;
 const INTERACTION_SETTLE_MS = 2400;
 const DRAG_ALPHA_TARGET = 0.12;
 const RELEASE_ALPHA_TARGET = 0.065;
+const TOPOLOGY_ALPHA_TARGET = 0.085;
+const TOPOLOGY_EDGE_RELEASE_MS = 280;
+const TOPOLOGY_SETTLE_MS = 820;
+const TOPOLOGY_ENTRY_OFFSET = 36;
 
 function resolvedColor(container, name, fallback) {
   const value = getComputedStyle(container).getPropertyValue(name).trim();
@@ -91,6 +95,8 @@ function create(container, handlers = {}) {
   let selectedGraphObject = null;
   let interactionSettleTimer = 0;
   let forceNodeCount = 0;
+  let hasGraphData = false;
+  const topologyTimers = new Set();
   const activeTouchPointers = new Set();
 
   const orb = new OrbView(container, {
@@ -370,7 +376,10 @@ function create(container, handlers = {}) {
 
   function nodeStyle(data) {
     const type = semanticType(data);
-    const color =
+    const transition = data?.__timelineTransition || "active";
+    const exiting = transition === "exiting";
+    const entering = transition === "entering";
+    const baseColor =
       type === "event" ? palette.focus :
       type === "story" ? palette.story :
       type === "evidence" ? "#8a4f2b" :
@@ -378,9 +387,10 @@ function create(container, handlers = {}) {
       type === "person" ? "#4b5f86" :
       type === "organization" ? "#6b526f" :
       palette.ink;
+    const color = exiting ? palette.muted : baseColor;
     const size = type === "event" ? 12 : type === "story" ? 13 : 10;
     return {
-      size,
+      size: exiting ? Math.max(6, size * 0.72) : entering ? size * 0.88 : size,
       mass: type === "event" ? 2.6 : type === "story" ? 2.2 : 1.35,
       shape: nodeShape(type),
       imageUrl: semanticIconUrl(type),
@@ -391,11 +401,11 @@ function create(container, handlers = {}) {
       borderColor: palette.paper,
       borderColorHover: palette.paper,
       borderColorSelected: palette.paper,
-      borderWidth: 2,
+      borderWidth: exiting ? 1 : 2,
       borderWidthSelected: 4,
       label: data?.label || String(data?.id || ""),
-      fontSize: 12,
-      fontColor: palette.ink,
+      fontSize: exiting ? 10 : 12,
+      fontColor: exiting ? palette.muted : palette.ink,
       fontBackgroundColor: palette.paper,
       zIndex: type === "event" ? 4 : type === "story" ? 3 : 2
     };
@@ -414,24 +424,33 @@ function create(container, handlers = {}) {
 
   function edgeStyle(data) {
     const state = data?.temporalState || "timeless";
+    const transition = data?.__timelineTransition || "active";
+    const releasing = transition === "releasing";
+    const entering = transition === "entering";
     const inactive = state === "inactive";
     const changed = state === "changed";
     const timeless = state === "timeless";
     const semantic = edgeSemantic(data);
-    const color = inactive || timeless ? palette.muted : changed ? palette.story : semantic.color;
+    const color = releasing
+      ? palette.muted
+      : inactive || timeless
+        ? palette.muted
+        : changed
+          ? palette.story
+          : semantic.color;
     return {
       color,
       colorHover: palette.focus,
       colorSelected: palette.focus,
-      width: inactive ? 0.35 : timeless ? 0.6 : changed ? 1.5 : 0.9,
+      width: releasing ? 0.42 : entering ? 1.45 : inactive ? 0.35 : timeless ? 0.6 : changed ? 1.5 : 0.9,
       widthHover: 1.8,
       widthSelected: 2.2,
-      arrowSize: inactive ? 0.8 : 1.25,
+      arrowSize: releasing ? 0.65 : entering ? 1.45 : inactive ? 0.8 : 1.25,
       label: inactive ? "" : `${semantic.glyph} ${data?.label || ""}`.trim(),
       fontSize: 11,
       fontColor: color,
       fontBackgroundColor: palette.paper,
-      lineStyle: inactive
+      lineStyle: releasing || inactive
         ? { type: EdgeLineStyleType.DASHED }
         : { type: EdgeLineStyleType.SOLID }
     };
@@ -508,16 +527,209 @@ function create(container, handlers = {}) {
     });
   }
 
+  function clearTopologyTimers() {
+    for (const timer of topologyTimers) globalThis.clearTimeout(timer);
+    topologyTimers.clear();
+  }
+
+  function scheduleTopologyStep(callback, delay) {
+    const timer = globalThis.setTimeout(() => {
+      topologyTimers.delete(timer);
+      callback();
+    }, delay);
+    topologyTimers.add(timer);
+  }
+
+  function prefersReducedMotion() {
+    return globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+  }
+
+  function transitionRecord(record, state) {
+    return { ...record, __timelineTransition: state };
+  }
+
+  function currentNodeRecords() {
+    return orb.data.getNodes().map((node) => node.getData());
+  }
+
+  function currentEdgeRecords() {
+    return orb.data.getEdges().map((edge) => edge.getData());
+  }
+
+  function markNodeTransition(id, state) {
+    const node = orb.data.getNodeById(id);
+    if (!node) return;
+    const next = transitionRecord(node.getData(), state);
+    node.setData(next, { isNotifySkipped: true });
+    node.setStyle(nodeStyle(next), { isNotifySkipped: true });
+  }
+
+  function markEdgeTransition(id, state) {
+    const edge = orb.data.getEdgeById(id);
+    if (!edge) return;
+    const next = transitionRecord(edge.getData(), state);
+    edge.setData(next, { isNotifySkipped: true });
+    edge.setStyle(edgeStyle(next), { isNotifySkipped: true });
+  }
+
+  function deterministicAngle(id) {
+    const text = String(id);
+    let hash = 0;
+    for (let index = 0; index < text.length; index += 1) {
+      hash = ((hash << 5) - hash + text.charCodeAt(index)) | 0;
+    }
+    return ((Math.abs(hash) % 360) * Math.PI) / 180;
+  }
+
+  function positionIncomingNodes(incomingNodes, desiredEdges) {
+    const incomingIds = new Set(incomingNodes.map((node) => String(node.id)));
+    for (const record of incomingNodes) {
+      const node = orb.data.getNodeById(record.id);
+      if (!node) continue;
+      const adjacent = desiredEdges
+        .filter((edge) => String(edge.start) === String(record.id) || String(edge.end) === String(record.id))
+        .map((edge) => String(edge.start) === String(record.id) ? edge.end : edge.start);
+      const anchorId = adjacent.find((id) => !incomingIds.has(String(id))) ?? adjacent[0];
+      if (anchorId == null) continue;
+      const anchor = orb.data.getNodeById(anchorId);
+      const position = anchor?.getPosition?.();
+      if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) continue;
+      const angle = deterministicAngle(record.id);
+      node.setPosition({
+        x: position.x + Math.cos(angle) * TOPOLOGY_ENTRY_OFFSET,
+        y: position.y + Math.sin(angle) * TOPOLOGY_ENTRY_OFFSET
+      });
+    }
+  }
+
+  function finalizeTopology(data) {
+    const nodes = Array.isArray(data?.nodes) ? data.nodes : [];
+    const edges = Array.isArray(data?.edges) ? data.edges : [];
+    const desiredNodeIds = new Set(nodes.map((node) => String(node.id)));
+    const desiredEdgeIds = new Set(edges.map((edge) => String(edge.id)));
+    const removeEdgeIds = currentEdgeRecords()
+      .filter((edge) => !desiredEdgeIds.has(String(edge.id)))
+      .map((edge) => edge.id);
+    const removeNodeIds = currentNodeRecords()
+      .filter((node) => !desiredNodeIds.has(String(node.id)))
+      .map((node) => node.id);
+    if (removeEdgeIds.length || removeNodeIds.length) {
+      orb.data.remove({ edgeIds: removeEdgeIds, nodeIds: removeNodeIds });
+    }
+    orb.data.merge({
+      nodes: nodes.map((node) => transitionRecord(node, "active")),
+      edges: edges.map((edge) => transitionRecord(edge, "active"))
+    });
+    setPerformanceMode(nodes.length);
+    orb.render();
+  }
+
   function setData(data) {
+    clearTopologyTimers();
     finishTouchGesture();
     selectedGraphObject = null;
     const nodes = Array.isArray(data?.nodes) ? data.nodes : [];
     const edges = Array.isArray(data?.edges) ? data.edges : [];
     setPerformanceMode(nodes.length);
     firstRender = true;
-    orb.data.setup({ nodes, edges });
+    orb.data.setup({
+      nodes: nodes.map((node) => transitionRecord(node, "active")),
+      edges: edges.map((edge) => transitionRecord(edge, "active"))
+    });
+    hasGraphData = true;
     orb.render();
     handlers.onSimulationState?.({ running: true, mode: currentMode });
+  }
+
+  function transitionData(data) {
+    if (!hasGraphData) {
+      setData(data);
+      return;
+    }
+
+    clearTopologyTimers();
+    const nodes = Array.isArray(data?.nodes) ? data.nodes : [];
+    const edges = Array.isArray(data?.edges) ? data.edges : [];
+    const currentNodes = currentNodeRecords();
+    const currentEdges = currentEdgeRecords();
+    const currentNodeIds = new Set(currentNodes.map((node) => String(node.id)));
+    const currentEdgeById = new Map(currentEdges.map((edge) => [String(edge.id), edge]));
+    const desiredNodeIds = new Set(nodes.map((node) => String(node.id)));
+    const desiredEdgeIds = new Set(edges.map((edge) => String(edge.id)));
+
+    const outgoingNodes = currentNodes.filter((node) => !desiredNodeIds.has(String(node.id)));
+    const outgoingEdges = currentEdges.filter((edge) => !desiredEdgeIds.has(String(edge.id)));
+    const incomingNodes = nodes.filter((node) => !currentNodeIds.has(String(node.id)));
+    const rewiredEdges = edges.filter((edge) => {
+      const current = currentEdgeById.get(String(edge.id));
+      return current && (
+        String(current.start) !== String(edge.start) ||
+        String(current.end) !== String(edge.end)
+      );
+    });
+    const rewiredIds = new Set(rewiredEdges.map((edge) => String(edge.id)));
+    const enteringEdges = edges.filter((edge) => !currentEdgeById.has(String(edge.id)));
+    const stableEdges = edges.filter((edge) => currentEdgeById.has(String(edge.id)) && !rewiredIds.has(String(edge.id)));
+
+    if (prefersReducedMotion()) {
+      const breakIds = [
+        ...outgoingEdges.map((edge) => edge.id),
+        ...rewiredEdges.map((edge) => currentEdgeById.get(String(edge.id))?.id)
+      ].filter((id) => id != null);
+      if (breakIds.length || outgoingNodes.length) {
+        orb.data.remove({ edgeIds: [...new Set(breakIds)], nodeIds: outgoingNodes.map((node) => node.id) });
+      }
+      orb.data.merge({
+        nodes: nodes.map((node) => transitionRecord(node, "active")),
+        edges: edges.map((edge) => transitionRecord(edge, "active"))
+      });
+      setPerformanceMode(nodes.length);
+      orb.render();
+      applyInteractionForce(0);
+      return;
+    }
+
+    setPerformanceMode(Math.max(currentNodes.length, nodes.length));
+    orb.data.merge({
+      nodes: nodes.map((node) => transitionRecord(node, currentNodeIds.has(String(node.id)) ? "active" : "entering"))
+    });
+    positionIncomingNodes(incomingNodes, edges);
+    orb.data.merge({
+      edges: [
+        ...stableEdges.map((edge) => transitionRecord(edge, "active")),
+        ...enteringEdges.map((edge) => transitionRecord(edge, "entering"))
+      ]
+    });
+
+    for (const node of outgoingNodes) markNodeTransition(node.id, "exiting");
+    for (const edge of outgoingEdges) markEdgeTransition(edge.id, "releasing");
+    for (const edge of rewiredEdges) markEdgeTransition(currentEdgeById.get(String(edge.id))?.id, "releasing");
+
+    orb.render();
+    setInteractionHeat(TOPOLOGY_ALPHA_TARGET);
+
+    scheduleTopologyStep(() => {
+      const breakIds = [
+        ...outgoingEdges.map((edge) => edge.id),
+        ...rewiredEdges.map((edge) => currentEdgeById.get(String(edge.id))?.id)
+      ].filter((id) => id != null);
+      if (breakIds.length) orb.data.remove({ edgeIds: [...new Set(breakIds)] });
+      if (rewiredEdges.length) {
+        orb.data.merge({
+          edges: rewiredEdges.map((edge) => transitionRecord(edge, "entering"))
+        });
+      }
+      orb.render();
+      setInteractionHeat(TOPOLOGY_ALPHA_TARGET);
+    }, TOPOLOGY_EDGE_RELEASE_MS);
+
+    scheduleTopologyStep(() => {
+      if (outgoingNodes.length) {
+        orb.data.remove({ nodeIds: outgoingNodes.map((node) => node.id) });
+      }
+      finalizeTopology(data);
+      keepForceActiveAfterInteraction();
+    }, TOPOLOGY_SETTLE_MS);
   }
 
   function updateTemporalEdges(edges) {
@@ -532,6 +744,7 @@ function create(container, handlers = {}) {
 
   return Object.freeze({
     setData,
+    transitionData,
     updateTemporalEdges,
     select(kind, id) {
       const object = kind === "edge"
@@ -556,6 +769,7 @@ function create(container, handlers = {}) {
     destroy() {
       finishTouchGesture();
       clearInteractionSettleTimer();
+      clearTopologyTimers();
       container.removeEventListener("pointerdown", onPointerDown);
       container.removeEventListener("pointermove", onPointerMove);
       container.removeEventListener("pointerup", onPointerUp);
