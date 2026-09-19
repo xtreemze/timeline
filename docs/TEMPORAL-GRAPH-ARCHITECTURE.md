@@ -162,3 +162,67 @@ The timeline and relation graph should remain coordinated but independently rend
 - graph clustering/level-of-detail must be based on viewport density rather than mutating graph records.
 
 This separation prevents the force layout from becoming the source of truth for chronological position.
+
+
+## Authoring surface
+
+The Graph editor now exposes the canonical graph directly.
+
+### Node contract
+
+Nodes are nouns/subjects. The minimum authoring shape is:
+
+```json
+{
+  "id": "person-a",
+  "type": "person",
+  "name": "Example Person",
+  "attributes": {
+    "role": "investigator",
+    "caseId": "A-42"
+  }
+}
+```
+
+The UI labels `attributes` as **Properties** because graph-database users typically reason about node properties rather than implementation field names. Import normalization accepts either `properties` or `attributes`.
+
+### Edge contract
+
+Edges are directed subject–action–object statements:
+
+```json
+{
+  "id": "rel-1",
+  "subjectId": "person-a",
+  "predicate": "called",
+  "objectId": "person-b",
+  "role": "caller",
+  "attributes": {
+    "channel": "phone"
+  },
+  "time": {
+    "type": "interval",
+    "start": { "value": "2026-09-01", "precision": "day", "certainty": "exact", "calendar": "gregorian" },
+    "end": { "value": "2026-09-30", "precision": "day", "certainty": "exact", "calendar": "gregorian" }
+  }
+}
+```
+
+The action label is stored in `predicate`. Endpoints can reference reusable entities, chronology items, or stories. Referential normalization drops imported edges whose endpoints do not exist, and deletion of a node/item/story removes edges that would otherwise become orphaned.
+
+## Timeline-synchronized graph lens
+
+`site/temporal-graph-view.js` renders the current graph as an interactive SVG node-link diagram.
+
+- all canonical nodes remain structurally visible;
+- timeless edges remain visible as persistent topology;
+- timed edges whose extent intersects the timeline viewport are emphasized;
+- timed edges outside the viewport fade;
+- edge labels display the action/predicate;
+- selecting a node or edge exposes its properties;
+- selecting a chronology-item node can focus the corresponding timeline event;
+- wheel zoom and background drag manipulate the graph view without changing graph data.
+
+This lens is deliberately not the scale endpoint. It exists to make the model authorable and to validate timeline↔graph synchronization while the app remains static and dependency-free.
+
+For high node/edge counts, issue #16 remains the performance path: consume the same canonical graph through `TimelineGraph.toOrbGraph()`, use a bundled worker-backed simulation, and move dense rendering to Canvas/WebGL. Memgraph's published Orb architecture separates data, simulation/view, and events and supports worker-backed force simulation in bundled integrations, which matches this division of responsibilities.

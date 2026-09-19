@@ -977,3 +977,228 @@ footer p { margin: 0; }
   .evidence-editor-row { grid-template-columns: 1fr; }
   .timeline-category-items::before { left: 19px; }
 }
+
+/* Graph authoring and temporal graph lens */
+.graph-editor-form {
+  display: grid;
+  gap: .7rem;
+}
+.graph-edge-time {
+  margin-top: .2rem;
+}
+.graph-record-list {
+  display: grid;
+  gap: .45rem;
+  margin-bottom: 1rem;
+}
+.graph-record {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .7rem .75rem;
+  border: 1px solid var(--line);
+  border-radius: .62rem;
+  background: var(--paper);
+}
+.graph-record > div:first-child {
+  display: grid;
+  gap: .2rem;
+  min-width: 0;
+}
+.graph-record strong {
+  overflow-wrap: anywhere;
+  font-size: .76rem;
+}
+.graph-record span {
+  color: var(--muted);
+  font-size: .66rem;
+  line-height: 1.45;
+}
+.graph-record-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: .3rem;
+}
+.graph-record-actions .button {
+  min-height: 30px;
+  padding: .28rem .45rem;
+  font-size: .64rem;
+}
+
+.graph-lens {
+  margin: 1rem 0 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: .9rem;
+  background: var(--paper);
+  overflow: clip;
+}
+.graph-lens > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  min-height: 54px;
+  padding: .75rem .9rem;
+  cursor: pointer;
+  list-style: none;
+}
+.graph-lens > summary::-webkit-details-marker { display: none; }
+.graph-lens > summary > span:first-child {
+  display: grid;
+  gap: .15rem;
+}
+.graph-lens > summary strong {
+  font-size: .82rem;
+}
+.graph-lens > summary small,
+.graph-lens > summary [data-graph-status] {
+  color: var(--muted);
+  font-size: .66rem;
+  line-height: 1.4;
+}
+.temporal-graph-view {
+  border-top: 1px solid var(--line);
+}
+.temporal-graph-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: .7rem;
+  padding: .55rem .75rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font: 680 .66rem/1.2 "Monaspace Krypton Timeline", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.temporal-graph-canvas {
+  display: block;
+  width: 100%;
+  min-height: 420px;
+  max-height: 62vh;
+  background:
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--paper-2) 60%, transparent), transparent 62%),
+    var(--paper);
+  touch-action: none;
+  cursor: grab;
+}
+.temporal-graph-canvas:active { cursor: grabbing; }
+.temporal-graph-edge {
+  color: color-mix(in srgb, var(--ink) 62%, transparent);
+  cursor: pointer;
+  outline: none;
+}
+.temporal-graph-edge > line:first-of-type {
+  stroke: currentColor;
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+.temporal-graph-edge.is-active {
+  color: var(--focus);
+}
+.temporal-graph-edge.is-timeless {
+  color: color-mix(in srgb, var(--ink) 48%, transparent);
+}
+.temporal-graph-edge.is-inactive {
+  opacity: .12;
+}
+.temporal-graph-edge.is-inactive > line:first-of-type {
+  stroke-dasharray: 5 6;
+}
+.temporal-graph-edge:focus-visible,
+.temporal-graph-node:focus-visible {
+  outline: none;
+}
+.temporal-graph-edge:focus-visible > line:first-of-type {
+  stroke-width: 4;
+}
+.temporal-graph-edge-hit {
+  stroke: transparent;
+  stroke-width: 18;
+  vector-effect: non-scaling-stroke;
+}
+.temporal-graph-edge-label {
+  fill: currentColor;
+  font: 720 11px/1 "Monaspace Krypton Timeline", ui-monospace, monospace;
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.temporal-graph-edge.is-inactive .temporal-graph-edge-label { display: none; }
+.temporal-graph-arrow { fill: context-stroke; }
+
+.temporal-graph-node {
+  cursor: pointer;
+  color: var(--ink);
+  outline: none;
+}
+.temporal-graph-node circle {
+  fill: var(--paper);
+  stroke: color-mix(in srgb, var(--ink) 48%, var(--line));
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.temporal-graph-node.is-active circle {
+  fill: color-mix(in srgb, var(--focus) 9%, var(--paper));
+  stroke: var(--focus);
+  stroke-width: 3;
+}
+.temporal-graph-node.is-context {
+  opacity: .42;
+}
+.temporal-graph-node:focus-visible circle {
+  stroke-width: 5;
+}
+.temporal-graph-node-label {
+  fill: var(--ink);
+  font: 700 11px/1.2 "Monaspace Krypton Timeline", ui-monospace, monospace;
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.temporal-graph-detail {
+  display: grid;
+  grid-template-columns: minmax(120px, auto) minmax(120px, 1fr) minmax(240px, 2fr);
+  align-items: start;
+  gap: .7rem;
+  padding: .75rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: .68rem;
+}
+.temporal-graph-detail strong {
+  color: var(--ink);
+  font-size: .76rem;
+}
+.temporal-graph-detail pre {
+  max-height: 180px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font: 620 .64rem/1.5 "Monaspace Krypton Timeline", ui-monospace, monospace;
+}
+
+.app-shell.is-event-focused .graph-lens {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .graph-record {
+    display: grid;
+  }
+  .graph-record-actions {
+    justify-content: flex-start;
+  }
+  .temporal-graph-canvas {
+    min-height: 360px;
+  }
+  .temporal-graph-detail {
+    grid-template-columns: 1fr;
+  }
+}

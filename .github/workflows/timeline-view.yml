@@ -10,6 +10,7 @@ on:
       - 'site/timeline-motion.js'
       - 'site/timeline-navigation.js'
       - 'site/timeline-graph.js'
+      - 'site/temporal-graph-view.js'
       - 'site/timeline-view.css'
       - 'site/time-scale.js'
       - 'site/interchange-adapter.js'
@@ -29,6 +30,8 @@ on:
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
       - 'tests/timeline-navigation.test.mjs'
+      - 'tests/temporal-graph-view.test.mjs'
+      - 'tests/graph-editor.test.mjs'
       - '.github/workflows/timeline-view.yml'
   push:
     branches: [main]
@@ -40,6 +43,7 @@ on:
       - 'site/timeline-motion.js'
       - 'site/timeline-navigation.js'
       - 'site/timeline-graph.js'
+      - 'site/temporal-graph-view.js'
       - 'site/timeline-view.css'
       - 'site/time-scale.js'
       - 'site/interchange-adapter.js'
@@ -59,6 +63,8 @@ on:
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
       - 'tests/timeline-navigation.test.mjs'
+      - 'tests/temporal-graph-view.test.mjs'
+      - 'tests/graph-editor.test.mjs'
       - '.github/workflows/timeline-view.yml'
 
 permissions:
@@ -77,6 +83,7 @@ jobs:
       - run: node --check site/timeline-motion.js
       - run: node --check site/timeline-navigation.js
       - run: node --check site/timeline-graph.js
+      - run: node --check site/temporal-graph-view.js
       - run: node --check site/timeline-view.js
       - run: node --check site/date-range-picker.js
       - run: node --check site/event-presentation.js
@@ -87,4 +94,4 @@ jobs:
       - run: node --check site/spatial.js
       - run: node --check site/location-map.js
       - run: node --check site/app.js
-      - run: node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/timeline-interaction.test.mjs tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/event-focus-form.test.mjs tests/evidence-store.test.mjs tests/sample-case.test.mjs tests/timeline-navigation.test.mjs
+      - run: node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/timeline-interaction.test.mjs tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/event-focus-form.test.mjs tests/evidence-store.test.mjs tests/sample-case.test.mjs tests/timeline-navigation.test.mjs tests/temporal-graph-view.test.mjs tests/graph-editor.test.mjs

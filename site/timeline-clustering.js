@@ -252,6 +252,115 @@
     };
   }
 
+  function focusContextViewport(
+    items,
+    focusedId,
+    viewport,
+    pixelLength,
+    thresholdPx,
+    { desiredContext = 2, paddingRatio = 0.14, minSpanMs = 1 } = {}
+  ) {
+    const source = (Array.isArray(items) ? items : [])
+      .filter((item) => item && Number.isFinite(item.start))
+      .slice()
+      .sort((a, b) => a.start - b.start || String(a.id).localeCompare(String(b.id)));
+    const focused = source.find((item) => String(item.id) === String(focusedId));
+    if (!focused || !viewport || !Number.isFinite(viewport.start) || !Number.isFinite(viewport.end)) {
+      return null;
+    }
+
+    const span = Math.max(minSpanMs, viewport.end - viewport.start);
+    const length = Math.max(1, Number(pixelLength) || 1);
+    const threshold = Math.max(1, Number(thresholdPx) || 1);
+    const overlapsViewport = (item) => {
+      const end = Number.isFinite(item.end) ? item.end : item.start;
+      return end >= viewport.start && item.start <= viewport.end;
+    };
+    const visibleSource = source.filter(overlapsViewport);
+    const positionFor = (item) => ((item.start - viewport.start) / span) * length;
+    const representations = clusterProjectedItems(visibleSource, positionFor, threshold);
+    const representation = representations.find((entry) =>
+      entry.items.some((item) => String(item.id) === String(focused.id))
+    );
+
+    if (representation?.kind === "cluster") {
+      const deltas = representation.items
+        .filter((item) => String(item.id) !== String(focused.id))
+        .map((item) => Math.abs(item.start - focused.start))
+        .filter((delta) => delta > 0);
+      if (!deltas.length) {
+        return {
+          mode: "pin",
+          viewport: { ...viewport },
+          forceUnique: true,
+          contextIds: []
+        };
+      }
+      const nearest = Math.min(...deltas);
+      const targetDistance = threshold * 1.18;
+      const targetSpan = Math.max(minSpanMs, Math.min(span * 0.96, nearest * length / targetDistance));
+      const center = focused.start;
+      return {
+        mode: "separate",
+        viewport: {
+          start: center - targetSpan / 2,
+          end: center + targetSpan / 2
+        },
+        forceUnique: false,
+        contextIds: []
+      };
+    }
+
+    const visibleOthers = visibleSource.filter(
+      (item) => String(item.id) !== String(focused.id) && overlapsViewport(item)
+    );
+    const targetContextCount = Math.min(Math.max(0, desiredContext), Math.max(0, source.length - 1));
+    if (visibleOthers.length >= targetContextCount) {
+      return {
+        mode: "keep",
+        viewport: { ...viewport },
+        forceUnique: false,
+        contextIds: visibleOthers.slice(0, targetContextCount).map((item) => String(item.id))
+      };
+    }
+
+    const before = source.filter((item) => item.start < focused.start).sort((a, b) => b.start - a.start);
+    const after = source.filter((item) => item.start > focused.start).sort((a, b) => a.start - b.start);
+    const selected = [];
+    if (before[0]) selected.push(before[0]);
+    if (after[0] && selected.length < targetContextCount) selected.push(after[0]);
+    const remaining = source
+      .filter((item) =>
+        String(item.id) !== String(focused.id) &&
+        !selected.some((candidate) => String(candidate.id) === String(item.id))
+      )
+      .sort((a, b) => Math.abs(a.start - focused.start) - Math.abs(b.start - focused.start));
+    while (selected.length < targetContextCount && remaining.length) selected.push(remaining.shift());
+
+    const values = [focused.start];
+    if (Number.isFinite(focused.end)) values.push(focused.end);
+    for (const item of selected) {
+      values.push(item.start);
+      if (Number.isFinite(item.end)) values.push(item.end);
+    }
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const rawSpan = Math.max(minSpanMs, max - min || span);
+    const paddedSpan = rawSpan * (1 + Math.max(0, paddingRatio) * 2);
+    const targetSpan = Math.max(span, paddedSpan);
+    const center = (min + max) / 2;
+
+    return {
+      mode: "context",
+      viewport: {
+        start: center - targetSpan / 2,
+        end: center + targetSpan / 2
+      },
+      forceUnique: false,
+      contextIds: selected.map((item) => String(item.id))
+    };
+  }
+
   function compactTickLabel(timeMs, spec, hasAmbientMonth) {
     if (!hasAmbientMonth || !spec) return null;
     const date = new Date(Number(timeMs));
@@ -275,6 +384,7 @@
     clusterProjectedItems,
     compactTickLabel,
     formatMonthYear,
+    focusContextViewport,
     monthAccents,
     monthKey,
     planTemporalAccents,

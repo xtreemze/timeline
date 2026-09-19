@@ -34,6 +34,7 @@ The application is static and runs entirely in the browser. Timeline data is sto
 - Attach up to three photographs to an event and browse them as a hero slideshow in focused view.
 - Add semantic tags with selectable icons and hue-only theming; lightness/chroma and foreground contrast stay under design-system control and meaning never depends on color alone.
 - Select an event to give it the full 12-column chronology workspace; the editor yields the screen, the event becomes an asymmetric composition, and the timeline docks to an edge for context.
+- Focus framing is density-aware: if the selected event is fused into a cluster, Timeline zooms toward a unique terminal; if it is already unique, Timeline expands toward the nearest one or two events for relative context. Identical timestamps are explicitly pinned out of the residual cluster because no amount of temporal zoom can separate equal coordinates.
 - Choose among three focused-event grid compositions: **Hero split**, **Evidence dossier**, and **Editorial mosaic**.
 - Move explicitly to the previous or next focused event without leaving the composition.
 - Run a configurable auto-advance presentation timer; any manual interaction pauses it until explicitly resumed.
@@ -74,6 +75,22 @@ A story is an ordered list of references to chronology items. The bundled case f
 - Reuse one chronology item in any number of stories.
 
 This is deliberately a reference model rather than a copy model: stories do not own events.
+
+### Relation graph
+
+Timeline includes an authorable subject–action–object graph alongside the chronology:
+
+- **Nodes** represent nouns/subjects such as people, organizations, groups, devices, places, accounts, documents, or arbitrary domain entities.
+- Nodes carry a type plus arbitrary JSON properties.
+- **Edges** connect a subject/source node to an object/target and use an action/relation label such as `called`, `owns`, `met`, `transferredTo`, or `authorized`.
+- Edges can carry a role, arbitrary JSON properties, and an optional instant/date range describing when the relationship held.
+- Edge endpoints may also reference chronology items and stories, allowing graph entities to associate directly with temporal records.
+- The graph lens is synchronized to the visible timeline window: timed edges inside the window are emphasized, out-of-window edges fade, and timeless structural edges remain visible.
+- Clicking a chronology-item node in the graph focuses that event on the timeline.
+
+The canonical graph remains `entities[] + relationships[]`. `TimelineGraph.toOrbGraph()` emits the node/edge contract expected by Orb-like visualization layers without making a force-layout view the source of truth.
+
+The built-in lens uses SVG so the static, dependency-free application can author and inspect the model today. The large-scale target remains a bundled worker-backed Orb/WebGL-style renderer under issue #16 rather than the direct browser bundle.
 
 ### Evidence and claims
 
@@ -151,9 +168,9 @@ The exported interchange schema is `schemas/interchange-v1.schema.json`. See `do
 
 ### Temporal graph values
 
-Timeline now preserves optional reusable `entities[]` and `relationships[]` alongside chronology items. Relationships use `subjectId`, `objectId`, a semantic `predicate`, optional `role`, attributes, and the same structured temporal extent used by events. A relationship with an interval is projected into a reserved relation band on the timeline so the viewer can see *when the relationship itself was active*.
+Timeline preserves reusable `entities[]` and `relationships[]` alongside chronology items. The Graph editor makes both first-class authoring surfaces. Relationships use `subjectId`, `objectId`, a semantic action `predicate`, optional `role`, arbitrary properties, and the same structured temporal extent used by events. A timed relationship is projected into the timeline relation band and simultaneously changes state in the graph lens as the visible temporal window moves.
 
-The graph adapter can emit Memgraph Orb-compatible `{ nodes, edges }` data without making Orb a canonical dependency. Full large-scale Orb/WebGL integration is intentionally deferred until it can use the npm/bundled path with workers rather than the direct browser bundle, which Memgraph documents as running simulation on the main thread.
+The graph adapter emits Orb-compatible `{ nodes, edges }` data while keeping the canonical model renderer-independent. The current built-in SVG lens is intentionally modest; the scale target remains a bundled worker-backed Orb/WebGL-style renderer rather than a main-thread direct-link integration.
 
 See `docs/TEMPORAL-GRAPH-ARCHITECTURE.md`.
 
@@ -203,16 +220,17 @@ Ranges require both endpoints and the normalized end instant cannot precede the 
 
 ## Interaction model
 
-The application has three editing surfaces and one canonical viewer:
+The application has four editing surfaces plus coordinated chronology and graph viewers:
 
 ```text
-┌──────────────── Editor ───────────────┐  ┌──────── Chronology ────────┐
-│ Items | Stories | Categories         │  │ Search + category filter   │
-│                                       │  │                            │
-│ Event/range editor                   │  │ chronological items        │
-│ Story sequence builder               │  │          or                │
-│ Category manager                     │  │ focused story sequence     │
-└───────────────────────────────────────┘  └────────────────────────────┘
+┌──────────────── Editor ───────────────────┐  ┌──── Chronology + graph ────┐
+│ Items | Stories | Categories | Graph     │  │ zoomable timeline          │
+│                                           │  │ temporal relation band     │
+│ Event/range editor                       │  │ focused event composition  │
+│ Story sequence builder                   │  │ node-edge graph lens       │
+│ Category manager                         │  │ shared temporal window     │
+│ Node + labeled edge editor               │  │                            │
+└───────────────────────────────────────────┘  └────────────────────────────┘
 ```
 
 On smaller screens the editor stacks above the chronology. The information architecture and data model remain identical rather than switching to a reduced mobile feature set.

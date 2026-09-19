@@ -104,6 +104,57 @@ test("year-scale views keep temporal context on the normal axis instead of ambie
   assert.equal(plan.axisMonths.length, 0);
 });
 
+test("focused clustered event zooms toward a unique projected position", () => {
+  const plan = clustering.focusContextViewport(
+    [
+      { id: "a", start: 0 },
+      { id: "b", start: 10 },
+      { id: "c", start: 1000 }
+    ],
+    "a",
+    { start: 0, end: 100 },
+    500,
+    100
+  );
+  assert.equal(plan.mode, "separate");
+  assert.ok(plan.viewport.end - plan.viewport.start < 100);
+  assert.equal(plan.forceUnique, false);
+});
+
+test("focused event expands to include nearby relative context when already unique", () => {
+  const plan = clustering.focusContextViewport(
+    [
+      { id: "a", start: 0 },
+      { id: "b", start: 500 },
+      { id: "c", start: 1000 }
+    ],
+    "b",
+    { start: 450, end: 550 },
+    700,
+    100
+  );
+  assert.equal(plan.mode, "context");
+  assert.deepEqual(new Set(plan.contextIds), new Set(["a", "c"]));
+  assert.ok(plan.viewport.start <= 0);
+  assert.ok(plan.viewport.end >= 1000);
+});
+
+test("identical-time focused events are pinned uniquely because zoom cannot separate them", () => {
+  const plan = clustering.focusContextViewport(
+    [
+      { id: "a", start: 100 },
+      { id: "b", start: 100 },
+      { id: "c", start: 500 }
+    ],
+    "a",
+    { start: 50, end: 250 },
+    500,
+    100
+  );
+  assert.equal(plan.mode, "pin");
+  assert.equal(plan.forceUnique, true);
+});
+
 test("motion response and inertial decay are smooth and monotonic", () => {
   const response = motion.responseForElapsed(16);
   assert.ok(response > 0 && response < 1);
@@ -186,5 +237,7 @@ test("timeline view exposes fused clusters, inertia, relation bands and ambient 
   assert.match(source, /renderTemporalAccents/);
   assert.match(source, /planTemporalAccents/);
   assert.match(source, /renderRelationships/);
+  assert.match(source, /focusContextViewport/);
+  assert.match(source, /timelineviewportchange/);
   assert.match(source, /pulseHaptic/);
 });

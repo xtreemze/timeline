@@ -21,7 +21,11 @@
       type: text(raw.type, 60) || "entity",
       name: text(raw.name || raw.label || raw.title, 180) || id,
       identifiers: Array.isArray(raw.identifiers) ? cloneJson(raw.identifiers) : [],
-      attributes: raw.attributes && typeof raw.attributes === "object" ? cloneJson(raw.attributes) : {}
+      attributes: raw.properties && typeof raw.properties === "object"
+        ? cloneJson(raw.properties)
+        : raw.attributes && typeof raw.attributes === "object"
+          ? cloneJson(raw.attributes)
+          : {}
     };
   }
 
@@ -50,7 +54,11 @@
       predicate: text(raw.predicate || raw.label || raw.type, 120) || "relatedTo",
       role: text(raw.role, 120),
       time,
-      attributes: raw.attributes && typeof raw.attributes === "object" ? cloneJson(raw.attributes) : {}
+      attributes: raw.properties && typeof raw.properties === "object"
+        ? cloneJson(raw.properties)
+        : raw.attributes && typeof raw.attributes === "object"
+          ? cloneJson(raw.attributes)
+          : {}
     };
   }
 
@@ -126,6 +134,35 @@
     return { nodes, edges };
   }
 
+  function relationshipWindowState(relationship, viewport, temporal = globalThis.TimelineTemporal) {
+    if (!relationship) return "inactive";
+    if (!relationship.time?.start || !temporal) return "timeless";
+    const start = temporal.sortKey(relationship.time.start);
+    const end = relationship.time.end ? temporal.sortKey(relationship.time.end) : start;
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return "inactive";
+    if (!viewport || !Number.isFinite(viewport.start) || !Number.isFinite(viewport.end)) return "active";
+    return end >= viewport.start && start <= viewport.end ? "active" : "inactive";
+  }
+
+  function graphForWindow(input, viewport, temporal = globalThis.TimelineTemporal) {
+    const entities = Array.isArray(input?.entities) ? input.entities : [];
+    const relationships = Array.isArray(input?.relationships) ? input.relationships : [];
+    const items = Array.isArray(input?.items) ? input.items : [];
+    const stories = Array.isArray(input?.stories) ? input.stories : [];
+    const graphData = toOrbGraph({ entities, relationships, items, stories });
+    const states = new Map();
+    for (const relationship of relationships) {
+      states.set(String(relationship.id), relationshipWindowState(relationship, viewport, temporal));
+    }
+    return {
+      ...graphData,
+      edges: graphData.edges.map((edge) => ({
+        ...edge,
+        temporalState: states.get(String(edge.id)) || "inactive"
+      }))
+    };
+  }
+
   function temporalRelationProjection(relationships, temporal = globalThis.TimelineTemporal) {
     const projected = [];
     for (const relationship of Array.isArray(relationships) ? relationships : []) {
@@ -147,7 +184,9 @@
   }
 
   globalThis.TimelineGraph = Object.freeze({
+    graphForWindow,
     normalizeGraphData,
+    relationshipWindowState,
     temporalRelationProjection,
     toOrbGraph
   });

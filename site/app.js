@@ -12,6 +12,7 @@
   const dateRangeFactory = globalThis.TimelineDateRangePicker;
   const navigationFactory = globalThis.TimelineNavigation;
   const evidenceStore = globalThis.TimelineEvidence;
+  const temporalGraphFactory = globalThis.TemporalGraphView;
   if (!temporal) throw new Error("TimelineTemporal must load before app.js.");
   if (!spatial) throw new Error("TimelineSpatial must load before app.js.");
   if (!graph) throw new Error("TimelineGraph must load before app.js.");
@@ -19,6 +20,7 @@
   if (!dateRangeFactory) throw new Error("TimelineDateRangePicker must load before app.js.");
   if (!navigationFactory) throw new Error("TimelineNavigation must load before app.js.");
   if (!evidenceStore) throw new Error("TimelineEvidence must load before app.js.");
+  if (!temporalGraphFactory) throw new Error("TemporalGraphView must load before app.js.");
 
   const DEFAULT_CATEGORIES = [
     { id: "incident", name: "Incident", color: "#b42318" },
@@ -127,6 +129,43 @@
     cancelCategoryEdit: document.querySelector("#cancel-category-edit"),
     categoryList: document.querySelector("#category-list"),
 
+    graphNodeForm: document.querySelector("#graph-node-form"),
+    graphNodeId: document.querySelector("#graph-node-id"),
+    graphNodeName: document.querySelector("#graph-node-name"),
+    graphNodeType: document.querySelector("#graph-node-type"),
+    graphNodeProperties: document.querySelector("#graph-node-properties"),
+    graphNodeError: document.querySelector("#graph-node-error"),
+    saveGraphNode: document.querySelector("#save-graph-node"),
+    cancelGraphNodeEdit: document.querySelector("#cancel-graph-node-edit"),
+    graphNodeList: document.querySelector("#graph-node-list"),
+    graphNodeCount: document.querySelector("#graph-node-count"),
+    graphEdgeForm: document.querySelector("#graph-edge-form"),
+    graphEdgeId: document.querySelector("#graph-edge-id"),
+    graphEdgeSubject: document.querySelector("#graph-edge-subject"),
+    graphEdgePredicate: document.querySelector("#graph-edge-predicate"),
+    graphEdgeObject: document.querySelector("#graph-edge-object"),
+    graphEdgeRole: document.querySelector("#graph-edge-role"),
+    graphEdgeProperties: document.querySelector("#graph-edge-properties"),
+    graphEdgeTimeKind: document.querySelector("#graph-edge-time-kind"),
+    graphEdgeDateField: document.querySelector("#graph-edge-date-field"),
+    graphEdgeDateRange: document.querySelector("#graph-edge-date-range"),
+    graphEdgeCalendarPopover: document.querySelector("#graph-edge-calendar-popover"),
+    graphEdgeCalendarGrid: document.querySelector("#graph-edge-calendar-grid"),
+    graphEdgeCalendarMonth: document.querySelector("#graph-edge-calendar-month"),
+    graphEdgeCalendarYear: document.querySelector("#graph-edge-calendar-year"),
+    graphEdgeCalendarPrev: document.querySelector("#graph-edge-calendar-prev"),
+    graphEdgeCalendarNext: document.querySelector("#graph-edge-calendar-next"),
+    graphEdgeCalendarClear: document.querySelector("#graph-edge-calendar-clear"),
+    graphEdgeStartDate: document.querySelector("#graph-edge-start-date"),
+    graphEdgeEndDate: document.querySelector("#graph-edge-end-date"),
+    graphEdgeError: document.querySelector("#graph-edge-error"),
+    saveGraphEdge: document.querySelector("#save-graph-edge"),
+    cancelGraphEdgeEdit: document.querySelector("#cancel-graph-edge-edit"),
+    graphEdgeList: document.querySelector("#graph-edge-list"),
+    graphEdgeCount: document.querySelector("#graph-edge-count"),
+    graphViewRoot: document.querySelector("#temporal-graph-view"),
+    graphResetView: document.querySelector("#graph-reset-view"),
+
     search: document.querySelector("#timeline-search"),
     categoryFilter: document.querySelector("#category-filter"),
     clearFilters: document.querySelector("#clear-filters"),
@@ -161,6 +200,7 @@
   };
 
   const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
+  const temporalGraphView = temporalGraphFactory.create(els.graphViewRoot);
   const dateRangePicker = dateRangeFactory.create({
     input: els.itemDateRange,
     popover: els.itemCalendarPopover,
@@ -173,6 +213,19 @@
     startInput: els.itemStartDate,
     endInput: els.itemEndDate,
     mode: "event"
+  });
+  const graphEdgeDatePicker = dateRangeFactory.create({
+    input: els.graphEdgeDateRange,
+    popover: els.graphEdgeCalendarPopover,
+    grid: els.graphEdgeCalendarGrid,
+    heading: els.graphEdgeCalendarMonth,
+    yearInput: els.graphEdgeCalendarYear,
+    previousButton: els.graphEdgeCalendarPrev,
+    nextButton: els.graphEdgeCalendarNext,
+    clearButton: els.graphEdgeCalendarClear,
+    startInput: els.graphEdgeStartDate,
+    endInput: els.graphEdgeEndDate,
+    mode: "range"
   });
   const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
   const locationMap = globalThis.TimelineLocationMap?.create({
@@ -195,6 +248,21 @@
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
+  }
+
+  function parseJsonObject(value, label = "Properties") {
+    const source = String(value || "").trim();
+    if (!source) return {};
+    let parsed;
+    try {
+      parsed = JSON.parse(source);
+    } catch {
+      throw new Error(`${label} must be valid JSON.`);
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error(`${label} must be a JSON object.`);
+    }
+    return parsed;
   }
 
   function normalizeExtensions(value) {
@@ -404,6 +472,16 @@
     });
 
     const graphData = graph.normalizeGraphData(input, temporal);
+    const graphEndpointIds = new Set([
+      ...items.map((item) => item.id),
+      ...stories.map((story) => story.id),
+      ...graphData.entities.map((entity) => entity.id)
+    ]);
+    graphData.relationships = graphData.relationships.filter(
+      (relationship) =>
+        graphEndpointIds.has(relationship.subjectId) &&
+        graphEndpointIds.has(relationship.objectId)
+    );
     const normalized = {
       version: VERSION,
       title: typeof input.title === "string" ? input.title.slice(0, 120) : "",
@@ -484,7 +562,9 @@
     const entity = state.entities.find((candidate) => candidate.id === id);
     if (entity) return entity.name || entity.id;
     const item = getItem(id);
-    return item?.title || id;
+    if (item) return item.title || item.id;
+    const story = getStory(id);
+    return story?.title || id;
   }
 
   function storySpanLabel(story) {
@@ -1132,6 +1212,9 @@
     if (!window.confirm(`Delete “${item.title}”?${suffix}`)) return;
     state.items = state.items.filter((candidate) => candidate.id !== id);
     state.stories = state.stories.map((story) => ({ ...story, itemIds: story.itemIds.filter((itemId) => itemId !== id) }));
+    state.relationships = state.relationships.filter(
+      (relationship) => relationship.subjectId !== id && relationship.objectId !== id
+    );
     if (els.itemId.value === id) resetItemForm();
     if (storyDraftIds.includes(id)) storyDraftIds = storyDraftIds.filter((itemId) => itemId !== id);
     const activeStory = getStory(ui.activeStoryId);
@@ -1219,6 +1302,9 @@
     const story = getStory(id);
     if (!story || !window.confirm(`Delete story “${story.title}”? Timeline items will not be deleted.`)) return;
     state.stories = state.stories.filter((candidate) => candidate.id !== id);
+    state.relationships = state.relationships.filter(
+      (relationship) => relationship.subjectId !== id && relationship.objectId !== id
+    );
     if (els.storyId.value === id) resetStoryForm();
     if (ui.activeStoryId === id) exitStoryFocus(false);
     persist();
@@ -1387,12 +1473,253 @@
     els.categoryList.replaceChildren(...rows);
   }
 
+  function graphEndpointOptions(select, selected = "") {
+    const groups = [
+      ["Nodes", state.entities.map((entity) => ({ id: entity.id, label: entity.name, type: entity.type }))],
+      ["Timeline items", sortItems().map((item) => ({ id: item.id, label: item.title, type: item.kind }))],
+      ["Stories", state.stories.map((story) => ({ id: story.id, label: story.title, type: "story" }))]
+    ];
+    const nodes = [];
+    for (const [label, records] of groups) {
+      if (!records.length) continue;
+      const group = document.createElement("optgroup");
+      group.label = label;
+      for (const record of records) {
+        const option = document.createElement("option");
+        option.value = record.id;
+        option.textContent = `${record.label} · ${record.type}`;
+        group.append(option);
+      }
+      nodes.push(group);
+    }
+    select.replaceChildren(...nodes);
+    const available = [...select.querySelectorAll("option")];
+    select.value = available.some((option) => option.value === selected)
+      ? selected
+      : available[0]?.value || "";
+  }
+
+  function resetGraphNodeForm() {
+    els.graphNodeForm.reset();
+    els.graphNodeId.value = "";
+    els.graphNodeType.value = "entity";
+    els.graphNodeProperties.value = "{}";
+    els.saveGraphNode.textContent = "Add node";
+    els.cancelGraphNodeEdit.hidden = true;
+    setError(els.graphNodeError);
+  }
+
+  function beginGraphNodeEdit(id) {
+    const entity = state.entities.find((candidate) => candidate.id === id);
+    if (!entity) return;
+    setActivePanel("graph");
+    els.graphNodeId.value = entity.id;
+    els.graphNodeName.value = entity.name || entity.id;
+    els.graphNodeType.value = entity.type || "entity";
+    els.graphNodeProperties.value = JSON.stringify(entity.attributes || {}, null, 2);
+    els.saveGraphNode.textContent = "Save node";
+    els.cancelGraphNodeEdit.hidden = false;
+    setError(els.graphNodeError);
+    els.graphNodeName.focus();
+  }
+
+  function removeGraphNode(id) {
+    const entity = state.entities.find((candidate) => candidate.id === id);
+    if (!entity) return;
+    const edgeCount = state.relationships.filter(
+      (relationship) => relationship.subjectId === id || relationship.objectId === id
+    ).length;
+    const suffix = edgeCount
+      ? ` ${edgeCount} connected ${edgeCount === 1 ? "edge" : "edges"} will also be removed.`
+      : "";
+    if (!window.confirm(`Delete node “${entity.name}”?${suffix}`)) return;
+    state.entities = state.entities.filter((candidate) => candidate.id !== id);
+    state.relationships = state.relationships.filter(
+      (relationship) => relationship.subjectId !== id && relationship.objectId !== id
+    );
+    if (els.graphNodeId.value === id) resetGraphNodeForm();
+    persist();
+    renderAll();
+    showStatus("Graph node deleted.");
+  }
+
+  function renderGraphNodes() {
+    els.graphNodeCount.textContent = String(state.entities.length);
+    const rows = state.entities.map((entity) => {
+      const row = document.createElement("article");
+      row.className = "graph-record";
+      row.dataset.id = entity.id;
+      const copy = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = entity.name;
+      const meta = document.createElement("span");
+      const propertyCount = Object.keys(entity.attributes || {}).length;
+      meta.textContent = `${entity.type || "entity"} · ${propertyCount} ${propertyCount === 1 ? "property" : "properties"}`;
+      copy.append(title, meta);
+      const actions = document.createElement("div");
+      actions.className = "graph-record-actions";
+      actions.append(
+        actionButton("Edit", "edit-graph-node", `Edit node ${entity.name}`),
+        actionButton("Delete", "delete-graph-node", `Delete node ${entity.name}`, "delete")
+      );
+      row.append(copy, actions);
+      return row;
+    });
+    if (!rows.length) {
+      const empty = document.createElement("p");
+      empty.className = "privacy-note";
+      empty.textContent = "No graph nodes yet. Nodes represent nouns or subjects such as people, organizations, devices, places, accounts, or objects.";
+      rows.push(empty);
+    }
+    els.graphNodeList.replaceChildren(...rows);
+  }
+
+  function configureGraphEdgeTime() {
+    const kind = els.graphEdgeTimeKind.value;
+    const timed = kind !== "timeless";
+    els.graphEdgeDateField.hidden = !timed;
+    graphEdgeDatePicker.setMode(kind === "range" ? "range" : "event");
+    if (!timed) graphEdgeDatePicker.clear();
+  }
+
+  function resetGraphEdgeForm() {
+    els.graphEdgeForm.reset();
+    els.graphEdgeId.value = "";
+    els.graphEdgeRole.value = "";
+    els.graphEdgeProperties.value = "{}";
+    els.graphEdgeTimeKind.value = "timeless";
+    graphEdgeDatePicker.setMode("event");
+    graphEdgeDatePicker.clear();
+    els.graphEdgeDateField.hidden = true;
+    graphEndpointOptions(els.graphEdgeSubject);
+    graphEndpointOptions(els.graphEdgeObject);
+    els.saveGraphEdge.textContent = "Add edge";
+    els.cancelGraphEdgeEdit.hidden = true;
+    setError(els.graphEdgeError);
+  }
+
+  function buildGraphEdgeTime() {
+    const kind = els.graphEdgeTimeKind.value;
+    if (kind === "timeless") return null;
+    const startDate = els.graphEdgeStartDate.value;
+    const endDate = els.graphEdgeEndDate.value;
+    if (!startDate) throw new Error("Choose an active date for this edge.");
+    if (kind === "range" && !endDate) throw new Error("Choose both dates for the edge range.");
+    const start = temporal.buildEndpoint({
+      date: startDate,
+      time: "",
+      precision: "day",
+      certainty: "exact",
+      timeZone: ""
+    });
+    const end = kind === "range"
+      ? temporal.buildEndpoint({
+          date: endDate,
+          time: "",
+          precision: "day",
+          certainty: "exact",
+          timeZone: ""
+        })
+      : null;
+    if (end && temporal.sortKey(end) < temporal.sortKey(start)) {
+      throw new Error("The edge end cannot be earlier than its start.");
+    }
+    return {
+      type: kind === "range" ? "interval" : "instant",
+      start,
+      end
+    };
+  }
+
+  function beginGraphEdgeEdit(id) {
+    const relationship = state.relationships.find((candidate) => candidate.id === id);
+    if (!relationship) return;
+    setActivePanel("graph");
+    els.graphEdgeId.value = relationship.id;
+    graphEndpointOptions(els.graphEdgeSubject, relationship.subjectId);
+    graphEndpointOptions(els.graphEdgeObject, relationship.objectId);
+    els.graphEdgePredicate.value = relationship.predicate || "relatedTo";
+    els.graphEdgeRole.value = relationship.role || "";
+    els.graphEdgeProperties.value = JSON.stringify(relationship.attributes || {}, null, 2);
+    const timeKind = relationship.time?.end ? "range" : relationship.time?.start ? "event" : "timeless";
+    els.graphEdgeTimeKind.value = timeKind;
+    configureGraphEdgeTime();
+    if (relationship.time?.start) {
+      const start = temporal.formParts(relationship.time.start);
+      const end = temporal.formParts(relationship.time.end);
+      graphEdgeDatePicker.setRange(start.date, timeKind === "range" ? end.date : "");
+    }
+    els.saveGraphEdge.textContent = "Save edge";
+    els.cancelGraphEdgeEdit.hidden = false;
+    setError(els.graphEdgeError);
+    els.graphEdgePredicate.focus();
+  }
+
+  function removeGraphEdge(id) {
+    const relationship = state.relationships.find((candidate) => candidate.id === id);
+    if (!relationship) return;
+    if (!window.confirm(`Delete edge “${relationship.predicate}”?`)) return;
+    state.relationships = state.relationships.filter((candidate) => candidate.id !== id);
+    if (els.graphEdgeId.value === id) resetGraphEdgeForm();
+    persist();
+    renderAll();
+    showStatus("Graph edge deleted.");
+  }
+
+  function renderGraphEdges() {
+    els.graphEdgeCount.textContent = String(state.relationships.length);
+    const rows = state.relationships.map((relationship) => {
+      const row = document.createElement("article");
+      row.className = "graph-record graph-edge-record";
+      row.dataset.id = relationship.id;
+      const copy = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = `${entityOrItemName(relationship.subjectId)} —${relationship.predicate}→ ${entityOrItemName(relationship.objectId)}`;
+      const meta = document.createElement("span");
+      const when = relationship.time ? temporal.intervalRepresentation(relationship.time) : "timeless";
+      const propertyCount = Object.keys(relationship.attributes || {}).length;
+      meta.textContent = `${when} · ${propertyCount} ${propertyCount === 1 ? "property" : "properties"}`;
+      copy.append(title, meta);
+      const actions = document.createElement("div");
+      actions.className = "graph-record-actions";
+      actions.append(
+        actionButton("Edit", "edit-graph-edge", `Edit edge ${relationship.predicate}`),
+        actionButton("Delete", "delete-graph-edge", `Delete edge ${relationship.predicate}`, "delete")
+      );
+      row.append(copy, actions);
+      return row;
+    });
+    if (!rows.length) {
+      const empty = document.createElement("p");
+      empty.className = "privacy-note";
+      empty.textContent = "No graph edges yet. Edges connect subjects and carry an action label, properties, and an optional active time.";
+      rows.push(empty);
+    }
+    els.graphEdgeList.replaceChildren(...rows);
+  }
+
+  function renderGraphEditor() {
+    const subject = els.graphEdgeSubject.value;
+    const object = els.graphEdgeObject.value;
+    graphEndpointOptions(els.graphEdgeSubject, subject);
+    graphEndpointOptions(els.graphEdgeObject, object);
+    renderGraphNodes();
+    renderGraphEdges();
+    temporalGraphView?.setModel({
+      entities: state.entities,
+      relationships: state.relationships,
+      items: state.items,
+      stories: state.stories
+    });
+  }
+
   function renderAll() {
     renderProjectMeta();
     renderCategoryOptions();
     renderStoryBuilder();
     renderStories();
     renderCategories();
+    renderGraphEditor();
     renderTimeline();
   }
 
@@ -1635,6 +1962,126 @@
       next.focus();
     });
   });
+
+  els.graphNodeForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    setError(els.graphNodeError);
+    const name = els.graphNodeName.value.trim();
+    const type = els.graphNodeType.value.trim() || "entity";
+    if (!name) {
+      setError(els.graphNodeError, "A node name is required.");
+      els.graphNodeName.focus();
+      return;
+    }
+    let attributes;
+    try {
+      attributes = parseJsonObject(els.graphNodeProperties.value, "Node properties");
+    } catch (error) {
+      setError(els.graphNodeError, error instanceof Error ? error.message : "Check the node properties.");
+      els.graphNodeProperties.focus();
+      return;
+    }
+    const existingEntity = state.entities.find((candidate) => candidate.id === els.graphNodeId.value);
+    const entity = {
+      id: els.graphNodeId.value || newId("entity"),
+      type: type.slice(0, 60),
+      name: name.slice(0, 180),
+      identifiers: existingEntity?.identifiers ? clone(existingEntity.identifiers) : [],
+      attributes
+    };
+    const index = state.entities.findIndex((candidate) => candidate.id === entity.id);
+    if (index >= 0) {
+      state.entities[index] = entity;
+      showStatus("Graph node updated.");
+    } else {
+      state.entities.push(entity);
+      showStatus("Graph node added.");
+    }
+    persist();
+    resetGraphNodeForm();
+    renderAll();
+  });
+
+  els.cancelGraphNodeEdit.addEventListener("click", resetGraphNodeForm);
+
+  els.graphNodeList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    const row = event.target.closest(".graph-record");
+    if (!button || !row) return;
+    if (button.dataset.action === "edit-graph-node") beginGraphNodeEdit(row.dataset.id);
+    if (button.dataset.action === "delete-graph-node") removeGraphNode(row.dataset.id);
+  });
+
+  els.graphEdgeTimeKind.addEventListener("change", () => {
+    const start = els.graphEdgeStartDate.value;
+    const end = els.graphEdgeEndDate.value;
+    configureGraphEdgeTime();
+    if (els.graphEdgeTimeKind.value !== "timeless") {
+      graphEdgeDatePicker.setRange(
+        start,
+        els.graphEdgeTimeKind.value === "range" ? end : ""
+      );
+    }
+  });
+
+  els.graphEdgeForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    setError(els.graphEdgeError);
+    const subjectId = els.graphEdgeSubject.value;
+    const objectId = els.graphEdgeObject.value;
+    const predicate = els.graphEdgePredicate.value.trim();
+    if (!subjectId || !objectId) {
+      setError(els.graphEdgeError, "Choose both a subject and an object.");
+      return;
+    }
+    if (!predicate) {
+      setError(els.graphEdgeError, "An action label is required.");
+      els.graphEdgePredicate.focus();
+      return;
+    }
+    let attributes;
+    let time;
+    try {
+      attributes = parseJsonObject(els.graphEdgeProperties.value, "Edge properties");
+      time = buildGraphEdgeTime();
+    } catch (error) {
+      setError(els.graphEdgeError, error instanceof Error ? error.message : "Check the edge properties and time.");
+      return;
+    }
+
+    const relationship = {
+      id: els.graphEdgeId.value || newId("relationship"),
+      subjectId,
+      objectId,
+      predicate: predicate.slice(0, 120),
+      role: els.graphEdgeRole.value.trim().slice(0, 120),
+      time,
+      attributes
+    };
+    const index = state.relationships.findIndex((candidate) => candidate.id === relationship.id);
+    if (index >= 0) {
+      state.relationships[index] = relationship;
+      showStatus("Graph edge updated.");
+    } else {
+      state.relationships.push(relationship);
+      showStatus("Graph edge added.");
+    }
+    persist();
+    resetGraphEdgeForm();
+    renderAll();
+  });
+
+  els.cancelGraphEdgeEdit.addEventListener("click", resetGraphEdgeForm);
+
+  els.graphEdgeList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    const row = event.target.closest(".graph-record");
+    if (!button || !row) return;
+    if (button.dataset.action === "edit-graph-edge") beginGraphEdgeEdit(row.dataset.id);
+    if (button.dataset.action === "delete-graph-edge") removeGraphEdge(row.dataset.id);
+  });
+
+  els.graphResetView.addEventListener("click", () => temporalGraphView?.resetView());
 
   els.itemStartPrecision.addEventListener("change", () => configureTemporalEndpoint("Start"));
   els.itemEndPrecision.addEventListener("change", () => configureTemporalEndpoint("End"));
@@ -1898,6 +2345,27 @@
   els.storyNext.addEventListener("click", () => stepStory(1));
   els.storyExit.addEventListener("click", () => exitStoryFocus());
 
+  els.timelineViewRoot.addEventListener("timelineviewportchange", (event) => {
+    temporalGraphView?.setWindow(event.detail?.viewport || null);
+  });
+
+  els.graphViewRoot.addEventListener("graphnodefocus", (event) => {
+    const id = event.detail?.id;
+    if (!id || !getItem(id)) return;
+    ui.search = "";
+    ui.categoryFilter = "all";
+    ui.activeStoryId = null;
+    ui.storyCursor = 0;
+    els.search.value = "";
+    renderTimeline();
+    requestAnimationFrame(() => timelineView?.focusItem(id));
+  });
+
+  els.graphViewRoot.addEventListener("graphstoryfocus", (event) => {
+    const id = event.detail?.id;
+    if (id && getStory(id)) focusStory(id);
+  });
+
   els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
     els.appShell.classList.toggle("is-event-focused", Boolean(event.detail?.focused));
   });
@@ -1941,6 +2409,8 @@
     resetItemForm();
     resetStoryForm();
     resetCategoryForm();
+    resetGraphNodeForm();
+    resetGraphEdgeForm();
     persist();
     renderAll();
     showStatus("Example timeline loaded.");
@@ -1956,6 +2426,8 @@
     resetItemForm();
     resetStoryForm();
     resetCategoryForm();
+    resetGraphNodeForm();
+    resetGraphEdgeForm();
     persist();
     renderAll();
     const warningText = warningCount ? ` · ${warningCount} conversion ${warningCount === 1 ? "warning" : "warnings"}` : "";
@@ -2041,6 +2513,8 @@
     resetItemForm();
     resetStoryForm();
     resetCategoryForm();
+    resetGraphNodeForm();
+    resetGraphEdgeForm();
     persist();
     renderAll();
     showStatus("Timeline cleared.");
@@ -2050,6 +2524,8 @@
   resetItemForm();
   resetStoryForm();
   resetCategoryForm();
+  resetGraphNodeForm();
+  resetGraphEdgeForm();
   setActivePanel("items");
   renderAll();
 })();
