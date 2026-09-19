@@ -8,6 +8,7 @@ on:
       - 'site/timeline-view.js'
       - 'site/timeline-view.css'
       - 'site/time-scale.js'
+      - 'tests/timeline-view-geometry.test.mjs'
       - '.github/workflows/timeline-view.yml'
   push:
     branches: [main]
@@ -17,6 +18,7 @@ on:
       - 'site/timeline-view.js'
       - 'site/timeline-view.css'
       - 'site/time-scale.js'
+      - 'tests/timeline-view-geometry.test.mjs'
       - '.github/workflows/timeline-view.yml'
 
 permissions:
@@ -33,4 +35,4 @@ jobs:
       - run: node --check site/time-scale.js
       - run: node --check site/timeline-view.js
       - run: node --check site/app.js
-      - run: node --test tests/time-scale.test.mjs
+      - run: node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs

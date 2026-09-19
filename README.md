@@ -166,7 +166,8 @@ This permits future extensions such as:
 
 ## Architecture
 
-Timeline deliberately uses the browser platform directly:
+Timeline deliberately uses the browser platform directly. The browser target is the **latest Chrome Beta**; as of September 19, 2026 that is Chrome 155 Beta. When a required capability is available in that target, Timeline uses the native platform API instead of shipping a JavaScript substitute. Current examples include the Popover API, CSS Anchor Positioning, pointer events, ResizeObserver, and native top-layer entry/exit transitions with `@starting-style` and `transition-behavior: allow-discrete`.
+
 
 ```text
 GitHub Pages
