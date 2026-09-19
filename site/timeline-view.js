@@ -602,6 +602,7 @@
           image.src = media.src;
           image.alt = "";
           image.decoding = "async";
+          image.loading = "lazy";
           visual.append(image);
           const badge = createElement("span", "timeline-cluster-icon-badge");
           badge.append(presentation.createIcon(iconName, { size: 16 }));
@@ -877,6 +878,7 @@
         image.src = media.src;
         image.alt = "";
         image.decoding = "async";
+        image.loading = "lazy";
         dot.append(image);
         const badge = createElement("span", "timeline-event-icon-badge");
         badge.append(presentation.createIcon(iconName, { size: 18 }));
