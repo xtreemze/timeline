@@ -8,9 +8,13 @@
   const temporal = globalThis.TimelineTemporal;
   const spatial = globalThis.TimelineSpatial;
   const graph = globalThis.TimelineGraph;
+  const presentation = globalThis.TimelinePresentation;
+  const dateRangeFactory = globalThis.TimelineDateRangePicker;
   if (!temporal) throw new Error("TimelineTemporal must load before app.js.");
   if (!spatial) throw new Error("TimelineSpatial must load before app.js.");
   if (!graph) throw new Error("TimelineGraph must load before app.js.");
+  if (!presentation) throw new Error("TimelinePresentation must load before app.js.");
+  if (!dateRangeFactory) throw new Error("TimelineDateRangePicker must load before app.js.");
 
   const DEFAULT_CATEGORIES = [
     { id: "event", name: "Event", color: "#667085" },
@@ -23,91 +27,248 @@
 
   const SAMPLE = {
     version: VERSION,
-    title: "Timeline v2 launch",
+    title: "Evidence-rich product launch",
     categories: [
       { id: "decision", name: "Decision", color: "#2563eb" },
-      { id: "build", name: "Build", color: "#c4320a" },
-      { id: "release", name: "Release", color: "#7a5af8" },
-      { id: "research", name: "Research", color: "#027a48" }
+      { id: "fieldwork", name: "Fieldwork", color: "#c4320a" },
+      { id: "evidence", name: "Evidence", color: "#027a48" },
+      { id: "release", name: "Release", color: "#7a5af8" }
     ],
     items: [
       {
-        id: "sample-problem",
+        id: "sample-brief",
         kind: "event",
-        start: "2026-09-11T09:00",
+        start: "2026-09-11T09:00+02:00",
         end: null,
-        title: "Problem framed",
-        description: "Define chronology as the primary model and keep the tool local-first, portable, and understandable without a backend.",
-        categoryId: "decision"
+        time: {
+          type: "instant",
+          start: {
+            value: "2026-09-11T09:00+02:00",
+            precision: "minute",
+            certainty: "exact",
+            calendar: "gregorian",
+            timeZone: "Europe/Stockholm",
+            utcOffset: "+02:00"
+          },
+          end: null
+        },
+        title: "Launch brief approved",
+        description: "The team freezes the first release scope, evidence requirements, mapping behavior, temporal precision rules, and the visual language for focused events.",
+        categoryId: "decision",
+        location: {
+          name: "Stockholm Central",
+          geographicIdentifier: "Stockholm, Sweden",
+          address: "Centralplan, Stockholm",
+          geometry: { type: "Point", coordinates: [18.0586, 59.3300] },
+          crs: "OGC:CRS84",
+          source: "manual"
+        },
+        media: [
+          {
+            src: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1600&q=80",
+            alt: "Workspace used as demonstration media",
+            caption: "Hero photograph for the focused event composition."
+          },
+          {
+            src: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1600&q=80",
+            alt: "Interior workspace demonstration photograph",
+            caption: "A second image demonstrates the three-photo slideshow."
+          },
+          {
+            src: "https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=1600&q=80",
+            alt: "Architectural demonstration photograph",
+            caption: "A third image shows event media rotation."
+          }
+        ],
+        tags: [
+          { label: "Decision", icon: "decision", hue: 28 },
+          { label: "Stockholm", icon: "place", hue: 205 },
+          { label: "Team", icon: "person", hue: 292 }
+        ]
       },
       {
-        id: "sample-sprint",
+        id: "sample-fieldwork",
         kind: "range",
-        start: "2026-09-11T10:00",
-        end: "2026-09-13T18:00",
-        title: "Interaction and data-model sprint",
-        description: "Develop events, ranges, editable categories, responsive layout, data migration, and the story model as one coherent system.",
-        categoryId: "build"
+        start: "2026-09-11T10:30+02:00",
+        end: "2026-09-13T18:15+02:00",
+        time: {
+          type: "interval",
+          start: {
+            value: "2026-09-11T10:30+02:00",
+            precision: "minute",
+            certainty: "exact",
+            calendar: "gregorian",
+            timeZone: "Europe/Copenhagen",
+            utcOffset: "+02:00"
+          },
+          end: {
+            value: "2026-09-13T18:15+02:00",
+            precision: "minute",
+            certainty: "approximate",
+            calendar: "gregorian",
+            timeZone: "Europe/Copenhagen",
+            utcOffset: "+02:00"
+          }
+        },
+        title: "Fieldwork and interaction study",
+        description: "A multi-day range demonstrates two-date calendar selection, independent clocks, a mapped place, rich media, event tags, relationships, and uncertainty on the end boundary.",
+        categoryId: "fieldwork",
+        location: {
+          name: "Copenhagen",
+          geographicIdentifier: "Copenhagen, Denmark",
+          address: "",
+          geometry: { type: "Point", coordinates: [12.5683, 55.6761] },
+          crs: "OGC:CRS84",
+          source: "manual"
+        },
+        media: [
+          {
+            src: "https://images.unsplash.com/photo-1513622470522-26c3c8a854bc?auto=format&fit=crop&w=1600&q=80",
+            alt: "Copenhagen city demonstration photograph",
+            caption: "Location-oriented hero media for a ranged event."
+          },
+          {
+            src: "https://images.unsplash.com/photo-1552560880-2482cef14240?auto=format&fit=crop&w=1600&q=80",
+            alt: "Urban bicycle demonstration photograph",
+            caption: "Second fieldwork image."
+          }
+        ],
+        tags: [
+          { label: "Fieldwork", icon: "evidence", hue: 142 },
+          { label: "Copenhagen", icon: "place", hue: 216 },
+          { label: "Range", icon: "relation", hue: 52 }
+        ]
       },
       {
-        id: "sample-model",
+        id: "sample-evidence",
         kind: "event",
-        start: "2026-09-12T14:30",
+        start: "2026-09-12",
         end: null,
-        title: "Story references become non-destructive",
-        description: "Stories reference canonical item IDs rather than copying events, allowing one moment to participate in multiple narratives.",
-        categoryId: "decision"
+        title: "Evidence package captured",
+        description: "A date-only event demonstrates that Timeline can retain day precision without inventing a clock time.",
+        categoryId: "evidence",
+        media: [
+          {
+            src: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=1600&q=80",
+            alt: "Documents used as demonstration evidence imagery",
+            caption: "Evidence-oriented media remains presentation metadata, not evidentiary proof by itself."
+          }
+        ],
+        tags: [
+          { label: "Evidence", icon: "evidence", hue: 155 },
+          { label: "Date only", icon: "milestone", hue: 44 }
+        ]
       },
       {
         id: "sample-review",
         kind: "event",
-        start: "2026-09-13T16:15",
+        start: "2026-09-13T16:15+02:00",
         end: null,
-        title: "Responsive behavior reviewed",
-        description: "Desktop, tablet, and narrow-screen layouts use the same information architecture with progressive stacking rather than separate interfaces.",
-        categoryId: "research"
+        title: "Focused composition reviewed",
+        description: "The selected-event design uses the whole chronology workspace: hero media and title dominate, supporting sections take asymmetric grid spans, and the timeline docks to an edge rather than competing with detail.",
+        categoryId: "decision",
+        tags: [
+          { label: "UX review", icon: "decision", hue: 320 },
+          { label: "Relations", icon: "relation", hue: 262 }
+        ]
       },
       {
         id: "sample-release",
         kind: "event",
-        start: "2026-09-14T09:30",
+        start: "2026-09-14T09:30+02:00",
         end: null,
-        title: "Timeline v2 published",
-        description: "The browser application can now model chronology and narrative focus independently while preserving portable JSON and Markdown exports.",
-        categoryId: "release"
+        title: "Release published",
+        description: "The release demonstrates stories, graph relationships, temporal clustering, rich event focus, map locations, interchange, and accessible hue-constrained tags working together.",
+        categoryId: "release",
+        media: [
+          {
+            src: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1600&q=80",
+            alt: "Computer display used as release demonstration media",
+            caption: "Release hero."
+          },
+          {
+            src: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1600&q=80",
+            alt: "Code editor demonstration photograph",
+            caption: "Implementation view."
+          },
+          {
+            src: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1600&q=80",
+            alt: "Laptop collaboration demonstration photograph",
+            caption: "Collaboration view."
+          }
+        ],
+        tags: [
+          { label: "Release", icon: "milestone", hue: 275 },
+          { label: "Media", icon: "media", hue: 190 },
+          { label: "Portable", icon: "note", hue: 70 }
+        ]
       }
     ],
     stories: [
       {
         id: "sample-story",
-        title: "From chronology to narrative",
-        description: "Follow the decisions and implementation moments that transformed a simple event list into a richer chronology workspace.",
-        itemIds: ["sample-problem", "sample-sprint", "sample-model", "sample-review", "sample-release"]
+        title: "From brief to release",
+        description: "A narrative path that reuses canonical chronology items without changing their dates, locations, media, tags, or graph relationships.",
+        itemIds: ["sample-brief", "sample-fieldwork", "sample-evidence", "sample-review", "sample-release"]
       }
     ],
-    entities: [],
+    entities: [
+      { id: "person-lead", type: "person", name: "Project lead", identifiers: [], attributes: {} },
+      { id: "place-stockholm", type: "place", name: "Stockholm", identifiers: [], attributes: {} },
+      { id: "place-copenhagen", type: "place", name: "Copenhagen", identifiers: [], attributes: {} }
+    ],
     relationships: [
       {
-        id: "sample-relation",
-        subjectId: "sample-problem",
-        objectId: "sample-release",
-        predicate: "deliveryWindow",
-        role: "context",
+        id: "sample-relation-participant",
+        subjectId: "person-lead",
+        objectId: "sample-brief",
+        predicate: "participant",
+        role: "approver",
+        time: {
+          type: "instant",
+          start: {
+            value: "2026-09-11T09:00+02:00",
+            precision: "minute",
+            certainty: "exact",
+            calendar: "gregorian",
+            timeZone: "Europe/Stockholm",
+            utcOffset: "+02:00"
+          },
+          end: null
+        }
+      },
+      {
+        id: "sample-relation-fieldwork",
+        subjectId: "sample-fieldwork",
+        objectId: "place-copenhagen",
+        predicate: "occurredAt",
+        role: "study-site",
         time: {
           type: "interval",
           start: {
-            value: "2026-09-11T09:00",
+            value: "2026-09-11T10:30+02:00",
             precision: "minute",
             certainty: "exact",
-            calendar: "gregorian"
+            calendar: "gregorian",
+            timeZone: "Europe/Copenhagen",
+            utcOffset: "+02:00"
           },
           end: {
-            value: "2026-09-14T09:30",
+            value: "2026-09-13T18:15+02:00",
             precision: "minute",
-            certainty: "exact",
-            calendar: "gregorian"
+            certainty: "approximate",
+            calendar: "gregorian",
+            timeZone: "Europe/Copenhagen",
+            utcOffset: "+02:00"
           }
         }
+      },
+      {
+        id: "sample-relation-derived",
+        subjectId: "sample-release",
+        objectId: "sample-evidence",
+        predicate: "derivedFrom",
+        role: "release-evidence"
       }
     ]
   };
@@ -119,11 +280,12 @@
     storyCount: document.querySelector("#story-count"),
     categoryCount: document.querySelector("#category-count"),
     visibleCount: document.querySelector("#visible-count"),
+    appShell: document.querySelector("#app-shell"),
     loadSample: document.querySelector("#load-sample"),
     importJson: document.querySelector("#import-json"),
-    importTimeGraphics: document.querySelector("#import-timegraphics"),
+    importInterchange: document.querySelector("#import-interchange"),
     exportJson: document.querySelector("#export-json"),
-    exportTimeGraphics: document.querySelector("#export-timegraphics"),
+    exportInterchange: document.querySelector("#export-interchange"),
     exportMarkdown: document.querySelector("#export-markdown"),
     clear: document.querySelector("#clear-timeline"),
     tabs: [...document.querySelectorAll(".tab")],
@@ -133,6 +295,14 @@
     itemId: document.querySelector("#item-id"),
     itemKind: document.querySelector("#item-kind"),
     itemCategory: document.querySelector("#item-category"),
+    itemDateRange: document.querySelector("#item-date-range"),
+    itemCalendarPopover: document.querySelector("#item-calendar-popover"),
+    itemCalendarGrid: document.querySelector("#item-calendar-grid"),
+    itemCalendarMonth: document.querySelector("#item-calendar-month"),
+    itemCalendarYear: document.querySelector("#item-calendar-year"),
+    itemCalendarPrev: document.querySelector("#item-calendar-prev"),
+    itemCalendarNext: document.querySelector("#item-calendar-next"),
+    itemCalendarClear: document.querySelector("#item-calendar-clear"),
     itemStartDate: document.querySelector("#item-start-date"),
     itemStartTime: document.querySelector("#item-start-time"),
     itemStartPrecision: document.querySelector("#item-start-precision"),
@@ -151,6 +321,10 @@
     endField: document.querySelector("#end-field"),
     itemTitle: document.querySelector("#item-title"),
     itemDescription: document.querySelector("#item-description"),
+    itemMediaDetails: document.querySelector("#item-media-details"),
+    itemMediaRows: [...document.querySelectorAll("[data-media-slot]")],
+    itemTagsDetails: document.querySelector("#item-tags-details"),
+    itemTagRows: [...document.querySelectorAll("[data-tag-slot]")],
     itemLocationDetails: document.querySelector("#item-location-details"),
     itemLocationName: document.querySelector("#item-location-name"),
     itemLocationIdentifier: document.querySelector("#item-location-identifier"),
@@ -218,6 +392,19 @@
   };
 
   const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
+  const dateRangePicker = dateRangeFactory.create({
+    input: els.itemDateRange,
+    popover: els.itemCalendarPopover,
+    grid: els.itemCalendarGrid,
+    heading: els.itemCalendarMonth,
+    yearInput: els.itemCalendarYear,
+    previousButton: els.itemCalendarPrev,
+    nextButton: els.itemCalendarNext,
+    clearButton: els.itemCalendarClear,
+    startInput: els.itemStartDate,
+    endInput: els.itemEndDate,
+    mode: "event"
+  });
   const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
   const locationMap = globalThis.TimelineLocationMap?.create({
     container: els.itemLocationMap,
