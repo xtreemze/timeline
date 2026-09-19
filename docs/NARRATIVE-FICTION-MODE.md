@@ -42,6 +42,18 @@ Fictional locations can use ordinary names and identifiers. When the current map
 
 A future dedicated fictional/cartographic reference frame can consume the same narrative metadata without changing forensic location semantics.
 
+## Categories versus stories
+
+Categories and stories serve different axes and should not be used interchangeably.
+
+- A **category** classifies what an event is, such as a conflict, discovery, decision, relationship change, or resolution. Category filtering is taxonomy.
+- A **story** groups and orders events into a narrative sequence. Story focus is narrative membership and traversal.
+- Events in one story should normally span several categories.
+- The same category should be reusable by unrelated stories when their events have the same semantic type.
+- A story title or story identifier should not be copied into `categoryId` merely to color or group that story. Story identity belongs in `story.itemIds` and, where useful, narrative extension metadata.
+
+The default anthology therefore keeps **The Three Little Pigs**, **Snow White**, and **Cinderella** as three story nodes while categorizing their events with a reusable semantic taxonomy: background/condition, movement/transition, creation/preparation, conflict/threat, decision/choice, discovery/information, relationship/social, state change/transformation, and resolution/outcome.
+
 ## Parallel stories
 
 Multiple stories may coexist in one timeline. The recommended pattern is:
