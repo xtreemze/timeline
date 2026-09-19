@@ -48,6 +48,7 @@
     categoryCount: document.querySelector("#category-count"),
     visibleCount: document.querySelector("#visible-count"),
     appShell: document.querySelector("#app-shell"),
+    controlPanel: document.querySelector("#control-panel"),
     loadSample: document.querySelector("#load-sample"),
     importJson: document.querySelector("#import-json"),
     importInterchange: document.querySelector("#import-interchange"),
@@ -878,6 +879,17 @@
     for (const panel of els.panels) panel.hidden = panel.id !== `panel-${name}`;
   }
 
+  function openEditorPanel(name) {
+    setActivePanel(name);
+    if (
+      els.controlPanel &&
+      typeof els.controlPanel.showPopover === "function" &&
+      !els.controlPanel.matches(":popover-open")
+    ) {
+      els.controlPanel.showPopover();
+    }
+  }
+
   function renderProjectMeta() {
     if (document.activeElement !== els.title) els.title.value = state.title;
     els.heading.textContent = state.title.trim() || "Untitled timeline";
@@ -1514,7 +1526,7 @@
   function beginItemEdit(id) {
     const item = getItem(id);
     if (!item) return;
-    setActivePanel("items");
+    openEditorPanel("items");
     els.itemId.value = item.id;
     els.itemKind.value = item.kind;
     dateRangePicker.setMode(item.kind);
@@ -1626,7 +1638,7 @@
   function beginStoryEdit(id) {
     const story = getStory(id);
     if (!story) return;
-    setActivePanel("stories");
+    openEditorPanel("stories");
     els.storyId.value = story.id;
     els.storyTitle.value = story.title;
     els.storyDescription.value = story.description;
@@ -1756,7 +1768,7 @@
   function beginCategoryEdit(id) {
     const category = getCategory(id);
     if (!category) return;
-    setActivePanel("categories");
+    openEditorPanel("categories");
     els.categoryId.value = category.id;
     els.categoryName.value = category.name;
     els.categoryColor.value = category.color;
@@ -1857,7 +1869,7 @@
   function beginGraphNodeEdit(id) {
     const entity = state.entities.find((candidate) => candidate.id === id);
     if (!entity) return;
-    setActivePanel("graph");
+    openEditorPanel("graph");
     els.graphNodeId.value = entity.id;
     els.graphNodeName.value = entity.name || entity.id;
     els.graphNodeType.value = entity.type || "entity";
@@ -1996,7 +2008,7 @@
   function beginGraphEdgeEdit(id) {
     const relationship = state.relationships.find((candidate) => candidate.id === id);
     if (!relationship) return;
-    setActivePanel("graph");
+    openEditorPanel("graph");
     els.graphEdgeId.value = relationship.id;
     graphEndpointOptions(els.graphEdgeSubject, relationship.subjectId);
     graphEndpointOptions(els.graphEdgeObject, relationship.objectId);
@@ -2351,6 +2363,11 @@
       setActivePanel(next.dataset.panel);
       next.focus();
     });
+
+  document.querySelectorAll("[data-editor-panel]").forEach((button) => {
+    button.addEventListener("click", () => setActivePanel(button.dataset.editorPanel));
+  });
+
   });
 
   els.graphNodeForm.addEventListener("submit", (event) => {
