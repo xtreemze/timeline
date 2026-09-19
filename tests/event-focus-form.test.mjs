@@ -838,11 +838,12 @@ test("focused map and graph mounts are idempotent so pointer gestures survive fo
   );
 });
 
-test("focused popover height is content-driven and View Transition snapshots cannot capture pointer input", async () => {
+test("focused popover keeps deterministic content bands and View Transition snapshots cannot capture pointer input", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
 
-  assert.match(css, /timeline-focus-view\[popover\]:popover-open[\s\S]*align-content:\s*start[\s\S]*block-size:\s*fit-content[\s\S]*grid-auto-rows:\s*auto/);
-  assert.match(css, /@media \(min-width: 900px\) and \(min-height: 700px\)[\s\S]*data-active-tab="overview"[\s\S]*grid-template-rows:\s*auto auto/);
+  assert.match(css, /timeline-focus-view\[popover\]:popover-open[\s\S]*box-sizing:\s*border-box[\s\S]*align-content:\s*start[\s\S]*block-size:\s*auto[\s\S]*grid-auto-rows:\s*auto/);
+  assert.match(css, /@media \(min-width: 900px\) and \(min-height: 700px\)[\s\S]*data-active-tab="overview"[\s\S]*grid-template-rows:\s*clamp\(240px, 30dvh, 290px\) clamp\(120px, 18dvh, 160px\)/);
+  assert.doesNotMatch(css, /grid-template-rows:\s*auto auto/);
   assert.match(css, /::view-transition\s*\{[\s\S]*pointer-events:\s*none/);
 });
 
