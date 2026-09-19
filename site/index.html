@@ -97,14 +97,93 @@
                 <span>Category</span>
                 <select id="item-category"></select>
               </label>
-              <label class="field field-wide">
-                <span>Start <small>YYYY-MM-DD or YYYY-MM-DDTHH:MM</small></span>
-                <input id="item-start" type="text" inputmode="numeric" autocomplete="off" placeholder="2026-09-11T09:30" required>
-              </label>
-              <label id="end-field" class="field field-wide" hidden>
-                <span>End <small>required for ranges</small></span>
-                <input id="item-end" type="text" inputmode="numeric" autocomplete="off" placeholder="2026-09-14T17:00">
-              </label>
+              <fieldset class="temporal-editor field-wide">
+                <legend>Time <small>ISO 8601 interchange</small></legend>
+                <div class="temporal-range-grid">
+                  <section class="temporal-endpoint" aria-labelledby="start-time-heading">
+                    <div class="subheading-row">
+                      <h3 id="start-time-heading">Start</h3>
+                      <span>required</span>
+                    </div>
+                    <div class="temporal-fields">
+                      <label class="field">
+                        <span>Date</span>
+                        <input id="item-start-date" type="date" required>
+                      </label>
+                      <label class="field">
+                        <span>Precision</span>
+                        <select id="item-start-precision">
+                          <option value="day">Day</option>
+                          <option value="minute">Minute</option>
+                          <option value="second">Second</option>
+                          <option value="millisecond">Millisecond</option>
+                        </select>
+                      </label>
+                      <label id="item-start-time-field" class="field" hidden>
+                        <span>Time</span>
+                        <input id="item-start-time" type="time" step="60">
+                      </label>
+                      <label id="item-start-zone-field" class="field" hidden>
+                        <span>Time zone <small>optional; IANA name</small></span>
+                        <input id="item-start-zone" type="text" list="time-zone-options" autocomplete="off" placeholder="Floating / unspecified">
+                      </label>
+                      <label class="field">
+                        <span>Certainty</span>
+                        <select id="item-start-certainty">
+                          <option value="exact">Exact</option>
+                          <option value="approximate">Approximate</option>
+                          <option value="uncertain">Uncertain</option>
+                          <option value="inferred">Inferred</option>
+                          <option value="unknown">Unknown</option>
+                        </select>
+                      </label>
+                    </div>
+                  </section>
+
+                  <section id="end-field" class="temporal-endpoint" aria-labelledby="end-time-heading" hidden>
+                    <div class="subheading-row">
+                      <h3 id="end-time-heading">End</h3>
+                      <span>required for ranges</span>
+                    </div>
+                    <div class="temporal-fields">
+                      <label class="field">
+                        <span>Date</span>
+                        <input id="item-end-date" type="date">
+                      </label>
+                      <label class="field">
+                        <span>Precision</span>
+                        <select id="item-end-precision">
+                          <option value="day">Day</option>
+                          <option value="minute">Minute</option>
+                          <option value="second">Second</option>
+                          <option value="millisecond">Millisecond</option>
+                        </select>
+                      </label>
+                      <label id="item-end-time-field" class="field" hidden>
+                        <span>Time</span>
+                        <input id="item-end-time" type="time" step="60">
+                      </label>
+                      <label id="item-end-zone-field" class="field" hidden>
+                        <span>Time zone <small>optional; IANA name</small></span>
+                        <input id="item-end-zone" type="text" list="time-zone-options" autocomplete="off" placeholder="Floating / unspecified">
+                      </label>
+                      <label class="field">
+                        <span>Certainty</span>
+                        <select id="item-end-certainty">
+                          <option value="exact">Exact</option>
+                          <option value="approximate">Approximate</option>
+                          <option value="uncertain">Uncertain</option>
+                          <option value="inferred">Inferred</option>
+                          <option value="unknown">Unknown</option>
+                        </select>
+                      </label>
+                    </div>
+                  </section>
+                </div>
+                <datalist id="time-zone-options"></datalist>
+                <p class="field-hint">Calendar and clock inputs use Chrome's native pickers. A selected IANA time zone is resolved with the native Temporal API and stored with its ISO 8601 UTC offset; leave it blank for a floating local time.</p>
+              </fieldset>
+
               <label class="field field-wide">
                 <span>Title</span>
                 <input id="item-title" type="text" maxlength="160" autocomplete="off" placeholder="Prototype implementation" required>
@@ -113,6 +192,42 @@
                 <span>Description <small>optional</small></span>
                 <textarea id="item-description" rows="4" maxlength="2000" placeholder="What happened, what changed, or why this period matters."></textarea>
               </label>
+
+              <details id="item-location-details" class="optional-editor field-wide">
+                <summary>Location <small>optional · WGS 84 / GeoJSON point</small></summary>
+                <div class="location-fields">
+                  <label class="field field-wide">
+                    <span>Place name</span>
+                    <input id="item-location-name" type="text" maxlength="160" autocomplete="off" placeholder="Stockholm Central Station">
+                  </label>
+                  <label class="field field-wide">
+                    <span>Geographic identifier <small>optional</small></span>
+                    <input id="item-location-identifier" type="text" maxlength="300" autocomplete="off" placeholder="Stockholm, Sweden">
+                  </label>
+                  <label class="field field-wide">
+                    <span>Address <small>optional</small></span>
+                    <input id="item-location-address" type="text" maxlength="500" autocomplete="street-address" placeholder="Street address or descriptive location">
+                  </label>
+                  <label class="field">
+                    <span>Latitude</span>
+                    <input id="item-location-latitude" type="number" min="-90" max="90" step="any" inputmode="decimal" placeholder="59.329300">
+                  </label>
+                  <label class="field">
+                    <span>Longitude</span>
+                    <input id="item-location-longitude" type="number" min="-180" max="180" step="any" inputmode="decimal" placeholder="18.068600">
+                  </label>
+                  <input id="item-location-source" type="hidden" value="manual">
+                  <input id="item-location-accuracy" type="hidden">
+                </div>
+                <div class="location-actions">
+                  <geolocation id="item-geolocation" accuracymode="precise">
+                    <button class="button secondary" type="button" data-geolocation-fallback>Use device location</button>
+                  </geolocation>
+                  <button id="item-location-clear" class="button ghost" type="button">Clear location</button>
+                </div>
+                <div id="item-location-map" class="location-map" role="region" aria-label="OpenStreetMap location picker"></div>
+                <p class="field-hint">Click the map or drag its marker to set coordinates. Map tiles load only while this section is open; location records remain local. © OpenStreetMap contributors.</p>
+              </details>
             </div>
             <p id="item-form-error" class="form-error" role="alert" hidden></p>
             <div class="form-actions">
@@ -120,7 +235,7 @@
               <button id="cancel-item-edit" class="button ghost" type="button" hidden>Cancel edit</button>
             </div>
           </form>
-          <p class="privacy-note">Dates are intentionally explicit and timezone-free. Imported text is always rendered as text, never HTML.</p>
+          <p class="privacy-note">Temporal values use ISO 8601 representations and preserve precision, certainty, IANA time zone and source offset when supplied. Location geometry uses WGS 84 / CRS84 longitude-latitude coordinates. Imported text is always rendered as text, never HTML.</p>
         </section>
 
         <section id="panel-stories" class="editor-section" role="tabpanel" aria-labelledby="tab-stories" hidden>
@@ -274,6 +389,9 @@
   <div id="status" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
   <script src="./time-scale.js" defer></script>
   <script src="./timeline-view.js" defer></script>
+  <script src="./temporal-standards.js" defer></script>
+  <script src="./spatial.js" defer></script>
+  <script src="./location-map.js" defer></script>
   <script src="./time-graphics-adapter.js" defer></script>
   <script src="./app.js" defer></script>
 </body>
