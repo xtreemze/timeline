@@ -106,7 +106,11 @@ test("item form uses one range calendar, native clocks, and Chrome geolocation",
   assert.match(html, /id="item-end-date" type="hidden"/);
   assert.match(html, /id="item-start-time" type="time"/);
   assert.match(html, /id="item-end-time" type="time"/);
-  assert.ok(html.includes('<option value="millennium">Millennium</option>'));\n  assert.ok(html.includes('<option value="century">Century</option>'));\n  assert.ok(html.includes('<option value="decade">Decade</option>'));\n  assert.ok(html.includes('<option value="year">Year</option>'));\n  assert.ok(html.includes('<option value="month">Month</option>'));
+  assert.ok(html.includes('<option value="millennium">Millennium</option>'));
+  assert.ok(html.includes('<option value="century">Century</option>'));
+  assert.ok(html.includes('<option value="decade">Decade</option>'));
+  assert.ok(html.includes('<option value="year">Year</option>'));
+  assert.ok(html.includes('<option value="month">Month</option>'));
   assert.equal((html.match(/<option value="millennium">Millennium<\\/option>/g) || []).length, 2);
   assert.ok(appSource.includes('const hasClock = !["millennium", "century", "decade", "year", "month", "day"].includes(precision);'));
   assert.match(html, /<geolocation id="item-geolocation"/);
