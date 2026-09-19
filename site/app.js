@@ -1580,13 +1580,19 @@
     if (!navigationController) return false;
     if (command === "toggle-auto") {
       if (!navigationController.auto.running || navigationController.auto.paused) {
-        if (!ensurePresentationFocus()) return true;
+        if (!ensurePresentationFocus()) {
+          showStatus("No visible timeline items to present.");
+          return true;
+        }
       }
       navigationController.auto.toggle();
       return true;
     }
     if (command === "resume-auto") {
-      if (!ensurePresentationFocus()) return true;
+      if (!ensurePresentationFocus()) {
+        showStatus("No visible timeline items to present.");
+        return true;
+      }
       navigationController.auto.resume();
       return true;
     }
@@ -1594,10 +1600,22 @@
       navigationController.auto.pause("manual");
       return true;
     }
-    if (command === "next") return advancePresentation(1);
-    if (command === "previous") return advancePresentation(-1);
-    if (command === "next-media") return timelineView?.stepFocusMedia(1) || false;
-    if (command === "previous-media") return timelineView?.stepFocusMedia(-1) || false;
+    if (command === "next") {
+      advancePresentation(1);
+      return true;
+    }
+    if (command === "previous") {
+      advancePresentation(-1);
+      return true;
+    }
+    if (command === "next-media") {
+      timelineView?.stepFocusMedia(1);
+      return true;
+    }
+    if (command === "previous-media") {
+      timelineView?.stepFocusMedia(-1);
+      return true;
+    }
     if (command === "back") {
       if (timelineView?.hasFocusedItem()) {
         timelineView.closeFocus();
