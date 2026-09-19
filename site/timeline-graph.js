@@ -250,10 +250,20 @@
       edges: graphData.edges.map((edge) => {
         const state = states.get(String(edge.id));
         if (!state) return { ...edge, temporalState: "inactive" };
+        const structurallyTimeless =
+          !relationships.find((relationship) => String(relationship.id) === String(edge.id))?.time?.start &&
+          state.changes.length === 0 &&
+          state.active;
         return {
           ...edge,
           label: state.predicate,
-          temporalState: state.changedInWindow ? "changed" : state.active ? "active" : "inactive",
+          temporalState: state.changedInWindow
+            ? "changed"
+            : structurallyTimeless
+              ? "timeless"
+              : state.active
+                ? "active"
+                : "inactive",
           properties: {
             ...edge.properties,
             role: state.role,
