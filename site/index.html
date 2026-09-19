@@ -85,9 +85,9 @@
       </div>
     </header>
 
-    <section id="app-shell" class="app-shell" aria-label="Timeline application" data-editor-open="false" data-browser-open="false" data-graph-open="false" data-view-controls-open="false">
+    <section id="app-shell" class="app-shell" aria-label="Timeline application" data-mode="view" data-editor-open="false" data-browser-open="false" data-graph-open="false" data-view-controls-open="false">
       <nav class="app-tool-dock" aria-label="Workspace tools">
-        <button id="editor-toggle" class="app-tool" type="button" data-semantic-icon="note" aria-controls="control-panel" aria-expanded="false">
+        <button id="editor-toggle" class="app-tool" type="button" data-semantic-icon="note" aria-controls="control-panel" aria-expanded="false" aria-pressed="false">
           <span class="app-tool-label">Edit</span>
         </button>
         <button id="timeline-browser-toggle" class="app-tool" type="button" data-semantic-icon="search" aria-controls="timeline-browser-sheet" aria-expanded="false">
@@ -796,16 +796,17 @@
             </label>
 
             <fieldset class="temporal-editor graph-edge-time">
-              <legend>Active time <small>optional</small></legend>
+              <legend>Active time <small>recommended</small></legend>
               <label class="field">
                 <span>Temporal mode</span>
                 <select id="graph-edge-time-kind">
-                  <option value="timeless">Timeless</option>
-                  <option value="event">At date</option>
+                  <option value="event" selected>At date</option>
                   <option value="range">Date range</option>
+                  <option value="timeless">Persistent / no temporal anchor</option>
                 </select>
               </label>
-              <label id="graph-edge-date-field" class="field date-range-field" hidden>
+              <p class="field-hint">Prefer a date or range so the relation can enter and leave the graph with the visible timeline window. Use persistent only when the relation genuinely has no temporal extent.</p>
+              <label id="graph-edge-date-field" class="field date-range-field">
                 <span>Date / range</span>
                 <input id="graph-edge-date-range" type="text" readonly autocomplete="off" placeholder="Choose active date" aria-haspopup="dialog" aria-controls="graph-edge-calendar-popover">
               </label>
@@ -947,9 +948,7 @@
               <button id="graph-reset-view" class="button ghost compact-button" type="button">Reset graph view</button>
             </div>
             <div class="temporal-graph-canvas" role="application" aria-label="Node and edge graph synchronized to the visible timeline window"></div>
-            <aside class="temporal-graph-detail" data-graph-detail aria-live="polite">
-              <span>Select a node or edge to inspect its properties.</span>
-            </aside>
+            <aside class="temporal-graph-detail" data-graph-detail aria-live="polite" hidden></aside>
           </div>
         </details>
 
