@@ -2099,7 +2099,7 @@
     inline-size: min(900px, calc(100dvw - 8rem));
     max-block-size: calc(100dvh - 9rem);
     block-size: auto;
-    overflow: visible;
+    overflow: hidden;
     transform: translateX(-50%);
   }
 
@@ -2111,7 +2111,7 @@
     inline-size: min(720px, calc(100dvw - 10rem));
     max-block-size: calc(100dvh - 3rem);
     block-size: auto;
-    overflow: visible;
+    overflow: hidden;
     transform: translateY(-50%);
   }
 
@@ -2550,11 +2550,33 @@
   --timeline-context-edge-span: clamp(132px, 29dvw, 320px);
 }
 
-#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(.timeline-focus-view[data-active-tab="overview"]) > .timeline-view {
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"]
+  > .timeline-view {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  inline-size: 100%;
+  block-size: 100%;
+  max-width: none;
+  max-height: none;
+  max-inline-size: none;
+  max-block-size: none;
+}
+
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"]
+  > .timeline-view > .timeline-surface {
+  transition:
+    width 280ms cubic-bezier(.2, .8, .2, 1),
+    height 280ms cubic-bezier(.2, .8, .2, 1),
+    inline-size 280ms cubic-bezier(.2, .8, .2, 1),
+    block-size 280ms cubic-bezier(.2, .8, .2, 1);
+}
+
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(.timeline-focus-view:popover-open)
+  > .timeline-view > .timeline-surface {
   position: absolute;
   inset: auto 0 0 0;
-  grid-column: 1 / -1 !important;
-  grid-row: auto !important;
   width: 100%;
   height: var(--timeline-context-edge-span);
   inline-size: 100%;
@@ -2563,16 +2585,12 @@
   max-height: var(--timeline-context-edge-span);
   max-inline-size: none;
   max-block-size: var(--timeline-context-edge-span);
-  transition:
-    block-size 280ms cubic-bezier(.2, .8, .2, 1),
-    max-block-size 280ms cubic-bezier(.2, .8, .2, 1);
 }
 
-#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="vertical"]:has(.timeline-focus-view[data-active-tab="overview"]) > .timeline-view {
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="vertical"]:has(.timeline-focus-view:popover-open)
+  > .timeline-view > .timeline-surface {
   position: absolute;
   inset: 0 0 0 auto;
-  grid-column: auto !important;
-  grid-row: 1 / -1 !important;
   width: var(--timeline-context-edge-span);
   height: 100%;
   inline-size: var(--timeline-context-edge-span);
@@ -2581,9 +2599,6 @@
   max-height: none;
   max-inline-size: var(--timeline-context-edge-span);
   max-block-size: none;
-  transition:
-    inline-size 280ms cubic-bezier(.2, .8, .2, 1),
-    max-inline-size 280ms cubic-bezier(.2, .8, .2, 1);
 }
 
 /* Keep the focused content and graph entirely in the space chronology yielded. */
@@ -2613,7 +2628,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"] > .timeline-view {
+  #app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"]
+    > .timeline-view > .timeline-surface {
     transition-duration: 0s;
   }
 }
@@ -2736,30 +2752,6 @@
   grid-column: 1 / span 3 !important;
   grid-row: 1 / span 2 !important;
   max-height: min(72dvh, 720px);
-}
-
-/* Keep chronology docked while focused tabs change. The graph itself may disappear on
-   Evidence, but the spatial composition remains stable instead of snapping underneath. */
-#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(.timeline-focus-view:popover-open) > .timeline-view {
-  position: absolute;
-  inset: auto 0 0 0;
-  width: 100%;
-  height: var(--timeline-context-edge-span);
-  inline-size: 100%;
-  block-size: var(--timeline-context-edge-span);
-  max-width: none;
-  max-height: var(--timeline-context-edge-span);
-}
-
-#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="vertical"]:has(.timeline-focus-view:popover-open) > .timeline-view {
-  position: absolute;
-  inset: 0 0 0 auto;
-  width: var(--timeline-context-edge-span);
-  height: 100%;
-  inline-size: var(--timeline-context-edge-span);
-  block-size: 100%;
-  max-width: var(--timeline-context-edge-span);
-  max-height: none;
 }
 
 /* The application root itself does not cross-fade. Only explicitly named surfaces animate,
