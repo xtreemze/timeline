@@ -71,3 +71,12 @@ test("sample defaults use case-oriented categories", () => {
     "Observation"
   ]) assert.ok(names.has(name));
 });
+
+test("sample graph includes time-bounded action edges with properties", () => {
+  const timed = sample.relationships.filter((relationship) => relationship.time?.start?.value);
+  assert.ok(timed.length >= 8);
+  assert.ok(timed.some((relationship) => relationship.time?.type === "interval"));
+  assert.ok(timed.some((relationship) => relationship.time?.type === "instant"));
+  assert.ok(timed.some((relationship) => Object.keys(relationship.attributes || {}).length > 0));
+  assert.ok(timed.every((relationship) => relationship.predicate && relationship.subjectId && relationship.objectId));
+});
