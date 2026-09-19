@@ -21,9 +21,15 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body {
+  --page-grid-gap: clamp(.55rem, 1.15vw, 1.15rem);
+  --page-grid-gutter: max(1rem, calc((100vw - 1540px) / 2));
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--page-grid-gap);
+  padding-inline: var(--page-grid-gutter);
   background:
     radial-gradient(circle at 8% 0%, rgba(183, 71, 42, .08), transparent 28rem),
     var(--paper-2);
@@ -60,15 +66,23 @@ a { color: inherit; }
 .skip-link:focus { transform: none; }
 
 .site-header, main, footer {
-  width: min(1540px, calc(100% - 2rem));
-  margin-inline: auto;
+  grid-column: 1 / -1;
+  width: 100%;
+  margin-inline: 0;
+}
+main {
+  display: grid;
+  grid-template-columns: subgrid;
+}
+main > * {
+  grid-column: 1 / -1;
 }
 .site-header {
   min-height: 68px;
-  display: flex;
+  display: grid;
+  grid-template-columns: subgrid;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  gap: var(--page-grid-gap);
   border-bottom: 1px solid var(--line);
 }
 .brand {
@@ -79,13 +93,21 @@ a { color: inherit; }
   letter-spacing: -.03em;
   text-decoration: none;
 }
-.site-header nav { display: flex; gap: 1.25rem; color: var(--muted); font-size: .88rem; }
+.site-header .brand { grid-column: 1 / span 6; }
+.site-header nav {
+  grid-column: 7 / -1;
+  justify-self: end;
+  display: flex;
+  gap: 1.25rem;
+  color: var(--muted);
+  font-size: .88rem;
+}
 .site-header nav a { text-underline-offset: .2rem; }
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(300px, .65fr);
-  gap: 3rem 5rem;
+  grid-template-columns: subgrid;
+  gap: 3rem var(--page-grid-gap);
   padding: clamp(3.5rem, 7vw, 7rem) 0 clamp(2.5rem, 5vw, 4.5rem);
   align-items: end;
 }
@@ -105,7 +127,8 @@ a { color: inherit; }
   letter-spacing: -.065em;
   font-weight: 830;
 }
-.hero-copy-wrap { align-self: end; }
+.hero > :first-child { grid-column: 1 / span 8; }
+.hero-copy-wrap { grid-column: 9 / -1; align-self: end; }
 .hero-copy {
   margin: 0;
   max-width: 48ch;
@@ -153,7 +176,8 @@ a { color: inherit; }
 
 .app-shell {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
   min-height: 780px;
   border: 1px solid var(--line-strong);
   border-radius: 1.15rem;
@@ -162,7 +186,7 @@ a { color: inherit; }
   box-shadow: var(--shadow);
 }
 .control-panel {
-  grid-column: span 4;
+  grid-column: 1 / span 4;
   min-width: 0;
   border-right: 1px solid var(--line);
   background: var(--panel);
@@ -188,16 +212,18 @@ a { color: inherit; }
 
 .presentation-stage {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
   align-items: start;
-  gap: 1rem;
+  gap: 1rem var(--page-grid-gap);
   min-width: 0;
 }
-.presentation-stage[data-stage-shape="wide"] {
-  grid-template-columns: minmax(0, 9fr) minmax(280px, 3fr);
+.presentation-stage > .timeline-view {
+  grid-column: 1 / -1;
+  min-width: 0;
 }
-.presentation-stage > .timeline-view,
-.presentation-stage > .graph-lens {
+.presentation-stage > .graph-lens,
+.presentation-stage > .presentation-map-panel {
   min-width: 0;
 }
 .app-shell.is-event-focused .presentation-stage {
@@ -664,10 +690,16 @@ geolocation {
 .icon-button.delete:hover { color: var(--danger); }
 
 .timeline-panel {
-  grid-column: span 8;
+  grid-column: 5 / -1;
   min-width: 0;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-content: start;
   padding: clamp(1.2rem, 2.7vw, 2.4rem);
   position: relative;
+}
+.timeline-panel > * {
+  grid-column: 1 / -1;
 }
 .timeline-heading-row { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: 1rem; }
 .visible-count { margin: .2rem 0 0; color: var(--muted); font-size: .78rem; white-space: nowrap; }
@@ -828,8 +860,16 @@ geolocation {
 }
 .status.visible { opacity: 1; transform: none; }
 
-footer { display: flex; justify-content: space-between; gap: 1rem; padding: 2.5rem 0 3rem; color: var(--muted); font-size: .8rem; }
-footer p { margin: 0; }
+footer {
+  display: grid;
+  grid-template-columns: subgrid;
+  gap: var(--page-grid-gap);
+  padding: 2.5rem 0 3rem;
+  color: var(--muted);
+  font-size: .8rem;
+}
+footer p { grid-column: 1 / span 8; margin: 0; }
+footer > :last-child { grid-column: 9 / -1; justify-self: end; }
 
 @media (max-width: 1120px) {
   .project-bar { grid-template-columns: minmax(200px, 1fr) auto; }
@@ -1454,4 +1494,189 @@ footer p { margin: 0; }
 #presentation-stage:fullscreen[data-stage-shape="tall"]:has(> .presentation-map-panel[hidden]) > .graph-lens {
   grid-column: 1 / -1;
   grid-row: 8 / -1;
+}
+
+
+/* Canonical page/presentation grid contract.
+   Body owns the 12 columns; focused presentation surfaces consume those tracks rather than
+   creating a compressed replacement grid inside the timeline panel. */
+.graph-lens[hidden],
+.presentation-map-panel[hidden] {
+  display: none !important;
+}
+
+.app-shell.is-event-focused .timeline-panel {
+  display: grid;
+  grid-template-columns: subgrid;
+}
+
+.app-shell.is-event-focused #presentation-stage {
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.app-shell.is-event-focused #presentation-stage > .timeline-view {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+
+.app-shell.is-event-focused #presentation-stage[data-has-context-graph="true"] > .timeline-view,
+.app-shell.is-event-focused #presentation-stage[data-has-context-map="true"] > .timeline-view {
+  grid-column: 1 / span 9;
+}
+
+.app-shell.is-event-focused #presentation-stage > .graph-lens:not([hidden]),
+.app-shell.is-event-focused #presentation-stage > .presentation-map-panel:not([hidden]) {
+  grid-column: 10 / -1;
+  min-width: 0;
+  max-height: 100vh;
+  margin: 0;
+}
+
+.app-shell.is-event-focused #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"] {
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.app-shell.is-event-focused #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"] > .timeline-view {
+  grid-row: 1 / -1;
+}
+
+.app-shell.is-event-focused #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"] > .graph-lens {
+  grid-row: 1;
+}
+
+.app-shell.is-event-focused #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"] > .presentation-map-panel {
+  grid-row: 2;
+}
+
+#presentation-stage:fullscreen {
+  inline-size: 100dvw;
+  block-size: 100dvh;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  gap: clamp(.35rem, .8vw, .75rem);
+  padding:
+    max(.45rem, env(safe-area-inset-top))
+    max(.45rem, env(safe-area-inset-right))
+    max(.45rem, env(safe-area-inset-bottom))
+    max(.45rem, env(safe-area-inset-left));
+  overflow: hidden;
+}
+
+#presentation-stage:fullscreen > .timeline-view {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+#presentation-stage:fullscreen[data-has-context-graph="true"] > .timeline-view,
+#presentation-stage:fullscreen[data-has-context-map="true"] > .timeline-view {
+  grid-column: 1 / span 9;
+}
+
+#presentation-stage:fullscreen > .graph-lens:not([hidden]),
+#presentation-stage:fullscreen > .presentation-map-panel:not([hidden]) {
+  grid-column: 10 / -1;
+  grid-row: 1;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+#presentation-stage:fullscreen[data-has-context-graph="true"][data-has-context-map="true"] {
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+#presentation-stage:fullscreen[data-has-context-graph="true"][data-has-context-map="true"] > .timeline-view {
+  grid-row: 1 / -1;
+}
+
+#presentation-stage:fullscreen[data-has-context-graph="true"][data-has-context-map="true"] > .graph-lens {
+  grid-row: 1;
+}
+
+#presentation-stage:fullscreen[data-has-context-graph="true"][data-has-context-map="true"] > .presentation-map-panel {
+  grid-row: 2;
+}
+
+#presentation-stage:fullscreen .graph-lens[open],
+#presentation-stage:fullscreen .presentation-map-panel:not([hidden]) {
+  height: 100%;
+}
+
+#presentation-stage:fullscreen .temporal-graph-canvas,
+#presentation-stage:fullscreen .presentation-map {
+  min-height: 0;
+  height: 100%;
+}
+
+@media (orientation: portrait) {
+  #presentation-stage:fullscreen[data-has-context-graph="true"],
+  #presentation-stage:fullscreen[data-has-context-map="true"] {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 3fr) minmax(0, 1fr);
+  }
+
+  #presentation-stage:fullscreen[data-has-context-graph="true"] > .timeline-view,
+  #presentation-stage:fullscreen[data-has-context-map="true"] > .timeline-view {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  #presentation-stage:fullscreen > .graph-lens:not([hidden]),
+  #presentation-stage:fullscreen > .presentation-map-panel:not([hidden]) {
+    grid-row: 2;
+    max-height: none;
+  }
+
+  #presentation-stage:fullscreen[data-has-context-graph="true"][data-has-context-map="false"] > .graph-lens,
+  #presentation-stage:fullscreen[data-has-context-graph="false"][data-has-context-map="true"] > .presentation-map-panel {
+    grid-column: 1 / -1;
+  }
+
+  #presentation-stage:fullscreen[data-has-context-graph="true"][data-has-context-map="true"] > .graph-lens {
+    grid-column: 1 / span 6;
+    grid-row: 2;
+  }
+
+  #presentation-stage:fullscreen[data-has-context-graph="true"][data-has-context-map="true"] > .presentation-map-panel {
+    grid-column: 7 / -1;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 760px) {
+  body {
+    --page-grid-gap: .4rem;
+    --page-grid-gutter: .65rem;
+  }
+
+  .site-header,
+  main,
+  footer {
+    grid-column: 1 / -1;
+  }
+
+  .hero {
+    grid-template-columns: subgrid;
+  }
+
+  .hero > :first-child,
+  .hero-copy-wrap,
+  .control-panel,
+  .timeline-panel {
+    grid-column: 1 / -1;
+  }
+
+  .timeline-panel {
+    grid-template-columns: subgrid;
+  }
 }

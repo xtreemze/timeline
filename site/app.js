@@ -243,6 +243,7 @@
   let presentationResizeFrame = 0;
   let graphOpenBeforeFullscreen = true;
   let presentationMap = null;
+  let focusedGraphContextAvailable = false;
 
   function destroyPresentationMap() {
     presentationMap?.destroy?.();
@@ -258,10 +259,9 @@
 
   function renderPresentationMap() {
     destroyPresentationMap();
-    if (!presentationIsFullscreen()) return;
     const item = focusedPresentationItem();
     const coordinates = item?.location?.geometry?.coordinates;
-    if (!item || !Array.isArray(coordinates) || coordinates.length < 2) return;
+    if (!item || !Array.isArray(coordinates) || coordinates.length < 2) return false;
     const name =
       item.location.name ||
       item.location.geographicIdentifier ||
@@ -275,6 +275,23 @@
       location: item.location,
       color: category?.color || "#315fbd"
     }) || null;
+    return true;
+  }
+
+  function syncContextualPresentationPanels() {
+    const focused = Boolean(timelineView?.hasFocusedItem?.());
+    const graphVisible = focused && focusedGraphContextAvailable;
+    const mapVisible = focused ? renderPresentationMap() : (destroyPresentationMap(), false);
+
+    if (els.graphLens) {
+      els.graphLens.hidden = focused ? !graphVisible : false;
+      if (graphVisible) els.graphLens.open = true;
+    }
+    if (els.presentationStage) {
+      els.presentationStage.dataset.hasContextGraph = String(graphVisible);
+      els.presentationStage.dataset.hasContextMap = String(Boolean(mapVisible));
+    }
+    return { graphVisible, mapVisible: Boolean(mapVisible) };
   }
 
   function presentationIsFullscreen() {
@@ -324,12 +341,11 @@
       els.presentationFullscreenToggle.setAttribute("aria-pressed", String(active));
       els.presentationFullscreenToggle.textContent = active ? "Exit full screen" : "Present full screen";
     }
-    if (active) {
+    const contextual = syncContextualPresentationPanels();
+    if (active && contextual.graphVisible && els.graphLens) {
       els.graphLens.open = true;
-      renderPresentationMap();
-    } else {
-      destroyPresentationMap();
-      if (els.graphLens) els.graphLens.open = graphOpenBeforeFullscreen;
+    } else if (!active && !timelineView?.hasFocusedItem?.() && els.graphLens) {
+      els.graphLens.open = graphOpenBeforeFullscreen;
     }
     temporalGraphView?.setPresentationMode?.(active || Boolean(timelineView?.hasFocusedItem?.()));
     schedulePresentationGeometryRefresh({ recenterGraph: true });
@@ -350,7 +366,7 @@
       return;
     }
     graphOpenBeforeFullscreen = Boolean(els.graphLens?.open);
-    if (els.graphLens) els.graphLens.open = true;
+    syncContextualPresentationPanels();
     try {
       await els.presentationStage.requestFullscreen({ navigationUI: "hide" });
     } catch {
@@ -2734,9 +2750,15 @@
     const focused = Boolean(event.detail?.focused);
     els.appShell.classList.toggle("is-event-focused", focused);
     temporalGraphView?.setFocus(focused ? event.detail?.id : null);
+    focusedGraphContextAvailable = focused && Boolean(temporalGraphView?.hasContext?.());
     temporalGraphView?.setPresentationMode?.(focused || presentationIsFullscreen());
-    if (presentationIsFullscreen()) renderPresentationMap();
-    else destroyPresentationMap();
+    syncContextualPresentationPanels();
+    schedulePresentationGeometryRefresh({ recenterGraph: true });
+  });
+
+  els.graphViewRoot.addEventListener("graphcontextchange", (event) => {
+    focusedGraphContextAvailable = Boolean(event.detail?.hasContext);
+    syncContextualPresentationPanels();
     schedulePresentationGeometryRefresh({ recenterGraph: true });
   });
   els.timelineViewRoot.addEventListener("timelinefocusedit", (event) => {

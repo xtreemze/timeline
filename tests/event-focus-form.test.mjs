@@ -110,26 +110,29 @@ test("full chronology renders collapsible category groups while story order rema
   assert.match(css, /\.timeline-category-summary/);
 });
 
-test("focused 12-column layouts reserve a first-class graph region and avoid clipped hero typography", async () => {
+test("focused event composition does not instantiate duplicate graph or map surfaces", async () => {
   const [source, css] = await Promise.all([
     readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
   ]);
-  assert.match(source, /timeline-focus-graph/);
-  assert.match(source, /TimelineOrbGraph/);
-  assert.match(css, /\.timeline-focus-graph\s*\{/);
-  assert.match(css, /\.timeline-focus-graph-canvas/);
+
+  assert.doesNotMatch(source, /orbGraphFactory|TimelineOrbGraph|timeline-focus-graph-canvas|focusGraph/);
+  assert.doesNotMatch(source, /timeline-focus-place-map|focusMap/);
+  assert.doesNotMatch(css, /timeline-focus-graph/);
+  assert.doesNotMatch(css, /timeline-focus-place-map/);
   assert.match(css, /container-type:\s*inline-size/);
   assert.match(css, /font-size:\s*clamp\(2\.55rem,\s*9cqi,\s*7\.25rem\)/);
   assert.match(css, /overflow-wrap:\s*break-word/);
   assert.doesNotMatch(css, /text-box:\s*trim-both cap alphabetic/);
 });
 
-test("focused layouts use intentional graph placement across all three variants", async () => {
+test("focused layouts reclaim the former duplicate graph columns for event context", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
-  assert.match(css, /data-layout="hero-split"[\s\S]*timeline-focus-graph/);
-  assert.match(css, /data-layout="evidence-dossier"[\s\S]*timeline-focus-graph/);
-  assert.match(css, /data-layout="editorial-mosaic"[\s\S]*timeline-focus-graph/);
+  assert.match(css, /timeline-focus-relations[\s\S]*grid-column:\s*5\s*\/\s*-1/);
+  assert.doesNotMatch(css, /timeline-focus-graph/);
+  assert.match(css, /data-layout="hero-split"/);
+  assert.match(css, /data-layout="evidence-dossier"/);
+  assert.match(css, /data-layout="editorial-mosaic"/);
 });
 
 test("presentation stage keeps timeline and graph together and supports fullscreen", async () => {
@@ -181,20 +184,22 @@ test("Escape exits fullscreen before focused-event back navigation", async () =>
   assert.match(source, /presentationIsFullscreen\(\)[\s\S]*meta\.event\?\.key === "Escape"[\s\S]*return false/);
 });
 
-test("mobile fullscreen presentation remains a bounded multi-surface dashboard", async () => {
-  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+test("mobile fullscreen keeps the timeline in the first 75 percent and contextual surfaces in the final quarter", async () => {
+  const [styles, timelineCss] = await Promise.all([
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
 
-  assert.match(css, /Mobile fullscreen presentation/);
-  assert.match(css, /block-size:\s*100dvh/);
-  assert.match(css, /safe-area-inset-top/);
-  assert.match(css, /presentation-stage:fullscreen\[data-stage-shape\]\[data-timeline-orientation\][\s\S]*grid-template-rows/);
-  assert.match(css, /timeline-focus-view[\s\S]*grid-template-columns:[^;]*1\.35fr/);
-  assert.match(css, /timeline-focus-hero[\s\S]*grid-row:\s*1\s*\/\s*-1/);
-  assert.match(css, /timeline-focus-summary[\s\S]*grid-column:\s*2/);
-  assert.match(css, /timeline-focus-place[\s\S]*grid-column:\s*2/);
-  assert.match(css, /temporal-graph-detail\s*\{[\s\S]*display:\s*none/);
-  assert.match(css, /orientation:\s*landscape[\s\S]*grid-template-columns:[^;]*62fr/);
-  assert.match(css, /timeline-view-toolbar[\s\S]*overflow-x:\s*auto/);
+  assert.match(styles, /block-size:\s*100dvh/);
+  assert.match(styles, /safe-area-inset-top/);
+  assert.match(timelineCss, /Final fullscreen composition guard/);
+  assert.match(timelineCss, /grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(timelineCss, /data-has-context-graph="true"[\s\S]*grid-column:\s*1\s*\/\s*span 9/);
+  assert.match(timelineCss, /graph-lens:not\(\[hidden\]\)[\s\S]*grid-column:\s*10\s*\/\s*-1/);
+  assert.match(timelineCss, /orientation:\s*portrait[\s\S]*grid-template-rows:\s*minmax\(0,\s*3fr\)\s*minmax\(0,\s*1fr\)/);
+  assert.match(timelineCss, /data-has-context-graph="true"\]\[data-has-context-map="true"[\s\S]*grid-column:\s*1\s*\/\s*span 6/);
+  assert.match(timelineCss, /data-has-context-graph="true"\]\[data-has-context-map="true"[\s\S]*grid-column:\s*7\s*\/\s*-1/);
+  assert.match(timelineCss, /timeline-view-toolbar[\s\S]*overflow-x:\s*auto/);
 });
 
 
@@ -238,22 +243,25 @@ test("presentation stage shape is independent from selected timeline axis orient
   assert.notEqual(landscapeShape, "landscape");
 });
 
-test("fullscreen presentation reserves simultaneous timeline graph and map surfaces", async () => {
-  const [html, css, app, view] = await Promise.all([
+test("presentation owns exactly one contextual graph and one contextual map surface", async () => {
+  const [html, css, app, view, graphView] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8")
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8")
   ]);
-  assert.match(html, /id="presentation-map-panel"/);
-  assert.match(html, /id="presentation-map"/);
-  assert.match(css, /#presentation-stage:fullscreen\[data-timeline-orientation="horizontal"\] > \.timeline-view/);
-  assert.match(css, /#presentation-stage:fullscreen\[data-timeline-orientation="horizontal"\] > \.graph-lens/);
-  assert.match(css, /#presentation-stage:fullscreen\[data-timeline-orientation="horizontal"\] > \.presentation-map-panel/);
-  assert.match(css, /#presentation-stage:fullscreen\[data-timeline-orientation="vertical"\] > \.timeline-view/);
-  assert.match(app, /renderPresentationMap/);
-  assert.match(app, /createReadOnly/);
-  assert.match(view, /timeline-focus-place-map/);
+
+  assert.equal((html.match(/class="temporal-graph-canvas"/g) || []).length, 1);
+  assert.equal((html.match(/id="presentation-map"/g) || []).length, 1);
+  assert.doesNotMatch(view, /timeline-focus-graph-canvas|timeline-focus-place-map/);
+  assert.match(app, /syncContextualPresentationPanels/);
+  assert.match(app, /data(?:set)?\.hasContextGraph|dataset\.hasContextGraph/);
+  assert.match(app, /data(?:set)?\.hasContextMap|dataset\.hasContextMap/);
+  assert.match(graphView, /graphcontextchange/);
+  assert.match(graphView, /hasContext\(\)/);
+  assert.match(css, /data-has-context-graph="true"/);
+  assert.match(css, /data-has-context-map="true"/);
 });
 
 test("timeline range bars are identifiable and labels share event color semantics", async () => {
@@ -270,34 +278,23 @@ test("timeline range bars are identifiable and labels share event color semantic
 });
 
 
-test("presentation hierarchy keeps the timeline primary and pairs graph with map", async () => {
-  const [styles, timelineCss] = await Promise.all([
+test("body owns the canonical 12-column grid and contextual surfaces never exceed one quarter", async () => {
+  const [styles, html] = await Promise.all([
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+    readFile(new URL("../site/index.html", import.meta.url), "utf8")
   ]);
 
-  assert.match(styles, /presentation-stage\[data-stage-shape="wide"\][\s\S]*9fr[\s\S]*3fr/);
-  assert.match(
-    styles,
-    /#presentation-stage:fullscreen\[data-timeline-orientation="horizontal"\] > \.timeline-view[\s\S]*grid-row:\s*4\s*\/\s*-1/
-  );
-  assert.match(
-    styles,
-    /#presentation-stage:fullscreen\[data-timeline-orientation="vertical"\] > \.timeline-view[\s\S]*grid-column:\s*4\s*\/\s*-1/
-  );
-  assert.match(
-    styles,
-    /data-timeline-orientation="horizontal"\] > \.graph-lens[\s\S]*span 6[\s\S]*presentation-map-panel[\s\S]*grid-column:\s*7\s*\/\s*-1/
-  );
-  assert.match(
-    styles,
-    /data-timeline-orientation="vertical"\] > \.graph-lens[\s\S]*span 6[\s\S]*presentation-map-panel[\s\S]*grid-row:\s*7\s*\/\s*-1/
-  );
-  assert.match(styles, /is-event-focused \.temporal-graph-detail[\s\S]*display:\s*none/);
-  assert.match(timelineCss, /timeline-focus-place[\s\S]*grid-column:\s*1\s*\/\s*span 4/);
-  assert.match(timelineCss, /timeline-focus-graph[\s\S]*grid-column:\s*9\s*\/\s*-1/);
-  assert.match(timelineCss, /timeline-focus-place-map[\s\S]*min-height:\s*210px/);
-  assert.match(timelineCss, /timeline-focus-graph-canvas[\s\S]*min-height:\s*210px/);
+  assert.match(styles, /body\s*\{[\s\S]*display:\s*grid[\s\S]*grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(styles, /main\s*\{[\s\S]*grid-template-columns:\s*subgrid/);
+  assert.match(styles, /\.app-shell\s*\{[\s\S]*grid-template-columns:\s*subgrid/);
+  assert.match(styles, /\.timeline-panel\s*\{[\s\S]*grid-template-columns:\s*subgrid/);
+  assert.match(styles, /\.presentation-stage\s*\{[\s\S]*grid-template-columns:\s*subgrid/);
+  assert.match(styles, /#presentation-stage:fullscreen[\s\S]*repeat\(12,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(styles, /data-has-context-graph="true"[\s\S]*\.timeline-view[\s\S]*grid-column:\s*1\s*\/\s*span 9/);
+  assert.match(styles, /graph-lens:not\(\[hidden\]\)[\s\S]*grid-column:\s*10\s*\/\s*-1/);
+  assert.match(styles, /presentation-map-panel:not\(\[hidden\]\)[\s\S]*grid-column:\s*10\s*\/\s*-1/);
+  assert.match(styles, /orientation:\s*portrait[\s\S]*grid-template-rows:\s*minmax\(0,\s*3fr\)\s*minmax\(0,\s*1fr\)/);
+  assert.match(html, /id="presentation-stage"[\s\S]*id="timeline-view"[\s\S]*id="graph-lens"[\s\S]*id="presentation-map-panel"/);
 });
 
 test("fullscreen presentation removes graph authoring chrome and raw properties", async () => {
