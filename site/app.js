@@ -1473,6 +1473,12 @@
         const coordinates = item.location.geometry?.coordinates;
         lines.push(`Location: ${place}${coordinates ? ` (${coordinates[1]}, ${coordinates[0]})` : ""}  `);
       }
+      if (item.tags?.length) lines.push(`Tags: ${item.tags.map((tag) => tag.label).join(", ")}  `);
+      if (item.media?.length) {
+        for (const media of item.media) {
+          lines.push(`Media: ${media.src}${media.caption ? ` — ${media.caption}` : ""}  `);
+        }
+      }
       if (item.description) lines.push("", item.description);
       lines.push("");
     }
@@ -1800,6 +1806,7 @@
 
   els.loadSample.addEventListener("click", () => {
     if ((state.items.length || state.stories.length) && !window.confirm("Replace the current timeline with the example dataset?")) return;
+    timelineView?.closeFocus();
     state = normalizeTimeline(clone(SAMPLE));
     ui.search = "";
     ui.categoryFilter = "all";
@@ -1836,13 +1843,14 @@
     try {
       if (file.size > 5_000_000) throw new Error("Import is limited to 5 MB.");
       const raw = JSON.parse(await file.text());
-      const timeGraphics = globalThis.TimeGraphicsAdapter;
-      const converted = timeGraphics?.isLikelyTimeGraphics(raw) ? timeGraphics.importData(raw) : null;
+      const adapter = globalThis.TimelineInterchangeAdapter;
+      const converted = adapter?.isLikelyInterchange(raw) ? adapter.importData(raw) : null;
       const imported = converted?.timeline || raw;
       if ((state.items.length || state.stories.length) && !window.confirm("Replace the current timeline with the imported file?")) return;
+      timelineView?.closeFocus();
       applyImportedTimeline(
         imported,
-        converted ? "Imported Time.Graphics" : "Imported",
+        converted ? "Imported interchange" : "Imported",
         converted?.warnings?.length || 0
       );
     } catch (error) {
@@ -1852,21 +1860,22 @@
     }
   });
 
-  els.importTimeGraphics.addEventListener("change", async () => {
-    const file = els.importTimeGraphics.files?.[0];
+  els.importInterchange.addEventListener("change", async () => {
+    const file = els.importInterchange.files?.[0];
     if (!file) return;
     try {
       if (file.size > 5_000_000) throw new Error("Import is limited to 5 MB.");
-      const adapter = globalThis.TimeGraphicsAdapter;
-      if (!adapter) throw new Error("Time.Graphics adapter is unavailable.");
+      const adapter = globalThis.TimelineInterchangeAdapter;
+      if (!adapter) throw new Error("Interchange adapter is unavailable.");
       const converted = adapter.importData(await file.text());
-      if ((state.items.length || state.stories.length) && !window.confirm("Replace the current timeline with the Time.Graphics export?")) return;
-      applyImportedTimeline(converted.timeline, "Imported Time.Graphics", converted.warnings.length);
-      if (converted.warnings.length) console.warn("Time.Graphics import warnings:", converted.warnings);
+      if ((state.items.length || state.stories.length) && !window.confirm("Replace the current timeline with the interchange file?")) return;
+      timelineView?.closeFocus();
+      applyImportedTimeline(converted.timeline, "Imported interchange", converted.warnings.length);
+      if (converted.warnings.length) console.warn("Interchange import warnings:", converted.warnings);
     } catch (error) {
-      showStatus(error instanceof Error ? error.message : "Could not import that Time.Graphics export.");
+      showStatus(error instanceof Error ? error.message : "Could not import that interchange file.");
     } finally {
-      els.importTimeGraphics.value = "";
+      els.importInterchange.value = "";
     }
   });
 
@@ -1875,19 +1884,19 @@
     showStatus("JSON exported.");
   });
 
-  els.exportTimeGraphics.addEventListener("click", () => {
-    const adapter = globalThis.TimeGraphicsAdapter;
+  els.exportInterchange.addEventListener("click", () => {
+    const adapter = globalThis.TimelineInterchangeAdapter;
     if (!adapter) {
-      showStatus("Time.Graphics adapter is unavailable.");
+      showStatus("Interchange adapter is unavailable.");
       return;
     }
     const exported = adapter.exportData(state);
     download(
       `${JSON.stringify(exported, null, 2)}\n`,
-      `${slug(state.title)}.timegraphics.json`,
+      `${slug(state.title)}.interchange.json`,
       "application/json;charset=utf-8"
     );
-    showStatus("Time.Graphics interchange JSON exported.");
+    showStatus("Interchange JSON exported.");
   });
 
   els.exportMarkdown.addEventListener("click", () => {
@@ -1897,6 +1906,7 @@
 
   els.clear.addEventListener("click", () => {
     if ((state.items.length || state.stories.length || state.title) && !window.confirm("Clear this timeline? This removes its locally stored items and stories.")) return;
+    timelineView?.closeFocus();
     state = blankTimeline();
     ui.search = "";
     ui.categoryFilter = "all";
