@@ -126,6 +126,7 @@
     itemFormError: document.querySelector("#item-form-error"),
     saveItem: document.querySelector("#save-item"),
     cancelItemEdit: document.querySelector("#cancel-item-edit"),
+    deleteItemEdit: document.querySelector("#delete-item-edit"),
 
     storyForm: document.querySelector("#story-form"),
     storyId: document.querySelector("#story-id"),
@@ -1657,6 +1658,7 @@
     fillCategorySelect(els.itemCategory, false, state.categories[0]?.id || "");
     els.saveItem.textContent = "Add item";
     els.cancelItemEdit.hidden = true;
+    els.deleteItemEdit.hidden = true;
     setError(els.itemFormError);
   }
 
@@ -1684,6 +1686,7 @@
     fillLocationForm(item.location || null);
     els.saveItem.textContent = "Save changes";
     els.cancelItemEdit.hidden = false;
+    els.deleteItemEdit.hidden = false;
     setError(els.itemFormError);
     els.itemTitle.focus();
     els.itemForm.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -2818,6 +2821,10 @@
   });
 
   els.cancelItemEdit.addEventListener("click", resetItemForm);
+  els.deleteItemEdit.addEventListener("click", () => {
+    if (ui.mode !== "edit" || !els.itemId.value) return;
+    removeItem(els.itemId.value);
+  });
 
   els.list.addEventListener("toggle", (event) => {
     const details = event.target.closest?.(".timeline-category-group");
