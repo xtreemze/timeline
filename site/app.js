@@ -552,7 +552,9 @@
     const entity = state.entities.find((candidate) => candidate.id === id);
     if (entity) return entity.name || entity.id;
     const item = getItem(id);
-    return item?.title || id;
+    if (item) return item.title || item.id;
+    const story = getStory(id);
+    return story?.title || id;
   }
 
   function storySpanLabel(story) {
@@ -1455,12 +1457,253 @@
     els.categoryList.replaceChildren(...rows);
   }
 
+  function graphEndpointOptions(select, selected = "") {
+    const groups = [
+      ["Nodes", state.entities.map((entity) => ({ id: entity.id, label: entity.name, type: entity.type }))],
+      ["Timeline items", sortItems().map((item) => ({ id: item.id, label: item.title, type: item.kind }))],
+      ["Stories", state.stories.map((story) => ({ id: story.id, label: story.title, type: "story" }))]
+    ];
+    const nodes = [];
+    for (const [label, records] of groups) {
+      if (!records.length) continue;
+      const group = document.createElement("optgroup");
+      group.label = label;
+      for (const record of records) {
+        const option = document.createElement("option");
+        option.value = record.id;
+        option.textContent = `${record.label} · ${record.type}`;
+        group.append(option);
+      }
+      nodes.push(group);
+    }
+    select.replaceChildren(...nodes);
+    const available = [...select.querySelectorAll("option")];
+    select.value = available.some((option) => option.value === selected)
+      ? selected
+      : available[0]?.value || "";
+  }
+
+  function resetGraphNodeForm() {
+    els.graphNodeForm.reset();
+    els.graphNodeId.value = "";
+    els.graphNodeType.value = "entity";
+    els.graphNodeProperties.value = "{}";
+    els.saveGraphNode.textContent = "Add node";
+    els.cancelGraphNodeEdit.hidden = true;
+    setError(els.graphNodeError);
+  }
+
+  function beginGraphNodeEdit(id) {
+    const entity = state.entities.find((candidate) => candidate.id === id);
+    if (!entity) return;
+    setActivePanel("graph");
+    els.graphNodeId.value = entity.id;
+    els.graphNodeName.value = entity.name || entity.id;
+    els.graphNodeType.value = entity.type || "entity";
+    els.graphNodeProperties.value = JSON.stringify(entity.attributes || {}, null, 2);
+    els.saveGraphNode.textContent = "Save node";
+    els.cancelGraphNodeEdit.hidden = false;
+    setError(els.graphNodeError);
+    els.graphNodeName.focus();
+  }
+
+  function removeGraphNode(id) {
+    const entity = state.entities.find((candidate) => candidate.id === id);
+    if (!entity) return;
+    const edgeCount = state.relationships.filter(
+      (relationship) => relationship.subjectId === id || relationship.objectId === id
+    ).length;
+    const suffix = edgeCount
+      ? ` ${edgeCount} connected ${edgeCount === 1 ? "edge" : "edges"} will also be removed.`
+      : "";
+    if (!window.confirm(`Delete node “${entity.name}”?${suffix}`)) return;
+    state.entities = state.entities.filter((candidate) => candidate.id !== id);
+    state.relationships = state.relationships.filter(
+      (relationship) => relationship.subjectId !== id && relationship.objectId !== id
+    );
+    if (els.graphNodeId.value === id) resetGraphNodeForm();
+    persist();
+    renderAll();
+    showStatus("Graph node deleted.");
+  }
+
+  function renderGraphNodes() {
+    els.graphNodeCount.textContent = String(state.entities.length);
+    const rows = state.entities.map((entity) => {
+      const row = document.createElement("article");
+      row.className = "graph-record";
+      row.dataset.id = entity.id;
+      const copy = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = entity.name;
+      const meta = document.createElement("span");
+      const propertyCount = Object.keys(entity.attributes || {}).length;
+      meta.textContent = `${entity.type || "entity"} · ${propertyCount} ${propertyCount === 1 ? "property" : "properties"}`;
+      copy.append(title, meta);
+      const actions = document.createElement("div");
+      actions.className = "graph-record-actions";
+      actions.append(
+        actionButton("Edit", "edit-graph-node", `Edit node ${entity.name}`),
+        actionButton("Delete", "delete-graph-node", `Delete node ${entity.name}`, "delete")
+      );
+      row.append(copy, actions);
+      return row;
+    });
+    if (!rows.length) {
+      const empty = document.createElement("p");
+      empty.className = "privacy-note";
+      empty.textContent = "No graph nodes yet. Nodes represent nouns or subjects such as people, organizations, devices, places, accounts, or objects.";
+      rows.push(empty);
+    }
+    els.graphNodeList.replaceChildren(...rows);
+  }
+
+  function configureGraphEdgeTime() {
+    const kind = els.graphEdgeTimeKind.value;
+    const timed = kind !== "timeless";
+    els.graphEdgeDateField.hidden = !timed;
+    graphEdgeDatePicker.setMode(kind === "range" ? "range" : "event");
+    if (!timed) graphEdgeDatePicker.clear();
+  }
+
+  function resetGraphEdgeForm() {
+    els.graphEdgeForm.reset();
+    els.graphEdgeId.value = "";
+    els.graphEdgeRole.value = "";
+    els.graphEdgeProperties.value = "{}";
+    els.graphEdgeTimeKind.value = "timeless";
+    graphEdgeDatePicker.setMode("event");
+    graphEdgeDatePicker.clear();
+    els.graphEdgeDateField.hidden = true;
+    graphEndpointOptions(els.graphEdgeSubject);
+    graphEndpointOptions(els.graphEdgeObject);
+    els.saveGraphEdge.textContent = "Add edge";
+    els.cancelGraphEdgeEdit.hidden = true;
+    setError(els.graphEdgeError);
+  }
+
+  function buildGraphEdgeTime() {
+    const kind = els.graphEdgeTimeKind.value;
+    if (kind === "timeless") return null;
+    const startDate = els.graphEdgeStartDate.value;
+    const endDate = els.graphEdgeEndDate.value;
+    if (!startDate) throw new Error("Choose an active date for this edge.");
+    if (kind === "range" && !endDate) throw new Error("Choose both dates for the edge range.");
+    const start = temporal.buildEndpoint({
+      date: startDate,
+      time: "",
+      precision: "day",
+      certainty: "exact",
+      timeZone: ""
+    });
+    const end = kind === "range"
+      ? temporal.buildEndpoint({
+          date: endDate,
+          time: "",
+          precision: "day",
+          certainty: "exact",
+          timeZone: ""
+        })
+      : null;
+    if (end && temporal.sortKey(end) < temporal.sortKey(start)) {
+      throw new Error("The edge end cannot be earlier than its start.");
+    }
+    return {
+      type: kind === "range" ? "interval" : "instant",
+      start,
+      end
+    };
+  }
+
+  function beginGraphEdgeEdit(id) {
+    const relationship = state.relationships.find((candidate) => candidate.id === id);
+    if (!relationship) return;
+    setActivePanel("graph");
+    els.graphEdgeId.value = relationship.id;
+    graphEndpointOptions(els.graphEdgeSubject, relationship.subjectId);
+    graphEndpointOptions(els.graphEdgeObject, relationship.objectId);
+    els.graphEdgePredicate.value = relationship.predicate || "relatedTo";
+    els.graphEdgeRole.value = relationship.role || "";
+    els.graphEdgeProperties.value = JSON.stringify(relationship.attributes || {}, null, 2);
+    const timeKind = relationship.time?.end ? "range" : relationship.time?.start ? "event" : "timeless";
+    els.graphEdgeTimeKind.value = timeKind;
+    configureGraphEdgeTime();
+    if (relationship.time?.start) {
+      const start = temporal.formParts(relationship.time.start);
+      const end = temporal.formParts(relationship.time.end);
+      graphEdgeDatePicker.setRange(start.date, timeKind === "range" ? end.date : "");
+    }
+    els.saveGraphEdge.textContent = "Save edge";
+    els.cancelGraphEdgeEdit.hidden = false;
+    setError(els.graphEdgeError);
+    els.graphEdgePredicate.focus();
+  }
+
+  function removeGraphEdge(id) {
+    const relationship = state.relationships.find((candidate) => candidate.id === id);
+    if (!relationship) return;
+    if (!window.confirm(`Delete edge “${relationship.predicate}”?`)) return;
+    state.relationships = state.relationships.filter((candidate) => candidate.id !== id);
+    if (els.graphEdgeId.value === id) resetGraphEdgeForm();
+    persist();
+    renderAll();
+    showStatus("Graph edge deleted.");
+  }
+
+  function renderGraphEdges() {
+    els.graphEdgeCount.textContent = String(state.relationships.length);
+    const rows = state.relationships.map((relationship) => {
+      const row = document.createElement("article");
+      row.className = "graph-record graph-edge-record";
+      row.dataset.id = relationship.id;
+      const copy = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = `${entityOrItemName(relationship.subjectId)} —${relationship.predicate}→ ${entityOrItemName(relationship.objectId)}`;
+      const meta = document.createElement("span");
+      const when = relationship.time ? temporal.intervalRepresentation(relationship.time) : "timeless";
+      const propertyCount = Object.keys(relationship.attributes || {}).length;
+      meta.textContent = `${when} · ${propertyCount} ${propertyCount === 1 ? "property" : "properties"}`;
+      copy.append(title, meta);
+      const actions = document.createElement("div");
+      actions.className = "graph-record-actions";
+      actions.append(
+        actionButton("Edit", "edit-graph-edge", `Edit edge ${relationship.predicate}`),
+        actionButton("Delete", "delete-graph-edge", `Delete edge ${relationship.predicate}`, "delete")
+      );
+      row.append(copy, actions);
+      return row;
+    });
+    if (!rows.length) {
+      const empty = document.createElement("p");
+      empty.className = "privacy-note";
+      empty.textContent = "No graph edges yet. Edges connect subjects and carry an action label, properties, and an optional active time.";
+      rows.push(empty);
+    }
+    els.graphEdgeList.replaceChildren(...rows);
+  }
+
+  function renderGraphEditor() {
+    const subject = els.graphEdgeSubject.value;
+    const object = els.graphEdgeObject.value;
+    graphEndpointOptions(els.graphEdgeSubject, subject);
+    graphEndpointOptions(els.graphEdgeObject, object);
+    renderGraphNodes();
+    renderGraphEdges();
+    temporalGraphView?.setModel({
+      entities: state.entities,
+      relationships: state.relationships,
+      items: state.items,
+      stories: state.stories
+    });
+  }
+
   function renderAll() {
     renderProjectMeta();
     renderCategoryOptions();
     renderStoryBuilder();
     renderStories();
     renderCategories();
+    renderGraphEditor();
     renderTimeline();
   }
 
