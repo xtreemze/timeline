@@ -85,6 +85,10 @@ The focused event composition includes a dedicated Evidence section. An attachme
 
 See `docs/EVIDENCE-MODEL.md`.
 
+### Case-analysis methodology
+
+Timeline separates evidence, observations, factual assertions, competing hypotheses, forensic propositions, analysis, legal issues/authorities, claims, and thesis/case theory. The staged workflow is documented in `docs/CASE-ANALYSIS-METHODOLOGY.md`. Formal report and print presentation principles are documented in `docs/FORMAL-PRESENTATION.md`.
+
 ### Data and portability
 
 - Browser-local persistence with `localStorage`.
