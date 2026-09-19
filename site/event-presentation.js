@@ -34,9 +34,9 @@
     if (!source) return "";
     if (/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(source)) return source;
     try {
-      const url = new URL(source, document?.baseURI || "https://example.invalid/");
+      const url = new URL(source, globalThis.document?.baseURI || "https://example.invalid/");
       if (url.protocol === "https:" || url.protocol === "http:") return url.href;
-      if (url.origin === new URL(document?.baseURI || "https://example.invalid/").origin) return url.href;
+      if (url.origin === new URL(globalThis.document?.baseURI || "https://example.invalid/").origin) return url.href;
     } catch {
       return "";
     }
