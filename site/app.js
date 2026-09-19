@@ -326,6 +326,17 @@
       { id:"r-verify", subjectId:"group-public", objectId:"evt-newsroom-day", predicate:"verified" },
       { id:"r-decision", subjectId:"group-organization", objectId:"evt-decision-day", predicate:"authorized" },
       { id:"r-publication", subjectId:"group-public", objectId:"evt-publication-day", predicate:"published" },
+      { id:"r-story-day-i", subjectId:"group-investigators", objectId:"story-day", predicate:"participatesIn" },
+      { id:"r-story-day-o", subjectId:"group-organization", objectId:"story-day", predicate:"participatesIn" },
+      { id:"r-story-day-p", subjectId:"group-public", objectId:"story-day", predicate:"participatesIn" },
+      { id:"r-story-summer-i", subjectId:"group-investigators", objectId:"story-summer", predicate:"participatesIn" },
+      { id:"r-story-summer-p", subjectId:"group-public", objectId:"story-summer", predicate:"participatesIn" },
+      { id:"r-story-contract-o", subjectId:"group-organization", objectId:"story-contract", predicate:"participatesIn" },
+      { id:"r-story-contract-i", subjectId:"group-investigators", objectId:"story-contract", predicate:"reviews" },
+      { id:"r-story-reconstruction-i", subjectId:"group-investigators", objectId:"story-reconstruction", predicate:"participatesIn" },
+      { id:"r-story-reconstruction-o", subjectId:"group-organization", objectId:"story-reconstruction", predicate:"subjectOf" },
+      { id:"r-story-institutional-o", subjectId:"group-organization", objectId:"story-institutional", predicate:"participatesIn" },
+      { id:"r-story-institutional-p", subjectId:"group-public", objectId:"story-institutional", predicate:"observes" },
       { id:"r-bridge", subjectId:"group-investigators", objectId:"group-organization", predicate:"investigated" },
       { id:"r-bridge-public", subjectId:"group-investigators", objectId:"group-public", predicate:"interviewed" }
     ]
