@@ -1779,3 +1779,101 @@
   border-color: color-mix(in srgb, var(--event-color, var(--ink)) 62%, var(--line));
   box-shadow: 0 12px 34px rgba(38, 31, 23, .14);
 }
+
+
+/* Application canvas contract: timeline geometry never participates in page flow. */
+#presentation-stage > .timeline-view,
+#presentation-stage > .timeline-view.is-event-focused,
+#presentation-stage > .timeline-view.is-event-focused[data-orientation="landscape"],
+#presentation-stage > .timeline-view.is-event-focused[data-orientation="portrait"] {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+#presentation-stage .timeline-surface,
+#presentation-stage .timeline-view.is-event-focused .timeline-surface,
+#presentation-stage .timeline-view.is-event-focused[data-orientation="landscape"] .timeline-surface,
+#presentation-stage .timeline-view.is-event-focused[data-orientation="portrait"] .timeline-surface {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+}
+
+#presentation-stage .timeline-view-toolbar {
+  position: absolute;
+  z-index: 45;
+  right: max(.45rem, env(safe-area-inset-right));
+  bottom: max(4.4rem, calc(env(safe-area-inset-bottom) + 4rem));
+  width: min(calc(100vw - .9rem), 560px);
+  max-width: calc(100% - .9rem);
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: .28rem;
+  padding: .3rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: .72rem;
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--ink) 7%, transparent);
+  scrollbar-width: none;
+}
+
+#presentation-stage .timeline-view-toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+#presentation-stage .timeline-view-toolbar > * {
+  flex: 0 0 auto;
+}
+
+#presentation-stage .timeline-window-readout {
+  display: none;
+}
+
+#presentation-stage .timeline-view-toolbar .button {
+  min-height: 38px;
+}
+
+#presentation-stage .timeline-auto-timer {
+  display: none;
+}
+
+#presentation-stage .presentation-controls .button {
+  white-space: nowrap;
+}
+
+@media (min-width: 720px) {
+  #presentation-stage .timeline-view-toolbar {
+    top: max(.45rem, env(safe-area-inset-top));
+    right: max(.45rem, env(safe-area-inset-right));
+    bottom: auto;
+    width: auto;
+    max-width: min(60vw, 680px);
+  }
+}
+
+/* Fullscreen uses the same application-canvas geometry; only browser chrome disappears. */
+#presentation-stage:fullscreen > .timeline-view,
+#presentation-stage:fullscreen > .timeline-view.is-event-focused {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
