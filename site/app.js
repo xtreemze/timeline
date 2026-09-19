@@ -1053,6 +1053,73 @@
     els.itemTagsDetails.open = normalized.length > 0;
   }
 
+  function relationChangeRowParts(row) {
+    return {
+      relationship: row.querySelector('select[id$="-relation"]'),
+      operation: row.querySelector('select[id$="-operation"]'),
+      predicate: row.querySelector('input[id$="-predicate"]'),
+      role: row.querySelector('input[id$="-role"]'),
+      properties: row.querySelector('textarea[id$="-properties"]')
+    };
+  }
+
+  function fillRelationChangeOptions(select, selected = "") {
+    const options = [document.createElement("option")];
+    options[0].value = "";
+    options[0].textContent = "No relation change";
+    for (const relationship of state.relationships) {
+      const option = document.createElement("option");
+      option.value = relationship.id;
+      option.textContent = `${entityOrItemName(relationship.subjectId)} —${relationship.predicate}→ ${entityOrItemName(relationship.objectId)}`;
+      options.push(option);
+    }
+    select.replaceChildren(...options);
+    select.value = options.some((option) => option.value === selected) ? selected : "";
+  }
+
+  function collectRelationChangeForm() {
+    const changes = [];
+    const seen = new Set();
+    for (const row of els.itemRelationChangeRows) {
+      const parts = relationChangeRowParts(row);
+      const relationshipId = parts.relationship.value;
+      if (!relationshipId) continue;
+      if (seen.has(relationshipId)) throw new Error("An event can define only one change per relation.");
+      seen.add(relationshipId);
+      const operation = ["activate", "deactivate", "update"].includes(parts.operation.value)
+        ? parts.operation.value
+        : "update";
+      const change = {
+        relationshipId,
+        operation,
+        predicate: "",
+        role: "",
+        properties: {}
+      };
+      if (operation === "update") {
+        change.predicate = parts.predicate.value.trim().slice(0, 120);
+        change.role = parts.role.value.trim().slice(0, 120);
+        change.properties = parseJsonObject(parts.properties.value, "Relation property patch");
+      }
+      changes.push(change);
+    }
+    return graph.normalizeRelationChanges(changes);
+  }
+
+  function fillRelationChangeForm(item) {
+    const changes = graph.normalizeRelationChanges(item?.relationChanges);
+    els.itemRelationChangeRows.forEach((row, index) => {
+      const parts = relationChangeRowParts(row);
+      const change = changes[index];
+      fillRelationChangeOptions(parts.relationship, change?.relationshipId || "");
+      parts.operation.value = change?.operation || "activate";
+      parts.predicate.value = change?.predicate || "";
+      parts.role.value = change?.role || "";
+      parts.properties.value = JSON.stringify(change?.properties || {}, null, 2);
+    });
+    els.itemRelationChangesDetails.open = changes.length > 0;
+  }
+
   function evidenceRowParts(row) {
     return {
       id: row.querySelector('input[type="hidden"]'),
@@ -1177,6 +1244,7 @@
     configureTemporalEndpoint("End");
     fillMediaForm([]);
     fillTagForm([]);
+    fillRelationChangeForm(null);
     fillEvidenceForm(null);
     els.itemLayoutVariant.value = "hero-split";
     resetLocationForm();
@@ -1204,6 +1272,7 @@
     els.itemDescription.value = item.description;
     fillMediaForm(item.media || []);
     fillTagForm(item.tags || []);
+    fillRelationChangeForm(item);
     fillEvidenceForm(item);
     els.itemLayoutVariant.value = item.presentation?.variant || "hero-split";
     fillLocationForm(item.location || null);
