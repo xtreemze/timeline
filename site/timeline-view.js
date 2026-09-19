@@ -24,6 +24,7 @@
   const RELATION_LANES = 4;
   const FOCUS_VIEW_TRANSITION_NAME = "timeline-event-detail-shared";
   const FOCUS_SWAP_TRANSITION_NAME = "timeline-event-detail-swap";
+  const FOCUS_POPOVER_MARGIN = 12;
 
   function createElement(tag, className, text) {
     const element = document.createElement(tag);
@@ -291,6 +292,9 @@
 
     refreshLayout() {
       this.scheduleRender();
+      if (this.selectedId && this.focusView.matches(":popover-open")) {
+        requestAnimationFrame(() => this.positionFocusPopover());
+      }
     }
 
     applyOrientation() {
@@ -351,7 +355,10 @@
         this.closeFocus();
       } else if (this.selectedId) {
         const selected = this.items.find((item) => item.id === this.selectedId);
-        if (selected) this.renderFocus(selected);
+        if (selected) {
+          this.renderFocus(selected);
+          requestAnimationFrame(() => this.positionFocusPopover());
+        }
       }
       this.scheduleRender();
     }
@@ -1076,10 +1083,12 @@
       const plan = this.focusedNavigationPlan(item);
       const moved = plan.viewport ? await this.animateViewportTo(plan.viewport) : true;
       if (!moved || token !== this.focusNavigationToken) return false;
+      const targetOriginRect = this.focusTransitionOrigin(item.id)?.getBoundingClientRect?.() || null;
       this.select(item.id, {
         preserveViewport: true,
         forceUnique: plan.forceUnique,
-        adjacentDirection: direction < 0 ? -1 : 1
+        adjacentDirection: direction < 0 ? -1 : 1,
+        originRect: targetOriginRect
       });
       return true;
     }
@@ -1165,12 +1174,87 @@
         .find((range) => range.dataset.id === targetId) || null;
     }
 
+    focusChromeInsets() {
+      const viewportWidth = Math.max(1, document.documentElement.clientWidth || globalThis.innerWidth || 1);
+      const viewportHeight = Math.max(1, document.documentElement.clientHeight || globalThis.innerHeight || 1);
+      const insets = {
+        top: FOCUS_POPOVER_MARGIN,
+        right: FOCUS_POPOVER_MARGIN,
+        bottom: FOCUS_POPOVER_MARGIN,
+        left: FOCUS_POPOVER_MARGIN
+      };
+
+      const commandBar = document.querySelector(".app-command-bar");
+      const commandRect = commandBar?.getBoundingClientRect?.();
+      if (commandRect && commandRect.width > 0 && commandRect.height > 0) {
+        insets.top = Math.max(insets.top, Math.min(viewportHeight - FOCUS_POPOVER_MARGIN, commandRect.bottom + 8));
+      }
+
+      const dock = document.querySelector(".app-tool-dock");
+      const dockRect = dock?.getBoundingClientRect?.();
+      if (dockRect && dockRect.width > 0 && dockRect.height > 0) {
+        const verticalDock = dockRect.height > dockRect.width * 1.35;
+        if (verticalDock && dockRect.left < viewportWidth / 2) {
+          insets.left = Math.max(insets.left, Math.min(viewportWidth - FOCUS_POPOVER_MARGIN, dockRect.right + 8));
+        } else if (!verticalDock && dockRect.top > viewportHeight / 2) {
+          insets.bottom = Math.max(insets.bottom, Math.min(viewportHeight - FOCUS_POPOVER_MARGIN, viewportHeight - dockRect.top + 8));
+        }
+      }
+
+      return { viewportWidth, viewportHeight, ...insets };
+    }
+
+    positionFocusPopover(originRect = null) {
+      if (!this.selectedId || this.focusView.hidden || !this.focusView.matches(":popover-open")) return false;
+      const bounds = this.focusChromeInsets();
+      const availableWidth = Math.max(180, bounds.viewportWidth - bounds.left - bounds.right);
+      const availableHeight = Math.max(180, bounds.viewportHeight - bounds.top - bounds.bottom);
+
+      this.focusView.style.inset = "auto";
+      this.focusView.style.right = "auto";
+      this.focusView.style.bottom = "auto";
+      this.focusView.style.transform = "none";
+      this.focusView.style.maxInlineSize = availableWidth + "px";
+      this.focusView.style.maxBlockSize = availableHeight + "px";
+
+      const rect = this.focusView.getBoundingClientRect();
+      const width = Math.min(rect.width, availableWidth);
+      const height = Math.min(rect.height, availableHeight);
+      const targetRect = originRect || this.focusTransitionOrigin(this.selectedId)?.getBoundingClientRect?.() || null;
+      const clampPosition = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
+
+      let left = bounds.left + Math.max(0, (availableWidth - width) / 2);
+      let top = bounds.top + Math.max(0, (availableHeight - height) / 2);
+
+      if (targetRect) {
+        if (this.orientation === "vertical") {
+          const preferredLeft = targetRect.left - width - 18;
+          const alternateLeft = targetRect.right + 18;
+          left = preferredLeft >= bounds.left ? preferredLeft : alternateLeft;
+          top = targetRect.top + targetRect.height / 2 - height / 2;
+        } else {
+          const preferredTop = targetRect.top - height - 18;
+          const alternateTop = targetRect.bottom + 18;
+          top = preferredTop >= bounds.top ? preferredTop : alternateTop;
+          left = targetRect.left + targetRect.width / 2 - width / 2;
+        }
+      }
+
+      left = clampPosition(left, bounds.left, bounds.viewportWidth - bounds.right - width);
+      top = clampPosition(top, bounds.top, bounds.viewportHeight - bounds.bottom - height);
+      this.focusView.style.left = Math.round(left) + "px";
+      this.focusView.style.top = Math.round(top) + "px";
+      return true;
+    }
+
     select(id, options = {}) {
       const item = this.items.find((candidate) => candidate.id === id);
       if (!item) return;
 
       const openingFromTimeline = !this.selectedId;
       const transitionOrigin = openingFromTimeline ? this.focusTransitionOrigin(id) : null;
+      const transitionOriginRect = transitionOrigin?.getBoundingClientRect?.() || null;
+      if (!options.originRect && transitionOriginRect) options.originRect = transitionOriginRect;
       const applyFocus = () => {
         this.selectedId = id;
         this.focusMediaIndex = 0;
@@ -1188,6 +1272,7 @@
         ) {
           this.focusView.showPopover();
         }
+        this.positionFocusPopover(options.originRect || this.focusTransitionOrigin(id)?.getBoundingClientRect?.() || null);
         this.scheduleRender();
         this.root.dispatchEvent(new CustomEvent("timelinefocuschange", {
           bubbles: true,
@@ -1517,20 +1602,21 @@
       const setFocusTab = (name) => {
         const evidenceActive = name === "evidence";
         this.focusView.dataset.activeTab = evidenceActive ? "evidence" : "overview";
-        for (const panel of [hero, summary, place, relations]) panel.hidden = evidenceActive;
+        for (const panel of [place, relations]) panel.hidden = evidenceActive;
         evidence.hidden = !evidenceActive;
         overviewTab.classList.toggle("is-active", !evidenceActive);
         evidenceTab.classList.toggle("is-active", evidenceActive);
         overviewTab.setAttribute("aria-selected", String(!evidenceActive));
         evidenceTab.setAttribute("aria-selected", String(evidenceActive));
-        if (!evidenceActive) {
-          requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          this.positionFocusPopover();
+          if (!evidenceActive) {
             this.root.dispatchEvent(new CustomEvent("timelinefocusrender", {
               bubbles: true,
               detail: { id: item.id }
             }));
-          });
-        }
+          }
+        });
       };
       overviewTab.addEventListener("click", () => setFocusTab("overview"));
       evidenceTab.addEventListener("click", () => setFocusTab("evidence"));
