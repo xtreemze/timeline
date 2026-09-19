@@ -377,7 +377,7 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(timelineCss, /Compact application presentation contract/);
   assert.match(timelineCss, /#presentation-stage[\s\S]*display:\s*block\s*!important/);
   assert.match(timelineCss, /timeline-focus-view\[popover\][\s\S]*position:/);
-  assert.match(timelineCss, /inline-size:\s*min\(680px,\s*calc\(100dvw - 5\.5rem\)\)/);
+  assert.match(timelineCss, /inline-size:\s*min\(640px,\s*calc\(100dvw - 6\.5rem\)\)/);
   assert.match(timelineCss, /max-block-size:\s*66dvh/);
   assert.match(html, /id="timeline-focus-view"[^>]*popover="manual"/);
   assert.match(app, /function decorateSemanticControls/);
