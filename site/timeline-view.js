@@ -12,8 +12,6 @@
   const ZOOM_RESPONSE_MS = 170;
   const WHEEL_ZOOM_SENSITIVITY = 0.00065;
   const MAX_WHEEL_EXPONENT = 0.045;
-  const DETAIL_GAP = 12;
-  const DETAIL_PADDING = 10;
 
   function createElement(tag, className, text) {
     const element = document.createElement(tag);
@@ -24,11 +22,6 @@
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
-  }
-
-  function clampToBounds(value, min, max) {
-    if (max < min) return min;
-    return clamp(value, min, max);
   }
 
   function normalizeWheelDelta(event, pageLength) {
@@ -53,64 +46,6 @@
     return {
       offset: Math.min(0, delta),
       length: Math.abs(delta)
-    };
-  }
-
-  function candidateOverflow(candidate, bounds, size, padding) {
-    const innerLeft = bounds.left + padding;
-    const innerTop = bounds.top + padding;
-    const innerRight = bounds.right - padding;
-    const innerBottom = bounds.bottom - padding;
-    return (
-      Math.max(0, innerLeft - candidate.left) +
-      Math.max(0, candidate.left + size.width - innerRight) +
-      Math.max(0, innerTop - candidate.top) +
-      Math.max(0, candidate.top + size.height - innerBottom)
-    );
-  }
-
-  function choosePopoverPlacement(
-    anchor,
-    bounds,
-    size,
-    preferredPlacements = ["right", "left", "bottom", "top"],
-    gap = DETAIL_GAP,
-    padding = DETAIL_PADDING
-  ) {
-    const centerX = (anchor.left + anchor.right) / 2;
-    const centerY = (anchor.top + anchor.bottom) / 2;
-    const candidates = {
-      right: { left: anchor.right + gap, top: centerY - size.height / 2, placement: "right" },
-      left: { left: anchor.left - gap - size.width, top: centerY - size.height / 2, placement: "left" },
-      bottom: { left: centerX - size.width / 2, top: anchor.bottom + gap, placement: "bottom" },
-      top: { left: centerX - size.width / 2, top: anchor.top - gap - size.height, placement: "top" }
-    };
-
-    let selected = null;
-    let bestOverflow = Number.POSITIVE_INFINITY;
-    for (const placement of preferredPlacements) {
-      const candidate = candidates[placement];
-      if (!candidate) continue;
-      const overflow = candidateOverflow(candidate, bounds, size, padding);
-      if (overflow === 0) {
-        selected = candidate;
-        break;
-      }
-      if (overflow < bestOverflow) {
-        bestOverflow = overflow;
-        selected = candidate;
-      }
-    }
-
-    selected ||= candidates.right;
-    const minLeft = bounds.left + padding;
-    const maxLeft = bounds.right - padding - size.width;
-    const minTop = bounds.top + padding;
-    const maxTop = bounds.bottom - padding - size.height;
-    return {
-      placement: selected.placement,
-      left: clampToBounds(selected.left, minLeft, maxLeft),
-      top: clampToBounds(selected.top, minTop, maxTop)
     };
   }
 
@@ -156,7 +91,6 @@
       this.renderFrame = 0;
       this.zoomAnimationFrame = 0;
       this.zoomLastFrame = 0;
-      this.detailHideTimer = 0;
       this.reducedMotionQuery =
         typeof globalThis.matchMedia === "function"
           ? globalThis.matchMedia("(prefers-reduced-motion: reduce)")
@@ -227,12 +161,13 @@
       this.surface.addEventListener("pointerup", finishDrag);
       this.surface.addEventListener("pointercancel", finishDrag);
 
+      this.detail.addEventListener("toggle", (event) => {
+        if (event.newState !== "closed") return;
+        this.selectedId = null;
+        this.scheduleRender();
+      });
+
       this.surface.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && this.selectedId) {
-          event.preventDefault();
-          this.closeDetail();
-          return;
-        }
         if (!this.viewport || !this.items.length || event.target.closest("button")) return;
         const span = this.viewport.end - this.viewport.start;
         const panDelta = span * 0.12;
@@ -262,11 +197,6 @@
         }
       });
 
-      this.detail.addEventListener("keydown", (event) => {
-        if (event.key !== "Escape") return;
-        event.preventDefault();
-        this.closeDetail();
-      });
 
       if ("ResizeObserver" in globalThis) {
         this.resizeObserver = new ResizeObserver(() => this.scheduleRender());
@@ -297,6 +227,7 @@
       this.root.dataset.orientation = vertical ? "portrait" : "landscape";
       this.surface.classList.toggle("is-portrait", vertical);
       this.surface.classList.toggle("is-landscape", !vertical);
+      this.detail.dataset.orientation = vertical ? "portrait" : "landscape";
       this.landscapeButton.setAttribute("aria-pressed", String(!vertical));
       this.portraitButton.setAttribute("aria-pressed", String(vertical));
       this.surface.setAttribute(
@@ -321,7 +252,7 @@
       if (!this.items.length) {
         this.cancelViewportAnimation();
         this.viewport = null;
-        this.closeDetail({ restoreFocus: false, immediate: true });
+        this.closeDetail();
         this.root.hidden = true;
         this.scheduleRender();
         return;
@@ -331,7 +262,7 @@
       if (!this.viewport || previousSignature !== nextSignature) this.ensureUsefulViewport();
       if (this.focusId) this.ensureItemVisible(this.focusId);
       if (this.selectedId && !this.items.some((item) => item.id === this.selectedId)) {
-        this.closeDetail({ restoreFocus: false, immediate: true });
+        this.closeDetail();
       }
       this.scheduleRender();
     }
@@ -546,7 +477,6 @@
       });
 
       this.updateReadout(ticks[0]?.spec || null);
-      if (this.selectedId && !this.detail.hidden) this.positionDetail();
     }
 
     createEventNode(item, index, position, width, height, axisCross, occupied) {
@@ -562,6 +492,8 @@
       button.setAttribute("aria-label", "Open " + item.title + ", " + item.startLabel);
       button.setAttribute("aria-controls", "timeline-detail");
       button.setAttribute("aria-expanded", String(item.id === this.selectedId));
+      button.setAttribute("popovertarget", "timeline-detail");
+      button.setAttribute("popovertargetaction", "show");
       const dot = createElement("span", "timeline-event-dot");
       dot.setAttribute("aria-hidden", "true");
       const copy = createElement("span", "timeline-event-copy");
@@ -571,11 +503,7 @@
       button.append(dot, copy);
       button.addEventListener("click", (event) => {
         event.stopPropagation();
-        if (this.selectedId === item.id) {
-          this.closeDetail();
-        } else {
-          this.select(item.id);
-        }
+        this.select(item.id, button);
       });
 
       node.append(connector, button);
@@ -641,20 +569,18 @@
       return bestLane;
     }
 
-    select(id) {
+    select(id, source) {
       this.selectedId = id;
       const item = this.items.find((candidate) => candidate.id === id);
       if (!item) return;
       this.renderDetail(item);
       this.scheduleRender();
+      if (!this.detail.matches(":popover-open")) {
+        this.detail.showPopover({ source });
+      }
     }
 
     renderDetail(item) {
-      window.clearTimeout(this.detailHideTimer);
-      this.detailHideTimer = 0;
-      this.detail.classList.remove("is-open");
-      this.detail.style.visibility = "hidden";
-
       const heading = createElement("h3", "", item.title);
       heading.id = "timeline-detail-heading";
       const when = createElement(
@@ -675,7 +601,8 @@
       });
       const close = createElement("button", "button ghost", "Close");
       close.type = "button";
-      close.addEventListener("click", () => this.closeDetail());
+      close.setAttribute("popovertarget", "timeline-detail");
+      close.setAttribute("popovertargetaction", "hide");
       actions.append(locate, close);
 
       const children = [heading, when, meta];
@@ -683,101 +610,12 @@
       children.push(actions);
       this.detail.replaceChildren(...children);
       this.detail.setAttribute("aria-labelledby", heading.id);
-      this.detail.hidden = false;
     }
 
-    closeDetail({ restoreFocus = true, immediate = false } = {}) {
-      const previousId = this.selectedId;
+    closeDetail() {
       this.selectedId = null;
-      window.clearTimeout(this.detailHideTimer);
-      this.detailHideTimer = 0;
-      this.detail.classList.remove("is-open");
+      if (this.detail.matches(":popover-open")) this.detail.hidePopover();
       this.scheduleRender();
-
-      const finish = () => {
-        if (this.selectedId) return;
-        this.detail.hidden = true;
-        this.detail.style.visibility = "";
-        this.detail.removeAttribute("data-placement");
-      };
-
-      if (immediate || this.prefersReducedMotion()) {
-        finish();
-      } else {
-        this.detailHideTimer = window.setTimeout(finish, 190);
-      }
-
-      if (restoreFocus && previousId) {
-        requestAnimationFrame(() => {
-          const eventNode = Array.from(this.surface.querySelectorAll(".timeline-event")).find(
-            (candidate) => candidate.dataset.id === previousId
-          );
-          eventNode?.querySelector(".timeline-event-terminal")?.focus({ preventScroll: true });
-        });
-      }
-    }
-
-    positionDetail() {
-      const eventNode = Array.from(this.surface.querySelectorAll(".timeline-event")).find(
-        (candidate) => candidate.dataset.id === this.selectedId
-      );
-      const terminal = eventNode?.querySelector(".timeline-event-terminal");
-      if (!terminal || this.detail.hidden) return;
-
-      const rootRect = this.root.getBoundingClientRect();
-      const surfaceRect = this.surface.getBoundingClientRect();
-      const terminalRect = terminal.getBoundingClientRect();
-      const detailRect = this.detail.getBoundingClientRect();
-
-      const bounds = {
-        left: surfaceRect.left - rootRect.left,
-        top: surfaceRect.top - rootRect.top,
-        right: surfaceRect.right - rootRect.left,
-        bottom: surfaceRect.bottom - rootRect.top
-      };
-      const anchor = {
-        left: terminalRect.left - rootRect.left,
-        top: terminalRect.top - rootRect.top,
-        right: terminalRect.right - rootRect.left,
-        bottom: terminalRect.bottom - rootRect.top
-      };
-      const size = {
-        width: Math.min(detailRect.width, Math.max(1, bounds.right - bounds.left - DETAIL_PADDING * 2)),
-        height: Math.min(detailRect.height, Math.max(1, bounds.bottom - bounds.top - DETAIL_PADDING * 2))
-      };
-
-      let preferredPlacements;
-      if (this.orientation === "horizontal") {
-        const axisY = surfaceRect.top - rootRect.top + parseFloat(
-          getComputedStyle(this.surface).getPropertyValue("--timeline-axis-cross")
-        );
-        const terminalCenter = (anchor.top + anchor.bottom) / 2;
-        preferredPlacements =
-          terminalCenter < axisY
-            ? ["top", "right", "left", "bottom"]
-            : ["bottom", "right", "left", "top"];
-      } else {
-        const axisX = surfaceRect.left - rootRect.left + parseFloat(
-          getComputedStyle(this.surface).getPropertyValue("--timeline-axis-cross")
-        );
-        const terminalCenter = (anchor.left + anchor.right) / 2;
-        preferredPlacements =
-          terminalCenter < axisX
-            ? ["left", "bottom", "top", "right"]
-            : ["right", "bottom", "top", "left"];
-      }
-
-      const placement = choosePopoverPlacement(anchor, bounds, size, preferredPlacements);
-      this.detail.style.left = placement.left + "px";
-      this.detail.style.top = placement.top + "px";
-      this.detail.dataset.placement = placement.placement;
-      this.detail.style.visibility = "visible";
-
-      if (!this.detail.classList.contains("is-open")) {
-        requestAnimationFrame(() => {
-          if (this.selectedId && !this.detail.hidden) this.detail.classList.add("is-open");
-        });
-      }
     }
 
     updateReadout(spec) {
@@ -804,7 +642,6 @@
       return new TimelineViewController(root);
     },
     geometry: Object.freeze({
-      choosePopoverPlacement,
       connectorSegment,
       wheelZoomFactor
     })
