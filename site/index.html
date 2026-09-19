@@ -97,6 +97,14 @@
                 <span>Category</span>
                 <select id="item-category"></select>
               </label>
+              <label class="field field-wide">
+                <span>Focused layout</span>
+                <select id="item-layout-variant">
+                  <option value="hero-split">Hero split</option>
+                  <option value="evidence-dossier">Evidence dossier</option>
+                  <option value="editorial-mosaic">Editorial mosaic</option>
+                </select>
+              </label>
               <fieldset class="temporal-editor field-wide">
                 <legend>Time <small>ISO 8601 interchange</small></legend>
 
@@ -363,6 +371,124 @@
                 <p class="field-hint">Only hue is user-selectable. Lightness/chroma and foreground contrast are controlled by the design system; icon and text remain redundant cues so meaning never depends on color alone.</p>
               </details>
 
+              <details id="item-evidence-details" class="optional-editor field-wide">
+                <summary>Evidence and proof <small>optional · up to 3 references</small></summary>
+                <div class="evidence-editor">
+                  <section class="evidence-editor-row" data-evidence-slot="1">
+                    <input id="item-evidence-1-id" type="hidden">
+                    <label class="field">
+                      <span>Type</span>
+                      <select id="item-evidence-1-type">
+                        <option value="article">News / article</option>
+                        <option value="pdf">PDF upload</option>
+                        <option value="note">Text note</option>
+                        <option value="document">Document / source</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>Title</span>
+                      <input id="item-evidence-1-title" type="text" maxlength="180" autocomplete="off" placeholder="Source or exhibit title">
+                    </label>
+                    <label class="field">
+                      <span>Source</span>
+                      <input id="item-evidence-1-source" type="text" maxlength="160" autocomplete="organization" placeholder="Publisher, agency, witness">
+                    </label>
+                    <label class="field">
+                      <span>Published / recorded</span>
+                      <input id="item-evidence-1-published" type="text" maxlength="40" autocomplete="off" placeholder="2026-09-19">
+                    </label>
+                    <label class="field field-wide">
+                      <span>URL <small>for articles/documents</small></span>
+                      <input id="item-evidence-1-url" type="url" inputmode="url" autocomplete="off" placeholder="https://…">
+                    </label>
+                    <label class="field field-wide">
+                      <span>Note / claim support</span>
+                      <textarea id="item-evidence-1-note" rows="3" maxlength="5000" placeholder="Explain what this source supports and any relevant caveats."></textarea>
+                    </label>
+                    <label class="field field-wide evidence-file-field">
+                      <span>PDF file <small>stored locally in IndexedDB, not embedded in JSON</small></span>
+                      <input id="item-evidence-1-file" type="file" accept="application/pdf,.pdf">
+                    </label>
+                    <p id="item-evidence-1-file-status" class="evidence-file-status"></p>
+                  </section>
+                  <section class="evidence-editor-row" data-evidence-slot="2">
+                    <input id="item-evidence-2-id" type="hidden">
+                    <label class="field">
+                      <span>Type</span>
+                      <select id="item-evidence-2-type">
+                        <option value="article">News / article</option>
+                        <option value="pdf">PDF upload</option>
+                        <option value="note">Text note</option>
+                        <option value="document">Document / source</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>Title</span>
+                      <input id="item-evidence-2-title" type="text" maxlength="180" autocomplete="off" placeholder="Source or exhibit title">
+                    </label>
+                    <label class="field">
+                      <span>Source</span>
+                      <input id="item-evidence-2-source" type="text" maxlength="160" autocomplete="organization" placeholder="Publisher, agency, witness">
+                    </label>
+                    <label class="field">
+                      <span>Published / recorded</span>
+                      <input id="item-evidence-2-published" type="text" maxlength="40" autocomplete="off" placeholder="2026-09-19">
+                    </label>
+                    <label class="field field-wide">
+                      <span>URL <small>for articles/documents</small></span>
+                      <input id="item-evidence-2-url" type="url" inputmode="url" autocomplete="off" placeholder="https://…">
+                    </label>
+                    <label class="field field-wide">
+                      <span>Note / claim support</span>
+                      <textarea id="item-evidence-2-note" rows="3" maxlength="5000" placeholder="Explain what this source supports and any relevant caveats."></textarea>
+                    </label>
+                    <label class="field field-wide evidence-file-field">
+                      <span>PDF file <small>stored locally in IndexedDB, not embedded in JSON</small></span>
+                      <input id="item-evidence-2-file" type="file" accept="application/pdf,.pdf">
+                    </label>
+                    <p id="item-evidence-2-file-status" class="evidence-file-status"></p>
+                  </section>
+                  <section class="evidence-editor-row" data-evidence-slot="3">
+                    <input id="item-evidence-3-id" type="hidden">
+                    <label class="field">
+                      <span>Type</span>
+                      <select id="item-evidence-3-type">
+                        <option value="article">News / article</option>
+                        <option value="pdf">PDF upload</option>
+                        <option value="note">Text note</option>
+                        <option value="document">Document / source</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>Title</span>
+                      <input id="item-evidence-3-title" type="text" maxlength="180" autocomplete="off" placeholder="Source or exhibit title">
+                    </label>
+                    <label class="field">
+                      <span>Source</span>
+                      <input id="item-evidence-3-source" type="text" maxlength="160" autocomplete="organization" placeholder="Publisher, agency, witness">
+                    </label>
+                    <label class="field">
+                      <span>Published / recorded</span>
+                      <input id="item-evidence-3-published" type="text" maxlength="40" autocomplete="off" placeholder="2026-09-19">
+                    </label>
+                    <label class="field field-wide">
+                      <span>URL <small>for articles/documents</small></span>
+                      <input id="item-evidence-3-url" type="url" inputmode="url" autocomplete="off" placeholder="https://…">
+                    </label>
+                    <label class="field field-wide">
+                      <span>Note / claim support</span>
+                      <textarea id="item-evidence-3-note" rows="3" maxlength="5000" placeholder="Explain what this source supports and any relevant caveats."></textarea>
+                    </label>
+                    <label class="field field-wide evidence-file-field">
+                      <span>PDF file <small>stored locally in IndexedDB, not embedded in JSON</small></span>
+                      <input id="item-evidence-3-file" type="file" accept="application/pdf,.pdf">
+                    </label>
+                    <p id="item-evidence-3-file-status" class="evidence-file-status"></p>
+                  </section>
+                </div>
+                <p class="field-hint">Evidence records can be reused by export/import as metadata. Uploaded PDF bytes remain local to this browser; the JSON stores only the evidence ID and file metadata.</p>
+              </details>
+
               <details id="item-location-details" class="optional-editor field-wide">
                 <summary>Location <small>optional · WGS 84 / GeoJSON point</small></summary>
                 <div class="location-fields">
@@ -555,7 +681,7 @@
         </div>
 
         <p class="timeline-list-heading">Detailed chronology</p>
-        <ol id="timeline-list" class="timeline-list" aria-live="polite"></ol>
+        <div id="timeline-list" class="timeline-list" aria-live="polite"></div>
       </section>
     </section>
   </main>
@@ -570,6 +696,7 @@
   <script src="./temporal-standards.js" defer></script>
   <script src="./date-range-picker.js" defer></script>
   <script src="./event-presentation.js" defer></script>
+  <script src="./evidence-store.js" defer></script>
   <script src="./timeline-clustering.js" defer></script>
   <script src="./timeline-motion.js" defer></script>
   <script src="./timeline-graph.js" defer></script>
