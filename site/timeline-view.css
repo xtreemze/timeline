@@ -1805,7 +1805,7 @@
   }
 
   .timeline-focus-hero {
-    min-height: clamp(180px, 26dvh, 260px);
+    min-height: clamp(190px, 30dvh, 300px);
   }
 
   .timeline-focus-title {
@@ -1825,7 +1825,7 @@
 @media (max-height: 520px) and (orientation: landscape) {
   .timeline-view[data-orientation="landscape"] > .timeline-focus-view:popover-open {
     inset-block-start: .35rem;
-    inline-size: min(680px, calc(100dvw - 5rem));
+    inline-size: min(640px, calc(100dvw - 5rem));
     block-size: calc(100dvh - .7rem);
   }
 
@@ -2356,7 +2356,7 @@
   .timeline-focus-view[data-active-tab="overview"] .timeline-focus-relations {
   grid-column: 1 / span 3 !important;
   grid-row: 1 !important;
-  min-height: clamp(190px, 30dvh, 300px);
+  min-height: clamp(180px, 26dvh, 260px);
 }
 
 #presentation-stage:fullscreen[data-viewport-orientation="landscape"]
