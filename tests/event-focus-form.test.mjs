@@ -511,7 +511,7 @@ test("fullscreen preserves the left workspace tool dock inside the fullscreen su
   assert.match(app, /timeline-tool-dock-home/);
   assert.match(app, /mountFullscreenToolDock/);
   assert.match(app, /restoreToolDock/);
-  assert.match(app, /if \(active\) mountFullscreenToolDock\(\)/);
+  assert.match(app, /if \(active\)[\s\S]*mountFullscreenToolDock\(\)/);
   assert.match(styles, /#presentation-stage:fullscreen \.app-tool-dock[\s\S]*pointer-events:\s*auto !important[\s\S]*left:/);
 });
 
@@ -540,4 +540,35 @@ test("fresh startup loads the storybook sample while persisted timelines retain 
       loadState.indexOf("localStorage.getItem(LEGACY_STORAGE_KEY)"),
     "sample fallback must run only after current and legacy storage checks"
   );
+});
+
+
+test("fullscreen presentation derives timeline axis from physical viewport without persisting it", async () => {
+  const [app, view] = await Promise.all([
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8")
+  ]);
+  assert.match(view, /setOrientation\(orientation, options = \{\}\)/);
+  assert.match(view, /const persist = options\.persist !== false/);
+  assert.match(view, /if \(persist\)[\s\S]*savePreferences/);
+  assert.match(app, /viewportOrientation === "portrait" \? "vertical" : "horizontal"/);
+  assert.match(app, /setOrientation\?\.\(fullscreenOrientation, \{ persist: false, focus: false \}\)/);
+  assert.match(app, /timelineOrientationBeforeFullscreen/);
+  assert.match(app, /setOrientation\?\.\(timelineOrientationBeforeFullscreen, \{ persist: false, focus: false \}\)/);
+});
+
+test("focused chronology hugs the right or bottom edge in presentation", async () => {
+  const view = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  assert.match(view, /clamp\(height \* 0\.08, 48, 88\)/);
+  assert.match(view, /clamp\(width \* 0\.07, 44, 76\)/);
+  assert.match(view, /this\.orientation === "horizontal" \? height - focusInset : width - focusInset/);
+});
+
+test("relations halo escapes the popover while Evidence remains bounded", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  assert.match(css, /data-active-tab="overview"\][\s\S]*overflow:\s*visible/);
+  assert.match(css, /data-active-tab="evidence"\][\s\S]*overflow:\s*hidden/);
+  assert.match(css, /data-active-tab="overview"[\s\S]*timeline-focus-relations::before[\s\S]*inset:\s*-38%/);
+  assert.match(css, /data-viewport-orientation="portrait"[\s\S]*radial-gradient\(circle at 38% 50%/);
+  assert.match(css, /data-viewport-orientation="landscape"[\s\S]*radial-gradient\(circle at 50% 34%/);
 });

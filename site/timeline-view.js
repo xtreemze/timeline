@@ -266,16 +266,20 @@
       return Boolean(this.reducedMotionQuery && this.reducedMotionQuery.matches);
     }
 
-    setOrientation(orientation) {
+    setOrientation(orientation, options = {}) {
       const next = orientation === "vertical" ? "vertical" : "horizontal";
+      const persist = options.persist !== false;
+      const focus = options.focus !== false;
       if (next === this.orientation) return;
       this.cancelViewportAnimation();
       this.orientation = next;
-      this.preferences.orientation = next;
-      savePreferences(this.preferences);
+      if (persist) {
+        this.preferences.orientation = next;
+        savePreferences(this.preferences);
+      }
       this.applyOrientation();
       this.scheduleRender();
-      this.surface.focus({ preventScroll: true });
+      if (focus) this.surface.focus({ preventScroll: true });
     }
 
     getOrientation() {
@@ -733,8 +737,8 @@
       const usable = Math.max(1, primaryLength - padding * 2);
       const focusInset = this.selectedId
         ? (this.orientation === "horizontal"
-            ? clamp(height * 0.12, 72, 132)
-            : clamp(width * 0.10, 56, 112))
+            ? clamp(height * 0.08, 48, 88)
+            : clamp(width * 0.07, 44, 76))
         : 0;
       const axisCross = this.selectedId
         ? (this.orientation === "horizontal" ? height - focusInset : width - focusInset)

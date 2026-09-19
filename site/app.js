@@ -277,6 +277,7 @@
   let presentationResizeObserver = null;
   let presentationResizeFrame = 0;
   let graphOpenBeforeFullscreen = true;
+  let timelineOrientationBeforeFullscreen = null;
   let presentationMap = null;
   let focusedGraphContextAvailable = false;
 
@@ -425,8 +426,12 @@
     const nextShape = presentationLayout.classifyStageShape(width, height, {
       fullscreen: presentationIsFullscreen()
     });
-    const orientation = timelineView?.getOrientation?.() || "horizontal";
     const viewportOrientation = presentationLayout.physicalOrientation(width, height);
+    if (presentationIsFullscreen() && timelineView?.hasFocusedItem?.()) {
+      const fullscreenOrientation = viewportOrientation === "portrait" ? "vertical" : "horizontal";
+      timelineView?.setOrientation?.(fullscreenOrientation, { persist: false, focus: false });
+    }
+    const orientation = timelineView?.getOrientation?.() || "horizontal";
     const changed =
       els.presentationStage.dataset.stageShape !== nextShape ||
       els.presentationStage.dataset.timelineOrientation !== orientation ||
@@ -455,8 +460,15 @@
   function syncPresentationFullscreenState() {
     const active = presentationIsFullscreen();
     els.presentationStage?.classList.toggle("is-fullscreen", active);
-    if (active) mountFullscreenToolDock();
-    else restoreToolDock();
+    if (active) {
+      mountFullscreenToolDock();
+    } else {
+      restoreToolDock();
+      if (timelineOrientationBeforeFullscreen) {
+        timelineView?.setOrientation?.(timelineOrientationBeforeFullscreen, { persist: false, focus: false });
+        timelineOrientationBeforeFullscreen = null;
+      }
+    }
     if (els.presentationFullscreenToggle) {
       els.presentationFullscreenToggle.setAttribute("aria-pressed", String(active));
       els.presentationFullscreenToggle.textContent = active ? "Exit full screen" : "Present full screen";
@@ -488,6 +500,7 @@
       return;
     }
     graphOpenBeforeFullscreen = Boolean(ui.graphOpen);
+    timelineOrientationBeforeFullscreen = timelineView?.getOrientation?.() || null;
     syncContextualPresentationPanels();
     try {
       await els.presentationStage.requestFullscreen({ navigationUI: "hide" });
@@ -495,6 +508,10 @@
       try {
         await els.presentationStage.requestFullscreen();
       } catch (error) {
+        if (timelineOrientationBeforeFullscreen) {
+          timelineView?.setOrientation?.(timelineOrientationBeforeFullscreen, { persist: false, focus: false });
+          timelineOrientationBeforeFullscreen = null;
+        }
         console.warn("Could not enter full-screen presentation:", error);
         showStatus("Could not enter full-screen presentation.");
       }
