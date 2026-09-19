@@ -439,7 +439,8 @@
     search: "",
     categoryFilter: "all",
     activeStoryId: null,
-    storyCursor: 0
+    storyCursor: 0,
+    collapsedCategoryIds: new Set()
   };
 
   const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
@@ -1160,6 +1161,88 @@
     els.itemTagsDetails.open = normalized.length > 0;
   }
 
+  function evidenceRowParts(row) {
+    return {
+      id: row.querySelector('input[type="hidden"]'),
+      type: row.querySelector("select"),
+      title: row.querySelector('input[id$="-title"]'),
+      sourceName: row.querySelector('input[id$="-source"]'),
+      publishedAt: row.querySelector('input[id$="-published"]'),
+      url: row.querySelector('input[type="url"]'),
+      note: row.querySelector("textarea"),
+      file: row.querySelector('input[type="file"]'),
+      fileStatus: row.querySelector(".evidence-file-status")
+    };
+  }
+
+  async function collectEvidenceForm() {
+    const records = [];
+    for (const row of els.itemEvidenceRows) {
+      const parts = evidenceRowParts(row);
+      const title = parts.title.value.trim();
+      if (!title) continue;
+      const id = parts.id.value || newId("evidence");
+      const existing = state.evidence.find((record) => record.id === id);
+      const file = parts.file.files?.[0] || null;
+      let fileMetadata = existing?.file || null;
+      if (file) {
+        if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+          throw new Error("Evidence uploads must be PDF files.");
+        }
+        if (file.size > 25_000_000) throw new Error("PDF evidence uploads are limited to 25 MB each.");
+        const blobKey = `evidence:${id}`;
+        await evidenceStore.putBlob(blobKey, file);
+        fileMetadata = {
+          blobKey,
+          name: file.name.slice(0, 260),
+          mimeType: file.type || "application/pdf",
+          size: file.size
+        };
+      }
+      const record = evidenceStore.normalizeRecord({
+        id,
+        type: parts.type.value,
+        title,
+        sourceName: parts.sourceName.value,
+        publishedAt: parts.publishedAt.value,
+        url: parts.url.value,
+        note: parts.note.value,
+        file: fileMetadata
+      });
+      if (record) records.push(record);
+    }
+    return records;
+  }
+
+  function fillEvidenceForm(item) {
+    const attached = (item?.evidenceIds || [])
+      .map((id) => state.evidence.find((record) => record.id === id))
+      .filter(Boolean)
+      .slice(0, els.itemEvidenceRows.length);
+    els.itemEvidenceRows.forEach((row, index) => {
+      const parts = evidenceRowParts(row);
+      const record = attached[index];
+      parts.id.value = record?.id || "";
+      parts.type.value = record?.type || "article";
+      parts.title.value = record?.title || "";
+      parts.sourceName.value = record?.sourceName || "";
+      parts.publishedAt.value = record?.publishedAt || "";
+      parts.url.value = record?.url || "";
+      parts.note.value = record?.note || "";
+      parts.file.value = "";
+      parts.fileStatus.textContent = record?.file?.name
+        ? `Stored locally: ${record.file.name}`
+        : "";
+    });
+    els.itemEvidenceDetails.open = attached.length > 0;
+  }
+
+  function mergeEvidenceRecords(records) {
+    const map = new Map(state.evidence.map((record) => [record.id, record]));
+    for (const record of records) map.set(record.id, record);
+    state.evidence = [...map.values()];
+  }
+
   function resetLocationForm() {
     els.itemLocationName.value = "";
     els.itemLocationIdentifier.value = "";
@@ -1202,6 +1285,8 @@
     configureTemporalEndpoint("End");
     fillMediaForm([]);
     fillTagForm([]);
+    fillEvidenceForm(null);
+    els.itemLayoutVariant.value = "hero-split";
     resetLocationForm();
     fillCategorySelect(els.itemCategory, false, state.categories[0]?.id || "");
     els.saveItem.textContent = "Add item";
@@ -1227,6 +1312,8 @@
     els.itemDescription.value = item.description;
     fillMediaForm(item.media || []);
     fillTagForm(item.tags || []);
+    fillEvidenceForm(item);
+    els.itemLayoutVariant.value = item.presentation?.variant || "hero-split";
     fillLocationForm(item.location || null);
     els.saveItem.textContent = "Save changes";
     els.cancelItemEdit.hidden = false;
@@ -1756,7 +1843,7 @@
     updateTagHuePreview(row);
   }
 
-  els.itemForm.addEventListener("submit", (event) => {
+  els.itemForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     setError(els.itemFormError);
     const kind = els.itemKind.value === "range" ? "range" : "event";
@@ -1767,6 +1854,7 @@
     let location = null;
     let media = [];
     let tags = [];
+    let evidenceRecords = [];
     try {
       if (!els.itemStartDate.value) throw new Error("Choose a calendar date.");
       if (kind === "range" && !els.itemEndDate.value) throw new Error("Choose both dates for the range.");
@@ -1777,6 +1865,7 @@
       }
       media = collectMediaForm();
       tags = collectTagForm();
+      evidenceRecords = await collectEvidenceForm();
       location = spatial.fromForm({
         name: els.itemLocationName.value,
         geographicIdentifier: els.itemLocationIdentifier.value,
@@ -1812,11 +1901,14 @@
       description: els.itemDescription.value.trim().slice(0, 2000),
       categoryId: state.categories.some((category) => category.id === els.itemCategory.value)
         ? els.itemCategory.value
-        : state.categories[0].id
+        : state.categories[0].id,
+      presentation: { variant: els.itemLayoutVariant.value },
+      evidenceIds: evidenceRecords.map((record) => record.id)
     };
     if (location) item.location = location;
     if (media.length) item.media = media;
     if (tags.length) item.tags = tags;
+    mergeEvidenceRecords(evidenceRecords);
 
     const index = state.items.findIndex((candidate) => candidate.id === item.id);
     if (index >= 0) {
