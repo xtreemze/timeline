@@ -158,7 +158,9 @@
     graphNodeId: document.querySelector("#graph-node-id"),
     graphNodeName: document.querySelector("#graph-node-name"),
     graphNodeType: document.querySelector("#graph-node-type"),
+    graphNodeAlternateNames: document.querySelector("#graph-node-alternate-names"),
     graphNodeIdentifiers: document.querySelector("#graph-node-identifiers"),
+    graphNodeSourceIds: document.querySelector("#graph-node-source-ids"),
     graphNodeProperties: document.querySelector("#graph-node-properties"),
     graphNodeError: document.querySelector("#graph-node-error"),
     saveGraphNode: document.querySelector("#save-graph-node"),
@@ -567,6 +569,15 @@
     }
     if (!Array.isArray(parsed)) throw new Error(`${label} must be a JSON array.`);
     return parsed;
+  }
+
+  function parseLineList(value, { maxItems = 48, maxLength = 180 } = {}) {
+    return [...new Set(
+      String(value || "")
+        .split(/\r?\n/)
+        .map((entry) => entry.trim().slice(0, maxLength))
+        .filter(Boolean)
+    )].slice(0, maxItems);
   }
 
   function normalizeExtensions(value) {
@@ -2127,7 +2138,9 @@
     els.graphNodeForm.reset();
     els.graphNodeId.value = "";
     els.graphNodeType.value = "entity";
+    els.graphNodeAlternateNames.value = "";
     els.graphNodeIdentifiers.value = "[]";
+    els.graphNodeSourceIds.value = "";
     els.graphNodeProperties.value = "{}";
     els.saveGraphNode.textContent = "Add node";
     els.cancelGraphNodeEdit.hidden = true;
@@ -2141,7 +2154,9 @@
     els.graphNodeId.value = entity.id;
     els.graphNodeName.value = entity.name || entity.id;
     els.graphNodeType.value = entity.type || "entity";
+    els.graphNodeAlternateNames.value = (entity.alternateNames || []).join("\n");
     els.graphNodeIdentifiers.value = JSON.stringify(entity.identifiers || [], null, 2);
+    els.graphNodeSourceIds.value = (entity.sourceIds || []).join("\n");
     els.graphNodeProperties.value = JSON.stringify(entity.attributes || {}, null, 2);
     els.saveGraphNode.textContent = "Save node";
     els.cancelGraphNodeEdit.hidden = false;
@@ -2699,6 +2714,8 @@
       els.graphNodeName.focus();
       return;
     }
+    const alternateNames = parseLineList(els.graphNodeAlternateNames.value, { maxItems: 48, maxLength: 180 });
+    const sourceIds = parseLineList(els.graphNodeSourceIds.value, { maxItems: 96, maxLength: 120 });
     let identifiers;
     let attributes;
     try {
@@ -2712,7 +2729,9 @@
       id: els.graphNodeId.value || newId("entity"),
       type: type.slice(0, 60),
       name: name.slice(0, 180),
+      alternateNames,
       identifiers,
+      sourceIds,
       attributes
     };
     const index = state.entities.findIndex((candidate) => candidate.id === entity.id);
