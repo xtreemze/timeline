@@ -45,3 +45,28 @@ test("form and focus markup use one range input and no small popover detail", as
   assert.match(html, /id="timeline-focus-view"/);
   assert.doesNotMatch(html, /id="timeline-detail"/);
 });
+
+test("tag theming exposes hue only and lets the browser choose a contrast foreground", async () => {
+  const [html, css] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+  ]);
+  assert.match(html, /id="item-tag-1-hue" type="range" min="0" max="359"/);
+  assert.match(css, /--tag-color:\s*oklch\(78% \.115 var\(--tag-hue/);
+  assert.match(css, /contrast-color\(var\(--tag-color\)\)/);
+  assert.match(css, /\.event-tag[\s\S]*font-weight:/);
+});
+
+test("the custom calendar exposes keyboard-navigation code and a direct year control", async () => {
+  const [source, html] = await Promise.all([
+    readFile(new URL("../site/date-range-picker.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/index.html", import.meta.url), "utf8")
+  ]);
+  assert.match(source, /ArrowLeft/);
+  assert.match(source, /ArrowRight/);
+  assert.match(source, /ArrowUp/);
+  assert.match(source, /ArrowDown/);
+  assert.match(source, /PageUp/);
+  assert.match(source, /PageDown/);
+  assert.match(html, /id="item-calendar-year"/);
+});
