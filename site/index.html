@@ -3,11 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
-  <meta name="theme-color" content="#111111">
-  <meta name="description" content="Create events, ranges, categories, and focused stories in a local-first visual timeline.">
+  <meta name="theme-color" content="#f4f1eb">
+  <meta name="description" content="A local-first timeline for events, ranges, categories, and narrative stories.">
   <meta property="og:title" content="Timeline — events, ranges, and stories">
-  <meta property="og:description" content="A responsive, local-first chronology workspace with categories and narrative story focus.">
+  <meta property="og:description" content="Build a local-first chronology and connect its events into reusable narrative stories.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://xtreemze.github.io/timeline/">
   <title>Timeline — events, ranges, and stories</title>
@@ -16,102 +15,93 @@
   <link rel="stylesheet" href="./timeline-view.css">
 </head>
 <body>
-  <a class="skip-link" href="#workspace">Skip to timeline workspace</a>
-
-  <header class="site-header">
-    <a class="brand" href="./" aria-label="Timeline home">
-      <img src="./icon.svg" alt="" width="32" height="32">
-      <span>Timeline</span>
-    </a>
-    <nav aria-label="Project links">
-      <a href="https://github.com/xtreemze/timeline">GitHub</a>
-      <a href="https://github.com/xtreemze/timeline#data-format">Data format</a>
-    </nav>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">LOCAL-FIRST CHRONOLOGY</p>
+      <h1>Timeline</h1>
+      <p class="lede">Capture events and ranges, classify them, and assemble multiple stories from the same canonical chronology.</p>
+    </div>
+    <div class="header-actions">
+      <button id="new-project" class="button secondary" type="button">New</button>
+      <button id="export-json" class="button secondary" type="button">Export JSON</button>
+      <button id="export-markdown" class="button secondary" type="button">Export Markdown</button>
+      <label class="button secondary file-button">
+        Import JSON
+        <input id="import-json" type="file" accept="application/json,.json">
+      </label>
+    </div>
   </header>
 
-  <main id="workspace">
-    <section class="hero" aria-labelledby="hero-title">
-      <div>
-        <p class="eyebrow">Local-first chronology workspace</p>
-        <h1 id="hero-title">Events become structure. Structure becomes a story.</h1>
-      </div>
-      <div class="hero-copy-wrap">
-        <p class="hero-copy">Build precise events and ranges, organize them with your own categories, then create focused narrative paths through the chronology without duplicating the underlying data.</p>
-        <div class="hero-meta" aria-label="Application characteristics">
-          <span>Events + ranges</span>
-          <span>Custom categories</span>
-          <span>Story focus</span>
-          <span>Local-only data</span>
-        </div>
-      </div>
-    </section>
-
-    <section class="project-bar" aria-label="Timeline project controls">
-      <label class="project-title-field">
-        <span class="sr-only">Timeline title</span>
-        <input id="timeline-title" type="text" maxlength="120" autocomplete="off" placeholder="Untitled timeline">
-      </label>
-      <div class="project-stats" aria-label="Timeline statistics">
-        <span id="item-count">0 items</span>
-        <span id="story-count">0 stories</span>
-        <span id="category-count">0 categories</span>
-      </div>
-      <div class="project-actions">
-        <button id="load-sample" class="button secondary" type="button">Load example</button>
-        <label class="button secondary file-button">Import JSON<input id="import-json" type="file" accept="application/json,.json"></label>
-        <button id="export-json" class="button secondary" type="button">JSON</button>
-        <button id="export-markdown" class="button secondary" type="button">Markdown</button>
-        <button id="clear-timeline" class="button danger" type="button">Clear</button>
-      </div>
-    </section>
-
-    <section class="app-shell" aria-label="Timeline application">
-      <aside class="control-panel" aria-label="Timeline editors">
-        <div class="tabs" role="tablist" aria-label="Editor sections">
-          <button class="tab is-active" id="tab-items" role="tab" aria-selected="true" aria-controls="panel-items" data-panel="items" type="button">Items</button>
-          <button class="tab" id="tab-stories" role="tab" aria-selected="false" aria-controls="panel-stories" data-panel="stories" type="button">Stories</button>
-          <button class="tab" id="tab-categories" role="tab" aria-selected="false" aria-controls="panel-categories" data-panel="categories" type="button">Categories</button>
+  <main>
+    <section class="workspace">
+      <aside class="editor-panel" aria-label="Timeline editor">
+        <div class="tab-list" role="tablist" aria-label="Editor sections">
+          <button id="tab-project" class="tab active" type="button" role="tab" aria-selected="true" aria-controls="panel-project" data-panel="project">Project</button>
+          <button id="tab-items" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-items" data-panel="items">Items</button>
+          <button id="tab-stories" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-stories" data-panel="stories">Stories</button>
+          <button id="tab-categories" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-categories" data-panel="categories">Categories</button>
         </div>
 
-        <section id="panel-items" class="editor-section" role="tabpanel" aria-labelledby="tab-items">
+        <section id="panel-project" class="editor-section" role="tabpanel" aria-labelledby="tab-project">
           <div class="section-heading">
             <div>
-              <p class="kicker">Chronology item</p>
-              <h2>Create an event or range</h2>
+              <p class="kicker">Identity</p>
+              <h2>Project</h2>
+            </div>
+          </div>
+          <form id="project-form" novalidate>
+            <label class="field">
+              <span>Timeline title</span>
+              <input id="project-title" type="text" maxlength="120" autocomplete="off" placeholder="Untitled timeline">
+            </label>
+            <p class="privacy-note">Stored only in this browser until you export it.</p>
+          </form>
+          <div class="project-stats" aria-label="Project statistics">
+            <div><strong id="stat-items">0</strong><span>items</span></div>
+            <div><strong id="stat-stories">0</strong><span>stories</span></div>
+            <div><strong id="stat-categories">0</strong><span>categories</span></div>
+          </div>
+        </section>
+
+        <section id="panel-items" class="editor-section" role="tabpanel" aria-labelledby="tab-items" hidden>
+          <div class="section-heading">
+            <div>
+              <p class="kicker">Chronology</p>
+              <h2>Add an item</h2>
             </div>
           </div>
 
           <form id="item-form" novalidate>
             <input id="item-id" type="hidden">
+            <label class="field">
+              <span>Kind</span>
+              <select id="item-kind">
+                <option value="event">Point event</option>
+                <option value="range">Date range</option>
+              </select>
+            </label>
             <div class="field-grid">
               <label class="field">
-                <span>Type</span>
-                <select id="item-kind">
-                  <option value="event">Event</option>
-                  <option value="range">Range</option>
-                </select>
+                <span>Start</span>
+                <input id="item-start" type="text" inputmode="numeric" autocomplete="off" placeholder="2026-09-18 or 2026-09-18T14:30" required>
               </label>
-              <label class="field">
-                <span>Category</span>
-                <select id="item-category"></select>
-              </label>
-              <label class="field field-wide">
-                <span>Start <small>YYYY-MM-DD or YYYY-MM-DDTHH:MM</small></span>
-                <input id="item-start" type="text" inputmode="numeric" autocomplete="off" placeholder="2026-09-11T09:30" required>
-              </label>
-              <label id="end-field" class="field field-wide" hidden>
-                <span>End <small>required for ranges</small></span>
-                <input id="item-end" type="text" inputmode="numeric" autocomplete="off" placeholder="2026-09-14T17:00">
-              </label>
-              <label class="field field-wide">
-                <span>Title</span>
-                <input id="item-title" type="text" maxlength="160" autocomplete="off" placeholder="Prototype implementation" required>
-              </label>
-              <label class="field field-wide">
-                <span>Description <small>optional</small></span>
-                <textarea id="item-description" rows="4" maxlength="2000" placeholder="What happened, what changed, or why this period matters."></textarea>
+              <label id="end-field" class="field" hidden>
+                <span>End</span>
+                <input id="item-end" type="text" inputmode="numeric" autocomplete="off" placeholder="2026-09-19">
               </label>
             </div>
+            <label class="field">
+              <span>Title</span>
+              <input id="item-title" type="text" maxlength="160" autocomplete="off" placeholder="What happened?" required>
+            </label>
+            <label class="field">
+              <span>Description <small>optional</small></span>
+              <textarea id="item-description" rows="3" maxlength="2000" placeholder="Context, sources, consequences, or notes."></textarea>
+            </label>
+            <label class="field">
+              <span>Category</span>
+              <select id="item-category"></select>
+            </label>
             <p id="item-form-error" class="form-error" role="alert" hidden></p>
             <div class="form-actions">
               <button id="save-item" class="button primary" type="submit">Add item</button>
@@ -212,7 +202,6 @@
           <button id="clear-filters" class="button ghost compact-button" type="button">Reset filters</button>
         </div>
 
-
         <section id="story-focus" class="story-focus" aria-live="polite" hidden>
           <div class="story-focus-copy">
             <p class="kicker">Story focus</p>
@@ -240,11 +229,10 @@
             </div>
             <span id="timeline-window-readout" class="timeline-window-readout" aria-live="polite">No visible events</span>
           </div>
-          <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan. Use the plus and minus controls, mouse wheel, or plus and minus keys to zoom. Press Home to fit all visible events.</p>
+          <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan. Scroll or pinch over the timeline for slow pointer-anchored zoom. Use plus and minus for stepped zoom. Press Home to fit all visible events and Escape to close event detail.</p>
           <div id="timeline-surface" class="timeline-surface is-landscape" tabindex="0" role="group" aria-describedby="timeline-surface-help"></div>
-          <aside id="timeline-detail" class="timeline-detail" aria-live="polite" hidden></aside>
+          <aside id="timeline-detail" class="timeline-detail" role="dialog" aria-modal="false" aria-live="polite" hidden></aside>
         </section>
-
 
         <div id="empty-state" class="empty-state">
           <p class="empty-symbol" aria-hidden="true">POINT • RANGE • STORY</p>
