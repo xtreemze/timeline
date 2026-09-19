@@ -497,7 +497,7 @@ Normal application mode follows the same ownership principle as fullscreen: the 
 - The global viewing dock is limited to Edit, Browse, Relations and View, using semantic icon + text pairs for recognition at touch and desktop distances.
 - Relation-graph exploration is opened explicitly as the Relations overlay rather than occupying a permanent sibling column.
 - Timeline orientation, zoom, auto-advance and presentation controls are progressively disclosed in a compact View surface.
-- Project import/export/example/destructive actions live in a native, grouped Project popover from the floating command bar. Import actions are explicit buttons wired to hidden file inputs so every visible menu command is keyboard-operable.
+- Project actions live in a native, grouped Project popover from the floating command bar. Export and source navigation remain available while viewing; import, load-example, clear-project and project-title mutation are disabled until Edit mode is explicitly entered. Import actions remain explicit buttons wired to hidden file inputs so every visible enabled menu command is keyboard-operable.
 - One large utility surface is shown at a time. Contextual Story controls yield while a large utility surface is open. Event focus remains a separate top-layer interaction and the timeline stays visually present beneath it.
 - With no events the timeline still renders its neutral axis; guidance for the empty project lives in Browse rather than replacing the workspace.
 
