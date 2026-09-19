@@ -23,6 +23,7 @@
   const VERTICAL_CLUSTER_THRESHOLD = 74;
   const RELATION_LANES = 4;
   const FOCUS_VIEW_TRANSITION_NAME = "timeline-event-detail-shared";
+  const FOCUS_SWAP_TRANSITION_NAME = "timeline-event-detail-swap";
 
   function createElement(tag, className, text) {
     const element = document.createElement(tag);
@@ -116,6 +117,8 @@
       this.renderFrame = 0;
       this.zoomAnimationFrame = 0;
       this.zoomLastFrame = 0;
+      this.zoomAnimationResolve = null;
+      this.focusNavigationToken = 0;
       this.inertiaAnimationFrame = 0;
       this.clusterSignature = null;
       this.lastClusterHapticAt = 0;
@@ -343,7 +346,7 @@
 
       this.root.hidden = false;
       if (!this.viewport || previousSignature !== nextSignature) this.ensureUsefulViewport();
-      if (this.focusId) this.ensureItemVisible(this.focusId);
+      if (this.focusId && !this.selectedId) this.ensureItemVisible(this.focusId);
       if (this.selectedId && !this.items.some((item) => item.id === this.selectedId)) {
         this.closeFocus();
       } else if (this.selectedId) {
@@ -368,16 +371,11 @@
 
     ensureItemVisible(id) {
       const item = this.items.find((candidate) => candidate.id === id);
-      if (!item || !this.viewport) return;
-      const span = this.viewport.end - this.viewport.start;
-      const margin = span * 0.12;
-      if (item.start < this.viewport.start + margin || item.start > this.viewport.end - margin) {
-        this.cancelViewportAnimation();
-        this.viewport = {
-          start: item.start - span / 2,
-          end: item.start + span / 2
-        };
-      }
+      const target = this.visibilityViewportForItem(item);
+      if (!target) return false;
+      this.cancelViewportAnimation();
+      this.viewport = target;
+      return true;
     }
 
     itemCoordinates(items = this.items) {
@@ -424,15 +422,25 @@
       this.startViewportAnimation();
     }
 
+    resolveViewportAnimation(completed) {
+      const resolve = this.zoomAnimationResolve;
+      this.zoomAnimationResolve = null;
+      if (resolve) resolve(Boolean(completed));
+    }
+
     animateViewportTo(target) {
       if (!this.viewport || this.prefersReducedMotion()) {
         this.cancelViewportAnimation();
         this.viewport = { ...target };
         this.scheduleRender();
-        return;
+        return Promise.resolve(true);
       }
+      this.resolveViewportAnimation(false);
       this.zoomTarget = { ...target };
-      this.startViewportAnimation();
+      return new Promise((resolve) => {
+        this.zoomAnimationResolve = resolve;
+        this.startViewportAnimation();
+      });
     }
 
     startViewportAnimation() {
@@ -471,6 +479,7 @@
           this.zoomTarget = null;
           this.zoomLastFrame = 0;
           this.scheduleRender();
+          this.resolveViewportAnimation(true);
           return;
         }
 
@@ -487,6 +496,7 @@
       this.zoomAnimationFrame = 0;
       this.zoomLastFrame = 0;
       this.zoomTarget = null;
+      this.resolveViewportAnimation(false);
       this.cancelInertia();
     }
 
@@ -1003,28 +1013,80 @@
       return occupied.length - 1;
     }
 
-    focusItem(id) {
+    focusItem(id, options = {}) {
+      const item = this.items.find((candidate) => candidate.id === id);
+      if (!item) return false;
+      if (this.selectedId && this.selectedId !== id && !this.prefersReducedMotion()) {
+        const direction = Number(options.direction) < 0 ? -1 : 1;
+        void this.transitionFocusTo(item, direction);
+        return true;
+      }
       this.select(id);
+      return true;
     }
 
-    adjustFocusedViewport(item) {
-      if (!item || !this.viewport) return;
+    focusContextPlan(item, viewport = this.viewport) {
+      if (!item || !viewport) return null;
       const rect = this.surface.getBoundingClientRect();
       const primaryLength = this.orientation === "horizontal" ? rect.width : rect.height;
       const padding = this.axisPadding(primaryLength);
       const usable = Math.max(1, primaryLength - padding * 2);
-      const plan = clustering.focusContextViewport(
+      return clustering.focusContextViewport(
         this.items,
         item.id,
-        this.viewport,
+        viewport,
         usable,
         this.clusterThreshold(rect.width),
         { desiredContext: 2, paddingRatio: 0.14, minSpanMs: MIN_SPAN_MS }
       );
+    }
+
+    visibilityViewportForItem(item, viewport = this.viewport) {
+      if (!item || !viewport) return null;
+      const span = viewport.end - viewport.start;
+      const margin = span * 0.12;
+      if (item.start >= viewport.start + margin && item.start <= viewport.end - margin) return null;
+      return {
+        start: item.start - span / 2,
+        end: item.start + span / 2
+      };
+    }
+
+    focusedNavigationPlan(item) {
+      if (!item || !this.viewport) return { viewport: null, forceUnique: false };
+      const visibilityViewport = this.visibilityViewportForItem(item, this.viewport);
+      const baseViewport = visibilityViewport || this.viewport;
+      const contextPlan = this.focusContextPlan(item, baseViewport);
+      const contextViewport =
+        contextPlan && (contextPlan.mode === "separate" || contextPlan.mode === "context")
+          ? contextPlan.viewport
+          : null;
+      return {
+        viewport: contextViewport || visibilityViewport || { ...this.viewport },
+        forceUnique: Boolean(contextPlan?.forceUnique)
+      };
+    }
+
+    async transitionFocusTo(item, direction = 1) {
+      if (!item || item.id === this.selectedId) return false;
+      const token = ++this.focusNavigationToken;
+      const plan = this.focusedNavigationPlan(item);
+      const moved = plan.viewport ? await this.animateViewportTo(plan.viewport) : true;
+      if (!moved || token !== this.focusNavigationToken) return false;
+      this.select(item.id, {
+        preserveViewport: true,
+        forceUnique: plan.forceUnique,
+        adjacentDirection: direction < 0 ? -1 : 1
+      });
+      return true;
+    }
+
+    adjustFocusedViewport(item) {
+      const plan = this.focusContextPlan(item);
       if (!plan) return;
       this.focusForceUnique = Boolean(plan.forceUnique);
       if (plan.mode === "separate" || plan.mode === "context") {
-        this.animateViewportTo(plan.viewport);
+        void this.animateViewportTo(plan.viewport);
       }
     }
 
@@ -1069,8 +1131,9 @@
         nextIndex = (nextIndex + this.items.length) % this.items.length;
       }
       if (nextIndex < 0 || nextIndex >= this.items.length) return false;
-      this.select(this.items[nextIndex].id);
-      return true;
+      return this.focusItem(this.items[nextIndex].id, {
+        direction: delta < 0 ? -1 : 1
+      });
     }
 
     stepFocusMedia(delta) {
@@ -1099,7 +1162,7 @@
         .find((range) => range.dataset.id === targetId) || null;
     }
 
-    select(id) {
+    select(id, options = {}) {
       const item = this.items.find((candidate) => candidate.id === id);
       if (!item) return;
 
@@ -1108,9 +1171,11 @@
       const applyFocus = () => {
         this.selectedId = id;
         this.focusMediaIndex = 0;
-        this.focusForceUnique = false;
-        this.ensureItemVisible(id);
-        this.adjustFocusedViewport(item);
+        this.focusForceUnique = Boolean(options.forceUnique);
+        if (!options.preserveViewport) {
+          this.ensureItemVisible(id);
+          this.adjustFocusedViewport(item);
+        }
         this.root.classList.add("is-event-focused");
         this.focusView.hidden = false;
         this.renderFocus(item);
@@ -1137,8 +1202,21 @@
       const canTransition =
         !this.prefersReducedMotion() &&
         typeof document.startViewTransition === "function";
+      const adjacentDirection = Number(options.adjacentDirection) || 0;
 
-      if (canTransition && transitionOrigin) {
+      if (canTransition && adjacentDirection) {
+        document.documentElement.dataset.timelineFocusDirection = adjacentDirection < 0 ? "backward" : "forward";
+        this.focusView.style.viewTransitionName = FOCUS_SWAP_TRANSITION_NAME;
+        const transition = document.startViewTransition(() => {
+          applyFocus();
+          this.focusView.style.viewTransitionName = FOCUS_SWAP_TRANSITION_NAME;
+        });
+        const cleanupAdjacentTransition = () => {
+          this.focusView.style.removeProperty("view-transition-name");
+          delete document.documentElement.dataset.timelineFocusDirection;
+        };
+        void transition.finished.then(cleanupAdjacentTransition, cleanupAdjacentTransition);
+      } else if (canTransition && transitionOrigin) {
         transitionOrigin.style.viewTransitionName = FOCUS_VIEW_TRANSITION_NAME;
         const transition = document.startViewTransition(() => {
           transitionOrigin.style.removeProperty("view-transition-name");
