@@ -121,7 +121,8 @@ test("focused event composition does not instantiate duplicate graph or map surf
   assert.doesNotMatch(css, /timeline-focus-graph/);
   assert.doesNotMatch(css, /timeline-focus-place-map/);
   assert.match(css, /container-type:\s*inline-size/);
-  assert.match(css, /font-size:\s*clamp\(2\.55rem,\s*9cqi,\s*7\.25rem\)/);
+  assert.match(css, /font-size:\s*clamp\(3\.2rem,\s*11\.5cqi,\s*9rem\)/);
+  assert.doesNotMatch(source, /timeline-focus-temporal|timeline-focus-definition-list|\"Chronology\"/);
   assert.match(css, /overflow-wrap:\s*break-word/);
   assert.doesNotMatch(css, /text-box:\s*trim-both cap alphabetic/);
 });
