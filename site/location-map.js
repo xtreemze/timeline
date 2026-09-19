@@ -135,9 +135,16 @@
       this.provider = globalThis.TimelineMapTileProvider || DEFAULT_PROVIDER;
       this.color = options.color || "#315fbd";
       this.iconName = options.iconName || "place";
+      this.label =
+        options.label ||
+        this.location?.name ||
+        this.location?.geographicIdentifier ||
+        this.location?.address ||
+        "Event location";
       this.interactive = options.interactive === true;
       this.countryContextIntro = options.countryContextIntro === true;
       this.map = null;
+      this.placeIdentity = null;
       this.layers = [];
       this.destroyed = false;
       this.introInProgress = false;
@@ -148,13 +155,33 @@
       this.ready = this.render();
     }
 
+    renderPlaceIdentity() {
+      if (!this.container || this.placeIdentity) return;
+      const identity = document.createElement("div");
+      identity.className = "timeline-map-place-identity";
+      identity.style.setProperty("--map-marker-color", this.color);
+      identity.setAttribute("aria-hidden", "true");
+
+      const iconShell = document.createElement("span");
+      iconShell.className = "timeline-map-place-icon";
+      const icon = globalThis.TimelinePresentation?.createIcon?.(this.iconName || "place", { size: 22 });
+      if (icon) iconShell.append(icon);
+      else iconShell.textContent = "•";
+
+      const label = document.createElement("span");
+      label.className = "timeline-map-place-label";
+      label.textContent = this.label;
+
+      identity.append(iconShell, label);
+      this.container.append(identity);
+      this.placeIdentity = identity;
+    }
+
     async render() {
       const objects = geoJsonObjects(this.location);
       if (!this.container || objects.length === 0) return;
-      this.container.setAttribute(
-        "aria-label",
-        this.location?.name || this.location?.geographicIdentifier || "Event location"
-      );
+      this.container.setAttribute("aria-label", this.label);
+      this.renderPlaceIdentity();
 
       try {
         const L = await loadLeaflet();
@@ -228,7 +255,13 @@
       } catch (error) {
         if (!this.destroyed && this.container) {
           this.container.dataset.error = "true";
-          this.container.textContent = "Map preview unavailable.";
+          this.placeIdentity?.classList.add("is-error");
+          if (this.placeIdentity && !this.placeIdentity.querySelector(".timeline-map-place-status")) {
+            const status = document.createElement("small");
+            status.className = "timeline-map-place-status";
+            status.textContent = "Map preview unavailable";
+            this.placeIdentity.append(status);
+          }
         }
         console.warn(error);
       }
