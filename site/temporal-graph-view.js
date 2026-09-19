@@ -40,6 +40,7 @@
       this.viewport = null;
       this.focusedId = null;
       this.signature = "";
+      this.presentationMode = false;
       this.orb = orbFactory.create(this.canvas, {
         onNodeClick: (node) => this.activateNode(node),
         onNodeLongPress: (node) => this.selectNodeForDrag(node),
@@ -100,6 +101,12 @@
       this.orb.recenter();
     }
 
+    setPresentationMode(active) {
+      this.presentationMode = Boolean(active);
+      this.root.dataset.presentationMode = String(this.presentationMode);
+      if (this.presentationMode && this.detail) this.detail.replaceChildren();
+    }
+
     selectNodeForDrag(node) {
       this.renderDetail("node", node);
       this.root.dispatchEvent(new CustomEvent("graphnodeselect", {
@@ -137,6 +144,10 @@
       meta.textContent = kind === "node"
         ? record.properties?.timelineType || "entity"
         : `${record.start} → ${record.end}`;
+      if (this.presentationMode) {
+        this.detail.append(title, meta);
+        return;
+      }
       const pre = document.createElement("pre");
       pre.textContent = JSON.stringify(record.properties || {}, null, 2);
       this.detail.append(title, meta, pre);

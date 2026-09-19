@@ -281,6 +281,10 @@
     return document.fullscreenElement === els.presentationStage;
   }
 
+  function presentationModeActive() {
+    return presentationIsFullscreen() || Boolean(timelineView?.hasFocusedItem?.());
+  }
+
   function updatePresentationStageLayout() {
     if (!els.presentationStage) return false;
     const rect = els.presentationStage.getBoundingClientRect();
@@ -327,6 +331,7 @@
       destroyPresentationMap();
       if (els.graphLens) els.graphLens.open = graphOpenBeforeFullscreen;
     }
+    temporalGraphView?.setPresentationMode?.(active || Boolean(timelineView?.hasFocusedItem?.()));
     schedulePresentationGeometryRefresh({ recenterGraph: true });
   }
 
@@ -2709,11 +2714,13 @@
   });
 
   els.graphViewRoot.addEventListener("graphentityfocus", (event) => {
+    if (presentationModeActive()) return;
     const id = event.detail?.id;
     if (id && state.entities.some((entity) => entity.id === id)) beginGraphNodeEdit(id);
   });
 
   els.graphViewRoot.addEventListener("graphedgefocus", (event) => {
+    if (presentationModeActive()) return;
     const id = event.detail?.id;
     if (id && state.relationships.some((relationship) => relationship.id === id)) beginGraphEdgeEdit(id);
   });
@@ -2727,6 +2734,7 @@
     const focused = Boolean(event.detail?.focused);
     els.appShell.classList.toggle("is-event-focused", focused);
     temporalGraphView?.setFocus(focused ? event.detail?.id : null);
+    temporalGraphView?.setPresentationMode?.(focused || presentationIsFullscreen());
     if (presentationIsFullscreen()) renderPresentationMap();
     else destroyPresentationMap();
     schedulePresentationGeometryRefresh({ recenterGraph: true });

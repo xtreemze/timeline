@@ -152,3 +152,15 @@ test("focused event neighborhood exposes the relation it changes and a derived c
   assert.ok(neighborhood.edges.some((edge) => edge.id === "r"));
   assert.ok(neighborhood.edges.some((edge) => edge.id === "change:event-change:r" && edge.label === "updates"));
 });
+
+
+test("presentation graph omits raw JSON property dumps", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8");
+  assert.match(source, /presentationMode = false/);
+  assert.match(source, /setPresentationMode\(active\)/);
+  assert.match(
+    source,
+    /if \(this\.presentationMode\)[\s\S]*this\.detail\.append\(title, meta\)[\s\S]*return;[\s\S]*JSON\.stringify/
+  );
+});

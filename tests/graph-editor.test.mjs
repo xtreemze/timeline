@@ -123,3 +123,12 @@ test("touch graph dragging requires a long press while preserving live force phy
   assert.match(view, /long-press-drag/);
 });
 
+
+
+test("graph entity and edge editing are disabled while presentation mode is active", async () => {
+  const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  assert.match(source, /function presentationModeActive\(\)/);
+  assert.match(source, /graphentityfocus[\s\S]*presentationModeActive\(\)[\s\S]*return;[\s\S]*beginGraphNodeEdit/);
+  assert.match(source, /graphedgefocus[\s\S]*presentationModeActive\(\)[\s\S]*return;[\s\S]*beginGraphEdgeEdit/);
+  assert.match(source, /timelinefocuschange[\s\S]*setPresentationMode/);
+});
