@@ -2011,11 +2011,10 @@
    so detail stays left. The compact grid avoids an internal desktop scroll surface. */
 @media (min-width: 900px) and (min-height: 700px) {
   .timeline-view[data-orientation="landscape"] > .timeline-focus-view:popover-open {
-    inset:
-      max(4.25rem, calc(env(safe-area-inset-top) + 3.8rem))
-      auto
-      auto
-      50%;
+    top: max(4.25rem, calc(env(safe-area-inset-top) + 3.8rem));
+    right: auto;
+    bottom: auto;
+    left: 50%;
     inline-size: min(900px, calc(100dvw - 8rem));
     max-block-size: calc(100dvh - 9rem);
     block-size: auto;
@@ -2024,11 +2023,10 @@
   }
 
   .timeline-view[data-orientation="portrait"] > .timeline-focus-view:popover-open {
-    inset:
-      50%
-      auto
-      auto
-      max(4.5rem, calc(env(safe-area-inset-left) + 4rem));
+    top: 50%;
+    right: auto;
+    bottom: auto;
+    left: max(4.5rem, calc(env(safe-area-inset-left) + 4rem));
     inline-size: min(720px, calc(100dvw - 10rem));
     max-block-size: calc(100dvh - 2rem);
     block-size: auto;
