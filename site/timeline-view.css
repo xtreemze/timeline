@@ -1528,7 +1528,7 @@
 
 .timeline-focus-view[popover] {
   margin: 0;
-  pointer-events: none;
+  pointer-events: auto;
   border: 1px solid color-mix(in srgb, var(--line-strong) 86%, transparent);
   border-radius: 1rem;
   max-width: none;
@@ -1539,7 +1539,6 @@
   background: color-mix(in srgb, var(--paper) 96%, transparent);
   backdrop-filter: blur(14px);
   container-type: inline-size;
-  view-transition-name: timeline-detail-overlay;
 }
 
 .timeline-view[data-orientation="landscape"] > .timeline-focus-view:popover-open {
@@ -1570,7 +1569,7 @@
 }
 
 .timeline-focus-view[popover] > :is(.timeline-focus-place, .timeline-focus-relations) {
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .timeline-focus-place,
@@ -1639,14 +1638,23 @@
   pointer-events: auto;
 }
 
+.timeline-focus-place-backdrop .presentation-map {
+  touch-action: none;
+}
+
 .timeline-focus-place-backdrop .leaflet-control-attribution {
   max-width: calc(100% - .5rem);
   font-size: 8px;
 }
 
-::view-transition-group(timeline-detail-overlay) {
-  animation-duration: 260ms;
+::view-transition-group(timeline-event-detail-shared) {
+  animation-duration: 300ms;
   animation-timing-function: cubic-bezier(.2, .8, .2, 1);
+}
+
+::view-transition-old(timeline-event-detail-shared),
+::view-transition-new(timeline-event-detail-shared) {
+  mix-blend-mode: normal;
 }
 
 @media (max-width: 900px), (max-height: 650px) {
@@ -2122,7 +2130,12 @@
 
 /* Focused presentation refinement: two-row overview, tabbed evidence, and direct graph manipulation. */
 .timeline-focus-view[popover] {
-  padding-top: 3.05rem;
+  padding-top: 0;
+}
+
+.timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary,
+.timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
+  padding-top: 3.2rem;
 }
 
 .timeline-focus-tabs {
@@ -2343,7 +2356,7 @@
 
 @media (max-width: 760px) {
   .timeline-focus-view[popover] {
-    padding-top: 3rem;
+    padding-top: 0;
   }
 
   .timeline-focus-tabs {
