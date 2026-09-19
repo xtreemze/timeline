@@ -913,7 +913,8 @@
             </div>
             <div class="timeline-zoom-controls" aria-label="Timeline zoom">
               <button id="timeline-zoom-out" class="button secondary" type="button" aria-label="Zoom out">−</button>
-              <button id="timeline-fit" class="button secondary" type="button">Fit</button>
+              <button id="timeline-fit" class="button secondary" type="button" aria-keyshortcuts="Home">Fit visible</button>
+              <button id="timeline-fit-all" class="button secondary" type="button" aria-keyshortcuts="Shift+Home">Fit all</button>
               <button id="timeline-zoom-in" class="button secondary" type="button" aria-label="Zoom in">+</button>
             </div>
             <div class="timeline-auto-controls" data-auto-control role="group" aria-label="Automatic advance">
@@ -930,7 +931,7 @@
             </div>
             <span id="timeline-window-readout" class="timeline-window-readout" aria-live="polite">No visible events</span>
           </div>
-          <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan with inertia. Scroll or pinch over the timeline for slow pointer-anchored zoom. Selecting an event enters a full focused composition. In focused presentation mode, Left and Right move between events, Up and Down move between photographs, Space or media Play/Pause toggles automatic advance, and Escape or Browser Back returns. Standard gamepads and TV remote D-pads use the same commands. Any manual interaction pauses automatic advance. Press F while the presentation stage has focus to enter or leave full screen; the timeline always remains visible, while relation graph and place map surfaces appear only when the focused event provides that context.</p>
+          <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan with inertia. Scroll or pinch over the timeline for slow pointer-anchored zoom. Home fits the currently visible or filtered chronology; Shift+Home fits the full chronology. Selecting an event enters a full focused composition. In focused presentation mode, Left and Right move between events, Up and Down move between photographs, Space or media Play/Pause toggles automatic advance, and Escape or Browser Back returns. Standard gamepads and TV remote D-pads use the same commands. Any manual interaction pauses automatic advance. Press F while the presentation stage has focus to enter or leave full screen; the timeline always remains visible, while relation graph and place map surfaces appear only when the focused event provides that context.</p>
           <div id="timeline-surface" class="timeline-surface is-landscape" tabindex="0" role="group" aria-describedby="timeline-surface-help"></div>
           <section id="timeline-focus-view" class="timeline-focus-view" popover="manual" aria-live="polite" hidden></section>
         </section>
