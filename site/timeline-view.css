@@ -1779,3 +1779,139 @@
   border-color: color-mix(in srgb, var(--event-color, var(--ink)) 62%, var(--line));
   box-shadow: 0 12px 34px rgba(38, 31, 23, .14);
 }
+
+
+/* Persistent application canvas.
+   Outside fullscreen, the same timeline surface owns the viewport and all utility UI
+   floats above it. Fullscreen retains the focused-presentation contract above. */
+#app-shell #timeline-view,
+#app-shell #timeline-view.is-event-focused,
+#app-shell #timeline-view.is-event-focused[data-orientation="portrait"],
+#app-shell #timeline-view.is-event-focused[data-orientation="landscape"] {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+#app-shell #timeline-view .timeline-surface,
+#app-shell #timeline-view.is-event-focused .timeline-surface,
+#app-shell #timeline-view.is-event-focused[data-orientation="portrait"] .timeline-surface,
+#app-shell #timeline-view.is-event-focused[data-orientation="landscape"] .timeline-surface {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  background: color-mix(in srgb, var(--paper) 98%, var(--paper-2));
+}
+
+#app-shell .timeline-stage {
+  min-width: 100%;
+  min-height: 100%;
+}
+
+#app-shell .app-view-controls.timeline-view-toolbar:not([hidden]) {
+  position: fixed;
+  z-index: 1150;
+  top: max(4.15rem, calc(env(safe-area-inset-top) + 3.8rem));
+  left: max(.4rem, env(safe-area-inset-left));
+  right: max(.4rem, env(safe-area-inset-right));
+  display: flex;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  padding: .35rem;
+  gap: .3rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  border-radius: .8rem;
+  background: color-mix(in srgb, var(--paper) 91%, transparent);
+  box-shadow: 0 12px 38px color-mix(in srgb, var(--ink) 12%, transparent);
+  backdrop-filter: blur(18px);
+  scrollbar-width: thin;
+}
+
+#app-shell .app-view-controls.timeline-view-toolbar:not([hidden]) > * {
+  flex: 0 0 auto;
+}
+
+#app-shell .app-view-controls .timeline-window-readout {
+  display: none;
+}
+
+#app-shell .timeline-event-terminal,
+#app-shell .timeline-cluster-terminal,
+#app-shell .timeline-range-segment {
+  scroll-margin:
+    max(4.5rem, calc(env(safe-area-inset-top) + 4rem))
+    max(4.5rem, calc(env(safe-area-inset-right) + 4rem))
+    max(5rem, calc(env(safe-area-inset-bottom) + 4.6rem))
+    max(4.5rem, calc(env(safe-area-inset-left) + 4rem));
+}
+
+@media (min-width: 900px) {
+  #app-shell .app-view-controls.timeline-view-toolbar:not([hidden]) {
+    left: auto;
+    right: max(.55rem, env(safe-area-inset-right));
+    width: max-content;
+    max-width: min(760px, calc(100dvw - 8rem));
+  }
+}
+
+/* Utility chrome is not part of the fullscreen presentation. */
+#presentation-stage:fullscreen ~ *,
+#presentation-stage:fullscreen .app-tool-dock {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app-shell .app-editor-sheet,
+  #app-shell .app-browser-sheet,
+  #app-shell #graph-lens {
+    scroll-behavior: auto;
+  }
+}
+
+
+#app-shell .timeline-stage-empty {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+#app-shell .timeline-stage-empty .timeline-axis {
+  opacity: .55;
+}
+
+#app-shell .timeline-empty-hint {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--timeline-axis-cross) + 1.2rem);
+  margin: 0;
+  transform: translateX(-50%);
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 650;
+  letter-spacing: .01em;
+  white-space: nowrap;
+  opacity: .72;
+}
+
+#app-shell .timeline-surface.is-portrait .timeline-empty-hint {
+  left: calc(var(--timeline-axis-cross) + 1rem);
+  top: 50%;
+  transform: translateY(-50%);
+}

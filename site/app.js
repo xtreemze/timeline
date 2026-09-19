@@ -48,6 +48,15 @@
     categoryCount: document.querySelector("#category-count"),
     visibleCount: document.querySelector("#visible-count"),
     appShell: document.querySelector("#app-shell"),
+    controlPanel: document.querySelector("#control-panel"),
+    controlPanelClose: document.querySelector("#control-panel-close"),
+    panelOpeners: [...document.querySelectorAll("[data-open-panel]")],
+    browserSheet: document.querySelector("#timeline-browser-sheet"),
+    browserToggle: document.querySelector("#timeline-browser-toggle"),
+    browserClose: document.querySelector("#timeline-browser-close"),
+    graphLensToggle: document.querySelector("#graph-lens-toggle"),
+    viewControls: document.querySelector("#timeline-view-toolbar"),
+    viewControlsToggle: document.querySelector("#timeline-view-controls-toggle"),
     loadSample: document.querySelector("#load-sample"),
     importJson: document.querySelector("#import-json"),
     importInterchange: document.querySelector("#import-interchange"),
@@ -210,6 +219,10 @@
     categoryFilter: "all",
     activeStoryId: null,
     storyCursor: 0,
+    editorOpen: false,
+    browserOpen: false,
+    graphOpen: false,
+    viewControlsOpen: false,
     collapsedCategoryIds: new Set()
   };
 
@@ -342,8 +355,9 @@
     if (!focused) restoreGraphSurface();
 
     if (els.graphLens) {
-      els.graphLens.hidden = focused || presentationIsFullscreen();
-      if (!els.graphLens.hidden) els.graphLens.open = graphOpenBeforeFullscreen;
+      const standaloneGraphVisible = !focused && !presentationIsFullscreen() && ui.graphOpen;
+      els.graphLens.hidden = !standaloneGraphVisible;
+      if (standaloneGraphVisible) els.graphLens.open = true;
     }
     if (els.presentationMapPanel) els.presentationMapPanel.hidden = true;
 
@@ -411,6 +425,7 @@
     } else if (!active && !timelineView?.hasFocusedItem?.() && els.graphLens) {
       els.graphLens.open = graphOpenBeforeFullscreen;
     }
+    if (els.viewControls) els.viewControls.hidden = !(active || ui.viewControlsOpen);
     temporalGraphView?.setPresentationMode?.(active || Boolean(timelineView?.hasFocusedItem?.()));
     schedulePresentationGeometryRefresh({ recenterGraph: true });
   }
@@ -867,7 +882,66 @@
     element.hidden = !message;
   }
 
-  function setActivePanel(name) {
+  function syncApplicationSurfaces() {
+    if (els.appShell) {
+      els.appShell.dataset.editorOpen = String(ui.editorOpen);
+      els.appShell.dataset.browserOpen = String(ui.browserOpen);
+      els.appShell.dataset.graphOpen = String(ui.graphOpen);
+      els.appShell.dataset.viewControlsOpen = String(ui.viewControlsOpen);
+    }
+
+    if (els.controlPanel) {
+      els.controlPanel.hidden = !ui.editorOpen;
+      els.controlPanel.setAttribute("aria-hidden", String(!ui.editorOpen));
+    }
+    if (els.browserSheet) {
+      els.browserSheet.hidden = !ui.browserOpen;
+      els.browserSheet.setAttribute("aria-hidden", String(!ui.browserOpen));
+    }
+    if (els.browserToggle) els.browserToggle.setAttribute("aria-expanded", String(ui.browserOpen));
+    if (els.graphLensToggle) els.graphLensToggle.setAttribute("aria-expanded", String(ui.graphOpen));
+    if (els.viewControlsToggle) {
+      els.viewControlsToggle.setAttribute("aria-expanded", String(ui.viewControlsOpen));
+    }
+    if (els.viewControls) {
+      els.viewControls.hidden = !(ui.viewControlsOpen || presentationIsFullscreen());
+    }
+
+    syncContextualPresentationPanels();
+    schedulePresentationGeometryRefresh({ recenterGraph: ui.graphOpen });
+  }
+
+  function closeLargeUtilitySurfaces(except = "") {
+    if (except !== "editor") ui.editorOpen = false;
+    if (except !== "browser") ui.browserOpen = false;
+    if (except !== "graph") ui.graphOpen = false;
+  }
+
+  function setEditorSurfaceOpen(open) {
+    ui.editorOpen = Boolean(open);
+    if (ui.editorOpen) closeLargeUtilitySurfaces("editor");
+    syncApplicationSurfaces();
+  }
+
+  function setBrowserSurfaceOpen(open) {
+    ui.browserOpen = Boolean(open);
+    if (ui.browserOpen) closeLargeUtilitySurfaces("browser");
+    syncApplicationSurfaces();
+    if (ui.browserOpen) requestAnimationFrame(() => els.search?.focus({ preventScroll: true }));
+  }
+
+  function setGraphSurfaceOpen(open) {
+    ui.graphOpen = Boolean(open);
+    if (ui.graphOpen) closeLargeUtilitySurfaces("graph");
+    syncApplicationSurfaces();
+  }
+
+  function setViewControlsOpen(open) {
+    ui.viewControlsOpen = Boolean(open);
+    syncApplicationSurfaces();
+  }
+
+  function setActivePanel(name, { open = true } = {}) {
     ui.activePanel = name;
     for (const tab of els.tabs) {
       const active = tab.dataset.panel === name;
@@ -876,11 +950,12 @@
       tab.tabIndex = active ? 0 : -1;
     }
     for (const panel of els.panels) panel.hidden = panel.id !== `panel-${name}`;
+    if (open) setEditorSurfaceOpen(true);
   }
 
   function renderProjectMeta() {
     if (document.activeElement !== els.title) els.title.value = state.title;
-    els.heading.textContent = state.title.trim() || "Untitled timeline";
+    if (els.heading) els.heading.textContent = "Timeline items";
     els.itemCount.textContent = `${state.items.length} ${state.items.length === 1 ? "item" : "items"}`;
     els.storyCount.textContent = `${state.stories.length} ${state.stories.length === 1 ? "story" : "stories"}`;
     els.categoryCount.textContent = `${state.categories.length} ${state.categories.length === 1 ? "category" : "categories"}`;
@@ -2340,6 +2415,38 @@
     navigationController.auto.setIntervalMs(seconds * 1000);
   });
 
+  els.panelOpeners.forEach((button) => {
+    button.addEventListener("click", () => setActivePanel(button.dataset.openPanel));
+  });
+  els.controlPanelClose?.addEventListener("click", () => setEditorSurfaceOpen(false));
+  els.browserToggle?.addEventListener("click", () => setBrowserSurfaceOpen(!ui.browserOpen));
+  els.browserClose?.addEventListener("click", () => setBrowserSurfaceOpen(false));
+  els.graphLensToggle?.addEventListener("click", () => setGraphSurfaceOpen(!ui.graphOpen));
+  els.viewControlsToggle?.addEventListener("click", () => setViewControlsOpen(!ui.viewControlsOpen));
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (ui.editorOpen) {
+      event.preventDefault();
+      setEditorSurfaceOpen(false);
+      return;
+    }
+    if (ui.browserOpen) {
+      event.preventDefault();
+      setBrowserSurfaceOpen(false);
+      return;
+    }
+    if (ui.graphOpen) {
+      event.preventDefault();
+      setGraphSurfaceOpen(false);
+      return;
+    }
+    if (ui.viewControlsOpen && !presentationIsFullscreen()) {
+      event.preventDefault();
+      setViewControlsOpen(false);
+    }
+  });
+
   els.tabs.forEach((tab) => {
     tab.addEventListener("click", () => setActivePanel(tab.dataset.panel));
     tab.addEventListener("keydown", (event) => {
@@ -2994,6 +3101,7 @@
   resetCategoryForm();
   resetGraphNodeForm();
   resetGraphEdgeForm();
-  setActivePanel("items");
+  setActivePanel("items", { open: false });
+  syncApplicationSurfaces();
   renderAll();
 })();

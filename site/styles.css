@@ -1699,3 +1699,478 @@ footer > :last-child { grid-column: 9 / -1; justify-self: end; }
     grid-template-columns: subgrid;
   }
 }
+
+
+/* Application-shell redesign.
+   The timeline owns the viewport. Editing, browsing, graph exploration and project
+   management are transient application surfaces layered over that canvas. */
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  display: block;
+  min-width: 320px;
+  min-height: 100dvh;
+  padding: 0;
+  background: var(--paper-2);
+}
+
+#workspace {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100dvw;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-command-bar {
+  position: fixed;
+  z-index: 1100;
+  inset:
+    max(.4rem, env(safe-area-inset-top))
+    max(.4rem, env(safe-area-inset-right))
+    auto
+    max(.4rem, env(safe-area-inset-left));
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .45rem;
+  min-height: 48px;
+  padding: .35rem;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  border-radius: .85rem;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--ink) 9%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.app-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: .65rem;
+  text-decoration: none;
+}
+.app-brand span { display: none; }
+.app-brand img { display: block; }
+
+.app-command-bar .project-title-field {
+  min-width: 0;
+}
+.app-command-bar .project-title-field input {
+  width: 100%;
+  min-height: 42px;
+  padding: .45rem .55rem;
+  border: 0;
+  background: transparent;
+  font-size: clamp(.9rem, 2.6vw, 1.05rem);
+  font-weight: 760;
+  letter-spacing: -.025em;
+  text-overflow: ellipsis;
+}
+.app-command-bar .project-title-field input:focus {
+  outline: 2px solid color-mix(in srgb, var(--focus) 48%, transparent);
+  outline-offset: -2px;
+  border-radius: .5rem;
+}
+
+.app-command-bar .project-stats { display: none; }
+
+.project-menu {
+  position: relative;
+}
+.project-menu > summary {
+  min-width: 68px;
+  min-height: 42px;
+  list-style: none;
+  cursor: pointer;
+}
+.project-menu > summary::-webkit-details-marker { display: none; }
+.project-menu[open] > summary {
+  border-color: var(--line-strong);
+  background: var(--paper-2);
+}
+.project-menu .project-actions {
+  position: absolute;
+  z-index: 1400;
+  top: calc(100% + .45rem);
+  right: 0;
+  display: grid;
+  width: min(290px, calc(100dvw - 1rem));
+  max-height: min(70dvh, 560px);
+  gap: .35rem;
+  padding: .55rem;
+  overflow: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: .8rem;
+  background: color-mix(in srgb, var(--paper) 97%, transparent);
+  box-shadow: 0 18px 55px color-mix(in srgb, var(--ink) 18%, transparent);
+  backdrop-filter: blur(18px);
+}
+.project-menu .project-actions > * {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+#app-shell {
+  position: fixed;
+  z-index: 1;
+  inset: 0;
+  display: block;
+  width: 100dvw;
+  height: 100dvh;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+#app-shell > .timeline-panel {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+#app-shell #presentation-stage,
+#app-shell.is-event-focused #presentation-stage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: repeat(12, minmax(0, 1fr));
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+#app-shell #presentation-stage > .timeline-view,
+#app-shell.is-event-focused #presentation-stage > .timeline-view,
+#app-shell.is-event-focused #presentation-stage[data-has-context-graph="true"] > .timeline-view,
+#app-shell.is-event-focused #presentation-stage[data-has-context-map="true"] > .timeline-view {
+  position: absolute;
+  inset: 0;
+  grid-column: 1 / -1 !important;
+  grid-row: 1 / -1 !important;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  max-width: none;
+  max-height: none;
+}
+
+.app-tool-dock {
+  position: fixed;
+  z-index: 1200;
+  left: 50%;
+  bottom: max(.45rem, env(safe-area-inset-bottom));
+  display: flex;
+  width: max-content;
+  max-width: calc(100dvw - 1rem);
+  padding: .3rem;
+  gap: .2rem;
+  overflow-x: auto;
+  transform: translateX(-50%);
+  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  border-radius: .9rem;
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  box-shadow: 0 10px 35px color-mix(in srgb, var(--ink) 12%, transparent);
+  backdrop-filter: blur(18px);
+  scrollbar-width: none;
+}
+.app-tool-dock::-webkit-scrollbar { display: none; }
+.app-tool {
+  appearance: none;
+  min-width: 58px;
+  min-height: 46px;
+  padding: .45rem .6rem;
+  border: 0;
+  border-radius: .65rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: .72rem;
+  font-weight: 760;
+  white-space: nowrap;
+}
+.app-tool:hover,
+.app-tool:focus-visible,
+#app-shell[data-editor-open="true"] .app-tool[data-open-panel],
+#app-shell[data-browser-open="true"] #timeline-browser-toggle,
+#app-shell[data-graph-open="true"] #graph-lens-toggle,
+#app-shell[data-view-controls-open="true"] #timeline-view-controls-toggle {
+  background: var(--paper-2);
+  color: var(--ink);
+  outline: none;
+}
+
+.app-editor-sheet,
+.app-browser-sheet,
+#app-shell #presentation-stage > .graph-lens:not([hidden]) {
+  position: fixed;
+  z-index: 1050;
+  left: max(.4rem, env(safe-area-inset-left));
+  right: max(.4rem, env(safe-area-inset-right));
+  bottom: max(4.45rem, calc(env(safe-area-inset-bottom) + 4.1rem));
+  width: auto;
+  max-width: none;
+  max-height: min(78dvh, 760px);
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 84%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--paper) 97%, transparent);
+  box-shadow: 0 24px 80px color-mix(in srgb, var(--ink) 20%, transparent);
+  backdrop-filter: blur(20px);
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.app-editor-sheet {
+  top: auto;
+  display: block;
+  padding-bottom: max(.5rem, env(safe-area-inset-bottom));
+}
+
+.app-browser-sheet {
+  top: auto;
+  display: block;
+  padding: 0 .65rem .75rem;
+}
+
+.app-surface-header {
+  position: sticky;
+  z-index: 8;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  min-height: 54px;
+  padding: .6rem .65rem;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 93%, transparent);
+  backdrop-filter: blur(16px);
+}
+.app-surface-header .kicker { margin: 0 0 .15rem; }
+.app-surface-header h2,
+.app-surface-header strong {
+  margin: 0;
+  font-size: .95rem;
+  line-height: 1.1;
+}
+.app-surface-header-actions {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+}
+
+.app-editor-sheet > .tabs {
+  position: sticky;
+  z-index: 7;
+  top: 54px;
+  display: flex;
+  gap: .2rem;
+  padding: .4rem .55rem;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+  scrollbar-width: none;
+}
+.app-editor-sheet > .tabs::-webkit-scrollbar { display: none; }
+.app-editor-sheet > .tabs .tab {
+  flex: 0 0 auto;
+  min-height: 42px;
+}
+
+.app-editor-sheet > .editor-section {
+  padding: .8rem .75rem 1rem;
+}
+.app-editor-sheet .section-heading {
+  margin-bottom: .9rem;
+}
+.app-editor-sheet .section-heading .kicker {
+  display: none;
+}
+.app-editor-sheet .section-heading h2 {
+  font-size: 1.15rem;
+}
+
+.app-browser-sheet .timeline-toolbar {
+  position: sticky;
+  z-index: 6;
+  top: 54px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: .4rem;
+  padding: .55rem 0;
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+  backdrop-filter: blur(14px);
+}
+.app-browser-sheet .timeline-toolbar > * { min-width: 0; }
+.app-browser-sheet .story-focus {
+  margin: .25rem 0 .65rem;
+}
+.app-browser-sheet .timeline-list-heading {
+  margin-top: .9rem;
+}
+.app-browser-sheet .timeline-list {
+  padding-bottom: 1rem;
+}
+
+#app-shell #presentation-stage > .graph-lens:not([hidden]) {
+  top: auto;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: min(72dvh, 680px);
+}
+#app-shell #presentation-stage > .graph-lens:not([hidden]) > summary {
+  min-height: 54px;
+  padding: .6rem .7rem;
+}
+#app-shell #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-view {
+  min-height: 0;
+  height: 100%;
+}
+#app-shell #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-canvas {
+  min-height: 260px;
+}
+
+.app-view-controls:not([hidden]) {
+  position: fixed;
+  z-index: 1150;
+  top: max(4.15rem, calc(env(safe-area-inset-top) + 3.8rem));
+  left: max(.4rem, env(safe-area-inset-left));
+  right: max(.4rem, env(safe-area-inset-right));
+  display: flex;
+  width: auto;
+  max-height: min(48dvh, 320px);
+  padding: .35rem;
+  gap: .3rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  border-radius: .8rem;
+  background: color-mix(in srgb, var(--paper) 91%, transparent);
+  box-shadow: 0 12px 38px color-mix(in srgb, var(--ink) 12%, transparent);
+  backdrop-filter: blur(18px);
+  scrollbar-width: thin;
+}
+.app-view-controls:not([hidden]) > * {
+  flex: 0 0 auto;
+}
+
+.status {
+  z-index: 1600;
+  max-width: min(520px, calc(100dvw - 1rem));
+}
+
+@media (min-width: 700px) {
+  .app-command-bar {
+    grid-template-columns: auto minmax(180px, 1fr) auto auto;
+    max-width: min(980px, calc(100dvw - 1rem));
+    left: 50%;
+    right: auto;
+    width: calc(100dvw - 1rem);
+    transform: translateX(-50%);
+  }
+  .app-brand {
+    width: auto;
+    padding-inline: .45rem;
+    gap: .45rem;
+  }
+  .app-brand span { display: inline; font-weight: 820; letter-spacing: -.035em; }
+  .app-command-bar .project-stats {
+    display: flex;
+    gap: .5rem;
+    color: var(--muted);
+    font-size: .67rem;
+    white-space: nowrap;
+  }
+
+  .app-browser-sheet .timeline-toolbar {
+    grid-template-columns: minmax(0, 1fr) minmax(150px, .6fr) auto;
+  }
+}
+
+@media (min-width: 900px) {
+  .app-tool-dock {
+    left: max(.55rem, env(safe-area-inset-left));
+    bottom: 50%;
+    flex-direction: column;
+    max-width: 78px;
+    transform: translateY(50%);
+  }
+  .app-tool {
+    min-width: 62px;
+    min-height: 54px;
+  }
+
+  .app-editor-sheet,
+  .app-browser-sheet,
+  #app-shell #presentation-stage > .graph-lens:not([hidden]) {
+    top: max(4.4rem, calc(env(safe-area-inset-top) + 4rem));
+    bottom: max(.55rem, env(safe-area-inset-bottom));
+    right: max(.55rem, env(safe-area-inset-right));
+    left: auto;
+    width: min(430px, calc(100dvw - 7.5rem));
+    max-height: none;
+    height: auto;
+    border-radius: 1rem;
+  }
+
+  .app-editor-sheet {
+    width: min(520px, calc(100dvw - 7.5rem));
+  }
+
+  #app-shell #presentation-stage > .graph-lens:not([hidden]) {
+    width: min(520px, calc(100dvw - 7.5rem));
+  }
+
+  .app-view-controls:not([hidden]) {
+    top: max(4.4rem, calc(env(safe-area-inset-top) + 4rem));
+    left: auto;
+    right: max(.55rem, env(safe-area-inset-right));
+    width: max-content;
+    max-width: min(760px, calc(100dvw - 8rem));
+  }
+}
+
+@media (min-width: 1280px) {
+  .app-editor-sheet {
+    width: min(580px, 44dvw);
+  }
+  .app-browser-sheet {
+    width: min(480px, 38dvw);
+  }
+  #app-shell #presentation-stage > .graph-lens:not([hidden]) {
+    width: min(620px, 46dvw);
+  }
+}
