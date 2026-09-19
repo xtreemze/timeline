@@ -1014,6 +1014,89 @@
     configureTemporalEndpoint(prefix);
   }
 
+  function mediaRowParts(row) {
+    const inputs = [...row.querySelectorAll("input")];
+    return {
+      src: inputs.find((input) => input.type === "url"),
+      alt: inputs.find((input) => input.id.endsWith("-alt")),
+      caption: inputs.find((input) => input.id.endsWith("-caption"))
+    };
+  }
+
+  function tagRowParts(row) {
+    return {
+      label: row.querySelector('input[type="text"]'),
+      icon: row.querySelector("select"),
+      hue: row.querySelector('input[type="range"]'),
+      output: row.querySelector("output")
+    };
+  }
+
+  function collectMediaForm() {
+    const media = [];
+    for (const row of els.itemMediaRows) {
+      const parts = mediaRowParts(row);
+      const src = parts.src.value.trim();
+      const alt = parts.alt.value.trim();
+      const caption = parts.caption.value.trim();
+      if (!src) continue;
+      if (!alt) throw new Error("Every event photo needs alt text.");
+      media.push({ src, alt, caption });
+    }
+    const normalized = presentation.normalizeMedia(media);
+    if (normalized.length !== media.length) {
+      throw new Error("One or more event photo URLs are not supported.");
+    }
+    return normalized;
+  }
+
+  function fillMediaForm(media) {
+    const normalized = presentation.normalizeMedia(media);
+    els.itemMediaRows.forEach((row, index) => {
+      const parts = mediaRowParts(row);
+      const entry = normalized[index];
+      parts.src.value = entry?.src || "";
+      parts.alt.value = entry?.alt || "";
+      parts.caption.value = entry?.caption || "";
+    });
+    els.itemMediaDetails.open = normalized.length > 0;
+  }
+
+  function collectTagForm() {
+    const tags = [];
+    for (const row of els.itemTagRows) {
+      const parts = tagRowParts(row);
+      const label = parts.label.value.trim();
+      if (!label) continue;
+      tags.push({
+        label,
+        icon: parts.icon.value,
+        hue: Number(parts.hue.value)
+      });
+    }
+    return presentation.normalizeTags(tags);
+  }
+
+  function updateTagHuePreview(row) {
+    const parts = tagRowParts(row);
+    const hue = presentation.normalizeHue(parts.hue.value);
+    parts.output.value = `${hue}°`;
+    row.style.setProperty("--tag-hue", String(hue));
+  }
+
+  function fillTagForm(tags) {
+    const normalized = presentation.normalizeTags(tags);
+    els.itemTagRows.forEach((row, index) => {
+      const parts = tagRowParts(row);
+      const entry = normalized[index];
+      parts.label.value = entry?.label || "";
+      parts.icon.value = entry?.icon || "note";
+      parts.hue.value = String(entry?.hue ?? Number(parts.hue.defaultValue || 30));
+      updateTagHuePreview(row);
+    });
+    els.itemTagsDetails.open = normalized.length > 0;
+  }
+
   function resetLocationForm() {
     els.itemLocationName.value = "";
     els.itemLocationIdentifier.value = "";
@@ -1043,8 +1126,9 @@
     els.itemForm.reset();
     els.itemId.value = "";
     els.itemKind.value = "event";
+    dateRangePicker.setMode("event");
+    dateRangePicker.clear();
     els.endField.hidden = true;
-    els.itemEndDate.required = false;
     els.itemStartPrecision.value = "day";
     els.itemEndPrecision.value = "day";
     els.itemStartCertainty.value = "exact";
@@ -1053,6 +1137,8 @@
     els.itemEndZone.value = localTimeZone;
     configureTemporalEndpoint("Start");
     configureTemporalEndpoint("End");
+    fillMediaForm([]);
+    fillTagForm([]);
     resetLocationForm();
     fillCategorySelect(els.itemCategory, false, state.categories[0]?.id || "");
     els.saveItem.textContent = "Add item";
@@ -1066,13 +1152,18 @@
     setActivePanel("items");
     els.itemId.value = item.id;
     els.itemKind.value = item.kind;
+    dateRangePicker.setMode(item.kind);
     setEndpointForm("Start", item.time?.start || item.start);
     setEndpointForm("End", item.time?.end || item.end || "");
+    const startParts = temporal.formParts(item.time?.start || item.start);
+    const endParts = temporal.formParts(item.time?.end || item.end || "");
+    dateRangePicker.setRange(startParts.date, item.kind === "range" ? endParts.date : "");
     els.endField.hidden = item.kind !== "range";
-    els.itemEndDate.required = item.kind === "range";
     fillCategorySelect(els.itemCategory, false, item.categoryId);
     els.itemTitle.value = item.title;
     els.itemDescription.value = item.description;
+    fillMediaForm(item.media || []);
+    fillTagForm(item.tags || []);
     fillLocationForm(item.location || null);
     els.saveItem.textContent = "Save changes";
     els.cancelItemEdit.hidden = false;
