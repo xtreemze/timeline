@@ -491,3 +491,17 @@ Horizontal focused timelines reserve a compact bottom context rail inside the ti
 ### Resize synchronization
 
 A `ResizeObserver` measures the presentation stage and updates its shape class. Timeline geometry rerenders after any stage resize. Graph topology is not recomputed merely because presentation dimensions change; Orb is recentered against its existing node positions. Fullscreen changes receive a two-frame geometry refresh so layout, canvas size and graph camera settle after the browser finishes resizing the fullscreen element.
+
+
+## Fullscreen evidence presentation surfaces
+
+A focused fullscreen event must keep four surfaces visible at once:
+
+1. event composition — title, imagery, chronology facts and supporting data;
+2. contextual timeline — preserving the user's horizontal or vertical time axis;
+3. relevant node/edge graph — scoped to the focused event rather than the entire case;
+4. simplified place map — when the event has coordinates.
+
+The place map is read-only in presentation mode. It uses the stored GeoJSON point, disables map editing/navigation controls, and chooses a neighborhood-scale zoom from recorded coordinate accuracy when available. The interactive editor map remains separate.
+
+Wide fullscreen stages devote the large field to event+timeline and split the secondary rail between graph and map. Balanced screens keep event+timeline above a graph/map pair. Tall screens stack all three stage regions. Physical screen orientation never mutates the selected timeline orientation.
