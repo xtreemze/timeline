@@ -4230,7 +4230,7 @@
       }
     },
     {
-      "id": "snow-mirror",
+      "id": "snow-mirror-object",
       "type": "object",
       "name": "Magic Mirror",
       "identifiers": [],
@@ -4240,7 +4240,7 @@
       }
     },
     {
-      "id": "snow-apple",
+      "id": "snow-apple-object",
       "type": "object",
       "name": "Poisoned Apple",
       "identifiers": [],
@@ -5092,7 +5092,7 @@
     {
       "id": "rel-snow-mirror-owned",
       "subjectId": "snow-queen",
-      "objectId": "snow-mirror",
+      "objectId": "snow-mirror-object",
       "predicate": "consults",
       "time": {
         "type": "instant",
@@ -5188,7 +5188,7 @@
     {
       "id": "rel-snow-apple-object",
       "subjectId": "snow-queen",
-      "objectId": "snow-apple",
+      "objectId": "snow-apple-object",
       "predicate": "prepares",
       "time": {
         "type": "instant",
