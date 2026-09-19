@@ -35,7 +35,7 @@ References:
 
 ## Editor behavior
 
-The item form uses native `<input type="date">` and `<input type="time">` controls rather than text fields.
+The item form exposes one readonly date/range field backed by a small custom calendar because HTML's native date input represents a single date and does not provide a two-date range selection contract. The calendar is shown through the native Popover API, presents an explicit editable year indicator, and writes canonical `YYYY-MM-DD` start/end values into hidden form state. Clock input remains native `<input type="time">` so date-range selection and time precision stay independent.
 
 Precision is explicit:
 
@@ -44,7 +44,7 @@ Precision is explicit:
 - `second`
 - `millisecond`
 
-The time input step changes to match the selected precision.
+The native clock input step changes to match the selected precision. A point event selects one calendar date; a range selects two dates in the same calendar before optional start/end clocks are applied.
 
 Date-only endpoints do not carry a time zone. Clock values may either be floating local date-times or have an IANA zone identifier. When a zone is supplied, Chrome's native Temporal API resolves the wall-clock date/time to the corresponding UTC offset. The stored ISO value contains the offset while `timeZone` retains the IANA identifier separately.
 
