@@ -10,11 +10,13 @@
   const graph = globalThis.TimelineGraph;
   const presentation = globalThis.TimelinePresentation;
   const dateRangeFactory = globalThis.TimelineDateRangePicker;
+  const navigationFactory = globalThis.TimelineNavigation;
   if (!temporal) throw new Error("TimelineTemporal must load before app.js.");
   if (!spatial) throw new Error("TimelineSpatial must load before app.js.");
   if (!graph) throw new Error("TimelineGraph must load before app.js.");
   if (!presentation) throw new Error("TimelinePresentation must load before app.js.");
   if (!dateRangeFactory) throw new Error("TimelineDateRangePicker must load before app.js.");
+  if (!navigationFactory) throw new Error("TimelineNavigation must load before app.js.");
 
   const DEFAULT_CATEGORIES = [
     { id: "event", name: "Event", color: "#667085" },
@@ -367,6 +369,9 @@
     categoryFilter: document.querySelector("#category-filter"),
     clearFilters: document.querySelector("#clear-filters"),
     timelineViewRoot: document.querySelector("#timeline-view"),
+    autoToggle: document.querySelector("#timeline-auto-toggle"),
+    autoSeconds: document.querySelector("#timeline-auto-seconds"),
+    autoStatus: document.querySelector("#timeline-auto-status"),
     storyFocus: document.querySelector("#story-focus"),
     storyFocusTitle: document.querySelector("#story-focus-title"),
     storyFocusDescription: document.querySelector("#story-focus-description"),
@@ -383,6 +388,7 @@
   let state = loadState();
   let storyDraftIds = [];
   let statusTimer = 0;
+  let navigationController = null;
   const ui = {
     activePanel: "items",
     search: "",
@@ -1331,22 +1337,29 @@
     focusCurrentStoryItem();
   }
 
-  function focusCurrentStoryItem() {
+  function focusCurrentStoryItem(openFocus = false) {
     const story = getStory(ui.activeStoryId);
     if (!story || !story.itemIds.length) return;
     const currentId = story.itemIds[ui.storyCursor];
+    if (openFocus) {
+      timelineView?.focusItem(currentId);
+      return;
+    }
     requestAnimationFrame(() => {
       const element = els.list.querySelector(`[data-id="${CSS.escape(currentId)}"]`);
       element?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
   }
 
-  function stepStory(delta) {
+  function stepStory(delta, options = {}) {
     const story = getStory(ui.activeStoryId);
-    if (!story) return;
-    ui.storyCursor = Math.max(0, Math.min(story.itemIds.length - 1, ui.storyCursor + delta));
+    if (!story) return false;
+    const next = ui.storyCursor + (delta < 0 ? -1 : 1);
+    if (next < 0 || next >= story.itemIds.length) return false;
+    ui.storyCursor = next;
     renderTimeline();
-    focusCurrentStoryItem();
+    focusCurrentStoryItem(Boolean(options.focusEvent));
+    return true;
   }
 
   function exitStoryFocus(render = true) {
@@ -1527,6 +1540,102 @@
     els.status.classList.add("visible");
     statusTimer = window.setTimeout(() => els.status.classList.remove("visible"), 2800);
   }
+
+  function renderAutoAdvanceState(autoState) {
+    const seconds = Math.round(autoState.intervalMs / 1000);
+    els.autoToggle.setAttribute("aria-pressed", String(autoState.running && !autoState.paused));
+    if (!autoState.running) {
+      els.autoToggle.textContent = "Auto";
+      els.autoStatus.textContent = "Off";
+      return;
+    }
+    if (autoState.paused) {
+      els.autoToggle.textContent = "Resume";
+      els.autoStatus.textContent = autoState.pauseReason === "interaction"
+        ? "Paused · interaction"
+        : "Paused";
+      return;
+    }
+    els.autoToggle.textContent = "Pause";
+    els.autoStatus.textContent = `Auto · ${seconds}s`;
+  }
+
+  function ensurePresentationFocus() {
+    const story = getStory(ui.activeStoryId);
+    if (story?.itemIds.length) {
+      focusCurrentStoryItem(true);
+      return true;
+    }
+    if (timelineView?.hasFocusedItem()) return true;
+    return timelineView?.focusAdjacent(1) || false;
+  }
+
+  function advancePresentation(delta, options = {}) {
+    const story = getStory(ui.activeStoryId);
+    if (story) return stepStory(delta, { focusEvent: options.focusEvent !== false });
+    return timelineView?.focusAdjacent(delta) || false;
+  }
+
+  function handlePresentationCommand(command) {
+    if (!navigationController) return false;
+    if (command === "toggle-auto") {
+      if (!navigationController.auto.running || navigationController.auto.paused) {
+        if (!ensurePresentationFocus()) return true;
+      }
+      navigationController.auto.toggle();
+      return true;
+    }
+    if (command === "resume-auto") {
+      if (!ensurePresentationFocus()) return true;
+      navigationController.auto.resume();
+      return true;
+    }
+    if (command === "pause-auto") {
+      navigationController.auto.pause("manual");
+      return true;
+    }
+    if (command === "next") return advancePresentation(1);
+    if (command === "previous") return advancePresentation(-1);
+    if (command === "next-media") return timelineView?.stepFocusMedia(1) || false;
+    if (command === "previous-media") return timelineView?.stepFocusMedia(-1) || false;
+    if (command === "back") {
+      if (timelineView?.hasFocusedItem()) {
+        timelineView.closeFocus();
+        return true;
+      }
+      if (getStory(ui.activeStoryId)) {
+        exitStoryFocus();
+        return true;
+      }
+      return false;
+    }
+    if (command === "activate") {
+      const active = document.activeElement;
+      if (active instanceof HTMLButtonElement || active instanceof HTMLAnchorElement) return false;
+      if (!ensurePresentationFocus()) return false;
+      navigationController.auto.toggle();
+      return true;
+    }
+    return false;
+  }
+
+  navigationController = navigationFactory.create({
+    root: document.body,
+    isNavigationActive: () => Boolean(getStory(ui.activeStoryId) || timelineView?.hasFocusedItem()),
+    onCommand: (command) => handlePresentationCommand(command),
+    auto: {
+      intervalMs: Number(els.autoSeconds.value) * 1000,
+      advance: () => advancePresentation(1),
+      onStateChange: renderAutoAdvanceState
+    }
+  });
+
+  els.autoToggle.addEventListener("click", () => handlePresentationCommand("toggle-auto"));
+  els.autoSeconds.addEventListener("change", () => {
+    const seconds = Math.max(2, Math.min(3600, Number(els.autoSeconds.value) || 10));
+    els.autoSeconds.value = String(seconds);
+    navigationController.auto.setIntervalMs(seconds * 1000);
+  });
 
   els.tabs.forEach((tab) => {
     tab.addEventListener("click", () => setActivePanel(tab.dataset.panel));
