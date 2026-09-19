@@ -88,7 +88,7 @@ function create(container, handlers = {}) {
   let touchHold = null;
   let touchReleaseFallback = 0;
   let touchDragBlockedUntilRelease = false;
-  let touchSelectedNode = null;
+  let selectedGraphObject = null;
   let interactionSettleTimer = 0;
   let forceNodeCount = 0;
   const activeTouchPointers = new Set();
@@ -237,16 +237,18 @@ function create(container, handlers = {}) {
     orb.setSettings({ interaction: { isDragEnabled: enabled } });
   }
 
-  function selectTouchNode(node) {
+  function selectGraphObject(object) {
     if (
-      touchSelectedNode &&
-      touchSelectedNode !== node &&
-      touchSelectedNode.getState?.() === GraphObjectState.SELECTED
+      selectedGraphObject &&
+      selectedGraphObject !== object &&
+      selectedGraphObject.getState?.() === GraphObjectState.SELECTED
     ) {
-      touchSelectedNode.setState(GraphObjectState.NONE, { isNotifySkipped: true });
+      selectedGraphObject.setState(GraphObjectState.NONE, { isNotifySkipped: true });
     }
-    touchSelectedNode = node;
-    node.setState(GraphObjectState.SELECTED, { isNotifySkipped: true });
+    selectedGraphObject = object || null;
+    if (selectedGraphObject) {
+      selectedGraphObject.setState(GraphObjectState.SELECTED, { isNotifySkipped: true });
+    }
     orb.render();
   }
 
@@ -306,7 +308,7 @@ function create(container, handlers = {}) {
       touchDragBlockedUntilRelease = false;
       container.dataset.touchDrag = "active";
       setDragEnabled(true);
-      selectTouchNode(node);
+      selectGraphObject(node);
       handlers.onNodeLongPress?.(node.getData());
       try {
         globalThis.navigator?.vibrate?.(12);
@@ -444,8 +446,14 @@ function create(container, handlers = {}) {
     }
   });
 
-  const onNodeClick = ({ node }) => handlers.onNodeClick?.(node.getData());
-  const onEdgeClick = ({ edge }) => handlers.onEdgeClick?.(edge.getData());
+  const onNodeClick = ({ node }) => {
+    selectGraphObject(node);
+    handlers.onNodeClick?.(node.getData());
+  };
+  const onEdgeClick = ({ edge }) => {
+    selectGraphObject(edge);
+    handlers.onEdgeClick?.(edge.getData());
+  };
   const onNodeDragStart = (payload) => {
     setInteractionHeat(DRAG_ALPHA_TARGET);
     if (isTouchInput(payload.event)) beginTouchHold(payload);
@@ -502,7 +510,7 @@ function create(container, handlers = {}) {
 
   function setData(data) {
     finishTouchGesture();
-    touchSelectedNode = null;
+    selectedGraphObject = null;
     const nodes = Array.isArray(data?.nodes) ? data.nodes : [];
     const edges = Array.isArray(data?.edges) ? data.edges : [];
     setPerformanceMode(nodes.length);
