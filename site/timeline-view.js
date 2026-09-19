@@ -8,6 +8,12 @@
   const DEFAULT_SPAN_MS = 86_400_000;
   const MIN_SPAN_MS = 1;
   const MAX_TICKS = 240;
+  const BUTTON_ZOOM_FACTOR = 0.82;
+  const ZOOM_RESPONSE_MS = 170;
+  const WHEEL_ZOOM_SENSITIVITY = 0.00065;
+  const MAX_WHEEL_EXPONENT = 0.045;
+  const DETAIL_GAP = 12;
+  const DETAIL_PADDING = 10;
 
   function createElement(tag, className, text) {
     const element = document.createElement(tag);
@@ -18,6 +24,94 @@
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
+  }
+
+  function clampToBounds(value, min, max) {
+    if (max < min) return min;
+    return clamp(value, min, max);
+  }
+
+  function normalizeWheelDelta(event, pageLength) {
+    let delta = Number(event.deltaY) || 0;
+    if (event.deltaMode === 1) delta *= 16;
+    if (event.deltaMode === 2) delta *= Math.max(1, pageLength);
+    return delta;
+  }
+
+  function wheelZoomFactor(deltaPixels) {
+    const exponent = clamp(
+      Number(deltaPixels) * WHEEL_ZOOM_SENSITIVITY,
+      -MAX_WHEEL_EXPONENT,
+      MAX_WHEEL_EXPONENT
+    );
+    return Math.exp(exponent);
+  }
+
+  function connectorSegment(axisCoordinate, terminalCoordinate) {
+    const delta = Number(axisCoordinate) - Number(terminalCoordinate);
+    if (!Number.isFinite(delta)) throw new TypeError("Connector coordinates must be finite.");
+    return {
+      offset: Math.min(0, delta),
+      length: Math.abs(delta)
+    };
+  }
+
+  function candidateOverflow(candidate, bounds, size, padding) {
+    const innerLeft = bounds.left + padding;
+    const innerTop = bounds.top + padding;
+    const innerRight = bounds.right - padding;
+    const innerBottom = bounds.bottom - padding;
+    return (
+      Math.max(0, innerLeft - candidate.left) +
+      Math.max(0, candidate.left + size.width - innerRight) +
+      Math.max(0, innerTop - candidate.top) +
+      Math.max(0, candidate.top + size.height - innerBottom)
+    );
+  }
+
+  function choosePopoverPlacement(
+    anchor,
+    bounds,
+    size,
+    preferredPlacements = ["right", "left", "bottom", "top"],
+    gap = DETAIL_GAP,
+    padding = DETAIL_PADDING
+  ) {
+    const centerX = (anchor.left + anchor.right) / 2;
+    const centerY = (anchor.top + anchor.bottom) / 2;
+    const candidates = {
+      right: { left: anchor.right + gap, top: centerY - size.height / 2, placement: "right" },
+      left: { left: anchor.left - gap - size.width, top: centerY - size.height / 2, placement: "left" },
+      bottom: { left: centerX - size.width / 2, top: anchor.bottom + gap, placement: "bottom" },
+      top: { left: centerX - size.width / 2, top: anchor.top - gap - size.height, placement: "top" }
+    };
+
+    let selected = null;
+    let bestOverflow = Number.POSITIVE_INFINITY;
+    for (const placement of preferredPlacements) {
+      const candidate = candidates[placement];
+      if (!candidate) continue;
+      const overflow = candidateOverflow(candidate, bounds, size, padding);
+      if (overflow === 0) {
+        selected = candidate;
+        break;
+      }
+      if (overflow < bestOverflow) {
+        bestOverflow = overflow;
+        selected = candidate;
+      }
+    }
+
+    selected ||= candidates.right;
+    const minLeft = bounds.left + padding;
+    const maxLeft = bounds.right - padding - size.width;
+    const minTop = bounds.top + padding;
+    const maxTop = bounds.bottom - padding - size.height;
+    return {
+      placement: selected.placement,
+      left: clampToBounds(selected.left, minLeft, maxLeft),
+      top: clampToBounds(selected.top, minTop, maxTop)
+    };
   }
 
   function loadPreferences() {
@@ -52,6 +146,7 @@
       this.fitButton = root.querySelector("#timeline-fit");
       this.items = [];
       this.viewport = null;
+      this.zoomTarget = null;
       this.selectedId = null;
       this.focusId = null;
       this.preferences = loadPreferences();
@@ -59,6 +154,13 @@
       this.drag = null;
       this.resizeObserver = null;
       this.renderFrame = 0;
+      this.zoomAnimationFrame = 0;
+      this.zoomLastFrame = 0;
+      this.detailHideTimer = 0;
+      this.reducedMotionQuery =
+        typeof globalThis.matchMedia === "function"
+          ? globalThis.matchMedia("(prefers-reduced-motion: reduce)")
+          : null;
       this.bind();
       this.applyOrientation();
     }
@@ -66,26 +168,33 @@
     bind() {
       this.landscapeButton.addEventListener("click", () => this.setOrientation("horizontal"));
       this.portraitButton.addEventListener("click", () => this.setOrientation("vertical"));
-      this.zoomInButton.addEventListener("click", () => this.zoomBy(0.5));
-      this.zoomOutButton.addEventListener("click", () => this.zoomBy(2));
+      this.zoomInButton.addEventListener("click", () => this.zoomBy(BUTTON_ZOOM_FACTOR));
+      this.zoomOutButton.addEventListener("click", () => this.zoomBy(1 / BUTTON_ZOOM_FACTOR));
       this.fitButton.addEventListener("click", () => this.fit());
 
-      this.surface.addEventListener("wheel", (event) => {
-        if (!this.viewport || !this.items.length) return;
-        event.preventDefault();
-        const rect = this.surface.getBoundingClientRect();
-        const primary = this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
-        const length = this.orientation === "horizontal" ? rect.width : rect.height;
-        const padding = this.axisPadding(length);
-        const usable = Math.max(1, length - padding * 2);
-        const ratio = clamp((primary - padding) / usable, 0, 1);
-        const anchor = this.viewport.start + (this.viewport.end - this.viewport.start) * ratio;
-        this.viewport = scale.zoom(this.viewport, event.deltaY < 0 ? 0.82 : 1.22, anchor, MIN_SPAN_MS);
-        this.scheduleRender();
-      }, { passive: false });
+      this.surface.addEventListener(
+        "wheel",
+        (event) => {
+          if (!this.viewport || !this.items.length) return;
+          event.preventDefault();
+          const rect = this.surface.getBoundingClientRect();
+          const primary =
+            this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
+          const length = this.orientation === "horizontal" ? rect.width : rect.height;
+          const padding = this.axisPadding(length);
+          const usable = Math.max(1, length - padding * 2);
+          const ratio = clamp((primary - padding) / usable, 0, 1);
+          const deltaPixels = normalizeWheelDelta(event, length);
+          const factor = wheelZoomFactor(deltaPixels);
+          if (Math.abs(factor - 1) < 0.00001) return;
+          this.queueZoom(factor, ratio);
+        },
+        { passive: false }
+      );
 
       this.surface.addEventListener("pointerdown", (event) => {
         if (!this.viewport || !this.items.length || event.button !== 0 || event.target.closest("button")) return;
+        this.cancelViewportAnimation();
         const rect = this.surface.getBoundingClientRect();
         this.drag = {
           pointerId: event.pointerId,
@@ -119,6 +228,11 @@
       this.surface.addEventListener("pointercancel", finishDrag);
 
       this.surface.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && this.selectedId) {
+          event.preventDefault();
+          this.closeDetail();
+          return;
+        }
         if (!this.viewport || !this.items.length || event.target.closest("button")) return;
         const span = this.viewport.end - this.viewport.start;
         const panDelta = span * 0.12;
@@ -129,10 +243,10 @@
 
         if (event.key === "+" || event.key === "=") {
           event.preventDefault();
-          this.zoomBy(0.5);
+          this.zoomBy(BUTTON_ZOOM_FACTOR);
         } else if (event.key === "-" || event.key === "_") {
           event.preventDefault();
-          this.zoomBy(2);
+          this.zoomBy(1 / BUTTON_ZOOM_FACTOR);
         } else if (event.key === "Home") {
           event.preventDefault();
           this.fit();
@@ -141,10 +255,17 @@
           (this.orientation === "vertical" && (verticalBack || verticalForward))
         ) {
           event.preventDefault();
+          this.cancelViewportAnimation();
           const backwards = horizontalBack || verticalBack;
           this.viewport = scale.pan(this.viewport, backwards ? -panDelta : panDelta);
           this.scheduleRender();
         }
+      });
+
+      this.detail.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        this.closeDetail();
       });
 
       if ("ResizeObserver" in globalThis) {
@@ -155,9 +276,14 @@
       }
     }
 
+    prefersReducedMotion() {
+      return Boolean(this.reducedMotionQuery && this.reducedMotionQuery.matches);
+    }
+
     setOrientation(orientation) {
       const next = orientation === "vertical" ? "vertical" : "horizontal";
       if (next === this.orientation) return;
+      this.cancelViewportAnimation();
       this.orientation = next;
       this.preferences.orientation = next;
       savePreferences(this.preferences);
@@ -193,9 +319,9 @@
       this.focusId = options.focusId || null;
 
       if (!this.items.length) {
+        this.cancelViewportAnimation();
         this.viewport = null;
-        this.selectedId = null;
-        this.detail.hidden = true;
+        this.closeDetail({ restoreFocus: false, immediate: true });
         this.root.hidden = true;
         this.scheduleRender();
         return;
@@ -205,8 +331,7 @@
       if (!this.viewport || previousSignature !== nextSignature) this.ensureUsefulViewport();
       if (this.focusId) this.ensureItemVisible(this.focusId);
       if (this.selectedId && !this.items.some((item) => item.id === this.selectedId)) {
-        this.selectedId = null;
-        this.detail.hidden = true;
+        this.closeDetail({ restoreFocus: false, immediate: true });
       }
       this.scheduleRender();
     }
@@ -230,6 +355,7 @@
       const span = this.viewport.end - this.viewport.start;
       const margin = span * 0.12;
       if (item.start < this.viewport.start + margin || item.start > this.viewport.end - margin) {
+        this.cancelViewportAnimation();
         this.viewport = {
           start: item.start - span / 2,
           end: item.start + span / 2
@@ -248,21 +374,99 @@
 
     fit() {
       if (!this.items.length) return;
-      this.viewport = scale.fit(this.itemCoordinates(), { paddingRatio: 0.1, minSpanMs: DEFAULT_SPAN_MS });
-      this.scheduleRender();
+      const target = scale.fit(this.itemCoordinates(), { paddingRatio: 0.1, minSpanMs: DEFAULT_SPAN_MS });
+      this.animateViewportTo(target);
       this.surface.focus({ preventScroll: true });
     }
 
     zoomBy(factor) {
       if (!this.viewport) return;
-      const anchor = this.viewport.start + (this.viewport.end - this.viewport.start) / 2;
-      this.viewport = scale.zoom(this.viewport, factor, anchor, MIN_SPAN_MS);
-      this.scheduleRender();
+      this.queueZoom(factor, 0.5);
       this.surface.focus({ preventScroll: true });
+    }
+
+    queueZoom(factor, anchorRatio) {
+      if (!this.viewport) return;
+      const base = this.zoomTarget || this.viewport;
+      const span = base.end - base.start;
+      const ratio = clamp(Number(anchorRatio), 0, 1);
+      const anchor = base.start + span * ratio;
+      this.zoomTarget = scale.zoom(base, factor, anchor, MIN_SPAN_MS);
+      this.startViewportAnimation();
+    }
+
+    animateViewportTo(target) {
+      if (!this.viewport || this.prefersReducedMotion()) {
+        this.cancelViewportAnimation();
+        this.viewport = { ...target };
+        this.scheduleRender();
+        return;
+      }
+      this.zoomTarget = { ...target };
+      this.startViewportAnimation();
+    }
+
+    startViewportAnimation() {
+      if (!this.viewport || !this.zoomTarget) return;
+      if (this.prefersReducedMotion()) {
+        this.viewport = { ...this.zoomTarget };
+        this.zoomTarget = null;
+        this.scheduleRender();
+        return;
+      }
+      if (this.zoomAnimationFrame) return;
+
+      const step = (now) => {
+        this.zoomAnimationFrame = 0;
+        if (!this.viewport || !this.zoomTarget) {
+          this.zoomLastFrame = 0;
+          return;
+        }
+
+        const elapsed = this.zoomLastFrame ? clamp(now - this.zoomLastFrame, 1, 48) : 16;
+        this.zoomLastFrame = now;
+        const response = 1 - Math.exp(-elapsed / ZOOM_RESPONSE_MS);
+        const target = this.zoomTarget;
+        const next = {
+          start: this.viewport.start + (target.start - this.viewport.start) * response,
+          end: this.viewport.end + (target.end - this.viewport.end) * response
+        };
+        const targetSpan = Math.max(MIN_SPAN_MS, target.end - target.start);
+        const epsilon = Math.max(0.001, targetSpan * 0.00025);
+
+        if (
+          Math.abs(next.start - target.start) <= epsilon &&
+          Math.abs(next.end - target.end) <= epsilon
+        ) {
+          this.viewport = { ...target };
+          this.zoomTarget = null;
+          this.zoomLastFrame = 0;
+          this.scheduleRender();
+          return;
+        }
+
+        this.viewport = next;
+        this.scheduleRender();
+        this.zoomAnimationFrame = requestAnimationFrame(step);
+      };
+
+      this.zoomAnimationFrame = requestAnimationFrame(step);
+    }
+
+    cancelViewportAnimation() {
+      if (this.zoomAnimationFrame) cancelAnimationFrame(this.zoomAnimationFrame);
+      this.zoomAnimationFrame = 0;
+      this.zoomLastFrame = 0;
+      this.zoomTarget = null;
     }
 
     axisPadding(length) {
       return clamp(length * 0.07, 30, 64);
+    }
+
+    portraitAxisCoordinate(width) {
+      if (width >= 560) return width / 2;
+      return clamp(width * 0.14, 42, 56);
     }
 
     scheduleRender() {
@@ -284,6 +488,9 @@
       const primaryLength = this.orientation === "horizontal" ? width : height;
       const padding = this.axisPadding(primaryLength);
       const usable = Math.max(1, primaryLength - padding * 2);
+      const axisCross =
+        this.orientation === "horizontal" ? height / 2 : this.portraitAxisCoordinate(width);
+      this.surface.style.setProperty("--timeline-axis-cross", axisCross + "px");
 
       const stage = createElement("div", "timeline-stage");
       this.surface.append(stage);
@@ -322,24 +529,27 @@
         if (Number.isFinite(item.end)) {
           const range = createElement("div", "timeline-range-segment");
           range.style.setProperty("--event-color", item.color || "var(--accent)");
+          const clippedStart = clamp(Math.min(startPosition, endPosition), padding, padding + usable);
+          const clippedEnd = clamp(Math.max(startPosition, endPosition), padding, padding + usable);
           if (this.orientation === "horizontal") {
-            range.style.left = Math.min(startPosition, endPosition) + "px";
-            range.style.width = Math.max(2, Math.abs(endPosition - startPosition)) + "px";
+            range.style.left = clippedStart + "px";
+            range.style.width = Math.max(2, clippedEnd - clippedStart) + "px";
           } else {
-            range.style.top = Math.min(startPosition, endPosition) + "px";
-            range.style.height = Math.max(2, Math.abs(endPosition - startPosition)) + "px";
+            range.style.top = clippedStart + "px";
+            range.style.height = Math.max(2, clippedEnd - clippedStart) + "px";
           }
           stage.append(range);
         }
 
-        const event = this.createEventNode(item, index, startPosition, width, height, occupied);
+        const event = this.createEventNode(item, index, startPosition, width, height, axisCross, occupied);
         stage.append(event);
       });
 
       this.updateReadout(ticks[0]?.spec || null);
+      if (this.selectedId && !this.detail.hidden) this.positionDetail();
     }
 
-    createEventNode(item, index, position, width, height, occupied) {
+    createEventNode(item, index, position, width, height, axisCross, occupied) {
       const node = createElement("div", "timeline-event");
       node.dataset.id = item.id;
       node.style.setProperty("--event-color", item.color || "var(--accent)");
@@ -350,7 +560,10 @@
       const button = createElement("button", "timeline-event-terminal");
       button.type = "button";
       button.setAttribute("aria-label", "Open " + item.title + ", " + item.startLabel);
+      button.setAttribute("aria-controls", "timeline-detail");
+      button.setAttribute("aria-expanded", String(item.id === this.selectedId));
       const dot = createElement("span", "timeline-event-dot");
+      dot.setAttribute("aria-hidden", "true");
       const copy = createElement("span", "timeline-event-copy");
       const title = createElement("strong", "", item.title);
       const date = createElement("span", "", item.startLabel);
@@ -358,7 +571,11 @@
       button.append(dot, copy);
       button.addEventListener("click", (event) => {
         event.stopPropagation();
-        this.select(item.id);
+        if (this.selectedId === item.id) {
+          this.closeDetail();
+        } else {
+          this.select(item.id);
+        }
       });
 
       node.append(connector, button);
@@ -367,29 +584,43 @@
         const lane = this.allocateHorizontalLane(position, occupied);
         const side = lane % 2 === 0 ? -1 : 1;
         const depth = Math.floor(lane / 2);
-        const axisY = height / 2;
-        const distance = 62 + depth * 72;
-        const eventY = axisY + side * distance;
+        const distance = 68 + depth * 76;
+        const eventY = axisCross + side * distance;
+        const segment = connectorSegment(axisCross, eventY);
+
         node.style.left = position + "px";
         node.style.top = eventY + "px";
-        connector.style.height = Math.max(20, Math.abs(eventY - axisY) - 18) + "px";
-        connector.classList.toggle("toward-start", side < 0);
+        node.dataset.side = side < 0 ? "before" : "after";
+        connector.style.left = "0";
+        connector.style.top = segment.offset + "px";
+        connector.style.width = "1px";
+        connector.style.height = Math.max(1, segment.length) + "px";
+
+        if (position > width - 190) node.classList.add("label-before");
       } else {
         const compact = width < 560;
-        const axisX = compact ? 42 : width / 2;
         const lane = compact ? 1 : index % 2 === 0 ? -1 : 1;
-        const eventX = compact ? axisX + 28 : axisX + lane * Math.min(190, width * 0.28);
+        const distance = compact
+          ? Math.min(96, Math.max(68, width * 0.22))
+          : Math.min(220, Math.max(120, width * 0.28));
+        const eventX = axisCross + lane * distance;
+        const segment = connectorSegment(axisCross, eventX);
+
         node.style.left = eventX + "px";
         node.style.top = position + "px";
-        connector.style.width = compact ? "24px" : Math.max(24, Math.abs(eventX - axisX) - 18) + "px";
-        connector.classList.toggle("toward-start", lane < 0);
-        node.classList.toggle("align-end", lane < 0);
+        node.dataset.side = lane < 0 ? "before" : "after";
+        connector.style.left = segment.offset + "px";
+        connector.style.top = "0";
+        connector.style.width = Math.max(1, segment.length) + "px";
+        connector.style.height = "1px";
+
+        if (lane < 0) node.classList.add("label-before");
       }
       return node;
     }
 
     allocateHorizontalLane(position, occupied) {
-      const minDistance = 138;
+      const minDistance = 184;
       for (let lane = 0; lane < 6; lane += 1) {
         const last = occupied[lane];
         if (last === undefined || Math.abs(position - last) >= minDistance) {
@@ -419,7 +650,13 @@
     }
 
     renderDetail(item) {
+      window.clearTimeout(this.detailHideTimer);
+      this.detailHideTimer = 0;
+      this.detail.classList.remove("is-open");
+      this.detail.style.visibility = "hidden";
+
       const heading = createElement("h3", "", item.title);
+      heading.id = "timeline-detail-heading";
       const when = createElement(
         "p",
         "timeline-detail-time",
@@ -430,25 +667,117 @@
       const locate = createElement("button", "button secondary", "Locate in chronology");
       locate.type = "button";
       locate.addEventListener("click", () => {
-        const row = document.querySelector('#timeline-list [data-id="' + CSS.escape(item.id) + '"]');
-        row?.scrollIntoView({ behavior: "smooth", block: "center" });
+        const row = Array.from(document.querySelectorAll("#timeline-list [data-id]")).find(
+          (candidate) => candidate.dataset.id === item.id
+        );
+        row?.scrollIntoView({ behavior: this.prefersReducedMotion() ? "auto" : "smooth", block: "center" });
         row?.querySelector("button, a")?.focus({ preventScroll: true });
       });
       const close = createElement("button", "button ghost", "Close");
       close.type = "button";
-      close.addEventListener("click", () => {
-        this.selectedId = null;
-        this.detail.hidden = true;
-        this.scheduleRender();
-        this.surface.focus({ preventScroll: true });
-      });
+      close.addEventListener("click", () => this.closeDetail());
       actions.append(locate, close);
 
       const children = [heading, when, meta];
       if (item.description) children.push(createElement("p", "timeline-detail-description", item.description));
       children.push(actions);
       this.detail.replaceChildren(...children);
+      this.detail.setAttribute("aria-labelledby", heading.id);
       this.detail.hidden = false;
+    }
+
+    closeDetail({ restoreFocus = true, immediate = false } = {}) {
+      const previousId = this.selectedId;
+      this.selectedId = null;
+      window.clearTimeout(this.detailHideTimer);
+      this.detailHideTimer = 0;
+      this.detail.classList.remove("is-open");
+      this.scheduleRender();
+
+      const finish = () => {
+        if (this.selectedId) return;
+        this.detail.hidden = true;
+        this.detail.style.visibility = "";
+        this.detail.removeAttribute("data-placement");
+      };
+
+      if (immediate || this.prefersReducedMotion()) {
+        finish();
+      } else {
+        this.detailHideTimer = window.setTimeout(finish, 190);
+      }
+
+      if (restoreFocus && previousId) {
+        requestAnimationFrame(() => {
+          const eventNode = Array.from(this.surface.querySelectorAll(".timeline-event")).find(
+            (candidate) => candidate.dataset.id === previousId
+          );
+          eventNode?.querySelector(".timeline-event-terminal")?.focus({ preventScroll: true });
+        });
+      }
+    }
+
+    positionDetail() {
+      const eventNode = Array.from(this.surface.querySelectorAll(".timeline-event")).find(
+        (candidate) => candidate.dataset.id === this.selectedId
+      );
+      const terminal = eventNode?.querySelector(".timeline-event-terminal");
+      if (!terminal || this.detail.hidden) return;
+
+      const rootRect = this.root.getBoundingClientRect();
+      const surfaceRect = this.surface.getBoundingClientRect();
+      const terminalRect = terminal.getBoundingClientRect();
+      const detailRect = this.detail.getBoundingClientRect();
+
+      const bounds = {
+        left: surfaceRect.left - rootRect.left,
+        top: surfaceRect.top - rootRect.top,
+        right: surfaceRect.right - rootRect.left,
+        bottom: surfaceRect.bottom - rootRect.top
+      };
+      const anchor = {
+        left: terminalRect.left - rootRect.left,
+        top: terminalRect.top - rootRect.top,
+        right: terminalRect.right - rootRect.left,
+        bottom: terminalRect.bottom - rootRect.top
+      };
+      const size = {
+        width: Math.min(detailRect.width, Math.max(1, bounds.right - bounds.left - DETAIL_PADDING * 2)),
+        height: Math.min(detailRect.height, Math.max(1, bounds.bottom - bounds.top - DETAIL_PADDING * 2))
+      };
+
+      let preferredPlacements;
+      if (this.orientation === "horizontal") {
+        const axisY = surfaceRect.top - rootRect.top + parseFloat(
+          getComputedStyle(this.surface).getPropertyValue("--timeline-axis-cross")
+        );
+        const terminalCenter = (anchor.top + anchor.bottom) / 2;
+        preferredPlacements =
+          terminalCenter < axisY
+            ? ["top", "right", "left", "bottom"]
+            : ["bottom", "right", "left", "top"];
+      } else {
+        const axisX = surfaceRect.left - rootRect.left + parseFloat(
+          getComputedStyle(this.surface).getPropertyValue("--timeline-axis-cross")
+        );
+        const terminalCenter = (anchor.left + anchor.right) / 2;
+        preferredPlacements =
+          terminalCenter < axisX
+            ? ["left", "bottom", "top", "right"]
+            : ["right", "bottom", "top", "left"];
+      }
+
+      const placement = choosePopoverPlacement(anchor, bounds, size, preferredPlacements);
+      this.detail.style.left = placement.left + "px";
+      this.detail.style.top = placement.top + "px";
+      this.detail.dataset.placement = placement.placement;
+      this.detail.style.visibility = "visible";
+
+      if (!this.detail.classList.contains("is-open")) {
+        requestAnimationFrame(() => {
+          if (this.selectedId && !this.detail.hidden) this.detail.classList.add("is-open");
+        });
+      }
     }
 
     updateReadout(spec) {
@@ -473,6 +802,11 @@
     create(root) {
       if (!(root instanceof HTMLElement)) return null;
       return new TimelineViewController(root);
-    }
+    },
+    geometry: Object.freeze({
+      choosePopoverPlacement,
+      connectorSegment,
+      wheelZoomFactor
+    })
   });
 })();
