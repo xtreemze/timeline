@@ -130,6 +130,8 @@ Examples:
 
 Each assertion should link to precise citations. Citations may support, contradict, contextualize, impeach, or merely mention the assertion.
 
+Canonical citation records identify both the assertion and source evidence, preserve the relation separately from the assertion's status, and carry a typed pinpoint locator. Supported locators include page/page range, Bates range, paragraph, line range, media time range, JSON Pointer, record key, and URI fragment. Optional excerpts and analyst notes describe the linkage; linkage confidence concerns the citation-to-assertion relationship, not whether the assertion is true.
+
 A number of supporting citations is not a truth score.
 
 ## 5. Competing hypotheses and investigative explanations
