@@ -4,8 +4,11 @@
   const VERSION = 2;
   const STORAGE_KEY = "timeline:v2";
   const LEGACY_STORAGE_KEY = "timeline:v1";
-  const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?$/;
   const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+  const temporal = globalThis.TimelineTemporal;
+  const spatial = globalThis.TimelineSpatial;
+  if (!temporal) throw new Error("TimelineTemporal must load before app.js.");
+  if (!spatial) throw new Error("TimelineSpatial must load before app.js.");
 
   const DEFAULT_CATEGORIES = [
     { id: "event", name: "Event", color: "#667085" },
@@ -103,11 +106,35 @@
     itemId: document.querySelector("#item-id"),
     itemKind: document.querySelector("#item-kind"),
     itemCategory: document.querySelector("#item-category"),
-    itemStart: document.querySelector("#item-start"),
-    itemEnd: document.querySelector("#item-end"),
+    itemStartDate: document.querySelector("#item-start-date"),
+    itemStartTime: document.querySelector("#item-start-time"),
+    itemStartPrecision: document.querySelector("#item-start-precision"),
+    itemStartCertainty: document.querySelector("#item-start-certainty"),
+    itemStartZone: document.querySelector("#item-start-zone"),
+    itemStartTimeField: document.querySelector("#item-start-time-field"),
+    itemStartZoneField: document.querySelector("#item-start-zone-field"),
+    itemEndDate: document.querySelector("#item-end-date"),
+    itemEndTime: document.querySelector("#item-end-time"),
+    itemEndPrecision: document.querySelector("#item-end-precision"),
+    itemEndCertainty: document.querySelector("#item-end-certainty"),
+    itemEndZone: document.querySelector("#item-end-zone"),
+    itemEndTimeField: document.querySelector("#item-end-time-field"),
+    itemEndZoneField: document.querySelector("#item-end-zone-field"),
+    timeZoneOptions: document.querySelector("#time-zone-options"),
     endField: document.querySelector("#end-field"),
     itemTitle: document.querySelector("#item-title"),
     itemDescription: document.querySelector("#item-description"),
+    itemLocationDetails: document.querySelector("#item-location-details"),
+    itemLocationName: document.querySelector("#item-location-name"),
+    itemLocationIdentifier: document.querySelector("#item-location-identifier"),
+    itemLocationAddress: document.querySelector("#item-location-address"),
+    itemLocationLatitude: document.querySelector("#item-location-latitude"),
+    itemLocationLongitude: document.querySelector("#item-location-longitude"),
+    itemLocationSource: document.querySelector("#item-location-source"),
+    itemLocationAccuracy: document.querySelector("#item-location-accuracy"),
+    itemGeolocation: document.querySelector("#item-geolocation"),
+    itemLocationClear: document.querySelector("#item-location-clear"),
+    itemLocationMap: document.querySelector("#item-location-map"),
     itemFormError: document.querySelector("#item-form-error"),
     saveItem: document.querySelector("#save-item"),
     cancelItemEdit: document.querySelector("#cancel-item-edit"),
@@ -164,6 +191,17 @@
   };
 
   const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
+  const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  const locationMap = globalThis.TimelineLocationMap?.create({
+    container: els.itemLocationMap,
+    details: els.itemLocationDetails,
+    latitude: els.itemLocationLatitude,
+    longitude: els.itemLocationLongitude,
+    accuracy: els.itemLocationAccuracy,
+    source: els.itemLocationSource,
+    geolocation: els.itemGeolocation,
+    clearButton: els.itemLocationClear
+  }) || null;
 
   function newId(prefix = "id") {
     const random = globalThis.crypto && typeof globalThis.crypto.randomUUID === "function"
@@ -312,27 +350,39 @@
     const items = sourceItems.map((raw, index) => {
       if (!raw || typeof raw !== "object") throw new Error(`Item ${index + 1} is not an object.`);
       const kind = raw.kind === "range" ? "range" : "event";
-      const start = typeof raw.start === "string" ? raw.start.trim() : "";
-      const end = kind === "range" && typeof raw.end === "string" ? raw.end.trim() : null;
+      const rawStart = raw.time?.start?.value ?? raw.start;
+      const rawEnd = kind === "range" ? (raw.time?.end?.value ?? raw.end) : null;
+      const start = typeof rawStart === "string" ? rawStart.trim() : "";
+      const end = kind === "range" && typeof rawEnd === "string" ? rawEnd.trim() : null;
       const title = typeof raw.title === "string" ? raw.title.trim().slice(0, 160) : "";
-      const startParsed = parseDate(start);
-      if (!startParsed) throw new Error(`Item ${index + 1} has an invalid start date: ${start || "(missing)"}.`);
+      const time = temporal.normalizeExtent(raw.time, start, end, kind);
+      if (!time?.start) throw new Error(`Item ${index + 1} has an invalid ISO 8601 start value: ${start || "(missing)"}.`);
       if (!title) throw new Error(`Item ${index + 1} is missing a title.`);
       if (kind === "range") {
-        const endParsed = parseDate(end || "");
-        if (!endParsed) throw new Error(`Range ${index + 1} has an invalid end date: ${end || "(missing)"}.`);
-        if (endParsed.sortKey < startParsed.sortKey) throw new Error(`Range ${index + 1} ends before it starts.`);
+        if (!time.end) throw new Error(`Range ${index + 1} has an invalid ISO 8601 end value: ${end || "(missing)"}.`);
+        if (temporal.sortKey(time.end) < temporal.sortKey(time.start)) {
+          throw new Error(`Range ${index + 1} ends before it starts.`);
+        }
+      }
+
+      let location = null;
+      try {
+        location = spatial.normalize(raw.location);
+      } catch (error) {
+        throw new Error(`Item ${index + 1} has invalid location coordinates: ${error instanceof Error ? error.message : "invalid location"}`);
       }
 
       const item = {
         id: typeof raw.id === "string" && raw.id.trim() ? raw.id.trim().slice(0, 120) : newId("item"),
         kind,
-        start,
-        end: kind === "range" ? end : null,
+        start: time.start.value,
+        end: kind === "range" ? time.end.value : null,
+        time,
         title,
         description: typeof raw.description === "string" ? raw.description.slice(0, 2000) : "",
         categoryId: ensureCategory(raw.categoryId || raw.category)
       };
+      if (location) item.location = location;
       const extensions = normalizeExtensions(raw.extensions);
       if (extensions) item.extensions = extensions;
       return item;
@@ -537,7 +587,8 @@
         start: parseDate(item.start).sortKey,
         end: item.end ? parseDate(item.end).sortKey : null,
         startLabel: formatDateInline(item.start),
-        endLabel: item.end ? formatDateInline(item.end) : ""
+        endLabel: item.end ? formatDateInline(item.end) : "",
+        locationName: item.location?.name || item.location?.geographicIdentifier || ""
       };
     }), { focusId: storyCurrentId });
   }
@@ -615,6 +666,14 @@
     kindBadge.textContent = item.kind;
     meta.append(categoryBadge, kindBadge);
 
+    const locationLabel = item.location?.name || item.location?.geographicIdentifier;
+    if (locationLabel) {
+      const placeBadge = document.createElement("span");
+      placeBadge.className = "location-badge";
+      placeBadge.textContent = locationLabel;
+      meta.append(placeBadge);
+    }
+
     if (activeStory && storyIndex >= 0) {
       const step = document.createElement("span");
       step.className = "story-step";
@@ -644,12 +703,98 @@
     return button;
   }
 
+  function fillTimeZoneOptions() {
+    const zones = temporal.supportedTimeZones();
+    const options = zones.map((zone) => {
+      const option = document.createElement("option");
+      option.value = zone;
+      return option;
+    });
+    els.timeZoneOptions.replaceChildren(...options);
+  }
+
+  function configureTemporalEndpoint(prefix) {
+    const precision = els[`item${prefix}Precision`].value;
+    const timeField = els[`item${prefix}TimeField`];
+    const zoneField = els[`item${prefix}ZoneField`];
+    const timeInput = els[`item${prefix}Time`];
+    const hasClock = precision !== "day";
+
+    timeField.hidden = !hasClock;
+    zoneField.hidden = !hasClock;
+    timeInput.required = hasClock;
+    timeInput.step =
+      precision === "millisecond" ? "0.001" :
+      precision === "second" ? "1" :
+      "60";
+
+    if (!hasClock) {
+      timeInput.value = "";
+    } else if (!els[`item${prefix}Zone`].value && localTimeZone) {
+      els[`item${prefix}Zone`].value = localTimeZone;
+    }
+  }
+
+  function endpointFromForm(prefix) {
+    return temporal.buildEndpoint({
+      date: els[`item${prefix}Date`].value,
+      time: els[`item${prefix}Time`].value,
+      precision: els[`item${prefix}Precision`].value,
+      certainty: els[`item${prefix}Certainty`].value,
+      timeZone: els[`item${prefix}Zone`].value
+    });
+  }
+
+  function setEndpointForm(prefix, endpointOrValue) {
+    const parts = temporal.formParts(endpointOrValue);
+    els[`item${prefix}Date`].value = parts.date;
+    els[`item${prefix}Time`].value = parts.time;
+    els[`item${prefix}Precision`].value = parts.precision;
+    els[`item${prefix}Certainty`].value = parts.certainty;
+    els[`item${prefix}Zone`].value = parts.timeZone;
+    configureTemporalEndpoint(prefix);
+  }
+
+  function resetLocationForm() {
+    els.itemLocationName.value = "";
+    els.itemLocationIdentifier.value = "";
+    els.itemLocationAddress.value = "";
+    els.itemLocationLatitude.value = "";
+    els.itemLocationLongitude.value = "";
+    els.itemLocationSource.value = "manual";
+    els.itemLocationAccuracy.value = "";
+    els.itemLocationDetails.open = false;
+    locationMap?.clear?.();
+  }
+
+  function fillLocationForm(location) {
+    const parts = spatial.formParts(location);
+    els.itemLocationName.value = parts.name;
+    els.itemLocationIdentifier.value = parts.geographicIdentifier;
+    els.itemLocationAddress.value = parts.address;
+    els.itemLocationLatitude.value = parts.latitude;
+    els.itemLocationLongitude.value = parts.longitude;
+    els.itemLocationSource.value = parts.source;
+    els.itemLocationAccuracy.value = parts.accuracyMeters;
+    els.itemLocationDetails.open = Boolean(location);
+    if (location) locationMap?.refresh();
+  }
+
   function resetItemForm() {
     els.itemForm.reset();
     els.itemId.value = "";
     els.itemKind.value = "event";
     els.endField.hidden = true;
-    els.itemEnd.required = false;
+    els.itemEndDate.required = false;
+    els.itemStartPrecision.value = "day";
+    els.itemEndPrecision.value = "day";
+    els.itemStartCertainty.value = "exact";
+    els.itemEndCertainty.value = "exact";
+    els.itemStartZone.value = localTimeZone;
+    els.itemEndZone.value = localTimeZone;
+    configureTemporalEndpoint("Start");
+    configureTemporalEndpoint("End");
+    resetLocationForm();
     fillCategorySelect(els.itemCategory, false, state.categories[0]?.id || "");
     els.saveItem.textContent = "Add item";
     els.cancelItemEdit.hidden = true;
@@ -662,13 +807,14 @@
     setActivePanel("items");
     els.itemId.value = item.id;
     els.itemKind.value = item.kind;
-    els.itemStart.value = item.start;
-    els.itemEnd.value = item.end || "";
+    setEndpointForm("Start", item.time?.start || item.start);
+    setEndpointForm("End", item.time?.end || item.end || "");
     els.endField.hidden = item.kind !== "range";
-    els.itemEnd.required = item.kind === "range";
+    els.itemEndDate.required = item.kind === "range";
     fillCategorySelect(els.itemCategory, false, item.categoryId);
     els.itemTitle.value = item.title;
     els.itemDescription.value = item.description;
+    fillLocationForm(item.location || null);
     els.saveItem.textContent = "Save changes";
     els.cancelItemEdit.hidden = false;
     setError(els.itemFormError);
@@ -972,6 +1118,11 @@
         ? `${formatDateInline(item.start)} → ${formatDateInline(item.end)}`
         : formatDateInline(item.start);
       lines.push(`### ${when} — ${item.title}`, "", `Type: ${item.kind}  `, `Category: ${category.name}`);
+      if (item.location) {
+        const place = item.location.name || item.location.geographicIdentifier || item.location.address || "Coordinates";
+        const coordinates = item.location.geometry?.coordinates;
+        lines.push(`Location: ${place}${coordinates ? ` (${coordinates[1]}, ${coordinates[0]})` : ""}  `);
+      }
       if (item.description) lines.push("", item.description);
       lines.push("");
     }
@@ -1021,39 +1172,57 @@
     });
   });
 
+  els.itemStartPrecision.addEventListener("change", () => configureTemporalEndpoint("Start"));
+  els.itemEndPrecision.addEventListener("change", () => configureTemporalEndpoint("End"));
+  els.itemStartDate.addEventListener("change", () => {
+    els.itemEndDate.min = els.itemStartDate.value;
+    if (els.itemKind.value === "range" && !els.itemEndDate.value) els.itemEndDate.value = els.itemStartDate.value;
+  });
+
   els.itemKind.addEventListener("change", () => {
     const isRange = els.itemKind.value === "range";
     els.endField.hidden = !isRange;
-    els.itemEnd.required = isRange;
-    if (!isRange) els.itemEnd.value = "";
+    els.itemEndDate.required = isRange;
+    if (isRange && !els.itemEndDate.value) {
+      els.itemEndDate.value = els.itemStartDate.value;
+      els.itemEndPrecision.value = els.itemStartPrecision.value;
+      els.itemEndCertainty.value = els.itemStartCertainty.value;
+      els.itemEndZone.value = els.itemStartZone.value;
+      if (els.itemStartTime.value) els.itemEndTime.value = els.itemStartTime.value;
+      configureTemporalEndpoint("End");
+    }
   });
 
   els.itemForm.addEventListener("submit", (event) => {
     event.preventDefault();
     setError(els.itemFormError);
     const kind = els.itemKind.value === "range" ? "range" : "event";
-    const start = els.itemStart.value.trim();
-    const end = els.itemEnd.value.trim();
     const title = els.itemTitle.value.trim();
-    const startParsed = parseDate(start);
-    if (!startParsed) {
-      setError(els.itemFormError, "Use YYYY-MM-DD or YYYY-MM-DDTHH:MM for the start date.");
-      els.itemStart.focus();
+
+    let startEndpoint;
+    let endEndpoint = null;
+    let location = null;
+    try {
+      startEndpoint = endpointFromForm("Start");
+      if (kind === "range") endEndpoint = endpointFromForm("End");
+      if (endEndpoint && temporal.sortKey(endEndpoint) < temporal.sortKey(startEndpoint)) {
+        throw new Error("The range end cannot be earlier than its start.");
+      }
+      location = spatial.fromForm({
+        name: els.itemLocationName.value,
+        geographicIdentifier: els.itemLocationIdentifier.value,
+        address: els.itemLocationAddress.value,
+        latitude: els.itemLocationLatitude.value,
+        longitude: els.itemLocationLongitude.value,
+        source: els.itemLocationSource.value,
+        accuracyMeters: els.itemLocationAccuracy.value
+      });
+    } catch (error) {
+      setError(els.itemFormError, error instanceof Error ? error.message : "Check the temporal or location values.");
+      els.itemStartDate.focus();
       return;
     }
-    if (kind === "range") {
-      const endParsed = parseDate(end);
-      if (!endParsed) {
-        setError(els.itemFormError, "A range needs a valid end date.");
-        els.itemEnd.focus();
-        return;
-      }
-      if (endParsed.sortKey < startParsed.sortKey) {
-        setError(els.itemFormError, "The range end cannot be earlier than its start.");
-        els.itemEnd.focus();
-        return;
-      }
-    }
+
     if (!title) {
       setError(els.itemFormError, "A title is required.");
       els.itemTitle.focus();
@@ -1063,14 +1232,21 @@
     const item = {
       id: els.itemId.value || newId("item"),
       kind,
-      start,
-      end: kind === "range" ? end : null,
+      start: startEndpoint.value,
+      end: kind === "range" ? endEndpoint.value : null,
+      time: {
+        type: kind === "range" ? "interval" : "instant",
+        start: startEndpoint,
+        end: kind === "range" ? endEndpoint : null
+      },
       title: title.slice(0, 160),
       description: els.itemDescription.value.trim().slice(0, 2000),
       categoryId: state.categories.some((category) => category.id === els.itemCategory.value)
         ? els.itemCategory.value
         : state.categories[0].id
     };
+    if (location) item.location = location;
+
     const index = state.items.findIndex((candidate) => candidate.id === item.id);
     if (index >= 0) {
       state.items[index] = item;
@@ -1082,7 +1258,7 @@
     persist();
     resetItemForm();
     renderAll();
-    els.itemStart.focus();
+    els.itemStartDate.focus();
   });
 
   els.cancelItemEdit.addEventListener("click", resetItemForm);
@@ -1352,6 +1528,7 @@
     showStatus("Timeline cleared.");
   });
 
+  fillTimeZoneOptions();
   resetItemForm();
   resetStoryForm();
   resetCategoryForm();
