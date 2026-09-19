@@ -50,7 +50,7 @@ The application is static and runs entirely in the browser. Timeline data is sto
 - Capability-gated haptics for cluster fusion/splitting, selection, and inertial release through gamepad actuators or mobile vibration hardware when available.
 - Focused presentation controls: Left/Right move between events, Up/Down move between event photographs, Space or media Play/Pause toggles auto advance, and Escape/Browser Back exits focus. Standard gamepad D-pad/shoulders, A/B and Start map to the same presentation commands.
 - Collision-aware temporal accents for months containing up to three visible segments: month+year stays ambient at the edge when there is room; when those labels would collide, the edge collapses to non-overlapping year accents and month names move onto the timeline axis. At year-scale zoom the normal year ticks take over entirely.
-- A 12-column application/stage grid that reserves predictable space for chronology, detail and temporal relationship layers.
+- A deliberate 12-column focused-event composition with dedicated regions for hero media, temporal facts, place, relationships, the local node graph, evidence, and controls. Hero titles scale against their own container and wrap without metric trimming.
 
 ### Categories
 
@@ -90,7 +90,9 @@ Timeline includes an authorable subject–action–object graph alongside the ch
 
 The canonical graph remains `entities[] + relationships[]`. `TimelineGraph.toOrbGraph()` emits the node/edge contract expected by Orb-like visualization layers without making a force-layout view the source of truth.
 
-The built-in lens uses SVG so the static, dependency-free application can author and inspect the model today. The large-scale target remains a bundled worker-backed Orb/WebGL-style renderer under issue #16 rather than the direct browser bundle.
+The graph lens is rendered with the bundled `@memgraph/orb` package. Force simulation uses Orb's worker-backed CPU path by default. Dense graphs move rendering to WebGL when available, and very large graphs can switch the force calculation to Orb's GPU path. Timeline-window updates restyle edges without restarting physics; topology edits rerun the simulation.
+
+Focused events also render a one-hop graph neighborhood containing the event, connected entities/records, canonical relations, and derived links showing which relation the event activates, deactivates, or updates.
 
 ### Evidence and claims
 
@@ -112,7 +114,7 @@ See `docs/EVIDENCE-MODEL.md`.
 - Vendor-neutral interchange JSON export with a published JSON Schema and round-trip preservation of imported extension fields.
 - Markdown export containing the canonical chronology plus each narrative story.
 - Imported text is rendered through DOM text nodes, never injected as HTML.
-- No runtime packages, telemetry, account system, database, or backend.
+- No backend, telemetry, or account system. The graph renderer is compiled from the pinned `@memgraph/orb` dependency into the static Pages artifact; timeline data remains browser-local.
 
 ## Data format
 
@@ -168,9 +170,11 @@ The exported interchange schema is `schemas/interchange-v1.schema.json`. See `do
 
 ### Temporal graph values
 
-Timeline preserves reusable `entities[]` and `relationships[]` alongside chronology items. The Graph editor makes both first-class authoring surfaces. Relationships use `subjectId`, `objectId`, a semantic action `predicate`, optional `role`, arbitrary properties, and the same structured temporal extent used by events. A timed relationship is projected into the timeline relation band and simultaneously changes state in the graph lens as the visible temporal window moves.
+Timeline preserves reusable `entities[]` and `relationships[]` alongside chronology items. Relationships use `subjectId`, `objectId`, an action `predicate`, optional `role`, arbitrary properties, an initial active/inactive state, and an optional temporal extent.
 
-The graph adapter emits Orb-compatible `{ nodes, edges }` data while keeping the canonical model renderer-independent. The current built-in SVG lens is intentionally modest; the scale target remains a bundled worker-backed Orb/WebGL-style renderer rather than a main-thread direct-link integration.
+Events can change an existing relationship without rewriting its history. `item.relationChanges[]` records `activate`, `deactivate`, or `update` operations whose effective time is the event timestamp. An update can change the effective edge label, role, or properties from that event onward. The graph reconstructs effective relation state for the visible timeline window and marks an edge as changed when its lifecycle changes inside that window.
+
+The graph adapter emits Orb-compatible `{ nodes, edges }` data while keeping the canonical model renderer-independent. `@memgraph/orb` is bundled at build time so its worker-backed force simulation is available; temporal-only edge-state changes update styles/data without restarting the force simulation.
 
 See `docs/TEMPORAL-GRAPH-ARCHITECTURE.md`.
 
@@ -272,17 +276,18 @@ GitHub Pages
     └── icon.svg         application mark
 ```
 
-There is no framework, bundler, backend, telemetry SDK, or runtime dependency tree. The deployment workflow performs a JavaScript syntax check before uploading the static Pages artifact.
-
-This makes the current implementation easy to audit and keeps architectural complexity proportional to the product.
+The application remains framework-free and backend-free. The relation graph is the one compiled subsystem: esbuild bundles the pinned `@memgraph/orb` package into `site/orb-graph.bundle.js` during CI/Pages deployment so its Worker/WebGL implementation can be used without a runtime CDN dependency. The generated bundle is not canonical source.
 
 ## Run locally
 
-No build step is required.
+Build the relation-graph bundle once, then serve the static site:
 
 ```bash
 git clone https://github.com/xtreemze/timeline.git
 cd timeline
+corepack enable
+pnpm install
+pnpm build
 python3 -m http.server 8080 --directory site
 ```
 
