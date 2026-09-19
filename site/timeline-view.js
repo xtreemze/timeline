@@ -96,6 +96,7 @@
       this.selectedId = null;
       this.focusMediaIndex = 0;
       this.focusId = null;
+      this.focusForceUnique = false;
       this.preferences = loadPreferences();
       this.orientation = this.preferences.orientation;
       this.drag = null;
@@ -731,11 +732,30 @@
         }
       }
 
+      const focusedItem = this.selectedId
+        ? visibleItems.find((item) => String(item.id) === String(this.selectedId))
+        : null;
+      const clusterSource = focusedItem
+        ? visibleItems.filter((item) => String(item.id) !== String(this.selectedId))
+        : visibleItems;
       const representations = clustering.clusterProjectedItems(
-        visibleItems,
+        clusterSource,
         (item) => padding + scale.coordinateFor(item.start, this.viewport, usable),
         this.clusterThreshold(width)
       );
+      if (focusedItem) {
+        representations.push({
+          kind: "item",
+          id: String(focusedItem.id),
+          item: focusedItem,
+          items: [focusedItem],
+          position: padding + scale.coordinateFor(focusedItem.start, this.viewport, usable),
+          start: focusedItem.start,
+          end: Number.isFinite(focusedItem.end) ? focusedItem.end : focusedItem.start,
+          forceUnique: this.focusForceUnique
+        });
+        representations.sort((a, b) => a.position - b.position || String(a.id).localeCompare(String(b.id)));
+      }
       this.updateClusterHaptics(representations);
 
       const occupied = [];
@@ -763,6 +783,10 @@
       });
 
       this.updateReadout(ticks[0]?.spec || null);
+      this.root.dispatchEvent(new CustomEvent("timelineviewportchange", {
+        bubbles: true,
+        detail: { viewport: { ...this.viewport } }
+      }));
     }
 
     createEventNode(item, index, position, width, height, axisCross, occupied) {
@@ -860,6 +884,27 @@
       this.select(id);
     }
 
+    adjustFocusedViewport(item) {
+      if (!item || !this.viewport) return;
+      const rect = this.surface.getBoundingClientRect();
+      const primaryLength = this.orientation === "horizontal" ? rect.width : rect.height;
+      const padding = this.axisPadding(primaryLength);
+      const usable = Math.max(1, primaryLength - padding * 2);
+      const plan = clustering.focusContextViewport(
+        this.items,
+        item.id,
+        this.viewport,
+        usable,
+        this.clusterThreshold(rect.width),
+        { desiredContext: 2, paddingRatio: 0.14, minSpanMs: MIN_SPAN_MS }
+      );
+      if (!plan) return;
+      this.focusForceUnique = Boolean(plan.forceUnique);
+      if (plan.mode === "separate" || plan.mode === "context") {
+        this.animateViewportTo(plan.viewport);
+      }
+    }
+
     hasFocusedItem() {
       return Boolean(this.selectedId);
     }
@@ -901,6 +946,8 @@
       if (!item) return;
       this.selectedId = id;
       this.focusMediaIndex = 0;
+      this.focusForceUnique = false;
+      this.adjustFocusedViewport(item);
       this.root.classList.add("is-event-focused");
       this.focusView.hidden = false;
       this.renderFocus(item);
@@ -1144,6 +1191,7 @@
       const previousId = this.selectedId;
       this.selectedId = null;
       this.focusMediaIndex = 0;
+      this.focusForceUnique = false;
       this.root.classList.remove("is-event-focused");
       this.focusView.hidden = true;
       this.focusView.removeAttribute("style");
