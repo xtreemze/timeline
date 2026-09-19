@@ -487,6 +487,19 @@
   height: 1.6rem;
   stroke-width: 2.2;
 }
+.timeline-event[data-terminal-shape="circle"] .timeline-event-dot,
+.timeline-event[data-terminal-shape="circle"] .timeline-event-art-image {
+  border-radius: 50%;
+}
+.timeline-event[data-terminal-shape="square"] .timeline-event-dot,
+.timeline-event[data-terminal-shape="square"] .timeline-event-art-image {
+  border-radius: .16rem;
+}
+.timeline-event[data-terminal-shape="diamond"] .timeline-event-dot,
+.timeline-event[data-terminal-shape="diamond"] .timeline-event-art-image {
+  border-radius: .12rem;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
 .timeline-event-art-image {
   width: 100%;
   height: 100%;
@@ -540,6 +553,34 @@
   z-index: 0;
   background: color-mix(in srgb, var(--event-color) 66%, var(--line-strong));
   pointer-events: none;
+}
+.is-landscape .timeline-event[data-connector-style="dashed"] .timeline-event-connector {
+  background: repeating-linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--event-color) 66%, var(--line-strong)) 0 8px,
+    transparent 8px 13px
+  );
+}
+.is-portrait .timeline-event[data-connector-style="dashed"] .timeline-event-connector {
+  background: repeating-linear-gradient(
+    to right,
+    color-mix(in srgb, var(--event-color) 66%, var(--line-strong)) 0 8px,
+    transparent 8px 13px
+  );
+}
+.is-landscape .timeline-event[data-connector-style="dotted"] .timeline-event-connector {
+  background: repeating-linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--event-color) 66%, var(--line-strong)) 0 2px,
+    transparent 2px 7px
+  );
+}
+.is-portrait .timeline-event[data-connector-style="dotted"] .timeline-event-connector {
+  background: repeating-linear-gradient(
+    to right,
+    color-mix(in srgb, var(--event-color) 66%, var(--line-strong)) 0 2px,
+    transparent 2px 7px
+  );
 }
 .timeline-focus-view {
   position: relative;

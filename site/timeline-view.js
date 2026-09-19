@@ -959,6 +959,8 @@
     createEventNode(item, index, position, width, height, axisCross, occupied) {
       const node = createElement("div", "timeline-event");
       node.dataset.id = item.id;
+      node.dataset.terminalShape = item.terminalShape || "rounded";
+      node.dataset.connectorStyle = item.connectorStyle || "solid";
       node.style.setProperty("--event-color", item.color || "var(--accent)");
       if (item.id === this.focusId) node.classList.add("is-story-current");
       if (item.id === this.selectedId) node.classList.add("is-selected");

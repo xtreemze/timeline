@@ -464,6 +464,30 @@ test("timeline terminals use media thumbnails, semantic badges, and earlier clus
 });
 
 
+test("event editor persists configurable terminal shapes and connector styles into timeline rendering", async () => {
+  const [html, app, view, styles] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+
+  assert.ok(html.includes('id="item-terminal-shape"'));
+  assert.ok(html.includes('<option value="diamond">Diamond</option>'));
+  assert.ok(html.includes('id="item-connector-style"'));
+  assert.ok(html.includes('<option value="dotted">Dotted</option>'));
+  assert.ok(app.includes('terminalShape: els.itemTerminalShape.value'));
+  assert.ok(app.includes('connectorStyle: els.itemConnectorStyle.value'));
+  assert.ok(app.includes('terminalShape: item.presentation?.terminalShape || "rounded"'));
+  assert.ok(app.includes('connectorStyle: item.presentation?.connectorStyle || "solid"'));
+  assert.ok(view.includes('node.dataset.terminalShape = item.terminalShape || "rounded"'));
+  assert.ok(view.includes('node.dataset.connectorStyle = item.connectorStyle || "solid"'));
+  assert.ok(styles.includes('.timeline-event[data-terminal-shape="diamond"] .timeline-event-dot'));
+  assert.ok(styles.includes('.timeline-event[data-connector-style="dashed"] .timeline-event-connector'));
+  assert.ok(styles.includes('.timeline-event[data-connector-style="dotted"] .timeline-event-connector'));
+});
+
+
 test("timeline view assigns unbounded perpendicular lanes so coincident terminals do not reuse positions", async () => {
   const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
   assert.match(source, /allocateEventLane\(position, occupied, minDistance = 236\)/);
