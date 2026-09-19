@@ -13,6 +13,14 @@
     maxZoom: 19
   });
 
+  const PRESENTATION_WORLD_VIEW = Object.freeze({
+    center: Object.freeze([18, 0]),
+    zoom: 1
+  });
+  const PRESENTATION_COUNTRY_ZOOM = 5;
+  const PRESENTATION_FLY_DURATION_SECONDS = 7;
+  const PRESENTATION_WORLD_DWELL_MS = 450;
+
   let loadPromise = null;
 
   function loadLeaflet() {
@@ -50,6 +58,10 @@
   function numeric(input, min, max) {
     const value = Number(input.value);
     return Number.isFinite(value) && value >= min && value <= max ? value : null;
+  }
+
+  function prefersReducedMotion() {
+    return globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
   }
 
   function presentationZoom(location) {
@@ -124,9 +136,15 @@
       this.color = options.color || "#315fbd";
       this.iconName = options.iconName || "place";
       this.interactive = options.interactive === true;
+      this.countryContextIntro = options.countryContextIntro === true;
       this.map = null;
       this.layers = [];
       this.destroyed = false;
+      this.introInProgress = false;
+      this.introComplete = false;
+      this.cameraUserControlled = false;
+      this.introInteractionAbort = null;
+      this.introTimer = 0;
       this.ready = this.render();
     }
 
@@ -152,6 +170,14 @@
           keyboard: this.interactive,
           touchZoom: this.interactive
         });
+
+        if (this.countryContextIntro) {
+          this.map.setView(
+            PRESENTATION_WORLD_VIEW.center,
+            PRESENTATION_WORLD_VIEW.zoom,
+            { animate: false }
+          );
+        }
 
         L.tileLayer(this.provider.url, {
           maxZoom: this.provider.maxZoom || 19,
@@ -194,8 +220,11 @@
           }).addTo(this.map));
         }
 
-        this.fitGeometry({ animate: false });
-        requestAnimationFrame(() => this.map?.invalidateSize({ pan: false }));
+        if (!this.countryContextIntro) this.fitGeometry({ animate: false });
+        requestAnimationFrame(() => {
+          this.map?.invalidateSize({ pan: false });
+          if (this.countryContextIntro) this.prepareCountryContextIntro();
+        });
       } catch (error) {
         if (!this.destroyed && this.container) {
           this.container.dataset.error = "true";
@@ -205,25 +234,128 @@
       }
     }
 
-    fitGeometry({ animate = false } = {}) {
-      if (!this.map || !globalThis.L) return;
-      const point = pointCoordinates(this.location);
+    geometryBounds() {
+      if (!globalThis.L) return null;
       const drawableLayers = this.layers.filter((layer) => typeof layer?.getBounds === "function");
-      const bounds = drawableLayers.length
+      return drawableLayers.length
         ? globalThis.L.featureGroup(drawableLayers).getBounds()
         : null;
+    }
 
-      if (bounds?.isValid?.() && !(point && geoJsonObjects(this.location).length === 1)) {
-        this.map.fitBounds(bounds, {
-          animate,
+    clearCountryContextInteractionGuard() {
+      this.introInteractionAbort?.abort();
+      this.introInteractionAbort = null;
+    }
+
+    cancelCountryContextIntro() {
+      if (!this.countryContextIntro) return;
+      this.cameraUserControlled = true;
+      if (this.introTimer) {
+        globalThis.clearTimeout(this.introTimer);
+        this.introTimer = 0;
+      }
+      if (this.introInProgress) this.map?.stop();
+      this.introInProgress = false;
+      this.introComplete = true;
+      this.clearCountryContextInteractionGuard();
+    }
+
+    bindCountryContextInteractionGuard() {
+      if (!this.interactive || !this.container) return;
+      this.clearCountryContextInteractionGuard();
+      const controller = new AbortController();
+      const cancel = () => this.cancelCountryContextIntro();
+      this.introInteractionAbort = controller;
+      this.container.addEventListener("pointerdown", cancel, { passive: true, signal: controller.signal });
+      this.container.addEventListener("wheel", cancel, { passive: true, signal: controller.signal });
+      this.container.addEventListener("keydown", cancel, { signal: controller.signal });
+    }
+
+    prepareCountryContextIntro() {
+      if (!this.map || this.destroyed || this.introComplete || this.cameraUserControlled) return;
+
+      if (prefersReducedMotion()) {
+        this.fitGeometry({ animate: false, maxZoom: PRESENTATION_COUNTRY_ZOOM });
+        this.introComplete = true;
+        return;
+      }
+
+      this.map.fitWorld({
+        animate: false,
+        padding: [8, 8]
+      });
+      this.bindCountryContextInteractionGuard();
+      this.introTimer = globalThis.setTimeout(() => {
+        this.introTimer = 0;
+        this.startCountryContextIntro();
+      }, PRESENTATION_WORLD_DWELL_MS);
+    }
+
+    startCountryContextIntro() {
+      if (!this.map || this.destroyed || this.introComplete || this.cameraUserControlled) return;
+
+      const point = pointCoordinates(this.location);
+      const bounds = this.geometryBounds();
+      const hasSinglePoint = Boolean(point && geoJsonObjects(this.location).length === 1);
+      this.introInProgress = true;
+
+      const finish = () => {
+        this.introInProgress = false;
+        this.introComplete = true;
+        this.clearCountryContextInteractionGuard();
+      };
+      this.map.once("moveend", finish);
+
+      if (bounds?.isValid?.() && !hasSinglePoint) {
+        this.map.flyToBounds(bounds, {
+          animate: true,
+          duration: PRESENTATION_FLY_DURATION_SECONDS,
+          easeLinearity: 0.16,
           padding: [18, 18],
-          maxZoom: presentationZoom(this.location)
+          maxZoom: PRESENTATION_COUNTRY_ZOOM
         });
         return;
       }
 
       if (point) {
-        this.map.setView([point.lat, point.lng], presentationZoom(this.location), { animate });
+        this.map.flyTo([point.lat, point.lng], PRESENTATION_COUNTRY_ZOOM, {
+          animate: true,
+          duration: PRESENTATION_FLY_DURATION_SECONDS,
+          easeLinearity: 0.16
+        });
+        return;
+      }
+
+      if (bounds?.isValid?.()) {
+        this.map.flyToBounds(bounds, {
+          animate: true,
+          duration: PRESENTATION_FLY_DURATION_SECONDS,
+          easeLinearity: 0.16,
+          padding: [18, 18],
+          maxZoom: PRESENTATION_COUNTRY_ZOOM
+        });
+        return;
+      }
+
+      finish();
+    }
+
+    fitGeometry({ animate = false, maxZoom = presentationZoom(this.location) } = {}) {
+      if (!this.map || !globalThis.L) return;
+      const point = pointCoordinates(this.location);
+      const bounds = this.geometryBounds();
+
+      if (bounds?.isValid?.() && !(point && geoJsonObjects(this.location).length === 1)) {
+        this.map.fitBounds(bounds, {
+          animate,
+          padding: [18, 18],
+          maxZoom
+        });
+        return;
+      }
+
+      if (point) {
+        this.map.setView([point.lat, point.lng], maxZoom, { animate });
         return;
       }
 
@@ -231,7 +363,7 @@
         this.map.fitBounds(bounds, {
           animate,
           padding: [18, 18],
-          maxZoom: presentationZoom(this.location)
+          maxZoom
         });
       }
     }
@@ -239,11 +371,19 @@
     refresh() {
       if (!this.map) return;
       this.map.invalidateSize({ pan: false });
+      if (this.countryContextIntro) {
+        if (this.cameraUserControlled || this.introInProgress || !this.introComplete) return;
+        this.fitGeometry({ animate: false, maxZoom: PRESENTATION_COUNTRY_ZOOM });
+        return;
+      }
       this.fitGeometry({ animate: false });
     }
 
     destroy() {
       this.destroyed = true;
+      if (this.introTimer) globalThis.clearTimeout(this.introTimer);
+      this.introTimer = 0;
+      this.clearCountryContextInteractionGuard();
       this.layers = [];
       this.map?.remove();
       this.map = null;
