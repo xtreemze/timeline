@@ -571,8 +571,17 @@ geolocation {
 @supports (color: contrast-color(white)) {
   .event-tag { color: contrast-color(var(--tag-color)); }
 }
-.event-tag .semantic-icon { flex: 0 0 auto; }
-.semantic-icon { display: block; overflow: visible; }
+.event-tag .semantic-icon {
+  flex: 0 0 auto;
+  width: 1.12rem;
+  height: 1.12rem;
+}
+.semantic-icon {
+  display: block;
+  min-width: 1rem;
+  min-height: 1rem;
+  overflow: visible;
+}
 
 .leaflet-container { font: inherit; background: var(--paper-2); }
 .leaflet-control-attribution { font-size: 10px; }
