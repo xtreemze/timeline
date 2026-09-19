@@ -178,6 +178,7 @@
       if (nextSignature !== this.signature) {
         this.signature = nextSignature;
         this.orb.setData(data);
+        if (this.selection) this.orb.select?.(this.selection.kind, this.selection.id);
       } else {
         this.orb.updateTemporalEdges(data.edges);
       }
