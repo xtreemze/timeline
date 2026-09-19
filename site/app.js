@@ -49,6 +49,7 @@
     visibleCount: document.querySelector("#visible-count"),
     appShell: document.querySelector("#app-shell"),
     controlPanel: document.querySelector("#control-panel"),
+    chronologySheet: document.querySelector("#chronology-sheet"),
     loadSample: document.querySelector("#load-sample"),
     importJson: document.querySelector("#import-json"),
     importInterchange: document.querySelector("#import-interchange"),
@@ -879,8 +880,19 @@
     for (const panel of els.panels) panel.hidden = panel.id !== `panel-${name}`;
   }
 
+  function hidePopoverIfOpen(element) {
+    if (
+      element &&
+      typeof element.hidePopover === "function" &&
+      element.matches(":popover-open")
+    ) {
+      element.hidePopover();
+    }
+  }
+
   function openEditorPanel(name) {
     setActivePanel(name);
+    hidePopoverIfOpen(els.chronologySheet);
     if (
       els.controlPanel &&
       typeof els.controlPanel.showPopover === "function" &&
@@ -2368,6 +2380,10 @@
     button.addEventListener("click", () => setActivePanel(button.dataset.editorPanel));
   });
 
+  document.querySelectorAll('[popovertarget="chronology-sheet"]').forEach((button) => {
+    button.addEventListener("click", () => hidePopoverIfOpen(els.controlPanel));
+  });
+
   });
 
   els.graphNodeForm.addEventListener("submit", (event) => {
@@ -2645,12 +2661,16 @@
     const button = event.target.closest("button[data-action]");
     const itemElement = event.target.closest(".timeline-item");
     if (!button || !itemElement) return;
-    if (button.dataset.action === "focus-item") timelineView?.focusItem(itemElement.dataset.id);
+    if (button.dataset.action === "focus-item") {
+      hidePopoverIfOpen(els.chronologySheet);
+      timelineView?.focusItem(itemElement.dataset.id);
+    }
     if (button.dataset.action === "edit-item") beginItemEdit(itemElement.dataset.id);
     if (button.dataset.action === "delete-item") removeItem(itemElement.dataset.id);
     if (button.dataset.action === "story-focus") {
       ui.storyCursor = Number(button.dataset.storyIndex);
       renderTimeline();
+      hidePopoverIfOpen(els.chronologySheet);
       focusCurrentStoryItem();
     }
   });
