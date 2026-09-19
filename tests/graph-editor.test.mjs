@@ -143,10 +143,12 @@ test("node interaction reheats force and preserves wider spacing after release",
   assert.match(source, /onNodeDragEnd[\s\S]*keepForceActiveAfterInteraction\(\)/);
   assert.match(source, /simulator\.setSettings\(layout\)/);
   assert.match(source, /simulator\.activateSimulation\(\)/);
-  assert.match(source, /distance:\s*dense \? 104 : 132/);
-  assert.match(source, /strength:\s*dense \? -210 : -310/);
-  assert.match(source, /radius:\s*dense \? 24 : 34/);
-  assert.match(source, /iterations:\s*3/);
+  assert.match(source, /distance:\s*dense \? 128 : 168/);
+  assert.match(source, /strength:\s*dense \? -300 : -460/);
+  assert.match(source, /radius:\s*dense \? 30 : 42/);
+  assert.match(source, /iterations:\s*4/);
+  assert.match(source, /centering:[\s\S]*strength:\s*dense \? 0\.02 : 0\.035/);
+  assert.match(source, /forceX:[\s\S]*strength:\s*dense \? 0\.012 : 0\.02/);
   assert.match(source, /alphaMin:\s*dense \? 0\.018 : 0\.012/);
   assert.match(source, /alphaDecay:\s*dense \? 0\.024 : 0\.021/);
   assert.match(source, /clearInteractionSettleTimer\(\)/);
