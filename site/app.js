@@ -61,6 +61,8 @@
     browserSheet: document.querySelector("#timeline-browser-sheet"),
     browserToggle: document.querySelector("#timeline-browser-toggle"),
     browserClose: document.querySelector("#timeline-browser-close"),
+    browserStoryList: document.querySelector("#browser-story-list"),
+    browserStoryCount: document.querySelector("#browser-story-count"),
     graphLensToggle: document.querySelector("#graph-lens-toggle"),
     viewControls: document.querySelector("#timeline-view-toolbar"),
     viewControlsToggle: document.querySelector("#timeline-view-controls-toggle"),
@@ -231,7 +233,7 @@
     browserOpen: false,
     graphOpen: false,
     viewControlsOpen: false,
-    collapsedCategoryIds: new Set()
+    collapsedCategoryIds: new Set(state.categories.map((category) => category.id))
   };
 
   function decorateSemanticControls() {
@@ -1006,7 +1008,13 @@
       closeFocusedEventForUtility();
     }
     syncApplicationSurfaces();
-    if (ui.browserOpen) requestAnimationFrame(() => els.search?.focus({ preventScroll: true }));
+    if (ui.browserOpen) {
+      requestAnimationFrame(() => {
+        const firstStory = els.browserStoryList?.querySelector(".browser-story-card");
+        const firstCategory = els.list?.querySelector(".timeline-category-summary");
+        (firstStory || firstCategory || els.search)?.focus({ preventScroll: true });
+      });
+    }
   }
 
   function setGraphSurfaceOpen(open) {
@@ -1084,6 +1092,44 @@
     fillCategorySelect(els.categoryFilter, true, ui.categoryFilter);
   }
 
+  function renderBrowserStories() {
+    if (!els.browserStoryList) return;
+    if (els.browserStoryCount) els.browserStoryCount.textContent = String(state.stories.length);
+
+    const cards = state.stories.map((story) => {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "browser-story-card";
+      card.dataset.action = "focus-story";
+      card.dataset.id = story.id;
+      card.setAttribute("aria-label", `Focus story ${story.title}`);
+      card.setAttribute("aria-current", String(story.id === ui.activeStoryId));
+
+      const title = document.createElement("strong");
+      title.textContent = story.title;
+      const meta = document.createElement("span");
+      meta.className = "browser-story-meta";
+      meta.textContent = `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"} · ${storySpanLabel(story)}`;
+      card.append(title, meta);
+
+      if (story.description) {
+        const description = document.createElement("span");
+        description.className = "browser-story-description";
+        description.textContent = story.description;
+        card.append(description);
+      }
+      return card;
+    });
+
+    if (!cards.length) {
+      const empty = document.createElement("p");
+      empty.className = "browser-story-empty";
+      empty.textContent = "No stories yet.";
+      cards.push(empty);
+    }
+    els.browserStoryList.replaceChildren(...cards);
+  }
+
   function renderTimelineList(visible, activeStory) {
     if (activeStory) {
       const ordered = document.createElement("ol");
@@ -1097,6 +1143,11 @@
     for (const category of state.categories) {
       const items = visible.filter((item) => item.categoryId === category.id);
       if (!items.length) continue;
+      const shell = document.createElement("div");
+      shell.className = "timeline-category-shell";
+      shell.dataset.categoryId = category.id;
+      shell.style.setProperty("--category-color", category.color);
+
       const details = document.createElement("details");
       details.className = "timeline-category-group";
       details.dataset.categoryId = category.id;
@@ -1121,12 +1172,16 @@
       list.className = "timeline-category-items";
       list.replaceChildren(...items.map((item) => renderItem(item, null)));
       details.append(summary, list);
-      groups.push(details);
+      const focus = actionButton("Focus", "focus-category", `Focus category ${category.name}`);
+      focus.classList.add("timeline-category-focus");
+      shell.append(details, focus);
+      groups.push(shell);
     }
     els.list.replaceChildren(...groups);
   }
 
   function renderTimeline() {
+    renderBrowserStories();
     const activeStory = getStory(ui.activeStoryId);
     const visible = getVisibleItems();
     els.visibleCount.textContent = `${visible.length} shown`;
@@ -1876,6 +1931,27 @@
     els.storyList.replaceChildren(...cards);
   }
 
+  function focusCategory(id) {
+    const category = getCategory(id);
+    if (!category) return;
+    const items = sortItems().filter((item) => item.categoryId === id);
+    if (!items.length) {
+      showStatus(`“${category.name}” has no timeline items yet.`);
+      return;
+    }
+
+    ui.activeStoryId = null;
+    ui.storyCursor = 0;
+    ui.search = "";
+    ui.categoryFilter = id;
+    els.search.value = "";
+    els.categoryFilter.value = id;
+    setBrowserSurfaceOpen(false);
+    renderTimeline();
+    requestAnimationFrame(() => timelineView?.fitVisible?.());
+    showStatus(`Focused category “${category.name}”.`);
+  }
+
   function focusStory(id) {
     const story = getStory(id);
     if (!story) return;
@@ -1961,6 +2037,7 @@
     if (!window.confirm(`Delete category “${category.name}”?${detail}`)) return;
     state.categories = state.categories.filter((candidate) => candidate.id !== id);
     state.items = state.items.map((item) => item.categoryId === id ? { ...item, categoryId: replacement.id } : item);
+    ui.collapsedCategoryIds.delete(id);
     if (ui.categoryFilter === id) ui.categoryFilter = "all";
     if (els.categoryId.value === id) resetCategoryForm();
     persist();
@@ -2277,6 +2354,11 @@
     window.addEventListener("resize", () => schedulePresentationGeometryRefresh());
   }
   updatePresentationStageLayout();
+
+  function collapseAllCategories() {
+    ui.collapsedCategoryIds.clear();
+    for (const category of state.categories) ui.collapsedCategoryIds.add(category.id);
+  }
 
   function renderAll() {
     renderProjectMeta();
@@ -2861,8 +2943,16 @@
 
   els.list.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-action]");
+    if (!button) return;
+
+    if (button.dataset.action === "focus-category") {
+      const group = event.target.closest(".timeline-category-shell");
+      if (group) focusCategory(group.dataset.categoryId);
+      return;
+    }
+
     const itemElement = event.target.closest(".timeline-item");
-    if (!button || !itemElement) return;
+    if (!itemElement) return;
     if (button.dataset.action === "focus-item") {
       setBrowserSurfaceOpen(false);
       timelineView?.focusItem(itemElement.dataset.id);
@@ -2941,6 +3031,12 @@
     if (button.dataset.action === "delete-story") removeStory(card.dataset.id);
   });
 
+  els.browserStoryList?.addEventListener("click", (event) => {
+    const card = event.target.closest(".browser-story-card[data-id]");
+    if (!card) return;
+    focusStory(card.dataset.id);
+  });
+
   els.categoryForm.addEventListener("submit", (event) => {
     event.preventDefault();
     setError(els.categoryFormError);
@@ -2968,6 +3064,7 @@
       showStatus("Category updated.");
     } else {
       state.categories.push(category);
+      ui.collapsedCategoryIds.add(category.id);
       showStatus("Category added.");
     }
     persist();
@@ -3095,6 +3192,7 @@
     if ((state.items.length || state.stories.length) && !window.confirm("Replace the current timeline with the example dataset?")) return;
     timelineView?.closeFocus();
     state = normalizeTimeline(clone(SAMPLE));
+    collapseAllCategories();
     ui.search = "";
     ui.categoryFilter = "all";
     ui.activeStoryId = null;
@@ -3112,6 +3210,7 @@
 
   function applyImportedTimeline(imported, statusPrefix = "Imported", warningCount = 0) {
     state = normalizeTimeline(imported);
+    collapseAllCategories();
     ui.search = "";
     ui.categoryFilter = "all";
     ui.activeStoryId = null;
@@ -3202,6 +3301,7 @@
     if ((state.items.length || state.stories.length || state.title) && !window.confirm("Clear this timeline? This removes its locally stored items and stories.")) return;
     timelineView?.closeFocus();
     state = blankTimeline();
+    collapseAllCategories();
     ui.search = "";
     ui.categoryFilter = "all";
     ui.activeStoryId = null;
