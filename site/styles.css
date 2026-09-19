@@ -759,7 +759,7 @@ geolocation {
 .timeline-card p { margin: .55rem 0 0; color: var(--muted); line-height: 1.55; white-space: pre-wrap; font-size: .86rem; }
 .card-actions { display: flex; flex: 0 0 auto; gap: .15rem; }
 .card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: .75rem; }
-.category, .kind-badge, .story-step, .story-membership, .location-badge {
+.category, .kind-badge, .story-step, .story-membership, .location-badge, .evidence-count-badge {
   display: inline-flex;
   align-items: center;
   min-height: 22px;
@@ -776,8 +776,10 @@ geolocation {
 .kind-badge { background: var(--paper-2); }
 .story-step { border-color: color-mix(in srgb, var(--story) 35%, var(--line)); color: var(--story); }
 .story-membership,
-.location-badge { text-transform: none; letter-spacing: 0; font-weight: 700; }
+.location-badge,
+.evidence-count-badge { text-transform: none; letter-spacing: 0; font-weight: 700; }
 .location-badge::before { content: "⌖"; margin-right: .28rem; }
+.evidence-count-badge::before { content: "▣"; margin-right: .28rem; }
 .range-end { color: var(--muted); }
 
 .status {
