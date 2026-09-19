@@ -117,12 +117,28 @@
     return { lat, lng };
   }
 
-  function semanticMarkerIcon(L, iconName, color) {
+  function semanticMarkerIcon(L, iconName, color, label = "") {
+    const identity = document.createElement("span");
+    identity.className = "timeline-map-marker-identity";
+    identity.style.setProperty("--map-marker-color", String(color));
+
+    const shell = document.createElement("span");
+    shell.className = "timeline-map-marker-shell";
     const icon = globalThis.TimelinePresentation?.createIcon?.(iconName || "place", { size: 18 });
-    const iconMarkup = icon?.outerHTML || "";
+    if (icon) shell.append(icon);
+    else shell.textContent = "•";
+    identity.append(shell);
+
+    if (label) {
+      const copy = document.createElement("span");
+      copy.className = "timeline-map-marker-label";
+      copy.textContent = label;
+      identity.append(copy);
+    }
+
     return L.divIcon({
       className: "timeline-map-marker",
-      html: `<span class="timeline-map-marker-shell" style="--map-marker-color:${String(color)}">${iconMarkup}</span>`,
+      html: identity.outerHTML,
       iconSize: [32, 32],
       iconAnchor: [16, 16]
     });
@@ -144,7 +160,7 @@
       this.interactive = options.interactive === true;
       this.countryContextIntro = options.countryContextIntro === true;
       this.map = null;
-      this.placeIdentity = null;
+      this.placePlaceholder = null;
       this.layers = [];
       this.destroyed = false;
       this.introInProgress = false;
@@ -155,12 +171,12 @@
       this.ready = this.render();
     }
 
-    renderPlaceIdentity() {
-      if (!this.container || this.placeIdentity) return;
-      const identity = document.createElement("div");
-      identity.className = "timeline-map-place-identity";
-      identity.style.setProperty("--map-marker-color", this.color);
-      identity.setAttribute("aria-hidden", "true");
+    renderPlacePlaceholder() {
+      if (!this.container || this.placePlaceholder) return;
+      const placeholder = document.createElement("div");
+      placeholder.className = "timeline-map-place-placeholder";
+      placeholder.style.setProperty("--map-marker-color", this.color);
+      placeholder.setAttribute("aria-hidden", "true");
 
       const iconShell = document.createElement("span");
       iconShell.className = "timeline-map-place-icon";
@@ -172,16 +188,21 @@
       label.className = "timeline-map-place-label";
       label.textContent = this.label;
 
-      identity.append(iconShell, label);
-      this.container.append(identity);
-      this.placeIdentity = identity;
+      placeholder.append(iconShell, label);
+      this.container.append(placeholder);
+      this.placePlaceholder = placeholder;
+    }
+
+    clearPlacePlaceholder() {
+      this.placePlaceholder?.remove();
+      this.placePlaceholder = null;
     }
 
     async render() {
       const objects = geoJsonObjects(this.location);
       if (!this.container || objects.length === 0) return;
       this.container.setAttribute("aria-label", this.label);
-      this.renderPlaceIdentity();
+      this.renderPlacePlaceholder();
 
       try {
         const L = await loadLeaflet();
@@ -211,27 +232,39 @@
           attribution: this.provider.attribution || DEFAULT_PROVIDER.attribution
         }).addTo(this.map);
 
-        const icon = semanticMarkerIcon(L, this.iconName, this.color);
-        const geoJsonOptions = {
+        const baseGeoJsonOptions = {
           style: () => ({
             color: this.color,
             weight: 3,
             opacity: 0.9,
             fillColor: this.color,
             fillOpacity: 0.12
-          }),
-          pointToLayer: (_feature, latlng) => L.marker(latlng, {
-            icon,
-            interactive: this.interactive,
-            keyboard: this.interactive,
-            title: this.location?.name || this.location?.geographicIdentifier || "Event location"
           })
         };
 
-        for (const object of objects) {
-          const layer = L.geoJSON(object, geoJsonOptions).addTo(this.map);
+        for (const [index, object] of objects.entries()) {
+          const isPrimaryPlacePoint =
+            index === 0 &&
+            this.location?.geometry?.type === "Point";
+          const markerIcon = semanticMarkerIcon(
+            L,
+            this.iconName,
+            this.color,
+            isPrimaryPlacePoint ? this.label : ""
+          );
+          const layer = L.geoJSON(object, {
+            ...baseGeoJsonOptions,
+            pointToLayer: (_feature, latlng) => L.marker(latlng, {
+              icon: markerIcon,
+              interactive: this.interactive,
+              keyboard: this.interactive,
+              title: isPrimaryPlacePoint ? this.label : "Map feature"
+            })
+          }).addTo(this.map);
           this.layers.push(layer);
         }
+
+        this.clearPlacePlaceholder();
 
         const point = pointCoordinates(this.location);
         const accuracy = Number(this.location?.accuracyMeters ?? this.location?.accuracy);
@@ -255,12 +288,12 @@
       } catch (error) {
         if (!this.destroyed && this.container) {
           this.container.dataset.error = "true";
-          this.placeIdentity?.classList.add("is-error");
-          if (this.placeIdentity && !this.placeIdentity.querySelector(".timeline-map-place-status")) {
+          this.placePlaceholder?.classList.add("is-error");
+          if (this.placePlaceholder && !this.placePlaceholder.querySelector(".timeline-map-place-status")) {
             const status = document.createElement("small");
             status.className = "timeline-map-place-status";
             status.textContent = "Map preview unavailable";
-            this.placeIdentity.append(status);
+            this.placePlaceholder.append(status);
           }
         }
         console.warn(error);
@@ -417,6 +450,7 @@
       if (this.introTimer) globalThis.clearTimeout(this.introTimer);
       this.introTimer = 0;
       this.clearCountryContextInteractionGuard();
+      this.clearPlacePlaceholder();
       this.layers = [];
       this.map?.remove();
       this.map = null;
