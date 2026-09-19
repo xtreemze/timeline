@@ -184,20 +184,22 @@ test("Escape exits fullscreen before focused-event back navigation", async () =>
   assert.match(source, /presentationIsFullscreen\(\)[\s\S]*meta\.event\?\.key === "Escape"[\s\S]*return false/);
 });
 
-test("mobile fullscreen presentation remains a bounded multi-surface dashboard", async () => {
-  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+test("mobile fullscreen keeps the timeline in the first 75 percent and contextual surfaces in the final quarter", async () => {
+  const [styles, timelineCss] = await Promise.all([
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
 
-  assert.match(css, /Mobile fullscreen presentation/);
-  assert.match(css, /block-size:\s*100dvh/);
-  assert.match(css, /safe-area-inset-top/);
-  assert.match(css, /presentation-stage:fullscreen\[data-stage-shape\]\[data-timeline-orientation\][\s\S]*grid-template-rows/);
-  assert.match(css, /timeline-focus-view[\s\S]*grid-template-columns:[^;]*1\.35fr/);
-  assert.match(css, /timeline-focus-hero[\s\S]*grid-row:\s*1\s*\/\s*-1/);
-  assert.match(css, /timeline-focus-summary[\s\S]*grid-column:\s*2/);
-  assert.match(css, /timeline-focus-place[\s\S]*grid-column:\s*2/);
-  assert.match(css, /temporal-graph-detail\s*\{[\s\S]*display:\s*none/);
-  assert.match(css, /orientation:\s*landscape[\s\S]*grid-template-columns:[^;]*62fr/);
-  assert.match(css, /timeline-view-toolbar[\s\S]*overflow-x:\s*auto/);
+  assert.match(styles, /block-size:\s*100dvh/);
+  assert.match(styles, /safe-area-inset-top/);
+  assert.match(timelineCss, /Final fullscreen composition guard/);
+  assert.match(timelineCss, /grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(timelineCss, /data-has-context-graph="true"[\s\S]*grid-column:\s*1\s*\/\s*span 9/);
+  assert.match(timelineCss, /graph-lens:not\(\[hidden\]\)[\s\S]*grid-column:\s*10\s*\/\s*-1/);
+  assert.match(timelineCss, /orientation:\s*portrait[\s\S]*grid-template-rows:\s*minmax\(0,\s*3fr\)\s*minmax\(0,\s*1fr\)/);
+  assert.match(timelineCss, /data-has-context-graph="true"\]\[data-has-context-map="true"[\s\S]*grid-column:\s*1\s*\/\s*span 6/);
+  assert.match(timelineCss, /data-has-context-graph="true"\]\[data-has-context-map="true"[\s\S]*grid-column:\s*7\s*\/\s*-1/);
+  assert.match(timelineCss, /timeline-view-toolbar[\s\S]*overflow-x:\s*auto/);
 });
 
 
