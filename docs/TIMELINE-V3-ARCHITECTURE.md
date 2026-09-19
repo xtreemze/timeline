@@ -372,7 +372,7 @@ Timed relationships are first-class temporal graph edges. A relationship MAY car
 
 Timeline now exposes node and edge authoring directly. Nodes are subject/noun records with a type and arbitrary properties. Directed edges use an action/predicate label, subject and object endpoints, arbitrary properties, and an optional temporal extent. Endpoints may refer to entities, chronology items, or stories, which lets graph topology and chronology remain linked without copying records.
 
-The built-in SVG graph lens consumes the same canonical data and changes edge emphasis as the timeline viewport moves. For a future large-scale Memgraph Orb integration, Timeline's adapter emits Orb's node/edge contract while retaining temporal extent in edge properties. Use a bundled/npm integration with worker-backed simulation for large graphs; do not use Orb's direct-link mode for the scale target because that mode runs simulation on the main thread.
+The graph lens consumes the same canonical data and changes edge emphasis as the timeline viewport moves. Timeline bundles Memgraph Orb through npm so force simulation uses its worker-backed path rather than the direct-link main-thread fallback. Dense graphs can switch to WebGL rendering and GPU force without changing canonical records.
 
 Add optional analytical overlays as separate records:
 - hypothesis;
@@ -446,3 +446,15 @@ Focused-event presentation is canonical-content / derived-layout:
 - `editorial-mosaic`: narrative copy leads and media occupies an asymmetric opposite field.
 
 The variant is stored under `item.presentation.variant`. The content and evidence model do not change between variants.
+
+## Focus composition grid
+
+Focused event presentation uses the 12-column system as a composition constraint rather than a generic equal-column dashboard.
+
+- common lower row: columns 1–3 place/context, 4–6 relation summary and event-driven changes, 7–12 interactive local node graph;
+- following row: evidence across all 12 columns;
+- hero split: eight-column visual field, one breathing column, three-column facts;
+- evidence dossier: five-column hero with evidence dominant in the upper reading field;
+- editorial mosaic: four-column copy field opposite an eight-column media field.
+
+Hero titles use container-relative `cqi` sizing rather than viewport width. Cap/alphabetic `text-box` trimming is not used on the hero heading because display-face glyph bounds can be clipped. The heading retains block padding, balanced wrapping, and break-word protection for unusually long identifiers.

@@ -89,6 +89,8 @@
     itemMediaRows: [...document.querySelectorAll("[data-media-slot]")],
     itemTagsDetails: document.querySelector("#item-tags-details"),
     itemTagRows: [...document.querySelectorAll("[data-tag-slot]")],
+    itemRelationChangesDetails: document.querySelector("#item-relation-changes-details"),
+    itemRelationChangeRows: [...document.querySelectorAll("[data-relation-change-slot]")],
     itemEvidenceDetails: document.querySelector("#item-evidence-details"),
     itemEvidenceRows: [...document.querySelectorAll("[data-evidence-slot]")],
     itemLocationDetails: document.querySelector("#item-location-details"),
@@ -133,6 +135,7 @@
     graphNodeId: document.querySelector("#graph-node-id"),
     graphNodeName: document.querySelector("#graph-node-name"),
     graphNodeType: document.querySelector("#graph-node-type"),
+    graphNodeIdentifiers: document.querySelector("#graph-node-identifiers"),
     graphNodeProperties: document.querySelector("#graph-node-properties"),
     graphNodeError: document.querySelector("#graph-node-error"),
     saveGraphNode: document.querySelector("#save-graph-node"),
@@ -145,6 +148,7 @@
     graphEdgePredicate: document.querySelector("#graph-edge-predicate"),
     graphEdgeObject: document.querySelector("#graph-edge-object"),
     graphEdgeRole: document.querySelector("#graph-edge-role"),
+    graphEdgeInitialState: document.querySelector("#graph-edge-initial-state"),
     graphEdgeProperties: document.querySelector("#graph-edge-properties"),
     graphEdgeTimeKind: document.querySelector("#graph-edge-time-kind"),
     graphEdgeDateField: document.querySelector("#graph-edge-date-field"),
@@ -262,6 +266,19 @@
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       throw new Error(`${label} must be a JSON object.`);
     }
+    return parsed;
+  }
+
+  function parseJsonArray(value, label = "Identifiers") {
+    const source = String(value || "").trim();
+    if (!source) return [];
+    let parsed;
+    try {
+      parsed = JSON.parse(source);
+    } catch {
+      throw new Error(`${label} must be valid JSON.`);
+    }
+    if (!Array.isArray(parsed)) throw new Error(`${label} must be a JSON array.`);
     return parsed;
   }
 
@@ -435,6 +452,7 @@
         ? raw.presentation.variant
         : "hero-split";
       item.presentation = { variant };
+      item.relationChanges = graph.normalizeRelationChanges(raw.relationChanges);
       item.evidenceIds = (Array.isArray(raw.evidenceIds) ? raw.evidenceIds : [])
         .filter((id) => typeof id === "string" && evidenceIds.has(id))
         .slice(0, 12);
@@ -482,6 +500,12 @@
         graphEndpointIds.has(relationship.subjectId) &&
         graphEndpointIds.has(relationship.objectId)
     );
+    const relationshipIds = new Set(graphData.relationships.map((relationship) => relationship.id));
+    for (const item of items) {
+      item.relationChanges = (item.relationChanges || []).filter(
+        (change) => relationshipIds.has(change.relationshipId)
+      );
+    }
     const normalized = {
       version: VERSION,
       title: typeof input.title === "string" ? input.title.slice(0, 120) : "",
@@ -734,8 +758,20 @@
     renderTimelineList(visible, activeStory);
 
     const storyCurrentId = activeStory?.itemIds[ui.storyCursor] || null;
+    const graphInput = {
+      entities: state.entities,
+      relationships: state.relationships,
+      items: state.items,
+      stories: state.stories
+    };
+    const relationshipById = new Map(state.relationships.map((relationship) => [relationship.id, relationship]));
+
     timelineView?.setItems(visible.map((item) => {
       const category = getCategory(item.categoryId);
+      const itemTime = temporal.sortKey(item.time?.start || item.start);
+      const eventViewport = Number.isFinite(itemTime)
+        ? { start: itemTime, end: itemTime }
+        : timelineView?.getViewport?.();
       return {
         id: item.id,
         kind: item.kind,
@@ -766,7 +802,17 @@
             subjectName: entityOrItemName(relationship.subjectId),
             objectName: entityOrItemName(relationship.objectId),
             time: relationship.time || null
-          }))
+          })),
+        relationChanges: (item.relationChanges || []).map((change) => {
+          const relationship = relationshipById.get(change.relationshipId);
+          return {
+            ...change,
+            predicate: change.predicate || relationship?.predicate || "relatedTo",
+            subjectName: relationship ? entityOrItemName(relationship.subjectId) : "",
+            objectName: relationship ? entityOrItemName(relationship.objectId) : ""
+          };
+        }),
+        graphContext: graph.neighborhoodGraph(graphInput, item.id, eventViewport, { depth: 1, limit: 28 })
       };
     }), {
       focusId: storyCurrentId,
@@ -1043,6 +1089,75 @@
     els.itemTagsDetails.open = normalized.length > 0;
   }
 
+  function relationChangeRowParts(row) {
+    return {
+      relationship: row.querySelector('select[id$="-relation"]'),
+      operation: row.querySelector('select[id$="-operation"]'),
+      predicate: row.querySelector('input[id$="-predicate"]'),
+      role: row.querySelector('input[id$="-role"]'),
+      properties: row.querySelector('textarea[id$="-properties"]')
+    };
+  }
+
+  function fillRelationChangeOptions(select, selected = "") {
+    const options = [document.createElement("option")];
+    options[0].value = "";
+    options[0].textContent = "No relation change";
+    for (const relationship of state.relationships) {
+      const option = document.createElement("option");
+      option.value = relationship.id;
+      option.textContent = `${entityOrItemName(relationship.subjectId)} —${relationship.predicate}→ ${entityOrItemName(relationship.objectId)}`;
+      options.push(option);
+    }
+    select.replaceChildren(...options);
+    select.value = options.some((option) => option.value === selected) ? selected : "";
+  }
+
+  function collectRelationChangeForm() {
+    const changes = [];
+    const seen = new Set();
+    for (const row of els.itemRelationChangeRows) {
+      const parts = relationChangeRowParts(row);
+      const relationshipId = parts.relationship.value;
+      if (!relationshipId) continue;
+      if (seen.has(relationshipId)) throw new Error("An event can define only one change per relation.");
+      seen.add(relationshipId);
+      const operation = ["activate", "deactivate", "update"].includes(parts.operation.value)
+        ? parts.operation.value
+        : "update";
+      const change = {
+        relationshipId,
+        operation,
+        predicate: "",
+        role: "",
+        properties: {}
+      };
+      if (operation === "update") {
+        change.predicate = parts.predicate.value.trim().slice(0, 120);
+        change.role = parts.role.value.trim().slice(0, 120);
+        change.properties = parseJsonObject(parts.properties.value, "Relation property patch");
+      }
+      changes.push(change);
+    }
+    const existing = getItem(els.itemId.value)?.relationChanges || [];
+    const overflow = existing.slice(els.itemRelationChangeRows.length);
+    return graph.normalizeRelationChanges([...changes, ...overflow]);
+  }
+
+  function fillRelationChangeForm(item) {
+    const changes = graph.normalizeRelationChanges(item?.relationChanges);
+    els.itemRelationChangeRows.forEach((row, index) => {
+      const parts = relationChangeRowParts(row);
+      const change = changes[index];
+      fillRelationChangeOptions(parts.relationship, change?.relationshipId || "");
+      parts.operation.value = change?.operation || "activate";
+      parts.predicate.value = change?.predicate || "";
+      parts.role.value = change?.role || "";
+      parts.properties.value = JSON.stringify(change?.properties || {}, null, 2);
+    });
+    els.itemRelationChangesDetails.open = changes.length > 0;
+  }
+
   function evidenceRowParts(row) {
     return {
       id: row.querySelector('input[type="hidden"]'),
@@ -1167,6 +1282,7 @@
     configureTemporalEndpoint("End");
     fillMediaForm([]);
     fillTagForm([]);
+    fillRelationChangeForm(null);
     fillEvidenceForm(null);
     els.itemLayoutVariant.value = "hero-split";
     resetLocationForm();
@@ -1194,6 +1310,7 @@
     els.itemDescription.value = item.description;
     fillMediaForm(item.media || []);
     fillTagForm(item.tags || []);
+    fillRelationChangeForm(item);
     fillEvidenceForm(item);
     els.itemLayoutVariant.value = item.presentation?.variant || "hero-split";
     fillLocationForm(item.location || null);
@@ -1210,11 +1327,15 @@
     const affectedStories = state.stories.filter((story) => story.itemIds.includes(id)).length;
     const suffix = affectedStories ? ` It will also be removed from ${affectedStories} ${affectedStories === 1 ? "story" : "stories"}.` : "";
     if (!window.confirm(`Delete “${item.title}”?${suffix}`)) return;
+    const removedRelationshipIds = state.relationships
+      .filter((relationship) => relationship.subjectId === id || relationship.objectId === id)
+      .map((relationship) => relationship.id);
     state.items = state.items.filter((candidate) => candidate.id !== id);
     state.stories = state.stories.map((story) => ({ ...story, itemIds: story.itemIds.filter((itemId) => itemId !== id) }));
     state.relationships = state.relationships.filter(
       (relationship) => relationship.subjectId !== id && relationship.objectId !== id
     );
+    pruneRelationChanges(removedRelationshipIds);
     if (els.itemId.value === id) resetItemForm();
     if (storyDraftIds.includes(id)) storyDraftIds = storyDraftIds.filter((itemId) => itemId !== id);
     const activeStory = getStory(ui.activeStoryId);
@@ -1301,10 +1422,14 @@
   function removeStory(id) {
     const story = getStory(id);
     if (!story || !window.confirm(`Delete story “${story.title}”? Timeline items will not be deleted.`)) return;
+    const removedRelationshipIds = state.relationships
+      .filter((relationship) => relationship.subjectId === id || relationship.objectId === id)
+      .map((relationship) => relationship.id);
     state.stories = state.stories.filter((candidate) => candidate.id !== id);
     state.relationships = state.relationships.filter(
       (relationship) => relationship.subjectId !== id && relationship.objectId !== id
     );
+    pruneRelationChanges(removedRelationshipIds);
     if (els.storyId.value === id) resetStoryForm();
     if (ui.activeStoryId === id) exitStoryFocus(false);
     persist();
@@ -1503,6 +1628,7 @@
     els.graphNodeForm.reset();
     els.graphNodeId.value = "";
     els.graphNodeType.value = "entity";
+    els.graphNodeIdentifiers.value = "[]";
     els.graphNodeProperties.value = "{}";
     els.saveGraphNode.textContent = "Add node";
     els.cancelGraphNodeEdit.hidden = true;
@@ -1516,11 +1642,23 @@
     els.graphNodeId.value = entity.id;
     els.graphNodeName.value = entity.name || entity.id;
     els.graphNodeType.value = entity.type || "entity";
+    els.graphNodeIdentifiers.value = JSON.stringify(entity.identifiers || [], null, 2);
     els.graphNodeProperties.value = JSON.stringify(entity.attributes || {}, null, 2);
     els.saveGraphNode.textContent = "Save node";
     els.cancelGraphNodeEdit.hidden = false;
     setError(els.graphNodeError);
     els.graphNodeName.focus();
+  }
+
+  function pruneRelationChanges(removedRelationshipIds) {
+    const removed = new Set(Array.from(removedRelationshipIds || [], String));
+    if (!removed.size) return;
+    state.items = state.items.map((item) => ({
+      ...item,
+      relationChanges: (item.relationChanges || []).filter(
+        (change) => !removed.has(String(change.relationshipId))
+      )
+    }));
   }
 
   function removeGraphNode(id) {
@@ -1533,10 +1671,14 @@
       ? ` ${edgeCount} connected ${edgeCount === 1 ? "edge" : "edges"} will also be removed.`
       : "";
     if (!window.confirm(`Delete node “${entity.name}”?${suffix}`)) return;
+    const removedRelationshipIds = state.relationships
+      .filter((relationship) => relationship.subjectId === id || relationship.objectId === id)
+      .map((relationship) => relationship.id);
     state.entities = state.entities.filter((candidate) => candidate.id !== id);
     state.relationships = state.relationships.filter(
       (relationship) => relationship.subjectId !== id && relationship.objectId !== id
     );
+    pruneRelationChanges(removedRelationshipIds);
     if (els.graphNodeId.value === id) resetGraphNodeForm();
     persist();
     renderAll();
@@ -1586,6 +1728,7 @@
     els.graphEdgeForm.reset();
     els.graphEdgeId.value = "";
     els.graphEdgeRole.value = "";
+    els.graphEdgeInitialState.value = "active";
     els.graphEdgeProperties.value = "{}";
     els.graphEdgeTimeKind.value = "timeless";
     graphEdgeDatePicker.setMode("event");
@@ -1640,6 +1783,7 @@
     graphEndpointOptions(els.graphEdgeObject, relationship.objectId);
     els.graphEdgePredicate.value = relationship.predicate || "relatedTo";
     els.graphEdgeRole.value = relationship.role || "";
+    els.graphEdgeInitialState.value = relationship.initialState === "inactive" ? "inactive" : "active";
     els.graphEdgeProperties.value = JSON.stringify(relationship.attributes || {}, null, 2);
     const timeKind = relationship.time?.end ? "range" : relationship.time?.start ? "event" : "timeless";
     els.graphEdgeTimeKind.value = timeKind;
@@ -1660,6 +1804,7 @@
     if (!relationship) return;
     if (!window.confirm(`Delete edge “${relationship.predicate}”?`)) return;
     state.relationships = state.relationships.filter((candidate) => candidate.id !== id);
+    pruneRelationChanges([id]);
     if (els.graphEdgeId.value === id) resetGraphEdgeForm();
     persist();
     renderAll();
@@ -1676,9 +1821,9 @@
       const title = document.createElement("strong");
       title.textContent = `${entityOrItemName(relationship.subjectId)} —${relationship.predicate}→ ${entityOrItemName(relationship.objectId)}`;
       const meta = document.createElement("span");
-      const when = relationship.time ? temporal.intervalRepresentation(relationship.time) : "timeless";
+      const when = relationship.time ? temporal.intervalRepresentation(relationship.time) : "event-driven / timeless";
       const propertyCount = Object.keys(relationship.attributes || {}).length;
-      meta.textContent = `${when} · ${propertyCount} ${propertyCount === 1 ? "property" : "properties"}`;
+      meta.textContent = `${relationship.initialState === "inactive" ? "initially inactive" : "initially active"} · ${when} · ${propertyCount} ${propertyCount === 1 ? "property" : "properties"}`;
       copy.append(title, meta);
       const actions = document.createElement("div");
       actions.className = "graph-record-actions";
@@ -1705,6 +1850,11 @@
     graphEndpointOptions(els.graphEdgeObject, object);
     renderGraphNodes();
     renderGraphEdges();
+    for (const row of els.itemRelationChangeRows) {
+      const parts = relationChangeRowParts(row);
+      const selected = parts.relationship.value;
+      fillRelationChangeOptions(parts.relationship, selected);
+    }
     temporalGraphView?.setModel({
       entities: state.entities,
       relationships: state.relationships,
@@ -1973,20 +2123,20 @@
       els.graphNodeName.focus();
       return;
     }
+    let identifiers;
     let attributes;
     try {
+      identifiers = parseJsonArray(els.graphNodeIdentifiers.value, "Node identifiers");
       attributes = parseJsonObject(els.graphNodeProperties.value, "Node properties");
     } catch (error) {
-      setError(els.graphNodeError, error instanceof Error ? error.message : "Check the node properties.");
-      els.graphNodeProperties.focus();
+      setError(els.graphNodeError, error instanceof Error ? error.message : "Check the node identifiers and properties.");
       return;
     }
-    const existingEntity = state.entities.find((candidate) => candidate.id === els.graphNodeId.value);
     const entity = {
       id: els.graphNodeId.value || newId("entity"),
       type: type.slice(0, 60),
       name: name.slice(0, 180),
-      identifiers: existingEntity?.identifiers ? clone(existingEntity.identifiers) : [],
+      identifiers,
       attributes
     };
     const index = state.entities.findIndex((candidate) => candidate.id === entity.id);
@@ -2055,6 +2205,7 @@
       objectId,
       predicate: predicate.slice(0, 120),
       role: els.graphEdgeRole.value.trim().slice(0, 120),
+      initialState: els.graphEdgeInitialState.value === "inactive" ? "inactive" : "active",
       time,
       attributes
     };
@@ -2119,6 +2270,7 @@
     let location = null;
     let media = [];
     let tags = [];
+    let relationChanges = [];
     let evidenceRecords = [];
     try {
       if (!els.itemStartDate.value) throw new Error("Choose a calendar date.");
@@ -2130,6 +2282,7 @@
       }
       media = collectMediaForm();
       tags = collectTagForm();
+      relationChanges = collectRelationChangeForm();
       evidenceRecords = await collectEvidenceForm();
       location = spatial.fromForm({
         name: els.itemLocationName.value,
@@ -2168,6 +2321,7 @@
         ? els.itemCategory.value
         : state.categories[0].id,
       presentation: { variant: els.itemLayoutVariant.value },
+      relationChanges,
       evidenceIds: evidenceRecords.map((record) => record.id)
     };
     if (location) item.location = location;
@@ -2364,6 +2518,21 @@
   els.graphViewRoot.addEventListener("graphstoryfocus", (event) => {
     const id = event.detail?.id;
     if (id && getStory(id)) focusStory(id);
+  });
+
+  els.graphViewRoot.addEventListener("graphentityfocus", (event) => {
+    const id = event.detail?.id;
+    if (id && state.entities.some((entity) => entity.id === id)) beginGraphNodeEdit(id);
+  });
+
+  els.graphViewRoot.addEventListener("graphedgefocus", (event) => {
+    const id = event.detail?.id;
+    if (id && state.relationships.some((relationship) => relationship.id === id)) beginGraphEdgeEdit(id);
+  });
+
+  els.timelineViewRoot.addEventListener("timelinegraphnodefocus", (event) => {
+    const id = event.detail?.id;
+    if (id && getItem(id)) timelineView?.focusItem(id);
   });
 
   els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {

@@ -420,9 +420,11 @@
   z-index: 4;
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: clamp(.8rem, 1.8vw, 1.6rem);
+  grid-auto-rows: minmax(min-content, auto);
+  align-items: start;
+  gap: clamp(.9rem, 1.7vw, 1.55rem);
   min-width: 0;
-  padding: clamp(.9rem, 2vw, 1.5rem);
+  padding: clamp(1rem, 2.2vw, 1.8rem);
   background:
     linear-gradient(140deg, color-mix(in srgb, var(--paper) 94%, transparent), var(--paper)),
     var(--paper);
@@ -431,10 +433,12 @@
 .timeline-focus-view[hidden] { display: none; }
 .timeline-focus-hero {
   position: relative;
-  grid-column: 1 / span 8;
+  grid-column: 1 / span 7;
   grid-row: 1 / span 2;
-  min-height: clamp(420px, 58vw, 690px);
-  overflow: clip;
+  min-width: 0;
+  min-height: clamp(440px, 52vw, 680px);
+  overflow: hidden;
+  container-type: inline-size;
   border-radius: 1rem;
   background: var(--ink);
   color: white;
@@ -477,13 +481,15 @@
 }
 .timeline-focus-title {
   margin: 0;
-  max-width: 12ch;
-  font-size: clamp(3rem, 8vw, 8.8rem);
+  max-inline-size: min(14ch, 100%);
+  padding-block: .08em .12em;
+  font-size: clamp(2.55rem, 9cqi, 7.25rem);
   font-weight: 820;
-  line-height: .82;
-  letter-spacing: -.075em;
+  line-height: .92;
+  letter-spacing: -.06em;
   text-wrap: balance;
-  text-box: trim-both cap alphabetic;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 .timeline-focus-time {
   margin: .3rem 0 0;
@@ -551,12 +557,17 @@
   grid-row: 2;
 }
 .timeline-focus-place {
-  grid-column: 2 / span 5;
+  grid-column: 1 / span 3;
   grid-row: 3;
 }
 .timeline-focus-relations {
+  grid-column: 4 / span 3;
+  grid-row: 3;
+}
+.timeline-focus-graph {
   grid-column: 7 / -1;
   grid-row: 3;
+  min-width: 0;
 }
 .timeline-focus-evidence {
   grid-column: 1 / -1;
@@ -614,6 +625,45 @@
   color: var(--ink);
   font-size: .78rem;
 }
+.timeline-focus-relation-changes {
+  display: grid;
+  gap: .35rem;
+  margin-top: 1rem;
+  padding-top: .8rem;
+  border-top: 1px solid var(--line);
+}
+.timeline-focus-relation-change {
+  margin: 0;
+  color: var(--ink);
+  font: 660 .72rem/1.45 "Monaspace Krypton Timeline", ui-monospace, monospace;
+}
+.timeline-focus-graph {
+  border-top-color: color-mix(in srgb, var(--story) 38%, var(--line));
+}
+.timeline-focus-graph-canvas {
+  position: relative;
+  width: 100%;
+  height: clamp(280px, 29vw, 410px);
+  min-height: 280px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: .78rem;
+  background:
+    radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--story) 7%, transparent), transparent 68%),
+    var(--paper);
+}
+.timeline-focus-graph-canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+.timeline-focus-graph-inspector {
+  min-height: 1.3em;
+  margin: .55rem 0 0;
+  color: var(--muted);
+  font: 650 .66rem/1.4 "Monaspace Krypton Timeline", ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
 .timeline-focus-actions {
   grid-column: 1 / -1;
   grid-row: 5;
@@ -665,13 +715,22 @@
   margin-top: .7rem;
 }
 
-/* Variant 1: hero split — dominant image/title with supporting right rail. */
+/* Variant 1: hero split — eight-column visual field, one-column breathing space, three-column facts. */
 .timeline-focus-view[data-layout="hero-split"] .timeline-focus-hero {
   grid-column: 1 / span 8;
 }
 .timeline-focus-view[data-layout="hero-split"] .timeline-focus-summary,
 .timeline-focus-view[data-layout="hero-split"] .timeline-focus-temporal {
-  grid-column: 9 / -1;
+  grid-column: 10 / -1;
+}
+.timeline-focus-view[data-layout="hero-split"] .timeline-focus-place {
+  grid-column: 1 / span 3;
+}
+.timeline-focus-view[data-layout="hero-split"] .timeline-focus-relations {
+  grid-column: 4 / span 3;
+}
+.timeline-focus-view[data-layout="hero-split"] .timeline-focus-graph {
+  grid-column: 7 / -1;
 }
 
 /* Variant 2: evidence dossier — narrower hero and evidence-dominant reading surface. */
@@ -698,15 +757,19 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-place {
-  grid-column: 1 / span 5;
+  grid-column: 1 / span 2;
   grid-row: 3;
 }
 .timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-relations {
-  grid-column: 1 / span 5;
-  grid-row: 4;
+  grid-column: 3 / span 3;
+  grid-row: 3;
+}
+.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-graph {
+  grid-column: 6 / -1;
+  grid-row: 3;
 }
 .timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-actions {
-  grid-row: 5;
+  grid-row: 4;
 }
 
 /* Variant 3: editorial mosaic — copy leads, media occupies the opposite asymmetric field. */
@@ -732,15 +795,23 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-place {
-  grid-column: 8 / span 2;
+  grid-column: 1 / span 3;
   grid-row: 3;
 }
 .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-relations {
-  grid-column: 10 / -1;
+  grid-column: 4 / span 3;
   grid-row: 3;
 }
-.timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-actions {
+.timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-graph {
+  grid-column: 7 / -1;
+  grid-row: 3;
+}
+.timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-evidence {
+  grid-column: 1 / -1;
   grid-row: 4;
+}
+.timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-actions {
+  grid-row: 5;
 }
 
 
@@ -803,7 +874,8 @@
   .timeline-focus-summary,
   .timeline-focus-temporal { grid-column: span 3; grid-row: auto; }
   .timeline-focus-place,
-  .timeline-focus-relations { grid-column: span 3; grid-row: auto; }
+  .timeline-focus-relations,
+  .timeline-focus-graph { grid-column: span 3; grid-row: auto; }
   .timeline-focus-actions { grid-column: 1 / -1; grid-row: auto; }
 }
 @media (max-width: 430px) {
@@ -847,6 +919,7 @@
   .timeline-focus-temporal,
   .timeline-focus-place,
   .timeline-focus-relations,
+  .timeline-focus-graph,
   .timeline-focus-actions {
     grid-column: 1;
     grid-row: auto;
@@ -868,6 +941,7 @@
   .timeline-focus-view[data-layout] .timeline-focus-temporal,
   .timeline-focus-view[data-layout] .timeline-focus-place,
   .timeline-focus-view[data-layout] .timeline-focus-relations,
+  .timeline-focus-view[data-layout] .timeline-focus-graph,
   .timeline-focus-view[data-layout] .timeline-focus-evidence,
   .timeline-focus-view[data-layout] .timeline-focus-actions {
     grid-column: 1 / -1;

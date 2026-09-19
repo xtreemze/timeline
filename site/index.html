@@ -372,6 +372,91 @@
                 <p class="field-hint">Only hue is user-selectable. Lightness/chroma and foreground contrast are controlled by the design system; icon and text remain redundant cues so meaning never depends on color alone.</p>
               </details>
 
+              <details id="item-relation-changes-details" class="optional-editor field-wide">
+                <summary>Relation changes <small>optional · event-driven graph changes</small></summary>
+                <div class="relation-change-editor">
+                  <section class="relation-change-row" data-relation-change-slot="1">
+                    <label class="field field-wide">
+                      <span>Relation 1</span>
+                      <select id="item-relation-change-1-relation"><option value="">No relation change</option></select>
+                    </label>
+                    <label class="field">
+                      <span>Change</span>
+                      <select id="item-relation-change-1-operation">
+                        <option value="activate">Activate relation</option>
+                        <option value="deactivate">Deactivate relation</option>
+                        <option value="update">Update label/properties</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>New action label <small>update only</small></span>
+                      <input id="item-relation-change-1-predicate" type="text" maxlength="120" autocomplete="off" placeholder="authorized, transferredTo…">
+                    </label>
+                    <label class="field">
+                      <span>New role <small>update only</small></span>
+                      <input id="item-relation-change-1-role" type="text" maxlength="120" autocomplete="off" placeholder="owner, recipient, witness…">
+                    </label>
+                    <label class="field field-wide">
+                      <span>Property patch <small>JSON object · update only</small></span>
+                      <textarea id="item-relation-change-1-properties" rows="3" spellcheck="false" placeholder='{"status":"approved"}'>{}</textarea>
+                    </label>
+                  </section>
+<section class="relation-change-row" data-relation-change-slot="2">
+                    <label class="field field-wide">
+                      <span>Relation 2</span>
+                      <select id="item-relation-change-2-relation"><option value="">No relation change</option></select>
+                    </label>
+                    <label class="field">
+                      <span>Change</span>
+                      <select id="item-relation-change-2-operation">
+                        <option value="activate">Activate relation</option>
+                        <option value="deactivate">Deactivate relation</option>
+                        <option value="update">Update label/properties</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>New action label <small>update only</small></span>
+                      <input id="item-relation-change-2-predicate" type="text" maxlength="120" autocomplete="off" placeholder="authorized, transferredTo…">
+                    </label>
+                    <label class="field">
+                      <span>New role <small>update only</small></span>
+                      <input id="item-relation-change-2-role" type="text" maxlength="120" autocomplete="off" placeholder="owner, recipient, witness…">
+                    </label>
+                    <label class="field field-wide">
+                      <span>Property patch <small>JSON object · update only</small></span>
+                      <textarea id="item-relation-change-2-properties" rows="3" spellcheck="false" placeholder='{"status":"approved"}'>{}</textarea>
+                    </label>
+                  </section>
+<section class="relation-change-row" data-relation-change-slot="3">
+                    <label class="field field-wide">
+                      <span>Relation 3</span>
+                      <select id="item-relation-change-3-relation"><option value="">No relation change</option></select>
+                    </label>
+                    <label class="field">
+                      <span>Change</span>
+                      <select id="item-relation-change-3-operation">
+                        <option value="activate">Activate relation</option>
+                        <option value="deactivate">Deactivate relation</option>
+                        <option value="update">Update label/properties</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>New action label <small>update only</small></span>
+                      <input id="item-relation-change-3-predicate" type="text" maxlength="120" autocomplete="off" placeholder="authorized, transferredTo…">
+                    </label>
+                    <label class="field">
+                      <span>New role <small>update only</small></span>
+                      <input id="item-relation-change-3-role" type="text" maxlength="120" autocomplete="off" placeholder="owner, recipient, witness…">
+                    </label>
+                    <label class="field field-wide">
+                      <span>Property patch <small>JSON object · update only</small></span>
+                      <textarea id="item-relation-change-3-properties" rows="3" spellcheck="false" placeholder='{"status":"approved"}'>{}</textarea>
+                    </label>
+                  </section>
+                </div>
+                <p class="field-hint">The event timestamp is the effective time of each change. Activate/deactivate changes relation existence; Update changes the edge action label, role, or properties from this event onward.</p>
+              </details>
+
               <details id="item-evidence-details" class="optional-editor field-wide">
                 <summary>Evidence and proof <small>optional · up to 3 references</small></summary>
                 <div class="evidence-editor">
@@ -624,6 +709,10 @@
               <input id="graph-node-type" type="text" maxlength="60" autocomplete="off" placeholder="person, organization, account…" value="entity">
             </label>
             <label class="field">
+              <span>Identifiers <small>JSON array</small></span>
+              <textarea id="graph-node-identifiers" rows="4" spellcheck="false" placeholder='[{"scheme":"case-id","value":"P-17"}]'>[]</textarea>
+            </label>
+            <label class="field">
               <span>Properties <small>JSON object</small></span>
               <textarea id="graph-node-properties" rows="5" spellcheck="false" placeholder='{"role":"investigator","caseId":"A-42"}'>{}</textarea>
             </label>
@@ -654,6 +743,13 @@
             <label class="field">
               <span>Role <small>optional</small></span>
               <input id="graph-edge-role" type="text" maxlength="120" autocomplete="off" placeholder="approver, recipient, witness…">
+            </label>
+            <label class="field">
+              <span>Initial state</span>
+              <select id="graph-edge-initial-state">
+                <option value="active">Active</option>
+                <option value="inactive">Inactive until an event activates it</option>
+              </select>
             </label>
             <label class="field">
               <span>Properties <small>JSON object</small></span>
@@ -784,7 +880,7 @@
               <span data-graph-window>All time</span>
               <button id="graph-reset-view" class="button ghost compact-button" type="button">Reset graph view</button>
             </div>
-            <svg class="temporal-graph-canvas" viewBox="0 0 1000 620" role="img" aria-label="Node and edge graph synchronized to the visible timeline window"></svg>
+            <div class="temporal-graph-canvas" role="application" aria-label="Node and edge graph synchronized to the visible timeline window"></div>
             <aside class="temporal-graph-detail" data-graph-detail aria-live="polite">
               <span>Select a node or edge to inspect its properties.</span>
             </aside>
@@ -825,6 +921,7 @@
   <script src="./timeline-clustering.js" defer></script>
   <script src="./timeline-motion.js" defer></script>
   <script src="./timeline-graph.js" defer></script>
+  <script src="./orb-graph.bundle.js" defer></script>
   <script src="./temporal-graph-view.js" defer></script>
   <script src="./timeline-navigation.js" defer></script>
   <script src="./timeline-view.js" defer></script>

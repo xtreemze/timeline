@@ -223,6 +223,25 @@ The action label is stored in `predicate`. Endpoints can reference reusable enti
 - selecting a chronology-item node can focus the corresponding timeline event;
 - wheel zoom and background drag manipulate the graph view without changing graph data.
 
-This lens is deliberately not the scale endpoint. It exists to make the model authorable and to validate timeline↔graph synchronization while the app remains static and dependency-free.
+The authoring lens now uses the scale path directly. `@memgraph/orb` is bundled through esbuild, preserving its worker-backed CPU force simulation. Canvas is the default renderer; dense graphs switch to WebGL when WebGL2 is available, and very large graphs can enable Orb's GPU force path.
 
-For high node/edge counts, issue #16 remains the performance path: consume the same canonical graph through `TimelineGraph.toOrbGraph()`, use a bundled worker-backed simulation, and move dense rendering to Canvas/WebGL. Memgraph's published Orb architecture separates data, simulation/view, and events and supports worker-backed force simulation in bundled integrations, which matches this division of responsibilities.
+Temporal navigation does not restart force simulation. Timeline compares a topology signature (node IDs plus edge endpoints): topology changes call Orb data setup and simulate, while timeline-window changes update effective edge data/styles and render without restarting physics.
+
+Current implementation thresholds are: below 1,200 nodes Canvas + worker CPU force; 1,200–2,999 nodes WebGL + worker CPU force when available; 3,000+ nodes WebGL + GPU force when available. These thresholds are presentation policy, not canonical data.
+
+## Event-driven relation lifecycle
+
+A relation can exist independently of a chronology event, while events can change its state without rewriting prior history.
+
+- `relationships[].initialState` is `active` by default and can be `inactive`.
+- `item.relationChanges[]` references an existing relationship.
+- `activate` makes that edge active from the event timestamp.
+- `deactivate` makes it inactive from the event timestamp.
+- `update` can change the effective action label, role, and/or merge a property patch from the event timestamp.
+- changes are replayed in canonical event-time order to derive edge state for the current timeline window.
+
+The focused-event graph includes derived event-to-context links labelled **activates**, **deactivates**, or **updates**, while the canonical subject-to-object edge remains the actual relation. This keeps the event that changed the relation visible without incorrectly turning the relation itself into a node.
+
+## Focused graph integration
+
+Each focused chronology event receives a bounded one-hop graph neighborhood. The graph occupies columns 7–12 in the common lower 12-column composition, beside place and textual relation context. It uses the same Orb bridge as the full graph, so node selection can navigate to connected events and edge selection can expose relation details.

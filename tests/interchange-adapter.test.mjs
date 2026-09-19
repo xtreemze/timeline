@@ -75,7 +75,8 @@ test("exports event/period/group structures and round-trips source extensions", 
     id: "rel-a",
     subjectId: "person-a",
     objectId: "ext-e1",
-    predicate: "participant"
+    predicate: "participant",
+    initialState: "inactive"
   }];
   imported.timeline.items[0].media = [{
     src: "https://example.test/photo.jpg",
@@ -88,6 +89,13 @@ test("exports event/period/group structures and round-trips source extensions", 
     hue: 145
   }];
   imported.timeline.items[0].presentation = { variant: "evidence-dossier" };
+  imported.timeline.items[0].relationChanges = [{
+    relationshipId: "rel-a",
+    operation: "update",
+    predicate: "authorized",
+    role: "approver",
+    properties: { status: "approved" }
+  }];
   imported.timeline.items[0].evidenceIds = ["evidence-a"];
   imported.timeline.evidence = [{
     id: "evidence-a",
@@ -119,6 +127,8 @@ test("exports event/period/group structures and round-trips source extensions", 
   assert.equal(exported.events[0].media[0].url, "https://example.test/photo.jpg");
   assert.equal(exported.events[0].tags[0].icon, "evidence");
   assert.equal(exported.events[0].presentation.variant, "evidence-dossier");
+  assert.equal(exported.events[0].relationChanges[0].operation, "update");
+  assert.equal(exported._timeline.relationships[0].initialState, "inactive");
   assert.deepEqual(exported.events[0].evidenceIds, ["evidence-a"]);
 
   const reimported = adapter.importData(exported);
@@ -128,6 +138,8 @@ test("exports event/period/group structures and round-trips source extensions", 
   assert.equal(reimported.timeline.items[0].media[0].url, "https://example.test/photo.jpg");
   assert.equal(reimported.timeline.items[0].tags[0].hue, 145);
   assert.equal(reimported.timeline.items[0].presentation.variant, "evidence-dossier");
+  assert.equal(reimported.timeline.items[0].relationChanges[0].relationshipId, "rel-a");
+  assert.equal(reimported.timeline.relationships[0].initialState, "inactive");
   assert.deepEqual(reimported.timeline.items[0].evidenceIds, ["evidence-a"]);
 });
 

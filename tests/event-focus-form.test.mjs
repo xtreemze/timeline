@@ -107,3 +107,25 @@ test("full chronology renders collapsible category groups while story order rema
   assert.match(css, /\.timeline-category-group/);
   assert.match(css, /\.timeline-category-summary/);
 });
+
+test("focused 12-column layouts reserve a first-class graph region and avoid clipped hero typography", async () => {
+  const [source, css] = await Promise.all([
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+  assert.match(source, /timeline-focus-graph/);
+  assert.match(source, /TimelineOrbGraph/);
+  assert.match(css, /\.timeline-focus-graph\s*\{/);
+  assert.match(css, /\.timeline-focus-graph-canvas/);
+  assert.match(css, /container-type:\s*inline-size/);
+  assert.match(css, /font-size:\s*clamp\(2\.55rem,\s*9cqi,\s*7\.25rem\)/);
+  assert.match(css, /overflow-wrap:\s*break-word/);
+  assert.doesNotMatch(css, /text-box:\s*trim-both cap alphabetic/);
+});
+
+test("focused layouts use intentional graph placement across all three variants", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  assert.match(css, /data-layout="hero-split"[\s\S]*timeline-focus-graph/);
+  assert.match(css, /data-layout="evidence-dossier"[\s\S]*timeline-focus-graph/);
+  assert.match(css, /data-layout="editorial-mosaic"[\s\S]*timeline-focus-graph/);
+});

@@ -5,6 +5,7 @@
   const clustering = globalThis.TimelineClustering;
   const motion = globalThis.TimelineMotion;
   const presentation = globalThis.TimelinePresentation;
+  const orbGraphFactory = globalThis.TimelineOrbGraph;
   if (!scale) throw new Error("TimelineScale must load before TimelineView.");
   if (!clustering) throw new Error("TimelineClustering must load before TimelineView.");
   if (!motion) throw new Error("TimelineMotion must load before TimelineView.");
@@ -97,6 +98,7 @@
       this.focusMediaIndex = 0;
       this.focusId = null;
       this.focusForceUnique = false;
+      this.focusGraph = null;
       this.preferences = loadPreferences();
       this.orientation = this.preferences.orientation;
       this.drag = null;
@@ -913,6 +915,10 @@
       return this.selectedId;
     }
 
+    getViewport() {
+      return this.viewport ? { ...this.viewport } : null;
+    }
+
     focusAdjacent(delta, options = {}) {
       if (!this.items.length) return false;
       const wrap = Boolean(options.wrap);
@@ -1033,6 +1039,8 @@
     }
 
     renderFocus(item) {
+      this.focusGraph?.destroy?.();
+      this.focusGraph = null;
       this.focusView.tabIndex = -1;
       this.focusView.style.setProperty("--event-color", item.color || "var(--accent)");
       this.focusView.dataset.layout = item.layoutVariant || "hero-split";
@@ -1107,6 +1115,58 @@
         relations.append(list);
       } else {
         relations.append(createElement("p", "timeline-focus-muted", "No relationships attached."));
+      }
+
+      if (item.relationChanges?.length) {
+        const changes = createElement("div", "timeline-focus-relation-changes");
+        changes.append(createElement("p", "timeline-focus-kicker", "Changed by this event"));
+        for (const change of item.relationChanges) {
+          const row = createElement("p", "timeline-focus-relation-change");
+          const relationText = change.subjectName && change.objectName
+            ? `${change.subjectName} —${change.predicate || "relatedTo"}→ ${change.objectName}`
+            : change.relationshipId;
+          row.textContent =
+            change.operation === "activate" ? `Activates ${relationText}` :
+            change.operation === "deactivate" ? `Deactivates ${relationText}` :
+            `Updates ${relationText}`;
+          changes.append(row);
+        }
+        relations.append(changes);
+      }
+
+      const graphSection = createElement("section", "timeline-focus-section timeline-focus-graph");
+      graphSection.append(createElement("h3", "timeline-focus-section-heading", "Relation graph"));
+      const neighborhood = item.graphContext;
+      if (orbGraphFactory && neighborhood?.nodes?.length) {
+        const graphCanvas = createElement("div", "timeline-focus-graph-canvas");
+        graphCanvas.setAttribute("role", "application");
+        graphCanvas.setAttribute("aria-label", "Relations around this focused event");
+        const graphInspector = createElement(
+          "p",
+          "timeline-focus-graph-inspector",
+          `${neighborhood.nodes.length} nodes · ${neighborhood.edges.length} edges`
+        );
+        graphSection.append(graphCanvas, graphInspector);
+        requestAnimationFrame(() => {
+          if (!graphCanvas.isConnected) return;
+          this.focusGraph = orbGraphFactory.create(graphCanvas, {
+            onNodeClick: (node) => {
+              graphInspector.textContent = `${node.label} · ${node.properties?.timelineType || "entity"}`;
+              if (node.properties?.timelineType === "chronology-item" && node.id !== item.id) {
+                this.root.dispatchEvent(new CustomEvent("timelinegraphnodefocus", {
+                  bubbles: true,
+                  detail: { id: node.id }
+                }));
+              }
+            },
+            onEdgeClick: (edge) => {
+              graphInspector.textContent = `${edge.start} —${edge.label}→ ${edge.end}`;
+            }
+          });
+          this.focusGraph.setData(neighborhood);
+        });
+      } else {
+        graphSection.append(createElement("p", "timeline-focus-muted", "No graph neighborhood is associated with this event."));
       }
 
       const evidence = createElement("section", "timeline-focus-section timeline-focus-evidence");
@@ -1184,7 +1244,7 @@
       });
       actions.append(previous, next, close, edit);
 
-      this.focusView.append(hero, summary, temporal, place, relations, evidence, actions);
+      this.focusView.append(hero, summary, temporal, place, relations, graphSection, evidence, actions);
     }
 
     closeFocus() {
@@ -1192,6 +1252,8 @@
       this.selectedId = null;
       this.focusMediaIndex = 0;
       this.focusForceUnique = false;
+      this.focusGraph?.destroy?.();
+      this.focusGraph = null;
       this.root.classList.remove("is-event-focused");
       this.focusView.hidden = true;
       this.focusView.removeAttribute("style");
