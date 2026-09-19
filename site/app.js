@@ -822,7 +822,9 @@
     } catch (error) {
       console.warn("Timeline state could not be restored:", error);
     }
-    return blankTimeline();
+    // A first launch should demonstrate the complete application rather than an empty shell.
+    // Persisted current/legacy timelines still take precedence above this sample fallback.
+    return normalizeTimeline(clone(SAMPLE));
   }
 
   function persist() {
