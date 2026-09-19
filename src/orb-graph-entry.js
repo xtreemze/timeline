@@ -172,6 +172,34 @@ function create(container, handlers = {}) {
     };
   }
 
+  function forceSimulator() {
+    const simulator = orb?._simulator;
+    if (
+      simulator &&
+      typeof simulator.setSettings === "function" &&
+      typeof simulator.activateSimulation === "function"
+    ) {
+      return simulator;
+    }
+    return null;
+  }
+
+  function applyInteractionForce(alphaTarget) {
+    const layout = {
+      type: "force",
+      options: forceLayoutOptions(forceNodeCount, alphaTarget)
+    };
+    const simulator = forceSimulator();
+    if (simulator) {
+      simulator.setSettings(layout);
+      simulator.activateSimulation();
+      return;
+    }
+    // Orb does not expose simulation activation publicly in 1.0.2. Keep a
+    // compatibility fallback if the pinned internal bridge changes.
+    orb.setSettings({ layout });
+  }
+
   function clearInteractionSettleTimer() {
     if (!interactionSettleTimer) return;
     globalThis.clearTimeout(interactionSettleTimer);
@@ -180,24 +208,14 @@ function create(container, handlers = {}) {
 
   function setInteractionHeat(alphaTarget) {
     clearInteractionSettleTimer();
-    orb.setSettings({
-      layout: {
-        type: "force",
-        options: forceLayoutOptions(forceNodeCount, alphaTarget)
-      }
-    });
+    applyInteractionForce(alphaTarget);
   }
 
   function keepForceActiveAfterInteraction() {
     setInteractionHeat(RELEASE_ALPHA_TARGET);
     interactionSettleTimer = globalThis.setTimeout(() => {
       interactionSettleTimer = 0;
-      orb.setSettings({
-        layout: {
-          type: "force",
-          options: forceLayoutOptions(forceNodeCount, 0)
-        }
-      });
+      applyInteractionForce(0);
     }, INTERACTION_SETTLE_MS);
   }
 
