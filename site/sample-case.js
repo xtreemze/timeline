@@ -6,19 +6,49 @@
   "title": "Three classic tales — parallel fictional casebook",
   "categories": [
     {
-      "id": "pigs",
-      "name": "The Three Little Pigs",
+      "id": "context",
+      "name": "Background / Condition",
+      "color": "#667085"
+    },
+    {
+      "id": "movement",
+      "name": "Movement / Transition",
+      "color": "#0e7090"
+    },
+    {
+      "id": "creation",
+      "name": "Creation / Preparation",
       "color": "#b54708"
     },
     {
-      "id": "snow",
-      "name": "Snow White",
+      "id": "conflict",
+      "name": "Conflict / Threat",
+      "color": "#b42318"
+    },
+    {
+      "id": "decision",
+      "name": "Decision / Choice",
       "color": "#7a5af8"
     },
     {
-      "id": "cinderella",
-      "name": "Cinderella",
+      "id": "discovery",
+      "name": "Discovery / Information",
       "color": "#2563eb"
+    },
+    {
+      "id": "relationship",
+      "name": "Relationship / Social",
+      "color": "#027a48"
+    },
+    {
+      "id": "state-change",
+      "name": "State Change / Transformation",
+      "color": "#c11574"
+    },
+    {
+      "id": "resolution",
+      "name": "Resolution / Outcome",
+      "color": "#067647"
     }
   ],
   "evidence": [
@@ -84,7 +114,7 @@
       },
       "title": "The three pigs grow up together",
       "description": "They live with Mother Pig until they are old enough to seek homes of their own.",
-      "categoryId": "pigs",
+      "categoryId": "context",
       "location": {
         "name": "Mother Pig's Cottage",
         "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
@@ -144,7 +174,7 @@
       },
       "title": "The pigs leave home",
       "description": "Mother Pig sends her sons into the world to build homes and make their own way.",
-      "categoryId": "pigs",
+      "categoryId": "movement",
       "location": {
         "name": "Mother Pig's Cottage",
         "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
@@ -204,7 +234,7 @@
       },
       "title": "First Pig builds a straw house",
       "description": "The first pig chooses speed and builds a light house of straw.",
-      "categoryId": "pigs",
+      "categoryId": "creation",
       "location": {
         "name": "Straw House Meadow",
         "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
@@ -271,7 +301,7 @@
       },
       "title": "Second Pig builds a stick house",
       "description": "The second pig builds with sticks, trading some speed for a sturdier shelter.",
-      "categoryId": "pigs",
+      "categoryId": "creation",
       "location": {
         "name": "Stick House Grove",
         "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
@@ -346,7 +376,7 @@
       },
       "title": "Third Pig builds the brick house",
       "description": "The third pig spends much longer building with brick and mortar while his brothers finish earlier.",
-      "categoryId": "pigs",
+      "categoryId": "creation",
       "location": {
         "name": "Brick House Hill",
         "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
@@ -413,7 +443,7 @@
       },
       "title": "Wolf blows down the straw house",
       "description": "The wolf destroys the first shelter; the First Pig escapes toward his brother.",
-      "categoryId": "pigs",
+      "categoryId": "conflict",
       "location": {
         "name": "Straw House Meadow",
         "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
@@ -479,7 +509,7 @@
       },
       "title": "Wolf blows down the stick house",
       "description": "The first two pigs flee together to the completed brick house.",
-      "categoryId": "pigs",
+      "categoryId": "conflict",
       "location": {
         "name": "Stick House Grove",
         "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
@@ -547,7 +577,7 @@
       },
       "title": "The brick house withstands the wolf",
       "description": "Repeated attempts to blow down the brick house fail and the pursuit becomes a siege.",
-      "categoryId": "pigs",
+      "categoryId": "conflict",
       "location": {
         "name": "Brick House Hill",
         "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
@@ -617,7 +647,7 @@
       },
       "title": "Wolf tries the chimney",
       "description": "Unable to breach the walls, the wolf attempts to enter through the chimney.",
-      "categoryId": "pigs",
+      "categoryId": "conflict",
       "location": {
         "name": "Brick House Hill",
         "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
@@ -677,7 +707,7 @@
       },
       "title": "The wolf is defeated and the pigs are safe",
       "description": "The chimney attempt fails; the threat ends and the brothers remain together in the brick house.",
-      "categoryId": "pigs",
+      "categoryId": "resolution",
       "location": {
         "name": "Brick House Hill",
         "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
@@ -751,7 +781,7 @@
       },
       "title": "Snow White is born",
       "description": "Her birth establishes the long-scale prologue before the main conflict begins years later.",
-      "categoryId": "snow",
+      "categoryId": "state-change",
       "location": {
         "name": "Queen's Castle",
         "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
@@ -811,7 +841,7 @@
       },
       "title": "The mirror names Snow White the fairest",
       "description": "The Queen asks her magic mirror who is fairest; its answer shifts the Queen's jealousy toward Snow White.",
-      "categoryId": "snow",
+      "categoryId": "discovery",
       "location": {
         "name": "Queen's Castle",
         "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
@@ -871,7 +901,7 @@
       },
       "title": "The Queen orders the huntsman to kill Snow White",
       "description": "The Queen commands the huntsman to take Snow White into the forest and not return with her alive.",
-      "categoryId": "snow",
+      "categoryId": "conflict",
       "location": {
         "name": "Queen's Castle",
         "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
@@ -937,7 +967,7 @@
       },
       "title": "The huntsman spares Snow White",
       "description": "In the forest the huntsman refuses the order and tells Snow White to flee.",
-      "categoryId": "snow",
+      "categoryId": "decision",
       "location": {
         "name": "Deep Forest",
         "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
@@ -1004,7 +1034,7 @@
       },
       "title": "Snow White finds the dwarfs' cottage",
       "description": "Lost in the forest, Snow White discovers a small cottage and rests inside.",
-      "categoryId": "snow",
+      "categoryId": "discovery",
       "location": {
         "name": "Seven Dwarfs' Cottage",
         "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
@@ -1089,7 +1119,7 @@
       },
       "title": "The seven dwarfs shelter Snow White",
       "description": "The dwarfs agree that Snow White may stay if she keeps house and avoids strangers.",
-      "categoryId": "snow",
+      "categoryId": "relationship",
       "location": {
         "name": "Seven Dwarfs' Cottage",
         "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
@@ -1149,7 +1179,7 @@
       },
       "title": "The Queen learns Snow White survives",
       "description": "The mirror reveals that Snow White is alive at the dwarfs' cottage.",
-      "categoryId": "snow",
+      "categoryId": "discovery",
       "location": {
         "name": "Queen's Castle",
         "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
@@ -1217,7 +1247,7 @@
       },
       "title": "The Queen makes disguised attempts",
       "description": "The Queen repeatedly disguises herself and approaches the cottage with seemingly harmless goods.",
-      "categoryId": "snow",
+      "categoryId": "conflict",
       "location": {
         "name": "Seven Dwarfs' Cottage",
         "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
@@ -1288,7 +1318,7 @@
       },
       "title": "Snow White bites the poisoned apple",
       "description": "The Queen's poisoned apple causes Snow White to collapse into an enchanted sleep.",
-      "categoryId": "snow",
+      "categoryId": "state-change",
       "location": {
         "name": "Seven Dwarfs' Cottage",
         "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
@@ -1366,7 +1396,7 @@
       },
       "title": "The dwarfs keep vigil beside a glass coffin",
       "description": "Unable to revive her, the dwarfs place Snow White in a glass coffin in a forest clearing.",
-      "categoryId": "snow",
+      "categoryId": "relationship",
       "location": {
         "name": "Glass Coffin Clearing",
         "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
@@ -1433,7 +1463,7 @@
       },
       "title": "Snow White revives",
       "description": "The poisoned piece is dislodged and Snow White awakens.",
-      "categoryId": "snow",
+      "categoryId": "state-change",
       "location": {
         "name": "Glass Coffin Clearing",
         "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
@@ -1494,7 +1524,7 @@
       },
       "title": "Snow White's story reaches its wedding resolution",
       "description": "The Queen's threat is ended and Snow White's new life is marked by a royal wedding.",
-      "categoryId": "snow",
+      "categoryId": "resolution",
       "location": {
         "name": "Queen's Castle",
         "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
@@ -1568,7 +1598,7 @@
       },
       "title": "Cinderella's mother dies",
       "description": "The loss begins the long prologue that changes Cinderella's household.",
-      "categoryId": "cinderella",
+      "categoryId": "state-change",
       "location": {
         "name": "Cinderella's House",
         "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
@@ -1636,7 +1666,7 @@
       },
       "title": "Cinderella lives under her stepfamily's control",
       "description": "Her stepmother and stepsisters reduce her to household labor while they enjoy the family's status.",
-      "categoryId": "cinderella",
+      "categoryId": "context",
       "location": {
         "name": "Cinderella's House",
         "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
@@ -1696,7 +1726,7 @@
       },
       "title": "The royal ball invitation arrives",
       "description": "A palace invitation announces festivities at which the prince will meet the kingdom's eligible guests.",
-      "categoryId": "cinderella",
+      "categoryId": "discovery",
       "location": {
         "name": "Cinderella's House",
         "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
@@ -1763,7 +1793,7 @@
       },
       "title": "Cinderella is prevented from attending",
       "description": "Her stepfamily leaves for the palace after making her attendance impossible.",
-      "categoryId": "cinderella",
+      "categoryId": "conflict",
       "location": {
         "name": "Cinderella's House",
         "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
@@ -1823,7 +1853,7 @@
       },
       "title": "The fairy godmother transforms Cinderella's circumstances",
       "description": "A pumpkin becomes a coach, animals become attendants, and Cinderella receives formal clothes and glass slippers until midnight.",
-      "categoryId": "cinderella",
+      "categoryId": "state-change",
       "location": {
         "name": "Garden and Pumpkin Patch",
         "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
@@ -1898,7 +1928,7 @@
       },
       "title": "Cinderella attends the royal ball",
       "description": "At the palace, Cinderella and the prince spend the evening together without her stepfamily recognizing her.",
-      "categoryId": "cinderella",
+      "categoryId": "relationship",
       "location": {
         "name": "Royal Palace",
         "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
@@ -1973,7 +2003,7 @@
       },
       "title": "Cinderella returns to the palace",
       "description": "She returns for another evening and stays until the final moments before the enchantment expires.",
-      "categoryId": "cinderella",
+      "categoryId": "relationship",
       "location": {
         "name": "Royal Palace",
         "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
@@ -2040,7 +2070,7 @@
       },
       "title": "Cinderella loses a glass slipper at midnight",
       "description": "Fleeing as the enchantment ends, Cinderella leaves one glass slipper behind on the palace steps.",
-      "categoryId": "cinderella",
+      "categoryId": "state-change",
       "location": {
         "name": "Midnight Road",
         "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
@@ -2121,7 +2151,7 @@
       },
       "title": "The prince searches for the slipper's owner",
       "description": "The glass slipper is taken from household to household as a unique clue to the unknown guest.",
-      "categoryId": "cinderella",
+      "categoryId": "discovery",
       "location": {
         "name": "Midnight Road",
         "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
@@ -2181,7 +2211,7 @@
       },
       "title": "The slipper fits Cinderella",
       "description": "Cinderella is finally allowed to try the slipper; the fit identifies her as the guest from the ball.",
-      "categoryId": "cinderella",
+      "categoryId": "discovery",
       "location": {
         "name": "Cinderella's House",
         "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
@@ -2252,7 +2282,7 @@
       },
       "title": "Cinderella and the prince marry",
       "description": "The search ends, Cinderella leaves her imposed household role, and the tale closes with the royal marriage.",
-      "categoryId": "cinderella",
+      "categoryId": "resolution",
       "location": {
         "name": "Royal Palace",
         "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
