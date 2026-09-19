@@ -13,6 +13,7 @@
   const navigationFactory = globalThis.TimelineNavigation;
   const evidenceStore = globalThis.TimelineEvidence;
   const temporalGraphFactory = globalThis.TemporalGraphView;
+  const presentationLayout = globalThis.TimelinePresentationLayout;
   if (!temporal) throw new Error("TimelineTemporal must load before app.js.");
   if (!spatial) throw new Error("TimelineSpatial must load before app.js.");
   if (!graph) throw new Error("TimelineGraph must load before app.js.");
@@ -21,6 +22,7 @@
   if (!navigationFactory) throw new Error("TimelineNavigation must load before app.js.");
   if (!evidenceStore) throw new Error("TimelineEvidence must load before app.js.");
   if (!temporalGraphFactory) throw new Error("TemporalGraphView must load before app.js.");
+  if (!presentationLayout) throw new Error("TimelinePresentationLayout must load before app.js.");
 
   const DEFAULT_CATEGORIES = [
     { id: "incident", name: "Incident", color: "#b42318" },
@@ -247,18 +249,9 @@
     const rect = els.presentationStage.getBoundingClientRect();
     const width = Math.max(1, rect.width);
     const height = Math.max(1, rect.height);
-    const ratio = width / height;
-    const nextShape = presentationIsFullscreen()
-      ? ratio >= 1.15
-        ? "wide"
-        : ratio <= 0.85
-          ? "tall"
-          : "stacked"
-      : width >= 1100
-        ? "wide"
-        : ratio <= 0.85
-          ? "tall"
-          : "stacked";
+    const nextShape = presentationLayout.classifyStageShape(width, height, {
+      fullscreen: presentationIsFullscreen()
+    });
     const orientation = timelineView?.getOrientation?.() || "horizontal";
     const changed =
       els.presentationStage.dataset.stageShape !== nextShape ||
