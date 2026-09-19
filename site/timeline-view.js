@@ -1202,6 +1202,7 @@
       this.focusView.dataset.layout = item.layoutVariant || "hero-split";
       this.focusView.setAttribute("aria-labelledby", "timeline-focus-heading");
       this.focusView.replaceChildren();
+      this.focusView.dataset.activeTab = "overview";
 
       const hero = this.createFocusHero(item);
 
@@ -1378,9 +1379,48 @@
         }));
         this.closeFocus();
       });
-      actions.append(previous, next, close, edit);
+      actions.append(previous, next, edit);
+      summary.append(actions);
 
-      this.focusView.append(hero, summary, place, relations, evidence, actions);
+      const tabs = createElement("div", "timeline-focus-tabs");
+      tabs.setAttribute("role", "tablist");
+      tabs.setAttribute("aria-label", "Focused event views");
+      const overviewTab = createElement("button", "timeline-focus-tab is-active", "Overview");
+      overviewTab.type = "button";
+      overviewTab.setAttribute("role", "tab");
+      overviewTab.setAttribute("aria-selected", "true");
+      const evidenceTab = createElement("button", "timeline-focus-tab", "Evidence");
+      evidenceTab.type = "button";
+      evidenceTab.setAttribute("role", "tab");
+      evidenceTab.setAttribute("aria-selected", "false");
+      evidence.id = "timeline-focus-evidence-panel";
+      evidence.setAttribute("role", "tabpanel");
+      evidence.hidden = true;
+      close.classList.add("timeline-focus-close");
+
+      const setFocusTab = (name) => {
+        const evidenceActive = name === "evidence";
+        this.focusView.dataset.activeTab = evidenceActive ? "evidence" : "overview";
+        for (const panel of [hero, summary, place, relations]) panel.hidden = evidenceActive;
+        evidence.hidden = !evidenceActive;
+        overviewTab.classList.toggle("is-active", !evidenceActive);
+        evidenceTab.classList.toggle("is-active", evidenceActive);
+        overviewTab.setAttribute("aria-selected", String(!evidenceActive));
+        evidenceTab.setAttribute("aria-selected", String(evidenceActive));
+        if (!evidenceActive) {
+          requestAnimationFrame(() => {
+            this.root.dispatchEvent(new CustomEvent("timelinefocusrender", {
+              bubbles: true,
+              detail: { id: item.id }
+            }));
+          });
+        }
+      };
+      overviewTab.addEventListener("click", () => setFocusTab("overview"));
+      evidenceTab.addEventListener("click", () => setFocusTab("evidence"));
+      tabs.append(overviewTab, evidenceTab, close);
+
+      this.focusView.append(tabs, hero, summary, place, relations, evidence);
     }
 
     closeFocus() {
