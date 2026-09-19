@@ -1988,8 +1988,8 @@ body {
   border-radius: .85rem;
   background: color-mix(in srgb, var(--paper) 98%, transparent);
   color: var(--ink);
-  box-shadow: 0 18px 48px color-mix(in srgb, var(--ink) 16%, transparent);
-  backdrop-filter: blur(18px);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 8%, transparent);
+  backdrop-filter: blur(12px);
   overscroll-behavior: contain;
 }
 .project-menu[popover]::backdrop { background: transparent; }
@@ -2378,8 +2378,8 @@ body {
   border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
   border-radius: .8rem;
   background: color-mix(in srgb, var(--paper) 91%, transparent);
-  box-shadow: 0 12px 38px color-mix(in srgb, var(--ink) 12%, transparent);
-  backdrop-filter: blur(18px);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 7%, transparent);
+  backdrop-filter: blur(12px);
   scrollbar-width: thin;
 }
 .app-view-controls:not([hidden]) > * {
@@ -2482,8 +2482,8 @@ body {
   border: 1px solid color-mix(in srgb, var(--story) 28%, var(--line));
   border-radius: .85rem;
   background: color-mix(in srgb, var(--paper) 91%, transparent);
-  box-shadow: 0 12px 38px color-mix(in srgb, var(--ink) 13%, transparent);
-  backdrop-filter: blur(18px);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 7%, transparent);
+  backdrop-filter: blur(12px);
   transition: opacity 140ms ease, transform 140ms ease;
 }
 #app-shell .timeline-panel > .story-focus[hidden] { display: none; }
