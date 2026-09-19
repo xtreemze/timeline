@@ -813,3 +813,22 @@ test("focused popover height is content-driven and View Transition snapshots can
   assert.match(css, /@media \(min-width: 900px\) and \(min-height: 700px\)[\s\S]*data-active-tab="overview"[\s\S]*grid-template-rows:\s*auto auto/);
   assert.match(css, /::view-transition\s*\{[\s\S]*pointer-events:\s*none/);
 });
+
+
+test("focused popover chrome derives from the focused timeline event color", async () => {
+  const [source, css] = await Promise.all([
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(
+    source,
+    /this\.focusView\.style\.setProperty\("--event-color", item\.color \|\| "var\(--accent\)"\)/
+  );
+  assert.match(css, /--focus-chrome-color:\s*var\(--event-color, var\(--accent\)\)/);
+  assert.match(css, /border-color:\s*color-mix\(in srgb, var\(--focus-chrome-color\) 72%, var\(--line-strong\)\)/);
+  assert.match(css, /inset 0 3px 0 var\(--focus-chrome-color\)/);
+  assert.match(css, /\.timeline-focus-tab\.is-active[\s\S]*background:\s*var\(--focus-chrome-color\)[\s\S]*color:\s*var\(--focus-chrome-contrast\)/);
+  assert.match(css, /\.timeline-focus-close\.button\.primary[\s\S]*background:\s*var\(--focus-chrome-color\)/);
+  assert.match(css, /\.timeline-focus-section[\s\S]*border-top-color:\s*color-mix\(in srgb, var\(--focus-chrome-color\)/);
+});
