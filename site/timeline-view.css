@@ -1,4 +1,5 @@
 .timeline-view {
+  position: relative;
   margin: 1rem 0 0;
   border: 1px solid var(--line);
   border-radius: .9rem;
@@ -41,10 +42,12 @@
   text-align: right;
 }
 .timeline-surface {
+  --timeline-axis-cross: 50%;
   position: relative;
   min-width: 0;
   outline: none;
   overflow: hidden;
+  overscroll-behavior: contain;
   touch-action: pan-y;
   user-select: none;
   cursor: grab;
@@ -70,13 +73,13 @@
 .is-landscape .timeline-axis {
   left: 0;
   right: 0;
-  top: 50%;
+  top: var(--timeline-axis-cross);
   height: 1px;
 }
 .is-portrait .timeline-axis {
   top: 0;
   bottom: 0;
-  left: 50%;
+  left: var(--timeline-axis-cross);
   width: 1px;
 }
 .timeline-tick {
@@ -85,12 +88,12 @@
   font-variant-numeric: tabular-nums;
 }
 .is-landscape .timeline-tick {
-  top: calc(50% - 6px);
+  top: calc(var(--timeline-axis-cross) - 6px);
   width: 1px;
   height: 12px;
 }
 .is-portrait .timeline-tick {
-  left: calc(50% - 6px);
+  left: calc(var(--timeline-axis-cross) - 6px);
   width: 12px;
   height: 1px;
 }
@@ -117,20 +120,26 @@
   outline: 1px solid color-mix(in srgb, var(--event-color) 68%, transparent);
 }
 .is-landscape .timeline-range-segment {
-  top: calc(50% - 3px);
+  top: calc(var(--timeline-axis-cross) - 3px);
   height: 6px;
 }
 .is-portrait .timeline-range-segment {
-  left: calc(50% - 3px);
+  left: calc(var(--timeline-axis-cross) - 3px);
   width: 6px;
 }
 .timeline-event {
   --event-color: var(--accent);
   position: absolute;
   z-index: 2;
+  width: 0;
+  height: 0;
   pointer-events: none;
 }
 .timeline-event-terminal {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  top: 0;
   display: flex;
   align-items: center;
   gap: .45rem;
@@ -146,6 +155,15 @@
   cursor: pointer;
   pointer-events: auto;
   text-align: left;
+  transform: translate(-.84rem, -50%);
+  transform-origin: .84rem 50%;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+.timeline-event.label-before .timeline-event-terminal {
+  flex-direction: row-reverse;
+  text-align: right;
+  transform: translate(calc(-100% + .84rem), -50%);
+  transform-origin: calc(100% - .84rem) 50%;
 }
 .timeline-event-terminal:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--focus) 35%, transparent);
@@ -155,6 +173,9 @@
 .timeline-event.is-story-current .timeline-event-terminal {
   border-color: var(--event-color);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--event-color) 18%, transparent);
+}
+.timeline-event.is-selected .timeline-event-terminal {
+  background: color-mix(in srgb, var(--paper) 91%, var(--event-color));
 }
 .timeline-event-dot {
   width: .72rem;
@@ -184,34 +205,39 @@
 }
 .timeline-event-connector {
   position: absolute;
-  background: color-mix(in srgb, var(--event-color) 58%, var(--line));
+  z-index: 0;
+  background: color-mix(in srgb, var(--event-color) 66%, var(--line-strong));
+  pointer-events: none;
 }
-.is-landscape .timeline-event { transform: translate(-50%, -50%); }
-.is-landscape .timeline-event-connector {
-  left: 50%;
-  top: 50%;
-  width: 1px;
-  transform: translateX(-50%);
-}
-.is-landscape .timeline-event-connector:not(.toward-start) { transform: translate(-50%, -100%); }
-.is-landscape .timeline-event-connector.toward-start { top: 50%; }
-.is-portrait .timeline-event { transform: translate(-50%, -50%); }
-.is-portrait .timeline-event.align-end .timeline-event-terminal { transform: translateX(-100%); }
-.is-portrait .timeline-event-connector {
-  top: 50%;
-  left: 0;
-  height: 1px;
-}
-.is-portrait .timeline-event-connector:not(.toward-start) { transform: translateX(-100%); }
-.is-portrait .timeline-event-connector.toward-start { left: 0; }
 .timeline-detail {
+  position: absolute;
+  z-index: 20;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: .3rem 1rem;
-  padding: .85rem 1rem;
-  border-top: 1px solid var(--line);
-  background: var(--paper);
+  grid-template-columns: minmax(0, 1fr);
+  gap: .35rem;
+  width: min(340px, calc(100% - 20px));
+  max-height: 320px;
+  overflow: auto;
+  padding: .9rem;
+  border: 1px solid var(--line-strong);
+  border-radius: .78rem;
+  background: color-mix(in srgb, var(--paper) 97%, transparent);
+  box-shadow: 0 14px 38px rgba(38, 31, 23, .16);
+  opacity: 0;
+  transform: scale(.965);
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 180ms cubic-bezier(.2, .8, .2, 1);
 }
+.timeline-detail[hidden] { display: none; }
+.timeline-detail.is-open {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+.timeline-detail[data-placement="top"] { transform-origin: 50% 100%; }
+.timeline-detail[data-placement="bottom"] { transform-origin: 50% 0; }
+.timeline-detail[data-placement="left"] { transform-origin: 100% 50%; }
+.timeline-detail[data-placement="right"] { transform-origin: 0 50%; }
 .timeline-detail h3,
 .timeline-detail p { margin: 0; }
 .timeline-detail h3 {
@@ -220,26 +246,22 @@
 }
 .timeline-detail-time,
 .timeline-detail-meta {
-  grid-column: 1;
   color: var(--muted);
   font-size: .7rem;
 }
 .timeline-detail-description {
-  grid-column: 1;
   margin-top: .3rem !important;
-  max-width: 70ch;
   color: var(--muted);
   font-size: .76rem;
   line-height: 1.5;
 }
 .timeline-detail-actions {
-  grid-column: 2;
-  grid-row: 1 / span 4;
   display: flex;
   flex-wrap: wrap;
-  align-items: start;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: flex-start;
   gap: .35rem;
+  margin-top: .45rem;
 }
 .timeline-list-heading {
   margin: 1.1rem 0 .25rem;
@@ -257,14 +279,11 @@
     flex-basis: 100%;
     text-align: left;
   }
-  .timeline-detail { grid-template-columns: 1fr; }
-  .timeline-detail-actions {
-    grid-column: 1;
-    grid-row: auto;
-    justify-content: flex-start;
-    margin-top: .45rem;
-  }
   .timeline-event-terminal { max-width: 142px; }
+  .timeline-detail {
+    width: min(310px, calc(100% - 16px));
+    max-height: 280px;
+  }
 }
 @media (max-width: 430px) {
   .timeline-orientation-control .button { flex: 1 1 auto; }
@@ -275,9 +294,6 @@
   .timeline-zoom-controls .button { width: 100%; }
   .timeline-surface.is-landscape { height: 420px; }
   .timeline-surface.is-portrait { height: 720px; }
-  .is-portrait .timeline-axis { left: 42px; }
-  .is-portrait .timeline-tick { left: 36px; }
-  .is-portrait .timeline-range-segment { left: 39px; }
   .is-portrait .timeline-tick-label {
     left: 16px;
     max-width: 80px;
@@ -287,7 +303,9 @@
 }
 @media (prefers-color-scheme: dark) {
   .timeline-event-terminal { box-shadow: 0 5px 18px rgba(0, 0, 0, .16); }
+  .timeline-detail { box-shadow: 0 14px 38px rgba(0, 0, 0, .28); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .timeline-event-terminal { transition: none; }
+  .timeline-event-terminal,
+  .timeline-detail { transition: none; }
 }
