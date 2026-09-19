@@ -1537,17 +1537,15 @@
 
   els.itemStartPrecision.addEventListener("change", () => configureTemporalEndpoint("Start"));
   els.itemEndPrecision.addEventListener("change", () => configureTemporalEndpoint("End"));
-  els.itemStartDate.addEventListener("change", () => {
-    els.itemEndDate.min = els.itemStartDate.value;
-    if (els.itemKind.value === "range" && !els.itemEndDate.value) els.itemEndDate.value = els.itemStartDate.value;
-  });
 
   els.itemKind.addEventListener("change", () => {
     const isRange = els.itemKind.value === "range";
+    const startDate = els.itemStartDate.value;
+    const endDate = els.itemEndDate.value;
+    dateRangePicker.setMode(isRange ? "range" : "event");
+    dateRangePicker.setRange(startDate, isRange ? endDate : "");
     els.endField.hidden = !isRange;
-    els.itemEndDate.required = isRange;
-    if (isRange && !els.itemEndDate.value) {
-      els.itemEndDate.value = els.itemStartDate.value;
+    if (isRange && !els.itemEndDate.value && els.itemStartDate.value) {
       els.itemEndPrecision.value = els.itemStartPrecision.value;
       els.itemEndCertainty.value = els.itemStartCertainty.value;
       els.itemEndZone.value = els.itemStartZone.value;
@@ -1555,6 +1553,12 @@
       configureTemporalEndpoint("End");
     }
   });
+
+  for (const row of els.itemTagRows) {
+    const parts = tagRowParts(row);
+    parts.hue.addEventListener("input", () => updateTagHuePreview(row));
+    updateTagHuePreview(row);
+  }
 
   els.itemForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -1565,12 +1569,18 @@
     let startEndpoint;
     let endEndpoint = null;
     let location = null;
+    let media = [];
+    let tags = [];
     try {
+      if (!els.itemStartDate.value) throw new Error("Choose a calendar date.");
+      if (kind === "range" && !els.itemEndDate.value) throw new Error("Choose both dates for the range.");
       startEndpoint = endpointFromForm("Start");
       if (kind === "range") endEndpoint = endpointFromForm("End");
       if (endEndpoint && temporal.sortKey(endEndpoint) < temporal.sortKey(startEndpoint)) {
         throw new Error("The range end cannot be earlier than its start.");
       }
+      media = collectMediaForm();
+      tags = collectTagForm();
       location = spatial.fromForm({
         name: els.itemLocationName.value,
         geographicIdentifier: els.itemLocationIdentifier.value,
@@ -1581,8 +1591,8 @@
         accuracyMeters: els.itemLocationAccuracy.value
       });
     } catch (error) {
-      setError(els.itemFormError, error instanceof Error ? error.message : "Check the temporal or location values.");
-      els.itemStartDate.focus();
+      setError(els.itemFormError, error instanceof Error ? error.message : "Check the temporal, media, tag, or location values.");
+      els.itemDateRange.focus();
       return;
     }
 
@@ -1609,6 +1619,8 @@
         : state.categories[0].id
     };
     if (location) item.location = location;
+    if (media.length) item.media = media;
+    if (tags.length) item.tags = tags;
 
     const index = state.items.findIndex((candidate) => candidate.id === item.id);
     if (index >= 0) {
@@ -1621,7 +1633,7 @@
     persist();
     resetItemForm();
     renderAll();
-    els.itemStartDate.focus();
+    els.itemDateRange.focus();
   });
 
   els.cancelItemEdit.addEventListener("click", resetItemForm);
@@ -1630,6 +1642,7 @@
     const button = event.target.closest("button[data-action]");
     const itemElement = event.target.closest(".timeline-item");
     if (!button || !itemElement) return;
+    if (button.dataset.action === "focus-item") timelineView?.focusItem(itemElement.dataset.id);
     if (button.dataset.action === "edit-item") beginItemEdit(itemElement.dataset.id);
     if (button.dataset.action === "delete-item") removeItem(itemElement.dataset.id);
     if (button.dataset.action === "story-focus") {
@@ -1771,6 +1784,13 @@
   els.storyPrev.addEventListener("click", () => stepStory(-1));
   els.storyNext.addEventListener("click", () => stepStory(1));
   els.storyExit.addEventListener("click", () => exitStoryFocus());
+
+  els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
+    els.appShell.classList.toggle("is-event-focused", Boolean(event.detail?.focused));
+  });
+  els.timelineViewRoot.addEventListener("timelinefocusedit", (event) => {
+    if (event.detail?.id) beginItemEdit(event.detail.id);
+  });
 
   els.title.addEventListener("input", () => {
     state.title = els.title.value.slice(0, 120);
