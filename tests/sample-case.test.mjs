@@ -221,3 +221,91 @@ test("categories classify event semantics independently from story membership", 
     ]
   );
 });
+
+
+test("each story exposes a detailed causal sequence rather than summary-only beats", () => {
+  const expectedMinimums = new Map([
+    ["story-three-little-pigs", 16],
+    ["story-snow-white", 19],
+    ["story-cinderella", 19]
+  ]);
+  for (const story of sample.stories) {
+    const items = storyItems(story);
+    assert.ok(items.length >= expectedMinimums.get(story.id), `${story.title}: narrative depth`);
+    assert.deepEqual(
+      items.map((item) => item.extensions?.narrative?.sequence),
+      items.map((_, index) => index + 1),
+      `${story.title}: sequence numbering`
+    );
+    assert.ok(items.every((item) => item.description.length >= 80), `${story.title}: descriptions should carry causal context`);
+  }
+});
+
+test("Three Little Pigs includes material choices, escapes, regrouping and alternate-entry escalation", () => {
+  const story = sample.stories.find((candidate) => candidate.id === "story-three-little-pigs");
+  const ids = new Set(story.itemIds);
+  for (const id of [
+    "pigs-acquire-straw",
+    "pigs-acquire-sticks",
+    "pigs-acquire-bricks",
+    "pigs-first-flees",
+    "pigs-two-flee",
+    "pigs-wolf-roof"
+  ]) assert.ok(ids.has(id), id);
+  assert.ok(sample.entities.some((entity) => entity.id === "pigs-material-vendors"));
+  assert.ok(sample.relationships.some((relationship) => relationship.id === "rel-pigs-third-bricks"));
+});
+
+test("Snow White separates the disguised attacks, recoveries, apple preparation and coffin encounter", () => {
+  const story = sample.stories.find((candidate) => candidate.id === "story-snow-white");
+  const ids = new Set(story.itemIds);
+  for (const id of [
+    "snow-laces",
+    "snow-laces-recovery",
+    "snow-comb",
+    "snow-comb-recovery",
+    "snow-apple-prepared",
+    "snow-prince-arrives"
+  ]) assert.ok(ids.has(id), id);
+  for (const entityId of ["snow-laces-object", "snow-comb-object", "snow-coffin-object"]) {
+    assert.ok(sample.entities.some((entity) => entity.id === entityId), entityId);
+  }
+  assert.ok(sample.relationships.some((relationship) => relationship.id === "rel-snow-prince-coffin"));
+});
+
+test("Cinderella includes household formation, practical transformation, palace encounters, flight and slipper trials", () => {
+  const story = sample.stories.find((candidate) => candidate.id === "story-cinderella");
+  const ids = new Set(story.itemIds);
+  for (const id of [
+    "cinderella-stepfamily-arrives",
+    "cinderella-extra-chores",
+    "cinderella-coach-created",
+    "cinderella-prince-dance",
+    "cinderella-first-return",
+    "cinderella-midnight-flight",
+    "cinderella-stepsisters-try",
+    "cinderella-asks-to-try"
+  ]) assert.ok(ids.has(id), id);
+  for (const entityId of ["cinderella-father", "cinderella-pumpkin", "cinderella-gown", "cinderella-herald"]) {
+    assert.ok(sample.entities.some((entity) => entity.id === entityId), entityId);
+  }
+  assert.ok(sample.relationships.some((relationship) => relationship.id === "rel-cinderella-herald-slipper"));
+});
+
+test("detailed stories add graph and place depth without conflating categories with stories", () => {
+  assert.ok(sample.items.length >= 54);
+  assert.ok(sample.entities.length >= 39);
+  assert.ok(sample.relationships.length >= 45);
+  assert.ok(sample.relationships.filter((relationship) => relationship.time?.start?.value).length >= 30);
+
+  const storyTitles = new Set(sample.stories.map((story) => story.title));
+  for (const category of sample.categories) assert.equal(storyTitles.has(category.name), false);
+
+  const placesByStory = new Map(sample.stories.map((story) => [story.id, new Set()]));
+  for (const item of sample.items) {
+    placesByStory.get(item.extensions?.narrative?.storyId)?.add(item.location?.name);
+  }
+  for (const [storyId, places] of placesByStory) {
+    assert.ok(places.size >= 5, `${storyId}: expected richer geography`);
+  }
+});
