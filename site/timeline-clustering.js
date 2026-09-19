@@ -151,11 +151,16 @@
     let lastEnd = Number.NEGATIVE_INFINITY;
     for (const candidate of candidates) {
       const extent = Math.max(1, Number(extentFor(candidate)) || 1);
-      const start = candidate.position - extent / 2;
-      const end = candidate.position + extent / 2;
-      if (start < min || end > max) continue;
+      if (Number.isFinite(max) && max - min < extent) continue;
+      const lower = min + extent / 2;
+      const upper = Number.isFinite(max) ? max - extent / 2 : candidate.position;
+      const position = Number.isFinite(max)
+        ? Math.min(upper, Math.max(lower, candidate.position))
+        : Math.max(lower, candidate.position);
+      const start = position - extent / 2;
+      const end = position + extent / 2;
       if (start < lastEnd + gap) continue;
-      selected.push(candidate);
+      selected.push({ ...candidate, position });
       lastEnd = end;
     }
     return selected;
