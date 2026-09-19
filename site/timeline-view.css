@@ -2443,3 +2443,82 @@
     overflow: visible;
   }
 }
+
+
+/* Contextual Relations must claim real layout space.
+   This intentionally follows the overlay-first rules above so it wins their full-stage
+   !important placement. The popover stays in the complementary region while chronology
+   becomes an edge strip instead of remaining behind the graph. */
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="landscape"] {
+  --timeline-context-edge-span: clamp(112px, 24dvh, 260px);
+}
+
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="portrait"] {
+  --timeline-context-edge-span: clamp(132px, 29dvw, 320px);
+}
+
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="landscape"]:has(.timeline-focus-view[data-active-tab="overview"]) > .timeline-view {
+  position: absolute;
+  inset: auto 0 0 0;
+  grid-column: 1 / -1 !important;
+  grid-row: auto !important;
+  width: 100%;
+  height: var(--timeline-context-edge-span);
+  inline-size: 100%;
+  block-size: var(--timeline-context-edge-span);
+  max-width: none;
+  max-height: var(--timeline-context-edge-span);
+  max-inline-size: none;
+  max-block-size: var(--timeline-context-edge-span);
+  transition:
+    block-size 280ms cubic-bezier(.2, .8, .2, 1),
+    max-block-size 280ms cubic-bezier(.2, .8, .2, 1);
+}
+
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="portrait"]:has(.timeline-focus-view[data-active-tab="overview"]) > .timeline-view {
+  position: absolute;
+  inset: 0 0 0 auto;
+  grid-column: auto !important;
+  grid-row: 1 / -1 !important;
+  width: var(--timeline-context-edge-span);
+  height: 100%;
+  inline-size: var(--timeline-context-edge-span);
+  block-size: 100%;
+  max-width: var(--timeline-context-edge-span);
+  max-height: none;
+  max-inline-size: var(--timeline-context-edge-span);
+  max-block-size: none;
+  transition:
+    inline-size 280ms cubic-bezier(.2, .8, .2, 1),
+    max-inline-size 280ms cubic-bezier(.2, .8, .2, 1);
+}
+
+/* Keep the focused content and graph entirely in the space chronology yielded. */
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="landscape"]:has(.timeline-focus-view[data-active-tab="overview"])
+  .timeline-view > .timeline-focus-view:popover-open {
+  top: max(.65rem, env(safe-area-inset-top));
+  bottom: auto;
+  max-block-size: calc(100dvh - var(--timeline-context-edge-span) - 1.3rem);
+}
+
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="portrait"]:has(.timeline-focus-view[data-active-tab="overview"])
+  .timeline-view > .timeline-focus-view:popover-open {
+  --timeline-focus-left-edge: max(4.7rem, calc(env(safe-area-inset-left) + 4.2rem));
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  left: var(--timeline-focus-left-edge);
+  inline-size: min(
+    720px,
+    calc(100dvw - var(--timeline-context-edge-span) - var(--timeline-focus-left-edge) - .75rem)
+  );
+  max-inline-size: calc(100dvw - var(--timeline-context-edge-span) - var(--timeline-focus-left-edge) - .75rem);
+  max-block-size: calc(100dvh - 1.2rem);
+  transform: translateY(-50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"] > .timeline-view {
+    transition-duration: 0s;
+  }
+}

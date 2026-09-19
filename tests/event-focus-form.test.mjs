@@ -572,3 +572,36 @@ test("relations halo escapes the popover while Evidence remains bounded", async 
   assert.match(css, /data-viewport-orientation="portrait"[\s\S]*radial-gradient\(circle at 38% 50%/);
   assert.match(css, /data-viewport-orientation="landscape"[\s\S]*radial-gradient\(circle at 50% 34%/);
 });
+
+
+test("contextual relations physically docks the timeline to the viewport edge", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  const overlayRule = css.indexOf("#presentation-stage:fullscreen > .timeline-view");
+  const contextualRule = css.indexOf(
+    '#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="landscape"]:has(.timeline-focus-view[data-active-tab="overview"]) > .timeline-view'
+  );
+  assert.ok(overlayRule >= 0, "expected the legacy fullscreen full-stage rule");
+  assert.ok(contextualRule > overlayRule, "contextual graph docking must follow and override the full-stage rule");
+  assert.match(
+    css,
+    /data-viewport-orientation="landscape"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\) > \.timeline-view[\s\S]*inset:\s*auto 0 0 0[\s\S]*height:\s*var\(--timeline-context-edge-span\)/
+  );
+  assert.match(
+    css,
+    /data-viewport-orientation="portrait"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\) > \.timeline-view[\s\S]*inset:\s*0 0 0 auto[\s\S]*width:\s*var\(--timeline-context-edge-span\)/
+  );
+  assert.match(css, /--timeline-context-edge-span:\s*clamp\(112px, 24dvh, 260px\)/);
+  assert.match(css, /--timeline-context-edge-span:\s*clamp\(132px, 29dvw, 320px\)/);
+});
+
+test("focused graph popover stays inside the space yielded by chronology", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  assert.match(
+    css,
+    /data-viewport-orientation="landscape"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\)[\s\S]*timeline-focus-view:popover-open[\s\S]*max-block-size:\s*calc\(100dvh - var\(--timeline-context-edge-span\) - 1\.3rem\)/
+  );
+  assert.match(
+    css,
+    /data-viewport-orientation="portrait"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\)[\s\S]*timeline-focus-view:popover-open[\s\S]*100dvw - var\(--timeline-context-edge-span\)/
+  );
+});
