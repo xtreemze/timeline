@@ -243,18 +243,19 @@ test("timeline view exposes fused clusters, inertia, relation bands and ambient 
 });
 
 
-test("timeline terminals expose distance-legible media and semantic marker treatment", async () => {
-  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
-  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
-  assert.match(source, /timeline-event-thumbnail/);
-  assert.match(source, /timeline-event-icon-badge/);
-  assert.match(source, /timeline-cluster-thumbnail/);
-  assert.match(source, /timeline-cluster-visuals/);
-  assert.match(source, /Nearby · zoom to inspect/);
-  assert.match(css, /max-width:\s*248px/);
-  assert.match(css, /min-height:\s*56px/);
-  assert.match(css, /width:\s*2\.85rem/);
-  assert.match(css, /height:\s*10px/);
-  assert.match(css, /timeline-cluster-visuals/);
-  assert.match(css, /stroke-width:\s*2\.2/);
+test("timeline terminals use media thumbnails, semantic badges, and earlier clustering for distance legibility", async () => {
+  const [viewSource, styles] = await Promise.all([
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(viewSource, /HORIZONTAL_CLUSTER_THRESHOLD_MIN = 144/);
+  assert.match(viewSource, /VERTICAL_CLUSTER_THRESHOLD = 74/);
+  assert.match(viewSource, /timeline-event-art-image/);
+  assert.match(viewSource, /timeline-event-icon-badge/);
+  assert.match(viewSource, /timeline-cluster-tiles/);
+  assert.match(viewSource, /timeline-cluster-image/);
+  assert.match(styles, /\.timeline-event-art\s*\{/);
+  assert.match(styles, /\.timeline-cluster-tile\s*\{/);
+  assert.match(styles, /height:\s*8px/);
 });

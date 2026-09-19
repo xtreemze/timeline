@@ -18,8 +18,8 @@
   const ZOOM_RESPONSE_MS = 170;
   const WHEEL_ZOOM_SENSITIVITY = 0.00065;
   const MAX_WHEEL_EXPONENT = 0.045;
-  const HORIZONTAL_CLUSTER_THRESHOLD_MIN = 156;
-  const HORIZONTAL_CLUSTER_THRESHOLD_MAX = 224;
+  const HORIZONTAL_CLUSTER_THRESHOLD_MIN = 144;
+  const HORIZONTAL_CLUSTER_THRESHOLD_MAX = 212;
   const VERTICAL_CLUSTER_THRESHOLD = 74;
   const RELATION_LANES = 4;
 
@@ -589,34 +589,28 @@
       button.type = "button";
       button.setAttribute("aria-label", `Zoom into cluster of ${cluster.items.length} events`);
 
-      const visuals = createElement("span", "timeline-cluster-visuals");
+      const tiles = createElement("span", "timeline-cluster-tiles");
       for (const item of cluster.items.slice(0, 3)) {
-        const visual = createElement("span", "timeline-cluster-visual");
-        visual.style.setProperty("--cluster-dot-color", item.color || "var(--accent)");
-        const iconName = item.tags?.[0]?.icon || "milestone";
+        const tile = createElement("span", "timeline-cluster-tile");
+        tile.style.setProperty("--cluster-tile-color", item.color || "var(--accent)");
         const media = item.media?.[0];
         if (media?.src) {
-          visual.classList.add("has-media");
           const image = document.createElement("img");
-          image.className = "timeline-cluster-thumbnail";
+          image.className = "timeline-cluster-image";
           image.src = media.src;
           image.alt = "";
-          image.decoding = "async";
-          image.loading = "lazy";
-          visual.append(image);
-          const badge = createElement("span", "timeline-cluster-icon-badge");
-          badge.append(presentation.createIcon(iconName, { size: 16 }));
-          visual.append(badge);
+          tile.append(image);
         } else {
-          visual.append(presentation.createIcon(iconName, { size: 20 }));
+          const tag = item.tags?.[0];
+          if (tag) tile.append(presentation.createIcon(tag.icon, { size: 18 }));
         }
-        visuals.append(visual);
+        tiles.append(tile);
       }
       const copy = createElement("span", "timeline-event-copy");
       const title = createElement("strong", "", `${cluster.items.length} events`);
-      const detail = createElement("span", "", "Nearby · zoom to inspect");
+      const detail = createElement("span", "", "Fused at this zoom");
       copy.append(title, detail);
-      button.append(visuals, copy);
+      button.append(tiles, copy);
       button.addEventListener("click", (event) => {
         event.stopPropagation();
         const values = [];
@@ -639,7 +633,7 @@
         const lane = this.allocateHorizontalLane(position, occupied);
         const side = lane % 2 === 0 ? -1 : 1;
         const depth = Math.floor(lane / 2);
-        const distance = 82 + depth * 88;
+        const distance = 68 + depth * 76;
         const eventY = axisCross + side * distance;
         const segment = connectorSegment(axisCross, eventY);
         node.style.left = position + "px";
@@ -649,13 +643,13 @@
         connector.style.top = segment.offset + "px";
         connector.style.width = "2px";
         connector.style.height = Math.max(1, segment.length) + "px";
-        if (position > width - 260) node.classList.add("label-before");
+        if (position > width - 190) node.classList.add("label-before");
       } else {
         const compact = width < 560;
         const lane = compact ? 1 : cluster.items.length % 2 === 0 ? -1 : 1;
         const distance = compact
-          ? Math.min(112, Math.max(80, width * 0.24))
-          : Math.min(236, Math.max(132, width * 0.30));
+          ? Math.min(96, Math.max(68, width * 0.22))
+          : Math.min(220, Math.max(120, width * 0.28));
         const eventX = axisCross + lane * distance;
         const segment = connectorSegment(axisCross, eventX);
         node.style.left = eventX + "px";
@@ -866,31 +860,29 @@
       button.title = Number.isFinite(item.end)
         ? `${item.title} · ${item.startLabel} → ${item.endLabel}`
         : `${item.title} · ${item.startLabel}`;
-      const dot = createElement("span", "timeline-event-dot");
-      dot.setAttribute("aria-hidden", "true");
       const primaryTag = item.tags?.[0];
-      const iconName = primaryTag?.icon || "milestone";
       const media = item.media?.[0];
+      const visual = createElement("span", media?.src ? "timeline-event-art" : "timeline-event-dot");
+      visual.setAttribute("aria-hidden", "true");
       if (media?.src) {
-        dot.classList.add("has-media");
         const image = document.createElement("img");
-        image.className = "timeline-event-thumbnail";
+        image.className = "timeline-event-art-image";
         image.src = media.src;
         image.alt = "";
-        image.decoding = "async";
-        image.loading = "lazy";
-        dot.append(image);
-        const badge = createElement("span", "timeline-event-icon-badge");
-        badge.append(presentation.createIcon(iconName, { size: 18 }));
-        dot.append(badge);
-      } else {
-        dot.append(presentation.createIcon(iconName, { size: 26 }));
+        visual.append(image);
+        if (primaryTag) {
+          const badge = createElement("span", "timeline-event-icon-badge");
+          badge.append(presentation.createIcon(primaryTag.icon, { size: 18 }));
+          visual.append(badge);
+        }
+      } else if (primaryTag) {
+        visual.append(presentation.createIcon(primaryTag.icon, { size: 20 }));
       }
       const copy = createElement("span", "timeline-event-copy");
       const title = createElement("strong", "", item.title);
       const date = createElement("span", "", item.startLabel);
       copy.append(title, date);
-      button.append(dot, copy);
+      button.append(visual, copy);
       button.addEventListener("click", (event) => {
         event.stopPropagation();
         this.select(item.id);
@@ -903,7 +895,7 @@
         const lane = this.allocateHorizontalLane(position, occupied);
         const side = lane % 2 === 0 ? -1 : 1;
         const depth = Math.floor(lane / 2);
-        const distance = 82 + depth * 88;
+        const distance = 68 + depth * 76;
         const eventY = axisCross + side * distance;
         const segment = connectorSegment(axisCross, eventY);
 
@@ -915,13 +907,13 @@
         connector.style.width = "2px";
         connector.style.height = Math.max(1, segment.length) + "px";
 
-        if (position > width - 260) node.classList.add("label-before");
+        if (position > width - 190) node.classList.add("label-before");
       } else {
         const compact = width < 560;
         const lane = compact ? 1 : index % 2 === 0 ? -1 : 1;
         const distance = compact
-          ? Math.min(112, Math.max(80, width * 0.24))
-          : Math.min(236, Math.max(132, width * 0.30));
+          ? Math.min(96, Math.max(68, width * 0.22))
+          : Math.min(220, Math.max(120, width * 0.28));
         const eventX = axisCross + lane * distance;
         const segment = connectorSegment(axisCross, eventX);
 
@@ -939,7 +931,7 @@
     }
 
     allocateHorizontalLane(position, occupied) {
-      const minDistance = 252;
+      const minDistance = 184;
       for (let lane = 0; lane < 6; lane += 1) {
         const last = occupied[lane];
         if (last === undefined || Math.abs(position - last) >= minDistance) {
