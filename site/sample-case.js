@@ -30,6 +30,23 @@
     }
   };
   
+  function dayExtent(start, end = null) {
+    const endpoint = (value) => ({
+      value,
+      precision: "day",
+      certainty: "exact",
+      calendar: "gregorian",
+      timeZone: null,
+      utcOffset: null,
+      sourceText: null
+    });
+    return {
+      type: end ? "interval" : "instant",
+      start: endpoint(start),
+      end: end ? endpoint(end) : null
+    };
+  }
+
   const SAMPLE = {
     version: VERSION,
     title: "Cross-scale case reconstruction",
@@ -289,15 +306,15 @@
       { id:"r-g-group", subjectId:"person-gustav", objectId:"group-public", predicate:"memberOf" },
       { id:"r-h-group", subjectId:"person-hana", objectId:"group-public", predicate:"memberOf" },
       { id:"r-i-group", subjectId:"person-idris", objectId:"group-public", predicate:"memberOf" },
-      { id:"r-policy", subjectId:"group-organization", objectId:"evt-policy-2018", predicate:"responsibleFor" },
-      { id:"r-contract", subjectId:"group-organization", objectId:"evt-contract-2024", predicate:"participant" },
-      { id:"r-audit", subjectId:"group-investigators", objectId:"evt-audit-2025", predicate:"reviewed" },
-      { id:"r-tip", subjectId:"group-public", objectId:"evt-tip-2026", predicate:"reported" },
-      { id:"r-interviews", subjectId:"group-investigators", objectId:"evt-interviews-2026", predicate:"conducted" },
-      { id:"r-witness", subjectId:"group-public", objectId:"evt-witness-day", predicate:"participant" },
-      { id:"r-verify", subjectId:"group-public", objectId:"evt-newsroom-day", predicate:"verified" },
-      { id:"r-decision", subjectId:"group-organization", objectId:"evt-decision-day", predicate:"authorized" },
-      { id:"r-publication", subjectId:"group-public", objectId:"evt-publication-day", predicate:"published" },
+      { id:"r-policy", subjectId:"group-organization", objectId:"evt-policy-2018", predicate:"responsibleFor", time:dayExtent("2018-02-12","2021-10-08"), attributes:{ authority:"policy exception" } },
+      { id:"r-contract", subjectId:"group-organization", objectId:"evt-contract-2024", predicate:"signed", time:dayExtent("2024-03-04"), attributes:{ recordType:"procurement" } },
+      { id:"r-audit", subjectId:"group-investigators", objectId:"evt-audit-2025", predicate:"reviewed", time:dayExtent("2025-11-18"), attributes:{ stage:"audit escalation" } },
+      { id:"r-tip", subjectId:"group-public", objectId:"evt-tip-2026", predicate:"reported", time:dayExtent("2026-06-02"), attributes:{ channel:"tip" } },
+      { id:"r-interviews", subjectId:"group-investigators", objectId:"evt-interviews-2026", predicate:"conducted", time:dayExtent("2026-07-07","2026-08-26"), attributes:{ method:"interview" } },
+      { id:"r-witness", subjectId:"group-public", objectId:"evt-witness-day", predicate:"corroborated", time:dayExtent("2026-09-19"), attributes:{ sourceClass:"witness" } },
+      { id:"r-verify", subjectId:"group-public", objectId:"evt-newsroom-day", predicate:"verified", time:dayExtent("2026-09-19"), attributes:{ audience:"newsroom" } },
+      { id:"r-decision", subjectId:"group-organization", objectId:"evt-decision-day", predicate:"authorized", time:dayExtent("2026-09-19"), attributes:{ decision:"disclose" } },
+      { id:"r-publication", subjectId:"group-public", objectId:"evt-publication-day", predicate:"published", time:dayExtent("2026-09-19"), attributes:{ medium:"public report" } },
       { id:"r-story-day-i", subjectId:"group-investigators", objectId:"story-day", predicate:"participatesIn" },
       { id:"r-story-day-o", subjectId:"group-organization", objectId:"story-day", predicate:"participatesIn" },
       { id:"r-story-day-p", subjectId:"group-public", objectId:"story-day", predicate:"participatesIn" },
@@ -309,8 +326,8 @@
       { id:"r-story-reconstruction-o", subjectId:"group-organization", objectId:"story-reconstruction", predicate:"subjectOf" },
       { id:"r-story-institutional-o", subjectId:"group-organization", objectId:"story-institutional", predicate:"participatesIn" },
       { id:"r-story-institutional-p", subjectId:"group-public", objectId:"story-institutional", predicate:"observes" },
-      { id:"r-bridge", subjectId:"group-investigators", objectId:"group-organization", predicate:"investigated" },
-      { id:"r-bridge-public", subjectId:"group-investigators", objectId:"group-public", predicate:"interviewed" }
+      { id:"r-bridge", subjectId:"group-investigators", objectId:"group-organization", predicate:"investigated", time:dayExtent("2025-11-18","2026-09-30"), attributes:{ scope:"case phase" } },
+      { id:"r-bridge-public", subjectId:"group-investigators", objectId:"group-public", predicate:"interviewed", time:dayExtent("2026-07-07","2026-09-19"), attributes:{ scope:"witness programme" } }
     ]
   };
   
