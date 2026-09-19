@@ -1,7 +1,7 @@
 import { EdgeLineStyleType, NodeShapeType, OrbEventType, OrbView } from "@memgraph/orb";
 
 const LARGE_GRAPH_NODE_THRESHOLD = 1200;
-const GPU_LAYOUT_NODE_THRESHOLD = 600;
+const GPU_LAYOUT_NODE_THRESHOLD = 3000;
 
 function resolvedColor(container, name, fallback) {
   const value = getComputedStyle(container).getPropertyValue(name).trim();
@@ -208,7 +208,7 @@ function create(container, handlers = {}) {
     const sizeClass = `${wantsWebGL ? "webgl" : "canvas"}:${wantsGPU ? "gpu" : "worker"}:${nodeCount >= 400 ? "dense" : "normal"}`;
     if (sizeClass === lastSizeClass) return;
     lastSizeClass = sizeClass;
-    currentMode = wantsGPU ? "gpu-force" : "worker-cpu";
+    currentMode = wantsGPU ? "gpu-main-force" : "worker-cpu";
     orb.setRenderer(wantsWebGL ? "webgl" : "canvas");
     orb.setSettings({
       render: {
