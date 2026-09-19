@@ -460,6 +460,24 @@ Focused event presentation uses the 12-column system as a composition constraint
 
 Hero titles use container-relative `cqi` sizing rather than viewport width and deliberately become larger on focus because they are the primary identity of the selected timeline event. Cap/alphabetic `text-box` trimming is not used on the hero heading because display-face glyph bounds can be clipped. The heading retains block padding, balanced wrapping, and break-word protection for unusually long identifiers.
 
+## Application shell and information hierarchy
+
+Timeline is an application canvas, not a document page.
+
+- The timeline is the permanent viewport background and remains mounted while users search, author, inspect, or navigate.
+- Marketing/page furniture is not part of the working surface. The application bar contains only identity, the case/timeline title, compact counts on larger viewports, and access to project/file actions.
+- Project import/export/destructive actions live in a native Popover API surface rather than consuming permanent toolbar width.
+- Authoring is a native top-layer surface. On phone-sized viewports it is a bottom sheet; from tablet widths upward it becomes a right-side sheet. Opening an existing item, story, category, node, or edge routes directly to the relevant editor tab.
+- The detailed chronology/list is a separate top-layer navigation surface. It is a bottom sheet on phones and a left-side sheet on larger displays.
+- The mobile dock exposes only the high-frequency workspace destinations: Items, Stories, Graph, and List. Categories remain available inside the authoring sheet instead of consuming another permanent navigation slot.
+- Search/category filtering remains a compact translucent control over the timeline canvas. It filters chronology rather than creating another content region.
+- The global relation graph is a complementary lens and is collapsed by default. Focused Relations reuse the graph as a contextual backdrop rather than requiring a second persistent panel.
+- Top-layer surfaces close competing authoring/navigation surfaces before opening, preventing multiple sheets from covering the chronology at once.
+- The editor progressively increases from one-column forms on phones to two-column field groups on wider side sheets. Optional media, evidence, relation-change, and location inputs remain disclosure-based.
+- Printing deliberately exits the application-shell geometry and restores the chronology list to normal document flow.
+
+The information hierarchy is therefore: **timeline → selected event → contextual details → authoring/navigation tools**. No tool surface may resize the timeline or become a sibling content column.
+
 ## Responsive presentation stage
 
 The timeline view and temporal relation graph are one presentation surface even though they retain independent interaction models.
