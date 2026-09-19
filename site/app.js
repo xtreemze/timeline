@@ -1963,6 +1963,125 @@
     });
   });
 
+  els.graphNodeForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    setError(els.graphNodeError);
+    const name = els.graphNodeName.value.trim();
+    const type = els.graphNodeType.value.trim() || "entity";
+    if (!name) {
+      setError(els.graphNodeError, "A node name is required.");
+      els.graphNodeName.focus();
+      return;
+    }
+    let attributes;
+    try {
+      attributes = parseJsonObject(els.graphNodeProperties.value, "Node properties");
+    } catch (error) {
+      setError(els.graphNodeError, error instanceof Error ? error.message : "Check the node properties.");
+      els.graphNodeProperties.focus();
+      return;
+    }
+    const entity = {
+      id: els.graphNodeId.value || newId("entity"),
+      type: type.slice(0, 60),
+      name: name.slice(0, 180),
+      identifiers: [],
+      attributes
+    };
+    const index = state.entities.findIndex((candidate) => candidate.id === entity.id);
+    if (index >= 0) {
+      state.entities[index] = entity;
+      showStatus("Graph node updated.");
+    } else {
+      state.entities.push(entity);
+      showStatus("Graph node added.");
+    }
+    persist();
+    resetGraphNodeForm();
+    renderAll();
+  });
+
+  els.cancelGraphNodeEdit.addEventListener("click", resetGraphNodeForm);
+
+  els.graphNodeList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    const row = event.target.closest(".graph-record");
+    if (!button || !row) return;
+    if (button.dataset.action === "edit-graph-node") beginGraphNodeEdit(row.dataset.id);
+    if (button.dataset.action === "delete-graph-node") removeGraphNode(row.dataset.id);
+  });
+
+  els.graphEdgeTimeKind.addEventListener("change", () => {
+    const start = els.graphEdgeStartDate.value;
+    const end = els.graphEdgeEndDate.value;
+    configureGraphEdgeTime();
+    if (els.graphEdgeTimeKind.value !== "timeless") {
+      graphEdgeDatePicker.setRange(
+        start,
+        els.graphEdgeTimeKind.value === "range" ? end : ""
+      );
+    }
+  });
+
+  els.graphEdgeForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    setError(els.graphEdgeError);
+    const subjectId = els.graphEdgeSubject.value;
+    const objectId = els.graphEdgeObject.value;
+    const predicate = els.graphEdgePredicate.value.trim();
+    if (!subjectId || !objectId) {
+      setError(els.graphEdgeError, "Choose both a subject and an object.");
+      return;
+    }
+    if (!predicate) {
+      setError(els.graphEdgeError, "An action label is required.");
+      els.graphEdgePredicate.focus();
+      return;
+    }
+    let attributes;
+    let time;
+    try {
+      attributes = parseJsonObject(els.graphEdgeProperties.value, "Edge properties");
+      time = buildGraphEdgeTime();
+    } catch (error) {
+      setError(els.graphEdgeError, error instanceof Error ? error.message : "Check the edge properties and time.");
+      return;
+    }
+
+    const relationship = {
+      id: els.graphEdgeId.value || newId("relationship"),
+      subjectId,
+      objectId,
+      predicate: predicate.slice(0, 120),
+      role: els.graphEdgeRole.value.trim().slice(0, 120),
+      time,
+      attributes
+    };
+    const index = state.relationships.findIndex((candidate) => candidate.id === relationship.id);
+    if (index >= 0) {
+      state.relationships[index] = relationship;
+      showStatus("Graph edge updated.");
+    } else {
+      state.relationships.push(relationship);
+      showStatus("Graph edge added.");
+    }
+    persist();
+    resetGraphEdgeForm();
+    renderAll();
+  });
+
+  els.cancelGraphEdgeEdit.addEventListener("click", resetGraphEdgeForm);
+
+  els.graphEdgeList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    const row = event.target.closest(".graph-record");
+    if (!button || !row) return;
+    if (button.dataset.action === "edit-graph-edge") beginGraphEdgeEdit(row.dataset.id);
+    if (button.dataset.action === "delete-graph-edge") removeGraphEdge(row.dataset.id);
+  });
+
+  els.graphResetView.addEventListener("click", () => temporalGraphView?.resetView());
+
   els.itemStartPrecision.addEventListener("change", () => configureTemporalEndpoint("Start"));
   els.itemEndPrecision.addEventListener("change", () => configureTemporalEndpoint("End"));
 
@@ -2225,6 +2344,22 @@
   els.storyNext.addEventListener("click", () => stepStory(1));
   els.storyExit.addEventListener("click", () => exitStoryFocus());
 
+  els.timelineViewRoot.addEventListener("timelineviewportchange", (event) => {
+    temporalGraphView?.setWindow(event.detail?.viewport || null);
+  });
+
+  els.graphViewRoot.addEventListener("graphnodefocus", (event) => {
+    const id = event.detail?.id;
+    if (!id || !getItem(id)) return;
+    ui.search = "";
+    ui.categoryFilter = "all";
+    ui.activeStoryId = null;
+    ui.storyCursor = 0;
+    els.search.value = "";
+    renderTimeline();
+    requestAnimationFrame(() => timelineView?.focusItem(id));
+  });
+
   els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
     els.appShell.classList.toggle("is-event-focused", Boolean(event.detail?.focused));
   });
@@ -2268,6 +2403,8 @@
     resetItemForm();
     resetStoryForm();
     resetCategoryForm();
+    resetGraphNodeForm();
+    resetGraphEdgeForm();
     persist();
     renderAll();
     showStatus("Example timeline loaded.");
@@ -2283,6 +2420,8 @@
     resetItemForm();
     resetStoryForm();
     resetCategoryForm();
+    resetGraphNodeForm();
+    resetGraphEdgeForm();
     persist();
     renderAll();
     const warningText = warningCount ? ` · ${warningCount} conversion ${warningCount === 1 ? "warning" : "warnings"}` : "";
@@ -2368,6 +2507,8 @@
     resetItemForm();
     resetStoryForm();
     resetCategoryForm();
+    resetGraphNodeForm();
+    resetGraphEdgeForm();
     persist();
     renderAll();
     showStatus("Timeline cleared.");
@@ -2377,6 +2518,8 @@
   resetItemForm();
   resetStoryForm();
   resetCategoryForm();
+  resetGraphNodeForm();
+  resetGraphEdgeForm();
   setActivePanel("items");
   renderAll();
 })();
