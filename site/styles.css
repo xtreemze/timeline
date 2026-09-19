@@ -1449,3 +1449,12 @@ footer p { margin: 0; }
     min-height: 200px;
   }
 }
+
+#presentation-stage:fullscreen:has(> .presentation-map-panel[hidden]) > .graph-lens {
+  grid-row: 1 / -1;
+}
+#presentation-stage:fullscreen[data-stage-shape="stacked"]:has(> .presentation-map-panel[hidden]) > .graph-lens,
+#presentation-stage:fullscreen[data-stage-shape="tall"]:has(> .presentation-map-panel[hidden]) > .graph-lens {
+  grid-column: 1 / -1;
+  grid-row: 8 / -1;
+}
