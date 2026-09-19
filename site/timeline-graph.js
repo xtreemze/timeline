@@ -131,9 +131,7 @@
       const end = relationship.time.end ? temporal.sortKey(relationship.time.end) : start;
       if (Number.isFinite(start) && Number.isFinite(end)) {
         active = hasViewport
-          ? relationship.time.end
-            ? snapshotTime >= start && snapshotTime <= end
-            : viewport.start <= start && start <= viewport.end
+          ? end >= viewport.start && start <= viewport.end
           : true;
       }
     }
@@ -254,7 +252,9 @@
     const stories = Array.isArray(input?.stories) ? input.stories : [];
     const graphData = toOrbGraph({ entities, relationships, items, stories });
     const states = new Map();
-    const relationshipById = new Map(relationships.map((relationship) => [String(relationship.id), relationship]));
+    const relationshipById = new Map(
+      relationships.map((relationship) => [String(relationship.id), relationship])
+    );
     const changesByRelationship = relationChangeIndex(input, temporal);
 
     for (const relationship of relationships) {
@@ -268,34 +268,71 @@
       states.set(String(relationship.id), derived);
     }
 
+    const edges = graphData.edges.map((edge) => {
+      const relationship = relationshipById.get(String(edge.id));
+      const state = states.get(String(edge.id));
+      if (!relationship || !state) return { ...edge, temporalState: "inactive" };
+
+      const structurallyTimeless =
+        !relationship.time?.start &&
+        state.changes.length === 0 &&
+        state.active;
+      const explicitWindowState = relationshipWindowState(relationship, viewport, temporal);
+      const temporalState = state.changedInWindow
+        ? "changed"
+        : structurallyTimeless
+          ? "timeless"
+          : relationship.time?.start
+            ? explicitWindowState === "active" && state.active
+              ? "active"
+              : "inactive"
+            : state.active
+              ? "active"
+              : "inactive";
+
+      return {
+        ...edge,
+        label: state.predicate,
+        temporalState,
+        properties: {
+          ...edge.properties,
+          role: state.role,
+          attributes: cloneJson(state.attributes),
+          lastChange: state.lastChange ? cloneJson(state.lastChange) : null,
+          changes: cloneJson(state.changes)
+        }
+      };
+    }).filter((edge) => edge.temporalState !== "inactive");
+
+    const hasViewport =
+      viewport &&
+      Number.isFinite(viewport.start) &&
+      Number.isFinite(viewport.end);
+    if (!hasViewport) return { ...graphData, edges };
+
+    const visibleNodeIds = new Set();
+    for (const edge of edges) {
+      visibleNodeIds.add(String(edge.start));
+      visibleNodeIds.add(String(edge.end));
+    }
+
+    for (const item of items) {
+      const startValue = temporal?.sortKey(item.time?.start || item.start);
+      const endSource = item.time?.end || item.end || item.time?.start || item.start;
+      const endValue = temporal?.sortKey(endSource);
+      if (
+        Number.isFinite(startValue) &&
+        Number.isFinite(endValue) &&
+        endValue >= viewport.start &&
+        startValue <= viewport.end
+      ) {
+        visibleNodeIds.add(String(item.id));
+      }
+    }
+
     return {
-      ...graphData,
-      edges: graphData.edges.map((edge) => {
-        const state = states.get(String(edge.id));
-        if (!state) return { ...edge, temporalState: "inactive" };
-        const structurallyTimeless =
-          !relationshipById.get(String(edge.id))?.time?.start &&
-          state.changes.length === 0 &&
-          state.active;
-        return {
-          ...edge,
-          label: state.predicate,
-          temporalState: state.changedInWindow
-            ? "changed"
-            : structurallyTimeless
-              ? "timeless"
-              : state.active
-                ? "active"
-                : "inactive",
-          properties: {
-            ...edge.properties,
-            role: state.role,
-            attributes: cloneJson(state.attributes),
-            lastChange: state.lastChange ? cloneJson(state.lastChange) : null,
-            changes: cloneJson(state.changes)
-          }
-        };
-      })
+      nodes: graphData.nodes.filter((node) => visibleNodeIds.has(String(node.id))),
+      edges
     };
   }
 
