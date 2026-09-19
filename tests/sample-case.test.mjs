@@ -44,6 +44,37 @@ test("every chronology item belongs to exactly one independently inspectable sto
   for (const [id, count] of memberships) assert.equal(count, 1, id);
 });
 
+
+test("event categories classify semantics independently of story membership", () => {
+  const storyIds = new Set(sample.stories.map((story) => story.id));
+  const storyTitles = new Set(sample.stories.map((story) => story.title));
+  const categoryIds = new Set(sample.categories.map((category) => category.id));
+
+  assert.equal(sample.categories.some((category) => storyIds.has(category.id)), false);
+  assert.equal(sample.categories.some((category) => storyTitles.has(category.name)), false);
+
+  const categoriesByStory = new Map(sample.stories.map((story) => [story.id, new Set()]));
+  const storiesByCategory = new Map(sample.categories.map((category) => [category.id, new Set()]));
+
+  for (const item of sample.items) {
+    const storyId = item.extensions?.narrative?.storyId;
+    assert.ok(categoryIds.has(item.categoryId), `${item.id}: unknown semantic category`);
+    assert.ok(storyIds.has(storyId), `${item.id}: missing narrative story membership`);
+    const story = sample.stories.find((candidate) => candidate.id === storyId);
+    assert.ok(story?.itemIds.includes(item.id), `${item.id}: story membership must come from story.itemIds`);
+    categoriesByStory.get(storyId).add(item.categoryId);
+    storiesByCategory.get(item.categoryId).add(storyId);
+  }
+
+  for (const [storyId, categories] of categoriesByStory) {
+    assert.ok(categories.size >= 4, `${storyId}: expected several event categories`);
+  }
+  assert.ok(
+    [...storiesByCategory.values()].some((stories) => stories.size === sample.stories.length),
+    "at least one semantic category should be reusable across every story"
+  );
+});
+
 test("all three stories coexist on the same chronology and overlap during their main action", () => {
   const spans = sample.stories.map(storySpan);
   for (let i = 0; i < spans.length; i += 1) {
