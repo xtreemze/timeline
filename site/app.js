@@ -48,6 +48,7 @@
     categoryCount: document.querySelector("#category-count"),
     visibleCount: document.querySelector("#visible-count"),
     appShell: document.querySelector("#app-shell"),
+    appToolDock: document.querySelector(".app-tool-dock"),
     controlPanel: document.querySelector("#control-panel"),
     controlPanelClose: document.querySelector("#control-panel-close"),
     editorToggle: document.querySelector("#editor-toggle"),
@@ -288,6 +289,25 @@
     : null;
   els.presentationMap?.after(presentationMapAnchor);
 
+  const appToolDockAnchor = els.appToolDock
+    ? document.createComment("timeline-tool-dock-home")
+    : null;
+  els.appToolDock?.after(appToolDockAnchor);
+
+  function mountFullscreenToolDock() {
+    if (!els.appToolDock || !els.presentationStage) return;
+    if (els.appToolDock.parentNode !== els.presentationStage) {
+      els.presentationStage.append(els.appToolDock);
+    }
+  }
+
+  function restoreToolDock() {
+    if (!els.appToolDock || !appToolDockAnchor?.parentNode) return;
+    if (els.appToolDock.parentNode !== appToolDockAnchor.parentNode) {
+      appToolDockAnchor.parentNode.insertBefore(els.appToolDock, appToolDockAnchor);
+    }
+  }
+
   function restoreGraphSurface() {
     if (presentationGraphCanvas && presentationGraphAnchor?.parentNode &&
         presentationGraphCanvas.parentNode !== presentationGraphAnchor.parentNode) {
@@ -431,6 +451,8 @@
   function syncPresentationFullscreenState() {
     const active = presentationIsFullscreen();
     els.presentationStage?.classList.toggle("is-fullscreen", active);
+    if (active) mountFullscreenToolDock();
+    else restoreToolDock();
     if (els.presentationFullscreenToggle) {
       els.presentationFullscreenToggle.setAttribute("aria-pressed", String(active));
       els.presentationFullscreenToggle.textContent = active ? "Exit full screen" : "Present full screen";
