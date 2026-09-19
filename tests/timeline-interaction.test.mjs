@@ -52,6 +52,58 @@ test("ambient month labels allow compact day tick numbering", () => {
   );
 });
 
+test("temporal accent planner keeps full month-year accents only when they cannot overlap", () => {
+  const items = [
+    { id: "a", start: Date.UTC(2026, 0, 12) },
+    { id: "b", start: Date.UTC(2026, 6, 12) }
+  ];
+  const plan = clustering.planTemporalAccents(items, {
+    viewport: { start: Date.UTC(2026, 0, 1), end: Date.UTC(2027, 0, 1) },
+    pixelLength: 1200,
+    padding: 40,
+    orientation: "horizontal",
+    spec: { unit: "day", step: 1 }
+  });
+  assert.equal(plan.mode, "month-year-edge");
+  assert.equal(plan.edgeAccents.length, 2);
+  assert.equal(plan.axisMonths.length, 0);
+});
+
+test("overlapping month-year accents collapse to year on the edge and month on the axis", () => {
+  const items = [
+    { id: "a", start: Date.UTC(2026, 7, 2) },
+    { id: "b", start: Date.UTC(2026, 8, 2) },
+    { id: "c", start: Date.UTC(2026, 9, 2) }
+  ];
+  const plan = clustering.planTemporalAccents(items, {
+    viewport: { start: Date.UTC(2026, 7, 1), end: Date.UTC(2026, 10, 1) },
+    pixelLength: 420,
+    padding: 30,
+    orientation: "horizontal",
+    spec: { unit: "day", step: 2 }
+  });
+  assert.equal(plan.mode, "year-edge-month-axis");
+  assert.deepEqual(plan.edgeAccents.map((accent) => accent.label), ["2026"]);
+  assert.ok(plan.axisMonths.length >= 2);
+  assert.ok(plan.axisMonths.every((accent) => /^[A-Z]{3}$/.test(accent.label)));
+});
+
+test("year-scale views keep temporal context on the normal axis instead of ambient accents", () => {
+  const plan = clustering.planTemporalAccents([
+    { id: "a", start: Date.UTC(2018, 1, 1) },
+    { id: "b", start: Date.UTC(2026, 8, 1) }
+  ], {
+    viewport: { start: Date.UTC(2010, 0, 1), end: Date.UTC(2030, 0, 1) },
+    pixelLength: 900,
+    padding: 40,
+    orientation: "vertical",
+    spec: { unit: "year", step: 2 }
+  });
+  assert.equal(plan.mode, "axis-only");
+  assert.equal(plan.edgeAccents.length, 0);
+  assert.equal(plan.axisMonths.length, 0);
+});
+
 test("motion response and inertial decay are smooth and monotonic", () => {
   const response = motion.responseForElapsed(16);
   assert.ok(response > 0 && response < 1);
@@ -131,7 +183,8 @@ test("timeline view exposes fused clusters, inertia, relation bands and ambient 
   const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
   assert.match(source, /clusterProjectedItems/);
   assert.match(source, /startInertia/);
-  assert.match(source, /renderMonthAccents/);
+  assert.match(source, /renderTemporalAccents/);
+  assert.match(source, /planTemporalAccents/);
   assert.match(source, /renderRelationships/);
   assert.match(source, /pulseHaptic/);
 });
