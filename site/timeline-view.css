@@ -1528,6 +1528,7 @@
 
 .timeline-focus-view[popover] {
   margin: 0;
+  pointer-events: none;
   border: 1px solid color-mix(in srgb, var(--line-strong) 86%, transparent);
   border-radius: 1rem;
   max-width: none;
@@ -1564,6 +1565,14 @@
   border-radius: 1rem;
 }
 
+.timeline-focus-view[popover] > * {
+  pointer-events: auto;
+}
+
+.timeline-focus-view[popover] > :is(.timeline-focus-place, .timeline-focus-relations) {
+  pointer-events: none;
+}
+
 .timeline-focus-place,
 .timeline-focus-relations {
   position: relative;
@@ -1575,7 +1584,7 @@
 
 .timeline-focus-section-backdrop {
   position: absolute;
-  z-index: 0;
+  z-index: 1;
   inset: 0;
   pointer-events: auto;
   opacity: .46;
@@ -1624,6 +1633,7 @@
   height: 100% !important;
 }
 
+.timeline-focus-place-backdrop .presentation-map,
 .timeline-focus-place-backdrop .leaflet-control-container,
 .timeline-focus-relations-backdrop .temporal-graph-canvas {
   pointer-events: auto;
