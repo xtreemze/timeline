@@ -517,8 +517,8 @@ test("focused popover uses a two-row overview with Evidence as a separate tab", 
   assert.match(source, /evidence\.hidden = true/);
   assert.match(css, /timeline-focus-view\[popover\][\s\S]*padding-top:\s*0/);
   assert.match(css, /data-active-tab="overview"[\s\S]*timeline-focus-summary[\s\S]*padding-top:\s*3\.2rem/);
-  assert.match(css, /data-active-tab="overview"[\s\S]*grid-template-rows:\s*minmax\(190px, auto\)\s*minmax\(125px, auto\)/);
-  assert.match(css, /data-active-tab="evidence"[\s\S]*timeline-focus-evidence[\s\S]*grid-row:\s*1\s*\/\s*span 2/);
+  assert.match(css, /data-active-tab="overview"[\s\S]*data-active-tab="evidence"[\s\S]*grid-template-rows:\s*minmax\(180px, min\(27dvh, 250px\)\)\s*minmax\(120px, min\(34dvh, 300px\)\)/);
+  assert.match(css, /data-active-tab="evidence"[\s\S]*timeline-focus-evidence[\s\S]*grid-row:\s*2 !important/);
 });
 
 test("fullscreen preserves the left workspace tool dock inside the fullscreen subtree", async () => {
@@ -680,4 +680,58 @@ test("story previous and next navigation use the same directional focus travel",
   assert.match(app, /focusCurrentStoryItem\(openFocus = false, options = \{\}\)/);
   assert.match(app, /timelineView\?\.focusItem\(currentId, \{[\s\S]*direction: Number\(options\.direction\) < 0 \? -1 : 1/);
   assert.match(app, /focusCurrentStoryItem\(Boolean\(options\.focusEvent\), \{[\s\S]*direction: delta < 0 \? -1 : 1/);
+});
+
+
+test("Evidence tab preserves Hero and Context and only swaps the lower contextual region", async () => {
+  const [source, css] = await Promise.all([
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+  assert.match(source, /for \(const panel of \[place, relations\]\) panel\.hidden = evidenceActive/);
+  assert.doesNotMatch(source, /\[hero, summary, place, relations\]/);
+  assert.match(source, /requestAnimationFrame\(\(\) => \{[\s\S]*this\.positionFocusPopover\(\)/);
+  assert.match(css, /Hero and Context are persistent identity\/context surfaces/);
+  assert.match(css, /timeline-focus-view\[popover\] \.timeline-focus-hero[\s\S]*grid-row:\s*1 !important/);
+  assert.match(css, /timeline-focus-view\[popover\] \.timeline-focus-summary[\s\S]*grid-row:\s*1 !important/);
+  assert.match(css, /data-active-tab="evidence"[\s\S]*timeline-focus-evidence[\s\S]*grid-row:\s*2 !important/);
+});
+
+test("focused popover is positioned from the event terminal and clamped to usable viewport chrome", async () => {
+  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  assert.match(source, /FOCUS_POPOVER_MARGIN = 12/);
+  assert.match(source, /focusChromeInsets\(\)/);
+  assert.match(source, /document\.querySelector\("\.app-command-bar"\)/);
+  assert.match(source, /document\.querySelector\("\.app-tool-dock"\)/);
+  assert.match(source, /positionFocusPopover\(originRect = null\)/);
+  assert.match(source, /this\.focusTransitionOrigin\(this\.selectedId\)\?\.getBoundingClientRect/);
+  assert.match(source, /clampPosition\(left, bounds\.left, bounds\.viewportWidth - bounds\.right - width\)/);
+  assert.match(source, /clampPosition\(top, bounds\.top, bounds\.viewportHeight - bounds\.bottom - height\)/);
+  assert.match(source, /transitionOriginRect = transitionOrigin\?\.getBoundingClientRect/);
+  assert.match(source, /this\.positionFocusPopover\(options\.originRect/);
+});
+
+test("custom event-detail morph isolates application chrome from root cross-fade", async () => {
+  const [timelineCss, styles] = await Promise.all([
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+  ]);
+  assert.match(timelineCss, /::view-transition-old\(root\)[\s\S]*animation:\s*none !important[\s\S]*opacity:\s*0/);
+  assert.match(timelineCss, /::view-transition-new\(root\)[\s\S]*animation:\s*none !important[\s\S]*opacity:\s*1/);
+  assert.match(timelineCss, /@keyframes timeline-event-detail-emerge/);
+  assert.match(timelineCss, /clip-path:\s*inset\(38% 42% round 999px\)/);
+  assert.match(timelineCss, /::view-transition-old\(timeline-event-detail-shared\)[\s\S]*timeline-event-origin-out/);
+  assert.match(timelineCss, /::view-transition-new\(timeline-event-detail-shared\)[\s\S]*timeline-event-detail-emerge/);
+  assert.match(styles, /\.app-command-bar[\s\S]*view-transition-name:\s*timeline-command-bar/);
+  assert.match(styles, /\.app-view-controls[\s\S]*view-transition-name:\s*timeline-view-controls/);
+  assert.match(styles, /timeline-panel > \.story-focus[\s\S]*view-transition-name:\s*timeline-story-controls/);
+  assert.match(styles, /::view-transition-group\(timeline-command-bar\)[\s\S]*animation:\s*none !important/);
+});
+
+test("focused popover content remains bounded while Relations halo can stay visually unclipped", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  assert.match(css, /timeline-focus-view\[popover\]:popover-open[\s\S]*max-inline-size:\s*calc\(100dvw - 1\.5rem\)[\s\S]*max-block-size:\s*calc\(100dvh - 1\.5rem\)/);
+  assert.match(css, /\.timeline-focus-summary[\s\S]*overflow:\s*auto/);
+  assert.match(css, /\.timeline-focus-evidence[\s\S]*overflow:\s*auto/);
+  assert.match(css, /timeline-focus-relations-backdrop \.temporal-graph-canvas[\s\S]*overflow:\s*visible/);
 });
