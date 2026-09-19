@@ -383,8 +383,11 @@
   function isLikelyInterchange(input) {
     if (!input || typeof input !== "object") return false;
     const root = sourceRoot(input);
-    const format = text(firstDefined(input, ["format", "source", "application"]), 80).toLowerCase();
-    if (/time\.?graphics/.test(format)) return true;
+    const format = text(
+      firstDefined(input?._timeline || input, ["format", "source", "application"]),
+      80
+    ).toLowerCase();
+    if (/timeline[._ -]?interchange/.test(format)) return true;
     return (
       Array.isArray(root.periods) ||
       Array.isArray(root.groups) ||
@@ -413,7 +416,15 @@
       group: category?.extensions?.externalInterchange?.sourceId ?? category?.name ?? item.categoryId
     };
 
-    if (extension.media?.length) base.media = cloneJson(extension.media);
+    if (item.media?.length) {
+      base.media = item.media.map((entry) => ({
+        url: entry.src,
+        alt: entry.alt || "",
+        caption: entry.caption || ""
+      }));
+    } else if (extension.media?.length) {
+      base.media = cloneJson(extension.media);
+    }
     if (extension.comments?.length) base.comments = cloneJson(extension.comments);
     if (extension.statistics !== undefined && extension.statistics !== null) base.statistics = cloneJson(extension.statistics);
 
@@ -469,7 +480,7 @@
         stories: cloneJson(Array.isArray(timeline.stories) ? timeline.stories : []),
         entities: cloneJson(Array.isArray(timeline.entities) ? timeline.entities : []),
         relationships: cloneJson(Array.isArray(timeline.relationships) ? timeline.relationships : []),
-        note: "external does not publish a stable JSON schema. This export uses its public event/period/group concepts and preserves imported vendor records when available."
+        note: "Timeline interchange keeps external event, period, group, story, entity, and relationship data behind a vendor-neutral adapter and preserves imported extension records when available."
       }
     };
   }
