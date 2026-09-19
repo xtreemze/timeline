@@ -1544,24 +1544,26 @@
 .timeline-view[data-orientation="landscape"] > .timeline-focus-view:popover-open {
   position: fixed;
   inset: max(4.25rem, calc(env(safe-area-inset-top) + 3.8rem))
-    max(.5rem, env(safe-area-inset-right))
     auto
-    auto;
+    auto
+    50%;
   inline-size: min(680px, calc(100dvw - 5.5rem));
   max-block-size: min(68dvh, 700px);
   block-size: auto;
+  transform: translateX(-50%);
 }
 
 .timeline-view[data-orientation="portrait"] > .timeline-focus-view:popover-open {
   position: fixed;
-  inset: max(4.25rem, calc(env(safe-area-inset-top) + 3.8rem))
-    max(.5rem, env(safe-area-inset-right))
+  inset: 50%
     auto
-    auto;
+    auto
+    max(4.7rem, calc(env(safe-area-inset-left) + 4.2rem));
   inline-size: min(560px, 86dvw);
   max-block-size: min(72dvh, 720px);
   block-size: auto;
   border-radius: 1rem;
+  transform: translateY(-50%);
 }
 
 .timeline-focus-view[popover] > * {
@@ -2590,9 +2592,9 @@
 }
 
 
-/* Focus popovers are positioned from their timeline terminal in JS and then clamped to
-   the usable viewport. Content that grows beyond the available box scrolls within its
-   semantic panel instead of pushing the top-layer popover offscreen. */
+/* Focus popovers occupy the edge opposite chronology: top/center for a bottom timeline
+   and left/center for a right timeline. JS reserves persistent application chrome and the
+   contextual timeline strip, then clamps late content growth to the remaining viewport. */
 .timeline-focus-view[popover]:popover-open {
   margin: 0;
   min-inline-size: 0;

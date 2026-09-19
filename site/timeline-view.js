@@ -1207,11 +1207,17 @@
         left: FOCUS_POPOVER_MARGIN
       };
 
-      const commandBar = document.querySelector(".app-command-bar");
-      const commandRect = commandBar?.getBoundingClientRect?.();
-      if (commandRect && commandRect.width > 0 && commandRect.height > 0) {
-        insets.top = Math.max(insets.top, Math.min(viewportHeight - FOCUS_POPOVER_MARGIN, commandRect.bottom + 8));
-      }
+      const reserveTopChrome = (element) => {
+        const rect = element?.getBoundingClientRect?.();
+        if (!rect || rect.width <= 0 || rect.height <= 0 || rect.top >= viewportHeight / 2) return;
+        insets.top = Math.max(
+          insets.top,
+          Math.min(viewportHeight - FOCUS_POPOVER_MARGIN, rect.bottom + 8)
+        );
+      };
+
+      reserveTopChrome(document.querySelector(".app-command-bar"));
+      reserveTopChrome(document.querySelector(".timeline-view-toolbar:not([hidden])"));
 
       const dock = document.querySelector(".app-tool-dock");
       const dockRect = dock?.getBoundingClientRect?.();
@@ -1221,6 +1227,32 @@
           insets.left = Math.max(insets.left, Math.min(viewportWidth - FOCUS_POPOVER_MARGIN, dockRect.right + 8));
         } else if (!verticalDock && dockRect.top > viewportHeight / 2) {
           insets.bottom = Math.max(insets.bottom, Math.min(viewportHeight - FOCUS_POPOVER_MARGIN, viewportHeight - dockRect.top + 8));
+        }
+      }
+
+      const stage = this.root.closest("#presentation-stage");
+      const contextualTimelineDocked =
+        stage?.dataset.eventFocused === "true" &&
+        stage?.dataset.hasContextGraph === "true" &&
+        this.focusView.dataset.activeTab === "overview";
+      if (contextualTimelineDocked) {
+        const timelineRect = this.root.getBoundingClientRect();
+        if (this.orientation === "vertical" && timelineRect.width > 0) {
+          insets.right = Math.max(
+            insets.right,
+            Math.min(
+              viewportWidth - FOCUS_POPOVER_MARGIN,
+              viewportWidth - timelineRect.left + FOCUS_POPOVER_MARGIN
+            )
+          );
+        } else if (this.orientation === "horizontal" && timelineRect.height > 0) {
+          insets.bottom = Math.max(
+            insets.bottom,
+            Math.min(
+              viewportHeight - FOCUS_POPOVER_MARGIN,
+              viewportHeight - timelineRect.top + FOCUS_POPOVER_MARGIN
+            )
+          );
         }
       }
 
@@ -1243,24 +1275,24 @@
       const rect = this.focusView.getBoundingClientRect();
       const width = Math.min(rect.width, availableWidth);
       const height = Math.min(rect.height, availableHeight);
-      const targetRect = originRect || this.focusTransitionOrigin(this.selectedId)?.getBoundingClientRect?.() || null;
       const clampPosition = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
 
-      let left = bounds.left + Math.max(0, (availableWidth - width) / 2);
-      let top = bounds.top + Math.max(0, (availableHeight - height) / 2);
+      // Keep the opening source geometry for the View Transition, but do not let the
+      // event terminal pull the final top-layer placement back toward the timeline.
+      void originRect;
 
-      if (targetRect) {
-        if (this.orientation === "vertical") {
-          const preferredLeft = targetRect.left - width - 18;
-          const alternateLeft = targetRect.right + 18;
-          left = preferredLeft >= bounds.left ? preferredLeft : alternateLeft;
-          top = targetRect.top + targetRect.height / 2 - height / 2;
-        } else {
-          const preferredTop = targetRect.top - height - 18;
-          const alternateTop = targetRect.bottom + 18;
-          top = preferredTop >= bounds.top ? preferredTop : alternateTop;
-          left = targetRect.left + targetRect.width / 2 - width / 2;
-        }
+      let left;
+      let top;
+      if (this.orientation === "vertical") {
+        // Vertical chronology is docked on the right: keep detail on the left and
+        // center it vertically inside the chrome-safe region.
+        left = bounds.left;
+        top = bounds.top + Math.max(0, (availableHeight - height) / 2);
+      } else {
+        // Horizontal chronology is docked on the bottom: keep detail at the top and
+        // center it horizontally inside the chrome-safe region.
+        left = bounds.left + Math.max(0, (availableWidth - width) / 2);
+        top = bounds.top;
       }
 
       left = clampPosition(left, bounds.left, bounds.viewportWidth - bounds.right - width);
