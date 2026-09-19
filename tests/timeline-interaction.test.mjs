@@ -100,6 +100,17 @@ test("Orb adapter preserves temporal relationship metadata", () => {
   assert.ok(projected[0].end > projected[0].start);
 });
 
+test("Orb adapter can expose stories as graph nodes for group-to-story relations", () => {
+  const orb = graph.toOrbGraph({
+    entities: [{ id: "group-a", type: "group", name: "Group A" }],
+    stories: [{ id: "story-a", title: "Story A", description: "", itemIds: ["event-a"] }],
+    items: [{ id: "event-a", title: "Event A", kind: "event" }],
+    relationships: [{ id: "edge-a", subjectId: "group-a", objectId: "story-a", predicate: "participatesIn" }]
+  });
+  assert.ok(orb.nodes.some((node) => node.id === "story-a" && node.properties.timelineType === "story"));
+  assert.ok(orb.edges.some((edge) => edge.start === "group-a" && edge.end === "story-a"));
+});
+
 test("timeline CSS uses Monaspace texture healing and metric-aware text trimming", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   assert.match(css, /Monaspace Krypton/);
