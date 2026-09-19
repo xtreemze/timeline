@@ -184,6 +184,11 @@
                       <label class="field">
                         <span>Precision</span>
                         <select id="item-start-precision">
+                          <option value="millennium">Millennium</option>
+                          <option value="century">Century</option>
+                          <option value="decade">Decade</option>
+                          <option value="year">Year</option>
+                          <option value="month">Month</option>
                           <option value="day">Date only</option>
                           <option value="minute">Minute</option>
                           <option value="second">Second</option>
@@ -220,6 +225,11 @@
                       <label class="field">
                         <span>Precision</span>
                         <select id="item-end-precision">
+                          <option value="millennium">Millennium</option>
+                          <option value="century">Century</option>
+                          <option value="decade">Decade</option>
+                          <option value="year">Year</option>
+                          <option value="month">Month</option>
                           <option value="day">Date only</option>
                           <option value="minute">Minute</option>
                           <option value="second">Second</option>
@@ -248,7 +258,7 @@
                   </section>
                 </div>
                 <datalist id="time-zone-options"></datalist>
-                <p class="field-hint">The calendar selects the date or range in one control; its header always exposes the active year. Clock precision and IANA time-zone metadata remain separate so ISO 8601 interchange is not collapsed into a browser-local timestamp.</p>
+                <p class="field-hint">The calendar selects a date or range in one control. Precision can intentionally reduce that selection to a millennium, century, decade, year, or month; clock precision and IANA time-zone metadata remain separate so ISO 8601 interchange is not collapsed into a browser-local timestamp.</p>
               </fieldset>
 
               <label class="field field-wide">
