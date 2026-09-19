@@ -2675,9 +2675,6 @@
   .timeline-view > .timeline-focus-view:popover-open {
   top: max(.65rem, env(safe-area-inset-top));
   bottom: auto;
-  inline-size: min(720px, calc(100dvw - 2.5rem));
-  max-inline-size: calc(100dvw - 2.5rem);
-  max-block-size: min(470px, calc(100dvh - var(--timeline-context-edge-span) - 1.5rem));
 }
 
 #app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="vertical"]:has(.timeline-focus-view[data-active-tab="overview"])
@@ -2687,12 +2684,6 @@
   right: auto;
   bottom: auto;
   left: var(--timeline-focus-left-edge);
-  inline-size: min(
-    600px,
-    calc(100dvw - var(--timeline-context-edge-span) - var(--timeline-focus-left-edge) - 1.25rem)
-  );
-  max-inline-size: calc(100dvw - var(--timeline-context-edge-span) - var(--timeline-focus-left-edge) - 1.25rem);
-  max-block-size: min(72dvh, 680px);
   transform: translateY(-50%);
 }
 
@@ -2990,20 +2981,13 @@
 }
 
 
-/* Focused detail should occupy only the space its two content bands need. Earlier
-   minmax tracks reserve unused block space when Context/Evidence is short. */
+/* Runtime owns the outer popover rectangle; the grid keeps deterministic content bands.
+   Do not replace these rows with auto tracks later in the cascade. */
 .timeline-focus-view[popover]:popover-open {
+  box-sizing: border-box;
   align-content: start;
-  block-size: fit-content;
+  block-size: auto;
   grid-auto-rows: auto;
-}
-
-@media (min-width: 900px) and (min-height: 700px) {
-  .timeline-focus-view[popover][data-active-tab="overview"],
-  .timeline-focus-view[popover][data-active-tab="evidence"] {
-    grid-template-rows: auto auto;
-    align-content: start;
-  }
 }
 
 /* View Transition snapshots are visual only. Pointer input must always reach the live
