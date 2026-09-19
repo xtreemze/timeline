@@ -900,7 +900,6 @@
   }
   .timeline-focus-hero,
   .timeline-focus-summary,
-  .timeline-focus-temporal,
   .timeline-focus-place,
   .timeline-focus-relations,
   .timeline-focus-actions {
@@ -921,7 +920,6 @@
 @media (max-width: 900px) {
   .timeline-focus-view[data-layout] .timeline-focus-hero,
   .timeline-focus-view[data-layout] .timeline-focus-summary,
-  .timeline-focus-view[data-layout] .timeline-focus-temporal,
   .timeline-focus-view[data-layout] .timeline-focus-place,
   .timeline-focus-view[data-layout] .timeline-focus-relations,
   .timeline-focus-view[data-layout] .timeline-focus-evidence,
@@ -1048,12 +1046,6 @@
   }
 
   .presentation-stage:fullscreen .timeline-focus-temporal,
-  .presentation-stage:fullscreen .timeline-focus-relations,
-  .presentation-stage:fullscreen .timeline-focus-evidence,
-  .presentation-stage:fullscreen .timeline-focus-actions {
-    display: none;
-  }
-
   .presentation-stage:fullscreen .timeline-focus-hero-veil {
     gap: .28rem;
     padding: clamp(.65rem, 4cqi, 1.15rem);
@@ -1586,7 +1578,7 @@
   }
 
   .timeline-focus-title {
-    font-size: clamp(2rem, 9cqi, 4.8rem);
+    font-size: clamp(2.4rem, 10.5cqi, 5.8rem);
   }
 
   .timeline-focus-section-content {
@@ -1667,7 +1659,7 @@
   }
 
   .timeline-focus-title {
-    font-size: clamp(1.7rem, 11cqi, 3.3rem);
+    font-size: clamp(2rem, 13cqi, 4.2rem);
   }
 
   .timeline-focus-section-content {
