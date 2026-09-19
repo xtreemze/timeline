@@ -530,7 +530,7 @@
         const startPosition = padding + scale.coordinateFor(relationship.start, this.viewport, usable);
         const endPosition = padding + scale.coordinateFor(relationship.end, this.viewport, usable);
         const segment = createElement("div", "timeline-relation-segment");
-        segment.style.setProperty("--relation-lane", String(index % RELATION_LANES));
+        segment.style.setProperty("--relation-lane-offset", `${(index % RELATION_LANES) * 8}px`);
         segment.title = relationship.predicate || "Temporal relationship";
         const clippedStart = clamp(Math.min(startPosition, endPosition), padding, padding + usable);
         const clippedEnd = clamp(Math.max(startPosition, endPosition), padding, padding + usable);
