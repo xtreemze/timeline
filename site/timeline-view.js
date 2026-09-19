@@ -1010,10 +1010,13 @@
         for (const relation of item.relations.slice(0, 8)) {
           const li = createElement("li", "");
           li.append(presentation.createIcon("relation", { size: 16 }));
+          const relationText = relation.subjectName && relation.objectName
+            ? `${relation.subjectName} —${relation.predicate}→ ${relation.objectName}`
+            : relation.predicate;
           const label = createElement(
             "span",
             "",
-            relation.role ? `${relation.predicate} · ${relation.role}` : relation.predicate
+            relation.role ? `${relationText} · ${relation.role}` : relationText
           );
           li.append(label);
           list.append(li);
