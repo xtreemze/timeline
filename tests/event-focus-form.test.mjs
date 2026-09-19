@@ -116,8 +116,8 @@ test("focused event composition does not instantiate duplicate graph or map surf
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
   ]);
 
-  assert.doesNotMatch(source, /orbGraphFactory|TimelineOrbGraph|timeline-focus-graph-canvas|focusGraph/);
-  assert.doesNotMatch(source, /timeline-focus-place-map|focusMap/);
+  assert.doesNotMatch(source, /orbGraphFactory|TimelineOrbGraph|timeline-focus-graph-canvas/);
+  assert.doesNotMatch(source, /timeline-focus-place-map/);
   assert.doesNotMatch(css, /timeline-focus-graph/);
   assert.doesNotMatch(css, /timeline-focus-place-map/);
   assert.match(css, /container-type:\s*inline-size/);
@@ -261,8 +261,8 @@ test("focused Place and Relations reuse the single map and graph surfaces as int
 
   assert.equal((html.match(/class="temporal-graph-canvas"/g) || []).length, 1);
   assert.equal((html.match(/id="presentation-map"/g) || []).length, 1);
-  assert.match(view, /data\.focusMapSlot/);
-  assert.match(view, /data\.focusGraphSlot/);
+  assert.match(view, /dataset\.focusMapSlot/);
+  assert.match(view, /dataset\.focusGraphSlot/);
   assert.match(view, /timeline-focus-section-content/);
   assert.match(app, /mountGraphBackdrop/);
   assert.match(app, /mountMapBackdrop/);
