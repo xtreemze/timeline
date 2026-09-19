@@ -135,6 +135,7 @@
     graphNodeId: document.querySelector("#graph-node-id"),
     graphNodeName: document.querySelector("#graph-node-name"),
     graphNodeType: document.querySelector("#graph-node-type"),
+    graphNodeIdentifiers: document.querySelector("#graph-node-identifiers"),
     graphNodeProperties: document.querySelector("#graph-node-properties"),
     graphNodeError: document.querySelector("#graph-node-error"),
     saveGraphNode: document.querySelector("#save-graph-node"),
@@ -265,6 +266,19 @@
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       throw new Error(`${label} must be a JSON object.`);
     }
+    return parsed;
+  }
+
+  function parseJsonArray(value, label = "Identifiers") {
+    const source = String(value || "").trim();
+    if (!source) return [];
+    let parsed;
+    try {
+      parsed = JSON.parse(source);
+    } catch {
+      throw new Error(`${label} must be valid JSON.`);
+    }
+    if (!Array.isArray(parsed)) throw new Error(`${label} must be a JSON array.`);
     return parsed;
   }
 
@@ -1604,6 +1618,7 @@
     els.graphNodeForm.reset();
     els.graphNodeId.value = "";
     els.graphNodeType.value = "entity";
+    els.graphNodeIdentifiers.value = "[]";
     els.graphNodeProperties.value = "{}";
     els.saveGraphNode.textContent = "Add node";
     els.cancelGraphNodeEdit.hidden = true;
@@ -1617,11 +1632,23 @@
     els.graphNodeId.value = entity.id;
     els.graphNodeName.value = entity.name || entity.id;
     els.graphNodeType.value = entity.type || "entity";
+    els.graphNodeIdentifiers.value = JSON.stringify(entity.identifiers || [], null, 2);
     els.graphNodeProperties.value = JSON.stringify(entity.attributes || {}, null, 2);
     els.saveGraphNode.textContent = "Save node";
     els.cancelGraphNodeEdit.hidden = false;
     setError(els.graphNodeError);
     els.graphNodeName.focus();
+  }
+
+  function pruneRelationChanges(removedRelationshipIds) {
+    const removed = new Set(Array.from(removedRelationshipIds || [], String));
+    if (!removed.size) return;
+    state.items = state.items.map((item) => ({
+      ...item,
+      relationChanges: (item.relationChanges || []).filter(
+        (change) => !removed.has(String(change.relationshipId))
+      )
+    }));
   }
 
   function removeGraphNode(id) {
@@ -1634,10 +1661,14 @@
       ? ` ${edgeCount} connected ${edgeCount === 1 ? "edge" : "edges"} will also be removed.`
       : "";
     if (!window.confirm(`Delete node “${entity.name}”?${suffix}`)) return;
+    const removedRelationshipIds = state.relationships
+      .filter((relationship) => relationship.subjectId === id || relationship.objectId === id)
+      .map((relationship) => relationship.id);
     state.entities = state.entities.filter((candidate) => candidate.id !== id);
     state.relationships = state.relationships.filter(
       (relationship) => relationship.subjectId !== id && relationship.objectId !== id
     );
+    pruneRelationChanges(removedRelationshipIds);
     if (els.graphNodeId.value === id) resetGraphNodeForm();
     persist();
     renderAll();
@@ -1763,6 +1794,7 @@
     if (!relationship) return;
     if (!window.confirm(`Delete edge “${relationship.predicate}”?`)) return;
     state.relationships = state.relationships.filter((candidate) => candidate.id !== id);
+    pruneRelationChanges([id]);
     if (els.graphEdgeId.value === id) resetGraphEdgeForm();
     persist();
     renderAll();
@@ -2076,20 +2108,20 @@
       els.graphNodeName.focus();
       return;
     }
+    let identifiers;
     let attributes;
     try {
+      identifiers = parseJsonArray(els.graphNodeIdentifiers.value, "Node identifiers");
       attributes = parseJsonObject(els.graphNodeProperties.value, "Node properties");
     } catch (error) {
-      setError(els.graphNodeError, error instanceof Error ? error.message : "Check the node properties.");
-      els.graphNodeProperties.focus();
+      setError(els.graphNodeError, error instanceof Error ? error.message : "Check the node identifiers and properties.");
       return;
     }
-    const existingEntity = state.entities.find((candidate) => candidate.id === els.graphNodeId.value);
     const entity = {
       id: els.graphNodeId.value || newId("entity"),
       type: type.slice(0, 60),
       name: name.slice(0, 180),
-      identifiers: existingEntity?.identifiers ? clone(existingEntity.identifiers) : [],
+      identifiers,
       attributes
     };
     const index = state.entities.findIndex((candidate) => candidate.id === entity.id);
