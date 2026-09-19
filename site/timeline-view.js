@@ -947,11 +947,11 @@
       this.selectedId = id;
       this.focusMediaIndex = 0;
       this.focusForceUnique = false;
+      this.ensureItemVisible(id);
       this.adjustFocusedViewport(item);
       this.root.classList.add("is-event-focused");
       this.focusView.hidden = false;
       this.renderFocus(item);
-      this.ensureItemVisible(id);
       this.scheduleRender();
       this.root.dispatchEvent(new CustomEvent("timelinefocuschange", {
         bubbles: true,
