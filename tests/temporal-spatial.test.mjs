@@ -63,14 +63,18 @@ test("rejects incomplete coordinate pairs", () => {
   assert.throws(() => spatial.fromForm({ latitude: "59.3", longitude: "" }), /both latitude and longitude/i);
 });
 
-test("item form uses native temporal and Chrome geolocation controls", async () => {
+test("item form uses one range calendar, native clocks, and Chrome geolocation", async () => {
   const [html, mapSource] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/location-map.js", import.meta.url), "utf8")
   ]);
-  assert.match(html, /id="item-start-date" type="date"/);
+  assert.match(html, /id="item-date-range" type="text" readonly/);
+  assert.match(html, /id="item-calendar-popover"[^>]*popover="auto"/);
+  assert.match(html, /id="item-calendar-year"[^>]*type="number"/);
+  assert.match(html, /id="item-start-date" type="hidden"/);
+  assert.match(html, /id="item-end-date" type="hidden"/);
   assert.match(html, /id="item-start-time" type="time"/);
-  assert.match(html, /id="item-end-date" type="date"/);
+  assert.match(html, /id="item-end-time" type="time"/);
   assert.match(html, /<geolocation id="item-geolocation"/);
   assert.match(mapSource, /tile\.openstreetmap\.org/);
   assert.match(mapSource, /OpenStreetMap/);
