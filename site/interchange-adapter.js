@@ -192,7 +192,7 @@
     const description = text(firstDefined(raw, ["description", "content", "details", "body", "note", "notes"]), 2000);
     const categoryId = categoryFor(extractGroupReference(raw), raw);
 
-    return {
+    const item = {
       id,
       kind,
       start,
@@ -204,6 +204,11 @@
         externalInterchange: collectPreservedFields(raw, sourceType, sourceId)
       }
     };
+    if (Array.isArray(raw.media)) item.media = boundedClone(raw.media);
+    if (Array.isArray(raw.tags)) item.tags = boundedClone(raw.tags);
+    if (raw.location && typeof raw.location === "object") item.location = boundedClone(raw.location);
+    if (raw.time && typeof raw.time === "object") item.time = boundedClone(raw.time);
+    return item;
   }
 
   function importObject(payload) {
@@ -415,6 +420,9 @@
       description: item.description || "",
       group: category?.extensions?.externalInterchange?.sourceId ?? category?.name ?? item.categoryId
     };
+    if (item.time) base.time = cloneJson(item.time);
+    if (item.location) base.location = cloneJson(item.location);
+    if (item.tags?.length) base.tags = cloneJson(item.tags);
 
     if (item.media?.length) {
       base.media = item.media.map((entry) => ({
