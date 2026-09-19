@@ -26,12 +26,13 @@
         continue;
       }
 
-      const distance = Math.abs(entry.position - current.centroid);
+      const previousPosition = current.entries[current.entries.length - 1].position;
+      const adjacentDistance = Math.abs(entry.position - previousPosition);
       const envelopeStart = current.entries[0].position;
       const envelopeEnd = entry.position;
       const envelopeWidth = envelopeEnd - envelopeStart;
 
-      if (distance <= threshold && envelopeWidth <= threshold * 1.9) {
+      if (adjacentDistance <= threshold && envelopeWidth <= threshold * 1.9) {
         current.entries.push(entry);
         current.centroid =
           current.entries.reduce((sum, candidate) => sum + candidate.position, 0) /
