@@ -273,7 +273,34 @@
     if (!root || !nodeById.has(root)) return { nodes: [], edges: [] };
 
     const selected = new Set([root]);
-    let frontier = new Set([root]);
+    const derivedEdges = [];
+    const rootItem = (Array.isArray(input?.items) ? input.items : []).find(
+      (item) => String(item.id) === root
+    );
+    for (const change of normalizeRelationChanges(rootItem?.relationChanges)) {
+      const edge = data.edges.find((candidate) => String(candidate.id) === String(change.relationshipId));
+      if (!edge) continue;
+      selected.add(String(edge.start));
+      selected.add(String(edge.end));
+      derivedEdges.push({
+        id: `change:${root}:${edge.id}`,
+        start: root,
+        end: String(edge.start),
+        label:
+          change.operation === "activate" ? "activates" :
+          change.operation === "deactivate" ? "deactivates" :
+          "updates",
+        temporalState: "changed",
+        properties: {
+          timelineType: "relation-change",
+          relationshipId: edge.id,
+          operation: change.operation,
+          attributes: cloneJson(change.properties || {})
+        }
+      });
+    }
+
+    let frontier = new Set(selected);
     for (let level = 0; level < Math.max(0, depth); level += 1) {
       const next = new Set();
       for (const edge of data.edges) {
@@ -294,7 +321,7 @@
     const edges = data.edges.filter(
       (edge) => selected.has(String(edge.start)) && selected.has(String(edge.end))
     );
-    return { nodes, edges };
+    return { nodes, edges: [...edges, ...derivedEdges] };
   }
 
   function temporalRelationProjection(relationships, temporal = globalThis.TimelineTemporal) {
