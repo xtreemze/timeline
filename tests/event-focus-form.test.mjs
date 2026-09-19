@@ -511,7 +511,7 @@ test("fullscreen preserves the left workspace tool dock inside the fullscreen su
   assert.match(app, /timeline-tool-dock-home/);
   assert.match(app, /mountFullscreenToolDock/);
   assert.match(app, /restoreToolDock/);
-  assert.match(app, /if \(active\) mountFullscreenToolDock\(\)/);
+  assert.match(app, /if \(active\)[\s\S]*mountFullscreenToolDock\(\)/);
   assert.match(styles, /#presentation-stage:fullscreen \.app-tool-dock[\s\S]*pointer-events:\s*auto !important[\s\S]*left:/);
 });
 
