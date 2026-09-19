@@ -248,8 +248,13 @@
     const width = Math.max(1, rect.width);
     const height = Math.max(1, rect.height);
     const ratio = width / height;
-    const nextShape =
-      width >= 1100 && ratio >= 1.15
+    const nextShape = presentationIsFullscreen()
+      ? ratio >= 1.15
+        ? "wide"
+        : ratio <= 0.85
+          ? "tall"
+          : "stacked"
+      : width >= 1100
         ? "wide"
         : ratio <= 0.85
           ? "tall"
@@ -1953,7 +1958,7 @@
     presentationResizeObserver = new ResizeObserver(() => {
       const changed = updatePresentationStageLayout();
       timelineView?.refreshLayout?.();
-      if (changed && presentationIsFullscreen()) {
+      if (changed) {
         schedulePresentationGeometryRefresh({ recenterGraph: true });
       }
     });
