@@ -624,7 +624,6 @@
 }
 @media (prefers-color-scheme: dark) {
   .timeline-event-terminal { box-shadow: 0 5px 18px rgba(0, 0, 0, .16); }
-  .timeline-detail { box-shadow: 0 14px 38px rgba(0, 0, 0, .28); }
 }
 @media (prefers-reduced-motion: reduce) {
   .timeline-event-terminal,
