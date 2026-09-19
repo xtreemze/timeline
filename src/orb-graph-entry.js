@@ -757,6 +757,10 @@ function create(container, handlers = {}) {
     recenter() {
       orb.recenter();
     },
+    refreshLayout() {
+      if (!hasGraphData) return;
+      orb.render(() => orb.recenter());
+    },
     zoomIn() {
       orb.zoomIn();
     },

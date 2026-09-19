@@ -779,3 +779,28 @@ test("focus chrome remains outside tab animation and semantic panels stay bounde
   assert.match(timelineCss, /timeline-focus-view\[popover\] > :is\([\s\S]*timeline-focus-evidence[\s\S]*max-inline-size:\s*100%/);
   assert.match(timelineCss, /\.timeline-focus-place,[\s\S]*\.timeline-focus-relations[\s\S]*max-block-size:\s*100%/);
 });
+
+
+test("focused map and graph mounts are idempotent so pointer gestures survive focus renders", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+
+  assert.match(app, /const moved = presentationGraphCanvas\.parentNode !== slot/);
+  assert.match(app, /if \(moved\) slot\.replaceChildren\(presentationGraphCanvas\)/);
+  assert.match(app, /const moved = els\.presentationMap\.parentNode !== slot/);
+  assert.match(app, /if \(moved\) slot\.replaceChildren\(els\.presentationMap\)/);
+  assert.match(app, /presentationMapKey/);
+  assert.match(app, /if \(presentationMap && presentationMapKey === mapKey\)/);
+  assert.match(app, /requestAnimationFrame\(\(\) => presentationMap\?\.refresh\?\.\(\)\)/);
+  assert.doesNotMatch(
+    app,
+    /function renderPresentationMap\(\) \{\s*destroyPresentationMap\(\)/
+  );
+});
+
+test("focused popover height is content-driven and View Transition snapshots cannot capture pointer input", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+
+  assert.match(css, /timeline-focus-view\[popover\]:popover-open[\s\S]*align-content:\s*start[\s\S]*block-size:\s*fit-content[\s\S]*grid-auto-rows:\s*auto/);
+  assert.match(css, /@media \(min-width: 900px\) and \(min-height: 700px\)[\s\S]*data-active-tab="overview"[\s\S]*grid-template-rows:\s*auto auto/);
+  assert.match(css, /::view-transition\s*\{[\s\S]*pointer-events:\s*none/);
+});

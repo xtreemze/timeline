@@ -44,12 +44,35 @@
       this.currentData = { nodes: [], edges: [] };
       this.hasRenderedData = false;
       this.selection = null;
+      this.layoutFrame = 0;
+      this.lastCanvasSize = "";
       this.orb = orbFactory.create(this.canvas, {
         onNodeClick: (node) => this.activateNode(node),
         onNodeLongPress: (node) => this.selectNodeForDrag(node),
         onEdgeClick: (edge) => this.activateEdge(edge),
         onSimulationState: (state) => this.renderSimulationState(state)
       });
+
+      if ("ResizeObserver" in globalThis && this.canvas) {
+        this.resizeObserver = new ResizeObserver((entries) => {
+          const entry = entries.find((candidate) => candidate.target === this.canvas);
+          if (!entry) return;
+          const width = Math.round(entry.contentRect.width);
+          const height = Math.round(entry.contentRect.height);
+          if (width <= 0 || height <= 0) return;
+          const size = `${width}x${height}`;
+          if (size === this.lastCanvasSize) return;
+          this.lastCanvasSize = size;
+          cancelAnimationFrame(this.layoutFrame);
+          this.layoutFrame = requestAnimationFrame(() => {
+            this.layoutFrame = 0;
+            this.orb.refreshLayout?.();
+          });
+        });
+        this.resizeObserver.observe(this.canvas);
+      } else {
+        this.resizeObserver = null;
+      }
     }
 
     renderSimulationState(state) {
@@ -96,7 +119,11 @@
     }
 
     refreshLayout() {
-      this.orb.recenter();
+      cancelAnimationFrame(this.layoutFrame);
+      this.layoutFrame = requestAnimationFrame(() => {
+        this.layoutFrame = 0;
+        this.orb.refreshLayout?.();
+      });
     }
 
     setPresentationMode(active) {

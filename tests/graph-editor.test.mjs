@@ -195,3 +195,18 @@ test("timeline topology changes visibly release, break, and bind graph relations
   assert.match(source, /keepForceActiveAfterInteraction\(\)/);
   assert.match(source, /prefers-reduced-motion:\s*reduce/);
 });
+
+
+test("graph refresh rerenders Orb after reparenting or container resize", async () => {
+  const [bridge, view] = await Promise.all([
+    readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8")
+  ]);
+
+  assert.match(bridge, /refreshLayout\(\) \{[\s\S]*orb\.render\(\(\) => orb\.recenter\(\)\)/);
+  assert.match(view, /new ResizeObserver\(\(entries\) => \{/);
+  assert.match(view, /entries\.find\(\(candidate\) => candidate\.target === this\.canvas\)/);
+  assert.match(view, /this\.lastCanvasSize/);
+  assert.match(view, /this\.resizeObserver\.observe\(this\.canvas\)/);
+  assert.match(view, /refreshLayout\(\)[\s\S]*this\.orb\.refreshLayout\?\.\(\)/);
+});

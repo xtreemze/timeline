@@ -2886,3 +2886,35 @@
     animation-duration: 0s !important;
   }
 }
+
+
+/* Focused detail should occupy only the space its two content bands need. Earlier
+   minmax tracks reserve unused block space when Context/Evidence is short. */
+.timeline-focus-view[popover]:popover-open {
+  align-content: start;
+  block-size: fit-content;
+  grid-auto-rows: auto;
+}
+
+@media (min-width: 900px) and (min-height: 700px) {
+  .timeline-focus-view[popover][data-active-tab="overview"],
+  .timeline-focus-view[popover][data-active-tab="evidence"] {
+    grid-template-rows: auto auto;
+    align-content: start;
+  }
+}
+
+/* View Transition snapshots are visual only. Pointer input must always reach the live
+   map, graph, toolbar, and popover beneath the generated transition layer. */
+::view-transition {
+  pointer-events: none;
+}
+
+.timeline-focus-place-backdrop,
+.timeline-focus-relations-backdrop,
+.timeline-focus-place-backdrop .presentation-map,
+.timeline-focus-relations-backdrop .temporal-graph-canvas,
+.timeline-focus-relations-backdrop .temporal-graph-canvas canvas {
+  user-select: none;
+  -webkit-user-select: none;
+}

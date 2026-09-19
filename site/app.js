@@ -283,6 +283,7 @@
   let graphOpenBeforeFullscreen = true;
   let timelineOrientationBeforeFullscreen = null;
   let presentationMap = null;
+  let presentationMapKey = "";
   let focusedGraphContextAvailable = false;
 
   const presentationGraphCanvas = els.graphViewRoot?.querySelector(".temporal-graph-canvas") || null;
@@ -335,8 +336,13 @@
       restoreGraphSurface();
       return false;
     }
-    slot.replaceChildren(presentationGraphCanvas);
-    requestAnimationFrame(() => temporalGraphView?.refreshLayout?.());
+    const moved = presentationGraphCanvas.parentNode !== slot;
+    if (moved) slot.replaceChildren(presentationGraphCanvas);
+    if (moved) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => temporalGraphView?.refreshLayout?.());
+      });
+    }
     return true;
   }
 
@@ -346,14 +352,21 @@
       restoreMapSurface();
       return false;
     }
-    slot.replaceChildren(els.presentationMap);
+    const moved = els.presentationMap.parentNode !== slot;
+    if (moved) slot.replaceChildren(els.presentationMap);
     els.presentationMap.setAttribute("role", "application");
+    if (moved) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => presentationMap?.refresh?.());
+      });
+    }
     return true;
   }
 
   function destroyPresentationMap() {
     presentationMap?.destroy?.();
     presentationMap = null;
+    presentationMapKey = "";
     restoreMapSurface();
     if (els.presentationMap) {
       els.presentationMap.replaceChildren();
@@ -368,10 +381,30 @@
   }
 
   function renderPresentationMap() {
-    destroyPresentationMap();
     const item = focusedPresentationItem();
     const mapApi = globalThis.TimelineLocationMap;
-    if (!item || !mapApi?.hasRenderableGeometry?.(item.location) || !mountMapBackdrop()) return false;
+    if (!item || !mapApi?.hasRenderableGeometry?.(item.location)) {
+      destroyPresentationMap();
+      return false;
+    }
+
+    const fictionalReferenceFrame =
+      state.extensions?.narrative?.spatialReferenceFrame?.fictional === true;
+    const mapKey = JSON.stringify({
+      id: item.id,
+      location: item.location,
+      fictionalReferenceFrame
+    });
+
+    if (presentationMap && presentationMapKey === mapKey) {
+      if (!mountMapBackdrop()) return false;
+      requestAnimationFrame(() => presentationMap?.refresh?.());
+      return true;
+    }
+
+    destroyPresentationMap();
+    if (!mountMapBackdrop()) return false;
+
     const name =
       item.location.name ||
       item.location.geographicIdentifier ||
@@ -381,8 +414,6 @@
     const category = getCategory(item.categoryId);
     const categoryIcon = presentation.ICON_NAMES.includes(item.categoryId) ? item.categoryId : null;
     const iconName = item.tags?.[0]?.icon || categoryIcon || "place";
-    const fictionalReferenceFrame =
-      state.extensions?.narrative?.spatialReferenceFrame?.fictional === true;
     presentationMap = mapApi.createReadOnly?.({
       container: els.presentationMap,
       location: item.location,
@@ -393,7 +424,8 @@
       countryContextIntro: true,
       fictionalReferenceFrame
     }) || null;
-    return true;
+    presentationMapKey = presentationMap ? mapKey : "";
+    return Boolean(presentationMap);
   }
 
   function syncContextualPresentationPanels() {
@@ -472,6 +504,7 @@
   function refreshPresentationGeometry({ recenterGraph = false } = {}) {
     updatePresentationStageLayout();
     timelineView?.refreshLayout?.();
+    presentationMap?.refresh?.();
     if (recenterGraph) temporalGraphView?.refreshLayout?.();
   }
 
