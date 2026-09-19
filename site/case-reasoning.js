@@ -366,11 +366,67 @@
   }
 
   function orderedRecords(reasoning) {
+    const normalized = normalizeReasoning(reasoning);
+    const records = recordsOf(normalized);
     const rank = new Map(STAGE_ORDER.map((type, index) => [type, index]));
-    return recordsOf(reasoning).sort((a, b) =>
+    const recordById = new Map(records.map((record) => [record.id, record]));
+    const outgoing = new Map(records.map((record) => [record.id, new Set()]));
+    const indegree = new Map(records.map((record) => [record.id, 0]));
+
+    const compare = (a, b) =>
       (rank.get(a.type) ?? 999) - (rank.get(b.type) ?? 999) ||
-      a.id.localeCompare(b.id)
-    );
+      a.id.localeCompare(b.id);
+
+    function link(prerequisiteId, dependentId) {
+      if (
+        prerequisiteId === dependentId ||
+        !recordById.has(prerequisiteId) ||
+        !recordById.has(dependentId)
+      ) return;
+      const dependents = outgoing.get(prerequisiteId);
+      if (dependents.has(dependentId)) return;
+      dependents.add(dependentId);
+      indegree.set(dependentId, indegree.get(dependentId) + 1);
+    }
+
+    for (const record of records) {
+      for (const dependencyId of dependencyIds(record)) link(dependencyId, record.id);
+    }
+
+    for (const edge of normalized.edges) {
+      if (edge.predicate === "opposes") continue;
+      if (edge.predicate === "supersedes") {
+        link(edge.toId, edge.fromId);
+      } else {
+        link(edge.fromId, edge.toId);
+      }
+    }
+
+    const ready = records.filter((record) => indegree.get(record.id) === 0).sort(compare);
+    const ordered = [];
+
+    while (ready.length) {
+      const record = ready.shift();
+      ordered.push(record);
+      const dependents = [...outgoing.get(record.id)]
+        .map((id) => recordById.get(id))
+        .sort(compare);
+      for (const dependent of dependents) {
+        const next = indegree.get(dependent.id) - 1;
+        indegree.set(dependent.id, next);
+        if (next === 0) {
+          ready.push(dependent);
+          ready.sort(compare);
+        }
+      }
+    }
+
+    if (ordered.length !== records.length) {
+      const emitted = new Set(ordered.map((record) => record.id));
+      ordered.push(...records.filter((record) => !emitted.has(record.id)).sort(compare));
+    }
+
+    return ordered;
   }
 
   globalThis.TimelineCaseReasoning = Object.freeze({
