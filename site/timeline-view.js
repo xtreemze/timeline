@@ -697,7 +697,7 @@
         connector.style.top = "0";
         connector.style.width = Math.max(1, segment.length) + "px";
         connector.style.height = "2px";
-        if (side < 0) node.classList.add("label-before");
+        if (lane < 0) node.classList.add("label-before");
       }
       return node;
     }
@@ -981,7 +981,7 @@
         connector.style.width = Math.max(1, segment.length) + "px";
         connector.style.height = "2px";
 
-        if (lane < 0) node.classList.add("label-before");
+        if (side < 0) node.classList.add("label-before");
       }
       return node;
     }
