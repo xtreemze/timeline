@@ -67,25 +67,16 @@ References:
 - https://github.com/githubnext/monaspace
 - https://developer.chrome.com/blog/css-text-box-trim
 
-## Twelve-column placement grid
+## Viewport canvas and overlay grid
 
-The application shell and interactive timeline stage both expose 12 equal logical columns.
+The timeline owns the application viewport and is not compressed into a page-level column layout. Content surfaces that float above it use a compact six-column internal grid.
 
-Desktop default:
+- chronology geometry always uses the full available timeline canvas;
+- event detail, editor sheets, browser sheets and inspectors use bounded overlays;
+- focused Place and Relations sections reuse the canonical map and graph inside that six-column overlay;
+- graph, map and text layers never become sibling columns that shrink or crop the timeline;
+- timeline-axis coordinates remain continuous and do not snap to overlay columns.
 
-- editor: 4 columns;
-- chronology: 8 columns.
-
-Intermediate width:
-
-- editor: 5 columns;
-- chronology: 7 columns.
-
-Narrow layout:
-
-- both surfaces span all 12 columns and stack.
-
-The timeline's 12-column stage is also the placement contract for future graph inspectors, side lenses, minimaps and entity clusters. Timeline-axis coordinates remain continuous and do not snap time to grid columns.
 
 ## Temporal graph contract
 
@@ -157,7 +148,7 @@ The timeline and relation graph should remain coordinated but independently rend
 - timeline: temporal projection, clustering, month/year context and relation activity bands;
 - graph: entity topology, relation density, neighborhoods and graph algorithms;
 - shared selection: selecting an event/entity/edge highlights its counterpart on the other surface;
-- shared temporal filter: the graph can restrict or fade edges outside the timeline viewport;
+- shared temporal filter: the rendered graph is a temporal slice of the timeline viewport; timed relations outside the window leave the rendered topology, while explicitly persistent relations remain;
 - GPU/WebGL should be preferred for graph density, while the chronology remains semantic DOM where practical;
 - graph clustering/level-of-detail must be based on viewport density rather than mutating graph records.
 
@@ -210,22 +201,24 @@ Edges are directed subject–action–object statements:
 
 The action label is stored in `predicate`. Endpoints can reference reusable entities, chronology items, or stories. Referential normalization drops imported edges whose endpoints do not exist, and deletion of a node/item/story removes edges that would otherwise become orphaned.
 
+Authoring SHOULD give a relation an instant or interval whenever its temporal extent is known. The editor therefore defaults new relations to a dated instant. “Persistent / no temporal anchor” is an explicit exception for genuinely timeless topology rather than the default way to avoid entering a date.
+
 ## Timeline-synchronized graph lens
 
 `site/temporal-graph-view.js` renders the current graph through the bundled Memgraph Orb canvas/WebGL surface.
 
-- all canonical nodes remain structurally visible;
-- timeless edges remain visible as persistent topology;
-- timed edges whose extent intersects the timeline viewport are emphasized;
-- timed edges outside the viewport fade;
+- explicitly persistent/timeless edges remain visible across timeline windows;
+- timed relations are rendered only while their extent intersects the timeline viewport;
+- event-driven relation state is replayed against the same viewport and inactive relations are removed from the rendered topology;
+- nodes are retained when they participate in a visible relation or are chronology items whose own temporal extent intersects the viewport;
 - edge labels display the action/predicate;
-- selecting a node or edge exposes its properties;
-- selecting a chronology-item node can focus the corresponding timeline event;
-- wheel zoom and background drag manipulate the graph view without changing graph data.
+- chronology-item nodes focus the corresponding event;
+- entity/edge selection opens a read-only inspector only when meaningful detail exists; otherwise the nearest connected chronology event is focused when one can be resolved;
+- wheel zoom, pan and node drag manipulate the graph view without changing canonical graph data.
 
 The authoring lens now uses the scale path directly. `@memgraph/orb` is bundled through esbuild, preserving its worker-backed CPU force simulation. Canvas is the default renderer; dense graphs switch to WebGL when WebGL2 is available, and very large graphs can enable Orb's GPU force path.
 
-Temporal navigation does not restart force simulation. Timeline compares a topology signature (node IDs plus edge endpoints): topology changes call Orb data setup and simulate, while timeline-window changes update effective edge data/styles and render without restarting physics.
+Temporal navigation does not restart force simulation merely because the viewport coordinate changes. Timeline compares a topology signature (visible node IDs plus visible edge endpoints): movement within the same active temporal topology updates effective edge state without resetting physics, while crossing a relation/event temporal boundary changes the signature and calls Orb data setup for the new visible topology.
 
 Current implementation thresholds are: below 1,200 nodes Canvas + worker CPU force; 1,200–2,999 nodes WebGL + worker CPU force when available; 3,000+ nodes WebGL + GPU force when available. These thresholds are presentation policy, not canonical data.
 
@@ -244,7 +237,7 @@ The focused-event graph includes derived event-to-context links labelled **activ
 
 ## Focused graph integration
 
-Each focused chronology event receives a bounded one-hop graph neighborhood. The graph occupies columns 7–12 in the common lower 12-column composition, beside place and textual relation context. It uses the same Orb bridge as the full graph, so node selection can navigate to connected events and edge selection can expose relation details.
+Each focused chronology event receives a bounded one-hop graph neighborhood. The canonical Orb surface is moved behind the Relations section of the focused six-column overlay rather than receiving separate layout ownership. Chronology-item nodes can navigate to connected events. Entity/edge inspection remains read-only in viewing mode and appears only when the selected record has substantive descriptive, temporal, location, identifier, role, property or lifecycle detail; otherwise the interaction resolves to a connected event when possible without dismissing the graph.
 
 ## Presentation graph semantics
 
