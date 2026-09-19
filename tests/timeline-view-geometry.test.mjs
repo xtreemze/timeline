@@ -38,7 +38,7 @@ test("selected events use a compact six-column focus popover over the persistent
   assert.match(css, /\.timeline-focus-view\s*\{[\s\S]*grid-template-columns:\s*repeat\(6,/);
   assert.doesNotMatch(css, /\.timeline-focus-view\s*\{[\s\S]*grid-template-columns:\s*repeat\(12,/);
   assert.match(css, /timeline-focus-view\[popover\]/);
-  assert.match(css, /inline-size:\s*min\(680px/);
+  assert.match(css, /inline-size:\s*min\(640px/);
   assert.match(css, /\.timeline-view\.is-event-focused/);
   assert.match(css, /grid-row:\s*3/);
   assert.doesNotMatch(css, /position-anchor:\s*--timeline-detail-anchor/);
