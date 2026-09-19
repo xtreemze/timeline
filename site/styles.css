@@ -1252,10 +1252,6 @@ footer > :last-child { grid-column: 9 / -1; justify-self: end; }
   min-height: 0;
   max-height: none;
 }
-.presentation-stage:fullscreen .temporal-graph-detail,
-.app-shell.is-event-focused .temporal-graph-detail {
-  display: none;
-}
 .presentation-stage:fullscreen .timeline-view {
   min-height: 0;
   margin: 0;
@@ -1329,27 +1325,52 @@ footer > :last-child { grid-column: 9 / -1; justify-self: end; }
   content: " · GPU";
 }
 .temporal-graph-detail {
-  display: grid;
-  grid-template-columns: minmax(120px, auto) minmax(120px, 1fr) minmax(240px, 2fr);
-  align-items: start;
-  gap: .7rem;
-  padding: .75rem;
+  padding: .72rem;
   border-top: 1px solid var(--line);
   color: var(--muted);
+  background: var(--paper);
   font-size: .68rem;
+}
+.temporal-graph-detail[hidden] {
+  display: none !important;
+}
+.temporal-graph-detail-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: .7rem;
+}
+.temporal-graph-detail-header > div {
+  display: grid;
+  gap: .16rem;
+  min-width: 0;
 }
 .temporal-graph-detail strong {
   color: var(--ink);
-  font-size: .76rem;
+  font-size: .8rem;
 }
-.temporal-graph-detail pre {
-  max-height: 180px;
+.temporal-graph-detail-close {
+  flex: 0 0 auto;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+}
+.temporal-graph-detail-list {
+  display: grid;
+  grid-template-columns: minmax(84px, auto) minmax(0, 1fr);
+  gap: .35rem .7rem;
+  margin: .65rem 0 0;
+}
+.temporal-graph-detail-list dt {
+  color: var(--muted);
+  font-weight: 760;
+}
+.temporal-graph-detail-list dd {
+  min-width: 0;
   margin: 0;
-  overflow: auto;
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
   color: var(--ink);
-  font: 620 .64rem/1.5 "Monaspace Krypton Timeline", ui-monospace, monospace;
+  font: 620 .64rem/1.45 "Monaspace Krypton Timeline", ui-monospace, monospace;
 }
 
 @media (max-width: 760px) {
@@ -2011,6 +2032,10 @@ body {
   width: 22px;
   height: 22px;
   stroke-width: 1.9;
+}
+.app-tool:disabled {
+  opacity: .35;
+  cursor: not-allowed;
 }
 .app-tool-label { line-height: 1; }
 .app-tool:hover,
