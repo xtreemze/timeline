@@ -357,7 +357,7 @@
             </div>
             <span id="timeline-window-readout" class="timeline-window-readout" aria-live="polite">No visible events</span>
           </div>
-          <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan. Scroll or pinch over the timeline for slow pointer-anchored zoom. Use plus and minus for stepped zoom. Press Home to fit all visible events and Escape to close event detail.</p>
+          <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan with inertia. Scroll or pinch over the timeline for slow pointer-anchored zoom. Overlapping events fuse into temporary clusters that can be activated to zoom in. Use plus and minus for stepped zoom. Press Home to fit all visible events and Escape to close event detail.</p>
           <div id="timeline-surface" class="timeline-surface is-landscape" tabindex="0" role="group" aria-describedby="timeline-surface-help"></div>
           <aside id="timeline-detail" class="timeline-detail" role="dialog" aria-modal="false" aria-live="polite" popover="auto"></aside>
         </section>
@@ -388,8 +388,11 @@
 
   <div id="status" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
   <script src="./time-scale.js" defer></script>
-  <script src="./timeline-view.js" defer></script>
   <script src="./temporal-standards.js" defer></script>
+  <script src="./timeline-clustering.js" defer></script>
+  <script src="./timeline-motion.js" defer></script>
+  <script src="./timeline-graph.js" defer></script>
+  <script src="./timeline-view.js" defer></script>
   <script src="./spatial.js" defer></script>
   <script src="./location-map.js" defer></script>
   <script src="./time-graphics-adapter.js" defer></script>
