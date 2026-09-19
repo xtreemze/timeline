@@ -6,6 +6,9 @@ on:
       - 'site/index.html'
       - 'site/app.js'
       - 'site/timeline-view.js'
+      - 'site/timeline-clustering.js'
+      - 'site/timeline-motion.js'
+      - 'site/timeline-graph.js'
       - 'site/timeline-view.css'
       - 'site/time-scale.js'
       - 'site/time-graphics-adapter.js'
@@ -16,6 +19,7 @@ on:
       - 'tests/time-graphics-adapter.test.mjs'
       - 'schemas/time-graphics-interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
+      - 'tests/timeline-interaction.test.mjs'
       - '.github/workflows/timeline-view.yml'
   push:
     branches: [main]
@@ -23,6 +27,9 @@ on:
       - 'site/index.html'
       - 'site/app.js'
       - 'site/timeline-view.js'
+      - 'site/timeline-clustering.js'
+      - 'site/timeline-motion.js'
+      - 'site/timeline-graph.js'
       - 'site/timeline-view.css'
       - 'site/time-scale.js'
       - 'site/time-graphics-adapter.js'
@@ -33,6 +40,7 @@ on:
       - 'tests/time-graphics-adapter.test.mjs'
       - 'schemas/time-graphics-interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
+      - 'tests/timeline-interaction.test.mjs'
       - '.github/workflows/timeline-view.yml'
 
 permissions:
@@ -47,10 +55,13 @@ jobs:
         with:
           node-version: 24
       - run: node --check site/time-scale.js
+      - run: node --check site/timeline-clustering.js
+      - run: node --check site/timeline-motion.js
+      - run: node --check site/timeline-graph.js
       - run: node --check site/timeline-view.js
       - run: node --check site/time-graphics-adapter.js
       - run: node --check site/temporal-standards.js
       - run: node --check site/spatial.js
       - run: node --check site/location-map.js
       - run: node --check site/app.js
-      - run: node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/time-graphics-adapter.test.mjs tests/temporal-spatial.test.mjs
+      - run: node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/timeline-interaction.test.mjs tests/time-graphics-adapter.test.mjs tests/temporal-spatial.test.mjs
