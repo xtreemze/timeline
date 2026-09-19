@@ -997,7 +997,7 @@
         "end": null
       },
       "title": "First Pig builds a straw house",
-      "description": "The first pig chooses speed and builds a light house of straw.",
+      "description": "The First Pig chooses speed and builds a light house of straw shortly after acquiring his material. The rapid construction leaves him free sooner, but the shelter has little resistance when the wolf later arrives.",
       "categoryId": "creation",
       "location": {
         "name": "Straw House Meadow",
@@ -1131,7 +1131,7 @@
         "end": null
       },
       "title": "Second Pig builds a stick house",
-      "description": "The second pig builds with sticks, trading some speed for a sturdier shelter.",
+      "description": "The Second Pig builds a house from bundled sticks, spending more effort than his brother with straw but still finishing quickly. The resulting shelter is stronger than straw yet remains vulnerable to the same attack.",
       "categoryId": "creation",
       "location": {
         "name": "Stick House Grove",
@@ -1198,7 +1198,7 @@
         "end": null
       },
       "title": "Snow White finds the dwarfs' cottage",
-      "description": "Lost in the forest, Snow White discovers a small cottage and rests inside.",
+      "description": "After fleeing through the forest, Snow White discovers the dwarfs' cottage and enters seeking food, rest, and safety. The location becomes her refuge and later the fixed point the Queen targets through repeated disguises.",
       "categoryId": "discovery",
       "location": {
         "name": "Seven Dwarfs' Cottage",
@@ -1792,7 +1792,7 @@
         "end": null
       },
       "title": "The Queen learns Snow White survives",
-      "description": "The mirror reveals that Snow White is alive at the dwarfs' cottage.",
+      "description": "The Queen consults the mirror again and learns that Snow White survived the huntsman's mission and is living at the dwarfs' cottage. This discovery restarts the threat and causes the Queen to plan direct disguised attacks.",
       "categoryId": "discovery",
       "location": {
         "name": "Queen's Castle",
@@ -1852,7 +1852,7 @@
         "end": null
       },
       "title": "Wolf blows down the straw house",
-      "description": "The wolf destroys the first shelter; the First Pig escapes toward his brother.",
+      "description": "The wolf reaches the straw house, demands entry, and destroys the light shelter by blowing against it. The First Pig escapes toward the Second Pig's house, turning an individual threat into a moving pursuit.",
       "categoryId": "conflict",
       "location": {
         "name": "Straw House Meadow",
@@ -2117,7 +2117,7 @@
         "end": null
       },
       "title": "Wolf blows down the stick house",
-      "description": "The first two pigs flee together to the completed brick house.",
+      "description": "The wolf follows the First Pig to the stick house and destroys that shelter as well. The First and Second Pigs escape together toward the Third Pig's brick house, concentrating the pursuit on the strongest remaining refuge.",
       "categoryId": "conflict",
       "location": {
         "name": "Stick House Grove",
@@ -2442,7 +2442,7 @@
         "end": null
       },
       "title": "Wolf tries the chimney",
-      "description": "Unable to breach the walls, the wolf attempts to enter through the chimney.",
+      "description": "Unable to breach the brick walls, the wolf descends toward the chimney as an alternate entry route. The attempted vertical approach is the final escalation after direct attacks on the house have failed.",
       "categoryId": "conflict",
       "location": {
         "name": "Brick House Hill",
