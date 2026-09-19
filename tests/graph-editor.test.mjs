@@ -7,7 +7,10 @@ test("graph editor exposes noun nodes, action edges, properties, and temporal ra
   assert.match(html, /id="tab-graph"/);
   assert.match(html, /id="panel-graph"/);
   assert.match(html, /id="graph-node-form"/);
+  assert.match(html, /id="graph-node-identity-details"/);
+  assert.match(html, /id="graph-node-alternate-names"/);
   assert.match(html, /id="graph-node-identifiers"/);
+  assert.match(html, /id="graph-node-source-ids"/);
   assert.match(html, /id="graph-node-properties"/);
   assert.match(html, /id="graph-edge-subject"/);
   assert.match(html, /id="graph-edge-predicate"/);
@@ -47,6 +50,11 @@ test("application provides CRUD handlers for graph nodes and labeled edges", asy
   assert.match(source, /removeGraphEdge/);
   assert.match(source, /parseJsonObject/);
   assert.match(source, /parseJsonArray/);
+  assert.match(source, /parseLineList/);
+  assert.match(source, /graphNodeAlternateNames/);
+  assert.match(source, /graphNodeSourceIds/);
+  assert.match(source, /connected \$\{edgeCount === 1 \? "edge" : "edges"\} will also be removed/);
+  assert.match(source, /pruneRelationChanges\(removedRelationshipIds\)/);
   assert.match(source, /collectRelationChangeForm/);
   assert.match(source, /buildGraphEdgeTime/);
   assert.match(source, /timelineviewportchange/);

@@ -242,7 +242,14 @@ test("pointer velocity uses recent samples and clamps extreme release speed", ()
 test("Orb adapter preserves temporal relationship metadata", () => {
   const normalized = graph.normalizeGraphData({
     entities: [
-      { id: "person-a", type: "person", name: "A" },
+      {
+        id: "person-a",
+        type: "person",
+        name: "A",
+        alternateNames: ["Alias A", "Alias A", "Former A"],
+        identifiers: [{ scheme: "case-id", value: "P-17" }],
+        sourceIds: ["evidence-17", "evidence-17", "source-record-3"]
+      },
       { id: "person-b", type: "person", name: "B" }
     ],
     relationships: [{
@@ -260,6 +267,10 @@ test("Orb adapter preserves temporal relationship metadata", () => {
 
   const orb = graph.toOrbGraph(normalized);
   assert.equal(orb.nodes.length, 2);
+  assert.deepEqual(normalized.entities[0].alternateNames, ["Alias A", "Former A"]);
+  assert.deepEqual(normalized.entities[0].sourceIds, ["evidence-17", "source-record-3"]);
+  assert.deepEqual(orb.nodes[0].properties.alternateNames, ["Alias A", "Former A"]);
+  assert.deepEqual(orb.nodes[0].properties.sourceIds, ["evidence-17", "source-record-3"]);
   assert.equal(orb.edges[0].start, "person-a");
   assert.equal(orb.edges[0].end, "person-b");
   assert.equal(orb.edges[0].properties.time.type, "interval");
