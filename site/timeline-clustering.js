@@ -303,6 +303,21 @@
       entry.items.some((item) => String(item.id) === String(focused.id))
     );
 
+    const coincidentIds = source
+      .filter((item) =>
+        String(item.id) !== String(focused.id) &&
+        item.start === focused.start
+      )
+      .map((item) => String(item.id));
+    if (coincidentIds.length) {
+      return {
+        mode: "coincident",
+        viewport: { ...viewport },
+        forceUnique: false,
+        contextIds: coincidentIds
+      };
+    }
+
     if (representation?.kind === "cluster") {
       const deltas = representation.items
         .filter((item) => String(item.id) !== String(focused.id))
