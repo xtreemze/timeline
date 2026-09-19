@@ -9,6 +9,10 @@ on:
       - 'site/timeline-view.css'
       - 'site/time-scale.js'
       - 'site/time-graphics-adapter.js'
+      - 'site/temporal-standards.js'
+      - 'site/spatial.js'
+      - 'site/location-map.js'
+      - 'tests/temporal-spatial.test.mjs'
       - 'tests/time-graphics-adapter.test.mjs'
       - 'schemas/time-graphics-interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
@@ -22,6 +26,10 @@ on:
       - 'site/timeline-view.css'
       - 'site/time-scale.js'
       - 'site/time-graphics-adapter.js'
+      - 'site/temporal-standards.js'
+      - 'site/spatial.js'
+      - 'site/location-map.js'
+      - 'tests/temporal-spatial.test.mjs'
       - 'tests/time-graphics-adapter.test.mjs'
       - 'schemas/time-graphics-interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
@@ -41,5 +49,8 @@ jobs:
       - run: node --check site/time-scale.js
       - run: node --check site/timeline-view.js
       - run: node --check site/time-graphics-adapter.js
+      - run: node --check site/temporal-standards.js
+      - run: node --check site/spatial.js
+      - run: node --check site/location-map.js
       - run: node --check site/app.js
-      - run: node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/time-graphics-adapter.test.mjs
+      - run: node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/time-graphics-adapter.test.mjs tests/temporal-spatial.test.mjs
