@@ -56,6 +56,17 @@
     return (date.getUTCDay() + 6) % 7;
   }
 
+  function addDays(value, delta) {
+    const parsed = parseDate(value);
+    if (!parsed) return "";
+    const date = new Date(0);
+    date.setUTCFullYear(parsed.year, parsed.month - 1, parsed.day + delta);
+    date.setUTCHours(0, 0, 0, 0);
+    const year = date.getUTCFullYear();
+    if (year < 1 || year > 9999) return value;
+    return `${String(year).padStart(4, "0")}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+  }
+
   function formatDisplay(start, end, mode) {
     const parsedStart = parseDate(start);
     if (!parsedStart) return "";
@@ -136,6 +147,31 @@
         this.choose(button.dataset.date);
       });
 
+      this.grid.addEventListener("keydown", (event) => {
+        const button = event.target.closest("button[data-date]");
+        if (!button) return;
+        const keyDeltas = {
+          ArrowLeft: -1,
+          ArrowRight: 1,
+          ArrowUp: -7,
+          ArrowDown: 7
+        };
+        if (keyDeltas[event.key] !== undefined) {
+          event.preventDefault();
+          this.focusDate(addDays(button.dataset.date, keyDeltas[event.key]));
+          return;
+        }
+        if (event.key === "PageUp" || event.key === "PageDown") {
+          event.preventDefault();
+          const direction = event.key === "PageUp" ? -1 : 1;
+          const parsed = parseDate(button.dataset.date);
+          if (!parsed) return;
+          const shifted = monthShift(parsed.year, parsed.month, direction);
+          const day = Math.min(parsed.day, daysInMonth(shifted.year, shifted.month));
+          this.focusDate(`${String(shifted.year).padStart(4, "0")}-${pad(shifted.month)}-${pad(day)}`);
+        }
+      });
+
       this.popover.addEventListener("toggle", (event) => {
         if (event.newState === "open") {
           const selected = parseDate(this.pendingStart || this.start);
@@ -144,6 +180,9 @@
             this.viewMonth = selected.month;
           }
           this.render();
+          requestAnimationFrame(() => {
+            this.grid.querySelector('button[tabindex="0"]')?.focus();
+          });
         }
       });
     }
@@ -170,6 +209,17 @@
       this.viewYear = Math.max(1, Math.min(9999, next.year));
       this.viewMonth = next.month;
       this.render();
+    }
+
+    focusDate(value) {
+      const parsed = parseDate(value);
+      if (!parsed) return;
+      this.viewYear = parsed.year;
+      this.viewMonth = parsed.month;
+      this.render();
+      requestAnimationFrame(() => {
+        this.grid.querySelector(`button[data-date="${CSS.escape(value)}"]`)?.focus();
+      });
     }
 
     choose(value) {
@@ -293,7 +343,7 @@
         button.className = "range-calendar-day";
         button.dataset.date = value;
         button.textContent = String(day);
-        button.tabIndex = outside ? -1 : 0;
+        button.tabIndex = -1;
         button.classList.toggle("is-outside", outside);
 
         const start = this.pendingStart || this.start;
@@ -320,6 +370,12 @@
 
         this.grid.append(button);
       }
+
+      const preferred =
+        this.grid.querySelector(`button[data-date="${CSS.escape(this.pendingStart || this.start || "")}"]`) ||
+        this.grid.querySelector("button:not(.is-outside)") ||
+        this.grid.querySelector("button");
+      if (preferred) preferred.tabIndex = 0;
     }
   }
 
