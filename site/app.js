@@ -586,7 +586,11 @@
         description: typeof raw.description === "string" ? raw.description.slice(0, 2000) : "",
         categoryId: ensureCategory(raw.categoryId || raw.category)
       };
+      const media = presentation.normalizeMedia(raw.media);
+      const tags = presentation.normalizeTags(raw.tags);
       if (location) item.location = location;
+      if (media.length) item.media = media;
+      if (tags.length) item.tags = tags;
       const extensions = normalizeExtensions(raw.extensions);
       if (extensions) item.extensions = extensions;
       return item;
@@ -713,7 +717,15 @@
     }
     if (ui.search.trim()) {
       const needle = ui.search.trim().toLocaleLowerCase();
-      items = items.filter((item) => `${item.title}\n${item.description}`.toLocaleLowerCase().includes(needle));
+      items = items.filter((item) => {
+        const tagText = (item.tags || []).map((tag) => tag.label).join(" ");
+        const locationText = item.location
+          ? [item.location.name, item.location.geographicIdentifier, item.location.address].filter(Boolean).join(" ")
+          : "";
+        return `${item.title}\n${item.description}\n${tagText}\n${locationText}`
+          .toLocaleLowerCase()
+          .includes(needle);
+      });
     }
     return items;
   }
