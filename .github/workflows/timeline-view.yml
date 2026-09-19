@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'site/index.html'
+      - 'package.json'
+      - 'src/orb-graph-entry.js'
       - 'site/app.js'
       - 'site/timeline-view.js'
       - 'site/timeline-clustering.js'
@@ -37,6 +39,8 @@ on:
     branches: [main]
     paths:
       - 'site/index.html'
+      - 'package.json'
+      - 'src/orb-graph-entry.js'
       - 'site/app.js'
       - 'site/timeline-view.js'
       - 'site/timeline-clustering.js'
@@ -75,9 +79,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm build
+      - run: test -s site/orb-graph.bundle.js
+      - run: node --check src/orb-graph-entry.js
+      - run: node --check site/orb-graph.bundle.js
       - run: node --check site/time-scale.js
       - run: node --check site/timeline-clustering.js
       - run: node --check site/timeline-motion.js
@@ -94,4 +106,4 @@ jobs:
       - run: node --check site/spatial.js
       - run: node --check site/location-map.js
       - run: node --check site/app.js
-      - run: node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/timeline-interaction.test.mjs tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/event-focus-form.test.mjs tests/evidence-store.test.mjs tests/sample-case.test.mjs tests/timeline-navigation.test.mjs tests/temporal-graph-view.test.mjs tests/graph-editor.test.mjs
+      - run: pnpm test
