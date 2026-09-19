@@ -309,16 +309,6 @@
   font-variant-numeric: tabular-nums;
   font-feature-settings: "calt" 1, "liga" 1;
 }
-@starting-style {
-  .timeline-cluster-terminal {
-    opacity: 0;
-    transform: translate(-.84rem, -50%) scale(.86);
-  }
-  .timeline-event.label-before .timeline-cluster-terminal {
-    transform: translate(calc(-100% + .84rem), -50%) scale(.86);
-  }
-}
-
 .timeline-event-dot {
   width: .72rem;
   height: .72rem;
