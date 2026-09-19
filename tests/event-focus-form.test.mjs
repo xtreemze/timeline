@@ -304,6 +304,25 @@ test("focused event detail uses a shared View Transition with its timeline termi
   assert.doesNotMatch(css, /view-transition-name:\s*timeline-detail-overlay/);
 });
 
+test("adjacent focused-event navigation finishes viewport motion before swapping shared detail", async () => {
+  const [app, source] = await Promise.all([
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8")
+  ]);
+
+  assert.match(app, /focusCurrentStoryItem\(Boolean\(options\.focusEvent\),\s*\{[\s\S]*direction:\s*delta < 0 \? -1 : 1/);
+  assert.match(source, /FOCUS_SWAP_TRANSITION_NAME = "timeline-event-detail-swap"/);
+  assert.match(source, /focusNavigationToken/);
+  assert.match(source, /zoomAnimationResolve/);
+  assert.match(source, /animateViewportTo\(target\)[\s\S]*return new Promise/);
+  assert.match(source, /resolveViewportAnimation\(true\)/);
+  assert.match(source, /cancelViewportAnimation\(\)[\s\S]*resolveViewportAnimation\(false\)/);
+  assert.match(source, /transitionFocusTo\(item, direction = 1\)[\s\S]*await this\.animateViewportTo\(plan\.viewport\)[\s\S]*token !== this\.focusNavigationToken/);
+  assert.match(source, /this\.selectedId && this\.selectedId !== id && !this\.prefersReducedMotion\(\)/);
+  assert.match(source, /dataset\.timelineFocusDirection = adjacentDirection < 0 \? "backward" : "forward"/);
+  assert.match(source, /transition\.finished\.then\(cleanupAdjacentTransition, cleanupAdjacentTransition\)/);
+});
+
 test("timeline range bars are identifiable and labels share event color semantics", async () => {
   const [source, css] = await Promise.all([
     readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
