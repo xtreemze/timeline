@@ -314,7 +314,7 @@
   border-radius: .48rem;
   background: var(--paper);
   color: var(--ink);
-  box-shadow: 0 8px 24px rgba(38, 31, 23, .14);
+  box-shadow: 0 4px 12px rgba(38, 31, 23, .11);
   font: 700 .68rem/1.35 "Monaspace Krypton Timeline", ui-monospace, monospace;
   text-align: left;
   white-space: normal;
@@ -367,7 +367,7 @@
   padding: .44rem .62rem;
   background: color-mix(in srgb, var(--paper) 94%, transparent);
   color: var(--ink);
-  box-shadow: 0 8px 26px rgba(38, 31, 23, .10);
+  box-shadow: 0 3px 12px rgba(38, 31, 23, .07);
   cursor: pointer;
   pointer-events: auto;
   text-align: left;
@@ -394,8 +394,8 @@
 .timeline-event.is-story-current .timeline-event-terminal {
   border-color: var(--event-color);
   box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--event-color) 24%, transparent),
-    0 12px 34px color-mix(in srgb, var(--event-color) 18%, transparent);
+    0 0 0 2px color-mix(in srgb, var(--event-color) 14%, transparent),
+    0 4px 14px color-mix(in srgb, var(--event-color) 9%, transparent);
 }
 .timeline-event.is-selected .timeline-event-terminal {
   background: color-mix(in srgb, var(--paper) 91%, var(--event-color));
@@ -403,7 +403,7 @@
 .timeline-cluster-terminal {
   border-color: color-mix(in srgb, var(--ink) 18%, var(--line));
   background: color-mix(in srgb, var(--paper) 90%, var(--panel));
-  box-shadow: 0 7px 22px rgba(38, 31, 23, .08);
+  box-shadow: 0 3px 12px rgba(38, 31, 23, .06);
 }
 .timeline-cluster-tiles {
   position: relative;
@@ -426,7 +426,7 @@
   background: var(--cluster-tile-color);
   color: contrast-color(var(--cluster-tile-color));
   transform: translateY(-50%);
-  box-shadow: 0 4px 12px rgba(38, 31, 23, .16);
+  box-shadow: 0 2px 7px rgba(38, 31, 23, .12);
 }
 .timeline-cluster-tile:nth-child(1) { left: 0; z-index: 3; }
 .timeline-cluster-tile:nth-child(2) { left: .9rem; z-index: 2; }
@@ -480,7 +480,7 @@
   border-radius: .74rem;
   background: var(--event-color);
   color: contrast-color(var(--event-color));
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--event-color) 18%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--event-color) 10%, transparent);
 }
 .timeline-event-dot .semantic-icon {
   width: 1.6rem;
@@ -507,7 +507,7 @@
   border-radius: 50%;
   background: var(--event-color);
   color: contrast-color(var(--event-color));
-  box-shadow: 0 2px 8px rgba(0, 0, 0, .2);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, .16);
 }
 .timeline-event-icon-badge .semantic-icon {
   width: .9rem;
@@ -944,7 +944,7 @@
   }
 }
 @media (prefers-color-scheme: dark) {
-  .timeline-event-terminal { box-shadow: 0 5px 18px rgba(0, 0, 0, .16); }
+  .timeline-event-terminal { box-shadow: 0 2px 9px rgba(0, 0, 0, .12); }
 }
 @media (prefers-reduced-motion: reduce) {
   .timeline-event-terminal,
@@ -1510,7 +1510,7 @@
   border-radius: .65rem;
   background: color-mix(in srgb, var(--paper) 82%, transparent);
   backdrop-filter: blur(10px);
-  box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 6%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 4%, transparent);
 }
 
 #presentation-stage:fullscreen .timeline-surface,
@@ -1535,7 +1535,7 @@
   max-height: none;
   overflow: auto;
   overscroll-behavior: contain;
-  box-shadow: 0 2px 10px color-mix(in srgb, var(--ink) 10%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 6%, transparent);
   background: color-mix(in srgb, var(--paper) 96%, transparent);
   backdrop-filter: blur(14px);
   container-type: inline-size;
@@ -1855,7 +1855,7 @@
 }
 .timeline-event-terminal:hover {
   border-color: color-mix(in srgb, var(--event-color, var(--ink)) 62%, var(--line));
-  box-shadow: 0 5px 16px rgba(38, 31, 23, .08);
+  box-shadow: 0 2px 9px rgba(38, 31, 23, .06);
 }
 
 
@@ -1917,7 +1917,7 @@
   border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
   border-radius: .8rem;
   background: color-mix(in srgb, var(--paper) 91%, transparent);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 7%, transparent);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--ink) 5%, transparent);
   backdrop-filter: blur(12px);
   scrollbar-width: thin;
 }
