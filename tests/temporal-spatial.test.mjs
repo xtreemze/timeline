@@ -108,3 +108,71 @@ test("presentation map is read-only, semantic, and selects a reasonable zoom fro
   assert.match(source, /return 15/);
   assert.match(source, /return 12/);
 });
+
+
+test("round-trips reduced year/month precision and exact milliseconds", () => {
+  const year = temporal.endpointFrom("2026");
+  const month = temporal.endpointFrom("2026-09");
+  const millisecond = temporal.endpointFrom("2026-09-19T12:06:31.125Z");
+  assert.equal(year.value, "2026");
+  assert.equal(year.precision, "year");
+  assert.equal(month.value, "2026-09");
+  assert.equal(month.precision, "month");
+  assert.equal(millisecond.value, "2026-09-19T12:06:31.125Z");
+  assert.equal(millisecond.precision, "millisecond");
+});
+
+test("preserves bounded uncertainty separately from source wording", () => {
+  const endpoint = temporal.endpointFrom("2026-09-19", {
+    certainty: "uncertain",
+    earliest: "2026-09-17",
+    latest: "2026-09-21",
+    sourceText: "around 19 September 2026",
+    referenceSystem: "http://www.opengis.net/def/uom/ISO-8601/0/Gregorian"
+  });
+  assert.equal(endpoint.certainty, "uncertain");
+  assert.equal(endpoint.earliest, "2026-09-17");
+  assert.equal(endpoint.latest, "2026-09-21");
+  assert.equal(endpoint.sourceText, "around 19 September 2026");
+  assert.equal(endpoint.referenceSystem, "http://www.opengis.net/def/uom/ISO-8601/0/Gregorian");
+});
+
+test("represents astronomical year zero and BCE without Date 1900 remapping", () => {
+  const bce = temporal.endpointFrom("0000-01-01");
+  const earlier = temporal.endpointFrom("-000001-01-01");
+  const ce = temporal.endpointFrom("0001-01-01");
+  assert.equal(bce.value, "0000-01-01");
+  assert.equal(temporal.parse(bce.value).year, 0);
+  assert.equal(temporal.parse(earlier.value).year, -1);
+  assert.ok(Number.isFinite(temporal.sortKey(bce)));
+  assert.ok(temporal.sortKey(earlier) < temporal.sortKey(bce));
+  assert.ok(temporal.sortKey(bce) < temporal.sortKey(ce));
+});
+
+test("rejects inverted exact intervals but preserves uncertain bounds", () => {
+  assert.equal(
+    temporal.normalizeExtent(null, "2026-09-20", "2026-09-19", "range"),
+    null
+  );
+  const uncertain = temporal.normalizeExtent({
+    start: { value: "2026-09-20", certainty: "uncertain" },
+    end: { value: "2026-09-19", certainty: "uncertain" }
+  }, null, null, "range");
+  assert.equal(uncertain.type, "interval");
+});
+
+test("legacy v2 migration preserves source strings and inferred precision", () => {
+  const day = temporal.normalizeExtent(null, "2026-09-19", null, "event");
+  const minute = temporal.normalizeExtent(null, "2026-09-19T12:06", null, "event");
+  assert.equal(day.start.precision, "day");
+  assert.equal(day.start.sourceText, "2026-09-19");
+  assert.equal(minute.start.precision, "minute");
+  assert.equal(minute.start.sourceText, "2026-09-19T12:06");
+});
+
+test("treats malformed external temporal values as untrusted", () => {
+  assert.equal(temporal.endpointFrom("2026-02-30"), null);
+  assert.equal(temporal.endpointFrom("2026-13"), null);
+  assert.equal(temporal.endpointFrom({ value: "2026-09-19" }), null);
+  assert.equal(temporal.normalizeExtent(null, "<script>", null, "event"), null);
+});
