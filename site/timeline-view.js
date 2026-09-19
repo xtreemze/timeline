@@ -169,14 +169,15 @@
       );
 
       this.surface.addEventListener("click", (event) => {
-        if (performance.now() < this.suppressClickUntil) {
-          event.preventDefault();
-          event.stopPropagation();
-          return;
-        }
+        if (performance.now() >= this.suppressClickUntil) return;
+        event.preventDefault();
+        event.stopPropagation();
+      }, true);
+
+      this.surface.addEventListener("click", (event) => {
         if (!this.selectedId || event.target.closest("button, a, input, select, textarea")) return;
         this.closeFocus();
-      }, true);
+      });
 
       const beginSurfaceDrag = (pointerId, point, sourceEvent = null) => {
         if (!this.viewport) return;
