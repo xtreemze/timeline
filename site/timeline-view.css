@@ -1302,3 +1302,84 @@
     grid-row: 1 / -1;
   }
 }
+
+
+/* Final fullscreen composition guard.
+   This stylesheet loads after styles.css, so these rules intentionally restate the global
+   12-column/75-25 contract above older compact-presentation experiments. */
+#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation] {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+}
+
+#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation] > .timeline-view {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"] > .timeline-view,
+#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-map="true"] > .timeline-view {
+  grid-column: 1 / span 9;
+}
+
+#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation] > .graph-lens:not([hidden]),
+#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation] > .presentation-map-panel:not([hidden]) {
+  grid-column: 10 / -1;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+}
+
+#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"][data-has-context-map="true"] {
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"][data-has-context-map="true"] > .timeline-view {
+  grid-row: 1 / -1;
+}
+
+#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"][data-has-context-map="true"] > .graph-lens {
+  grid-row: 1;
+}
+
+#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"][data-has-context-map="true"] > .presentation-map-panel {
+  grid-row: 2;
+}
+
+@media (orientation: portrait) {
+  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"],
+  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-map="true"] {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 3fr) minmax(0, 1fr);
+  }
+
+  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"] > .timeline-view,
+  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-map="true"] > .timeline-view {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation] > .graph-lens:not([hidden]),
+  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation] > .presentation-map-panel:not([hidden]) {
+    grid-row: 2;
+    max-height: none;
+  }
+
+  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"][data-has-context-map="false"] > .graph-lens,
+  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="false"][data-has-context-map="true"] > .presentation-map-panel {
+    grid-column: 1 / -1;
+  }
+
+  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"][data-has-context-map="true"] > .graph-lens {
+    grid-column: 1 / span 6;
+    grid-row: 2;
+  }
+
+  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"][data-has-context-map="true"] > .presentation-map-panel {
+    grid-column: 7 / -1;
+    grid-row: 2;
+  }
+}
