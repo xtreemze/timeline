@@ -2518,6 +2518,21 @@
     if (id && getStory(id)) focusStory(id);
   });
 
+  els.graphViewRoot.addEventListener("graphentityfocus", (event) => {
+    const id = event.detail?.id;
+    if (id && state.entities.some((entity) => entity.id === id)) beginGraphNodeEdit(id);
+  });
+
+  els.graphViewRoot.addEventListener("graphedgefocus", (event) => {
+    const id = event.detail?.id;
+    if (id && state.relationships.some((relationship) => relationship.id === id)) beginGraphEdgeEdit(id);
+  });
+
+  els.timelineViewRoot.addEventListener("timelinegraphnodefocus", (event) => {
+    const id = event.detail?.id;
+    if (id && getItem(id)) timelineView?.focusItem(id);
+  });
+
   els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
     els.appShell.classList.toggle("is-event-focused", Boolean(event.detail?.focused));
   });
