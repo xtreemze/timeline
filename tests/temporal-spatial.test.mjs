@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 await import("../site/temporal-standards.js");
 await import("../site/spatial.js");
@@ -60,4 +61,18 @@ test("location uses RFC 7946 coordinate order longitude, latitude", () => {
 
 test("rejects incomplete coordinate pairs", () => {
   assert.throws(() => spatial.fromForm({ latitude: "59.3", longitude: "" }), /both latitude and longitude/i);
+});
+
+test("item form uses native temporal and Chrome geolocation controls", async () => {
+  const [html, mapSource] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/location-map.js", import.meta.url), "utf8")
+  ]);
+  assert.match(html, /id="item-start-date" type="date"/);
+  assert.match(html, /id="item-start-time" type="time"/);
+  assert.match(html, /id="item-end-date" type="date"/);
+  assert.match(html, /<geolocation id="item-geolocation"/);
+  assert.match(mapSource, /tile\.openstreetmap\.org/);
+  assert.match(mapSource, /OpenStreetMap/);
+  assert.match(mapSource, /1\.9\.4/);
 });
