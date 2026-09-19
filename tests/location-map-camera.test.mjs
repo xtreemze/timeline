@@ -21,3 +21,21 @@ test("focused map opens at world scale and slowly flies to country context", asy
   assert.match(mapSource, /wheel/);
   assert.match(mapSource, /cameraUserControlled/);
 });
+
+test("focused map carries a visible semantic place identity into the popover backdrop", async () => {
+  const [mapSource, appSource, styles] = await Promise.all([
+    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(appSource, /label:\s*name/);
+  assert.match(mapSource, /renderPlaceIdentity\(\)/);
+  assert.match(mapSource, /timeline-map-place-identity/);
+  assert.match(mapSource, /timeline-map-place-icon/);
+  assert.match(mapSource, /timeline-map-place-label/);
+  assert.match(mapSource, /this\.container\.setAttribute\("aria-label", this\.label\)/);
+  assert.match(styles, /\.timeline-map-place-identity/);
+  assert.match(styles, /pointer-events:\s*none/);
+  assert.match(styles, /\.timeline-map-place-label/);
+});
