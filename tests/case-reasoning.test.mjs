@@ -92,6 +92,43 @@ test("detects analytical dependency cycles while allowing opposing claims", () =
   assert.equal(opposingFindings.some((finding) => finding.code === "provenance-cycle"), false);
 });
 
+test("ordered report records respect dependencies and preserve superseded hypotheses", () => {
+  const model = {
+    observations: [{ id: "obs-1", text: "Observed artifact." }],
+    hypotheses: [
+      { id: "hyp-a-new", text: "Revised hypothesis.", observationIds: ["obs-1"], supersedesIds: ["hyp-z-old"] },
+      { id: "hyp-z-old", text: "Earlier hypothesis.", assessment: "rejected" }
+    ],
+    claims: [{ id: "claim-1", text: "Claim", inputIds: ["hyp-a-new"] }],
+    theses: [{ id: "thesis-1", text: "Thesis", claimIds: ["claim-1"] }]
+  };
+
+  const normalized = reasoning.normalizeReasoning(model);
+  const oldHypothesis = normalized.hypotheses.find((record) => record.id === "hyp-z-old");
+  const newHypothesis = normalized.hypotheses.find((record) => record.id === "hyp-a-new");
+  assert.equal(oldHypothesis.assessment, "rejected");
+  assert.deepEqual(newHypothesis.supersedesIds, ["hyp-z-old"]);
+
+  const ordered = reasoning.orderedRecords(model).map((record) => record.id);
+  assert.ok(ordered.indexOf("obs-1") < ordered.indexOf("hyp-a-new"));
+  assert.ok(ordered.indexOf("hyp-z-old") < ordered.indexOf("hyp-a-new"));
+  assert.ok(ordered.indexOf("hyp-a-new") < ordered.indexOf("claim-1"));
+  assert.ok(ordered.indexOf("claim-1") < ordered.indexOf("thesis-1"));
+});
+
+test("ordered report records remain deterministic when provenance contains a cycle", () => {
+  const model = {
+    assertions: [
+      { id: "b", inputIds: ["a"] },
+      { id: "a", inputIds: ["b"] }
+    ]
+  };
+  assert.deepEqual(
+    reasoning.orderedRecords(model).map((record) => record.id),
+    ["a", "b"]
+  );
+});
+
 test("exposes the September 2026 standards baseline with explicit editions", () => {
   const byId = new Map(reasoning.STANDARDS_BASELINE.map((entry) => [entry.id, entry]));
   assert.equal(byId.get("iso-21043-4").edition, "2025");
