@@ -824,6 +824,42 @@
       this.select(id);
     }
 
+    hasFocusedItem() {
+      return Boolean(this.selectedId);
+    }
+
+    focusedItemId() {
+      return this.selectedId;
+    }
+
+    focusAdjacent(delta, options = {}) {
+      if (!this.items.length) return false;
+      const wrap = Boolean(options.wrap);
+      const currentIndex = this.items.findIndex((item) => item.id === this.selectedId);
+      let nextIndex;
+      if (currentIndex < 0) {
+        nextIndex = delta < 0 ? this.items.length - 1 : 0;
+      } else {
+        nextIndex = currentIndex + (delta < 0 ? -1 : 1);
+      }
+      if (wrap) {
+        nextIndex = (nextIndex + this.items.length) % this.items.length;
+      }
+      if (nextIndex < 0 || nextIndex >= this.items.length) return false;
+      this.select(this.items[nextIndex].id);
+      return true;
+    }
+
+    stepFocusMedia(delta) {
+      const item = this.items.find((candidate) => candidate.id === this.selectedId);
+      const media = item?.media || [];
+      if (!item || media.length < 2) return false;
+      const direction = delta < 0 ? -1 : 1;
+      this.focusMediaIndex = (this.focusMediaIndex + direction + media.length) % media.length;
+      this.renderFocus(item);
+      return true;
+    }
+
     select(id) {
       const item = this.items.find((candidate) => candidate.id === id);
       if (!item) return;

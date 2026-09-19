@@ -34,6 +34,8 @@ The application is static and runs entirely in the browser. Timeline data is sto
 - Attach up to three photographs to an event and browse them as a hero slideshow in focused view.
 - Add semantic tags with selectable icons and hue-only theming; lightness/chroma and foreground contrast stay under design-system control and meaning never depends on color alone.
 - Select an event to give it the full 12-column chronology workspace; the editor yields the screen, the event becomes an asymmetric hero composition, and the timeline docks to an edge for context.
+- Run a configurable auto-advance presentation timer; any manual interaction pauses it until explicitly resumed.
+- Navigate focused events and stories with keyboard, TV-remote D-pad/media keys, or standard-mapped gamepads using one shared command model.
 - Edit and delete items without manually re-sorting the chronology.
 - Deterministic sorting by start, end, and title.
 - Search titles and descriptions.
@@ -42,6 +44,7 @@ The application is static and runs entirely in the browser. Timeline data is sto
 - Pixel-collision clustering: overlapping event terminals temporarily fuse into interactive clusters while zoomed out, then separate as zoom creates room.
 - Weighted zoom and inertial pointer panning using frame-aligned/coalesced pointer samples where Chrome exposes them.
 - Capability-gated haptics for cluster fusion/splitting, selection, and inertial release through gamepad actuators or mobile vibration hardware when available.
+- Focused presentation controls: Left/Right move between events, Up/Down move between event photographs, Space or media Play/Pause toggles auto advance, and Escape/Browser Back exits focus. Standard gamepad D-pad/shoulders, A/B and Start map to the same presentation commands.
 - Ambient month/year accents for months containing up to three visible segments, with compact tick numbering underneath.
 - A 12-column application/stage grid that reserves predictable space for chronology, detail and temporal relationship layers.
 

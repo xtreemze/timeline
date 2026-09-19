@@ -32,6 +32,7 @@ jobs:
           node --check site/time-scale.js
           node --check site/timeline-clustering.js
           node --check site/timeline-motion.js
+          node --check site/timeline-navigation.js
           node --check site/timeline-graph.js
           node --check site/timeline-view.js
           node --check site/date-range-picker.js
@@ -43,7 +44,7 @@ jobs:
           node --check site/app.js
 
       - name: Validate interchange adapters
-        run: node --test tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/timeline-interaction.test.mjs tests/event-focus-form.test.mjs
+        run: node --test tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/timeline-interaction.test.mjs tests/event-focus-form.test.mjs tests/timeline-navigation.test.mjs
 
       - name: Validate static entry point
         run: test -f site/index.html && test -f site/styles.css && test -f site/icon.svg
