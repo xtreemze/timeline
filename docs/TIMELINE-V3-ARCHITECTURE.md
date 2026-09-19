@@ -458,3 +458,36 @@ Focused event presentation uses the 12-column system as a composition constraint
 - editorial mosaic: four-column copy field opposite an eight-column media field.
 
 Hero titles use container-relative `cqi` sizing rather than viewport width. Cap/alphabetic `text-box` trimming is not used on the hero heading because display-face glyph bounds can be clipped. The heading retains block padding, balanced wrapping, and break-word protection for unusually long identifiers.
+
+## Responsive presentation stage
+
+The timeline view and temporal relation graph are one presentation surface even though they retain independent interaction models.
+
+Presentation state records two independent dimensions:
+
+1. **timeline orientation** — horizontal or vertical time axis;
+2. **available stage shape** — wide, stacked/balanced, or tall.
+
+Physical screen orientation never rewrites the timeline orientation.
+
+### Composition rules
+
+- Horizontal timeline: preserve maximum primary-axis width. In fullscreen the timeline and graph stack vertically.
+- Vertical timeline: preserve maximum primary-axis height. In fullscreen the timeline and graph sit side-by-side.
+- Tall physical displays rebalance the horizontal-axis stack toward the graph and the vertical-axis split toward the graph; they do not rotate the timeline.
+- Normal workspace layout uses the measured presentation-stage width: wide stages can compose timeline and graph beside one another, while narrower stages stack.
+- Both child surfaces use `min-width: 0` / `min-height: 0` contracts so their internal canvases can shrink instead of causing page overflow.
+
+Fullscreen targets `#presentation-stage`, not the entire editor or document. The authoring sidebar, search controls, detailed chronology list, site navigation and footer therefore remain outside the fullscreen presentation.
+
+The graph is forced open while fullscreen is active. Its previous disclosure state is restored when fullscreen exits.
+
+### Focused event presentation
+
+Focused event mode still shows the contextual timeline plus the global temporal graph. The smaller one-hop graph embedded inside the event composition is hidden only in fullscreen to avoid rendering two simultaneous node graphs; textual relation changes remain visible. The global graph therefore becomes the relational presentation surface while the focused composition concentrates on media, event facts, place, evidence and relation narrative.
+
+Horizontal focused timelines reserve a compact bottom context rail inside the timeline pane. Vertical focused timelines retain a narrow vertical context rail. The focused composition itself may scroll inside its allocated pane when content exceeds the available presentation area, but the timeline and global graph remain simultaneously visible.
+
+### Resize synchronization
+
+A `ResizeObserver` measures the presentation stage and updates its shape class. Timeline geometry rerenders after any stage resize. Graph topology is not recomputed merely because presentation dimensions change; Orb is recentered against its existing node positions. Fullscreen changes receive a two-frame geometry refresh so layout, canvas size and graph camera settle after the browser finishes resizing the fullscreen element.

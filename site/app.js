@@ -169,6 +169,9 @@
     graphEdgeCount: document.querySelector("#graph-edge-count"),
     graphViewRoot: document.querySelector("#temporal-graph-view"),
     graphResetView: document.querySelector("#graph-reset-view"),
+    graphLens: document.querySelector("#graph-lens"),
+    presentationStage: document.querySelector("#presentation-stage"),
+    presentationFullscreenToggle: document.querySelector("#presentation-fullscreen-toggle"),
 
     search: document.querySelector("#timeline-search"),
     categoryFilter: document.querySelector("#category-filter"),
@@ -231,6 +234,94 @@
     endInput: els.graphEdgeEndDate,
     mode: "range"
   });
+  let presentationResizeObserver = null;
+  let presentationResizeFrame = 0;
+  let graphOpenBeforeFullscreen = true;
+
+  function presentationIsFullscreen() {
+    return document.fullscreenElement === els.presentationStage;
+  }
+
+  function updatePresentationStageLayout() {
+    if (!els.presentationStage) return false;
+    const rect = els.presentationStage.getBoundingClientRect();
+    const width = Math.max(1, rect.width);
+    const height = Math.max(1, rect.height);
+    const ratio = width / height;
+    const nextShape = presentationIsFullscreen()
+      ? ratio >= 1.15
+        ? "wide"
+        : ratio <= 0.85
+          ? "tall"
+          : "stacked"
+      : width >= 1100
+        ? "wide"
+        : ratio <= 0.85
+          ? "tall"
+          : "stacked";
+    const orientation = timelineView?.getOrientation?.() || "horizontal";
+    const changed =
+      els.presentationStage.dataset.stageShape !== nextShape ||
+      els.presentationStage.dataset.timelineOrientation !== orientation;
+    els.presentationStage.dataset.stageShape = nextShape;
+    els.presentationStage.dataset.timelineOrientation = orientation;
+    return changed;
+  }
+
+  function refreshPresentationGeometry({ recenterGraph = false } = {}) {
+    updatePresentationStageLayout();
+    timelineView?.refreshLayout?.();
+    if (recenterGraph) temporalGraphView?.refreshLayout?.();
+  }
+
+  function schedulePresentationGeometryRefresh({ recenterGraph = false } = {}) {
+    window.cancelAnimationFrame(presentationResizeFrame);
+    presentationResizeFrame = window.requestAnimationFrame(() => {
+      presentationResizeFrame = window.requestAnimationFrame(() => {
+        refreshPresentationGeometry({ recenterGraph });
+      });
+    });
+  }
+
+  function syncPresentationFullscreenState() {
+    const active = presentationIsFullscreen();
+    els.presentationStage?.classList.toggle("is-fullscreen", active);
+    if (els.presentationFullscreenToggle) {
+      els.presentationFullscreenToggle.setAttribute("aria-pressed", String(active));
+      els.presentationFullscreenToggle.textContent = active ? "Exit full screen" : "Present full screen";
+    }
+    if (active) {
+      els.graphLens.open = true;
+    } else if (els.graphLens) {
+      els.graphLens.open = graphOpenBeforeFullscreen;
+    }
+    schedulePresentationGeometryRefresh({ recenterGraph: true });
+  }
+
+  async function togglePresentationFullscreen() {
+    if (!els.presentationStage) return;
+    if (presentationIsFullscreen()) {
+      await document.exitFullscreen?.();
+      return;
+    }
+    if (!document.fullscreenEnabled || typeof els.presentationStage.requestFullscreen !== "function") {
+      showStatus("Full-screen presentation is not available in this browser.");
+      return;
+    }
+    graphOpenBeforeFullscreen = Boolean(els.graphLens?.open);
+    if (els.graphLens) els.graphLens.open = true;
+    try {
+      await els.presentationStage.requestFullscreen({ navigationUI: "hide" });
+    } catch {
+      try {
+        await els.presentationStage.requestFullscreen();
+      } catch (error) {
+        console.warn("Could not enter full-screen presentation:", error);
+        showStatus("Could not enter full-screen presentation.");
+      }
+    }
+  }
+
   const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
   const locationMap = globalThis.TimelineLocationMap?.create({
     container: els.itemLocationMap,
@@ -1863,6 +1954,20 @@
     });
   }
 
+  if (els.presentationStage && "ResizeObserver" in globalThis) {
+    presentationResizeObserver = new ResizeObserver(() => {
+      const changed = updatePresentationStageLayout();
+      timelineView?.refreshLayout?.();
+      if (changed) {
+        schedulePresentationGeometryRefresh({ recenterGraph: true });
+      }
+    });
+    presentationResizeObserver.observe(els.presentationStage);
+  } else {
+    window.addEventListener("resize", () => schedulePresentationGeometryRefresh());
+  }
+  updatePresentationStageLayout();
+
   function renderAll() {
     renderProjectMeta();
     renderCategoryOptions();
@@ -2056,6 +2161,13 @@
       return true;
     }
     if (command === "back") {
+      if (
+        presentationIsFullscreen() &&
+        meta.source === "keyboard" &&
+        meta.event?.key === "Escape"
+      ) {
+        return false;
+      }
       if (timelineView?.hasFocusedItem()) {
         timelineView.closeFocus();
         return true;
@@ -2233,6 +2345,38 @@
   });
 
   els.graphResetView.addEventListener("click", () => temporalGraphView?.resetView());
+
+  if (els.presentationFullscreenToggle) {
+    if (!document.fullscreenEnabled || typeof els.presentationStage?.requestFullscreen !== "function") {
+      els.presentationFullscreenToggle.disabled = true;
+      els.presentationFullscreenToggle.title = "Full-screen presentation is unavailable in this browser.";
+    } else {
+      els.presentationFullscreenToggle.addEventListener("click", () => {
+        togglePresentationFullscreen();
+      });
+    }
+  }
+
+  document.addEventListener("fullscreenchange", syncPresentationFullscreenState);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.key.toLowerCase() !== "f") return;
+    const active = document.activeElement;
+    if (
+      active instanceof HTMLInputElement ||
+      active instanceof HTMLTextAreaElement ||
+      active instanceof HTMLSelectElement ||
+      active?.isContentEditable
+    ) return;
+    const stageHasFocus = Boolean(
+      presentationIsFullscreen() ||
+      (active instanceof Element && els.presentationStage?.contains(active))
+    );
+    if (!stageHasFocus) return;
+    event.preventDefault();
+    togglePresentationFullscreen();
+  });
 
   els.itemStartPrecision.addEventListener("change", () => configureTemporalEndpoint("Start"));
   els.itemEndPrecision.addEventListener("change", () => configureTemporalEndpoint("End"));
@@ -2501,6 +2645,14 @@
 
   els.timelineViewRoot.addEventListener("timelineviewportchange", (event) => {
     temporalGraphView?.setWindow(event.detail?.viewport || null);
+  });
+
+  els.timelineViewRoot.addEventListener("timelineorientationchange", (event) => {
+    if (els.presentationStage) {
+      els.presentationStage.dataset.timelineOrientation =
+        event.detail?.orientation === "vertical" ? "vertical" : "horizontal";
+    }
+    schedulePresentationGeometryRefresh({ recenterGraph: presentationIsFullscreen() });
   });
 
   els.graphViewRoot.addEventListener("graphnodefocus", (event) => {

@@ -86,6 +86,10 @@
       this.orb.recenter();
     }
 
+    refreshLayout() {
+      this.orb.recenter();
+    }
+
     activateNode(node) {
       this.renderDetail("node", node);
       const type = node.properties?.timelineType;
