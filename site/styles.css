@@ -2206,3 +2206,13 @@ body {
     }
   }
 }
+
+
+/* Focus state must not suppress user-invoked application sheets. */
+#control-panel:popover-open {
+  display: block;
+}
+
+#chronology-sheet:popover-open .timeline-list {
+  display: block !important;
+}
