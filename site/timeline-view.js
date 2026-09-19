@@ -97,8 +97,10 @@
       this.portraitButton = root.querySelector("#timeline-orientation-portrait");
       this.zoomInButton = root.querySelector("#timeline-zoom-in");
       this.zoomOutButton = root.querySelector("#timeline-zoom-out");
-      this.fitButton = root.querySelector("#timeline-fit");
+      this.fitVisibleButton = root.querySelector("#timeline-fit");
+      this.fitAllButton = root.querySelector("#timeline-fit-all");
       this.items = [];
+      this.allCoordinates = [];
       this.relationships = [];
       this.viewport = null;
       this.zoomTarget = null;
@@ -129,7 +131,8 @@
       this.portraitButton.addEventListener("click", () => this.setOrientation("vertical"));
       this.zoomInButton.addEventListener("click", () => this.zoomBy(BUTTON_ZOOM_FACTOR));
       this.zoomOutButton.addEventListener("click", () => this.zoomBy(1 / BUTTON_ZOOM_FACTOR));
-      this.fitButton.addEventListener("click", () => this.fit());
+      this.fitVisibleButton.addEventListener("click", () => this.fitVisible());
+      this.fitAllButton.addEventListener("click", () => this.fitAll());
 
       this.surface.addEventListener(
         "wheel",
@@ -231,7 +234,8 @@
           this.zoomBy(1 / BUTTON_ZOOM_FACTOR);
         } else if (event.key === "Home") {
           event.preventDefault();
-          this.fit();
+          if (event.shiftKey) this.fitAll();
+          else this.fitVisible();
         } else if (
           (this.orientation === "horizontal" && (horizontalBack || horizontalForward)) ||
           (this.orientation === "vertical" && (verticalBack || verticalForward))
@@ -304,6 +308,10 @@
       const previousSignature = this.items.map((item) => item.id).join("|");
       const nextSignature = nextItems.map((item) => item.id).join("|");
       this.items = nextItems;
+      const suppliedCoordinates = Array.isArray(options.allCoordinates)
+        ? options.allCoordinates.map(Number).filter(Number.isFinite)
+        : [];
+      this.allCoordinates = suppliedCoordinates.length ? suppliedCoordinates : this.itemCoordinates();
       this.relationships = Array.isArray(options.relationships)
         ? options.relationships
             .filter((relationship) => relationship && Number.isFinite(relationship.start))
@@ -362,20 +370,32 @@
       }
     }
 
-    itemCoordinates() {
+    itemCoordinates(items = this.items) {
       const values = [];
-      for (const item of this.items) {
+      for (const item of items) {
         values.push(item.start);
         if (Number.isFinite(item.end)) values.push(item.end);
       }
       return values;
     }
 
-    fit() {
-      if (!this.items.length) return;
-      const target = scale.fit(this.itemCoordinates(), { paddingRatio: 0.1, minSpanMs: DEFAULT_SPAN_MS });
+    fitCoordinates(coordinates) {
+      if (!Array.isArray(coordinates) || !coordinates.length) return;
+      const target = scale.fit(coordinates, { paddingRatio: 0.1, minSpanMs: DEFAULT_SPAN_MS });
       this.animateViewportTo(target);
       this.surface.focus({ preventScroll: true });
+    }
+
+    fitVisible() {
+      this.fitCoordinates(this.itemCoordinates());
+    }
+
+    fitAll() {
+      this.fitCoordinates(this.allCoordinates);
+    }
+
+    fit() {
+      this.fitVisible();
     }
 
     zoomBy(factor) {
