@@ -3,6 +3,7 @@
 
   const STAGE_ORDER = Object.freeze([
     "observation",
+    "citation",
     "assertion",
     "hypothesis",
     "proposition",
@@ -15,6 +16,7 @@
 
   const COLLECTION_TYPES = Object.freeze({
     observations: "observation",
+    citations: "citation",
     assertions: "assertion",
     hypotheses: "hypothesis",
     propositions: "proposition",
@@ -44,6 +46,8 @@
 
   const SUPPORT_PREDICATES = new Set(["supports", "reliesOn", "explains", "evaluates", "appliesRule", "definesRule", "governs", "producedObservation"]);
   const CONTRADICTION_PREDICATES = new Set(["contradicts", "impeaches", "opposes"]);
+  const CITATION_RELATIONS = Object.freeze(["supports", "contradicts", "contextualizes", "impeaches", "mentions"]);
+  const CITATION_LOCATOR_TYPES = Object.freeze(["page", "bates", "paragraph", "line", "time", "json-pointer", "record-key", "uri-fragment"]);
 
   const STANDARDS_BASELINE = Object.freeze([
     Object.freeze({ id: "iso-21043-1", edition: "2025", status: "published", scope: "forensic vocabulary" }),
@@ -80,6 +84,56 @@
     return text(value, 80) || "unassessed";
   }
 
+  function wholeNumber(value, minimum = 0) {
+    if (value === "" || value === null || value === undefined) return null;
+    const number = typeof value === "number" ? value : Number(value);
+    return Number.isInteger(number) && number >= minimum ? number : null;
+  }
+
+  function normalizeCitationLocator(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    const type = CITATION_LOCATOR_TYPES.includes(raw.type) ? raw.type : "";
+    if (!type) return null;
+    const locator = { type };
+    const label = text(raw.label, 500);
+    if (label) locator.label = label;
+
+    if (type === "page") {
+      const page = wholeNumber(raw.page ?? raw.start, 1);
+      if (page === null) return null;
+      locator.page = page;
+      const pageEnd = wholeNumber(raw.pageEnd ?? raw.end, 1);
+      if (pageEnd !== null && pageEnd >= page) locator.pageEnd = pageEnd;
+    } else if (type === "bates") {
+      const value = text(raw.value ?? raw.bates, 500);
+      if (!value) return null;
+      locator.value = value;
+      const endValue = text(raw.endValue ?? raw.batesEnd, 500);
+      if (endValue) locator.endValue = endValue;
+    } else if (type === "paragraph") {
+      const value = text(raw.value ?? raw.paragraph, 500);
+      if (!value) return null;
+      locator.value = value;
+    } else if (type === "line") {
+      const lineStart = wholeNumber(raw.lineStart ?? raw.start, 1);
+      if (lineStart === null) return null;
+      locator.lineStart = lineStart;
+      const lineEnd = wholeNumber(raw.lineEnd ?? raw.end, 1);
+      if (lineEnd !== null && lineEnd >= lineStart) locator.lineEnd = lineEnd;
+    } else if (type === "time") {
+      const startMs = wholeNumber(raw.startMs ?? raw.start, 0);
+      if (startMs === null) return null;
+      locator.startMs = startMs;
+      const endMs = wholeNumber(raw.endMs ?? raw.end, 0);
+      if (endMs !== null && endMs >= startMs) locator.endMs = endMs;
+    } else {
+      const value = text(raw.value ?? raw.pointer ?? raw.key ?? raw.fragment, 4000);
+      if (!value) return null;
+      locator.value = value;
+    }
+    return locator;
+  }
+
   function normalizeRecord(raw, type, index = 0) {
     if (!raw || typeof raw !== "object") return null;
     const id = text(raw.id, 160) || `${type}-${index + 1}`;
@@ -102,7 +156,16 @@
       assumptionIds: idList(raw.assumptionIds)
     };
 
-    if (type === "observation") {
+    if (type === "citation") {
+      record.assertionId = text(raw.assertionId, 160);
+      record.evidenceId = text(raw.evidenceId, 160);
+      record.evidenceIds = record.evidenceId ? [record.evidenceId] : [];
+      record.relation = CITATION_RELATIONS.includes(raw.relation) ? raw.relation : "mentions";
+      record.locator = normalizeCitationLocator(raw.locator);
+      record.excerpt = text(raw.excerpt, 24000);
+      record.analystNote = text(raw.analystNote ?? raw.note, 12000);
+      record.linkageConfidence = text(raw.linkageConfidence ?? raw.confidence, 80);
+    } else if (type === "observation") {
       record.evidenceIds = idList(raw.evidenceIds);
       record.methodId = text(raw.methodId, 160);
       record.temporalScope = raw.temporalScope && typeof raw.temporalScope === "object" ? structuredClone(raw.temporalScope) : null;
@@ -286,6 +349,18 @@
     };
   }
 
+  function collectAssertionCitations(id, reasoning) {
+    const normalized = normalizeReasoning(reasoning);
+    const assertion = normalized.assertions.find((record) => record.id === id);
+    const linkedIds = new Set(assertion?.citationIds || []);
+    const citations = normalized.citations.filter((citation) => citation.assertionId === id || linkedIds.has(citation.id));
+    return {
+      supports: citations.filter((citation) => citation.relation === "supports"),
+      contradicts: citations.filter((citation) => ["contradicts", "impeaches"].includes(citation.relation)),
+      contextual: citations.filter((citation) => ["contextualizes", "mentions"].includes(citation.relation))
+    };
+  }
+
   function detectCycles(records, normalized) {
     const internal = new Set(records.map((record) => record.id));
     const graph = new Map(records.map((record) => [record.id, []]));
@@ -321,7 +396,7 @@
   }
 
   function validateReasoning(reasoning, options = {}) {
-    const { normalized, records, knownIds } = indexReasoning(reasoning, options.externalIds);
+    const { normalized, records, recordById, knownIds } = indexReasoning(reasoning, options.externalIds);
     const findings = [];
 
     const add = (severity, code, recordId, message) => findings.push({ severity, code, recordId: recordId || "", message });
@@ -329,6 +404,31 @@
     for (const record of records) {
       for (const depId of dependencyIds(record)) {
         if (!knownIds.has(depId)) add("error", "broken-reference", record.id, `Reference ${depId} does not resolve.`);
+      }
+
+      if (record.type === "citation") {
+        const assertion = recordById.get(record.assertionId);
+        if (!record.assertionId) {
+          add("error", "citation-assertion-missing", record.id, "Citation does not identify an assertion.");
+        } else if (!assertion) {
+          add("error", "citation-assertion-broken", record.id, `Citation assertion ${record.assertionId} does not resolve.`);
+        } else if (assertion.type !== "assertion") {
+          add("error", "citation-assertion-type", record.id, "Citation target is not a factual assertion.");
+        } else if (!assertion.citationIds.includes(record.id)) {
+          add("warning", "citation-backlink-missing", record.id, "Assertion does not include this citation in citationIds.");
+        }
+        if (!record.evidenceId) add("error", "citation-evidence-missing", record.id, "Citation does not identify evidence.");
+        if (!record.locator) add("warning", "citation-locator-missing", record.id, "Citation has no valid pinpoint locator.");
+      }
+      if (record.type === "assertion") {
+        for (const citationId of record.citationIds) {
+          const citation = recordById.get(citationId);
+          if (citation && citation.type !== "citation") {
+            add("error", "assertion-citation-type", record.id, `Reference ${citationId} is not a citation.`);
+          } else if (citation?.assertionId && citation.assertionId !== record.id) {
+            add("error", "citation-assertion-mismatch", record.id, `Citation ${citationId} points to assertion ${citation.assertionId}.`);
+          }
+        }
       }
 
       if (record.type === "hypothesis" && dependencyIds(record).length === 0) {
@@ -433,7 +533,10 @@
     STAGE_ORDER,
     COLLECTION_TYPES,
     EDGE_PREDICATES,
+    CITATION_RELATIONS,
+    CITATION_LOCATOR_TYPES,
     STANDARDS_BASELINE,
+    normalizeCitationLocator,
     normalizeRecord,
     normalizeEdge,
     normalizeReasoning,
@@ -441,6 +544,7 @@
     dependencyIds,
     traceDependencies,
     summarizeSupport,
+    collectAssertionCitations,
     validateReasoning,
     orderedRecords
   });
