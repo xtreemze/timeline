@@ -26,6 +26,40 @@ test("clusters projected events only after their rendered positions overlap", ()
   assert.equal(result[1].kind, "item");
 });
 
+test("events less than 50 ms apart separate after zoom without temporal drift", async () => {
+  await import("../site/time-scale.js");
+  const scale = globalThis.TimelineScale;
+  const events = [
+    { id: "a", start: 1_000 },
+    { id: "b", start: 1_030 }
+  ];
+  const overview = { start: 0, end: 10_000 };
+  const detail = scale.zoom(overview, 0.01, 1_015, 1);
+  const overviewPositions = events.map((item) => scale.coordinateFor(item.start, overview, 1000));
+  const detailPositions = events.map((item) => scale.coordinateFor(item.start, detail, 1000));
+
+  assert.ok(Math.abs(overviewPositions[1] - overviewPositions[0]) < 10);
+  assert.ok(Math.abs(detailPositions[1] - detailPositions[0]) > 100);
+  const detailAnchorRatio = (1_015 - detail.start) / (detail.end - detail.start);
+  const overviewAnchorRatio = (1_015 - overview.start) / (overview.end - overview.start);
+  assert.ok(Math.abs(detailAnchorRatio - overviewAnchorRatio) < 1e-12);
+});
+
+test("timeline exposes distinct fit-visible and fit-all commands", async () => {
+  const [viewSource, htmlSource, appSource] = await Promise.all([
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8")
+  ]);
+
+  assert.match(htmlSource, /id="timeline-fit"[^>]*>Fit visible<\/button>/);
+  assert.match(htmlSource, /id="timeline-fit-all"[^>]*>Fit all<\/button>/);
+  assert.match(viewSource, /fitVisible\(\)/);
+  assert.match(viewSource, /fitAll\(\)/);
+  assert.match(viewSource, /event\.shiftKey\) this\.fitAll\(\)/);
+  assert.match(appSource, /allCoordinates:\s*allTimelineCoordinates/);
+});
+
 test("month accents are emitted only for months containing up to three visible segments", () => {
   const time = (month, day) => Date.UTC(2026, month - 1, day);
   const accents = clustering.monthAccents([
