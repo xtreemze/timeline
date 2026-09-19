@@ -198,11 +198,11 @@
   outline: 1px solid color-mix(in srgb, var(--story) 35%, transparent);
 }
 .is-landscape .timeline-relation-segment {
-  top: calc(var(--timeline-axis-cross) + 21px + var(--relation-lane) * 8px);
+  top: calc(var(--timeline-axis-cross) + 21px + var(--relation-lane-offset));
   height: 4px;
 }
 .is-portrait .timeline-relation-segment {
-  left: calc(var(--timeline-axis-cross) + 21px + var(--relation-lane) * 8px);
+  left: calc(var(--timeline-axis-cross) + 21px + var(--relation-lane-offset));
   width: 4px;
 }
 .timeline-range-segment {
