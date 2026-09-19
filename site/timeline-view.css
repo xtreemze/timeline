@@ -1970,3 +1970,166 @@
 .timeline-focus-view[popover] {
   grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
 }
+
+
+/* Focused viewing: keep graph inspection readable without turning the graph into an editor. */
+.timeline-focus-graph-detail-slot {
+  position: absolute;
+  z-index: 4;
+  right: .55rem;
+  bottom: .55rem;
+  width: min(44%, 360px);
+  max-height: calc(100% - 1.1rem);
+  pointer-events: none;
+}
+
+.timeline-focus-graph-detail-slot > .temporal-graph-detail {
+  max-height: min(260px, calc(100% - .25rem));
+  overflow: auto;
+  pointer-events: auto;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 84%, transparent);
+  border-radius: .72rem;
+  background: color-mix(in srgb, var(--paper) 96%, transparent);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--ink) 14%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.timeline-focus-relations:has(.timeline-focus-graph-detail-slot > .temporal-graph-detail:not([hidden]))
+  .timeline-focus-section-content {
+  width: min(52%, 30rem);
+}
+
+.timeline-focus-evidence-more {
+  margin: .5rem 0 0;
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 700;
+}
+
+/* Desktop focused-event overlays occupy the side opposite the timeline axis.
+   Horizontal timelines live low, so detail stays high; vertical timelines live right,
+   so detail stays left. The compact grid avoids an internal desktop scroll surface. */
+@media (min-width: 900px) and (min-height: 700px) {
+  .timeline-view[data-orientation="landscape"] > .timeline-focus-view:popover-open {
+    inset:
+      max(4.25rem, calc(env(safe-area-inset-top) + 3.8rem))
+      auto
+      auto
+      50%;
+    inline-size: min(900px, calc(100dvw - 8rem));
+    max-block-size: calc(100dvh - 9rem);
+    block-size: auto;
+    overflow: clip;
+    transform: translateX(-50%);
+  }
+
+  .timeline-view[data-orientation="portrait"] > .timeline-focus-view:popover-open {
+    inset:
+      50%
+      auto
+      auto
+      max(4.5rem, calc(env(safe-area-inset-left) + 4rem));
+    inline-size: min(720px, calc(100dvw - 10rem));
+    max-block-size: calc(100dvh - 2rem);
+    block-size: auto;
+    overflow: clip;
+    transform: translateY(-50%);
+  }
+
+  .timeline-focus-view[popover] {
+    gap: .42rem;
+    padding: .52rem;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-section {
+    padding: .62rem .7rem;
+  }
+
+  .timeline-focus-view[popover][data-layout] .timeline-focus-hero {
+    min-height: clamp(190px, 27dvh, 255px);
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-hero-veil {
+    gap: .32rem;
+    padding: clamp(.8rem, 2vw, 1.35rem);
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-title {
+    font-size: clamp(2.5rem, 8.2cqi, 5.4rem);
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-section-heading {
+    margin-bottom: .45rem;
+    font-size: clamp(1.2rem, 2.3vw, 2rem);
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-description,
+  .timeline-focus-view[popover] .timeline-focus-place-name {
+    font-size: .86rem;
+    line-height: 1.42;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-description {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 5;
+  }
+
+  .timeline-focus-view[popover] :is(.timeline-focus-place, .timeline-focus-relations) {
+    min-height: clamp(125px, 17dvh, 165px);
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-relation-list {
+    gap: .2rem;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-relation-list li {
+    min-height: 24px;
+    font-size: .7rem;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-evidence-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .38rem;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-evidence-card {
+    padding: .52rem;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-evidence-title {
+    margin-top: .35rem;
+    font-size: .82rem;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-evidence-meta,
+  .timeline-focus-view[popover] .timeline-focus-evidence-note {
+    margin-top: .26rem;
+    font-size: .64rem;
+    line-height: 1.35;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-evidence-note {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-evidence-actions {
+    margin-top: .4rem;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-actions {
+    gap: .3rem;
+    padding: 0;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-actions .button,
+  .timeline-focus-view[popover] .timeline-focus-evidence-actions .button {
+    min-height: 32px;
+    padding: .48rem .58rem;
+    font-size: .68rem;
+  }
+}
