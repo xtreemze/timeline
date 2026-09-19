@@ -748,10 +748,22 @@
               <span>Type</span>
               <input id="graph-node-type" type="text" maxlength="60" autocomplete="off" placeholder="person, organization, account…" value="entity">
             </label>
-            <label class="field">
-              <span>Identifiers <small>JSON array</small></span>
-              <textarea id="graph-node-identifiers" rows="4" spellcheck="false" placeholder='[{"scheme":"case-id","value":"P-17"}]'>[]</textarea>
-            </label>
+            <details id="graph-node-identity-details" class="optional-editor field-wide">
+              <summary>Identity & provenance <small>optional</small></summary>
+              <label class="field field-wide">
+                <span>Alternate names <small>one per line</small></span>
+                <textarea id="graph-node-alternate-names" rows="3" maxlength="4000" placeholder="Alias&#10;Former name"></textarea>
+              </label>
+              <label class="field field-wide">
+                <span>Identifiers <small>JSON array</small></span>
+                <textarea id="graph-node-identifiers" rows="4" spellcheck="false" placeholder='[{"scheme":"case-id","value":"P-17"}]'>[]</textarea>
+              </label>
+              <label class="field field-wide">
+                <span>Source / provenance record IDs <small>one per line</small></span>
+                <textarea id="graph-node-source-ids" rows="3" maxlength="4000" placeholder="evidence-17&#10;source-record-3"></textarea>
+              </label>
+              <p class="field-hint">Use source IDs to link this reusable entity to evidence or provenance records without copying source details into the node.</p>
+            </details>
             <label class="field">
               <span>Properties <small>JSON object</small></span>
               <textarea id="graph-node-properties" rows="5" spellcheck="false" placeholder='{"role":"investigator","caseId":"A-42"}'>{}</textarea>
