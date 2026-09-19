@@ -1547,8 +1547,8 @@
     auto
     auto
     50%;
-  inline-size: min(680px, calc(100dvw - 5.5rem));
-  max-block-size: min(68dvh, 700px);
+  inline-size: min(640px, calc(100dvw - 6.5rem));
+  max-block-size: min(62dvh, 640px);
   block-size: auto;
   transform: translateX(-50%);
 }
@@ -1559,8 +1559,8 @@
     auto
     auto
     max(4.7rem, calc(env(safe-area-inset-left) + 4.2rem));
-  inline-size: min(560px, 86dvw);
-  max-block-size: min(72dvh, 720px);
+  inline-size: min(520px, calc(100dvw - 7.2rem));
+  max-block-size: min(68dvh, 660px);
   block-size: auto;
   border-radius: 1rem;
   transform: translateY(-50%);
@@ -1751,6 +1751,7 @@
     max-block-size: 66dvh;
     block-size: auto;
     border-radius: 1rem;
+    transform: none;
   }
 
   .timeline-focus-view[popover] {
@@ -1804,7 +1805,7 @@
   }
 
   .timeline-focus-hero {
-    min-height: clamp(190px, 30dvh, 300px);
+    min-height: clamp(180px, 26dvh, 260px);
   }
 
   .timeline-focus-title {
@@ -2346,8 +2347,8 @@
   right: auto;
   bottom: auto;
   left: 50%;
-  inline-size: min(960px, calc(100dvw - 7rem));
-  max-block-size: calc(100dvh - 9rem);
+  inline-size: min(840px, calc(100dvw - 7.5rem));
+  max-block-size: min(64dvh, 660px);
   transform: translateX(-50%);
 }
 
@@ -2382,8 +2383,8 @@
   right: auto;
   bottom: auto;
   left: max(4.7rem, calc(env(safe-area-inset-left) + 4.2rem));
-  inline-size: min(70dvw, 720px);
-  max-block-size: calc(100dvh - 2rem);
+  inline-size: min(58dvw, 620px);
+  max-block-size: min(76dvh, 720px);
   transform: translateY(-50%);
 }
 
@@ -2391,7 +2392,7 @@
   .timeline-focus-view[data-active-tab="overview"] .timeline-focus-relations {
   grid-column: 1 / span 3 !important;
   grid-row: 1 / span 2 !important;
-  min-height: clamp(360px, 58dvh, 760px);
+  min-height: clamp(300px, 48dvh, 580px);
 }
 
 #presentation-stage:fullscreen[data-viewport-orientation="portrait"]
@@ -2460,13 +2461,13 @@
 }
 
 .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations::before {
-  inset: -38%;
+  inset: -24%;
   background:
-    radial-gradient(circle at 48% 48%,
-      color-mix(in srgb, var(--story) 9%, transparent) 0%,
-      color-mix(in srgb, var(--story) 5%, transparent) 36%,
-      color-mix(in srgb, var(--story) 2%, transparent) 56%,
-      transparent 74%);
+    radial-gradient(ellipse at 48% 48%,
+      color-mix(in srgb, var(--story) 7%, transparent) 0%,
+      color-mix(in srgb, var(--story) 3%, transparent) 34%,
+      color-mix(in srgb, var(--story) 1%, transparent) 52%,
+      transparent 68%);
 }
 
 .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations-backdrop::after {
@@ -2478,22 +2479,24 @@
    landscape => graph field high, horizontal timeline bottom. */
 #presentation-stage:fullscreen[data-viewport-orientation="portrait"]
   .timeline-focus-view[data-active-tab="overview"] .timeline-focus-relations::before {
-  inset: -30% -22% -30% -42%;
+  inset: -18% -12% -18% -24%;
   background:
-    radial-gradient(circle at 38% 50%,
-      color-mix(in srgb, var(--story) 10%, transparent) 0%,
-      color-mix(in srgb, var(--story) 5%, transparent) 42%,
-      transparent 76%);
+    radial-gradient(ellipse at 42% 50%,
+      color-mix(in srgb, var(--story) 7%, transparent) 0%,
+      color-mix(in srgb, var(--story) 3%, transparent) 38%,
+      color-mix(in srgb, var(--story) 1%, transparent) 54%,
+      transparent 70%);
 }
 
 #presentation-stage:fullscreen[data-viewport-orientation="landscape"]
   .timeline-focus-view[data-active-tab="overview"] .timeline-focus-relations::before {
-  inset: -42% -26% -18%;
+  inset: -26% -16% -10%;
   background:
-    radial-gradient(circle at 50% 34%,
-      color-mix(in srgb, var(--story) 10%, transparent) 0%,
-      color-mix(in srgb, var(--story) 5%, transparent) 42%,
-      transparent 76%);
+    radial-gradient(ellipse at 50% 38%,
+      color-mix(in srgb, var(--story) 7%, transparent) 0%,
+      color-mix(in srgb, var(--story) 3%, transparent) 38%,
+      color-mix(in srgb, var(--story) 1%, transparent) 54%,
+      transparent 70%);
 }
 
 @media (max-width: 760px) {
@@ -2556,6 +2559,8 @@
   .timeline-view > .timeline-focus-view:popover-open {
   top: max(.65rem, env(safe-area-inset-top));
   bottom: auto;
+  inline-size: min(820px, calc(100dvw - 2rem));
+  max-inline-size: calc(100dvw - 2rem);
   max-block-size: calc(100dvh - var(--timeline-context-edge-span) - 1.3rem);
 }
 
@@ -2567,11 +2572,11 @@
   bottom: auto;
   left: var(--timeline-focus-left-edge);
   inline-size: min(
-    720px,
-    calc(100dvw - var(--timeline-context-edge-span) - var(--timeline-focus-left-edge) - .75rem)
+    620px,
+    calc(100dvw - var(--timeline-context-edge-span) - var(--timeline-focus-left-edge) - 1rem)
   );
-  max-inline-size: calc(100dvw - var(--timeline-context-edge-span) - var(--timeline-focus-left-edge) - .75rem);
-  max-block-size: calc(100dvh - 1.2rem);
+  max-inline-size: calc(100dvw - var(--timeline-context-edge-span) - var(--timeline-focus-left-edge) - 1rem);
+  max-block-size: min(76dvh, 720px);
   transform: translateY(-50%);
 }
 
