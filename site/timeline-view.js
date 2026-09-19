@@ -1128,21 +1128,6 @@
         summary.append(createElement("p", "timeline-focus-description", "No narrative description has been recorded for this event."));
       }
 
-      const temporal = createElement("section", "timeline-focus-section timeline-focus-temporal");
-      temporal.append(createElement("h3", "timeline-focus-section-heading", "Chronology"));
-      const temporalList = createElement("dl", "timeline-focus-definition-list");
-      const addDefinition = (label, value) => {
-        if (!value) return;
-        const term = createElement("dt", "", label);
-        const definition = createElement("dd", "", value);
-        temporalList.append(term, definition);
-      };
-      addDefinition("Type", item.kind);
-      addDefinition("Start", item.startLabel);
-      if (Number.isFinite(item.end)) addDefinition("End", item.endLabel);
-      addDefinition("Category", item.categoryName);
-      temporal.append(temporalList);
-
       const place = createElement("section", "timeline-focus-section timeline-focus-place");
       const placeBackdrop = createElement("div", "timeline-focus-section-backdrop timeline-focus-place-backdrop");
       placeBackdrop.dataset.focusMapSlot = "";
@@ -1287,7 +1272,7 @@
       });
       actions.append(previous, next, close, edit);
 
-      this.focusView.append(hero, summary, temporal, place, relations, evidence, actions);
+      this.focusView.append(hero, summary, place, relations, evidence, actions);
     }
 
     closeFocus() {
