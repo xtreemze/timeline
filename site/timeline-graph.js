@@ -21,7 +21,11 @@
       type: text(raw.type, 60) || "entity",
       name: text(raw.name || raw.label || raw.title, 180) || id,
       identifiers: Array.isArray(raw.identifiers) ? cloneJson(raw.identifiers) : [],
-      attributes: raw.attributes && typeof raw.attributes === "object" ? cloneJson(raw.attributes) : {}
+      attributes: raw.properties && typeof raw.properties === "object"
+        ? cloneJson(raw.properties)
+        : raw.attributes && typeof raw.attributes === "object"
+          ? cloneJson(raw.attributes)
+          : {}
     };
   }
 
@@ -50,7 +54,11 @@
       predicate: text(raw.predicate || raw.label || raw.type, 120) || "relatedTo",
       role: text(raw.role, 120),
       time,
-      attributes: raw.attributes && typeof raw.attributes === "object" ? cloneJson(raw.attributes) : {}
+      attributes: raw.properties && typeof raw.properties === "object"
+        ? cloneJson(raw.properties)
+        : raw.attributes && typeof raw.attributes === "object"
+          ? cloneJson(raw.attributes)
+          : {}
     };
   }
 
