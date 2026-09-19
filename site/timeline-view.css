@@ -955,7 +955,6 @@
   .timeline-focus-view[data-layout] .timeline-focus-temporal,
   .timeline-focus-view[data-layout] .timeline-focus-place,
   .timeline-focus-view[data-layout] .timeline-focus-relations,
-  .timeline-focus-view[data-layout] .timeline-focus-graph,
   .timeline-focus-view[data-layout] .timeline-focus-evidence,
   .timeline-focus-view[data-layout] .timeline-focus-actions {
     grid-column: 1 / -1;
@@ -1081,7 +1080,6 @@
 
   .presentation-stage:fullscreen .timeline-focus-temporal,
   .presentation-stage:fullscreen .timeline-focus-relations,
-  .presentation-stage:fullscreen .timeline-focus-graph,
   .presentation-stage:fullscreen .timeline-focus-evidence,
   .presentation-stage:fullscreen .timeline-focus-actions {
     display: none;
