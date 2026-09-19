@@ -1306,23 +1306,35 @@
         stage?.dataset.hasContextGraph === "true" &&
         this.focusView.dataset.activeTab === "overview";
       if (contextualTimelineDocked) {
-        const timelineRect = this.root.getBoundingClientRect();
-        if (this.orientation === "vertical" && timelineRect.width > 0) {
-          insets.right = Math.max(
-            insets.right,
-            Math.min(
-              viewportWidth - FOCUS_POPOVER_MARGIN,
-              viewportWidth - timelineRect.left + FOCUS_POPOVER_MARGIN
-            )
-          );
-        } else if (this.orientation === "horizontal" && timelineRect.height > 0) {
-          insets.bottom = Math.max(
-            insets.bottom,
-            Math.min(
-              viewportHeight - FOCUS_POPOVER_MARGIN,
-              viewportHeight - timelineRect.top + FOCUS_POPOVER_MARGIN
-            )
-          );
+        const timelineRect = this.surface.getBoundingClientRect();
+        if (this.orientation === "vertical") {
+          const dockedRight =
+            timelineRect.width > 0 &&
+            timelineRect.width < viewportWidth * 0.6 &&
+            timelineRect.right >= viewportWidth - FOCUS_POPOVER_MARGIN * 2;
+          if (dockedRight) {
+            insets.right = Math.max(
+              insets.right,
+              Math.min(
+                viewportWidth - FOCUS_POPOVER_MARGIN,
+                viewportWidth - timelineRect.left + FOCUS_POPOVER_MARGIN
+              )
+            );
+          }
+        } else {
+          const dockedBottom =
+            timelineRect.height > 0 &&
+            timelineRect.height < viewportHeight * 0.6 &&
+            timelineRect.bottom >= viewportHeight - FOCUS_POPOVER_MARGIN * 2;
+          if (dockedBottom) {
+            insets.bottom = Math.max(
+              insets.bottom,
+              Math.min(
+                viewportHeight - FOCUS_POPOVER_MARGIN,
+                viewportHeight - timelineRect.top + FOCUS_POPOVER_MARGIN
+              )
+            );
+          }
         }
       }
 

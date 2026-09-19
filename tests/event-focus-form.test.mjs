@@ -592,21 +592,19 @@ test("relations halo remains inside the unified popover chrome", async () => {
   assert.match(css, /\.timeline-focus-relations::before\s*\{[\s\S]*?inset:\s*0/);
 });
 
-test("contextual relations docks chronology by timeline orientation", async () => {
+test("contextual relations docks only the timeline surface by timeline orientation", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
-  const overlayRule = css.indexOf("#presentation-stage:fullscreen > .timeline-view");
-  const contextualRule = css.indexOf(
-    '#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(.timeline-focus-view[data-active-tab="overview"]) > .timeline-view'
-  );
-  assert.ok(overlayRule >= 0, "expected the legacy fullscreen full-stage rule");
-  assert.ok(contextualRule > overlayRule, "contextual graph docking must follow and override the full-stage rule");
   assert.match(
     css,
-    /data-timeline-orientation="horizontal"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\) > \.timeline-view[\s\S]*inset:\s*auto 0 0 0[\s\S]*height:\s*var\(--timeline-context-edge-span\)/
+    /data-event-focused="true"\]\[data-has-context-graph="true"\][\s\S]*> \.timeline-view \{[\s\S]*inset:\s*0[\s\S]*width:\s*100%[\s\S]*height:\s*100%/
   );
   assert.match(
     css,
-    /data-timeline-orientation="vertical"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\) > \.timeline-view[\s\S]*inset:\s*0 0 0 auto[\s\S]*width:\s*var\(--timeline-context-edge-span\)/
+    /data-timeline-orientation="horizontal"\]:has\(\.timeline-focus-view:popover-open\)[\s\S]*> \.timeline-view > \.timeline-surface[\s\S]*inset:\s*auto 0 0 0[\s\S]*height:\s*var\(--timeline-context-edge-span\)/
+  );
+  assert.match(
+    css,
+    /data-timeline-orientation="vertical"\]:has\(\.timeline-focus-view:popover-open\)[\s\S]*> \.timeline-view > \.timeline-surface[\s\S]*inset:\s*0 0 0 auto[\s\S]*width:\s*var\(--timeline-context-edge-span\)/
   );
   assert.match(css, /data-timeline-orientation="horizontal"[\s\S]*--timeline-context-edge-span:\s*clamp\(112px, 24dvh, 260px\)/);
   assert.match(css, /data-timeline-orientation="vertical"[\s\S]*--timeline-context-edge-span:\s*clamp\(132px, 29dvw, 320px\)/);
@@ -623,6 +621,22 @@ test("focused graph popover stays inside the space yielded by chronology", async
     /data-timeline-orientation="vertical"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\)[\s\S]*timeline-focus-view:popover-open[\s\S]*inline-size:\s*min\([\s\S]*600px[\s\S]*100dvw - var\(--timeline-context-edge-span\)/
   );
 });
+
+test("popover inset measurement ignores an undocked full-viewport timeline surface", async () => {
+  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  assert.match(source, /const timelineRect = this\.surface\.getBoundingClientRect\(\)/);
+  assert.match(source, /const dockedRight =[\s\S]*timelineRect\.width < viewportWidth \* 0\.6[\s\S]*timelineRect\.right >= viewportWidth - FOCUS_POPOVER_MARGIN \* 2/);
+  assert.match(source, /const dockedBottom =[\s\S]*timelineRect\.height < viewportHeight \* 0\.6[\s\S]*timelineRect\.bottom >= viewportHeight - FOCUS_POPOVER_MARGIN \* 2/);
+  assert.doesNotMatch(source, /const timelineRect = this\.root\.getBoundingClientRect\(\)/);
+});
+
+test("desktop popover chrome clips every content band", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  assert.match(css, /data-orientation="landscape"[\s\S]*timeline-focus-view:popover-open[\s\S]*overflow:\s*hidden/);
+  assert.match(css, /data-orientation="portrait"[\s\S]*timeline-focus-view:popover-open[\s\S]*overflow:\s*hidden/);
+  assert.match(css, /data-active-tab="overview"[\s\S]*overflow:\s*hidden/);
+});
+
 
 test("desktop focus card preserves readable hero and context proportions", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
