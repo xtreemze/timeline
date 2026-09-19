@@ -540,7 +540,7 @@
   margin: 0;
   max-inline-size: min(14ch, 100%);
   padding-block: .08em .12em;
-  font-size: clamp(2.55rem, 9cqi, 7.25rem);
+  font-size: clamp(3.2rem, 11.5cqi, 9rem);
   font-weight: 820;
   line-height: .92;
   letter-spacing: -.06em;
@@ -606,12 +606,8 @@
 }
 .timeline-focus-summary {
   grid-column: 9 / -1;
-  grid-row: 1;
+  grid-row: 1 / span 2;
   align-self: end;
-}
-.timeline-focus-temporal {
-  grid-column: 9 / -1;
-  grid-row: 2;
 }
 .timeline-focus-place {
   grid-column: 1 / span 4;
@@ -643,24 +639,6 @@
   margin: .5rem 0 0;
   color: var(--muted);
   font-size: .74rem;
-}
-.timeline-focus-definition-list {
-  display: grid;
-  grid-template-columns: minmax(72px, auto) 1fr;
-  gap: .45rem .85rem;
-  margin: 0;
-}
-.timeline-focus-definition-list dt {
-  color: var(--muted);
-  font-size: .68rem;
-  font-weight: 780;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-}
-.timeline-focus-definition-list dd {
-  margin: 0;
-  font: 650 .76rem/1.35 "Monaspace Krypton Timeline", ui-monospace, monospace;
-  font-variant-numeric: tabular-nums;
 }
 .timeline-focus-relation-list {
   display: grid;
@@ -744,9 +722,9 @@
 .timeline-focus-view[data-layout="hero-split"] .timeline-focus-hero {
   grid-column: 1 / span 8;
 }
-.timeline-focus-view[data-layout="hero-split"] .timeline-focus-summary,
-.timeline-focus-view[data-layout="hero-split"] .timeline-focus-temporal {
+.timeline-focus-view[data-layout="hero-split"] .timeline-focus-summary {
   grid-column: 10 / -1;
+  grid-row: 1 / span 2;
 }
 .timeline-focus-view[data-layout="hero-split"] .timeline-focus-place {
   grid-column: 1 / span 4;
@@ -762,13 +740,9 @@
   min-height: clamp(460px, 48vw, 620px);
 }
 .timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-summary {
-  grid-column: 6 / span 3;
+  grid-column: 6 / -1;
   grid-row: 1;
   align-self: stretch;
-}
-.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-temporal {
-  grid-column: 9 / -1;
-  grid-row: 1;
 }
 .timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-evidence {
   grid-column: 6 / -1;
@@ -798,12 +772,8 @@
 }
 .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-summary {
   grid-column: 1 / span 4;
-  grid-row: 1;
-  align-self: stretch;
-}
-.timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-temporal {
-  grid-column: 1 / span 4;
-  grid-row: 2;
+  grid-row: 1 / span 2;
+  align-self: end;
 }
 .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-evidence {
   grid-column: 1 / span 7;
@@ -887,8 +857,7 @@
   .timeline-event-terminal { max-width: 142px; }
   .timeline-focus-view { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .timeline-focus-hero { grid-column: 1 / -1; min-height: 440px; }
-  .timeline-focus-summary,
-  .timeline-focus-temporal { grid-column: span 3; grid-row: auto; }
+  .timeline-focus-summary { grid-column: span 3; grid-row: auto; }
   .timeline-focus-place,
   .timeline-focus-relations { grid-column: span 3; grid-row: auto; }
   .timeline-focus-actions { grid-column: 1 / -1; grid-row: auto; }
@@ -1658,7 +1627,6 @@
 
   .timeline-focus-view[popover] :is(
     .timeline-focus-summary,
-    .timeline-focus-temporal,
     .timeline-focus-place,
     .timeline-focus-relations
   ) {
@@ -1685,7 +1653,6 @@
   .timeline-focus-view[popover] :is(
     .timeline-focus-hero,
     .timeline-focus-summary,
-    .timeline-focus-temporal,
     .timeline-focus-place,
     .timeline-focus-relations,
     .timeline-focus-evidence,
