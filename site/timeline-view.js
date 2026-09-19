@@ -495,7 +495,9 @@
     }
 
     axisPadding(length) {
-      return clamp(length * 0.07, 30, 64);
+      // Reserve enough edge room for terminal anchors and labels. The old 30px
+      // minimum allowed the first/last event card to be visibly clipped.
+      return clamp(length * 0.075, 48, 80);
     }
 
     portraitAxisCoordinate(width) {
@@ -636,9 +638,12 @@
 
       if (this.orientation === "horizontal") {
         const lane = this.allocateHorizontalLane(position, occupied);
-        const side = lane % 2 === 0 ? -1 : 1;
-        const depth = Math.floor(lane / 2);
-        const distance = 82 + depth * 88;
+        const focused = Boolean(this.selectedId);
+        const side = focused ? -1 : (lane % 2 === 0 ? -1 : 1);
+        const depth = focused ? lane % 3 : Math.floor(lane / 2);
+        const desiredDistance = 82 + depth * 88;
+        const inwardLimit = Math.max(64, axisCross - 64);
+        const distance = focused ? Math.min(desiredDistance, inwardLimit) : desiredDistance;
         const eventY = axisCross + side * distance;
         const segment = connectorSegment(axisCross, eventY);
         node.style.left = position + "px";
@@ -651,10 +656,13 @@
         if (position > width - 244) node.classList.add("label-before");
       } else {
         const compact = width < 560;
-        const lane = compact ? 1 : cluster.items.length % 2 === 0 ? -1 : 1;
-        const distance = compact
+        const focused = Boolean(this.selectedId);
+        const lane = focused ? -1 : (compact ? 1 : cluster.items.length % 2 === 0 ? -1 : 1);
+        const desiredDistance = compact
           ? Math.min(110, Math.max(80, width * 0.24))
           : Math.min(232, Math.max(130, width * 0.30));
+        const inwardLimit = Math.max(64, axisCross - 72);
+        const distance = focused ? Math.min(desiredDistance, inwardLimit) : desiredDistance;
         const eventX = axisCross + lane * distance;
         const segment = connectorSegment(axisCross, eventX);
         node.style.left = eventX + "px";
@@ -907,9 +915,12 @@
 
       if (this.orientation === "horizontal") {
         const lane = this.allocateHorizontalLane(position, occupied);
-        const side = lane % 2 === 0 ? -1 : 1;
-        const depth = Math.floor(lane / 2);
-        const distance = 82 + depth * 88;
+        const focused = Boolean(this.selectedId);
+        const side = focused ? -1 : (lane % 2 === 0 ? -1 : 1);
+        const depth = focused ? lane % 3 : Math.floor(lane / 2);
+        const desiredDistance = 82 + depth * 88;
+        const inwardLimit = Math.max(64, axisCross - 64);
+        const distance = focused ? Math.min(desiredDistance, inwardLimit) : desiredDistance;
         const eventY = axisCross + side * distance;
         const segment = connectorSegment(axisCross, eventY);
 
@@ -924,10 +935,13 @@
         if (position > width - 244) node.classList.add("label-before");
       } else {
         const compact = width < 560;
-        const lane = compact ? 1 : index % 2 === 0 ? -1 : 1;
-        const distance = compact
+        const focused = Boolean(this.selectedId);
+        const lane = focused ? -1 : (compact ? 1 : index % 2 === 0 ? -1 : 1);
+        const desiredDistance = compact
           ? Math.min(110, Math.max(80, width * 0.24))
           : Math.min(232, Math.max(130, width * 0.30));
+        const inwardLimit = Math.max(64, axisCross - 72);
+        const distance = focused ? Math.min(desiredDistance, inwardLimit) : desiredDistance;
         const eventX = axisCross + lane * distance;
         const segment = connectorSegment(axisCross, eventX);
 
