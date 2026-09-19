@@ -14,7 +14,7 @@
   --danger: #a92f2f;
   --focus: #1d64d8;
   --story: #5b4ab8;
-  --shadow: 0 24px 70px rgba(38, 31, 23, .08);
+  --shadow: 0 12px 36px rgba(38, 31, 23, .055);
   --radius: 1rem;
 }
 
@@ -31,7 +31,7 @@ body {
   column-gap: var(--page-grid-gap);
   padding-inline: var(--page-grid-gutter);
   background:
-    radial-gradient(circle at 8% 0%, rgba(183, 71, 42, .08), transparent 28rem),
+    radial-gradient(circle at 8% 0%, rgba(183, 71, 42, .04), transparent 24rem),
     var(--paper-2);
   color: var(--ink);
 }
@@ -156,7 +156,7 @@ main > * {
   border: 1px solid var(--line-strong);
   border-radius: .9rem;
   background: var(--paper);
-  box-shadow: 0 10px 30px rgba(38, 31, 23, .04);
+  box-shadow: 0 4px 14px rgba(38, 31, 23, .03);
 }
 .project-title-field input {
   width: 100%;
@@ -999,7 +999,7 @@ geolocation {
 .timeline-item.is-current .timeline-card {
   border-color: color-mix(in srgb, var(--story) 45%, var(--line));
   border-left-color: var(--story);
-  box-shadow: 0 10px 32px color-mix(in srgb, var(--story) 12%, transparent);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--story) 6%, transparent);
   transform: translateX(3px);
 }
 .timeline-item.story-dimmed .timeline-card { opacity: .58; }
@@ -1041,7 +1041,7 @@ geolocation {
   border-radius: .7rem;
   background: var(--ink);
   color: var(--paper);
-  box-shadow: 0 14px 40px rgba(0,0,0,.18);
+  box-shadow: 0 8px 22px rgba(0,0,0,.14);
   font-size: .78rem;
   opacity: 0;
   transform: translateY(.6rem);
@@ -1134,7 +1134,7 @@ footer > :last-child { grid-column: 9 / -1; justify-self: end; }
     --danger: #ee7c7c;
     --focus: #78a9ff;
     --story: #a79bf4;
-    --shadow: 0 24px 70px rgba(0,0,0,.24);
+    --shadow: 0 12px 36px rgba(0,0,0,.18);
   }
   .field { color: #d6d0c7; }
   .hero-meta span, .button.secondary:hover, .button.ghost:hover { background: rgba(255,255,255,.035); }
@@ -1949,7 +1949,7 @@ body {
   border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
   border-radius: .85rem;
   background: color-mix(in srgb, var(--paper) 88%, transparent);
-  box-shadow: 0 8px 30px color-mix(in srgb, var(--ink) 9%, transparent);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--ink) 6%, transparent);
   backdrop-filter: blur(16px);
 }
 
@@ -2012,7 +2012,7 @@ body {
   border-radius: .85rem;
   background: color-mix(in srgb, var(--paper) 98%, transparent);
   color: var(--ink);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 8%, transparent);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 6%, transparent);
   backdrop-filter: blur(12px);
   overscroll-behavior: contain;
 }
@@ -2188,7 +2188,7 @@ body {
   border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
   border-radius: .9rem;
   background: color-mix(in srgb, var(--paper) 90%, transparent);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 8%, transparent);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 6%, transparent);
   backdrop-filter: blur(14px);
   scrollbar-width: none;
 }
@@ -2257,7 +2257,7 @@ body {
   border: 1px solid color-mix(in srgb, var(--line-strong) 84%, transparent);
   border-radius: 1rem;
   background: color-mix(in srgb, var(--paper) 96%, transparent);
-  box-shadow: 0 12px 36px color-mix(in srgb, var(--ink) 11%, transparent);
+  box-shadow: 0 5px 18px color-mix(in srgb, var(--ink) 7%, transparent);
   backdrop-filter: blur(16px);
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
@@ -2411,7 +2411,7 @@ body {
   border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
   border-radius: .8rem;
   background: color-mix(in srgb, var(--paper) 91%, transparent);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 7%, transparent);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--ink) 5%, transparent);
   backdrop-filter: blur(12px);
   scrollbar-width: thin;
 }
@@ -2515,7 +2515,7 @@ body {
   border: 1px solid color-mix(in srgb, var(--story) 28%, var(--line));
   border-radius: .85rem;
   background: color-mix(in srgb, var(--paper) 91%, transparent);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 7%, transparent);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--ink) 5%, transparent);
   backdrop-filter: blur(12px);
   transition: opacity 140ms ease, transform 140ms ease;
 }
@@ -2656,7 +2656,7 @@ body {
   overflow-x: hidden;
   overflow-y: auto;
   transform: translateY(-50%);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 8%, transparent);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 6%, transparent);
   backdrop-filter: blur(14px);
 }
 
