@@ -1665,6 +1665,7 @@
     els.graphEdgeForm.reset();
     els.graphEdgeId.value = "";
     els.graphEdgeRole.value = "";
+    els.graphEdgeInitialState.value = "active";
     els.graphEdgeProperties.value = "{}";
     els.graphEdgeTimeKind.value = "timeless";
     graphEdgeDatePicker.setMode("event");
@@ -1719,6 +1720,7 @@
     graphEndpointOptions(els.graphEdgeObject, relationship.objectId);
     els.graphEdgePredicate.value = relationship.predicate || "relatedTo";
     els.graphEdgeRole.value = relationship.role || "";
+    els.graphEdgeInitialState.value = relationship.initialState === "inactive" ? "inactive" : "active";
     els.graphEdgeProperties.value = JSON.stringify(relationship.attributes || {}, null, 2);
     const timeKind = relationship.time?.end ? "range" : relationship.time?.start ? "event" : "timeless";
     els.graphEdgeTimeKind.value = timeKind;
@@ -2134,6 +2136,7 @@
       objectId,
       predicate: predicate.slice(0, 120),
       role: els.graphEdgeRole.value.trim().slice(0, 120),
+      initialState: els.graphEdgeInitialState.value === "inactive" ? "inactive" : "active",
       time,
       attributes
     };
@@ -2198,6 +2201,7 @@
     let location = null;
     let media = [];
     let tags = [];
+    let relationChanges = [];
     let evidenceRecords = [];
     try {
       if (!els.itemStartDate.value) throw new Error("Choose a calendar date.");
@@ -2209,6 +2213,7 @@
       }
       media = collectMediaForm();
       tags = collectTagForm();
+      relationChanges = collectRelationChangeForm();
       evidenceRecords = await collectEvidenceForm();
       location = spatial.fromForm({
         name: els.itemLocationName.value,
@@ -2247,6 +2252,7 @@
         ? els.itemCategory.value
         : state.categories[0].id,
       presentation: { variant: els.itemLayoutVariant.value },
+      relationChanges,
       evidenceIds: evidenceRecords.map((record) => record.id)
     };
     if (location) item.location = location;
