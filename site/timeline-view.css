@@ -2143,9 +2143,23 @@
   grid-row: auto !important;
 }
 
-.timeline-focus-view,
-.timeline-focus-view[popover] {
-  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+@media (min-width: 501px) {
+  .timeline-focus-view,
+  .timeline-focus-view[popover] {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 500px) {
+  .timeline-focus-view,
+  .timeline-focus-view[popover] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .timeline-focus-view[popover] > * {
+    min-inline-size: 0;
+    max-inline-size: 100%;
+  }
 }
 
 
