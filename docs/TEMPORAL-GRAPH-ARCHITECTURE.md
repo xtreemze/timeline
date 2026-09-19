@@ -266,6 +266,21 @@ The npm/bundled Orb path keeps CPU force simulation in a Web Worker. Timeline en
 
 Orb 1.0.2's GPU force implementation uses WebGL2 on the main thread; upstream documents that its GPU engine cannot use the worker because it requires a WebGL context. Timeline therefore keeps ordinary and presentation neighborhoods on worker CPU and only switches to GPU force for very large graphs. WebGL rendering remains independent from force-engine choice.
 
+### Interaction reheating and spacing
+
+Node interaction is treated as a topology-layout disturbance even when canonical graph data has not changed.
+
+- drag start raises the force alpha target so neighboring nodes respond while the dragged node is moving;
+- drag events keep the post-interaction settle timer cancelled;
+- drag release explicitly reheats the simulator again;
+- release holds an alpha target of `0.065` for `2400 ms`, then returns the target to zero and allows normal cooling;
+- the CPU path activates the pinned Orb 1.0.2 simulator directly so a drag release cannot be lost merely because its earlier force run already cooled;
+- if Orb changes that internal bridge, Timeline falls back to the public layout-settings path.
+
+The current sparse/default profile uses approximately 132 px link distance, `-310` many-body repulsion, 34 px collision radius and three collision iterations. The dense profile uses approximately 104 px links, `-210` repulsion and a 24 px collision radius. Both profiles use stronger link/collision resolution and slower alpha cooling than the previous settings.
+
+These values are presentation policy rather than canonical graph data and may be tuned from performance fixtures without changing nodes or edges.
+
 ## Range tracing
 
 A range is visually meaningful for every point in its interval, not just its start/end. If any portion of a range intersects the viewport, Timeline derives a presentation anchor from the midpoint of the visible intersection. The label terminal and connector use that anchor while the displayed date text retains the canonical start/end values. This keeps an on-screen range traceable to its event even when the actual start lies outside the viewport.

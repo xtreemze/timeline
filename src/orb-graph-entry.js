@@ -4,6 +4,9 @@ const LARGE_GRAPH_NODE_THRESHOLD = 1200;
 const GPU_LAYOUT_NODE_THRESHOLD = 3000;
 const TOUCH_NODE_HOLD_MS = 420;
 const TOUCH_NODE_MOVE_TOLERANCE_PX = 12;
+const INTERACTION_SETTLE_MS = 2400;
+const DRAG_ALPHA_TARGET = 0.12;
+const RELEASE_ALPHA_TARGET = 0.065;
 
 function resolvedColor(container, name, fallback) {
   const value = getComputedStyle(container).getPropertyValue(name).trim();
@@ -86,6 +89,8 @@ function create(container, handlers = {}) {
   let touchReleaseFallback = 0;
   let touchDragBlockedUntilRelease = false;
   let touchSelectedNode = null;
+  let interactionSettleTimer = 0;
+  let forceNodeCount = 0;
   const activeTouchPointers = new Set();
 
   const orb = new OrbView(container, {
@@ -104,10 +109,10 @@ function create(container, handlers = {}) {
     layout: {
       type: "force",
       options: {
-        links: { distance: 96, strength: 0.76, iterations: 1 },
-        manyBody: { strength: -180, theta: 0.9, distanceMin: 14, distanceMax: 1800 },
-        collision: { radius: 22, strength: 0.92, iterations: 2 },
-        alpha: { alpha: 1, alphaMin: 0.035, alphaDecay: 0.026, alphaTarget: 0 },
+        links: { distance: 132, strength: 0.82, iterations: 2 },
+        manyBody: { strength: -310, theta: 0.86, distanceMin: 20, distanceMax: 2400 },
+        collision: { radius: 34, strength: 1, iterations: 3 },
+        alpha: { alpha: 1, alphaMin: 0.012, alphaDecay: 0.021, alphaTarget: 0 },
         isSimulatingOnDataUpdate: true,
         isSimulatingOnSettingsUpdate: true,
         isSimulatingOnUnstick: true,
@@ -126,6 +131,93 @@ function create(container, handlers = {}) {
     },
     zoomFitTransitionMs: 240
   });
+
+  function forceAlphaProfile(nodeCount = forceNodeCount, alphaTarget = 0) {
+    const dense = nodeCount >= 1000;
+    return {
+      alpha: 1,
+      alphaMin: dense ? 0.018 : 0.012,
+      alphaDecay: dense ? 0.024 : 0.021,
+      alphaTarget
+    };
+  }
+
+  function forceLayoutOptions(nodeCount = forceNodeCount, alphaTarget = 0) {
+    const dense = nodeCount >= 1000;
+    const useGPU = currentMode === "gpu-main-force";
+    return {
+      links: { distance: dense ? 104 : 132, strength: 0.82, iterations: 2 },
+      manyBody: {
+        strength: dense ? -210 : -310,
+        theta: 0.86,
+        distanceMin: 20,
+        distanceMax: dense ? 1400 : 2400
+      },
+      collision: {
+        radius: dense ? 24 : 34,
+        strength: 1,
+        iterations: 3
+      },
+      alpha: forceAlphaProfile(nodeCount, alphaTarget),
+      isSimulatingOnDataUpdate: true,
+      isSimulatingOnSettingsUpdate: true,
+      isSimulatingOnUnstick: true,
+      isPhysicsEnabled: true,
+      centering: { x: 0, y: 0, strength: dense ? 0.03 : 0.05 },
+      positioning: {
+        forceX: { x: 0, strength: dense ? 0.018 : 0.03 },
+        forceY: { y: 0, strength: dense ? 0.018 : 0.03 }
+      },
+      useGPU
+    };
+  }
+
+  function forceSimulator() {
+    const simulator = orb?._simulator;
+    if (
+      simulator &&
+      typeof simulator.setSettings === "function" &&
+      typeof simulator.activateSimulation === "function"
+    ) {
+      return simulator;
+    }
+    return null;
+  }
+
+  function applyInteractionForce(alphaTarget) {
+    const layout = {
+      type: "force",
+      options: forceLayoutOptions(forceNodeCount, alphaTarget)
+    };
+    const simulator = forceSimulator();
+    if (simulator) {
+      simulator.setSettings(layout);
+      simulator.activateSimulation();
+      return;
+    }
+    // Orb does not expose simulation activation publicly in 1.0.2. Keep a
+    // compatibility fallback if the pinned internal bridge changes.
+    orb.setSettings({ layout });
+  }
+
+  function clearInteractionSettleTimer() {
+    if (!interactionSettleTimer) return;
+    globalThis.clearTimeout(interactionSettleTimer);
+    interactionSettleTimer = 0;
+  }
+
+  function setInteractionHeat(alphaTarget) {
+    clearInteractionSettleTimer();
+    applyInteractionForce(alphaTarget);
+  }
+
+  function keepForceActiveAfterInteraction() {
+    setInteractionHeat(RELEASE_ALPHA_TARGET);
+    interactionSettleTimer = globalThis.setTimeout(() => {
+      interactionSettleTimer = 0;
+      applyInteractionForce(0);
+    }, INTERACTION_SETTLE_MS);
+  }
 
   function isTouchInput(event) {
     if (!event) return false;
@@ -355,9 +447,14 @@ function create(container, handlers = {}) {
   const onNodeClick = ({ node }) => handlers.onNodeClick?.(node.getData());
   const onEdgeClick = ({ edge }) => handlers.onEdgeClick?.(edge.getData());
   const onNodeDragStart = (payload) => {
+    setInteractionHeat(DRAG_ALPHA_TARGET);
     if (isTouchInput(payload.event)) beginTouchHold(payload);
   };
+  const onNodeDrag = () => {
+    clearInteractionSettleTimer();
+  };
   const onNodeDragEnd = (payload) => {
+    keepForceActiveAfterInteraction();
     if (isTouchInput(payload.event) && touchHold?.activated) finishTouchGesture();
   };
   const onSimulationStart = () => handlers.onSimulationState?.({ running: true, mode: currentMode });
@@ -372,11 +469,13 @@ function create(container, handlers = {}) {
   orb.events.on(OrbEventType.NODE_CLICK, onNodeClick);
   orb.events.on(OrbEventType.EDGE_CLICK, onEdgeClick);
   orb.events.on(OrbEventType.NODE_DRAG_START, onNodeDragStart);
+  orb.events.on(OrbEventType.NODE_DRAG, onNodeDrag);
   orb.events.on(OrbEventType.NODE_DRAG_END, onNodeDragEnd);
   orb.events.on(OrbEventType.SIMULATION_START, onSimulationStart);
   orb.events.on(OrbEventType.SIMULATION_END, onSimulationEnd);
 
   function setPerformanceMode(nodeCount) {
+    forceNodeCount = nodeCount;
     const wantsWebGL = nodeCount >= LARGE_GRAPH_NODE_THRESHOLD && supportsWebGL2();
     const wantsGPU = nodeCount >= GPU_LAYOUT_NODE_THRESHOLD && wantsWebGL;
     const sizeClass = `${wantsWebGL ? "webgl" : "canvas"}:${wantsGPU ? "gpu" : "worker"}:${nodeCount >= 400 ? "dense" : "normal"}`;
@@ -394,24 +493,7 @@ function create(container, handlers = {}) {
       layout: {
         type: "force",
         options: {
-          links: { distance: nodeCount >= 1000 ? 72 : 96, strength: 0.76, iterations: 1 },
-          manyBody: {
-            strength: nodeCount >= 1000 ? -120 : -180,
-            theta: 0.9,
-            distanceMin: 12,
-            distanceMax: nodeCount >= 1000 ? 900 : 1800
-          },
-          collision: { radius: nodeCount >= 1000 ? 15 : 22, strength: 0.92, iterations: 1 },
-          alpha: { alpha: 1, alphaMin: 0.04, alphaDecay: nodeCount >= 1000 ? 0.04 : 0.026, alphaTarget: 0 },
-          isSimulatingOnDataUpdate: true,
-          isSimulatingOnSettingsUpdate: true,
-          isSimulatingOnUnstick: true,
-          isPhysicsEnabled: true,
-          centering: { x: 0, y: 0, strength: nodeCount >= 1000 ? 0.035 : 0.06 },
-          positioning: {
-            forceX: { x: 0, strength: nodeCount >= 1000 ? 0.02 : 0.035 },
-            forceY: { y: 0, strength: nodeCount >= 1000 ? 0.02 : 0.035 }
-          },
+          ...forceLayoutOptions(nodeCount, 0),
           useGPU: wantsGPU
         }
       }
@@ -457,6 +539,7 @@ function create(container, handlers = {}) {
     },
     destroy() {
       finishTouchGesture();
+      clearInteractionSettleTimer();
       container.removeEventListener("pointerdown", onPointerDown);
       container.removeEventListener("pointermove", onPointerMove);
       container.removeEventListener("pointerup", onPointerUp);
@@ -466,6 +549,7 @@ function create(container, handlers = {}) {
       orb.events.off(OrbEventType.NODE_CLICK, onNodeClick);
       orb.events.off(OrbEventType.EDGE_CLICK, onEdgeClick);
       orb.events.off(OrbEventType.NODE_DRAG_START, onNodeDragStart);
+      orb.events.off(OrbEventType.NODE_DRAG, onNodeDrag);
       orb.events.off(OrbEventType.NODE_DRAG_END, onNodeDragEnd);
       orb.events.off(OrbEventType.SIMULATION_START, onSimulationStart);
       orb.events.off(OrbEventType.SIMULATION_END, onSimulationEnd);

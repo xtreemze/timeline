@@ -132,3 +132,22 @@ test("graph entity and edge editing are disabled while presentation mode is acti
   assert.match(source, /graphedgefocus[\s\S]*presentationModeActive\(\)[\s\S]*return;[\s\S]*beginGraphEdgeEdit/);
   assert.match(source, /timelinefocuschange[\s\S]*setPresentationMode/);
 });
+
+test("node interaction reheats force and preserves wider spacing after release", async () => {
+  const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(source, /INTERACTION_SETTLE_MS\s*=\s*2400/);
+  assert.match(source, /DRAG_ALPHA_TARGET\s*=\s*0\.12/);
+  assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.065/);
+  assert.match(source, /onNodeDragStart[\s\S]*setInteractionHeat\(DRAG_ALPHA_TARGET\)/);
+  assert.match(source, /onNodeDragEnd[\s\S]*keepForceActiveAfterInteraction\(\)/);
+  assert.match(source, /simulator\.setSettings\(layout\)/);
+  assert.match(source, /simulator\.activateSimulation\(\)/);
+  assert.match(source, /distance:\s*dense \? 104 : 132/);
+  assert.match(source, /strength:\s*dense \? -210 : -310/);
+  assert.match(source, /radius:\s*dense \? 24 : 34/);
+  assert.match(source, /iterations:\s*3/);
+  assert.match(source, /alphaMin:\s*dense \? 0\.018 : 0\.012/);
+  assert.match(source, /alphaDecay:\s*dense \? 0\.024 : 0\.021/);
+  assert.match(source, /clearInteractionSettleTimer\(\)/);
+});
