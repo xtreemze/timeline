@@ -59,7 +59,9 @@
       <div class="project-actions">
         <button id="load-sample" class="button secondary" type="button">Load example</button>
         <label class="button secondary file-button">Import JSON<input id="import-json" type="file" accept="application/json,.json"></label>
+        <label class="button secondary file-button">Import Time.Graphics<input id="import-timegraphics" type="file" accept="application/json,application/xml,text/xml,.json,.xml"></label>
         <button id="export-json" class="button secondary" type="button">JSON</button>
+        <button id="export-timegraphics" class="button secondary" type="button">Time.Graphics</button>
         <button id="export-markdown" class="button secondary" type="button">Markdown</button>
         <button id="clear-timeline" class="button danger" type="button">Clear</button>
       </div>
@@ -272,6 +274,7 @@
   <div id="status" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
   <script src="./time-scale.js" defer></script>
   <script src="./timeline-view.js" defer></script>
+  <script src="./time-graphics-adapter.js" defer></script>
   <script src="./app.js" defer></script>
 </body>
 </html>
