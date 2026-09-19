@@ -381,7 +381,8 @@
       location: item.location,
       color: category?.color || "#315fbd",
       iconName,
-      interactive: true
+      interactive: true,
+      countryContextIntro: true
     }) || null;
     return true;
   }
