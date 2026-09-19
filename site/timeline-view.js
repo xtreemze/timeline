@@ -588,7 +588,8 @@
         "timeline-detail-time",
         Number.isFinite(item.end) ? item.startLabel + " → " + item.endLabel : item.startLabel
       );
-      const meta = createElement("p", "timeline-detail-meta", item.categoryName + " · " + item.kind);
+      const metaText = item.categoryName + " · " + item.kind + (item.locationName ? " · " + item.locationName : "");
+      const meta = createElement("p", "timeline-detail-meta", metaText);
       const actions = createElement("div", "timeline-detail-actions");
       const locate = createElement("button", "button secondary", "Locate in chronology");
       locate.type = "button";
