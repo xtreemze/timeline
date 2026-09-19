@@ -197,7 +197,9 @@ test("coincident events remain separate representations and use layout lanes ins
     500,
     100
   );
-  assert.notEqual(plan.mode, "pin");
+  assert.equal(plan.mode, "coincident");
+  assert.deepEqual(plan.viewport, { start: 50, end: 250 });
+  assert.deepEqual(plan.contextIds, ["b"]);
   assert.equal(plan.forceUnique, false);
 });
 
