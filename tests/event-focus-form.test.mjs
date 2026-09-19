@@ -116,12 +116,13 @@ test("focused event composition does not instantiate duplicate graph or map surf
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
   ]);
 
-  assert.doesNotMatch(source, /orbGraphFactory|TimelineOrbGraph|timeline-focus-graph-canvas|focusGraph/);
-  assert.doesNotMatch(source, /timeline-focus-place-map|focusMap/);
+  assert.doesNotMatch(source, /orbGraphFactory|TimelineOrbGraph|timeline-focus-graph-canvas/);
+  assert.doesNotMatch(source, /timeline-focus-place-map/);
   assert.doesNotMatch(css, /timeline-focus-graph/);
   assert.doesNotMatch(css, /timeline-focus-place-map/);
   assert.match(css, /container-type:\s*inline-size/);
-  assert.match(css, /font-size:\s*clamp\(2\.55rem,\s*9cqi,\s*7\.25rem\)/);
+  assert.match(css, /font-size:\s*clamp\(3\.2rem,\s*11\.5cqi,\s*9rem\)/);
+  assert.doesNotMatch(source, /timeline-focus-temporal|timeline-focus-definition-list|\"Chronology\"/);
   assert.match(css, /overflow-wrap:\s*break-word/);
   assert.doesNotMatch(css, /text-box:\s*trim-both cap alphabetic/);
 });
@@ -184,25 +185,31 @@ test("Escape exits fullscreen before focused-event back navigation", async () =>
   assert.match(source, /presentationIsFullscreen\(\)[\s\S]*meta\.event\?\.key === "Escape"[\s\S]*return false/);
 });
 
-test("mobile fullscreen keeps the timeline in the first 75 percent and contextual surfaces in the final quarter", async () => {
-  const [styles, timelineCss] = await Promise.all([
-    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+test("fullscreen keeps the timeline full-stage and moves focused detail into a responsive top layer", async () => {
+  const [html, timelineCss, app, timelineSource] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8")
   ]);
 
-  assert.match(styles, /block-size:\s*100dvh/);
-  assert.match(styles, /safe-area-inset-top/);
-  assert.match(timelineCss, /Final fullscreen composition guard/);
-  assert.match(timelineCss, /grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(timelineCss, /data-has-context-graph="true"[\s\S]*grid-column:\s*1\s*\/\s*span 9/);
-  assert.match(timelineCss, /graph-lens:not\(\[hidden\]\)[\s\S]*grid-column:\s*10\s*\/\s*-1/);
-  assert.match(timelineCss, /orientation:\s*portrait[\s\S]*grid-template-rows:\s*minmax\(0,\s*3fr\)\s*minmax\(0,\s*1fr\)/);
-  assert.match(timelineCss, /data-has-context-graph="true"\]\[data-has-context-map="true"[\s\S]*grid-column:\s*1\s*\/\s*span 6/);
-  assert.match(timelineCss, /data-has-context-graph="true"\]\[data-has-context-map="true"[\s\S]*grid-column:\s*7\s*\/\s*-1/);
-  assert.match(timelineCss, /timeline-view-toolbar[\s\S]*overflow-x:\s*auto/);
+  assert.match(html, /id="timeline-focus-view"[^>]*popover="manual"/);
+  assert.match(timelineCss, /Overlay-first presentation contract/);
+  assert.match(timelineCss, /#presentation-stage:fullscreen > \.timeline-view[\s\S]*grid-column:\s*1\s*\/\s*-1\s*!important[\s\S]*grid-row:\s*1\s*\/\s*-1\s*!important/);
+  assert.match(timelineCss, /#presentation-stage:fullscreen > \.graph-lens,[\s\S]*\.presentation-map-panel[\s\S]*display:\s*none\s*!important/);
+  assert.match(timelineCss, /timeline-focus-view\[popover\]/);
+  assert.match(timelineCss, /data-orientation="landscape"[\s\S]*timeline-focus-view:popover-open/);
+  assert.match(timelineCss, /data-orientation="portrait"[\s\S]*timeline-focus-view:popover-open/);
+  assert.match(timelineCss, /@media \(max-width: 500px\)/);
+  assert.match(timelineSource, /showPopover\(\)/);
+  assert.match(timelineSource, /hidePopover\(\)/);
+  assert.match(timelineSource, /focusInset/);
+  assert.match(timelineSource, /height - focusInset/);
+  assert.match(timelineSource, /width - focusInset/);
+  assert.match(timelineSource, /document\.startViewTransition\(applyFocus\)/);
+  assert.match(timelineSource, /document\.startViewTransition\(clearFocus\)/);
+  assert.match(app, /dataset\.viewportOrientation/);
 });
-
-
 
 test("fullscreen stage classification matches target phone and tablet viewports", () => {
   const portraitViewports = [
@@ -243,25 +250,33 @@ test("presentation stage shape is independent from selected timeline axis orient
   assert.notEqual(landscapeShape, "landscape");
 });
 
-test("presentation owns exactly one contextual graph and one contextual map surface", async () => {
-  const [html, css, app, view, graphView] = await Promise.all([
+test("focused Place and Relations reuse the single map and graph surfaces as interactive backdrops", async () => {
+  const [html, timelineCss, app, view, mapSource, graphView] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
     readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8")
   ]);
 
   assert.equal((html.match(/class="temporal-graph-canvas"/g) || []).length, 1);
   assert.equal((html.match(/id="presentation-map"/g) || []).length, 1);
-  assert.doesNotMatch(view, /timeline-focus-graph-canvas|timeline-focus-place-map/);
-  assert.match(app, /syncContextualPresentationPanels/);
-  assert.match(app, /data(?:set)?\.hasContextGraph|dataset\.hasContextGraph/);
-  assert.match(app, /data(?:set)?\.hasContextMap|dataset\.hasContextMap/);
-  assert.match(graphView, /graphcontextchange/);
-  assert.match(graphView, /hasContext\(\)/);
-  assert.match(css, /data-has-context-graph="true"/);
-  assert.match(css, /data-has-context-map="true"/);
+  assert.match(view, /dataset\.focusMapSlot/);
+  assert.match(view, /dataset\.focusGraphSlot/);
+  assert.match(view, /timeline-focus-section-content/);
+  assert.match(app, /mountGraphBackdrop/);
+  assert.match(app, /mountMapBackdrop/);
+  assert.match(app, /presentationGraphAnchor/);
+  assert.match(app, /presentationMapAnchor/);
+  assert.match(app, /interactive:\s*true/);
+  assert.match(mapSource, /this\.interactive = options\.interactive === true/);
+  assert.match(mapSource, /dragging:\s*this\.interactive/);
+  assert.match(mapSource, /touchZoom:\s*this\.interactive/);
+  assert.match(timelineCss, /timeline-focus-section-backdrop/);
+  assert.match(timelineCss, /opacity:\s*\.46/);
+  assert.match(timelineCss, /pointer-events:\s*auto/);
+  assert.match(graphView, /neighborhoodGraph\(this\.model, this\.focusedId/);
 });
 
 test("timeline range bars are identifiable and labels share event color semantics", async () => {
@@ -278,23 +293,39 @@ test("timeline range bars are identifiable and labels share event color semantic
 });
 
 
-test("body owns the canonical 12-column grid and contextual surfaces never exceed one quarter", async () => {
-  const [styles, html] = await Promise.all([
+test("body keeps the canonical 12-column grid while focused detail cannot compress it", async () => {
+  const [styles, timelineCss, html] = await Promise.all([
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
     readFile(new URL("../site/index.html", import.meta.url), "utf8")
   ]);
 
   assert.match(styles, /body\s*\{[\s\S]*display:\s*grid[\s\S]*grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(styles, /main\s*\{[\s\S]*grid-template-columns:\s*subgrid/);
   assert.match(styles, /\.app-shell\s*\{[\s\S]*grid-template-columns:\s*subgrid/);
-  assert.match(styles, /\.timeline-panel\s*\{[\s\S]*grid-template-columns:\s*subgrid/);
   assert.match(styles, /\.presentation-stage\s*\{[\s\S]*grid-template-columns:\s*subgrid/);
-  assert.match(styles, /#presentation-stage:fullscreen[\s\S]*repeat\(12,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(styles, /data-has-context-graph="true"[\s\S]*\.timeline-view[\s\S]*grid-column:\s*1\s*\/\s*span 9/);
-  assert.match(styles, /graph-lens:not\(\[hidden\]\)[\s\S]*grid-column:\s*10\s*\/\s*-1/);
-  assert.match(styles, /presentation-map-panel:not\(\[hidden\]\)[\s\S]*grid-column:\s*10\s*\/\s*-1/);
-  assert.match(styles, /orientation:\s*portrait[\s\S]*grid-template-rows:\s*minmax\(0,\s*3fr\)\s*minmax\(0,\s*1fr\)/);
-  assert.match(html, /id="presentation-stage"[\s\S]*id="timeline-view"[\s\S]*id="graph-lens"[\s\S]*id="presentation-map-panel"/);
+  assert.match(timelineCss, /#presentation-stage:fullscreen > \.timeline-view[\s\S]*grid-column:\s*1\s*\/\s*-1\s*!important/);
+  assert.match(timelineCss, /timeline-focus-view\[popover\][\s\S]*position:/);
+  assert.match(html, /id="timeline-focus-view"[^>]*popover="manual"/);
+});
+
+test("presentation map renders semantic GeoJSON features instead of an empty point preview", async () => {
+  const [mapSource, app, styles] = await Promise.all([
+    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(mapSource, /FeatureCollection/);
+  assert.match(mapSource, /mapFeatures/);
+  assert.match(mapSource, /L\.geoJSON/);
+  assert.match(mapSource, /L\.divIcon/);
+  assert.match(mapSource, /semanticMarkerIcon/);
+  assert.match(mapSource, /fitBounds/);
+  assert.match(mapSource, /L\.circle/);
+  assert.match(app, /iconName/);
+  assert.match(app, /hasRenderableGeometry/);
+  assert.match(styles, /\.timeline-map-marker-shell/);
 });
 
 test("fullscreen presentation removes graph authoring chrome and raw properties", async () => {

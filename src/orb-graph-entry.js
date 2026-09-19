@@ -146,27 +146,27 @@ function create(container, handlers = {}) {
     const dense = nodeCount >= 1000;
     const useGPU = currentMode === "gpu-main-force";
     return {
-      links: { distance: dense ? 104 : 132, strength: 0.82, iterations: 2 },
+      links: { distance: dense ? 128 : 168, strength: 0.78, iterations: 3 },
       manyBody: {
-        strength: dense ? -210 : -310,
-        theta: 0.86,
-        distanceMin: 20,
-        distanceMax: dense ? 1400 : 2400
+        strength: dense ? -300 : -460,
+        theta: 0.84,
+        distanceMin: 24,
+        distanceMax: dense ? 1800 : 3200
       },
       collision: {
-        radius: dense ? 24 : 34,
+        radius: dense ? 30 : 42,
         strength: 1,
-        iterations: 3
+        iterations: 4
       },
       alpha: forceAlphaProfile(nodeCount, alphaTarget),
       isSimulatingOnDataUpdate: true,
       isSimulatingOnSettingsUpdate: true,
       isSimulatingOnUnstick: true,
       isPhysicsEnabled: true,
-      centering: { x: 0, y: 0, strength: dense ? 0.03 : 0.05 },
+      centering: { x: 0, y: 0, strength: dense ? 0.02 : 0.035 },
       positioning: {
-        forceX: { x: 0, strength: dense ? 0.018 : 0.03 },
-        forceY: { y: 0, strength: dense ? 0.018 : 0.03 }
+        forceX: { x: 0, strength: dense ? 0.012 : 0.02 },
+        forceY: { y: 0, strength: dense ? 0.012 : 0.02 }
       },
       useGPU
     };

@@ -63,59 +63,138 @@
     return 12;
   }
 
+  const GEOJSON_TYPES = new Set([
+    "Point",
+    "MultiPoint",
+    "LineString",
+    "MultiLineString",
+    "Polygon",
+    "MultiPolygon",
+    "GeometryCollection",
+    "Feature",
+    "FeatureCollection"
+  ]);
+
+  function isGeoJsonObject(value) {
+    return Boolean(value && typeof value === "object" && GEOJSON_TYPES.has(value.type));
+  }
+
+  function geoJsonObjects(location) {
+    const objects = [];
+    if (isGeoJsonObject(location?.geometry)) objects.push(location.geometry);
+    const extras = Array.isArray(location?.mapFeatures) ? location.mapFeatures : [];
+    for (const feature of extras) {
+      if (isGeoJsonObject(feature)) objects.push(feature);
+    }
+    return objects;
+  }
+
+  function hasRenderableGeometry(location) {
+    return geoJsonObjects(location).length > 0;
+  }
+
+  function pointCoordinates(location) {
+    const geometry = location?.geometry;
+    if (geometry?.type !== "Point" || !Array.isArray(geometry.coordinates) || geometry.coordinates.length < 2) {
+      return null;
+    }
+    const lng = Number(geometry.coordinates[0]);
+    const lat = Number(geometry.coordinates[1]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+    return { lat, lng };
+  }
+
+  function semanticMarkerIcon(L, iconName, color) {
+    const icon = globalThis.TimelinePresentation?.createIcon?.(iconName || "place", { size: 18 });
+    const iconMarkup = icon?.outerHTML || "";
+    return L.divIcon({
+      className: "timeline-map-marker",
+      html: `<span class="timeline-map-marker-shell" style="--map-marker-color:${String(color)}">${iconMarkup}</span>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
+  }
+
   class ReadOnlyLocationMap {
     constructor(options) {
       this.container = options.container;
       this.location = options.location || null;
       this.provider = globalThis.TimelineMapTileProvider || DEFAULT_PROVIDER;
       this.color = options.color || "#315fbd";
+      this.iconName = options.iconName || "place";
+      this.interactive = options.interactive === true;
       this.map = null;
-      this.marker = null;
+      this.layers = [];
       this.destroyed = false;
       this.ready = this.render();
     }
 
-    coordinates() {
-      const coordinates = this.location?.geometry?.coordinates;
-      if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
-      const lng = Number(coordinates[0]);
-      const lat = Number(coordinates[1]);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
-      return { lat, lng };
-    }
-
     async render() {
-      const point = this.coordinates();
-      if (!this.container || !point) return;
-      this.container.setAttribute("aria-label", this.location?.name || this.location?.geographicIdentifier || "Event location");
+      const objects = geoJsonObjects(this.location);
+      if (!this.container || objects.length === 0) return;
+      this.container.setAttribute(
+        "aria-label",
+        this.location?.name || this.location?.geographicIdentifier || "Event location"
+      );
+
       try {
         const L = await loadLeaflet();
         if (this.destroyed || !this.container.isConnected) return;
+
         this.map = L.map(this.container, {
-          zoomControl: false,
+          zoomControl: this.interactive,
           attributionControl: true,
-          dragging: false,
-          scrollWheelZoom: false,
-          doubleClickZoom: false,
-          boxZoom: false,
-          keyboard: false,
-          touchZoom: false
-        }).setView([point.lat, point.lng], presentationZoom(this.location));
+          dragging: this.interactive,
+          scrollWheelZoom: this.interactive,
+          doubleClickZoom: this.interactive,
+          boxZoom: this.interactive,
+          keyboard: this.interactive,
+          touchZoom: this.interactive
+        });
 
         L.tileLayer(this.provider.url, {
           maxZoom: this.provider.maxZoom || 19,
           attribution: this.provider.attribution || DEFAULT_PROVIDER.attribution
         }).addTo(this.map);
 
-        this.marker = L.circleMarker([point.lat, point.lng], {
-          radius: 8,
-          color: this.color,
-          weight: 3,
-          fillColor: this.color,
-          fillOpacity: 0.32
-        }).addTo(this.map);
+        const icon = semanticMarkerIcon(L, this.iconName, this.color);
+        const geoJsonOptions = {
+          style: () => ({
+            color: this.color,
+            weight: 3,
+            opacity: 0.9,
+            fillColor: this.color,
+            fillOpacity: 0.12
+          }),
+          pointToLayer: (_feature, latlng) => L.marker(latlng, {
+            icon,
+            interactive: this.interactive,
+            keyboard: this.interactive,
+            title: this.location?.name || this.location?.geographicIdentifier || "Event location"
+          })
+        };
 
+        for (const object of objects) {
+          const layer = L.geoJSON(object, geoJsonOptions).addTo(this.map);
+          this.layers.push(layer);
+        }
+
+        const point = pointCoordinates(this.location);
+        const accuracy = Number(this.location?.accuracyMeters ?? this.location?.accuracy);
+        if (point && Number.isFinite(accuracy) && accuracy > 0) {
+          this.layers.push(L.circle([point.lat, point.lng], {
+            radius: accuracy,
+            color: this.color,
+            weight: 1.5,
+            opacity: 0.55,
+            fillColor: this.color,
+            fillOpacity: 0.06,
+            interactive: false
+          }).addTo(this.map));
+        }
+
+        this.fitGeometry({ animate: false });
         requestAnimationFrame(() => this.map?.invalidateSize({ pan: false }));
       } catch (error) {
         if (!this.destroyed && this.container) {
@@ -126,17 +205,46 @@
       }
     }
 
+    fitGeometry({ animate = false } = {}) {
+      if (!this.map || !globalThis.L) return;
+      const point = pointCoordinates(this.location);
+      const drawableLayers = this.layers.filter((layer) => typeof layer?.getBounds === "function");
+      const bounds = drawableLayers.length
+        ? globalThis.L.featureGroup(drawableLayers).getBounds()
+        : null;
+
+      if (bounds?.isValid?.() && !(point && geoJsonObjects(this.location).length === 1)) {
+        this.map.fitBounds(bounds, {
+          animate,
+          padding: [18, 18],
+          maxZoom: presentationZoom(this.location)
+        });
+        return;
+      }
+
+      if (point) {
+        this.map.setView([point.lat, point.lng], presentationZoom(this.location), { animate });
+        return;
+      }
+
+      if (bounds?.isValid?.()) {
+        this.map.fitBounds(bounds, {
+          animate,
+          padding: [18, 18],
+          maxZoom: presentationZoom(this.location)
+        });
+      }
+    }
+
     refresh() {
       if (!this.map) return;
-      const point = this.coordinates();
-      if (!point) return;
       this.map.invalidateSize({ pan: false });
-      this.map.setView([point.lat, point.lng], presentationZoom(this.location), { animate: false });
+      this.fitGeometry({ animate: false });
     }
 
     destroy() {
       this.destroyed = true;
-      this.marker = null;
+      this.layers = [];
       this.map?.remove();
       this.map = null;
       if (this.container) this.container.replaceChildren();
@@ -288,6 +396,8 @@
   globalThis.TimelineLocationMap = Object.freeze({
     create,
     createReadOnly,
+    geoJsonObjects,
+    hasRenderableGeometry,
     loadLeaflet,
     presentationZoom,
     provider: DEFAULT_PROVIDER

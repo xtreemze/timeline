@@ -673,8 +673,14 @@
       const primaryLength = this.orientation === "horizontal" ? width : height;
       const padding = this.axisPadding(primaryLength);
       const usable = Math.max(1, primaryLength - padding * 2);
-      const axisCross =
-        this.orientation === "horizontal" ? height / 2 : this.portraitAxisCoordinate(width);
+      const focusInset = this.selectedId
+        ? (this.orientation === "horizontal"
+            ? clamp(height * 0.12, 72, 132)
+            : clamp(width * 0.10, 56, 112))
+        : 0;
+      const axisCross = this.selectedId
+        ? (this.orientation === "horizontal" ? height - focusInset : width - focusInset)
+        : (this.orientation === "horizontal" ? height / 2 : this.portraitAxisCoordinate(width));
       this.surface.style.setProperty("--timeline-axis-cross", axisCross + "px");
 
       const stage = createElement("div", "timeline-stage");
@@ -983,32 +989,51 @@
       const direction = delta < 0 ? -1 : 1;
       this.focusMediaIndex = (this.focusMediaIndex + direction + media.length) % media.length;
       this.renderFocus(item);
+      this.root.dispatchEvent(new CustomEvent("timelinefocusrender", {
+        bubbles: true,
+        detail: { id: item.id }
+      }));
       return true;
     }
 
     select(id) {
       const item = this.items.find((candidate) => candidate.id === id);
       if (!item) return;
-      this.selectedId = id;
-      this.focusMediaIndex = 0;
-      this.focusForceUnique = false;
-      this.ensureItemVisible(id);
-      this.adjustFocusedViewport(item);
-      this.root.classList.add("is-event-focused");
-      this.focusView.hidden = false;
-      this.renderFocus(item);
-      this.scheduleRender();
-      this.root.dispatchEvent(new CustomEvent("timelinefocuschange", {
-        bubbles: true,
-        detail: { id, focused: true }
-      }));
-      requestAnimationFrame(() => {
-        this.focusView.focus({ preventScroll: true });
-        this.root.scrollIntoView({
-          behavior: this.prefersReducedMotion() ? "auto" : "smooth",
-          block: "start"
+
+      const applyFocus = () => {
+        this.selectedId = id;
+        this.focusMediaIndex = 0;
+        this.focusForceUnique = false;
+        this.ensureItemVisible(id);
+        this.adjustFocusedViewport(item);
+        this.root.classList.add("is-event-focused");
+        this.focusView.hidden = false;
+        this.renderFocus(item);
+        if (
+          typeof this.focusView.showPopover === "function" &&
+          !this.focusView.matches(":popover-open")
+        ) {
+          this.focusView.showPopover();
+        }
+        this.scheduleRender();
+        this.root.dispatchEvent(new CustomEvent("timelinefocuschange", {
+          bubbles: true,
+          detail: { id, focused: true }
+        }));
+        requestAnimationFrame(() => {
+          this.focusView.focus({ preventScroll: true });
+          this.root.scrollIntoView({
+            behavior: this.prefersReducedMotion() ? "auto" : "smooth",
+            block: "start"
+          });
         });
-      });
+      };
+
+      if (!this.prefersReducedMotion() && typeof document.startViewTransition === "function") {
+        document.startViewTransition(applyFocus);
+      } else {
+        applyFocus();
+      }
     }
 
     createFocusHero(item) {
@@ -1057,6 +1082,10 @@
         previous.addEventListener("click", () => {
           this.focusMediaIndex = (activeIndex - 1 + media.length) % media.length;
           this.renderFocus(item);
+          this.root.dispatchEvent(new CustomEvent("timelinefocusrender", {
+            bubbles: true,
+            detail: { id: item.id }
+          }));
         });
         const count = createElement("span", "timeline-focus-slide-count", `${activeIndex + 1} / ${media.length}`);
         const next = createElement("button", "button secondary", "Next image");
@@ -1065,6 +1094,10 @@
         next.addEventListener("click", () => {
           this.focusMediaIndex = (activeIndex + 1) % media.length;
           this.renderFocus(item);
+          this.root.dispatchEvent(new CustomEvent("timelinefocusrender", {
+            bubbles: true,
+            detail: { id: item.id }
+          }));
         });
         controls.append(previous, count, next);
         hero.append(controls);
@@ -1095,44 +1128,36 @@
         summary.append(createElement("p", "timeline-focus-description", "No narrative description has been recorded for this event."));
       }
 
-      const temporal = createElement("section", "timeline-focus-section timeline-focus-temporal");
-      temporal.append(createElement("h3", "timeline-focus-section-heading", "Chronology"));
-      const temporalList = createElement("dl", "timeline-focus-definition-list");
-      const addDefinition = (label, value) => {
-        if (!value) return;
-        const term = createElement("dt", "", label);
-        const definition = createElement("dd", "", value);
-        temporalList.append(term, definition);
-      };
-      addDefinition("Type", item.kind);
-      addDefinition("Start", item.startLabel);
-      if (Number.isFinite(item.end)) addDefinition("End", item.endLabel);
-      addDefinition("Category", item.categoryName);
-      temporal.append(temporalList);
-
       const place = createElement("section", "timeline-focus-section timeline-focus-place");
-      place.append(createElement("h3", "timeline-focus-section-heading", "Place"));
+      const placeBackdrop = createElement("div", "timeline-focus-section-backdrop timeline-focus-place-backdrop");
+      placeBackdrop.dataset.focusMapSlot = "";
+      const placeContent = createElement("div", "timeline-focus-section-content");
+      placeContent.append(createElement("h3", "timeline-focus-section-heading", "Place"));
       if (item.location) {
         const placeName =
           item.location.name ||
           item.location.geographicIdentifier ||
           item.location.address ||
           "Coordinates";
-        place.append(createElement("p", "timeline-focus-place-name", placeName));
+        placeContent.append(createElement("p", "timeline-focus-place-name", placeName));
         const coordinates = item.location.geometry?.coordinates;
         if (coordinates) {
-          place.append(createElement(
+          placeContent.append(createElement(
             "p",
             "timeline-focus-place-coordinates",
             `${coordinates[1]}, ${coordinates[0]}`
           ));
         }
       } else {
-        place.append(createElement("p", "timeline-focus-muted", "No location assigned."));
+        placeContent.append(createElement("p", "timeline-focus-muted", "No location assigned."));
       }
+      place.append(placeBackdrop, placeContent);
 
       const relations = createElement("section", "timeline-focus-section timeline-focus-relations");
-      relations.append(createElement("h3", "timeline-focus-section-heading", "Relations"));
+      const relationBackdrop = createElement("div", "timeline-focus-section-backdrop timeline-focus-relations-backdrop");
+      relationBackdrop.dataset.focusGraphSlot = "";
+      const relationContent = createElement("div", "timeline-focus-section-content");
+      relationContent.append(createElement("h3", "timeline-focus-section-heading", "Relations"));
       if (item.relations?.length) {
         const list = createElement("ul", "timeline-focus-relation-list");
         for (const relation of item.relations.slice(0, 8)) {
@@ -1149,9 +1174,9 @@
           li.append(label);
           list.append(li);
         }
-        relations.append(list);
+        relationContent.append(list);
       } else {
-        relations.append(createElement("p", "timeline-focus-muted", "No relationships attached."));
+        relationContent.append(createElement("p", "timeline-focus-muted", "No relationships attached."));
       }
 
       if (item.relationChanges?.length) {
@@ -1168,8 +1193,9 @@
             `Updates ${relationText}`;
           changes.append(row);
         }
-        relations.append(changes);
+        relationContent.append(changes);
       }
+      relations.append(relationBackdrop, relationContent);
 
       const evidence = createElement("section", "timeline-focus-section timeline-focus-evidence");
       evidence.append(createElement("h3", "timeline-focus-section-heading", "Evidence"));
@@ -1260,27 +1286,41 @@
       });
       actions.append(previous, next, close, edit);
 
-      this.focusView.append(hero, summary, temporal, place, relations, evidence, actions);
+      this.focusView.append(hero, summary, place, relations, evidence, actions);
     }
 
     closeFocus() {
       const previousId = this.selectedId;
-      this.selectedId = null;
-      this.focusMediaIndex = 0;
-      this.focusForceUnique = false;
-      this.root.classList.remove("is-event-focused");
-      this.focusView.hidden = true;
-      this.focusView.removeAttribute("style");
-      delete this.focusView.dataset.layout;
-      this.focusView.replaceChildren();
-      this.scheduleRender();
-      if (previousId) {
-        this.root.dispatchEvent(new CustomEvent("timelinefocuschange", {
-          bubbles: true,
-          detail: { id: previousId, focused: false }
-        }));
+      const clearFocus = () => {
+        this.selectedId = null;
+        this.focusMediaIndex = 0;
+        this.focusForceUnique = false;
+        this.root.classList.remove("is-event-focused");
+        if (
+          typeof this.focusView.hidePopover === "function" &&
+          this.focusView.matches(":popover-open")
+        ) {
+          this.focusView.hidePopover();
+        }
+        this.focusView.hidden = true;
+        this.focusView.removeAttribute("style");
+        delete this.focusView.dataset.layout;
+        this.focusView.replaceChildren();
+        this.scheduleRender();
+        if (previousId) {
+          this.root.dispatchEvent(new CustomEvent("timelinefocuschange", {
+            bubbles: true,
+            detail: { id: previousId, focused: false }
+          }));
+        }
+        if (!this.root.hidden) this.surface.focus({ preventScroll: true });
+      };
+
+      if (!this.prefersReducedMotion() && typeof document.startViewTransition === "function") {
+        document.startViewTransition(clearFocus);
+      } else {
+        clearFocus();
       }
-      if (!this.root.hidden) this.surface.focus({ preventScroll: true });
     }
 
     updateReadout(spec) {

@@ -277,7 +277,7 @@ Node interaction is treated as a topology-layout disturbance even when canonical
 - the CPU path activates the pinned Orb 1.0.2 simulator directly so a drag release cannot be lost merely because its earlier force run already cooled;
 - if Orb changes that internal bridge, Timeline falls back to the public layout-settings path.
 
-The current sparse/default profile uses approximately 132 px link distance, `-310` many-body repulsion, 34 px collision radius and three collision iterations. The dense profile uses approximately 104 px links, `-210` repulsion and a 24 px collision radius. Both profiles use stronger link/collision resolution and slower alpha cooling than the previous settings.
+The current sparse/default profile uses approximately 168 px link distance, `-460` many-body repulsion, 42 px collision radius and four collision iterations. The dense profile uses approximately 128 px links, `-300` repulsion and a 30 px collision radius. Centering and positional pull are also reduced so the stronger repulsion is not immediately cancelled by attraction toward the origin. Both profiles keep slower alpha cooling and the 2.4-second post-interaction settle window.
 
 These values are presentation policy rather than canonical graph data and may be tuned from performance fixtures without changing nodes or edges.
 

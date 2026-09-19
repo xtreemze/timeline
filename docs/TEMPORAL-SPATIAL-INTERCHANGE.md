@@ -26,7 +26,7 @@ References:
 
 - ISO 19112:2019 informs geographic identifiers.
 - ISO 19111:2019 informs coordinate-reference-system metadata.
-- RFC 7946 GeoJSON provides the practical Point geometry shape and WGS 84 / CRS84 longitude-latitude coordinate order.
+- RFC 7946 GeoJSON provides the practical geometry model and WGS 84 / CRS84 longitude-latitude coordinate order. Timeline presentation can render points, lines/trails, polygons/areas, multi-geometries, geometry collections, Features and FeatureCollections.
 
 References:
 - https://www.iso.org/standard/70742.html
@@ -103,6 +103,8 @@ A location may be descriptive without coordinates, coordinate-only, or both.
 
 Coordinate order is always `[longitude, latitude]`.
 
+Presentation rendering is not limited to Point geometry. Imported or programmatic records may supply any RFC 7946 geometry supported by Leaflet's GeoJSON layer. Optional `location.mapFeatures[]` entries can add secondary GeoJSON Feature/Geometry overlays without replacing the canonical location geometry. This is useful for routes, trails, search areas, site boundaries, corridors or other event-specific spatial context.
+
 `source` is one of:
 
 - `manual` — typed coordinates or map placement;
@@ -128,6 +130,10 @@ https://tile.openstreetmap.org/{z}/{x}/{y}.png
 Timeline:
 
 - shows OpenStreetMap attribution on the map;
+- renders presentation geometry through Leaflet GeoJSON layers;
+- uses semantic SVG icon markers for points and the event/category color for spatial overlays;
+- fits routes, areas and collections to their visible bounds rather than leaving an empty generic map;
+- may render recorded point accuracy as a non-interactive uncertainty circle;
 - does not prefetch or bulk-download tiles;
 - does not offer offline map-tile download;
 - relies on normal browser HTTP caching;

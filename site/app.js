@@ -245,10 +245,61 @@
   let presentationMap = null;
   let focusedGraphContextAvailable = false;
 
+  const presentationGraphCanvas = els.graphViewRoot?.querySelector(".temporal-graph-canvas") || null;
+  const presentationGraphAnchor = presentationGraphCanvas
+    ? document.createComment("timeline-graph-home")
+    : null;
+  presentationGraphCanvas?.after(presentationGraphAnchor);
+
+  const presentationMapAnchor = els.presentationMap
+    ? document.createComment("timeline-map-home")
+    : null;
+  els.presentationMap?.after(presentationMapAnchor);
+
+  function restoreGraphSurface() {
+    if (!presentationGraphCanvas || !presentationGraphAnchor?.parentNode) return;
+    if (presentationGraphCanvas.parentNode !== presentationGraphAnchor.parentNode) {
+      presentationGraphAnchor.parentNode.insertBefore(presentationGraphCanvas, presentationGraphAnchor);
+    }
+  }
+
+  function restoreMapSurface() {
+    if (!els.presentationMap || !presentationMapAnchor?.parentNode) return;
+    if (els.presentationMap.parentNode !== presentationMapAnchor.parentNode) {
+      presentationMapAnchor.parentNode.insertBefore(els.presentationMap, presentationMapAnchor);
+    }
+  }
+
+  function mountGraphBackdrop() {
+    const slot = els.timelineViewRoot?.querySelector("[data-focus-graph-slot]");
+    if (!slot || !presentationGraphCanvas) {
+      restoreGraphSurface();
+      return false;
+    }
+    slot.replaceChildren(presentationGraphCanvas);
+    requestAnimationFrame(() => temporalGraphView?.refreshLayout?.());
+    return true;
+  }
+
+  function mountMapBackdrop() {
+    const slot = els.timelineViewRoot?.querySelector("[data-focus-map-slot]");
+    if (!slot || !els.presentationMap) {
+      restoreMapSurface();
+      return false;
+    }
+    slot.replaceChildren(els.presentationMap);
+    els.presentationMap.setAttribute("role", "application");
+    return true;
+  }
+
   function destroyPresentationMap() {
     presentationMap?.destroy?.();
     presentationMap = null;
-    if (els.presentationMap) els.presentationMap.replaceChildren();
+    restoreMapSurface();
+    if (els.presentationMap) {
+      els.presentationMap.replaceChildren();
+      els.presentationMap.setAttribute("role", "img");
+    }
     if (els.presentationMapPanel) els.presentationMapPanel.hidden = true;
   }
 
@@ -260,38 +311,46 @@
   function renderPresentationMap() {
     destroyPresentationMap();
     const item = focusedPresentationItem();
-    const coordinates = item?.location?.geometry?.coordinates;
-    if (!item || !Array.isArray(coordinates) || coordinates.length < 2) return false;
+    const mapApi = globalThis.TimelineLocationMap;
+    if (!item || !mapApi?.hasRenderableGeometry?.(item.location) || !mountMapBackdrop()) return false;
     const name =
       item.location.name ||
       item.location.geographicIdentifier ||
       item.location.address ||
       item.title;
     if (els.presentationMapLabel) els.presentationMapLabel.textContent = name;
-    if (els.presentationMapPanel) els.presentationMapPanel.hidden = false;
     const category = getCategory(item.categoryId);
-    presentationMap = globalThis.TimelineLocationMap?.createReadOnly?.({
+    const categoryIcon = presentation.ICON_NAMES.includes(item.categoryId) ? item.categoryId : null;
+    const iconName = item.tags?.[0]?.icon || categoryIcon || "place";
+    presentationMap = mapApi.createReadOnly?.({
       container: els.presentationMap,
       location: item.location,
-      color: category?.color || "#315fbd"
+      color: category?.color || "#315fbd",
+      iconName,
+      interactive: true
     }) || null;
     return true;
   }
 
   function syncContextualPresentationPanels() {
     const focused = Boolean(timelineView?.hasFocusedItem?.());
-    const graphVisible = focused && focusedGraphContextAvailable;
+    const graphVisible = focused && focusedGraphContextAvailable && mountGraphBackdrop();
     const mapVisible = focused ? renderPresentationMap() : (destroyPresentationMap(), false);
 
+    if (!focused) restoreGraphSurface();
+
     if (els.graphLens) {
-      els.graphLens.hidden = focused ? !graphVisible : false;
-      if (graphVisible) els.graphLens.open = true;
+      els.graphLens.hidden = focused || presentationIsFullscreen();
+      if (!els.graphLens.hidden) els.graphLens.open = graphOpenBeforeFullscreen;
     }
+    if (els.presentationMapPanel) els.presentationMapPanel.hidden = true;
+
     if (els.presentationStage) {
-      els.presentationStage.dataset.hasContextGraph = String(graphVisible);
+      els.presentationStage.dataset.eventFocused = String(focused);
+      els.presentationStage.dataset.hasContextGraph = String(Boolean(graphVisible));
       els.presentationStage.dataset.hasContextMap = String(Boolean(mapVisible));
     }
-    return { graphVisible, mapVisible: Boolean(mapVisible) };
+    return { graphVisible: Boolean(graphVisible), mapVisible: Boolean(mapVisible) };
   }
 
   function presentationIsFullscreen() {
@@ -311,11 +370,14 @@
       fullscreen: presentationIsFullscreen()
     });
     const orientation = timelineView?.getOrientation?.() || "horizontal";
+    const viewportOrientation = presentationLayout.physicalOrientation(width, height);
     const changed =
       els.presentationStage.dataset.stageShape !== nextShape ||
-      els.presentationStage.dataset.timelineOrientation !== orientation;
+      els.presentationStage.dataset.timelineOrientation !== orientation ||
+      els.presentationStage.dataset.viewportOrientation !== viewportOrientation;
     els.presentationStage.dataset.stageShape = nextShape;
     els.presentationStage.dataset.timelineOrientation = orientation;
+    els.presentationStage.dataset.viewportOrientation = viewportOrientation;
     return changed;
   }
 
@@ -2756,6 +2818,11 @@
     temporalGraphView?.setFocus(focused ? event.detail?.id : null);
     focusedGraphContextAvailable = focused && Boolean(temporalGraphView?.hasContext?.());
     temporalGraphView?.setPresentationMode?.(focused || presentationIsFullscreen());
+    syncContextualPresentationPanels();
+    schedulePresentationGeometryRefresh({ recenterGraph: true });
+  });
+
+  els.timelineViewRoot.addEventListener("timelinefocusrender", () => {
     syncContextualPresentationPanels();
     schedulePresentationGeometryRefresh({ recenterGraph: true });
   });
