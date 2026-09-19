@@ -1491,8 +1491,7 @@ footer > :last-child { grid-column: 9 / -1; justify-self: end; }
 }
 
 #presentation-stage:fullscreen .graph-lens > summary,
-#presentation-stage:fullscreen .temporal-graph-toolbar,
-#presentation-stage:fullscreen .temporal-graph-detail {
+#presentation-stage:fullscreen .temporal-graph-toolbar {
   display: none;
 }
 #presentation-stage:fullscreen .graph-lens[open],
@@ -2394,4 +2393,11 @@ body {
   display: block !important;
   grid-template-columns: none !important;
   grid-template-rows: none !important;
+}
+
+
+/* Edit is an explicit application mode. Keep the mode switch visible and remove viewing tools
+   until editing is complete rather than mixing presentation/navigation controls with authoring. */
+#app-shell[data-mode="edit"] .app-tool-dock .app-tool:not(#editor-toggle) {
+  display: none;
 }
