@@ -347,6 +347,8 @@ Collapsed chronology state:
 
 Selecting one item is a deliberate focus operation, not a small overlay. The item takes over the chronology workspace and composes itself across the 12-column grid. The editor yields the screen, while the timeline remains visible as contextual navigation docked to an edge: the bottom in landscape and the outer side in portrait.
 
+Focus also owns a viewport contract. If the selected event is currently represented inside a collision cluster, the viewport should zoom inward until its projected terminal is unique. If it is already unique, the viewport should expand toward the nearest one or two chronology items so the focused event retains relative temporal context. Equal timestamps are a degenerate case: since zoom cannot separate identical temporal coordinates, the focused record is pinned out of clustering while the remaining coincident records can stay fused.
+
 Focused composition should be asymmetric and may include:
 - a large hero title over media;
 - up to three photographs with slideshow controls and accessible alternative text;
@@ -368,7 +370,9 @@ Stories remain ordered references and must not alter chronology.
 
 Timed relationships are first-class temporal graph edges. A relationship MAY carry the same `time` extent as an event so the renderer can answer both “who/what is related?” and “during which temporal interval did that relationship hold?”. The timeline reserves a relation band separate from event terminals; full graph exploration is a distinct linked surface.
 
-For a future Memgraph Orb integration, Timeline's adapter emits Orb's node/edge contract while retaining temporal extent in edge properties. Use a bundled/npm integration with worker-backed simulation for large graphs; do not use Orb's direct-link mode for the scale target because that mode runs simulation on the main thread.
+Timeline now exposes node and edge authoring directly. Nodes are subject/noun records with a type and arbitrary properties. Directed edges use an action/predicate label, subject and object endpoints, arbitrary properties, and an optional temporal extent. Endpoints may refer to entities, chronology items, or stories, which lets graph topology and chronology remain linked without copying records.
+
+The built-in SVG graph lens consumes the same canonical data and changes edge emphasis as the timeline viewport moves. For a future large-scale Memgraph Orb integration, Timeline's adapter emits Orb's node/edge contract while retaining temporal extent in edge properties. Use a bundled/npm integration with worker-backed simulation for large graphs; do not use Orb's direct-link mode for the scale target because that mode runs simulation on the main thread.
 
 Add optional analytical overlays as separate records:
 - hypothesis;
