@@ -142,6 +142,36 @@ function create(container, handlers = {}) {
     };
   }
 
+  function forceLayoutOptions(nodeCount = forceNodeCount, alphaTarget = 0) {
+    const dense = nodeCount >= 1000;
+    const useGPU = currentMode === "gpu-main-force";
+    return {
+      links: { distance: dense ? 104 : 132, strength: 0.82, iterations: 2 },
+      manyBody: {
+        strength: dense ? -210 : -310,
+        theta: 0.86,
+        distanceMin: 20,
+        distanceMax: dense ? 1400 : 2400
+      },
+      collision: {
+        radius: dense ? 24 : 34,
+        strength: 1,
+        iterations: 3
+      },
+      alpha: forceAlphaProfile(nodeCount, alphaTarget),
+      isSimulatingOnDataUpdate: true,
+      isSimulatingOnSettingsUpdate: true,
+      isSimulatingOnUnstick: true,
+      isPhysicsEnabled: true,
+      centering: { x: 0, y: 0, strength: dense ? 0.03 : 0.05 },
+      positioning: {
+        forceX: { x: 0, strength: dense ? 0.018 : 0.03 },
+        forceY: { y: 0, strength: dense ? 0.018 : 0.03 }
+      },
+      useGPU
+    };
+  }
+
   function clearInteractionSettleTimer() {
     if (!interactionSettleTimer) return;
     globalThis.clearTimeout(interactionSettleTimer);
@@ -153,9 +183,7 @@ function create(container, handlers = {}) {
     orb.setSettings({
       layout: {
         type: "force",
-        options: {
-          alpha: forceAlphaProfile(forceNodeCount, alphaTarget)
-        }
+        options: forceLayoutOptions(forceNodeCount, alphaTarget)
       }
     });
   }
@@ -167,9 +195,7 @@ function create(container, handlers = {}) {
       orb.setSettings({
         layout: {
           type: "force",
-          options: {
-            alpha: forceAlphaProfile(forceNodeCount, 0)
-          }
+          options: forceLayoutOptions(forceNodeCount, 0)
         }
       });
     }, INTERACTION_SETTLE_MS);
@@ -449,28 +475,7 @@ function create(container, handlers = {}) {
       layout: {
         type: "force",
         options: {
-          links: { distance: nodeCount >= 1000 ? 104 : 132, strength: 0.82, iterations: 2 },
-          manyBody: {
-            strength: nodeCount >= 1000 ? -210 : -310,
-            theta: 0.86,
-            distanceMin: 20,
-            distanceMax: nodeCount >= 1000 ? 1400 : 2400
-          },
-          collision: {
-            radius: nodeCount >= 1000 ? 24 : 34,
-            strength: 1,
-            iterations: 3
-          },
-          alpha: forceAlphaProfile(nodeCount, 0),
-          isSimulatingOnDataUpdate: true,
-          isSimulatingOnSettingsUpdate: true,
-          isSimulatingOnUnstick: true,
-          isPhysicsEnabled: true,
-          centering: { x: 0, y: 0, strength: nodeCount >= 1000 ? 0.035 : 0.06 },
-          positioning: {
-            forceX: { x: 0, strength: nodeCount >= 1000 ? 0.02 : 0.035 },
-            forceY: { y: 0, strength: nodeCount >= 1000 ? 0.02 : 0.035 }
-          },
+          ...forceLayoutOptions(nodeCount, 0),
           useGPU: wantsGPU
         }
       }
