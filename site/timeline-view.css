@@ -2920,3 +2920,79 @@
   user-select: none;
   -webkit-user-select: none;
 }
+
+
+/* Focused event chrome inherits the exact semantic color already used by its timeline
+   terminal/range. Keep the content surfaces mostly neutral; use the event color for identity,
+   controls, separators, and focus affordances. */
+.timeline-focus-view[popover] {
+  --focus-chrome-color: var(--event-color, var(--accent));
+  --focus-chrome-contrast: contrast-color(var(--focus-chrome-color));
+  border-color: color-mix(in srgb, var(--focus-chrome-color) 72%, var(--line-strong));
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--focus-chrome-color) 7%, var(--paper)) 0%,
+      var(--paper) 42%,
+      color-mix(in srgb, var(--focus-chrome-color) 4%, var(--paper)) 100%
+    );
+  box-shadow:
+    inset 0 3px 0 var(--focus-chrome-color),
+    0 3px 12px color-mix(in srgb, var(--focus-chrome-color) 11%, transparent);
+}
+
+.timeline-focus-view[popover]:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--focus-chrome-color) 76%, white);
+  outline-offset: 3px;
+}
+
+.timeline-focus-view[popover] .timeline-focus-tabs {
+  border-color: color-mix(in srgb, var(--focus-chrome-color) 34%, var(--line));
+  background: color-mix(in srgb, var(--focus-chrome-color) 6%, var(--paper));
+}
+
+.timeline-focus-view[popover] .timeline-focus-tab:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--focus-chrome-color) 12%, var(--paper));
+  color: color-mix(in srgb, var(--focus-chrome-color) 72%, var(--ink));
+}
+
+.timeline-focus-view[popover] .timeline-focus-tab.is-active {
+  background: var(--focus-chrome-color);
+  color: var(--focus-chrome-contrast);
+}
+
+.timeline-focus-view[popover] .timeline-focus-tab:focus-visible,
+.timeline-focus-view[popover] :is(.button, a):focus-visible {
+  outline-color: var(--focus-chrome-color);
+}
+
+.timeline-focus-view[popover] .timeline-focus-close.button.primary {
+  border-color: var(--focus-chrome-color);
+  background: var(--focus-chrome-color);
+  color: var(--focus-chrome-contrast);
+}
+
+.timeline-focus-view[popover] .timeline-focus-close.button.primary:hover {
+  background: color-mix(in srgb, var(--focus-chrome-color) 84%, var(--paper));
+}
+
+.timeline-focus-view[popover] .button.secondary {
+  border-color: color-mix(in srgb, var(--focus-chrome-color) 38%, var(--line-strong));
+}
+
+.timeline-focus-view[popover] .button.secondary:hover {
+  background: color-mix(in srgb, var(--focus-chrome-color) 9%, var(--paper));
+}
+
+.timeline-focus-view[popover] .timeline-focus-section {
+  border-top-color: color-mix(in srgb, var(--focus-chrome-color) 24%, var(--line));
+}
+
+.timeline-focus-view[popover] .timeline-focus-evidence-card {
+  border-color: color-mix(in srgb, var(--focus-chrome-color) 18%, var(--line));
+}
+
+.timeline-focus-view[popover] .timeline-focus-section-heading,
+.timeline-focus-view[popover] .timeline-focus-evidence-type {
+  color: color-mix(in srgb, var(--focus-chrome-color) 74%, var(--ink));
+}
