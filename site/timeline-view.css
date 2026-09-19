@@ -1657,6 +1657,62 @@
   mix-blend-mode: normal;
 }
 
+::view-transition-group(timeline-event-detail-swap) {
+  animation-duration: 260ms;
+  animation-timing-function: cubic-bezier(.2, .8, .2, 1);
+}
+
+::view-transition-old(timeline-event-detail-swap),
+::view-transition-new(timeline-event-detail-swap) {
+  mix-blend-mode: normal;
+  animation-duration: 260ms;
+  animation-timing-function: cubic-bezier(.2, .8, .2, 1);
+}
+
+@keyframes timeline-focus-old-forward {
+  to {
+    opacity: 0;
+    transform: translateX(-1.1rem) scale(.985);
+  }
+}
+
+@keyframes timeline-focus-new-forward {
+  from {
+    opacity: 0;
+    transform: translateX(1.1rem) scale(.985);
+  }
+}
+
+@keyframes timeline-focus-old-backward {
+  to {
+    opacity: 0;
+    transform: translateX(1.1rem) scale(.985);
+  }
+}
+
+@keyframes timeline-focus-new-backward {
+  from {
+    opacity: 0;
+    transform: translateX(-1.1rem) scale(.985);
+  }
+}
+
+:root[data-timeline-focus-direction="forward"]::view-transition-old(timeline-event-detail-swap) {
+  animation-name: timeline-focus-old-forward;
+}
+
+:root[data-timeline-focus-direction="forward"]::view-transition-new(timeline-event-detail-swap) {
+  animation-name: timeline-focus-new-forward;
+}
+
+:root[data-timeline-focus-direction="backward"]::view-transition-old(timeline-event-detail-swap) {
+  animation-name: timeline-focus-old-backward;
+}
+
+:root[data-timeline-focus-direction="backward"]::view-transition-new(timeline-event-detail-swap) {
+  animation-name: timeline-focus-new-backward;
+}
+
 @media (max-width: 900px), (max-height: 650px) {
   .timeline-focus-view[popover] {
     gap: clamp(.55rem, 1.4vw, .9rem);
@@ -2520,5 +2576,15 @@
 @media (prefers-reduced-motion: reduce) {
   #app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"] > .timeline-view {
     transition-duration: 0s;
+  }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(timeline-event-detail-shared),
+  ::view-transition-group(timeline-event-detail-swap),
+  ::view-transition-old(timeline-event-detail-swap),
+  ::view-transition-new(timeline-event-detail-swap) {
+    animation-duration: 0s !important;
   }
 }
