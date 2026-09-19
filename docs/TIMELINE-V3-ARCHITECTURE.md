@@ -487,12 +487,14 @@ Normal application mode follows the same ownership principle as fullscreen: the 
 
 - Mobile is the baseline. The editor and Browse experience are bottom sheets above the timeline, using safe-area insets and touch-sized controls.
 - At wider viewports those sheets progressively become bounded sidebars without changing timeline dimensions.
-- Browse owns search, category filtering, story navigation, empty-state explanation and the detailed chronology list. Those are not repeated on the primary canvas.
-- Item, Story, Category and Graph forms reuse the existing data model inside one editor surface with internal tabs.
-- Relation-graph exploration is opened explicitly as an overlay rather than occupying a permanent sibling column.
+- Browse owns search, category filtering, empty-state explanation and the chronology list. Those are not repeated on the primary canvas.
+- Active Story navigation is a compact contextual mode overlay outside Browse, so story position/previous/next/exit remain available while the timeline is being read.
+- Item, Story, Category and Graph forms reuse the existing data model inside one editor surface with internal tabs; the global tool dock therefore exposes one Edit entry rather than duplicating editor tabs.
+- The global tool dock is limited to Edit, Browse, Relations and View, using semantic icon + text pairs for recognition at touch and desktop distances.
+- Relation-graph exploration is opened explicitly as the Relations overlay rather than occupying a permanent sibling column.
 - Timeline orientation, zoom, auto-advance and presentation controls are progressively disclosed in a compact View surface.
-- Project import/export/example/destructive actions live behind the Project disclosure menu in the floating command bar.
-- One large utility surface is shown at a time. Event focus remains a separate top-layer interaction and the timeline stays visually present beneath it.
+- Project import/export/example/destructive actions live in a native Project popover from the floating command bar.
+- One large utility surface is shown at a time. Contextual Story controls yield while a large utility surface is open. Event focus remains a separate top-layer interaction and the timeline stays visually present beneath it.
 - With no events the timeline still renders its neutral axis; guidance for the empty project lives in Browse rather than replacing the workspace.
 
 Fullscreen targets `#presentation-stage`, not editor/browser/project surfaces. Browser fullscreen therefore naturally excludes application chrome and preserves the timeline-plus-focused-event presentation.
