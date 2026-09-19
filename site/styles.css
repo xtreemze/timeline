@@ -79,10 +79,10 @@ main > * {
 }
 .site-header {
   min-height: 68px;
-  display: flex;
+  display: grid;
+  grid-template-columns: subgrid;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  gap: var(--page-grid-gap);
   border-bottom: 1px solid var(--line);
 }
 .brand {
@@ -93,7 +93,15 @@ main > * {
   letter-spacing: -.03em;
   text-decoration: none;
 }
-.site-header nav { display: flex; gap: 1.25rem; color: var(--muted); font-size: .88rem; }
+.site-header .brand { grid-column: 1 / span 6; }
+.site-header nav {
+  grid-column: 7 / -1;
+  justify-self: end;
+  display: flex;
+  gap: 1.25rem;
+  color: var(--muted);
+  font-size: .88rem;
+}
 .site-header nav a { text-underline-offset: .2rem; }
 
 .hero {
@@ -852,8 +860,16 @@ geolocation {
 }
 .status.visible { opacity: 1; transform: none; }
 
-footer { display: flex; justify-content: space-between; gap: 1rem; padding: 2.5rem 0 3rem; color: var(--muted); font-size: .8rem; }
-footer p { margin: 0; }
+footer {
+  display: grid;
+  grid-template-columns: subgrid;
+  gap: var(--page-grid-gap);
+  padding: 2.5rem 0 3rem;
+  color: var(--muted);
+  font-size: .8rem;
+}
+footer p { grid-column: 1 / span 8; margin: 0; }
+footer > :last-child { grid-column: 9 / -1; justify-self: end; }
 
 @media (max-width: 1120px) {
   .project-bar { grid-template-columns: minmax(200px, 1fr) auto; }
