@@ -96,9 +96,11 @@ test("presentation map is read-only, semantic, and selects a reasonable zoom fro
   assert.match(source, /class ReadOnlyLocationMap/);
   assert.match(source, /createReadOnly/);
   assert.match(source, /presentationZoom/);
-  assert.match(source, /zoomControl:\s*false/);
-  assert.match(source, /dragging:\s*false/);
-  assert.match(source, /scrollWheelZoom:\s*false/);
+  assert.match(source, /this\.interactive = options\.interactive === true/);
+  assert.match(source, /zoomControl:\s*this\.interactive/);
+  assert.match(source, /dragging:\s*this\.interactive/);
+  assert.match(source, /scrollWheelZoom:\s*this\.interactive/);
+  assert.match(source, /touchZoom:\s*this\.interactive/);
   assert.match(source, /semanticMarkerIcon/);
   assert.match(source, /L\.divIcon/);
   assert.match(source, /L\.geoJSON/);
