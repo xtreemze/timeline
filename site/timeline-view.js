@@ -509,17 +509,26 @@
       void motion.pulseHaptic("cluster");
     }
 
-    renderMonthAccents(stage, visibleItems, padding, usable) {
-      const accents = clustering.monthAccents(visibleItems, { maxItemsPerMonth: 3, limit: 18 });
-      for (const accent of accents) {
-        const position = padding + scale.coordinateFor(accent.time, this.viewport, usable);
-        const label = createElement("div", "timeline-month-accent", accent.label);
-        label.dataset.count = String(accent.count);
-        if (this.orientation === "horizontal") label.style.left = position + "px";
-        else label.style.top = position + "px";
+    renderTemporalAccents(stage, plan) {
+      for (const accent of plan.edgeAccents) {
+        const className = accent.kind === "year"
+          ? "timeline-month-accent timeline-year-accent"
+          : "timeline-month-accent";
+        const label = createElement("div", className, accent.label);
+        label.dataset.count = String(accent.count || 0);
+        label.dataset.temporalAccent = accent.kind;
+        if (this.orientation === "horizontal") label.style.left = accent.position + "px";
+        else label.style.top = accent.position + "px";
         stage.append(label);
       }
-      return accents;
+
+      for (const month of plan.axisMonths) {
+        const label = createElement("div", "timeline-axis-month-label", month.label);
+        label.dataset.count = String(month.count || 0);
+        if (this.orientation === "horizontal") label.style.left = month.position + "px";
+        else label.style.top = month.position + "px";
+        stage.append(label);
+      }
     }
 
     renderRelationships(stage, padding, usable) {
@@ -653,14 +662,41 @@
         })
         .sort((a, b) => a.start - b.start || a.title.localeCompare(b.title));
 
-      const monthAccents = this.renderMonthAccents(stage, visibleItems, padding, usable);
-      const hasAmbientMonth = monthAccents.length > 0;
+      let tickSpec = scale.selectTickSpec(this.viewport, usable, 94);
+      let accentPlan = clustering.planTemporalAccents(visibleItems, {
+        viewport: this.viewport,
+        pixelLength: usable,
+        padding,
+        orientation: this.orientation,
+        spec: tickSpec,
+        maxItemsPerMonth: 3,
+        limit: 18
+      });
+      const tickSpacing = accentPlan.hasAmbientContext ? 112 : 94;
+      const adjustedSpec = scale.selectTickSpec(this.viewport, usable, tickSpacing);
+      if (adjustedSpec.unit !== tickSpec.unit || adjustedSpec.step !== tickSpec.step) {
+        tickSpec = adjustedSpec;
+        accentPlan = clustering.planTemporalAccents(visibleItems, {
+          viewport: this.viewport,
+          pixelLength: usable,
+          padding,
+          orientation: this.orientation,
+          spec: tickSpec,
+          maxItemsPerMonth: 3,
+          limit: 18
+        });
+      }
+      this.renderTemporalAccents(stage, accentPlan);
 
-      const ticks = scale.generateTicks(this.viewport, usable, hasAmbientMonth ? 112 : 94, MAX_TICKS);
+      const ticks = scale.generateTicks(this.viewport, usable, tickSpacing, MAX_TICKS);
       for (const tick of ticks) {
         const position = padding + scale.coordinateFor(tick.value, this.viewport, usable);
         const mark = createElement("div", "timeline-tick");
-        const compact = clustering.compactTickLabel(tick.value, tick.spec, hasAmbientMonth);
+        const compact = clustering.compactTickLabel(
+          tick.value,
+          tick.spec,
+          accentPlan.hasAmbientContext
+        );
         const labelText = compact === null ? tick.label : compact;
         if (labelText) {
           const label = createElement("span", "timeline-tick-label", labelText);
