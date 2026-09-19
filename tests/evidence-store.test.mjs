@@ -18,6 +18,73 @@ test("normalizes article, PDF metadata and notes without embedding binary data",
   assert.equal(records[2].note, "Observed at 09:30.");
 });
 
+test("preserves explicit forensic identity, integrity, acquisition and lineage metadata", () => {
+  const record = evidence.normalizeRecord({
+    id: "disk-copy",
+    type: "document",
+    title: "Forensic disk image",
+    forensic: {
+      recordClass: "acquired-copy",
+      sourceFilename: "drive.E01",
+      sourceLocator: "locker-4/device-2",
+      exhibitNumber: "C001-HD1",
+      rootExhibitNumber: "Collection-001",
+      acquiredAt: "2026-09-19T09:15:00+02:00",
+      acquiredByEntityId: "person-examiner",
+      acquisitionMethod: "Forensic image acquisition",
+      acquisitionPlaceEntityId: "place-lab",
+      sourceItemId: "device-2",
+      tool: { name: "Acquisition Tool", version: "5.4.1" },
+      digests: [
+        { algorithm: "SHA-256", value: "abc123", encoding: "hex" },
+        { algorithm: "sha-256", value: "abc123", encoding: "hex" }
+      ],
+      derivedFromIds: ["device-2", "device-2"]
+    }
+  });
+
+  assert.equal(record.forensic.recordClass, "acquired-copy");
+  assert.equal(record.forensic.exhibitNumber, "C001-HD1");
+  assert.equal(record.forensic.tool.version, "5.4.1");
+  assert.deepEqual(record.forensic.digests, [
+    { algorithm: "sha-256", value: "abc123", encoding: "hex" }
+  ]);
+  assert.deepEqual(record.forensic.derivedFromIds, ["device-2"]);
+});
+
+test("does not invent forensic metadata for ordinary evidence", () => {
+  const record = evidence.normalizeRecord({ id: "a", type: "article", title: "Ordinary source" });
+  assert.equal("forensic" in record, false);
+});
+
+test("normalizes append-only custody actions as separate records", () => {
+  const actions = evidence.normalizeCustodyActions([
+    {
+      id: "custody-1",
+      actionType: "transferred",
+      evidenceIds: ["disk-copy", "disk-copy"],
+      occurredAt: "2026-09-19T10:00:00+02:00",
+      fromEntityId: "person-examiner",
+      toEntityId: "person-custodian",
+      placeEntityId: "place-vault",
+      recorderEntityId: "person-recorder",
+      reason: "Secure storage",
+      sourceEvidenceIds: ["custody-form-1"]
+    }
+  ]);
+
+  assert.equal(actions.length, 1);
+  assert.deepEqual(actions[0].evidenceIds, ["disk-copy"]);
+  assert.equal(actions[0].actionType, "transferred");
+  assert.equal(actions[0].toEntityId, "person-custodian");
+  assert.deepEqual(actions[0].sourceEvidenceIds, ["custody-form-1"]);
+});
+
+test("rejects custody actions without evidence or an occurrence time", () => {
+  assert.equal(evidence.normalizeCustodyAction({ occurredAt: "2026-09-19" }), null);
+  assert.equal(evidence.normalizeCustodyAction({ evidenceIds: ["a"] }), null);
+});
+
 test("rejects unsafe evidence URLs", () => {
   const record = evidence.normalizeRecord({
     id: "a",
