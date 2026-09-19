@@ -337,26 +337,30 @@ Represent custody as events/actions, not a single "current custodian" field.
 
 For tamper-evident workflows, an audit/hash-chain layer is required. Browser localStorage alone cannot provide evidentiary integrity guarantees.
 
-## Event detail and expansion
+## Event focus and expansion
 
-Collapsed state:
-- terminal/icon or image;
+Collapsed chronology state:
+- terminal with semantic tag icon;
 - short label;
 - minimal temporal label;
 - optional category/status affordance.
 
-Expanded state:
-- complete temporal expression and precision/certainty;
-- description;
-- people/places/entities and relationship roles;
-- linked evidence;
-- provenance/source citations;
-- integrity digests where applicable;
-- custody/analysis history;
-- story memberships;
-- edit/history controls.
+Selecting one item is a deliberate focus operation, not a small overlay. The item takes over the chronology workspace and composes itself across the 12-column grid. The editor yields the screen, while the timeline remains visible as contextual navigation docked to an edge: the bottom in landscape and the outer side in portrait.
 
-Expansion should be a popover, anchored panel, or inspector that does not distort the underlying scale.
+Focused composition should be asymmetric and may include:
+- a large hero title over media;
+- up to three photographs with slideshow controls and accessible alternative text;
+- complete temporal expression and precision/certainty;
+- semantic tags using icon + text + hue;
+- description/context;
+- place/location;
+- people/entities and relationship roles;
+- linked evidence and provenance;
+- integrity/custody/analysis data where relevant;
+- story memberships;
+- edit and return-to-timeline actions.
+
+The focused item must not mutate its temporal coordinate or chronology order. Escape and an explicit return control restore the chronology.
 
 ## Stories and analytical layers
 

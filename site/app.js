@@ -8,9 +8,13 @@
   const temporal = globalThis.TimelineTemporal;
   const spatial = globalThis.TimelineSpatial;
   const graph = globalThis.TimelineGraph;
+  const presentation = globalThis.TimelinePresentation;
+  const dateRangeFactory = globalThis.TimelineDateRangePicker;
   if (!temporal) throw new Error("TimelineTemporal must load before app.js.");
   if (!spatial) throw new Error("TimelineSpatial must load before app.js.");
   if (!graph) throw new Error("TimelineGraph must load before app.js.");
+  if (!presentation) throw new Error("TimelinePresentation must load before app.js.");
+  if (!dateRangeFactory) throw new Error("TimelineDateRangePicker must load before app.js.");
 
   const DEFAULT_CATEGORIES = [
     { id: "event", name: "Event", color: "#667085" },
@@ -23,91 +27,248 @@
 
   const SAMPLE = {
     version: VERSION,
-    title: "Timeline v2 launch",
+    title: "Evidence-rich product launch",
     categories: [
       { id: "decision", name: "Decision", color: "#2563eb" },
-      { id: "build", name: "Build", color: "#c4320a" },
-      { id: "release", name: "Release", color: "#7a5af8" },
-      { id: "research", name: "Research", color: "#027a48" }
+      { id: "fieldwork", name: "Fieldwork", color: "#c4320a" },
+      { id: "evidence", name: "Evidence", color: "#027a48" },
+      { id: "release", name: "Release", color: "#7a5af8" }
     ],
     items: [
       {
-        id: "sample-problem",
+        id: "sample-brief",
         kind: "event",
-        start: "2026-09-11T09:00",
+        start: "2026-09-11T09:00+02:00",
         end: null,
-        title: "Problem framed",
-        description: "Define chronology as the primary model and keep the tool local-first, portable, and understandable without a backend.",
-        categoryId: "decision"
+        time: {
+          type: "instant",
+          start: {
+            value: "2026-09-11T09:00+02:00",
+            precision: "minute",
+            certainty: "exact",
+            calendar: "gregorian",
+            timeZone: "Europe/Stockholm",
+            utcOffset: "+02:00"
+          },
+          end: null
+        },
+        title: "Launch brief approved",
+        description: "The team freezes the first release scope, evidence requirements, mapping behavior, temporal precision rules, and the visual language for focused events.",
+        categoryId: "decision",
+        location: {
+          name: "Stockholm Central",
+          geographicIdentifier: "Stockholm, Sweden",
+          address: "Centralplan, Stockholm",
+          geometry: { type: "Point", coordinates: [18.0586, 59.3300] },
+          crs: "OGC:CRS84",
+          source: "manual"
+        },
+        media: [
+          {
+            src: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1600&q=80",
+            alt: "Workspace used as demonstration media",
+            caption: "Hero photograph for the focused event composition."
+          },
+          {
+            src: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1600&q=80",
+            alt: "Interior workspace demonstration photograph",
+            caption: "A second image demonstrates the three-photo slideshow."
+          },
+          {
+            src: "https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=1600&q=80",
+            alt: "Architectural demonstration photograph",
+            caption: "A third image shows event media rotation."
+          }
+        ],
+        tags: [
+          { label: "Decision", icon: "decision", hue: 28 },
+          { label: "Stockholm", icon: "place", hue: 205 },
+          { label: "Team", icon: "person", hue: 292 }
+        ]
       },
       {
-        id: "sample-sprint",
+        id: "sample-fieldwork",
         kind: "range",
-        start: "2026-09-11T10:00",
-        end: "2026-09-13T18:00",
-        title: "Interaction and data-model sprint",
-        description: "Develop events, ranges, editable categories, responsive layout, data migration, and the story model as one coherent system.",
-        categoryId: "build"
+        start: "2026-09-11T10:30+02:00",
+        end: "2026-09-13T18:15+02:00",
+        time: {
+          type: "interval",
+          start: {
+            value: "2026-09-11T10:30+02:00",
+            precision: "minute",
+            certainty: "exact",
+            calendar: "gregorian",
+            timeZone: "Europe/Copenhagen",
+            utcOffset: "+02:00"
+          },
+          end: {
+            value: "2026-09-13T18:15+02:00",
+            precision: "minute",
+            certainty: "approximate",
+            calendar: "gregorian",
+            timeZone: "Europe/Copenhagen",
+            utcOffset: "+02:00"
+          }
+        },
+        title: "Fieldwork and interaction study",
+        description: "A multi-day range demonstrates two-date calendar selection, independent clocks, a mapped place, rich media, event tags, relationships, and uncertainty on the end boundary.",
+        categoryId: "fieldwork",
+        location: {
+          name: "Copenhagen",
+          geographicIdentifier: "Copenhagen, Denmark",
+          address: "",
+          geometry: { type: "Point", coordinates: [12.5683, 55.6761] },
+          crs: "OGC:CRS84",
+          source: "manual"
+        },
+        media: [
+          {
+            src: "https://images.unsplash.com/photo-1513622470522-26c3c8a854bc?auto=format&fit=crop&w=1600&q=80",
+            alt: "Copenhagen city demonstration photograph",
+            caption: "Location-oriented hero media for a ranged event."
+          },
+          {
+            src: "https://images.unsplash.com/photo-1552560880-2482cef14240?auto=format&fit=crop&w=1600&q=80",
+            alt: "Urban bicycle demonstration photograph",
+            caption: "Second fieldwork image."
+          }
+        ],
+        tags: [
+          { label: "Fieldwork", icon: "evidence", hue: 142 },
+          { label: "Copenhagen", icon: "place", hue: 216 },
+          { label: "Range", icon: "relation", hue: 52 }
+        ]
       },
       {
-        id: "sample-model",
+        id: "sample-evidence",
         kind: "event",
-        start: "2026-09-12T14:30",
+        start: "2026-09-12",
         end: null,
-        title: "Story references become non-destructive",
-        description: "Stories reference canonical item IDs rather than copying events, allowing one moment to participate in multiple narratives.",
-        categoryId: "decision"
+        title: "Evidence package captured",
+        description: "A date-only event demonstrates that Timeline can retain day precision without inventing a clock time.",
+        categoryId: "evidence",
+        media: [
+          {
+            src: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=1600&q=80",
+            alt: "Documents used as demonstration evidence imagery",
+            caption: "Evidence-oriented media remains presentation metadata, not evidentiary proof by itself."
+          }
+        ],
+        tags: [
+          { label: "Evidence", icon: "evidence", hue: 155 },
+          { label: "Date only", icon: "milestone", hue: 44 }
+        ]
       },
       {
         id: "sample-review",
         kind: "event",
-        start: "2026-09-13T16:15",
+        start: "2026-09-13T16:15+02:00",
         end: null,
-        title: "Responsive behavior reviewed",
-        description: "Desktop, tablet, and narrow-screen layouts use the same information architecture with progressive stacking rather than separate interfaces.",
-        categoryId: "research"
+        title: "Focused composition reviewed",
+        description: "The selected-event design uses the whole chronology workspace: hero media and title dominate, supporting sections take asymmetric grid spans, and the timeline docks to an edge rather than competing with detail.",
+        categoryId: "decision",
+        tags: [
+          { label: "UX review", icon: "decision", hue: 320 },
+          { label: "Relations", icon: "relation", hue: 262 }
+        ]
       },
       {
         id: "sample-release",
         kind: "event",
-        start: "2026-09-14T09:30",
+        start: "2026-09-14T09:30+02:00",
         end: null,
-        title: "Timeline v2 published",
-        description: "The browser application can now model chronology and narrative focus independently while preserving portable JSON and Markdown exports.",
-        categoryId: "release"
+        title: "Release published",
+        description: "The release demonstrates stories, graph relationships, temporal clustering, rich event focus, map locations, interchange, and accessible hue-constrained tags working together.",
+        categoryId: "release",
+        media: [
+          {
+            src: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1600&q=80",
+            alt: "Computer display used as release demonstration media",
+            caption: "Release hero."
+          },
+          {
+            src: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1600&q=80",
+            alt: "Code editor demonstration photograph",
+            caption: "Implementation view."
+          },
+          {
+            src: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1600&q=80",
+            alt: "Laptop collaboration demonstration photograph",
+            caption: "Collaboration view."
+          }
+        ],
+        tags: [
+          { label: "Release", icon: "milestone", hue: 275 },
+          { label: "Media", icon: "media", hue: 190 },
+          { label: "Portable", icon: "note", hue: 70 }
+        ]
       }
     ],
     stories: [
       {
         id: "sample-story",
-        title: "From chronology to narrative",
-        description: "Follow the decisions and implementation moments that transformed a simple event list into a richer chronology workspace.",
-        itemIds: ["sample-problem", "sample-sprint", "sample-model", "sample-review", "sample-release"]
+        title: "From brief to release",
+        description: "A narrative path that reuses canonical chronology items without changing their dates, locations, media, tags, or graph relationships.",
+        itemIds: ["sample-brief", "sample-fieldwork", "sample-evidence", "sample-review", "sample-release"]
       }
     ],
-    entities: [],
+    entities: [
+      { id: "person-lead", type: "person", name: "Project lead", identifiers: [], attributes: {} },
+      { id: "place-stockholm", type: "place", name: "Stockholm", identifiers: [], attributes: {} },
+      { id: "place-copenhagen", type: "place", name: "Copenhagen", identifiers: [], attributes: {} }
+    ],
     relationships: [
       {
-        id: "sample-relation",
-        subjectId: "sample-problem",
-        objectId: "sample-release",
-        predicate: "deliveryWindow",
-        role: "context",
+        id: "sample-relation-participant",
+        subjectId: "person-lead",
+        objectId: "sample-brief",
+        predicate: "participant",
+        role: "approver",
+        time: {
+          type: "instant",
+          start: {
+            value: "2026-09-11T09:00+02:00",
+            precision: "minute",
+            certainty: "exact",
+            calendar: "gregorian",
+            timeZone: "Europe/Stockholm",
+            utcOffset: "+02:00"
+          },
+          end: null
+        }
+      },
+      {
+        id: "sample-relation-fieldwork",
+        subjectId: "sample-fieldwork",
+        objectId: "place-copenhagen",
+        predicate: "occurredAt",
+        role: "study-site",
         time: {
           type: "interval",
           start: {
-            value: "2026-09-11T09:00",
+            value: "2026-09-11T10:30+02:00",
             precision: "minute",
             certainty: "exact",
-            calendar: "gregorian"
+            calendar: "gregorian",
+            timeZone: "Europe/Copenhagen",
+            utcOffset: "+02:00"
           },
           end: {
-            value: "2026-09-14T09:30",
+            value: "2026-09-13T18:15+02:00",
             precision: "minute",
-            certainty: "exact",
-            calendar: "gregorian"
+            certainty: "approximate",
+            calendar: "gregorian",
+            timeZone: "Europe/Copenhagen",
+            utcOffset: "+02:00"
           }
         }
+      },
+      {
+        id: "sample-relation-derived",
+        subjectId: "sample-release",
+        objectId: "sample-evidence",
+        predicate: "derivedFrom",
+        role: "release-evidence"
       }
     ]
   };
@@ -119,11 +280,12 @@
     storyCount: document.querySelector("#story-count"),
     categoryCount: document.querySelector("#category-count"),
     visibleCount: document.querySelector("#visible-count"),
+    appShell: document.querySelector("#app-shell"),
     loadSample: document.querySelector("#load-sample"),
     importJson: document.querySelector("#import-json"),
-    importTimeGraphics: document.querySelector("#import-timegraphics"),
+    importInterchange: document.querySelector("#import-interchange"),
     exportJson: document.querySelector("#export-json"),
-    exportTimeGraphics: document.querySelector("#export-timegraphics"),
+    exportInterchange: document.querySelector("#export-interchange"),
     exportMarkdown: document.querySelector("#export-markdown"),
     clear: document.querySelector("#clear-timeline"),
     tabs: [...document.querySelectorAll(".tab")],
@@ -133,6 +295,14 @@
     itemId: document.querySelector("#item-id"),
     itemKind: document.querySelector("#item-kind"),
     itemCategory: document.querySelector("#item-category"),
+    itemDateRange: document.querySelector("#item-date-range"),
+    itemCalendarPopover: document.querySelector("#item-calendar-popover"),
+    itemCalendarGrid: document.querySelector("#item-calendar-grid"),
+    itemCalendarMonth: document.querySelector("#item-calendar-month"),
+    itemCalendarYear: document.querySelector("#item-calendar-year"),
+    itemCalendarPrev: document.querySelector("#item-calendar-prev"),
+    itemCalendarNext: document.querySelector("#item-calendar-next"),
+    itemCalendarClear: document.querySelector("#item-calendar-clear"),
     itemStartDate: document.querySelector("#item-start-date"),
     itemStartTime: document.querySelector("#item-start-time"),
     itemStartPrecision: document.querySelector("#item-start-precision"),
@@ -151,6 +321,10 @@
     endField: document.querySelector("#end-field"),
     itemTitle: document.querySelector("#item-title"),
     itemDescription: document.querySelector("#item-description"),
+    itemMediaDetails: document.querySelector("#item-media-details"),
+    itemMediaRows: [...document.querySelectorAll("[data-media-slot]")],
+    itemTagsDetails: document.querySelector("#item-tags-details"),
+    itemTagRows: [...document.querySelectorAll("[data-tag-slot]")],
     itemLocationDetails: document.querySelector("#item-location-details"),
     itemLocationName: document.querySelector("#item-location-name"),
     itemLocationIdentifier: document.querySelector("#item-location-identifier"),
@@ -218,6 +392,19 @@
   };
 
   const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
+  const dateRangePicker = dateRangeFactory.create({
+    input: els.itemDateRange,
+    popover: els.itemCalendarPopover,
+    grid: els.itemCalendarGrid,
+    heading: els.itemCalendarMonth,
+    yearInput: els.itemCalendarYear,
+    previousButton: els.itemCalendarPrev,
+    nextButton: els.itemCalendarNext,
+    clearButton: els.itemCalendarClear,
+    startInput: els.itemStartDate,
+    endInput: els.itemEndDate,
+    mode: "event"
+  });
   const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
   const locationMap = globalThis.TimelineLocationMap?.create({
     container: els.itemLocationMap,
@@ -399,7 +586,11 @@
         description: typeof raw.description === "string" ? raw.description.slice(0, 2000) : "",
         categoryId: ensureCategory(raw.categoryId || raw.category)
       };
+      const media = presentation.normalizeMedia(raw.media);
+      const tags = presentation.normalizeTags(raw.tags);
       if (location) item.location = location;
+      if (media.length) item.media = media;
+      if (tags.length) item.tags = tags;
       const extensions = normalizeExtensions(raw.extensions);
       if (extensions) item.extensions = extensions;
       return item;
@@ -526,7 +717,15 @@
     }
     if (ui.search.trim()) {
       const needle = ui.search.trim().toLocaleLowerCase();
-      items = items.filter((item) => `${item.title}\n${item.description}`.toLocaleLowerCase().includes(needle));
+      items = items.filter((item) => {
+        const tagText = (item.tags || []).map((tag) => tag.label).join(" ");
+        const locationText = item.location
+          ? [item.location.name, item.location.geographicIdentifier, item.location.address].filter(Boolean).join(" ")
+          : "";
+        return `${item.title}\n${item.description}\n${tagText}\n${locationText}`
+          .toLocaleLowerCase()
+          .includes(needle);
+      });
     }
     return items;
   }
@@ -616,7 +815,20 @@
         end: item.end ? temporal.sortKey(item.time?.end || item.end) : null,
         startLabel: formatDateInline(item.start),
         endLabel: item.end ? formatDateInline(item.end) : "",
-        locationName: item.location?.name || item.location?.geographicIdentifier || ""
+        locationName: item.location?.name || item.location?.geographicIdentifier || "",
+        location: item.location || null,
+        media: item.media || [],
+        tags: item.tags || [],
+        relations: state.relationships
+          .filter((relationship) => relationship.subjectId === item.id || relationship.objectId === item.id)
+          .map((relationship) => ({
+            id: relationship.id,
+            predicate: relationship.predicate,
+            role: relationship.role || "",
+            subjectId: relationship.subjectId,
+            objectId: relationship.objectId,
+            time: relationship.time || null
+          }))
       };
     }), {
       focusId: storyCurrentId,
@@ -674,10 +886,21 @@
       actions.append(focus);
     }
     actions.append(
+      actionButton("Focus", "focus-item", `Focus ${item.title}`),
       actionButton("Edit", "edit-item", `Edit ${item.title}`),
       actionButton("Delete", "delete-item", `Delete ${item.title}`, "delete")
     );
     top.append(heading, actions);
+
+    const firstMedia = item.media?.[0];
+    if (firstMedia) {
+      const thumb = document.createElement("img");
+      thumb.className = "timeline-card-media";
+      thumb.src = firstMedia.src;
+      thumb.alt = firstMedia.alt || "";
+      thumb.loading = "lazy";
+      card.append(thumb);
+    }
     card.append(top);
 
     if (item.description) {
@@ -703,6 +926,11 @@
       placeBadge.className = "location-badge";
       placeBadge.textContent = locationLabel;
       meta.append(placeBadge);
+    }
+
+    for (const tag of item.tags || []) {
+      const tagElement = presentation.createTag(tag);
+      if (tagElement) meta.append(tagElement);
     }
 
     if (activeStory && storyIndex >= 0) {
@@ -786,6 +1014,89 @@
     configureTemporalEndpoint(prefix);
   }
 
+  function mediaRowParts(row) {
+    const inputs = [...row.querySelectorAll("input")];
+    return {
+      src: inputs.find((input) => input.type === "url"),
+      alt: inputs.find((input) => input.id.endsWith("-alt")),
+      caption: inputs.find((input) => input.id.endsWith("-caption"))
+    };
+  }
+
+  function tagRowParts(row) {
+    return {
+      label: row.querySelector('input[type="text"]'),
+      icon: row.querySelector("select"),
+      hue: row.querySelector('input[type="range"]'),
+      output: row.querySelector("output")
+    };
+  }
+
+  function collectMediaForm() {
+    const media = [];
+    for (const row of els.itemMediaRows) {
+      const parts = mediaRowParts(row);
+      const src = parts.src.value.trim();
+      const alt = parts.alt.value.trim();
+      const caption = parts.caption.value.trim();
+      if (!src) continue;
+      if (!alt) throw new Error("Every event photo needs alt text.");
+      media.push({ src, alt, caption });
+    }
+    const normalized = presentation.normalizeMedia(media);
+    if (normalized.length !== media.length) {
+      throw new Error("One or more event photo URLs are not supported.");
+    }
+    return normalized;
+  }
+
+  function fillMediaForm(media) {
+    const normalized = presentation.normalizeMedia(media);
+    els.itemMediaRows.forEach((row, index) => {
+      const parts = mediaRowParts(row);
+      const entry = normalized[index];
+      parts.src.value = entry?.src || "";
+      parts.alt.value = entry?.alt || "";
+      parts.caption.value = entry?.caption || "";
+    });
+    els.itemMediaDetails.open = normalized.length > 0;
+  }
+
+  function collectTagForm() {
+    const tags = [];
+    for (const row of els.itemTagRows) {
+      const parts = tagRowParts(row);
+      const label = parts.label.value.trim();
+      if (!label) continue;
+      tags.push({
+        label,
+        icon: parts.icon.value,
+        hue: Number(parts.hue.value)
+      });
+    }
+    return presentation.normalizeTags(tags);
+  }
+
+  function updateTagHuePreview(row) {
+    const parts = tagRowParts(row);
+    const hue = presentation.normalizeHue(parts.hue.value);
+    parts.output.value = `${hue}°`;
+    row.style.setProperty("--tag-hue", String(hue));
+  }
+
+  function fillTagForm(tags) {
+    const normalized = presentation.normalizeTags(tags);
+    els.itemTagRows.forEach((row, index) => {
+      const parts = tagRowParts(row);
+      const entry = normalized[index];
+      parts.label.value = entry?.label || "";
+      parts.icon.value = entry?.icon || "note";
+      parts.hue.value = String(entry?.hue ?? Number(parts.hue.defaultValue || 30));
+      updateTagHuePreview(row);
+    });
+    els.itemTagsDetails.open = normalized.length > 0;
+  }
+
   function resetLocationForm() {
     els.itemLocationName.value = "";
     els.itemLocationIdentifier.value = "";
@@ -815,8 +1126,9 @@
     els.itemForm.reset();
     els.itemId.value = "";
     els.itemKind.value = "event";
+    dateRangePicker.setMode("event");
+    dateRangePicker.clear();
     els.endField.hidden = true;
-    els.itemEndDate.required = false;
     els.itemStartPrecision.value = "day";
     els.itemEndPrecision.value = "day";
     els.itemStartCertainty.value = "exact";
@@ -825,6 +1137,8 @@
     els.itemEndZone.value = localTimeZone;
     configureTemporalEndpoint("Start");
     configureTemporalEndpoint("End");
+    fillMediaForm([]);
+    fillTagForm([]);
     resetLocationForm();
     fillCategorySelect(els.itemCategory, false, state.categories[0]?.id || "");
     els.saveItem.textContent = "Add item";
@@ -838,13 +1152,18 @@
     setActivePanel("items");
     els.itemId.value = item.id;
     els.itemKind.value = item.kind;
+    dateRangePicker.setMode(item.kind);
     setEndpointForm("Start", item.time?.start || item.start);
     setEndpointForm("End", item.time?.end || item.end || "");
+    const startParts = temporal.formParts(item.time?.start || item.start);
+    const endParts = temporal.formParts(item.time?.end || item.end || "");
+    dateRangePicker.setRange(startParts.date, item.kind === "range" ? endParts.date : "");
     els.endField.hidden = item.kind !== "range";
-    els.itemEndDate.required = item.kind === "range";
     fillCategorySelect(els.itemCategory, false, item.categoryId);
     els.itemTitle.value = item.title;
     els.itemDescription.value = item.description;
+    fillMediaForm(item.media || []);
+    fillTagForm(item.tags || []);
     fillLocationForm(item.location || null);
     els.saveItem.textContent = "Save changes";
     els.cancelItemEdit.hidden = false;
@@ -1154,6 +1473,12 @@
         const coordinates = item.location.geometry?.coordinates;
         lines.push(`Location: ${place}${coordinates ? ` (${coordinates[1]}, ${coordinates[0]})` : ""}  `);
       }
+      if (item.tags?.length) lines.push(`Tags: ${item.tags.map((tag) => tag.label).join(", ")}  `);
+      if (item.media?.length) {
+        for (const media of item.media) {
+          lines.push(`Media: ${media.src}${media.caption ? ` — ${media.caption}` : ""}  `);
+        }
+      }
       if (item.description) lines.push("", item.description);
       lines.push("");
     }
@@ -1218,17 +1543,15 @@
 
   els.itemStartPrecision.addEventListener("change", () => configureTemporalEndpoint("Start"));
   els.itemEndPrecision.addEventListener("change", () => configureTemporalEndpoint("End"));
-  els.itemStartDate.addEventListener("change", () => {
-    els.itemEndDate.min = els.itemStartDate.value;
-    if (els.itemKind.value === "range" && !els.itemEndDate.value) els.itemEndDate.value = els.itemStartDate.value;
-  });
 
   els.itemKind.addEventListener("change", () => {
     const isRange = els.itemKind.value === "range";
+    const startDate = els.itemStartDate.value;
+    const endDate = els.itemEndDate.value;
+    dateRangePicker.setMode(isRange ? "range" : "event");
+    dateRangePicker.setRange(startDate, isRange ? endDate : "");
     els.endField.hidden = !isRange;
-    els.itemEndDate.required = isRange;
-    if (isRange && !els.itemEndDate.value) {
-      els.itemEndDate.value = els.itemStartDate.value;
+    if (isRange && !els.itemEndDate.value && els.itemStartDate.value) {
       els.itemEndPrecision.value = els.itemStartPrecision.value;
       els.itemEndCertainty.value = els.itemStartCertainty.value;
       els.itemEndZone.value = els.itemStartZone.value;
@@ -1236,6 +1559,12 @@
       configureTemporalEndpoint("End");
     }
   });
+
+  for (const row of els.itemTagRows) {
+    const parts = tagRowParts(row);
+    parts.hue.addEventListener("input", () => updateTagHuePreview(row));
+    updateTagHuePreview(row);
+  }
 
   els.itemForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -1246,12 +1575,18 @@
     let startEndpoint;
     let endEndpoint = null;
     let location = null;
+    let media = [];
+    let tags = [];
     try {
+      if (!els.itemStartDate.value) throw new Error("Choose a calendar date.");
+      if (kind === "range" && !els.itemEndDate.value) throw new Error("Choose both dates for the range.");
       startEndpoint = endpointFromForm("Start");
       if (kind === "range") endEndpoint = endpointFromForm("End");
       if (endEndpoint && temporal.sortKey(endEndpoint) < temporal.sortKey(startEndpoint)) {
         throw new Error("The range end cannot be earlier than its start.");
       }
+      media = collectMediaForm();
+      tags = collectTagForm();
       location = spatial.fromForm({
         name: els.itemLocationName.value,
         geographicIdentifier: els.itemLocationIdentifier.value,
@@ -1262,8 +1597,8 @@
         accuracyMeters: els.itemLocationAccuracy.value
       });
     } catch (error) {
-      setError(els.itemFormError, error instanceof Error ? error.message : "Check the temporal or location values.");
-      els.itemStartDate.focus();
+      setError(els.itemFormError, error instanceof Error ? error.message : "Check the temporal, media, tag, or location values.");
+      els.itemDateRange.focus();
       return;
     }
 
@@ -1290,6 +1625,8 @@
         : state.categories[0].id
     };
     if (location) item.location = location;
+    if (media.length) item.media = media;
+    if (tags.length) item.tags = tags;
 
     const index = state.items.findIndex((candidate) => candidate.id === item.id);
     if (index >= 0) {
@@ -1302,7 +1639,7 @@
     persist();
     resetItemForm();
     renderAll();
-    els.itemStartDate.focus();
+    els.itemDateRange.focus();
   });
 
   els.cancelItemEdit.addEventListener("click", resetItemForm);
@@ -1311,6 +1648,7 @@
     const button = event.target.closest("button[data-action]");
     const itemElement = event.target.closest(".timeline-item");
     if (!button || !itemElement) return;
+    if (button.dataset.action === "focus-item") timelineView?.focusItem(itemElement.dataset.id);
     if (button.dataset.action === "edit-item") beginItemEdit(itemElement.dataset.id);
     if (button.dataset.action === "delete-item") removeItem(itemElement.dataset.id);
     if (button.dataset.action === "story-focus") {
@@ -1453,6 +1791,13 @@
   els.storyNext.addEventListener("click", () => stepStory(1));
   els.storyExit.addEventListener("click", () => exitStoryFocus());
 
+  els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
+    els.appShell.classList.toggle("is-event-focused", Boolean(event.detail?.focused));
+  });
+  els.timelineViewRoot.addEventListener("timelinefocusedit", (event) => {
+    if (event.detail?.id) beginItemEdit(event.detail.id);
+  });
+
   els.title.addEventListener("input", () => {
     state.title = els.title.value.slice(0, 120);
     els.heading.textContent = state.title.trim() || "Untitled timeline";
@@ -1461,6 +1806,7 @@
 
   els.loadSample.addEventListener("click", () => {
     if ((state.items.length || state.stories.length) && !window.confirm("Replace the current timeline with the example dataset?")) return;
+    timelineView?.closeFocus();
     state = normalizeTimeline(clone(SAMPLE));
     ui.search = "";
     ui.categoryFilter = "all";
@@ -1497,13 +1843,14 @@
     try {
       if (file.size > 5_000_000) throw new Error("Import is limited to 5 MB.");
       const raw = JSON.parse(await file.text());
-      const timeGraphics = globalThis.TimeGraphicsAdapter;
-      const converted = timeGraphics?.isLikelyTimeGraphics(raw) ? timeGraphics.importData(raw) : null;
+      const adapter = globalThis.TimelineInterchangeAdapter;
+      const converted = adapter?.isLikelyInterchange(raw) ? adapter.importData(raw) : null;
       const imported = converted?.timeline || raw;
       if ((state.items.length || state.stories.length) && !window.confirm("Replace the current timeline with the imported file?")) return;
+      timelineView?.closeFocus();
       applyImportedTimeline(
         imported,
-        converted ? "Imported Time.Graphics" : "Imported",
+        converted ? "Imported interchange" : "Imported",
         converted?.warnings?.length || 0
       );
     } catch (error) {
@@ -1513,21 +1860,22 @@
     }
   });
 
-  els.importTimeGraphics.addEventListener("change", async () => {
-    const file = els.importTimeGraphics.files?.[0];
+  els.importInterchange.addEventListener("change", async () => {
+    const file = els.importInterchange.files?.[0];
     if (!file) return;
     try {
       if (file.size > 5_000_000) throw new Error("Import is limited to 5 MB.");
-      const adapter = globalThis.TimeGraphicsAdapter;
-      if (!adapter) throw new Error("Time.Graphics adapter is unavailable.");
+      const adapter = globalThis.TimelineInterchangeAdapter;
+      if (!adapter) throw new Error("Interchange adapter is unavailable.");
       const converted = adapter.importData(await file.text());
-      if ((state.items.length || state.stories.length) && !window.confirm("Replace the current timeline with the Time.Graphics export?")) return;
-      applyImportedTimeline(converted.timeline, "Imported Time.Graphics", converted.warnings.length);
-      if (converted.warnings.length) console.warn("Time.Graphics import warnings:", converted.warnings);
+      if ((state.items.length || state.stories.length) && !window.confirm("Replace the current timeline with the interchange file?")) return;
+      timelineView?.closeFocus();
+      applyImportedTimeline(converted.timeline, "Imported interchange", converted.warnings.length);
+      if (converted.warnings.length) console.warn("Interchange import warnings:", converted.warnings);
     } catch (error) {
-      showStatus(error instanceof Error ? error.message : "Could not import that Time.Graphics export.");
+      showStatus(error instanceof Error ? error.message : "Could not import that interchange file.");
     } finally {
-      els.importTimeGraphics.value = "";
+      els.importInterchange.value = "";
     }
   });
 
@@ -1536,19 +1884,19 @@
     showStatus("JSON exported.");
   });
 
-  els.exportTimeGraphics.addEventListener("click", () => {
-    const adapter = globalThis.TimeGraphicsAdapter;
+  els.exportInterchange.addEventListener("click", () => {
+    const adapter = globalThis.TimelineInterchangeAdapter;
     if (!adapter) {
-      showStatus("Time.Graphics adapter is unavailable.");
+      showStatus("Interchange adapter is unavailable.");
       return;
     }
     const exported = adapter.exportData(state);
     download(
       `${JSON.stringify(exported, null, 2)}\n`,
-      `${slug(state.title)}.timegraphics.json`,
+      `${slug(state.title)}.interchange.json`,
       "application/json;charset=utf-8"
     );
-    showStatus("Time.Graphics interchange JSON exported.");
+    showStatus("Interchange JSON exported.");
   });
 
   els.exportMarkdown.addEventListener("click", () => {
@@ -1558,6 +1906,7 @@
 
   els.clear.addEventListener("click", () => {
     if ((state.items.length || state.stories.length || state.title) && !window.confirm("Clear this timeline? This removes its locally stored items and stories.")) return;
+    timelineView?.closeFocus();
     state = blankTimeline();
     ui.search = "";
     ui.categoryFilter = "all";

@@ -34,14 +34,16 @@ jobs:
           node --check site/timeline-motion.js
           node --check site/timeline-graph.js
           node --check site/timeline-view.js
-          node --check site/time-graphics-adapter.js
+          node --check site/date-range-picker.js
+          node --check site/event-presentation.js
+          node --check site/interchange-adapter.js
           node --check site/temporal-standards.js
           node --check site/spatial.js
           node --check site/location-map.js
           node --check site/app.js
 
       - name: Validate interchange adapters
-        run: node --test tests/time-graphics-adapter.test.mjs tests/temporal-spatial.test.mjs tests/timeline-interaction.test.mjs
+        run: node --test tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/timeline-interaction.test.mjs tests/event-focus-form.test.mjs
 
       - name: Validate static entry point
         run: test -f site/index.html && test -f site/styles.css && test -f site/icon.svg

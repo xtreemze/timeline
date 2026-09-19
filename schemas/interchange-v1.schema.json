@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://xtreemze.github.io/timeline/schemas/time-graphics-interchange-v1.schema.json",
-  "title": "Timeline Time.Graphics Interchange v1",
-  "description": "A conservative interchange structure based on Time.Graphics public event, period, and grouping concepts. It is not an official Time.Graphics vendor schema.",
+  "$id": "https://xtreemze.github.io/timeline/schemas/interchange-v1.schema.json",
+  "title": "Timeline External Interchange v1",
+  "description": "A vendor-neutral event, period, grouping, story, entity, and relationship interchange envelope used by Timeline adapters.",
   "type": "object",
   "required": [
     "title",
@@ -43,7 +43,7 @@
       ],
       "properties": {
         "format": {
-          "const": "time.graphics-interchange"
+          "const": "timeline-interchange"
         },
         "schemaVersion": {
           "const": 1

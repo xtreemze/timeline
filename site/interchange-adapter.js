@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const FORMAT = "time.graphics";
+  const FORMAT = "timeline.interchange";
   const SCHEMA_VERSION = 1;
   const MAX_PRESERVED_RECORD_CHARS = 64_000;
   const DEFAULT_COLOR = "#667085";
@@ -124,7 +124,7 @@
 
     const timestamp = Date.parse(source);
     if (Number.isFinite(timestamp)) {
-      warnings.push(`${fieldName} was parsed from a non-canonical Time.Graphics date and normalized to UTC minute precision.`);
+      warnings.push(`${fieldName} was parsed from a non-canonical interchange date and normalized to UTC minute precision.`);
       return canonicalDateFromDate(new Date(timestamp), true);
     }
     return null;
@@ -187,12 +187,12 @@
 
     const sourceId = firstDefined(raw, ["id", "_id", "uid", "eventId", "periodId", "key"]);
     const fallbackId = `${sourceType}-${index + 1}`;
-    const id = `tg-${safeToken(sourceId, fallbackId)}`;
+    const id = `ext-${safeToken(sourceId, fallbackId)}`;
     const title = text(firstDefined(raw, ["title", "name", "label", "text", "caption"]), 160) || `Untitled ${sourceType}`;
     const description = text(firstDefined(raw, ["description", "content", "details", "body", "note", "notes"]), 2000);
     const categoryId = categoryFor(extractGroupReference(raw), raw);
 
-    return {
+    const item = {
       id,
       kind,
       start,
@@ -201,9 +201,14 @@
       description,
       categoryId,
       extensions: {
-        timeGraphics: collectPreservedFields(raw, sourceType, sourceId)
+        externalInterchange: collectPreservedFields(raw, sourceType, sourceId)
       }
     };
+    if (Array.isArray(raw.media)) item.media = boundedClone(raw.media);
+    if (Array.isArray(raw.tags)) item.tags = boundedClone(raw.tags);
+    if (raw.location && typeof raw.location === "object") item.location = boundedClone(raw.location);
+    if (raw.time && typeof raw.time === "object") item.time = boundedClone(raw.time);
+    return item;
   }
 
   function importObject(payload) {
@@ -216,17 +221,17 @@
 
     const addCategory = (reference, raw = {}) => {
       const sourceId = reference ?? firstDefined(raw, ["id", "_id", "uid", "name", "title", "label"]);
-      const sourceName = firstDefined(raw, ["name", "title", "label"]) ?? sourceId ?? "Time.Graphics";
-      let id = `tg-group-${safeToken(sourceId, safeToken(sourceName, String(categories.length + 1)))}`;
+      const sourceName = firstDefined(raw, ["name", "title", "label"]) ?? sourceId ?? "Interchange";
+      let id = `ext-group-${safeToken(sourceId, safeToken(sourceName, String(categories.length + 1)))}`;
       let suffix = 2;
       const baseId = id;
       while (usedCategoryIds.has(id)) id = `${baseId}-${suffix++}`;
       const category = {
         id,
-        name: text(sourceName, 60) || "Time.Graphics",
+        name: text(sourceName, 60) || "Interchange",
         color: normalizeColor(firstDefined(raw, ["color", "backgroundColor", "background_color", "hex"])),
         extensions: {
-          timeGraphics: {
+          externalInterchange: {
             sourceId: sourceId === undefined || sourceId === null ? null : String(sourceId),
             raw: boundedClone(raw)
           }
@@ -256,7 +261,7 @@
           color: firstDefined(raw, ["color", "backgroundColor", "background_color"])
         });
       }
-      if (!categories.length) addCategory("default", { id: "default", name: "Time.Graphics", color: DEFAULT_COLOR });
+      if (!categories.length) addCategory("default", { id: "default", name: "Interchange", color: DEFAULT_COLOR });
       return categories[0].id;
     };
 
@@ -282,7 +287,7 @@
     });
 
     if (!items.length) {
-      throw new Error("No Time.Graphics events or periods with supported dates were found.");
+      throw new Error("No interchange events or periods with supported dates were found.");
     }
 
     const sourceTitle = text(firstDefined(root, ["title", "name", "timelineTitle", "timeline_name"]), 120);
@@ -307,7 +312,7 @@
         entities: Array.isArray(timelineMetadata.entities) ? boundedClone(timelineMetadata.entities) : [],
         relationships: Array.isArray(timelineMetadata.relationships) ? boundedClone(timelineMetadata.relationships) : [],
         extensions: {
-          timeGraphics: rootExtensions
+          externalInterchange: rootExtensions
         }
       },
       warnings,
@@ -348,7 +353,7 @@
   function parseXml(xml) {
     if (typeof DOMParser !== "function") throw new Error("XML import requires the browser DOMParser API.");
     const document = new DOMParser().parseFromString(xml, "application/xml");
-    if (document.querySelector("parsererror")) throw new Error("The Time.Graphics XML file is not well formed.");
+    if (document.querySelector("parsererror")) throw new Error("The external XML file is not well formed.");
 
     const root = document.documentElement;
     const lowerName = (node) => node.localName?.toLowerCase() || "";
@@ -373,18 +378,21 @@
   function importData(input) {
     if (typeof input === "string") {
       const trimmed = input.trim();
-      if (!trimmed) throw new Error("The Time.Graphics export is empty.");
+      if (!trimmed) throw new Error("The interchange input is empty.");
       if (trimmed.startsWith("<")) return importObject(parseXml(trimmed));
       return importObject(JSON.parse(trimmed));
     }
     return importObject(input);
   }
 
-  function isLikelyTimeGraphics(input) {
+  function isLikelyInterchange(input) {
     if (!input || typeof input !== "object") return false;
     const root = sourceRoot(input);
-    const format = text(firstDefined(input, ["format", "source", "application"]), 80).toLowerCase();
-    if (/time\.?graphics/.test(format)) return true;
+    const format = text(
+      firstDefined(input?._timeline || input, ["format", "source", "application"]),
+      80
+    ).toLowerCase();
+    if (/timeline[._ -]?interchange/.test(format)) return true;
     return (
       Array.isArray(root.periods) ||
       Array.isArray(root.groups) ||
@@ -394,8 +402,8 @@
   }
 
   function sourceExtension(record) {
-    return record?.extensions?.timeGraphics && typeof record.extensions.timeGraphics === "object"
-      ? record.extensions.timeGraphics
+    return record?.extensions?.externalInterchange && typeof record.extensions.externalInterchange === "object"
+      ? record.extensions.externalInterchange
       : {};
   }
 
@@ -410,10 +418,21 @@
       id: extension.sourceId ?? item.id,
       title: item.title,
       description: item.description || "",
-      group: category?.extensions?.timeGraphics?.sourceId ?? category?.name ?? item.categoryId
+      group: category?.extensions?.externalInterchange?.sourceId ?? category?.name ?? item.categoryId
     };
+    if (item.time) base.time = cloneJson(item.time);
+    if (item.location) base.location = cloneJson(item.location);
+    if (item.tags?.length) base.tags = cloneJson(item.tags);
 
-    if (extension.media?.length) base.media = cloneJson(extension.media);
+    if (item.media?.length) {
+      base.media = item.media.map((entry) => ({
+        url: entry.src,
+        alt: entry.alt || "",
+        caption: entry.caption || ""
+      }));
+    } else if (extension.media?.length) {
+      base.media = cloneJson(extension.media);
+    }
     if (extension.comments?.length) base.comments = cloneJson(extension.comments);
     if (extension.statistics !== undefined && extension.statistics !== null) base.statistics = cloneJson(extension.statistics);
 
@@ -462,23 +481,23 @@
       events,
       periods,
       _timeline: {
-        format: "time.graphics-interchange",
+        format: "timeline-interchange",
         schemaVersion: SCHEMA_VERSION,
         generatedBy: "xtreemze/timeline",
         canonicalVersion: Number(timeline.version) || 2,
         stories: cloneJson(Array.isArray(timeline.stories) ? timeline.stories : []),
         entities: cloneJson(Array.isArray(timeline.entities) ? timeline.entities : []),
         relationships: cloneJson(Array.isArray(timeline.relationships) ? timeline.relationships : []),
-        note: "Time.Graphics does not publish a stable JSON schema. This export uses its public event/period/group concepts and preserves imported vendor records when available."
+        note: "Timeline interchange keeps external event, period, group, story, entity, and relationship data behind a vendor-neutral adapter and preserves imported extension records when available."
       }
     };
   }
 
-  globalThis.TimeGraphicsAdapter = Object.freeze({
+  globalThis.TimelineInterchangeAdapter = Object.freeze({
     FORMAT,
     SCHEMA_VERSION,
     importData,
     exportData,
-    isLikelyTimeGraphics
+    isLikelyInterchange
   });
 })();

@@ -167,6 +167,24 @@ a { color: inherit; }
   border-right: 1px solid var(--line);
   background: var(--panel);
 }
+.app-shell.is-event-focused {
+  overflow: visible;
+  min-height: 0;
+  border-radius: 0;
+}
+.app-shell.is-event-focused .control-panel { display: none; }
+.app-shell.is-event-focused .timeline-panel {
+  grid-column: 1 / -1;
+  padding: 0;
+}
+.app-shell.is-event-focused .timeline-heading-row,
+.app-shell.is-event-focused .timeline-toolbar,
+.app-shell.is-event-focused .story-focus,
+.app-shell.is-event-focused .empty-state,
+.app-shell.is-event-focused .timeline-list-heading,
+.app-shell.is-event-focused .timeline-list {
+  display: none !important;
+}
 .tabs {
   position: sticky;
   top: 0;
@@ -283,6 +301,115 @@ a { color: inherit; }
   color: var(--muted);
   font-weight: 500;
 }
+.date-range-field { margin-bottom: .7rem; }
+.date-range-field input {
+  cursor: pointer;
+  background:
+    linear-gradient(90deg, transparent calc(100% - 2.7rem), color-mix(in srgb, var(--panel) 65%, transparent) 0);
+}
+.date-range-field input::placeholder { color: var(--muted); }
+.range-calendar {
+  width: min(420px, calc(100vw - 24px));
+  margin: .45rem;
+  padding: .75rem;
+  border: 1px solid var(--line-strong);
+  border-radius: .85rem;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 20px 60px rgba(0,0,0,.18);
+}
+.range-calendar::backdrop { background: transparent; }
+.range-calendar-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: .6rem;
+  margin-bottom: .7rem;
+}
+.range-calendar-period {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: .45rem;
+}
+.range-calendar-period strong {
+  font-size: 1rem;
+  letter-spacing: -.02em;
+}
+.range-calendar-year-wrap { display: inline-flex; }
+.range-calendar-year {
+  width: 5.2rem;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font: 760 .82rem/1 "Monaspace Krypton Timeline", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.range-calendar-nav { min-width: 34px; min-height: 34px; font-size: .9rem; }
+.range-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: .18rem;
+}
+.range-calendar-weekday {
+  padding: .35rem .1rem;
+  color: var(--muted);
+  font: 720 .62rem/1 "Monaspace Krypton Timeline", ui-monospace, monospace;
+  text-align: center;
+  text-transform: uppercase;
+}
+.range-calendar-day {
+  appearance: none;
+  aspect-ratio: 1;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: .5rem;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  font: 680 .72rem/1 "Monaspace Krypton Timeline", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.range-calendar-day:hover,
+.range-calendar-day:focus-visible {
+  border-color: var(--line-strong);
+  background: var(--paper-2);
+  outline: none;
+}
+.range-calendar-day.is-outside { color: color-mix(in srgb, var(--muted) 45%, transparent); }
+.range-calendar-day.is-in-range {
+  border-radius: .15rem;
+  background: color-mix(in srgb, var(--focus) 13%, var(--paper));
+}
+.range-calendar-day.is-start,
+.range-calendar-day.is-end {
+  border-color: var(--focus);
+  border-radius: .5rem;
+  background: var(--focus);
+  color: contrast-color(var(--focus));
+}
+.range-calendar-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: .7rem;
+  margin-top: .65rem;
+  padding-top: .65rem;
+  border-top: 1px solid var(--line);
+}
+.range-calendar-footer > span { color: var(--muted); font-size: .68rem; line-height: 1.4; }
+.temporal-clock-grid { display: grid; gap: .75rem; }
+.temporal-clock-section {
+  min-width: 0;
+  padding: .8rem;
+  border: 1px solid var(--line);
+  border-radius: .65rem;
+  background: var(--paper);
+}
+.temporal-clock-section .subheading-row { margin-top: 0; }
+
 .temporal-range-grid { display: grid; gap: .75rem; }
 .temporal-endpoint {
   min-width: 0;
@@ -367,6 +494,66 @@ geolocation {
   text-align: center;
 }
 .optional-editor > .field-hint { padding: 0 .9rem .9rem; }
+.media-editor,
+.tag-editor {
+  display: grid;
+  gap: .7rem;
+  padding: .9rem;
+}
+.media-editor-row,
+.tag-editor-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 .65rem;
+  padding: .75rem;
+  border: 1px solid var(--line);
+  border-radius: .62rem;
+  background: var(--paper);
+}
+.media-editor-row > p {
+  grid-column: 1 / -1;
+  margin: 0 0 .45rem;
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.tag-editor-row {
+  grid-template-columns: minmax(0, 1.4fr) minmax(110px, .8fr);
+  position: relative;
+  border-left: 4px solid oklch(68% .16 var(--tag-hue, 30));
+}
+.tag-editor-row .hue-field { grid-column: 1 / -1; }
+.hue-field input[type="range"] {
+  width: 100%;
+  accent-color: oklch(62% .17 var(--tag-hue, 30));
+}
+.hue-field output {
+  color: var(--muted);
+  font: 700 .68rem/1 "Monaspace Krypton Timeline", ui-monospace, monospace;
+}
+.event-tag {
+  --tag-color: oklch(78% .115 var(--tag-hue, 30));
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  min-height: 25px;
+  padding: .3rem .48rem;
+  border: 1px solid color-mix(in oklch, var(--tag-color) 62%, black);
+  border-radius: 999px;
+  background: var(--tag-color);
+  color: #171717;
+  font-size: .66rem;
+  font-weight: 780;
+  line-height: 1;
+}
+@supports (color: contrast-color(white)) {
+  .event-tag { color: contrast-color(var(--tag-color)); }
+}
+.event-tag .semantic-icon { flex: 0 0 auto; }
+.semantic-icon { display: block; overflow: visible; }
+
 .leaflet-container { font: inherit; background: var(--paper-2); }
 .leaflet-control-attribution { font-size: 10px; }
 
@@ -541,6 +728,14 @@ geolocation {
   border-radius: 2px;
   background: color-mix(in srgb, var(--category-color) 42%, transparent);
 }
+.timeline-card-media {
+  width: 100%;
+  height: 150px;
+  margin: 0 0 .75rem;
+  border-radius: .58rem;
+  object-fit: cover;
+  background: var(--paper-2);
+}
 .timeline-card {
   margin: 0 0 1.15rem;
   padding: .9rem .95rem 1rem;
@@ -693,4 +888,11 @@ footer p { margin: 0; }
 
 @media (max-width: 720px) {
   .temporal-fields, .location-fields { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 680px) {
+  .media-editor-row,
+  .tag-editor-row { grid-template-columns: 1fr; }
+  .tag-editor-row .hue-field { grid-column: 1; }
+  .range-calendar { width: calc(100vw - 12px); margin: 6px; }
 }

@@ -2,11 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-await import("../site/time-graphics-adapter.js");
+await import("../site/interchange-adapter.js");
 
-const adapter = globalThis.TimeGraphicsAdapter;
+const adapter = globalThis.TimelineInterchangeAdapter;
 
-test("imports Time.Graphics events, periods, and groups", () => {
+test("imports external interchange events, periods, and groups", () => {
   const imported = adapter.importData({
     title: "Imported history",
     groups: [
@@ -41,14 +41,14 @@ test("imports Time.Graphics events, periods, and groups", () => {
   assert.equal(imported.timeline.items[0].start, "2026-09-19T10:30");
   assert.equal(imported.timeline.items[1].kind, "range");
   assert.equal(imported.timeline.items[1].end, "2026-09-22");
-  assert.equal(imported.timeline.items[0].extensions.timeGraphics.raw.vendorFlag, true);
-  assert.equal(imported.timeline.items[1].extensions.timeGraphics.comments[0].text, "kept");
+  assert.equal(imported.timeline.items[0].extensions.externalInterchange.raw.vendorFlag, true);
+  assert.equal(imported.timeline.items[1].extensions.externalInterchange.comments[0].text, "kept");
   assert.ok(imported.warnings.some((warning) => warning.includes("minute precision")));
 });
 
 test("recognizes common generic items and numeric timestamps", () => {
   const imported = adapter.importData({
-    format: "Time.Graphics",
+    format: "external interchange",
     categories: [{ id: "a", name: "A" }],
     items: [
       { id: "x", title: "Instant", timestamp: 0, category: "a" },
@@ -69,13 +69,23 @@ test("exports event/period/group structures and round-trips source extensions", 
     periods: [{ id: "p1", title: "Period", start: "2026-01-03", end: "2026-01-04", group: "g1" }]
   });
 
-  imported.timeline.stories = [{ id: "s1", title: "Story", description: "", itemIds: ["tg-e1"] }];
+  imported.timeline.stories = [{ id: "s1", title: "Story", description: "", itemIds: ["ext-e1"] }];
   imported.timeline.entities = [{ id: "person-a", type: "person", name: "A" }];
   imported.timeline.relationships = [{
     id: "rel-a",
     subjectId: "person-a",
-    objectId: "tg-e1",
+    objectId: "ext-e1",
     predicate: "participant"
+  }];
+  imported.timeline.items[0].media = [{
+    src: "https://example.test/photo.jpg",
+    alt: "Example photo",
+    caption: "Preserved media"
+  }];
+  imported.timeline.items[0].tags = [{
+    label: "Evidence",
+    icon: "evidence",
+    hue: 145
   }];
   const exported = adapter.exportData(imported.timeline);
 
@@ -84,22 +94,26 @@ test("exports event/period/group structures and round-trips source extensions", 
   assert.equal(exported.groups.length, 1);
   assert.equal(exported.events[0].vendorField, "keep");
   assert.equal(exported.groups[0].vendorGroup, 9);
-  assert.equal(exported._timeline.format, "time.graphics-interchange");
+  assert.equal(exported._timeline.format, "timeline-interchange");
   assert.equal(exported._timeline.stories.length, 1);
   assert.equal(exported._timeline.entities.length, 1);
   assert.equal(exported._timeline.relationships.length, 1);
+  assert.equal(exported.events[0].media[0].url, "https://example.test/photo.jpg");
+  assert.equal(exported.events[0].tags[0].icon, "evidence");
 
   const reimported = adapter.importData(exported);
   assert.equal(reimported.timeline.entities.length, 1);
   assert.equal(reimported.timeline.relationships.length, 1);
+  assert.equal(reimported.timeline.items[0].media[0].url, "https://example.test/photo.jpg");
+  assert.equal(reimported.timeline.items[0].tags[0].hue, 145);
 });
 
 test("publishes a JSON Schema and documents the vendor-schema boundary", async () => {
   const [schemaText, docs] = await Promise.all([
-    readFile(new URL("../schemas/time-graphics-interchange-v1.schema.json", import.meta.url), "utf8"),
-    readFile(new URL("../docs/TIME-GRAPHICS-INTERCHANGE.md", import.meta.url), "utf8")
+    readFile(new URL("../schemas/interchange-v1.schema.json", import.meta.url), "utf8"),
+    readFile(new URL("../docs/INTERCHANGE.md", import.meta.url), "utf8")
   ]);
   const schema = JSON.parse(schemaText);
-  assert.equal(schema.properties._timeline.properties.format.const, "time.graphics-interchange");
-  assert.match(docs, /does \*\*not\*\* publish a stable JSON or XML field schema/i);
+  assert.equal(schema.properties._timeline.properties.format.const, "timeline-interchange");
+  assert.match(docs, /vendor-neutral/i);
 });

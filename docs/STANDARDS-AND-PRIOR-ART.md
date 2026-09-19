@@ -181,25 +181,6 @@ What to learn:
 Reference:
 - https://timeline.knightlab.com/docs/json-format.html
 
-### Time.Graphics
-
-What to learn:
-- point events and explicit periods/ranges;
-- grouping as a presentation/organization layer;
-- multiple media attachments;
-- broad import/export workflows and machine-readable JSON data return;
-- external integrations without making those sources canonical.
-
-Interoperability boundary:
-- Time.Graphics does not publish a stable JSON/XML field schema;
-- keep its data behind an adapter;
-- preserve unrecognized source fields rather than silently dropping them;
-- do not claim Timeline's Time.Graphics interchange schema is an official vendor schema.
-
-References:
-- https://time.graphics/faq
-- https://time.graphics/terms
-- https://time.graphics/compliance/ferpa
 
 ### TimeMapper
 

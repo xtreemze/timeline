@@ -59,15 +59,15 @@
       <div class="project-actions">
         <button id="load-sample" class="button secondary" type="button">Load example</button>
         <label class="button secondary file-button">Import JSON<input id="import-json" type="file" accept="application/json,.json"></label>
-        <label class="button secondary file-button">Import Time.Graphics<input id="import-timegraphics" type="file" accept="application/json,application/xml,text/xml,.json,.xml"></label>
+        <label class="button secondary file-button">Import interchange<input id="import-interchange" type="file" accept="application/json,application/xml,text/xml,.json,.xml"></label>
         <button id="export-json" class="button secondary" type="button">JSON</button>
-        <button id="export-timegraphics" class="button secondary" type="button">Time.Graphics</button>
+        <button id="export-interchange" class="button secondary" type="button">Interchange</button>
         <button id="export-markdown" class="button secondary" type="button">Markdown</button>
         <button id="clear-timeline" class="button danger" type="button">Clear</button>
       </div>
     </section>
 
-    <section class="app-shell" aria-label="Timeline application">
+    <section id="app-shell" class="app-shell" aria-label="Timeline application">
       <aside class="control-panel" aria-label="Timeline editors">
         <div class="tabs" role="tablist" aria-label="Editor sections">
           <button class="tab is-active" id="tab-items" role="tab" aria-selected="true" aria-controls="panel-items" data-panel="items" type="button">Items</button>
@@ -99,21 +99,44 @@
               </label>
               <fieldset class="temporal-editor field-wide">
                 <legend>Time <small>ISO 8601 interchange</small></legend>
-                <div class="temporal-range-grid">
-                  <section class="temporal-endpoint" aria-labelledby="start-time-heading">
+
+                <label class="field field-wide date-range-field">
+                  <span>Date <small>one date for an event, two dates for a range</small></span>
+                  <input id="item-date-range" type="text" readonly autocomplete="off" placeholder="Choose a date" aria-haspopup="dialog" aria-controls="item-calendar-popover">
+                </label>
+                <input id="item-start-date" type="hidden">
+                <input id="item-end-date" type="hidden">
+
+                <div id="item-calendar-popover" class="range-calendar" popover="auto" role="dialog" aria-label="Choose calendar date or date range">
+                  <div class="range-calendar-header">
+                    <button id="item-calendar-prev" class="icon-button range-calendar-nav" type="button" aria-label="Previous month">←</button>
+                    <div class="range-calendar-period">
+                      <strong id="item-calendar-month">September</strong>
+                      <label class="range-calendar-year-wrap">
+                        <span class="sr-only">Calendar year</span>
+                        <input id="item-calendar-year" class="range-calendar-year" type="number" min="1" max="9999" step="1" inputmode="numeric" aria-label="Calendar year">
+                      </label>
+                    </div>
+                    <button id="item-calendar-next" class="icon-button range-calendar-nav" type="button" aria-label="Next month">→</button>
+                  </div>
+                  <div id="item-calendar-grid" class="range-calendar-grid" role="grid" aria-label="Calendar days"></div>
+                  <div class="range-calendar-footer">
+                    <span id="item-calendar-help">Choose a date.</span>
+                    <button id="item-calendar-clear" class="button ghost" type="button">Clear</button>
+                  </div>
+                </div>
+
+                <div class="temporal-clock-grid">
+                  <section class="temporal-clock-section" aria-labelledby="start-time-heading">
                     <div class="subheading-row">
-                      <h3 id="start-time-heading">Start</h3>
-                      <span>required</span>
+                      <h3 id="start-time-heading">Start clock</h3>
+                      <span>optional</span>
                     </div>
                     <div class="temporal-fields">
                       <label class="field">
-                        <span>Date</span>
-                        <input id="item-start-date" type="date" required>
-                      </label>
-                      <label class="field">
                         <span>Precision</span>
                         <select id="item-start-precision">
-                          <option value="day">Day</option>
+                          <option value="day">Date only</option>
                           <option value="minute">Minute</option>
                           <option value="second">Second</option>
                           <option value="millisecond">Millisecond</option>
@@ -140,20 +163,16 @@
                     </div>
                   </section>
 
-                  <section id="end-field" class="temporal-endpoint" aria-labelledby="end-time-heading" hidden>
+                  <section id="end-field" class="temporal-clock-section" aria-labelledby="end-time-heading" hidden>
                     <div class="subheading-row">
-                      <h3 id="end-time-heading">End</h3>
-                      <span>required for ranges</span>
+                      <h3 id="end-time-heading">End clock</h3>
+                      <span>optional</span>
                     </div>
                     <div class="temporal-fields">
                       <label class="field">
-                        <span>Date</span>
-                        <input id="item-end-date" type="date">
-                      </label>
-                      <label class="field">
                         <span>Precision</span>
                         <select id="item-end-precision">
-                          <option value="day">Day</option>
+                          <option value="day">Date only</option>
                           <option value="minute">Minute</option>
                           <option value="second">Second</option>
                           <option value="millisecond">Millisecond</option>
@@ -181,7 +200,7 @@
                   </section>
                 </div>
                 <datalist id="time-zone-options"></datalist>
-                <p class="field-hint">Calendar and clock inputs use Chrome's native pickers. A selected IANA time zone is resolved with the native Temporal API and stored with its ISO 8601 UTC offset; leave it blank for a floating local time.</p>
+                <p class="field-hint">The calendar selects the date or range in one control; its header always exposes the active year. Clock precision and IANA time-zone metadata remain separate so ISO 8601 interchange is not collapsed into a browser-local timestamp.</p>
               </fieldset>
 
               <label class="field field-wide">
@@ -192,6 +211,157 @@
                 <span>Description <small>optional</small></span>
                 <textarea id="item-description" rows="4" maxlength="2000" placeholder="What happened, what changed, or why this period matters."></textarea>
               </label>
+
+              <details id="item-media-details" class="optional-editor field-wide">
+                <summary>Photos <small>optional · up to 3</small></summary>
+                <div class="media-editor">
+                  <section class="media-editor-row" data-media-slot="1">
+                    <p>Photo 1</p>
+                    <label class="field field-wide">
+                      <span>Image URL</span>
+                      <input id="item-media-1-src" type="url" inputmode="url" autocomplete="off" placeholder="https://…">
+                    </label>
+                    <label class="field">
+                      <span>Alt text</span>
+                      <input id="item-media-1-alt" type="text" maxlength="240" autocomplete="off" placeholder="Describe the photograph">
+                    </label>
+                    <label class="field">
+                      <span>Caption</span>
+                      <input id="item-media-1-caption" type="text" maxlength="320" autocomplete="off" placeholder="Optional context">
+                    </label>
+                  </section>
+                  <section class="media-editor-row" data-media-slot="2">
+                    <p>Photo 2</p>
+                    <label class="field field-wide">
+                      <span>Image URL</span>
+                      <input id="item-media-2-src" type="url" inputmode="url" autocomplete="off" placeholder="https://…">
+                    </label>
+                    <label class="field">
+                      <span>Alt text</span>
+                      <input id="item-media-2-alt" type="text" maxlength="240" autocomplete="off" placeholder="Describe the photograph">
+                    </label>
+                    <label class="field">
+                      <span>Caption</span>
+                      <input id="item-media-2-caption" type="text" maxlength="320" autocomplete="off" placeholder="Optional context">
+                    </label>
+                  </section>
+                  <section class="media-editor-row" data-media-slot="3">
+                    <p>Photo 3</p>
+                    <label class="field field-wide">
+                      <span>Image URL</span>
+                      <input id="item-media-3-src" type="url" inputmode="url" autocomplete="off" placeholder="https://…">
+                    </label>
+                    <label class="field">
+                      <span>Alt text</span>
+                      <input id="item-media-3-alt" type="text" maxlength="240" autocomplete="off" placeholder="Describe the photograph">
+                    </label>
+                    <label class="field">
+                      <span>Caption</span>
+                      <input id="item-media-3-caption" type="text" maxlength="320" autocomplete="off" placeholder="Optional context">
+                    </label>
+                  </section>
+                </div>
+                <p class="field-hint">The focused event view uses these photographs as a hero slideshow. Imported URLs are restricted to image-safe HTTP(S), same-origin, or image data sources.</p>
+              </details>
+
+              <details id="item-tags-details" class="optional-editor field-wide">
+                <summary>Semantic tags <small>optional · icon + hue</small></summary>
+                <div class="tag-editor">
+                  <section class="tag-editor-row" data-tag-slot="1">
+                    <label class="field tag-label-field">
+                      <span>Tag 1</span>
+                      <input id="item-tag-1-label" type="text" maxlength="48" autocomplete="off" placeholder="Decision">
+                    </label>
+                    <label class="field">
+                      <span>Icon</span>
+                      <select id="item-tag-1-icon">
+                        <option value="milestone">Milestone</option>
+                        <option value="decision">Decision</option>
+                        <option value="evidence">Evidence</option>
+                        <option value="person">Person</option>
+                        <option value="place">Place</option>
+                        <option value="media">Media</option>
+                        <option value="relation">Relation</option>
+                        <option value="note">Note</option>
+                      </select>
+                    </label>
+                    <label class="field hue-field">
+                      <span>Hue <output id="item-tag-1-hue-output">28°</output></span>
+                      <input id="item-tag-1-hue" type="range" min="0" max="359" step="1" value="28">
+                    </label>
+                  </section>
+                  <section class="tag-editor-row" data-tag-slot="2">
+                    <label class="field tag-label-field">
+                      <span>Tag 2</span>
+                      <input id="item-tag-2-label" type="text" maxlength="48" autocomplete="off" placeholder="Evidence">
+                    </label>
+                    <label class="field">
+                      <span>Icon</span>
+                      <select id="item-tag-2-icon">
+                        <option value="milestone">Milestone</option>
+                        <option value="decision">Decision</option>
+                        <option value="evidence">Evidence</option>
+                        <option value="person">Person</option>
+                        <option value="place">Place</option>
+                        <option value="media">Media</option>
+                        <option value="relation">Relation</option>
+                        <option value="note">Note</option>
+                      </select>
+                    </label>
+                    <label class="field hue-field">
+                      <span>Hue <output id="item-tag-2-hue-output">210°</output></span>
+                      <input id="item-tag-2-hue" type="range" min="0" max="359" step="1" value="210">
+                    </label>
+                  </section>
+                  <section class="tag-editor-row" data-tag-slot="3">
+                    <label class="field tag-label-field">
+                      <span>Tag 3</span>
+                      <input id="item-tag-3-label" type="text" maxlength="48" autocomplete="off" placeholder="Location">
+                    </label>
+                    <label class="field">
+                      <span>Icon</span>
+                      <select id="item-tag-3-icon">
+                        <option value="milestone">Milestone</option>
+                        <option value="decision">Decision</option>
+                        <option value="evidence">Evidence</option>
+                        <option value="person">Person</option>
+                        <option value="place">Place</option>
+                        <option value="media">Media</option>
+                        <option value="relation">Relation</option>
+                        <option value="note">Note</option>
+                      </select>
+                    </label>
+                    <label class="field hue-field">
+                      <span>Hue <output id="item-tag-3-hue-output">145°</output></span>
+                      <input id="item-tag-3-hue" type="range" min="0" max="359" step="1" value="145">
+                    </label>
+                  </section>
+                  <section class="tag-editor-row" data-tag-slot="4">
+                    <label class="field tag-label-field">
+                      <span>Tag 4</span>
+                      <input id="item-tag-4-label" type="text" maxlength="48" autocomplete="off" placeholder="Relation">
+                    </label>
+                    <label class="field">
+                      <span>Icon</span>
+                      <select id="item-tag-4-icon">
+                        <option value="milestone">Milestone</option>
+                        <option value="decision">Decision</option>
+                        <option value="evidence">Evidence</option>
+                        <option value="person">Person</option>
+                        <option value="place">Place</option>
+                        <option value="media">Media</option>
+                        <option value="relation">Relation</option>
+                        <option value="note">Note</option>
+                      </select>
+                    </label>
+                    <label class="field hue-field">
+                      <span>Hue <output id="item-tag-4-hue-output">285°</output></span>
+                      <input id="item-tag-4-hue" type="range" min="0" max="359" step="1" value="285">
+                    </label>
+                  </section>
+                </div>
+                <p class="field-hint">Only hue is user-selectable. Lightness/chroma and foreground contrast are controlled by the design system; icon and text remain redundant cues so meaning never depends on color alone.</p>
+              </details>
 
               <details id="item-location-details" class="optional-editor field-wide">
                 <summary>Location <small>optional · WGS 84 / GeoJSON point</small></summary>
@@ -357,9 +527,9 @@
             </div>
             <span id="timeline-window-readout" class="timeline-window-readout" aria-live="polite">No visible events</span>
           </div>
-          <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan with inertia. Scroll or pinch over the timeline for slow pointer-anchored zoom. Overlapping events fuse into temporary clusters that can be activated to zoom in. Use plus and minus for stepped zoom. Press Home to fit all visible events and Escape to close event detail.</p>
+          <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan with inertia. Scroll or pinch over the timeline for slow pointer-anchored zoom. Overlapping events fuse into temporary clusters that can be activated to zoom in. Selecting an event enters a full focused composition; press Escape to return to chronology.</p>
           <div id="timeline-surface" class="timeline-surface is-landscape" tabindex="0" role="group" aria-describedby="timeline-surface-help"></div>
-          <aside id="timeline-detail" class="timeline-detail" role="dialog" aria-modal="false" aria-live="polite" popover="auto"></aside>
+          <section id="timeline-focus-view" class="timeline-focus-view" aria-live="polite" hidden></section>
         </section>
 
 
@@ -389,13 +559,15 @@
   <div id="status" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
   <script src="./time-scale.js" defer></script>
   <script src="./temporal-standards.js" defer></script>
+  <script src="./date-range-picker.js" defer></script>
+  <script src="./event-presentation.js" defer></script>
   <script src="./timeline-clustering.js" defer></script>
   <script src="./timeline-motion.js" defer></script>
   <script src="./timeline-graph.js" defer></script>
   <script src="./timeline-view.js" defer></script>
   <script src="./spatial.js" defer></script>
   <script src="./location-map.js" defer></script>
-  <script src="./time-graphics-adapter.js" defer></script>
+  <script src="./interchange-adapter.js" defer></script>
   <script src="./app.js" defer></script>
 </body>
 </html>

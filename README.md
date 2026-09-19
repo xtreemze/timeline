@@ -27,10 +27,13 @@ The application is static and runs entirely in the browser. Timeline data is sto
 
 ### Chronology
 
-- Create point **events** with native calendar/clock controls and explicit temporal precision.
-- Create **ranges** with independently validated start and end endpoints.
+- Create point **events** or **ranges** through one calendar field: events select one date; ranges select two dates in the same calendar, with an explicit year control.
+- Add native clock inputs independently to either range boundary while retaining explicit temporal precision.
 - Preserve ISO 8601 date/time values, certainty, IANA time zone identifiers, and source UTC offsets.
 - Assign an optional structured place and WGS 84 point; choose coordinates manually, from the map, or through Chrome's native geolocation control.
+- Attach up to three photographs to an event and browse them as a hero slideshow in focused view.
+- Add semantic tags with selectable icons and hue-only theming; lightness/chroma and foreground contrast stay under design-system control and meaning never depends on color alone.
+- Select an event to give it the full 12-column chronology workspace; the editor yields the screen, the event becomes an asymmetric hero composition, and the timeline docks to an edge for context.
 - Edit and delete items without manually re-sorting the chronology.
 - Deterministic sorting by start, end, and title.
 - Search titles and descriptions.
@@ -69,8 +72,8 @@ This is deliberately a reference model rather than a copy model: stories do not 
 - Automatic migration of the original v1 `events[]` browser data to v2.
 - Strict JSON validation at import boundaries.
 - JSON export preserving categories, chronology items, ranges, stories, structured temporal extents, locations, entities, temporal relationships, and namespaced interchange extensions.
-- Time.Graphics JSON/XML import for events, periods, and groups, with source-specific media/comments/statistics preserved under `extensions.timeGraphics`.
-- Time.Graphics-oriented JSON export with a published JSON Schema and round-trip preservation of imported vendor fields.
+- Vendor-neutral JSON/XML interchange import for events, periods, groups, and common external field aliases, with unrecognized source records preserved under `extensions.externalInterchange`.
+- Vendor-neutral interchange JSON export with a published JSON Schema and round-trip preservation of imported extension fields.
 - Markdown export containing the canonical chronology plus each narrative story.
 - Imported text is rendered through DOM text nodes, never injected as HTML.
 - No runtime packages, telemetry, account system, database, or backend.
@@ -121,11 +124,11 @@ Version 2 uses four top-level concepts:
 }
 ```
 
-### Time.Graphics interchange
+### External interchange
 
-Time.Graphics interoperability is isolated behind `site/time-graphics-adapter.js`; its vendor data does not become Timeline's canonical schema. Imports map Time.Graphics events → events, periods → ranges, and groups → categories. Unknown source fields are retained under `extensions.timeGraphics` for round-trip safety.
+External interoperability is isolated behind `site/interchange-adapter.js`; source-specific data does not become Timeline's canonical schema. Common event/period/group aliases are normalized while unknown source records remain under `extensions.externalInterchange` for round-trip safety.
 
-The exported interchange schema is `schemas/time-graphics-interchange-v1.schema.json`. See `docs/TIME-GRAPHICS-INTERCHANGE.md` for recognized field aliases, loss boundaries, and the vendor-schema caveat.
+The exported interchange schema is `schemas/interchange-v1.schema.json`. See `docs/INTERCHANGE.md` for the adapter boundary and loss-preservation rules.
 
 ### Temporal graph values
 
@@ -214,11 +217,13 @@ This permits future extensions such as:
 
 ## Architecture
 
-Timeline deliberately uses the browser platform directly. The browser target is the **latest Chrome Beta**; as of September 19, 2026 that is Chrome 155 Beta. When a required capability is available in that target, Timeline uses the native platform API instead of shipping a JavaScript substitute. Current examples include native date/time pickers, `HTMLInputElement.showPicker()` where explicit picker invocation is useful, the Temporal API for timezone-aware normalization, the `<geolocation>` element for user-initiated location access, the Popover API, CSS Anchor Positioning, pointer events, ResizeObserver, and native top-layer transitions.
+Timeline deliberately uses the browser platform directly. The browser target is the **latest Chrome Beta**; as of September 19, 2026 that is Chrome 155 Beta. When a required capability is available in that target, Timeline uses the native platform API instead of shipping a JavaScript substitute. Native `time` controls, the Temporal API, the `<geolocation>` element, Pointer Events, ResizeObserver, and the Popover API are examples. HTML does not expose a two-date range input, so Timeline's small range-calendar component uses a single readonly field plus a native top-layer popover while keeping ISO date values separate from clock/time-zone semantics.
 
 Leaflet is loaded lazily only for the optional interactive map because the browser platform has no native slippy-map control. Standard OpenStreetMap raster tiles are used with visible attribution and no offline/prefetch behavior; the tile provider is replaceable through `globalThis.TimelineMapTileProvider`.
 
-The ambient timeline numeral face is pinned to Monaspace Krypton v1.400 with a local-font first lookup and web fallback. Its `calt` feature enables Monaspace texture healing. Chrome's `font-size-adjust: ex-height from-font` and `text-box: trim-both ex alphabetic` are used to align the accent typography to actual font metrics rather than hand-tuned line boxes.
+The ambient timeline numeral face is pinned to Monaspace Krypton v1.400 with a local-font first lookup and web fallback. Its `calt` feature enables Monaspace texture healing. Chrome's `font-size-adjust: ex-height from-font` and `text-box: trim-both ex alphabetic` align accent typography to actual font metrics rather than hand-tuned line boxes.
+
+Event tags expose hue as the only user-controlled color dimension. Their lightness/chroma remain fixed in OKLCH, and Chrome's `contrast-color()` is used when available to derive a readable text/icon foreground. Labels and semantic icons remain present so classification never relies on hue alone.
 
 
 ```text
