@@ -92,3 +92,82 @@ Every focused-event grid variant renders the same evidence records. Layout chang
 - Hero split keeps evidence below the primary context;
 - Evidence dossier gives evidence a dominant reading field;
 - Editorial mosaic balances evidence against place, relations, media and narrative context.
+
+
+## Forensic metadata
+
+Evidence can optionally carry a `forensic` object. Ordinary timeline sources do not need it.
+
+```json
+{
+  "id": "evidence-disk-copy",
+  "type": "document",
+  "title": "Forensic disk image",
+  "forensic": {
+    "recordClass": "acquired-copy",
+    "sourceFilename": "drive.E01",
+    "sourceLocator": "locker-4/device-2",
+    "exhibitNumber": "C001-HD1",
+    "rootExhibitNumber": "Collection-001",
+    "acquiredAt": "2026-09-19T09:15:00+02:00",
+    "acquiredByEntityId": "person-examiner",
+    "acquisitionMethod": "Forensic image acquisition",
+    "acquisitionPlaceEntityId": "place-lab",
+    "sourceItemId": "device-2",
+    "tool": {
+      "name": "Acquisition Tool",
+      "version": "5.4.1"
+    },
+    "digests": [
+      {
+        "algorithm": "sha-256",
+        "value": "…",
+        "encoding": "hex"
+      }
+    ],
+    "derivedFromIds": ["device-2"]
+  }
+}
+```
+
+The initial record classes are `source`, `acquired-copy`, and `derived-artifact`. They describe lineage; they do not assert authenticity or admissibility. Digest values are preserved exactly with their algorithm (and optional encoding). Timeline never fabricates a digest when none was supplied.
+
+This structure is intended to support later CASE/UCO `ProvenanceRecord` / `InvestigativeAction` adapters and W3C PROV-O mappings. It is standards-aligned data modeling, not a claim that Timeline or a case record is ISO-certified.
+
+## Custody actions
+
+Custody is modeled as a list of timestamped actions at the timeline-document root rather than as a mutable `currentCustodian` field:
+
+```json
+{
+  "custodyActions": [
+    {
+      "id": "custody-1",
+      "actionType": "transferred",
+      "evidenceIds": ["evidence-disk-copy"],
+      "occurredAt": "2026-09-19T10:00:00+02:00",
+      "fromEntityId": "person-examiner",
+      "toEntityId": "person-custodian",
+      "placeEntityId": "place-vault",
+      "recorderEntityId": "person-recorder",
+      "reason": "Secure storage",
+      "note": "",
+      "sourceEvidenceIds": ["custody-form-1"]
+    }
+  ]
+}
+```
+
+Every action keeps the evidence IDs it applies to and its own occurrence time. Transfers therefore add records instead of overwriting previous custody history. The canonical document now preserves these actions through import, local persistence, and JSON export; a dedicated custody editor and stronger audit/signature layer remain separate work.
+
+## Standards boundary
+
+The forensic fields are shaped to make later mappings practical for:
+
+- ISO 21043 forensic-process vocabulary and recording/reporting concepts;
+- ISO/IEC 27037 digital-evidence identification, collection, acquisition and preservation;
+- ISO/IEC 27041/27042/27043 investigation-method and analysis/interpretation continuity;
+- CASE/UCO evidence provenance and investigative actions;
+- W3C PROV-O entity/activity/agent provenance.
+
+Browser `localStorage` and IndexedDB remain mutable application storage. Preserving forensic metadata does not make the browser a tamper-evident evidence repository. Tamper-evident export bundles, signatures, verification and threat-model documentation remain tracked separately.
