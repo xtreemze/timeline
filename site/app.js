@@ -2161,6 +2161,13 @@
       return true;
     }
     if (command === "back") {
+      if (
+        presentationIsFullscreen() &&
+        meta.source === "keyboard" &&
+        meta.event?.key === "Escape"
+      ) {
+        return false;
+      }
       if (timelineView?.hasFocusedItem()) {
         timelineView.closeFocus();
         return true;
