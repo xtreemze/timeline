@@ -8,6 +8,7 @@ on:
       - 'site/timeline-view.js'
       - 'site/timeline-clustering.js'
       - 'site/timeline-motion.js'
+      - 'site/timeline-navigation.js'
       - 'site/timeline-graph.js'
       - 'site/timeline-view.css'
       - 'site/time-scale.js'
@@ -19,10 +20,11 @@ on:
       - 'site/location-map.js'
       - 'tests/temporal-spatial.test.mjs'
       - 'tests/interchange-adapter.test.mjs'
-      - 'tests/event-focus-form.test.mjs'
+      - 'tests/event-focus-form.test.mjs tests/timeline-navigation.test.mjs'
       - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
+      - 'tests/timeline-navigation.test.mjs'
       - '.github/workflows/timeline-view.yml'
   push:
     branches: [main]
@@ -32,6 +34,7 @@ on:
       - 'site/timeline-view.js'
       - 'site/timeline-clustering.js'
       - 'site/timeline-motion.js'
+      - 'site/timeline-navigation.js'
       - 'site/timeline-graph.js'
       - 'site/timeline-view.css'
       - 'site/time-scale.js'
@@ -47,6 +50,7 @@ on:
       - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
+      - 'tests/timeline-navigation.test.mjs'
       - '.github/workflows/timeline-view.yml'
 
 permissions:
@@ -63,6 +67,7 @@ jobs:
       - run: node --check site/time-scale.js
       - run: node --check site/timeline-clustering.js
       - run: node --check site/timeline-motion.js
+      - run: node --check site/timeline-navigation.js
       - run: node --check site/timeline-graph.js
       - run: node --check site/timeline-view.js
       - run: node --check site/date-range-picker.js
