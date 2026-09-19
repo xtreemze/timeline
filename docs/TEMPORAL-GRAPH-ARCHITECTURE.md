@@ -213,7 +213,7 @@ Authoring SHOULD give a relation an instant or interval whenever its temporal ex
 - nodes are retained when they participate in a visible relation or are chronology items whose own temporal extent intersects the viewport;
 - edge labels display the action/predicate;
 - chronology-item nodes focus the corresponding event;
-- entity/edge selection opens a read-only inspector only when meaningful detail exists; otherwise the nearest connected chronology event is focused when one can be resolved;
+- node/edge selection is direct manipulation only: the selected object is emphasized in the graph and no inspector, navigation, editor, or JSON surface is opened;
 - wheel zoom, pan and node drag manipulate the graph view without changing canonical graph data.
 
 The authoring lens now uses the scale path directly. `@memgraph/orb` is bundled through esbuild, preserving its worker-backed CPU force simulation. Canvas is the default renderer; dense graphs switch to WebGL when WebGL2 is available, and very large graphs can enable Orb's GPU force path.
@@ -237,7 +237,7 @@ The focused-event graph includes derived event-to-context links labelled **activ
 
 ## Focused graph integration
 
-Each focused chronology event receives a bounded one-hop graph neighborhood. The canonical Orb surface is moved behind the Relations section of the focused six-column overlay rather than receiving separate layout ownership. Chronology-item nodes can navigate to connected events. Entity/edge inspection remains read-only in viewing mode and appears only when the selected record has substantive descriptive, temporal, location, identifier, role, property or lifecycle detail; otherwise the interaction resolves to a connected event when possible without dismissing the graph.
+Each focused chronology event receives a bounded one-hop graph neighborhood. The canonical Orb surface is moved behind the Relations section of the focused six-column overlay rather than receiving separate layout ownership. The graph itself has no card header, toolbar, inspector, JSON dump, or click-triggered navigation. Clicking a node or edge only selects it in place; pan, zoom, drag and force response remain available. Editing graph records is confined to the explicit Edit surface.
 
 ## Presentation graph semantics
 
@@ -273,6 +273,10 @@ Node interaction is treated as a topology-layout disturbance even when canonical
 The current sparse/default profile uses approximately 168 px link distance, `-460` many-body repulsion, 42 px collision radius and four collision iterations. The dense profile uses approximately 128 px links, `-300` repulsion and a 30 px collision radius. Centering and positional pull are also reduced so the stronger repulsion is not immediately cancelled by attraction toward the origin. Both profiles keep slower alpha cooling and the 2.4-second post-interaction settle window.
 
 These values are presentation policy rather than canonical graph data and may be tuned from performance fixtures without changing nodes or edges.
+
+## Coincident chronology coordinates
+
+Distinct chronology records may legitimately share the same exact temporal coordinate. Pixel zoom cannot separate identical coordinates, so they MUST NOT be fused into a cluster whose only action is further zoom. Coincident records remain individual timeline items and are assigned perpendicular presentation lanes so their terminals stack without covering one another. Clustering remains appropriate only for distinct temporal coordinates that collide at the current scale.
 
 ## Range tracing
 
