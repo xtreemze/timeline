@@ -443,4 +443,10 @@ test("viewing and editing are explicit mutually exclusive application modes", as
   assert.match(app, /graphentityfocus[\s\S]*ui\.mode === "edit"[\s\S]*beginGraphNodeEdit/);
   assert.match(app, /graphedgefocus[\s\S]*ui\.mode === "edit"[\s\S]*beginGraphEdgeEdit/);
   assert.match(styles, /data-mode="edit"[\s\S]*app-tool:not\(#editor-toggle\)[\s\S]*display:\s*none/);
+  assert.match(app, /title\.readOnly = !editing/);
+  assert.match(app, /\[els\.loadSample, els\.importJsonTrigger, els\.importInterchangeTrigger, els\.clear\][\s\S]*disabled = !editing/);
+  assert.doesNotMatch(app, /actionButton\("Edit", "edit-item"/);
+  assert.doesNotMatch(app, /actionButton\("Delete", "delete-item"/);
+  assert.match(app, /els\.title\.addEventListener\("input",[\s\S]*ui\.mode !== "edit"[\s\S]*return/);
+  assert.match(app, /els\.clear\.addEventListener\("click",[\s\S]*ui\.mode !== "edit"[\s\S]*return/);
 });
