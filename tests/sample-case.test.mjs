@@ -226,7 +226,7 @@ test("categories classify event semantics independently from story membership", 
 test("each story exposes a detailed causal sequence rather than summary-only beats", () => {
   const expectedMinimums = new Map([
     ["story-three-little-pigs", 16],
-    ["story-snow-white", 19],
+    ["story-snow-white", 20],
     ["story-cinderella", 19]
   ]);
   for (const story of sample.stories) {
@@ -260,6 +260,7 @@ test("Snow White separates the disguised attacks, recoveries, apple preparation 
   const story = sample.stories.find((candidate) => candidate.id === "story-snow-white");
   const ids = new Set(story.itemIds);
   for (const id of [
+    "snow-forest-flight",
     "snow-laces",
     "snow-laces-recovery",
     "snow-comb",
@@ -293,9 +294,9 @@ test("Cinderella includes household formation, practical transformation, palace 
 });
 
 test("detailed stories add graph and place depth without conflating categories with stories", () => {
-  assert.ok(sample.items.length >= 54);
-  assert.ok(sample.entities.length >= 39);
-  assert.ok(sample.relationships.length >= 45);
+  assert.ok(sample.items.length >= 55);
+  assert.ok(sample.entities.length >= 40);
+  assert.ok(sample.relationships.length >= 46);
   assert.ok(sample.relationships.filter((relationship) => relationship.time?.start?.value).length >= 30);
 
   const storyTitles = new Set(sample.stories.map((story) => story.title));
