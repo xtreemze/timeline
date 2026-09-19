@@ -108,3 +108,19 @@ test("timeline CSS uses Monaspace texture healing and metric-aware text trimming
   assert.match(css, /text-box:\s*trim-both ex alphabetic/);
   assert.match(css, /grid-template-columns:\s*repeat\(12,/);
 });
+
+test("app delegates temporal parsing to TimelineTemporal rather than removed legacy parser constants", async () => {
+  const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  assert.match(source, /temporal\.parse\(value\)/);
+  assert.doesNotMatch(source, /DATE_PATTERN/);
+  assert.match(source, /temporalRelationProjection\(state\.relationships/);
+});
+
+test("timeline view exposes fused clusters, inertia, relation bands and ambient months", async () => {
+  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  assert.match(source, /clusterProjectedItems/);
+  assert.match(source, /startInertia/);
+  assert.match(source, /renderMonthAccents/);
+  assert.match(source, /renderRelationships/);
+  assert.match(source, /pulseHaptic/);
+});
