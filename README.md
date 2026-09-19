@@ -45,6 +45,9 @@ The application is static and runs entirely in the browser. Timeline data is sto
 - Filter the visible chronology by category.
 - Expand or collapse case-oriented category groups in the detailed chronology while story focus preserves authored narrative order.
 - Responsive timeline rendering for desktop, tablet, and narrow mobile layouts.
+- Timeline and temporal graph share one responsive presentation stage. On wide workspace containers they can compose side-by-side; on narrower containers they stack without changing the canonical timeline orientation.
+- Full-screen presentation targets only that stage, keeping both chronology and relation graph visible. Horizontal timelines use the available width in a stacked timeline/graph composition; vertical timelines use the available height in a side-by-side composition. Tall displays rebalance the split rather than forcing an axis change.
+- Fullscreen can be entered from the timeline toolbar or with `F` while focus is inside the presentation stage. Escape exits through the browser's native Fullscreen API behavior.
 - Pixel-collision clustering: overlapping event terminals temporarily fuse into interactive clusters while zoomed out, then separate as zoom creates room.
 - Weighted zoom and inertial pointer panning using frame-aligned/coalesced pointer samples where Chrome exposes them.
 - Capability-gated haptics for cluster fusion/splitting, selection, and inertial release through gamepad actuators or mobile vibration hardware when available.
