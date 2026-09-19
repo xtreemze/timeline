@@ -872,3 +872,11 @@ test("focused popover chrome derives from the focused timeline event color", asy
   assert.match(css, /\.timeline-focus-close\.button\.primary[\s\S]*background:\s*var\(--focus-chrome-color\)/);
   assert.match(css, /\.timeline-focus-section[\s\S]*border-top-color:\s*color-mix\(in srgb, var\(--focus-chrome-color\)/);
 });
+
+
+test("phone focus popovers collapse to one intrinsic-safe column after the application layout contract", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  assert.match(css, /@media \(max-width: 500px\)[\s\S]*\.timeline-focus-view\[popover\][\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) !important/);
+  assert.match(css, /\.timeline-focus-view\[popover\] > \*[\s\S]*min-inline-size:\s*0[\s\S]*max-inline-size:\s*100%/);
+  assert.match(css, /@media \(min-width: 501px\)[\s\S]*grid-template-columns:\s*repeat\(6, minmax\(0, 1fr\)\) !important/);
+});

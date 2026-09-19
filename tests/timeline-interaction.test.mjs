@@ -522,3 +522,21 @@ test("keeps chronological event order available as a semantic keyboard-accessibl
   assert.match(app, /function renderTimelineList\([\s\S]*document\.createElement\("ol"\)[\s\S]*items\.map\(\(item\) => renderItem\(item, null\)\)/);
   assert.match(app, /function renderItem\([\s\S]*document\.createElement\("li"\)[\s\S]*actionButton\("Focus", "focus-item"/);
 });
+
+
+test("timeline pinch zoom tracks two touch pointers and keeps the temporal anchor under the gesture midpoint", async () => {
+  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  assert.match(source, /this\.touchPointers = new Map\(\)/);
+  assert.match(source, /this\.pinch = null/);
+  assert.match(source, /Math\.hypot\(second\.x - first\.x, second\.y - first\.y\)/);
+  assert.match(source, /anchorTime:\s*this\.viewport\.start \+ span \* geometry\.ratio/);
+  assert.match(source, /this\.pinch\.distance \/ geometry\.distance/);
+  assert.match(source, /scale\.zoom\([\s\S]*this\.pinch\.viewport,[\s\S]*factor,[\s\S]*this\.pinch\.anchorTime,[\s\S]*MIN_SPAN_MS/);
+  assert.match(source, /event\.preventDefault\(\)/);
+  assert.match(source, /const interactiveTarget = event\.target\.closest/);
+  assert.match(source, /this\.touchPointers\.set\(event\.pointerId[\s\S]*if \(interactiveTarget\) return/);
+  assert.match(source, /this\.suppressClickUntil = performance\.now\(\) \+ 450/);
+  assert.match(source, /const remaining = Array\.from\(this\.touchPointers\.values\(\)\)\[0\]/);
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  assert.match(css, /\.timeline-surface\s*\{[\s\S]*touch-action:\s*none/);
+});

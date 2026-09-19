@@ -285,9 +285,23 @@ function create(container, handlers = {}) {
     touchHold = null;
     touchDragBlockedUntilRelease = true;
     container.dataset.touchDrag = "cancelled";
+    setDragEnabled(false);
   }
 
-  function beginTouchHold({ node, event, globalPoint }) {
+  function touchNodePayload(event) {
+    const point = eventClientPoint(event);
+    if (!point || !orb.canvas) return null;
+    const rect = orb.canvas.getBoundingClientRect();
+    const globalPoint = {
+      x: Math.max(0, Math.min(rect.width, point.x - rect.left)),
+      y: Math.max(0, Math.min(rect.height, point.y - rect.top))
+    };
+    const localPoint = orb.getSimulationPosition(globalPoint);
+    const node = orb.data.getNearestNode(localPoint);
+    return node ? { node, event, globalPoint, localPoint } : null;
+  }
+
+  function beginTouchHold({ node, event, globalPoint, localPoint }) {
     clearTouchReleaseFallback();
     clearTouchHoldTimer();
     setDragEnabled(false);
@@ -301,8 +315,10 @@ function create(container, handlers = {}) {
 
     touchHold = {
       node,
+      pointerId: event.pointerId,
       startClientPoint: eventClientPoint(event),
       startGlobalPoint: globalPoint,
+      startLocalPoint: localPoint,
       activated: false,
       timer: 0
     };
@@ -314,6 +330,7 @@ function create(container, handlers = {}) {
       touchDragBlockedUntilRelease = false;
       container.dataset.touchDrag = "active";
       setDragEnabled(true);
+      setInteractionHeat(DRAG_ALPHA_TARGET);
       selectGraphObject(node);
       handlers.onNodeLongPress?.(node.getData());
       try {
@@ -327,13 +344,23 @@ function create(container, handlers = {}) {
   function onPointerDown(event) {
     if (event.pointerType !== "touch") return;
     activeTouchPointers.add(event.pointerId);
-    if (activeTouchPointers.size > 1 && touchHold && !touchHold.activated) {
-      cancelPendingTouchHold();
+    if (activeTouchPointers.size > 1) {
+      if (touchHold && !touchHold.activated) cancelPendingTouchHold();
+      touchDragBlockedUntilRelease = true;
+      setDragEnabled(false);
+      return;
     }
+
+    const payload = touchNodePayload(event);
+    if (payload) beginTouchHold(payload);
   }
 
   function onPointerMove(event) {
-    if (event.pointerType !== "touch" || !touchHold || touchHold.activated) return;
+    if (event.pointerType !== "touch" || !touchHold) return;
+    if (touchHold.activated) {
+      event.preventDefault();
+      return;
+    }
     const origin = touchHold.startClientPoint;
     if (!origin) return;
     const distance = Math.hypot(event.clientX - origin.x, event.clientY - origin.y);
@@ -367,10 +394,10 @@ function create(container, handlers = {}) {
     finishTouchGesture();
   }
 
-  container.addEventListener("pointerdown", onPointerDown);
-  container.addEventListener("pointermove", onPointerMove);
-  container.addEventListener("pointerup", onPointerUp);
-  container.addEventListener("pointercancel", onPointerUp);
+  container.addEventListener("pointerdown", onPointerDown, { capture: true });
+  container.addEventListener("pointermove", onPointerMove, { capture: true });
+  container.addEventListener("pointerup", onPointerUp, { capture: true });
+  container.addEventListener("pointercancel", onPointerUp, { capture: true });
   container.addEventListener("touchend", onTouchEnd);
   container.addEventListener("touchcancel", onTouchEnd);
 
@@ -473,9 +500,8 @@ function create(container, handlers = {}) {
     selectGraphObject(edge);
     handlers.onEdgeClick?.(edge.getData());
   };
-  const onNodeDragStart = (payload) => {
+  const onNodeDragStart = () => {
     setInteractionHeat(DRAG_ALPHA_TARGET);
-    if (isTouchInput(payload.event)) beginTouchHold(payload);
   };
   const onNodeDrag = () => {
     clearInteractionSettleTimer();
@@ -774,10 +800,10 @@ function create(container, handlers = {}) {
       finishTouchGesture();
       clearInteractionSettleTimer();
       clearTopologyTimers();
-      container.removeEventListener("pointerdown", onPointerDown);
-      container.removeEventListener("pointermove", onPointerMove);
-      container.removeEventListener("pointerup", onPointerUp);
-      container.removeEventListener("pointercancel", onPointerUp);
+      container.removeEventListener("pointerdown", onPointerDown, true);
+      container.removeEventListener("pointermove", onPointerMove, true);
+      container.removeEventListener("pointerup", onPointerUp, true);
+      container.removeEventListener("pointercancel", onPointerUp, true);
       container.removeEventListener("touchend", onTouchEnd);
       container.removeEventListener("touchcancel", onTouchEnd);
       orb.events.off(OrbEventType.NODE_CLICK, onNodeClick);
