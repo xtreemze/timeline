@@ -264,10 +264,12 @@ test("focused Place and Relations reuse the single map and graph surfaces as int
   assert.equal((html.match(/id="presentation-map"/g) || []).length, 1);
   assert.match(view, /dataset\.focusMapSlot/);
   assert.match(view, /dataset\.focusGraphSlot/);
+  assert.match(view, /dataset\.focusGraphDetailSlot/);
   assert.match(view, /timeline-focus-section-content/);
   assert.match(app, /mountGraphBackdrop/);
   assert.match(app, /mountMapBackdrop/);
   assert.match(app, /presentationGraphAnchor/);
+  assert.match(app, /presentationGraphDetailAnchor/);
   assert.match(app, /presentationMapAnchor/);
   assert.match(app, /interactive:\s*true/);
   assert.match(mapSource, /this\.interactive = options\.interactive === true/);
@@ -385,10 +387,60 @@ test("presentation map renders semantic GeoJSON features instead of an empty poi
   assert.match(styles, /\.timeline-map-marker-shell/);
 });
 
-test("fullscreen presentation removes graph authoring chrome and raw properties", async () => {
-  const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
+test("fullscreen presentation removes graph authoring chrome but preserves read-only inspection", async () => {
+  const [styles, graphView] = await Promise.all([
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8")
+  ]);
   assert.match(
     styles,
-    /#presentation-stage:fullscreen \.graph-lens > summary,[\s\S]*\.temporal-graph-toolbar,[\s\S]*\.temporal-graph-detail[\s\S]*display:\s*none/
+    /#presentation-stage:fullscreen \.graph-lens > summary,[\s\S]*\.temporal-graph-toolbar[\s\S]*display:\s*none/
   );
+  assert.doesNotMatch(
+    styles,
+    /#presentation-stage:fullscreen \.temporal-graph-detail[\s\S]*display:\s*none/
+  );
+  assert.match(graphView, /temporal-graph-detail-list/);
+  assert.doesNotMatch(graphView, /createElement\("pre"\)/);
+});
+
+test("timeline background click exits focused event without stealing event-terminal clicks", async () => {
+  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  assert.match(
+    source,
+    /surface\.addEventListener\("click",[\s\S]*this\.selectedId[\s\S]*event\.target\.closest\("button, a, input, select, textarea"\)[\s\S]*this\.closeFocus\(\)/
+  );
+});
+
+test("desktop event detail is compact and placed opposite the active timeline edge", async () => {
+  const [css, source] = await Promise.all([
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8")
+  ]);
+  assert.match(css, /@media \(min-width: 900px\) and \(min-height: 700px\)/);
+  assert.match(
+    css,
+    /data-orientation="landscape"[\s\S]*timeline-focus-view:popover-open[\s\S]*left:\s*50%[\s\S]*overflow:\s*clip[\s\S]*translateX\(-50%\)/
+  );
+  assert.match(
+    css,
+    /data-orientation="portrait"[\s\S]*timeline-focus-view:popover-open[\s\S]*top:\s*50%[\s\S]*overflow:\s*clip[\s\S]*translateY\(-50%\)/
+  );
+  assert.match(source, /const visibleEvidence = item\.evidence\.slice\(0, 6\)/);
+});
+
+test("viewing and editing are explicit mutually exclusive application modes", async () => {
+  const [html, app, styles] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+  ]);
+  assert.match(html, /id="app-shell"[^>]*data-mode="view"/);
+  assert.match(html, /id="editor-toggle"[^>]*aria-pressed="false"/);
+  assert.match(app, /mode:\s*"view"/);
+  assert.match(app, /ui\.mode = editing \? "edit" : "view"/);
+  assert.match(app, /timelinefocusedit[\s\S]*setEditorSurfaceOpen\(true\)[\s\S]*beginItemEdit/);
+  assert.match(app, /graphentityfocus[\s\S]*ui\.mode === "edit"[\s\S]*beginGraphNodeEdit/);
+  assert.match(app, /graphedgefocus[\s\S]*ui\.mode === "edit"[\s\S]*beginGraphEdgeEdit/);
+  assert.match(styles, /data-mode="edit"[\s\S]*app-tool:not\(#editor-toggle\)[\s\S]*display:\s*none/);
 });
