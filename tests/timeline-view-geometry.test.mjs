@@ -24,7 +24,7 @@ test("wheel zoom is deliberately capped and symmetric enough for fine control", 
   assert.ok(Math.abs(zoomOut * zoomIn - 1) < 0.001);
 });
 
-test("selected events use a full 12-column focus composition instead of a detail popover", async () => {
+test("selected events use a compact six-column focus popover over the persistent timeline", async () => {
   const [html, js, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
@@ -35,7 +35,10 @@ test("selected events use a full 12-column focus composition instead of a detail
   assert.match(js, /focusItem\(id\)/);
   assert.match(js, /timelinefocuschange/);
   assert.match(js, /createFocusHero/);
-  assert.match(css, /\.timeline-focus-view\s*\{[\s\S]*grid-template-columns:\s*repeat\(12,/);
+  assert.match(css, /\.timeline-focus-view\s*\{[\s\S]*grid-template-columns:\s*repeat\(6,/);
+  assert.doesNotMatch(css, /\.timeline-focus-view\s*\{[\s\S]*grid-template-columns:\s*repeat\(12,/);
+  assert.match(css, /timeline-focus-view\[popover\]/);
+  assert.match(css, /inline-size:\s*min\(680px/);
   assert.match(css, /\.timeline-view\.is-event-focused/);
   assert.match(css, /grid-row:\s*3/);
   assert.doesNotMatch(css, /position-anchor:\s*--timeline-detail-anchor/);

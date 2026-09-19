@@ -310,6 +310,10 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(html, /id="graph-lens-toggle"[^>]*data-semantic-icon="relation"/);
   assert.match(html, /id="timeline-view-controls-toggle"[^>]*data-semantic-icon="magic"/);
   assert.match(html, /id="project-menu"[^>]*popover="auto"/);
+  assert.match(html, /id="import-json-trigger"[^>]*role="menuitem"/);
+  assert.match(html, /id="import-interchange-trigger"[^>]*role="menuitem"/);
+  assert.match(html, /class="project-menu-group"/);
+  assert.doesNotMatch(html, /class="button secondary file-button" role="menuitem"/);
   assert.match(html, /id="timeline-browser-sheet"[\s\S]*?<\/aside>\s*<section id="story-focus"/);
   assert.doesNotMatch(html, /Detailed chronology/);
   assert.match(html, /id="control-panel"[^>]*hidden/);
@@ -317,21 +321,41 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(html, /id="timeline-view-toolbar"[^>]*hidden/);
   assert.match(styles, /#workspace\s*\{[\s\S]*position:\s*fixed[\s\S]*height:\s*100dvh/);
   assert.match(styles, /#app-shell\s*\{[\s\S]*position:\s*fixed[\s\S]*overflow:\s*hidden/);
-  assert.match(styles, /#app-shell #presentation-stage[\s\S]*grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(styles, /#app-shell #presentation-stage[\s\S]*display:\s*block/);
+  assert.doesNotMatch(styles, /repeat\(12,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(styles, /\.app-editor-sheet,[\s\S]*\.app-browser-sheet[\s\S]*position:\s*fixed/);
-  assert.match(styles, /@media \(min-width: 900px\)[\s\S]*\.app-editor-sheet,[\s\S]*width:\s*min\(520px/);
+  assert.match(styles, /\.app-editor-sheet \.field-grid[\s\S]*repeat\(var\(--sheet-columns\),\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(styles, /@media \(min-width: 900px\)[\s\S]*\.app-editor-sheet,[\s\S]*width:\s*min\(390px/);
   assert.match(timelineCss, /Persistent application canvas/);
   assert.match(timelineCss, /#app-shell #timeline-view[\s\S]*position:\s*absolute[\s\S]*inset:\s*0/);
-  assert.match(timelineCss, /#presentation-stage:fullscreen > \.timeline-view[\s\S]*grid-column:\s*1\s*\/\s*-1\s*!important/);
+  assert.doesNotMatch(timelineCss, /repeat\(12,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(timelineCss, /timeline-focus-view[\s\S]*grid-template-columns:\s*repeat\(6,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(timelineCss, /Compact application presentation contract/);
+  assert.match(timelineCss, /#presentation-stage[\s\S]*display:\s*block\s*!important/);
   assert.match(timelineCss, /timeline-focus-view\[popover\][\s\S]*position:/);
+  assert.match(timelineCss, /inline-size:\s*min\(680px,\s*calc\(100dvw - 5\.5rem\)\)/);
+  assert.match(timelineCss, /max-block-size:\s*66dvh/);
   assert.match(html, /id="timeline-focus-view"[^>]*popover="manual"/);
   assert.match(app, /function decorateSemanticControls/);
+  assert.match(app, /importJsonTrigger\?\.addEventListener\("click",[\s\S]*importJson\?\.click\(\)/);
+  assert.match(app, /importInterchangeTrigger\?\.addEventListener\("click",[\s\S]*importInterchange\?\.click\(\)/);
+  assert.match(app, /function closeProjectMenu/);
   assert.match(app, /editorToggle\?\.addEventListener\("click",[\s\S]*setEditorSurfaceOpen\(!ui\.editorOpen\)/);
   assert.match(app, /function setEditorSurfaceOpen/);
   assert.match(app, /function setBrowserSurfaceOpen/);
   assert.match(app, /function setGraphSurfaceOpen/);
   assert.match(app, /function setViewControlsOpen/);
   assert.match(app, /setActivePanel\("items", \{ open: false \}\)/);
+});
+
+test("focused timeline geometry keeps terminals on the interior side of the shifted axis", async () => {
+  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  assert.match(source, /axisPadding\(length\)[\s\S]*clamp\(length \* 0\.075, 48, 80\)/);
+  assert.match(source, /const focused = Boolean\(this\.selectedId\)/);
+  assert.match(source, /const side = focused \? -1/);
+  assert.match(source, /const lane = focused \? -1/);
+  assert.match(source, /const inwardLimit = Math\.max\(64, axisCross - 64\)/);
+  assert.match(source, /const inwardLimit = Math\.max\(64, axisCross - 72\)/);
 });
 
 test("presentation map renders semantic GeoJSON features instead of an empty point preview", async () => {

@@ -254,7 +254,8 @@ test("timeline CSS uses Monaspace texture healing and metric-aware text trimming
   assert.match(css, /"calt"\s+1/);
   assert.match(css, /font-size-adjust:\s*ex-height from-font/);
   assert.match(css, /text-box:\s*trim-both ex alphabetic/);
-  assert.match(css, /grid-template-columns:\s*repeat\(12,/);
+  assert.match(css, /grid-template-columns:\s*repeat\(6,/);
+  assert.doesNotMatch(css, /grid-template-columns:\s*repeat\(12,/);
 });
 
 test("app delegates temporal parsing to TimelineTemporal rather than removed legacy parser constants", async () => {
