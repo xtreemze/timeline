@@ -2814,3 +2814,75 @@
     animation: none !important;
   }
 }
+
+
+/* Tabs keep Hero, Context, and application chrome stationary. Only the lower contextual
+   region participates in the tab transition, avoiding a whole-popover/root cross-fade. */
+::view-transition-group(timeline-focus-tab-place),
+::view-transition-group(timeline-focus-tab-relations),
+::view-transition-group(timeline-focus-tab-evidence) {
+  animation-duration: 220ms;
+  animation-timing-function: cubic-bezier(.2, .8, .2, 1);
+}
+
+@keyframes timeline-focus-tab-out {
+  to {
+    opacity: 0;
+    transform: translateY(.35rem) scale(.992);
+  }
+}
+
+@keyframes timeline-focus-tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(-.35rem) scale(.992);
+  }
+}
+
+::view-transition-old(timeline-focus-tab-place),
+::view-transition-old(timeline-focus-tab-relations),
+::view-transition-old(timeline-focus-tab-evidence) {
+  animation: 220ms cubic-bezier(.2, .8, .2, 1) both timeline-focus-tab-out;
+  mix-blend-mode: normal;
+}
+
+::view-transition-new(timeline-focus-tab-place),
+::view-transition-new(timeline-focus-tab-relations),
+::view-transition-new(timeline-focus-tab-evidence) {
+  animation: 220ms cubic-bezier(.2, .8, .2, 1) both timeline-focus-tab-in;
+  mix-blend-mode: normal;
+}
+
+/* The semantic panels themselves stay inside the clamped popover box. The Relations halo
+   may extend visually, but panel content cannot push the top-layer surface offscreen. */
+.timeline-focus-view[popover] > :is(
+  .timeline-focus-hero,
+  .timeline-focus-summary,
+  .timeline-focus-place,
+  .timeline-focus-relations,
+  .timeline-focus-evidence
+) {
+  min-width: 0;
+  min-height: 0;
+  max-inline-size: 100%;
+}
+
+.timeline-focus-place,
+.timeline-focus-relations {
+  max-block-size: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(timeline-focus-tab-place),
+  ::view-transition-group(timeline-focus-tab-relations),
+  ::view-transition-group(timeline-focus-tab-evidence),
+  ::view-transition-old(timeline-focus-tab-place),
+  ::view-transition-old(timeline-focus-tab-relations),
+  ::view-transition-old(timeline-focus-tab-evidence),
+  ::view-transition-new(timeline-focus-tab-place),
+  ::view-transition-new(timeline-focus-tab-relations),
+  ::view-transition-new(timeline-focus-tab-evidence) {
+    animation: none !important;
+    animation-duration: 0s !important;
+  }
+}
