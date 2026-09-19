@@ -49,6 +49,9 @@
   .site-header,
   .hero,
   .project-bar,
+  .app-header,
+  .app-dock,
+  .project-actions-popover,
   .control-panel,
   .timeline-toolbar,
   .timeline-zoom-controls,
@@ -79,8 +82,40 @@
 
   .timeline-panel,
   .app-shell.is-event-focused .timeline-panel {
+    position: static;
     display: block;
+    width: auto;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
     padding: 0;
+  }
+
+  .presentation-stage {
+    position: static;
+    width: auto;
+    height: auto;
+    min-height: 0;
+  }
+
+  .chronology-sheet {
+    position: static !important;
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 8mm 0 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    background: #fff !important;
+  }
+
+  .chronology-sheet .sheet-header {
+    position: static;
+    padding: 0 0 4mm;
+    border-bottom: .5pt solid #777;
+    background: #fff !important;
   }
 
   .timeline-focus,
