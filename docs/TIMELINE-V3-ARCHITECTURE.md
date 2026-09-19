@@ -180,6 +180,7 @@ The icon is semantic; terminal shape and connector style can provide redundant v
 
 The layout engine should:
 - assign deterministic lanes;
+- keep records with identical temporal coordinates as separate terminals and stack them perpendicular to the time axis rather than clustering them;
 - minimize connector crossings;
 - keep labels from obscuring ticks;
 - preserve a stable event position while zooming;
@@ -363,7 +364,7 @@ Focused composition should be asymmetric and may include:
 - an explicit Edit action that is the only transition from focused viewing into mutation mode;
 - return-to-timeline navigation.
 
-The focused item must not mutate its temporal coordinate or chronology order. Escape, an explicit return control, or clicking the exposed timeline background outside the detail composition restores the chronology.
+The focused item must not mutate its temporal coordinate or chronology order. Escape, an explicit return control, or clicking the exposed timeline background outside the detail composition restores the chronology. Entering browser fullscreen can reorder the browser top layer, so a focused event's popover is explicitly restored after the fullscreen transition; fullscreen must never silently discard focused detail.
 
 ## Stories and analytical layers
 
@@ -498,7 +499,7 @@ Normal application mode follows the same ownership principle as fullscreen: the 
 - Relation-graph exploration is opened explicitly as the Relations overlay rather than occupying a permanent sibling column.
 - Timeline orientation, zoom, auto-advance and presentation controls are progressively disclosed in a compact View surface.
 - Project actions live in a native, grouped Project popover from the floating command bar. Export and source navigation remain available while viewing; import, load-example, clear-project and project-title mutation are disabled until Edit mode is explicitly entered. Import actions remain explicit buttons wired to hidden file inputs so every visible enabled menu command is keyboard-operable.
-- One large utility surface is shown at a time. Contextual Story controls yield while a large utility surface is open. Event focus remains a separate top-layer interaction and the timeline stays visually present beneath it.
+- Exactly one major viewing/authoring surface is shown at a time. Opening Edit, Browse, Relations, View controls, or an event focus automatically closes the other major surfaces. Contextual Story controls yield while a utility surface is open. The timeline stays visually present beneath overlays.
 - With no events the timeline still renders its neutral axis; guidance for the empty project lives in Browse rather than replacing the workspace.
 
 Fullscreen targets `#presentation-stage`, not editor/browser/project surfaces. Browser fullscreen therefore naturally excludes application chrome and preserves the timeline-plus-focused-event presentation.
@@ -509,7 +510,7 @@ Focus/unfocus changes use named Web View Transitions for the timeline and detail
 
 Focused event mode does not duplicate chronology in the detail overlay: the fullscreen timeline is the chronology, and the enlarged hero heading is the selected event's identity. It reuses the existing Place and Relations sections rather than creating independent fullscreen lenses. The canonical temporal graph remains one renderer: its Orb canvas moves into the Relations section while focused and returns to the ordinary graph lens afterward. The presentation map follows the same ownership pattern, moving into the Place section and retaining pan/zoom/touch interaction.
 
-Text remains the foreground information layer. Map and graph backdrops use reduced opacity/saturation plus a directional paper scrim, keeping labels readable while leaving exposed portions of each visualization directly interactive. Selecting a graph node/edge opens a compact read-only inspector only when meaningful detail exists; sparse graph records instead defer to their connected chronology event where possible, and the graph remains mounted throughout.
+Text remains the foreground information layer. Map and graph backdrops use reduced opacity/saturation plus a directional paper scrim, keeping labels readable while leaving exposed portions of each visualization directly interactive. The relation graph is a direct-manipulation surface: selecting a node or edge only changes graph selection styling and never opens an inspector, JSON panel, navigation target, or editor.
 
 ### Resize synchronization
 
@@ -525,6 +526,6 @@ A focused fullscreen event has two compositional layers:
 
 The Place section renders stored GeoJSON context behind its foreground text. Semantic-icon markers identify points; LineString/MultiLineString geometries provide tracks or trails; Polygon/MultiPolygon geometries provide areas; GeometryCollection/Feature/FeatureCollection inputs and optional `mapFeatures[]` overlays are supported. Recorded point accuracy may appear as an uncertainty circle. The presentation map is interactive: panning, wheel/pinch zoom, double-click zoom, box zoom and keyboard navigation are enabled.
 
-The Relations section reuses the focused event's one-hop Orb neighborhood behind the foreground relation text. The graph remains interactive for node selection, long-press/touch drag, pan/zoom and force-mediated repositioning. In viewing/presentation mode selection is inspect-or-navigate only; mutation is unavailable until the user explicitly enters Edit mode.
+The Relations section reuses the focused event's one-hop Orb neighborhood behind the foreground relation text. The graph remains interactive for node/edge selection, long-press/touch drag, pan/zoom and force-mediated repositioning. Selection has no interface side effect; mutation is unavailable until the user explicitly enters Edit mode.
 
 Physical screen orientation never mutates the selected timeline-axis orientation; it only influences whether event detail behaves as a bounded popover or a sheet.
