@@ -26,7 +26,13 @@
     const geographicIdentifier = text(raw.geographicIdentifier, 300);
     const address = text(raw.address, 500);
     const source = ["manual", "device", "imported"].includes(raw.source) ? raw.source : "manual";
-    const accuracyMeters = Number.isFinite(Number(raw.accuracyMeters)) && Number(raw.accuracyMeters) >= 0
+    const hasAccuracy =
+      raw.accuracyMeters !== "" &&
+      raw.accuracyMeters !== null &&
+      raw.accuracyMeters !== undefined;
+    const accuracyMeters = hasAccuracy &&
+      Number.isFinite(Number(raw.accuracyMeters)) &&
+      Number(raw.accuracyMeters) >= 0
       ? Number(raw.accuracyMeters)
       : null;
 
