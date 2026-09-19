@@ -1981,11 +1981,12 @@
       els.graphNodeProperties.focus();
       return;
     }
+    const existingEntity = state.entities.find((candidate) => candidate.id === els.graphNodeId.value);
     const entity = {
       id: els.graphNodeId.value || newId("entity"),
       type: type.slice(0, 60),
       name: name.slice(0, 180),
-      identifiers: [],
+      identifiers: existingEntity?.identifiers ? clone(existingEntity.identifiers) : [],
       attributes
     };
     const index = state.entities.findIndex((candidate) => candidate.id === entity.id);
