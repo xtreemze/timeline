@@ -73,3 +73,9 @@ test("event editor can change relations at the event timestamp", async () => {
   assert.match(html, /value="deactivate"/);
   assert.match(html, /value="update"/);
 });
+
+test("temporal graph exposes a layout refresh for presentation resizing", async () => {
+  const source = await readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8");
+  assert.match(source, /refreshLayout\(\)/);
+  assert.match(source, /this\.orb\.recenter\(\)/);
+});
