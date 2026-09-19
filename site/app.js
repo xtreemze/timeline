@@ -14,6 +14,7 @@
   const evidenceStore = globalThis.TimelineEvidence;
   const temporalGraphFactory = globalThis.TemporalGraphView;
   const presentationLayout = globalThis.TimelinePresentationLayout;
+  const caseReasoning = globalThis.TimelineCaseReasoning;
   if (!temporal) throw new Error("TimelineTemporal must load before app.js.");
   if (!spatial) throw new Error("TimelineSpatial must load before app.js.");
   if (!graph) throw new Error("TimelineGraph must load before app.js.");
@@ -23,6 +24,7 @@
   if (!evidenceStore) throw new Error("TimelineEvidence must load before app.js.");
   if (!temporalGraphFactory) throw new Error("TemporalGraphView must load before app.js.");
   if (!presentationLayout) throw new Error("TimelinePresentationLayout must load before app.js.");
+  if (!caseReasoning) throw new Error("TimelineCaseReasoning must load before app.js.");
 
   const DEFAULT_CATEGORIES = [
     { id: "incident", name: "Incident", color: "#b42318" },
@@ -601,6 +603,7 @@
     const evidence = evidenceStore.normalizeRecords(input.evidence);
     const evidenceIds = new Set(evidence.map((record) => record.id));
     const custodyActions = evidenceStore.normalizeCustodyActions(input.custodyActions);
+    const reasoning = caseReasoning.normalizeReasoning(input.reasoning);
 
     let sourceItems;
     if (Array.isArray(input.items)) {
@@ -726,7 +729,8 @@
       entities: graphData.entities,
       relationships: graphData.relationships,
       evidence,
-      custodyActions
+      custodyActions,
+      reasoning
     };
     const extensions = normalizeExtensions(input.extensions);
     if (extensions) normalized.extensions = extensions;
@@ -743,7 +747,8 @@
       entities: [],
       relationships: [],
       evidence: [],
-      custodyActions: []
+      custodyActions: [],
+      reasoning: caseReasoning.normalizeReasoning({})
     };
   }
 

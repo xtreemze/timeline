@@ -97,6 +97,12 @@ test("exports event/period/group structures and round-trips source extensions", 
     properties: { status: "approved" }
   }];
   imported.timeline.items[0].evidenceIds = ["evidence-a"];
+  imported.timeline.reasoning = {
+    observations: [{ id: "obs-1", text: "Observed event", evidenceIds: ["evidence-a"] }],
+    assertions: [{ id: "assert-1", text: "The event occurred.", inputIds: ["obs-1"] }],
+    claims: [{ id: "claim-1", text: "Case claim", assertionIds: ["assert-1"] }],
+    theses: [{ id: "thesis-1", text: "Case thesis", claimIds: ["claim-1"] }]
+  };
   imported.timeline.evidence = [{
     id: "evidence-a",
     type: "pdf",
@@ -124,6 +130,7 @@ test("exports event/period/group structures and round-trips source extensions", 
   assert.equal(exported._timeline.entities.length, 1);
   assert.equal(exported._timeline.relationships.length, 1);
   assert.equal(exported._timeline.evidence.length, 1);
+  assert.equal(exported._timeline.reasoning.theses[0].id, "thesis-1");
   assert.equal(exported.events[0].media[0].url, "https://example.test/photo.jpg");
   assert.equal(exported.events[0].tags[0].icon, "evidence");
   assert.equal(exported.events[0].presentation.variant, "evidence-dossier");
@@ -135,6 +142,7 @@ test("exports event/period/group structures and round-trips source extensions", 
   assert.equal(reimported.timeline.entities.length, 1);
   assert.equal(reimported.timeline.relationships.length, 1);
   assert.equal(reimported.timeline.evidence.length, 1);
+  assert.equal(reimported.timeline.reasoning.claims[0].id, "claim-1");
   assert.equal(reimported.timeline.items[0].media[0].url, "https://example.test/photo.jpg");
   assert.equal(reimported.timeline.items[0].tags[0].hue, 145);
   assert.equal(reimported.timeline.items[0].presentation.variant, "evidence-dossier");
@@ -150,5 +158,6 @@ test("publishes a JSON Schema and documents the vendor-schema boundary", async (
   ]);
   const schema = JSON.parse(schemaText);
   assert.equal(schema.properties._timeline.properties.format.const, "timeline-interchange");
+  assert.equal(schema.properties._timeline.properties.reasoning.type, "object");
   assert.match(docs, /vendor-neutral/i);
 });
