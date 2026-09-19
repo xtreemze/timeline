@@ -111,6 +111,7 @@
       this.focusMediaIndex = 0;
       this.focusId = null;
       this.focusForceUnique = false;
+      this.expandedClusterItemIds = new Set();
       this.preferences = loadPreferences();
       this.orientation = this.preferences.orientation;
       this.drag = null;
@@ -167,6 +168,7 @@
 
       this.surface.addEventListener("pointerdown", (event) => {
         if (!this.viewport || !this.items.length || event.button !== 0 || event.target.closest("button")) return;
+        this.clearClusterExpansion();
         this.cancelViewportAnimation();
         const rect = this.surface.getBoundingClientRect();
         const coordinate = this.orientation === "horizontal" ? event.clientX : event.clientY;
@@ -396,6 +398,7 @@
 
     fitCoordinates(coordinates) {
       if (!Array.isArray(coordinates) || !coordinates.length) return;
+      this.clearClusterExpansion();
       const target = scale.fit(coordinates, { paddingRatio: 0.1, minSpanMs: DEFAULT_SPAN_MS });
       this.animateViewportTo(target);
       this.surface.focus({ preventScroll: true });
@@ -421,6 +424,7 @@
 
     queueZoom(factor, anchorRatio) {
       if (!this.viewport) return;
+      this.clearClusterExpansion();
       this.focusNavigationToken += 1;
       this.resolveViewportAnimation(false);
       const base = this.zoomTarget || this.viewport;
@@ -639,11 +643,13 @@
       const connector = createElement("div", "timeline-event-connector");
       const button = createElement("button", "timeline-event-terminal timeline-cluster-terminal");
       button.type = "button";
-      button.setAttribute("aria-label", `Zoom into cluster of ${cluster.items.length} events`);
+      button.setAttribute("aria-label", `Select an event and expand cluster of ${cluster.items.length} events`);
 
       const tiles = createElement("span", "timeline-cluster-tiles");
       for (const item of cluster.items.slice(0, 3)) {
         const tile = createElement("span", "timeline-cluster-tile");
+        tile.dataset.clusterItemId = String(item.id);
+        tile.title = item.title || item.startLabel || "Timeline event";
         tile.style.setProperty("--cluster-tile-color", item.color || "var(--accent)");
         const iconName = item.tags?.[0]?.icon || "milestone";
         const media = item.media?.[0];
@@ -665,23 +671,14 @@
       }
       const copy = createElement("span", "timeline-event-copy");
       const title = createElement("strong", "", `${cluster.items.length} events`);
-      const detail = createElement("span", "", "Nearby · zoom to inspect");
+      const detail = createElement("span", "", "Nearby · select and expand");
       copy.append(title, detail);
       button.append(tiles, copy);
       button.addEventListener("click", (event) => {
         event.stopPropagation();
-        const values = [];
-        for (const item of cluster.items) {
-          values.push(item.start);
-          if (Number.isFinite(item.end)) values.push(item.end);
-        }
-        const currentSpan = this.viewport.end - this.viewport.start;
-        const target = scale.fit(values, {
-          paddingRatio: 0.18,
-          minSpanMs: Math.max(MIN_SPAN_MS, currentSpan * 0.18)
-        });
-        this.animateViewportTo(target);
-        void motion.pulseHaptic("selection");
+        const tile = event.target.closest("[data-cluster-item-id]");
+        const selectedId = tile?.dataset.clusterItemId || cluster.items[0]?.id;
+        this.activateCluster(cluster, selectedId, button);
       });
 
       node.append(connector, button);
@@ -864,11 +861,31 @@
       const clusterSource = focusedItem
         ? visibleItems.filter((item) => String(item.id) !== String(this.selectedId))
         : visibleItems;
-      const representations = clustering.clusterProjectedItems(
+      let representations = clustering.clusterProjectedItems(
         clusterSource,
         (item) => this.visiblePositionFor(item, padding, usable),
         this.clusterThreshold(width)
       );
+      if (this.expandedClusterItemIds.size) {
+        representations = representations.flatMap((representation) => {
+          if (
+            representation.kind !== "cluster" ||
+            !representation.items.every((item) => this.expandedClusterItemIds.has(String(item.id)))
+          ) {
+            return [representation];
+          }
+          return representation.items.map((item) => ({
+            kind: "item",
+            id: String(item.id),
+            item,
+            items: [item],
+            position: this.visiblePositionFor(item, padding, usable),
+            start: item.start,
+            end: Number.isFinite(item.end) ? item.end : item.start,
+            forceUnique: true
+          }));
+        });
+      }
       if (focusedItem) {
         representations.push({
           kind: "item",
@@ -1023,9 +1040,49 @@
       return occupied.length - 1;
     }
 
+    clearClusterExpansion() {
+      if (!this.expandedClusterItemIds.size) return false;
+      this.expandedClusterItemIds.clear();
+      return true;
+    }
+
+    clusterExpansionPlan(cluster) {
+      if (!cluster || !this.viewport || !cluster.items?.length) return null;
+      const rect = this.surface.getBoundingClientRect();
+      const primaryLength = this.orientation === "horizontal" ? rect.width : rect.height;
+      const padding = this.axisPadding(primaryLength);
+      const usable = Math.max(1, primaryLength - padding * 2);
+      return clustering.clusterExpansionViewport(
+        cluster.items,
+        this.viewport,
+        usable,
+        this.clusterThreshold(rect.width),
+        { paddingRatio: 0.12, minSpanMs: MIN_SPAN_MS }
+      );
+    }
+
+    activateCluster(cluster, selectedId, transitionOrigin = null) {
+      const item = cluster?.items?.find((candidate) => String(candidate.id) === String(selectedId))
+        || cluster?.items?.[0];
+      if (!item) return false;
+      const plan = this.clusterExpansionPlan(cluster);
+      this.expandedClusterItemIds = new Set(cluster.items.map((candidate) => String(candidate.id)));
+      this.select(item.id, {
+        preserveViewport: true,
+        forceUnique: true,
+        transitionOrigin
+      });
+      if (plan?.viewport) void this.animateViewportTo(plan.viewport);
+      void motion.pulseHaptic("selection");
+      return true;
+    }
+
     focusItem(id, options = {}) {
       const item = this.items.find((candidate) => candidate.id === id);
       if (!item) return false;
+      if (this.expandedClusterItemIds.size && !this.expandedClusterItemIds.has(String(id))) {
+        this.clearClusterExpansion();
+      }
       if (this.selectedId && this.selectedId !== id && !this.prefersReducedMotion()) {
         const direction = Number(options.direction) < 0 ? -1 : 1;
         void this.transitionFocusTo(item, direction);
@@ -1251,8 +1308,13 @@
       const item = this.items.find((candidate) => candidate.id === id);
       if (!item) return;
 
+      if (this.expandedClusterItemIds.size && !this.expandedClusterItemIds.has(String(id))) {
+        this.clearClusterExpansion();
+      }
       const openingFromTimeline = !this.selectedId;
-      const transitionOrigin = openingFromTimeline ? this.focusTransitionOrigin(id) : null;
+      const transitionOrigin = openingFromTimeline
+        ? options.transitionOrigin || this.focusTransitionOrigin(id)
+        : null;
       const transitionOriginRect = transitionOrigin?.getBoundingClientRect?.() || null;
       if (!options.originRect && transitionOriginRect) options.originRect = transitionOriginRect;
       const applyFocus = () => {
@@ -1632,6 +1694,7 @@
         this.selectedId = null;
         this.focusMediaIndex = 0;
         this.focusForceUnique = false;
+        this.clearClusterExpansion();
         this.root.classList.remove("is-event-focused");
         if (
           typeof this.focusView.hidePopover === "function" &&
