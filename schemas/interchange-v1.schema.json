@@ -65,6 +65,9 @@
         },
         "relationships": {
           "type": "array"
+        },
+        "evidence": {
+          "type": "array"
         }
       },
       "additionalProperties": true
