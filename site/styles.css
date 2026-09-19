@@ -2703,3 +2703,50 @@ body {
     animation-duration: 0s !important;
   }
 }
+
+
+/* Persistent application chrome is excluded from focus morph animation. Each surface has
+   its own transition identity so it remains continuously visible while event detail moves. */
+.app-command-bar {
+  view-transition-name: timeline-command-bar;
+}
+
+.app-tool-dock {
+  view-transition-name: timeline-workspace-sidebar;
+}
+
+.app-view-controls {
+  view-transition-name: timeline-view-controls;
+}
+
+#app-shell .timeline-panel > .story-focus {
+  view-transition-name: timeline-story-controls;
+}
+
+::view-transition-group(timeline-command-bar),
+::view-transition-group(timeline-workspace-sidebar),
+::view-transition-group(timeline-view-controls),
+::view-transition-group(timeline-story-controls) {
+  animation: none !important;
+}
+
+::view-transition-old(timeline-command-bar),
+::view-transition-new(timeline-command-bar),
+::view-transition-old(timeline-workspace-sidebar),
+::view-transition-new(timeline-workspace-sidebar),
+::view-transition-old(timeline-view-controls),
+::view-transition-new(timeline-view-controls),
+::view-transition-old(timeline-story-controls),
+::view-transition-new(timeline-story-controls) {
+  animation: none !important;
+  mix-blend-mode: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(timeline-command-bar),
+  ::view-transition-group(timeline-workspace-sidebar),
+  ::view-transition-group(timeline-view-controls),
+  ::view-transition-group(timeline-story-controls) {
+    animation: none !important;
+  }
+}

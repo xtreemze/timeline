@@ -2588,3 +2588,229 @@
     animation-duration: 0s !important;
   }
 }
+
+
+/* Focus popovers are positioned from their timeline terminal in JS and then clamped to
+   the usable viewport. Content that grows beyond the available box scrolls within its
+   semantic panel instead of pushing the top-layer popover offscreen. */
+.timeline-focus-view[popover]:popover-open {
+  margin: 0;
+  min-inline-size: 0;
+  max-inline-size: calc(100dvw - 1.5rem);
+  max-block-size: calc(100dvh - 1.5rem);
+}
+
+.timeline-focus-summary,
+.timeline-focus-evidence {
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+
+.timeline-focus-summary {
+  overflow: auto;
+}
+
+.timeline-focus-evidence {
+  overflow: auto;
+}
+
+.timeline-focus-view[popover][data-active-tab="evidence"] {
+  overflow: visible;
+}
+
+/* Hero and Context are persistent identity/context surfaces. Tabs only replace the lower
+   contextual region, so switching to Evidence cannot collapse or rebuild the popover. */
+@media (min-width: 900px) and (min-height: 700px) {
+  .timeline-focus-view[popover][data-active-tab="overview"],
+  .timeline-focus-view[popover][data-active-tab="evidence"] {
+    grid-template-rows: minmax(180px, min(27dvh, 250px)) minmax(120px, min(34dvh, 300px));
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-hero {
+    grid-column: 1 / span 4 !important;
+    grid-row: 1 !important;
+    min-height: 180px;
+    max-height: min(27dvh, 250px);
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-summary {
+    grid-column: 5 / -1 !important;
+    grid-row: 1 !important;
+    align-self: stretch;
+    max-height: min(27dvh, 250px);
+  }
+
+  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place {
+    grid-column: 1 / span 2 !important;
+    grid-row: 2 !important;
+  }
+
+  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations {
+    grid-column: 3 / -1 !important;
+    grid-row: 2 !important;
+  }
+
+  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    max-height: min(34dvh, 300px);
+  }
+}
+
+/* Preserve Hero/Context coordinates through fullscreen tab changes. Evidence substitutes
+   for the contextual visual region instead of causing the primary content to jump. */
+#presentation-stage:fullscreen[data-viewport-orientation="landscape"]
+  .timeline-focus-view .timeline-focus-hero {
+  grid-column: 4 / -1 !important;
+  grid-row: 1 !important;
+}
+
+#presentation-stage:fullscreen[data-viewport-orientation="landscape"]
+  .timeline-focus-view .timeline-focus-summary {
+  grid-column: 1 / span 3 !important;
+  grid-row: 2 !important;
+}
+
+#presentation-stage:fullscreen[data-viewport-orientation="landscape"]
+  .timeline-focus-view[data-active-tab="evidence"] .timeline-focus-evidence {
+  grid-column: 4 / -1 !important;
+  grid-row: 2 !important;
+  max-height: min(34dvh, 300px);
+}
+
+#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
+  .timeline-focus-view .timeline-focus-hero {
+  grid-column: 4 / -1 !important;
+  grid-row: 1 !important;
+}
+
+#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
+  .timeline-focus-view .timeline-focus-summary {
+  grid-column: 4 / -1 !important;
+  grid-row: 2 !important;
+}
+
+#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
+  .timeline-focus-view[data-active-tab="evidence"] .timeline-focus-evidence {
+  grid-column: 1 / span 3 !important;
+  grid-row: 1 / span 2 !important;
+  max-height: min(72dvh, 720px);
+}
+
+/* Keep chronology docked while focused tabs change. The graph itself may disappear on
+   Evidence, but the spatial composition remains stable instead of snapping underneath. */
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="landscape"]:has(.timeline-focus-view:popover-open) > .timeline-view {
+  position: absolute;
+  inset: auto 0 0 0;
+  width: 100%;
+  height: var(--timeline-context-edge-span);
+  inline-size: 100%;
+  block-size: var(--timeline-context-edge-span);
+  max-width: none;
+  max-height: var(--timeline-context-edge-span);
+}
+
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="portrait"]:has(.timeline-focus-view:popover-open) > .timeline-view {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: var(--timeline-context-edge-span);
+  height: 100%;
+  inline-size: var(--timeline-context-edge-span);
+  block-size: 100%;
+  max-width: var(--timeline-context-edge-span);
+  max-height: none;
+}
+
+/* The application root itself does not cross-fade. Only explicitly named surfaces animate,
+   preventing command bars, tools and surrounding interface from blinking during focus. */
+::view-transition-old(root) {
+  animation: none !important;
+  opacity: 0;
+}
+
+::view-transition-new(root) {
+  animation: none !important;
+  opacity: 1;
+}
+
+@keyframes timeline-event-origin-out {
+  0%, 28% {
+    opacity: 1;
+    filter: none;
+  }
+  100% {
+    opacity: .12;
+    filter: blur(.4px);
+  }
+}
+
+@keyframes timeline-event-detail-emerge {
+  0% {
+    opacity: .28;
+    clip-path: inset(38% 42% round 999px);
+  }
+  42% {
+    opacity: .82;
+  }
+  100% {
+    opacity: 1;
+    clip-path: inset(0 round 1rem);
+  }
+}
+
+::view-transition-group(timeline-event-detail-shared) {
+  animation-duration: 340ms;
+  animation-timing-function: cubic-bezier(.16, .82, .24, 1);
+}
+
+::view-transition-old(timeline-event-detail-shared) {
+  animation: 340ms cubic-bezier(.16, .82, .24, 1) both timeline-event-origin-out;
+  mix-blend-mode: normal;
+}
+
+::view-transition-new(timeline-event-detail-shared) {
+  animation: 340ms cubic-bezier(.16, .82, .24, 1) both timeline-event-detail-emerge;
+  mix-blend-mode: normal;
+}
+
+/* Timeline controls remain visually continuous while the event-detail transition runs. */
+.timeline-view-toolbar {
+  view-transition-name: timeline-view-toolbar;
+}
+
+::view-transition-group(timeline-view-toolbar) {
+  animation: none !important;
+}
+
+::view-transition-old(timeline-view-toolbar),
+::view-transition-new(timeline-view-toolbar) {
+  animation: none !important;
+  mix-blend-mode: normal;
+}
+
+@media (max-width: 760px) {
+  .timeline-focus-view[popover]:popover-open {
+    max-inline-size: calc(100dvw - .7rem);
+    max-block-size: calc(100dvh - 5rem);
+  }
+
+  .timeline-focus-summary {
+    max-height: min(26dvh, 220px);
+  }
+
+  .timeline-focus-evidence {
+    max-height: min(34dvh, 300px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-group(timeline-event-detail-shared),
+  ::view-transition-old(timeline-event-detail-shared),
+  ::view-transition-new(timeline-event-detail-shared),
+  ::view-transition-group(timeline-view-toolbar) {
+    animation-duration: 0s !important;
+    animation: none !important;
+  }
+}
