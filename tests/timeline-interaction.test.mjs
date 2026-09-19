@@ -173,6 +173,53 @@ test("focused clustered event zooms toward a unique projected position", () => {
   assert.equal(plan.forceUnique, false);
 });
 
+
+test("cluster activation viewport keeps every member visible and separates ordinary dense clusters", () => {
+  const items = [
+    { id: "a", start: 100 },
+    { id: "b", start: 120 },
+    { id: "c", start: 145 }
+  ];
+  const plan = clustering.clusterExpansionViewport(
+    items,
+    { start: 0, end: 1000 },
+    900,
+    156
+  );
+  assert.ok(plan);
+  assert.ok(plan.viewport.start < 100);
+  assert.ok(plan.viewport.end > 145);
+  assert.ok(plan.viewport.end - plan.viewport.start < 1000);
+
+  const positions = new Map(items.map((item) => [
+    item.id,
+    ((item.start - plan.viewport.start) / (plan.viewport.end - plan.viewport.start)) * 900
+  ]));
+  const representations = clustering.clusterProjectedItems(
+    items,
+    (item) => positions.get(item.id),
+    156
+  );
+  assert.ok(representations.every((representation) => representation.kind === "item"));
+  assert.equal(plan.forceExpanded, false);
+});
+
+test("cluster activation marks impossible all-visible temporal separation for lane expansion fallback", () => {
+  const items = Array.from({ length: 8 }, (_, index) => ({
+    id: `dense-${index}`,
+    start: 100 + index
+  }));
+  const plan = clustering.clusterExpansionViewport(
+    items,
+    { start: 0, end: 1000 },
+    600,
+    156
+  );
+  assert.ok(plan.viewport.start < items[0].start);
+  assert.ok(plan.viewport.end > items.at(-1).start);
+  assert.equal(plan.forceExpanded, true);
+});
+
 test("focused event expands to include nearby relative context when already unique", () => {
   const plan = clustering.focusContextViewport(
     [
@@ -312,6 +359,15 @@ test("app delegates temporal parsing to TimelineTemporal rather than removed leg
   assert.match(source, /temporal\.parse\(value\)/);
   assert.doesNotMatch(source, /DATE_PATTERN/);
   assert.match(source, /temporalRelationProjection\(state\.relationships/);
+});
+
+test("cluster activation selects a represented event, expands every member, and preserves the cluster as transition origin", async () => {
+  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  assert.match(source, /data-cluster-item-id/);
+  assert.match(source, /activateCluster\(cluster, selectedId, button\)/);
+  assert.match(source, /clusterExpansionViewport/);
+  assert.match(source, /expandedClusterItemIds/);
+  assert.match(source, /options\.transitionOrigin \|\| this\.focusTransitionOrigin\(id\)/);
 });
 
 test("timeline view exposes fused clusters, inertia, relation bands and ambient months", async () => {

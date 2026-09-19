@@ -272,6 +272,63 @@
     };
   }
 
+  function clusterExpansionViewport(
+    items,
+    viewport,
+    pixelLength,
+    thresholdPx,
+    { paddingRatio = 0.12, minSpanMs = 1 } = {}
+  ) {
+    const starts = (Array.isArray(items) ? items : [])
+      .map((item) => Number(item?.start))
+      .filter(Number.isFinite)
+      .sort((a, b) => a - b);
+    const start = Number(viewport?.start);
+    const end = Number(viewport?.end);
+    if (starts.length < 2 || !Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+      return null;
+    }
+
+    const uniqueStarts = starts.filter((value, index) => index === 0 || value !== starts[index - 1]);
+    if (uniqueStarts.length < 2) {
+      return {
+        viewport: { start, end },
+        forceExpanded: true,
+        itemCount: starts.length
+      };
+    }
+
+    const span = Math.max(minSpanMs, end - start);
+    const length = Math.max(1, Number(pixelLength) || 1);
+    const threshold = Math.max(1, Number(thresholdPx) || 1);
+    const padding = Math.min(0.4, Math.max(0, Number(paddingRatio) || 0));
+    let minimumDelta = Number.POSITIVE_INFINITY;
+    for (let index = 1; index < uniqueStarts.length; index += 1) {
+      minimumDelta = Math.min(minimumDelta, uniqueStarts[index] - uniqueStarts[index - 1]);
+    }
+
+    const minimum = uniqueStarts[0];
+    const maximum = uniqueStarts[uniqueStarts.length - 1];
+    const range = Math.max(minSpanMs, maximum - minimum);
+    const availableRatio = Math.max(0.2, 1 - padding * 2);
+    const containingSpan = Math.max(minSpanMs, range / availableRatio);
+    const desiredDistance = threshold * 1.12;
+    const separatingSpan = Math.max(minSpanMs, minimumDelta * length / desiredDistance);
+    const preferredSpan = Math.max(containingSpan, separatingSpan);
+    const targetSpan = Math.max(containingSpan, Math.min(span * 0.96, preferredSpan));
+    const center = minimum + (maximum - minimum) / 2;
+    const achievedDistance = minimumDelta / targetSpan * length;
+
+    return {
+      viewport: {
+        start: center - targetSpan / 2,
+        end: center + targetSpan / 2
+      },
+      forceExpanded: achievedDistance <= threshold,
+      itemCount: starts.length
+    };
+  }
+
   function focusContextViewport(
     items,
     focusedId,
@@ -417,6 +474,7 @@
 
   globalThis.TimelineClustering = Object.freeze({
     clusterProjectedItems,
+    clusterExpansionViewport,
     compactTickLabel,
     formatMonthYear,
     focusContextViewport,
