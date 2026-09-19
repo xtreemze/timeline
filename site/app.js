@@ -472,6 +472,16 @@
     });
 
     const graphData = graph.normalizeGraphData(input, temporal);
+    const graphEndpointIds = new Set([
+      ...items.map((item) => item.id),
+      ...stories.map((story) => story.id),
+      ...graphData.entities.map((entity) => entity.id)
+    ]);
+    graphData.relationships = graphData.relationships.filter(
+      (relationship) =>
+        graphEndpointIds.has(relationship.subjectId) &&
+        graphEndpointIds.has(relationship.objectId)
+    );
     const normalized = {
       version: VERSION,
       title: typeof input.title === "string" ? input.title.slice(0, 120) : "",
@@ -1202,6 +1212,9 @@
     if (!window.confirm(`Delete “${item.title}”?${suffix}`)) return;
     state.items = state.items.filter((candidate) => candidate.id !== id);
     state.stories = state.stories.map((story) => ({ ...story, itemIds: story.itemIds.filter((itemId) => itemId !== id) }));
+    state.relationships = state.relationships.filter(
+      (relationship) => relationship.subjectId !== id && relationship.objectId !== id
+    );
     if (els.itemId.value === id) resetItemForm();
     if (storyDraftIds.includes(id)) storyDraftIds = storyDraftIds.filter((itemId) => itemId !== id);
     const activeStory = getStory(ui.activeStoryId);
@@ -1289,6 +1302,9 @@
     const story = getStory(id);
     if (!story || !window.confirm(`Delete story “${story.title}”? Timeline items will not be deleted.`)) return;
     state.stories = state.stories.filter((candidate) => candidate.id !== id);
+    state.relationships = state.relationships.filter(
+      (relationship) => relationship.subjectId !== id && relationship.objectId !== id
+    );
     if (els.storyId.value === id) resetStoryForm();
     if (ui.activeStoryId === id) exitStoryFocus(false);
     persist();
