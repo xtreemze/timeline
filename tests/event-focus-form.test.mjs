@@ -273,11 +273,12 @@ test("focused Place and Relations reuse the single map and graph surfaces as int
   assert.match(mapSource, /this\.interactive = options\.interactive === true/);
   assert.match(mapSource, /dragging:\s*this\.interactive/);
   assert.match(mapSource, /touchZoom:\s*this\.interactive/);
-  assert.match(timelineCss, /timeline-focus-view\[popover\][\s\S]*pointer-events:\s*none/);
+  assert.match(timelineCss, /timeline-focus-view\[popover\][\s\S]*pointer-events:\s*auto/);
   assert.match(
     timelineCss,
-    /timeline-focus-view\[popover\]\s*>\s*:is\(\.timeline-focus-place,\s*\.timeline-focus-relations\)[\s\S]*pointer-events:\s*none/
+    /timeline-focus-view\[popover\]\s*>\s*:is\(\.timeline-focus-place,\s*\.timeline-focus-relations\)[\s\S]*pointer-events:\s*auto/
   );
+  assert.match(timelineCss, /timeline-focus-place-backdrop \.presentation-map[\s\S]*touch-action:\s*none/);
   assert.match(timelineCss, /timeline-focus-section-backdrop[\s\S]*z-index:\s*1[\s\S]*pointer-events:\s*auto/);
   assert.match(timelineCss, /timeline-focus-relations-backdrop[\s\S]*opacity:\s*\.64/);
   assert.match(
@@ -285,6 +286,22 @@ test("focused Place and Relations reuse the single map and graph surfaces as int
     /timeline-focus-place-backdrop \.presentation-map,[\s\S]*timeline-focus-relations-backdrop \.temporal-graph-canvas[\s\S]*pointer-events:\s*auto/
   );
   assert.match(graphView, /neighborhoodGraph\(this\.model, this\.focusedId/);
+});
+
+test("focused event detail uses a shared View Transition with its timeline terminal", async () => {
+  const [source, css] = await Promise.all([
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(source, /FOCUS_VIEW_TRANSITION_NAME = "timeline-event-detail-shared"/);
+  assert.match(source, /focusTransitionOrigin\(id\)/);
+  assert.match(source, /transitionOrigin\.style\.viewTransitionName = FOCUS_VIEW_TRANSITION_NAME/);
+  assert.match(source, /this\.focusView\.style\.viewTransitionName = FOCUS_VIEW_TRANSITION_NAME/);
+  assert.match(source, /transition\.ready\.then\(renderAfterCapture, renderAfterCapture\)/);
+  assert.match(source, /clearFocus\(\{ deferRender: true, deferSurfaceFocus: true \}\)/);
+  assert.match(css, /::view-transition-group\(timeline-event-detail-shared\)/);
+  assert.doesNotMatch(css, /view-transition-name:\s*timeline-detail-overlay/);
 });
 
 test("timeline range bars are identifiable and labels share event color semantics", async () => {
@@ -479,6 +496,8 @@ test("focused popover uses a two-row overview with Evidence as a separate tab", 
   assert.match(source, /dataset\.activeTab = "overview"/);
   assert.match(source, /setFocusTab/);
   assert.match(source, /evidence\.hidden = true/);
+  assert.match(css, /timeline-focus-view\[popover\][\s\S]*padding-top:\s*0/);
+  assert.match(css, /data-active-tab="overview"[\s\S]*timeline-focus-summary[\s\S]*padding-top:\s*3\.2rem/);
   assert.match(css, /data-active-tab="overview"[\s\S]*grid-template-rows:\s*minmax\(190px, auto\)\s*minmax\(125px, auto\)/);
   assert.match(css, /data-active-tab="evidence"[\s\S]*timeline-focus-evidence[\s\S]*grid-row:\s*1\s*\/\s*span 2/);
 });

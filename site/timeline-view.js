@@ -22,6 +22,7 @@
   const HORIZONTAL_CLUSTER_THRESHOLD_MAX = 224;
   const VERTICAL_CLUSTER_THRESHOLD = 74;
   const RELATION_LANES = 4;
+  const FOCUS_VIEW_TRANSITION_NAME = "timeline-event-detail-shared";
 
   function createElement(tag, className, text) {
     const element = document.createElement(tag);
@@ -1082,10 +1083,24 @@
       return true;
     }
 
+    focusTransitionOrigin(id) {
+      const targetId = String(id);
+      const eventNode = Array.from(this.surface.querySelectorAll(".timeline-event"))
+        .find((node) => node.dataset.id === targetId && !node.classList.contains("timeline-cluster"));
+      if (eventNode) {
+        const terminal = eventNode.querySelector(".timeline-event-terminal");
+        if (terminal) return terminal;
+      }
+      return Array.from(this.surface.querySelectorAll(".timeline-range-segment"))
+        .find((range) => range.dataset.id === targetId) || null;
+    }
+
     select(id) {
       const item = this.items.find((candidate) => candidate.id === id);
       if (!item) return;
 
+      const openingFromTimeline = !this.selectedId;
+      const transitionOrigin = openingFromTimeline ? this.focusTransitionOrigin(id) : null;
       const applyFocus = () => {
         this.selectedId = id;
         this.focusMediaIndex = 0;
@@ -1115,7 +1130,23 @@
         });
       };
 
-      if (!this.prefersReducedMotion() && typeof document.startViewTransition === "function") {
+      const canTransition =
+        !this.prefersReducedMotion() &&
+        typeof document.startViewTransition === "function";
+
+      if (canTransition && transitionOrigin) {
+        transitionOrigin.style.viewTransitionName = FOCUS_VIEW_TRANSITION_NAME;
+        const transition = document.startViewTransition(() => {
+          transitionOrigin.style.removeProperty("view-transition-name");
+          applyFocus();
+          this.focusView.style.viewTransitionName = FOCUS_VIEW_TRANSITION_NAME;
+        });
+        const cleanupTransitionNames = () => {
+          transitionOrigin.style.removeProperty("view-transition-name");
+          this.focusView.style.removeProperty("view-transition-name");
+        };
+        void transition.finished.then(cleanupTransitionNames, cleanupTransitionNames);
+      } else if (canTransition) {
         document.startViewTransition(applyFocus);
       } else {
         applyFocus();
@@ -1425,7 +1456,8 @@
 
     closeFocus() {
       const previousId = this.selectedId;
-      const clearFocus = () => {
+      const transitionOrigin = previousId ? this.focusTransitionOrigin(previousId) : null;
+      const clearFocus = ({ deferRender = false, deferSurfaceFocus = false } = {}) => {
         this.selectedId = null;
         this.focusMediaIndex = 0;
         this.focusForceUnique = false;
@@ -1440,17 +1472,39 @@
         this.focusView.removeAttribute("style");
         delete this.focusView.dataset.layout;
         this.focusView.replaceChildren();
-        this.scheduleRender();
+        if (!deferRender) this.scheduleRender();
         if (previousId) {
           this.root.dispatchEvent(new CustomEvent("timelinefocuschange", {
             bubbles: true,
             detail: { id: previousId, focused: false }
           }));
         }
-        if (!this.root.hidden) this.surface.focus({ preventScroll: true });
+        if (!deferSurfaceFocus && !this.root.hidden) {
+          this.surface.focus({ preventScroll: true });
+        }
       };
 
-      if (!this.prefersReducedMotion() && typeof document.startViewTransition === "function") {
+      const canTransition =
+        !this.prefersReducedMotion() &&
+        typeof document.startViewTransition === "function";
+
+      if (canTransition && transitionOrigin) {
+        this.focusView.style.viewTransitionName = FOCUS_VIEW_TRANSITION_NAME;
+        const transition = document.startViewTransition(() => {
+          clearFocus({ deferRender: true, deferSurfaceFocus: true });
+          if (transitionOrigin.isConnected) {
+            transitionOrigin.style.viewTransitionName = FOCUS_VIEW_TRANSITION_NAME;
+          }
+        });
+        const renderAfterCapture = () => this.scheduleRender();
+        void transition.ready.then(renderAfterCapture, renderAfterCapture);
+        const finishTransition = () => {
+          transitionOrigin.style.removeProperty("view-transition-name");
+          this.focusView.style.removeProperty("view-transition-name");
+          if (!this.root.hidden) this.surface.focus({ preventScroll: true });
+        };
+        void transition.finished.then(finishTransition, finishTransition);
+      } else if (canTransition) {
         document.startViewTransition(clearFocus);
       } else {
         clearFocus();
