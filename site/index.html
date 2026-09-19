@@ -938,20 +938,13 @@
           <section id="timeline-focus-view" class="timeline-focus-view" popover="manual" aria-live="polite" hidden></section>
         </section>
 
-        <details id="graph-lens" class="graph-lens" open>
-          <summary>
-            <span><strong>Temporal relation graph</strong><small>Nodes are subjects; edges are labeled actions and can be time-bounded.</small></span>
-            <span data-graph-status>0 / 0 edges active</span>
-          </summary>
+        <section id="graph-lens" class="graph-lens graph-surface" aria-label="Temporal relation graph" hidden>
           <div id="temporal-graph-view" class="temporal-graph-view">
-            <div class="temporal-graph-toolbar">
-              <span data-graph-window>All time</span>
-              <button id="graph-reset-view" class="button ghost compact-button" type="button">Reset graph view</button>
-            </div>
+            <span class="sr-only" data-graph-window>All time</span>
+            <span class="sr-only" data-graph-status aria-live="polite">0 relations in window</span>
             <div class="temporal-graph-canvas" role="application" aria-label="Node and edge graph synchronized to the visible timeline window"></div>
-            <aside class="temporal-graph-detail" data-graph-detail aria-live="polite" hidden></aside>
           </div>
-        </details>
+        </section>
 
         <section id="presentation-map-panel" class="presentation-map-panel" aria-labelledby="presentation-map-heading" hidden>
           <header class="presentation-map-heading">

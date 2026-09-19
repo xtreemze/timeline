@@ -173,20 +173,34 @@ test("focused event expands to include nearby relative context when already uniq
   assert.ok(plan.viewport.end >= 1000);
 });
 
-test("identical-time focused events are pinned uniquely because zoom cannot separate them", () => {
+test("coincident events remain separate representations and use layout lanes instead of impossible zoom separation", () => {
+  const items = [
+    { id: "a", start: 100 },
+    { id: "b", start: 100 },
+    { id: "c", start: 500 }
+  ];
+  const positions = new Map([["a", 50], ["b", 50], ["c", 500]]);
+  const representations = clustering.clusterProjectedItems(
+    items,
+    (item) => positions.get(item.id),
+    100
+  );
+  assert.deepEqual(
+    representations.slice(0, 2).map((entry) => [entry.kind, entry.id]),
+    [["item", "a"], ["item", "b"]]
+  );
+
   const plan = clustering.focusContextViewport(
-    [
-      { id: "a", start: 100 },
-      { id: "b", start: 100 },
-      { id: "c", start: 500 }
-    ],
+    items,
     "a",
     { start: 50, end: 250 },
     500,
     100
   );
-  assert.equal(plan.mode, "pin");
-  assert.equal(plan.forceUnique, true);
+  assert.equal(plan.mode, "coincident");
+  assert.deepEqual(plan.viewport, { start: 50, end: 250 });
+  assert.deepEqual(plan.contextIds, ["b"]);
+  assert.equal(plan.forceUnique, false);
 });
 
 test("motion response and inertial decay are smooth and monotonic", () => {
@@ -296,4 +310,13 @@ test("timeline terminals use media thumbnails, semantic badges, and earlier clus
   assert.match(styles, /height:\s*10px/);
   assert.match(styles, /width:\s*2\.75rem/);
   assert.match(styles, /max-width:\s*232px/);
+});
+
+
+test("timeline view assigns unbounded perpendicular lanes so coincident terminals do not reuse positions", async () => {
+  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  assert.match(source, /allocateEventLane\(position, occupied, minDistance = 236\)/);
+  assert.match(source, /occupied\.push\(position\)/);
+  assert.match(source, /const depth = focused \? lane : Math\.floor\(lane \/ 2\)/);
+  assert.match(source, /const laneIndex = this\.allocateEventLane\(position, occupied, 78\)/);
 });

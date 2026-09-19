@@ -220,13 +220,18 @@ test("timed relation visibility uses viewport intersection rather than midpoint 
   assert.equal(data.edges[0].temporalState, "active");
 });
 
-test("graph inspection is read-only and only opens for meaningful detail", async () => {
+test("graph clicks only select nodes or edges without invoking an inspector or navigation", async () => {
   const { readFile } = await import("node:fs/promises");
-  const source = await readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8");
-  assert.match(source, /function detailRows\(kind, record\)/);
-  assert.match(source, /function hasSignificantDetail\(kind, record\)/);
-  assert.match(source, /fallbackEventId\(kind, record\)/);
-  assert.match(source, /temporal-graph-detail-list/);
-  assert.match(source, /if \(!rows\.length\)[\s\S]*this\.clearDetail\(\)[\s\S]*return false/);
-  assert.doesNotMatch(source, /createElement\("pre"\)/);
+  const [view, bridge] = await Promise.all([
+    readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8")
+  ]);
+  assert.match(view, /graphselectionchange/);
+  assert.match(view, /kind:\s*"node"/);
+  assert.match(view, /kind:\s*"edge"/);
+  assert.doesNotMatch(view, /renderDetail|detailRows|fallbackEventId|graphnodefocus|graphentityfocus|graphedgefocus/);
+  assert.match(bridge, /function selectGraphObject\(object\)/);
+  assert.match(bridge, /onNodeClick[\s\S]*selectGraphObject\(node\)/);
+  assert.match(bridge, /onEdgeClick[\s\S]*selectGraphObject\(edge\)/);
+  assert.match(bridge, /select\(kind, id\)/);
 });

@@ -662,11 +662,11 @@
       node.append(connector, button);
 
       if (this.orientation === "horizontal") {
-        const lane = this.allocateHorizontalLane(position, occupied);
+        const lane = this.allocateEventLane(position, occupied);
         const focused = Boolean(this.selectedId);
         const side = focused ? -1 : (lane % 2 === 0 ? -1 : 1);
-        const depth = focused ? lane % 3 : Math.floor(lane / 2);
-        const desiredDistance = 82 + depth * 88;
+        const depth = focused ? lane : Math.floor(lane / 2);
+        const desiredDistance = 82 + depth * 72;
         const inwardLimit = Math.max(64, axisCross - 64);
         const distance = focused ? Math.min(desiredDistance, inwardLimit) : desiredDistance;
         const eventY = axisCross + side * distance;
@@ -939,11 +939,11 @@
       node.append(connector, button);
 
       if (this.orientation === "horizontal") {
-        const lane = this.allocateHorizontalLane(position, occupied);
+        const lane = this.allocateEventLane(position, occupied);
         const focused = Boolean(this.selectedId);
         const side = focused ? -1 : (lane % 2 === 0 ? -1 : 1);
-        const depth = focused ? lane % 3 : Math.floor(lane / 2);
-        const desiredDistance = 82 + depth * 88;
+        const depth = focused ? lane : Math.floor(lane / 2);
+        const desiredDistance = 82 + depth * 72;
         const inwardLimit = Math.max(64, axisCross - 64);
         const distance = focused ? Math.min(desiredDistance, inwardLimit) : desiredDistance;
         const eventY = axisCross + side * distance;
@@ -961,48 +961,41 @@
       } else {
         const compact = width < 560;
         const focused = Boolean(this.selectedId);
-        const lane = focused ? -1 : (compact ? 1 : index % 2 === 0 ? -1 : 1);
-        const desiredDistance = compact
-          ? Math.min(110, Math.max(80, width * 0.24))
-          : Math.min(232, Math.max(130, width * 0.30));
-        const inwardLimit = Math.max(64, axisCross - 72);
-        const distance = focused ? Math.min(desiredDistance, inwardLimit) : desiredDistance;
-        const eventX = axisCross + lane * distance;
+        const laneIndex = this.allocateEventLane(position, occupied, 78);
+        const side = focused ? -1 : (compact ? 1 : laneIndex % 2 === 0 ? -1 : 1);
+        const depth = focused || compact ? laneIndex : Math.floor(laneIndex / 2);
+        const baseDistance = compact
+          ? Math.min(96, Math.max(72, width * 0.20))
+          : Math.min(156, Math.max(108, width * 0.22));
+        const desiredDistance = baseDistance + depth * (compact ? 58 : 72);
+        const available = side < 0 ? axisCross - 72 : width - axisCross - 72;
+        const distance = Math.min(desiredDistance, Math.max(64, available));
+        const eventX = axisCross + side * distance;
         const segment = connectorSegment(axisCross, eventX);
 
         node.style.left = eventX + "px";
         node.style.top = position + "px";
-        node.dataset.side = lane < 0 ? "before" : "after";
+        node.dataset.side = side < 0 ? "before" : "after";
         connector.style.left = segment.offset + "px";
         connector.style.top = "0";
         connector.style.width = Math.max(1, segment.length) + "px";
         connector.style.height = "2px";
 
-        if (lane < 0) node.classList.add("label-before");
+        if (side < 0) node.classList.add("label-before");
       }
       return node;
     }
 
-    allocateHorizontalLane(position, occupied) {
-      const minDistance = 236;
-      for (let lane = 0; lane < 6; lane += 1) {
+    allocateEventLane(position, occupied, minDistance = 236) {
+      for (let lane = 0; lane < occupied.length; lane += 1) {
         const last = occupied[lane];
         if (last === undefined || Math.abs(position - last) >= minDistance) {
           occupied[lane] = position;
           return lane;
         }
       }
-      let bestLane = 0;
-      let bestDistance = -1;
-      for (let lane = 0; lane < occupied.length; lane += 1) {
-        const distance = Math.abs(position - occupied[lane]);
-        if (distance > bestDistance) {
-          bestDistance = distance;
-          bestLane = lane;
-        }
-      }
-      occupied[bestLane] = position;
-      return bestLane;
+      occupied.push(position);
+      return occupied.length - 1;
     }
 
     focusItem(id) {
@@ -1036,6 +1029,21 @@
 
     focusedItemId() {
       return this.selectedId;
+    }
+
+    ensureFocusPopover() {
+      if (!this.selectedId || this.focusView.hidden) return false;
+      if (
+        typeof this.focusView.showPopover === "function" &&
+        !this.focusView.matches(":popover-open")
+      ) {
+        try {
+          this.focusView.showPopover();
+        } catch {
+          return false;
+        }
+      }
+      return this.focusView.matches(":popover-open");
     }
 
     getViewport() {
@@ -1236,8 +1244,6 @@
       relationBackdrop.dataset.focusGraphSlot = "";
       const relationContent = createElement("div", "timeline-focus-section-content");
       relationContent.append(createElement("h3", "timeline-focus-section-heading", "Relations"));
-      const relationDetailSlot = createElement("div", "timeline-focus-graph-detail-slot");
-      relationDetailSlot.dataset.focusGraphDetailSlot = "";
       if (item.relations?.length) {
         const list = createElement("ul", "timeline-focus-relation-list");
         for (const relation of item.relations.slice(0, 8)) {
@@ -1275,7 +1281,7 @@
         }
         relationContent.append(changes);
       }
-      relations.append(relationBackdrop, relationContent, relationDetailSlot);
+      relations.append(relationBackdrop, relationContent);
 
       const evidence = createElement("section", "timeline-focus-section timeline-focus-evidence");
       evidence.append(createElement("h3", "timeline-focus-section-heading", "Evidence"));

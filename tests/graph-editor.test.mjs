@@ -32,8 +32,8 @@ test("timeline includes an interactive temporal node-edge graph lens", async () 
   assert.match(source, /graphForWindow/);
   assert.match(source, /temporalState/);
   assert.match(source, /TimelineOrbGraph/);
-  assert.match(source, /graphnodefocus/);
-  assert.match(source, /graphstoryfocus/);
+  assert.match(source, /graphselectionchange/);
+  assert.doesNotMatch(source, /graphnodefocus|graphstoryfocus|graphentityfocus|graphedgefocus/);
   assert.match(source, /updateTemporalEdges/);
   assert.match(html, /orb-graph\.bundle\.js/);
   assert.match(css, /\.temporal-graph-canvas canvas/);
@@ -128,12 +128,13 @@ test("touch graph dragging requires a long press while preserving live force phy
 
 
 
-test("graph editing requires explicit edit mode while view mode remains inspect-only", async () => {
+test("graph exploration never opens editors while graph authoring stays inside explicit Edit mode", async () => {
   const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   assert.match(source, /mode:\s*"view"/);
   assert.match(source, /function presentationModeActive\(\)[\s\S]*ui\.mode !== "edit"/);
-  assert.match(source, /graphentityfocus[\s\S]*ui\.mode === "edit"[\s\S]*beginGraphNodeEdit/);
-  assert.match(source, /graphedgefocus[\s\S]*ui\.mode === "edit"[\s\S]*beginGraphEdgeEdit/);
+  assert.doesNotMatch(source, /graphentityfocus|graphedgefocus|graphnodefocus|graphstoryfocus/);
+  assert.match(source, /graphNodeList\.addEventListener\("click"[\s\S]*beginGraphNodeEdit/);
+  assert.match(source, /graphEdgeList\.addEventListener\("click"[\s\S]*beginGraphEdgeEdit/);
   assert.match(source, /timelinefocusedit[\s\S]*setEditorSurfaceOpen\(true\)[\s\S]*beginItemEdit/);
   assert.match(source, /resetGraphEdgeForm[\s\S]*graphEdgeTimeKind\.value = "event"/);
 });

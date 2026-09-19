@@ -12,8 +12,19 @@
     if (!Array.isArray(items)) return [];
     if (typeof positionFor !== "function") throw new TypeError("positionFor must be a function.");
     const threshold = Math.max(1, finite(thresholdPx, 120));
+    const startCounts = new Map();
+    for (const item of items) {
+      if (!item || !Number.isFinite(item.start)) continue;
+      const key = String(item.start);
+      startCounts.set(key, (startCounts.get(key) || 0) + 1);
+    }
+
     const projected = items
-      .map((item) => ({ item, position: finite(positionFor(item), Number.NaN) }))
+      .map((item) => ({
+        item,
+        position: finite(positionFor(item), Number.NaN),
+        coincident: Number.isFinite(item?.start) && (startCounts.get(String(item.start)) || 0) > 1
+      }))
       .filter((entry) => Number.isFinite(entry.position))
       .sort((a, b) => a.position - b.position || String(a.item.id).localeCompare(String(b.item.id)));
 
@@ -21,6 +32,15 @@
     let current = null;
 
     for (const entry of projected) {
+      if (entry.coincident) {
+        if (current) {
+          groups.push(current);
+          current = null;
+        }
+        groups.push({ entries: [entry], centroid: entry.position });
+        continue;
+      }
+
       if (!current) {
         current = { entries: [entry], centroid: entry.position };
         continue;
@@ -282,6 +302,21 @@
     const representation = representations.find((entry) =>
       entry.items.some((item) => String(item.id) === String(focused.id))
     );
+
+    const coincidentIds = source
+      .filter((item) =>
+        String(item.id) !== String(focused.id) &&
+        item.start === focused.start
+      )
+      .map((item) => String(item.id));
+    if (coincidentIds.length) {
+      return {
+        mode: "coincident",
+        viewport: { ...viewport },
+        forceUnique: false,
+        contextIds: coincidentIds
+      };
+    }
 
     if (representation?.kind === "cluster") {
       const deltas = representation.items

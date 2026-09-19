@@ -26,51 +26,6 @@
     });
   }
 
-  function detailRows(kind, record) {
-    const properties = record?.properties || {};
-    const rows = [];
-    if (kind === "node") {
-      if (properties.description) rows.push(["Description", properties.description]);
-      if (Array.isArray(properties.identifiers) && properties.identifiers.length) {
-        rows.push(["Identifiers", properties.identifiers]);
-      }
-      if (properties.attributes && Object.keys(properties.attributes).length) {
-        rows.push(["Properties", properties.attributes]);
-      }
-      if (properties.time) rows.push(["Time", properties.time]);
-      if (properties.location) rows.push(["Place", properties.location]);
-      if (Array.isArray(properties.itemIds) && properties.itemIds.length) {
-        rows.push(["Events", properties.itemIds]);
-      }
-    } else {
-      if (properties.role) rows.push(["Role", properties.role]);
-      if (properties.time) rows.push(["Time", properties.time]);
-      if (properties.attributes && Object.keys(properties.attributes).length) {
-        rows.push(["Properties", properties.attributes]);
-      }
-      if (properties.lastChange) rows.push(["Last change", properties.lastChange]);
-      if (Array.isArray(properties.changes) && properties.changes.length) {
-        rows.push(["Changes", properties.changes]);
-      }
-    }
-    return rows;
-  }
-
-  function formatDetailValue(value) {
-    if (Array.isArray(value)) {
-      if (value.every((entry) => typeof entry === "string" || typeof entry === "number")) {
-        return value.join(", ");
-      }
-      return JSON.stringify(value);
-    }
-    if (value && typeof value === "object") return JSON.stringify(value);
-    return String(value ?? "");
-  }
-
-  function hasSignificantDetail(kind, record) {
-    return detailRows(kind, record).length > 0;
-  }
-
   class TemporalGraphView {
     constructor(root) {
       this.root = root;
@@ -80,7 +35,6 @@
         root.closest(".graph-lens")?.querySelector("[data-graph-status]") ||
         null;
       this.windowLabel = root.querySelector("[data-graph-window]");
-      this.detail = root.querySelector("[data-graph-detail]");
       this.model = { entities: [], relationships: [], items: [], stories: [] };
       this.viewport = null;
       this.focusedId = null;
@@ -88,7 +42,7 @@
       this.presentationMode = false;
       this.hasFocusedContext = false;
       this.currentData = { nodes: [], edges: [] };
-      this.detailSelection = null;
+      this.selection = null;
       this.orb = orbFactory.create(this.canvas, {
         onNodeClick: (node) => this.activateNode(node),
         onNodeLongPress: (node) => this.selectNodeForDrag(node),
@@ -132,7 +86,7 @@
       if (next === this.focusedId) return;
       this.focusedId = next;
       this.signature = "";
-      this.clearDetail();
+      this.selection = null;
       this.render();
     }
 
@@ -153,32 +107,8 @@
       return this.hasFocusedContext;
     }
 
-    clearDetail() {
-      if (!this.detail) return;
-      this.detailSelection = null;
-      this.detail.replaceChildren();
-      this.detail.hidden = true;
-    }
-
-    fallbackEventId(kind, record) {
-      const itemIds = new Set(this.model.items.map((item) => String(item.id)));
-      if (kind === "edge") {
-        if (itemIds.has(String(record?.start))) return String(record.start);
-        if (itemIds.has(String(record?.end))) return String(record.end);
-      }
-      if (this.focusedId && itemIds.has(String(this.focusedId))) return String(this.focusedId);
-      const id = String(record?.id || "");
-      for (const edge of this.currentData.edges || []) {
-        const start = String(edge.start);
-        const end = String(edge.end);
-        if (kind === "node" && start !== id && end !== id) continue;
-        if (itemIds.has(start)) return start;
-        if (itemIds.has(end)) return end;
-      }
-      return null;
-    }
-
     selectNodeForDrag(node) {
+      this.selection = { kind: "node", id: String(node.id) };
       this.root.dispatchEvent(new CustomEvent("graphnodeselect", {
         bubbles: true,
         detail: { id: node.id, interaction: "long-press-drag" }
@@ -186,82 +116,28 @@
     }
 
     activateNode(node) {
-      const type = node.properties?.timelineType;
-      if (type === "chronology-item") {
-        this.clearDetail();
-        this.root.dispatchEvent(new CustomEvent("graphnodefocus", {
-          bubbles: true,
-          detail: { id: node.id }
-        }));
-        return;
-      }
-
-      const significant = this.renderDetail("node", node);
-      const detail = {
-        id: node.id,
-        significant,
-        fallbackEventId: this.fallbackEventId("node", node)
-      };
-      this.root.dispatchEvent(new CustomEvent(
-        type === "story" ? "graphstoryfocus" : "graphentityfocus",
-        { bubbles: true, detail }
-      ));
-    }
-
-    activateEdge(edge) {
-      const significant = this.renderDetail("edge", edge);
-      this.root.dispatchEvent(new CustomEvent("graphedgefocus", {
+      this.selection = { kind: "node", id: String(node.id) };
+      this.root.dispatchEvent(new CustomEvent("graphselectionchange", {
         bubbles: true,
         detail: {
-          id: edge.id,
-          significant,
-          fallbackEventId: this.fallbackEventId("edge", edge)
+          kind: "node",
+          id: node.id,
+          timelineType: node.properties?.timelineType || "entity"
         }
       }));
     }
 
-    renderDetail(kind, record) {
-      if (!this.detail) return false;
-      const rows = detailRows(kind, record);
-      if (!rows.length) {
-        this.clearDetail();
-        return false;
-      }
-
-      this.detail.replaceChildren();
-      this.detail.hidden = false;
-      this.detail.dataset.kind = kind;
-      this.detailSelection = { kind, id: String(record.id) };
-
-      const header = document.createElement("div");
-      header.className = "temporal-graph-detail-header";
-      const identity = document.createElement("div");
-      const title = document.createElement("strong");
-      title.textContent = kind === "node" ? record.label : record.label || "relatedTo";
-      const meta = document.createElement("span");
-      meta.textContent = kind === "node"
-        ? record.properties?.timelineType || "entity"
-        : `${record.start} → ${record.end}`;
-      identity.append(title, meta);
-      const close = document.createElement("button");
-      close.type = "button";
-      close.className = "icon-button temporal-graph-detail-close";
-      close.setAttribute("aria-label", "Close graph detail");
-      close.textContent = "×";
-      close.addEventListener("click", () => this.clearDetail());
-      header.append(identity, close);
-
-      const list = document.createElement("dl");
-      list.className = "temporal-graph-detail-list";
-      for (const [label, value] of rows) {
-        const term = document.createElement("dt");
-        term.textContent = label;
-        const description = document.createElement("dd");
-        description.textContent = formatDetailValue(value);
-        list.append(term, description);
-      }
-      this.detail.append(header, list);
-      return true;
+    activateEdge(edge) {
+      this.selection = { kind: "edge", id: String(edge.id) };
+      this.root.dispatchEvent(new CustomEvent("graphselectionchange", {
+        bubbles: true,
+        detail: {
+          kind: "edge",
+          id: edge.id,
+          start: edge.start,
+          end: edge.end
+        }
+      }));
     }
 
     render() {
@@ -269,10 +145,10 @@
         ? graph.neighborhoodGraph(this.model, this.focusedId, this.viewport, { depth: 1, limit: 36 })
         : graph.graphForWindow(this.model, this.viewport);
       this.currentData = data;
-      if (this.detailSelection) {
-        const records = this.detailSelection.kind === "node" ? data.nodes : data.edges;
-        if (!records.some((record) => String(record.id) === this.detailSelection.id)) {
-          this.clearDetail();
+      if (this.selection) {
+        const records = this.selection.kind === "node" ? data.nodes : data.edges;
+        if (!records.some((record) => String(record.id) === this.selection.id)) {
+          this.selection = null;
         }
       }
       const nextHasFocusedContext = Boolean(this.focusedId && data.nodes.length > 1 && data.edges.length > 0);
@@ -302,6 +178,7 @@
       if (nextSignature !== this.signature) {
         this.signature = nextSignature;
         this.orb.setData(data);
+        if (this.selection) this.orb.select?.(this.selection.kind, this.selection.id);
       } else {
         this.orb.updateTemporalEdges(data.edges);
       }

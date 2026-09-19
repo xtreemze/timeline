@@ -1972,33 +1972,6 @@
 }
 
 
-/* Focused viewing: keep graph inspection readable without turning the graph into an editor. */
-.timeline-focus-graph-detail-slot {
-  position: absolute;
-  z-index: 4;
-  right: .55rem;
-  bottom: .55rem;
-  width: min(44%, 360px);
-  max-height: calc(100% - 1.1rem);
-  pointer-events: none;
-}
-
-.timeline-focus-graph-detail-slot > .temporal-graph-detail {
-  max-height: min(260px, calc(100% - .25rem));
-  overflow: auto;
-  pointer-events: auto;
-  border: 1px solid color-mix(in srgb, var(--line-strong) 84%, transparent);
-  border-radius: .72rem;
-  background: color-mix(in srgb, var(--paper) 96%, transparent);
-  box-shadow: 0 10px 30px color-mix(in srgb, var(--ink) 14%, transparent);
-  backdrop-filter: blur(14px);
-}
-
-.timeline-focus-relations:has(.timeline-focus-graph-detail-slot > .temporal-graph-detail:not([hidden]))
-  .timeline-focus-section-content {
-  width: min(52%, 30rem);
-}
-
 .timeline-focus-evidence-more {
   margin: .5rem 0 0;
   color: var(--muted);
@@ -2130,4 +2103,18 @@
     padding: .48rem .58rem;
     font-size: .68rem;
   }
+}
+
+
+/* Direct-manipulation relation graph. The canvas itself owns hit testing; foreground
+   relation copy is informational and never intercepts graph gestures. */
+.timeline-focus-relations-backdrop,
+.timeline-focus-relations-backdrop .temporal-graph-canvas,
+.timeline-focus-relations-backdrop .temporal-graph-canvas canvas {
+  pointer-events: auto !important;
+  touch-action: none;
+}
+
+.timeline-focus-relations-backdrop {
+  opacity: .64;
 }
