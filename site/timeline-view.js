@@ -18,9 +18,9 @@
   const ZOOM_RESPONSE_MS = 170;
   const WHEEL_ZOOM_SENSITIVITY = 0.00065;
   const MAX_WHEEL_EXPONENT = 0.045;
-  const HORIZONTAL_CLUSTER_THRESHOLD_MIN = 118;
-  const HORIZONTAL_CLUSTER_THRESHOLD_MAX = 172;
-  const VERTICAL_CLUSTER_THRESHOLD = 58;
+  const HORIZONTAL_CLUSTER_THRESHOLD_MIN = 156;
+  const HORIZONTAL_CLUSTER_THRESHOLD_MAX = 224;
+  const VERTICAL_CLUSTER_THRESHOLD = 74;
   const RELATION_LANES = 4;
 
   function createElement(tag, className, text) {
@@ -589,17 +589,33 @@
       button.type = "button";
       button.setAttribute("aria-label", `Zoom into cluster of ${cluster.items.length} events`);
 
-      const dots = createElement("span", "timeline-cluster-dots");
+      const visuals = createElement("span", "timeline-cluster-visuals");
       for (const item of cluster.items.slice(0, 3)) {
-        const dot = createElement("span", "timeline-cluster-dot");
-        dot.style.setProperty("--cluster-dot-color", item.color || "var(--accent)");
-        dots.append(dot);
+        const visual = createElement("span", "timeline-cluster-visual");
+        visual.style.setProperty("--cluster-dot-color", item.color || "var(--accent)");
+        const iconName = item.tags?.[0]?.icon || "milestone";
+        const media = item.media?.[0];
+        if (media?.src) {
+          visual.classList.add("has-media");
+          const image = document.createElement("img");
+          image.className = "timeline-cluster-thumbnail";
+          image.src = media.src;
+          image.alt = "";
+          image.decoding = "async";
+          visual.append(image);
+          const badge = createElement("span", "timeline-cluster-icon-badge");
+          badge.append(presentation.createIcon(iconName, { size: 16 }));
+          visual.append(badge);
+        } else {
+          visual.append(presentation.createIcon(iconName, { size: 20 }));
+        }
+        visuals.append(visual);
       }
       const copy = createElement("span", "timeline-event-copy");
       const title = createElement("strong", "", `${cluster.items.length} events`);
-      const detail = createElement("span", "", "Fused at this zoom");
+      const detail = createElement("span", "", "Nearby · zoom to inspect");
       copy.append(title, detail);
-      button.append(dots, copy);
+      button.append(visuals, copy);
       button.addEventListener("click", (event) => {
         event.stopPropagation();
         const values = [];
@@ -622,7 +638,7 @@
         const lane = this.allocateHorizontalLane(position, occupied);
         const side = lane % 2 === 0 ? -1 : 1;
         const depth = Math.floor(lane / 2);
-        const distance = 68 + depth * 76;
+        const distance = 82 + depth * 88;
         const eventY = axisCross + side * distance;
         const segment = connectorSegment(axisCross, eventY);
         node.style.left = position + "px";
@@ -630,15 +646,15 @@
         node.dataset.side = side < 0 ? "before" : "after";
         connector.style.left = "0";
         connector.style.top = segment.offset + "px";
-        connector.style.width = "1px";
+        connector.style.width = "2px";
         connector.style.height = Math.max(1, segment.length) + "px";
-        if (position > width - 190) node.classList.add("label-before");
+        if (position > width - 260) node.classList.add("label-before");
       } else {
         const compact = width < 560;
         const lane = compact ? 1 : cluster.items.length % 2 === 0 ? -1 : 1;
         const distance = compact
-          ? Math.min(96, Math.max(68, width * 0.22))
-          : Math.min(220, Math.max(120, width * 0.28));
+          ? Math.min(112, Math.max(80, width * 0.24))
+          : Math.min(236, Math.max(132, width * 0.30));
         const eventX = axisCross + lane * distance;
         const segment = connectorSegment(axisCross, eventX);
         node.style.left = eventX + "px";
@@ -647,7 +663,7 @@
         connector.style.left = segment.offset + "px";
         connector.style.top = "0";
         connector.style.width = Math.max(1, segment.length) + "px";
-        connector.style.height = "1px";
+        connector.style.height = "2px";
         if (lane < 0) node.classList.add("label-before");
       }
       return node;
@@ -852,7 +868,22 @@
       const dot = createElement("span", "timeline-event-dot");
       dot.setAttribute("aria-hidden", "true");
       const primaryTag = item.tags?.[0];
-      if (primaryTag) dot.append(presentation.createIcon(primaryTag.icon, { size: 18 }));
+      const iconName = primaryTag?.icon || "milestone";
+      const media = item.media?.[0];
+      if (media?.src) {
+        dot.classList.add("has-media");
+        const image = document.createElement("img");
+        image.className = "timeline-event-thumbnail";
+        image.src = media.src;
+        image.alt = "";
+        image.decoding = "async";
+        dot.append(image);
+        const badge = createElement("span", "timeline-event-icon-badge");
+        badge.append(presentation.createIcon(iconName, { size: 18 }));
+        dot.append(badge);
+      } else {
+        dot.append(presentation.createIcon(iconName, { size: 26 }));
+      }
       const copy = createElement("span", "timeline-event-copy");
       const title = createElement("strong", "", item.title);
       const date = createElement("span", "", item.startLabel);
@@ -870,7 +901,7 @@
         const lane = this.allocateHorizontalLane(position, occupied);
         const side = lane % 2 === 0 ? -1 : 1;
         const depth = Math.floor(lane / 2);
-        const distance = 68 + depth * 76;
+        const distance = 82 + depth * 88;
         const eventY = axisCross + side * distance;
         const segment = connectorSegment(axisCross, eventY);
 
@@ -879,16 +910,16 @@
         node.dataset.side = side < 0 ? "before" : "after";
         connector.style.left = "0";
         connector.style.top = segment.offset + "px";
-        connector.style.width = "1px";
+        connector.style.width = "2px";
         connector.style.height = Math.max(1, segment.length) + "px";
 
-        if (position > width - 190) node.classList.add("label-before");
+        if (position > width - 260) node.classList.add("label-before");
       } else {
         const compact = width < 560;
         const lane = compact ? 1 : index % 2 === 0 ? -1 : 1;
         const distance = compact
-          ? Math.min(96, Math.max(68, width * 0.22))
-          : Math.min(220, Math.max(120, width * 0.28));
+          ? Math.min(112, Math.max(80, width * 0.24))
+          : Math.min(236, Math.max(132, width * 0.30));
         const eventX = axisCross + lane * distance;
         const segment = connectorSegment(axisCross, eventX);
 
@@ -898,7 +929,7 @@
         connector.style.left = segment.offset + "px";
         connector.style.top = "0";
         connector.style.width = Math.max(1, segment.length) + "px";
-        connector.style.height = "1px";
+        connector.style.height = "2px";
 
         if (lane < 0) node.classList.add("label-before");
       }
@@ -906,7 +937,7 @@
     }
 
     allocateHorizontalLane(position, occupied) {
-      const minDistance = 184;
+      const minDistance = 252;
       for (let lane = 0; lane < 6; lane += 1) {
         const last = occupied[lane];
         if (last === undefined || Math.abs(position - last) >= minDistance) {
