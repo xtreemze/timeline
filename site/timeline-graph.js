@@ -266,6 +266,37 @@
     };
   }
 
+  function neighborhoodGraph(input, rootId, viewport, { depth = 1, limit = 36 } = {}) {
+    const data = graphForWindow(input, viewport);
+    const nodeById = new Map(data.nodes.map((node) => [String(node.id), node]));
+    const root = String(rootId || "");
+    if (!root || !nodeById.has(root)) return { nodes: [], edges: [] };
+
+    const selected = new Set([root]);
+    let frontier = new Set([root]);
+    for (let level = 0; level < Math.max(0, depth); level += 1) {
+      const next = new Set();
+      for (const edge of data.edges) {
+        const start = String(edge.start);
+        const end = String(edge.end);
+        if (frontier.has(start) && !selected.has(end)) next.add(end);
+        if (frontier.has(end) && !selected.has(start)) next.add(start);
+      }
+      for (const id of next) {
+        if (selected.size >= limit) break;
+        selected.add(id);
+      }
+      frontier = next;
+      if (!frontier.size || selected.size >= limit) break;
+    }
+
+    const nodes = [...selected].map((id) => nodeById.get(id)).filter(Boolean);
+    const edges = data.edges.filter(
+      (edge) => selected.has(String(edge.start)) && selected.has(String(edge.end))
+    );
+    return { nodes, edges };
+  }
+
   function temporalRelationProjection(relationships, temporal = globalThis.TimelineTemporal) {
     const projected = [];
     for (const relationship of Array.isArray(relationships) ? relationships : []) {
@@ -290,6 +321,7 @@
     graphForWindow,
     normalizeGraphData,
     normalizeRelationChanges,
+    neighborhoodGraph,
     relationshipStateAt,
     relationshipWindowState,
     temporalRelationProjection,
