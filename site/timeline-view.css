@@ -2093,7 +2093,8 @@
   }
 
   .timeline-focus-view[popover] .timeline-focus-title {
-    font-size: clamp(2.5rem, 8.2cqi, 5.4rem);
+    font-size: clamp(2.2rem, 7cqi, 4.6rem);
+    line-height: .94;
   }
 
   .timeline-focus-view[popover] .timeline-focus-section-heading {
@@ -2252,7 +2253,7 @@
 }
 
 .timeline-focus-relations {
-  overflow: visible;
+  overflow: hidden;
   background: transparent;
 }
 
@@ -2260,20 +2261,20 @@
   content: "";
   position: absolute;
   z-index: 0;
-  inset: -22%;
+  inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 52% 48%,
-      color-mix(in srgb, var(--story) 10%, transparent) 0%,
-      color-mix(in srgb, var(--story) 5%, transparent) 38%,
-      transparent 70%);
+    radial-gradient(ellipse 72% 82% at 52% 48%,
+      color-mix(in srgb, var(--story) 5%, transparent) 0%,
+      color-mix(in srgb, var(--story) 2%, transparent) 40%,
+      transparent 72%);
 }
 
 .timeline-focus-relations-backdrop {
   z-index: 3;
-  opacity: .78;
+  opacity: .72;
   filter: none;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .timeline-focus-relations-backdrop::after {
@@ -2434,12 +2435,9 @@
 }
 
 
-/* Relations is an ambient field, not a clipped card. In overview mode its halo may
-   extend past the semantic section; Evidence remains the bounded scrolling surface. */
-.timeline-focus-view[popover][data-active-tab="overview"] {
-  overflow: visible;
-}
-
+/* Focused detail is one bounded card. Relations keeps an ambient field inside its
+   own graph region so the halo cannot detach visually from the popover chrome. */
+.timeline-focus-view[popover][data-active-tab="overview"],
 .timeline-focus-view[popover][data-active-tab="evidence"] {
   overflow: hidden;
 }
@@ -2453,72 +2451,65 @@
 .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations-backdrop,
 .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations-backdrop .temporal-graph-canvas,
 .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations-backdrop .temporal-graph-canvas canvas {
-  overflow: visible !important;
+  overflow: hidden !important;
 }
 
 .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations {
-  isolation: auto;
+  isolation: isolate;
 }
 
 .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations::before {
-  inset: -24%;
+  inset: 0;
   background:
-    radial-gradient(ellipse at 48% 48%,
-      color-mix(in srgb, var(--story) 7%, transparent) 0%,
-      color-mix(in srgb, var(--story) 3%, transparent) 34%,
-      color-mix(in srgb, var(--story) 1%, transparent) 52%,
-      transparent 68%);
+    radial-gradient(ellipse 72% 82% at 50% 50%,
+      color-mix(in srgb, var(--story) 5%, transparent) 0%,
+      color-mix(in srgb, var(--story) 2%, transparent) 38%,
+      transparent 72%);
 }
 
 .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations-backdrop::after {
-  opacity: .24;
+  opacity: .16;
 }
 
-/* In fullscreen, reserve the physical viewport edge for chronology:
-   portrait => graph field left, vertical timeline right;
-   landscape => graph field high, horizontal timeline bottom. */
-#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
+/* Bias the contained halo away from chronology according to the timeline orientation,
+   not the physical viewport shape. */
+#presentation-stage[data-timeline-orientation="vertical"]
   .timeline-focus-view[data-active-tab="overview"] .timeline-focus-relations::before {
-  inset: -18% -12% -18% -24%;
   background:
-    radial-gradient(ellipse at 42% 50%,
-      color-mix(in srgb, var(--story) 7%, transparent) 0%,
-      color-mix(in srgb, var(--story) 3%, transparent) 38%,
-      color-mix(in srgb, var(--story) 1%, transparent) 54%,
-      transparent 70%);
+    radial-gradient(ellipse 70% 86% at 42% 50%,
+      color-mix(in srgb, var(--story) 5%, transparent) 0%,
+      color-mix(in srgb, var(--story) 2%, transparent) 40%,
+      transparent 72%);
 }
 
-#presentation-stage:fullscreen[data-viewport-orientation="landscape"]
+#presentation-stage[data-timeline-orientation="horizontal"]
   .timeline-focus-view[data-active-tab="overview"] .timeline-focus-relations::before {
-  inset: -26% -16% -10%;
   background:
-    radial-gradient(ellipse at 50% 38%,
-      color-mix(in srgb, var(--story) 7%, transparent) 0%,
-      color-mix(in srgb, var(--story) 3%, transparent) 38%,
-      color-mix(in srgb, var(--story) 1%, transparent) 54%,
-      transparent 70%);
+    radial-gradient(ellipse 78% 68% at 50% 42%,
+      color-mix(in srgb, var(--story) 5%, transparent) 0%,
+      color-mix(in srgb, var(--story) 2%, transparent) 40%,
+      transparent 72%);
 }
 
 @media (max-width: 760px) {
   .timeline-focus-view[popover][data-active-tab="overview"] {
-    overflow: visible;
+    overflow: auto;
   }
 }
 
 
 /* Contextual Relations must claim real layout space.
-   This intentionally follows the overlay-first rules above so it wins their full-stage
-   !important placement. The popover stays in the complementary region while chronology
-   becomes an edge strip instead of remaining behind the graph. */
-#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="landscape"] {
+   Docking follows the timeline's own orientation rather than the physical viewport shape,
+   so manual vertical/horizontal timelines keep a stable complementary popover region. */
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"] {
   --timeline-context-edge-span: clamp(112px, 24dvh, 260px);
 }
 
-#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="portrait"] {
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="vertical"] {
   --timeline-context-edge-span: clamp(132px, 29dvw, 320px);
 }
 
-#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="landscape"]:has(.timeline-focus-view[data-active-tab="overview"]) > .timeline-view {
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(.timeline-focus-view[data-active-tab="overview"]) > .timeline-view {
   position: absolute;
   inset: auto 0 0 0;
   grid-column: 1 / -1 !important;
@@ -2536,7 +2527,7 @@
     max-block-size 280ms cubic-bezier(.2, .8, .2, 1);
 }
 
-#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="portrait"]:has(.timeline-focus-view[data-active-tab="overview"]) > .timeline-view {
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="vertical"]:has(.timeline-focus-view[data-active-tab="overview"]) > .timeline-view {
   position: absolute;
   inset: 0 0 0 auto;
   grid-column: auto !important;
@@ -2555,16 +2546,16 @@
 }
 
 /* Keep the focused content and graph entirely in the space chronology yielded. */
-#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="landscape"]:has(.timeline-focus-view[data-active-tab="overview"])
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(.timeline-focus-view[data-active-tab="overview"])
   .timeline-view > .timeline-focus-view:popover-open {
   top: max(.65rem, env(safe-area-inset-top));
   bottom: auto;
-  inline-size: min(820px, calc(100dvw - 2rem));
-  max-inline-size: calc(100dvw - 2rem);
-  max-block-size: calc(100dvh - var(--timeline-context-edge-span) - 1.3rem);
+  inline-size: min(720px, calc(100dvw - 2.5rem));
+  max-inline-size: calc(100dvw - 2.5rem);
+  max-block-size: min(470px, calc(100dvh - var(--timeline-context-edge-span) - 1.5rem));
 }
 
-#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="portrait"]:has(.timeline-focus-view[data-active-tab="overview"])
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="vertical"]:has(.timeline-focus-view[data-active-tab="overview"])
   .timeline-view > .timeline-focus-view:popover-open {
   --timeline-focus-left-edge: max(4.7rem, calc(env(safe-area-inset-left) + 4.2rem));
   top: 50%;
@@ -2572,11 +2563,11 @@
   bottom: auto;
   left: var(--timeline-focus-left-edge);
   inline-size: min(
-    620px,
-    calc(100dvw - var(--timeline-context-edge-span) - var(--timeline-focus-left-edge) - 1rem)
+    600px,
+    calc(100dvw - var(--timeline-context-edge-span) - var(--timeline-focus-left-edge) - 1.25rem)
   );
-  max-inline-size: calc(100dvw - var(--timeline-context-edge-span) - var(--timeline-focus-left-edge) - 1rem);
-  max-block-size: min(76dvh, 720px);
+  max-inline-size: calc(100dvw - var(--timeline-context-edge-span) - var(--timeline-focus-left-edge) - 1.25rem);
+  max-block-size: min(72dvh, 680px);
   transform: translateY(-50%);
 }
 
@@ -2622,7 +2613,7 @@
 }
 
 .timeline-focus-view[popover][data-active-tab="evidence"] {
-  overflow: visible;
+  overflow: hidden;
 }
 
 /* Hero and Context are persistent identity/context surfaces. Tabs only replace the lower
@@ -2630,21 +2621,23 @@
 @media (min-width: 900px) and (min-height: 700px) {
   .timeline-focus-view[popover][data-active-tab="overview"],
   .timeline-focus-view[popover][data-active-tab="evidence"] {
-    grid-template-rows: minmax(180px, min(27dvh, 250px)) minmax(120px, min(34dvh, 300px));
+    grid-template-rows: clamp(240px, 30dvh, 290px) clamp(120px, 18dvh, 160px);
   }
 
   .timeline-focus-view[popover] .timeline-focus-hero {
     grid-column: 1 / span 4 !important;
     grid-row: 1 !important;
-    min-height: 180px;
-    max-height: min(27dvh, 250px);
+    min-height: 0;
+    height: 100%;
+    max-height: none;
   }
 
   .timeline-focus-view[popover] .timeline-focus-summary {
     grid-column: 5 / -1 !important;
     grid-row: 1 !important;
     align-self: stretch;
-    max-height: min(27dvh, 250px);
+    min-height: 0;
+    max-height: none;
   }
 
   .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place {
@@ -2706,7 +2699,7 @@
 
 /* Keep chronology docked while focused tabs change. The graph itself may disappear on
    Evidence, but the spatial composition remains stable instead of snapping underneath. */
-#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="landscape"]:has(.timeline-focus-view:popover-open) > .timeline-view {
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(.timeline-focus-view:popover-open) > .timeline-view {
   position: absolute;
   inset: auto 0 0 0;
   width: 100%;
@@ -2717,7 +2710,7 @@
   max-height: var(--timeline-context-edge-span);
 }
 
-#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="portrait"]:has(.timeline-focus-view:popover-open) > .timeline-view {
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="vertical"]:has(.timeline-focus-view:popover-open) > .timeline-view {
   position: absolute;
   inset: 0 0 0 auto;
   width: var(--timeline-context-edge-span);

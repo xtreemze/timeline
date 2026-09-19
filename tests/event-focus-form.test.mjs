@@ -517,7 +517,7 @@ test("focused popover uses a two-row overview with Evidence as a separate tab", 
   assert.match(source, /evidence\.hidden = true/);
   assert.match(css, /timeline-focus-view\[popover\][\s\S]*padding-top:\s*0/);
   assert.match(css, /data-active-tab="overview"[\s\S]*timeline-focus-summary[\s\S]*padding-top:\s*3\.2rem/);
-  assert.match(css, /data-active-tab="overview"[\s\S]*data-active-tab="evidence"[\s\S]*grid-template-rows:\s*minmax\(180px, min\(27dvh, 250px\)\)\s*minmax\(120px, min\(34dvh, 300px\)\)/);
+  assert.match(css, /data-active-tab="overview"[\s\S]*data-active-tab="evidence"[\s\S]*grid-template-rows:\s*clamp\(240px, 30dvh, 290px\)\s*clamp\(120px, 18dvh, 160px\)/);
   assert.match(css, /data-active-tab="evidence"[\s\S]*timeline-focus-evidence[\s\S]*grid-row:\s*2 !important/);
 });
 
@@ -583,59 +583,55 @@ test("focused chronology hugs the right or bottom edge in presentation", async (
   assert.match(view, /this\.orientation === "horizontal" \? height - focusInset : width - focusInset/);
 });
 
-test("relations halo escapes the popover while Evidence remains bounded", async () => {
+test("relations halo remains inside the unified popover chrome", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
-  assert.match(css, /data-active-tab="overview"\][\s\S]*overflow:\s*visible/);
-  assert.match(css, /data-active-tab="evidence"\][\s\S]*overflow:\s*hidden/);
-  assert.match(css, /data-active-tab="overview"[\s\S]*timeline-focus-relations::before[\s\S]*inset:\s*-24%/);
-  assert.match(css, /data-viewport-orientation="portrait"[\s\S]*inset:\s*-18% -12% -18% -24%[\s\S]*radial-gradient\(ellipse at 42% 50%/);
-  assert.match(css, /data-viewport-orientation="landscape"[\s\S]*inset:\s*-26% -16% -10%[\s\S]*radial-gradient\(ellipse at 50% 38%/);
+  assert.match(css, /data-active-tab="overview"\],[\s\S]*data-active-tab="evidence"\][\s\S]*overflow:\s*hidden/);
+  assert.match(css, /data-active-tab="overview"[\s\S]*timeline-focus-relations::before[\s\S]*inset:\s*0/);
+  assert.match(css, /data-timeline-orientation="vertical"[\s\S]*ellipse 70% 86% at 42% 50%/);
+  assert.match(css, /data-timeline-orientation="horizontal"[\s\S]*ellipse 78% 68% at 50% 42%/);
+  assert.match(css, /\.timeline-focus-relations::before\s*\{[\s\S]*?inset:\s*0/);
 });
 
-
-test("contextual relations physically docks the timeline to the viewport edge", async () => {
+test("contextual relations docks chronology by timeline orientation", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   const overlayRule = css.indexOf("#presentation-stage:fullscreen > .timeline-view");
   const contextualRule = css.indexOf(
-    '#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="landscape"]:has(.timeline-focus-view[data-active-tab="overview"]) > .timeline-view'
+    '#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(.timeline-focus-view[data-active-tab="overview"]) > .timeline-view'
   );
   assert.ok(overlayRule >= 0, "expected the legacy fullscreen full-stage rule");
   assert.ok(contextualRule > overlayRule, "contextual graph docking must follow and override the full-stage rule");
   assert.match(
     css,
-    /data-viewport-orientation="landscape"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\) > \.timeline-view[\s\S]*inset:\s*auto 0 0 0[\s\S]*height:\s*var\(--timeline-context-edge-span\)/
+    /data-timeline-orientation="horizontal"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\) > \.timeline-view[\s\S]*inset:\s*auto 0 0 0[\s\S]*height:\s*var\(--timeline-context-edge-span\)/
   );
   assert.match(
     css,
-    /data-viewport-orientation="portrait"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\) > \.timeline-view[\s\S]*inset:\s*0 0 0 auto[\s\S]*width:\s*var\(--timeline-context-edge-span\)/
+    /data-timeline-orientation="vertical"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\) > \.timeline-view[\s\S]*inset:\s*0 0 0 auto[\s\S]*width:\s*var\(--timeline-context-edge-span\)/
   );
-  assert.match(css, /--timeline-context-edge-span:\s*clamp\(112px, 24dvh, 260px\)/);
-  assert.match(css, /--timeline-context-edge-span:\s*clamp\(132px, 29dvw, 320px\)/);
+  assert.match(css, /data-timeline-orientation="horizontal"[\s\S]*--timeline-context-edge-span:\s*clamp\(112px, 24dvh, 260px\)/);
+  assert.match(css, /data-timeline-orientation="vertical"[\s\S]*--timeline-context-edge-span:\s*clamp\(132px, 29dvw, 320px\)/);
 });
 
 test("focused graph popover stays inside the space yielded by chronology", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   assert.match(
     css,
-    /data-viewport-orientation="landscape"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\)[\s\S]*timeline-focus-view:popover-open[\s\S]*max-block-size:\s*calc\(100dvh - var\(--timeline-context-edge-span\) - 1\.3rem\)/
+    /data-timeline-orientation="horizontal"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\)[\s\S]*timeline-focus-view:popover-open[\s\S]*inline-size:\s*min\(720px[\s\S]*max-block-size:\s*min\(470px/
   );
   assert.match(
     css,
-    /data-viewport-orientation="portrait"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\)[\s\S]*timeline-focus-view:popover-open[\s\S]*100dvw - var\(--timeline-context-edge-span\)/
+    /data-timeline-orientation="vertical"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\)[\s\S]*timeline-focus-view:popover-open[\s\S]*inline-size:\s*min\([\s\S]*600px[\s\S]*100dvw - var\(--timeline-context-edge-span\)/
   );
 });
 
-test("popover footprint and relations glow are restrained in both viewport orientations", async () => {
+test("desktop focus card preserves readable hero and context proportions", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
-  assert.match(css, /data-orientation="landscape"[\s\S]*inline-size:\s*min\(640px, calc\(100dvw - 6\.5rem\)\)[\s\S]*max-block-size:\s*min\(62dvh, 640px\)/);
-  assert.match(css, /data-orientation="portrait"[\s\S]*inline-size:\s*min\(520px, calc\(100dvw - 7\.2rem\)\)[\s\S]*max-block-size:\s*min\(68dvh, 660px\)/);
-  assert.match(css, /data-viewport-orientation="landscape"[\s\S]*inline-size:\s*min\(840px, calc\(100dvw - 7\.5rem\)\)[\s\S]*min-height:\s*clamp\(180px, 26dvh, 260px\)/);
-  assert.match(css, /data-viewport-orientation="portrait"[\s\S]*inline-size:\s*min\(58dvw, 620px\)[\s\S]*min-height:\s*clamp\(300px, 48dvh, 580px\)/);
-  assert.match(css, /data-viewport-orientation="portrait"[\s\S]*inset:\s*-18% -12% -18% -24%[\s\S]*transparent 70%/);
-  assert.match(css, /data-viewport-orientation="landscape"[\s\S]*inset:\s*-26% -16% -10%[\s\S]*transparent 70%/);
+  assert.match(css, /grid-template-rows:\s*clamp\(240px, 30dvh, 290px\) clamp\(120px, 18dvh, 160px\)/);
+  assert.match(css, /timeline-focus-title[\s\S]*font-size:\s*clamp\(2\.2rem, 7cqi, 4\.6rem\)[\s\S]*line-height:\s*\.94/);
+  assert.match(css, /data-orientation="landscape"[\s\S]*inline-size:\s*min\(640px, calc\(100dvw - 6\.5rem\)\)/);
+  assert.match(css, /data-orientation="portrait"[\s\S]*inline-size:\s*min\(520px, calc\(100dvw - 7\.2rem\)\)/);
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*timeline-focus-view:popover-open[\s\S]*transform:\s*none/);
 });
-
 
 
 test("adjacent event navigation preserves temporal context before swapping focused detail", async () => {
