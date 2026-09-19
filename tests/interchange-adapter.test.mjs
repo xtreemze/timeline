@@ -77,6 +77,16 @@ test("exports event/period/group structures and round-trips source extensions", 
     objectId: "ext-e1",
     predicate: "participant"
   }];
+  imported.timeline.items[0].media = [{
+    src: "https://example.test/photo.jpg",
+    alt: "Example photo",
+    caption: "Preserved media"
+  }];
+  imported.timeline.items[0].tags = [{
+    label: "Evidence",
+    icon: "evidence",
+    hue: 145
+  }];
   const exported = adapter.exportData(imported.timeline);
 
   assert.equal(exported.events.length, 1);
@@ -88,10 +98,14 @@ test("exports event/period/group structures and round-trips source extensions", 
   assert.equal(exported._timeline.stories.length, 1);
   assert.equal(exported._timeline.entities.length, 1);
   assert.equal(exported._timeline.relationships.length, 1);
+  assert.equal(exported.events[0].media[0].url, "https://example.test/photo.jpg");
+  assert.equal(exported.events[0].tags[0].icon, "evidence");
 
   const reimported = adapter.importData(exported);
   assert.equal(reimported.timeline.entities.length, 1);
   assert.equal(reimported.timeline.relationships.length, 1);
+  assert.equal(reimported.timeline.items[0].media[0].url, "https://example.test/photo.jpg");
+  assert.equal(reimported.timeline.items[0].tags[0].hue, 145);
 });
 
 test("publishes a JSON Schema and documents the vendor-schema boundary", async () => {
