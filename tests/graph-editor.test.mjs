@@ -205,7 +205,7 @@ test("graph refresh rerenders Orb after reparenting or container resize", async 
 
   assert.match(bridge, /refreshLayout\(\) \{[\s\S]*orb\.render\(\(\) => orb\.recenter\(\)\)/);
   assert.match(view, /new ResizeObserver\(\(entries\) => \{/);
-  assert.match(view, /entry\.target === this\.canvas/);
+  assert.match(view, /entries\.find\(\(candidate\) => candidate\.target === this\.canvas\)/);
   assert.match(view, /this\.lastCanvasSize/);
   assert.match(view, /this\.resizeObserver\.observe\(this\.canvas\)/);
   assert.match(view, /refreshLayout\(\)[\s\S]*this\.orb\.refreshLayout\?\.\(\)/);
