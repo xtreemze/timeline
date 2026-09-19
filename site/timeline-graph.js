@@ -40,6 +40,13 @@
     };
   }
 
+  function normalizeConfidence(value) {
+    if (value === null || value === undefined || value === "") return null;
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    return Math.min(1, Math.max(0, numeric));
+  }
+
   function normalizeRelationship(raw, index, temporal) {
     if (!raw || typeof raw !== "object") return null;
     const subjectId = text(raw.subjectId ?? raw.start ?? raw.source, 120);
@@ -66,6 +73,8 @@
       role: text(raw.role, 120),
       initialState: raw.initialState === "inactive" ? "inactive" : "active",
       time,
+      sourceIds: textList(raw.sourceIds, { maxItems: 96, maxLength: 120 }),
+      confidence: normalizeConfidence(raw.confidence),
       attributes: raw.properties && typeof raw.properties === "object"
         ? cloneJson(raw.properties)
         : raw.attributes && typeof raw.attributes === "object"
@@ -241,6 +250,8 @@
         role: relationship.role || "",
         initialState: relationship.initialState || "active",
         time: cloneJson(relationship.time || null),
+        sourceIds: cloneJson(relationship.sourceIds || []),
+        confidence: relationship.confidence ?? null,
         attributes: cloneJson(relationship.attributes || {})
       }
     }));
