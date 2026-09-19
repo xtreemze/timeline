@@ -2633,6 +2633,8 @@
   max-block-size: none;
 }
 
+/* The docked surface is only the chronology rail. Event terminals remain spatial callouts
+   and may project inward beyond that rail; the full-viewport .timeline-view is the clip boundary. */
 #app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"]
   > .timeline-view > .timeline-surface {
   transition:
@@ -2654,6 +2656,7 @@
   max-height: var(--timeline-context-edge-span);
   max-inline-size: none;
   max-block-size: var(--timeline-context-edge-span);
+  overflow: visible;
 }
 
 #app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="vertical"]:has(.timeline-focus-view:popover-open)
@@ -2668,6 +2671,7 @@
   max-height: none;
   max-inline-size: var(--timeline-context-edge-span);
   max-block-size: none;
+  overflow: visible;
 }
 
 /* Keep the focused content and graph entirely in the space chronology yielded. */
