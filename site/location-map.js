@@ -123,6 +123,7 @@
       this.provider = globalThis.TimelineMapTileProvider || DEFAULT_PROVIDER;
       this.color = options.color || "#315fbd";
       this.iconName = options.iconName || "place";
+      this.interactive = options.interactive === true;
       this.map = null;
       this.layers = [];
       this.destroyed = false;
@@ -142,14 +143,14 @@
         if (this.destroyed || !this.container.isConnected) return;
 
         this.map = L.map(this.container, {
-          zoomControl: false,
+          zoomControl: this.interactive,
           attributionControl: true,
-          dragging: false,
-          scrollWheelZoom: false,
-          doubleClickZoom: false,
-          boxZoom: false,
-          keyboard: false,
-          touchZoom: false
+          dragging: this.interactive,
+          scrollWheelZoom: this.interactive,
+          doubleClickZoom: this.interactive,
+          boxZoom: this.interactive,
+          keyboard: this.interactive,
+          touchZoom: this.interactive
         });
 
         L.tileLayer(this.provider.url, {
@@ -168,8 +169,8 @@
           }),
           pointToLayer: (_feature, latlng) => L.marker(latlng, {
             icon,
-            interactive: false,
-            keyboard: false,
+            interactive: this.interactive,
+            keyboard: this.interactive,
             title: this.location?.name || this.location?.geographicIdentifier || "Event location"
           })
         };
