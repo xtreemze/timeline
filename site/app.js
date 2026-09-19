@@ -381,6 +381,8 @@
     const category = getCategory(item.categoryId);
     const categoryIcon = presentation.ICON_NAMES.includes(item.categoryId) ? item.categoryId : null;
     const iconName = item.tags?.[0]?.icon || categoryIcon || "place";
+    const fictionalReferenceFrame =
+      state.extensions?.narrative?.spatialReferenceFrame?.fictional === true;
     presentationMap = mapApi.createReadOnly?.({
       container: els.presentationMap,
       location: item.location,
@@ -388,7 +390,8 @@
       iconName,
       label: name,
       interactive: true,
-      countryContextIntro: true
+      countryContextIntro: true,
+      fictionalReferenceFrame
     }) || null;
     return true;
   }
