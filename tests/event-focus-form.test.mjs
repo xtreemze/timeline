@@ -129,3 +129,47 @@ test("focused layouts use intentional graph placement across all three variants"
   assert.match(css, /data-layout="evidence-dossier"[\s\S]*timeline-focus-graph/);
   assert.match(css, /data-layout="editorial-mosaic"[\s\S]*timeline-focus-graph/);
 });
+
+test("presentation stage keeps timeline and graph together and supports fullscreen", async () => {
+  const [html, app, css, timelineSource] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8")
+  ]);
+
+  assert.match(html, /id="presentation-stage"[\s\S]*id="timeline-view"[\s\S]*id="graph-lens"/);
+  assert.match(html, /id="presentation-fullscreen-toggle"/);
+  assert.match(app, /requestFullscreen/);
+  assert.match(app, /fullscreenchange/);
+  assert.match(app, /ResizeObserver/);
+  assert.match(app, /data(?:set)?\.timelineOrientation|dataset\.timelineOrientation/);
+  assert.match(timelineSource, /timelineorientationchange/);
+  assert.match(timelineSource, /getOrientation\(\)/);
+  assert.match(css, /\.presentation-stage:fullscreen/);
+  assert.match(css, /data-timeline-orientation="horizontal"/);
+  assert.match(css, /data-timeline-orientation="vertical"/);
+  assert.doesNotMatch(css, /\.app-shell\.is-event-focused \.graph-lens\s*\{\s*display:\s*none/);
+});
+
+test("fullscreen composition preserves both axes across wide and tall displays", async () => {
+  const css = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
+  assert.match(
+    css,
+    /presentation-stage:fullscreen\[data-timeline-orientation="horizontal"\][\s\S]*grid-template-rows/
+  );
+  assert.match(
+    css,
+    /presentation-stage:fullscreen\[data-timeline-orientation="vertical"\][\s\S]*grid-template-columns/
+  );
+  assert.match(
+    css,
+    /data-stage-shape="tall"\]\[data-timeline-orientation="horizontal"\]/
+  );
+  assert.match(
+    css,
+    /data-stage-shape="tall"\]\[data-timeline-orientation="vertical"\]/
+  );
+  assert.match(css, /presentation-stage:fullscreen \.temporal-graph-canvas[\s\S]*min-height:\s*0/);
+  assert.match(css, /presentation-stage:fullscreen \.timeline-focus-view[\s\S]*overflow:\s*auto/);
+});
