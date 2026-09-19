@@ -414,6 +414,8 @@
 
     queueZoom(factor, anchorRatio) {
       if (!this.viewport) return;
+      this.focusNavigationToken += 1;
+      this.resolveViewportAnimation(false);
       const base = this.zoomTarget || this.viewport;
       const span = base.end - base.start;
       const ratio = clamp(Number(anchorRatio), 0, 1);
@@ -457,6 +459,7 @@
         this.zoomAnimationFrame = 0;
         if (!this.viewport || !this.zoomTarget) {
           this.zoomLastFrame = 0;
+          this.resolveViewportAnimation(false);
           return;
         }
 
