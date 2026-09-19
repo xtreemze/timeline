@@ -54,6 +54,9 @@
     editorSurfaceTitle: document.querySelector("#editor-surface-title"),
     panelOpeners: [...document.querySelectorAll("[data-open-panel]")],
     semanticIconTargets: [...document.querySelectorAll("[data-semantic-icon]")],
+    projectMenu: document.querySelector("#project-menu"),
+    importJsonTrigger: document.querySelector("#import-json-trigger"),
+    importInterchangeTrigger: document.querySelector("#import-interchange-trigger"),
     browserSheet: document.querySelector("#timeline-browser-sheet"),
     browserToggle: document.querySelector("#timeline-browser-toggle"),
     browserClose: document.querySelector("#timeline-browser-close"),
@@ -2441,7 +2444,19 @@
     navigationController.auto.setIntervalMs(seconds * 1000);
   });
 
-  els.editorToggle?.addEventListener("click", () => setEditorSurfaceOpen(!ui.editorOpen));
+  function closeProjectMenu() {
+    if (els.projectMenu?.matches?.(":popover-open")) els.projectMenu.hidePopover();
+  }
+
+  els.importJsonTrigger?.addEventListener("click", () => els.importJson?.click());
+  els.importInterchangeTrigger?.addEventListener("click", () => els.importInterchange?.click());
+  els.projectMenu?.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-project-menu-close]");
+    if (!action) return;
+    queueMicrotask(closeProjectMenu);
+  });
+
+    els.editorToggle?.addEventListener("click", () => setEditorSurfaceOpen(!ui.editorOpen));
   els.panelOpeners.forEach((button) => {
     button.addEventListener("click", () => setActivePanel(button.dataset.openPanel));
   });
