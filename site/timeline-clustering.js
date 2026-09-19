@@ -272,8 +272,13 @@
     const span = Math.max(minSpanMs, viewport.end - viewport.start);
     const length = Math.max(1, Number(pixelLength) || 1);
     const threshold = Math.max(1, Number(thresholdPx) || 1);
+    const overlapsViewport = (item) => {
+      const end = Number.isFinite(item.end) ? item.end : item.start;
+      return end >= viewport.start && item.start <= viewport.end;
+    };
+    const visibleSource = source.filter(overlapsViewport);
     const positionFor = (item) => ((item.start - viewport.start) / span) * length;
-    const representations = clusterProjectedItems(source, positionFor, threshold);
+    const representations = clusterProjectedItems(visibleSource, positionFor, threshold);
     const representation = representations.find((entry) =>
       entry.items.some((item) => String(item.id) === String(focused.id))
     );
@@ -306,11 +311,7 @@
       };
     }
 
-    const overlapsViewport = (item) => {
-      const end = Number.isFinite(item.end) ? item.end : item.start;
-      return end >= viewport.start && item.start <= viewport.end;
-    };
-    const visibleOthers = source.filter(
+    const visibleOthers = visibleSource.filter(
       (item) => String(item.id) !== String(focused.id) && overlapsViewport(item)
     );
     const targetContextCount = Math.min(Math.max(0, desiredContext), Math.max(0, source.length - 1));
@@ -346,15 +347,7 @@
     const max = Math.max(...values);
     const rawSpan = Math.max(minSpanMs, max - min || span);
     const paddedSpan = rawSpan * (1 + Math.max(0, paddingRatio) * 2);
-    const nearestDelta = source
-      .filter((item) => String(item.id) !== String(focused.id))
-      .map((item) => Math.abs(item.start - focused.start))
-      .filter((delta) => delta > 0)
-      .reduce((nearest, delta) => Math.min(nearest, delta), Number.POSITIVE_INFINITY);
-    const maxUniqueSpan = Number.isFinite(nearestDelta)
-      ? nearestDelta * length / (threshold * 1.18)
-      : Number.POSITIVE_INFINITY;
-    const targetSpan = Math.max(span, Math.min(paddedSpan, maxUniqueSpan));
+    const targetSpan = Math.max(span, paddedSpan);
     const center = (min + max) / 2;
 
     return {
