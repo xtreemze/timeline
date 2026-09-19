@@ -54,6 +54,9 @@ The application is static and runs entirely in the browser. Timeline data is sto
 - Focused presentation controls: Left/Right move between events, Up/Down move between event photographs, Space or media Play/Pause toggles auto advance, and Escape/Browser Back exits focus. Standard gamepad D-pad/shoulders, A/B and Start map to the same presentation commands.
 - Collision-aware temporal accents for months containing up to three visible segments: month+year stays ambient at the edge when there is room; when those labels would collide, the edge collapses to non-overlapping year accents and month names move onto the timeline axis. At year-scale zoom the normal year ticks take over entirely.
 - A deliberate 12-column focused-event composition with dedicated regions for hero media, temporal facts, place, relationships, the local node graph, evidence, and controls. Hero titles scale against their own container and wrap without metric trimming.
+- Long ranges remain identifiable for their entire visible interval: their event label/connector traces from the midpoint of the currently visible portion rather than disappearing once the real start scrolls offscreen. Range bars are keyboard-focusable/clickable and expose a hover/focus tooltip with title and full range.
+- Timeline event labels use the same category/event color as their dot or range, with larger semantic icons for faster visual scanning.
+- Fullscreen presentation reserves simultaneous regions for the focused event/media, contextual timeline, relevant relation graph, and a simplified read-only place map. Wide, balanced, and tall displays rearrange those surfaces without changing the selected timeline axis.
 
 ### Categories
 
@@ -93,7 +96,9 @@ Timeline includes an authorable subject–action–object graph alongside the ch
 
 The canonical graph remains `entities[] + relationships[]`. `TimelineGraph.toOrbGraph()` emits the node/edge contract expected by Orb-like visualization layers without making a force-layout view the source of truth.
 
-The graph lens is rendered with the bundled `@memgraph/orb` package. Force simulation uses Orb's worker-backed CPU path by default. Dense graphs move rendering to WebGL when available, and very large graphs can switch the force calculation to Orb's GPU path. Timeline-window updates restyle edges without restarting physics; topology edits rerun the simulation.
+The graph lens is rendered with bundled `@memgraph/orb`. Focused presentation scopes the global graph to the selected event's relevant one-hop neighborhood, including relation changes. Nodes use semantic shapes and embedded SVG glyphs; directed edges combine action labels, semantic glyphs, state-aware line styling and arrows.
+
+Force simulation uses Orb's worker-backed CPU engine for ordinary and focused graphs, with continuous physics, centering forces and node mass for weighted drag/release behavior. Very large WebGL2 graphs may switch to Orb's GPU force engine. Orb 1.0.2 documents that GPU force requires the main thread because its WebGL context cannot run in Orb's worker, so Timeline labels that mode explicitly rather than calling it worker-backed. Timeline-window-only edge updates do not restart physics; topology changes do.
 
 Focused events also render a one-hop graph neighborhood containing the event, connected entities/records, canonical relations, and derived links showing which relation the event activates, deactivates, or updates.
 
