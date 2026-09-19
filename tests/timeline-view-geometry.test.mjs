@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 await import("../site/time-scale.js");
+await import("../site/timeline-clustering.js");
+await import("../site/timeline-motion.js");
 await import("../site/timeline-view.js");
 
 const geometry = globalThis.TimelineView.geometry;
