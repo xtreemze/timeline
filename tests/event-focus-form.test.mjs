@@ -587,9 +587,9 @@ test("relations halo escapes the popover while Evidence remains bounded", async 
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   assert.match(css, /data-active-tab="overview"\][\s\S]*overflow:\s*visible/);
   assert.match(css, /data-active-tab="evidence"\][\s\S]*overflow:\s*hidden/);
-  assert.match(css, /data-active-tab="overview"[\\s\\S]*timeline-focus-relations::before[\\s\\S]*inset:\\s*-24%/);
-  assert.match(css, /data-viewport-orientation="portrait"[\\s\\S]*inset:\\s*-18% -12% -18% -24%[\\s\\S]*radial-gradient\\(ellipse at 42% 50%/);
-  assert.match(css, /data-viewport-orientation="landscape"[\\s\\S]*inset:\\s*-26% -16% -10%[\\s\\S]*radial-gradient\\(ellipse at 50% 38%/);
+  assert.match(css, /data-active-tab="overview"[\s\S]*timeline-focus-relations::before[\s\S]*inset:\s*-24%/);
+  assert.match(css, /data-viewport-orientation="portrait"[\s\S]*inset:\s*-18% -12% -18% -24%[\s\S]*radial-gradient\(ellipse at 42% 50%/);
+  assert.match(css, /data-viewport-orientation="landscape"[\s\S]*inset:\s*-26% -16% -10%[\s\S]*radial-gradient\(ellipse at 50% 38%/);
 });
 
 
