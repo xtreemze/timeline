@@ -472,15 +472,17 @@ Physical screen orientation never rewrites the timeline orientation.
 
 ### Composition rules
 
-- Horizontal timeline: preserve maximum primary-axis width. In fullscreen the timeline and graph stack vertically.
-- Vertical timeline: preserve maximum primary-axis height. In fullscreen the timeline and graph sit side-by-side.
-- Tall physical displays rebalance the horizontal-axis stack toward the graph and the vertical-axis split toward the graph; they do not rotate the timeline.
-- Normal workspace layout uses the measured presentation-stage width: wide stages can compose timeline and graph beside one another, while narrower stages stack.
-- Both child surfaces use `min-width: 0` / `min-height: 0` contracts so their internal canvases can shrink instead of causing page overflow.
+- Timeline-axis orientation remains an explicit user setting; physical viewport orientation controls only the fullscreen composition.
+- With no focused event, fullscreen suppresses contextual graph/map lenses and lets the timeline occupy the complete 12×12 stage so its chronology remains visually centered.
+- With a focused event on a landscape viewport, the timeline keeps the full 12-column horizontal measure and shifts to the lower edge. The relation graph and place map, when relevant, each occupy at most 2 columns × 2 rows above it.
+- With a focused event on a portrait viewport, the timeline keeps the full 12-row vertical measure and shifts to the right edge. The relation graph and place map, when relevant, each occupy at most 2 columns × 2 rows along the left edge.
+- Context lenses never expand to fill unused space merely because the other lens is absent; chronology remains the dominant surface.
+- Normal workspace layout still uses the measured presentation-stage width independently of fullscreen presentation.
+- All child surfaces use `min-width: 0` / `min-height: 0` contracts so canvases/maps can shrink without causing overflow.
 
 Fullscreen targets `#presentation-stage`, not the entire editor or document. The authoring sidebar, search controls, detailed chronology list, site navigation and footer therefore remain outside the fullscreen presentation.
 
-The graph is forced open while fullscreen is active. Its previous disclosure state is restored when fullscreen exits.
+Focus/unfocus layout changes use named Web View Transitions for the timeline, relation graph and map. Reduced-motion preferences bypass animated transitions.
 
 ### Focused event presentation
 
@@ -502,6 +504,6 @@ A focused fullscreen event must keep four surfaces visible at once:
 3. relevant node/edge graph — scoped to the focused event rather than the entire case;
 4. simplified place map — when the event has coordinates.
 
-The place map is read-only in presentation mode. It uses the stored GeoJSON point, disables map editing/navigation controls, and chooses a neighborhood-scale zoom from recorded coordinate accuracy when available. The interactive editor map remains separate.
+The place map is read-only in presentation mode. It renders the stored GeoJSON geometry instead of assuming every location is a point: semantic-icon markers identify points, LineString/MultiLineString geometries provide tracks or trails, Polygon/MultiPolygon geometries provide areas, GeometryCollection/Feature/FeatureCollection inputs are accepted, and optional `mapFeatures[]` can add contextual GeoJSON overlays. Recorded point accuracy is rendered as an uncertainty circle when available. The map fits the visible geometry while editing/navigation controls remain disabled. The interactive editor map remains separate.
 
-Wide fullscreen stages devote the large field to event+timeline and split the secondary rail between graph and map. Balanced screens keep event+timeline above a graph/map pair. Tall screens stack all three stage regions. Physical screen orientation never mutates the selected timeline orientation.
+Fullscreen composition is intentionally asymmetric. The focused timeline keeps either the complete viewport width (landscape) or complete viewport height (portrait) while graph and map remain compact 2×2-cell contextual lenses. Physical screen orientation never mutates the selected timeline-axis orientation.
