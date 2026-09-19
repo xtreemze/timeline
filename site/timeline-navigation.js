@@ -174,7 +174,7 @@
       this.pressedGamepadControls = new Set();
       this.frame = 0;
       this.bind();
-      this.startGamepadPolling();
+      if (navigator.getGamepads?.().some(Boolean)) this.startGamepadPolling();
     }
 
     bind() {
@@ -202,15 +202,22 @@
       }
 
       window.addEventListener("gamepadconnected", () => this.startGamepadPolling());
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) this.auto?.pause("hidden");
+      });
     }
 
     startGamepadPolling() {
       if (this.frame || !navigator.getGamepads) return;
       const poll = () => {
-        this.frame = requestAnimationFrame(poll);
+        const gamepads = [...navigator.getGamepads()].filter(Boolean);
+        if (!gamepads.length) {
+          this.frame = 0;
+          this.pressedGamepadControls.clear();
+          return;
+        }
         const nextPressed = new Set();
-        for (const gamepad of navigator.getGamepads()) {
-          if (!gamepad) continue;
+        for (const gamepad of gamepads) {
           const controls = gamepadControls(gamepad);
           for (const [control, command] of controls) {
             const key = `${gamepad.index}:${control}`;
@@ -222,6 +229,7 @@
           }
         }
         this.pressedGamepadControls = nextPressed;
+        this.frame = requestAnimationFrame(poll);
       };
       this.frame = requestAnimationFrame(poll);
     }
