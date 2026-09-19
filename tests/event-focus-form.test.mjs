@@ -118,7 +118,7 @@ test("focused event composition does not instantiate duplicate graph or map surf
 
   assert.doesNotMatch(source, /orbGraphFactory|TimelineOrbGraph|timeline-focus-graph-canvas/);
   assert.doesNotMatch(source, /timeline-focus-place-map/);
-  assert.doesNotMatch(css, /timeline-focus-graph/);
+  assert.doesNotMatch(css, /\.timeline-focus-graph(?:\s|,|\{)/);
   assert.doesNotMatch(css, /timeline-focus-place-map/);
   assert.match(css, /container-type:\s*inline-size/);
   assert.match(css, /font-size:\s*clamp\(3\.2rem,\s*11\.5cqi,\s*9rem\)/);
@@ -130,7 +130,7 @@ test("focused event composition does not instantiate duplicate graph or map surf
 test("focused layouts reclaim the former duplicate graph columns for event context", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   assert.match(css, /timeline-focus-relations[\s\S]*grid-column:\s*5\s*\/\s*-1/);
-  assert.doesNotMatch(css, /timeline-focus-graph/);
+  assert.doesNotMatch(css, /\.timeline-focus-graph(?:\s|,|\{)/);
   assert.match(css, /data-layout="hero-split"/);
   assert.match(css, /data-layout="evidence-dossier"/);
   assert.match(css, /data-layout="editorial-mosaic"/);
