@@ -173,3 +173,8 @@ test("fullscreen composition preserves both axes across wide and tall displays",
   assert.match(css, /presentation-stage:fullscreen \.temporal-graph-canvas[\s\S]*min-height:\s*0/);
   assert.match(css, /presentation-stage:fullscreen \.timeline-focus-view[\s\S]*overflow:\s*auto/);
 });
+
+test("Escape exits fullscreen before focused-event back navigation", async () => {
+  const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  assert.match(source, /presentationIsFullscreen\(\)[\s\S]*meta\.event\?\.key === "Escape"[\s\S]*return false/);
+});
