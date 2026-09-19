@@ -3016,6 +3016,10 @@
 
   els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
     const focused = Boolean(event.detail?.focused);
+    if (focused && ui.mode === "edit") {
+      requestAnimationFrame(() => timelineView?.closeFocus());
+      return;
+    }
     if (focused) {
       closeLargeUtilitySurfaces("focus");
       closeProjectMenu();
