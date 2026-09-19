@@ -266,16 +266,20 @@
       return Boolean(this.reducedMotionQuery && this.reducedMotionQuery.matches);
     }
 
-    setOrientation(orientation) {
+    setOrientation(orientation, options = {}) {
       const next = orientation === "vertical" ? "vertical" : "horizontal";
+      const persist = options.persist !== false;
+      const focus = options.focus !== false;
       if (next === this.orientation) return;
       this.cancelViewportAnimation();
       this.orientation = next;
-      this.preferences.orientation = next;
-      savePreferences(this.preferences);
+      if (persist) {
+        this.preferences.orientation = next;
+        savePreferences(this.preferences);
+      }
       this.applyOrientation();
       this.scheduleRender();
-      this.surface.focus({ preventScroll: true });
+      if (focus) this.surface.focus({ preventScroll: true });
     }
 
     getOrientation() {
