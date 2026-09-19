@@ -43,6 +43,8 @@
 
     const edgePairs = edges
       .map((edge) => ({
+        sourceId: String(edge.start),
+        targetId: String(edge.end),
         source: positions.get(String(edge.start)),
         target: positions.get(String(edge.end))
       }))
@@ -77,13 +79,10 @@
         const stretch = (distance - 132) * 0.0028;
         dx /= distance;
         dy /= distance;
-        const sourceId = [...positions.entries()].find(([, position]) => position === pair.source)?.[0];
-        const targetId = [...positions.entries()].find(([, position]) => position === pair.target)?.[0];
-        if (!sourceId || !targetId) continue;
-        forces.get(sourceId).x += dx * stretch;
-        forces.get(sourceId).y += dy * stretch;
-        forces.get(targetId).x -= dx * stretch;
-        forces.get(targetId).y -= dy * stretch;
+        forces.get(pair.sourceId).x += dx * stretch;
+        forces.get(pair.sourceId).y += dy * stretch;
+        forces.get(pair.targetId).x -= dx * stretch;
+        forces.get(pair.targetId).y -= dy * stretch;
       }
 
       const cooling = 1 - iteration / 100;
