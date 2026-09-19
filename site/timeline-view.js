@@ -989,26 +989,35 @@
     select(id) {
       const item = this.items.find((candidate) => candidate.id === id);
       if (!item) return;
-      this.selectedId = id;
-      this.focusMediaIndex = 0;
-      this.focusForceUnique = false;
-      this.ensureItemVisible(id);
-      this.adjustFocusedViewport(item);
-      this.root.classList.add("is-event-focused");
-      this.focusView.hidden = false;
-      this.renderFocus(item);
-      this.scheduleRender();
-      this.root.dispatchEvent(new CustomEvent("timelinefocuschange", {
-        bubbles: true,
-        detail: { id, focused: true }
-      }));
-      requestAnimationFrame(() => {
-        this.focusView.focus({ preventScroll: true });
-        this.root.scrollIntoView({
-          behavior: this.prefersReducedMotion() ? "auto" : "smooth",
-          block: "start"
+
+      const applyFocus = () => {
+        this.selectedId = id;
+        this.focusMediaIndex = 0;
+        this.focusForceUnique = false;
+        this.ensureItemVisible(id);
+        this.adjustFocusedViewport(item);
+        this.root.classList.add("is-event-focused");
+        this.focusView.hidden = false;
+        this.renderFocus(item);
+        this.scheduleRender();
+        this.root.dispatchEvent(new CustomEvent("timelinefocuschange", {
+          bubbles: true,
+          detail: { id, focused: true }
+        }));
+        requestAnimationFrame(() => {
+          this.focusView.focus({ preventScroll: true });
+          this.root.scrollIntoView({
+            behavior: this.prefersReducedMotion() ? "auto" : "smooth",
+            block: "start"
+          });
         });
-      });
+      };
+
+      if (!this.prefersReducedMotion() && typeof document.startViewTransition === "function") {
+        document.startViewTransition(applyFocus);
+      } else {
+        applyFocus();
+      }
     }
 
     createFocusHero(item) {
@@ -1251,22 +1260,30 @@
 
     closeFocus() {
       const previousId = this.selectedId;
-      this.selectedId = null;
-      this.focusMediaIndex = 0;
-      this.focusForceUnique = false;
-      this.root.classList.remove("is-event-focused");
-      this.focusView.hidden = true;
-      this.focusView.removeAttribute("style");
-      delete this.focusView.dataset.layout;
-      this.focusView.replaceChildren();
-      this.scheduleRender();
-      if (previousId) {
-        this.root.dispatchEvent(new CustomEvent("timelinefocuschange", {
-          bubbles: true,
-          detail: { id: previousId, focused: false }
-        }));
+      const clearFocus = () => {
+        this.selectedId = null;
+        this.focusMediaIndex = 0;
+        this.focusForceUnique = false;
+        this.root.classList.remove("is-event-focused");
+        this.focusView.hidden = true;
+        this.focusView.removeAttribute("style");
+        delete this.focusView.dataset.layout;
+        this.focusView.replaceChildren();
+        this.scheduleRender();
+        if (previousId) {
+          this.root.dispatchEvent(new CustomEvent("timelinefocuschange", {
+            bubbles: true,
+            detail: { id: previousId, focused: false }
+          }));
+        }
+        if (!this.root.hidden) this.surface.focus({ preventScroll: true });
+      };
+
+      if (!this.prefersReducedMotion() && typeof document.startViewTransition === "function") {
+        document.startViewTransition(clearFocus);
+      } else {
+        clearFocus();
       }
-      if (!this.root.hidden) this.surface.focus({ preventScroll: true });
     }
 
     updateReadout(spec) {
