@@ -1086,6 +1086,12 @@
     };
     const relationshipById = new Map(state.relationships.map((relationship) => [relationship.id, relationship]));
 
+    const allTimelineCoordinates = state.items.flatMap((item) => {
+      const coordinates = [temporal.sortKey(item.time?.start || item.start)];
+      if (item.end || item.time?.end) coordinates.push(temporal.sortKey(item.time?.end || item.end));
+      return coordinates.filter(Number.isFinite);
+    });
+
     timelineView?.setItems(visible.map((item) => {
       const category = getCategory(item.categoryId);
       const itemTime = temporal.sortKey(item.time?.start || item.start);
@@ -1136,6 +1142,7 @@
       };
     }), {
       focusId: storyCurrentId,
+      allCoordinates: allTimelineCoordinates,
       relationships: graph.temporalRelationProjection(state.relationships, temporal)
     });
   }
