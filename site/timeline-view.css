@@ -1884,3 +1884,34 @@
     scroll-behavior: auto;
   }
 }
+
+
+#app-shell .timeline-stage-empty {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+#app-shell .timeline-stage-empty .timeline-axis {
+  opacity: .55;
+}
+
+#app-shell .timeline-empty-hint {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--timeline-axis-cross) + 1.2rem);
+  margin: 0;
+  transform: translateX(-50%);
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 650;
+  letter-spacing: .01em;
+  white-space: nowrap;
+  opacity: .72;
+}
+
+#app-shell .timeline-surface.is-portrait .timeline-empty-hint {
+  left: calc(var(--timeline-axis-cross) + 1rem);
+  top: 50%;
+  transform: translateY(-50%);
+}
