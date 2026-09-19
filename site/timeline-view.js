@@ -961,6 +961,9 @@
       node.dataset.id = item.id;
       node.dataset.terminalShape = item.terminalShape || "rounded";
       node.dataset.connectorStyle = item.connectorStyle || "solid";
+      node.dataset.connectorWeight = item.connectorWeight || "normal";
+      node.dataset.connectorEndpoint = item.connectorEndpoint || "none";
+      node.style.setProperty("--connector-thickness", item.connectorWeight === "fine" ? "1px" : item.connectorWeight === "strong" ? "4px" : "2px");
       node.style.setProperty("--event-color", item.color || "var(--accent)");
       if (item.id === this.focusId) node.classList.add("is-story-current");
       if (item.id === this.selectedId) node.classList.add("is-selected");
@@ -1022,7 +1025,7 @@
         node.dataset.side = side < 0 ? "before" : "after";
         connector.style.left = "0";
         connector.style.top = segment.offset + "px";
-        connector.style.width = "2px";
+        connector.style.width = "var(--connector-thickness)";
         connector.style.height = Math.max(1, segment.length) + "px";
 
         if (position > width - 244) node.classList.add("label-before");
@@ -1047,7 +1050,7 @@
         connector.style.left = segment.offset + "px";
         connector.style.top = "0";
         connector.style.width = Math.max(1, segment.length) + "px";
-        connector.style.height = "2px";
+        connector.style.height = "var(--connector-thickness)";
 
         if (side < 0) node.classList.add("label-before");
       }
