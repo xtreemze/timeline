@@ -188,7 +188,6 @@
     graphEdgeList: document.querySelector("#graph-edge-list"),
     graphEdgeCount: document.querySelector("#graph-edge-count"),
     graphViewRoot: document.querySelector("#temporal-graph-view"),
-    graphResetView: document.querySelector("#graph-reset-view"),
     graphLens: document.querySelector("#graph-lens"),
     presentationStage: document.querySelector("#presentation-stage"),
     presentationFullscreenToggle: document.querySelector("#presentation-fullscreen-toggle"),
@@ -284,12 +283,6 @@
     : null;
   presentationGraphCanvas?.after(presentationGraphAnchor);
 
-  const presentationGraphDetail = els.graphViewRoot?.querySelector("[data-graph-detail]") || null;
-  const presentationGraphDetailAnchor = presentationGraphDetail
-    ? document.createComment("timeline-graph-detail-home")
-    : null;
-  presentationGraphDetail?.after(presentationGraphDetailAnchor);
-
   const presentationMapAnchor = els.presentationMap
     ? document.createComment("timeline-map-home")
     : null;
@@ -299,10 +292,6 @@
     if (presentationGraphCanvas && presentationGraphAnchor?.parentNode &&
         presentationGraphCanvas.parentNode !== presentationGraphAnchor.parentNode) {
       presentationGraphAnchor.parentNode.insertBefore(presentationGraphCanvas, presentationGraphAnchor);
-    }
-    if (presentationGraphDetail && presentationGraphDetailAnchor?.parentNode &&
-        presentationGraphDetail.parentNode !== presentationGraphDetailAnchor.parentNode) {
-      presentationGraphDetailAnchor.parentNode.insertBefore(presentationGraphDetail, presentationGraphDetailAnchor);
     }
   }
 
@@ -315,13 +304,11 @@
 
   function mountGraphBackdrop() {
     const slot = els.timelineViewRoot?.querySelector("[data-focus-graph-slot]");
-    const detailSlot = els.timelineViewRoot?.querySelector("[data-focus-graph-detail-slot]");
     if (!slot || !presentationGraphCanvas) {
       restoreGraphSurface();
       return false;
     }
     slot.replaceChildren(presentationGraphCanvas);
-    if (detailSlot && presentationGraphDetail) detailSlot.replaceChildren(presentationGraphDetail);
     requestAnimationFrame(() => temporalGraphView?.refreshLayout?.());
     return true;
   }
@@ -387,7 +374,6 @@
     if (els.graphLens) {
       const standaloneGraphVisible = !focused && !presentationIsFullscreen() && ui.graphOpen;
       els.graphLens.hidden = !standaloneGraphVisible;
-      if (standaloneGraphVisible) els.graphLens.open = true;
     }
     if (els.presentationMapPanel) els.presentationMapPanel.hidden = true;
 
@@ -450,10 +436,8 @@
       els.presentationFullscreenToggle.textContent = active ? "Exit full screen" : "Present full screen";
     }
     const contextual = syncContextualPresentationPanels();
-    if (active && contextual.graphVisible && els.graphLens) {
-      els.graphLens.open = true;
-    } else if (!active && !timelineView?.hasFocusedItem?.() && els.graphLens) {
-      els.graphLens.open = graphOpenBeforeFullscreen;
+    if (!active && !timelineView?.hasFocusedItem?.()) {
+      ui.graphOpen = graphOpenBeforeFullscreen && ui.graphOpen;
     }
     if (els.viewControls) els.viewControls.hidden = !(active || ui.viewControlsOpen);
     temporalGraphView?.setPresentationMode?.(presentationModeActive());
@@ -474,7 +458,7 @@
       showStatus("Full-screen presentation is not available in this browser.");
       return;
     }
-    graphOpenBeforeFullscreen = Boolean(els.graphLens?.open);
+    graphOpenBeforeFullscreen = Boolean(ui.graphOpen);
     syncContextualPresentationPanels();
     try {
       await els.presentationStage.requestFullscreen({ navigationUI: "hide" });
@@ -2677,8 +2661,6 @@
     if (button.dataset.action === "delete-graph-edge") removeGraphEdge(row.dataset.id);
   });
 
-  els.graphResetView.addEventListener("click", () => temporalGraphView?.resetView());
-
   if (els.presentationFullscreenToggle) {
     if (!document.fullscreenEnabled || typeof els.presentationStage?.requestFullscreen !== "function") {
       els.presentationFullscreenToggle.disabled = true;
@@ -3003,38 +2985,6 @@
         event.detail?.orientation === "vertical" ? "vertical" : "horizontal";
     }
     schedulePresentationGeometryRefresh({ recenterGraph: presentationIsFullscreen() });
-  });
-
-  els.graphViewRoot.addEventListener("graphnodefocus", (event) => {
-    focusTimelineFromGraph(event.detail?.id);
-  });
-
-  els.graphViewRoot.addEventListener("graphstoryfocus", (event) => {
-    const id = event.detail?.id;
-    if (ui.mode === "edit") {
-      if (id && getStory(id)) focusStory(id);
-      return;
-    }
-    if (!event.detail?.significant && focusTimelineFromGraph(event.detail?.fallbackEventId)) return;
-    if (!event.detail?.significant && id && getStory(id)) focusStory(id);
-  });
-
-  els.graphViewRoot.addEventListener("graphentityfocus", (event) => {
-    const id = event.detail?.id;
-    if (ui.mode === "edit") {
-      if (id && state.entities.some((entity) => entity.id === id)) beginGraphNodeEdit(id);
-      return;
-    }
-    if (!event.detail?.significant) focusTimelineFromGraph(event.detail?.fallbackEventId);
-  });
-
-  els.graphViewRoot.addEventListener("graphedgefocus", (event) => {
-    const id = event.detail?.id;
-    if (ui.mode === "edit") {
-      if (id && state.relationships.some((relationship) => relationship.id === id)) beginGraphEdgeEdit(id);
-      return;
-    }
-    if (!event.detail?.significant) focusTimelineFromGraph(event.detail?.fallbackEventId);
   });
 
   els.timelineViewRoot.addEventListener("timelinegraphnodefocus", (event) => {
