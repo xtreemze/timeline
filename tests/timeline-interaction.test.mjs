@@ -320,3 +320,17 @@ test("timeline view assigns unbounded perpendicular lanes so coincident terminal
   assert.match(source, /const depth = focused \? lane : Math\.floor\(lane \/ 2\)/);
   assert.match(source, /const laneIndex = this\.allocateEventLane\(position, occupied, 78\)/);
 });
+
+
+test("keeps chronological event order available as a semantic keyboard-accessible fallback", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8")
+  ]);
+
+  assert.match(html, /id="timeline-browser-sheet"[\s\S]*id="timeline-list" class="timeline-list" aria-live="polite"/);
+  assert.match(app, /function sortItems\([\s\S]*parseDate\(a\.start\)[\s\S]*a\.title\.localeCompare\(b\.title\)/);
+  assert.match(app, /function getVisibleItems\([\s\S]*items = sortItems\(\)/);
+  assert.match(app, /function renderTimelineList\([\s\S]*document\.createElement\("ol"\)[\s\S]*items\.map\(\(item\) => renderItem\(item, null\)\)/);
+  assert.match(app, /function renderItem\([\s\S]*document\.createElement\("li"\)[\s\S]*actionButton\("Focus", "focus-item"/);
+});
