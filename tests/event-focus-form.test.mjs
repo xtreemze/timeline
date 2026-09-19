@@ -304,6 +304,14 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.doesNotMatch(html, /class="hero"|class="site-header"|<footer>/);
   assert.match(html, /class="project-bar app-command-bar"/);
   assert.match(html, /class="app-tool-dock"/);
+  assert.match(html, /data-open-panel="items"[^>]*data-semantic-icon="note"/);
+  assert.doesNotMatch(html, /data-open-panel="stories"/);
+  assert.match(html, /id="timeline-browser-toggle"[^>]*data-semantic-icon="search"/);
+  assert.match(html, /id="graph-lens-toggle"[^>]*data-semantic-icon="relation"/);
+  assert.match(html, /id="timeline-view-controls-toggle"[^>]*data-semantic-icon="magic"/);
+  assert.match(html, /id="project-menu"[^>]*popover="auto"/);
+  assert.match(html, /id="timeline-browser-sheet"[\s\S]*?<\/aside>\s*<section id="story-focus"/);
+  assert.doesNotMatch(html, /Detailed chronology/);
   assert.match(html, /id="control-panel"[^>]*hidden/);
   assert.match(html, /id="timeline-browser-sheet"[^>]*hidden/);
   assert.match(html, /id="timeline-view-toolbar"[^>]*hidden/);
@@ -317,6 +325,7 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(timelineCss, /#presentation-stage:fullscreen > \.timeline-view[\s\S]*grid-column:\s*1\s*\/\s*-1\s*!important/);
   assert.match(timelineCss, /timeline-focus-view\[popover\][\s\S]*position:/);
   assert.match(html, /id="timeline-focus-view"[^>]*popover="manual"/);
+  assert.match(app, /function decorateSemanticControls/);
   assert.match(app, /function setEditorSurfaceOpen/);
   assert.match(app, /function setBrowserSurfaceOpen/);
   assert.match(app, /function setGraphSurfaceOpen/);
