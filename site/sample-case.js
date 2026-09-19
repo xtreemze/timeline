@@ -1113,6 +1113,66 @@
       ]
     },
     {
+      "id": "snow-forest-flight",
+      "kind": "event",
+      "start": "1000-04-01T10:40Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-01T10:40Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "Snow White flees deeper into the forest",
+      "description": "After the huntsman releases her, Snow White follows a ridge path away from the castle and becomes disoriented in the deeper forest. The movement event makes the spatial transition to the dwarfs' cottage explicit and shows why the cottage functions as an accidental refuge.",
+      "categoryId": "movement",
+      "location": {
+        "name": "Forest Ridge Path",
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            10.55,
+            48.42
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "hero-split"
+      },
+      "evidenceIds": [
+        "src-snow"
+      ],
+      "tags": [
+        {
+          "label": "Flight",
+          "icon": "relation",
+          "hue": 282
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-snow-white",
+          "sequence": 6,
+          "displayTime": "Day 1 · 10:40 · forest flight",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      }
+    },
+    {
       "id": "pigs-stick-house",
       "kind": "event",
       "start": "1000-04-01T11:15Z",
@@ -1231,7 +1291,7 @@
         "narrative": {
           "fictional": true,
           "storyId": "story-snow-white",
-          "sequence": 6,
+          "sequence": 7,
           "displayTime": "Day 1 · afternoon",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
@@ -1436,7 +1496,7 @@
         "narrative": {
           "fictional": true,
           "storyId": "story-snow-white",
-          "sequence": 7,
+          "sequence": 8,
           "displayTime": "Days 1–3 · shelter",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
@@ -1825,7 +1885,7 @@
         "narrative": {
           "fictional": true,
           "storyId": "story-snow-white",
-          "sequence": 8,
+          "sequence": 9,
           "displayTime": "Day 2 · morning",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
@@ -1959,7 +2019,7 @@
         "narrative": {
           "fictional": true,
           "storyId": "story-snow-white",
-          "sequence": 9,
+          "sequence": 10,
           "displayTime": "Days 2–3 · disguised attempts",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
@@ -2090,7 +2150,7 @@
         "narrative": {
           "fictional": true,
           "storyId": "story-snow-white",
-          "sequence": 10,
+          "sequence": 11,
           "displayTime": "Day 2 · 10:15 · first disguised attack",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
@@ -2355,7 +2415,7 @@
         "narrative": {
           "fictional": true,
           "storyId": "story-snow-white",
-          "sequence": 11,
+          "sequence": 12,
           "displayTime": "Day 2 · noon · first recovery",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
@@ -2609,7 +2669,7 @@
         "narrative": {
           "fictional": true,
           "storyId": "story-snow-white",
-          "sequence": 12,
+          "sequence": 13,
           "displayTime": "Day 2 · 16:00 · second disguised attack",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
@@ -2669,7 +2729,7 @@
         "narrative": {
           "fictional": true,
           "storyId": "story-snow-white",
-          "sequence": 13,
+          "sequence": 14,
           "displayTime": "Day 2 · evening · second recovery",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
@@ -3005,7 +3065,7 @@
         "narrative": {
           "fictional": true,
           "storyId": "story-snow-white",
-          "sequence": 14,
+          "sequence": 15,
           "displayTime": "Day 3 · 10:45 · poison prepared",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
@@ -3065,7 +3125,7 @@
         "narrative": {
           "fictional": true,
           "storyId": "story-snow-white",
-          "sequence": 15,
+          "sequence": 16,
           "displayTime": "Day 3 · 11:15",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
@@ -3143,7 +3203,7 @@
         "narrative": {
           "fictional": true,
           "storyId": "story-snow-white",
-          "sequence": 16,
+          "sequence": 17,
           "displayTime": "Day 3–4 · vigil",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
@@ -3210,7 +3270,7 @@
         "narrative": {
           "fictional": true,
           "storyId": "story-snow-white",
-          "sequence": 17,
+          "sequence": 18,
           "displayTime": "Day 4 · 09:15 · encounter",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
@@ -3278,7 +3338,7 @@
         "narrative": {
           "fictional": true,
           "storyId": "story-snow-white",
-          "sequence": 18,
+          "sequence": 19,
           "displayTime": "Day 4 · morning",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
@@ -3530,7 +3590,7 @@
         "narrative": {
           "fictional": true,
           "storyId": "story-snow-white",
-          "sequence": 19,
+          "sequence": 20,
           "displayTime": "Day 5 · resolution",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
@@ -3672,6 +3732,7 @@
         "snow-mirror",
         "snow-huntsman-order",
         "snow-huntsman-spares",
+        "snow-forest-flight",
         "snow-finds-cottage",
         "snow-dwarfs-shelter",
         "snow-queen-discovers",
@@ -4119,6 +4180,16 @@
       "identifiers": [],
       "attributes": {
         "storyId": "story-cinderella",
+        "fictional": true
+      }
+    },
+    {
+      "id": "snow-forest-ridge-place",
+      "type": "place",
+      "name": "Forest Ridge Path",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-snow-white",
         "fictional": true
       }
     }
@@ -5023,6 +5094,29 @@
       },
       "attributes": {
         "result": "no match"
+      }
+    },
+    {
+      "id": "rel-snow-forest-flight",
+      "subjectId": "snow-white",
+      "objectId": "snow-forest-ridge-place",
+      "predicate": "traverses",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-01T10:40Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "from": "Deep Forest",
+        "toward": "Seven Dwarfs' Cottage"
       }
     }
   ],
