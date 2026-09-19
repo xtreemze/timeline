@@ -610,15 +610,24 @@ test("contextual relations docks only the timeline surface by timeline orientati
   assert.match(css, /data-timeline-orientation="vertical"[\s\S]*--timeline-context-edge-span:\s*clamp\(132px, 29dvw, 320px\)/);
 });
 
-test("focused graph popover stays inside the space yielded by chronology", async () => {
-  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
-  assert.match(
+test("focused popover runtime owns its final width and height budget", async () => {
+  const [source, css] = await Promise.all([
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+  assert.match(source, /const preferredWidth = compact[\s\S]*this\.orientation === "vertical"[\s\S]*\? \(desktop \? 620 : 520\)[\s\S]*: \(desktop \? 760 : 640\)/);
+  assert.match(source, /const minimumDesktopWidth = this\.orientation === "vertical" \? 480 : 560/);
+  assert.match(source, /rawAvailableWidth < minimumDesktopWidth[\s\S]*unreservedWidth >= minimumDesktopWidth/);
+  assert.match(source, /this\.focusView\.style\.inlineSize = Math\.round\(targetWidth\) \+ "px"/);
+  assert.match(source, /this\.focusView\.style\.maxInlineSize = Math\.round\(targetWidth\) \+ "px"/);
+  assert.match(source, /this\.focusView\.style\.maxBlockSize = Math\.round\(targetMaxHeight\) \+ "px"/);
+  assert.doesNotMatch(
     css,
-    /data-timeline-orientation="horizontal"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\)[\s\S]*timeline-focus-view:popover-open[\s\S]*inline-size:\s*min\(720px[\s\S]*max-block-size:\s*min\(470px/
+    /data-timeline-orientation="horizontal"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\)[\s\S]{0,500}inline-size:/
   );
-  assert.match(
+  assert.doesNotMatch(
     css,
-    /data-timeline-orientation="vertical"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\)[\s\S]*timeline-focus-view:popover-open[\s\S]*inline-size:\s*min\([\s\S]*600px[\s\S]*100dvw - var\(--timeline-context-edge-span\)/
+    /data-timeline-orientation="vertical"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\)[\s\S]{0,650}inline-size:/
   );
 });
 
@@ -641,6 +650,7 @@ test("desktop popover chrome clips every content band", async () => {
 test("desktop focus card preserves readable hero and context proportions", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   assert.match(css, /grid-template-rows:\s*clamp\(240px, 30dvh, 290px\) clamp\(120px, 18dvh, 160px\)/);
+  assert.doesNotMatch(css, /grid-template-rows:\s*auto auto/);
   assert.match(css, /timeline-focus-title[\s\S]*font-size:\s*clamp\(2\.2rem, 7cqi, 4\.6rem\)[\s\S]*line-height:\s*\.94/);
   assert.match(css, /data-orientation="landscape"[\s\S]*inline-size:\s*min\(640px, calc\(100dvw - 6\.5rem\)\)/);
   assert.match(css, /data-orientation="portrait"[\s\S]*inline-size:\s*min\(520px, calc\(100dvw - 7\.2rem\)\)/);
