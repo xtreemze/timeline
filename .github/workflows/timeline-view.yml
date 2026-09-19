@@ -11,13 +11,16 @@ on:
       - 'site/timeline-graph.js'
       - 'site/timeline-view.css'
       - 'site/time-scale.js'
-      - 'site/time-graphics-adapter.js'
+      - 'site/interchange-adapter.js'
+      - 'site/date-range-picker.js'
+      - 'site/event-presentation.js'
       - 'site/temporal-standards.js'
       - 'site/spatial.js'
       - 'site/location-map.js'
       - 'tests/temporal-spatial.test.mjs'
-      - 'tests/time-graphics-adapter.test.mjs'
-      - 'schemas/time-graphics-interchange-v1.schema.json'
+      - 'tests/interchange-adapter.test.mjs'
+      - 'tests/event-focus-form.test.mjs'
+      - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
       - '.github/workflows/timeline-view.yml'
@@ -32,13 +35,16 @@ on:
       - 'site/timeline-graph.js'
       - 'site/timeline-view.css'
       - 'site/time-scale.js'
-      - 'site/time-graphics-adapter.js'
+      - 'site/interchange-adapter.js'
+      - 'site/date-range-picker.js'
+      - 'site/event-presentation.js'
       - 'site/temporal-standards.js'
       - 'site/spatial.js'
       - 'site/location-map.js'
       - 'tests/temporal-spatial.test.mjs'
-      - 'tests/time-graphics-adapter.test.mjs'
-      - 'schemas/time-graphics-interchange-v1.schema.json'
+      - 'tests/interchange-adapter.test.mjs'
+      - 'tests/event-focus-form.test.mjs'
+      - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
       - '.github/workflows/timeline-view.yml'
@@ -59,9 +65,11 @@ jobs:
       - run: node --check site/timeline-motion.js
       - run: node --check site/timeline-graph.js
       - run: node --check site/timeline-view.js
-      - run: node --check site/time-graphics-adapter.js
+      - run: node --check site/date-range-picker.js
+      - run: node --check site/event-presentation.js
+      - run: node --check site/interchange-adapter.js
       - run: node --check site/temporal-standards.js
       - run: node --check site/spatial.js
       - run: node --check site/location-map.js
       - run: node --check site/app.js
-      - run: node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/timeline-interaction.test.mjs tests/time-graphics-adapter.test.mjs tests/temporal-spatial.test.mjs
+      - run: node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/timeline-interaction.test.mjs tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/event-focus-form.test.mjs
