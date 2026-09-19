@@ -76,3 +76,13 @@ test("item form uses native temporal and Chrome geolocation controls", async () 
   assert.match(mapSource, /OpenStreetMap/);
   assert.match(mapSource, /1\.9\.4/);
 });
+
+test("omits location accuracy when the form field is empty", () => {
+  const location = spatial.fromForm({
+    name: "Point",
+    latitude: "59.3293",
+    longitude: "18.0686",
+    accuracyMeters: ""
+  });
+  assert.equal("accuracyMeters" in location, false);
+});
