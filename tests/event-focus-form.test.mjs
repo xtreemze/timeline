@@ -273,9 +273,17 @@ test("focused Place and Relations reuse the single map and graph surfaces as int
   assert.match(mapSource, /this\.interactive = options\.interactive === true/);
   assert.match(mapSource, /dragging:\s*this\.interactive/);
   assert.match(mapSource, /touchZoom:\s*this\.interactive/);
-  assert.match(timelineCss, /timeline-focus-section-backdrop/);
+  assert.match(timelineCss, /timeline-focus-view\[popover\][\s\S]*pointer-events:\s*none/);
+  assert.match(
+    timelineCss,
+    /timeline-focus-view\[popover\]\s*>\s*:is\(\.timeline-focus-place,\s*\.timeline-focus-relations\)[\s\S]*pointer-events:\s*none/
+  );
+  assert.match(timelineCss, /timeline-focus-section-backdrop[\s\S]*z-index:\s*1[\s\S]*pointer-events:\s*auto/);
   assert.match(timelineCss, /opacity:\s*\.46/);
-  assert.match(timelineCss, /pointer-events:\s*auto/);
+  assert.match(
+    timelineCss,
+    /timeline-focus-place-backdrop \.presentation-map,[\s\S]*timeline-focus-relations-backdrop \.temporal-graph-canvas[\s\S]*pointer-events:\s*auto/
+  );
   assert.match(graphView, /neighborhoodGraph\(this\.model, this\.focusedId/);
 });
 
