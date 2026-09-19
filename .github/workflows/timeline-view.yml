@@ -20,7 +20,7 @@ on:
       - 'site/location-map.js'
       - 'tests/temporal-spatial.test.mjs'
       - 'tests/interchange-adapter.test.mjs'
-      - 'tests/event-focus-form.test.mjs tests/timeline-navigation.test.mjs'
+      - 'tests/event-focus-form.test.mjs'
       - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
@@ -77,4 +77,4 @@ jobs:
       - run: node --check site/spatial.js
       - run: node --check site/location-map.js
       - run: node --check site/app.js
-      - run: node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/timeline-interaction.test.mjs tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/event-focus-form.test.mjs
+      - run: node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/timeline-interaction.test.mjs tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/event-focus-form.test.mjs tests/timeline-navigation.test.mjs
