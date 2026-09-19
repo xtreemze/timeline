@@ -247,9 +247,10 @@ test("fullscreen presentation reserves simultaneous timeline graph and map surfa
   ]);
   assert.match(html, /id="presentation-map-panel"/);
   assert.match(html, /id="presentation-map"/);
-  assert.match(css, /#presentation-stage:fullscreen > \.timeline-view/);
-  assert.match(css, /#presentation-stage:fullscreen > \.graph-lens/);
-  assert.match(css, /#presentation-stage:fullscreen > \.presentation-map-panel/);
+  assert.match(css, /#presentation-stage:fullscreen\[data-timeline-orientation="horizontal"\] > \.timeline-view/);
+  assert.match(css, /#presentation-stage:fullscreen\[data-timeline-orientation="horizontal"\] > \.graph-lens/);
+  assert.match(css, /#presentation-stage:fullscreen\[data-timeline-orientation="horizontal"\] > \.presentation-map-panel/);
+  assert.match(css, /#presentation-stage:fullscreen\[data-timeline-orientation="vertical"\] > \.timeline-view/);
   assert.match(app, /renderPresentationMap/);
   assert.match(app, /createReadOnly/);
   assert.match(view, /timeline-focus-place-map/);
@@ -266,4 +267,43 @@ test("timeline range bars are identifiable and labels share event color semantic
   assert.match(css, /\.timeline-range-segment::after/);
   assert.match(css, /\.timeline-event-copy strong[\s\S]*color:\s*var\(--event-color\)/);
   assert.match(css, /\.timeline-event-dot[\s\S]*width:\s*1\.4rem/);
+});
+
+
+test("presentation hierarchy keeps the timeline primary and pairs graph with map", async () => {
+  const [styles, timelineCss] = await Promise.all([
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(styles, /presentation-stage\[data-stage-shape="wide"\][\s\S]*9fr[\s\S]*3fr/);
+  assert.match(
+    styles,
+    /#presentation-stage:fullscreen\[data-timeline-orientation="horizontal"\] > \.timeline-view[\s\S]*grid-row:\s*4\s*\/\s*-1/
+  );
+  assert.match(
+    styles,
+    /#presentation-stage:fullscreen\[data-timeline-orientation="vertical"\] > \.timeline-view[\s\S]*grid-column:\s*4\s*\/\s*-1/
+  );
+  assert.match(
+    styles,
+    /data-timeline-orientation="horizontal"\] > \.graph-lens[\s\S]*span 6[\s\S]*presentation-map-panel[\s\S]*grid-column:\s*7\s*\/\s*-1/
+  );
+  assert.match(
+    styles,
+    /data-timeline-orientation="vertical"\] > \.graph-lens[\s\S]*span 6[\s\S]*presentation-map-panel[\s\S]*grid-row:\s*7\s*\/\s*-1/
+  );
+  assert.match(styles, /is-event-focused \.temporal-graph-detail[\s\S]*display:\s*none/);
+  assert.match(timelineCss, /timeline-focus-place[\s\S]*grid-column:\s*1\s*\/\s*span 4/);
+  assert.match(timelineCss, /timeline-focus-graph[\s\S]*grid-column:\s*9\s*\/\s*-1/);
+  assert.match(timelineCss, /timeline-focus-place-map[\s\S]*min-height:\s*210px/);
+  assert.match(timelineCss, /timeline-focus-graph-canvas[\s\S]*min-height:\s*210px/);
+});
+
+test("fullscreen presentation removes graph authoring chrome and raw properties", async () => {
+  const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
+  assert.match(
+    styles,
+    /#presentation-stage:fullscreen \.graph-lens > summary,[\s\S]*\.temporal-graph-toolbar,[\s\S]*\.temporal-graph-detail[\s\S]*display:\s*none/
+  );
 });
