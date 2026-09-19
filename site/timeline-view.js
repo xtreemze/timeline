@@ -261,6 +261,14 @@
       this.surface.focus({ preventScroll: true });
     }
 
+    getOrientation() {
+      return this.orientation;
+    }
+
+    refreshLayout() {
+      this.scheduleRender();
+    }
+
     applyOrientation() {
       const vertical = this.orientation === "vertical";
       this.root.dataset.orientation = vertical ? "portrait" : "landscape";
@@ -274,6 +282,10 @@
           ? "Portrait timeline. Time runs from top to bottom. Drag vertically to pan; use plus and minus to zoom."
           : "Landscape timeline. Time runs from left to right. Drag horizontally to pan; use plus and minus to zoom."
       );
+      this.root.dispatchEvent(new CustomEvent("timelineorientationchange", {
+        bubbles: true,
+        detail: { orientation: this.orientation }
+      }));
     }
 
     setItems(items, options = {}) {
