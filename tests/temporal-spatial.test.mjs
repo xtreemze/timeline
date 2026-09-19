@@ -94,9 +94,10 @@ test("rejects incomplete coordinate pairs", () => {
 });
 
 test("item form uses one range calendar, native clocks, and Chrome geolocation", async () => {
-  const [html, mapSource] = await Promise.all([
+  const [html, mapSource, appSource] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/location-map.js", import.meta.url), "utf8")
+    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8")
   ]);
   assert.match(html, /id="item-date-range" type="text" readonly/);
   assert.match(html, /id="item-calendar-popover"[^>]*popover="auto"/);
