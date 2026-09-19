@@ -52,6 +52,97 @@
     return Number.isFinite(value) && value >= min && value <= max ? value : null;
   }
 
+  function presentationZoom(location) {
+    const accuracy = Number(location?.accuracyMeters ?? location?.accuracy);
+    if (Number.isFinite(accuracy)) {
+      if (accuracy <= 50) return 15;
+      if (accuracy <= 250) return 14;
+      if (accuracy <= 1000) return 12;
+      if (accuracy <= 5000) return 10;
+    }
+    return 12;
+  }
+
+  class ReadOnlyLocationMap {
+    constructor(options) {
+      this.container = options.container;
+      this.location = options.location || null;
+      this.provider = globalThis.TimelineMapTileProvider || DEFAULT_PROVIDER;
+      this.color = options.color || "#315fbd";
+      this.map = null;
+      this.marker = null;
+      this.destroyed = false;
+      this.ready = this.render();
+    }
+
+    coordinates() {
+      const coordinates = this.location?.geometry?.coordinates;
+      if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
+      const lng = Number(coordinates[0]);
+      const lat = Number(coordinates[1]);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+      return { lat, lng };
+    }
+
+    async render() {
+      const point = this.coordinates();
+      if (!this.container || !point) return;
+      this.container.setAttribute("aria-label", this.location?.name || this.location?.geographicIdentifier || "Event location");
+      try {
+        const L = await loadLeaflet();
+        if (this.destroyed || !this.container.isConnected) return;
+        this.map = L.map(this.container, {
+          zoomControl: false,
+          attributionControl: true,
+          dragging: false,
+          scrollWheelZoom: false,
+          doubleClickZoom: false,
+          boxZoom: false,
+          keyboard: false,
+          touchZoom: false
+        }).setView([point.lat, point.lng], presentationZoom(this.location));
+
+        L.tileLayer(this.provider.url, {
+          maxZoom: this.provider.maxZoom || 19,
+          attribution: this.provider.attribution || DEFAULT_PROVIDER.attribution
+        }).addTo(this.map);
+
+        this.marker = L.circleMarker([point.lat, point.lng], {
+          radius: 8,
+          color: this.color,
+          weight: 3,
+          fillColor: this.color,
+          fillOpacity: 0.32
+        }).addTo(this.map);
+
+        requestAnimationFrame(() => this.map?.invalidateSize({ pan: false }));
+      } catch (error) {
+        if (!this.destroyed && this.container) {
+          this.container.dataset.error = "true";
+          this.container.textContent = "Map preview unavailable.";
+        }
+        console.warn(error);
+      }
+    }
+
+    refresh() {
+      if (!this.map) return;
+      const point = this.coordinates();
+      if (!point) return;
+      this.map.invalidateSize({ pan: false });
+      this.map.setView([point.lat, point.lng], presentationZoom(this.location), { animate: false });
+    }
+
+    destroy() {
+      this.destroyed = true;
+      this.marker = null;
+      this.map?.remove();
+      this.map = null;
+      if (this.container) this.container.replaceChildren();
+    }
+  }
+
   class LocationMapController {
     constructor(options) {
       this.container = options.container;
@@ -190,9 +281,15 @@
     return new LocationMapController(options);
   }
 
+  function createReadOnly(options) {
+    return new ReadOnlyLocationMap(options);
+  }
+
   globalThis.TimelineLocationMap = Object.freeze({
     create,
+    createReadOnly,
     loadLeaflet,
+    presentationZoom,
     provider: DEFAULT_PROVIDER
   });
 })();
