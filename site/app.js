@@ -305,6 +305,7 @@
 
     const evidence = evidenceStore.normalizeRecords(input.evidence);
     const evidenceIds = new Set(evidence.map((record) => record.id));
+    const custodyActions = evidenceStore.normalizeCustodyActions(input.custodyActions);
 
     let sourceItems;
     if (Array.isArray(input.items)) {
@@ -412,7 +413,8 @@
       stories,
       entities: graphData.entities,
       relationships: graphData.relationships,
-      evidence
+      evidence,
+      custodyActions
     };
     const extensions = normalizeExtensions(input.extensions);
     if (extensions) normalized.extensions = extensions;
@@ -428,7 +430,8 @@
       stories: [],
       entities: [],
       relationships: [],
-      evidence: []
+      evidence: [],
+      custodyActions: []
     };
   }
 
@@ -1009,7 +1012,8 @@
         publishedAt: parts.publishedAt.value,
         url: parts.url.value,
         note: parts.note.value,
-        file: fileMetadata
+        file: fileMetadata,
+        forensic: existing?.forensic || null
       });
       if (record) records.push(record);
     }
