@@ -697,18 +697,27 @@ test("Evidence tab preserves Hero and Context and only swaps the lower contextua
   assert.match(css, /data-active-tab="evidence"[\s\S]*timeline-focus-evidence[\s\S]*grid-row:\s*2 !important/);
 });
 
-test("focused popover is positioned from the event terminal and clamped to usable viewport chrome", async () => {
-  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+test("focused popover stays opposite chronology and reserves persistent application chrome", async () => {
+  const [source, css] = await Promise.all([
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
   assert.match(source, /FOCUS_POPOVER_MARGIN = 12/);
   assert.match(source, /focusChromeInsets\(\)/);
-  assert.match(source, /document\.querySelector\("\.app-command-bar"\)/);
-  assert.match(source, /document\.querySelector\("\.app-tool-dock"\)/);
+  assert.match(source, /reserveTopChrome\(document\.querySelector\("\\.app-command-bar"\)\)/);
+  assert.match(source, /reserveTopChrome\(document\.querySelector\("\\.timeline-view-toolbar:not\(\[hidden\]\)"\)\)/);
+  assert.match(source, /document\.querySelector\("\\.app-tool-dock"\)/);
+  assert.match(source, /contextualTimelineDocked[\s\S]*viewportWidth - timelineRect\.left/);
+  assert.match(source, /contextualTimelineDocked[\s\S]*viewportHeight - timelineRect\.top/);
   assert.match(source, /positionFocusPopover\(originRect = null\)/);
-  assert.match(source, /this\.focusTransitionOrigin\(this\.selectedId\)\?\.getBoundingClientRect/);
-  assert.match(source, /clampPosition\(left, bounds\.left, bounds\.viewportWidth - bounds\.right - width\)/);
-  assert.match(source, /clampPosition\(top, bounds\.top, bounds\.viewportHeight - bounds\.bottom - height\)/);
+  assert.match(source, /void originRect/);
+  assert.match(source, /this\.orientation === "vertical"[\s\S]*left = bounds\.left[\s\S]*top = bounds\.top \+ Math\.max\(0, \(availableHeight - height\) \/ 2\)/);
+  assert.match(source, /else \{[\s\S]*left = bounds\.left \+ Math\.max\(0, \(availableWidth - width\) \/ 2\)[\s\S]*top = bounds\.top/);
+  assert.doesNotMatch(source, /const targetRect = originRect/);
   assert.match(source, /transitionOriginRect = transitionOrigin\?\.getBoundingClientRect/);
   assert.match(source, /this\.positionFocusPopover\(options\.originRect/);
+  assert.match(css, /data-orientation="landscape"[\s\S]*left:\s*50%[\s\S]*translateX\(-50%\)/);
+  assert.match(css, /data-orientation="portrait"[\s\S]*inset:\s*50%[\s\S]*safe-area-inset-left[\s\S]*translateY\(-50%\)/);
 });
 
 test("custom event-detail morph isolates application chrome from root cross-fade", async () => {
