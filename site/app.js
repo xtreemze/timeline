@@ -174,6 +174,8 @@
     graphEdgeObject: document.querySelector("#graph-edge-object"),
     graphEdgeRole: document.querySelector("#graph-edge-role"),
     graphEdgeInitialState: document.querySelector("#graph-edge-initial-state"),
+    graphEdgeSourceIds: document.querySelector("#graph-edge-source-ids"),
+    graphEdgeConfidence: document.querySelector("#graph-edge-confidence"),
     graphEdgeProperties: document.querySelector("#graph-edge-properties"),
     graphEdgeTimeKind: document.querySelector("#graph-edge-time-kind"),
     graphEdgeDateField: document.querySelector("#graph-edge-date-field"),
@@ -2243,6 +2245,8 @@
     els.graphEdgeId.value = "";
     els.graphEdgeRole.value = "";
     els.graphEdgeInitialState.value = "active";
+    els.graphEdgeSourceIds.value = "";
+    els.graphEdgeConfidence.value = "";
     els.graphEdgeProperties.value = "{}";
     els.graphEdgeTimeKind.value = "event";
     graphEdgeDatePicker.setMode("event");
@@ -2298,6 +2302,8 @@
     els.graphEdgePredicate.value = relationship.predicate || "relatedTo";
     els.graphEdgeRole.value = relationship.role || "";
     els.graphEdgeInitialState.value = relationship.initialState === "inactive" ? "inactive" : "active";
+    els.graphEdgeSourceIds.value = (relationship.sourceIds || []).join("\n");
+    els.graphEdgeConfidence.value = relationship.confidence ?? "";
     els.graphEdgeProperties.value = JSON.stringify(relationship.attributes || {}, null, 2);
     const timeKind = relationship.time?.end ? "range" : relationship.time?.start ? "event" : "timeless";
     els.graphEdgeTimeKind.value = timeKind;
@@ -2784,6 +2790,14 @@
       els.graphEdgePredicate.focus();
       return;
     }
+    const sourceIds = parseLineList(els.graphEdgeSourceIds.value, { maxItems: 96, maxLength: 120 });
+    const confidenceText = els.graphEdgeConfidence.value.trim();
+    const confidence = confidenceText === "" ? null : Number(confidenceText);
+    if (confidence !== null && (!Number.isFinite(confidence) || confidence < 0 || confidence > 1)) {
+      setError(els.graphEdgeError, "Confidence must be between 0 and 1.");
+      els.graphEdgeConfidence.focus();
+      return;
+    }
     let attributes;
     let time;
     try {
@@ -2802,6 +2816,8 @@
       role: els.graphEdgeRole.value.trim().slice(0, 120),
       initialState: els.graphEdgeInitialState.value === "inactive" ? "inactive" : "active",
       time,
+      sourceIds,
+      confidence,
       attributes
     };
     const index = state.relationships.findIndex((candidate) => candidate.id === relationship.id);
