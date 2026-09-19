@@ -257,6 +257,8 @@ test("Orb adapter preserves temporal relationship metadata", () => {
       subjectId: "person-a",
       objectId: "person-b",
       predicate: "workedWith",
+      sourceIds: ["evidence-rel-1", "evidence-rel-1", "source-rel-2"],
+      confidence: 0.82,
       time: {
         type: "interval",
         start: { value: "2026-09-01", precision: "day", certainty: "exact", calendar: "gregorian" },
@@ -273,6 +275,10 @@ test("Orb adapter preserves temporal relationship metadata", () => {
   assert.deepEqual(orb.nodes[0].properties.sourceIds, ["evidence-17", "source-record-3"]);
   assert.equal(orb.edges[0].start, "person-a");
   assert.equal(orb.edges[0].end, "person-b");
+  assert.deepEqual(normalized.relationships[0].sourceIds, ["evidence-rel-1", "source-rel-2"]);
+  assert.equal(normalized.relationships[0].confidence, 0.82);
+  assert.deepEqual(orb.edges[0].properties.sourceIds, ["evidence-rel-1", "source-rel-2"]);
+  assert.equal(orb.edges[0].properties.confidence, 0.82);
   assert.equal(orb.edges[0].properties.time.type, "interval");
 
   const projected = graph.temporalRelationProjection(normalized.relationships);

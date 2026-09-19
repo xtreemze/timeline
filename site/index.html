@@ -803,6 +803,18 @@
                 <option value="inactive">Inactive until an event activates it</option>
               </select>
             </label>
+            <details id="graph-edge-provenance-details" class="optional-editor field-wide">
+              <summary>Provenance & confidence <small>optional</small></summary>
+              <label class="field field-wide">
+                <span>Source / provenance record IDs <small>one per line</small></span>
+                <textarea id="graph-edge-source-ids" rows="3" maxlength="4000" placeholder="evidence-17&#10;source-record-3"></textarea>
+              </label>
+              <label class="field">
+                <span>Confidence <small>0–1</small></span>
+                <input id="graph-edge-confidence" type="number" min="0" max="1" step="0.01" inputmode="decimal" placeholder="0.85">
+              </label>
+              <p class="field-hint">Confidence describes support for this relationship, not either endpoint. Source IDs link the assertion to evidence or provenance records.</p>
+            </details>
             <label class="field">
               <span>Properties <small>JSON object</small></span>
               <textarea id="graph-edge-properties" rows="5" spellcheck="false" placeholder='{"amount":1200,"currency":"SEK"}'>{}</textarea>
