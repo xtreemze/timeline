@@ -1512,7 +1512,7 @@
     const timeField = els[`item${prefix}TimeField`];
     const zoneField = els[`item${prefix}ZoneField`];
     const timeInput = els[`item${prefix}Time`];
-    const hasClock = precision !== "day";
+    const hasClock = !["millennium", "century", "decade", "year", "month", "day"].includes(precision);
 
     timeField.hidden = !hasClock;
     zoneField.hidden = !hasClock;

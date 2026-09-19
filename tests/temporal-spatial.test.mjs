@@ -38,6 +38,36 @@ test("builds date-only and floating date-time endpoints", () => {
   assert.equal(second.certainty, "approximate");
 });
 
+test("builds coarse-precision endpoints without requiring clock fields", () => {
+  const millennium = temporal.buildEndpoint({
+    date: "2026-09-19",
+    time: "",
+    precision: "millennium",
+    certainty: "exact",
+    timeZone: ""
+  });
+  const year = temporal.buildEndpoint({
+    date: "2026-09-19",
+    time: "",
+    precision: "year",
+    certainty: "approximate",
+    timeZone: ""
+  });
+  const month = temporal.buildEndpoint({
+    date: "2026-09-19",
+    time: "",
+    precision: "month",
+    certainty: "uncertain",
+    timeZone: ""
+  });
+  assert.equal(millennium.value, "2026");
+  assert.equal(millennium.precision, "millennium");
+  assert.equal(year.value, "2026");
+  assert.equal(year.precision, "year");
+  assert.equal(month.value, "2026-09");
+  assert.equal(month.precision, "month");
+});
+
 test("normalizes legacy start/end values into a structured temporal extent", () => {
   const extent = temporal.normalizeExtent(null, "2026-09-19T12:06", "2026-09-20", "range");
   assert.equal(extent.type, "interval");
@@ -64,9 +94,10 @@ test("rejects incomplete coordinate pairs", () => {
 });
 
 test("item form uses one range calendar, native clocks, and Chrome geolocation", async () => {
-  const [html, mapSource] = await Promise.all([
+  const [html, mapSource, appSource] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/location-map.js", import.meta.url), "utf8")
+    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8")
   ]);
   assert.match(html, /id="item-date-range" type="text" readonly/);
   assert.match(html, /id="item-calendar-popover"[^>]*popover="auto"/);
@@ -75,6 +106,13 @@ test("item form uses one range calendar, native clocks, and Chrome geolocation",
   assert.match(html, /id="item-end-date" type="hidden"/);
   assert.match(html, /id="item-start-time" type="time"/);
   assert.match(html, /id="item-end-time" type="time"/);
+  assert.ok(html.includes('<option value="millennium">Millennium</option>'));
+  assert.ok(html.includes('<option value="century">Century</option>'));
+  assert.ok(html.includes('<option value="decade">Decade</option>'));
+  assert.ok(html.includes('<option value="year">Year</option>'));
+  assert.ok(html.includes('<option value="month">Month</option>'));
+  assert.equal(html.split('<option value="millennium">Millennium</option>').length - 1, 2);
+  assert.ok(appSource.includes('const hasClock = !["millennium", "century", "decade", "year", "month", "day"].includes(precision);'));
   assert.match(html, /<geolocation id="item-geolocation"/);
   assert.match(mapSource, /tile\.openstreetmap\.org/);
   assert.match(mapSource, /OpenStreetMap/);
