@@ -208,6 +208,8 @@
     if (Array.isArray(raw.tags)) item.tags = boundedClone(raw.tags);
     if (raw.location && typeof raw.location === "object") item.location = boundedClone(raw.location);
     if (raw.time && typeof raw.time === "object") item.time = boundedClone(raw.time);
+    if (raw.presentation && typeof raw.presentation === "object") item.presentation = boundedClone(raw.presentation);
+    if (Array.isArray(raw.evidenceIds)) item.evidenceIds = boundedClone(raw.evidenceIds);
     return item;
   }
 
@@ -311,6 +313,7 @@
         stories: Array.isArray(timelineMetadata.stories) ? boundedClone(timelineMetadata.stories) : [],
         entities: Array.isArray(timelineMetadata.entities) ? boundedClone(timelineMetadata.entities) : [],
         relationships: Array.isArray(timelineMetadata.relationships) ? boundedClone(timelineMetadata.relationships) : [],
+        evidence: Array.isArray(timelineMetadata.evidence) ? boundedClone(timelineMetadata.evidence) : [],
         extensions: {
           externalInterchange: rootExtensions
         }
@@ -423,6 +426,8 @@
     if (item.time) base.time = cloneJson(item.time);
     if (item.location) base.location = cloneJson(item.location);
     if (item.tags?.length) base.tags = cloneJson(item.tags);
+    if (item.presentation) base.presentation = cloneJson(item.presentation);
+    if (item.evidenceIds?.length) base.evidenceIds = cloneJson(item.evidenceIds);
 
     if (item.media?.length) {
       base.media = item.media.map((entry) => ({
@@ -488,7 +493,8 @@
         stories: cloneJson(Array.isArray(timeline.stories) ? timeline.stories : []),
         entities: cloneJson(Array.isArray(timeline.entities) ? timeline.entities : []),
         relationships: cloneJson(Array.isArray(timeline.relationships) ? timeline.relationships : []),
-        note: "Timeline interchange keeps external event, period, group, story, entity, and relationship data behind a vendor-neutral adapter and preserves imported extension records when available."
+        evidence: cloneJson(Array.isArray(timeline.evidence) ? timeline.evidence : []),
+        note: "Timeline interchange keeps external event, period, group, story, entity, relationship, and evidence metadata behind a vendor-neutral adapter and preserves imported extension records when available. PDF blobs remain browser-local and are not embedded in interchange JSON."
       }
     };
   }

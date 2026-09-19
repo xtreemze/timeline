@@ -70,3 +70,40 @@ test("the custom calendar exposes keyboard-navigation code and a direct year con
   assert.match(source, /PageDown/);
   assert.match(html, /id="item-calendar-year"/);
 });
+
+test("focused events expose three distinct grid composition variants and evidence sections", async () => {
+  const [source, css] = await Promise.all([
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+  assert.match(source, /layoutVariant/);
+  assert.match(source, /timeline-focus-evidence/);
+  assert.match(source, /Previous event/);
+  assert.match(source, /Next event/);
+  assert.match(css, /data-layout="hero-split"/);
+  assert.match(css, /data-layout="evidence-dossier"/);
+  assert.match(css, /data-layout="editorial-mosaic"/);
+  assert.match(css, /timeline-focus-evidence-grid/);
+});
+
+test("item editor exposes reusable evidence records including PDF uploads", async () => {
+  const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
+  assert.match(html, /id="item-evidence-details"/);
+  assert.match(html, /value="article"/);
+  assert.match(html, /value="pdf"/);
+  assert.match(html, /value="note"/);
+  assert.match(html, /accept="application\/pdf,.pdf"/);
+  assert.match(html, /id="item-layout-variant"/);
+});
+
+test("full chronology renders collapsible category groups while story order remains separate", async () => {
+  const [source, css] = await Promise.all([
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+  ]);
+  assert.match(source, /document\.createElement\("details"\)/);
+  assert.match(source, /timeline-category-group/);
+  assert.match(source, /story-order/);
+  assert.match(css, /\.timeline-category-group/);
+  assert.match(css, /\.timeline-category-summary/);
+});

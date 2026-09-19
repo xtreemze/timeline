@@ -952,6 +952,7 @@
     renderFocus(item) {
       this.focusView.tabIndex = -1;
       this.focusView.style.setProperty("--event-color", item.color || "var(--accent)");
+      this.focusView.dataset.layout = item.layoutVariant || "hero-split";
       this.focusView.setAttribute("aria-labelledby", "timeline-focus-heading");
       this.focusView.replaceChildren();
 
@@ -1009,10 +1010,13 @@
         for (const relation of item.relations.slice(0, 8)) {
           const li = createElement("li", "");
           li.append(presentation.createIcon("relation", { size: 16 }));
+          const relationText = relation.subjectName && relation.objectName
+            ? `${relation.subjectName} —${relation.predicate}→ ${relation.objectName}`
+            : relation.predicate;
           const label = createElement(
             "span",
             "",
-            relation.role ? `${relation.predicate} · ${relation.role}` : relation.predicate
+            relation.role ? `${relationText} · ${relation.role}` : relationText
           );
           li.append(label);
           list.append(li);
@@ -1022,7 +1026,67 @@
         relations.append(createElement("p", "timeline-focus-muted", "No relationships attached."));
       }
 
+      const evidence = createElement("section", "timeline-focus-section timeline-focus-evidence");
+      evidence.append(createElement("h3", "timeline-focus-section-heading", "Evidence"));
+      if (item.evidence?.length) {
+        const grid = createElement("div", "timeline-focus-evidence-grid");
+        for (const record of item.evidence.slice(0, 12)) {
+          const card = createElement("article", "timeline-focus-evidence-card");
+          card.dataset.type = record.type || "note";
+          const header = createElement("div", "timeline-focus-evidence-header");
+          header.append(presentation.createIcon("evidence", { size: 16 }));
+          const type = createElement("span", "timeline-focus-evidence-type", record.type || "source");
+          header.append(type);
+          const title = createElement("h4", "timeline-focus-evidence-title", record.title || "Untitled evidence");
+          card.append(header, title);
+          if (record.sourceName || record.publishedAt) {
+            card.append(createElement(
+              "p",
+              "timeline-focus-evidence-meta",
+              [record.sourceName, record.publishedAt].filter(Boolean).join(" · ")
+            ));
+          }
+          if (record.note) card.append(createElement("p", "timeline-focus-evidence-note", record.note));
+
+          const actions = createElement("div", "timeline-focus-evidence-actions");
+          if (record.url) {
+            const link = document.createElement("a");
+            link.className = "button secondary";
+            link.href = record.url;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = record.type === "article" ? "Open source" : "Open document";
+            actions.append(link);
+          }
+          if (record.file?.blobKey) {
+            const open = createElement("button", "button secondary", "Open local PDF");
+            open.type = "button";
+            open.addEventListener("click", () => {
+              this.root.dispatchEvent(new CustomEvent("timelineevidenceopen", {
+                bubbles: true,
+                detail: { id: record.id }
+              }));
+            });
+            actions.append(open);
+          }
+          if (actions.childElementCount) card.append(actions);
+          grid.append(card);
+        }
+        evidence.append(grid);
+      } else {
+        evidence.append(createElement("p", "timeline-focus-muted", "No supporting evidence attached."));
+      }
+
       const actions = createElement("div", "timeline-focus-actions");
+      const currentIndex = this.items.findIndex((candidate) => candidate.id === item.id);
+      const previous = createElement("button", "button secondary", "Previous event");
+      previous.type = "button";
+      previous.disabled = currentIndex <= 0;
+      previous.addEventListener("click", () => this.focusAdjacent(-1));
+      const next = createElement("button", "button secondary", "Next event");
+      next.type = "button";
+      next.disabled = currentIndex < 0 || currentIndex >= this.items.length - 1;
+      next.addEventListener("click", () => this.focusAdjacent(1));
       const close = createElement("button", "button primary", "Return to timeline");
       close.type = "button";
       close.addEventListener("click", () => this.closeFocus());
@@ -1035,9 +1099,9 @@
         }));
         this.closeFocus();
       });
-      actions.append(close, edit);
+      actions.append(previous, next, close, edit);
 
-      this.focusView.append(hero, summary, temporal, place, relations, actions);
+      this.focusView.append(hero, summary, temporal, place, relations, evidence, actions);
     }
 
     closeFocus() {
@@ -1047,6 +1111,7 @@
       this.root.classList.remove("is-event-focused");
       this.focusView.hidden = true;
       this.focusView.removeAttribute("style");
+      delete this.focusView.dataset.layout;
       this.focusView.replaceChildren();
       this.scheduleRender();
       if (previousId) {

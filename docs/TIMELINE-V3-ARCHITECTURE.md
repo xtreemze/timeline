@@ -417,3 +417,28 @@ Migration must be deterministic and reversible by export of the original v2 payl
 - requiring ontology knowledge from ordinary users;
 - forcing forensic forms on non-forensic timelines;
 - geological/cosmological time before the human-history scale is correct and tested.
+
+
+## Evidence support model
+
+Evidence is reusable top-level data. Chronology items reference evidence by ID rather than embedding the same source repeatedly.
+
+A record can represent:
+- article/news source;
+- PDF/document exhibit;
+- analyst or witness note;
+- generic document/record.
+
+The relationship is intentionally phrased as *supports* rather than *proves*. Evidence records carry metadata and explanatory notes; separate provenance, chain-of-custody, authenticity, conflict, and evidentiary-weight models can extend them later.
+
+Uploaded binary documents belong in browser file storage (currently IndexedDB), while canonical JSON keeps stable metadata and a blob key. Exporters must never silently inline large PDF binaries.
+
+## Focus layout variants
+
+Focused-event presentation is canonical-content / derived-layout:
+
+- `hero-split`: large hero field with a supporting information rail;
+- `evidence-dossier`: evidence dominates the right-hand reading field while media/context remain on the left;
+- `editorial-mosaic`: narrative copy leads and media occupies an asymmetric opposite field.
+
+The variant is stored under `item.presentation.variant`. The content and evidence model do not change between variants.

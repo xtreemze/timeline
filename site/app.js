@@ -11,269 +11,28 @@
   const presentation = globalThis.TimelinePresentation;
   const dateRangeFactory = globalThis.TimelineDateRangePicker;
   const navigationFactory = globalThis.TimelineNavigation;
+  const evidenceStore = globalThis.TimelineEvidence;
   if (!temporal) throw new Error("TimelineTemporal must load before app.js.");
   if (!spatial) throw new Error("TimelineSpatial must load before app.js.");
   if (!graph) throw new Error("TimelineGraph must load before app.js.");
   if (!presentation) throw new Error("TimelinePresentation must load before app.js.");
   if (!dateRangeFactory) throw new Error("TimelineDateRangePicker must load before app.js.");
   if (!navigationFactory) throw new Error("TimelineNavigation must load before app.js.");
+  if (!evidenceStore) throw new Error("TimelineEvidence must load before app.js.");
 
   const DEFAULT_CATEGORIES = [
-    { id: "event", name: "Event", color: "#667085" },
-    { id: "decision", name: "Decision", color: "#2563eb" },
-    { id: "milestone", name: "Milestone", color: "#b54708" },
+    { id: "incident", name: "Incident", color: "#b42318" },
+    { id: "witness", name: "Witness / Interview", color: "#7a5af8" },
+    { id: "communication", name: "Communication", color: "#2563eb" },
     { id: "evidence", name: "Evidence", color: "#027a48" },
-    { id: "communication", name: "Communication", color: "#7a5af8" },
-    { id: "project", name: "Project", color: "#c4320a" }
+    { id: "document", name: "Document / Record", color: "#667085" },
+    { id: "decision", name: "Decision / Action", color: "#b54708" },
+    { id: "transaction", name: "Transaction", color: "#0e7090" },
+    { id: "observation", name: "Observation", color: "#475467" }
   ];
 
-  const SAMPLE = {
-    version: VERSION,
-    title: "Evidence-rich product launch",
-    categories: [
-      { id: "decision", name: "Decision", color: "#2563eb" },
-      { id: "fieldwork", name: "Fieldwork", color: "#c4320a" },
-      { id: "evidence", name: "Evidence", color: "#027a48" },
-      { id: "release", name: "Release", color: "#7a5af8" }
-    ],
-    items: [
-      {
-        id: "sample-brief",
-        kind: "event",
-        start: "2026-09-11T09:00+02:00",
-        end: null,
-        time: {
-          type: "instant",
-          start: {
-            value: "2026-09-11T09:00+02:00",
-            precision: "minute",
-            certainty: "exact",
-            calendar: "gregorian",
-            timeZone: "Europe/Stockholm",
-            utcOffset: "+02:00"
-          },
-          end: null
-        },
-        title: "Launch brief approved",
-        description: "The team freezes the first release scope, evidence requirements, mapping behavior, temporal precision rules, and the visual language for focused events.",
-        categoryId: "decision",
-        location: {
-          name: "Stockholm Central",
-          geographicIdentifier: "Stockholm, Sweden",
-          address: "Centralplan, Stockholm",
-          geometry: { type: "Point", coordinates: [18.0586, 59.3300] },
-          crs: "OGC:CRS84",
-          source: "manual"
-        },
-        media: [
-          {
-            src: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1600&q=80",
-            alt: "Workspace used as demonstration media",
-            caption: "Hero photograph for the focused event composition."
-          },
-          {
-            src: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1600&q=80",
-            alt: "Interior workspace demonstration photograph",
-            caption: "A second image demonstrates the three-photo slideshow."
-          },
-          {
-            src: "https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=1600&q=80",
-            alt: "Architectural demonstration photograph",
-            caption: "A third image shows event media rotation."
-          }
-        ],
-        tags: [
-          { label: "Decision", icon: "decision", hue: 28 },
-          { label: "Stockholm", icon: "place", hue: 205 },
-          { label: "Team", icon: "person", hue: 292 }
-        ]
-      },
-      {
-        id: "sample-fieldwork",
-        kind: "range",
-        start: "2026-09-11T10:30+02:00",
-        end: "2026-09-13T18:15+02:00",
-        time: {
-          type: "interval",
-          start: {
-            value: "2026-09-11T10:30+02:00",
-            precision: "minute",
-            certainty: "exact",
-            calendar: "gregorian",
-            timeZone: "Europe/Copenhagen",
-            utcOffset: "+02:00"
-          },
-          end: {
-            value: "2026-09-13T18:15+02:00",
-            precision: "minute",
-            certainty: "approximate",
-            calendar: "gregorian",
-            timeZone: "Europe/Copenhagen",
-            utcOffset: "+02:00"
-          }
-        },
-        title: "Fieldwork and interaction study",
-        description: "A multi-day range demonstrates two-date calendar selection, independent clocks, a mapped place, rich media, event tags, relationships, and uncertainty on the end boundary.",
-        categoryId: "fieldwork",
-        location: {
-          name: "Copenhagen",
-          geographicIdentifier: "Copenhagen, Denmark",
-          address: "",
-          geometry: { type: "Point", coordinates: [12.5683, 55.6761] },
-          crs: "OGC:CRS84",
-          source: "manual"
-        },
-        media: [
-          {
-            src: "https://images.unsplash.com/photo-1513622470522-26c3c8a854bc?auto=format&fit=crop&w=1600&q=80",
-            alt: "Copenhagen city demonstration photograph",
-            caption: "Location-oriented hero media for a ranged event."
-          },
-          {
-            src: "https://images.unsplash.com/photo-1552560880-2482cef14240?auto=format&fit=crop&w=1600&q=80",
-            alt: "Urban bicycle demonstration photograph",
-            caption: "Second fieldwork image."
-          }
-        ],
-        tags: [
-          { label: "Fieldwork", icon: "evidence", hue: 142 },
-          { label: "Copenhagen", icon: "place", hue: 216 },
-          { label: "Range", icon: "relation", hue: 52 }
-        ]
-      },
-      {
-        id: "sample-evidence",
-        kind: "event",
-        start: "2026-09-12",
-        end: null,
-        title: "Evidence package captured",
-        description: "A date-only event demonstrates that Timeline can retain day precision without inventing a clock time.",
-        categoryId: "evidence",
-        media: [
-          {
-            src: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=1600&q=80",
-            alt: "Documents used as demonstration evidence imagery",
-            caption: "Evidence-oriented media remains presentation metadata, not evidentiary proof by itself."
-          }
-        ],
-        tags: [
-          { label: "Evidence", icon: "evidence", hue: 155 },
-          { label: "Date only", icon: "milestone", hue: 44 }
-        ]
-      },
-      {
-        id: "sample-review",
-        kind: "event",
-        start: "2026-09-13T16:15+02:00",
-        end: null,
-        title: "Focused composition reviewed",
-        description: "The selected-event design uses the whole chronology workspace: hero media and title dominate, supporting sections take asymmetric grid spans, and the timeline docks to an edge rather than competing with detail.",
-        categoryId: "decision",
-        tags: [
-          { label: "UX review", icon: "decision", hue: 320 },
-          { label: "Relations", icon: "relation", hue: 262 }
-        ]
-      },
-      {
-        id: "sample-release",
-        kind: "event",
-        start: "2026-09-14T09:30+02:00",
-        end: null,
-        title: "Release published",
-        description: "The release demonstrates stories, graph relationships, temporal clustering, rich event focus, map locations, interchange, and accessible hue-constrained tags working together.",
-        categoryId: "release",
-        media: [
-          {
-            src: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1600&q=80",
-            alt: "Computer display used as release demonstration media",
-            caption: "Release hero."
-          },
-          {
-            src: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1600&q=80",
-            alt: "Code editor demonstration photograph",
-            caption: "Implementation view."
-          },
-          {
-            src: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1600&q=80",
-            alt: "Laptop collaboration demonstration photograph",
-            caption: "Collaboration view."
-          }
-        ],
-        tags: [
-          { label: "Release", icon: "milestone", hue: 275 },
-          { label: "Media", icon: "media", hue: 190 },
-          { label: "Portable", icon: "note", hue: 70 }
-        ]
-      }
-    ],
-    stories: [
-      {
-        id: "sample-story",
-        title: "From brief to release",
-        description: "A narrative path that reuses canonical chronology items without changing their dates, locations, media, tags, or graph relationships.",
-        itemIds: ["sample-brief", "sample-fieldwork", "sample-evidence", "sample-review", "sample-release"]
-      }
-    ],
-    entities: [
-      { id: "person-lead", type: "person", name: "Project lead", identifiers: [], attributes: {} },
-      { id: "place-stockholm", type: "place", name: "Stockholm", identifiers: [], attributes: {} },
-      { id: "place-copenhagen", type: "place", name: "Copenhagen", identifiers: [], attributes: {} }
-    ],
-    relationships: [
-      {
-        id: "sample-relation-participant",
-        subjectId: "person-lead",
-        objectId: "sample-brief",
-        predicate: "participant",
-        role: "approver",
-        time: {
-          type: "instant",
-          start: {
-            value: "2026-09-11T09:00+02:00",
-            precision: "minute",
-            certainty: "exact",
-            calendar: "gregorian",
-            timeZone: "Europe/Stockholm",
-            utcOffset: "+02:00"
-          },
-          end: null
-        }
-      },
-      {
-        id: "sample-relation-fieldwork",
-        subjectId: "sample-fieldwork",
-        objectId: "place-copenhagen",
-        predicate: "occurredAt",
-        role: "study-site",
-        time: {
-          type: "interval",
-          start: {
-            value: "2026-09-11T10:30+02:00",
-            precision: "minute",
-            certainty: "exact",
-            calendar: "gregorian",
-            timeZone: "Europe/Copenhagen",
-            utcOffset: "+02:00"
-          },
-          end: {
-            value: "2026-09-13T18:15+02:00",
-            precision: "minute",
-            certainty: "approximate",
-            calendar: "gregorian",
-            timeZone: "Europe/Copenhagen",
-            utcOffset: "+02:00"
-          }
-        }
-      },
-      {
-        id: "sample-relation-derived",
-        subjectId: "sample-release",
-        objectId: "sample-evidence",
-        predicate: "derivedFrom",
-        role: "release-evidence"
-      }
-    ]
-  };
+  const SAMPLE = globalThis.TimelineSampleCase;
+  if (!SAMPLE) throw new Error("TimelineSampleCase must load before app.js.");
 
   const els = {
     title: document.querySelector("#timeline-title"),
@@ -297,6 +56,7 @@
     itemId: document.querySelector("#item-id"),
     itemKind: document.querySelector("#item-kind"),
     itemCategory: document.querySelector("#item-category"),
+    itemLayoutVariant: document.querySelector("#item-layout-variant"),
     itemDateRange: document.querySelector("#item-date-range"),
     itemCalendarPopover: document.querySelector("#item-calendar-popover"),
     itemCalendarGrid: document.querySelector("#item-calendar-grid"),
@@ -327,6 +87,8 @@
     itemMediaRows: [...document.querySelectorAll("[data-media-slot]")],
     itemTagsDetails: document.querySelector("#item-tags-details"),
     itemTagRows: [...document.querySelectorAll("[data-tag-slot]")],
+    itemEvidenceDetails: document.querySelector("#item-evidence-details"),
+    itemEvidenceRows: [...document.querySelectorAll("[data-evidence-slot]")],
     itemLocationDetails: document.querySelector("#item-location-details"),
     itemLocationName: document.querySelector("#item-location-name"),
     itemLocationIdentifier: document.querySelector("#item-location-identifier"),
@@ -394,7 +156,8 @@
     search: "",
     categoryFilter: "all",
     activeStoryId: null,
-    storyCursor: 0
+    storyCursor: 0,
+    collapsedCategoryIds: new Set()
   };
 
   const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
@@ -540,6 +303,9 @@
       return candidate;
     };
 
+    const evidence = evidenceStore.normalizeRecords(input.evidence);
+    const evidenceIds = new Set(evidence.map((record) => record.id));
+
     let sourceItems;
     if (Array.isArray(input.items)) {
       sourceItems = input.items;
@@ -597,6 +363,13 @@
       if (location) item.location = location;
       if (media.length) item.media = media;
       if (tags.length) item.tags = tags;
+      const variant = ["hero-split", "evidence-dossier", "editorial-mosaic"].includes(raw.presentation?.variant)
+        ? raw.presentation.variant
+        : "hero-split";
+      item.presentation = { variant };
+      item.evidenceIds = (Array.isArray(raw.evidenceIds) ? raw.evidenceIds : [])
+        .filter((id) => typeof id === "string" && evidenceIds.has(id))
+        .slice(0, 12);
       const extensions = normalizeExtensions(raw.extensions);
       if (extensions) item.extensions = extensions;
       return item;
@@ -638,7 +411,8 @@
       items,
       stories,
       entities: graphData.entities,
-      relationships: graphData.relationships
+      relationships: graphData.relationships,
+      evidence
     };
     const extensions = normalizeExtensions(input.extensions);
     if (extensions) normalized.extensions = extensions;
@@ -653,7 +427,8 @@
       items: [],
       stories: [],
       entities: [],
-      relationships: []
+      relationships: [],
+      evidence: []
     };
   }
 
@@ -705,6 +480,30 @@
     return state.items.find((item) => item.id === id) || null;
   }
 
+  function entityOrItemName(id) {
+    const entity = state.entities.find((candidate) => candidate.id === id);
+    if (entity) return entity.name || entity.id;
+    const item = getItem(id);
+    return item?.title || id;
+  }
+
+  function storySpanLabel(story) {
+    const items = story.itemIds.map(getItem).filter(Boolean);
+    if (!items.length) return "empty";
+    const starts = items.map((item) => temporal.sortKey(item.time?.start || item.start)).filter(Number.isFinite);
+    const ends = items.map((item) => item.end
+      ? temporal.sortKey(item.time?.end || item.end)
+      : temporal.sortKey(item.time?.start || item.start)
+    ).filter(Number.isFinite);
+    if (!starts.length || !ends.length) return "unknown span";
+    const spanMs = Math.max(...ends) - Math.min(...starts);
+    const day = 86_400_000;
+    if (spanMs < day) return "within one day";
+    if (spanMs < day * 60) return `${Math.max(1, Math.round(spanMs / day))} days`;
+    if (spanMs < day * 730) return `${Math.max(1, Math.round(spanMs / (day * 30.4375)))} months`;
+    return `${(spanMs / (day * 365.2425)).toFixed(1)} years`;
+  }
+
   function storyMembershipCount(itemId) {
     return state.stories.reduce((count, story) => count + (story.itemIds.includes(itemId) ? 1 : 0), 0);
   }
@@ -728,7 +527,12 @@
         const locationText = item.location
           ? [item.location.name, item.location.geographicIdentifier, item.location.address].filter(Boolean).join(" ")
           : "";
-        return `${item.title}\n${item.description}\n${tagText}\n${locationText}`
+        const evidenceText = (item.evidenceIds || [])
+          .map((id) => state.evidence.find((record) => record.id === id))
+          .filter(Boolean)
+          .map((record) => [record.title, record.sourceName, record.note].filter(Boolean).join(" "))
+          .join(" ");
+        return `${item.title}\n${item.description}\n${tagText}\n${locationText}\n${evidenceText}`
           .toLocaleLowerCase()
           .includes(needle);
       });
@@ -785,6 +589,48 @@
     fillCategorySelect(els.categoryFilter, true, ui.categoryFilter);
   }
 
+  function renderTimelineList(visible, activeStory) {
+    if (activeStory) {
+      const ordered = document.createElement("ol");
+      ordered.className = "timeline-category-items story-order";
+      ordered.replaceChildren(...visible.map((item) => renderItem(item, activeStory)));
+      els.list.replaceChildren(ordered);
+      return;
+    }
+
+    const groups = [];
+    for (const category of state.categories) {
+      const items = visible.filter((item) => item.categoryId === category.id);
+      if (!items.length) continue;
+      const details = document.createElement("details");
+      details.className = "timeline-category-group";
+      details.dataset.categoryId = category.id;
+      details.open = !ui.collapsedCategoryIds.has(category.id);
+      details.style.setProperty("--category-color", category.color);
+
+      const summary = document.createElement("summary");
+      summary.className = "timeline-category-summary";
+      const identity = document.createElement("span");
+      identity.className = "timeline-category-summary-identity";
+      const dot = document.createElement("span");
+      dot.className = "category-dot";
+      const name = document.createElement("strong");
+      name.textContent = category.name;
+      identity.append(dot, name);
+      const count = document.createElement("span");
+      count.className = "timeline-category-summary-count";
+      count.textContent = `${items.length} ${items.length === 1 ? "item" : "items"}`;
+      summary.append(identity, count);
+
+      const list = document.createElement("ol");
+      list.className = "timeline-category-items";
+      list.replaceChildren(...items.map((item) => renderItem(item, null)));
+      details.append(summary, list);
+      groups.push(details);
+    }
+    els.list.replaceChildren(...groups);
+  }
+
   function renderTimeline() {
     const activeStory = getStory(ui.activeStoryId);
     const visible = getVisibleItems();
@@ -805,7 +651,7 @@
       els.storyFocus.hidden = true;
     }
 
-    els.list.replaceChildren(...visible.map((item) => renderItem(item, activeStory)));
+    renderTimelineList(visible, activeStory);
 
     const storyCurrentId = activeStory?.itemIds[ui.storyCursor] || null;
     timelineView?.setItems(visible.map((item) => {
@@ -825,6 +671,10 @@
         location: item.location || null,
         media: item.media || [],
         tags: item.tags || [],
+        layoutVariant: item.presentation?.variant || "hero-split",
+        evidence: (item.evidenceIds || [])
+          .map((id) => state.evidence.find((record) => record.id === id))
+          .filter(Boolean),
         relations: state.relationships
           .filter((relationship) => relationship.subjectId === item.id || relationship.objectId === item.id)
           .map((relationship) => ({
@@ -833,6 +683,8 @@
             role: relationship.role || "",
             subjectId: relationship.subjectId,
             objectId: relationship.objectId,
+            subjectName: entityOrItemName(relationship.subjectId),
+            objectName: entityOrItemName(relationship.objectId),
             time: relationship.time || null
           }))
       };
@@ -937,6 +789,14 @@
     for (const tag of item.tags || []) {
       const tagElement = presentation.createTag(tag);
       if (tagElement) meta.append(tagElement);
+    }
+
+    const evidenceCount = item.evidenceIds?.length || 0;
+    if (evidenceCount) {
+      const evidenceBadge = document.createElement("span");
+      evidenceBadge.className = "evidence-count-badge";
+      evidenceBadge.textContent = `${evidenceCount} ${evidenceCount === 1 ? "source" : "sources"}`;
+      meta.append(evidenceBadge);
     }
 
     if (activeStory && storyIndex >= 0) {
@@ -1103,6 +963,88 @@
     els.itemTagsDetails.open = normalized.length > 0;
   }
 
+  function evidenceRowParts(row) {
+    return {
+      id: row.querySelector('input[type="hidden"]'),
+      type: row.querySelector("select"),
+      title: row.querySelector('input[id$="-title"]'),
+      sourceName: row.querySelector('input[id$="-source"]'),
+      publishedAt: row.querySelector('input[id$="-published"]'),
+      url: row.querySelector('input[type="url"]'),
+      note: row.querySelector("textarea"),
+      file: row.querySelector('input[type="file"]'),
+      fileStatus: row.querySelector(".evidence-file-status")
+    };
+  }
+
+  async function collectEvidenceForm() {
+    const records = [];
+    for (const row of els.itemEvidenceRows) {
+      const parts = evidenceRowParts(row);
+      const title = parts.title.value.trim();
+      if (!title) continue;
+      const id = parts.id.value || newId("evidence");
+      const existing = state.evidence.find((record) => record.id === id);
+      const file = parts.file.files?.[0] || null;
+      let fileMetadata = existing?.file || null;
+      if (file) {
+        if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+          throw new Error("Evidence uploads must be PDF files.");
+        }
+        if (file.size > 25_000_000) throw new Error("PDF evidence uploads are limited to 25 MB each.");
+        const blobKey = `evidence:${id}`;
+        await evidenceStore.putBlob(blobKey, file);
+        fileMetadata = {
+          blobKey,
+          name: file.name.slice(0, 260),
+          mimeType: file.type || "application/pdf",
+          size: file.size
+        };
+      }
+      const record = evidenceStore.normalizeRecord({
+        id,
+        type: parts.type.value,
+        title,
+        sourceName: parts.sourceName.value,
+        publishedAt: parts.publishedAt.value,
+        url: parts.url.value,
+        note: parts.note.value,
+        file: fileMetadata
+      });
+      if (record) records.push(record);
+    }
+    return records;
+  }
+
+  function fillEvidenceForm(item) {
+    const attached = (item?.evidenceIds || [])
+      .map((id) => state.evidence.find((record) => record.id === id))
+      .filter(Boolean)
+      .slice(0, els.itemEvidenceRows.length);
+    els.itemEvidenceRows.forEach((row, index) => {
+      const parts = evidenceRowParts(row);
+      const record = attached[index];
+      parts.id.value = record?.id || "";
+      parts.type.value = record?.type || "article";
+      parts.title.value = record?.title || "";
+      parts.sourceName.value = record?.sourceName || "";
+      parts.publishedAt.value = record?.publishedAt || "";
+      parts.url.value = record?.url || "";
+      parts.note.value = record?.note || "";
+      parts.file.value = "";
+      parts.fileStatus.textContent = record?.file?.name
+        ? `Stored locally: ${record.file.name}`
+        : "";
+    });
+    els.itemEvidenceDetails.open = attached.length > 0;
+  }
+
+  function mergeEvidenceRecords(records) {
+    const map = new Map(state.evidence.map((record) => [record.id, record]));
+    for (const record of records) map.set(record.id, record);
+    state.evidence = [...map.values()];
+  }
+
   function resetLocationForm() {
     els.itemLocationName.value = "";
     els.itemLocationIdentifier.value = "";
@@ -1145,6 +1087,8 @@
     configureTemporalEndpoint("End");
     fillMediaForm([]);
     fillTagForm([]);
+    fillEvidenceForm(null);
+    els.itemLayoutVariant.value = "hero-split";
     resetLocationForm();
     fillCategorySelect(els.itemCategory, false, state.categories[0]?.id || "");
     els.saveItem.textContent = "Add item";
@@ -1170,6 +1114,8 @@
     els.itemDescription.value = item.description;
     fillMediaForm(item.media || []);
     fillTagForm(item.tags || []);
+    fillEvidenceForm(item);
+    els.itemLayoutVariant.value = item.presentation?.variant || "hero-split";
     fillLocationForm(item.location || null);
     els.saveItem.textContent = "Save changes";
     els.cancelItemEdit.hidden = false;
@@ -1307,7 +1253,7 @@
       top.append(copy, actions);
       const meta = document.createElement("div");
       meta.className = "story-meta";
-      meta.textContent = `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"}`;
+      meta.textContent = `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"} · ${storySpanLabel(story)}`;
       card.append(top, meta);
       return card;
     });
@@ -1513,6 +1459,22 @@
       }
     }
 
+    if (state.evidence.length) {
+      lines.push("## Evidence", "");
+      for (const record of state.evidence) {
+        lines.push(`### ${record.title}`, "");
+        lines.push(`Type: ${record.type}  `);
+        if (record.sourceName) lines.push(`Source: ${record.sourceName}  `);
+        if (record.publishedAt) lines.push(`Published / recorded: ${record.publishedAt}  `);
+        if (record.url) lines.push(`URL: ${record.url}  `);
+        if (record.file?.name) lines.push(`Local PDF metadata: ${record.file.name} (${record.file.size || 0} bytes)  `);
+        if (record.note) lines.push("", record.note);
+        const supported = state.items.filter((item) => item.evidenceIds?.includes(record.id));
+        if (supported.length) lines.push("", `Supports: ${supported.map((item) => item.title).join("; ")}`);
+        lines.push("");
+      }
+    }
+
     if (state.relationships.length) {
       lines.push("## Temporal relationships", "");
       for (const relationship of state.relationships) {
@@ -1699,7 +1661,7 @@
     updateTagHuePreview(row);
   }
 
-  els.itemForm.addEventListener("submit", (event) => {
+  els.itemForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     setError(els.itemFormError);
     const kind = els.itemKind.value === "range" ? "range" : "event";
@@ -1710,6 +1672,7 @@
     let location = null;
     let media = [];
     let tags = [];
+    let evidenceRecords = [];
     try {
       if (!els.itemStartDate.value) throw new Error("Choose a calendar date.");
       if (kind === "range" && !els.itemEndDate.value) throw new Error("Choose both dates for the range.");
@@ -1720,6 +1683,7 @@
       }
       media = collectMediaForm();
       tags = collectTagForm();
+      evidenceRecords = await collectEvidenceForm();
       location = spatial.fromForm({
         name: els.itemLocationName.value,
         geographicIdentifier: els.itemLocationIdentifier.value,
@@ -1755,11 +1719,14 @@
       description: els.itemDescription.value.trim().slice(0, 2000),
       categoryId: state.categories.some((category) => category.id === els.itemCategory.value)
         ? els.itemCategory.value
-        : state.categories[0].id
+        : state.categories[0].id,
+      presentation: { variant: els.itemLayoutVariant.value },
+      evidenceIds: evidenceRecords.map((record) => record.id)
     };
     if (location) item.location = location;
     if (media.length) item.media = media;
     if (tags.length) item.tags = tags;
+    mergeEvidenceRecords(evidenceRecords);
 
     const index = state.items.findIndex((candidate) => candidate.id === item.id);
     if (index >= 0) {
@@ -1776,6 +1743,13 @@
   });
 
   els.cancelItemEdit.addEventListener("click", resetItemForm);
+
+  els.list.addEventListener("toggle", (event) => {
+    const details = event.target.closest?.(".timeline-category-group");
+    if (!details) return;
+    if (details.open) ui.collapsedCategoryIds.delete(details.dataset.categoryId);
+    else ui.collapsedCategoryIds.add(details.dataset.categoryId);
+  }, true);
 
   els.list.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-action]");
@@ -1929,6 +1903,24 @@
   });
   els.timelineViewRoot.addEventListener("timelinefocusedit", (event) => {
     if (event.detail?.id) beginItemEdit(event.detail.id);
+  });
+  els.timelineViewRoot.addEventListener("timelineevidenceopen", async (event) => {
+    const id = event.detail?.id;
+    const record = state.evidence.find((candidate) => candidate.id === id);
+    if (!record?.file?.blobKey) return;
+    try {
+      const blob = await evidenceStore.getBlob(record.file.blobKey);
+      if (!blob) {
+        showStatus("The local PDF is not available in this browser.");
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      console.warn("Could not open local evidence:", error);
+      showStatus("Could not open the local evidence file.");
+    }
   });
 
   els.title.addEventListener("input", () => {

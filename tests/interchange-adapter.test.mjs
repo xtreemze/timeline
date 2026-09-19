@@ -87,6 +87,23 @@ test("exports event/period/group structures and round-trips source extensions", 
     icon: "evidence",
     hue: 145
   }];
+  imported.timeline.items[0].presentation = { variant: "evidence-dossier" };
+  imported.timeline.items[0].evidenceIds = ["evidence-a"];
+  imported.timeline.evidence = [{
+    id: "evidence-a",
+    type: "pdf",
+    title: "Exhibit A",
+    sourceName: "Case file",
+    url: "",
+    note: "Supports the event.",
+    publishedAt: "2026-01-02",
+    file: {
+      blobKey: "evidence:evidence-a",
+      name: "exhibit-a.pdf",
+      mimeType: "application/pdf",
+      size: 4096
+    }
+  }];
   const exported = adapter.exportData(imported.timeline);
 
   assert.equal(exported.events.length, 1);
@@ -98,14 +115,20 @@ test("exports event/period/group structures and round-trips source extensions", 
   assert.equal(exported._timeline.stories.length, 1);
   assert.equal(exported._timeline.entities.length, 1);
   assert.equal(exported._timeline.relationships.length, 1);
+  assert.equal(exported._timeline.evidence.length, 1);
   assert.equal(exported.events[0].media[0].url, "https://example.test/photo.jpg");
   assert.equal(exported.events[0].tags[0].icon, "evidence");
+  assert.equal(exported.events[0].presentation.variant, "evidence-dossier");
+  assert.deepEqual(exported.events[0].evidenceIds, ["evidence-a"]);
 
   const reimported = adapter.importData(exported);
   assert.equal(reimported.timeline.entities.length, 1);
   assert.equal(reimported.timeline.relationships.length, 1);
+  assert.equal(reimported.timeline.evidence.length, 1);
   assert.equal(reimported.timeline.items[0].media[0].url, "https://example.test/photo.jpg");
   assert.equal(reimported.timeline.items[0].tags[0].hue, 145);
+  assert.equal(reimported.timeline.items[0].presentation.variant, "evidence-dossier");
+  assert.deepEqual(reimported.timeline.items[0].evidenceIds, ["evidence-a"]);
 });
 
 test("publishes a JSON Schema and documents the vendor-schema boundary", async () => {
