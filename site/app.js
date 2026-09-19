@@ -2818,6 +2818,11 @@
     schedulePresentationGeometryRefresh({ recenterGraph: true });
   });
 
+  els.timelineViewRoot.addEventListener("timelinefocusrender", () => {
+    syncContextualPresentationPanels();
+    schedulePresentationGeometryRefresh({ recenterGraph: true });
+  });
+
   els.graphViewRoot.addEventListener("graphcontextchange", (event) => {
     focusedGraphContextAvailable = Boolean(event.detail?.hasContext);
     syncContextualPresentationPanels();
