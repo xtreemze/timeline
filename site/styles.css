@@ -262,6 +262,113 @@ a { color: inherit; }
   line-height: 1.45;
 }
 .privacy-note { margin: 1rem 0 0; color: var(--muted); font-size: .72rem; line-height: 1.5; }
+
+.temporal-editor {
+  min-width: 0;
+  margin: 0 0 .95rem;
+  padding: .9rem;
+  border: 1px solid var(--line);
+  border-radius: .72rem;
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
+}
+.temporal-editor legend {
+  padding: 0 .35rem;
+  color: var(--ink);
+  font-size: .82rem;
+  font-weight: 800;
+}
+.temporal-editor legend small {
+  margin-left: .25rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+.temporal-range-grid { display: grid; gap: .75rem; }
+.temporal-endpoint {
+  min-width: 0;
+  padding: .8rem;
+  border: 1px solid var(--line);
+  border-radius: .65rem;
+  background: var(--paper);
+}
+.temporal-endpoint .subheading-row { margin-top: 0; }
+.temporal-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 .65rem;
+}
+.temporal-fields .field { margin-bottom: .65rem; }
+.field-hint {
+  margin: .3rem 0 0;
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.optional-editor {
+  margin: 0 0 .95rem;
+  border: 1px solid var(--line);
+  border-radius: .72rem;
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
+}
+.optional-editor > summary {
+  padding: .82rem .9rem;
+  cursor: pointer;
+  color: var(--ink);
+  font-size: .82rem;
+  font-weight: 800;
+}
+.optional-editor > summary small {
+  color: var(--muted);
+  font-weight: 500;
+}
+.optional-editor[open] > summary { border-bottom: 1px solid var(--line); }
+.location-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 .65rem;
+  padding: .9rem .9rem 0;
+}
+.location-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+  align-items: center;
+  padding: 0 .9rem .8rem;
+}
+geolocation {
+  font: inherit;
+  border-radius: .58rem;
+}
+.location-map {
+  min-height: 250px;
+  margin: 0 .9rem;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: .68rem;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--paper-2) 92%, transparent), var(--paper));
+}
+.location-map:empty::before {
+  content: "OpenStreetMap preview";
+  display: grid;
+  place-items: center;
+  min-height: 250px;
+  color: var(--muted);
+  font-size: .74rem;
+}
+.location-map[data-error="true"] {
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  color: var(--muted);
+  font-size: .74rem;
+  line-height: 1.45;
+  text-align: center;
+}
+.optional-editor > .field-hint { padding: 0 .9rem .9rem; }
+.leaflet-container { font: inherit; background: var(--paper-2); }
+.leaflet-control-attribution { font-size: 10px; }
+
 .divider { margin: 1.5rem 0 1.1rem; border-top: 1px solid var(--line); }
 
 .subheading-row { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin: .2rem 0 .65rem; }
@@ -572,4 +679,8 @@ footer p { margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .001ms !important; animation-duration: .001ms !important; animation-iteration-count: 1 !important; }
+}
+
+@media (max-width: 720px) {
+  .temporal-fields, .location-fields { grid-template-columns: 1fr; }
 }

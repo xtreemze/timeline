@@ -27,8 +27,10 @@ The application is static and runs entirely in the browser. Timeline data is sto
 
 ### Chronology
 
-- Create point **events** with a date or date + time.
-- Create **ranges** with explicit start and end boundaries.
+- Create point **events** with native calendar/clock controls and explicit temporal precision.
+- Create **ranges** with independently validated start and end endpoints.
+- Preserve ISO 8601 date/time values, certainty, IANA time zone identifiers, and source UTC offsets.
+- Assign an optional structured place and WGS 84 point; choose coordinates manually, from the map, or through Chrome's native geolocation control.
 - Edit and delete items without manually re-sorting the chronology.
 - Deterministic sorting by start, end, and title.
 - Search titles and descriptions.
@@ -61,7 +63,7 @@ This is deliberately a reference model rather than a copy model: stories do not 
 - Browser-local persistence with `localStorage`.
 - Automatic migration of the original v1 `events[]` browser data to v2.
 - Strict JSON validation at import boundaries.
-- JSON export preserving categories, chronology items, ranges, stories, and namespaced interchange extensions.
+- JSON export preserving categories, chronology items, ranges, stories, structured temporal extents, locations, and namespaced interchange extensions.
 - Time.Graphics JSON/XML import for events, periods, and groups, with source-specific media/comments/statistics preserved under `extensions.timeGraphics`.
 - Time.Graphics-oriented JSON export with a published JSON Schema and round-trip preservation of imported vendor fields.
 - Markdown export containing the canonical chronology plus each narrative story.
@@ -120,16 +122,41 @@ Time.Graphics interoperability is isolated behind `site/time-graphics-adapter.js
 
 The exported interchange schema is `schemas/time-graphics-interchange-v1.schema.json`. See `docs/TIME-GRAPHICS-INTERCHANGE.md` for recognized field aliases, loss boundaries, and the vendor-schema caveat.
 
-### Temporal values
+### Temporal and spatial values
 
-Dates are explicit, timezone-free strings in either form:
+`start` / `end` remain compatibility projections, while normalized records now also carry a structured `time` extent. Date-only values use ISO 8601 calendar dates. Clock values can preserve minute, second, or millisecond precision and, when an IANA time zone is selected, include the resolved UTC offset.
 
-```text
-YYYY-MM-DD
-YYYY-MM-DDTHH:MM
+```json
+{
+  "start": "2026-09-19T12:06:31.125+08:00",
+  "time": {
+    "type": "instant",
+    "start": {
+      "value": "2026-09-19T12:06:31.125+08:00",
+      "precision": "millisecond",
+      "certainty": "exact",
+      "calendar": "gregorian",
+      "timeZone": "Asia/Manila",
+      "utcOffset": "+08:00",
+      "sourceText": null
+    },
+    "end": null
+  },
+  "location": {
+    "name": "Stockholm",
+    "geographicIdentifier": "Stockholm, Sweden",
+    "address": "",
+    "geometry": {
+      "type": "Point",
+      "coordinates": [18.0686, 59.3293]
+    },
+    "crs": "OGC:CRS84",
+    "source": "manual"
+  }
+}
 ```
 
-Ranges require both `start` and `end`, and `end` must not precede `start`.
+Ranges require both endpoints and the normalized end instant cannot precede the start. GeoJSON/CRS84 point coordinates are stored in longitude-latitude order. See `docs/TEMPORAL-SPATIAL-INTERCHANGE.md`.
 
 ### Referential rules
 
@@ -174,7 +201,9 @@ This permits future extensions such as:
 
 ## Architecture
 
-Timeline deliberately uses the browser platform directly. The browser target is the **latest Chrome Beta**; as of September 19, 2026 that is Chrome 155 Beta. When a required capability is available in that target, Timeline uses the native platform API instead of shipping a JavaScript substitute. Current examples include the Popover API, CSS Anchor Positioning, pointer events, ResizeObserver, and native top-layer entry/exit transitions with `@starting-style` and `transition-behavior: allow-discrete`.
+Timeline deliberately uses the browser platform directly. The browser target is the **latest Chrome Beta**; as of September 19, 2026 that is Chrome 155 Beta. When a required capability is available in that target, Timeline uses the native platform API instead of shipping a JavaScript substitute. Current examples include native date/time pickers, `HTMLInputElement.showPicker()` where explicit picker invocation is useful, the Temporal API for timezone-aware normalization, the `<geolocation>` element for user-initiated location access, the Popover API, CSS Anchor Positioning, pointer events, ResizeObserver, and native top-layer transitions.
+
+Leaflet is loaded lazily only for the optional interactive map because the browser platform has no native slippy-map control. Standard OpenStreetMap raster tiles are used with visible attribution and no offline/prefetch behavior; the tile provider is replaceable through `globalThis.TimelineMapTileProvider`.
 
 
 ```text
