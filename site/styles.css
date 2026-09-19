@@ -2156,6 +2156,7 @@ body {
 }
 
 .app-tool-dock {
+  view-transition-name: timeline-workspace-sidebar;
   position: fixed;
   z-index: 1200;
   left: 50%;
@@ -2212,6 +2213,14 @@ body {
   background: var(--paper-2);
   color: var(--ink);
   outline: none;
+}
+
+.app-editor-sheet {
+  view-transition-name: timeline-editor-sidebar;
+}
+
+.app-browser-sheet {
+  view-transition-name: timeline-browser-sidebar;
 }
 
 .app-editor-sheet,
@@ -2647,5 +2656,33 @@ body {
     width: 100%;
     min-height: 40px;
     margin-top: -.2rem;
+  }
+}
+
+
+/* Workspace chrome participates in the same document View Transition as timeline focus.
+   This preserves spatial continuity when responsive/fullscreen composition moves the dock
+   or a side sheet between application regions. */
+::view-transition-group(timeline-workspace-sidebar),
+::view-transition-group(timeline-editor-sidebar),
+::view-transition-group(timeline-browser-sidebar) {
+  animation-duration: 300ms;
+  animation-timing-function: cubic-bezier(.2, .8, .2, 1);
+}
+
+::view-transition-old(timeline-workspace-sidebar),
+::view-transition-new(timeline-workspace-sidebar),
+::view-transition-old(timeline-editor-sidebar),
+::view-transition-new(timeline-editor-sidebar),
+::view-transition-old(timeline-browser-sidebar),
+::view-transition-new(timeline-browser-sidebar) {
+  mix-blend-mode: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(timeline-workspace-sidebar),
+  ::view-transition-group(timeline-editor-sidebar),
+  ::view-transition-group(timeline-browser-sidebar) {
+    animation-duration: 0s !important;
   }
 }

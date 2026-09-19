@@ -32,7 +32,7 @@ test("selected events use a compact six-column focus popover over the persistent
   ]);
   assert.match(html, /id="timeline-focus-view"/);
   assert.doesNotMatch(html, /id="timeline-detail"/);
-  assert.match(js, /focusItem\(id\)/);
+  assert.match(js, /focusItem\(id, options = \{\}\)/);
   assert.match(js, /timelinefocuschange/);
   assert.match(js, /createFocusHero/);
   assert.match(css, /\.timeline-focus-view\s*\{[\s\S]*grid-template-columns:\s*repeat\(6,/);
