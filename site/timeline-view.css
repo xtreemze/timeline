@@ -111,7 +111,7 @@
   outline: none;
   overflow: hidden;
   overscroll-behavior: contain;
-  touch-action: pan-y;
+  touch-action: none;
   user-select: none;
   cursor: grab;
   background: color-mix(in srgb, var(--paper) 96%, var(--panel));
@@ -119,7 +119,6 @@
 .timeline-surface.is-landscape { height: clamp(390px, 44vw, 560px); }
 .timeline-surface.is-portrait {
   height: clamp(620px, 72vw, 900px);
-  touch-action: pan-x;
 }
 .timeline-surface:focus-visible { box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--focus) 55%, transparent); }
 .timeline-surface.is-panning { cursor: grabbing; }
