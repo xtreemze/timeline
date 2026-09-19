@@ -70,6 +70,13 @@ test("exports event/period/group structures and round-trips source extensions", 
   });
 
   imported.timeline.stories = [{ id: "s1", title: "Story", description: "", itemIds: ["tg-e1"] }];
+  imported.timeline.entities = [{ id: "person-a", type: "person", name: "A" }];
+  imported.timeline.relationships = [{
+    id: "rel-a",
+    subjectId: "person-a",
+    objectId: "tg-e1",
+    predicate: "participant"
+  }];
   const exported = adapter.exportData(imported.timeline);
 
   assert.equal(exported.events.length, 1);
@@ -79,6 +86,12 @@ test("exports event/period/group structures and round-trips source extensions", 
   assert.equal(exported.groups[0].vendorGroup, 9);
   assert.equal(exported._timeline.format, "time.graphics-interchange");
   assert.equal(exported._timeline.stories.length, 1);
+  assert.equal(exported._timeline.entities.length, 1);
+  assert.equal(exported._timeline.relationships.length, 1);
+
+  const reimported = adapter.importData(exported);
+  assert.equal(reimported.timeline.entities.length, 1);
+  assert.equal(reimported.timeline.relationships.length, 1);
 });
 
 test("publishes a JSON Schema and documents the vendor-schema boundary", async () => {

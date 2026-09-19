@@ -7,8 +7,10 @@
   const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   const temporal = globalThis.TimelineTemporal;
   const spatial = globalThis.TimelineSpatial;
+  const graph = globalThis.TimelineGraph;
   if (!temporal) throw new Error("TimelineTemporal must load before app.js.");
   if (!spatial) throw new Error("TimelineSpatial must load before app.js.");
+  if (!graph) throw new Error("TimelineGraph must load before app.js.");
 
   const DEFAULT_CATEGORIES = [
     { id: "event", name: "Event", color: "#667085" },
@@ -81,6 +83,31 @@
         title: "From chronology to narrative",
         description: "Follow the decisions and implementation moments that transformed a simple event list into a richer chronology workspace.",
         itemIds: ["sample-problem", "sample-sprint", "sample-model", "sample-review", "sample-release"]
+      }
+    ],
+    entities: [],
+    relationships: [
+      {
+        id: "sample-relation",
+        subjectId: "sample-problem",
+        objectId: "sample-release",
+        predicate: "deliveryWindow",
+        role: "context",
+        time: {
+          type: "interval",
+          start: {
+            value: "2026-09-11T09:00",
+            precision: "minute",
+            certainty: "exact",
+            calendar: "gregorian"
+          },
+          end: {
+            value: "2026-09-14T09:30",
+            precision: "minute",
+            certainty: "exact",
+            calendar: "gregorian"
+          }
+        }
       }
     ]
   };
@@ -224,55 +251,45 @@
   }
 
   function parseDate(value) {
-    if (typeof value !== "string") return null;
-    const match = DATE_PATTERN.exec(value.trim());
-    if (!match) return null;
-
-    const year = Number(match[1]);
-    const month = Number(match[2]);
-    const day = Number(match[3]);
-    const hour = match[4] === undefined ? null : Number(match[4]);
-    const minute = match[5] === undefined ? null : Number(match[5]);
-
-    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-    if (hour !== null && (hour < 0 || hour > 23 || minute < 0 || minute > 59)) return null;
-
-    const probe = new Date(Date.UTC(year, month - 1, day, hour ?? 0, minute ?? 0));
-    if (
-      probe.getUTCFullYear() !== year ||
-      probe.getUTCMonth() !== month - 1 ||
-      probe.getUTCDate() !== day ||
-      (hour !== null && (probe.getUTCHours() !== hour || probe.getUTCMinutes() !== minute))
-    ) return null;
-
-    return {
-      year,
-      month,
-      day,
-      hour,
-      minute,
-      hasTime: hour !== null,
-      sortKey: probe.getTime()
-    };
+    const parsed = temporal.parse(value);
+    if (!parsed) return null;
+    const sortKey = temporal.sortKey(value);
+    if (!Number.isFinite(sortKey)) return null;
+    return { ...parsed, sortKey };
   }
 
   function formatDateParts(value) {
     const parsed = parseDate(value);
     if (!parsed) return { date: value || "Unknown", time: "" };
-    const dateObject = new Date(parsed.sortKey);
+
+    const dateObject = new Date(0);
+    dateObject.setUTCFullYear(parsed.year, parsed.month - 1, parsed.day);
+    dateObject.setUTCHours(
+      parsed.hour || 0,
+      parsed.minute || 0,
+      parsed.second || 0,
+      parsed.millisecond || 0
+    );
+
     const date = new Intl.DateTimeFormat(undefined, {
       year: "numeric",
       month: "short",
       day: "numeric",
       timeZone: "UTC"
     }).format(dateObject);
-    const time = parsed.hasTime
-      ? new Intl.DateTimeFormat(undefined, {
-          hour: "2-digit",
-          minute: "2-digit",
-          timeZone: "UTC"
-        }).format(dateObject)
-      : "";
+
+    let time = "";
+    if (parsed.hasTime) {
+      const options = {
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+        timeZone: "UTC"
+      };
+      if (parsed.precision === "second" || parsed.precision === "millisecond") options.second = "2-digit";
+      if (parsed.precision === "millisecond") options.fractionalSecondDigits = 3;
+      time = new Intl.DateTimeFormat(undefined, options).format(dateObject);
+    }
     return { date, time };
   }
 
@@ -416,12 +433,15 @@
       return story;
     });
 
+    const graphData = graph.normalizeGraphData(input, temporal);
     const normalized = {
       version: VERSION,
       title: typeof input.title === "string" ? input.title.slice(0, 120) : "",
       categories,
       items,
-      stories
+      stories,
+      entities: graphData.entities,
+      relationships: graphData.relationships
     };
     const extensions = normalizeExtensions(input.extensions);
     if (extensions) normalized.extensions = extensions;
@@ -429,7 +449,15 @@
   }
 
   function blankTimeline() {
-    return { version: VERSION, title: "", categories: clone(DEFAULT_CATEGORIES), items: [], stories: [] };
+    return {
+      version: VERSION,
+      title: "",
+      categories: clone(DEFAULT_CATEGORIES),
+      items: [],
+      stories: [],
+      entities: [],
+      relationships: []
+    };
   }
 
   function loadState() {
@@ -584,13 +612,16 @@
         description: item.description,
         categoryName: category.name,
         color: category.color,
-        start: parseDate(item.start).sortKey,
-        end: item.end ? parseDate(item.end).sortKey : null,
+        start: temporal.sortKey(item.time?.start || item.start),
+        end: item.end ? temporal.sortKey(item.time?.end || item.end) : null,
         startLabel: formatDateInline(item.start),
         endLabel: item.end ? formatDateInline(item.end) : "",
         locationName: item.location?.name || item.location?.geographicIdentifier || ""
       };
-    }), { focusId: storyCurrentId });
+    }), {
+      focusId: storyCurrentId,
+      relationships: graph.temporalRelationProjection(state.relationships, temporal)
+    });
   }
 
   function renderItem(item, activeStory) {
@@ -1142,6 +1173,19 @@
         });
         lines.push("");
       }
+    }
+
+    if (state.relationships.length) {
+      lines.push("## Temporal relationships", "");
+      for (const relationship of state.relationships) {
+        const when = relationship.time
+          ? temporal.intervalRepresentation(relationship.time)
+          : "untimed";
+        lines.push(
+          `- ${relationship.subjectId} —${relationship.predicate}→ ${relationship.objectId} (${when})`
+        );
+      }
+      lines.push("");
     }
 
     lines.push("## Categories", "");

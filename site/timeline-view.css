@@ -1,3 +1,13 @@
+@font-face {
+  font-family: "Monaspace Krypton Timeline";
+  src:
+    local("Monaspace Krypton Var"),
+    url("https://raw.githubusercontent.com/githubnext/monaspace/v1.400/fonts/Web%20Fonts/Variable%20Web%20Fonts/Monaspace%20Krypton/Monaspace%20Krypton%20Var.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+}
+
 .timeline-view {
   position: relative;
   margin: 1rem 0 0;
@@ -38,7 +48,10 @@
   flex: 1 1 220px;
   min-width: 0;
   color: var(--muted);
-  font: 700 .67rem/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 700 .67rem/1.35 "Monaspace Krypton Timeline", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size-adjust: ex-height from-font;
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: "calt" 1, "liga" 1, "cv01" 2;
   text-align: right;
 }
 .timeline-surface {
@@ -63,6 +76,8 @@
 .timeline-stage {
   position: absolute;
   inset: 0;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   overflow: hidden;
   pointer-events: none;
 }
@@ -84,8 +99,9 @@
 }
 .timeline-tick {
   position: absolute;
+  z-index: 2;
   background: var(--line-strong);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums slashed-zero;
 }
 .is-landscape .timeline-tick {
   top: calc(var(--timeline-axis-cross) - 6px);
@@ -100,7 +116,10 @@
 .timeline-tick-label {
   position: absolute;
   color: var(--muted);
-  font: 700 .62rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 680 .62rem/1.2 "Monaspace Krypton Timeline", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size-adjust: ex-height from-font;
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: "calt" 1, "liga" 1, "cv01" 2;
   white-space: nowrap;
 }
 .is-landscape .timeline-tick-label {
@@ -110,6 +129,81 @@
 .is-portrait .timeline-tick-label {
   left: 16px;
   transform: translateY(-50%);
+}
+
+.timeline-month-accent {
+  position: absolute;
+  z-index: 0;
+  color: color-mix(in srgb, var(--muted) 21%, transparent);
+  font-family: "Monaspace Krypton Timeline", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: clamp(1.8rem, 5vw, 4.8rem);
+  font-weight: 780;
+  font-stretch: 110%;
+  font-size-adjust: ex-height from-font;
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings:
+    "calt" 1,
+    "liga" 1,
+    "ss01" 1,
+    "ss02" 1,
+    "ss03" 1,
+    "ss04" 1,
+    "ss05" 1,
+    "ss06" 1,
+    "ss07" 1,
+    "ss08" 1,
+    "ss09" 1,
+    "cv01" 2;
+  letter-spacing: -.07em;
+  line-height: .82;
+  white-space: nowrap;
+  text-box: trim-both ex alphabetic;
+  user-select: none;
+}
+.is-landscape .timeline-month-accent {
+  bottom: 8px;
+  transform: translateX(-50%);
+}
+.is-portrait .timeline-month-accent {
+  right: 7px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: translateY(-50%);
+}
+
+.timeline-relation-zone {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  border: 1px dashed color-mix(in srgb, var(--story) 18%, transparent);
+  background: color-mix(in srgb, var(--story) 3%, transparent);
+}
+.is-landscape .timeline-relation-zone {
+  left: 0;
+  right: 0;
+  top: calc(var(--timeline-axis-cross) + 16px);
+  height: 42px;
+}
+.is-portrait .timeline-relation-zone {
+  top: 0;
+  bottom: 0;
+  left: calc(var(--timeline-axis-cross) + 16px);
+  width: 42px;
+}
+.timeline-relation-segment {
+  position: absolute;
+  z-index: 1;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--story) 52%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--story) 35%, transparent);
+}
+.is-landscape .timeline-relation-segment {
+  top: calc(var(--timeline-axis-cross) + 21px + var(--relation-lane-offset));
+  height: 4px;
+}
+.is-portrait .timeline-relation-segment {
+  left: calc(var(--timeline-axis-cross) + 21px + var(--relation-lane-offset));
+  width: 4px;
 }
 .timeline-range-segment {
   --event-color: var(--accent);
@@ -157,7 +251,12 @@
   text-align: left;
   transform: translate(-.84rem, -50%);
   transform-origin: .84rem 50%;
-  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease,
+    opacity 160ms ease,
+    transform 190ms cubic-bezier(.2, .8, .2, 1);
 }
 .timeline-event.label-before .timeline-event-terminal {
   flex-direction: row-reverse;
@@ -177,6 +276,38 @@
 .timeline-event.is-selected .timeline-event-terminal {
   anchor-name: --timeline-detail-anchor;
   background: color-mix(in srgb, var(--paper) 91%, var(--event-color));
+}
+.timeline-cluster-terminal {
+  border-color: color-mix(in srgb, var(--ink) 18%, var(--line));
+  background: color-mix(in srgb, var(--paper) 90%, var(--panel));
+  box-shadow: 0 7px 22px rgba(38, 31, 23, .08);
+}
+.timeline-cluster-dots {
+  position: relative;
+  display: inline-block;
+  width: 1.35rem;
+  height: .9rem;
+  flex: 0 0 1.35rem;
+}
+.timeline-cluster-dot {
+  --cluster-dot-color: var(--accent);
+  position: absolute;
+  top: 50%;
+  width: .68rem;
+  height: .68rem;
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  background: var(--cluster-dot-color);
+  transform: translateY(-50%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cluster-dot-color) 30%, transparent);
+}
+.timeline-cluster-dot:nth-child(1) { left: 0; }
+.timeline-cluster-dot:nth-child(2) { left: .34rem; }
+.timeline-cluster-dot:nth-child(3) { left: .68rem; }
+.timeline-cluster .timeline-event-copy strong {
+  font-family: "Monaspace Krypton Timeline", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "calt" 1, "liga" 1;
 }
 .timeline-event-dot {
   width: .72rem;

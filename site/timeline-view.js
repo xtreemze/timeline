@@ -2,7 +2,11 @@
   "use strict";
 
   const scale = globalThis.TimelineScale;
+  const clustering = globalThis.TimelineClustering;
+  const motion = globalThis.TimelineMotion;
   if (!scale) throw new Error("TimelineScale must load before TimelineView.");
+  if (!clustering) throw new Error("TimelineClustering must load before TimelineView.");
+  if (!motion) throw new Error("TimelineMotion must load before TimelineView.");
 
   const VIEW_STORAGE_KEY = "timeline:view:v1";
   const DEFAULT_SPAN_MS = 86_400_000;
@@ -12,6 +16,10 @@
   const ZOOM_RESPONSE_MS = 170;
   const WHEEL_ZOOM_SENSITIVITY = 0.00065;
   const MAX_WHEEL_EXPONENT = 0.045;
+  const HORIZONTAL_CLUSTER_THRESHOLD_MIN = 118;
+  const HORIZONTAL_CLUSTER_THRESHOLD_MAX = 172;
+  const VERTICAL_CLUSTER_THRESHOLD = 58;
+  const RELATION_LANES = 4;
 
   function createElement(tag, className, text) {
     const element = document.createElement(tag);
@@ -80,6 +88,7 @@
       this.zoomOutButton = root.querySelector("#timeline-zoom-out");
       this.fitButton = root.querySelector("#timeline-fit");
       this.items = [];
+      this.relationships = [];
       this.viewport = null;
       this.zoomTarget = null;
       this.selectedId = null;
@@ -91,6 +100,9 @@
       this.renderFrame = 0;
       this.zoomAnimationFrame = 0;
       this.zoomLastFrame = 0;
+      this.inertiaAnimationFrame = 0;
+      this.clusterSignature = null;
+      this.lastClusterHapticAt = 0;
       this.reducedMotionQuery =
         typeof globalThis.matchMedia === "function"
           ? globalThis.matchMedia("(prefers-reduced-motion: reduce)")
@@ -121,6 +133,7 @@
           const deltaPixels = normalizeWheelDelta(event, length);
           const factor = wheelZoomFactor(deltaPixels);
           if (Math.abs(factor - 1) < 0.00001) return;
+          this.cancelInertia();
           this.queueZoom(factor, ratio);
         },
         { passive: false }
@@ -130,33 +143,54 @@
         if (!this.viewport || !this.items.length || event.button !== 0 || event.target.closest("button")) return;
         this.cancelViewportAnimation();
         const rect = this.surface.getBoundingClientRect();
+        const coordinate = this.orientation === "horizontal" ? event.clientX : event.clientY;
         this.drag = {
           pointerId: event.pointerId,
-          coordinate: this.orientation === "horizontal" ? event.clientX : event.clientY,
+          coordinate,
           viewport: { ...this.viewport },
-          length: this.orientation === "horizontal" ? rect.width : rect.height
+          length: this.orientation === "horizontal" ? rect.width : rect.height,
+          lastTime: Number(event.timeStamp) || performance.now(),
+          samples: []
         };
+        motion.appendPointerSamples(this.drag.samples, event, this.orientation);
         this.surface.setPointerCapture(event.pointerId);
         this.surface.classList.add("is-panning");
       });
 
       this.surface.addEventListener("pointermove", (event) => {
         if (!this.drag || this.drag.pointerId !== event.pointerId) return;
+        motion.appendPointerSamples(this.drag.samples, event, this.orientation);
         const coordinate = this.orientation === "horizontal" ? event.clientX : event.clientY;
         const deltaPixels = coordinate - this.drag.coordinate;
         const padding = this.axisPadding(this.drag.length);
         const usable = Math.max(1, this.drag.length - padding * 2);
         const span = this.drag.viewport.end - this.drag.viewport.start;
         const deltaMs = -(deltaPixels / usable) * span;
-        this.viewport = scale.pan(this.drag.viewport, deltaMs);
+        const target = scale.pan(this.drag.viewport, deltaMs);
+        const now = Number(event.timeStamp) || performance.now();
+        const response = motion.responseForElapsed(now - this.drag.lastTime);
+        this.drag.lastTime = now;
+        this.viewport = {
+          start: this.viewport.start + (target.start - this.viewport.start) * response,
+          end: this.viewport.end + (target.end - this.viewport.end) * response
+        };
         this.scheduleRender();
       });
 
       const finishDrag = (event) => {
         if (!this.drag || this.drag.pointerId !== event.pointerId) return;
+        motion.appendPointerSamples(this.drag.samples, event, this.orientation);
+        const velocity = event.type === "pointercancel"
+          ? 0
+          : motion.estimatePointerVelocity(this.drag.samples);
+        const length = this.drag.length;
         this.drag = null;
         this.surface.classList.remove("is-panning");
         if (this.surface.hasPointerCapture(event.pointerId)) this.surface.releasePointerCapture(event.pointerId);
+        if (Math.abs(velocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
+          this.startInertia(velocity, length);
+          void motion.pulseHaptic("release");
+        }
       };
       this.surface.addEventListener("pointerup", finishDrag);
       this.surface.addEventListener("pointercancel", finishDrag);
@@ -192,8 +226,7 @@
           event.preventDefault();
           this.cancelViewportAnimation();
           const backwards = horizontalBack || verticalBack;
-          this.viewport = scale.pan(this.viewport, backwards ? -panDelta : panDelta);
-          this.scheduleRender();
+          this.animateViewportTo(scale.pan(this.viewport, backwards ? -panDelta : panDelta));
         }
       });
 
@@ -247,6 +280,14 @@
       const previousSignature = this.items.map((item) => item.id).join("|");
       const nextSignature = nextItems.map((item) => item.id).join("|");
       this.items = nextItems;
+      this.relationships = Array.isArray(options.relationships)
+        ? options.relationships
+            .filter((relationship) => relationship && Number.isFinite(relationship.start))
+            .map((relationship) => ({
+              ...relationship,
+              end: Number.isFinite(relationship.end) ? relationship.end : relationship.start
+            }))
+        : [];
       this.focusId = options.focusId || null;
 
       if (!this.items.length) {
@@ -389,6 +430,41 @@
       this.zoomAnimationFrame = 0;
       this.zoomLastFrame = 0;
       this.zoomTarget = null;
+      this.cancelInertia();
+    }
+
+    cancelInertia() {
+      if (this.inertiaAnimationFrame) cancelAnimationFrame(this.inertiaAnimationFrame);
+      this.inertiaAnimationFrame = 0;
+    }
+
+    startInertia(initialVelocityPxPerMs, pixelLength) {
+      if (!this.viewport || this.prefersReducedMotion()) return;
+      this.cancelInertia();
+      let velocity = Number(initialVelocityPxPerMs) || 0;
+      let lastFrame = 0;
+
+      const step = (now) => {
+        this.inertiaAnimationFrame = 0;
+        if (!this.viewport || Math.abs(velocity) < motion.STOP_VELOCITY_PX_PER_MS) return;
+
+        const elapsed = lastFrame ? clamp(now - lastFrame, 1, 48) : 16;
+        lastFrame = now;
+        velocity = motion.decayVelocity(velocity, elapsed);
+        const padding = this.axisPadding(pixelLength);
+        const usable = Math.max(1, pixelLength - padding * 2);
+        const span = this.viewport.end - this.viewport.start;
+        const deltaPixels = velocity * elapsed;
+        const deltaMs = -(deltaPixels / usable) * span;
+        this.viewport = scale.pan(this.viewport, deltaMs);
+        this.scheduleRender();
+
+        if (Math.abs(velocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
+          this.inertiaAnimationFrame = requestAnimationFrame(step);
+        }
+      };
+
+      this.inertiaAnimationFrame = requestAnimationFrame(step);
     }
 
     axisPadding(length) {
@@ -403,6 +479,142 @@
     scheduleRender() {
       cancelAnimationFrame(this.renderFrame);
       this.renderFrame = requestAnimationFrame(() => this.render());
+    }
+
+    clusterThreshold(width) {
+      return this.orientation === "horizontal"
+        ? clamp(width * 0.14, HORIZONTAL_CLUSTER_THRESHOLD_MIN, HORIZONTAL_CLUSTER_THRESHOLD_MAX)
+        : VERTICAL_CLUSTER_THRESHOLD;
+    }
+
+    updateClusterHaptics(representations) {
+      const signature = representations
+        .filter((representation) => representation.kind === "cluster")
+        .map((representation) => representation.id)
+        .join(";");
+      if (this.clusterSignature === null) {
+        this.clusterSignature = signature;
+        return;
+      }
+      if (signature === this.clusterSignature) return;
+      this.clusterSignature = signature;
+      const now = performance.now();
+      if (now - this.lastClusterHapticAt < 140) return;
+      this.lastClusterHapticAt = now;
+      void motion.pulseHaptic("cluster");
+    }
+
+    renderMonthAccents(stage, visibleItems, padding, usable) {
+      const accents = clustering.monthAccents(visibleItems, { maxItemsPerMonth: 3, limit: 18 });
+      for (const accent of accents) {
+        const position = padding + scale.coordinateFor(accent.time, this.viewport, usable);
+        const label = createElement("div", "timeline-month-accent", accent.label);
+        label.dataset.count = String(accent.count);
+        if (this.orientation === "horizontal") label.style.left = position + "px";
+        else label.style.top = position + "px";
+        stage.append(label);
+      }
+      return accents;
+    }
+
+    renderRelationships(stage, padding, usable) {
+      const active = this.relationships
+        .filter((relationship) => relationship.end >= this.viewport.start && relationship.start <= this.viewport.end)
+        .sort((a, b) => a.start - b.start || String(a.id).localeCompare(String(b.id)));
+      if (!active.length) return;
+
+      const zone = createElement("div", "timeline-relation-zone");
+      stage.append(zone);
+
+      active.forEach((relationship, index) => {
+        const startPosition = padding + scale.coordinateFor(relationship.start, this.viewport, usable);
+        const endPosition = padding + scale.coordinateFor(relationship.end, this.viewport, usable);
+        const segment = createElement("div", "timeline-relation-segment");
+        segment.style.setProperty("--relation-lane-offset", `${(index % RELATION_LANES) * 8}px`);
+        segment.title = relationship.predicate || "Temporal relationship";
+        const clippedStart = clamp(Math.min(startPosition, endPosition), padding, padding + usable);
+        const clippedEnd = clamp(Math.max(startPosition, endPosition), padding, padding + usable);
+        if (this.orientation === "horizontal") {
+          segment.style.left = clippedStart + "px";
+          segment.style.width = Math.max(6, clippedEnd - clippedStart) + "px";
+        } else {
+          segment.style.top = clippedStart + "px";
+          segment.style.height = Math.max(6, clippedEnd - clippedStart) + "px";
+        }
+        stage.append(segment);
+      });
+    }
+
+    createClusterNode(cluster, position, width, height, axisCross, occupied) {
+      const node = createElement("div", "timeline-event timeline-cluster");
+      node.dataset.id = cluster.id;
+      const connector = createElement("div", "timeline-event-connector");
+      const button = createElement("button", "timeline-event-terminal timeline-cluster-terminal");
+      button.type = "button";
+      button.setAttribute("aria-label", `Zoom into cluster of ${cluster.items.length} events`);
+
+      const dots = createElement("span", "timeline-cluster-dots");
+      for (const item of cluster.items.slice(0, 3)) {
+        const dot = createElement("span", "timeline-cluster-dot");
+        dot.style.setProperty("--cluster-dot-color", item.color || "var(--accent)");
+        dots.append(dot);
+      }
+      const copy = createElement("span", "timeline-event-copy");
+      const title = createElement("strong", "", `${cluster.items.length} events`);
+      const detail = createElement("span", "", "Fused at this zoom");
+      copy.append(title, detail);
+      button.append(dots, copy);
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const values = [];
+        for (const item of cluster.items) {
+          values.push(item.start);
+          if (Number.isFinite(item.end)) values.push(item.end);
+        }
+        const currentSpan = this.viewport.end - this.viewport.start;
+        const target = scale.fit(values, {
+          paddingRatio: 0.18,
+          minSpanMs: Math.max(MIN_SPAN_MS, currentSpan * 0.18)
+        });
+        this.animateViewportTo(target);
+        void motion.pulseHaptic("selection");
+      });
+
+      node.append(connector, button);
+
+      if (this.orientation === "horizontal") {
+        const lane = this.allocateHorizontalLane(position, occupied);
+        const side = lane % 2 === 0 ? -1 : 1;
+        const depth = Math.floor(lane / 2);
+        const distance = 68 + depth * 76;
+        const eventY = axisCross + side * distance;
+        const segment = connectorSegment(axisCross, eventY);
+        node.style.left = position + "px";
+        node.style.top = eventY + "px";
+        node.dataset.side = side < 0 ? "before" : "after";
+        connector.style.left = "0";
+        connector.style.top = segment.offset + "px";
+        connector.style.width = "1px";
+        connector.style.height = Math.max(1, segment.length) + "px";
+        if (position > width - 190) node.classList.add("label-before");
+      } else {
+        const compact = width < 560;
+        const lane = compact ? 1 : cluster.items.length % 2 === 0 ? -1 : 1;
+        const distance = compact
+          ? Math.min(96, Math.max(68, width * 0.22))
+          : Math.min(220, Math.max(120, width * 0.28));
+        const eventX = axisCross + lane * distance;
+        const segment = connectorSegment(axisCross, eventX);
+        node.style.left = eventX + "px";
+        node.style.top = position + "px";
+        node.dataset.side = lane < 0 ? "before" : "after";
+        connector.style.left = segment.offset + "px";
+        connector.style.top = "0";
+        connector.style.width = Math.max(1, segment.length) + "px";
+        connector.style.height = "1px";
+        if (lane < 0) node.classList.add("label-before");
+      }
+      return node;
     }
 
     render() {
@@ -429,20 +641,6 @@
       const axis = createElement("div", "timeline-axis");
       stage.append(axis);
 
-      const ticks = scale.generateTicks(this.viewport, usable, 94, MAX_TICKS);
-      for (const tick of ticks) {
-        const position = padding + scale.coordinateFor(tick.value, this.viewport, usable);
-        const mark = createElement("div", "timeline-tick");
-        const label = createElement("span", "timeline-tick-label", tick.label);
-        mark.append(label);
-        if (this.orientation === "horizontal") {
-          mark.style.left = position + "px";
-        } else {
-          mark.style.top = position + "px";
-        }
-        stage.append(mark);
-      }
-
       const visibleItems = this.items
         .filter((item) => {
           const end = Number.isFinite(item.end) ? item.end : item.start;
@@ -450,8 +648,27 @@
         })
         .sort((a, b) => a.start - b.start || a.title.localeCompare(b.title));
 
-      const occupied = [];
-      visibleItems.forEach((item, index) => {
+      const monthAccents = this.renderMonthAccents(stage, visibleItems, padding, usable);
+      const hasAmbientMonth = monthAccents.length > 0;
+
+      const ticks = scale.generateTicks(this.viewport, usable, hasAmbientMonth ? 112 : 94, MAX_TICKS);
+      for (const tick of ticks) {
+        const position = padding + scale.coordinateFor(tick.value, this.viewport, usable);
+        const mark = createElement("div", "timeline-tick");
+        const compact = clustering.compactTickLabel(tick.value, tick.spec, hasAmbientMonth);
+        const labelText = compact === null ? tick.label : compact;
+        if (labelText) {
+          const label = createElement("span", "timeline-tick-label", labelText);
+          mark.append(label);
+        }
+        if (this.orientation === "horizontal") mark.style.left = position + "px";
+        else mark.style.top = position + "px";
+        stage.append(mark);
+      }
+
+      this.renderRelationships(stage, padding, usable);
+
+      for (const item of visibleItems) {
         const startPosition = padding + scale.coordinateFor(item.start, this.viewport, usable);
         const endPosition = Number.isFinite(item.end)
           ? padding + scale.coordinateFor(item.end, this.viewport, usable)
@@ -471,9 +688,37 @@
           }
           stage.append(range);
         }
+      }
 
-        const event = this.createEventNode(item, index, startPosition, width, height, axisCross, occupied);
-        stage.append(event);
+      const representations = clustering.clusterProjectedItems(
+        visibleItems,
+        (item) => padding + scale.coordinateFor(item.start, this.viewport, usable),
+        this.clusterThreshold(width)
+      );
+      this.updateClusterHaptics(representations);
+
+      const occupied = [];
+      representations.forEach((representation, index) => {
+        if (representation.kind === "cluster") {
+          stage.append(this.createClusterNode(
+            representation,
+            representation.position,
+            width,
+            height,
+            axisCross,
+            occupied
+          ));
+          return;
+        }
+        stage.append(this.createEventNode(
+          representation.item,
+          index,
+          representation.position,
+          width,
+          height,
+          axisCross,
+          occupied
+        ));
       });
 
       this.updateReadout(ticks[0]?.spec || null);
@@ -504,6 +749,7 @@
       button.addEventListener("click", (event) => {
         event.stopPropagation();
         this.select(item.id, button);
+        void motion.pulseHaptic("selection");
       });
 
       node.append(connector, button);

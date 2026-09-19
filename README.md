@@ -36,6 +36,11 @@ The application is static and runs entirely in the browser. Timeline data is sto
 - Search titles and descriptions.
 - Filter the visible chronology by category.
 - Responsive timeline rendering for desktop, tablet, and narrow mobile layouts.
+- Pixel-collision clustering: overlapping event terminals temporarily fuse into interactive clusters while zoomed out, then separate as zoom creates room.
+- Weighted zoom and inertial pointer panning using frame-aligned/coalesced pointer samples where Chrome exposes them.
+- Capability-gated haptics for cluster fusion/splitting, selection, and inertial release through gamepad actuators or mobile vibration hardware when available.
+- Ambient month/year accents for months containing up to three visible segments, with compact tick numbering underneath.
+- A 12-column application/stage grid that reserves predictable space for chronology, detail and temporal relationship layers.
 
 ### Categories
 
@@ -63,7 +68,7 @@ This is deliberately a reference model rather than a copy model: stories do not 
 - Browser-local persistence with `localStorage`.
 - Automatic migration of the original v1 `events[]` browser data to v2.
 - Strict JSON validation at import boundaries.
-- JSON export preserving categories, chronology items, ranges, stories, structured temporal extents, locations, and namespaced interchange extensions.
+- JSON export preserving categories, chronology items, ranges, stories, structured temporal extents, locations, entities, temporal relationships, and namespaced interchange extensions.
 - Time.Graphics JSON/XML import for events, periods, and groups, with source-specific media/comments/statistics preserved under `extensions.timeGraphics`.
 - Time.Graphics-oriented JSON export with a published JSON Schema and round-trip preservation of imported vendor fields.
 - Markdown export containing the canonical chronology plus each narrative story.
@@ -121,6 +126,14 @@ Version 2 uses four top-level concepts:
 Time.Graphics interoperability is isolated behind `site/time-graphics-adapter.js`; its vendor data does not become Timeline's canonical schema. Imports map Time.Graphics events → events, periods → ranges, and groups → categories. Unknown source fields are retained under `extensions.timeGraphics` for round-trip safety.
 
 The exported interchange schema is `schemas/time-graphics-interchange-v1.schema.json`. See `docs/TIME-GRAPHICS-INTERCHANGE.md` for recognized field aliases, loss boundaries, and the vendor-schema caveat.
+
+### Temporal graph values
+
+Timeline now preserves optional reusable `entities[]` and `relationships[]` alongside chronology items. Relationships use `subjectId`, `objectId`, a semantic `predicate`, optional `role`, attributes, and the same structured temporal extent used by events. A relationship with an interval is projected into a reserved relation band on the timeline so the viewer can see *when the relationship itself was active*.
+
+The graph adapter can emit Memgraph Orb-compatible `{ nodes, edges }` data without making Orb a canonical dependency. Full large-scale Orb/WebGL integration is intentionally deferred until it can use the npm/bundled path with workers rather than the direct browser bundle, which Memgraph documents as running simulation on the main thread.
+
+See `docs/TEMPORAL-GRAPH-ARCHITECTURE.md`.
 
 ### Temporal and spatial values
 
@@ -204,6 +217,8 @@ This permits future extensions such as:
 Timeline deliberately uses the browser platform directly. The browser target is the **latest Chrome Beta**; as of September 19, 2026 that is Chrome 155 Beta. When a required capability is available in that target, Timeline uses the native platform API instead of shipping a JavaScript substitute. Current examples include native date/time pickers, `HTMLInputElement.showPicker()` where explicit picker invocation is useful, the Temporal API for timezone-aware normalization, the `<geolocation>` element for user-initiated location access, the Popover API, CSS Anchor Positioning, pointer events, ResizeObserver, and native top-layer transitions.
 
 Leaflet is loaded lazily only for the optional interactive map because the browser platform has no native slippy-map control. Standard OpenStreetMap raster tiles are used with visible attribution and no offline/prefetch behavior; the tile provider is replaceable through `globalThis.TimelineMapTileProvider`.
+
+The ambient timeline numeral face is pinned to Monaspace Krypton v1.400 with a local-font first lookup and web fallback. Its `calt` feature enables Monaspace texture healing. Chrome's `font-size-adjust: ex-height from-font` and `text-box: trim-both ex alphabetic` are used to align the accent typography to actual font metrics rather than hand-tuned line boxes.
 
 
 ```text

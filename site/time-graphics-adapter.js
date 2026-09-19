@@ -293,13 +293,19 @@
       rawMetadata: boundedClone(firstDefined(root, ["metadata", "settings", "config", "options"]))
     };
 
+    const timelineMetadata = payload?._timeline && typeof payload._timeline === "object"
+      ? payload._timeline
+      : {};
+
     return {
       timeline: {
         version: 2,
         title: sourceTitle,
         categories,
         items,
-        stories: [],
+        stories: Array.isArray(timelineMetadata.stories) ? boundedClone(timelineMetadata.stories) : [],
+        entities: Array.isArray(timelineMetadata.entities) ? boundedClone(timelineMetadata.entities) : [],
+        relationships: Array.isArray(timelineMetadata.relationships) ? boundedClone(timelineMetadata.relationships) : [],
         extensions: {
           timeGraphics: rootExtensions
         }
@@ -461,6 +467,8 @@
         generatedBy: "xtreemze/timeline",
         canonicalVersion: Number(timeline.version) || 2,
         stories: cloneJson(Array.isArray(timeline.stories) ? timeline.stories : []),
+        entities: cloneJson(Array.isArray(timeline.entities) ? timeline.entities : []),
+        relationships: cloneJson(Array.isArray(timeline.relationships) ? timeline.relationships : []),
         note: "Time.Graphics does not publish a stable JSON schema. This export uses its public event/period/group concepts and preserves imported vendor records when available."
       }
     };
