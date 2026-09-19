@@ -60,6 +60,22 @@ test("timeline exposes distinct fit-visible and fit-all commands", async () => {
   assert.match(appSource, /allCoordinates:\s*allTimelineCoordinates/);
 });
 
+test("browse exposes focusable stories before collapsed focusable categories", async () => {
+  const [html, app, css] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(html, /id="browser-story-list"[\s\S]*id="timeline-list"/);
+  assert.match(app, /function renderBrowserStories\([\s\S]*browser-story-card[\s\S]*focus-story/);
+  assert.match(app, /collapsedCategoryIds:\s*new Set\(state\.categories\.map/);
+  assert.match(app, /actionButton\("Focus", "focus-category"/);
+  assert.match(app, /function focusCategory\([\s\S]*categoryFilter = id[\s\S]*fitVisible/);
+  assert.match(css, /\.browser-story-card/);
+  assert.match(css, /\.timeline-category-focus/);
+});
+
 test("month accents are emitted only for months containing up to three visible segments", () => {
   const time = (month, day) => Date.UTC(2026, month - 1, day);
   const accents = clustering.monthAccents([
