@@ -1992,12 +1992,14 @@
     focusCurrentStoryItem();
   }
 
-  function focusCurrentStoryItem(openFocus = false) {
+  function focusCurrentStoryItem(openFocus = false, options = {}) {
     const story = getStory(ui.activeStoryId);
     if (!story || !story.itemIds.length) return;
     const currentId = story.itemIds[ui.storyCursor];
     if (openFocus) {
-      timelineView?.focusItem(currentId);
+      timelineView?.focusItem(currentId, {
+        direction: Number(options.direction) < 0 ? -1 : 1
+      });
       return;
     }
     requestAnimationFrame(() => {
@@ -2013,7 +2015,9 @@
     if (next < 0 || next >= story.itemIds.length) return false;
     ui.storyCursor = next;
     renderTimeline();
-    focusCurrentStoryItem(Boolean(options.focusEvent));
+    focusCurrentStoryItem(Boolean(options.focusEvent), {
+      direction: delta < 0 ? -1 : 1
+    });
     return true;
   }
 
