@@ -318,7 +318,7 @@
         this.cancelViewportAnimation();
         this.viewport = null;
         this.closeFocus();
-        this.root.hidden = true;
+        this.root.hidden = false;
         this.scheduleRender();
         return;
       }
@@ -678,14 +678,22 @@
     render() {
       this.renderFrame = 0;
       this.surface.replaceChildren();
-      if (!this.items.length || !this.viewport) {
-        this.readout.textContent = "No visible events";
-        return;
-      }
 
       const rect = this.surface.getBoundingClientRect();
       const width = Math.max(1, rect.width);
       const height = Math.max(1, rect.height);
+
+      if (!this.items.length || !this.viewport) {
+        const axisCross = this.orientation === "horizontal" ? height / 2 : this.portraitAxisCoordinate(width);
+        this.surface.style.setProperty("--timeline-axis-cross", axisCross + "px");
+        const stage = createElement("div", "timeline-stage timeline-stage-empty");
+        const axis = createElement("div", "timeline-axis");
+        const hint = createElement("p", "timeline-empty-hint", "Add an event to begin.");
+        stage.append(axis, hint);
+        this.surface.append(stage);
+        this.readout.textContent = "No events yet";
+        return;
+      }
       const primaryLength = this.orientation === "horizontal" ? width : height;
       const padding = this.axisPadding(primaryLength);
       const usable = Math.max(1, primaryLength - padding * 2);
