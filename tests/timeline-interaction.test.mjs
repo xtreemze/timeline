@@ -40,10 +40,9 @@ test("events less than 50 ms apart separate after zoom without temporal drift", 
 
   assert.ok(Math.abs(overviewPositions[1] - overviewPositions[0]) < 10);
   assert.ok(Math.abs(detailPositions[1] - detailPositions[0]) > 100);
-  assert.equal(
-    (1_015 - detail.start) / (detail.end - detail.start),
-    (1_015 - overview.start) / (overview.end - overview.start)
-  );
+  const detailAnchorRatio = (1_015 - detail.start) / (detail.end - detail.start);
+  const overviewAnchorRatio = (1_015 - overview.start) / (overview.end - overview.start);
+  assert.ok(Math.abs(detailAnchorRatio - overviewAnchorRatio) < 1e-12);
 });
 
 test("timeline exposes distinct fit-visible and fit-all commands", async () => {
