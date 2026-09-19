@@ -989,6 +989,10 @@
       const direction = delta < 0 ? -1 : 1;
       this.focusMediaIndex = (this.focusMediaIndex + direction + media.length) % media.length;
       this.renderFocus(item);
+      this.root.dispatchEvent(new CustomEvent("timelinefocusrender", {
+        bubbles: true,
+        detail: { id: item.id }
+      }));
       return true;
     }
 
@@ -1078,6 +1082,10 @@
         previous.addEventListener("click", () => {
           this.focusMediaIndex = (activeIndex - 1 + media.length) % media.length;
           this.renderFocus(item);
+          this.root.dispatchEvent(new CustomEvent("timelinefocusrender", {
+            bubbles: true,
+            detail: { id: item.id }
+          }));
         });
         const count = createElement("span", "timeline-focus-slide-count", `${activeIndex + 1} / ${media.length}`);
         const next = createElement("button", "button secondary", "Next image");
@@ -1086,6 +1094,10 @@
         next.addEventListener("click", () => {
           this.focusMediaIndex = (activeIndex + 1) % media.length;
           this.renderFocus(item);
+          this.root.dispatchEvent(new CustomEvent("timelinefocusrender", {
+            bubbles: true,
+            detail: { id: item.id }
+          }));
         });
         controls.append(previous, count, next);
         hero.append(controls);
