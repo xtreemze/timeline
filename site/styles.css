@@ -1784,41 +1784,51 @@ body {
 
 .app-command-bar .project-stats { display: none; }
 
-.project-menu {
-  position: relative;
-}
-.project-menu > summary {
-  min-width: 68px;
+.project-menu-toggle {
+  anchor-name: --project-menu-anchor;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .38rem;
+  min-width: 74px;
   min-height: 42px;
-  list-style: none;
-  cursor: pointer;
 }
-.project-menu > summary::-webkit-details-marker { display: none; }
-.project-menu[open] > summary {
-  border-color: var(--line-strong);
-  background: var(--paper-2);
-}
-.project-menu .project-actions {
-  position: absolute;
-  z-index: 1400;
-  top: calc(100% + .45rem);
-  right: 0;
-  display: grid;
+.project-menu-toggle .semantic-icon { flex: 0 0 auto; }
+.project-menu[popover] {
+  inset: max(3.9rem, calc(env(safe-area-inset-top) + 3.55rem))
+    max(.4rem, env(safe-area-inset-right))
+    auto
+    auto;
   width: min(290px, calc(100dvw - 1rem));
   max-height: min(70dvh, 560px);
-  gap: .35rem;
+  margin: 0;
   padding: .55rem;
   overflow: auto;
   border: 1px solid var(--line-strong);
   border-radius: .8rem;
   background: color-mix(in srgb, var(--paper) 97%, transparent);
+  color: var(--ink);
   box-shadow: 0 18px 55px color-mix(in srgb, var(--ink) 18%, transparent);
   backdrop-filter: blur(18px);
+  overscroll-behavior: contain;
+}
+.project-menu[popover]::backdrop { background: transparent; }
+.project-menu .project-actions {
+  display: grid;
+  gap: .35rem;
 }
 .project-menu .project-actions > * {
   width: 100%;
   justify-content: flex-start;
   text-align: left;
+}
+@supports (position-anchor: --project-menu-anchor) {
+  .project-menu[popover] {
+    position-anchor: --project-menu-anchor;
+    inset: auto;
+    top: calc(anchor(bottom) + .45rem);
+    right: anchor(right);
+  }
 }
 
 #app-shell {
@@ -1907,18 +1917,28 @@ body {
 .app-tool-dock::-webkit-scrollbar { display: none; }
 .app-tool {
   appearance: none;
-  min-width: 58px;
-  min-height: 46px;
-  padding: .45rem .6rem;
+  display: grid;
+  grid-template-rows: auto auto;
+  place-items: center;
+  gap: .16rem;
+  min-width: 62px;
+  min-height: 52px;
+  padding: .38rem .55rem;
   border: 0;
   border-radius: .65rem;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-size: .72rem;
+  font-size: .68rem;
   font-weight: 760;
   white-space: nowrap;
 }
+.app-tool .semantic-icon {
+  width: 22px;
+  height: 22px;
+  stroke-width: 1.9;
+}
+.app-tool-label { line-height: 1; }
 .app-tool:hover,
 .app-tool:focus-visible,
 #app-shell[data-editor-open="true"] .app-tool[data-open-panel],
@@ -2035,12 +2055,6 @@ body {
   backdrop-filter: blur(14px);
 }
 .app-browser-sheet .timeline-toolbar > * { min-width: 0; }
-.app-browser-sheet .story-focus {
-  margin: .25rem 0 .65rem;
-}
-.app-browser-sheet .timeline-list-heading {
-  margin-top: .9rem;
-}
 .app-browser-sheet .timeline-list {
   padding-bottom: 1rem;
 }
@@ -2172,5 +2186,84 @@ body {
   }
   #app-shell #presentation-stage > .graph-lens:not([hidden]) {
     width: min(620px, 46dvw);
+  }
+}
+
+
+/* Contextual mode chrome stays independent of Browse so story navigation is never hidden
+   behind a utility sheet. It yields visually while a larger task surface is open. */
+#app-shell .timeline-panel > .story-focus {
+  position: fixed;
+  z-index: 1040;
+  left: max(.45rem, env(safe-area-inset-left));
+  right: max(.45rem, env(safe-area-inset-right));
+  bottom: max(4.55rem, calc(env(safe-area-inset-bottom) + 4.2rem));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .55rem;
+  width: auto;
+  max-width: min(560px, calc(100dvw - .9rem));
+  margin: 0 auto;
+  padding: .5rem .55rem;
+  border: 1px solid color-mix(in srgb, var(--story) 28%, var(--line));
+  border-radius: .85rem;
+  background: color-mix(in srgb, var(--paper) 91%, transparent);
+  box-shadow: 0 12px 38px color-mix(in srgb, var(--ink) 13%, transparent);
+  backdrop-filter: blur(18px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+#app-shell .timeline-panel > .story-focus[hidden] { display: none; }
+#app-shell .timeline-panel > .story-focus .story-focus-copy {
+  min-width: 0;
+}
+#app-shell .timeline-panel > .story-focus .kicker,
+#app-shell .timeline-panel > .story-focus #story-focus-description {
+  display: none;
+}
+#app-shell .timeline-panel > .story-focus h3 {
+  overflow: hidden;
+  margin: 0;
+  font-size: .86rem;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#app-shell .timeline-panel > .story-focus .story-focus-controls {
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+}
+#app-shell .timeline-panel > .story-focus .story-focus-controls > span {
+  min-width: 3.4rem;
+  color: var(--muted);
+  font-size: .68rem;
+  text-align: center;
+}
+#app-shell .timeline-panel > .story-focus .button {
+  min-height: 40px;
+  padding-inline: .55rem;
+}
+#app-shell:is(
+  [data-editor-open="true"],
+  [data-browser-open="true"],
+  [data-graph-open="true"]
+) .timeline-panel > .story-focus {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(.4rem);
+}
+
+@media (min-width: 900px) {
+  .app-tool .semantic-icon {
+    width: 24px;
+    height: 24px;
+  }
+  #app-shell .timeline-panel > .story-focus {
+    left: max(5.4rem, calc(env(safe-area-inset-left) + 5rem));
+    right: auto;
+    bottom: max(.55rem, env(safe-area-inset-bottom));
+    width: min(520px, calc(100dvw - 6.5rem));
+    margin: 0;
   }
 }
