@@ -1325,11 +1325,15 @@
     const affectedStories = state.stories.filter((story) => story.itemIds.includes(id)).length;
     const suffix = affectedStories ? ` It will also be removed from ${affectedStories} ${affectedStories === 1 ? "story" : "stories"}.` : "";
     if (!window.confirm(`Delete “${item.title}”?${suffix}`)) return;
+    const removedRelationshipIds = state.relationships
+      .filter((relationship) => relationship.subjectId === id || relationship.objectId === id)
+      .map((relationship) => relationship.id);
     state.items = state.items.filter((candidate) => candidate.id !== id);
     state.stories = state.stories.map((story) => ({ ...story, itemIds: story.itemIds.filter((itemId) => itemId !== id) }));
     state.relationships = state.relationships.filter(
       (relationship) => relationship.subjectId !== id && relationship.objectId !== id
     );
+    pruneRelationChanges(removedRelationshipIds);
     if (els.itemId.value === id) resetItemForm();
     if (storyDraftIds.includes(id)) storyDraftIds = storyDraftIds.filter((itemId) => itemId !== id);
     const activeStory = getStory(ui.activeStoryId);
@@ -1416,10 +1420,14 @@
   function removeStory(id) {
     const story = getStory(id);
     if (!story || !window.confirm(`Delete story “${story.title}”? Timeline items will not be deleted.`)) return;
+    const removedRelationshipIds = state.relationships
+      .filter((relationship) => relationship.subjectId === id || relationship.objectId === id)
+      .map((relationship) => relationship.id);
     state.stories = state.stories.filter((candidate) => candidate.id !== id);
     state.relationships = state.relationships.filter(
       (relationship) => relationship.subjectId !== id && relationship.objectId !== id
     );
+    pruneRelationChanges(removedRelationshipIds);
     if (els.storyId.value === id) resetStoryForm();
     if (ui.activeStoryId === id) exitStoryFocus(false);
     persist();
@@ -1811,9 +1819,9 @@
       const title = document.createElement("strong");
       title.textContent = `${entityOrItemName(relationship.subjectId)} —${relationship.predicate}→ ${entityOrItemName(relationship.objectId)}`;
       const meta = document.createElement("span");
-      const when = relationship.time ? temporal.intervalRepresentation(relationship.time) : "timeless";
+      const when = relationship.time ? temporal.intervalRepresentation(relationship.time) : "event-driven / timeless";
       const propertyCount = Object.keys(relationship.attributes || {}).length;
-      meta.textContent = `${when} · ${propertyCount} ${propertyCount === 1 ? "property" : "properties"}`;
+      meta.textContent = `${relationship.initialState === "inactive" ? "initially inactive" : "initially active"} · ${when} · ${propertyCount} ${propertyCount === 1 ? "property" : "properties"}`;
       copy.append(title, meta);
       const actions = document.createElement("div");
       actions.className = "graph-record-actions";
@@ -1840,6 +1848,11 @@
     graphEndpointOptions(els.graphEdgeObject, object);
     renderGraphNodes();
     renderGraphEdges();
+    for (const row of els.itemRelationChangeRows) {
+      const parts = relationChangeRowParts(row);
+      const selected = parts.relationship.value;
+      fillRelationChangeOptions(parts.relationship, selected);
+    }
     temporalGraphView?.setModel({
       entities: state.entities,
       relationships: state.relationships,
