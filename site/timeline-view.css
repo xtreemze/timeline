@@ -175,6 +175,7 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--event-color) 18%, transparent);
 }
 .timeline-event.is-selected .timeline-event-terminal {
+  anchor-name: --timeline-detail-anchor;
   background: color-mix(in srgb, var(--paper) 91%, var(--event-color));
 }
 .timeline-event-dot {
@@ -210,34 +211,49 @@
   pointer-events: none;
 }
 .timeline-detail {
-  position: absolute;
+  position: fixed;
+  position-anchor: --timeline-detail-anchor;
+  inset: auto;
   z-index: 20;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: .35rem;
-  width: min(340px, calc(100% - 20px));
-  max-height: 320px;
+  width: min(340px, calc(100vw - 20px));
+  max-height: min(320px, calc(100vh - 20px));
   overflow: auto;
+  margin: .75rem;
   padding: .9rem;
   border: 1px solid var(--line-strong);
   border-radius: .78rem;
   background: color-mix(in srgb, var(--paper) 97%, transparent);
+  color: var(--ink);
   box-shadow: 0 14px 38px rgba(38, 31, 23, .16);
   opacity: 0;
   transform: scale(.965);
-  pointer-events: none;
-  transition: opacity 160ms ease, transform 180ms cubic-bezier(.2, .8, .2, 1);
+  transition:
+    opacity 160ms ease,
+    transform 180ms cubic-bezier(.2, .8, .2, 1),
+    display 180ms allow-discrete,
+    overlay 180ms allow-discrete;
 }
-.timeline-detail[hidden] { display: none; }
-.timeline-detail.is-open {
+.timeline-detail[data-orientation="landscape"] {
+  position-area: top;
+  position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+}
+.timeline-detail[data-orientation="portrait"] {
+  position-area: right;
+  position-try-fallbacks: flip-inline, flip-block, flip-inline flip-block;
+}
+.timeline-detail:popover-open {
   opacity: 1;
   transform: scale(1);
-  pointer-events: auto;
 }
-.timeline-detail[data-placement="top"] { transform-origin: 50% 100%; }
-.timeline-detail[data-placement="bottom"] { transform-origin: 50% 0; }
-.timeline-detail[data-placement="left"] { transform-origin: 100% 50%; }
-.timeline-detail[data-placement="right"] { transform-origin: 0 50%; }
+@starting-style {
+  .timeline-detail:popover-open {
+    opacity: 0;
+    transform: scale(.965);
+  }
+}
 .timeline-detail h3,
 .timeline-detail p { margin: 0; }
 .timeline-detail h3 {
@@ -281,8 +297,8 @@
   }
   .timeline-event-terminal { max-width: 142px; }
   .timeline-detail {
-    width: min(310px, calc(100% - 16px));
-    max-height: 280px;
+    width: min(310px, calc(100vw - 16px));
+    max-height: min(280px, calc(100vh - 16px));
   }
 }
 @media (max-width: 430px) {
