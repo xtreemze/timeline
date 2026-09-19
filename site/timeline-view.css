@@ -421,7 +421,7 @@
   place-items: center;
   width: 2.4rem;
   height: 2.4rem;
-  overflow: hidden;
+  overflow: visible;
   border: 2px solid var(--paper);
   border-radius: .7rem;
   background: var(--cluster-dot-color);
@@ -439,6 +439,7 @@
 .timeline-cluster-thumbnail {
   width: 100%;
   height: 100%;
+  border-radius: calc(.7rem - 2px);
   object-fit: cover;
 }
 .timeline-cluster-icon-badge {
@@ -472,7 +473,7 @@
   width: 2.85rem;
   height: 2.85rem;
   flex: 0 0 2.85rem;
-  overflow: hidden;
+  overflow: visible;
   border: 2px solid color-mix(in srgb, var(--event-color) 82%, var(--paper));
   border-radius: .76rem;
   background: var(--event-color);
@@ -488,6 +489,7 @@
 .timeline-event-thumbnail {
   width: 100%;
   height: 100%;
+  border-radius: calc(.76rem - 2px);
   object-fit: cover;
 }
 .timeline-event-icon-badge {
