@@ -178,3 +178,20 @@ test("Escape exits fullscreen before focused-event back navigation", async () =>
   const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   assert.match(source, /presentationIsFullscreen\(\)[\s\S]*meta\.event\?\.key === "Escape"[\s\S]*return false/);
 });
+
+test("mobile fullscreen presentation remains a bounded multi-surface dashboard", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+
+  assert.match(css, /Mobile fullscreen presentation/);
+  assert.match(css, /block-size:\s*100dvh/);
+  assert.match(css, /safe-area-inset-top/);
+  assert.match(css, /presentation-stage:fullscreen\[data-stage-shape\]\[data-timeline-orientation\][\s\S]*grid-template-rows/);
+  assert.match(css, /timeline-focus-view[\s\S]*grid-template-columns:[^;]*1\.35fr/);
+  assert.match(css, /timeline-focus-hero[\s\S]*grid-row:\s*1\s*\/\s*-1/);
+  assert.match(css, /timeline-focus-summary[\s\S]*grid-column:\s*2/);
+  assert.match(css, /timeline-focus-place[\s\S]*grid-column:\s*2/);
+  assert.match(css, /temporal-graph-detail\s*\{[\s\S]*display:\s*none/);
+  assert.match(css, /orientation:\s*landscape[\s\S]*grid-template-columns:[^;]*62fr/);
+  assert.match(css, /timeline-view-toolbar[\s\S]*overflow-x:\s*auto/);
+});
+
