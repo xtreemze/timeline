@@ -98,6 +98,40 @@ test("item editor exposes reusable evidence records including PDF uploads", asyn
   assert.match(html, /id="item-layout-variant"/);
 });
 
+test("application shell keeps the timeline as the viewport canvas and moves authoring into top-layer surfaces", async () => {
+  const [html, styles, timelineCss, app] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8")
+  ]);
+
+  assert.doesNotMatch(html, /class="hero"/);
+  assert.doesNotMatch(html, /<footer\b/);
+  assert.match(html, /class="app-header"/);
+  assert.match(html, /id="control-panel"[^>]*popover="manual"/);
+  assert.match(html, /id="chronology-sheet"[^>]*popover="manual"/);
+  assert.match(html, /id="project-actions-popover"[^>]*popover="auto"/);
+  assert.match(html, /class="app-dock"/);
+  assert.match(html, /popovertarget="control-panel"[^>]*popovertargetaction="show"/);
+  assert.match(html, /popovertarget="chronology-sheet"[^>]*popovertargetaction="show"/);
+  assert.doesNotMatch(html, /id="graph-lens" class="graph-lens" open/);
+
+  assert.match(styles, /Application shell v2/);
+  assert.match(styles, /#workspace,[\s\S]*\.app-shell,[\s\S]*\.timeline-panel[\s\S]*position:\s*fixed/);
+  assert.match(styles, /#control-panel[\s\S]*inset:\s*auto 0 0 0[\s\S]*height:\s*min\(90dvh/);
+  assert.match(styles, /@media \(min-width: 720px\)[\s\S]*#control-panel[\s\S]*inset:\s*0 0 0 auto/);
+  assert.match(styles, /\.chronology-sheet[\s\S]*popover/);
+  assert.match(styles, /\.app-dock[\s\S]*position:\s*fixed/);
+  assert.match(timelineCss, /Application canvas contract/);
+  assert.match(timelineCss, /#presentation-stage > \.timeline-view[\s\S]*position:\s*absolute[\s\S]*inset:\s*0/);
+
+  assert.match(app, /function openEditorPanel\(name\)/);
+  assert.match(app, /els\.controlPanel\.showPopover\(\)/);
+  assert.match(app, /hidePopoverIfOpen\(els\.chronologySheet\)/);
+  assert.match(app, /document\.querySelectorAll\("\[data-editor-panel\]"\)/);
+});
+
 test("full chronology renders collapsible category groups while story order remains separate", async () => {
   const [source, css] = await Promise.all([
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
