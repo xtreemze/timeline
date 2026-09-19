@@ -970,3 +970,281 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Mobile fullscreen presentation: keep event context, timeline, and graph visible together. */
+@media (max-width: 900px), (max-height: 600px) {
+  .presentation-stage:fullscreen {
+    inline-size: 100dvw;
+    block-size: 100dvh;
+    min-inline-size: 0;
+    min-block-size: 0;
+    padding:
+      max(.35rem, env(safe-area-inset-top))
+      max(.35rem, env(safe-area-inset-right))
+      max(.35rem, env(safe-area-inset-bottom))
+      max(.35rem, env(safe-area-inset-left));
+    gap: .35rem;
+  }
+
+  .presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 64fr) minmax(0, 36fr);
+  }
+
+  .presentation-stage:fullscreen .timeline-view.is-event-focused,
+  .presentation-stage:fullscreen .timeline-view.is-event-focused[data-orientation="portrait"],
+  .presentation-stage:fullscreen .timeline-view.is-event-focused[data-orientation="landscape"] {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) clamp(96px, 16dvh, 132px);
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .presentation-stage:fullscreen .timeline-view-toolbar {
+    min-width: 0;
+    min-height: 44px;
+    flex-wrap: nowrap;
+    gap: .3rem;
+    padding: .3rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  .presentation-stage:fullscreen .timeline-view-toolbar > *,
+  .presentation-stage:fullscreen .timeline-orientation-control,
+  .presentation-stage:fullscreen .timeline-zoom-controls,
+  .presentation-stage:fullscreen .timeline-auto-controls,
+  .presentation-stage:fullscreen .presentation-controls {
+    flex: 0 0 auto;
+  }
+
+  .presentation-stage:fullscreen .timeline-view-toolbar .button,
+  .presentation-stage:fullscreen .presentation-controls .button,
+  .presentation-stage:fullscreen .timeline-orientation-control .button,
+  .presentation-stage:fullscreen .timeline-zoom-controls .button,
+  .presentation-stage:fullscreen .timeline-auto-controls .button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-view,
+  .presentation-stage:fullscreen .timeline-focus-view[data-layout] {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    gap: .4rem;
+    min-width: 0;
+    min-height: 0;
+    padding: .4rem;
+    overflow: hidden;
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-view .timeline-focus-hero,
+  .presentation-stage:fullscreen .timeline-focus-view[data-layout] .timeline-focus-hero {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    width: auto;
+    min-width: 0;
+    height: 100%;
+    min-height: 0;
+    border-radius: .55rem;
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-view .timeline-focus-summary,
+  .presentation-stage:fullscreen .timeline-focus-view[data-layout] .timeline-focus-summary {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 0;
+    align-self: stretch;
+    padding: .6rem;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-view .timeline-focus-place,
+  .presentation-stage:fullscreen .timeline-focus-view[data-layout] .timeline-focus-place {
+    display: block;
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+    min-height: 0;
+    padding: .6rem;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-temporal,
+  .presentation-stage:fullscreen .timeline-focus-relations,
+  .presentation-stage:fullscreen .timeline-focus-graph,
+  .presentation-stage:fullscreen .timeline-focus-evidence,
+  .presentation-stage:fullscreen .timeline-focus-actions {
+    display: none;
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-hero-veil {
+    gap: .28rem;
+    padding: clamp(.65rem, 4cqi, 1.15rem);
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-title {
+    max-inline-size: 12ch;
+    font-size: clamp(1.35rem, 10cqi, 2.8rem);
+    line-height: .94;
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-kicker {
+    font-size: .58rem;
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-time {
+    font-size: clamp(.64rem, 2.7cqi, .82rem);
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-tags {
+    gap: .2rem;
+  }
+
+  .presentation-stage:fullscreen .event-tag {
+    min-height: 28px;
+    padding: .28rem .42rem;
+    font-size: .6rem;
+  }
+
+  .presentation-stage:fullscreen .semantic-icon {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-section-heading {
+    margin-bottom: .35rem;
+    font-size: clamp(.92rem, 4vw, 1.25rem);
+    line-height: 1;
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-description,
+  .presentation-stage:fullscreen .timeline-focus-place-name {
+    font-size: clamp(.7rem, 2.8vw, .86rem);
+    line-height: 1.35;
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-description {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 5;
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-place-coordinates,
+  .presentation-stage:fullscreen .timeline-focus-muted {
+    margin-top: .3rem;
+    font-size: .62rem;
+  }
+
+  .presentation-stage:fullscreen .timeline-surface,
+  .presentation-stage:fullscreen .timeline-view.is-event-focused .timeline-surface,
+  .presentation-stage:fullscreen .timeline-view.is-event-focused[data-orientation="portrait"] .timeline-surface,
+  .presentation-stage:fullscreen .timeline-view.is-event-focused[data-orientation="landscape"] .timeline-surface {
+    width: 100%;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .presentation-stage:fullscreen .graph-lens[open] {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .presentation-stage:fullscreen .graph-lens > summary {
+    min-height: 40px;
+    padding: .35rem .5rem;
+  }
+
+  .presentation-stage:fullscreen .graph-lens > summary strong {
+    font-size: .72rem;
+  }
+
+  .presentation-stage:fullscreen .temporal-graph-view {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .presentation-stage:fullscreen .temporal-graph-toolbar,
+  .presentation-stage:fullscreen .temporal-graph-detail {
+    display: none;
+  }
+
+  .presentation-stage:fullscreen .temporal-graph-canvas {
+    width: 100%;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+  }
+}
+
+@media (max-width: 900px) and (orientation: landscape), (max-height: 600px) and (orientation: landscape) {
+  .presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation] {
+    grid-template-columns: minmax(0, 62fr) minmax(250px, 38fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .presentation-stage:fullscreen .timeline-view.is-event-focused,
+  .presentation-stage:fullscreen .timeline-view.is-event-focused[data-orientation="portrait"],
+  .presentation-stage:fullscreen .timeline-view.is-event-focused[data-orientation="landscape"] {
+    grid-template-rows: auto minmax(0, 1fr) clamp(82px, 24dvh, 104px);
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-view,
+  .presentation-stage:fullscreen .timeline-focus-view[data-layout] {
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-title {
+    font-size: clamp(1.3rem, 6.5cqi, 2.5rem);
+  }
+}
+
+@media (max-width: 430px) and (orientation: portrait) {
+  .presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation] {
+    grid-template-rows: minmax(0, 66fr) minmax(0, 34fr);
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-view,
+  .presentation-stage:fullscreen .timeline-focus-view[data-layout] {
+    grid-template-columns: minmax(0, 1.22fr) minmax(0, 1fr);
+    gap: .3rem;
+    padding: .3rem;
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-view .timeline-focus-summary,
+  .presentation-stage:fullscreen .timeline-focus-view[data-layout] .timeline-focus-summary,
+  .presentation-stage:fullscreen .timeline-focus-view .timeline-focus-place,
+  .presentation-stage:fullscreen .timeline-focus-view[data-layout] .timeline-focus-place {
+    padding: .48rem;
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-slideshow-controls {
+    top: .4rem;
+    right: .4rem;
+    gap: .2rem;
+    padding: .2rem;
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-slideshow-controls .button {
+    min-width: 40px;
+    min-height: 40px;
+    padding: .35rem;
+  }
+
+  .presentation-stage:fullscreen .timeline-focus-media-caption {
+    display: none;
+  }
+}
+
