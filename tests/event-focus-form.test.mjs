@@ -600,14 +600,21 @@ test("contextual relations docks only the timeline surface by timeline orientati
   );
   assert.match(
     css,
-    /data-timeline-orientation="horizontal"\]:has\(\.timeline-focus-view:popover-open\)[\s\S]*> \.timeline-view > \.timeline-surface[\s\S]*inset:\s*auto 0 0 0[\s\S]*height:\s*var\(--timeline-context-edge-span\)/
+    /data-timeline-orientation="horizontal"\]:has\(\.timeline-focus-view:popover-open\)[\s\S]*> \.timeline-view > \.timeline-surface[\s\S]*inset:\s*auto 0 0 0[\s\S]*height:\s*var\(--timeline-context-edge-span\)[\s\S]*overflow:\s*visible/
   );
   assert.match(
     css,
-    /data-timeline-orientation="vertical"\]:has\(\.timeline-focus-view:popover-open\)[\s\S]*> \.timeline-view > \.timeline-surface[\s\S]*inset:\s*0 0 0 auto[\s\S]*width:\s*var\(--timeline-context-edge-span\)/
+    /data-timeline-orientation="vertical"\]:has\(\.timeline-focus-view:popover-open\)[\s\S]*> \.timeline-view > \.timeline-surface[\s\S]*inset:\s*0 0 0 auto[\s\S]*width:\s*var\(--timeline-context-edge-span\)[\s\S]*overflow:\s*visible/
   );
   assert.match(css, /data-timeline-orientation="horizontal"[\s\S]*--timeline-context-edge-span:\s*clamp\(112px, 24dvh, 260px\)/);
   assert.match(css, /data-timeline-orientation="vertical"[\s\S]*--timeline-context-edge-span:\s*clamp\(132px, 29dvw, 320px\)/);
+});
+
+test("docked timeline terminals can overhang the narrow rail without leaving the viewport", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  assert.match(css, /#app-shell #timeline-view[\s\S]*position:\s*absolute[\s\S]*inset:\s*0[\s\S]*overflow:\s*hidden/);
+  assert.match(css, /data-timeline-orientation="vertical"\]:has\(\.timeline-focus-view:popover-open\)[\s\S]*timeline-surface[\s\S]*overflow:\s*visible/);
+  assert.match(css, /data-timeline-orientation="horizontal"\]:has\(\.timeline-focus-view:popover-open\)[\s\S]*timeline-surface[\s\S]*overflow:\s*visible/);
 });
 
 test("focused popover runtime owns its final width and height budget", async () => {
