@@ -13,6 +13,15 @@
     return typeof value === "string" ? value.trim().slice(0, max) : "";
   }
 
+  function textList(value, { maxItems = 48, maxLength = 180 } = {}) {
+    if (!Array.isArray(value)) return [];
+    return [...new Set(
+      value
+        .map((entry) => text(entry, maxLength))
+        .filter(Boolean)
+    )].slice(0, maxItems);
+  }
+
   function normalizeEntity(raw, index) {
     if (!raw || typeof raw !== "object") return null;
     const id = text(raw.id, 120) || `entity-${index + 1}`;
@@ -20,7 +29,9 @@
       id,
       type: text(raw.type, 60) || "entity",
       name: text(raw.name || raw.label || raw.title, 180) || id,
+      alternateNames: textList(raw.alternateNames || raw.aliases, { maxItems: 48, maxLength: 180 }),
       identifiers: Array.isArray(raw.identifiers) ? cloneJson(raw.identifiers) : [],
+      sourceIds: textList(raw.sourceIds, { maxItems: 96, maxLength: 120 }),
       attributes: raw.properties && typeof raw.properties === "object"
         ? cloneJson(raw.properties)
         : raw.attributes && typeof raw.attributes === "object"
@@ -184,7 +195,9 @@
         label: entity.name || entity.id,
         properties: {
           timelineType: entity.type || "entity",
+          alternateNames: cloneJson(entity.alternateNames || []),
           identifiers: cloneJson(entity.identifiers || []),
+          sourceIds: cloneJson(entity.sourceIds || []),
           attributes: cloneJson(entity.attributes || {})
         }
       });
