@@ -247,9 +247,10 @@ test("fullscreen presentation reserves simultaneous timeline graph and map surfa
   ]);
   assert.match(html, /id="presentation-map-panel"/);
   assert.match(html, /id="presentation-map"/);
-  assert.match(css, /#presentation-stage:fullscreen > \.timeline-view/);
-  assert.match(css, /#presentation-stage:fullscreen > \.graph-lens/);
-  assert.match(css, /#presentation-stage:fullscreen > \.presentation-map-panel/);
+  assert.match(css, /#presentation-stage:fullscreen\[data-timeline-orientation="horizontal"\] > \.timeline-view/);
+  assert.match(css, /#presentation-stage:fullscreen\[data-timeline-orientation="horizontal"\] > \.graph-lens/);
+  assert.match(css, /#presentation-stage:fullscreen\[data-timeline-orientation="horizontal"\] > \.presentation-map-panel/);
+  assert.match(css, /#presentation-stage:fullscreen\[data-timeline-orientation="vertical"\] > \.timeline-view/);
   assert.match(app, /renderPresentationMap/);
   assert.match(app, /createReadOnly/);
   assert.match(view, /timeline-focus-place-map/);
