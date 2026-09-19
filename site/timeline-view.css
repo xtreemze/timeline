@@ -866,7 +866,7 @@
 
 .timeline-view.is-event-focused {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-height: min(920px, calc(100vh - 32px));
   margin-top: 0;
@@ -1345,8 +1345,8 @@
 }
 
 #presentation-stage:fullscreen[data-stage-shape][data-viewport-orientation] {
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  grid-template-rows: repeat(12, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-rows: repeat(6, minmax(0, 1fr));
 }
 
 #presentation-stage:fullscreen[data-stage-shape][data-viewport-orientation] > .timeline-view {
@@ -1479,8 +1479,8 @@
    The timeline always owns the fullscreen stage. Focused event detail enters the top layer,
    while map/graph reuse their existing semantic sections as interactive subdued backdrops. */
 #presentation-stage:fullscreen[data-stage-shape][data-viewport-orientation] {
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  grid-template-rows: repeat(12, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-rows: repeat(6, minmax(0, 1fr));
 }
 
 #presentation-stage:fullscreen > .timeline-view {
