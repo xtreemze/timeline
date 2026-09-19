@@ -81,6 +81,8 @@
     itemKind: document.querySelector("#item-kind"),
     itemCategory: document.querySelector("#item-category"),
     itemLayoutVariant: document.querySelector("#item-layout-variant"),
+    itemTerminalShape: document.querySelector("#item-terminal-shape"),
+    itemConnectorStyle: document.querySelector("#item-connector-style"),
     itemDateRange: document.querySelector("#item-date-range"),
     itemCalendarPopover: document.querySelector("#item-calendar-popover"),
     itemCalendarGrid: document.querySelector("#item-calendar-grid"),
@@ -811,7 +813,13 @@
       const variant = ["hero-split", "evidence-dossier", "editorial-mosaic"].includes(raw.presentation?.variant)
         ? raw.presentation.variant
         : "hero-split";
-      item.presentation = { variant };
+      const terminalShape = ["rounded", "circle", "square", "diamond"].includes(raw.presentation?.terminalShape)
+        ? raw.presentation.terminalShape
+        : "rounded";
+      const connectorStyle = ["solid", "dashed", "dotted"].includes(raw.presentation?.connectorStyle)
+        ? raw.presentation.connectorStyle
+        : "solid";
+      item.presentation = { variant, terminalShape, connectorStyle };
       item.relationChanges = graph.normalizeRelationChanges(raw.relationChanges);
       item.evidenceIds = (Array.isArray(raw.evidenceIds) ? raw.evidenceIds : [])
         .filter((id) => typeof id === "string" && evidenceIds.has(id))
@@ -1332,6 +1340,8 @@
         media: item.media || [],
         tags: item.tags || [],
         layoutVariant: item.presentation?.variant || "hero-split",
+        terminalShape: item.presentation?.terminalShape || "rounded",
+        connectorStyle: item.presentation?.connectorStyle || "solid",
         evidence: (item.evidenceIds || [])
           .map((id) => state.evidence.find((record) => record.id === id))
           .filter(Boolean),
@@ -1829,6 +1839,8 @@
     fillRelationChangeForm(null);
     fillEvidenceForm(null);
     els.itemLayoutVariant.value = "hero-split";
+    els.itemTerminalShape.value = "rounded";
+    els.itemConnectorStyle.value = "solid";
     resetLocationForm();
     fillCategorySelect(els.itemCategory, false, state.categories[0]?.id || "");
     els.saveItem.textContent = "Add item";
@@ -1858,6 +1870,8 @@
     fillRelationChangeForm(item);
     fillEvidenceForm(item);
     els.itemLayoutVariant.value = item.presentation?.variant || "hero-split";
+    els.itemTerminalShape.value = item.presentation?.terminalShape || "rounded";
+    els.itemConnectorStyle.value = item.presentation?.connectorStyle || "solid";
     fillLocationForm(item.location || null);
     els.saveItem.textContent = "Save changes";
     els.cancelItemEdit.hidden = false;
@@ -3023,7 +3037,11 @@
       categoryId: state.categories.some((category) => category.id === els.itemCategory.value)
         ? els.itemCategory.value
         : state.categories[0].id,
-      presentation: { variant: els.itemLayoutVariant.value },
+      presentation: {
+        variant: els.itemLayoutVariant.value,
+        terminalShape: els.itemTerminalShape.value,
+        connectorStyle: els.itemConnectorStyle.value
+      },
       relationChanges,
       evidenceIds: evidenceRecords.map((record) => record.id)
     };
