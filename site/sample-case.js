@@ -1,6 +1,8 @@
 (() => {
   "use strict";
 
+  const VERSION = 2;
+
   const SAMPLE_LOCATIONS = {
     stockholm: {
       name: "Stockholm",
