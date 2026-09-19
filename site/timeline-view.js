@@ -99,6 +99,7 @@
       this.focusId = null;
       this.focusForceUnique = false;
       this.focusGraph = null;
+      this.focusMap = null;
       this.preferences = loadPreferences();
       this.orientation = this.preferences.orientation;
       this.drag = null;
@@ -646,6 +647,16 @@
       return node;
     }
 
+    visiblePositionFor(item, padding, usable) {
+      if (!Number.isFinite(item?.end)) {
+        return padding + scale.coordinateFor(item.start, this.viewport, usable);
+      }
+      const visibleStart = Math.max(item.start, this.viewport.start);
+      const visibleEnd = Math.min(item.end, this.viewport.end);
+      const anchor = visibleStart + Math.max(0, visibleEnd - visibleStart) / 2;
+      return padding + scale.coordinateFor(anchor, this.viewport, usable);
+    }
+
     render() {
       this.renderFrame = 0;
       this.surface.replaceChildren();
@@ -731,17 +742,28 @@
           : startPosition;
 
         if (Number.isFinite(item.end)) {
-          const range = createElement("div", "timeline-range-segment");
+          const range = createElement("button", "timeline-range-segment");
+          range.type = "button";
+          range.dataset.id = item.id;
           range.style.setProperty("--event-color", item.color || "var(--accent)");
+          const rangeLabel = `${item.title} · ${item.startLabel} → ${item.endLabel}`;
+          range.dataset.tooltip = rangeLabel;
+          range.title = rangeLabel;
+          range.setAttribute("aria-label", `Focus range ${rangeLabel}`);
           const clippedStart = clamp(Math.min(startPosition, endPosition), padding, padding + usable);
           const clippedEnd = clamp(Math.max(startPosition, endPosition), padding, padding + usable);
           if (this.orientation === "horizontal") {
             range.style.left = clippedStart + "px";
-            range.style.width = Math.max(2, clippedEnd - clippedStart) + "px";
+            range.style.width = Math.max(6, clippedEnd - clippedStart) + "px";
           } else {
             range.style.top = clippedStart + "px";
-            range.style.height = Math.max(2, clippedEnd - clippedStart) + "px";
+            range.style.height = Math.max(6, clippedEnd - clippedStart) + "px";
           }
+          range.addEventListener("click", (event) => {
+            event.stopPropagation();
+            this.select(item.id);
+            void motion.pulseHaptic("selection");
+          });
           stage.append(range);
         }
       }
@@ -754,7 +776,7 @@
         : visibleItems;
       const representations = clustering.clusterProjectedItems(
         clusterSource,
-        (item) => padding + scale.coordinateFor(item.start, this.viewport, usable),
+        (item) => this.visiblePositionFor(item, padding, usable),
         this.clusterThreshold(width)
       );
       if (focusedItem) {
@@ -763,7 +785,7 @@
           id: String(focusedItem.id),
           item: focusedItem,
           items: [focusedItem],
-          position: padding + scale.coordinateFor(focusedItem.start, this.viewport, usable),
+          position: this.visiblePositionFor(focusedItem, padding, usable),
           start: focusedItem.start,
           end: Number.isFinite(focusedItem.end) ? focusedItem.end : focusedItem.start,
           forceUnique: this.focusForceUnique
@@ -816,10 +838,13 @@
       button.setAttribute("aria-label", "Focus " + item.title + ", " + item.startLabel);
       button.setAttribute("aria-controls", "timeline-focus-view");
       button.setAttribute("aria-expanded", String(item.id === this.selectedId));
+      button.title = Number.isFinite(item.end)
+        ? `${item.title} · ${item.startLabel} → ${item.endLabel}`
+        : `${item.title} · ${item.startLabel}`;
       const dot = createElement("span", "timeline-event-dot");
       dot.setAttribute("aria-hidden", "true");
       const primaryTag = item.tags?.[0];
-      if (primaryTag) dot.append(presentation.createIcon(primaryTag.icon, { size: 12 }));
+      if (primaryTag) dot.append(presentation.createIcon(primaryTag.icon, { size: 18 }));
       const copy = createElement("span", "timeline-event-copy");
       const title = createElement("strong", "", item.title);
       const date = createElement("span", "", item.startLabel);
@@ -1053,6 +1078,8 @@
     renderFocus(item) {
       this.focusGraph?.destroy?.();
       this.focusGraph = null;
+      this.focusMap?.destroy?.();
+      this.focusMap = null;
       this.focusView.tabIndex = -1;
       this.focusView.style.setProperty("--event-color", item.color || "var(--accent)");
       this.focusView.dataset.layout = item.layoutVariant || "hero-split";
@@ -1101,6 +1128,18 @@
             "timeline-focus-place-coordinates",
             `${coordinates[1]}, ${coordinates[0]}`
           ));
+          const mapCanvas = createElement("div", "timeline-focus-place-map");
+          mapCanvas.setAttribute("role", "img");
+          place.append(mapCanvas);
+          requestAnimationFrame(() => {
+            if (!mapCanvas.isConnected) return;
+            const mapFactory = globalThis.TimelineLocationMap;
+            this.focusMap = mapFactory?.createReadOnly?.({
+              container: mapCanvas,
+              location: item.location,
+              color: item.color || "#315fbd"
+            }) || null;
+          });
         }
       } else {
         place.append(createElement("p", "timeline-focus-muted", "No location assigned."));
@@ -1112,7 +1151,7 @@
         const list = createElement("ul", "timeline-focus-relation-list");
         for (const relation of item.relations.slice(0, 8)) {
           const li = createElement("li", "");
-          li.append(presentation.createIcon("relation", { size: 16 }));
+          li.append(presentation.createIcon("relation", { size: 20 }));
           const relationText = relation.subjectName && relation.objectName
             ? `${relation.subjectName} —${relation.predicate}→ ${relation.objectName}`
             : relation.predicate;
@@ -1189,7 +1228,7 @@
           const card = createElement("article", "timeline-focus-evidence-card");
           card.dataset.type = record.type || "note";
           const header = createElement("div", "timeline-focus-evidence-header");
-          header.append(presentation.createIcon("evidence", { size: 16 }));
+          header.append(presentation.createIcon("evidence", { size: 20 }));
           const type = createElement("span", "timeline-focus-evidence-type", record.type || "source");
           header.append(type);
           const title = createElement("h4", "timeline-focus-evidence-title", record.title || "Untitled evidence");
@@ -1266,6 +1305,8 @@
       this.focusForceUnique = false;
       this.focusGraph?.destroy?.();
       this.focusGraph = null;
+      this.focusMap?.destroy?.();
+      this.focusMap = null;
       this.root.classList.remove("is-event-focused");
       this.focusView.hidden = true;
       this.focusView.removeAttribute("style");
