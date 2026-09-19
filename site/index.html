@@ -709,6 +709,10 @@
               <input id="graph-node-type" type="text" maxlength="60" autocomplete="off" placeholder="person, organization, account…" value="entity">
             </label>
             <label class="field">
+              <span>Identifiers <small>JSON array</small></span>
+              <textarea id="graph-node-identifiers" rows="4" spellcheck="false" placeholder='[{"scheme":"case-id","value":"P-17"}]'>[]</textarea>
+            </label>
+            <label class="field">
               <span>Properties <small>JSON object</small></span>
               <textarea id="graph-node-properties" rows="5" spellcheck="false" placeholder='{"role":"investigator","caseId":"A-42"}'>{}</textarea>
             </label>
