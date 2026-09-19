@@ -41,3 +41,22 @@ test("focused map ties the semantic place identity to the stored coordinate", as
   assert.match(styles, /\.timeline-map-marker-label/);
   assert.match(styles, /\.timeline-map-place-placeholder/);
 });
+
+test("fictional spatial reference frames use local procedural texture instead of OSM tiles", async () => {
+  const [mapSource, appSource, styles] = await Promise.all([
+    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(appSource, /spatialReferenceFrame\?\.fictional === true/);
+  assert.match(appSource, /fictionalReferenceFrame/);
+  assert.match(mapSource, /function fictionalTextureLayer/);
+  assert.match(mapSource, /L\.gridLayer/);
+  assert.match(mapSource, /createTile/);
+  assert.match(mapSource, /timeline-fictional-map-tile/);
+  assert.match(mapSource, /if \(this\.fictionalReferenceFrame\)[\s\S]*fictionalTextureLayer/);
+  assert.match(mapSource, /else \{[\s\S]*L\.tileLayer\(this\.provider\.url/);
+  assert.match(mapSource, /Fictional reference frame · procedural texture/);
+  assert.match(styles, /\.presentation-map\.is-fictional-map/);
+});
