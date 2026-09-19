@@ -41,7 +41,13 @@
       this.signature = "";
       this.orb = orbFactory.create(this.canvas, {
         onNodeClick: (node) => this.activateNode(node),
-        onEdgeClick: (edge) => this.renderDetail("edge", edge),
+        onEdgeClick: (edge) => {
+          this.renderDetail("edge", edge);
+          this.root.dispatchEvent(new CustomEvent("graphedgefocus", {
+            bubbles: true,
+            detail: { id: edge.id }
+          }));
+        },
         onSimulationState: (state) => this.renderSimulationState(state)
       });
     }
