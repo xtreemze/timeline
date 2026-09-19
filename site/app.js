@@ -843,6 +843,48 @@
     fillCategorySelect(els.categoryFilter, true, ui.categoryFilter);
   }
 
+  function renderTimelineList(visible, activeStory) {
+    if (activeStory) {
+      const ordered = document.createElement("ol");
+      ordered.className = "timeline-category-items story-order";
+      ordered.replaceChildren(...visible.map((item) => renderItem(item, activeStory)));
+      els.list.replaceChildren(ordered);
+      return;
+    }
+
+    const groups = [];
+    for (const category of state.categories) {
+      const items = visible.filter((item) => item.categoryId === category.id);
+      if (!items.length) continue;
+      const details = document.createElement("details");
+      details.className = "timeline-category-group";
+      details.dataset.categoryId = category.id;
+      details.open = !ui.collapsedCategoryIds.has(category.id);
+      details.style.setProperty("--category-color", category.color);
+
+      const summary = document.createElement("summary");
+      summary.className = "timeline-category-summary";
+      const identity = document.createElement("span");
+      identity.className = "timeline-category-summary-identity";
+      const dot = document.createElement("span");
+      dot.className = "category-dot";
+      const name = document.createElement("strong");
+      name.textContent = category.name;
+      identity.append(dot, name);
+      const count = document.createElement("span");
+      count.className = "timeline-category-summary-count";
+      count.textContent = `${items.length} ${items.length === 1 ? "item" : "items"}`;
+      summary.append(identity, count);
+
+      const list = document.createElement("ol");
+      list.className = "timeline-category-items";
+      list.replaceChildren(...items.map((item) => renderItem(item, null)));
+      details.append(summary, list);
+      groups.push(details);
+    }
+    els.list.replaceChildren(...groups);
+  }
+
   function renderTimeline() {
     const activeStory = getStory(ui.activeStoryId);
     const visible = getVisibleItems();
@@ -863,7 +905,7 @@
       els.storyFocus.hidden = true;
     }
 
-    els.list.replaceChildren(...visible.map((item) => renderItem(item, activeStory)));
+    renderTimelineList(visible, activeStory);
 
     const storyCurrentId = activeStory?.itemIds[ui.storyCursor] || null;
     timelineView?.setItems(visible.map((item) => {
@@ -883,6 +925,10 @@
         location: item.location || null,
         media: item.media || [],
         tags: item.tags || [],
+        layoutVariant: item.presentation?.variant || "hero-split",
+        evidence: (item.evidenceIds || [])
+          .map((id) => state.evidence.find((record) => record.id === id))
+          .filter(Boolean),
         relations: state.relationships
           .filter((relationship) => relationship.subjectId === item.id || relationship.objectId === item.id)
           .map((relationship) => ({
