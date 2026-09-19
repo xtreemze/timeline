@@ -178,3 +178,33 @@ test("Escape exits fullscreen before focused-event back navigation", async () =>
   const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   assert.match(source, /presentationIsFullscreen\(\)[\s\S]*meta\.event\?\.key === "Escape"[\s\S]*return false/);
 });
+
+test("fullscreen presentation reserves simultaneous timeline graph and map surfaces", async () => {
+  const [html, css, app, view] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8")
+  ]);
+  assert.match(html, /id="presentation-map-panel"/);
+  assert.match(html, /id="presentation-map"/);
+  assert.match(css, /#presentation-stage:fullscreen > \.timeline-view/);
+  assert.match(css, /#presentation-stage:fullscreen > \.graph-lens/);
+  assert.match(css, /#presentation-stage:fullscreen > \.presentation-map-panel/);
+  assert.match(app, /renderPresentationMap/);
+  assert.match(app, /createReadOnly/);
+  assert.match(view, /timeline-focus-place-map/);
+});
+
+test("timeline range bars are identifiable and labels share event color semantics", async () => {
+  const [source, css] = await Promise.all([
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+  assert.match(source, /createElement\("button", "timeline-range-segment"\)/);
+  assert.match(source, /range\.dataset\.tooltip/);
+  assert.match(source, /this\.visiblePositionFor\(item/);
+  assert.match(css, /\.timeline-range-segment::after/);
+  assert.match(css, /\.timeline-event-copy strong[\s\S]*color:\s*var\(--event-color\)/);
+  assert.match(css, /\.timeline-event-dot[\s\S]*width:\s*1\.4rem/);
+});
