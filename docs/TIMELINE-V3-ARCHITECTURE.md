@@ -452,10 +452,11 @@ The variant is stored under `item.presentation.variant`. The content and evidenc
 Focused event presentation uses the 12-column system as a composition constraint rather than a generic equal-column dashboard.
 
 - common lower row: Place and Relations remain explicit semantic sections, with their interactive map/graph reused as subdued section backdrops;
-- following row: evidence across all 12 columns;
-- hero split: eight-column visual field, one breathing column, three-column context rail;
-- evidence dossier: five-column hero with evidence dominant in the upper reading field;
-- editorial mosaic: four-column context field opposite an eight-column media field.
+- focused overlays use a compact six-column grid; the timeline stage itself has no column grid;
+- following row: evidence spans all six overlay columns;
+- hero split: four-column visual field with a two-column context rail;
+- evidence dossier: balanced three-column hero and three-column reading field;
+- editorial mosaic: two-column context field opposite a four-column media field.
 - there is no separate Chronology section: the fullscreen timeline is the chronology, and the hero is the focused event selected from it.
 
 Hero titles use container-relative `cqi` sizing rather than viewport width and deliberately become larger on focus because they are the primary identity of the selected timeline event. Cap/alphabetic `text-box` trimming is not used on the hero heading because display-face glyph bounds can be clipped. The heading retains block padding, balanced wrapping, and break-word protection for unusually long identifiers.
@@ -477,23 +478,23 @@ Physical screen orientation never rewrites the timeline orientation.
 - With no focused event, the timeline axis remains centered.
 - With a focused event, the timeline surface still fills the viewport while its axis shifts toward the lower edge for a horizontal timeline or the right edge for a vertical timeline.
 - Event detail is promoted to the browser top layer as one responsive overlay. Wide landscape layouts use a bounded popover; constrained or portrait layouts progressively become a top or side sheet while leaving the timeline edge visible.
-- Place and relation sections remain part of the event-detail 12-column composition. Their existing map and Orb graph renderers are moved behind their respective text as subdued interactive backdrops instead of consuming extra stage columns or rows.
-- The detail overlay progressively reduces hero height, typography, gaps and section sizes as available width/height shrinks.
+- Place and relation sections remain part of the event-detail six-column composition. Their existing map and Orb graph renderers are moved behind their respective text as subdued interactive backdrops instead of consuming timeline geometry.
+- The detail overlay is intentionally bounded: desktop popovers are capped around 680 px, while mobile becomes a bottom sheet capped to roughly two thirds of the viewport so the timeline remains visibly dominant.
 - All visual surfaces use `min-width: 0` / `min-height: 0` contracts so maps, canvases and media can shrink without causing overflow.
 
 ### Application-shell ownership
 
 Normal application mode follows the same ownership principle as fullscreen: the timeline remains viewport-sized and utility UI never participates in its layout geometry.
 
-- Mobile is the baseline. The editor and Browse experience are bottom sheets above the timeline, using safe-area insets and touch-sized controls.
-- At wider viewports those sheets progressively become bounded sidebars without changing timeline dimensions.
+- Mobile is the baseline. The editor and Browse experience are compact bottom sheets above the timeline, capped below full-screen height and using safe-area insets and touch-sized controls.
+- At wider viewports those sheets progressively become narrow bounded sidebars without changing timeline dimensions; editor forms use a six-column internal grid, typically expressed as two three-column fields or one six-column field.
 - Browse owns search, category filtering, empty-state explanation and the chronology list. Those are not repeated on the primary canvas.
 - Active Story navigation is a compact contextual mode overlay outside Browse, so story position/previous/next/exit remain available while the timeline is being read.
 - Item, Story, Category and Graph forms reuse the existing data model inside one editor surface with internal tabs; the global tool dock therefore exposes one Edit entry rather than duplicating editor tabs.
 - The global tool dock is limited to Edit, Browse, Relations and View, using semantic icon + text pairs for recognition at touch and desktop distances.
 - Relation-graph exploration is opened explicitly as the Relations overlay rather than occupying a permanent sibling column.
 - Timeline orientation, zoom, auto-advance and presentation controls are progressively disclosed in a compact View surface.
-- Project import/export/example/destructive actions live in a native Project popover from the floating command bar.
+- Project import/export/example/destructive actions live in a native, grouped Project popover from the floating command bar. Import actions are explicit buttons wired to hidden file inputs so every visible menu command is keyboard-operable.
 - One large utility surface is shown at a time. Contextual Story controls yield while a large utility surface is open. Event focus remains a separate top-layer interaction and the timeline stays visually present beneath it.
 - With no events the timeline still renders its neutral axis; guidance for the empty project lives in Browse rather than replacing the workspace.
 
