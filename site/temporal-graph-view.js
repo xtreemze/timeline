@@ -41,6 +41,7 @@
       this.focusedId = null;
       this.signature = "";
       this.presentationMode = false;
+      this.hasFocusedContext = false;
       this.orb = orbFactory.create(this.canvas, {
         onNodeClick: (node) => this.activateNode(node),
         onNodeLongPress: (node) => this.selectNodeForDrag(node),
@@ -107,6 +108,10 @@
       if (this.presentationMode && this.detail) this.detail.replaceChildren();
     }
 
+    hasContext() {
+      return this.hasFocusedContext;
+    }
+
     selectNodeForDrag(node) {
       this.renderDetail("node", node);
       this.root.dispatchEvent(new CustomEvent("graphnodeselect", {
@@ -158,6 +163,19 @@
         ? graph.neighborhoodGraph(this.model, this.focusedId, this.viewport, { depth: 1, limit: 36 })
         : graph.graphForWindow(this.model, this.viewport);
       const activeEdges = data.edges.filter((edge) => edge.temporalState !== "inactive");
+      const nextHasFocusedContext = Boolean(this.focusedId && data.nodes.length > 1 && data.edges.length > 0);
+      if (nextHasFocusedContext !== this.hasFocusedContext) {
+        this.hasFocusedContext = nextHasFocusedContext;
+        this.root.dispatchEvent(new CustomEvent("graphcontextchange", {
+          bubbles: true,
+          detail: {
+            focusedId: this.focusedId,
+            hasContext: this.hasFocusedContext,
+            nodeCount: data.nodes.length,
+            edgeCount: data.edges.length
+          }
+        }));
+      }
       const scopeText = this.focusedId ? `${data.nodes.length} relevant nodes · ` : "";
       const countText = `${scopeText}${activeEdges.length} / ${data.edges.length} edges active`;
       if (this.status) {
