@@ -704,9 +704,9 @@ test("focused popover stays opposite chronology and reserves persistent applicat
   ]);
   assert.match(source, /FOCUS_POPOVER_MARGIN = 12/);
   assert.match(source, /focusChromeInsets\(\)/);
-  assert.match(source, /reserveTopChrome\(document\.querySelector\("\\.app-command-bar"\)\)/);
-  assert.match(source, /reserveTopChrome\(document\.querySelector\("\\.timeline-view-toolbar:not\(\[hidden\]\)"\)\)/);
-  assert.match(source, /document\.querySelector\("\\.app-tool-dock"\)/);
+  assert.match(source, /reserveTopChrome\(document\.querySelector\("\.app-command-bar"\)\)/);
+  assert.match(source, /reserveTopChrome\(document\.querySelector\("\.timeline-view-toolbar:not\(\[hidden\]\)"\)\)/);
+  assert.match(source, /document\.querySelector\("\.app-tool-dock"\)/);
   assert.match(source, /contextualTimelineDocked[\s\S]*viewportWidth - timelineRect\.left/);
   assert.match(source, /contextualTimelineDocked[\s\S]*viewportHeight - timelineRect\.top/);
   assert.match(source, /positionFocusPopover\(originRect = null\)/);
@@ -716,7 +716,7 @@ test("focused popover stays opposite chronology and reserves persistent applicat
   assert.doesNotMatch(source, /const targetRect = originRect/);
   assert.match(source, /transitionOriginRect = transitionOrigin\?\.getBoundingClientRect/);
   assert.match(source, /this\.positionFocusPopover\(options\.originRect/);
-  assert.match(css, /data-orientation="landscape"[\s\S]*left:\s*50%[\s\S]*translateX\(-50%\)/);
+  assert.match(css, /data-orientation="landscape"[\s\S]*inset:[\s\S]*50%[\s\S]*translateX\(-50%\)/);
   assert.match(css, /data-orientation="portrait"[\s\S]*inset:\s*50%[\s\S]*safe-area-inset-left[\s\S]*translateY\(-50%\)/);
 });
 
