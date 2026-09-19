@@ -3009,11 +3009,6 @@
     schedulePresentationGeometryRefresh({ recenterGraph: presentationIsFullscreen() });
   });
 
-  els.timelineViewRoot.addEventListener("timelinegraphnodefocus", (event) => {
-    const id = event.detail?.id;
-    if (id && getItem(id)) timelineView?.focusItem(id);
-  });
-
   els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
     const focused = Boolean(event.detail?.focused);
     if (focused && ui.mode === "edit") {
