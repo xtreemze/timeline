@@ -61,7 +61,9 @@ This is deliberately a reference model rather than a copy model: stories do not 
 - Browser-local persistence with `localStorage`.
 - Automatic migration of the original v1 `events[]` browser data to v2.
 - Strict JSON validation at import boundaries.
-- JSON export preserving categories, chronology items, ranges, and stories.
+- JSON export preserving categories, chronology items, ranges, stories, and namespaced interchange extensions.
+- Time.Graphics JSON/XML import for events, periods, and groups, with source-specific media/comments/statistics preserved under `extensions.timeGraphics`.
+- Time.Graphics-oriented JSON export with a published JSON Schema and round-trip preservation of imported vendor fields.
 - Markdown export containing the canonical chronology plus each narrative story.
 - Imported text is rendered through DOM text nodes, never injected as HTML.
 - No runtime packages, telemetry, account system, database, or backend.
@@ -111,6 +113,12 @@ Version 2 uses four top-level concepts:
   ]
 }
 ```
+
+### Time.Graphics interchange
+
+Time.Graphics interoperability is isolated behind `site/time-graphics-adapter.js`; its vendor data does not become Timeline's canonical schema. Imports map Time.Graphics events → events, periods → ranges, and groups → categories. Unknown source fields are retained under `extensions.timeGraphics` for round-trip safety.
+
+The exported interchange schema is `schemas/time-graphics-interchange-v1.schema.json`. See `docs/TIME-GRAPHICS-INTERCHANGE.md` for recognized field aliases, loss boundaries, and the vendor-schema caveat.
 
 ### Temporal values
 
