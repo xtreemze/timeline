@@ -309,12 +309,19 @@
   font-feature-settings: "calt" 1, "liga" 1;
 }
 .timeline-event-dot {
-  width: .72rem;
-  height: .72rem;
+  display: grid;
+  place-items: center;
+  width: .88rem;
+  height: .88rem;
   flex: 0 0 auto;
   border-radius: 50%;
   background: var(--event-color);
+  color: contrast-color(var(--event-color));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--event-color) 15%, transparent);
+}
+.timeline-event-dot .semantic-icon {
+  width: .62rem;
+  height: .62rem;
 }
 .timeline-event-copy { min-width: 0; }
 .timeline-event-copy strong,
