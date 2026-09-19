@@ -114,7 +114,10 @@
     constructor(root) {
       this.root = root;
       this.svg = root.querySelector("svg");
-      this.status = root.querySelector("[data-graph-status]");
+      this.status =
+        root.querySelector("[data-graph-status]") ||
+        root.closest(".graph-lens")?.querySelector("[data-graph-status]") ||
+        null;
       this.windowLabel = root.querySelector("[data-graph-window]");
       this.detail = root.querySelector("[data-graph-detail]");
       this.model = { entities: [], relationships: [], items: [], stories: [] };
@@ -219,8 +222,8 @@
         activeNodeIds.add(String(edge.end));
       }
 
-      this.status.textContent = `${activeEdges.length} / ${data.edges.length} edges active`;
-      this.windowLabel.textContent = formatWindow(this.viewport);
+      if (this.status) this.status.textContent = `${activeEdges.length} / ${data.edges.length} edges active`;
+      if (this.windowLabel) this.windowLabel.textContent = formatWindow(this.viewport);
       this.svg.replaceChildren();
 
       const defs = svgElement("defs");
