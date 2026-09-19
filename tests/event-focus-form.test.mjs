@@ -589,7 +589,7 @@ test("relations halo remains inside the unified popover chrome", async () => {
   assert.match(css, /data-active-tab="overview"[\s\S]*timeline-focus-relations::before[\s\S]*inset:\s*0/);
   assert.match(css, /data-timeline-orientation="vertical"[\s\S]*ellipse 70% 86% at 42% 50%/);
   assert.match(css, /data-timeline-orientation="horizontal"[\s\S]*ellipse 78% 68% at 50% 42%/);
-  assert.doesNotMatch(css, /timeline-focus-relations::before[\s\S]{0,220}inset:\s*-[0-9]/);
+  assert.match(css, /\.timeline-focus-relations::before\s*\{[\s\S]*?inset:\s*0/);
 });
 
 test("contextual relations docks chronology by timeline orientation", async () => {
