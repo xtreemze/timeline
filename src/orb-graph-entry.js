@@ -533,6 +533,14 @@ function create(container, handlers = {}) {
   return Object.freeze({
     setData,
     updateTemporalEdges,
+    select(kind, id) {
+      const object = kind === "edge"
+        ? orb.data.getEdgeById(id)
+        : orb.data.getNodeById(id);
+      if (!object) return false;
+      selectGraphObject(object);
+      return true;
+    },
     recenter() {
       orb.recenter();
     },
