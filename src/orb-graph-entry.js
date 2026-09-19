@@ -93,12 +93,13 @@ function create(container, handlers = {}) {
     const state = data?.temporalState || "timeless";
     const inactive = state === "inactive";
     const changed = state === "changed";
-    const color = inactive ? palette.muted : changed ? palette.story : palette.focus;
+    const timeless = state === "timeless";
+    const color = inactive || timeless ? palette.muted : changed ? palette.story : palette.focus;
     return {
       color,
       colorHover: palette.focus,
       colorSelected: palette.focus,
-      width: inactive ? 0.35 : changed ? 1.5 : 0.9,
+      width: inactive ? 0.35 : timeless ? 0.6 : changed ? 1.5 : 0.9,
       widthHover: 1.8,
       widthSelected: 2.2,
       arrowSize: inactive ? 0.7 : 1,
