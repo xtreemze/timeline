@@ -8,6 +8,8 @@ await import("../site/event-presentation.js");
 
 const picker = globalThis.TimelineDateRangePicker;
 const presentation = globalThis.TimelinePresentation;
+await import("../site/presentation-layout.js");
+const presentationLayout = globalThis.TimelinePresentationLayout;
 
 test("range display condenses dates in the same month and keeps the year visible", () => {
   assert.match(picker.formatDisplay("2026-09-11", "2026-09-14", "range"), /11.*14.*2026/);
@@ -177,6 +179,63 @@ test("fullscreen composition preserves both axes across wide and tall displays",
 test("Escape exits fullscreen before focused-event back navigation", async () => {
   const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   assert.match(source, /presentationIsFullscreen\(\)[\s\S]*meta\.event\?\.key === "Escape"[\s\S]*return false/);
+});
+
+test("mobile fullscreen presentation remains a bounded multi-surface dashboard", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+
+  assert.match(css, /Mobile fullscreen presentation/);
+  assert.match(css, /block-size:\s*100dvh/);
+  assert.match(css, /safe-area-inset-top/);
+  assert.match(css, /presentation-stage:fullscreen\[data-stage-shape\]\[data-timeline-orientation\][\s\S]*grid-template-rows/);
+  assert.match(css, /timeline-focus-view[\s\S]*grid-template-columns:[^;]*1\.35fr/);
+  assert.match(css, /timeline-focus-hero[\s\S]*grid-row:\s*1\s*\/\s*-1/);
+  assert.match(css, /timeline-focus-summary[\s\S]*grid-column:\s*2/);
+  assert.match(css, /timeline-focus-place[\s\S]*grid-column:\s*2/);
+  assert.match(css, /temporal-graph-detail\s*\{[\s\S]*display:\s*none/);
+  assert.match(css, /orientation:\s*landscape[\s\S]*grid-template-columns:[^;]*62fr/);
+  assert.match(css, /timeline-view-toolbar[\s\S]*overflow-x:\s*auto/);
+});
+
+
+
+test("fullscreen stage classification matches target phone and tablet viewports", () => {
+  const portraitViewports = [
+    [360, 800],
+    [390, 844],
+    [430, 932]
+  ];
+  const landscapeViewports = [
+    [667, 375],
+    [844, 390],
+    [932, 430]
+  ];
+
+  for (const [width, height] of portraitViewports) {
+    assert.equal(presentationLayout.physicalOrientation(width, height), "portrait");
+    assert.equal(
+      presentationLayout.classifyStageShape(width, height, { fullscreen: true }),
+      "tall"
+    );
+  }
+
+  for (const [width, height] of landscapeViewports) {
+    assert.equal(presentationLayout.physicalOrientation(width, height), "landscape");
+    assert.equal(
+      presentationLayout.classifyStageShape(width, height, { fullscreen: true }),
+      "wide"
+    );
+  }
+});
+
+test("presentation stage shape is independent from selected timeline axis orientation", () => {
+  const portraitShape = presentationLayout.classifyStageShape(390, 844, { fullscreen: true });
+  const landscapeShape = presentationLayout.classifyStageShape(844, 390, { fullscreen: true });
+
+  assert.equal(portraitShape, "tall");
+  assert.equal(landscapeShape, "wide");
+  assert.notEqual(portraitShape, "portrait");
+  assert.notEqual(landscapeShape, "landscape");
 });
 
 test("fullscreen presentation reserves simultaneous timeline graph and map surfaces", async () => {
