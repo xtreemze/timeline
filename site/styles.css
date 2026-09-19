@@ -185,6 +185,24 @@ a { color: inherit; }
 .app-shell.is-event-focused .timeline-list {
   display: none !important;
 }
+
+.presentation-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+  min-width: 0;
+}
+.presentation-stage[data-stage-shape="wide"] {
+  grid-template-columns: minmax(0, 7fr) minmax(360px, 5fr);
+}
+.presentation-stage > .timeline-view,
+.presentation-stage > .graph-lens {
+  min-width: 0;
+}
+.app-shell.is-event-focused .presentation-stage {
+  gap: clamp(.65rem, 1.2vw, 1rem);
+}
 .tabs {
   position: sticky;
   top: 0;
@@ -1102,6 +1120,138 @@ footer p { margin: 0; }
   width: 100% !important;
   height: 100% !important;
 }
+
+.presentation-stage:fullscreen {
+  inline-size: 100%;
+  block-size: 100%;
+  max-inline-size: none;
+  margin: 0;
+  padding: clamp(.55rem, 1.2vw, 1rem);
+  gap: clamp(.5rem, 1vw, .85rem);
+  overflow: hidden;
+  background: var(--paper-2);
+}
+.presentation-stage:fullscreen::backdrop {
+  background: var(--paper-2);
+}
+.presentation-stage:fullscreen[data-timeline-orientation="horizontal"] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 58fr) minmax(0, 42fr);
+}
+.presentation-stage:fullscreen[data-timeline-orientation="vertical"] {
+  grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+.presentation-stage:fullscreen[data-stage-shape="tall"][data-timeline-orientation="horizontal"] {
+  grid-template-rows: minmax(0, 54fr) minmax(0, 46fr);
+}
+.presentation-stage:fullscreen[data-stage-shape="tall"][data-timeline-orientation="vertical"] {
+  grid-template-columns: minmax(0, 44fr) minmax(0, 56fr);
+}
+.presentation-stage:fullscreen > .timeline-view,
+.presentation-stage:fullscreen > .graph-lens {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  margin: 0;
+  border-radius: .72rem;
+  overflow: hidden;
+}
+.presentation-stage:fullscreen .graph-lens[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.presentation-stage:fullscreen .graph-lens > summary {
+  min-height: 44px;
+  padding: .5rem .65rem;
+  pointer-events: none;
+}
+.presentation-stage:fullscreen .graph-lens > summary small {
+  display: none;
+}
+.presentation-stage:fullscreen .temporal-graph-view {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.presentation-stage:fullscreen .temporal-graph-toolbar {
+  min-height: 38px;
+  padding: .35rem .55rem;
+}
+.presentation-stage:fullscreen .temporal-graph-canvas {
+  height: auto;
+  min-height: 0;
+  max-height: none;
+}
+.presentation-stage:fullscreen .temporal-graph-detail {
+  max-height: 92px;
+  overflow: auto;
+  padding: .5rem .6rem;
+}
+.presentation-stage:fullscreen .timeline-view {
+  min-height: 0;
+  margin: 0;
+}
+.presentation-stage:fullscreen .timeline-view:not(.is-event-focused) {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.presentation-stage:fullscreen .timeline-view:not(.is-event-focused) .timeline-surface {
+  height: auto;
+  min-height: 0;
+}
+.presentation-stage:fullscreen .timeline-view.is-event-focused[data-orientation="landscape"] {
+  grid-template-rows: auto minmax(0, 1fr) clamp(112px, 20%, 172px);
+  min-height: 0;
+}
+.presentation-stage:fullscreen .timeline-view.is-event-focused[data-orientation="landscape"] .timeline-surface {
+  height: auto;
+  min-height: 112px;
+}
+.presentation-stage:fullscreen .timeline-view.is-event-focused[data-orientation="portrait"] {
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+}
+.presentation-stage:fullscreen .timeline-view.is-event-focused[data-orientation="portrait"] .timeline-surface {
+  height: auto;
+  min-height: 0;
+}
+.presentation-stage:fullscreen .timeline-focus-view {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.presentation-stage:fullscreen .timeline-focus-graph {
+  display: none;
+}
+.presentation-stage:fullscreen .timeline-focus-view[data-layout] .timeline-focus-place {
+  grid-column: 1 / span 4;
+  grid-row: auto;
+}
+.presentation-stage:fullscreen .timeline-focus-view[data-layout] .timeline-focus-relations {
+  grid-column: 5 / -1;
+  grid-row: auto;
+}
+.presentation-stage:fullscreen .timeline-focus-view[data-layout] .timeline-focus-evidence {
+  grid-column: 1 / -1;
+  grid-row: auto;
+}
+.presentation-stage:fullscreen .timeline-focus-hero {
+  min-height: clamp(250px, 38cqi, 520px);
+}
+.presentation-stage:fullscreen .timeline-focus-title {
+  font-size: clamp(2rem, 7cqi, 5.8rem);
+}
+.presentation-stage:fullscreen .timeline-view-toolbar {
+  padding: .45rem .55rem;
+}
+.presentation-stage:fullscreen .timeline-auto-timer {
+  display: none;
+}
+.presentation-stage:fullscreen .presentation-controls .button {
+  min-height: 34px;
+}
 .graph-lens [data-graph-status][data-simulation-running="true"]::before {
   content: "●";
   margin-right: .34rem;
@@ -1135,11 +1285,11 @@ footer p { margin: 0; }
   font: 620 .64rem/1.5 "Monaspace Krypton Timeline", ui-monospace, monospace;
 }
 
-.app-shell.is-event-focused .graph-lens {
-  display: none;
-}
-
 @media (max-width: 760px) {
+  .presentation-stage,
+  .presentation-stage[data-stage-shape="wide"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .graph-record {
     display: grid;
   }
