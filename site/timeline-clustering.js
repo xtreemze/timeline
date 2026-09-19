@@ -346,7 +346,15 @@
     const max = Math.max(...values);
     const rawSpan = Math.max(minSpanMs, max - min || span);
     const paddedSpan = rawSpan * (1 + Math.max(0, paddingRatio) * 2);
-    const targetSpan = Math.max(span, paddedSpan);
+    const nearestDelta = source
+      .filter((item) => String(item.id) !== String(focused.id))
+      .map((item) => Math.abs(item.start - focused.start))
+      .filter((delta) => delta > 0)
+      .reduce((nearest, delta) => Math.min(nearest, delta), Number.POSITIVE_INFINITY);
+    const maxUniqueSpan = Number.isFinite(nearestDelta)
+      ? nearestDelta * length / (threshold * 1.18)
+      : Number.POSITIVE_INFINITY;
+    const targetSpan = Math.max(span, Math.min(paddedSpan, maxUniqueSpan));
     const center = (min + max) / 2;
 
     return {
