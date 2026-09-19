@@ -2,10 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 await import("../site/temporal-standards.js");
+await import("../site/event-presentation.js");
 await import("../site/sample-case.js");
 
 const sample = globalThis.TimelineSampleCase;
 const temporal = globalThis.TimelineTemporal;
+const presentation = globalThis.TimelinePresentation;
 
 function storyItems(story) {
   return story.itemIds.map((id) => sample.items.find((item) => item.id === id)).filter(Boolean);
@@ -164,4 +166,20 @@ test("timed graph edges cover intervals, instants, attributes, characters, objec
   assert.ok(timed.some((relationship) => Object.keys(relationship.attributes || {}).length > 0));
   const entityTypes = new Set(sample.entities.map((entity) => entity.type));
   for (const type of ["group", "object", "person", "place"]) assert.ok(entityTypes.has(type));
+});
+
+
+test("storybook scenes remain recognizable through distributed media and semantic icons", () => {
+  const supported = new Set(presentation.ICON_NAMES);
+  const requiredStoryIcons = new Set(["home", "danger", "magic", "search", "crown", "object"]);
+  for (const icon of requiredStoryIcons) assert.ok(supported.has(icon), icon);
+
+  for (const story of sample.stories) {
+    const items = storyItems(story);
+    const mediaItems = items.filter((item) => item.media?.length);
+    const icons = new Set(items.map((item) => item.tags?.[0]?.icon).filter(Boolean));
+    assert.ok(mediaItems.length >= 3, `${story.title} should expose several visual scenes`);
+    assert.ok(icons.size >= 4, `${story.title} should use several distinct semantic silhouettes`);
+    for (const icon of icons) assert.ok(supported.has(icon), `${story.title}: unsupported icon ${icon}`);
+  }
 });
