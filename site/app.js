@@ -260,8 +260,8 @@
   function renderPresentationMap() {
     destroyPresentationMap();
     const item = focusedPresentationItem();
-    const coordinates = item?.location?.geometry?.coordinates;
-    if (!item || !Array.isArray(coordinates) || coordinates.length < 2) return false;
+    const mapApi = globalThis.TimelineLocationMap;
+    if (!item || !mapApi?.hasRenderableGeometry?.(item.location)) return false;
     const name =
       item.location.name ||
       item.location.geographicIdentifier ||
@@ -270,10 +270,13 @@
     if (els.presentationMapLabel) els.presentationMapLabel.textContent = name;
     if (els.presentationMapPanel) els.presentationMapPanel.hidden = false;
     const category = getCategory(item.categoryId);
-    presentationMap = globalThis.TimelineLocationMap?.createReadOnly?.({
+    const categoryIcon = presentation.ICON_NAMES.includes(item.categoryId) ? item.categoryId : null;
+    const iconName = item.tags?.[0]?.icon || categoryIcon || "place";
+    presentationMap = mapApi.createReadOnly?.({
       container: els.presentationMap,
       location: item.location,
-      color: category?.color || "#315fbd"
+      color: category?.color || "#315fbd",
+      iconName
     }) || null;
     return true;
   }
@@ -282,12 +285,14 @@
     const focused = Boolean(timelineView?.hasFocusedItem?.());
     const graphVisible = focused && focusedGraphContextAvailable;
     const mapVisible = focused ? renderPresentationMap() : (destroyPresentationMap(), false);
+    const showUnfocusedGraph = !focused && !presentationIsFullscreen();
 
     if (els.graphLens) {
-      els.graphLens.hidden = focused ? !graphVisible : false;
+      els.graphLens.hidden = !(graphVisible || showUnfocusedGraph);
       if (graphVisible) els.graphLens.open = true;
     }
     if (els.presentationStage) {
+      els.presentationStage.dataset.eventFocused = String(focused);
       els.presentationStage.dataset.hasContextGraph = String(graphVisible);
       els.presentationStage.dataset.hasContextMap = String(Boolean(mapVisible));
     }
@@ -311,11 +316,14 @@
       fullscreen: presentationIsFullscreen()
     });
     const orientation = timelineView?.getOrientation?.() || "horizontal";
+    const viewportOrientation = presentationLayout.physicalOrientation(width, height);
     const changed =
       els.presentationStage.dataset.stageShape !== nextShape ||
-      els.presentationStage.dataset.timelineOrientation !== orientation;
+      els.presentationStage.dataset.timelineOrientation !== orientation ||
+      els.presentationStage.dataset.viewportOrientation !== viewportOrientation;
     els.presentationStage.dataset.stageShape = nextShape;
     els.presentationStage.dataset.timelineOrientation = orientation;
+    els.presentationStage.dataset.viewportOrientation = viewportOrientation;
     return changed;
   }
 
