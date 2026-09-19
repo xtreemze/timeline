@@ -153,12 +153,24 @@ function create(container, handlers = {}) {
     };
   }
 
+  function edgeSemantic(data) {
+    const label = String(data?.label || "").toLowerCase();
+    if (/call|message|email|contact|communicat/.test(label)) return { glyph: "☎", color: "#496f8c" };
+    if (/transfer|own|pay|send|receive|deliver/.test(label)) return { glyph: "⇢", color: "#8a5b2d" };
+    if (/authoriz|approv|decid|permit/.test(label)) return { glyph: "✓", color: palette.story };
+    if (/investigat|review|audit|inspect|verify/.test(label)) return { glyph: "⌕", color: "#596b86" };
+    if (/occur|locat|visit|travel|arriv/.test(label)) return { glyph: "⌖", color: "#3e6d5b" };
+    if (/interview|witness|particip|meet|corroborat/.test(label)) return { glyph: "↔", color: "#6b526f" };
+    return { glyph: "→", color: palette.focus };
+  }
+
   function edgeStyle(data) {
     const state = data?.temporalState || "timeless";
     const inactive = state === "inactive";
     const changed = state === "changed";
     const timeless = state === "timeless";
-    const color = inactive || timeless ? palette.muted : changed ? palette.story : palette.focus;
+    const semantic = edgeSemantic(data);
+    const color = inactive || timeless ? palette.muted : changed ? palette.story : semantic.color;
     return {
       color,
       colorHover: palette.focus,
@@ -167,7 +179,7 @@ function create(container, handlers = {}) {
       widthHover: 1.8,
       widthSelected: 2.2,
       arrowSize: inactive ? 0.8 : 1.25,
-      label: inactive ? "" : (data?.label || ""),
+      label: inactive ? "" : `${semantic.glyph} ${data?.label || ""}`.trim(),
       fontSize: 11,
       fontColor: color,
       fontBackgroundColor: palette.paper,
