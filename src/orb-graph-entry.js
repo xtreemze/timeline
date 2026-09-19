@@ -68,50 +68,56 @@ function create(container, handlers = {}) {
     zoomFitTransitionMs: 240
   });
 
+  function nodeStyle(data) {
+    const type = data?.properties?.timelineType;
+    const color =
+      type === "chronology-item" ? palette.focus :
+      type === "story" ? palette.story :
+      palette.ink;
+    return {
+      size: type === "chronology-item" ? 8 : type === "story" ? 9 : 7,
+      color,
+      colorHover: palette.focus,
+      colorSelected: palette.focus,
+      borderColor: palette.paper,
+      borderWidth: 1.5,
+      borderWidthSelected: 3,
+      label: data?.label || String(data?.id || ""),
+      fontSize: 11,
+      fontColor: palette.ink,
+      fontBackgroundColor: palette.paper
+    };
+  }
+
+  function edgeStyle(data) {
+    const state = data?.temporalState || "timeless";
+    const inactive = state === "inactive";
+    const changed = state === "changed";
+    const color = inactive ? palette.muted : changed ? palette.story : palette.focus;
+    return {
+      color,
+      colorHover: palette.focus,
+      colorSelected: palette.focus,
+      width: inactive ? 0.35 : changed ? 1.5 : 0.9,
+      widthHover: 1.8,
+      widthSelected: 2.2,
+      arrowSize: inactive ? 0.7 : 1,
+      label: inactive ? "" : (data?.label || ""),
+      fontSize: 10,
+      fontColor: color,
+      fontBackgroundColor: palette.paper,
+      lineStyle: inactive
+        ? { type: EdgeLineStyleType.DASHED }
+        : { type: EdgeLineStyleType.SOLID }
+    };
+  }
+
   orb.data.setDefaultStyle({
     getNodeStyle(node) {
-      const data = node.getData();
-      const type = data?.properties?.timelineType;
-      const color =
-        type === "chronology-item" ? palette.focus :
-        type === "story" ? palette.story :
-        palette.ink;
-      return {
-        size: type === "chronology-item" ? 8 : type === "story" ? 9 : 7,
-        color,
-        colorHover: palette.focus,
-        colorSelected: palette.focus,
-        borderColor: palette.paper,
-        borderWidth: 1.5,
-        borderWidthSelected: 3,
-        label: data?.label || String(data?.id || ""),
-        fontSize: 11,
-        fontColor: palette.ink,
-        fontBackgroundColor: palette.paper
-      };
+      return nodeStyle(node.getData());
     },
     getEdgeStyle(edge) {
-      const data = edge.getData();
-      const state = data?.temporalState || "timeless";
-      const inactive = state === "inactive";
-      const changed = state === "changed";
-      const color = inactive ? palette.muted : changed ? palette.story : palette.focus;
-      return {
-        color,
-        colorHover: palette.focus,
-        colorSelected: palette.focus,
-        width: inactive ? 0.35 : changed ? 1.5 : 0.9,
-        widthHover: 1.8,
-        widthSelected: 2.2,
-        arrowSize: inactive ? 0.7 : 1,
-        label: inactive ? "" : (data?.label || ""),
-        fontSize: 10,
-        fontColor: color,
-        fontBackgroundColor: palette.paper,
-        lineStyle: inactive
-          ? { type: EdgeLineStyleType.DASHED }
-          : { type: EdgeLineStyleType.SOLID }
-      };
+      return edgeStyle(edge.getData());
     }
   });
 
@@ -178,8 +184,19 @@ function create(container, handlers = {}) {
     handlers.onSimulationState?.({ running: true, mode: currentMode });
   }
 
+  function updateTemporalEdges(edges) {
+    for (const next of Array.isArray(edges) ? edges : []) {
+      const edge = orb.data.getEdgeById(next.id);
+      if (!edge) continue;
+      edge.setData(next, { isNotifySkipped: true });
+      edge.setStyle(edgeStyle(next), { isNotifySkipped: true });
+    }
+    orb.render();
+  }
+
   return Object.freeze({
     setData,
+    updateTemporalEdges,
     recenter() {
       orb.recenter();
     },
