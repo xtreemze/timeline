@@ -2375,6 +2375,7 @@
       setActivePanel(next.dataset.panel);
       next.focus();
     });
+  });
 
   document.querySelectorAll("[data-editor-panel]").forEach((button) => {
     button.addEventListener("click", () => setActivePanel(button.dataset.editorPanel));
@@ -2384,7 +2385,6 @@
     button.addEventListener("click", () => hidePopoverIfOpen(els.controlPanel));
   });
 
-  });
 
   els.graphNodeForm.addEventListener("submit", (event) => {
     event.preventDefault();
