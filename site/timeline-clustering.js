@@ -111,6 +111,23 @@
     return `${MONTH_NAMES[date.getUTCMonth()]} ${yearLabel}`;
   }
 
+  function dayKey(timeMs) {
+    const date = new Date(Number(timeMs));
+    if (!Number.isFinite(date.getTime())) return null;
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth();
+    const day = date.getUTCDate();
+    return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  function formatDayMonthYear(timeMs) {
+    const date = new Date(Number(timeMs));
+    if (!Number.isFinite(date.getTime())) return "";
+    const year = date.getUTCFullYear();
+    const yearLabel = year > 0 ? String(year) : `${1 - year} BCE`;
+    return `${MONTH_NAMES[date.getUTCMonth()]} ${date.getUTCDate()}, ${yearLabel}`;
+  }
+
   function monthAccents(items, { maxItemsPerMonth = 3, limit = 18 } = {}) {
     const buckets = new Map();
     for (const item of Array.isArray(items) ? items : []) {
@@ -141,7 +158,38 @@
     return accents.filter((_, index) => index % stride === 0).slice(0, limit);
   }
 
-  const FINE_UNITS = new Set(["millisecond", "second", "minute", "hour", "day", "week"]);
+  function dayAccents(items, { maxItemsPerDay = 3, limit = 18 } = {}) {
+    const buckets = new Map();
+    for (const item of Array.isArray(items) ? items : []) {
+      if (!item || !Number.isFinite(item.start)) continue;
+      const key = dayKey(item.start);
+      if (!key) continue;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(item);
+    }
+
+    const accents = [];
+    for (const [key, bucket] of buckets) {
+      if (bucket.length < 1 || bucket.length > maxItemsPerDay) continue;
+      const center = bucket.reduce((sum, item) => sum + item.start, 0) / bucket.length;
+      accents.push({
+        key,
+        count: bucket.length,
+        time: center,
+        label: formatDayMonthYear(center),
+        itemIds: bucket.map((item) => String(item.id))
+      });
+    }
+
+    accents.sort((a, b) => a.time - b.time);
+    if (accents.length <= limit) return accents;
+
+    const stride = Math.ceil(accents.length / limit);
+    return accents.filter((_, index) => index % stride === 0).slice(0, limit);
+  }
+
+  const SUBDAY_UNITS = new Set(["millisecond", "second", "minute", "hour"]);
+  const FINE_UNITS = new Set([...SUBDAY_UNITS, "day", "week"]);
 
   function yearLabelForTime(timeMs) {
     const date = new Date(Number(timeMs));
@@ -199,7 +247,12 @@
     } = {}
   ) {
     const usable = Math.max(1, Number(pixelLength) || 1);
-    const accents = monthAccents(items, { maxItemsPerMonth, limit })
+    const unit = spec?.unit || null;
+    const dayContext = SUBDAY_UNITS.has(unit);
+    const sourceAccents = dayContext
+      ? dayAccents(items, { maxItemsPerDay: maxItemsPerMonth, limit })
+      : monthAccents(items, { maxItemsPerMonth, limit });
+    const accents = sourceAccents
       .map((accent) => ({
         ...accent,
         position: projectedPosition(accent.time, viewport, usable, padding)
@@ -207,24 +260,71 @@
       .filter((accent) => Number.isFinite(accent.position))
       .sort((a, b) => a.position - b.position);
 
-    const unit = spec?.unit || null;
     if (!accents.length || unit === "year") {
       return { mode: "axis-only", edgeAccents: [], axisMonths: [], hasAmbientContext: false };
     }
 
-    const fullExtent = orientation === "vertical" ? 220 : 240;
+    const fullExtent = dayContext
+      ? (orientation === "vertical" ? 260 : 300)
+      : (orientation === "vertical" ? 220 : 240);
+    const fullKind = dayContext ? "day-month-year" : "month-year";
     const full = nonOverlapping(
-      accents.map((accent) => ({ ...accent, kind: "month-year", label: accent.label })),
+      accents.map((accent) => ({ ...accent, kind: fullKind, label: accent.label })),
       () => fullExtent,
       { min: padding, max: padding + usable, gap: 14 }
     );
 
     if (FINE_UNITS.has(unit) && full.length === accents.length) {
       return {
-        mode: "month-year-edge",
+        mode: dayContext ? "day-month-year-edge" : "month-year-edge",
         edgeAccents: full,
         axisMonths: [],
         hasAmbientContext: true
+      };
+    }
+
+    if (dayContext) {
+      const monthBuckets = new Map();
+      for (const accent of accents) {
+        const label = formatMonthYear(accent.time);
+        if (!monthBuckets.has(label)) monthBuckets.set(label, []);
+        monthBuckets.get(label).push(accent);
+      }
+
+      const monthCandidates = [...monthBuckets.entries()].map(([label, entries]) => ({
+        kind: "month-year",
+        label,
+        time: entries.reduce((sum, entry) => sum + entry.time, 0) / entries.length,
+        position: entries.reduce((sum, entry) => sum + entry.position, 0) / entries.length,
+        count: entries.reduce((sum, entry) => sum + entry.count, 0)
+      })).sort((a, b) => a.position - b.position);
+
+      const monthExtent = orientation === "vertical" ? 220 : 240;
+      const edgeAccents = nonOverlapping(
+        monthCandidates,
+        () => monthExtent,
+        { min: padding, max: padding + usable, gap: 14 }
+      );
+
+      const dayExtent = orientation === "vertical" ? 34 : 38;
+      const axisMonths = nonOverlapping(
+        accents.map((accent) => ({
+          kind: "day-axis",
+          key: accent.key,
+          label: String(new Date(accent.time).getUTCDate()).padStart(2, "0"),
+          time: accent.time,
+          position: accent.position,
+          count: accent.count
+        })),
+        () => dayExtent,
+        { min: padding, max: padding + usable, gap: 8 }
+      );
+
+      return {
+        mode: "month-year-edge-day-axis",
+        edgeAccents,
+        axisMonths,
+        hasAmbientContext: edgeAccents.length > 0 || axisMonths.length > 0
       };
     }
 
@@ -476,6 +576,9 @@
     clusterProjectedItems,
     clusterExpansionViewport,
     compactTickLabel,
+    dayAccents,
+    dayKey,
+    formatDayMonthYear,
     formatMonthYear,
     focusContextViewport,
     monthAccents,

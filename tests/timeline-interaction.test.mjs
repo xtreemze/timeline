@@ -104,6 +104,66 @@ test("ambient month labels allow compact day tick numbering", () => {
   );
 });
 
+test("temporal context progressively sheds detail as zoom broadens", () => {
+  const eventTime = Date.UTC(1000, 4, 5, 14, 30);
+  const items = [
+    { id: "a", start: eventTime },
+    { id: "b", start: eventTime + 30 * 60_000 }
+  ];
+  const base = {
+    pixelLength: 1200,
+    padding: 40,
+    orientation: "horizontal",
+    maxItemsPerMonth: 3,
+    limit: 18
+  };
+
+  const hourPlan = clustering.planTemporalAccents(items, {
+    ...base,
+    viewport: {
+      start: Date.UTC(1000, 4, 5, 14, 0),
+      end: Date.UTC(1000, 4, 5, 16, 0)
+    },
+    spec: { unit: "minute", step: 5 }
+  });
+  assert.equal(hourPlan.mode, "day-month-year-edge");
+  assert.deepEqual(hourPlan.edgeAccents.map((accent) => accent.label), ["MAY 5, 1000"]);
+
+  const dayPlan = clustering.planTemporalAccents(items, {
+    ...base,
+    viewport: {
+      start: Date.UTC(1000, 4, 1),
+      end: Date.UTC(1000, 4, 31)
+    },
+    spec: { unit: "day", step: 2 }
+  });
+  assert.equal(dayPlan.mode, "month-year-edge");
+  assert.deepEqual(dayPlan.edgeAccents.map((accent) => accent.label), ["MAY 1000"]);
+
+  const monthPlan = clustering.planTemporalAccents(items, {
+    ...base,
+    viewport: {
+      start: Date.UTC(1000, 0, 1),
+      end: Date.UTC(1001, 0, 1)
+    },
+    spec: { unit: "month", step: 1 }
+  });
+  assert.equal(monthPlan.mode, "year-edge-month-axis");
+  assert.deepEqual(monthPlan.edgeAccents.map((accent) => accent.label), ["1000"]);
+  assert.deepEqual(monthPlan.axisMonths.map((accent) => accent.label), ["MAY"]);
+
+  const yearPlan = clustering.planTemporalAccents(items, {
+    ...base,
+    viewport: {
+      start: Date.UTC(995, 0, 1),
+      end: Date.UTC(1005, 0, 1)
+    },
+    spec: { unit: "year", step: 1 }
+  });
+  assert.equal(yearPlan.mode, "axis-only");
+  assert.deepEqual(yearPlan.edgeAccents, []);
+});
+
 test("temporal accent planner keeps full month-year accents only when they cannot overlap", () => {
   const items = [
     { id: "a", start: Date.UTC(2026, 0, 12) },
