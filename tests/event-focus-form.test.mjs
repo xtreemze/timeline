@@ -415,11 +415,11 @@ test("desktop event detail is compact and placed opposite the active timeline ed
   assert.match(css, /@media \(min-width: 900px\) and \(min-height: 700px\)/);
   assert.match(
     css,
-    /data-orientation="landscape"[\s\S]*timeline-focus-view:popover-open[\s\S]*left:\s*50%[\s\S]*overflow:\s*clip[\s\S]*translateX\(-50%\)/
+    /data-orientation="landscape"[\s\S]*timeline-focus-view:popover-open[\s\S]*left:\s*50%[\s\S]*overflow:\s*visible[\s\S]*translateX\(-50%\)/
   );
   assert.match(
     css,
-    /data-orientation="portrait"[\s\S]*timeline-focus-view:popover-open[\s\S]*top:\s*50%[\s\S]*overflow:\s*clip[\s\S]*translateY\(-50%\)/
+    /data-orientation="portrait"[\s\S]*timeline-focus-view:popover-open[\s\S]*top:\s*50%[\s\S]*overflow:\s*visible[\s\S]*translateY\(-50%\)/
   );
   assert.match(source, /const visibleEvidence = item\.evidence\.slice\(0, 6\)/);
 });
@@ -466,4 +466,41 @@ test("major viewing surfaces are mutually exclusive and opening Relations closes
   assert.match(app, /setGraphSurfaceOpen[\s\S]*closeLargeUtilitySurfaces\("graph"\)[\s\S]*closeFocusedEventForUtility/);
   assert.match(app, /setViewControlsOpen[\s\S]*closeLargeUtilitySurfaces\("view"\)[\s\S]*closeFocusedEventForUtility/);
   assert.match(app, /timelinefocuschange[\s\S]*closeLargeUtilitySurfaces\("focus"\)/);
+});
+
+
+test("focused popover uses a two-row overview with Evidence as a separate tab", async () => {
+  const [css, source] = await Promise.all([
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8")
+  ]);
+  assert.match(source, /timeline-focus-tabs/);
+  assert.match(source, /timeline-focus-tab is-active/);
+  assert.match(source, /dataset\.activeTab = "overview"/);
+  assert.match(source, /setFocusTab/);
+  assert.match(source, /evidence\.hidden = true/);
+  assert.match(css, /data-active-tab="overview"[\s\S]*grid-template-rows:\s*minmax\(190px, auto\)\s*minmax\(125px, auto\)/);
+  assert.match(css, /data-active-tab="evidence"[\s\S]*timeline-focus-evidence[\s\S]*grid-row:\s*1\s*\/\s*span 2/);
+});
+
+test("fullscreen preserves the left workspace tool dock inside the fullscreen subtree", async () => {
+  const [app, styles] = await Promise.all([
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+  ]);
+  assert.match(app, /appToolDock:\s*document\.querySelector\("\.app-tool-dock"\)/);
+  assert.match(app, /timeline-tool-dock-home/);
+  assert.match(app, /mountFullscreenToolDock/);
+  assert.match(app, /restoreToolDock/);
+  assert.match(app, /if \(active\) mountFullscreenToolDock\(\)/);
+  assert.match(styles, /#presentation-stage:fullscreen \.app-tool-dock[\s\S]*pointer-events:\s*auto !important[\s\S]*left:/);
+});
+
+test("fullscreen graph composition follows physical orientation and preserves direct manipulation", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  assert.match(css, /data-viewport-orientation="landscape"[\s\S]*timeline-focus-relations[\s\S]*grid-row:\s*1 !important/);
+  assert.match(css, /data-viewport-orientation="portrait"[\s\S]*timeline-focus-relations[\s\S]*grid-column:\s*1\s*\/\s*span 3/);
+  assert.match(css, /timeline-focus-relations::before[\s\S]*radial-gradient/);
+  assert.match(css, /timeline-focus-relations-backdrop \.temporal-graph-canvas,[\s\S]*pointer-events:\s*auto !important/);
+  assert.match(css, /timeline-focus-relations-backdrop \.temporal-graph-canvas[\s\S]*cursor:\s*grab/);
 });
