@@ -571,8 +571,17 @@ geolocation {
 @supports (color: contrast-color(white)) {
   .event-tag { color: contrast-color(var(--tag-color)); }
 }
-.event-tag .semantic-icon { flex: 0 0 auto; }
-.semantic-icon { display: block; overflow: visible; }
+.event-tag .semantic-icon {
+  flex: 0 0 auto;
+  width: 1.12rem;
+  height: 1.12rem;
+}
+.semantic-icon {
+  display: block;
+  min-width: 1rem;
+  min-height: 1rem;
+  overflow: visible;
+}
 
 .leaflet-container { font: inherit; background: var(--paper-2); }
 .leaflet-control-attribution { font-size: 10px; }
@@ -1258,7 +1267,7 @@ footer p { margin: 0; }
   font-size: .58em;
   vertical-align: .12em;
 }
-.graph-lens [data-graph-status][data-simulation-mode="gpu-force"]::after {
+.graph-lens [data-graph-status][data-simulation-mode="gpu-main-force"]::after {
   content: " · GPU";
 }
 .temporal-graph-detail {
@@ -1306,4 +1315,146 @@ footer p { margin: 0; }
   .temporal-graph-detail {
     grid-template-columns: 1fr;
   }
+}
+
+/* Fullscreen presentation: event+timeline, relevant graph, and focused place map remain visible together. */
+.presentation-map-panel {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: .9rem;
+  background: var(--paper);
+}
+.presentation-map-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: .5rem .65rem;
+  border-bottom: 1px solid var(--line);
+}
+.presentation-map-heading > span {
+  display: grid;
+  gap: .1rem;
+  min-width: 0;
+}
+.presentation-map-heading strong {
+  font-size: .8rem;
+}
+.presentation-map-heading small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: .66rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.presentation-map {
+  width: 100%;
+  height: 100%;
+  min-height: 180px;
+  background: var(--paper-2);
+}
+.presentation-map[data-error="true"] {
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  color: var(--muted);
+  font-size: .72rem;
+  text-align: center;
+}
+
+#presentation-stage:fullscreen {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: repeat(12, minmax(0, 1fr));
+}
+#presentation-stage:fullscreen > .timeline-view {
+  grid-column: 1 / span 8;
+  grid-row: 1 / -1;
+}
+#presentation-stage:fullscreen > .graph-lens {
+  grid-column: 9 / -1;
+  grid-row: 1 / span 7;
+}
+#presentation-stage:fullscreen > .presentation-map-panel:not([hidden]) {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-column: 9 / -1;
+  grid-row: 8 / -1;
+}
+#presentation-stage:fullscreen .presentation-map {
+  min-height: 0;
+}
+#presentation-stage:fullscreen .timeline-focus-place-map {
+  display: none;
+}
+
+#presentation-stage:fullscreen[data-stage-shape="stacked"] > .timeline-view {
+  grid-column: 1 / -1;
+  grid-row: 1 / span 7;
+}
+#presentation-stage:fullscreen[data-stage-shape="stacked"] > .graph-lens {
+  grid-column: 1 / span 7;
+  grid-row: 8 / -1;
+}
+#presentation-stage:fullscreen[data-stage-shape="stacked"] > .presentation-map-panel:not([hidden]) {
+  grid-column: 8 / -1;
+  grid-row: 8 / -1;
+}
+
+#presentation-stage:fullscreen[data-stage-shape="tall"] > .timeline-view {
+  grid-column: 1 / -1;
+  grid-row: 1 / span 6;
+}
+#presentation-stage:fullscreen[data-stage-shape="tall"] > .graph-lens {
+  grid-column: 1 / -1;
+  grid-row: 7 / span 3;
+}
+#presentation-stage:fullscreen[data-stage-shape="tall"] > .presentation-map-panel:not([hidden]) {
+  grid-column: 1 / -1;
+  grid-row: 10 / -1;
+}
+
+#presentation-stage:fullscreen[data-timeline-orientation="vertical"][data-stage-shape="wide"] > .timeline-view {
+  grid-column: 1 / span 8;
+  grid-row: 1 / -1;
+}
+#presentation-stage:fullscreen[data-timeline-orientation="vertical"][data-stage-shape="wide"] > .graph-lens {
+  grid-column: 9 / -1;
+  grid-row: 1 / span 7;
+}
+#presentation-stage:fullscreen[data-timeline-orientation="vertical"][data-stage-shape="wide"] > .presentation-map-panel:not([hidden]) {
+  grid-column: 9 / -1;
+  grid-row: 8 / -1;
+}
+
+#presentation-stage:fullscreen .timeline-focus-view {
+  scrollbar-width: thin;
+}
+#presentation-stage:fullscreen .timeline-focus-place {
+  min-height: 0;
+}
+#presentation-stage:fullscreen .timeline-focus-relations {
+  min-height: 0;
+}
+#presentation-stage:fullscreen .graph-lens,
+#presentation-stage:fullscreen .presentation-map-panel,
+#presentation-stage:fullscreen .timeline-view {
+  box-shadow: none;
+}
+
+@media (max-width: 760px) {
+  .presentation-map {
+    min-height: 200px;
+  }
+}
+
+#presentation-stage:fullscreen:has(> .presentation-map-panel[hidden]) > .graph-lens {
+  grid-row: 1 / -1;
+}
+#presentation-stage:fullscreen[data-stage-shape="stacked"]:has(> .presentation-map-panel[hidden]) > .graph-lens,
+#presentation-stage:fullscreen[data-stage-shape="tall"]:has(> .presentation-map-panel[hidden]) > .graph-lens {
+  grid-column: 1 / -1;
+  grid-row: 8 / -1;
 }

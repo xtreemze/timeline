@@ -174,6 +174,9 @@
     graphLens: document.querySelector("#graph-lens"),
     presentationStage: document.querySelector("#presentation-stage"),
     presentationFullscreenToggle: document.querySelector("#presentation-fullscreen-toggle"),
+    presentationMapPanel: document.querySelector("#presentation-map-panel"),
+    presentationMap: document.querySelector("#presentation-map"),
+    presentationMapLabel: document.querySelector("#presentation-map-label"),
 
     search: document.querySelector("#timeline-search"),
     categoryFilter: document.querySelector("#category-filter"),
@@ -239,6 +242,40 @@
   let presentationResizeObserver = null;
   let presentationResizeFrame = 0;
   let graphOpenBeforeFullscreen = true;
+  let presentationMap = null;
+
+  function destroyPresentationMap() {
+    presentationMap?.destroy?.();
+    presentationMap = null;
+    if (els.presentationMap) els.presentationMap.replaceChildren();
+    if (els.presentationMapPanel) els.presentationMapPanel.hidden = true;
+  }
+
+  function focusedPresentationItem() {
+    const id = timelineView?.focusedItemId?.();
+    return id ? getItem(id) : null;
+  }
+
+  function renderPresentationMap() {
+    destroyPresentationMap();
+    if (!presentationIsFullscreen()) return;
+    const item = focusedPresentationItem();
+    const coordinates = item?.location?.geometry?.coordinates;
+    if (!item || !Array.isArray(coordinates) || coordinates.length < 2) return;
+    const name =
+      item.location.name ||
+      item.location.geographicIdentifier ||
+      item.location.address ||
+      item.title;
+    if (els.presentationMapLabel) els.presentationMapLabel.textContent = name;
+    if (els.presentationMapPanel) els.presentationMapPanel.hidden = false;
+    const category = getCategory(item.categoryId);
+    presentationMap = globalThis.TimelineLocationMap?.createReadOnly?.({
+      container: els.presentationMap,
+      location: item.location,
+      color: category?.color || "#315fbd"
+    }) || null;
+  }
 
   function presentationIsFullscreen() {
     return document.fullscreenElement === els.presentationStage;
@@ -285,8 +322,10 @@
     }
     if (active) {
       els.graphLens.open = true;
-    } else if (els.graphLens) {
-      els.graphLens.open = graphOpenBeforeFullscreen;
+      renderPresentationMap();
+    } else {
+      destroyPresentationMap();
+      if (els.graphLens) els.graphLens.open = graphOpenBeforeFullscreen;
     }
     schedulePresentationGeometryRefresh({ recenterGraph: true });
   }
@@ -295,6 +334,10 @@
     if (!els.presentationStage) return;
     if (presentationIsFullscreen()) {
       await document.exitFullscreen?.();
+      return;
+    }
+    if (!ensurePresentationFocus()) {
+      showStatus("No visible timeline items to present.");
       return;
     }
     if (!document.fullscreenEnabled || typeof els.presentationStage.requestFullscreen !== "function") {
@@ -2681,7 +2724,12 @@
   });
 
   els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
-    els.appShell.classList.toggle("is-event-focused", Boolean(event.detail?.focused));
+    const focused = Boolean(event.detail?.focused);
+    els.appShell.classList.toggle("is-event-focused", focused);
+    temporalGraphView?.setFocus(focused ? event.detail?.id : null);
+    if (presentationIsFullscreen()) renderPresentationMap();
+    else destroyPresentationMap();
+    schedulePresentationGeometryRefresh({ recenterGraph: true });
   });
   els.timelineViewRoot.addEventListener("timelinefocusedit", (event) => {
     if (event.detail?.id) beginItemEdit(event.detail.id);

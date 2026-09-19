@@ -108,7 +108,7 @@
     const element = document.createElement("span");
     element.className = "event-tag";
     element.style.setProperty("--tag-hue", String(normalized.hue));
-    element.append(createIcon(normalized.icon, { size: 14 }));
+    element.append(createIcon(normalized.icon, { size: 18 }));
     const label = document.createElement("span");
     label.textContent = normalized.label;
     element.append(label);

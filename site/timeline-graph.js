@@ -310,8 +310,17 @@
     const rootItem = (Array.isArray(input?.items) ? input.items : []).find(
       (item) => String(item.id) === root
     );
+    const rootChangeIds = new Set(
+      normalizeRelationChanges(rootItem?.relationChanges).map((change) => String(change.relationshipId))
+    );
+    const relevantEdges = data.edges.filter((edge) =>
+      edge.temporalState !== "inactive" ||
+      String(edge.start) === root ||
+      String(edge.end) === root ||
+      rootChangeIds.has(String(edge.id))
+    );
     for (const change of normalizeRelationChanges(rootItem?.relationChanges)) {
-      const edge = data.edges.find((candidate) => String(candidate.id) === String(change.relationshipId));
+      const edge = relevantEdges.find((candidate) => String(candidate.id) === String(change.relationshipId));
       if (!edge) continue;
       selected.add(String(edge.start));
       selected.add(String(edge.end));
@@ -336,7 +345,7 @@
     let frontier = new Set(selected);
     for (let level = 0; level < Math.max(0, depth); level += 1) {
       const next = new Set();
-      for (const edge of data.edges) {
+      for (const edge of relevantEdges) {
         const start = String(edge.start);
         const end = String(edge.end);
         if (frontier.has(start) && !selected.has(end)) next.add(end);
@@ -351,7 +360,7 @@
     }
 
     const nodes = [...selected].map((id) => nodeById.get(id)).filter(Boolean);
-    const edges = data.edges.filter(
+    const edges = relevantEdges.filter(
       (edge) => selected.has(String(edge.start)) && selected.has(String(edge.end))
     );
     return { nodes, edges: [...edges, ...derivedEdges] };

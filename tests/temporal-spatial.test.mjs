@@ -90,3 +90,16 @@ test("omits location accuracy when the form field is empty", () => {
   });
   assert.equal("accuracyMeters" in location, false);
 });
+
+test("presentation map is simplified read-only and selects a reasonable zoom from accuracy", async () => {
+  const source = await readFile(new URL("../site/location-map.js", import.meta.url), "utf8");
+  assert.match(source, /class ReadOnlyLocationMap/);
+  assert.match(source, /createReadOnly/);
+  assert.match(source, /presentationZoom/);
+  assert.match(source, /zoomControl:\s*false/);
+  assert.match(source, /dragging:\s*false/);
+  assert.match(source, /scrollWheelZoom:\s*false/);
+  assert.match(source, /circleMarker/);
+  assert.match(source, /return 15/);
+  assert.match(source, /return 12/);
+});

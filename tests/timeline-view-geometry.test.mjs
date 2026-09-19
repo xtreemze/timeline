@@ -40,3 +40,27 @@ test("selected events use a full 12-column focus composition instead of a detail
   assert.match(css, /grid-row:\s*3/);
   assert.doesNotMatch(css, /position-anchor:\s*--timeline-detail-anchor/);
 });
+
+test("long visible ranges trace from the midpoint of their visible portion", () => {
+  assert.equal(
+    geometry.visibleIntervalAnchor(
+      { start: 0, end: 1000 },
+      { start: 400, end: 700 }
+    ),
+    550
+  );
+  assert.equal(
+    geometry.visibleIntervalAnchor(
+      { start: 500, end: 900 },
+      { start: 400, end: 700 }
+    ),
+    600
+  );
+  assert.equal(
+    geometry.visibleIntervalAnchor(
+      { start: 500, end: null },
+      { start: 400, end: 700 }
+    ),
+    500
+  );
+});
