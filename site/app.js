@@ -1576,7 +1576,7 @@
     return timelineView?.focusAdjacent(delta) || false;
   }
 
-  function handlePresentationCommand(command) {
+  function handlePresentationCommand(command, meta = {}) {
     if (!navigationController) return false;
     if (command === "toggle-auto") {
       if (!navigationController.auto.running || navigationController.auto.paused) {
@@ -1611,7 +1611,13 @@
     }
     if (command === "activate") {
       const active = document.activeElement;
-      if (active instanceof HTMLButtonElement || active instanceof HTMLAnchorElement) return false;
+      if (active instanceof HTMLButtonElement || active instanceof HTMLAnchorElement) {
+        if (meta.source === "gamepad") {
+          active.click();
+          return true;
+        }
+        return false;
+      }
       if (!ensurePresentationFocus()) return false;
       navigationController.auto.toggle();
       return true;
@@ -1622,7 +1628,7 @@
   navigationController = navigationFactory.create({
     root: document.body,
     isNavigationActive: () => Boolean(getStory(ui.activeStoryId) || timelineView?.hasFocusedItem()),
-    onCommand: (command) => handlePresentationCommand(command),
+    onCommand: (command, meta) => handlePresentationCommand(command, meta),
     auto: {
       intervalMs: Number(els.autoSeconds.value) * 1000,
       advance: () => advancePresentation(1),
