@@ -2253,7 +2253,7 @@
 }
 
 .timeline-focus-relations {
-  overflow: visible;
+  overflow: hidden;
   background: transparent;
 }
 
@@ -2261,20 +2261,20 @@
   content: "";
   position: absolute;
   z-index: 0;
-  inset: -22%;
+  inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 52% 48%,
-      color-mix(in srgb, var(--story) 10%, transparent) 0%,
-      color-mix(in srgb, var(--story) 5%, transparent) 38%,
-      transparent 70%);
+    radial-gradient(ellipse 72% 82% at 52% 48%,
+      color-mix(in srgb, var(--story) 5%, transparent) 0%,
+      color-mix(in srgb, var(--story) 2%, transparent) 40%,
+      transparent 72%);
 }
 
 .timeline-focus-relations-backdrop {
   z-index: 3;
-  opacity: .78;
+  opacity: .72;
   filter: none;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .timeline-focus-relations-backdrop::after {
