@@ -1046,6 +1046,20 @@
               [record.sourceName, record.publishedAt].filter(Boolean).join(" · ")
             ));
           }
+          const forensicDigest = record.forensic?.digests?.find((digest) => digest.algorithm === "sha-256")
+            || record.forensic?.digests?.[0];
+          const forensicMeta = [
+            record.forensic?.recordClass ? record.forensic.recordClass.replaceAll("-", " ") : "",
+            record.forensic?.exhibitNumber ? `Exhibit ${record.forensic.exhibitNumber}` : "",
+            forensicDigest ? `${forensicDigest.algorithm.toUpperCase()} ${forensicDigest.value}` : ""
+          ].filter(Boolean);
+          if (forensicMeta.length) {
+            card.append(createElement(
+              "p",
+              "timeline-focus-evidence-meta",
+              forensicMeta.join(" · ")
+            ));
+          }
           if (record.note) card.append(createElement("p", "timeline-focus-evidence-note", record.note));
 
           const actions = createElement("div", "timeline-focus-evidence-actions");
