@@ -79,3 +79,24 @@ test("temporal graph exposes a layout refresh for presentation resizing", async 
   assert.match(source, /refreshLayout\(\)/);
   assert.match(source, /this\.orb\.recenter\(\)/);
 });
+
+test("focused presentation graph limits itself to the event neighborhood", async () => {
+  const source = await readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8");
+  assert.match(source, /setFocus\(id\)/);
+  assert.match(source, /neighborhoodGraph\(this\.model, this\.focusedId/);
+  assert.match(source, /relevant nodes/);
+});
+
+test("Orb styling uses semantic iconography, weighted physics, and worker CPU fallback", async () => {
+  const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+  assert.match(source, /NodeShapeType/);
+  assert.match(source, /semanticIconUrl/);
+  assert.match(source, /imageUrl:/);
+  assert.match(source, /mass:/);
+  assert.match(source, /isPhysicsEnabled:\s*true/);
+  assert.match(source, /centering:\s*\{/);
+  assert.match(source, /positioning:\s*\{/);
+  assert.match(source, /GPU_LAYOUT_NODE_THRESHOLD\s*=\s*3000/);
+  assert.match(source, /worker-cpu/);
+  assert.match(source, /gpu-main-force/);
+});
