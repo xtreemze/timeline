@@ -40,7 +40,7 @@ This preserves deterministic sorting and zooming, intervals and event precision,
 
 Fictional locations can use ordinary names and identifiers. When the current map renderer needs coordinates, a fixture may provide stable staging anchors so relative distance and movement remain logically coherent. The location identifier and narrative metadata must clearly state that these are not Earth-location claims.
 
-A future dedicated fictional/cartographic reference frame can consume the same narrative metadata without changing forensic location semantics.
+When `extensions.narrative.spatialReferenceFrame.fictional` is true, the presentation map switches to Timeline's local procedural fictional reference layer. It does not request OpenStreetMap tiles or display Earth geography. The layer provides deterministic paper/topographic texture, contour strokes, stippling, and reference guides while the stored coordinates continue to function only as internal staging anchors for relative position, map interaction, and camera movement. Real-world timelines continue to use the configured geographic tile provider.
 
 ## Categories versus stories
 
