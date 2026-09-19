@@ -215,7 +215,6 @@
   position-anchor: --timeline-detail-anchor;
   inset: auto;
   z-index: 20;
-  display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: .35rem;
   width: min(340px, calc(100vw - 20px));
@@ -245,6 +244,7 @@
   position-try-fallbacks: flip-inline, flip-block, flip-inline flip-block;
 }
 .timeline-detail:popover-open {
+  display: grid;
   opacity: 1;
   transform: scale(1);
 }
