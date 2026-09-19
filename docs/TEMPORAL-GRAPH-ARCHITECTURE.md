@@ -212,7 +212,7 @@ The action label is stored in `predicate`. Endpoints can reference reusable enti
 
 ## Timeline-synchronized graph lens
 
-`site/temporal-graph-view.js` renders the current graph as an interactive SVG node-link diagram.
+`site/temporal-graph-view.js` renders the current graph through the bundled Memgraph Orb canvas/WebGL surface.
 
 - all canonical nodes remain structurally visible;
 - timeless edges remain visible as persistent topology;
@@ -245,3 +245,27 @@ The focused-event graph includes derived event-to-context links labelled **activ
 ## Focused graph integration
 
 Each focused chronology event receives a bounded one-hop graph neighborhood. The graph occupies columns 7–12 in the common lower 12-column composition, beside place and textual relation context. It uses the same Orb bridge as the full graph, so node selection can navigate to connected events and edge selection can expose relation details.
+
+## Presentation graph semantics
+
+When an event is focused, the global graph switches from the full case topology to a bounded one-hop neighborhood rooted at that chronology item. The neighborhood retains:
+
+- the focused event;
+- directly relevant entities/items/stories;
+- temporally active or timeless relations among those nodes;
+- an otherwise-inactive relation when the focused event itself changes it;
+- derived event-to-relation-context links for activate/deactivate/update operations.
+
+Inactive unrelated edges are excluded from neighborhood traversal so the presentation graph remains explanatory rather than becoming a miniature version of the entire case graph.
+
+Orb node styling uses the canonical `timelineType` to select semantic shape, color, mass and an embedded SVG icon. Edge styling derives a visual family and glyph from the action/predicate while keeping the action text as the primary semantic label.
+
+### Force execution
+
+The npm/bundled Orb path keeps CPU force simulation in a Web Worker. Timeline enables continuous physics plus centering and position forces, and assigns larger mass to chronology/story nodes so drag release has a weighted physical response.
+
+Orb 1.0.2's GPU force implementation uses WebGL2 on the main thread; upstream documents that its GPU engine cannot use the worker because it requires a WebGL context. Timeline therefore keeps ordinary and presentation neighborhoods on worker CPU and only switches to GPU force for very large graphs. WebGL rendering remains independent from force-engine choice.
+
+## Range tracing
+
+A range is visually meaningful for every point in its interval, not just its start/end. If any portion of a range intersects the viewport, Timeline derives a presentation anchor from the midpoint of the visible intersection. The label terminal and connector use that anchor while the displayed date text retains the canonical start/end values. This keeps an on-screen range traceable to its event even when the actual start lies outside the viewport.
