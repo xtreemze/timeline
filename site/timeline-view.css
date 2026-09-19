@@ -618,13 +618,8 @@
   grid-row: 3;
 }
 .timeline-focus-relations {
-  grid-column: 5 / span 4;
+  grid-column: 5 / -1;
   grid-row: 3;
-}
-.timeline-focus-graph {
-  grid-column: 9 / -1;
-  grid-row: 3;
-  min-width: 0;
 }
 .timeline-focus-evidence {
   grid-column: 1 / -1;
@@ -635,28 +630,6 @@
   font-size: clamp(1.5rem, 3.6vw, 3.4rem);
   line-height: .9;
   letter-spacing: -.055em;
-}
-.timeline-focus-place-map {
-  position: relative;
-  width: 100%;
-  min-height: 210px;
-  margin-top: .75rem;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: .72rem;
-  background: var(--paper-2);
-}
-.timeline-focus-place-map[data-error="true"] {
-  display: grid;
-  place-items: center;
-  padding: 1rem;
-  color: var(--muted);
-  font-size: .72rem;
-  text-align: center;
-}
-.timeline-focus-place-map .leaflet-control-attribution {
-  max-width: calc(100% - .5rem);
-  font-size: 9px;
 }
 .timeline-focus-description,
 .timeline-focus-place-name {
@@ -715,33 +688,6 @@
   margin: 0;
   color: var(--ink);
   font: 660 .72rem/1.45 "Monaspace Krypton Timeline", ui-monospace, monospace;
-}
-.timeline-focus-graph {
-  border-top-color: color-mix(in srgb, var(--story) 38%, var(--line));
-}
-.timeline-focus-graph-canvas {
-  position: relative;
-  width: 100%;
-  height: clamp(210px, 22vw, 300px);
-  min-height: 210px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: .78rem;
-  background:
-    radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--story) 7%, transparent), transparent 68%),
-    var(--paper);
-}
-.timeline-focus-graph-canvas canvas {
-  display: block;
-  width: 100% !important;
-  height: 100% !important;
-}
-.timeline-focus-graph-inspector {
-  min-height: 1.3em;
-  margin: .55rem 0 0;
-  color: var(--muted);
-  font: 650 .66rem/1.4 "Monaspace Krypton Timeline", ui-monospace, monospace;
-  overflow-wrap: anywhere;
 }
 .timeline-focus-actions {
   grid-column: 1 / -1;
@@ -806,10 +752,7 @@
   grid-column: 1 / span 4;
 }
 .timeline-focus-view[data-layout="hero-split"] .timeline-focus-relations {
-  grid-column: 5 / span 4;
-}
-.timeline-focus-view[data-layout="hero-split"] .timeline-focus-graph {
-  grid-column: 9 / -1;
+  grid-column: 5 / -1;
 }
 
 /* Variant 2: evidence dossier — narrower hero and evidence-dominant reading surface. */
@@ -840,11 +783,7 @@
   grid-row: 3;
 }
 .timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-relations {
-  grid-column: 5 / span 4;
-  grid-row: 3;
-}
-.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-graph {
-  grid-column: 9 / -1;
+  grid-column: 5 / -1;
   grid-row: 3;
 }
 .timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-actions {
@@ -878,11 +817,7 @@
   grid-row: 3;
 }
 .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-relations {
-  grid-column: 5 / span 4;
-  grid-row: 3;
-}
-.timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-graph {
-  grid-column: 9 / -1;
+  grid-column: 5 / -1;
   grid-row: 3;
 }
 .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-evidence {
