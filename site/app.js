@@ -12,6 +12,7 @@
   const dateRangeFactory = globalThis.TimelineDateRangePicker;
   const navigationFactory = globalThis.TimelineNavigation;
   const evidenceStore = globalThis.TimelineEvidence;
+  const temporalGraphFactory = globalThis.TemporalGraphView;
   if (!temporal) throw new Error("TimelineTemporal must load before app.js.");
   if (!spatial) throw new Error("TimelineSpatial must load before app.js.");
   if (!graph) throw new Error("TimelineGraph must load before app.js.");
@@ -19,6 +20,7 @@
   if (!dateRangeFactory) throw new Error("TimelineDateRangePicker must load before app.js.");
   if (!navigationFactory) throw new Error("TimelineNavigation must load before app.js.");
   if (!evidenceStore) throw new Error("TimelineEvidence must load before app.js.");
+  if (!temporalGraphFactory) throw new Error("TemporalGraphView must load before app.js.");
 
   const DEFAULT_CATEGORIES = [
     { id: "incident", name: "Incident", color: "#b42318" },
@@ -127,6 +129,43 @@
     cancelCategoryEdit: document.querySelector("#cancel-category-edit"),
     categoryList: document.querySelector("#category-list"),
 
+    graphNodeForm: document.querySelector("#graph-node-form"),
+    graphNodeId: document.querySelector("#graph-node-id"),
+    graphNodeName: document.querySelector("#graph-node-name"),
+    graphNodeType: document.querySelector("#graph-node-type"),
+    graphNodeProperties: document.querySelector("#graph-node-properties"),
+    graphNodeError: document.querySelector("#graph-node-error"),
+    saveGraphNode: document.querySelector("#save-graph-node"),
+    cancelGraphNodeEdit: document.querySelector("#cancel-graph-node-edit"),
+    graphNodeList: document.querySelector("#graph-node-list"),
+    graphNodeCount: document.querySelector("#graph-node-count"),
+    graphEdgeForm: document.querySelector("#graph-edge-form"),
+    graphEdgeId: document.querySelector("#graph-edge-id"),
+    graphEdgeSubject: document.querySelector("#graph-edge-subject"),
+    graphEdgePredicate: document.querySelector("#graph-edge-predicate"),
+    graphEdgeObject: document.querySelector("#graph-edge-object"),
+    graphEdgeRole: document.querySelector("#graph-edge-role"),
+    graphEdgeProperties: document.querySelector("#graph-edge-properties"),
+    graphEdgeTimeKind: document.querySelector("#graph-edge-time-kind"),
+    graphEdgeDateField: document.querySelector("#graph-edge-date-field"),
+    graphEdgeDateRange: document.querySelector("#graph-edge-date-range"),
+    graphEdgeCalendarPopover: document.querySelector("#graph-edge-calendar-popover"),
+    graphEdgeCalendarGrid: document.querySelector("#graph-edge-calendar-grid"),
+    graphEdgeCalendarMonth: document.querySelector("#graph-edge-calendar-month"),
+    graphEdgeCalendarYear: document.querySelector("#graph-edge-calendar-year"),
+    graphEdgeCalendarPrev: document.querySelector("#graph-edge-calendar-prev"),
+    graphEdgeCalendarNext: document.querySelector("#graph-edge-calendar-next"),
+    graphEdgeCalendarClear: document.querySelector("#graph-edge-calendar-clear"),
+    graphEdgeStartDate: document.querySelector("#graph-edge-start-date"),
+    graphEdgeEndDate: document.querySelector("#graph-edge-end-date"),
+    graphEdgeError: document.querySelector("#graph-edge-error"),
+    saveGraphEdge: document.querySelector("#save-graph-edge"),
+    cancelGraphEdgeEdit: document.querySelector("#cancel-graph-edge-edit"),
+    graphEdgeList: document.querySelector("#graph-edge-list"),
+    graphEdgeCount: document.querySelector("#graph-edge-count"),
+    graphViewRoot: document.querySelector("#temporal-graph-view"),
+    graphResetView: document.querySelector("#graph-reset-view"),
+
     search: document.querySelector("#timeline-search"),
     categoryFilter: document.querySelector("#category-filter"),
     clearFilters: document.querySelector("#clear-filters"),
@@ -161,6 +200,7 @@
   };
 
   const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
+  const temporalGraphView = temporalGraphFactory.create(els.graphViewRoot);
   const dateRangePicker = dateRangeFactory.create({
     input: els.itemDateRange,
     popover: els.itemCalendarPopover,
@@ -173,6 +213,19 @@
     startInput: els.itemStartDate,
     endInput: els.itemEndDate,
     mode: "event"
+  });
+  const graphEdgeDatePicker = dateRangeFactory.create({
+    input: els.graphEdgeDateRange,
+    popover: els.graphEdgeCalendarPopover,
+    grid: els.graphEdgeCalendarGrid,
+    heading: els.graphEdgeCalendarMonth,
+    yearInput: els.graphEdgeCalendarYear,
+    previousButton: els.graphEdgeCalendarPrev,
+    nextButton: els.graphEdgeCalendarNext,
+    clearButton: els.graphEdgeCalendarClear,
+    startInput: els.graphEdgeStartDate,
+    endInput: els.graphEdgeEndDate,
+    mode: "range"
   });
   const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
   const locationMap = globalThis.TimelineLocationMap?.create({
@@ -195,6 +248,21 @@
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
+  }
+
+  function parseJsonObject(value, label = "Properties") {
+    const source = String(value || "").trim();
+    if (!source) return {};
+    let parsed;
+    try {
+      parsed = JSON.parse(source);
+    } catch {
+      throw new Error(`${label} must be valid JSON.`);
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error(`${label} must be a JSON object.`);
+    }
+    return parsed;
   }
 
   function normalizeExtensions(value) {
