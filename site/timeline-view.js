@@ -1134,7 +1134,6 @@
       const place = createElement("section", "timeline-focus-section timeline-focus-place");
       const placeBackdrop = createElement("div", "timeline-focus-section-backdrop timeline-focus-place-backdrop");
       placeBackdrop.dataset.focusMapSlot = "";
-      placeBackdrop.setAttribute("aria-hidden", "true");
       const placeContent = createElement("div", "timeline-focus-section-content");
       placeContent.append(createElement("h3", "timeline-focus-section-heading", "Place"));
       if (item.location) {
@@ -1160,7 +1159,6 @@
       const relations = createElement("section", "timeline-focus-section timeline-focus-relations");
       const relationBackdrop = createElement("div", "timeline-focus-section-backdrop timeline-focus-relations-backdrop");
       relationBackdrop.dataset.focusGraphSlot = "";
-      relationBackdrop.setAttribute("aria-hidden", "true");
       const relationContent = createElement("div", "timeline-focus-section-content");
       relationContent.append(createElement("h3", "timeline-focus-section-heading", "Relations"));
       if (item.relations?.length) {
