@@ -583,13 +583,13 @@ test("focused chronology hugs the right or bottom edge in presentation", async (
   assert.match(view, /this\.orientation === "horizontal" \? height - focusInset : width - focusInset/);
 });
 
-test("relations halo escapes the popover while Evidence remains bounded", async () => {
+test("relations halo stays within graph width while Evidence remains bounded", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   assert.match(css, /data-active-tab="overview"\][\s\S]*overflow:\s*visible/);
   assert.match(css, /data-active-tab="evidence"\][\s\S]*overflow:\s*hidden/);
-  assert.match(css, /data-active-tab="overview"[\s\S]*timeline-focus-relations::before[\s\S]*inset:\s*-24%/);
-  assert.match(css, /data-viewport-orientation="portrait"[\s\S]*inset:\s*-18% -12% -18% -24%[\s\S]*radial-gradient\(ellipse at 42% 50%/);
-  assert.match(css, /data-viewport-orientation="landscape"[\s\S]*inset:\s*-26% -16% -10%[\s\S]*radial-gradient\(ellipse at 50% 38%/);
+  assert.match(css, /data-active-tab="overview"[\s\S]*timeline-focus-relations::before[\s\S]*inset-block:\s*-24%[\s\S]*inset-inline:\s*0/);
+  assert.match(css, /data-viewport-orientation="portrait"[\s\S]*inset-block:\s*-18%[\s\S]*inset-inline:\s*0[\s\S]*radial-gradient\(ellipse at 42% 50%/);
+  assert.match(css, /data-viewport-orientation="landscape"[\s\S]*inset-block:\s*-26% -10%[\s\S]*inset-inline:\s*0[\s\S]*radial-gradient\(ellipse at 50% 38%/);
 });
 
 
