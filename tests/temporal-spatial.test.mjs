@@ -38,6 +38,36 @@ test("builds date-only and floating date-time endpoints", () => {
   assert.equal(second.certainty, "approximate");
 });
 
+test("builds coarse-precision endpoints without requiring clock fields", () => {
+  const millennium = temporal.buildEndpoint({
+    date: "2026-09-19",
+    time: "",
+    precision: "millennium",
+    certainty: "exact",
+    timeZone: ""
+  });
+  const year = temporal.buildEndpoint({
+    date: "2026-09-19",
+    time: "",
+    precision: "year",
+    certainty: "approximate",
+    timeZone: ""
+  });
+  const month = temporal.buildEndpoint({
+    date: "2026-09-19",
+    time: "",
+    precision: "month",
+    certainty: "uncertain",
+    timeZone: ""
+  });
+  assert.equal(millennium.value, "2026");
+  assert.equal(millennium.precision, "millennium");
+  assert.equal(year.value, "2026");
+  assert.equal(year.precision, "year");
+  assert.equal(month.value, "2026-09");
+  assert.equal(month.precision, "month");
+});
+
 test("normalizes legacy start/end values into a structured temporal extent", () => {
   const extent = temporal.normalizeExtent(null, "2026-09-19T12:06", "2026-09-20", "range");
   assert.equal(extent.type, "interval");
@@ -75,6 +105,9 @@ test("item form uses one range calendar, native clocks, and Chrome geolocation",
   assert.match(html, /id="item-end-date" type="hidden"/);
   assert.match(html, /id="item-start-time" type="time"/);
   assert.match(html, /id="item-end-time" type="time"/);
+  assert.match(html, /id="item-start-precision"[\\s\\S]*value="millennium"[\\s\\S]*value="year"[\\s\\S]*value="month"[\\s\\S]*value="day"/);
+  assert.match(html, /id="item-end-precision"[\\s\\S]*value="millennium"[\\s\\S]*value="year"[\\s\\S]*value="month"[\\s\\S]*value="day"/);
+  assert.match(appSource, /const hasClock = !\\["millennium", "century", "decade", "year", "month", "day"\\]\\.includes\\(precision\\)/);
   assert.match(html, /<geolocation id="item-geolocation"/);
   assert.match(mapSource, /tile\.openstreetmap\.org/);
   assert.match(mapSource, /OpenStreetMap/);
