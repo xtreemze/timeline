@@ -249,13 +249,16 @@ test("timeline terminals use media thumbnails, semantic badges, and earlier clus
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
   ]);
 
-  assert.match(viewSource, /HORIZONTAL_CLUSTER_THRESHOLD_MIN = 144/);
+  assert.match(viewSource, /HORIZONTAL_CLUSTER_THRESHOLD_MIN = 156/);
   assert.match(viewSource, /VERTICAL_CLUSTER_THRESHOLD = 74/);
   assert.match(viewSource, /timeline-event-art-image/);
   assert.match(viewSource, /timeline-event-icon-badge/);
   assert.match(viewSource, /timeline-cluster-tiles/);
   assert.match(viewSource, /timeline-cluster-image/);
+  assert.match(viewSource, /timeline-cluster-icon-badge/);
   assert.match(styles, /\.timeline-event-art\s*\{/);
   assert.match(styles, /\.timeline-cluster-tile\s*\{/);
-  assert.match(styles, /height:\s*8px/);
+  assert.match(styles, /height:\s*10px/);
+  assert.match(styles, /width:\s*2\.75rem/);
+  assert.match(styles, /max-width:\s*232px/);
 });
