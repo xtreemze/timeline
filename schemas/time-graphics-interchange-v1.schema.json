@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xtreemze.github.io/timeline/schemas/time-graphics-interchange-v1.schema.json",
+  "title": "Timeline Time.Graphics Interchange v1",
+  "description": "A conservative interchange structure based on Time.Graphics public event, period, and grouping concepts. It is not an official Time.Graphics vendor schema.",
+  "type": "object",
+  "required": ["title", "groups", "events", "periods", "_timeline"],
+  "properties": {
+    "title": { "type": "string" },
+    "groups": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/group" }
+    },
+    "events": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/event" }
+    },
+    "periods": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/period" }
+    },
+    "_timeline": {
+      "type": "object",
+      "required": ["format", "schemaVersion", "generatedBy", "canonicalVersion"],
+      "properties": {
+        "format": { "const": "time.graphics-interchange" },
+        "schemaVersion": { "const": 1 },
+        "generatedBy": { "type": "string" },
+        "canonicalVersion": { "type": "integer" },
+        "stories": { "type": "array" },
+        "note": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "group": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": ["string", "number"] },
+        "name": { "type": "string" },
+        "color": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "event": {
+      "type": "object",
+      "required": ["id", "title", "date"],
+      "properties": {
+        "id": { "type": ["string", "number"] },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "date": { "type": ["string", "number", "object"] },
+        "group": { "type": ["string", "number", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "period": {
+      "type": "object",
+      "required": ["id", "title", "start", "end"],
+      "properties": {
+        "id": { "type": ["string", "number"] },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "start": { "type": ["string", "number", "object"] },
+        "end": { "type": ["string", "number", "object"] },
+        "group": { "type": ["string", "number", "null"] }
+      },
+      "additionalProperties": true
+    }
+  }
+}
