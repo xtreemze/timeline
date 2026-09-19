@@ -1,7 +1,9 @@
-import { EdgeLineStyleType, NodeShapeType, OrbEventType, OrbView } from "@memgraph/orb";
+import { EdgeLineStyleType, GraphObjectState, NodeShapeType, OrbEventType, OrbView } from "@memgraph/orb";
 
 const LARGE_GRAPH_NODE_THRESHOLD = 1200;
 const GPU_LAYOUT_NODE_THRESHOLD = 3000;
+const TOUCH_NODE_HOLD_MS = 420;
+const TOUCH_NODE_MOVE_TOLERANCE_PX = 12;
 
 function resolvedColor(container, name, fallback) {
   const value = getComputedStyle(container).getPropertyValue(name).trim();
@@ -80,6 +82,11 @@ function create(container, handlers = {}) {
   let currentMode = "worker-cpu";
   let lastSizeClass = "";
   let firstRender = true;
+  let touchHold = null;
+  let touchReleaseFallback = 0;
+  let touchDragBlockedUntilRelease = false;
+  let touchSelectedNode = null;
+  const activeTouchPointers = new Set();
 
   const orb = new OrbView(container, {
     render: {
@@ -119,6 +126,153 @@ function create(container, handlers = {}) {
     },
     zoomFitTransitionMs: 240
   });
+
+  function isTouchInput(event) {
+    if (!event) return false;
+    if (event.pointerType === "touch") return true;
+    if (String(event.type || "").startsWith("touch")) return true;
+    return Boolean(event.touches || event.changedTouches);
+  }
+
+  function eventClientPoint(event) {
+    const source = event?.touches?.[0] || event?.changedTouches?.[0] || event;
+    const x = Number(source?.clientX);
+    const y = Number(source?.clientY);
+    return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+  }
+
+  function setDragEnabled(enabled) {
+    orb.setSettings({ interaction: { isDragEnabled: enabled } });
+  }
+
+  function selectTouchNode(node) {
+    if (
+      touchSelectedNode &&
+      touchSelectedNode !== node &&
+      touchSelectedNode.getState?.() === GraphObjectState.SELECTED
+    ) {
+      touchSelectedNode.setState(GraphObjectState.NONE, { isNotifySkipped: true });
+    }
+    touchSelectedNode = node;
+    node.setState(GraphObjectState.SELECTED, { isNotifySkipped: true });
+    orb.render();
+  }
+
+  function clearTouchReleaseFallback() {
+    if (!touchReleaseFallback) return;
+    globalThis.clearTimeout(touchReleaseFallback);
+    touchReleaseFallback = 0;
+  }
+
+  function clearTouchHoldTimer() {
+    if (!touchHold?.timer) return;
+    globalThis.clearTimeout(touchHold.timer);
+    touchHold.timer = 0;
+  }
+
+  function finishTouchGesture() {
+    clearTouchReleaseFallback();
+    clearTouchHoldTimer();
+    touchHold = null;
+    touchDragBlockedUntilRelease = false;
+    delete container.dataset.touchDrag;
+    setDragEnabled(true);
+  }
+
+  function cancelPendingTouchHold() {
+    if (!touchHold || touchHold.activated) return;
+    clearTouchHoldTimer();
+    touchHold = null;
+    touchDragBlockedUntilRelease = true;
+    container.dataset.touchDrag = "cancelled";
+  }
+
+  function beginTouchHold({ node, event, globalPoint }) {
+    clearTouchReleaseFallback();
+    clearTouchHoldTimer();
+    setDragEnabled(false);
+    touchDragBlockedUntilRelease = true;
+
+    if (activeTouchPointers.size > 1) {
+      touchHold = null;
+      container.dataset.touchDrag = "cancelled";
+      return;
+    }
+
+    touchHold = {
+      node,
+      startClientPoint: eventClientPoint(event),
+      startGlobalPoint: globalPoint,
+      activated: false,
+      timer: 0
+    };
+    container.dataset.touchDrag = "holding";
+
+    touchHold.timer = globalThis.setTimeout(() => {
+      if (!touchHold || touchHold.node !== node || activeTouchPointers.size > 1) return;
+      touchHold.activated = true;
+      touchDragBlockedUntilRelease = false;
+      container.dataset.touchDrag = "active";
+      setDragEnabled(true);
+      selectTouchNode(node);
+      handlers.onNodeLongPress?.(node.getData());
+      try {
+        globalThis.navigator?.vibrate?.(12);
+      } catch {
+        // Haptics are optional and may be unavailable or permission-gated.
+      }
+    }, TOUCH_NODE_HOLD_MS);
+  }
+
+  function onPointerDown(event) {
+    if (event.pointerType !== "touch") return;
+    activeTouchPointers.add(event.pointerId);
+    if (activeTouchPointers.size > 1 && touchHold && !touchHold.activated) {
+      cancelPendingTouchHold();
+    }
+  }
+
+  function onPointerMove(event) {
+    if (event.pointerType !== "touch" || !touchHold || touchHold.activated) return;
+    const origin = touchHold.startClientPoint;
+    if (!origin) return;
+    const distance = Math.hypot(event.clientX - origin.x, event.clientY - origin.y);
+    if (distance > TOUCH_NODE_MOVE_TOLERANCE_PX) cancelPendingTouchHold();
+  }
+
+  function scheduleTouchReleaseFallback() {
+    clearTouchReleaseFallback();
+    touchReleaseFallback = globalThis.setTimeout(() => {
+      if (touchHold?.activated || touchDragBlockedUntilRelease) finishTouchGesture();
+    }, 48);
+  }
+
+  function onPointerUp(event) {
+    if (event.pointerType !== "touch") return;
+    activeTouchPointers.delete(event.pointerId);
+    if (activeTouchPointers.size) return;
+    if (touchHold?.activated) {
+      scheduleTouchReleaseFallback();
+      return;
+    }
+    finishTouchGesture();
+  }
+
+  function onTouchEnd(event) {
+    if (event.touches?.length) return;
+    if (touchHold?.activated) {
+      scheduleTouchReleaseFallback();
+      return;
+    }
+    finishTouchGesture();
+  }
+
+  container.addEventListener("pointerdown", onPointerDown);
+  container.addEventListener("pointermove", onPointerMove);
+  container.addEventListener("pointerup", onPointerUp);
+  container.addEventListener("pointercancel", onPointerUp);
+  container.addEventListener("touchend", onTouchEnd);
+  container.addEventListener("touchcancel", onTouchEnd);
 
   function nodeStyle(data) {
     const type = semanticType(data);
@@ -200,6 +354,12 @@ function create(container, handlers = {}) {
 
   const onNodeClick = ({ node }) => handlers.onNodeClick?.(node.getData());
   const onEdgeClick = ({ edge }) => handlers.onEdgeClick?.(edge.getData());
+  const onNodeDragStart = (payload) => {
+    if (isTouchInput(payload.event)) beginTouchHold(payload);
+  };
+  const onNodeDragEnd = (payload) => {
+    if (isTouchInput(payload.event) && touchHold?.activated) finishTouchGesture();
+  };
   const onSimulationStart = () => handlers.onSimulationState?.({ running: true, mode: currentMode });
   const onSimulationEnd = ({ durationMs }) => {
     handlers.onSimulationState?.({ running: false, mode: currentMode, durationMs });
@@ -211,6 +371,8 @@ function create(container, handlers = {}) {
 
   orb.events.on(OrbEventType.NODE_CLICK, onNodeClick);
   orb.events.on(OrbEventType.EDGE_CLICK, onEdgeClick);
+  orb.events.on(OrbEventType.NODE_DRAG_START, onNodeDragStart);
+  orb.events.on(OrbEventType.NODE_DRAG_END, onNodeDragEnd);
   orb.events.on(OrbEventType.SIMULATION_START, onSimulationStart);
   orb.events.on(OrbEventType.SIMULATION_END, onSimulationEnd);
 
@@ -257,6 +419,8 @@ function create(container, handlers = {}) {
   }
 
   function setData(data) {
+    finishTouchGesture();
+    touchSelectedNode = null;
     const nodes = Array.isArray(data?.nodes) ? data.nodes : [];
     const edges = Array.isArray(data?.edges) ? data.edges : [];
     setPerformanceMode(nodes.length);
@@ -292,8 +456,17 @@ function create(container, handlers = {}) {
       return currentMode;
     },
     destroy() {
+      finishTouchGesture();
+      container.removeEventListener("pointerdown", onPointerDown);
+      container.removeEventListener("pointermove", onPointerMove);
+      container.removeEventListener("pointerup", onPointerUp);
+      container.removeEventListener("pointercancel", onPointerUp);
+      container.removeEventListener("touchend", onTouchEnd);
+      container.removeEventListener("touchcancel", onTouchEnd);
       orb.events.off(OrbEventType.NODE_CLICK, onNodeClick);
       orb.events.off(OrbEventType.EDGE_CLICK, onEdgeClick);
+      orb.events.off(OrbEventType.NODE_DRAG_START, onNodeDragStart);
+      orb.events.off(OrbEventType.NODE_DRAG_END, onNodeDragEnd);
       orb.events.off(OrbEventType.SIMULATION_START, onSimulationStart);
       orb.events.off(OrbEventType.SIMULATION_END, onSimulationEnd);
       orb.destroy();

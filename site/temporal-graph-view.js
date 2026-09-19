@@ -42,6 +42,7 @@
       this.signature = "";
       this.orb = orbFactory.create(this.canvas, {
         onNodeClick: (node) => this.activateNode(node),
+        onNodeLongPress: (node) => this.selectNodeForDrag(node),
         onEdgeClick: (edge) => {
           this.renderDetail("edge", edge);
           this.root.dispatchEvent(new CustomEvent("graphedgefocus", {
@@ -97,6 +98,14 @@
 
     refreshLayout() {
       this.orb.recenter();
+    }
+
+    selectNodeForDrag(node) {
+      this.renderDetail("node", node);
+      this.root.dispatchEvent(new CustomEvent("graphnodeselect", {
+        bubbles: true,
+        detail: { id: node.id, interaction: "long-press-drag" }
+      }));
     }
 
     activateNode(node) {
