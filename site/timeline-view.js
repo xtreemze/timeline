@@ -1347,19 +1347,47 @@
     positionFocusPopover(originRect = null) {
       if (!this.selectedId || this.focusView.hidden || !this.focusView.matches(":popover-open")) return false;
       const bounds = this.focusChromeInsets();
-      const availableWidth = Math.max(180, bounds.viewportWidth - bounds.left - bounds.right);
-      const availableHeight = Math.max(180, bounds.viewportHeight - bounds.top - bounds.bottom);
+      const rawAvailableWidth = Math.max(1, bounds.viewportWidth - bounds.left - bounds.right);
+      const availableHeight = Math.max(1, bounds.viewportHeight - bounds.top - bounds.bottom);
+      const desktop = bounds.viewportWidth >= 900 && bounds.viewportHeight >= 700;
+      const compact = bounds.viewportWidth <= 760;
+      const preferredWidth = compact
+        ? rawAvailableWidth
+        : this.orientation === "vertical"
+          ? (desktop ? 620 : 520)
+          : (desktop ? 760 : 640);
+      const minimumDesktopWidth = this.orientation === "vertical" ? 480 : 560;
+      const unreservedWidth = Math.max(
+        1,
+        bounds.viewportWidth - bounds.left - FOCUS_POPOVER_MARGIN
+      );
+      const availableWidth =
+        desktop &&
+        rawAvailableWidth < minimumDesktopWidth &&
+        unreservedWidth >= minimumDesktopWidth
+          ? unreservedWidth
+          : rawAvailableWidth;
+      const targetWidth = Math.max(
+        1,
+        Math.min(preferredWidth, availableWidth)
+      );
+      const preferredMaxHeight = this.orientation === "vertical"
+        ? (desktop ? 700 : 660)
+        : (desktop ? 500 : 640);
+      const targetMaxHeight = Math.max(1, Math.min(preferredMaxHeight, availableHeight));
 
       this.focusView.style.inset = "auto";
       this.focusView.style.right = "auto";
       this.focusView.style.bottom = "auto";
       this.focusView.style.transform = "none";
-      this.focusView.style.maxInlineSize = availableWidth + "px";
-      this.focusView.style.maxBlockSize = availableHeight + "px";
+      this.focusView.style.inlineSize = Math.round(targetWidth) + "px";
+      this.focusView.style.maxInlineSize = Math.round(targetWidth) + "px";
+      this.focusView.style.blockSize = "auto";
+      this.focusView.style.maxBlockSize = Math.round(targetMaxHeight) + "px";
 
       const rect = this.focusView.getBoundingClientRect();
-      const width = Math.min(rect.width, availableWidth);
-      const height = Math.min(rect.height, availableHeight);
+      const width = Math.min(rect.width, targetWidth);
+      const height = Math.min(rect.height, targetMaxHeight);
       const clampPosition = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
 
       // Keep the opening source geometry for the View Transition, but do not let the
