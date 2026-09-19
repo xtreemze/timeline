@@ -765,6 +765,30 @@
     return state.items.find((item) => item.id === id) || null;
   }
 
+  function entityOrItemName(id) {
+    const entity = state.entities.find((candidate) => candidate.id === id);
+    if (entity) return entity.name || entity.id;
+    const item = getItem(id);
+    return item?.title || id;
+  }
+
+  function storySpanLabel(story) {
+    const items = story.itemIds.map(getItem).filter(Boolean);
+    if (!items.length) return "empty";
+    const starts = items.map((item) => temporal.sortKey(item.time?.start || item.start)).filter(Number.isFinite);
+    const ends = items.map((item) => item.end
+      ? temporal.sortKey(item.time?.end || item.end)
+      : temporal.sortKey(item.time?.start || item.start)
+    ).filter(Number.isFinite);
+    if (!starts.length || !ends.length) return "unknown span";
+    const spanMs = Math.max(...ends) - Math.min(...starts);
+    const day = 86_400_000;
+    if (spanMs < day) return "within one day";
+    if (spanMs < day * 60) return `${Math.max(1, Math.round(spanMs / day))} days`;
+    if (spanMs < day * 730) return `${Math.max(1, Math.round(spanMs / (day * 30.4375)))} months`;
+    return `${(spanMs / (day * 365.2425)).toFixed(1)} years`;
+  }
+
   function storyMembershipCount(itemId) {
     return state.stories.reduce((count, story) => count + (story.itemIds.includes(itemId) ? 1 : 0), 0);
   }
@@ -944,6 +968,8 @@
             role: relationship.role || "",
             subjectId: relationship.subjectId,
             objectId: relationship.objectId,
+            subjectName: entityOrItemName(relationship.subjectId),
+            objectName: entityOrItemName(relationship.objectId),
             time: relationship.time || null
           }))
       };
@@ -1048,6 +1074,14 @@
     for (const tag of item.tags || []) {
       const tagElement = presentation.createTag(tag);
       if (tagElement) meta.append(tagElement);
+    }
+
+    const evidenceCount = item.evidenceIds?.length || 0;
+    if (evidenceCount) {
+      const evidenceBadge = document.createElement("span");
+      evidenceBadge.className = "evidence-count-badge";
+      evidenceBadge.textContent = `${evidenceCount} ${evidenceCount === 1 ? "source" : "sources"}`;
+      meta.append(evidenceBadge);
     }
 
     if (activeStory && storyIndex >= 0) {
@@ -1504,7 +1538,7 @@
       top.append(copy, actions);
       const meta = document.createElement("div");
       meta.className = "story-meta";
-      meta.textContent = `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"}`;
+      meta.textContent = `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"} · ${storySpanLabel(story)}`;
       card.append(top, meta);
       return card;
     });
