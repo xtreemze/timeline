@@ -2457,18 +2457,7 @@
   --timeline-context-edge-span: clamp(132px, 29dvw, 320px);
 }
 
-#presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="landscape"]
-  :is(.timeline-focus-view[data-active-tab="overview"]) {
-  --timeline-context-active: 1;
-}
-
-#presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="portrait"]
-  :is(.timeline-focus-view[data-active-tab="overview"]) {
-  --timeline-context-active: 1;
-}
-
-#presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="landscape"]
-  :has(.timeline-focus-view[data-active-tab="overview"]) > .timeline-view {
+#presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="landscape"]:has(.timeline-focus-view[data-active-tab="overview"]) > .timeline-view {
   position: absolute;
   inset: auto 0 0 0;
   grid-column: 1 / -1 !important;
@@ -2482,8 +2471,7 @@
     max-block-size 280ms cubic-bezier(.2, .8, .2, 1);
 }
 
-#presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="portrait"]
-  :has(.timeline-focus-view[data-active-tab="overview"]) > .timeline-view {
+#presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="portrait"]:has(.timeline-focus-view[data-active-tab="overview"]) > .timeline-view {
   position: absolute;
   inset: 0 0 0 auto;
   grid-column: auto !important;
@@ -2498,16 +2486,14 @@
 }
 
 /* Keep the focused content and graph entirely in the space chronology yielded. */
-#presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="landscape"]
-  :has(.timeline-focus-view[data-active-tab="overview"])
+#presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="landscape"]:has(.timeline-focus-view[data-active-tab="overview"])
   .timeline-view > .timeline-focus-view:popover-open {
   top: max(.65rem, env(safe-area-inset-top));
   bottom: auto;
   max-block-size: calc(100dvh - var(--timeline-context-edge-span) - 1.3rem);
 }
 
-#presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="portrait"]
-  :has(.timeline-focus-view[data-active-tab="overview"])
+#presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-viewport-orientation="portrait"]:has(.timeline-focus-view[data-active-tab="overview"])
   .timeline-view > .timeline-focus-view:popover-open {
   --timeline-focus-left-edge: max(4.7rem, calc(env(safe-area-inset-left) + 4.2rem));
   top: 50%;
