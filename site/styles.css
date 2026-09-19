@@ -2401,3 +2401,17 @@ body {
 #app-shell[data-mode="edit"] .app-tool-dock .app-tool:not(#editor-toggle) {
   display: none;
 }
+
+
+.project-title-field input[readonly] {
+  cursor: default;
+  user-select: text;
+}
+
+.project-menu-action:disabled {
+  display: none;
+}
+
+.project-menu-group:not(:has(.project-menu-action:not(:disabled))) {
+  display: none;
+}
