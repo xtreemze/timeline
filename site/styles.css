@@ -1941,7 +1941,7 @@ body {
 .app-tool-label { line-height: 1; }
 .app-tool:hover,
 .app-tool:focus-visible,
-#app-shell[data-editor-open="true"] .app-tool[data-open-panel],
+#app-shell[data-editor-open="true"] #editor-toggle,
 #app-shell[data-browser-open="true"] #timeline-browser-toggle,
 #app-shell[data-graph-open="true"] #graph-lens-toggle,
 #app-shell[data-view-controls-open="true"] #timeline-view-controls-toggle {
