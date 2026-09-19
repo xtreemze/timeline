@@ -8,6 +8,8 @@ await import("../site/event-presentation.js");
 
 const picker = globalThis.TimelineDateRangePicker;
 const presentation = globalThis.TimelinePresentation;
+await import("../site/presentation-layout.js");
+const presentationLayout = globalThis.TimelinePresentationLayout;
 
 test("range display condenses dates in the same month and keeps the year visible", () => {
   assert.match(picker.formatDisplay("2026-09-11", "2026-09-14", "range"), /11.*14.*2026/);
@@ -195,3 +197,43 @@ test("mobile fullscreen presentation remains a bounded multi-surface dashboard",
   assert.match(css, /timeline-view-toolbar[\s\S]*overflow-x:\s*auto/);
 });
 
+
+
+test("fullscreen stage classification matches target phone and tablet viewports", () => {
+  const portraitViewports = [
+    [360, 800],
+    [390, 844],
+    [430, 932]
+  ];
+  const landscapeViewports = [
+    [667, 375],
+    [844, 390],
+    [932, 430]
+  ];
+
+  for (const [width, height] of portraitViewports) {
+    assert.equal(presentationLayout.physicalOrientation(width, height), "portrait");
+    assert.equal(
+      presentationLayout.classifyStageShape(width, height, { fullscreen: true }),
+      "tall"
+    );
+  }
+
+  for (const [width, height] of landscapeViewports) {
+    assert.equal(presentationLayout.physicalOrientation(width, height), "landscape");
+    assert.equal(
+      presentationLayout.classifyStageShape(width, height, { fullscreen: true }),
+      "wide"
+    );
+  }
+});
+
+test("presentation stage shape is independent from selected timeline axis orientation", () => {
+  const portraitShape = presentationLayout.classifyStageShape(390, 844, { fullscreen: true });
+  const landscapeShape = presentationLayout.classifyStageShape(844, 390, { fullscreen: true });
+
+  assert.equal(portraitShape, "tall");
+  assert.equal(landscapeShape, "wide");
+  assert.notEqual(portraitShape, "portrait");
+  assert.notEqual(landscapeShape, "landscape");
+});
