@@ -211,6 +211,34 @@
   transform: translateY(-50%);
 }
 
+.timeline-year-accent {
+  font-size: clamp(1.45rem, 3.2vw, 3.2rem);
+  font-weight: 820;
+  letter-spacing: -.055em;
+  color: color-mix(in srgb, var(--muted) 25%, transparent);
+}
+.timeline-axis-month-label {
+  position: absolute;
+  z-index: 3;
+  color: color-mix(in srgb, var(--ink) 62%, transparent);
+  font: 780 .62rem/1 "Monaspace Krypton Timeline", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size-adjust: ex-height from-font;
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: "calt" 1, "liga" 1, "cv01" 2;
+  letter-spacing: .08em;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+.is-landscape .timeline-axis-month-label {
+  top: calc(var(--timeline-axis-cross) - 23px);
+  transform: translateX(-50%);
+}
+.is-portrait .timeline-axis-month-label {
+  left: calc(var(--timeline-axis-cross) - 18px);
+  transform: translate(-100%, -50%);
+}
+
 .timeline-relation-zone {
   position: absolute;
   z-index: 0;
