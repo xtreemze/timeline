@@ -307,6 +307,11 @@
               bubbles: true,
               detail: { id: node.id }
             }));
+          } else if (node.properties?.timelineType === "story") {
+            this.root.dispatchEvent(new CustomEvent("graphstoryfocus", {
+              bubbles: true,
+              detail: { id: node.id }
+            }));
           }
         };
         group.addEventListener("click", activate);
