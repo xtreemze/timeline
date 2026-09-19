@@ -27,6 +27,7 @@ test("timeline includes an interactive temporal node-edge graph lens", async () 
   assert.match(source, /graphForWindow/);
   assert.match(source, /temporalState/);
   assert.match(source, /graphnodefocus/);
+  assert.match(source, /graphstoryfocus/);
   assert.match(source, /layoutGraph/);
   assert.match(css, /\.temporal-graph-edge\.is-active/);
   assert.match(css, /\.temporal-graph-edge\.is-inactive/);
