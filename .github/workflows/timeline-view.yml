@@ -8,6 +8,8 @@ on:
       - 'src/orb-graph-entry.js'
       - 'site/app.js'
       - 'site/timeline-view.js'
+      - 'site/presentation-layout.js'
+      - 'site/presentation-layout.js'
       - 'site/timeline-clustering.js'
       - 'site/timeline-motion.js'
       - 'site/timeline-navigation.js'
@@ -97,6 +99,7 @@ jobs:
       - run: node --check site/timeline-graph.js
       - run: node --check site/temporal-graph-view.js
       - run: node --check site/timeline-view.js
+      - run: node --check site/presentation-layout.js
       - run: node --check site/date-range-picker.js
       - run: node --check site/event-presentation.js
       - run: node --check site/evidence-store.js
