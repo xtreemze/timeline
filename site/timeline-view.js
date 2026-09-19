@@ -737,8 +737,8 @@
       const usable = Math.max(1, primaryLength - padding * 2);
       const focusInset = this.selectedId
         ? (this.orientation === "horizontal"
-            ? clamp(height * 0.12, 72, 132)
-            : clamp(width * 0.10, 56, 112))
+            ? clamp(height * 0.08, 48, 88)
+            : clamp(width * 0.07, 44, 76))
         : 0;
       const axisCross = this.selectedId
         ? (this.orientation === "horizontal" ? height - focusInset : width - focusInset)
