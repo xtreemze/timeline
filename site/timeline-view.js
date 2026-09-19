@@ -744,6 +744,8 @@
       button.setAttribute("aria-expanded", String(item.id === this.selectedId));
       const dot = createElement("span", "timeline-event-dot");
       dot.setAttribute("aria-hidden", "true");
+      const primaryTag = item.tags?.[0];
+      if (primaryTag) dot.append(presentation.createIcon(primaryTag.icon, { size: 12 }));
       const copy = createElement("span", "timeline-event-copy");
       const title = createElement("strong", "", item.title);
       const date = createElement("span", "", item.startLabel);
@@ -913,6 +915,7 @@
 
     renderFocus(item) {
       this.focusView.tabIndex = -1;
+      this.focusView.style.setProperty("--event-color", item.color || "var(--accent)");
       this.focusView.setAttribute("aria-labelledby", "timeline-focus-heading");
       this.focusView.replaceChildren();
 
@@ -1007,6 +1010,7 @@
       this.focusMediaIndex = 0;
       this.root.classList.remove("is-event-focused");
       this.focusView.hidden = true;
+      this.focusView.removeAttribute("style");
       this.focusView.replaceChildren();
       this.scheduleRender();
       if (previousId) {
@@ -1015,7 +1019,7 @@
           detail: { id: previousId, focused: false }
         }));
       }
-      this.surface.focus({ preventScroll: true });
+      if (!this.root.hidden) this.surface.focus({ preventScroll: true });
     }
 
     updateReadout(spec) {
