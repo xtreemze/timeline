@@ -130,6 +130,9 @@
             "number",
             "null"
           ]
+        },
+        "relationChanges": {
+          "type": "array"
         }
       },
       "additionalProperties": true
@@ -175,6 +178,9 @@
             "number",
             "null"
           ]
+        },
+        "relationChanges": {
+          "type": "array"
         }
       },
       "additionalProperties": true
