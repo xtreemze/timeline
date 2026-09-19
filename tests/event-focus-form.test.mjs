@@ -184,25 +184,30 @@ test("Escape exits fullscreen before focused-event back navigation", async () =>
   assert.match(source, /presentationIsFullscreen\(\)[\s\S]*meta\.event\?\.key === "Escape"[\s\S]*return false/);
 });
 
-test("mobile fullscreen keeps the timeline in the first 75 percent and contextual surfaces in the final quarter", async () => {
-  const [styles, timelineCss] = await Promise.all([
+test("fullscreen presentation centers chronology until focus and caps contextual surfaces at two-by-two cells", async () => {
+  const [styles, timelineCss, app, timelineSource] = await Promise.all([
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8")
   ]);
 
   assert.match(styles, /block-size:\s*100dvh/);
   assert.match(styles, /safe-area-inset-top/);
   assert.match(timelineCss, /Final fullscreen composition guard/);
   assert.match(timelineCss, /grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(timelineCss, /data-has-context-graph="true"[\s\S]*grid-column:\s*1\s*\/\s*span 9/);
-  assert.match(timelineCss, /graph-lens:not\(\[hidden\]\)[\s\S]*grid-column:\s*10\s*\/\s*-1/);
-  assert.match(timelineCss, /orientation:\s*portrait[\s\S]*grid-template-rows:\s*minmax\(0,\s*3fr\)\s*minmax\(0,\s*1fr\)/);
-  assert.match(timelineCss, /data-has-context-graph="true"\]\[data-has-context-map="true"[\s\S]*grid-column:\s*1\s*\/\s*span 6/);
-  assert.match(timelineCss, /data-has-context-graph="true"\]\[data-has-context-map="true"[\s\S]*grid-column:\s*7\s*\/\s*-1/);
-  assert.match(timelineCss, /timeline-view-toolbar[\s\S]*overflow-x:\s*auto/);
+  assert.match(timelineCss, /grid-template-rows:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(timelineCss, /data-event-focused="false"[\s\S]*timeline-view[\s\S]*grid-column:\s*1\s*\/\s*-1[\s\S]*grid-row:\s*1\s*\/\s*-1/);
+  assert.match(timelineCss, /data-viewport-orientation="landscape"[\s\S]*timeline-view[\s\S]*grid-column:\s*1\s*\/\s*-1[\s\S]*grid-row:\s*3\s*\/\s*-1/);
+  assert.match(timelineCss, /data-viewport-orientation="landscape"[\s\S]*graph-lens:not\(\[hidden\]\)[\s\S]*grid-column:\s*1\s*\/\s*span 2[\s\S]*grid-row:\s*1\s*\/\s*span 2/);
+  assert.match(timelineCss, /data-viewport-orientation="landscape"[\s\S]*presentation-map-panel:not\(\[hidden\]\)[\s\S]*grid-column:\s*3\s*\/\s*span 2[\s\S]*grid-row:\s*1\s*\/\s*span 2/);
+  assert.match(timelineCss, /data-viewport-orientation="portrait"[\s\S]*timeline-view[\s\S]*grid-column:\s*3\s*\/\s*-1[\s\S]*grid-row:\s*1\s*\/\s*-1/);
+  assert.match(app, /dataset\.viewportOrientation/);
+  assert.match(app, /dataset\.eventFocused/);
+  assert.match(timelineSource, /document\.startViewTransition\(applyFocus\)/);
+  assert.match(timelineSource, /document\.startViewTransition\(clearFocus\)/);
+  assert.match(timelineCss, /view-transition-name:\s*timeline-primary-surface/);
 });
-
-
 
 test("fullscreen stage classification matches target phone and tablet viewports", () => {
   const portraitViewports = [
@@ -278,9 +283,10 @@ test("timeline range bars are identifiable and labels share event color semantic
 });
 
 
-test("body owns the canonical 12-column grid and contextual surfaces never exceed one quarter", async () => {
-  const [styles, html] = await Promise.all([
+test("body owns the canonical 12-column grid and fullscreen context stays subordinate", async () => {
+  const [styles, timelineCss, html] = await Promise.all([
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
     readFile(new URL("../site/index.html", import.meta.url), "utf8")
   ]);
 
@@ -289,12 +295,29 @@ test("body owns the canonical 12-column grid and contextual surfaces never excee
   assert.match(styles, /\.app-shell\s*\{[\s\S]*grid-template-columns:\s*subgrid/);
   assert.match(styles, /\.timeline-panel\s*\{[\s\S]*grid-template-columns:\s*subgrid/);
   assert.match(styles, /\.presentation-stage\s*\{[\s\S]*grid-template-columns:\s*subgrid/);
-  assert.match(styles, /#presentation-stage:fullscreen[\s\S]*repeat\(12,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(styles, /data-has-context-graph="true"[\s\S]*\.timeline-view[\s\S]*grid-column:\s*1\s*\/\s*span 9/);
-  assert.match(styles, /graph-lens:not\(\[hidden\]\)[\s\S]*grid-column:\s*10\s*\/\s*-1/);
-  assert.match(styles, /presentation-map-panel:not\(\[hidden\]\)[\s\S]*grid-column:\s*10\s*\/\s*-1/);
-  assert.match(styles, /orientation:\s*portrait[\s\S]*grid-template-rows:\s*minmax\(0,\s*3fr\)\s*minmax\(0,\s*1fr\)/);
+  assert.match(timelineCss, /graph-lens:not\(\[hidden\]\)[\s\S]*grid-column:\s*1\s*\/\s*span 2[\s\S]*grid-row:\s*1\s*\/\s*span 2/);
+  assert.match(timelineCss, /presentation-map-panel:not\(\[hidden\]\)[\s\S]*grid-column:\s*3\s*\/\s*span 2[\s\S]*grid-row:\s*1\s*\/\s*span 2/);
+  assert.match(timelineCss, /data-viewport-orientation="portrait"[\s\S]*presentation-map-panel:not\(\[hidden\]\)[\s\S]*grid-column:\s*1\s*\/\s*span 2[\s\S]*grid-row:\s*3\s*\/\s*span 2/);
   assert.match(html, /id="presentation-stage"[\s\S]*id="timeline-view"[\s\S]*id="graph-lens"[\s\S]*id="presentation-map-panel"/);
+});
+
+test("presentation map renders semantic GeoJSON features instead of an empty point preview", async () => {
+  const [mapSource, app, styles] = await Promise.all([
+    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(mapSource, /FeatureCollection/);
+  assert.match(mapSource, /mapFeatures/);
+  assert.match(mapSource, /L\.geoJSON/);
+  assert.match(mapSource, /L\.divIcon/);
+  assert.match(mapSource, /semanticMarkerIcon/);
+  assert.match(mapSource, /fitBounds/);
+  assert.match(mapSource, /L\.circle/);
+  assert.match(app, /iconName/);
+  assert.match(app, /hasRenderableGeometry/);
+  assert.match(styles, /\.timeline-map-marker-shell/);
 });
 
 test("fullscreen presentation removes graph authoring chrome and raw properties", async () => {
