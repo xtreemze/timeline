@@ -447,6 +447,8 @@ test("viewing and editing are explicit mutually exclusive application modes", as
   assert.match(app, /\[els\.loadSample, els\.importJsonTrigger, els\.importInterchangeTrigger, els\.clear\][\s\S]*disabled = !editing/);
   assert.doesNotMatch(app, /actionButton\("Edit", "edit-item"/);
   assert.doesNotMatch(app, /actionButton\("Delete", "delete-item"/);
+  assert.match(html, /id="delete-item-edit"[^>]*hidden/);
+  assert.match(app, /deleteItemEdit\.addEventListener\("click",[\s\S]*ui\.mode !== "edit"[\s\S]*removeItem/);
   assert.match(app, /els\.title\.addEventListener\("input",[\s\S]*ui\.mode !== "edit"[\s\S]*return/);
   assert.match(app, /els\.clear\.addEventListener\("click",[\s\S]*ui\.mode !== "edit"[\s\S]*return/);
 });
