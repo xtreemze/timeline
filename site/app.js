@@ -50,6 +50,7 @@
     appShell: document.querySelector("#app-shell"),
     controlPanel: document.querySelector("#control-panel"),
     controlPanelClose: document.querySelector("#control-panel-close"),
+    editorToggle: document.querySelector("#editor-toggle"),
     editorSurfaceTitle: document.querySelector("#editor-surface-title"),
     panelOpeners: [...document.querySelectorAll("[data-open-panel]")],
     semanticIconTargets: [...document.querySelectorAll("[data-semantic-icon]")],
@@ -910,6 +911,7 @@
       els.browserSheet.hidden = !ui.browserOpen;
       els.browserSheet.setAttribute("aria-hidden", String(!ui.browserOpen));
     }
+    if (els.editorToggle) els.editorToggle.setAttribute("aria-expanded", String(ui.editorOpen));
     for (const opener of els.panelOpeners) {
       opener.setAttribute("aria-expanded", String(ui.editorOpen));
     }
@@ -2439,6 +2441,7 @@
     navigationController.auto.setIntervalMs(seconds * 1000);
   });
 
+  els.editorToggle?.addEventListener("click", () => setEditorSurfaceOpen(!ui.editorOpen));
   els.panelOpeners.forEach((button) => {
     button.addEventListener("click", () => setActivePanel(button.dataset.openPanel));
   });
