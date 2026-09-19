@@ -64,7 +64,7 @@
     return { entities, relationships };
   }
 
-  function toOrbGraph({ entities = [], relationships = [], items = [] } = {}) {
+  function toOrbGraph({ entities = [], relationships = [], items = [], stories = [] } = {}) {
     const nodes = [];
     const seen = new Set();
 
@@ -93,6 +93,20 @@
           kind: item.kind || "event",
           time: cloneJson(item.time || null),
           location: cloneJson(item.location || null)
+        }
+      });
+    }
+
+    for (const story of stories) {
+      if (!story?.id || seen.has(story.id)) continue;
+      seen.add(story.id);
+      nodes.push({
+        id: story.id,
+        label: story.title || story.id,
+        properties: {
+          timelineType: "story",
+          description: story.description || "",
+          itemIds: cloneJson(story.itemIds || [])
         }
       });
     }
