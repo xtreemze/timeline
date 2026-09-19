@@ -418,6 +418,26 @@
     return ui.mode !== "edit";
   }
 
+  function runApplicationViewTransition(update) {
+    const reducedMotion =
+      typeof globalThis.matchMedia === "function" &&
+      globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const canTransition =
+      !reducedMotion &&
+      typeof document.startViewTransition === "function" &&
+      !document.activeViewTransition;
+    if (!canTransition) {
+      update();
+      return null;
+    }
+    try {
+      return document.startViewTransition(update);
+    } catch {
+      update();
+      return null;
+    }
+  }
+
   function updatePresentationStageLayout() {
     if (!els.presentationStage) return false;
     const rect = els.presentationStage.getBoundingClientRect();
@@ -459,29 +479,31 @@
 
   function syncPresentationFullscreenState() {
     const active = presentationIsFullscreen();
-    els.presentationStage?.classList.toggle("is-fullscreen", active);
-    if (active) {
-      mountFullscreenToolDock();
-    } else {
-      restoreToolDock();
-      if (timelineOrientationBeforeFullscreen) {
-        timelineView?.setOrientation?.(timelineOrientationBeforeFullscreen, { persist: false, focus: false });
-        timelineOrientationBeforeFullscreen = null;
+    runApplicationViewTransition(() => {
+      els.presentationStage?.classList.toggle("is-fullscreen", active);
+      if (active) {
+        mountFullscreenToolDock();
+      } else {
+        restoreToolDock();
+        if (timelineOrientationBeforeFullscreen) {
+          timelineView?.setOrientation?.(timelineOrientationBeforeFullscreen, { persist: false, focus: false });
+          timelineOrientationBeforeFullscreen = null;
+        }
       }
-    }
-    if (els.presentationFullscreenToggle) {
-      els.presentationFullscreenToggle.setAttribute("aria-pressed", String(active));
-      els.presentationFullscreenToggle.textContent = active ? "Exit full screen" : "Present full screen";
-    }
-    syncContextualPresentationPanels();
+      if (els.presentationFullscreenToggle) {
+        els.presentationFullscreenToggle.setAttribute("aria-pressed", String(active));
+        els.presentationFullscreenToggle.textContent = active ? "Exit full screen" : "Present full screen";
+      }
+      syncContextualPresentationPanels();
+      if (els.viewControls) els.viewControls.hidden = !(active || ui.viewControlsOpen);
+      temporalGraphView?.setPresentationMode?.(presentationModeActive());
+    });
     if (active && timelineView?.hasFocusedItem?.()) {
       requestAnimationFrame(() => {
         timelineView?.ensureFocusPopover?.();
         requestAnimationFrame(() => timelineView?.ensureFocusPopover?.());
       });
     }
-    if (els.viewControls) els.viewControls.hidden = !(active || ui.viewControlsOpen);
-    temporalGraphView?.setPresentationMode?.(presentationModeActive());
     schedulePresentationGeometryRefresh({ recenterGraph: true });
   }
 
