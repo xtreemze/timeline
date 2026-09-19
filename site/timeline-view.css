@@ -25,6 +25,16 @@
   padding: .65rem;
   border-bottom: 1px solid var(--line);
 }
+.presentation-controls {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
+.presentation-controls .button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
 .timeline-orientation-control,
 .timeline-zoom-controls,
 .timeline-auto-controls {
@@ -862,6 +872,8 @@
 }
 @media (max-width: 700px) {
   .timeline-view-toolbar { align-items: stretch; }
+  .presentation-controls { flex: 1 1 auto; }
+  .presentation-controls .button { width: 100%; }
   .timeline-orientation-control,
   .timeline-zoom-controls { flex: 1 1 auto; }
   .timeline-window-readout {
