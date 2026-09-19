@@ -84,26 +84,41 @@
     }).filter(Boolean);
   }
 
-  function relationChangesFor(input, relationshipId, temporal = globalThis.TimelineTemporal) {
-    const changes = [];
+  function relationChangeIndex(input, temporal = globalThis.TimelineTemporal) {
+    const index = new Map();
     for (const item of Array.isArray(input?.items) ? input.items : []) {
       const time = temporal?.sortKey(item.time?.start || item.start);
       if (!Number.isFinite(time)) continue;
       for (const change of normalizeRelationChanges(item.relationChanges)) {
-        if (change.relationshipId !== relationshipId) continue;
-        changes.push({
+        const record = {
           ...change,
           itemId: item.id,
           itemTitle: item.title || item.id,
           time
-        });
+        };
+        const key = String(change.relationshipId);
+        if (!index.has(key)) index.set(key, []);
+        index.get(key).push(record);
       }
     }
-    return changes.sort((a, b) => a.time - b.time || String(a.itemId).localeCompare(String(b.itemId)));
+    for (const changes of index.values()) {
+      changes.sort((a, b) => a.time - b.time || String(a.itemId).localeCompare(String(b.itemId)));
+    }
+    return index;
   }
 
-  function relationshipStateAt(input, relationship, viewport, temporal = globalThis.TimelineTemporal) {
-    const changes = relationChangesFor(input, relationship.id, temporal);
+  function relationChangesFor(input, relationshipId, temporal = globalThis.TimelineTemporal) {
+    return relationChangeIndex(input, temporal).get(String(relationshipId)) || [];
+  }
+
+  function relationshipStateAt(
+    input,
+    relationship,
+    viewport,
+    temporal = globalThis.TimelineTemporal,
+    indexedChanges = null
+  ) {
+    const changes = indexedChanges || relationChangesFor(input, relationship.id, temporal);
     const hasViewport = viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end);
     const snapshotTime = hasViewport ? viewport.start + (viewport.end - viewport.start) / 2 : Number.POSITIVE_INFINITY;
     let active = relationship.initialState !== "inactive";
@@ -239,9 +254,17 @@
     const stories = Array.isArray(input?.stories) ? input.stories : [];
     const graphData = toOrbGraph({ entities, relationships, items, stories });
     const states = new Map();
+    const relationshipById = new Map(relationships.map((relationship) => [String(relationship.id), relationship]));
+    const changesByRelationship = relationChangeIndex(input, temporal);
 
     for (const relationship of relationships) {
-      const derived = relationshipStateAt(input, relationship, viewport, temporal);
+      const derived = relationshipStateAt(
+        input,
+        relationship,
+        viewport,
+        temporal,
+        changesByRelationship.get(String(relationship.id)) || []
+      );
       states.set(String(relationship.id), derived);
     }
 
@@ -251,7 +274,7 @@
         const state = states.get(String(edge.id));
         if (!state) return { ...edge, temporalState: "inactive" };
         const structurallyTimeless =
-          !relationships.find((relationship) => String(relationship.id) === String(edge.id))?.time?.start &&
+          !relationshipById.get(String(edge.id))?.time?.start &&
           state.changes.length === 0 &&
           state.active;
         return {
