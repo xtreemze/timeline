@@ -18,9 +18,9 @@
   const ZOOM_RESPONSE_MS = 170;
   const WHEEL_ZOOM_SENSITIVITY = 0.00065;
   const MAX_WHEEL_EXPONENT = 0.045;
-  const HORIZONTAL_CLUSTER_THRESHOLD_MIN = 118;
-  const HORIZONTAL_CLUSTER_THRESHOLD_MAX = 172;
-  const VERTICAL_CLUSTER_THRESHOLD = 58;
+  const HORIZONTAL_CLUSTER_THRESHOLD_MIN = 144;
+  const HORIZONTAL_CLUSTER_THRESHOLD_MAX = 212;
+  const VERTICAL_CLUSTER_THRESHOLD = 74;
   const RELATION_LANES = 4;
 
   function createElement(tag, className, text) {
@@ -589,17 +589,28 @@
       button.type = "button";
       button.setAttribute("aria-label", `Zoom into cluster of ${cluster.items.length} events`);
 
-      const dots = createElement("span", "timeline-cluster-dots");
+      const tiles = createElement("span", "timeline-cluster-tiles");
       for (const item of cluster.items.slice(0, 3)) {
-        const dot = createElement("span", "timeline-cluster-dot");
-        dot.style.setProperty("--cluster-dot-color", item.color || "var(--accent)");
-        dots.append(dot);
+        const tile = createElement("span", "timeline-cluster-tile");
+        tile.style.setProperty("--cluster-tile-color", item.color || "var(--accent)");
+        const media = item.media?.[0];
+        if (media?.src) {
+          const image = document.createElement("img");
+          image.className = "timeline-cluster-image";
+          image.src = media.src;
+          image.alt = "";
+          tile.append(image);
+        } else {
+          const tag = item.tags?.[0];
+          if (tag) tile.append(presentation.createIcon(tag.icon, { size: 18 }));
+        }
+        tiles.append(tile);
       }
       const copy = createElement("span", "timeline-event-copy");
       const title = createElement("strong", "", `${cluster.items.length} events`);
       const detail = createElement("span", "", "Fused at this zoom");
       copy.append(title, detail);
-      button.append(dots, copy);
+      button.append(tiles, copy);
       button.addEventListener("click", (event) => {
         event.stopPropagation();
         const values = [];
@@ -630,7 +641,7 @@
         node.dataset.side = side < 0 ? "before" : "after";
         connector.style.left = "0";
         connector.style.top = segment.offset + "px";
-        connector.style.width = "1px";
+        connector.style.width = "2px";
         connector.style.height = Math.max(1, segment.length) + "px";
         if (position > width - 190) node.classList.add("label-before");
       } else {
@@ -647,7 +658,7 @@
         connector.style.left = segment.offset + "px";
         connector.style.top = "0";
         connector.style.width = Math.max(1, segment.length) + "px";
-        connector.style.height = "1px";
+        connector.style.height = "2px";
         if (lane < 0) node.classList.add("label-before");
       }
       return node;
@@ -849,15 +860,29 @@
       button.title = Number.isFinite(item.end)
         ? `${item.title} · ${item.startLabel} → ${item.endLabel}`
         : `${item.title} · ${item.startLabel}`;
-      const dot = createElement("span", "timeline-event-dot");
-      dot.setAttribute("aria-hidden", "true");
       const primaryTag = item.tags?.[0];
-      if (primaryTag) dot.append(presentation.createIcon(primaryTag.icon, { size: 18 }));
+      const media = item.media?.[0];
+      const visual = createElement("span", media?.src ? "timeline-event-art" : "timeline-event-dot");
+      visual.setAttribute("aria-hidden", "true");
+      if (media?.src) {
+        const image = document.createElement("img");
+        image.className = "timeline-event-art-image";
+        image.src = media.src;
+        image.alt = "";
+        visual.append(image);
+        if (primaryTag) {
+          const badge = createElement("span", "timeline-event-icon-badge");
+          badge.append(presentation.createIcon(primaryTag.icon, { size: 18 }));
+          visual.append(badge);
+        }
+      } else if (primaryTag) {
+        visual.append(presentation.createIcon(primaryTag.icon, { size: 20 }));
+      }
       const copy = createElement("span", "timeline-event-copy");
       const title = createElement("strong", "", item.title);
       const date = createElement("span", "", item.startLabel);
       copy.append(title, date);
-      button.append(dot, copy);
+      button.append(visual, copy);
       button.addEventListener("click", (event) => {
         event.stopPropagation();
         this.select(item.id);
@@ -879,7 +904,7 @@
         node.dataset.side = side < 0 ? "before" : "after";
         connector.style.left = "0";
         connector.style.top = segment.offset + "px";
-        connector.style.width = "1px";
+        connector.style.width = "2px";
         connector.style.height = Math.max(1, segment.length) + "px";
 
         if (position > width - 190) node.classList.add("label-before");
@@ -898,7 +923,7 @@
         connector.style.left = segment.offset + "px";
         connector.style.top = "0";
         connector.style.width = Math.max(1, segment.length) + "px";
-        connector.style.height = "1px";
+        connector.style.height = "2px";
 
         if (lane < 0) node.classList.add("label-before");
       }
