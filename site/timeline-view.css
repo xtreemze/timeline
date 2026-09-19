@@ -2260,7 +2260,8 @@
   content: "";
   position: absolute;
   z-index: 0;
-  inset: -22%;
+  inset-block: -22%;
+  inset-inline: 0;
   pointer-events: none;
   background:
     radial-gradient(circle at 52% 48%,
@@ -2434,8 +2435,9 @@
 }
 
 
-/* Relations is an ambient field, not a clipped card. In overview mode its halo may
-   extend past the semantic section; Evidence remains the bounded scrolling surface. */
+/* Relations is an ambient field, not a clipped card. Its halo may extend blockwise
+   past the semantic section, but it stays within the graph's inline width so the
+   gradient always fades before the graph edge; Evidence remains bounded. */
 .timeline-focus-view[popover][data-active-tab="overview"] {
   overflow: visible;
 }
@@ -2461,7 +2463,8 @@
 }
 
 .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations::before {
-  inset: -24%;
+  inset-block: -24%;
+  inset-inline: 0;
   background:
     radial-gradient(ellipse at 48% 48%,
       color-mix(in srgb, var(--story) 7%, transparent) 0%,
@@ -2479,7 +2482,8 @@
    landscape => graph field high, horizontal timeline bottom. */
 #presentation-stage:fullscreen[data-viewport-orientation="portrait"]
   .timeline-focus-view[data-active-tab="overview"] .timeline-focus-relations::before {
-  inset: -18% -12% -18% -24%;
+  inset-block: -18%;
+  inset-inline: 0;
   background:
     radial-gradient(ellipse at 42% 50%,
       color-mix(in srgb, var(--story) 7%, transparent) 0%,
@@ -2490,7 +2494,8 @@
 
 #presentation-stage:fullscreen[data-viewport-orientation="landscape"]
   .timeline-focus-view[data-active-tab="overview"] .timeline-focus-relations::before {
-  inset: -26% -16% -10%;
+  inset-block: -26% -10%;
+  inset-inline: 0;
   background:
     radial-gradient(ellipse at 50% 38%,
       color-mix(in srgb, var(--story) 7%, transparent) 0%,
