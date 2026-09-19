@@ -1632,10 +1632,10 @@
           evidenceTab.classList.toggle("is-active", evidenceActive);
           overviewTab.setAttribute("aria-selected", String(!evidenceActive));
           evidenceTab.setAttribute("aria-selected", String(evidenceActive));
+          this.positionFocusPopover();
         };
         const finishTabChange = () => {
           requestAnimationFrame(() => {
-            this.positionFocusPopover();
             if (!evidenceActive) {
               this.root.dispatchEvent(new CustomEvent("timelinefocusrender", {
                 bubbles: true,
