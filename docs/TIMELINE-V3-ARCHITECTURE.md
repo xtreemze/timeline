@@ -472,23 +472,23 @@ Physical screen orientation never rewrites the timeline orientation.
 
 ### Composition rules
 
-- Timeline-axis orientation remains an explicit user setting; physical viewport orientation controls only the fullscreen composition.
-- With no focused event, fullscreen suppresses contextual graph/map lenses and lets the timeline occupy the complete 12×12 stage so its chronology remains visually centered.
-- With a focused event on a landscape viewport, the timeline keeps the full 12-column horizontal measure and shifts to the lower edge. The relation graph and place map, when relevant, each occupy at most 2 columns × 2 rows above it.
-- With a focused event on a portrait viewport, the timeline keeps the full 12-row vertical measure and shifts to the right edge. The relation graph and place map, when relevant, each occupy at most 2 columns × 2 rows along the left edge.
-- Context lenses never expand to fill unused space merely because the other lens is absent; chronology remains the dominant surface.
-- Normal workspace layout still uses the measured presentation-stage width independently of fullscreen presentation.
-- All child surfaces use `min-width: 0` / `min-height: 0` contracts so canvases/maps can shrink without causing overflow.
+- The timeline owns the entire fullscreen stage at all times; selecting an event never gives a sibling surface layout ownership.
+- With no focused event, the timeline axis remains centered.
+- With a focused event, the timeline surface still fills the viewport while its axis shifts toward the lower edge for a horizontal timeline or the right edge for a vertical timeline.
+- Event detail is promoted to the browser top layer as one responsive overlay. Wide landscape layouts use a bounded popover; constrained or portrait layouts progressively become a top or side sheet while leaving the timeline edge visible.
+- Place and relation sections remain part of the event-detail 12-column composition. Their existing map and Orb graph renderers are moved behind their respective text as subdued interactive backdrops instead of consuming extra stage columns or rows.
+- The detail overlay progressively reduces hero height, typography, gaps and section sizes as available width/height shrinks.
+- All visual surfaces use `min-width: 0` / `min-height: 0` contracts so maps, canvases and media can shrink without causing overflow.
 
 Fullscreen targets `#presentation-stage`, not the entire editor or document. The authoring sidebar, search controls, detailed chronology list, site navigation and footer therefore remain outside the fullscreen presentation.
 
-Focus/unfocus layout changes use named Web View Transitions for the timeline, relation graph and map. Reduced-motion preferences bypass animated transitions.
+Focus/unfocus changes use named Web View Transitions for the timeline and detail overlay. Reduced-motion preferences bypass animated transitions.
 
 ### Focused event presentation
 
-Focused event mode still shows the contextual timeline plus the global temporal graph. The smaller one-hop graph embedded inside the event composition is hidden only in fullscreen to avoid rendering two simultaneous node graphs; textual relation changes remain visible. The global graph therefore becomes the relational presentation surface while the focused composition concentrates on media, event facts, place, evidence and relation narrative.
+Focused event mode reuses the existing Place and Relations sections rather than creating independent fullscreen lenses. The canonical temporal graph remains one renderer: its Orb canvas moves into the Relations section while focused and returns to the ordinary graph lens afterward. The presentation map follows the same ownership pattern, moving into the Place section and retaining pan/zoom/touch interaction.
 
-Horizontal focused timelines reserve a compact bottom context rail inside the timeline pane. Vertical focused timelines retain a narrow vertical context rail. The focused composition itself may scroll inside its allocated pane when content exceeds the available presentation area, but the timeline and global graph remain simultaneously visible.
+Text remains the foreground information layer. Map and graph backdrops use reduced opacity/saturation plus a directional paper scrim, keeping labels readable while leaving exposed portions of each visualization directly interactive.
 
 ### Resize synchronization
 
@@ -497,13 +497,13 @@ A `ResizeObserver` measures the presentation stage and updates its shape class. 
 
 ## Fullscreen evidence presentation surfaces
 
-A focused fullscreen event must keep four surfaces visible at once:
+A focused fullscreen event has two compositional layers:
 
-1. event composition — title, imagery, chronology facts and supporting data;
-2. contextual timeline — preserving the user's horizontal or vertical time axis;
-3. relevant node/edge graph — scoped to the focused event rather than the entire case;
-4. simplified place map — when the event has coordinates.
+1. the timeline, which permanently owns the full viewport and shifts its axis toward an edge when focus is active;
+2. the event-detail top layer, which contains media, chronology facts, evidence, Place and Relations sections.
 
-The place map is read-only in presentation mode. It renders the stored GeoJSON geometry instead of assuming every location is a point: semantic-icon markers identify points, LineString/MultiLineString geometries provide tracks or trails, Polygon/MultiPolygon geometries provide areas, GeometryCollection/Feature/FeatureCollection inputs are accepted, and optional `mapFeatures[]` can add contextual GeoJSON overlays. Recorded point accuracy is rendered as an uncertainty circle when available. The map fits the visible geometry while editing/navigation controls remain disabled. The interactive editor map remains separate.
+The Place section renders stored GeoJSON context behind its foreground text. Semantic-icon markers identify points; LineString/MultiLineString geometries provide tracks or trails; Polygon/MultiPolygon geometries provide areas; GeometryCollection/Feature/FeatureCollection inputs and optional `mapFeatures[]` overlays are supported. Recorded point accuracy may appear as an uncertainty circle. The presentation map is interactive: panning, wheel/pinch zoom, double-click zoom, box zoom and keyboard navigation are enabled.
 
-Fullscreen composition is intentionally asymmetric. The focused timeline keeps either the complete viewport width (landscape) or complete viewport height (portrait) while graph and map remain compact 2×2-cell contextual lenses. Physical screen orientation never mutates the selected timeline-axis orientation.
+The Relations section reuses the focused event's one-hop Orb neighborhood behind the foreground relation text. The graph remains interactive for node selection, long-press/touch drag, pan/zoom and force-mediated repositioning.
+
+Physical screen orientation never mutates the selected timeline-axis orientation; it only influences whether event detail behaves as a bounded popover or a sheet.
