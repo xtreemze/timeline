@@ -117,6 +117,85 @@
     return { lat, lng };
   }
 
+  function fictionalTextureLayer(L, container) {
+    const layer = L.gridLayer({
+      tileSize: 256,
+      minZoom: 0,
+      maxZoom: 12,
+      noWrap: true,
+      attribution: "Fictional reference frame · procedural texture"
+    });
+
+    layer.createTile = (coords) => {
+      const tile = document.createElement("canvas");
+      tile.width = 256;
+      tile.height = 256;
+      tile.className = "timeline-fictional-map-tile";
+
+      const context = tile.getContext("2d");
+      if (!context) return tile;
+
+      const computed = getComputedStyle(container);
+      const paper = computed.getPropertyValue("--paper-2").trim() || "#f7f3ec";
+      const line = computed.getPropertyValue("--line-strong").trim() || "#aaa195";
+      const muted = computed.getPropertyValue("--muted").trim() || "#6b6965";
+      context.fillStyle = paper;
+      context.fillRect(0, 0, tile.width, tile.height);
+
+      const seed = ((coords.x * 73856093) ^ (coords.y * 19349663) ^ (coords.z * 83492791)) >>> 0;
+      const unit = (salt) => {
+        let value = (seed ^ (salt * 2654435761)) >>> 0;
+        value ^= value << 13;
+        value ^= value >>> 17;
+        value ^= value << 5;
+        return (value >>> 0) / 4294967295;
+      };
+
+      context.strokeStyle = line;
+      context.lineWidth = 1;
+      context.globalAlpha = 0.18;
+      for (let contour = 0; contour < 7; contour += 1) {
+        const phase = unit(contour + 1) * Math.PI * 2;
+        const amplitude = 8 + unit(contour + 11) * 20;
+        const baseline = 20 + contour * 34 + (unit(contour + 21) - 0.5) * 18;
+        context.beginPath();
+        for (let x = -8; x <= 264; x += 8) {
+          const y = baseline + Math.sin((x / 38) + phase) * amplitude;
+          if (x === -8) context.moveTo(x, y);
+          else context.lineTo(x, y);
+        }
+        context.stroke();
+      }
+
+      context.fillStyle = muted;
+      context.globalAlpha = 0.12;
+      for (let dot = 0; dot < 54; dot += 1) {
+        const x = unit(100 + dot * 2) * 256;
+        const y = unit(101 + dot * 2) * 256;
+        const radius = 0.35 + unit(200 + dot) * 0.8;
+        context.beginPath();
+        context.arc(x, y, radius, 0, Math.PI * 2);
+        context.fill();
+      }
+
+      context.globalAlpha = 0.07;
+      context.strokeStyle = muted;
+      context.setLineDash([2, 7]);
+      context.beginPath();
+      context.moveTo(0, 128);
+      context.lineTo(256, 128);
+      context.moveTo(128, 0);
+      context.lineTo(128, 256);
+      context.stroke();
+      context.setLineDash([]);
+      context.globalAlpha = 1;
+
+      return tile;
+    };
+
+    return layer;
+  }
+
   function semanticMarkerIcon(L, iconName, color, label = "") {
     const identity = document.createElement("span");
     identity.className = "timeline-map-marker-identity";
@@ -159,6 +238,7 @@
         "Event location";
       this.interactive = options.interactive === true;
       this.countryContextIntro = options.countryContextIntro === true;
+      this.fictionalReferenceFrame = options.fictionalReferenceFrame === true;
       this.map = null;
       this.placePlaceholder = null;
       this.layers = [];
@@ -227,10 +307,16 @@
           );
         }
 
-        L.tileLayer(this.provider.url, {
-          maxZoom: this.provider.maxZoom || 19,
-          attribution: this.provider.attribution || DEFAULT_PROVIDER.attribution
-        }).addTo(this.map);
+        if (this.fictionalReferenceFrame) {
+          this.container.classList.add("is-fictional-map");
+          this.container.dataset.referenceFrame = "fictional";
+          fictionalTextureLayer(L, this.container).addTo(this.map);
+        } else {
+          L.tileLayer(this.provider.url, {
+            maxZoom: this.provider.maxZoom || 19,
+            attribution: this.provider.attribution || DEFAULT_PROVIDER.attribution
+          }).addTo(this.map);
+        }
 
         const baseGeoJsonOptions = {
           style: () => ({
@@ -451,6 +537,8 @@
       this.introTimer = 0;
       this.clearCountryContextInteractionGuard();
       this.clearPlacePlaceholder();
+      this.container?.classList.remove("is-fictional-map");
+      if (this.container) delete this.container.dataset.referenceFrame;
       this.layers = [];
       this.map?.remove();
       this.map = null;
