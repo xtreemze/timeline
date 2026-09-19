@@ -53,12 +53,99 @@
       objectId,
       predicate: text(raw.predicate || raw.label || raw.type, 120) || "relatedTo",
       role: text(raw.role, 120),
+      initialState: raw.initialState === "inactive" ? "inactive" : "active",
       time,
       attributes: raw.properties && typeof raw.properties === "object"
         ? cloneJson(raw.properties)
         : raw.attributes && typeof raw.attributes === "object"
           ? cloneJson(raw.attributes)
           : {}
+    };
+  }
+
+  const RELATION_CHANGE_OPERATIONS = new Set(["activate", "deactivate", "update"]);
+
+  function normalizeRelationChanges(value) {
+    if (!Array.isArray(value)) return [];
+    return value.slice(0, 12).map((raw) => {
+      if (!raw || typeof raw !== "object") return null;
+      const relationshipId = text(raw.relationshipId || raw.edgeId, 120);
+      if (!relationshipId) return null;
+      const operation = RELATION_CHANGE_OPERATIONS.has(raw.operation) ? raw.operation : "update";
+      return {
+        relationshipId,
+        operation,
+        predicate: text(raw.predicate, 120),
+        role: text(raw.role, 120),
+        properties: raw.properties && typeof raw.properties === "object" && !Array.isArray(raw.properties)
+          ? cloneJson(raw.properties)
+          : {}
+      };
+    }).filter(Boolean);
+  }
+
+  function relationChangesFor(input, relationshipId, temporal = globalThis.TimelineTemporal) {
+    const changes = [];
+    for (const item of Array.isArray(input?.items) ? input.items : []) {
+      const time = temporal?.sortKey(item.time?.start || item.start);
+      if (!Number.isFinite(time)) continue;
+      for (const change of normalizeRelationChanges(item.relationChanges)) {
+        if (change.relationshipId !== relationshipId) continue;
+        changes.push({
+          ...change,
+          itemId: item.id,
+          itemTitle: item.title || item.id,
+          time
+        });
+      }
+    }
+    return changes.sort((a, b) => a.time - b.time || String(a.itemId).localeCompare(String(b.itemId)));
+  }
+
+  function relationshipStateAt(input, relationship, viewport, temporal = globalThis.TimelineTemporal) {
+    const changes = relationChangesFor(input, relationship.id, temporal);
+    const hasViewport = viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end);
+    const snapshotTime = hasViewport ? viewport.start + (viewport.end - viewport.start) / 2 : Number.POSITIVE_INFINITY;
+    let active = relationship.initialState !== "inactive";
+    let predicate = relationship.predicate;
+    let role = relationship.role || "";
+    let attributes = cloneJson(relationship.attributes || {}) || {};
+
+    if (relationship.time?.start && temporal) {
+      const start = temporal.sortKey(relationship.time.start);
+      const end = relationship.time.end ? temporal.sortKey(relationship.time.end) : start;
+      if (Number.isFinite(start) && Number.isFinite(end)) {
+        active = hasViewport
+          ? relationship.time.end
+            ? snapshotTime >= start && snapshotTime <= end
+            : viewport.start <= start && start <= viewport.end
+          : true;
+      }
+    }
+
+    let changedInWindow = false;
+    let lastChange = null;
+    for (const change of changes) {
+      if (hasViewport && change.time >= viewport.start && change.time <= viewport.end) changedInWindow = true;
+      if (change.time > snapshotTime) break;
+      lastChange = change;
+      if (change.operation === "activate") active = true;
+      else if (change.operation === "deactivate") active = false;
+      else if (change.operation === "update") {
+        if (change.predicate) predicate = change.predicate;
+        if (change.role) role = change.role;
+        attributes = { ...attributes, ...(change.properties || {}) };
+      }
+    }
+
+    return {
+      active,
+      changedInWindow,
+      predicate,
+      role,
+      attributes,
+      lastChange,
+      changes
     };
   }
 
@@ -126,6 +213,7 @@
       label: relationship.predicate,
       properties: {
         role: relationship.role || "",
+        initialState: relationship.initialState || "active",
         time: cloneJson(relationship.time || null),
         attributes: cloneJson(relationship.attributes || {})
       }
@@ -151,15 +239,30 @@
     const stories = Array.isArray(input?.stories) ? input.stories : [];
     const graphData = toOrbGraph({ entities, relationships, items, stories });
     const states = new Map();
+
     for (const relationship of relationships) {
-      states.set(String(relationship.id), relationshipWindowState(relationship, viewport, temporal));
+      const derived = relationshipStateAt(input, relationship, viewport, temporal);
+      states.set(String(relationship.id), derived);
     }
+
     return {
       ...graphData,
-      edges: graphData.edges.map((edge) => ({
-        ...edge,
-        temporalState: states.get(String(edge.id)) || "inactive"
-      }))
+      edges: graphData.edges.map((edge) => {
+        const state = states.get(String(edge.id));
+        if (!state) return { ...edge, temporalState: "inactive" };
+        return {
+          ...edge,
+          label: state.predicate,
+          temporalState: state.changedInWindow ? "changed" : state.active ? "active" : "inactive",
+          properties: {
+            ...edge.properties,
+            role: state.role,
+            attributes: cloneJson(state.attributes),
+            lastChange: state.lastChange ? cloneJson(state.lastChange) : null,
+            changes: cloneJson(state.changes)
+          }
+        };
+      })
     };
   }
 
@@ -186,6 +289,8 @@
   globalThis.TimelineGraph = Object.freeze({
     graphForWindow,
     normalizeGraphData,
+    normalizeRelationChanges,
+    relationshipStateAt,
     relationshipWindowState,
     temporalRelationProjection,
     toOrbGraph
