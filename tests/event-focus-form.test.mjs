@@ -293,20 +293,35 @@ test("timeline range bars are identifiable and labels share event color semantic
 });
 
 
-test("body keeps the canonical 12-column grid while focused detail cannot compress it", async () => {
-  const [styles, timelineCss, html] = await Promise.all([
+test("application shell keeps the timeline viewport-owned while utility surfaces overlay it", async () => {
+  const [styles, timelineCss, html, app] = await Promise.all([
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/index.html", import.meta.url), "utf8")
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8")
   ]);
 
-  assert.match(styles, /body\s*\{[\s\S]*display:\s*grid[\s\S]*grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(styles, /main\s*\{[\s\S]*grid-template-columns:\s*subgrid/);
-  assert.match(styles, /\.app-shell\s*\{[\s\S]*grid-template-columns:\s*subgrid/);
-  assert.match(styles, /\.presentation-stage\s*\{[\s\S]*grid-template-columns:\s*subgrid/);
+  assert.doesNotMatch(html, /class="hero"|class="site-header"|<footer>/);
+  assert.match(html, /class="project-bar app-command-bar"/);
+  assert.match(html, /class="app-tool-dock"/);
+  assert.match(html, /id="control-panel"[^>]*hidden/);
+  assert.match(html, /id="timeline-browser-sheet"[^>]*hidden/);
+  assert.match(html, /id="timeline-view-toolbar"[^>]*hidden/);
+  assert.match(styles, /#workspace\s*\{[\s\S]*position:\s*fixed[\s\S]*height:\s*100dvh/);
+  assert.match(styles, /#app-shell\s*\{[\s\S]*position:\s*fixed[\s\S]*overflow:\s*hidden/);
+  assert.match(styles, /#app-shell #presentation-stage[\s\S]*grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(styles, /\.app-editor-sheet,[\s\S]*\.app-browser-sheet[\s\S]*position:\s*fixed/);
+  assert.match(styles, /@media \(min-width: 900px\)[\s\S]*\.app-editor-sheet,[\s\S]*width:\s*min\(520px/);
+  assert.match(timelineCss, /Persistent application canvas/);
+  assert.match(timelineCss, /#app-shell #timeline-view[\s\S]*position:\s*absolute[\s\S]*inset:\s*0/);
   assert.match(timelineCss, /#presentation-stage:fullscreen > \.timeline-view[\s\S]*grid-column:\s*1\s*\/\s*-1\s*!important/);
   assert.match(timelineCss, /timeline-focus-view\[popover\][\s\S]*position:/);
   assert.match(html, /id="timeline-focus-view"[^>]*popover="manual"/);
+  assert.match(app, /function setEditorSurfaceOpen/);
+  assert.match(app, /function setBrowserSurfaceOpen/);
+  assert.match(app, /function setGraphSurfaceOpen/);
+  assert.match(app, /function setViewControlsOpen/);
+  assert.match(app, /setActivePanel\("items", \{ open: false \}\)/);
 });
 
 test("presentation map renders semantic GeoJSON features instead of an empty point preview", async () => {
