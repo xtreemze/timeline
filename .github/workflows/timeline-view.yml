@@ -15,12 +15,16 @@ on:
       - 'site/interchange-adapter.js'
       - 'site/date-range-picker.js'
       - 'site/event-presentation.js'
+      - 'site/evidence-store.js'
+      - 'site/sample-case.js'
       - 'site/temporal-standards.js'
       - 'site/spatial.js'
       - 'site/location-map.js'
       - 'tests/temporal-spatial.test.mjs'
       - 'tests/interchange-adapter.test.mjs'
       - 'tests/event-focus-form.test.mjs'
+      - 'tests/evidence-store.test.mjs'
+      - 'tests/sample-case.test.mjs'
       - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
@@ -41,12 +45,16 @@ on:
       - 'site/interchange-adapter.js'
       - 'site/date-range-picker.js'
       - 'site/event-presentation.js'
+      - 'site/evidence-store.js'
+      - 'site/sample-case.js'
       - 'site/temporal-standards.js'
       - 'site/spatial.js'
       - 'site/location-map.js'
       - 'tests/temporal-spatial.test.mjs'
       - 'tests/interchange-adapter.test.mjs'
       - 'tests/event-focus-form.test.mjs'
+      - 'tests/evidence-store.test.mjs'
+      - 'tests/sample-case.test.mjs'
       - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
@@ -72,9 +80,11 @@ jobs:
       - run: node --check site/timeline-view.js
       - run: node --check site/date-range-picker.js
       - run: node --check site/event-presentation.js
+      - run: node --check site/evidence-store.js
+      - run: node --check site/sample-case.js
       - run: node --check site/interchange-adapter.js
       - run: node --check site/temporal-standards.js
       - run: node --check site/spatial.js
       - run: node --check site/location-map.js
       - run: node --check site/app.js
-      - run: node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/timeline-interaction.test.mjs tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/event-focus-form.test.mjs tests/timeline-navigation.test.mjs
+      - run: node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/timeline-interaction.test.mjs tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/event-focus-form.test.mjs tests/evidence-store.test.mjs tests/sample-case.test.mjs tests/timeline-navigation.test.mjs
