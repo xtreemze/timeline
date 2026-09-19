@@ -1535,9 +1535,9 @@
   max-height: none;
   overflow: auto;
   overscroll-behavior: contain;
-  box-shadow: 0 24px 72px color-mix(in srgb, var(--ink) 22%, transparent);
+  box-shadow: 0 14px 42px color-mix(in srgb, var(--ink) 13%, transparent);
   background: color-mix(in srgb, var(--paper) 96%, transparent);
-  backdrop-filter: blur(18px);
+  backdrop-filter: blur(14px);
   container-type: inline-size;
   view-transition-name: timeline-detail-overlay;
 }
@@ -1991,7 +1991,7 @@
     inline-size: min(900px, calc(100dvw - 8rem));
     max-block-size: calc(100dvh - 9rem);
     block-size: auto;
-    overflow: clip;
+    overflow: visible;
     transform: translateX(-50%);
   }
 
@@ -2003,7 +2003,7 @@
     inline-size: min(720px, calc(100dvw - 10rem));
     max-block-size: calc(100dvh - 2rem);
     block-size: auto;
-    overflow: clip;
+    overflow: visible;
     transform: translateY(-50%);
   }
 
@@ -2117,4 +2117,246 @@
 
 .timeline-focus-relations-backdrop {
   opacity: .64;
+}
+
+
+/* Focused presentation refinement: two-row overview, tabbed evidence, and direct graph manipulation. */
+.timeline-focus-view[popover] {
+  padding-top: 3.05rem;
+}
+
+.timeline-focus-tabs {
+  position: absolute;
+  z-index: 30;
+  top: .52rem;
+  right: .52rem;
+  display: flex;
+  align-items: center;
+  gap: .28rem;
+  max-width: calc(100% - 1.04rem);
+  padding: .24rem;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  border-radius: .72rem;
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.timeline-focus-tab {
+  min-height: 32px;
+  padding: .4rem .62rem;
+  border: 0;
+  border-radius: .52rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: 740 .7rem/1 "Monaspace Krypton Timeline", ui-monospace, monospace;
+}
+
+.timeline-focus-tab:is(:hover, :focus-visible, .is-active) {
+  background: var(--paper-2);
+  color: var(--ink);
+  outline: none;
+}
+
+.timeline-focus-close {
+  min-height: 32px;
+  margin-left: .12rem;
+  padding: .4rem .62rem;
+}
+
+.timeline-focus-summary .timeline-focus-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: .3rem;
+  margin-top: .8rem;
+  padding: 0;
+  grid-column: auto;
+  grid-row: auto;
+}
+
+.timeline-focus-view[popover] > [hidden] {
+  display: none !important;
+}
+
+.timeline-focus-relations {
+  overflow: visible;
+  background: transparent;
+}
+
+.timeline-focus-relations::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: -22%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 52% 48%,
+      color-mix(in srgb, var(--story) 10%, transparent) 0%,
+      color-mix(in srgb, var(--story) 5%, transparent) 38%,
+      transparent 70%);
+}
+
+.timeline-focus-relations-backdrop {
+  z-index: 3;
+  opacity: .78;
+  filter: none;
+  overflow: visible;
+}
+
+.timeline-focus-relations-backdrop::after {
+  opacity: .38;
+}
+
+.timeline-focus-relations-backdrop .temporal-graph-canvas,
+.timeline-focus-relations-backdrop .temporal-graph-canvas canvas {
+  z-index: 2;
+  overflow: visible;
+  pointer-events: auto !important;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.timeline-focus-relations-backdrop .temporal-graph-canvas {
+  cursor: grab;
+}
+
+.timeline-focus-relations-backdrop .temporal-graph-canvas:active {
+  cursor: grabbing;
+}
+
+.timeline-focus-relations .timeline-focus-section-content {
+  z-index: 4;
+  width: min(46%, 22rem);
+}
+
+/* HD desktop uses exactly two content rows; Evidence replaces the overview in-place. */
+@media (min-width: 900px) and (min-height: 700px) {
+  .timeline-focus-view[popover][data-active-tab="overview"] {
+    grid-template-rows: minmax(190px, auto) minmax(125px, auto);
+  }
+
+  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero {
+    grid-column: 1 / span 4 !important;
+    grid-row: 1 !important;
+    min-height: clamp(190px, 27dvh, 255px);
+  }
+
+  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary {
+    grid-column: 5 / -1 !important;
+    grid-row: 1 !important;
+    align-self: stretch;
+  }
+
+  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place {
+    grid-column: 1 / span 2 !important;
+    grid-row: 2 !important;
+  }
+
+  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations {
+    grid-column: 3 / -1 !important;
+    grid-row: 2 !important;
+  }
+
+  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
+    grid-column: 1 / -1 !important;
+    grid-row: 1 / span 2 !important;
+    max-height: calc(100dvh - 10rem);
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Fullscreen keeps the timeline edge exposed and places graph context away from that edge. */
+#presentation-stage:fullscreen[data-viewport-orientation="landscape"]
+  .timeline-view > .timeline-focus-view:popover-open {
+  top: max(.8rem, env(safe-area-inset-top));
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  inline-size: min(960px, calc(100dvw - 7rem));
+  max-block-size: calc(100dvh - 9rem);
+  transform: translateX(-50%);
+}
+
+#presentation-stage:fullscreen[data-viewport-orientation="landscape"]
+  .timeline-focus-view[data-active-tab="overview"] .timeline-focus-relations {
+  grid-column: 1 / span 3 !important;
+  grid-row: 1 !important;
+  min-height: clamp(190px, 30dvh, 300px);
+}
+
+#presentation-stage:fullscreen[data-viewport-orientation="landscape"]
+  .timeline-focus-view[data-active-tab="overview"] .timeline-focus-hero {
+  grid-column: 4 / -1 !important;
+  grid-row: 1 !important;
+}
+
+#presentation-stage:fullscreen[data-viewport-orientation="landscape"]
+  .timeline-focus-view[data-active-tab="overview"] .timeline-focus-summary {
+  grid-column: 1 / span 3 !important;
+  grid-row: 2 !important;
+}
+
+#presentation-stage:fullscreen[data-viewport-orientation="landscape"]
+  .timeline-focus-view[data-active-tab="overview"] .timeline-focus-place {
+  grid-column: 4 / -1 !important;
+  grid-row: 2 !important;
+}
+
+#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
+  .timeline-view > .timeline-focus-view:popover-open {
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  left: max(4.7rem, calc(env(safe-area-inset-left) + 4.2rem));
+  inline-size: min(70dvw, 720px);
+  max-block-size: calc(100dvh - 2rem);
+  transform: translateY(-50%);
+}
+
+#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
+  .timeline-focus-view[data-active-tab="overview"] .timeline-focus-relations {
+  grid-column: 1 / span 3 !important;
+  grid-row: 1 / span 2 !important;
+  min-height: clamp(360px, 58dvh, 760px);
+}
+
+#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
+  .timeline-focus-view[data-active-tab="overview"] .timeline-focus-hero {
+  grid-column: 4 / -1 !important;
+  grid-row: 1 !important;
+}
+
+#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
+  .timeline-focus-view[data-active-tab="overview"] .timeline-focus-summary {
+  grid-column: 4 / span 2 !important;
+  grid-row: 2 !important;
+}
+
+#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
+  .timeline-focus-view[data-active-tab="overview"] .timeline-focus-place {
+  grid-column: 6 / -1 !important;
+  grid-row: 2 !important;
+}
+
+@media (max-width: 760px) {
+  .timeline-focus-view[popover] {
+    padding-top: 3rem;
+  }
+
+  .timeline-focus-tabs {
+    left: .45rem;
+    right: .45rem;
+    justify-content: flex-end;
+  }
+
+  #presentation-stage:fullscreen[data-viewport-orientation="portrait"]
+    .timeline-view > .timeline-focus-view:popover-open,
+  #presentation-stage:fullscreen[data-viewport-orientation="landscape"]
+    .timeline-view > .timeline-focus-view:popover-open {
+    inline-size: auto;
+    max-block-size: 68dvh;
+  }
 }
