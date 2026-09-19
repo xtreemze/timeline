@@ -50,7 +50,9 @@
     appShell: document.querySelector("#app-shell"),
     controlPanel: document.querySelector("#control-panel"),
     controlPanelClose: document.querySelector("#control-panel-close"),
+    editorSurfaceTitle: document.querySelector("#editor-surface-title"),
     panelOpeners: [...document.querySelectorAll("[data-open-panel]")],
+    semanticIconTargets: [...document.querySelectorAll("[data-semantic-icon]")],
     browserSheet: document.querySelector("#timeline-browser-sheet"),
     browserToggle: document.querySelector("#timeline-browser-toggle"),
     browserClose: document.querySelector("#timeline-browser-close"),
@@ -225,6 +227,16 @@
     viewControlsOpen: false,
     collapsedCategoryIds: new Set()
   };
+
+  function decorateSemanticControls() {
+    for (const element of els.semanticIconTargets) {
+      if (element.querySelector(":scope > .semantic-icon")) continue;
+      const iconName = element.dataset.semanticIcon || "note";
+      element.prepend(presentation.createIcon(iconName, { size: 22 }));
+    }
+  }
+
+  decorateSemanticControls();
 
   const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
   const temporalGraphView = temporalGraphFactory.create(els.graphViewRoot);
@@ -898,6 +910,9 @@
       els.browserSheet.hidden = !ui.browserOpen;
       els.browserSheet.setAttribute("aria-hidden", String(!ui.browserOpen));
     }
+    for (const opener of els.panelOpeners) {
+      opener.setAttribute("aria-expanded", String(ui.editorOpen));
+    }
     if (els.browserToggle) els.browserToggle.setAttribute("aria-expanded", String(ui.browserOpen));
     if (els.graphLensToggle) els.graphLensToggle.setAttribute("aria-expanded", String(ui.graphOpen));
     if (els.viewControlsToggle) {
@@ -943,6 +958,13 @@
 
   function setActivePanel(name, { open = true } = {}) {
     ui.activePanel = name;
+    const editorLabels = {
+      items: "Events & ranges",
+      stories: "Stories",
+      categories: "Categories",
+      graph: "Graph data"
+    };
+    if (els.editorSurfaceTitle) els.editorSurfaceTitle.textContent = editorLabels[name] || "Edit";
     for (const tab of els.tabs) {
       const active = tab.dataset.panel === name;
       tab.classList.toggle("is-active", active);
@@ -1784,6 +1806,8 @@
     ui.categoryFilter = "all";
     els.search.value = "";
     els.categoryFilter.value = "all";
+    closeLargeUtilitySurfaces();
+    syncApplicationSurfaces();
     renderTimeline();
     focusCurrentStoryItem();
   }
@@ -2735,7 +2759,10 @@
     const button = event.target.closest("button[data-action]");
     const itemElement = event.target.closest(".timeline-item");
     if (!button || !itemElement) return;
-    if (button.dataset.action === "focus-item") timelineView?.focusItem(itemElement.dataset.id);
+    if (button.dataset.action === "focus-item") {
+      setBrowserSurfaceOpen(false);
+      timelineView?.focusItem(itemElement.dataset.id);
+    }
     if (button.dataset.action === "edit-item") beginItemEdit(itemElement.dataset.id);
     if (button.dataset.action === "delete-item") removeItem(itemElement.dataset.id);
     if (button.dataset.action === "story-focus") {
