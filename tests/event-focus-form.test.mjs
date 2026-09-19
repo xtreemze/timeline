@@ -735,3 +735,47 @@ test("focused popover content remains bounded while Relations halo can stay visu
   assert.match(css, /\.timeline-focus-evidence[\s\S]*overflow:\s*auto/);
   assert.match(css, /timeline-focus-relations-backdrop \.temporal-graph-canvas[\s\S]*overflow:\s*visible/);
 });
+
+
+test("focused popover re-clamps after late content resize", async () => {
+  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  assert.match(source, /this\.focusResizeFrame = 0/);
+  assert.match(source, /new ResizeObserver\(\(entries\) => \{/);
+  assert.match(source, /entries\.some\(\(entry\) => entry\.target === this\.focusView\)/);
+  assert.match(source, /this\.resizeObserver\.observe\(this\.focusView\)/);
+  assert.match(source, /this\.focusView\.matches\(":popover-open"\)[\s\S]*requestAnimationFrame\(\(\) => \{[\s\S]*this\.positionFocusPopover\(\)/);
+  assert.match(source, /cancelAnimationFrame\(this\.focusResizeFrame\)[\s\S]*this\.focusResizeFrame = 0/);
+});
+
+test("tab transitions animate only lower contextual panels while Hero and Context persist", async () => {
+  const [source, css] = await Promise.all([
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+  assert.match(source, /FOCUS_TAB_PLACE_TRANSITION_NAME = "timeline-focus-tab-place"/);
+  assert.match(source, /FOCUS_TAB_RELATIONS_TRANSITION_NAME = "timeline-focus-tab-relations"/);
+  assert.match(source, /FOCUS_TAB_EVIDENCE_TRANSITION_NAME = "timeline-focus-tab-evidence"/);
+  assert.match(source, /place\.style\.viewTransitionName = FOCUS_TAB_PLACE_TRANSITION_NAME/);
+  assert.match(source, /relations\.style\.viewTransitionName = FOCUS_TAB_RELATIONS_TRANSITION_NAME/);
+  assert.match(source, /evidence\.style\.viewTransitionName = FOCUS_TAB_EVIDENCE_TRANSITION_NAME/);
+  assert.doesNotMatch(source, /hero\.style\.viewTransitionName/);
+  assert.doesNotMatch(source, /summary\.style\.viewTransitionName/);
+  assert.match(source, /document\.startViewTransition\(applyTabState\)/);
+  assert.match(source, /applyTabState[\s\S]*this\.positionFocusPopover\(\)/);
+  assert.match(css, /::view-transition-group\(timeline-focus-tab-place\)/);
+  assert.match(css, /::view-transition-old\(timeline-focus-tab-relations\)/);
+  assert.match(css, /::view-transition-new\(timeline-focus-tab-evidence\)/);
+});
+
+test("focus chrome remains outside tab animation and semantic panels stay bounded", async () => {
+  const [timelineCss, styles] = await Promise.all([
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+  ]);
+  assert.match(timelineCss, /::view-transition-old\(root\)[\s\S]*animation:\s*none !important/);
+  assert.match(timelineCss, /\.timeline-view-toolbar[\s\S]*view-transition-name:\s*timeline-view-toolbar/);
+  assert.match(styles, /\.app-command-bar[\s\S]*view-transition-name:\s*timeline-command-bar/);
+  assert.match(styles, /\.app-tool-dock[\s\S]*view-transition-name:\s*timeline-workspace-sidebar/);
+  assert.match(timelineCss, /timeline-focus-view\[popover\] > :is\([\s\S]*timeline-focus-evidence[\s\S]*max-inline-size:\s*100%/);
+  assert.match(timelineCss, /\.timeline-focus-place,[\s\S]*\.timeline-focus-relations[\s\S]*max-block-size:\s*100%/);
+});

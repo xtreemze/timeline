@@ -24,6 +24,9 @@
   const RELATION_LANES = 4;
   const FOCUS_VIEW_TRANSITION_NAME = "timeline-event-detail-shared";
   const FOCUS_SWAP_TRANSITION_NAME = "timeline-event-detail-swap";
+  const FOCUS_TAB_PLACE_TRANSITION_NAME = "timeline-focus-tab-place";
+  const FOCUS_TAB_RELATIONS_TRANSITION_NAME = "timeline-focus-tab-relations";
+  const FOCUS_TAB_EVIDENCE_TRANSITION_NAME = "timeline-focus-tab-evidence";
   const FOCUS_POPOVER_MARGIN = 12;
 
   function createElement(tag, className, text) {
@@ -115,6 +118,7 @@
       this.orientation = this.preferences.orientation;
       this.drag = null;
       this.resizeObserver = null;
+      this.focusResizeFrame = 0;
       this.renderFrame = 0;
       this.zoomAnimationFrame = 0;
       this.zoomLastFrame = 0;
@@ -259,10 +263,29 @@
 
 
       if ("ResizeObserver" in globalThis) {
-        this.resizeObserver = new ResizeObserver(() => this.scheduleRender());
+        this.resizeObserver = new ResizeObserver((entries) => {
+          this.scheduleRender();
+          if (
+            entries.some((entry) => entry.target === this.focusView) &&
+            this.selectedId &&
+            this.focusView.matches(":popover-open")
+          ) {
+            cancelAnimationFrame(this.focusResizeFrame);
+            this.focusResizeFrame = requestAnimationFrame(() => {
+              this.focusResizeFrame = 0;
+              this.positionFocusPopover();
+            });
+          }
+        });
         this.resizeObserver.observe(this.surface);
+        this.resizeObserver.observe(this.focusView);
       } else {
-        window.addEventListener("resize", () => this.scheduleRender());
+        window.addEventListener("resize", () => {
+          this.scheduleRender();
+          if (this.selectedId && this.focusView.matches(":popover-open")) {
+            this.positionFocusPopover();
+          }
+        });
       }
     }
 
@@ -1601,22 +1624,55 @@
 
       const setFocusTab = (name) => {
         const evidenceActive = name === "evidence";
-        this.focusView.dataset.activeTab = evidenceActive ? "evidence" : "overview";
-        for (const panel of [place, relations]) panel.hidden = evidenceActive;
-        evidence.hidden = !evidenceActive;
-        overviewTab.classList.toggle("is-active", !evidenceActive);
-        evidenceTab.classList.toggle("is-active", evidenceActive);
-        overviewTab.setAttribute("aria-selected", String(!evidenceActive));
-        evidenceTab.setAttribute("aria-selected", String(evidenceActive));
-        requestAnimationFrame(() => {
+        const applyTabState = () => {
+          this.focusView.dataset.activeTab = evidenceActive ? "evidence" : "overview";
+          for (const panel of [place, relations]) panel.hidden = evidenceActive;
+          evidence.hidden = !evidenceActive;
+          overviewTab.classList.toggle("is-active", !evidenceActive);
+          evidenceTab.classList.toggle("is-active", evidenceActive);
+          overviewTab.setAttribute("aria-selected", String(!evidenceActive));
+          evidenceTab.setAttribute("aria-selected", String(evidenceActive));
           this.positionFocusPopover();
-          if (!evidenceActive) {
-            this.root.dispatchEvent(new CustomEvent("timelinefocusrender", {
-              bubbles: true,
-              detail: { id: item.id }
-            }));
-          }
-        });
+        };
+        const finishTabChange = () => {
+          requestAnimationFrame(() => {
+            if (!evidenceActive) {
+              this.root.dispatchEvent(new CustomEvent("timelinefocusrender", {
+                bubbles: true,
+                detail: { id: item.id }
+              }));
+            }
+          });
+        };
+        const canTransition =
+          !this.prefersReducedMotion() &&
+          typeof document.startViewTransition === "function";
+
+        if (!canTransition) {
+          applyTabState();
+          finishTabChange();
+          return;
+        }
+
+        place.style.viewTransitionName = FOCUS_TAB_PLACE_TRANSITION_NAME;
+        relations.style.viewTransitionName = FOCUS_TAB_RELATIONS_TRANSITION_NAME;
+        evidence.style.viewTransitionName = FOCUS_TAB_EVIDENCE_TRANSITION_NAME;
+        try {
+          const transition = document.startViewTransition(applyTabState);
+          const cleanupTabTransition = () => {
+            place.style.removeProperty("view-transition-name");
+            relations.style.removeProperty("view-transition-name");
+            evidence.style.removeProperty("view-transition-name");
+          };
+          void transition.ready.then(finishTabChange, finishTabChange);
+          void transition.finished.then(cleanupTabTransition, cleanupTabTransition);
+        } catch {
+          place.style.removeProperty("view-transition-name");
+          relations.style.removeProperty("view-transition-name");
+          evidence.style.removeProperty("view-transition-name");
+          applyTabState();
+          finishTabChange();
+        }
       };
       overviewTab.addEventListener("click", () => setFocusTab("overview"));
       evidenceTab.addEventListener("click", () => setFocusTab("evidence"));
@@ -1640,6 +1696,8 @@
           this.focusView.hidePopover();
         }
         this.focusView.hidden = true;
+        cancelAnimationFrame(this.focusResizeFrame);
+        this.focusResizeFrame = 0;
         this.focusView.removeAttribute("style");
         delete this.focusView.dataset.layout;
         this.focusView.replaceChildren();
