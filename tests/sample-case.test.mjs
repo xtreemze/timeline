@@ -310,3 +310,98 @@ test("detailed stories add graph and place depth without conflating categories w
     assert.ok(places.size >= 5, `${storyId}: expected richer geography`);
   }
 });
+
+
+test("main-action chronology is spread across realistic multi-day spans without duplicate timestamps", () => {
+  for (const story of sample.stories) {
+    const items = storyItems(story).filter((item) => item.start.startsWith("1000-"));
+    const starts = items.map((item) => temporal.sortKey(item.start));
+    const spanDays = (Math.max(...starts) - Math.min(...starts)) / 86_400_000;
+    assert.ok(spanDays >= 14, `${story.title}: main action should span at least two weeks`);
+
+    const exactStarts = new Set();
+    const startsPerDay = new Map();
+    for (const item of items) {
+      assert.equal(exactStarts.has(item.start), false, `${story.title}: duplicate exact timestamp ${item.start}`);
+      exactStarts.add(item.start);
+      const day = item.start.slice(0, 10);
+      startsPerDay.set(day, (startsPerDay.get(day) || 0) + 1);
+    }
+    assert.ok(Math.max(...startsPerDay.values()) <= 3, `${story.title}: too many events compressed onto one date`);
+    assert.ok(startsPerDay.size >= 8, `${story.title}: chronology should use many distinct dates`);
+  }
+});
+
+test("every chronology item has public-domain illustrative media", () => {
+  assert.equal(sample.items.filter((item) => item.media?.length).length, sample.items.length);
+  for (const item of sample.items) {
+    assert.ok(item.media.length >= 1, item.id);
+    for (const media of item.media) {
+      assert.match(media.src, /^https:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\//, item.id);
+      assert.match(media.caption || "", /Public-domain story illustration via Wikimedia Commons/i, item.id);
+    }
+  }
+});
+
+test("every event is a direct graph node with actor and place edges", () => {
+  const itemIds = new Set(sample.items.map((item) => item.id));
+  const entityIds = new Set(sample.entities.map((entity) => entity.id));
+  const storyIds = new Set(sample.stories.map((story) => story.id));
+
+  for (const id of itemIds) {
+    assert.equal(entityIds.has(id), false, `item/entity graph id collision: ${id}`);
+    assert.equal(storyIds.has(id), false, `item/story graph id collision: ${id}`);
+  }
+  for (const id of entityIds) assert.equal(storyIds.has(id), false, `entity/story graph id collision: ${id}`);
+
+  for (const item of sample.items) {
+    const edges = sample.relationships.filter(
+      (relationship) => relationship.subjectId === item.id || relationship.objectId === item.id
+    );
+    assert.ok(edges.length >= 2, `${item.id}: expected direct graph connectivity`);
+    assert.ok(edges.some((relationship) => relationship.predicate === "occursAt"), `${item.id}: place edge`);
+    assert.ok(edges.some((relationship) => relationship.predicate === "participatesIn"), `${item.id}: actor edge`);
+
+    const itemStart = temporal.sortKey(item.start);
+    const itemEnd = temporal.sortKey(item.end || item.start);
+    for (const edge of edges.filter((relationship) => relationship.time?.start?.value)) {
+      const edgeStart = temporal.sortKey(edge.time.start.value);
+      const edgeEnd = temporal.sortKey(edge.time.end?.value || edge.time.start.value);
+      assert.ok(edgeEnd >= itemStart && edgeStart <= itemEnd, `${edge.id}: must overlap ${item.id}`);
+    }
+  }
+});
+
+test("every event place has a coordinate-backed graph node and map marker", () => {
+  const placeEntities = sample.entities.filter((entity) => entity.type === "place");
+  const placeIndex = new Map(
+    placeEntities.map((entity) => [`${entity.attributes?.storyId}|${entity.name}`, entity])
+  );
+  const placesByStory = new Map(sample.stories.map((story) => [story.id, new Set()]));
+
+  for (const item of sample.items) {
+    const storyId = item.extensions?.narrative?.storyId;
+    const coordinates = item.location?.geometry?.coordinates;
+    assert.equal(coordinates?.length, 2, `${item.id}: marker coordinates`);
+    assert.ok(coordinates.every(Number.isFinite), `${item.id}: finite marker coordinates`);
+
+    const place = placeIndex.get(`${storyId}|${item.location.name}`);
+    assert.ok(place, `${item.id}: matching place graph node`);
+    assert.equal(place.attributes?.mapMarker, true, `${item.id}: map marker enabled`);
+    assert.deepEqual(place.attributes?.geometry?.coordinates, coordinates, `${item.id}: graph/map coordinates match`);
+
+    const edge = sample.relationships.find((relationship) =>
+      relationship.subjectId === item.id &&
+      relationship.objectId === place.id &&
+      relationship.predicate === "occursAt"
+    );
+    assert.ok(edge, `${item.id}: occursAt relationship to marker node`);
+    assert.equal(edge.attributes?.mapMarker, true, `${item.id}: relationship marks location for map use`);
+    placesByStory.get(storyId)?.add(item.location.name);
+  }
+
+  assert.ok(placeEntities.length >= 27);
+  for (const [storyId, places] of placesByStory) {
+    assert.ok(places.size >= 8, `${storyId}: expected richer mapped geography`);
+  }
+});

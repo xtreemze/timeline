@@ -139,18 +139,25 @@
           "fictional": true,
           "storyId": "story-snow-white",
           "sequence": 1,
-          "displayTime": "Prologue · seven years earlier",
+          "displayTime": "Prologue · Snow White is born",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite.jpg",
+          "alt": "1913 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
     },
     {
       "id": "snow-childhood",
       "kind": "range",
       "start": "0993-01-02",
-      "end": "1000-04-01",
+      "end": "1000-04-05",
       "time": {
         "type": "interval",
         "start": {
@@ -163,7 +170,7 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         },
         "end": {
-          "value": "1000-04-01",
+          "value": "1000-04-05",
           "precision": "day",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -212,7 +219,14 @@
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite.png",
+          "alt": "1852 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
     },
     {
       "id": "cinderella-mother",
@@ -267,22 +281,29 @@
           "fictional": true,
           "storyId": "story-cinderella",
           "sequence": 1,
-          "displayTime": "Prologue · years earlier",
+          "displayTime": "Prologue · mother's death",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20by%20Elenore%20Abbott.jpg",
+          "alt": "Elenore Abbott public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
     },
     {
       "id": "cinderella-stepfamily-arrives",
       "kind": "event",
-      "start": "0997-01-02",
+      "start": "0997-06-01",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "0997-01-02",
+          "value": "0997-06-01",
           "precision": "day",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -327,22 +348,29 @@
           "fictional": true,
           "storyId": "story-cinderella",
           "sequence": 2,
-          "displayTime": "Prologue · household changes",
+          "displayTime": "Prologue · stepfamily joins household",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20and%20the%20Fairy%20Godmother.jpg",
+          "alt": "William Henry Margetson public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
     },
     {
       "id": "cinderella-hardship",
       "kind": "range",
-      "start": "0997-01-02",
-      "end": "1000-04-01",
+      "start": "0997-06-02",
+      "end": "1000-04-14",
       "time": {
         "type": "interval",
         "start": {
-          "value": "0997-01-02",
+          "value": "0997-06-02",
           "precision": "day",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -351,7 +379,7 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         },
         "end": {
-          "value": "1000-04-01",
+          "value": "1000-04-14",
           "precision": "day",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -395,18 +423,25 @@
           "fictional": true,
           "storyId": "story-cinderella",
           "sequence": 3,
-          "displayTime": "Prologue · long hardship",
+          "displayTime": "Prologue · years of household servitude",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Helen%20Stratton%20Cinderella.jpg",
+          "alt": "Helen Stratton public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
     },
     {
       "id": "pigs-childhood",
       "kind": "range",
       "start": "0998-01-01",
-      "end": "1000-04-01",
+      "end": "1000-03-24",
       "time": {
         "type": "interval",
         "start": {
@@ -419,7 +454,7 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         },
         "end": {
-          "value": "1000-04-01",
+          "value": "1000-03-24",
           "precision": "day",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -463,12 +498,19 @@
           "fictional": true,
           "storyId": "story-three-little-pigs",
           "sequence": 1,
-          "displayTime": "Prologue · before the journey",
+          "displayTime": "Prologue · childhood before independence",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20straw.jpg",
+          "alt": "L. Leslie Brooke illustration of a pig carrying straw",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
     },
     {
       "id": "pigs-leave-home",
@@ -523,67 +565,7 @@
           "fictional": true,
           "storyId": "story-three-little-pigs",
           "sequence": 2,
-          "displayTime": "Day 1 · morning",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      }
-    },
-    {
-      "id": "cinderella-invitation",
-      "kind": "event",
-      "start": "1000-04-01T08:10Z",
-      "end": null,
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-01T08:10Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "title": "The royal ball invitation arrives",
-      "description": "A palace invitation announces festivities at which the prince will meet the kingdom's eligible guests.",
-      "categoryId": "discovery",
-      "location": {
-        "name": "Cinderella's House",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.74,
-            47.31
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "editorial-mosaic"
-      },
-      "evidenceIds": [
-        "src-cinderella"
-      ],
-      "tags": [
-        {
-          "label": "Invitation",
-          "icon": "note",
-          "hue": 214
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-cinderella",
-          "sequence": 4,
-          "displayTime": "Day 1 · morning",
+          "displayTime": "Day 1 · departure",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
@@ -591,21 +573,21 @@
       },
       "media": [
         {
-          "src": "https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Palace-like architecture used as Cinderella mood art",
-          "caption": "Mood image only; not evidence or a real location."
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%20-%20third%20pig%20builds%20a%20house%20-%20Project%20Gutenberg%20eText%2015661.jpg",
+          "alt": "L. Leslie Brooke illustration of the third pig building",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
     },
     {
       "id": "pigs-acquire-straw",
       "kind": "event",
-      "start": "1000-04-01T08:20Z",
+      "start": "1000-04-02T09:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-01T08:20Z",
+          "value": "1000-04-02T09:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -619,14 +601,14 @@
       "description": "The First Pig meets a material seller on Pigwood Market Road and chooses straw because it can be assembled quickly. The choice minimizes construction time but leaves him with the least resistant shelter.",
       "categoryId": "decision",
       "location": {
-        "name": "Pigwood Market Road",
+        "name": "Straw Seller's Field",
         "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
         "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
         "geometry": {
           "type": "Point",
           "coordinates": [
-            8.13,
-            50.01
+            8.14,
+            50.012
           ]
         },
         "crs": "OGC:CRS84",
@@ -650,82 +632,29 @@
           "fictional": true,
           "storyId": "story-three-little-pigs",
           "sequence": 3,
-          "displayTime": "Day 1 · 08:20 · material choice",
+          "displayTime": "Day 2 · 09:00 · straw chosen",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
-    },
-    {
-      "id": "snow-mirror",
-      "kind": "event",
-      "start": "1000-04-01T08:20Z",
-      "end": null,
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-01T08:20Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
       },
-      "title": "The mirror names Snow White the fairest",
-      "description": "The Queen consults the magic mirror expecting confirmation that she remains the fairest. The mirror instead names Snow White, converting the Queen's jealousy into a specific threat directed at her.",
-      "categoryId": "discovery",
-      "location": {
-        "name": "Queen's Castle",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.32,
-            48.54
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "evidence-dossier"
-      },
-      "evidenceIds": [
-        "src-snow"
-      ],
-      "tags": [
+      "media": [
         {
-          "label": "Inciting incident",
-          "icon": "object",
-          "hue": 282
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%201904%20straw%20house.jpg",
+          "alt": "1904 illustration of the wolf at the straw house",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-snow-white",
-          "sequence": 3,
-          "displayTime": "Day 1 · 08:20",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      }
+      ]
     },
     {
       "id": "pigs-acquire-sticks",
       "kind": "event",
-      "start": "1000-04-01T08:30Z",
+      "start": "1000-04-02T11:30Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-01T08:30Z",
+          "value": "1000-04-02T11:30Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -739,14 +668,14 @@
       "description": "The Second Pig selects bundled sticks from the same road, choosing a somewhat sturdier material while still prioritizing speed. His decision sits between the First Pig's straw and the Third Pig's masonry in both effort and resilience.",
       "categoryId": "decision",
       "location": {
-        "name": "Pigwood Market Road",
+        "name": "Timber Track",
         "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
         "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
         "geometry": {
           "type": "Point",
           "coordinates": [
-            8.13,
-            50.01
+            8.19,
+            50.003
           ]
         },
         "crs": "OGC:CRS84",
@@ -770,22 +699,29 @@
           "fictional": true,
           "storyId": "story-three-little-pigs",
           "sequence": 4,
-          "displayTime": "Day 1 · 08:30 · material choice",
+          "displayTime": "Day 2 · 11:30 · sticks chosen",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20Little%20pigs%2C%20Img005.jpg",
+          "alt": "L. Leslie Brooke Three Little Pigs illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
     },
     {
       "id": "pigs-acquire-bricks",
       "kind": "event",
-      "start": "1000-04-01T08:40Z",
+      "start": "1000-04-02T14:30Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-01T08:40Z",
+          "value": "1000-04-02T14:30Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -799,14 +735,14 @@
       "description": "The Third Pig chooses bricks and mortar even though the material is heavier and the build will take much longer. This explicit planning decision begins the causal chain that later makes the brick house the brothers' refuge.",
       "categoryId": "decision",
       "location": {
-        "name": "Pigwood Market Road",
+        "name": "Pigwood Mason's Yard",
         "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
         "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
         "geometry": {
           "type": "Point",
           "coordinates": [
-            8.13,
-            50.01
+            8.245,
+            49.988
           ]
         },
         "crs": "OGC:CRS84",
@@ -830,22 +766,29 @@
           "fictional": true,
           "storyId": "story-three-little-pigs",
           "sequence": 5,
-          "displayTime": "Day 1 · 08:40 · material choice",
+          "displayTime": "Day 2 · 14:30 · masonry chosen",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20Img006.jpg",
+          "alt": "L. Leslie Brooke illustration of the wolf at the brick house",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
     },
     {
       "id": "pigs-brick-build",
       "kind": "range",
-      "start": "1000-04-01T09:00Z",
-      "end": "1000-04-02T09:00Z",
+      "start": "1000-04-03T08:00Z",
+      "end": "1000-04-10T18:00Z",
       "time": {
         "type": "interval",
         "start": {
-          "value": "1000-04-01T09:00Z",
+          "value": "1000-04-03T08:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -854,7 +797,7 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         },
         "end": {
-          "value": "1000-04-02T09:00Z",
+          "value": "1000-04-10T18:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -898,7 +841,7 @@
           "fictional": true,
           "storyId": "story-three-little-pigs",
           "sequence": 6,
-          "displayTime": "Day 1–2 · careful construction",
+          "displayTime": "Days 3–10 · brick construction",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
@@ -906,87 +849,31 @@
       },
       "media": [
         {
-          "src": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Illustrative house exterior for the fictional brick house",
-          "caption": "Mood image only; not evidence or a real location."
-        }
-      ]
-    },
-    {
-      "id": "snow-huntsman-order",
-      "kind": "event",
-      "start": "1000-04-01T09:00Z",
-      "end": null,
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-01T09:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20Img013.jpg",
+          "alt": "L. Leslie Brooke illustration of the chimney attempt",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         },
-        "end": null
-      },
-      "title": "The Queen orders the huntsman to kill Snow White",
-      "description": "The Queen commands the huntsman to take Snow White into the forest and not return with her alive.",
-      "categoryId": "conflict",
-      "location": {
-        "name": "Queen's Castle",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.32,
-            48.54
-          ]
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%20-%20the%20wolf%20lands%20in%20the%20cooking%20pot%20-%20Project%20Gutenberg%20eText%2015661.jpg",
+          "alt": "L. Leslie Brooke illustration of the final chimney scene",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "hero-split"
-      },
-      "evidenceIds": [
-        "src-snow"
-      ],
-      "tags": [
         {
-          "label": "Threat",
-          "icon": "danger",
-          "hue": 282
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-snow-white",
-          "sequence": 4,
-          "displayTime": "Day 1 · 09:00",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      },
-      "relationChanges": [
-        {
-          "relationshipId": "rel-snow-queen-threat",
-          "operation": "activate"
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20straw.jpg",
+          "alt": "L. Leslie Brooke illustration of a pig carrying straw",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
     },
     {
       "id": "pigs-straw-house",
       "kind": "event",
-      "start": "1000-04-01T10:00Z",
+      "start": "1000-04-03T12:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-01T10:00Z",
+          "value": "1000-04-03T12:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -1031,7 +918,7 @@
           "fictional": true,
           "storyId": "story-three-little-pigs",
           "sequence": 7,
-          "displayTime": "Day 1 · late morning",
+          "displayTime": "Day 3 · straw house completed",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
@@ -1039,148 +926,21 @@
       },
       "media": [
         {
-          "src": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Illustrative house exterior for the fictional brick house",
-          "caption": "Mood image only; not evidence or a real location."
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%20-%20the%20wolf%20lands%20in%20the%20cooking%20pot%20-%20Project%20Gutenberg%20eText%2015661.jpg",
+          "alt": "L. Leslie Brooke illustration of the final chimney scene",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
-    },
-    {
-      "id": "snow-huntsman-spares",
-      "kind": "event",
-      "start": "1000-04-01T10:00Z",
-      "end": null,
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-01T10:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "title": "The huntsman spares Snow White",
-      "description": "In the forest, the huntsman cannot carry out the Queen's order and tells Snow White to flee. His choice creates the path that leads her away from the castle and toward the dwarfs' cottage.",
-      "categoryId": "decision",
-      "location": {
-        "name": "Deep Forest",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.48,
-            48.45
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "editorial-mosaic"
-      },
-      "evidenceIds": [
-        "src-snow"
-      ],
-      "tags": [
-        {
-          "label": "Choice",
-          "icon": "decision",
-          "hue": 282
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-snow-white",
-          "sequence": 5,
-          "displayTime": "Day 1 · 10:00",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      },
-      "media": [
-        {
-          "src": "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Dense forest used as Snow White mood art",
-          "caption": "Illustrative fictional forest."
-        }
-      ]
-    },
-    {
-      "id": "snow-forest-flight",
-      "kind": "event",
-      "start": "1000-04-01T10:40Z",
-      "end": null,
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-01T10:40Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "title": "Snow White flees deeper into the forest",
-      "description": "After the huntsman releases her, Snow White follows a ridge path away from the castle and becomes disoriented in the deeper forest. The movement event makes the spatial transition to the dwarfs' cottage explicit and shows why the cottage functions as an accidental refuge.",
-      "categoryId": "movement",
-      "location": {
-        "name": "Forest Ridge Path",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.55,
-            48.42
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "hero-split"
-      },
-      "evidenceIds": [
-        "src-snow"
-      ],
-      "tags": [
-        {
-          "label": "Flight",
-          "icon": "relation",
-          "hue": 282
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-snow-white",
-          "sequence": 6,
-          "displayTime": "Day 1 · 10:40 · forest flight",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      }
     },
     {
       "id": "pigs-stick-house",
       "kind": "event",
-      "start": "1000-04-01T11:15Z",
+      "start": "1000-04-05T17:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-01T11:15Z",
+          "value": "1000-04-05T17:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -1225,7 +985,7 @@
           "fictional": true,
           "storyId": "story-three-little-pigs",
           "sequence": 8,
-          "displayTime": "Day 1 · midday",
+          "displayTime": "Day 5 · stick house completed",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
@@ -1233,21 +993,295 @@
       },
       "media": [
         {
-          "src": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Illustrative house exterior for the fictional brick house",
-          "caption": "Mood image only; not evidence or a real location."
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20straw.jpg",
+          "alt": "L. Leslie Brooke illustration of a pig carrying straw",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "snow-mirror",
+      "kind": "event",
+      "start": "1000-04-06T08:20Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-06T08:20Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "The mirror names Snow White the fairest",
+      "description": "The Queen consults the magic mirror expecting confirmation that she remains the fairest. The mirror instead names Snow White, converting the Queen's jealousy into a specific threat directed at her.",
+      "categoryId": "discovery",
+      "location": {
+        "name": "Queen's Mirror Chamber",
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            10.326,
+            48.542
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "evidence-dossier"
+      },
+      "evidenceIds": [
+        "src-snow"
+      ],
+      "tags": [
+        {
+          "label": "Inciting incident",
+          "icon": "object",
+          "hue": 282
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-snow-white",
+          "sequence": 3,
+          "displayTime": "Day 1 · mirror disclosure",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Snow%20White%20illustration%20from%20german%20children's%20book%201919%20(3917968514).jpg",
+          "alt": "1919 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "snow-huntsman-order",
+      "kind": "event",
+      "start": "1000-04-07T09:00Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-07T09:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "The Queen orders the huntsman to kill Snow White",
+      "description": "The Queen commands the huntsman to take Snow White into the forest and not return with her alive.",
+      "categoryId": "conflict",
+      "location": {
+        "name": "Castle Great Hall",
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            10.334,
+            48.536
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "hero-split"
+      },
+      "evidenceIds": [
+        "src-snow"
+      ],
+      "tags": [
+        {
+          "label": "Threat",
+          "icon": "danger",
+          "hue": 282
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-snow-white",
+          "sequence": 4,
+          "displayTime": "Day 2 · order issued",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "relationChanges": [
+        {
+          "relationshipId": "rel-snow-queen-threat",
+          "operation": "activate"
+        }
+      ],
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite21.jpg",
+          "alt": "1913 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "snow-huntsman-spares",
+      "kind": "event",
+      "start": "1000-04-08T10:00Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-08T10:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "The huntsman spares Snow White",
+      "description": "In the forest, the huntsman cannot carry out the Queen's order and tells Snow White to flee. His choice creates the path that leads her away from the castle and toward the dwarfs' cottage.",
+      "categoryId": "decision",
+      "location": {
+        "name": "Deep Forest",
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            10.48,
+            48.45
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "editorial-mosaic"
+      },
+      "evidenceIds": [
+        "src-snow"
+      ],
+      "tags": [
+        {
+          "label": "Choice",
+          "icon": "decision",
+          "hue": 282
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-snow-white",
+          "sequence": 5,
+          "displayTime": "Day 3 · huntsman refuses",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite23.jpg",
+          "alt": "1913 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "snow-forest-flight",
+      "kind": "event",
+      "start": "1000-04-08T11:30Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-08T11:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "Snow White flees deeper into the forest",
+      "description": "After the huntsman releases her, Snow White follows a ridge path away from the castle and becomes disoriented in the deeper forest. The movement event makes the spatial transition to the dwarfs' cottage explicit and shows why the cottage functions as an accidental refuge.",
+      "categoryId": "movement",
+      "location": {
+        "name": "Forest Ridge Path",
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            10.55,
+            48.42
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "hero-split"
+      },
+      "evidenceIds": [
+        "src-snow"
+      ],
+      "tags": [
+        {
+          "label": "Flight",
+          "icon": "relation",
+          "hue": 282
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-snow-white",
+          "sequence": 6,
+          "displayTime": "Day 3 · flight through forest",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite31.jpg",
+          "alt": "1913 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
     },
     {
       "id": "snow-finds-cottage",
       "kind": "event",
-      "start": "1000-04-01T13:30Z",
+      "start": "1000-04-09T16:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-01T13:30Z",
+          "value": "1000-04-09T16:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -1292,7 +1326,7 @@
           "fictional": true,
           "storyId": "story-snow-white",
           "sequence": 7,
-          "displayTime": "Day 1 · afternoon",
+          "displayTime": "Day 4 · cottage discovered",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
@@ -1300,151 +1334,31 @@
       },
       "media": [
         {
-          "src": "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Dense forest used as Snow White mood art",
-          "caption": "Illustrative fictional forest."
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite32.jpg",
+          "alt": "1913 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         },
         {
-          "src": "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Mountain landscape used as story mood art",
-          "caption": "Illustrative landscape."
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite35.jpg",
+          "alt": "1913 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         },
         {
-          "src": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Old stone structure used as story mood art",
-          "caption": "Illustrative architecture; exercises the three-image slideshow."
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite36.jpg",
+          "alt": "1913 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
     },
     {
-      "id": "cinderella-denied",
-      "kind": "event",
-      "start": "1000-04-01T16:00Z",
-      "end": null,
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-01T16:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "title": "Cinderella is prevented from attending",
-      "description": "Cinderella asks to attend the ball but her stepfamily blocks her participation and adds work that makes attendance seem impossible. The setback directly precedes the fairy godmother's intervention.",
-      "categoryId": "conflict",
-      "location": {
-        "name": "Cinderella's House",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.74,
-            47.31
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "hero-split"
-      },
-      "evidenceIds": [
-        "src-cinderella"
-      ],
-      "tags": [
-        {
-          "label": "Setback",
-          "icon": "decision",
-          "hue": 214
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-cinderella",
-          "sequence": 5,
-          "displayTime": "Day 1 · afternoon",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      }
-    },
-    {
-      "id": "cinderella-extra-chores",
-      "kind": "event",
-      "start": "1000-04-01T16:20Z",
-      "end": null,
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-01T16:20Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "title": "Stepmother adds impossible chores before departure",
-      "description": "After denying Cinderella permission to attend, the stepmother leaves additional sorting and household work to be completed. The added tasks make the exclusion concrete and explain why Cinderella remains behind as the others leave for the palace.",
-      "categoryId": "conflict",
-      "location": {
-        "name": "Cinderella's House",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.74,
-            47.31
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "evidence-dossier"
-      },
-      "evidenceIds": [
-        "src-cinderella"
-      ],
-      "tags": [
-        {
-          "label": "Setback",
-          "icon": "danger",
-          "hue": 214
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-cinderella",
-          "sequence": 6,
-          "displayTime": "Day 1 · 16:20 · exclusion enforced",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      }
-    },
-    {
       "id": "snow-dwarfs-shelter",
       "kind": "range",
-      "start": "1000-04-01T18:00Z",
-      "end": "1000-04-03T07:00Z",
+      "start": "1000-04-09T19:00Z",
+      "end": "1000-04-21T07:00Z",
       "time": {
         "type": "interval",
         "start": {
-          "value": "1000-04-01T18:00Z",
+          "value": "1000-04-09T19:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -1453,7 +1367,7 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         },
         "end": {
-          "value": "1000-04-03T07:00Z",
+          "value": "1000-04-21T07:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -1497,67 +1411,7 @@
           "fictional": true,
           "storyId": "story-snow-white",
           "sequence": 8,
-          "displayTime": "Days 1–3 · shelter",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      }
-    },
-    {
-      "id": "cinderella-transformation",
-      "kind": "event",
-      "start": "1000-04-01T18:00Z",
-      "end": null,
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-01T18:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "title": "The fairy godmother transforms Cinderella's circumstances",
-      "description": "The fairy godmother appears after Cinderella's exclusion and offers a temporary way to attend the ball. The intervention changes Cinderella's appearance and resources but comes with an explicit midnight limit that governs later events.",
-      "categoryId": "state-change",
-      "location": {
-        "name": "Garden and Pumpkin Patch",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.82,
-            47.28
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "editorial-mosaic"
-      },
-      "evidenceIds": [
-        "src-cinderella"
-      ],
-      "tags": [
-        {
-          "label": "Transformation",
-          "icon": "magic",
-          "hue": 214
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-cinderella",
-          "sequence": 7,
-          "displayTime": "Day 1 · evening",
+          "displayTime": "Days 4–16 · shelter with dwarfs",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
@@ -1565,343 +1419,21 @@
       },
       "media": [
         {
-          "src": "https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Palace-like architecture used as Cinderella mood art",
-          "caption": "Mood image only; not evidence or a real location."
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite35.jpg",
+          "alt": "1913 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
-    },
-    {
-      "id": "cinderella-coach-created",
-      "kind": "event",
-      "start": "1000-04-01T18:10Z",
-      "end": null,
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-01T18:10Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "title": "Pumpkin and animals are transformed into transport",
-      "description": "The fairy godmother turns a pumpkin into a coach and transforms nearby animals into the team and attendants needed for the journey. The transformation gives Cinderella mobility as well as appearance, while remaining temporary until midnight.",
-      "categoryId": "creation",
-      "location": {
-        "name": "Garden and Pumpkin Patch",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.82,
-            47.28
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "hero-split"
-      },
-      "evidenceIds": [
-        "src-cinderella"
-      ],
-      "tags": [
-        {
-          "label": "Transformation",
-          "icon": "magic",
-          "hue": 214
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-cinderella",
-          "sequence": 8,
-          "displayTime": "Day 1 · 18:10 · coach created",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      }
-    },
-    {
-      "id": "cinderella-first-ball",
-      "kind": "range",
-      "start": "1000-04-01T20:00Z",
-      "end": "1000-04-01T23:55Z",
-      "time": {
-        "type": "interval",
-        "start": {
-          "value": "1000-04-01T20:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": {
-          "value": "1000-04-01T23:55Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        }
-      },
-      "title": "Cinderella attends the royal ball",
-      "description": "Cinderella arrives at the palace transformed and initially unrecognized by her household. She attracts the prince's attention and experiences the social world from which she had been excluded, while the midnight condition remains active.",
-      "categoryId": "relationship",
-      "location": {
-        "name": "Royal Palace",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.98,
-            47.23
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "evidence-dossier"
-      },
-      "evidenceIds": [
-        "src-cinderella"
-      ],
-      "tags": [
-        {
-          "label": "Encounter",
-          "icon": "crown",
-          "hue": 214
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-cinderella",
-          "sequence": 9,
-          "displayTime": "Day 1 · ball",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      },
-      "media": [
-        {
-          "src": "https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Palace-like architecture used as Cinderella mood art",
-          "caption": "Mood image only; not evidence or a real location."
-        }
-      ]
-    },
-    {
-      "id": "cinderella-prince-dance",
-      "kind": "event",
-      "start": "1000-04-01T20:30Z",
-      "end": null,
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-01T20:30Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "title": "Prince dances with the unknown guest",
-      "description": "At the first ball, the prince gives sustained attention to Cinderella without recognizing her household identity. The encounter establishes the relationship that makes her later absence and the slipper clue personally significant to him.",
-      "categoryId": "relationship",
-      "location": {
-        "name": "Royal Palace",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.98,
-            47.23
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "editorial-mosaic"
-      },
-      "evidenceIds": [
-        "src-cinderella"
-      ],
-      "tags": [
-        {
-          "label": "Encounter",
-          "icon": "crown",
-          "hue": 214
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-cinderella",
-          "sequence": 10,
-          "displayTime": "Day 1 · 20:30 · first dance",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      },
-      "media": [
-        {
-          "src": "https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Palace-like architecture used as Cinderella mood art",
-          "caption": "Mood image only; not evidence or a real location."
-        }
-      ]
-    },
-    {
-      "id": "cinderella-first-return",
-      "kind": "event",
-      "start": "1000-04-01T23:50Z",
-      "end": null,
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-01T23:50Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "title": "Cinderella leaves the first ball before midnight",
-      "description": "Remembering the fairy godmother's condition, Cinderella leaves the palace in time on the first night and returns home before the transformation ends. The successful departure makes her decision to stay later on the second night consequential.",
-      "categoryId": "movement",
-      "location": {
-        "name": "Royal Palace Steps",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.965,
-            47.235
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "hero-split"
-      },
-      "evidenceIds": [
-        "src-cinderella"
-      ],
-      "tags": [
-        {
-          "label": "Departure",
-          "icon": "relation",
-          "hue": 214
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-cinderella",
-          "sequence": 11,
-          "displayTime": "Day 1 · 23:50 · timely departure",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      }
-    },
-    {
-      "id": "snow-queen-discovers",
-      "kind": "event",
-      "start": "1000-04-02T08:00Z",
-      "end": null,
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-02T08:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "title": "The Queen learns Snow White survives",
-      "description": "The Queen consults the mirror again and learns that Snow White survived the huntsman's mission and is living at the dwarfs' cottage. This discovery restarts the threat and causes the Queen to plan direct disguised attacks.",
-      "categoryId": "discovery",
-      "location": {
-        "name": "Queen's Castle",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.32,
-            48.54
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "hero-split"
-      },
-      "evidenceIds": [
-        "src-snow"
-      ],
-      "tags": [
-        {
-          "label": "Discovery",
-          "icon": "search",
-          "hue": 282
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-snow-white",
-          "sequence": 9,
-          "displayTime": "Day 2 · morning",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      }
     },
     {
       "id": "pigs-wolf-straw",
       "kind": "event",
-      "start": "1000-04-02T10:00Z",
+      "start": "1000-04-11T08:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T10:00Z",
+          "value": "1000-04-11T08:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -1946,7 +1478,7 @@
           "fictional": true,
           "storyId": "story-three-little-pigs",
           "sequence": 9,
-          "displayTime": "Day 2 · 10:00",
+          "displayTime": "Day 11 · wolf reaches straw house",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
@@ -1957,96 +1489,24 @@
           "relationshipId": "rel-pigs-wolf-threat",
           "operation": "activate"
         }
-      ]
-    },
-    {
-      "id": "snow-disguises",
-      "kind": "range",
-      "start": "1000-04-02T10:00Z",
-      "end": "1000-04-03T11:00Z",
-      "time": {
-        "type": "interval",
-        "start": {
-          "value": "1000-04-02T10:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": {
-          "value": "1000-04-03T11:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        }
-      },
-      "title": "The Queen makes disguised attempts",
-      "description": "After learning Snow White is still alive, the Queen repeatedly travels in disguise to the dwarfs' cottage. The range contains two separate failed attacks—tightened laces and a poisoned comb—before the later apple plot.",
-      "categoryId": "conflict",
-      "location": {
-        "name": "Seven Dwarfs' Cottage",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.61,
-            48.39
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "editorial-mosaic"
-      },
-      "evidenceIds": [
-        "src-snow"
       ],
-      "tags": [
+      "media": [
         {
-          "label": "Escalation",
-          "icon": "danger",
-          "hue": 282
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-snow-white",
-          "sequence": 10,
-          "displayTime": "Days 2–3 · disguised attempts",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      },
-      "relationChanges": [
-        {
-          "relationshipId": "rel-snow-queen-threat",
-          "operation": "update",
-          "predicate": "deceives",
-          "properties": {
-            "phase": "disguised attacks",
-            "attempts": 2
-          }
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%20-%20third%20pig%20builds%20a%20house%20-%20Project%20Gutenberg%20eText%2015661.jpg",
+          "alt": "L. Leslie Brooke illustration of the third pig building",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
     },
     {
       "id": "pigs-first-flees",
       "kind": "event",
-      "start": "1000-04-02T10:05Z",
+      "start": "1000-04-11T08:30Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T10:05Z",
+          "value": "1000-04-11T08:30Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -2060,14 +1520,14 @@
       "description": "After the straw house collapses, the First Pig escapes along the road to the Second Pig's house. The pursuit changes from a threat to one pig into a threat shared by two brothers.",
       "categoryId": "movement",
       "location": {
-        "name": "Stick House Grove",
+        "name": "Pigwood Escape Path",
         "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
         "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
         "geometry": {
           "type": "Point",
           "coordinates": [
-            8.22,
-            49.98
+            8.205,
+            49.992
           ]
         },
         "crs": "OGC:CRS84",
@@ -2091,22 +1551,29 @@
           "fictional": true,
           "storyId": "story-three-little-pigs",
           "sequence": 10,
-          "displayTime": "Day 2 · 10:05 · escape",
+          "displayTime": "Day 11 · escape to second brother",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%201904%20straw%20house.jpg",
+          "alt": "1904 illustration of the wolf at the straw house",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
     },
     {
-      "id": "snow-laces",
+      "id": "snow-queen-discovers",
       "kind": "event",
-      "start": "1000-04-02T10:15Z",
+      "start": "1000-04-12T08:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T10:15Z",
+          "value": "1000-04-12T08:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -2116,18 +1583,18 @@
         },
         "end": null
       },
-      "title": "Disguised Queen tightens enchanted laces",
-      "description": "The Queen reaches the cottage in disguise and persuades Snow White to accept laces, then tightens them until Snow White collapses. This is the first distinct disguised attack inside the broader attack range.",
-      "categoryId": "conflict",
+      "title": "The Queen learns Snow White survives",
+      "description": "The Queen consults the mirror again and learns that Snow White survived the huntsman's mission and is living at the dwarfs' cottage. This discovery restarts the threat and causes the Queen to plan direct disguised attacks.",
+      "categoryId": "discovery",
       "location": {
-        "name": "Seven Dwarfs' Cottage",
+        "name": "Queen's Mirror Chamber",
         "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
         "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
         "geometry": {
           "type": "Point",
           "coordinates": [
-            10.61,
-            48.39
+            10.326,
+            48.542
           ]
         },
         "crs": "OGC:CRS84",
@@ -2141,8 +1608,8 @@
       ],
       "tags": [
         {
-          "label": "Deception",
-          "icon": "danger",
+          "label": "Discovery",
+          "icon": "search",
           "hue": 282
         }
       ],
@@ -2150,23 +1617,30 @@
         "narrative": {
           "fictional": true,
           "storyId": "story-snow-white",
-          "sequence": 11,
-          "displayTime": "Day 2 · 10:15 · first disguised attack",
+          "sequence": 9,
+          "displayTime": "Day 7 · Queen learns Snow White survived",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite36.jpg",
+          "alt": "1913 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
     },
     {
       "id": "pigs-wolf-sticks",
       "kind": "event",
-      "start": "1000-04-02T10:35Z",
+      "start": "1000-04-13T09:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T10:35Z",
+          "value": "1000-04-13T09:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -2211,22 +1685,29 @@
           "fictional": true,
           "storyId": "story-three-little-pigs",
           "sequence": 11,
-          "displayTime": "Day 2 · 10:35",
+          "displayTime": "Day 13 · wolf reaches stick house",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20Little%20pigs%2C%20Img005.jpg",
+          "alt": "L. Leslie Brooke Three Little Pigs illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
     },
     {
       "id": "pigs-two-flee",
       "kind": "event",
-      "start": "1000-04-02T10:40Z",
+      "start": "1000-04-13T09:30Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T10:40Z",
+          "value": "1000-04-13T09:30Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -2240,14 +1721,14 @@
       "description": "When the stick house is destroyed, both pigs run to the Third Pig's completed brick house. Their movement concentrates all three brothers at one defensible location before the wolf arrives.",
       "categoryId": "movement",
       "location": {
-        "name": "Brick House Hill",
+        "name": "Brick House Approach",
         "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
         "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
         "geometry": {
           "type": "Point",
           "coordinates": [
-            8.3,
-            49.96
+            8.275,
+            49.972
           ]
         },
         "crs": "OGC:CRS84",
@@ -2271,7 +1752,7 @@
           "fictional": true,
           "storyId": "story-three-little-pigs",
           "sequence": 12,
-          "displayTime": "Day 2 · 10:40 · regrouping",
+          "displayTime": "Day 13 · escape to brick house",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
@@ -2279,21 +1760,21 @@
       },
       "media": [
         {
-          "src": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Illustrative house exterior for the fictional brick house",
-          "caption": "Mood image only; not evidence or a real location."
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20Img006.jpg",
+          "alt": "L. Leslie Brooke illustration of the wolf at the brick house",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
     },
     {
-      "id": "pigs-brick-siege",
+      "id": "snow-disguises",
       "kind": "range",
-      "start": "1000-04-02T11:15Z",
-      "end": "1000-04-02T12:00Z",
+      "start": "1000-04-14T09:00Z",
+      "end": "1000-04-21T11:00Z",
       "time": {
         "type": "interval",
         "start": {
-          "value": "1000-04-02T11:15Z",
+          "value": "1000-04-14T09:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -2302,7 +1783,7 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         },
         "end": {
-          "value": "1000-04-02T12:00Z",
+          "value": "1000-04-21T11:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -2311,42 +1792,42 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         }
       },
-      "title": "The brick house withstands the wolf",
-      "description": "The wolf reaches the completed brick house after chasing the first two pigs there. Repeated huffing and blowing fails to breach the walls, shifting the conflict from direct destruction to a search for another entry route.",
+      "title": "The Queen makes disguised attempts",
+      "description": "After learning Snow White is still alive, the Queen repeatedly travels in disguise to the dwarfs' cottage. The range contains two separate failed attacks—tightened laces and a poisoned comb—before the later apple plot.",
       "categoryId": "conflict",
       "location": {
-        "name": "Brick House Hill",
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+        "name": "Cottage Approach",
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
         "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
         "geometry": {
           "type": "Point",
           "coordinates": [
-            8.3,
-            49.96
+            10.592,
+            48.398
           ]
         },
         "crs": "OGC:CRS84",
         "source": "imported"
       },
       "presentation": {
-        "variant": "evidence-dossier"
+        "variant": "editorial-mosaic"
       },
       "evidenceIds": [
-        "src-pigs"
+        "src-snow"
       ],
       "tags": [
         {
-          "label": "Conflict",
+          "label": "Escalation",
           "icon": "danger",
-          "hue": 28
+          "hue": 282
         }
       ],
       "extensions": {
         "narrative": {
           "fictional": true,
-          "storyId": "story-three-little-pigs",
-          "sequence": 13,
-          "displayTime": "Day 2 · failed siege",
+          "storyId": "story-snow-white",
+          "sequence": 10,
+          "displayTime": "Days 9–16 · disguised attacks",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
@@ -2354,24 +1835,99 @@
       },
       "relationChanges": [
         {
-          "relationshipId": "rel-pigs-wolf-threat",
+          "relationshipId": "rel-snow-queen-threat",
           "operation": "update",
-          "predicate": "besieges",
+          "predicate": "deceives",
           "properties": {
-            "phase": "brick-house siege"
+            "phase": "disguised attacks",
+            "attempts": 2
           }
+        }
+      ],
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite.jpg",
+          "alt": "1913 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "snow-laces",
+      "kind": "event",
+      "start": "1000-04-14T10:15Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-14T10:15Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "Disguised Queen tightens enchanted laces",
+      "description": "The Queen reaches the cottage in disguise and persuades Snow White to accept laces, then tightens them until Snow White collapses. This is the first distinct disguised attack inside the broader attack range.",
+      "categoryId": "conflict",
+      "location": {
+        "name": "Seven Dwarfs' Cottage",
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            10.61,
+            48.39
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "hero-split"
+      },
+      "evidenceIds": [
+        "src-snow"
+      ],
+      "tags": [
+        {
+          "label": "Deception",
+          "icon": "danger",
+          "hue": 282
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-snow-white",
+          "sequence": 11,
+          "displayTime": "Day 9 · laces attack",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite.png",
+          "alt": "1852 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
     },
     {
       "id": "snow-laces-recovery",
       "kind": "event",
-      "start": "1000-04-02T12:00Z",
+      "start": "1000-04-14T18:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T12:00Z",
+          "value": "1000-04-14T18:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -2416,22 +1972,248 @@
           "fictional": true,
           "storyId": "story-snow-white",
           "sequence": 12,
-          "displayTime": "Day 2 · noon · first recovery",
+          "displayTime": "Day 9 · first recovery",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Snow%20White%20illustration%20from%20german%20children's%20book%201919%20(3917968514).jpg",
+          "alt": "1919 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
     },
     {
-      "id": "pigs-wolf-roof",
+      "id": "cinderella-invitation",
       "kind": "event",
-      "start": "1000-04-02T12:02Z",
+      "start": "1000-04-15T09:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T12:02Z",
+          "value": "1000-04-15T09:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "The royal ball invitation arrives",
+      "description": "A palace invitation announces festivities at which the prince will meet the kingdom's eligible guests.",
+      "categoryId": "discovery",
+      "location": {
+        "name": "Cinderella's House",
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.74,
+            47.31
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "editorial-mosaic"
+      },
+      "evidenceIds": [
+        "src-cinderella"
+      ],
+      "tags": [
+        {
+          "label": "Invitation",
+          "icon": "note",
+          "hue": 214
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-cinderella",
+          "sequence": 4,
+          "displayTime": "Day 1 · invitation arrives",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Arthur%20Rackham%20Cinderella%20silhouette%20illustration.jpg",
+          "alt": "Arthur Rackham public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "pigs-brick-siege",
+      "kind": "range",
+      "start": "1000-04-16T11:00Z",
+      "end": "1000-04-16T15:00Z",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-16T11:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-16T15:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "title": "The brick house withstands the wolf",
+      "description": "The wolf reaches the completed brick house after chasing the first two pigs there. Repeated huffing and blowing fails to breach the walls, shifting the conflict from direct destruction to a search for another entry route.",
+      "categoryId": "conflict",
+      "location": {
+        "name": "Brick House Hill",
+        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            8.3,
+            49.96
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "evidence-dossier"
+      },
+      "evidenceIds": [
+        "src-pigs"
+      ],
+      "tags": [
+        {
+          "label": "Conflict",
+          "icon": "danger",
+          "hue": 28
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-three-little-pigs",
+          "sequence": 13,
+          "displayTime": "Day 16 · sustained siege",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "relationChanges": [
+        {
+          "relationshipId": "rel-pigs-wolf-threat",
+          "operation": "update",
+          "predicate": "besieges",
+          "properties": {
+            "phase": "brick-house siege"
+          }
+        }
+      ],
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20Img013.jpg",
+          "alt": "L. Leslie Brooke illustration of the chimney attempt",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "snow-comb",
+      "kind": "event",
+      "start": "1000-04-17T14:00Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-17T14:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "Disguised Queen uses a poisoned comb",
+      "description": "The Queen returns in another disguise with a poisoned comb and places it in Snow White's hair. Snow White collapses again, showing that the threat persists despite the earlier rescue and warning.",
+      "categoryId": "conflict",
+      "location": {
+        "name": "Seven Dwarfs' Cottage",
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            10.61,
+            48.39
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "evidence-dossier"
+      },
+      "evidenceIds": [
+        "src-snow"
+      ],
+      "tags": [
+        {
+          "label": "Poisoned object",
+          "icon": "object",
+          "hue": 282
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-snow-white",
+          "sequence": 13,
+          "displayTime": "Day 12 · comb attack",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite21.jpg",
+          "alt": "1913 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "pigs-wolf-roof",
+      "kind": "event",
+      "start": "1000-04-17T16:00Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-17T16:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -2476,22 +2258,29 @@
           "fictional": true,
           "storyId": "story-three-little-pigs",
           "sequence": 14,
-          "displayTime": "Day 2 · 12:02 · alternate entry",
+          "displayTime": "Day 17 · roof approach",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%20-%20the%20wolf%20lands%20in%20the%20cooking%20pot%20-%20Project%20Gutenberg%20eText%2015661.jpg",
+          "alt": "L. Leslie Brooke illustration of the final chimney scene",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
     },
     {
       "id": "pigs-chimney",
       "kind": "event",
-      "start": "1000-04-02T12:05Z",
+      "start": "1000-04-17T16:30Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T12:05Z",
+          "value": "1000-04-17T16:30Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -2536,22 +2325,96 @@
           "fictional": true,
           "storyId": "story-three-little-pigs",
           "sequence": 15,
-          "displayTime": "Day 2 · 12:05",
+          "displayTime": "Day 17 · chimney attempt",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20straw.jpg",
+          "alt": "L. Leslie Brooke illustration of a pig carrying straw",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
     },
     {
-      "id": "pigs-safe",
+      "id": "snow-comb-recovery",
       "kind": "event",
-      "start": "1000-04-02T12:10Z",
+      "start": "1000-04-17T20:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T12:10Z",
+          "value": "1000-04-17T20:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "Dwarfs remove the comb and revive Snow White again",
+      "description": "The dwarfs find the poisoned comb, remove it, and Snow White recovers. The second failed attack leads the Queen to prepare a method designed to look harmless and survive inspection.",
+      "categoryId": "relationship",
+      "location": {
+        "name": "Seven Dwarfs' Cottage",
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            10.61,
+            48.39
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "hero-split"
+      },
+      "evidenceIds": [
+        "src-snow"
+      ],
+      "tags": [
+        {
+          "label": "Rescue",
+          "icon": "person",
+          "hue": 282
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-snow-white",
+          "sequence": 14,
+          "displayTime": "Day 12 · second recovery",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite23.jpg",
+          "alt": "1913 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "pigs-safe",
+      "kind": "event",
+      "start": "1000-04-18T08:00Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-18T08:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -2597,7 +2460,7 @@
           "fictional": true,
           "storyId": "story-three-little-pigs",
           "sequence": 16,
-          "displayTime": "Day 2 · resolution",
+          "displayTime": "Day 18 · threat ended",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
@@ -2611,21 +2474,21 @@
       ],
       "media": [
         {
-          "src": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Illustrative house exterior for the fictional brick house",
-          "caption": "Mood image only; not evidence or a real location."
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%20-%20third%20pig%20builds%20a%20house%20-%20Project%20Gutenberg%20eText%2015661.jpg",
+          "alt": "L. Leslie Brooke illustration of the third pig building",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
     },
     {
-      "id": "snow-comb",
+      "id": "cinderella-denied",
       "kind": "event",
-      "start": "1000-04-02T16:00Z",
+      "start": "1000-04-18T16:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T16:00Z",
+          "value": "1000-04-18T16:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -2635,146 +2498,18 @@
         },
         "end": null
       },
-      "title": "Disguised Queen uses a poisoned comb",
-      "description": "The Queen returns in another disguise with a poisoned comb and places it in Snow White's hair. Snow White collapses again, showing that the threat persists despite the earlier rescue and warning.",
+      "title": "Cinderella is prevented from attending",
+      "description": "Cinderella asks to attend the ball but her stepfamily blocks her participation and adds work that makes attendance seem impossible. The setback directly precedes the fairy godmother's intervention.",
       "categoryId": "conflict",
       "location": {
-        "name": "Seven Dwarfs' Cottage",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.61,
-            48.39
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "evidence-dossier"
-      },
-      "evidenceIds": [
-        "src-snow"
-      ],
-      "tags": [
-        {
-          "label": "Poisoned object",
-          "icon": "object",
-          "hue": 282
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-snow-white",
-          "sequence": 13,
-          "displayTime": "Day 2 · 16:00 · second disguised attack",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      }
-    },
-    {
-      "id": "snow-comb-recovery",
-      "kind": "event",
-      "start": "1000-04-02T18:00Z",
-      "end": null,
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-02T18:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "title": "Dwarfs remove the comb and revive Snow White again",
-      "description": "The dwarfs find the poisoned comb, remove it, and Snow White recovers. The second failed attack leads the Queen to prepare a method designed to look harmless and survive inspection.",
-      "categoryId": "relationship",
-      "location": {
-        "name": "Seven Dwarfs' Cottage",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.61,
-            48.39
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "hero-split"
-      },
-      "evidenceIds": [
-        "src-snow"
-      ],
-      "tags": [
-        {
-          "label": "Rescue",
-          "icon": "person",
-          "hue": 282
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-snow-white",
-          "sequence": 14,
-          "displayTime": "Day 2 · evening · second recovery",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      }
-    },
-    {
-      "id": "cinderella-second-ball",
-      "kind": "range",
-      "start": "1000-04-02T20:00Z",
-      "end": "1000-04-02T23:59Z",
-      "time": {
-        "type": "interval",
-        "start": {
-          "value": "1000-04-02T20:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": {
-          "value": "1000-04-02T23:59Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        }
-      },
-      "title": "Cinderella returns to the palace",
-      "description": "Cinderella returns to the palace a second time and spends longer with the prince. Because she leaves later, the midnight limit becomes the direct cause of the hurried flight and lost slipper.",
-      "categoryId": "relationship",
-      "location": {
-        "name": "Royal Palace",
+        "name": "Cinderella's House",
         "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
         "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
         "geometry": {
           "type": "Point",
           "coordinates": [
-            12.98,
-            47.23
+            12.74,
+            47.31
           ]
         },
         "crs": "OGC:CRS84",
@@ -2788,8 +2523,8 @@
       ],
       "tags": [
         {
-          "label": "Escalation",
-          "icon": "crown",
+          "label": "Setback",
+          "icon": "decision",
           "hue": 214
         }
       ],
@@ -2797,8 +2532,8 @@
         "narrative": {
           "fictional": true,
           "storyId": "story-cinderella",
-          "sequence": 12,
-          "displayTime": "Day 2 · ball",
+          "sequence": 5,
+          "displayTime": "Day 4 · attendance denied",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
@@ -2806,21 +2541,21 @@
       },
       "media": [
         {
-          "src": "https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Palace-like architecture used as Cinderella mood art",
-          "caption": "Mood image only; not evidence or a real location."
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20Gustav%20Dor%C3%A9%20illustration%20for%20Charles%20Perrault%20-%20Il%20libro%20delle%20fate%2C%20Longanesi%2C%20Milano%2C%201891.jpg",
+          "alt": "Gustave Doré public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
     },
     {
-      "id": "cinderella-midnight-flight",
+      "id": "cinderella-extra-chores",
       "kind": "event",
-      "start": "1000-04-02T23:55Z",
+      "start": "1000-04-19T08:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T23:55Z",
+          "value": "1000-04-19T08:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -2830,18 +2565,18 @@
         },
         "end": null
       },
-      "title": "Midnight warning triggers Cinderella's hurried flight",
-      "description": "During the second ball, Cinderella notices that midnight is imminent and abruptly leaves the prince. The hurried descent from the palace steps leads directly to the lost slipper moments later.",
-      "categoryId": "movement",
+      "title": "Stepmother adds impossible chores before departure",
+      "description": "After denying Cinderella permission to attend, the stepmother leaves additional sorting and household work to be completed. The added tasks make the exclusion concrete and explain why Cinderella remains behind as the others leave for the palace.",
+      "categoryId": "conflict",
       "location": {
-        "name": "Royal Palace Steps",
+        "name": "Cinderella's House",
         "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
         "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
         "geometry": {
           "type": "Point",
           "coordinates": [
-            12.965,
-            47.235
+            12.74,
+            47.31
           ]
         },
         "crs": "OGC:CRS84",
@@ -2855,8 +2590,8 @@
       ],
       "tags": [
         {
-          "label": "Flight",
-          "icon": "relation",
+          "label": "Setback",
+          "icon": "danger",
           "hue": 214
         }
       ],
@@ -2864,164 +2599,30 @@
         "narrative": {
           "fictional": true,
           "storyId": "story-cinderella",
-          "sequence": 13,
-          "displayTime": "Day 2 · 23:55 · midnight flight",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      }
-    },
-    {
-      "id": "cinderella-slipper",
-      "kind": "event",
-      "start": "1000-04-03T00:00Z",
-      "end": null,
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-03T00:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "title": "Cinderella loses a glass slipper at midnight",
-      "description": "Fleeing as the enchantment ends, Cinderella leaves one glass slipper behind on the palace steps.",
-      "categoryId": "state-change",
-      "location": {
-        "name": "Midnight Road",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.9,
-            47.25
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "editorial-mosaic"
-      },
-      "evidenceIds": [
-        "src-cinderella"
-      ],
-      "tags": [
-        {
-          "label": "Clue",
-          "icon": "object",
-          "hue": 214
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-cinderella",
-          "sequence": 14,
-          "displayTime": "Day 3 · midnight",
+          "sequence": 6,
+          "displayTime": "Day 5 · exclusion enforced",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
       },
-      "relationChanges": [
-        {
-          "relationshipId": "rel-cinderella-prince-search",
-          "operation": "activate"
-        }
-      ],
       "media": [
         {
-          "src": "https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Palace-like architecture used as Cinderella mood art",
-          "caption": "Mood image only; not evidence or a real location."
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20by%20Elenore%20Abbott.jpg",
+          "alt": "Elenore Abbott public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
-    },
-    {
-      "id": "cinderella-search",
-      "kind": "range",
-      "start": "1000-04-03T08:00Z",
-      "end": "1000-04-04T15:00Z",
-      "time": {
-        "type": "interval",
-        "start": {
-          "value": "1000-04-03T08:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": {
-          "value": "1000-04-04T15:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        }
-      },
-      "title": "The prince searches for the slipper's owner",
-      "description": "The prince uses the recovered glass slipper as the identifying clue for a house-to-house search. The search turns a private palace encounter into a public investigation that eventually reaches Cinderella's household.",
-      "categoryId": "discovery",
-      "location": {
-        "name": "Midnight Road",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.9,
-            47.25
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "evidence-dossier"
-      },
-      "evidenceIds": [
-        "src-cinderella"
-      ],
-      "tags": [
-        {
-          "label": "Investigation",
-          "icon": "search",
-          "hue": 214
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-cinderella",
-          "sequence": 15,
-          "displayTime": "Days 3–4 · search",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      }
     },
     {
       "id": "snow-apple-prepared",
       "kind": "event",
-      "start": "1000-04-03T10:45Z",
+      "start": "1000-04-20T15:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-03T10:45Z",
+          "value": "1000-04-20T15:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -3035,14 +2636,14 @@
       "description": "After two failed attempts, the Queen prepares an apple whose poisoned portion can be offered deceptively. The object becomes the mechanism for the third attack and the key causal link to Snow White's apparent death.",
       "categoryId": "creation",
       "location": {
-        "name": "Queen's Castle",
+        "name": "Queen's Workshop",
         "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
         "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
         "geometry": {
           "type": "Point",
           "coordinates": [
-            10.32,
-            48.54
+            10.342,
+            48.531
           ]
         },
         "crs": "OGC:CRS84",
@@ -3066,22 +2667,173 @@
           "fictional": true,
           "storyId": "story-snow-white",
           "sequence": 15,
-          "displayTime": "Day 3 · 10:45 · poison prepared",
+          "displayTime": "Day 15 · poisoned apple prepared",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite31.jpg",
+          "alt": "1913 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
     },
     {
-      "id": "snow-apple",
+      "id": "cinderella-transformation",
       "kind": "event",
-      "start": "1000-04-03T11:15Z",
+      "start": "1000-04-20T18:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-03T11:15Z",
+          "value": "1000-04-20T18:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "The fairy godmother transforms Cinderella's circumstances",
+      "description": "The fairy godmother appears after Cinderella's exclusion and offers a temporary way to attend the ball. The intervention changes Cinderella's appearance and resources but comes with an explicit midnight limit that governs later events.",
+      "categoryId": "state-change",
+      "location": {
+        "name": "Garden and Pumpkin Patch",
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.82,
+            47.28
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "editorial-mosaic"
+      },
+      "evidenceIds": [
+        "src-cinderella"
+      ],
+      "tags": [
+        {
+          "label": "Transformation",
+          "icon": "magic",
+          "hue": 214
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-cinderella",
+          "sequence": 7,
+          "displayTime": "Day 6 · fairy intervention",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20and%20the%20Fairy%20Godmother.jpg",
+          "alt": "William Henry Margetson public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        },
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Helen%20Stratton%20Cinderella.jpg",
+          "alt": "Helen Stratton public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        },
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Arthur%20Rackham%20Cinderella%20silhouette%20illustration.jpg",
+          "alt": "Arthur Rackham public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "cinderella-coach-created",
+      "kind": "event",
+      "start": "1000-04-20T18:20Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-20T18:20Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "Pumpkin and animals are transformed into transport",
+      "description": "The fairy godmother turns a pumpkin into a coach and transforms nearby animals into the team and attendants needed for the journey. The transformation gives Cinderella mobility as well as appearance, while remaining temporary until midnight.",
+      "categoryId": "creation",
+      "location": {
+        "name": "Garden and Pumpkin Patch",
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.82,
+            47.28
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "hero-split"
+      },
+      "evidenceIds": [
+        "src-cinderella"
+      ],
+      "tags": [
+        {
+          "label": "Transformation",
+          "icon": "magic",
+          "hue": 214
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-cinderella",
+          "sequence": 8,
+          "displayTime": "Day 6 · coach and attendants created",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Helen%20Stratton%20Cinderella.jpg",
+          "alt": "Helen Stratton public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "snow-apple",
+      "kind": "event",
+      "start": "1000-04-21T11:30Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-21T11:30Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -3126,7 +2878,7 @@
           "fictional": true,
           "storyId": "story-snow-white",
           "sequence": 16,
-          "displayTime": "Day 3 · 11:15",
+          "displayTime": "Day 16 · apple attack",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
@@ -3141,17 +2893,24 @@
             "phase": "poisoned apple"
           }
         }
+      ],
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite32.jpg",
+          "alt": "1913 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
       ]
     },
     {
       "id": "snow-coffin",
       "kind": "range",
-      "start": "1000-04-03T15:00Z",
-      "end": "1000-04-04T09:30Z",
+      "start": "1000-04-21T18:00Z",
+      "end": "1000-04-28T09:30Z",
       "time": {
         "type": "interval",
         "start": {
-          "value": "1000-04-03T15:00Z",
+          "value": "1000-04-21T18:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -3160,7 +2919,7 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         },
         "end": {
-          "value": "1000-04-04T09:30Z",
+          "value": "1000-04-28T09:30Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -3204,7 +2963,7 @@
           "fictional": true,
           "storyId": "story-snow-white",
           "sequence": 17,
-          "displayTime": "Day 3–4 · vigil",
+          "displayTime": "Days 16–23 · glass-coffin vigil",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
@@ -3212,21 +2971,520 @@
       },
       "media": [
         {
-          "src": "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Mountain landscape used as story mood art",
-          "caption": "Illustrative landscape."
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite35.jpg",
+          "alt": "1913 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "cinderella-first-ball",
+      "kind": "range",
+      "start": "1000-04-21T20:00Z",
+      "end": "1000-04-21T23:40Z",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-21T20:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-21T23:40Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "title": "Cinderella attends the royal ball",
+      "description": "Cinderella arrives at the palace transformed and initially unrecognized by her household. She attracts the prince's attention and experiences the social world from which she had been excluded, while the midnight condition remains active.",
+      "categoryId": "relationship",
+      "location": {
+        "name": "Royal Ballroom",
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.986,
+            47.232
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "evidence-dossier"
+      },
+      "evidenceIds": [
+        "src-cinderella"
+      ],
+      "tags": [
+        {
+          "label": "Encounter",
+          "icon": "crown",
+          "hue": 214
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-cinderella",
+          "sequence": 9,
+          "displayTime": "Day 7 · first ball",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Arthur%20Rackham%20Cinderella%20silhouette%20illustration.jpg",
+          "alt": "Arthur Rackham public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "cinderella-prince-dance",
+      "kind": "event",
+      "start": "1000-04-21T21:00Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-21T21:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "Prince dances with the unknown guest",
+      "description": "At the first ball, the prince gives sustained attention to Cinderella without recognizing her household identity. The encounter establishes the relationship that makes her later absence and the slipper clue personally significant to him.",
+      "categoryId": "relationship",
+      "location": {
+        "name": "Royal Ballroom",
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.986,
+            47.232
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "editorial-mosaic"
+      },
+      "evidenceIds": [
+        "src-cinderella"
+      ],
+      "tags": [
+        {
+          "label": "Encounter",
+          "icon": "crown",
+          "hue": 214
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-cinderella",
+          "sequence": 10,
+          "displayTime": "Day 7 · first dance",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20Gustav%20Dor%C3%A9%20illustration%20for%20Charles%20Perrault%20-%20Il%20libro%20delle%20fate%2C%20Longanesi%2C%20Milano%2C%201891.jpg",
+          "alt": "Gustave Doré public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "cinderella-first-return",
+      "kind": "event",
+      "start": "1000-04-21T23:45Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-21T23:45Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "Cinderella leaves the first ball before midnight",
+      "description": "Remembering the fairy godmother's condition, Cinderella leaves the palace in time on the first night and returns home before the transformation ends. The successful departure makes her decision to stay later on the second night consequential.",
+      "categoryId": "movement",
+      "location": {
+        "name": "Moonlit Carriage Road",
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.925,
+            47.248
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "hero-split"
+      },
+      "evidenceIds": [
+        "src-cinderella"
+      ],
+      "tags": [
+        {
+          "label": "Departure",
+          "icon": "relation",
+          "hue": 214
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-cinderella",
+          "sequence": 11,
+          "displayTime": "Day 7 · returns before midnight",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20by%20Elenore%20Abbott.jpg",
+          "alt": "Elenore Abbott public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "cinderella-second-ball",
+      "kind": "range",
+      "start": "1000-04-23T20:00Z",
+      "end": "1000-04-23T23:55Z",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-23T20:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-23T23:55Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "title": "Cinderella returns to the palace",
+      "description": "Cinderella returns to the palace a second time and spends longer with the prince. Because she leaves later, the midnight limit becomes the direct cause of the hurried flight and lost slipper.",
+      "categoryId": "relationship",
+      "location": {
+        "name": "Royal Ballroom",
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.986,
+            47.232
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "hero-split"
+      },
+      "evidenceIds": [
+        "src-cinderella"
+      ],
+      "tags": [
+        {
+          "label": "Escalation",
+          "icon": "crown",
+          "hue": 214
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-cinderella",
+          "sequence": 12,
+          "displayTime": "Day 9 · second ball",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20and%20the%20Fairy%20Godmother.jpg",
+          "alt": "William Henry Margetson public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "cinderella-midnight-flight",
+      "kind": "event",
+      "start": "1000-04-23T23:57Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-23T23:57Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "Midnight warning triggers Cinderella's hurried flight",
+      "description": "During the second ball, Cinderella notices that midnight is imminent and abruptly leaves the prince. The hurried descent from the palace steps leads directly to the lost slipper moments later.",
+      "categoryId": "movement",
+      "location": {
+        "name": "Royal Palace Steps",
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.965,
+            47.235
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "evidence-dossier"
+      },
+      "evidenceIds": [
+        "src-cinderella"
+      ],
+      "tags": [
+        {
+          "label": "Flight",
+          "icon": "relation",
+          "hue": 214
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-cinderella",
+          "sequence": 13,
+          "displayTime": "Day 9 · hurried departure",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Helen%20Stratton%20Cinderella.jpg",
+          "alt": "Helen Stratton public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "cinderella-slipper",
+      "kind": "event",
+      "start": "1000-04-24T00:02Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-24T00:02Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "Cinderella loses a glass slipper at midnight",
+      "description": "Fleeing as the enchantment ends, Cinderella leaves one glass slipper behind on the palace steps.",
+      "categoryId": "state-change",
+      "location": {
+        "name": "Royal Carriage Road",
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.902,
+            47.254
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "editorial-mosaic"
+      },
+      "evidenceIds": [
+        "src-cinderella"
+      ],
+      "tags": [
+        {
+          "label": "Clue",
+          "icon": "object",
+          "hue": 214
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-cinderella",
+          "sequence": 14,
+          "displayTime": "Day 10 · slipper lost",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "relationChanges": [
+        {
+          "relationshipId": "rel-cinderella-prince-search",
+          "operation": "activate"
+        }
+      ],
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Arthur%20Rackham%20Cinderella%20silhouette%20illustration.jpg",
+          "alt": "Arthur Rackham public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "cinderella-search",
+      "kind": "range",
+      "start": "1000-04-25T08:00Z",
+      "end": "1000-05-05T14:00Z",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-25T08:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-05-05T14:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "title": "The prince searches for the slipper's owner",
+      "description": "The prince uses the recovered glass slipper as the identifying clue for a house-to-house search. The search turns a private palace encounter into a public investigation that eventually reaches Cinderella's household.",
+      "categoryId": "discovery",
+      "location": {
+        "name": "Ashenvale Village Search Route",
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.845,
+            47.275
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "evidence-dossier"
+      },
+      "evidenceIds": [
+        "src-cinderella"
+      ],
+      "tags": [
+        {
+          "label": "Investigation",
+          "icon": "search",
+          "hue": 214
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-cinderella",
+          "sequence": 15,
+          "displayTime": "Days 11–21 · kingdom-wide search",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20Gustav%20Dor%C3%A9%20illustration%20for%20Charles%20Perrault%20-%20Il%20libro%20delle%20fate%2C%20Longanesi%2C%20Milano%2C%201891.jpg",
+          "alt": "Gustave Doré public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
     },
     {
       "id": "snow-prince-arrives",
       "kind": "event",
-      "start": "1000-04-04T09:15Z",
+      "start": "1000-04-28T09:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-04T09:15Z",
+          "value": "1000-04-28T09:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -3271,7 +3529,7 @@
           "fictional": true,
           "storyId": "story-snow-white",
           "sequence": 18,
-          "displayTime": "Day 4 · 09:15 · encounter",
+          "displayTime": "Day 23 · prince reaches clearing",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
@@ -3279,21 +3537,21 @@
       },
       "media": [
         {
-          "src": "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Dense forest used as Snow White mood art",
-          "caption": "Illustrative fictional forest."
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite36.jpg",
+          "alt": "1913 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
     },
     {
       "id": "snow-revival",
       "kind": "event",
-      "start": "1000-04-04T09:30Z",
+      "start": "1000-04-28T10:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-04T09:30Z",
+          "value": "1000-04-28T10:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -3339,213 +3597,29 @@
           "fictional": true,
           "storyId": "story-snow-white",
           "sequence": 19,
-          "displayTime": "Day 4 · morning",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      }
-    },
-    {
-      "id": "cinderella-stepsisters-try",
-      "kind": "event",
-      "start": "1000-04-04T14:30Z",
-      "end": null,
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-04T14:30Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "title": "Stepsisters attempt the slipper test",
-      "description": "The search reaches Cinderella's house and the stepsisters each attempt to fit the recovered slipper. Their failure eliminates the obvious household candidates and creates the opening for Cinderella to ask for a turn.",
-      "categoryId": "discovery",
-      "location": {
-        "name": "Cinderella's House",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.74,
-            47.31
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "editorial-mosaic"
-      },
-      "evidenceIds": [
-        "src-cinderella"
-      ],
-      "tags": [
-        {
-          "label": "Test",
-          "icon": "search",
-          "hue": 214
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-cinderella",
-          "sequence": 16,
-          "displayTime": "Day 4 · 14:30 · household test",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      }
-    },
-    {
-      "id": "cinderella-asks-to-try",
-      "kind": "event",
-      "start": "1000-04-04T15:05Z",
-      "end": null,
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-04T15:05Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "title": "Cinderella asks to try the slipper",
-      "description": "After the other candidates fail, Cinderella steps forward and asks to be included in the test despite her stepfamily's resistance. The request is the decision that converts the search from an external process into direct recognition.",
-      "categoryId": "decision",
-      "location": {
-        "name": "Cinderella's House",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.74,
-            47.31
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "hero-split"
-      },
-      "evidenceIds": [
-        "src-cinderella"
-      ],
-      "tags": [
-        {
-          "label": "Decision",
-          "icon": "decision",
-          "hue": 214
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-cinderella",
-          "sequence": 17,
-          "displayTime": "Day 4 · 15:05 · claim to be tested",
-          "temporalReferenceFrame": "Storybook Cycle 1000",
-          "spatialReferenceFrame": "Storybook Realm",
-          "validationProfile": "narrative"
-        }
-      }
-    },
-    {
-      "id": "cinderella-fit",
-      "kind": "event",
-      "start": "1000-04-04T15:10Z",
-      "end": null,
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-04T15:10Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "title": "The slipper fits Cinderella",
-      "description": "After the other members of the household fail the test, Cinderella is allowed to try the slipper. It fits, linking the unknown guest from the palace to Cinderella and resolving the prince's search.",
-      "categoryId": "discovery",
-      "location": {
-        "name": "Cinderella's House",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.74,
-            47.31
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
-      "presentation": {
-        "variant": "hero-split"
-      },
-      "evidenceIds": [
-        "src-cinderella",
-        "note-story-logic"
-      ],
-      "tags": [
-        {
-          "label": "Recognition",
-          "icon": "search",
-          "hue": 214
-        }
-      ],
-      "extensions": {
-        "narrative": {
-          "fictional": true,
-          "storyId": "story-cinderella",
-          "sequence": 18,
-          "displayTime": "Day 4 · 15:10",
+          "displayTime": "Day 23 · revival",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
       },
-      "relationChanges": [
+      "media": [
         {
-          "relationshipId": "rel-cinderella-prince-search",
-          "operation": "update",
-          "predicate": "identifies",
-          "properties": {
-            "clue": "glass slipper"
-          }
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite.jpg",
+          "alt": "1913 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
     },
     {
       "id": "snow-resolution",
       "kind": "event",
-      "start": "1000-04-05T12:00Z",
+      "start": "1000-05-04T12:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-05T12:00Z",
+          "value": "1000-05-04T12:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -3591,7 +3665,7 @@
           "fictional": true,
           "storyId": "story-snow-white",
           "sequence": 20,
-          "displayTime": "Day 5 · resolution",
+          "displayTime": "Day 29 · wedding resolution",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
@@ -3605,21 +3679,233 @@
       ],
       "media": [
         {
-          "src": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Old stone structure used as story mood art",
-          "caption": "Illustrative architecture; exercises the three-image slideshow."
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite.png",
+          "alt": "1852 public-domain Snow White illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "cinderella-stepsisters-try",
+      "kind": "event",
+      "start": "1000-05-05T14:30Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-05-05T14:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "Stepsisters attempt the slipper test",
+      "description": "The search reaches Cinderella's house and the stepsisters each attempt to fit the recovered slipper. Their failure eliminates the obvious household candidates and creates the opening for Cinderella to ask for a turn.",
+      "categoryId": "discovery",
+      "location": {
+        "name": "Cinderella's House",
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.74,
+            47.31
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "editorial-mosaic"
+      },
+      "evidenceIds": [
+        "src-cinderella"
+      ],
+      "tags": [
+        {
+          "label": "Test",
+          "icon": "search",
+          "hue": 214
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-cinderella",
+          "sequence": 16,
+          "displayTime": "Day 21 · stepsisters tested",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20by%20Elenore%20Abbott.jpg",
+          "alt": "Elenore Abbott public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "cinderella-asks-to-try",
+      "kind": "event",
+      "start": "1000-05-05T15:00Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-05-05T15:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "Cinderella asks to try the slipper",
+      "description": "After the other candidates fail, Cinderella steps forward and asks to be included in the test despite her stepfamily's resistance. The request is the decision that converts the search from an external process into direct recognition.",
+      "categoryId": "decision",
+      "location": {
+        "name": "Cinderella's House",
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.74,
+            47.31
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "hero-split"
+      },
+      "evidenceIds": [
+        "src-cinderella"
+      ],
+      "tags": [
+        {
+          "label": "Decision",
+          "icon": "decision",
+          "hue": 214
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-cinderella",
+          "sequence": 17,
+          "displayTime": "Day 21 · Cinderella requests a turn",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20and%20the%20Fairy%20Godmother.jpg",
+          "alt": "William Henry Margetson public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
+        }
+      ]
+    },
+    {
+      "id": "cinderella-fit",
+      "kind": "event",
+      "start": "1000-05-05T15:10Z",
+      "end": null,
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-05-05T15:10Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "title": "The slipper fits Cinderella",
+      "description": "After the other members of the household fail the test, Cinderella is allowed to try the slipper. It fits, linking the unknown guest from the palace to Cinderella and resolving the prince's search.",
+      "categoryId": "discovery",
+      "location": {
+        "name": "Cinderella's House",
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.74,
+            47.31
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "source": "imported"
+      },
+      "presentation": {
+        "variant": "hero-split"
+      },
+      "evidenceIds": [
+        "src-cinderella",
+        "note-story-logic"
+      ],
+      "tags": [
+        {
+          "label": "Recognition",
+          "icon": "search",
+          "hue": 214
+        }
+      ],
+      "extensions": {
+        "narrative": {
+          "fictional": true,
+          "storyId": "story-cinderella",
+          "sequence": 18,
+          "displayTime": "Day 21 · identity confirmed",
+          "temporalReferenceFrame": "Storybook Cycle 1000",
+          "spatialReferenceFrame": "Storybook Realm",
+          "validationProfile": "narrative"
+        }
+      },
+      "relationChanges": [
+        {
+          "relationshipId": "rel-cinderella-prince-search",
+          "operation": "update",
+          "predicate": "identifies",
+          "properties": {
+            "clue": "glass slipper"
+          }
+        }
+      ],
+      "media": [
+        {
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Helen%20Stratton%20Cinderella.jpg",
+          "alt": "Helen Stratton public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
     },
     {
       "id": "cinderella-resolution",
       "kind": "event",
-      "start": "1000-04-05T14:00Z",
+      "start": "1000-05-12T14:00Z",
       "end": null,
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-05T14:00Z",
+          "value": "1000-05-12T14:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -3665,7 +3951,7 @@
           "fictional": true,
           "storyId": "story-cinderella",
           "sequence": 19,
-          "displayTime": "Day 5 · resolution",
+          "displayTime": "Day 28 · wedding resolution",
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
@@ -3683,9 +3969,9 @@
       ],
       "media": [
         {
-          "src": "https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?auto=format&fit=crop&w=1600&q=80",
-          "alt": "Palace-like architecture used as Cinderella mood art",
-          "caption": "Mood image only; not evidence or a real location."
+          "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Arthur%20Rackham%20Cinderella%20silhouette%20illustration.jpg",
+          "alt": "Arthur Rackham public-domain Cinderella illustration",
+          "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
     }
@@ -3880,7 +4166,17 @@
       "identifiers": [],
       "attributes": {
         "storyId": "story-three-little-pigs",
-        "fictional": true
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            8.3,
+            49.96
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
       }
     },
     {
@@ -3934,7 +4230,7 @@
       }
     },
     {
-      "id": "snow-mirror",
+      "id": "snow-mirror-object",
       "type": "object",
       "name": "Magic Mirror",
       "identifiers": [],
@@ -3944,7 +4240,7 @@
       }
     },
     {
-      "id": "snow-apple",
+      "id": "snow-apple-object",
       "type": "object",
       "name": "Poisoned Apple",
       "identifiers": [],
@@ -3960,7 +4256,17 @@
       "identifiers": [],
       "attributes": {
         "storyId": "story-snow-white",
-        "fictional": true
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            10.61,
+            48.39
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
       }
     },
     {
@@ -4040,7 +4346,17 @@
       "identifiers": [],
       "attributes": {
         "storyId": "story-cinderella",
-        "fictional": true
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.98,
+            47.23
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
       }
     },
     {
@@ -4130,7 +4446,17 @@
       "identifiers": [],
       "attributes": {
         "storyId": "story-snow-white",
-        "fictional": true
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            10.69,
+            48.34
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
       }
     },
     {
@@ -4180,7 +4506,17 @@
       "identifiers": [],
       "attributes": {
         "storyId": "story-cinderella",
-        "fictional": true
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.965,
+            47.235
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
       }
     },
     {
@@ -4190,7 +4526,417 @@
       "identifiers": [],
       "attributes": {
         "storyId": "story-snow-white",
-        "fictional": true
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            10.55,
+            48.42
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-snow-white-queen-s-castle",
+      "type": "place",
+      "name": "Queen's Castle",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            10.32,
+            48.54
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-cinderella-cinderella-s-house",
+      "type": "place",
+      "name": "Cinderella's House",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-cinderella",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.74,
+            47.31
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-three-little-pigs-mother-pig-s-cottage",
+      "type": "place",
+      "name": "Mother Pig's Cottage",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            8.1,
+            50.02
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-three-little-pigs-straw-seller-s-field",
+      "type": "place",
+      "name": "Straw Seller's Field",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            8.14,
+            50.012
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-snow-white-queen-s-mirror-chamber",
+      "type": "place",
+      "name": "Queen's Mirror Chamber",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            10.326,
+            48.542
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-three-little-pigs-timber-track",
+      "type": "place",
+      "name": "Timber Track",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            8.19,
+            50.003
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-three-little-pigs-pigwood-mason-s-yard",
+      "type": "place",
+      "name": "Pigwood Mason's Yard",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            8.245,
+            49.988
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-snow-white-castle-great-hall",
+      "type": "place",
+      "name": "Castle Great Hall",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            10.334,
+            48.536
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-three-little-pigs-straw-house-meadow",
+      "type": "place",
+      "name": "Straw House Meadow",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            8.16,
+            50
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-snow-white-deep-forest",
+      "type": "place",
+      "name": "Deep Forest",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            10.48,
+            48.45
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-three-little-pigs-stick-house-grove",
+      "type": "place",
+      "name": "Stick House Grove",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            8.22,
+            49.98
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-cinderella-garden-and-pumpkin-patch",
+      "type": "place",
+      "name": "Garden and Pumpkin Patch",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-cinderella",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.82,
+            47.28
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-cinderella-royal-ballroom",
+      "type": "place",
+      "name": "Royal Ballroom",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-cinderella",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.986,
+            47.232
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-cinderella-moonlit-carriage-road",
+      "type": "place",
+      "name": "Moonlit Carriage Road",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-cinderella",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.925,
+            47.248
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-snow-white-cottage-approach",
+      "type": "place",
+      "name": "Cottage Approach",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            10.592,
+            48.398
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-three-little-pigs-pigwood-escape-path",
+      "type": "place",
+      "name": "Pigwood Escape Path",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            8.205,
+            49.992
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-three-little-pigs-brick-house-approach",
+      "type": "place",
+      "name": "Brick House Approach",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            8.275,
+            49.972
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-cinderella-royal-carriage-road",
+      "type": "place",
+      "name": "Royal Carriage Road",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-cinderella",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.902,
+            47.254
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-cinderella-ashenvale-village-search-route",
+      "type": "place",
+      "name": "Ashenvale Village Search Route",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-cinderella",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            12.845,
+            47.275
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
+      }
+    },
+    {
+      "id": "place-snow-white-queen-s-workshop",
+      "type": "place",
+      "name": "Queen's Workshop",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true,
+        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            10.342,
+            48.531
+          ]
+        },
+        "crs": "OGC:CRS84",
+        "mapMarker": true
       }
     }
   ],
@@ -4266,7 +5012,7 @@
       "time": {
         "type": "interval",
         "start": {
-          "value": "1000-04-01T09:00Z",
+          "value": "1000-04-03T08:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4275,7 +5021,7 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         },
         "end": {
-          "value": "1000-04-02T09:00Z",
+          "value": "1000-04-10T18:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4297,7 +5043,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T09:00Z",
+          "value": "1000-04-10T18:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4346,12 +5092,12 @@
     {
       "id": "rel-snow-mirror-owned",
       "subjectId": "snow-queen",
-      "objectId": "snow-mirror",
+      "objectId": "snow-mirror-object",
       "predicate": "consults",
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-01T08:20Z",
+          "value": "1000-04-06T08:20Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4373,7 +5119,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-01T09:00Z",
+          "value": "1000-04-07T09:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4395,7 +5141,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-01T10:00Z",
+          "value": "1000-04-08T10:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4417,7 +5163,7 @@
       "time": {
         "type": "interval",
         "start": {
-          "value": "1000-04-01T18:00Z",
+          "value": "1000-04-09T19:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4426,7 +5172,7 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         },
         "end": {
-          "value": "1000-04-03T07:00Z",
+          "value": "1000-04-21T07:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4442,12 +5188,12 @@
     {
       "id": "rel-snow-apple-object",
       "subjectId": "snow-queen",
-      "objectId": "snow-apple",
+      "objectId": "snow-apple-object",
       "predicate": "prepares",
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-03T10:45Z",
+          "value": "1000-04-20T15:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4480,7 +5226,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-04T09:30Z",
+          "value": "1000-04-28T10:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4502,7 +5248,7 @@
       "time": {
         "type": "interval",
         "start": {
-          "value": "0997-01-02",
+          "value": "0997-06-02",
           "precision": "day",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4511,7 +5257,7 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         },
         "end": {
-          "value": "1000-04-05",
+          "value": "1000-05-05",
           "precision": "day",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4532,7 +5278,7 @@
       "time": {
         "type": "interval",
         "start": {
-          "value": "0997-01-02",
+          "value": "0997-06-02",
           "precision": "day",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4541,7 +5287,7 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         },
         "end": {
-          "value": "1000-04-04",
+          "value": "1000-05-05",
           "precision": "day",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4562,7 +5308,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-01T18:00Z",
+          "value": "1000-04-20T18:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4590,7 +5336,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-03T00:00Z",
+          "value": "1000-04-24T00:02Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4624,7 +5370,7 @@
       "time": {
         "type": "interval",
         "start": {
-          "value": "0997-01-02",
+          "value": "0997-06-02",
           "precision": "day",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4633,7 +5379,7 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         },
         "end": {
-          "value": "1000-04-05",
+          "value": "1000-05-05",
           "precision": "day",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4654,7 +5400,7 @@
       "time": {
         "type": "interval",
         "start": {
-          "value": "1000-04-01T20:00Z",
+          "value": "1000-04-21T20:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4663,7 +5409,7 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         },
         "end": {
-          "value": "1000-04-02T23:59Z",
+          "value": "1000-04-23T23:55Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4684,7 +5430,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-01T08:20Z",
+          "value": "1000-04-02T09:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4706,7 +5452,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-01T08:30Z",
+          "value": "1000-04-02T11:30Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4728,7 +5474,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-01T08:40Z",
+          "value": "1000-04-02T14:30Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4750,7 +5496,7 @@
       "time": {
         "type": "interval",
         "start": {
-          "value": "1000-04-01T08:00Z",
+          "value": "1000-04-02T08:30Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4759,7 +5505,7 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         },
         "end": {
-          "value": "1000-04-01T09:00Z",
+          "value": "1000-04-02T15:30Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4780,7 +5526,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T10:05Z",
+          "value": "1000-04-11T08:30Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4802,7 +5548,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T10:40Z",
+          "value": "1000-04-13T09:30Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4824,7 +5570,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T10:15Z",
+          "value": "1000-04-14T10:15Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4846,7 +5592,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T16:00Z",
+          "value": "1000-04-17T14:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4868,7 +5614,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T12:00Z",
+          "value": "1000-04-14T18:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4890,7 +5636,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-02T18:00Z",
+          "value": "1000-04-17T20:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4912,7 +5658,7 @@
       "time": {
         "type": "interval",
         "start": {
-          "value": "1000-04-03T15:00Z",
+          "value": "1000-04-21T18:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4921,7 +5667,7 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         },
         "end": {
-          "value": "1000-04-04T09:30Z",
+          "value": "1000-04-28T09:30Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4942,7 +5688,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-04T09:15Z",
+          "value": "1000-04-28T09:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4964,7 +5710,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "0997-01-02",
+          "value": "0997-06-01",
           "precision": "day",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -4986,7 +5732,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-01T18:10Z",
+          "value": "1000-04-20T18:20Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -5008,7 +5754,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-01T18:00Z",
+          "value": "1000-04-20T18:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -5030,7 +5776,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-01T20:30Z",
+          "value": "1000-04-21T21:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -5052,7 +5798,7 @@
       "time": {
         "type": "interval",
         "start": {
-          "value": "1000-04-03T08:00Z",
+          "value": "1000-04-25T08:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -5061,7 +5807,7 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         },
         "end": {
-          "value": "1000-04-04T15:10Z",
+          "value": "1000-05-05T14:00Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -5082,7 +5828,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-04T14:30Z",
+          "value": "1000-05-05T14:30Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -5104,7 +5850,7 @@
       "time": {
         "type": "instant",
         "start": {
-          "value": "1000-04-01T10:40Z",
+          "value": "1000-04-08T11:30Z",
           "precision": "minute",
           "certainty": "inferred",
           "calendar": "gregorian",
@@ -5117,6 +5863,2987 @@
       "attributes": {
         "from": "Deep Forest",
         "toward": "Seven Dwarfs' Cottage"
+      }
+    },
+    {
+      "id": "rel-event-snow-birth-place",
+      "subjectId": "snow-birth",
+      "objectId": "place-snow-white-queen-s-castle",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "0993-01-01",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.32,
+          48.54
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-birth-actor",
+      "subjectId": "snow-white",
+      "objectId": "snow-birth",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "0993-01-01",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-childhood-place",
+      "subjectId": "snow-childhood",
+      "objectId": "place-snow-white-queen-s-castle",
+      "predicate": "occursAt",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "0993-01-02",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-05",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.32,
+          48.54
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-childhood-actor",
+      "subjectId": "snow-white",
+      "objectId": "snow-childhood",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "0993-01-02",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-05",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-mother-place",
+      "subjectId": "cinderella-mother",
+      "objectId": "place-cinderella-cinderella-s-house",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "0997-01-01",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.74,
+          47.31
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-mother-actor",
+      "subjectId": "cinderella",
+      "objectId": "cinderella-mother",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "0997-01-01",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-stepfamily-arrives-place",
+      "subjectId": "cinderella-stepfamily-arrives",
+      "objectId": "place-cinderella-cinderella-s-house",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "0997-06-01",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.74,
+          47.31
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-stepfamily-arrives-actor",
+      "subjectId": "cinderella-father",
+      "objectId": "cinderella-stepfamily-arrives",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "0997-06-01",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-hardship-place",
+      "subjectId": "cinderella-hardship",
+      "objectId": "place-cinderella-cinderella-s-house",
+      "predicate": "occursAt",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "0997-06-02",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-14",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.74,
+          47.31
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-hardship-actor",
+      "subjectId": "cinderella",
+      "objectId": "cinderella-hardship",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "0997-06-02",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-14",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-pigs-childhood-place",
+      "subjectId": "pigs-childhood",
+      "objectId": "place-three-little-pigs-mother-pig-s-cottage",
+      "predicate": "occursAt",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "0998-01-01",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-03-24",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          8.1,
+          50.02
+        ]
+      }
+    },
+    {
+      "id": "rel-event-pigs-childhood-actor",
+      "subjectId": "pigs-brothers",
+      "objectId": "pigs-childhood",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "0998-01-01",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-03-24",
+          "precision": "day",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": null,
+          "utcOffset": null,
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-pigs-leave-home-place",
+      "subjectId": "pigs-leave-home",
+      "objectId": "place-three-little-pigs-mother-pig-s-cottage",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-01T08:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          8.1,
+          50.02
+        ]
+      }
+    },
+    {
+      "id": "rel-event-pigs-leave-home-actor",
+      "subjectId": "pigs-brothers",
+      "objectId": "pigs-leave-home",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-01T08:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-invitation-place",
+      "subjectId": "cinderella-invitation",
+      "objectId": "place-cinderella-cinderella-s-house",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-15T09:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.74,
+          47.31
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-invitation-actor",
+      "subjectId": "cinderella-herald",
+      "objectId": "cinderella-invitation",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-15T09:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-pigs-acquire-straw-place",
+      "subjectId": "pigs-acquire-straw",
+      "objectId": "place-three-little-pigs-straw-seller-s-field",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-02T09:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          8.14,
+          50.012
+        ]
+      }
+    },
+    {
+      "id": "rel-event-pigs-acquire-straw-actor",
+      "subjectId": "pigs-first",
+      "objectId": "pigs-acquire-straw",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-02T09:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-mirror-place",
+      "subjectId": "snow-mirror",
+      "objectId": "place-snow-white-queen-s-mirror-chamber",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-06T08:20Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.326,
+          48.542
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-mirror-actor",
+      "subjectId": "snow-queen",
+      "objectId": "snow-mirror",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-06T08:20Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-pigs-acquire-sticks-place",
+      "subjectId": "pigs-acquire-sticks",
+      "objectId": "place-three-little-pigs-timber-track",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-02T11:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          8.19,
+          50.003
+        ]
+      }
+    },
+    {
+      "id": "rel-event-pigs-acquire-sticks-actor",
+      "subjectId": "pigs-second",
+      "objectId": "pigs-acquire-sticks",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-02T11:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-pigs-acquire-bricks-place",
+      "subjectId": "pigs-acquire-bricks",
+      "objectId": "place-three-little-pigs-pigwood-mason-s-yard",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-02T14:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          8.245,
+          49.988
+        ]
+      }
+    },
+    {
+      "id": "rel-event-pigs-acquire-bricks-actor",
+      "subjectId": "pigs-third",
+      "objectId": "pigs-acquire-bricks",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-02T14:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-pigs-brick-build-place",
+      "subjectId": "pigs-brick-build",
+      "objectId": "pigs-brick-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-03T08:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-10T18:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          8.3,
+          49.96
+        ]
+      }
+    },
+    {
+      "id": "rel-event-pigs-brick-build-actor",
+      "subjectId": "pigs-third",
+      "objectId": "pigs-brick-build",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-03T08:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-10T18:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-huntsman-order-place",
+      "subjectId": "snow-huntsman-order",
+      "objectId": "place-snow-white-castle-great-hall",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-07T09:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.334,
+          48.536
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-huntsman-order-actor",
+      "subjectId": "snow-queen",
+      "objectId": "snow-huntsman-order",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-07T09:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-pigs-straw-house-place",
+      "subjectId": "pigs-straw-house",
+      "objectId": "place-three-little-pigs-straw-house-meadow",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-03T12:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          8.16,
+          50
+        ]
+      }
+    },
+    {
+      "id": "rel-event-pigs-straw-house-actor",
+      "subjectId": "pigs-first",
+      "objectId": "pigs-straw-house",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-03T12:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-huntsman-spares-place",
+      "subjectId": "snow-huntsman-spares",
+      "objectId": "place-snow-white-deep-forest",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-08T10:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.48,
+          48.45
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-huntsman-spares-actor",
+      "subjectId": "snow-huntsman",
+      "objectId": "snow-huntsman-spares",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-08T10:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-forest-flight-place",
+      "subjectId": "snow-forest-flight",
+      "objectId": "snow-forest-ridge-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-08T11:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.55,
+          48.42
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-forest-flight-actor",
+      "subjectId": "snow-white",
+      "objectId": "snow-forest-flight",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-08T11:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-pigs-stick-house-place",
+      "subjectId": "pigs-stick-house",
+      "objectId": "place-three-little-pigs-stick-house-grove",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-05T17:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          8.22,
+          49.98
+        ]
+      }
+    },
+    {
+      "id": "rel-event-pigs-stick-house-actor",
+      "subjectId": "pigs-second",
+      "objectId": "pigs-stick-house",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-05T17:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-finds-cottage-place",
+      "subjectId": "snow-finds-cottage",
+      "objectId": "snow-cottage-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-09T16:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.61,
+          48.39
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-finds-cottage-actor",
+      "subjectId": "snow-white",
+      "objectId": "snow-finds-cottage",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-09T16:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-denied-place",
+      "subjectId": "cinderella-denied",
+      "objectId": "place-cinderella-cinderella-s-house",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-18T16:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.74,
+          47.31
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-denied-actor",
+      "subjectId": "cinderella-stepmother",
+      "objectId": "cinderella-denied",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-18T16:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-extra-chores-place",
+      "subjectId": "cinderella-extra-chores",
+      "objectId": "place-cinderella-cinderella-s-house",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-19T08:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.74,
+          47.31
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-extra-chores-actor",
+      "subjectId": "cinderella-stepmother",
+      "objectId": "cinderella-extra-chores",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-19T08:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-dwarfs-shelter-place",
+      "subjectId": "snow-dwarfs-shelter",
+      "objectId": "snow-cottage-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-09T19:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-21T07:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.61,
+          48.39
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-dwarfs-shelter-actor",
+      "subjectId": "snow-dwarfs",
+      "objectId": "snow-dwarfs-shelter",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-09T19:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-21T07:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-transformation-place",
+      "subjectId": "cinderella-transformation",
+      "objectId": "place-cinderella-garden-and-pumpkin-patch",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-20T18:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.82,
+          47.28
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-transformation-actor",
+      "subjectId": "cinderella-fairy",
+      "objectId": "cinderella-transformation",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-20T18:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-coach-created-place",
+      "subjectId": "cinderella-coach-created",
+      "objectId": "place-cinderella-garden-and-pumpkin-patch",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-20T18:20Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.82,
+          47.28
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-coach-created-actor",
+      "subjectId": "cinderella-fairy",
+      "objectId": "cinderella-coach-created",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-20T18:20Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-first-ball-place",
+      "subjectId": "cinderella-first-ball",
+      "objectId": "place-cinderella-royal-ballroom",
+      "predicate": "occursAt",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-21T20:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-21T23:40Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.986,
+          47.232
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-first-ball-actor",
+      "subjectId": "cinderella",
+      "objectId": "cinderella-first-ball",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-21T20:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-21T23:40Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-prince-dance-place",
+      "subjectId": "cinderella-prince-dance",
+      "objectId": "place-cinderella-royal-ballroom",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-21T21:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.986,
+          47.232
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-prince-dance-actor",
+      "subjectId": "cinderella-prince",
+      "objectId": "cinderella-prince-dance",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-21T21:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-first-return-place",
+      "subjectId": "cinderella-first-return",
+      "objectId": "place-cinderella-moonlit-carriage-road",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-21T23:45Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.925,
+          47.248
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-first-return-actor",
+      "subjectId": "cinderella",
+      "objectId": "cinderella-first-return",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-21T23:45Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-queen-discovers-place",
+      "subjectId": "snow-queen-discovers",
+      "objectId": "place-snow-white-queen-s-mirror-chamber",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-12T08:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.326,
+          48.542
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-queen-discovers-actor",
+      "subjectId": "snow-queen",
+      "objectId": "snow-queen-discovers",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-12T08:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-pigs-wolf-straw-place",
+      "subjectId": "pigs-wolf-straw",
+      "objectId": "place-three-little-pigs-straw-house-meadow",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-11T08:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          8.16,
+          50
+        ]
+      }
+    },
+    {
+      "id": "rel-event-pigs-wolf-straw-actor",
+      "subjectId": "pigs-wolf",
+      "objectId": "pigs-wolf-straw",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-11T08:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-disguises-place",
+      "subjectId": "snow-disguises",
+      "objectId": "place-snow-white-cottage-approach",
+      "predicate": "occursAt",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-14T09:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-21T11:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.592,
+          48.398
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-disguises-actor",
+      "subjectId": "snow-queen",
+      "objectId": "snow-disguises",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-14T09:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-21T11:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-pigs-first-flees-place",
+      "subjectId": "pigs-first-flees",
+      "objectId": "place-three-little-pigs-pigwood-escape-path",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-11T08:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          8.205,
+          49.992
+        ]
+      }
+    },
+    {
+      "id": "rel-event-pigs-first-flees-actor",
+      "subjectId": "pigs-first",
+      "objectId": "pigs-first-flees",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-11T08:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-laces-place",
+      "subjectId": "snow-laces",
+      "objectId": "snow-cottage-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-14T10:15Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.61,
+          48.39
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-laces-actor",
+      "subjectId": "snow-queen",
+      "objectId": "snow-laces",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-14T10:15Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-pigs-wolf-sticks-place",
+      "subjectId": "pigs-wolf-sticks",
+      "objectId": "place-three-little-pigs-stick-house-grove",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-13T09:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          8.22,
+          49.98
+        ]
+      }
+    },
+    {
+      "id": "rel-event-pigs-wolf-sticks-actor",
+      "subjectId": "pigs-wolf",
+      "objectId": "pigs-wolf-sticks",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-13T09:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-pigs-two-flee-place",
+      "subjectId": "pigs-two-flee",
+      "objectId": "place-three-little-pigs-brick-house-approach",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-13T09:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          8.275,
+          49.972
+        ]
+      }
+    },
+    {
+      "id": "rel-event-pigs-two-flee-actor",
+      "subjectId": "pigs-brothers",
+      "objectId": "pigs-two-flee",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-13T09:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-pigs-brick-siege-place",
+      "subjectId": "pigs-brick-siege",
+      "objectId": "pigs-brick-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-16T11:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-16T15:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          8.3,
+          49.96
+        ]
+      }
+    },
+    {
+      "id": "rel-event-pigs-brick-siege-actor",
+      "subjectId": "pigs-wolf",
+      "objectId": "pigs-brick-siege",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-16T11:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-16T15:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-laces-recovery-place",
+      "subjectId": "snow-laces-recovery",
+      "objectId": "snow-cottage-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-14T18:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.61,
+          48.39
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-laces-recovery-actor",
+      "subjectId": "snow-dwarfs",
+      "objectId": "snow-laces-recovery",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-14T18:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-pigs-wolf-roof-place",
+      "subjectId": "pigs-wolf-roof",
+      "objectId": "pigs-brick-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-17T16:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          8.3,
+          49.96
+        ]
+      }
+    },
+    {
+      "id": "rel-event-pigs-wolf-roof-actor",
+      "subjectId": "pigs-wolf",
+      "objectId": "pigs-wolf-roof",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-17T16:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-pigs-chimney-place",
+      "subjectId": "pigs-chimney",
+      "objectId": "pigs-brick-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-17T16:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          8.3,
+          49.96
+        ]
+      }
+    },
+    {
+      "id": "rel-event-pigs-chimney-actor",
+      "subjectId": "pigs-wolf",
+      "objectId": "pigs-chimney",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-17T16:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-pigs-safe-place",
+      "subjectId": "pigs-safe",
+      "objectId": "pigs-brick-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-18T08:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          8.3,
+          49.96
+        ]
+      }
+    },
+    {
+      "id": "rel-event-pigs-safe-actor",
+      "subjectId": "pigs-brothers",
+      "objectId": "pigs-safe",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-18T08:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-comb-place",
+      "subjectId": "snow-comb",
+      "objectId": "snow-cottage-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-17T14:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.61,
+          48.39
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-comb-actor",
+      "subjectId": "snow-queen",
+      "objectId": "snow-comb",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-17T14:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-comb-recovery-place",
+      "subjectId": "snow-comb-recovery",
+      "objectId": "snow-cottage-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-17T20:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.61,
+          48.39
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-comb-recovery-actor",
+      "subjectId": "snow-dwarfs",
+      "objectId": "snow-comb-recovery",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-17T20:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-second-ball-place",
+      "subjectId": "cinderella-second-ball",
+      "objectId": "place-cinderella-royal-ballroom",
+      "predicate": "occursAt",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-23T20:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-23T23:55Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.986,
+          47.232
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-second-ball-actor",
+      "subjectId": "cinderella",
+      "objectId": "cinderella-second-ball",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-23T20:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-23T23:55Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-midnight-flight-place",
+      "subjectId": "cinderella-midnight-flight",
+      "objectId": "cinderella-palace-steps-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-23T23:57Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.965,
+          47.235
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-midnight-flight-actor",
+      "subjectId": "cinderella",
+      "objectId": "cinderella-midnight-flight",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-23T23:57Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-slipper-place",
+      "subjectId": "cinderella-slipper",
+      "objectId": "place-cinderella-royal-carriage-road",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-24T00:02Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.902,
+          47.254
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-slipper-actor",
+      "subjectId": "cinderella",
+      "objectId": "cinderella-slipper",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-24T00:02Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-search-place",
+      "subjectId": "cinderella-search",
+      "objectId": "place-cinderella-ashenvale-village-search-route",
+      "predicate": "occursAt",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-25T08:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-05-05T14:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.845,
+          47.275
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-search-actor",
+      "subjectId": "cinderella-herald",
+      "objectId": "cinderella-search",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-25T08:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-05-05T14:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-apple-prepared-place",
+      "subjectId": "snow-apple-prepared",
+      "objectId": "place-snow-white-queen-s-workshop",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-20T15:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.342,
+          48.531
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-apple-prepared-actor",
+      "subjectId": "snow-queen",
+      "objectId": "snow-apple-prepared",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-20T15:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-apple-place",
+      "subjectId": "snow-apple",
+      "objectId": "snow-cottage-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-21T11:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.61,
+          48.39
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-apple-actor",
+      "subjectId": "snow-white",
+      "objectId": "snow-apple",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-21T11:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-coffin-place",
+      "subjectId": "snow-coffin",
+      "objectId": "snow-clearing-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-21T18:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-28T09:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.69,
+          48.34
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-coffin-actor",
+      "subjectId": "snow-dwarfs",
+      "objectId": "snow-coffin",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-21T18:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-28T09:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-prince-arrives-place",
+      "subjectId": "snow-prince-arrives",
+      "objectId": "snow-clearing-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-28T09:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.69,
+          48.34
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-prince-arrives-actor",
+      "subjectId": "snow-prince",
+      "objectId": "snow-prince-arrives",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-28T09:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-revival-place",
+      "subjectId": "snow-revival",
+      "objectId": "snow-clearing-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-28T10:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.69,
+          48.34
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-revival-actor",
+      "subjectId": "snow-white",
+      "objectId": "snow-revival",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-28T10:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-stepsisters-try-place",
+      "subjectId": "cinderella-stepsisters-try",
+      "objectId": "place-cinderella-cinderella-s-house",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-05-05T14:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.74,
+          47.31
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-stepsisters-try-actor",
+      "subjectId": "cinderella-stepsisters",
+      "objectId": "cinderella-stepsisters-try",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-05-05T14:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-asks-to-try-place",
+      "subjectId": "cinderella-asks-to-try",
+      "objectId": "place-cinderella-cinderella-s-house",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-05-05T15:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.74,
+          47.31
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-asks-to-try-actor",
+      "subjectId": "cinderella",
+      "objectId": "cinderella-asks-to-try",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-05-05T15:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-fit-place",
+      "subjectId": "cinderella-fit",
+      "objectId": "place-cinderella-cinderella-s-house",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-05-05T15:10Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.74,
+          47.31
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-fit-actor",
+      "subjectId": "cinderella",
+      "objectId": "cinderella-fit",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-05-05T15:10Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-snow-resolution-place",
+      "subjectId": "snow-resolution",
+      "objectId": "place-snow-white-queen-s-castle",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-05-04T12:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          10.32,
+          48.54
+        ]
+      }
+    },
+    {
+      "id": "rel-event-snow-resolution-actor",
+      "subjectId": "snow-white",
+      "objectId": "snow-resolution",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-05-04T12:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-snow-white",
+        "role": "primary"
+      }
+    },
+    {
+      "id": "rel-event-cinderella-resolution-place",
+      "subjectId": "cinderella-resolution",
+      "objectId": "cinderella-palace-place",
+      "predicate": "occursAt",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-05-12T14:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "mapMarker": true,
+        "referenceFrame": "Storybook Realm",
+        "coordinates": [
+          12.98,
+          47.23
+        ]
+      }
+    },
+    {
+      "id": "rel-event-cinderella-resolution-actor",
+      "subjectId": "cinderella",
+      "objectId": "cinderella-resolution",
+      "predicate": "participatesIn",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-05-12T14:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {
+        "storyId": "story-cinderella",
+        "role": "primary"
       }
     }
   ],
