@@ -80,3 +80,19 @@ test("sample graph includes time-bounded action edges with properties", () => {
   assert.ok(timed.some((relationship) => Object.keys(relationship.attributes || {}).length > 0));
   assert.ok(timed.every((relationship) => relationship.predicate && relationship.subjectId && relationship.objectId));
 });
+
+test("sample demonstrates event-driven relation lifecycle changes", () => {
+  const changedItems = sample.items.filter((item) => item.relationChanges?.length);
+  assert.ok(changedItems.length >= 5);
+  const operations = new Set(changedItems.flatMap((item) => item.relationChanges.map((change) => change.operation)));
+  assert.ok(operations.has("activate"));
+  assert.ok(operations.has("update"));
+  assert.ok(operations.has("deactivate"));
+  const eventDriven = sample.relationships.filter((relationship) => relationship.initialState === "inactive");
+  assert.ok(eventDriven.length >= 2);
+  for (const relationship of eventDriven) {
+    assert.ok(changedItems.some((item) =>
+      item.relationChanges.some((change) => change.relationshipId === relationship.id)
+    ));
+  }
+});
