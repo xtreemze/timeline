@@ -118,6 +118,8 @@
       this.preferences = loadPreferences();
       this.orientation = this.preferences.orientation;
       this.drag = null;
+      this.touchPointers = new Map();
+      this.pinch = null;
       this.resizeObserver = null;
       this.focusResizeFrame = 0;
       this.renderFrame = 0;
@@ -170,26 +172,124 @@
         this.closeFocus();
       });
 
-      this.surface.addEventListener("pointerdown", (event) => {
-        if (!this.viewport || !this.items.length || event.button !== 0 || event.target.closest("button")) return;
-        this.clearClusterExpansion();
-        this.cancelViewportAnimation();
+      const beginSurfaceDrag = (pointerId, point, sourceEvent = null) => {
+        if (!this.viewport) return;
         const rect = this.surface.getBoundingClientRect();
-        const coordinate = this.orientation === "horizontal" ? event.clientX : event.clientY;
+        const coordinate = this.orientation === "horizontal" ? point.x : point.y;
         this.drag = {
-          pointerId: event.pointerId,
+          pointerId,
           coordinate,
           viewport: { ...this.viewport },
           length: this.orientation === "horizontal" ? rect.width : rect.height,
-          lastTime: Number(event.timeStamp) || performance.now(),
+          lastTime: sourceEvent ? (Number(sourceEvent.timeStamp) || performance.now()) : performance.now(),
           samples: []
         };
-        motion.appendPointerSamples(this.drag.samples, event, this.orientation);
-        this.surface.setPointerCapture(event.pointerId);
+        if (sourceEvent) motion.appendPointerSamples(this.drag.samples, sourceEvent, this.orientation);
+        try {
+          if (!this.surface.hasPointerCapture(pointerId)) this.surface.setPointerCapture(pointerId);
+        } catch {
+          // Pointer capture can fail when a browser has already cancelled a touch gesture.
+        }
         this.surface.classList.add("is-panning");
+      };
+
+      const pinchGeometry = () => {
+        if (this.touchPointers.size < 2) return null;
+        const [first, second] = Array.from(this.touchPointers.values()).slice(0, 2);
+        const rect = this.surface.getBoundingClientRect();
+        const length = this.orientation === "horizontal" ? rect.width : rect.height;
+        const padding = this.axisPadding(length);
+        const usable = Math.max(1, length - padding * 2);
+        const midpoint = {
+          x: (first.x + second.x) / 2,
+          y: (first.y + second.y) / 2
+        };
+        const primary = this.orientation === "horizontal"
+          ? midpoint.x - rect.left
+          : midpoint.y - rect.top;
+        return {
+          distance: Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)),
+          ratio: clamp((primary - padding) / usable, 0, 1)
+        };
+      };
+
+      const beginPinch = () => {
+        if (!this.viewport) return false;
+        const geometry = pinchGeometry();
+        if (!geometry) return false;
+        const span = this.viewport.end - this.viewport.start;
+        this.clearClusterExpansion();
+        this.cancelInertia();
+        this.cancelViewportAnimation();
+        this.drag = null;
+        this.surface.classList.remove("is-panning");
+        this.pinch = {
+          distance: geometry.distance,
+          viewport: { ...this.viewport },
+          anchorTime: this.viewport.start + span * geometry.ratio
+        };
+        for (const pointerId of this.touchPointers.keys()) {
+          try {
+            if (!this.surface.hasPointerCapture(pointerId)) this.surface.setPointerCapture(pointerId);
+          } catch {
+            // A cancelled browser gesture may no longer be capturable.
+          }
+        }
+        return true;
+      };
+
+      this.surface.addEventListener("pointerdown", (event) => {
+        if (!this.viewport || !this.items.length || event.button !== 0 || event.target.closest("button")) return;
+
+        if (event.pointerType === "touch") {
+          this.touchPointers.set(event.pointerId, {
+            pointerId: event.pointerId,
+            x: event.clientX,
+            y: event.clientY
+          });
+          if (this.touchPointers.size >= 2) {
+            beginPinch();
+            return;
+          }
+        }
+
+        if (this.pinch) return;
+        this.clearClusterExpansion();
+        this.cancelViewportAnimation();
+        beginSurfaceDrag(
+          event.pointerId,
+          { x: event.clientX, y: event.clientY },
+          event
+        );
       });
 
       this.surface.addEventListener("pointermove", (event) => {
+        if (event.pointerType === "touch" && this.touchPointers.has(event.pointerId)) {
+          this.touchPointers.set(event.pointerId, {
+            pointerId: event.pointerId,
+            x: event.clientX,
+            y: event.clientY
+          });
+        }
+
+        if (this.pinch && this.touchPointers.size >= 2) {
+          const geometry = pinchGeometry();
+          if (!geometry) return;
+          event.preventDefault();
+          const factor = clamp(this.pinch.distance / geometry.distance, 0.05, 20);
+          const zoomed = scale.zoom(
+            this.pinch.viewport,
+            factor,
+            this.pinch.anchorTime,
+            MIN_SPAN_MS
+          );
+          const span = zoomed.end - zoomed.start;
+          const start = this.pinch.anchorTime - span * geometry.ratio;
+          this.viewport = { start, end: start + span };
+          this.scheduleRender();
+          return;
+        }
+
         if (!this.drag || this.drag.pointerId !== event.pointerId) return;
         motion.appendPointerSamples(this.drag.samples, event, this.orientation);
         const coordinate = this.orientation === "horizontal" ? event.clientX : event.clientY;
@@ -210,6 +310,30 @@
       });
 
       const finishDrag = (event) => {
+        const wasPinching = Boolean(this.pinch);
+        if (event.pointerType === "touch") this.touchPointers.delete(event.pointerId);
+
+        try {
+          if (this.surface.hasPointerCapture(event.pointerId)) this.surface.releasePointerCapture(event.pointerId);
+        } catch {
+          // Pointer capture may already have been released by pointer cancellation.
+        }
+
+        if (wasPinching) {
+          this.drag = null;
+          this.surface.classList.remove("is-panning");
+          if (this.touchPointers.size >= 2) {
+            beginPinch();
+            return;
+          }
+          this.pinch = null;
+          const remaining = Array.from(this.touchPointers.values())[0];
+          if (remaining && this.viewport) {
+            beginSurfaceDrag(remaining.pointerId, remaining);
+          }
+          return;
+        }
+
         if (!this.drag || this.drag.pointerId !== event.pointerId) return;
         motion.appendPointerSamples(this.drag.samples, event, this.orientation);
         const velocity = event.type === "pointercancel"
@@ -218,7 +342,6 @@
         const length = this.drag.length;
         this.drag = null;
         this.surface.classList.remove("is-panning");
-        if (this.surface.hasPointerCapture(event.pointerId)) this.surface.releasePointerCapture(event.pointerId);
         if (Math.abs(velocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
           this.startInertia(velocity, length);
           void motion.pulseHaptic("release");
