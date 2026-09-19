@@ -744,8 +744,20 @@
     renderTimelineList(visible, activeStory);
 
     const storyCurrentId = activeStory?.itemIds[ui.storyCursor] || null;
+    const graphInput = {
+      entities: state.entities,
+      relationships: state.relationships,
+      items: state.items,
+      stories: state.stories
+    };
+    const relationshipById = new Map(state.relationships.map((relationship) => [relationship.id, relationship]));
+
     timelineView?.setItems(visible.map((item) => {
       const category = getCategory(item.categoryId);
+      const itemTime = temporal.sortKey(item.time?.start || item.start);
+      const eventViewport = Number.isFinite(itemTime)
+        ? { start: itemTime, end: itemTime }
+        : timelineView?.getViewport?.();
       return {
         id: item.id,
         kind: item.kind,
@@ -776,7 +788,17 @@
             subjectName: entityOrItemName(relationship.subjectId),
             objectName: entityOrItemName(relationship.objectId),
             time: relationship.time || null
-          }))
+          })),
+        relationChanges: (item.relationChanges || []).map((change) => {
+          const relationship = relationshipById.get(change.relationshipId);
+          return {
+            ...change,
+            predicate: change.predicate || relationship?.predicate || "relatedTo",
+            subjectName: relationship ? entityOrItemName(relationship.subjectId) : "",
+            objectName: relationship ? entityOrItemName(relationship.objectId) : ""
+          };
+        }),
+        graphContext: graph.neighborhoodGraph(graphInput, item.id, eventViewport, { depth: 1, limit: 28 })
       };
     }), {
       focusId: storyCurrentId,
