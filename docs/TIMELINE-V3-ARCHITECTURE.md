@@ -362,6 +362,10 @@ Expansion should be a popover, anchored panel, or inspector that does not distor
 
 Stories remain ordered references and must not alter chronology.
 
+Timed relationships are first-class temporal graph edges. A relationship MAY carry the same `time` extent as an event so the renderer can answer both “who/what is related?” and “during which temporal interval did that relationship hold?”. The timeline reserves a relation band separate from event terminals; full graph exploration is a distinct linked surface.
+
+For a future Memgraph Orb integration, Timeline's adapter emits Orb's node/edge contract while retaining temporal extent in edge properties. Use a bundled/npm integration with worker-backed simulation for large graphs; do not use Orb's direct-link mode for the scale target because that mode runs simulation on the main thread.
+
 Add optional analytical overlays as separate records:
 - hypothesis;
 - contradiction;
