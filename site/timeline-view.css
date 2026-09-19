@@ -1510,7 +1510,7 @@
   border-radius: .65rem;
   background: color-mix(in srgb, var(--paper) 82%, transparent);
   backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px color-mix(in srgb, var(--ink) 8%, transparent);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 6%, transparent);
 }
 
 #presentation-stage:fullscreen .timeline-surface,
@@ -1535,7 +1535,7 @@
   max-height: none;
   overflow: auto;
   overscroll-behavior: contain;
-  box-shadow: 0 14px 42px color-mix(in srgb, var(--ink) 13%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 8%, transparent);
   background: color-mix(in srgb, var(--paper) 96%, transparent);
   backdrop-filter: blur(14px);
   container-type: inline-size;
@@ -1799,7 +1799,7 @@
 }
 .timeline-event-terminal:hover {
   border-color: color-mix(in srgb, var(--event-color, var(--ink)) 62%, var(--line));
-  box-shadow: 0 12px 34px rgba(38, 31, 23, .14);
+  box-shadow: 0 5px 16px rgba(38, 31, 23, .08);
 }
 
 
@@ -1861,8 +1861,8 @@
   border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
   border-radius: .8rem;
   background: color-mix(in srgb, var(--paper) 91%, transparent);
-  box-shadow: 0 12px 38px color-mix(in srgb, var(--ink) 12%, transparent);
-  backdrop-filter: blur(18px);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 7%, transparent);
+  backdrop-filter: blur(12px);
   scrollbar-width: thin;
 }
 
@@ -2371,5 +2371,75 @@
     .timeline-view > .timeline-focus-view:popover-open {
     inline-size: auto;
     max-block-size: 68dvh;
+  }
+}
+
+
+/* Relations is an ambient field, not a clipped card. In overview mode its halo may
+   extend past the semantic section; Evidence remains the bounded scrolling surface. */
+.timeline-focus-view[popover][data-active-tab="overview"] {
+  overflow: visible;
+}
+
+.timeline-focus-view[popover][data-active-tab="evidence"] {
+  overflow: hidden;
+}
+
+.timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations,
+.timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations-backdrop,
+.timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations-backdrop .temporal-graph-canvas,
+.timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations-backdrop .temporal-graph-canvas canvas {
+  overflow: visible !important;
+}
+
+.timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations {
+  isolation: auto;
+}
+
+.timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations::before {
+  inset: -38%;
+  background:
+    radial-gradient(circle at 48% 48%,
+      color-mix(in srgb, var(--story) 9%, transparent) 0%,
+      color-mix(in srgb, var(--story) 5%, transparent) 36%,
+      color-mix(in srgb, var(--story) 2%, transparent) 56%,
+      transparent 74%);
+}
+
+.timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations-backdrop::after {
+  opacity: .24;
+}
+
+/* In fullscreen, reserve the physical viewport edge for chronology:
+   portrait => graph field left, vertical timeline right;
+   landscape => graph field high, horizontal timeline bottom. */
+#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
+  .timeline-focus-view[data-active-tab="overview"] .timeline-focus-relations::before {
+  inset: -30% -22% -30% -42%;
+  background:
+    radial-gradient(circle at 38% 50%,
+      color-mix(in srgb, var(--story) 10%, transparent) 0%,
+      color-mix(in srgb, var(--story) 5%, transparent) 42%,
+      transparent 76%);
+}
+
+#presentation-stage:fullscreen[data-viewport-orientation="landscape"]
+  .timeline-focus-view[data-active-tab="overview"] .timeline-focus-relations::before {
+  inset: -42% -26% -18%;
+  background:
+    radial-gradient(circle at 50% 34%,
+      color-mix(in srgb, var(--story) 10%, transparent) 0%,
+      color-mix(in srgb, var(--story) 5%, transparent) 42%,
+      transparent 76%);
+}
+
+@media (max-width: 760px) {
+  .timeline-focus-view[popover][data-active-tab="overview"] {
+    overflow: visible;
   }
 }
