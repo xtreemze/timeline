@@ -523,3 +523,21 @@ test("fullscreen graph composition follows physical orientation and preserves di
   assert.match(css, /timeline-focus-relations-backdrop \.temporal-graph-canvas,[\s\S]*pointer-events:\s*auto !important/);
   assert.match(css, /timeline-focus-relations-backdrop \.temporal-graph-canvas[\s\S]*cursor:\s*grab/);
 });
+
+
+test("fresh startup loads the storybook sample while persisted timelines retain precedence", async () => {
+  const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const loadState = source.slice(
+    source.indexOf("function loadState()"),
+    source.indexOf("function persist()", source.indexOf("function loadState()"))
+  );
+
+  assert.match(loadState, /localStorage\.getItem\(STORAGE_KEY\)[\s\S]*return normalizeTimeline\(JSON\.parse\(current\)\)/);
+  assert.match(loadState, /localStorage\.getItem\(LEGACY_STORAGE_KEY\)[\s\S]*return migrated/);
+  assert.match(loadState, /return normalizeTimeline\(clone\(SAMPLE\)\)/);
+  assert.ok(
+    loadState.indexOf("return normalizeTimeline(clone(SAMPLE))") >
+      loadState.indexOf("localStorage.getItem(LEGACY_STORAGE_KEY)"),
+    "sample fallback must run only after current and legacy storage checks"
+  );
+});
