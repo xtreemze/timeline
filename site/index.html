@@ -37,16 +37,50 @@
       <button id="project-menu-toggle" class="button secondary project-menu-toggle" type="button" popovertarget="project-menu" aria-haspopup="menu" data-semantic-icon="object">
         <span>Project</span>
       </button>
-      <div id="project-menu" class="project-menu" popover="auto" role="menu" aria-label="Project file and data actions">
+      <div id="project-menu" class="project-menu" popover="auto" role="menu" aria-label="Project actions">
+        <header class="project-menu-header">
+          <strong>Project</strong>
+          <span>Local timeline file and workspace actions</span>
+        </header>
         <div class="project-actions">
-          <button id="load-sample" class="button secondary" type="button" role="menuitem">Load example</button>
-          <label class="button secondary file-button" role="menuitem">Import JSON<input id="import-json" type="file" accept="application/json,.json"></label>
-          <label class="button secondary file-button" role="menuitem">Import interchange<input id="import-interchange" type="file" accept="application/json,application/xml,text/xml,.json,.xml"></label>
-          <button id="export-json" class="button secondary" type="button" role="menuitem">Export JSON</button>
-          <button id="export-interchange" class="button secondary" type="button" role="menuitem">Export interchange</button>
-          <button id="export-markdown" class="button secondary" type="button" role="menuitem">Export Markdown</button>
-          <a class="button secondary" href="https://github.com/xtreemze/timeline" role="menuitem">GitHub</a>
-          <button id="clear-timeline" class="button danger" type="button" role="menuitem">Clear timeline</button>
+          <section class="project-menu-group" aria-labelledby="project-start-label">
+            <p id="project-start-label" class="project-menu-label">Start</p>
+            <button id="load-sample" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="magic" data-project-menu-close>
+              <span>Load example</span><small>Replace this project with the example case</small>
+            </button>
+          </section>
+          <section class="project-menu-group" aria-labelledby="project-import-label">
+            <p id="project-import-label" class="project-menu-label">Import</p>
+            <button id="import-json-trigger" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="object" data-project-menu-close>
+              <span>JSON</span><small>Timeline JSON or compatible interchange JSON</small>
+            </button>
+            <button id="import-interchange-trigger" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="relation" data-project-menu-close>
+              <span>Interchange</span><small>JSON or XML interchange document</small>
+            </button>
+            <input id="import-json" type="file" accept="application/json,.json" hidden>
+            <input id="import-interchange" type="file" accept="application/json,application/xml,text/xml,.json,.xml" hidden>
+          </section>
+          <section class="project-menu-group" aria-labelledby="project-export-label">
+            <p id="project-export-label" class="project-menu-label">Export</p>
+            <button id="export-json" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="object" data-project-menu-close>
+              <span>JSON</span><small>Canonical local project data</small>
+            </button>
+            <button id="export-interchange" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="relation" data-project-menu-close>
+              <span>Interchange JSON</span><small>Portable standards-oriented representation</small>
+            </button>
+            <button id="export-markdown" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="note" data-project-menu-close>
+              <span>Markdown</span><small>Readable chronology document</small>
+            </button>
+          </section>
+          <section class="project-menu-group" aria-labelledby="project-other-label">
+            <p id="project-other-label" class="project-menu-label">Project</p>
+            <a class="project-menu-action" href="https://github.com/xtreemze/timeline" role="menuitem" data-semantic-icon="note" data-project-menu-close>
+              <span>GitHub</span><small>Source, issues and project history</small>
+            </a>
+            <button id="clear-timeline" class="project-menu-action is-danger" type="button" role="menuitem" data-semantic-icon="danger" data-project-menu-close>
+              <span>Clear timeline</span><small>Remove locally stored project data</small>
+            </button>
+          </section>
         </div>
       </div>
     </header>
