@@ -241,3 +241,20 @@ test("timeline view exposes fused clusters, inertia, relation bands and ambient 
   assert.match(source, /timelineviewportchange/);
   assert.match(source, /pulseHaptic/);
 });
+
+
+test("timeline terminals expose distance-legible media and semantic marker treatment", async () => {
+  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  assert.match(source, /timeline-event-thumbnail/);
+  assert.match(source, /timeline-event-icon-badge/);
+  assert.match(source, /timeline-cluster-thumbnail/);
+  assert.match(source, /timeline-cluster-visuals/);
+  assert.match(source, /Nearby · zoom to inspect/);
+  assert.match(css, /max-width:\s*248px/);
+  assert.match(css, /min-height:\s*56px/);
+  assert.match(css, /width:\s*2\.85rem/);
+  assert.match(css, /height:\s*10px/);
+  assert.match(css, /timeline-cluster-visuals/);
+  assert.match(css, /stroke-width:\s*2\.2/);
+});
