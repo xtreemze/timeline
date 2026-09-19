@@ -235,3 +235,13 @@ test("graph clicks only select nodes or edges without invoking an inspector or n
   assert.match(bridge, /onEdgeClick[\s\S]*selectGraphObject\(edge\)/);
   assert.match(bridge, /select\(kind, id\)/);
 });
+
+
+test("temporal graph stages topology deltas instead of resetting Orb after first render", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8");
+
+  assert.match(source, /hasRenderedData\s*=\s*false/);
+  assert.match(source, /this\.orb\.transitionData\(data\)/);
+  assert.match(source, /this\.orb\.setData\(data\)[\s\S]*this\.hasRenderedData\s*=\s*true/);
+});
