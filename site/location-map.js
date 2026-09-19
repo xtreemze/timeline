@@ -77,17 +77,7 @@
       this.latitude?.addEventListener("input", update);
       this.longitude?.addEventListener("input", update);
 
-      this.clearButton?.addEventListener("click", () => {
-        this.latitude.value = "";
-        this.longitude.value = "";
-        if (this.accuracy) this.accuracy.value = "";
-        if (this.source) this.source.value = "manual";
-        if (this.marker && this.map) {
-          this.marker.remove();
-          this.marker = null;
-          this.map.setView([20, 0], 2);
-        }
-      });
+      this.clearButton?.addEventListener("click", () => this.clear());
 
       this.geolocation?.addEventListener("location", (event) => {
         const position = event.target.position;
@@ -156,7 +146,13 @@
       if (!this.map || !globalThis.L) return;
       const lat = numeric(this.latitude, -90, 90);
       const lng = numeric(this.longitude, -180, 180);
-      if (lat === null || lng === null) return;
+      if (lat === null || lng === null) {
+        if (this.marker) {
+          this.marker.remove();
+          this.marker = null;
+        }
+        return;
+      }
 
       if (!this.marker) {
         this.marker = L.marker([lat, lng], { draggable: true }).addTo(this.map);
@@ -168,6 +164,18 @@
         this.marker.setLatLng([lat, lng]);
       }
       if (fit || this.map.getZoom() < 5) this.map.setView([lat, lng], 13);
+    }
+
+    clear() {
+      this.latitude.value = "";
+      this.longitude.value = "";
+      if (this.accuracy) this.accuracy.value = "";
+      if (this.source) this.source.value = "manual";
+      if (this.marker) {
+        this.marker.remove();
+        this.marker = null;
+      }
+      if (this.map) this.map.setView([20, 0], 2);
     }
 
     refresh() {
