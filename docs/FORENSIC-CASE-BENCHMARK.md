@@ -121,6 +121,21 @@ As of September 2026:
 
 The project should version its own validation profiles and reference these standards. It must not copy non-public normative ISO text into the repository.
 
+## Domain standards map
+
+Timeline should not invent a single "ISO entity" format. Different domains have different standards, so the canonical model should preserve richer internal semantics and expose adapters/validation profiles at the boundaries.
+
+| Timeline record | Standards / interoperability direction | Product rule |
+| --- | --- | --- |
+| Events / temporal extents | ISO 8601-1/-2 for representations; W3C OWL-Time for Instant/Interval, temporal relations and reference systems; RFC 5545 only as a calendar interchange adapter | Preserve precision, uncertainty, source wording, timezone/offset and temporal reference system; never reduce canonical time to epoch milliseconds alone |
+| People / organizations | ISO 27729:2024 ISNI only when a public identity actually has/needs an ISNI; RFC 6350 vCard as practical contact interchange | Private people require stable local IDs, not public identifiers |
+| Places | ISO 19112:2019 geographic identifiers/gazetteer concepts; ISO 19111:2019 coordinate-reference metadata; RFC 7946 GeoJSON for practical geometry interchange | A named place may exist without coordinates; geometry and CRS are optional but explicit when supplied |
+| Relations / provenance | CASE/UCO investigative objects/actions plus W3C PROV-O Entity/Activity/Agent mappings | Relationship type, source, analyst rationale, temporal scope and provenance are explicit; graph presentation styling is never canonical meaning |
+| Evidence / forensic actions | ISO 21043 series for forensic process/analysis/interpretation/reporting; ISO/IEC 27037/27041/27042/27043 for digital-evidence handling and investigative methods; CASE/UCO for interoperable representation | Preserve source/acquired/derived lineage, integrity digests, acquisition context and immutable custody actions; validation cannot declare admissibility |
+| Legal authorities | Jurisdiction-specific citation/authority metadata; FIRAC/CREAC is a reasoning/composition structure, not an evidence standard | Keep law/rules separate from evidence about historical facts |
+
+This boundary-oriented design lets Timeline remain useful for ordinary history/project timelines while enabling a stricter forensic profile when the case requires it.
+
 ## UX contract
 
 ### Presentation
