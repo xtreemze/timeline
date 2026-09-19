@@ -2210,8 +2210,8 @@ body {
 
 @media (min-width: 700px) {
   .app-command-bar {
-    grid-template-columns: auto minmax(180px, 1fr) auto auto;
-    max-width: min(980px, calc(100dvw - 1rem));
+    grid-template-columns: auto minmax(180px, 1fr) auto;
+    max-width: min(720px, calc(100dvw - 1rem));
     left: 50%;
     right: auto;
     width: calc(100dvw - 1rem);
@@ -2223,14 +2223,6 @@ body {
     gap: .45rem;
   }
   .app-brand span { display: inline; font-weight: 820; letter-spacing: -.035em; }
-  .app-command-bar .project-stats {
-    display: flex;
-    gap: .5rem;
-    color: var(--muted);
-    font-size: .67rem;
-    white-space: nowrap;
-  }
-
   .app-browser-sheet .timeline-toolbar {
     grid-template-columns: minmax(0, 1fr) minmax(150px, .6fr) auto;
   }
