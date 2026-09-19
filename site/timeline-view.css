@@ -1045,7 +1045,6 @@
     overscroll-behavior: contain;
   }
 
-  .presentation-stage:fullscreen .timeline-focus-temporal,
   .presentation-stage:fullscreen .timeline-focus-hero-veil {
     gap: .28rem;
     padding: clamp(.65rem, 4cqi, 1.15rem);
@@ -1053,7 +1052,7 @@
 
   .presentation-stage:fullscreen .timeline-focus-title {
     max-inline-size: 12ch;
-    font-size: clamp(1.35rem, 10cqi, 2.8rem);
+    font-size: clamp(2.2rem, 11.5cqi, 4.6rem);
     line-height: .94;
   }
 
