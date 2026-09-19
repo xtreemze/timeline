@@ -187,7 +187,7 @@
       return { mode: "axis-only", edgeAccents: [], axisMonths: [], hasAmbientContext: false };
     }
 
-    const fullExtent = orientation === "vertical" ? 132 : 154;
+    const fullExtent = orientation === "vertical" ? 220 : 240;
     const full = nonOverlapping(
       accents.map((accent) => ({ ...accent, kind: "month-year", label: accent.label })),
       () => fullExtent,
@@ -218,14 +218,14 @@
       count: entries.reduce((sum, entry) => sum + entry.count, 0)
     })).sort((a, b) => a.position - b.position);
 
-    const yearExtent = orientation === "vertical" ? 82 : 92;
+    const yearExtent = orientation === "vertical" ? 110 : 132;
     const edgeAccents = nonOverlapping(
       yearCandidates,
       () => yearExtent,
       { min: padding, max: padding + usable, gap: 16 }
     );
 
-    const monthExtent = 38;
+    const monthExtent = orientation === "vertical" ? 44 : 48;
     const axisMonths = nonOverlapping(
       accents.map((accent) => ({
         kind: "month-axis",
