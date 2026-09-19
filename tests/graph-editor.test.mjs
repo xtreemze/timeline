@@ -7,11 +7,13 @@ test("graph editor exposes noun nodes, action edges, properties, and temporal ra
   assert.match(html, /id="tab-graph"/);
   assert.match(html, /id="panel-graph"/);
   assert.match(html, /id="graph-node-form"/);
+  assert.match(html, /id="graph-node-identifiers"/);
   assert.match(html, /id="graph-node-properties"/);
   assert.match(html, /id="graph-edge-subject"/);
   assert.match(html, /id="graph-edge-predicate"/);
   assert.match(html, /id="graph-edge-object"/);
   assert.match(html, /id="graph-edge-properties"/);
+  assert.match(html, /id="graph-edge-initial-state"/);
   assert.match(html, /id="graph-edge-time-kind"/);
   assert.match(html, /id="graph-edge-date-range"/);
 });
@@ -26,12 +28,12 @@ test("timeline includes an interactive temporal node-edge graph lens", async () 
   assert.match(html, /class="temporal-graph-canvas"/);
   assert.match(source, /graphForWindow/);
   assert.match(source, /temporalState/);
+  assert.match(source, /TimelineOrbGraph/);
   assert.match(source, /graphnodefocus/);
   assert.match(source, /graphstoryfocus/);
-  assert.match(source, /layoutGraph/);
-  assert.match(css, /\.temporal-graph-edge\.is-active/);
-  assert.match(css, /\.temporal-graph-edge\.is-inactive/);
-  assert.match(css, /\.temporal-graph-node/);
+  assert.match(source, /updateTemporalEdges/);
+  assert.match(html, /orb-graph\.bundle\.js/);
+  assert.match(css, /\.temporal-graph-canvas canvas/);
 });
 
 test("application provides CRUD handlers for graph nodes and labeled edges", async () => {
@@ -41,7 +43,33 @@ test("application provides CRUD handlers for graph nodes and labeled edges", asy
   assert.match(source, /beginGraphEdgeEdit/);
   assert.match(source, /removeGraphEdge/);
   assert.match(source, /parseJsonObject/);
+  assert.match(source, /parseJsonArray/);
+  assert.match(source, /collectRelationChangeForm/);
   assert.match(source, /buildGraphEdgeTime/);
   assert.match(source, /timelineviewportchange/);
   assert.match(source, /temporalGraphView\?\.setWindow/);
+});
+
+test("bundled graph bridge uses Memgraph Orb worker-backed force simulation with dense-graph GPU escalation", async () => {
+  const [pkgText, source] = await Promise.all([
+    readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8")
+  ]);
+  const pkg = JSON.parse(pkgText);
+  assert.equal(pkg.dependencies["@memgraph/orb"], "1.0.2");
+  assert.match(source, /new OrbView/);
+  assert.match(source, /SIMULATION_START/);
+  assert.match(source, /type:\s*"force"/);
+  assert.match(source, /useGPU:\s*wantsGPU/);
+  assert.match(source, /setRenderer\(wantsWebGL \? "webgl" : "canvas"\)/);
+  assert.match(source, /updateTemporalEdges/);
+});
+
+test("event editor can change relations at the event timestamp", async () => {
+  const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
+  assert.match(html, /id="item-relation-changes-details"/);
+  assert.match(html, /data-relation-change-slot="1"/);
+  assert.match(html, /value="activate"/);
+  assert.match(html, /value="deactivate"/);
+  assert.match(html, /value="update"/);
 });
