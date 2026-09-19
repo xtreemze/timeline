@@ -345,7 +345,7 @@ Collapsed chronology state:
 - minimal temporal label;
 - optional category/status affordance.
 
-Selecting one item is a deliberate focus operation, not a small overlay. The item takes over the chronology workspace and composes itself across the 12-column grid. The editor yields the screen, while the timeline remains visible as contextual navigation docked to an edge: the bottom in landscape and the outer side in portrait.
+Selecting one item is a deliberate viewing operation. The timeline remains the full viewport canvas and the event enters a bounded six-column top-layer composition. The editor is not part of this state. A horizontal timeline shifts toward the lower edge so detail can occupy the upper/opposite region; a vertical timeline shifts toward the right edge so detail can occupy the left/opposite region.
 
 Focus also owns a viewport contract. If the selected event is currently represented inside a collision cluster, the viewport should zoom inward until its projected terminal is unique. If it is already unique, the viewport should expand toward the nearest one or two chronology items so the focused event retains relative temporal context. Equal timestamps are a degenerate case: since zoom cannot separate identical temporal coordinates, the focused record is pinned out of clustering while the remaining coincident records can stay fused.
 
@@ -360,9 +360,10 @@ Focused composition should be asymmetric and may include:
 - linked evidence and provenance;
 - integrity/custody/analysis data where relevant;
 - story memberships;
-- edit and return-to-timeline actions.
+- an explicit Edit action that is the only transition from focused viewing into mutation mode;
+- return-to-timeline navigation.
 
-The focused item must not mutate its temporal coordinate or chronology order. Escape and an explicit return control restore the chronology.
+The focused item must not mutate its temporal coordinate or chronology order. Escape, an explicit return control, or clicking the exposed timeline background outside the detail composition restores the chronology.
 
 ## Stories and analytical layers
 
@@ -370,9 +371,9 @@ Stories remain ordered references and must not alter chronology.
 
 Timed relationships are first-class temporal graph edges. A relationship MAY carry the same `time` extent as an event so the renderer can answer both “who/what is related?” and “during which temporal interval did that relationship hold?”. The timeline reserves a relation band separate from event terminals; full graph exploration is a distinct linked surface.
 
-Timeline now exposes node and edge authoring directly. Nodes are subject/noun records with a type and arbitrary properties. Directed edges use an action/predicate label, subject and object endpoints, arbitrary properties, and an optional temporal extent. Endpoints may refer to entities, chronology items, or stories, which lets graph topology and chronology remain linked without copying records.
+Timeline exposes node and edge authoring only in explicit Edit mode. Nodes are subject/noun records with a type and arbitrary properties. Directed edges use an action/predicate label, subject and object endpoints, arbitrary properties, and a temporal extent whenever one can be established. Endpoints may refer to entities, chronology items, or stories, which lets graph topology and chronology remain linked without copying records. Persistent/no-anchor relations remain supported for genuinely timeless topology but are intentionally not the authoring default.
 
-The graph lens consumes the same canonical data and changes edge emphasis as the timeline viewport moves. Timeline bundles Memgraph Orb through npm so force simulation uses its worker-backed path rather than the direct-link main-thread fallback. Dense graphs can switch to WebGL rendering and GPU force without changing canonical records.
+The graph lens consumes the same canonical data as a temporal slice: timed relations and orphaned topology outside the visible timeline window are removed from the rendered graph, while explicitly persistent relations remain. Timeline bundles Memgraph Orb through npm so force simulation uses its worker-backed path rather than the direct-link main-thread fallback. Dense graphs can switch to WebGL rendering and GPU force without changing canonical records.
 
 Add optional analytical overlays as separate records:
 - hypothesis;
@@ -477,9 +478,9 @@ Physical screen orientation never rewrites the timeline orientation.
 - The timeline owns the entire fullscreen stage at all times; selecting an event never gives a sibling surface layout ownership.
 - With no focused event, the timeline axis remains centered.
 - With a focused event, the timeline surface still fills the viewport while its axis shifts toward the lower edge for a horizontal timeline or the right edge for a vertical timeline.
-- Event detail is promoted to the browser top layer as one responsive overlay. Wide landscape layouts use a bounded popover; constrained or portrait layouts progressively become a top or side sheet while leaving the timeline edge visible.
+- Event detail is promoted to the browser top layer as one responsive overlay. Desktop placement is chosen opposite the active timeline edge: upper/centered for a horizontal timeline and left/centered for a vertical timeline. Constrained mobile layouts progressively become a sheet while leaving timeline context visible.
 - Place and relation sections remain part of the event-detail six-column composition. Their existing map and Orb graph renderers are moved behind their respective text as subdued interactive backdrops instead of consuming timeline geometry.
-- The detail overlay is intentionally bounded: desktop popovers are capped around 680 px, while mobile becomes a bottom sheet capped to roughly two thirds of the viewport so the timeline remains visibly dominant.
+- The detail overlay is intentionally bounded and density-aware: desktop uses a wider but shallower compact composition (up to roughly 900 px for horizontal time or 720 px for vertical time) with clipped/condensed secondary copy so normal desktop cases do not require an internal scroll. Mobile remains a scrollable sheet capped to preserve visible timeline context.
 - All visual surfaces use `min-width: 0` / `min-height: 0` contracts so maps, canvases and media can shrink without causing overflow.
 
 ### Application-shell ownership
@@ -491,7 +492,9 @@ Normal application mode follows the same ownership principle as fullscreen: the 
 - Browse owns search, category filtering, empty-state explanation and the chronology list. Those are not repeated on the primary canvas.
 - Active Story navigation is a compact contextual mode overlay outside Browse, so story position/previous/next/exit remain available while the timeline is being read.
 - Item, Story, Category and Graph forms reuse the existing data model inside one editor surface with internal tabs; the global tool dock therefore exposes one Edit entry rather than duplicating editor tabs.
-- The global tool dock is limited to Edit, Browse, Relations and View, using semantic icon + text pairs for recognition at touch and desktop distances.
+- Viewing is the default application paradigm. Browse, Relations, View, event focus, graph inspection and fullscreen presentation are non-mutating.
+- Edit is the only supported transition into mutation mode. Entering it closes event focus and other large viewing surfaces; the dock collapses to the Edit/Done control until editing ends. Graph clicks cannot enter an editor while viewing.
+- The global viewing dock is limited to Edit, Browse, Relations and View, using semantic icon + text pairs for recognition at touch and desktop distances.
 - Relation-graph exploration is opened explicitly as the Relations overlay rather than occupying a permanent sibling column.
 - Timeline orientation, zoom, auto-advance and presentation controls are progressively disclosed in a compact View surface.
 - Project import/export/example/destructive actions live in a native, grouped Project popover from the floating command bar. Import actions are explicit buttons wired to hidden file inputs so every visible menu command is keyboard-operable.
@@ -506,7 +509,7 @@ Focus/unfocus changes use named Web View Transitions for the timeline and detail
 
 Focused event mode does not duplicate chronology in the detail overlay: the fullscreen timeline is the chronology, and the enlarged hero heading is the selected event's identity. It reuses the existing Place and Relations sections rather than creating independent fullscreen lenses. The canonical temporal graph remains one renderer: its Orb canvas moves into the Relations section while focused and returns to the ordinary graph lens afterward. The presentation map follows the same ownership pattern, moving into the Place section and retaining pan/zoom/touch interaction.
 
-Text remains the foreground information layer. Map and graph backdrops use reduced opacity/saturation plus a directional paper scrim, keeping labels readable while leaving exposed portions of each visualization directly interactive.
+Text remains the foreground information layer. Map and graph backdrops use reduced opacity/saturation plus a directional paper scrim, keeping labels readable while leaving exposed portions of each visualization directly interactive. Selecting a graph node/edge opens a compact read-only inspector only when meaningful detail exists; sparse graph records instead defer to their connected chronology event where possible, and the graph remains mounted throughout.
 
 ### Resize synchronization
 
@@ -522,6 +525,6 @@ A focused fullscreen event has two compositional layers:
 
 The Place section renders stored GeoJSON context behind its foreground text. Semantic-icon markers identify points; LineString/MultiLineString geometries provide tracks or trails; Polygon/MultiPolygon geometries provide areas; GeometryCollection/Feature/FeatureCollection inputs and optional `mapFeatures[]` overlays are supported. Recorded point accuracy may appear as an uncertainty circle. The presentation map is interactive: panning, wheel/pinch zoom, double-click zoom, box zoom and keyboard navigation are enabled.
 
-The Relations section reuses the focused event's one-hop Orb neighborhood behind the foreground relation text. The graph remains interactive for node selection, long-press/touch drag, pan/zoom and force-mediated repositioning.
+The Relations section reuses the focused event's one-hop Orb neighborhood behind the foreground relation text. The graph remains interactive for node selection, long-press/touch drag, pan/zoom and force-mediated repositioning. In viewing/presentation mode selection is inspect-or-navigate only; mutation is unavailable until the user explicitly enters Edit mode.
 
 Physical screen orientation never mutates the selected timeline-axis orientation; it only influences whether event detail behaves as a bounded popover or a sheet.
