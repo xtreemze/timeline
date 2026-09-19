@@ -38,6 +38,7 @@
       this.detail = root.querySelector("[data-graph-detail]");
       this.model = { entities: [], relationships: [], items: [], stories: [] };
       this.viewport = null;
+      this.focusedId = null;
       this.signature = "";
       this.orb = orbFactory.create(this.canvas, {
         onNodeClick: (node) => this.activateNode(node),
@@ -79,6 +80,14 @@
       this.viewport = viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end)
         ? { start: viewport.start, end: viewport.end }
         : null;
+      this.render();
+    }
+
+    setFocus(id) {
+      const next = id ? String(id) : null;
+      if (next === this.focusedId) return;
+      this.focusedId = next;
+      this.signature = "";
       this.render();
     }
 
@@ -125,9 +134,12 @@
     }
 
     render() {
-      const data = graph.graphForWindow(this.model, this.viewport);
+      const data = this.focusedId
+        ? graph.neighborhoodGraph(this.model, this.focusedId, this.viewport, { depth: 1, limit: 36 })
+        : graph.graphForWindow(this.model, this.viewport);
       const activeEdges = data.edges.filter((edge) => edge.temporalState !== "inactive");
-      const countText = `${activeEdges.length} / ${data.edges.length} edges active`;
+      const scopeText = this.focusedId ? `${data.nodes.length} relevant nodes · ` : "";
+      const countText = `${scopeText}${activeEdges.length} / ${data.edges.length} edges active`;
       if (this.status) {
         this.status.dataset.edgeCount = countText;
         this.status.textContent = `${countText} · ${this.orb.getMode()}`;
