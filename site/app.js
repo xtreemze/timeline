@@ -21,12 +21,14 @@
   if (!evidenceStore) throw new Error("TimelineEvidence must load before app.js.");
 
   const DEFAULT_CATEGORIES = [
-    { id: "event", name: "Event", color: "#667085" },
-    { id: "decision", name: "Decision", color: "#2563eb" },
-    { id: "milestone", name: "Milestone", color: "#b54708" },
+    { id: "incident", name: "Incident", color: "#b42318" },
+    { id: "witness", name: "Witness / Interview", color: "#7a5af8" },
+    { id: "communication", name: "Communication", color: "#2563eb" },
     { id: "evidence", name: "Evidence", color: "#027a48" },
-    { id: "communication", name: "Communication", color: "#7a5af8" },
-    { id: "project", name: "Project", color: "#c4320a" }
+    { id: "document", name: "Document / Record", color: "#667085" },
+    { id: "decision", name: "Decision / Action", color: "#b54708" },
+    { id: "transaction", name: "Transaction", color: "#0e7090" },
+    { id: "observation", name: "Observation", color: "#475467" }
   ];
 
   const SAMPLE_LOCATIONS = {
@@ -786,7 +788,12 @@
         const locationText = item.location
           ? [item.location.name, item.location.geographicIdentifier, item.location.address].filter(Boolean).join(" ")
           : "";
-        return `${item.title}\n${item.description}\n${tagText}\n${locationText}`
+        const evidenceText = (item.evidenceIds || [])
+          .map((id) => state.evidence.find((record) => record.id === id))
+          .filter(Boolean)
+          .map((record) => [record.title, record.sourceName, record.note].filter(Boolean).join(" "))
+          .join(" ");
+        return `${item.title}\n${item.description}\n${tagText}\n${locationText}\n${evidenceText}`
           .toLocaleLowerCase()
           .includes(needle);
       });
@@ -1703,6 +1710,22 @@
       }
     }
 
+    if (state.evidence.length) {
+      lines.push("## Evidence", "");
+      for (const record of state.evidence) {
+        lines.push(`### ${record.title}`, "");
+        lines.push(`Type: ${record.type}  `);
+        if (record.sourceName) lines.push(`Source: ${record.sourceName}  `);
+        if (record.publishedAt) lines.push(`Published / recorded: ${record.publishedAt}  `);
+        if (record.url) lines.push(`URL: ${record.url}  `);
+        if (record.file?.name) lines.push(`Local PDF metadata: ${record.file.name} (${record.file.size || 0} bytes)  `);
+        if (record.note) lines.push("", record.note);
+        const supported = state.items.filter((item) => item.evidenceIds?.includes(record.id));
+        if (supported.length) lines.push("", `Supports: ${supported.map((item) => item.title).join("; ")}`);
+        lines.push("");
+      }
+    }
+
     if (state.relationships.length) {
       lines.push("## Temporal relationships", "");
       for (const relationship of state.relationships) {
@@ -1972,6 +1995,13 @@
 
   els.cancelItemEdit.addEventListener("click", resetItemForm);
 
+  els.list.addEventListener("toggle", (event) => {
+    const details = event.target.closest?.(".timeline-category-group");
+    if (!details) return;
+    if (details.open) ui.collapsedCategoryIds.delete(details.dataset.categoryId);
+    else ui.collapsedCategoryIds.add(details.dataset.categoryId);
+  }, true);
+
   els.list.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-action]");
     const itemElement = event.target.closest(".timeline-item");
@@ -2124,6 +2154,24 @@
   });
   els.timelineViewRoot.addEventListener("timelinefocusedit", (event) => {
     if (event.detail?.id) beginItemEdit(event.detail.id);
+  });
+  els.timelineViewRoot.addEventListener("timelineevidenceopen", async (event) => {
+    const id = event.detail?.id;
+    const record = state.evidence.find((candidate) => candidate.id === id);
+    if (!record?.file?.blobKey) return;
+    try {
+      const blob = await evidenceStore.getBlob(record.file.blobKey);
+      if (!blob) {
+        showStatus("The local PDF is not available in this browser.");
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      console.warn("Could not open local evidence:", error);
+      showStatus("Could not open the local evidence file.");
+    }
   });
 
   els.title.addEventListener("input", () => {
