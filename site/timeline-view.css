@@ -1799,7 +1799,7 @@
 }
 .timeline-event-terminal:hover {
   border-color: color-mix(in srgb, var(--event-color, var(--ink)) 62%, var(--line));
-  box-shadow: 0 12px 34px rgba(38, 31, 23, .14);
+  box-shadow: 0 5px 16px rgba(38, 31, 23, .08);
 }
 
 
@@ -1861,8 +1861,8 @@
   border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
   border-radius: .8rem;
   background: color-mix(in srgb, var(--paper) 91%, transparent);
-  box-shadow: 0 12px 38px color-mix(in srgb, var(--ink) 12%, transparent);
-  backdrop-filter: blur(18px);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 7%, transparent);
+  backdrop-filter: blur(12px);
   scrollbar-width: thin;
 }
 
@@ -2418,14 +2418,6 @@
 /* In fullscreen, reserve the physical viewport edge for chronology:
    portrait => graph field left, vertical timeline right;
    landscape => graph field high, horizontal timeline bottom. */
-#presentation-stage:fullscreen[data-viewport-orientation="portrait"] .timeline-surface {
-  --presentation-axis-edge-inset: clamp(48px, 7dvw, 96px);
-}
-
-#presentation-stage:fullscreen[data-viewport-orientation="landscape"] .timeline-surface {
-  --presentation-axis-edge-inset: clamp(56px, 8dvh, 112px);
-}
-
 #presentation-stage:fullscreen[data-viewport-orientation="portrait"]
   .timeline-focus-view[data-active-tab="overview"] .timeline-focus-relations::before {
   inset: -30% -22% -30% -42%;
