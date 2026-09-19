@@ -22,7 +22,7 @@ test("focused map opens at world scale and slowly flies to country context", asy
   assert.match(mapSource, /cameraUserControlled/);
 });
 
-test("focused map carries a visible semantic place identity into the popover backdrop", async () => {
+test("focused map ties the semantic place identity to the stored coordinate", async () => {
   const [mapSource, appSource, styles] = await Promise.all([
     readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
@@ -30,12 +30,14 @@ test("focused map carries a visible semantic place identity into the popover bac
   ]);
 
   assert.match(appSource, /label:\s*name/);
-  assert.match(mapSource, /renderPlaceIdentity\(\)/);
-  assert.match(mapSource, /timeline-map-place-identity/);
-  assert.match(mapSource, /timeline-map-place-icon/);
-  assert.match(mapSource, /timeline-map-place-label/);
+  assert.match(mapSource, /semanticMarkerIcon\([\s\S]*label = ""/);
+  assert.match(mapSource, /isPrimaryPlacePoint[\s\S]*this\.label/);
+  assert.match(mapSource, /L\.marker\(latlng,[\s\S]*icon:\s*markerIcon/);
+  assert.match(mapSource, /timeline-map-marker-label/);
+  assert.match(mapSource, /renderPlacePlaceholder\(\)/);
+  assert.match(mapSource, /clearPlacePlaceholder\(\)/);
   assert.match(mapSource, /this\.container\.setAttribute\("aria-label", this\.label\)/);
-  assert.match(styles, /\.timeline-map-place-identity/);
-  assert.match(styles, /pointer-events:\s*none/);
-  assert.match(styles, /\.timeline-map-place-label/);
+  assert.match(styles, /\.timeline-map-marker-identity/);
+  assert.match(styles, /\.timeline-map-marker-label/);
+  assert.match(styles, /\.timeline-map-place-placeholder/);
 });
