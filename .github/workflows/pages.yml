@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "site/**"
+      - "src/**"
+      - "package.json"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -27,6 +29,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Build worker-backed relation graph
+        run: |
+          pnpm install --no-frozen-lockfile
+          pnpm build
+          test -s site/orb-graph.bundle.js
+          node --check src/orb-graph-entry.js
+          node --check site/orb-graph.bundle.js
+
       - name: Validate application JavaScript
         run: |
           node --check site/time-scale.js
@@ -46,11 +66,11 @@ jobs:
           node --check site/location-map.js
           node --check site/app.js
 
-      - name: Validate interchange adapters
-        run: node --test tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/timeline-interaction.test.mjs tests/event-focus-form.test.mjs tests/evidence-store.test.mjs tests/sample-case.test.mjs tests/timeline-navigation.test.mjs tests/temporal-graph-view.test.mjs tests/graph-editor.test.mjs
+      - name: Validate application
+        run: pnpm test
 
       - name: Validate static entry point
-        run: test -f site/index.html && test -f site/styles.css && test -f site/icon.svg
+        run: test -f site/index.html && test -f site/styles.css && test -f site/icon.svg && test -s site/orb-graph.bundle.js
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
