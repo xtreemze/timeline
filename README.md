@@ -48,7 +48,7 @@ The application is static and runs entirely in the browser. Timeline data is sto
 - Weighted zoom and inertial pointer panning using frame-aligned/coalesced pointer samples where Chrome exposes them.
 - Capability-gated haptics for cluster fusion/splitting, selection, and inertial release through gamepad actuators or mobile vibration hardware when available.
 - Focused presentation controls: Left/Right move between events, Up/Down move between event photographs, Space or media Play/Pause toggles auto advance, and Escape/Browser Back exits focus. Standard gamepad D-pad/shoulders, A/B and Start map to the same presentation commands.
-- Ambient month/year accents for months containing up to three visible segments, with compact tick numbering underneath.
+- Collision-aware temporal accents for months containing up to three visible segments: month+year stays ambient at the edge when there is room; when those labels would collide, the edge collapses to non-overlapping year accents and month names move onto the timeline axis. At year-scale zoom the normal year ticks take over entirely.
 - A 12-column application/stage grid that reserves predictable space for chronology, detail and temporal relationship layers.
 
 ### Categories
