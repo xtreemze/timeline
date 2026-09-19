@@ -121,6 +121,132 @@
     return accents.filter((_, index) => index % stride === 0).slice(0, limit);
   }
 
+  const FINE_UNITS = new Set(["millisecond", "second", "minute", "hour", "day", "week"]);
+
+  function yearLabelForTime(timeMs) {
+    const date = new Date(Number(timeMs));
+    if (!Number.isFinite(date.getTime())) return "";
+    const year = date.getUTCFullYear();
+    return year > 0 ? String(year) : `${1 - year} BCE`;
+  }
+
+  function monthLabelForTime(timeMs) {
+    const date = new Date(Number(timeMs));
+    if (!Number.isFinite(date.getTime())) return "";
+    return MONTH_NAMES[date.getUTCMonth()];
+  }
+
+  function projectedPosition(timeMs, viewport, pixelLength, padding = 0) {
+    const start = Number(viewport?.start);
+    const end = Number(viewport?.end);
+    const length = Number(pixelLength);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || !Number.isFinite(length)) {
+      return Number.NaN;
+    }
+    return padding + ((Number(timeMs) - start) / (end - start)) * length;
+  }
+
+  function nonOverlapping(candidates, extentFor, { min = 0, max = Number.POSITIVE_INFINITY, gap = 10 } = {}) {
+    const selected = [];
+    let lastEnd = Number.NEGATIVE_INFINITY;
+    for (const candidate of candidates) {
+      const extent = Math.max(1, Number(extentFor(candidate)) || 1);
+      const start = candidate.position - extent / 2;
+      const end = candidate.position + extent / 2;
+      if (start < min || end > max) continue;
+      if (start < lastEnd + gap) continue;
+      selected.push(candidate);
+      lastEnd = end;
+    }
+    return selected;
+  }
+
+  function planTemporalAccents(
+    items,
+    {
+      viewport,
+      pixelLength,
+      padding = 0,
+      orientation = "horizontal",
+      spec = null,
+      maxItemsPerMonth = 3,
+      limit = 18
+    } = {}
+  ) {
+    const usable = Math.max(1, Number(pixelLength) || 1);
+    const accents = monthAccents(items, { maxItemsPerMonth, limit })
+      .map((accent) => ({
+        ...accent,
+        position: projectedPosition(accent.time, viewport, usable, padding)
+      }))
+      .filter((accent) => Number.isFinite(accent.position))
+      .sort((a, b) => a.position - b.position);
+
+    const unit = spec?.unit || null;
+    if (!accents.length || unit === "year") {
+      return { mode: "axis-only", edgeAccents: [], axisMonths: [], hasAmbientContext: false };
+    }
+
+    const fullExtent = orientation === "vertical" ? 132 : 154;
+    const full = nonOverlapping(
+      accents.map((accent) => ({ ...accent, kind: "month-year", label: accent.label })),
+      () => fullExtent,
+      { min: padding, max: padding + usable, gap: 14 }
+    );
+
+    if (FINE_UNITS.has(unit) && full.length === accents.length) {
+      return {
+        mode: "month-year-edge",
+        edgeAccents: full,
+        axisMonths: [],
+        hasAmbientContext: true
+      };
+    }
+
+    const yearBuckets = new Map();
+    for (const accent of accents) {
+      const label = yearLabelForTime(accent.time);
+      if (!yearBuckets.has(label)) yearBuckets.set(label, []);
+      yearBuckets.get(label).push(accent);
+    }
+
+    const yearCandidates = [...yearBuckets.entries()].map(([label, entries]) => ({
+      kind: "year",
+      label,
+      time: entries.reduce((sum, entry) => sum + entry.time, 0) / entries.length,
+      position: entries.reduce((sum, entry) => sum + entry.position, 0) / entries.length,
+      count: entries.reduce((sum, entry) => sum + entry.count, 0)
+    })).sort((a, b) => a.position - b.position);
+
+    const yearExtent = orientation === "vertical" ? 82 : 92;
+    const edgeAccents = nonOverlapping(
+      yearCandidates,
+      () => yearExtent,
+      { min: padding, max: padding + usable, gap: 16 }
+    );
+
+    const monthExtent = 38;
+    const axisMonths = nonOverlapping(
+      accents.map((accent) => ({
+        kind: "month-axis",
+        key: accent.key,
+        label: monthLabelForTime(accent.time),
+        time: accent.time,
+        position: accent.position,
+        count: accent.count
+      })),
+      () => monthExtent,
+      { min: padding, max: padding + usable, gap: 8 }
+    );
+
+    return {
+      mode: "year-edge-month-axis",
+      edgeAccents,
+      axisMonths,
+      hasAmbientContext: edgeAccents.length > 0 || axisMonths.length > 0
+    };
+  }
+
   function compactTickLabel(timeMs, spec, hasAmbientMonth) {
     if (!hasAmbientMonth || !spec) return null;
     const date = new Date(Number(timeMs));
@@ -145,6 +271,10 @@
     compactTickLabel,
     formatMonthYear,
     monthAccents,
-    monthKey
+    monthKey,
+    planTemporalAccents,
+    projectedPosition,
+    yearLabelForTime,
+    monthLabelForTime
   });
 })();
