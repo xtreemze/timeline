@@ -377,7 +377,7 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(timelineCss, /Compact application presentation contract/);
   assert.match(timelineCss, /#presentation-stage[\s\S]*display:\s*block\s*!important/);
   assert.match(timelineCss, /timeline-focus-view\[popover\][\s\S]*position:/);
-  assert.match(timelineCss, /inline-size:\s*min\(680px,\s*calc\(100dvw - 5\.5rem\)\)/);
+  assert.match(timelineCss, /inline-size:\s*min\(640px,\s*calc\(100dvw - 6\.5rem\)\)/);
   assert.match(timelineCss, /max-block-size:\s*66dvh/);
   assert.match(html, /id="timeline-focus-view"[^>]*popover="manual"/);
   assert.match(app, /function decorateSemanticControls/);
@@ -587,9 +587,9 @@ test("relations halo escapes the popover while Evidence remains bounded", async 
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   assert.match(css, /data-active-tab="overview"\][\s\S]*overflow:\s*visible/);
   assert.match(css, /data-active-tab="evidence"\][\s\S]*overflow:\s*hidden/);
-  assert.match(css, /data-active-tab="overview"[\s\S]*timeline-focus-relations::before[\s\S]*inset:\s*-38%/);
-  assert.match(css, /data-viewport-orientation="portrait"[\s\S]*radial-gradient\(circle at 38% 50%/);
-  assert.match(css, /data-viewport-orientation="landscape"[\s\S]*radial-gradient\(circle at 50% 34%/);
+  assert.match(css, /data-active-tab="overview"[\s\S]*timeline-focus-relations::before[\s\S]*inset:\s*-24%/);
+  assert.match(css, /data-viewport-orientation="portrait"[\s\S]*inset:\s*-18% -12% -18% -24%[\s\S]*radial-gradient\(ellipse at 42% 50%/);
+  assert.match(css, /data-viewport-orientation="landscape"[\s\S]*inset:\s*-26% -16% -10%[\s\S]*radial-gradient\(ellipse at 50% 38%/);
 });
 
 
@@ -624,6 +624,18 @@ test("focused graph popover stays inside the space yielded by chronology", async
     /data-viewport-orientation="portrait"\]:has\(\.timeline-focus-view\[data-active-tab="overview"\]\)[\s\S]*timeline-focus-view:popover-open[\s\S]*100dvw - var\(--timeline-context-edge-span\)/
   );
 });
+
+test("popover footprint and relations glow are restrained in both viewport orientations", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  assert.match(css, /data-orientation="landscape"[\s\S]*inline-size:\s*min\(640px, calc\(100dvw - 6\.5rem\)\)[\s\S]*max-block-size:\s*min\(62dvh, 640px\)/);
+  assert.match(css, /data-orientation="portrait"[\s\S]*inline-size:\s*min\(520px, calc\(100dvw - 7\.2rem\)\)[\s\S]*max-block-size:\s*min\(68dvh, 660px\)/);
+  assert.match(css, /data-viewport-orientation="landscape"[\s\S]*inline-size:\s*min\(840px, calc\(100dvw - 7\.5rem\)\)[\s\S]*min-height:\s*clamp\(180px, 26dvh, 260px\)/);
+  assert.match(css, /data-viewport-orientation="portrait"[\s\S]*inline-size:\s*min\(58dvw, 620px\)[\s\S]*min-height:\s*clamp\(300px, 48dvh, 580px\)/);
+  assert.match(css, /data-viewport-orientation="portrait"[\s\S]*inset:\s*-18% -12% -18% -24%[\s\S]*transparent 70%/);
+  assert.match(css, /data-viewport-orientation="landscape"[\s\S]*inset:\s*-26% -16% -10%[\s\S]*transparent 70%/);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*timeline-focus-view:popover-open[\s\S]*transform:\s*none/);
+});
+
 
 
 test("adjacent event navigation preserves temporal context before swapping focused detail", async () => {
