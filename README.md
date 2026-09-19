@@ -25,6 +25,17 @@ The application is static and runs entirely in the browser. Timeline data is sto
 
 ## Current capabilities
 
+### Application shell
+
+- The timeline is the permanent viewport canvas rather than a page section.
+- Authoring opens in a native top-layer sheet: bottom sheet on phones, right-side sheet on wider displays.
+- The detailed chronology/index opens separately as a navigation sheet: bottom sheet on phones, left-side sheet on wider displays.
+- Import/export, sample loading, destructive project actions, and repository links live in a compact project popover.
+- A mobile-first workspace dock exposes Items, Stories, Graph, and List without permanently taking timeline space.
+- Search/category filtering and timeline navigation controls float over the chronology instead of resizing it.
+- The global relation graph is a complementary lens and starts collapsed; focused Relations reuse the graph context inside the event detail surface.
+- Printing restores chronology content to normal document flow rather than printing application chrome.
+
 ### Chronology
 
 - Create point **events** or **ranges** through one calendar field: events select one date; ranges select two dates in the same calendar, with an explicit year control.
@@ -33,7 +44,7 @@ The application is static and runs entirely in the browser. Timeline data is sto
 - Assign an optional structured place and WGS 84 point; choose coordinates manually, from the map, or through Chrome's native geolocation control.
 - Attach up to three photographs to an event and browse them as a hero slideshow in focused view.
 - Add semantic tags with selectable icons and hue-only theming; lightness/chroma and foreground contrast stay under design-system control and meaning never depends on color alone.
-- Select an event to give it the full 12-column chronology workspace; the editor yields the screen, the event becomes an asymmetric composition, and the timeline docks to an edge for context.
+- Select an event without leaving the chronology canvas: the timeline remains fullscreen, shifts its axis toward an edge, and the event detail enters the top layer as a responsive popover/sheet.
 - Focus framing is density-aware: if the selected event is fused into a cluster, Timeline zooms toward a unique terminal; if it is already unique, Timeline expands toward the nearest one or two events for relative context. Identical timestamps are explicitly pinned out of the residual cluster because no amount of temporal zoom can separate equal coordinates.
 - Choose among three focused-event grid compositions: **Hero split**, **Evidence dossier**, and **Editorial mosaic**.
 - Move explicitly to the previous or next focused event without leaving the composition.
@@ -45,18 +56,18 @@ The application is static and runs entirely in the browser. Timeline data is sto
 - Filter the visible chronology by category.
 - Expand or collapse case-oriented category groups in the detailed chronology while story focus preserves authored narrative order.
 - Responsive timeline rendering for desktop, tablet, and narrow mobile layouts.
-- Timeline and temporal graph share one responsive presentation stage. On wide workspace containers they can compose side-by-side; on narrower containers they stack without changing the canonical timeline orientation.
-- Full-screen presentation targets only that stage, keeping both chronology and relation graph visible. Horizontal timelines use the available width in a stacked timeline/graph composition; vertical timelines use the available height in a side-by-side composition. Tall displays rebalance the split rather than forcing an axis change.
+- Timeline orientation remains independent from viewport orientation. Application tools are overlays and never become sibling columns that compress chronology.
+- Full-screen presentation targets the same timeline canvas. Focused event, Place, Relations, and Evidence use top-layer/detail composition without changing the canonical timeline geometry.
 - Fullscreen can be entered from the timeline toolbar or with `F` while focus is inside the presentation stage. Escape exits through the browser's native Fullscreen API behavior.
 - Pixel-collision clustering: overlapping event terminals temporarily fuse into interactive clusters while zoomed out, then separate as zoom creates room.
 - Weighted zoom and inertial pointer panning using frame-aligned/coalesced pointer samples where Chrome exposes them.
 - Capability-gated haptics for cluster fusion/splitting, selection, and inertial release through gamepad actuators or mobile vibration hardware when available.
 - Focused presentation controls: Left/Right move between events, Up/Down move between event photographs, Space or media Play/Pause toggles auto advance, and Escape/Browser Back exits focus. Standard gamepad D-pad/shoulders, A/B and Start map to the same presentation commands.
 - Collision-aware temporal accents for months containing up to three visible segments: month+year stays ambient at the edge when there is room; when those labels would collide, the edge collapses to non-overlapping year accents and month names move onto the timeline axis. At year-scale zoom the normal year ticks take over entirely.
-- A deliberate 12-column focused-event composition with dedicated regions for hero media, temporal facts, place, relationships, the local node graph, evidence, and controls. Hero titles scale against their own container and wrap without metric trimming.
+- A deliberate 12-column focused-event composition with hero media, context, Place, Relations, Evidence, and controls. Chronology is not repeated as a detail section because the timeline itself remains visible; hero titles scale against their own container and wrap without metric trimming.
 - Long ranges remain identifiable for their entire visible interval: their event label/connector traces from the midpoint of the currently visible portion rather than disappearing once the real start scrolls offscreen. Range bars are keyboard-focusable/clickable and expose a hover/focus tooltip with title and full range.
 - Timeline event labels use the same category/event color as their dot or range, with larger semantic icons for faster visual scanning.
-- Fullscreen presentation reserves simultaneous regions for the focused event/media, contextual timeline, relevant relation graph, and a simplified read-only place map. Wide, balanced, and tall displays rearrange those surfaces without changing the selected timeline axis.
+- Focused Place and Relations reuse the interactive map and relation graph as subdued section backdrops, avoiding duplicate panels and preserving the timeline as the dominant surface.
 
 ### Categories
 
