@@ -26,7 +26,8 @@
   border-bottom: 1px solid var(--line);
 }
 .timeline-orientation-control,
-.timeline-zoom-controls {
+.timeline-zoom-controls,
+.timeline-auto-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -44,6 +45,45 @@
   border-color: var(--ink);
 }
 .timeline-zoom-controls .button { min-width: 2.4rem; }
+.timeline-auto-controls {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .2rem;
+  border: 1px solid var(--line);
+  border-radius: .68rem;
+  background: var(--paper-2);
+}
+.timeline-auto-controls .button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.timeline-auto-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: .28rem;
+  color: var(--muted);
+  font-size: .66rem;
+  font-weight: 720;
+}
+.timeline-auto-timer input {
+  width: 4.2rem;
+  min-height: 34px;
+  padding: .3rem .4rem;
+  border: 1px solid var(--line);
+  border-radius: .45rem;
+  background: var(--paper);
+  color: var(--ink);
+  font: 700 .72rem/1 "Monaspace Krypton Timeline", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.timeline-auto-status {
+  min-width: 6.6rem;
+  color: var(--muted);
+  font: 700 .64rem/1.2 "Monaspace Krypton Timeline", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
 .timeline-window-readout {
   flex: 1 1 220px;
   min-width: 0;
