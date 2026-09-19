@@ -530,6 +530,10 @@
   grid-column: 7 / -1;
   grid-row: 3;
 }
+.timeline-focus-evidence {
+  grid-column: 1 / -1;
+  grid-row: 4;
+}
 .timeline-focus-section-heading {
   margin: 0 0 .8rem;
   font-size: clamp(1.5rem, 3.6vw, 3.4rem);
@@ -584,12 +588,133 @@
 }
 .timeline-focus-actions {
   grid-column: 1 / -1;
-  grid-row: 4;
+  grid-row: 5;
   display: flex;
   justify-content: flex-end;
   gap: .45rem;
   padding: 0 clamp(.2rem, 1vw, .6rem) .2rem;
 }
+.timeline-focus-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .7rem;
+}
+.timeline-focus-evidence-card {
+  min-width: 0;
+  padding: .9rem;
+  border: 1px solid var(--line);
+  border-radius: .72rem;
+  background: var(--paper);
+}
+.timeline-focus-evidence-header {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  color: var(--muted);
+}
+.timeline-focus-evidence-type {
+  font: 760 .62rem/1.2 "Monaspace Krypton Timeline", ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.timeline-focus-evidence-title {
+  margin: .55rem 0 0;
+  font-size: 1rem;
+  letter-spacing: -.025em;
+}
+.timeline-focus-evidence-meta,
+.timeline-focus-evidence-note {
+  margin: .4rem 0 0;
+  color: var(--muted);
+  font-size: .72rem;
+  line-height: 1.5;
+}
+.timeline-focus-evidence-note { color: var(--ink); }
+.timeline-focus-evidence-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  margin-top: .7rem;
+}
+
+/* Variant 1: hero split — dominant image/title with supporting right rail. */
+.timeline-focus-view[data-layout="hero-split"] .timeline-focus-hero {
+  grid-column: 1 / span 8;
+}
+.timeline-focus-view[data-layout="hero-split"] .timeline-focus-summary,
+.timeline-focus-view[data-layout="hero-split"] .timeline-focus-temporal {
+  grid-column: 9 / -1;
+}
+
+/* Variant 2: evidence dossier — narrower hero and evidence-dominant reading surface. */
+.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-hero {
+  grid-column: 1 / span 5;
+  grid-row: 1 / span 2;
+  min-height: clamp(460px, 48vw, 620px);
+}
+.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-summary {
+  grid-column: 6 / span 3;
+  grid-row: 1;
+  align-self: stretch;
+}
+.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-temporal {
+  grid-column: 9 / -1;
+  grid-row: 1;
+}
+.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-evidence {
+  grid-column: 6 / -1;
+  grid-row: 2 / span 2;
+  border-top-color: color-mix(in srgb, var(--event-color) 45%, var(--line));
+}
+.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-evidence-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-place {
+  grid-column: 1 / span 5;
+  grid-row: 3;
+}
+.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-relations {
+  grid-column: 1 / span 5;
+  grid-row: 4;
+}
+.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-actions {
+  grid-row: 5;
+}
+
+/* Variant 3: editorial mosaic — copy leads, media occupies the opposite asymmetric field. */
+.timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-hero {
+  grid-column: 5 / -1;
+  grid-row: 1 / span 2;
+  min-height: clamp(420px, 52vw, 660px);
+}
+.timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-summary {
+  grid-column: 1 / span 4;
+  grid-row: 1;
+  align-self: stretch;
+}
+.timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-temporal {
+  grid-column: 1 / span 4;
+  grid-row: 2;
+}
+.timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-evidence {
+  grid-column: 1 / span 7;
+  grid-row: 3;
+}
+.timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-evidence-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-place {
+  grid-column: 8 / span 2;
+  grid-row: 3;
+}
+.timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-relations {
+  grid-column: 10 / -1;
+  grid-row: 3;
+}
+.timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-actions {
+  grid-row: 4;
+}
+
 
 .timeline-view.is-event-focused {
   display: grid;
@@ -707,4 +832,27 @@
     border-top: 1px solid var(--line);
   }
   .timeline-focus-title { font-size: clamp(2.8rem, 15vw, 5.8rem); }
+}
+
+@media (max-width: 900px) {
+  .timeline-focus-view[data-layout] .timeline-focus-hero,
+  .timeline-focus-view[data-layout] .timeline-focus-summary,
+  .timeline-focus-view[data-layout] .timeline-focus-temporal,
+  .timeline-focus-view[data-layout] .timeline-focus-place,
+  .timeline-focus-view[data-layout] .timeline-focus-relations,
+  .timeline-focus-view[data-layout] .timeline-focus-evidence,
+  .timeline-focus-view[data-layout] .timeline-focus-actions {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+  .timeline-focus-evidence-grid,
+  .timeline-focus-view[data-layout] .timeline-focus-evidence-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .timeline-focus-evidence-grid,
+  .timeline-focus-view[data-layout] .timeline-focus-evidence-grid {
+    grid-template-columns: 1fr;
+  }
 }
