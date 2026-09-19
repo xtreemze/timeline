@@ -44,11 +44,15 @@ A future dedicated fictional/cartographic reference frame can consume the same n
 
 ## Parallel stories
 
-Multiple stories may coexist in one timeline. The recommended pattern is:
+Multiple stories may coexist in one timeline. Story membership and event categories are separate dimensions: a story answers **which narrative does this item belong to?**, while a category answers **what kind of event is this?**. Do not encode story identity in `categoryId` or infer story membership from a category.
+
+The recommended pattern is:
 
 - every chronology item belongs to exactly one story unless a deliberate crossover is represented;
+- story membership and narrative order live in `story.itemIds` and `extensions.narrative.storyId` / `sequence`;
+- categories classify reusable event semantics, so one story should span several categories and the same category may appear in several stories;
 - each story has its own characters, places, and story relationships;
 - an optional anthology/container entity connects the story nodes without creating false character-to-character relationships;
-- with story focus off, the timeline shows all items together; selecting a story uses the existing focus path to inspect only that narrative sequence.
+- with story focus off, the timeline shows all items together; selecting a story uses the existing focus path to inspect only that narrative sequence, while category filtering remains independent.
 
 The default sample uses **The Three Little Pigs**, **Snow White**, and **Cinderella** to exercise this model across year-scale prologues, minute-scale action, ranges, media, locations, graph relationships, relation lifecycle changes, and all three focused-event compositions.
