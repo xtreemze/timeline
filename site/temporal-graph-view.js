@@ -42,6 +42,7 @@
       this.presentationMode = false;
       this.hasFocusedContext = false;
       this.currentData = { nodes: [], edges: [] };
+      this.hasRenderedData = false;
       this.selection = null;
       this.orb = orbFactory.create(this.canvas, {
         onNodeClick: (node) => this.activateNode(node),
@@ -177,7 +178,12 @@
       const nextSignature = topologySignature(data);
       if (nextSignature !== this.signature) {
         this.signature = nextSignature;
-        this.orb.setData(data);
+        if (this.hasRenderedData) {
+          this.orb.transitionData(data);
+        } else {
+          this.orb.setData(data);
+          this.hasRenderedData = true;
+        }
         if (this.selection) this.orb.select?.(this.selection.kind, this.selection.id);
       } else {
         this.orb.updateTemporalEdges(data.edges);

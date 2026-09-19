@@ -159,3 +159,25 @@ test("node interaction reheats force and preserves wider spacing after release",
   assert.match(source, /alphaDecay:\s*dense \? 0\.024 : 0\.021/);
   assert.match(source, /clearInteractionSettleTimer\(\)/);
 });
+
+
+test("timeline topology changes visibly release, break, and bind graph relationships", async () => {
+  const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(source, /TOPOLOGY_EDGE_RELEASE_MS\s*=\s*280/);
+  assert.match(source, /TOPOLOGY_SETTLE_MS\s*=\s*820/);
+  assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.085/);
+  assert.match(source, /orb\.data\.merge\(/);
+  assert.match(source, /orb\.data\.remove\(/);
+  assert.match(source, /__timelineTransition/);
+  assert.match(source, /"releasing"/);
+  assert.match(source, /"entering"/);
+  assert.match(source, /"exiting"/);
+  assert.match(source, /positionIncomingNodes/);
+  assert.match(source, /getPosition\?\.\(\)/);
+  assert.match(source, /setPosition\(\{/);
+  assert.match(source, /scheduleTopologyStep[\s\S]*TOPOLOGY_EDGE_RELEASE_MS/);
+  assert.match(source, /scheduleTopologyStep[\s\S]*TOPOLOGY_SETTLE_MS/);
+  assert.match(source, /keepForceActiveAfterInteraction\(\)/);
+  assert.match(source, /prefers-reduced-motion:\s*reduce/);
+});
