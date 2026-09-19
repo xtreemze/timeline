@@ -1305,81 +1305,146 @@
 
 
 /* Final fullscreen composition guard.
-   This stylesheet loads after styles.css, so these rules intentionally restate the global
-   12-column/75-25 contract above older compact-presentation experiments. */
-#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation] {
+   Physical viewport orientation owns presentation composition. Contextual map and graph
+   are deliberately capped at two columns by two rows of the 12×12 stage. */
+#presentation-stage > .timeline-view {
+  view-transition-name: timeline-primary-surface;
+}
+
+#presentation-stage > .graph-lens {
+  view-transition-name: timeline-relation-surface;
+}
+
+#presentation-stage > .presentation-map-panel {
+  view-transition-name: timeline-map-surface;
+}
+
+#presentation-stage:fullscreen[data-stage-shape][data-viewport-orientation] {
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  grid-template-rows: minmax(0, 1fr);
+  grid-template-rows: repeat(12, minmax(0, 1fr));
 }
 
-#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation] > .timeline-view {
+#presentation-stage:fullscreen[data-stage-shape][data-viewport-orientation] > .timeline-view {
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+}
+
+#presentation-stage:fullscreen[data-event-focused="false"] > .timeline-view {
   grid-column: 1 / -1;
-  grid-row: 1;
-  min-width: 0;
-  min-height: 0;
+  grid-row: 1 / -1;
+  align-self: stretch;
+  justify-self: stretch;
 }
 
-#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"] > .timeline-view,
-#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-map="true"] > .timeline-view {
-  grid-column: 1 / span 9;
+#presentation-stage:fullscreen[data-event-focused="false"] > .graph-lens,
+#presentation-stage:fullscreen[data-event-focused="false"] > .presentation-map-panel {
+  display: none !important;
 }
 
-#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation] > .graph-lens:not([hidden]),
-#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation] > .presentation-map-panel:not([hidden]) {
-  grid-column: 10 / -1;
-  grid-row: 1;
-  min-width: 0;
-  min-height: 0;
-  max-height: 100%;
+/* Landscape: chronology keeps the complete horizontal measure and shifts to the lower edge. */
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="landscape"] > .timeline-view,
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="square"] > .timeline-view {
+  grid-column: 1 / -1;
+  grid-row: 3 / -1;
 }
 
-#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"][data-has-context-map="true"] {
-  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="landscape"] > .graph-lens:not([hidden]),
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="square"] > .graph-lens:not([hidden]) {
+  grid-column: 1 / span 2;
+  grid-row: 1 / span 2;
 }
 
-#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"][data-has-context-map="true"] > .timeline-view {
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="landscape"] > .presentation-map-panel:not([hidden]),
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="square"] > .presentation-map-panel:not([hidden]) {
+  grid-column: 3 / span 2;
+  grid-row: 1 / span 2;
+}
+
+/* Portrait: chronology keeps the complete vertical measure and shifts to the right edge. */
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="portrait"] > .timeline-view {
+  grid-column: 3 / -1;
   grid-row: 1 / -1;
 }
 
-#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"][data-has-context-map="true"] > .graph-lens {
-  grid-row: 1;
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="portrait"] > .graph-lens:not([hidden]) {
+  grid-column: 1 / span 2;
+  grid-row: 1 / span 2;
 }
 
-#presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"][data-has-context-map="true"] > .presentation-map-panel {
-  grid-row: 2;
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="portrait"] > .presentation-map-panel:not([hidden]) {
+  grid-column: 1 / span 2;
+  grid-row: 3 / span 2;
 }
 
-@media (orientation: portrait) {
-  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"],
-  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-map="true"] {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    grid-template-rows: minmax(0, 3fr) minmax(0, 1fr);
-  }
+#presentation-stage:fullscreen > .graph-lens:not([hidden]),
+#presentation-stage:fullscreen > .presentation-map-panel:not([hidden]) {
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: hidden;
+}
 
-  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"] > .timeline-view,
-  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-map="true"] > .timeline-view {
-    grid-column: 1 / -1;
-    grid-row: 1;
-  }
+#presentation-stage:fullscreen .graph-lens > summary,
+#presentation-stage:fullscreen .temporal-graph-toolbar,
+#presentation-stage:fullscreen .temporal-graph-detail {
+  display: none;
+}
 
-  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation] > .graph-lens:not([hidden]),
-  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation] > .presentation-map-panel:not([hidden]) {
-    grid-row: 2;
-    max-height: none;
-  }
+#presentation-stage:fullscreen .graph-lens[open],
+#presentation-stage:fullscreen .temporal-graph-view {
+  grid-template-rows: minmax(0, 1fr);
+  height: 100%;
+}
 
-  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"][data-has-context-map="false"] > .graph-lens,
-  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="false"][data-has-context-map="true"] > .presentation-map-panel {
-    grid-column: 1 / -1;
-  }
+#presentation-stage:fullscreen .temporal-graph-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
 
-  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"][data-has-context-map="true"] > .graph-lens {
-    grid-column: 1 / span 6;
-    grid-row: 2;
-  }
+#presentation-stage:fullscreen .presentation-map-panel:not([hidden]) {
+  position: relative;
+  display: block;
+}
 
-  #presentation-stage:fullscreen[data-stage-shape][data-timeline-orientation][data-has-context-graph="true"][data-has-context-map="true"] > .presentation-map-panel {
-    grid-column: 7 / -1;
-    grid-row: 2;
+#presentation-stage:fullscreen .presentation-map-heading {
+  position: absolute;
+  z-index: 450;
+  inset: .3rem .3rem auto .3rem;
+  width: max-content;
+  max-width: calc(100% - .6rem);
+  padding: .22rem .36rem;
+  border: 1px solid color-mix(in srgb, var(--line) 75%, transparent);
+  border-radius: .35rem;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(5px);
+  pointer-events: none;
+}
+
+#presentation-stage:fullscreen .presentation-map {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0 !important;
+}
+
+::view-transition-group(timeline-primary-surface),
+::view-transition-group(timeline-relation-surface),
+::view-transition-group(timeline-map-surface) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(.2, .8, .2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(timeline-primary-surface),
+  ::view-transition-group(timeline-relation-surface),
+  ::view-transition-group(timeline-map-surface) {
+    animation-duration: 0s;
   }
 }
