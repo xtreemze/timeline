@@ -51,6 +51,15 @@
     return Math.exp(exponent);
   }
 
+  function visibleIntervalAnchor(item, viewport) {
+    if (!item || !viewport || !Number.isFinite(item.start)) return null;
+    if (!Number.isFinite(item.end)) return item.start;
+    const visibleStart = Math.max(item.start, viewport.start);
+    const visibleEnd = Math.min(item.end, viewport.end);
+    if (visibleEnd < visibleStart) return null;
+    return visibleStart + (visibleEnd - visibleStart) / 2;
+  }
+
   function connectorSegment(axisCoordinate, terminalCoordinate) {
     const delta = Number(axisCoordinate) - Number(terminalCoordinate);
     if (!Number.isFinite(delta)) throw new TypeError("Connector coordinates must be finite.");
@@ -648,13 +657,9 @@
     }
 
     visiblePositionFor(item, padding, usable) {
-      if (!Number.isFinite(item?.end)) {
-        return padding + scale.coordinateFor(item.start, this.viewport, usable);
-      }
-      const visibleStart = Math.max(item.start, this.viewport.start);
-      const visibleEnd = Math.min(item.end, this.viewport.end);
-      const anchor = visibleStart + Math.max(0, visibleEnd - visibleStart) / 2;
-      return padding + scale.coordinateFor(anchor, this.viewport, usable);
+      const anchor = visibleIntervalAnchor(item, this.viewport);
+      const time = Number.isFinite(anchor) ? anchor : item.start;
+      return padding + scale.coordinateFor(time, this.viewport, usable);
     }
 
     render() {
@@ -1347,6 +1352,7 @@
     },
     geometry: Object.freeze({
       connectorSegment,
+      visibleIntervalAnchor,
       wheelZoomFactor
     })
   });
