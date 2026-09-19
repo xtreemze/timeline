@@ -370,7 +370,14 @@
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1600&q=80",
+          "alt": "Illustrative house exterior for the fictional brick house",
+          "caption": "Mood image only; not evidence or a real location."
+        }
+      ]
     },
     {
       "id": "pigs-wolf-straw",
@@ -1007,7 +1014,24 @@
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1600&q=80",
+          "alt": "Dense forest used as Snow White mood art",
+          "caption": "Illustrative fictional forest."
+        },
+        {
+          "src": "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1600&q=80",
+          "alt": "Mountain landscape used as story mood art",
+          "caption": "Illustrative landscape."
+        },
+        {
+          "src": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1600&q=80",
+          "alt": "Old stone structure used as story mood art",
+          "caption": "Illustrative architecture; exercises the three-image slideshow."
+        }
+      ]
     },
     {
       "id": "snow-dwarfs-shelter",
@@ -1788,7 +1812,14 @@
           "spatialReferenceFrame": "Storybook Realm",
           "validationProfile": "narrative"
         }
-      }
+      },
+      "media": [
+        {
+          "src": "https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?auto=format&fit=crop&w=1600&q=80",
+          "alt": "Palace-like architecture used as Cinderella mood art",
+          "caption": "Mood image only; not evidence or a real location."
+        }
+      ]
     },
     {
       "id": "cinderella-first-ball",
