@@ -815,7 +815,20 @@
         end: item.end ? temporal.sortKey(item.time?.end || item.end) : null,
         startLabel: formatDateInline(item.start),
         endLabel: item.end ? formatDateInline(item.end) : "",
-        locationName: item.location?.name || item.location?.geographicIdentifier || ""
+        locationName: item.location?.name || item.location?.geographicIdentifier || "",
+        location: item.location || null,
+        media: item.media || [],
+        tags: item.tags || [],
+        relations: state.relationships
+          .filter((relationship) => relationship.subjectId === item.id || relationship.objectId === item.id)
+          .map((relationship) => ({
+            id: relationship.id,
+            predicate: relationship.predicate,
+            role: relationship.role || "",
+            subjectId: relationship.subjectId,
+            objectId: relationship.objectId,
+            time: relationship.time || null
+          }))
       };
     }), {
       focusId: storyCurrentId,
@@ -873,10 +886,21 @@
       actions.append(focus);
     }
     actions.append(
+      actionButton("Focus", "focus-item", `Focus ${item.title}`),
       actionButton("Edit", "edit-item", `Edit ${item.title}`),
       actionButton("Delete", "delete-item", `Delete ${item.title}`, "delete")
     );
     top.append(heading, actions);
+
+    const firstMedia = item.media?.[0];
+    if (firstMedia) {
+      const thumb = document.createElement("img");
+      thumb.className = "timeline-card-media";
+      thumb.src = firstMedia.src;
+      thumb.alt = firstMedia.alt || "";
+      thumb.loading = "lazy";
+      card.append(thumb);
+    }
     card.append(top);
 
     if (item.description) {
@@ -902,6 +926,11 @@
       placeBadge.className = "location-badge";
       placeBadge.textContent = locationLabel;
       meta.append(placeBadge);
+    }
+
+    for (const tag of item.tags || []) {
+      const tagElement = presentation.createTag(tag);
+      if (tagElement) meta.append(tagElement);
     }
 
     if (activeStory && storyIndex >= 0) {
