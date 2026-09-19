@@ -20,6 +20,7 @@ on:
       - 'site/date-range-picker.js'
       - 'site/event-presentation.js'
       - 'site/evidence-store.js'
+      - 'site/case-reasoning.js'
       - 'site/sample-case.js'
       - 'site/temporal-standards.js'
       - 'site/spatial.js'
@@ -28,6 +29,7 @@ on:
       - 'tests/interchange-adapter.test.mjs'
       - 'tests/event-focus-form.test.mjs'
       - 'tests/evidence-store.test.mjs'
+      - 'tests/case-reasoning.test.mjs'
       - 'tests/sample-case.test.mjs'
       - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
@@ -56,6 +58,7 @@ on:
       - 'site/date-range-picker.js'
       - 'site/event-presentation.js'
       - 'site/evidence-store.js'
+      - 'site/case-reasoning.js'
       - 'site/sample-case.js'
       - 'site/temporal-standards.js'
       - 'site/spatial.js'
@@ -64,6 +67,7 @@ on:
       - 'tests/interchange-adapter.test.mjs'
       - 'tests/event-focus-form.test.mjs'
       - 'tests/evidence-store.test.mjs'
+      - 'tests/case-reasoning.test.mjs'
       - 'tests/sample-case.test.mjs'
       - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
@@ -103,6 +107,7 @@ jobs:
       - run: node --check site/date-range-picker.js
       - run: node --check site/event-presentation.js
       - run: node --check site/evidence-store.js
+      - run: node --check site/case-reasoning.js
       - run: node --check site/sample-case.js
       - run: node --check site/interchange-adapter.js
       - run: node --check site/temporal-standards.js
