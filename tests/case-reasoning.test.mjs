@@ -147,3 +147,57 @@ test("browser runtime loads and persists canonical case reasoning", async () => 
   assert.match(app, /custodyActions,\s*reasoning/);
   assert.match(app, /reasoning: caseReasoning\.normalizeReasoning\(\{\}\)/);
 });
+
+
+test("normalizes pinpoint citations and traces analytical claims to source evidence", () => {
+  const model = reasoning.normalizeReasoning({
+    citations: [
+      {
+        id: "cite-1",
+        assertionId: "fact-1",
+        evidenceId: "evidence-1",
+        relation: "supports",
+        locator: { type: "page", page: 12, pageEnd: 13 },
+        excerpt: "Relevant source passage.",
+        linkageConfidence: "high"
+      },
+      {
+        id: "cite-2",
+        assertionId: "fact-1",
+        evidenceId: "evidence-2",
+        relation: "contradicts",
+        locator: { type: "time", startMs: 4200, endMs: 6700 }
+      }
+    ],
+    assertions: [{ id: "fact-1", text: "The event occurred.", citationIds: ["cite-1", "cite-2"], status: "disputed" }],
+    claims: [{ id: "claim-1", assertionIds: ["fact-1"] }],
+    theses: [{ id: "thesis-1", claimIds: ["claim-1"] }]
+  });
+
+  assert.equal(model.citations[0].locator.type, "page");
+  assert.equal(model.citations[0].locator.pageEnd, 13);
+  assert.equal(model.citations[1].locator.startMs, 4200);
+
+  const grouped = reasoning.collectAssertionCitations("fact-1", model);
+  assert.deepEqual(grouped.supports.map((citation) => citation.id), ["cite-1"]);
+  assert.deepEqual(grouped.contradicts.map((citation) => citation.id), ["cite-2"]);
+
+  const trace = reasoning.traceDependencies("thesis-1", model, { externalIds: ["evidence-1", "evidence-2"] });
+  assert.deepEqual(trace.records.map((record) => record.id), ["thesis-1", "claim-1", "fact-1", "cite-1", "cite-2"]);
+  assert.deepEqual(trace.externalIds, ["evidence-1", "evidence-2"]);
+  assert.deepEqual(trace.missingIds, []);
+  assert.deepEqual(reasoning.validateReasoning(model, { externalIds: ["evidence-1", "evidence-2"] }), []);
+});
+
+test("reports broken or imprecise citation links without inferring truth", () => {
+  const model = reasoning.normalizeReasoning({
+    citations: [{ id: "cite-bad", assertionId: "other", evidenceId: "", relation: "supports", locator: { type: "page", page: 0 } }],
+    assertions: [{ id: "fact-1", citationIds: ["cite-bad"] }]
+  });
+  const findings = reasoning.validateReasoning(model);
+  assert.ok(findings.some((finding) => finding.code === "citation-assertion-broken"));
+  assert.ok(findings.some((finding) => finding.code === "citation-evidence-missing"));
+  assert.ok(findings.some((finding) => finding.code === "citation-locator-missing"));
+  assert.ok(findings.some((finding) => finding.code === "citation-assertion-mismatch"));
+  assert.equal("truthScore" in model.assertions[0], false);
+});
