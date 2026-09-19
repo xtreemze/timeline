@@ -388,7 +388,7 @@ a { color: inherit; }
   border-color: var(--focus);
   border-radius: .5rem;
   background: var(--focus);
-  color: white;
+  color: contrast-color(var(--focus));
 }
 .range-calendar-footer {
   display: flex;
