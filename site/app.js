@@ -126,6 +126,7 @@
     itemFormError: document.querySelector("#item-form-error"),
     saveItem: document.querySelector("#save-item"),
     cancelItemEdit: document.querySelector("#cancel-item-edit"),
+    deleteItemEdit: document.querySelector("#delete-item-edit"),
 
     storyForm: document.querySelector("#story-form"),
     storyId: document.querySelector("#story-id"),
@@ -225,6 +226,7 @@
     categoryFilter: "all",
     activeStoryId: null,
     storyCursor: 0,
+    mode: "view",
     editorOpen: false,
     browserOpen: false,
     graphOpen: false,
@@ -282,15 +284,25 @@
     : null;
   presentationGraphCanvas?.after(presentationGraphAnchor);
 
+  const presentationGraphDetail = els.graphViewRoot?.querySelector("[data-graph-detail]") || null;
+  const presentationGraphDetailAnchor = presentationGraphDetail
+    ? document.createComment("timeline-graph-detail-home")
+    : null;
+  presentationGraphDetail?.after(presentationGraphDetailAnchor);
+
   const presentationMapAnchor = els.presentationMap
     ? document.createComment("timeline-map-home")
     : null;
   els.presentationMap?.after(presentationMapAnchor);
 
   function restoreGraphSurface() {
-    if (!presentationGraphCanvas || !presentationGraphAnchor?.parentNode) return;
-    if (presentationGraphCanvas.parentNode !== presentationGraphAnchor.parentNode) {
+    if (presentationGraphCanvas && presentationGraphAnchor?.parentNode &&
+        presentationGraphCanvas.parentNode !== presentationGraphAnchor.parentNode) {
       presentationGraphAnchor.parentNode.insertBefore(presentationGraphCanvas, presentationGraphAnchor);
+    }
+    if (presentationGraphDetail && presentationGraphDetailAnchor?.parentNode &&
+        presentationGraphDetail.parentNode !== presentationGraphDetailAnchor.parentNode) {
+      presentationGraphDetailAnchor.parentNode.insertBefore(presentationGraphDetail, presentationGraphDetailAnchor);
     }
   }
 
@@ -303,11 +315,13 @@
 
   function mountGraphBackdrop() {
     const slot = els.timelineViewRoot?.querySelector("[data-focus-graph-slot]");
+    const detailSlot = els.timelineViewRoot?.querySelector("[data-focus-graph-detail-slot]");
     if (!slot || !presentationGraphCanvas) {
       restoreGraphSurface();
       return false;
     }
     slot.replaceChildren(presentationGraphCanvas);
+    if (detailSlot && presentationGraphDetail) detailSlot.replaceChildren(presentationGraphDetail);
     requestAnimationFrame(() => temporalGraphView?.refreshLayout?.());
     return true;
   }
@@ -390,7 +404,7 @@
   }
 
   function presentationModeActive() {
-    return presentationIsFullscreen() || Boolean(timelineView?.hasFocusedItem?.());
+    return ui.mode !== "edit";
   }
 
   function updatePresentationStageLayout() {
@@ -442,7 +456,7 @@
       els.graphLens.open = graphOpenBeforeFullscreen;
     }
     if (els.viewControls) els.viewControls.hidden = !(active || ui.viewControlsOpen);
-    temporalGraphView?.setPresentationMode?.(active || Boolean(timelineView?.hasFocusedItem?.()));
+    temporalGraphView?.setPresentationMode?.(presentationModeActive());
     schedulePresentationGeometryRefresh({ recenterGraph: true });
   }
 
@@ -899,7 +913,10 @@
   }
 
   function syncApplicationSurfaces() {
+    if (ui.mode !== "edit") ui.editorOpen = false;
+    const editing = ui.mode === "edit";
     if (els.appShell) {
+      els.appShell.dataset.mode = ui.mode;
       els.appShell.dataset.editorOpen = String(ui.editorOpen);
       els.appShell.dataset.browserOpen = String(ui.browserOpen);
       els.appShell.dataset.graphOpen = String(ui.graphOpen);
@@ -914,7 +931,23 @@
       els.browserSheet.hidden = !ui.browserOpen;
       els.browserSheet.setAttribute("aria-hidden", String(!ui.browserOpen));
     }
-    if (els.editorToggle) els.editorToggle.setAttribute("aria-expanded", String(ui.editorOpen));
+    if (els.title) {
+      els.title.readOnly = !editing;
+      els.title.tabIndex = editing ? 0 : -1;
+      els.title.setAttribute("aria-readonly", String(!editing));
+    }
+    for (const control of [els.loadSample, els.importJsonTrigger, els.importInterchangeTrigger, els.clear]) {
+      if (control) control.disabled = !editing;
+    }
+    if (els.editorToggle) {
+      els.editorToggle.setAttribute("aria-expanded", String(ui.editorOpen));
+      els.editorToggle.setAttribute("aria-pressed", String(editing));
+      const label = els.editorToggle.querySelector(".app-tool-label");
+      if (label) label.textContent = editing ? "Done" : "Edit";
+    }
+    for (const control of [els.browserToggle, els.graphLensToggle, els.viewControlsToggle]) {
+      if (control) control.disabled = editing;
+    }
     for (const opener of els.panelOpeners) {
       opener.setAttribute("aria-expanded", String(ui.editorOpen));
     }
@@ -927,6 +960,7 @@
       els.viewControls.hidden = !(ui.viewControlsOpen || presentationIsFullscreen());
     }
 
+    temporalGraphView?.setPresentationMode?.(presentationModeActive());
     syncContextualPresentationPanels();
     schedulePresentationGeometryRefresh({ recenterGraph: ui.graphOpen });
   }
@@ -938,12 +972,19 @@
   }
 
   function setEditorSurfaceOpen(open) {
-    ui.editorOpen = Boolean(open);
-    if (ui.editorOpen) closeLargeUtilitySurfaces("editor");
+    const editing = Boolean(open);
+    ui.mode = editing ? "edit" : "view";
+    ui.editorOpen = editing;
+    if (editing) {
+      closeLargeUtilitySurfaces("editor");
+      ui.viewControlsOpen = false;
+      if (timelineView?.hasFocusedItem?.()) timelineView.closeFocus();
+    }
     syncApplicationSurfaces();
   }
 
   function setBrowserSurfaceOpen(open) {
+    if (ui.mode === "edit") return;
     ui.browserOpen = Boolean(open);
     if (ui.browserOpen) closeLargeUtilitySurfaces("browser");
     syncApplicationSurfaces();
@@ -951,12 +992,14 @@
   }
 
   function setGraphSurfaceOpen(open) {
+    if (ui.mode === "edit") return;
     ui.graphOpen = Boolean(open);
     if (ui.graphOpen) closeLargeUtilitySurfaces("graph");
     syncApplicationSurfaces();
   }
 
   function setViewControlsOpen(open) {
+    if (ui.mode === "edit") return;
     ui.viewControlsOpen = Boolean(open);
     syncApplicationSurfaces();
   }
@@ -1197,9 +1240,7 @@
       actions.append(focus);
     }
     actions.append(
-      actionButton("Focus", "focus-item", `Focus ${item.title}`),
-      actionButton("Edit", "edit-item", `Edit ${item.title}`),
-      actionButton("Delete", "delete-item", `Delete ${item.title}`, "delete")
+      actionButton("Focus", "focus-item", `Focus ${item.title}`)
     );
     top.append(heading, actions);
 
@@ -1617,6 +1658,7 @@
     fillCategorySelect(els.itemCategory, false, state.categories[0]?.id || "");
     els.saveItem.textContent = "Add item";
     els.cancelItemEdit.hidden = true;
+    els.deleteItemEdit.hidden = true;
     setError(els.itemFormError);
   }
 
@@ -1644,6 +1686,7 @@
     fillLocationForm(item.location || null);
     els.saveItem.textContent = "Save changes";
     els.cancelItemEdit.hidden = false;
+    els.deleteItemEdit.hidden = false;
     setError(els.itemFormError);
     els.itemTitle.focus();
     els.itemForm.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -2060,10 +2103,10 @@
     els.graphEdgeRole.value = "";
     els.graphEdgeInitialState.value = "active";
     els.graphEdgeProperties.value = "{}";
-    els.graphEdgeTimeKind.value = "timeless";
+    els.graphEdgeTimeKind.value = "event";
     graphEdgeDatePicker.setMode("event");
     graphEdgeDatePicker.clear();
-    els.graphEdgeDateField.hidden = true;
+    els.graphEdgeDateField.hidden = false;
     graphEndpointOptions(els.graphEdgeSubject);
     graphEndpointOptions(els.graphEdgeObject);
     els.saveGraphEdge.textContent = "Add edge";
@@ -2455,8 +2498,14 @@
     if (els.projectMenu?.matches?.(":popover-open")) els.projectMenu.hidePopover();
   }
 
-  els.importJsonTrigger?.addEventListener("click", () => els.importJson?.click());
-  els.importInterchangeTrigger?.addEventListener("click", () => els.importInterchange?.click());
+  els.importJsonTrigger?.addEventListener("click", () => {
+    if (ui.mode !== "edit") return;
+    els.importJson?.click();
+  });
+  els.importInterchangeTrigger?.addEventListener("click", () => {
+    if (ui.mode !== "edit") return;
+    els.importInterchange?.click();
+  });
   els.projectMenu?.addEventListener("click", (event) => {
     const action = event.target.closest("[data-project-menu-close]");
     if (!action) return;
@@ -2772,6 +2821,10 @@
   });
 
   els.cancelItemEdit.addEventListener("click", resetItemForm);
+  els.deleteItemEdit.addEventListener("click", () => {
+    if (ui.mode !== "edit" || !els.itemId.value) return;
+    removeItem(els.itemId.value);
+  });
 
   els.list.addEventListener("toggle", (event) => {
     const details = event.target.closest?.(".timeline-category-group");
@@ -2788,8 +2841,6 @@
       setBrowserSurfaceOpen(false);
       timelineView?.focusItem(itemElement.dataset.id);
     }
-    if (button.dataset.action === "edit-item") beginItemEdit(itemElement.dataset.id);
-    if (button.dataset.action === "delete-item") removeItem(itemElement.dataset.id);
     if (button.dataset.action === "story-focus") {
       ui.storyCursor = Number(button.dataset.storyIndex);
       renderTimeline();
@@ -2934,6 +2985,18 @@
     temporalGraphView?.setWindow(event.detail?.viewport || null);
   });
 
+  function focusTimelineFromGraph(id) {
+    if (!id || !getItem(id)) return false;
+    ui.search = "";
+    ui.categoryFilter = "all";
+    ui.activeStoryId = null;
+    ui.storyCursor = 0;
+    els.search.value = "";
+    renderTimeline();
+    requestAnimationFrame(() => timelineView?.focusItem(id));
+    return true;
+  }
+
   els.timelineViewRoot.addEventListener("timelineorientationchange", (event) => {
     if (els.presentationStage) {
       els.presentationStage.dataset.timelineOrientation =
@@ -2943,32 +3006,35 @@
   });
 
   els.graphViewRoot.addEventListener("graphnodefocus", (event) => {
-    const id = event.detail?.id;
-    if (!id || !getItem(id)) return;
-    ui.search = "";
-    ui.categoryFilter = "all";
-    ui.activeStoryId = null;
-    ui.storyCursor = 0;
-    els.search.value = "";
-    renderTimeline();
-    requestAnimationFrame(() => timelineView?.focusItem(id));
+    focusTimelineFromGraph(event.detail?.id);
   });
 
   els.graphViewRoot.addEventListener("graphstoryfocus", (event) => {
     const id = event.detail?.id;
-    if (id && getStory(id)) focusStory(id);
+    if (ui.mode === "edit") {
+      if (id && getStory(id)) focusStory(id);
+      return;
+    }
+    if (!event.detail?.significant && focusTimelineFromGraph(event.detail?.fallbackEventId)) return;
+    if (!event.detail?.significant && id && getStory(id)) focusStory(id);
   });
 
   els.graphViewRoot.addEventListener("graphentityfocus", (event) => {
-    if (presentationModeActive()) return;
     const id = event.detail?.id;
-    if (id && state.entities.some((entity) => entity.id === id)) beginGraphNodeEdit(id);
+    if (ui.mode === "edit") {
+      if (id && state.entities.some((entity) => entity.id === id)) beginGraphNodeEdit(id);
+      return;
+    }
+    if (!event.detail?.significant) focusTimelineFromGraph(event.detail?.fallbackEventId);
   });
 
   els.graphViewRoot.addEventListener("graphedgefocus", (event) => {
-    if (presentationModeActive()) return;
     const id = event.detail?.id;
-    if (id && state.relationships.some((relationship) => relationship.id === id)) beginGraphEdgeEdit(id);
+    if (ui.mode === "edit") {
+      if (id && state.relationships.some((relationship) => relationship.id === id)) beginGraphEdgeEdit(id);
+      return;
+    }
+    if (!event.detail?.significant) focusTimelineFromGraph(event.detail?.fallbackEventId);
   });
 
   els.timelineViewRoot.addEventListener("timelinegraphnodefocus", (event) => {
@@ -2981,7 +3047,7 @@
     els.appShell.classList.toggle("is-event-focused", focused);
     temporalGraphView?.setFocus(focused ? event.detail?.id : null);
     focusedGraphContextAvailable = focused && Boolean(temporalGraphView?.hasContext?.());
-    temporalGraphView?.setPresentationMode?.(focused || presentationIsFullscreen());
+    temporalGraphView?.setPresentationMode?.(presentationModeActive());
     syncContextualPresentationPanels();
     schedulePresentationGeometryRefresh({ recenterGraph: true });
   });
@@ -2997,7 +3063,9 @@
     schedulePresentationGeometryRefresh({ recenterGraph: true });
   });
   els.timelineViewRoot.addEventListener("timelinefocusedit", (event) => {
-    if (event.detail?.id) beginItemEdit(event.detail.id);
+    if (!event.detail?.id) return;
+    setEditorSurfaceOpen(true);
+    beginItemEdit(event.detail.id);
   });
   els.timelineViewRoot.addEventListener("timelineevidenceopen", async (event) => {
     const id = event.detail?.id;
@@ -3019,12 +3087,14 @@
   });
 
   els.title.addEventListener("input", () => {
+    if (ui.mode !== "edit") return;
     state.title = els.title.value.slice(0, 120);
     els.heading.textContent = state.title.trim() || "Untitled timeline";
     persist();
   });
 
   els.loadSample.addEventListener("click", () => {
+    if (ui.mode !== "edit") return;
     if ((state.items.length || state.stories.length) && !window.confirm("Replace the current timeline with the example dataset?")) return;
     timelineView?.closeFocus();
     state = normalizeTimeline(clone(SAMPLE));
@@ -3062,6 +3132,7 @@
   }
 
   els.importJson.addEventListener("change", async () => {
+    if (ui.mode !== "edit") return;
     const file = els.importJson.files?.[0];
     if (!file) return;
     try {
@@ -3085,6 +3156,7 @@
   });
 
   els.importInterchange.addEventListener("change", async () => {
+    if (ui.mode !== "edit") return;
     const file = els.importInterchange.files?.[0];
     if (!file) return;
     try {
@@ -3129,6 +3201,7 @@
   });
 
   els.clear.addEventListener("click", () => {
+    if (ui.mode !== "edit") return;
     if ((state.items.length || state.stories.length || state.title) && !window.confirm("Clear this timeline? This removes its locally stored items and stories.")) return;
     timelineView?.closeFocus();
     state = blankTimeline();

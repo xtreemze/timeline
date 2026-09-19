@@ -111,7 +111,8 @@ test("events can activate update and deactivate a relationship over time", () =>
     start: Date.UTC(2026, 8, 1),
     end: Date.UTC(2026, 8, 2)
   });
-  assert.equal(september.edges[0].temporalState, "inactive");
+  assert.equal(september.edges.length, 0);
+  assert.equal(september.nodes.length, 0);
 });
 
 test("focused event neighborhood exposes the relation it changes and a derived change link", () => {
@@ -154,13 +155,78 @@ test("focused event neighborhood exposes the relation it changes and a derived c
 });
 
 
-test("presentation graph omits raw JSON property dumps", async () => {
+test("graph window removes out-of-window timed topology while retaining persistent relations", () => {
+  const input = {
+    entities: [
+      { id: "a", type: "person", name: "A" },
+      { id: "b", type: "person", name: "B" },
+      { id: "c", type: "person", name: "C" }
+    ],
+    relationships: [
+      {
+        id: "timed",
+        subjectId: "a",
+        objectId: "b",
+        predicate: "workedWith",
+        time: {
+          type: "interval",
+          start: { value: "2026-09-01", precision: "day", certainty: "exact", calendar: "gregorian" },
+          end: { value: "2026-09-30", precision: "day", certainty: "exact", calendar: "gregorian" }
+        }
+      },
+      { id: "persistent", subjectId: "b", objectId: "c", predicate: "knows", time: null }
+    ],
+    items: [],
+    stories: []
+  };
+
+  const september = graph.graphForWindow(input, {
+    start: Date.UTC(2026, 8, 10),
+    end: Date.UTC(2026, 8, 20)
+  });
+  assert.deepEqual(new Set(september.edges.map((edge) => edge.id)), new Set(["timed", "persistent"]));
+  assert.deepEqual(new Set(september.nodes.map((node) => node.id)), new Set(["a", "b", "c"]));
+
+  const october = graph.graphForWindow(input, {
+    start: Date.UTC(2026, 9, 10),
+    end: Date.UTC(2026, 9, 20)
+  });
+  assert.deepEqual(october.edges.map((edge) => edge.id), ["persistent"]);
+  assert.deepEqual(new Set(october.nodes.map((node) => node.id)), new Set(["b", "c"]));
+});
+
+test("timed relation visibility uses viewport intersection rather than midpoint sampling", () => {
+  const data = graph.graphForWindow({
+    entities: [{ id: "a", type: "person", name: "A" }, { id: "b", type: "person", name: "B" }],
+    relationships: [{
+      id: "r",
+      subjectId: "a",
+      objectId: "b",
+      predicate: "workedWith",
+      time: {
+        type: "interval",
+        start: { value: "2026-09-01", precision: "day", certainty: "exact", calendar: "gregorian" },
+        end: { value: "2026-09-03", precision: "day", certainty: "exact", calendar: "gregorian" }
+      }
+    }],
+    items: [],
+    stories: []
+  }, {
+    start: Date.UTC(2026, 8, 3),
+    end: Date.UTC(2026, 8, 30)
+  });
+
+  assert.equal(data.edges.length, 1);
+  assert.equal(data.edges[0].temporalState, "active");
+});
+
+test("graph inspection is read-only and only opens for meaningful detail", async () => {
   const { readFile } = await import("node:fs/promises");
   const source = await readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8");
-  assert.match(source, /presentationMode = false/);
-  assert.match(source, /setPresentationMode\(active\)/);
-  assert.match(
-    source,
-    /if \(this\.presentationMode\)[\s\S]*this\.detail\.append\(title, meta\)[\s\S]*return;[\s\S]*JSON\.stringify/
-  );
+  assert.match(source, /function detailRows\(kind, record\)/);
+  assert.match(source, /function hasSignificantDetail\(kind, record\)/);
+  assert.match(source, /fallbackEventId\(kind, record\)/);
+  assert.match(source, /temporal-graph-detail-list/);
+  assert.match(source, /if \(!rows\.length\)[\s\S]*this\.clearDetail\(\)[\s\S]*return false/);
+  assert.doesNotMatch(source, /createElement\("pre"\)/);
 });

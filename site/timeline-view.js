@@ -155,6 +155,11 @@
         { passive: false }
       );
 
+      this.surface.addEventListener("click", (event) => {
+        if (!this.selectedId || event.target.closest("button, a, input, select, textarea")) return;
+        this.closeFocus();
+      });
+
       this.surface.addEventListener("pointerdown", (event) => {
         if (!this.viewport || !this.items.length || event.button !== 0 || event.target.closest("button")) return;
         this.cancelViewportAnimation();
@@ -1231,6 +1236,8 @@
       relationBackdrop.dataset.focusGraphSlot = "";
       const relationContent = createElement("div", "timeline-focus-section-content");
       relationContent.append(createElement("h3", "timeline-focus-section-heading", "Relations"));
+      const relationDetailSlot = createElement("div", "timeline-focus-graph-detail-slot");
+      relationDetailSlot.dataset.focusGraphDetailSlot = "";
       if (item.relations?.length) {
         const list = createElement("ul", "timeline-focus-relation-list");
         for (const relation of item.relations.slice(0, 8)) {
@@ -1268,13 +1275,14 @@
         }
         relationContent.append(changes);
       }
-      relations.append(relationBackdrop, relationContent);
+      relations.append(relationBackdrop, relationContent, relationDetailSlot);
 
       const evidence = createElement("section", "timeline-focus-section timeline-focus-evidence");
       evidence.append(createElement("h3", "timeline-focus-section-heading", "Evidence"));
       if (item.evidence?.length) {
         const grid = createElement("div", "timeline-focus-evidence-grid");
-        for (const record of item.evidence.slice(0, 12)) {
+        const visibleEvidence = item.evidence.slice(0, 6);
+        for (const record of visibleEvidence) {
           const card = createElement("article", "timeline-focus-evidence-card");
           card.dataset.type = record.type || "note";
           const header = createElement("div", "timeline-focus-evidence-header");
@@ -1331,6 +1339,13 @@
           grid.append(card);
         }
         evidence.append(grid);
+        if (item.evidence.length > visibleEvidence.length) {
+          evidence.append(createElement(
+            "p",
+            "timeline-focus-evidence-more",
+            `${item.evidence.length - visibleEvidence.length} more evidence record${item.evidence.length - visibleEvidence.length === 1 ? "" : "s"} available`
+          ));
+        }
       } else {
         evidence.append(createElement("p", "timeline-focus-muted", "No supporting evidence attached."));
       }

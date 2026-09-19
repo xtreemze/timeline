@@ -15,6 +15,9 @@ test("graph editor exposes noun nodes, action edges, properties, and temporal ra
   assert.match(html, /id="graph-edge-properties"/);
   assert.match(html, /id="graph-edge-initial-state"/);
   assert.match(html, /id="graph-edge-time-kind"/);
+  assert.match(html, /id="graph-edge-time-kind"[\s\S]*value="event" selected/);
+  assert.match(html, /Persistent \/ no temporal anchor/);
+  assert.match(html, /Prefer a date or range so the relation can enter and leave the graph/);
   assert.match(html, /id="graph-edge-date-range"/);
 });
 
@@ -125,12 +128,14 @@ test("touch graph dragging requires a long press while preserving live force phy
 
 
 
-test("graph entity and edge editing are disabled while presentation mode is active", async () => {
+test("graph editing requires explicit edit mode while view mode remains inspect-only", async () => {
   const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
-  assert.match(source, /function presentationModeActive\(\)/);
-  assert.match(source, /graphentityfocus[\s\S]*presentationModeActive\(\)[\s\S]*return;[\s\S]*beginGraphNodeEdit/);
-  assert.match(source, /graphedgefocus[\s\S]*presentationModeActive\(\)[\s\S]*return;[\s\S]*beginGraphEdgeEdit/);
-  assert.match(source, /timelinefocuschange[\s\S]*setPresentationMode/);
+  assert.match(source, /mode:\s*"view"/);
+  assert.match(source, /function presentationModeActive\(\)[\s\S]*ui\.mode !== "edit"/);
+  assert.match(source, /graphentityfocus[\s\S]*ui\.mode === "edit"[\s\S]*beginGraphNodeEdit/);
+  assert.match(source, /graphedgefocus[\s\S]*ui\.mode === "edit"[\s\S]*beginGraphEdgeEdit/);
+  assert.match(source, /timelinefocusedit[\s\S]*setEditorSurfaceOpen\(true\)[\s\S]*beginItemEdit/);
+  assert.match(source, /resetGraphEdgeForm[\s\S]*graphEdgeTimeKind\.value = "event"/);
 });
 
 test("node interaction reheats force and preserves wider spacing after release", async () => {

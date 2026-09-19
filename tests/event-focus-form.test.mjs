@@ -118,7 +118,7 @@ test("focused event composition does not instantiate duplicate graph or map surf
 
   assert.doesNotMatch(source, /orbGraphFactory|TimelineOrbGraph|timeline-focus-graph-canvas/);
   assert.doesNotMatch(source, /timeline-focus-place-map/);
-  assert.doesNotMatch(css, /timeline-focus-graph/);
+  assert.doesNotMatch(css, /\.timeline-focus-graph(?:\s|,|\{)/);
   assert.doesNotMatch(css, /timeline-focus-place-map/);
   assert.match(css, /container-type:\s*inline-size/);
   assert.match(css, /font-size:\s*clamp\(3\.2rem,\s*11\.5cqi,\s*9rem\)/);
@@ -130,7 +130,7 @@ test("focused event composition does not instantiate duplicate graph or map surf
 test("focused layouts reclaim the former duplicate graph columns for event context", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   assert.match(css, /timeline-focus-relations[\s\S]*grid-column:\s*5\s*\/\s*-1/);
-  assert.doesNotMatch(css, /timeline-focus-graph/);
+  assert.doesNotMatch(css, /\.timeline-focus-graph(?:\s|,|\{)/);
   assert.match(css, /data-layout="hero-split"/);
   assert.match(css, /data-layout="evidence-dossier"/);
   assert.match(css, /data-layout="editorial-mosaic"/);
@@ -264,18 +264,28 @@ test("focused Place and Relations reuse the single map and graph surfaces as int
   assert.equal((html.match(/id="presentation-map"/g) || []).length, 1);
   assert.match(view, /dataset\.focusMapSlot/);
   assert.match(view, /dataset\.focusGraphSlot/);
+  assert.match(view, /dataset\.focusGraphDetailSlot/);
   assert.match(view, /timeline-focus-section-content/);
   assert.match(app, /mountGraphBackdrop/);
   assert.match(app, /mountMapBackdrop/);
   assert.match(app, /presentationGraphAnchor/);
+  assert.match(app, /presentationGraphDetailAnchor/);
   assert.match(app, /presentationMapAnchor/);
   assert.match(app, /interactive:\s*true/);
   assert.match(mapSource, /this\.interactive = options\.interactive === true/);
   assert.match(mapSource, /dragging:\s*this\.interactive/);
   assert.match(mapSource, /touchZoom:\s*this\.interactive/);
-  assert.match(timelineCss, /timeline-focus-section-backdrop/);
+  assert.match(timelineCss, /timeline-focus-view\[popover\][\s\S]*pointer-events:\s*none/);
+  assert.match(
+    timelineCss,
+    /timeline-focus-view\[popover\]\s*>\s*:is\(\.timeline-focus-place,\s*\.timeline-focus-relations\)[\s\S]*pointer-events:\s*none/
+  );
+  assert.match(timelineCss, /timeline-focus-section-backdrop[\s\S]*z-index:\s*1[\s\S]*pointer-events:\s*auto/);
   assert.match(timelineCss, /opacity:\s*\.46/);
-  assert.match(timelineCss, /pointer-events:\s*auto/);
+  assert.match(
+    timelineCss,
+    /timeline-focus-place-backdrop \.presentation-map,[\s\S]*timeline-focus-relations-backdrop \.temporal-graph-canvas[\s\S]*pointer-events:\s*auto/
+  );
   assert.match(graphView, /neighborhoodGraph\(this\.model, this\.focusedId/);
 });
 
@@ -377,10 +387,68 @@ test("presentation map renders semantic GeoJSON features instead of an empty poi
   assert.match(styles, /\.timeline-map-marker-shell/);
 });
 
-test("fullscreen presentation removes graph authoring chrome and raw properties", async () => {
-  const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
+test("fullscreen presentation removes graph authoring chrome but preserves read-only inspection", async () => {
+  const [styles, graphView] = await Promise.all([
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8")
+  ]);
   assert.match(
     styles,
-    /#presentation-stage:fullscreen \.graph-lens > summary,[\s\S]*\.temporal-graph-toolbar,[\s\S]*\.temporal-graph-detail[\s\S]*display:\s*none/
+    /#presentation-stage:fullscreen \.graph-lens > summary,[\s\S]*\.temporal-graph-toolbar[\s\S]*display:\s*none/
   );
+  assert.doesNotMatch(
+    styles,
+    /#presentation-stage:fullscreen \.temporal-graph-detail[\s\S]*display:\s*none/
+  );
+  assert.match(graphView, /temporal-graph-detail-list/);
+  assert.doesNotMatch(graphView, /createElement\("pre"\)/);
+});
+
+test("timeline background click exits focused event without stealing event-terminal clicks", async () => {
+  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  assert.match(
+    source,
+    /surface\.addEventListener\("click",[\s\S]*this\.selectedId[\s\S]*event\.target\.closest\("button, a, input, select, textarea"\)[\s\S]*this\.closeFocus\(\)/
+  );
+});
+
+test("desktop event detail is compact and placed opposite the active timeline edge", async () => {
+  const [css, source] = await Promise.all([
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8")
+  ]);
+  assert.match(css, /@media \(min-width: 900px\) and \(min-height: 700px\)/);
+  assert.match(
+    css,
+    /data-orientation="landscape"[\s\S]*timeline-focus-view:popover-open[\s\S]*left:\s*50%[\s\S]*overflow:\s*clip[\s\S]*translateX\(-50%\)/
+  );
+  assert.match(
+    css,
+    /data-orientation="portrait"[\s\S]*timeline-focus-view:popover-open[\s\S]*top:\s*50%[\s\S]*overflow:\s*clip[\s\S]*translateY\(-50%\)/
+  );
+  assert.match(source, /const visibleEvidence = item\.evidence\.slice\(0, 6\)/);
+});
+
+test("viewing and editing are explicit mutually exclusive application modes", async () => {
+  const [html, app, styles] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+  ]);
+  assert.match(html, /id="app-shell"[^>]*data-mode="view"/);
+  assert.match(html, /id="editor-toggle"[^>]*aria-pressed="false"/);
+  assert.match(app, /mode:\s*"view"/);
+  assert.match(app, /ui\.mode = editing \? "edit" : "view"/);
+  assert.match(app, /timelinefocusedit[\s\S]*setEditorSurfaceOpen\(true\)[\s\S]*beginItemEdit/);
+  assert.match(app, /graphentityfocus[\s\S]*ui\.mode === "edit"[\s\S]*beginGraphNodeEdit/);
+  assert.match(app, /graphedgefocus[\s\S]*ui\.mode === "edit"[\s\S]*beginGraphEdgeEdit/);
+  assert.match(styles, /data-mode="edit"[\s\S]*app-tool:not\(#editor-toggle\)[\s\S]*display:\s*none/);
+  assert.match(app, /title\.readOnly = !editing/);
+  assert.match(app, /\[els\.loadSample, els\.importJsonTrigger, els\.importInterchangeTrigger, els\.clear\][\s\S]*disabled = !editing/);
+  assert.doesNotMatch(app, /actionButton\("Edit", "edit-item"/);
+  assert.doesNotMatch(app, /actionButton\("Delete", "delete-item"/);
+  assert.match(html, /id="delete-item-edit"[^>]*hidden/);
+  assert.match(app, /deleteItemEdit\.addEventListener\("click",[\s\S]*ui\.mode !== "edit"[\s\S]*removeItem/);
+  assert.match(app, /els\.title\.addEventListener\("input",[\s\S]*ui\.mode !== "edit"[\s\S]*return/);
+  assert.match(app, /els\.clear\.addEventListener\("click",[\s\S]*ui\.mode !== "edit"[\s\S]*return/);
 });

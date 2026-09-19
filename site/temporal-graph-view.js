@@ -26,6 +26,51 @@
     });
   }
 
+  function detailRows(kind, record) {
+    const properties = record?.properties || {};
+    const rows = [];
+    if (kind === "node") {
+      if (properties.description) rows.push(["Description", properties.description]);
+      if (Array.isArray(properties.identifiers) && properties.identifiers.length) {
+        rows.push(["Identifiers", properties.identifiers]);
+      }
+      if (properties.attributes && Object.keys(properties.attributes).length) {
+        rows.push(["Properties", properties.attributes]);
+      }
+      if (properties.time) rows.push(["Time", properties.time]);
+      if (properties.location) rows.push(["Place", properties.location]);
+      if (Array.isArray(properties.itemIds) && properties.itemIds.length) {
+        rows.push(["Events", properties.itemIds]);
+      }
+    } else {
+      if (properties.role) rows.push(["Role", properties.role]);
+      if (properties.time) rows.push(["Time", properties.time]);
+      if (properties.attributes && Object.keys(properties.attributes).length) {
+        rows.push(["Properties", properties.attributes]);
+      }
+      if (properties.lastChange) rows.push(["Last change", properties.lastChange]);
+      if (Array.isArray(properties.changes) && properties.changes.length) {
+        rows.push(["Changes", properties.changes]);
+      }
+    }
+    return rows;
+  }
+
+  function formatDetailValue(value) {
+    if (Array.isArray(value)) {
+      if (value.every((entry) => typeof entry === "string" || typeof entry === "number")) {
+        return value.join(", ");
+      }
+      return JSON.stringify(value);
+    }
+    if (value && typeof value === "object") return JSON.stringify(value);
+    return String(value ?? "");
+  }
+
+  function hasSignificantDetail(kind, record) {
+    return detailRows(kind, record).length > 0;
+  }
+
   class TemporalGraphView {
     constructor(root) {
       this.root = root;
@@ -42,16 +87,12 @@
       this.signature = "";
       this.presentationMode = false;
       this.hasFocusedContext = false;
+      this.currentData = { nodes: [], edges: [] };
+      this.detailSelection = null;
       this.orb = orbFactory.create(this.canvas, {
         onNodeClick: (node) => this.activateNode(node),
         onNodeLongPress: (node) => this.selectNodeForDrag(node),
-        onEdgeClick: (edge) => {
-          this.renderDetail("edge", edge);
-          this.root.dispatchEvent(new CustomEvent("graphedgefocus", {
-            bubbles: true,
-            detail: { id: edge.id }
-          }));
-        },
+        onEdgeClick: (edge) => this.activateEdge(edge),
         onSimulationState: (state) => this.renderSimulationState(state)
       });
     }
@@ -91,6 +132,7 @@
       if (next === this.focusedId) return;
       this.focusedId = next;
       this.signature = "";
+      this.clearDetail();
       this.render();
     }
 
@@ -105,15 +147,38 @@
     setPresentationMode(active) {
       this.presentationMode = Boolean(active);
       this.root.dataset.presentationMode = String(this.presentationMode);
-      if (this.presentationMode && this.detail) this.detail.replaceChildren();
     }
 
     hasContext() {
       return this.hasFocusedContext;
     }
 
+    clearDetail() {
+      if (!this.detail) return;
+      this.detailSelection = null;
+      this.detail.replaceChildren();
+      this.detail.hidden = true;
+    }
+
+    fallbackEventId(kind, record) {
+      const itemIds = new Set(this.model.items.map((item) => String(item.id)));
+      if (kind === "edge") {
+        if (itemIds.has(String(record?.start))) return String(record.start);
+        if (itemIds.has(String(record?.end))) return String(record.end);
+      }
+      if (this.focusedId && itemIds.has(String(this.focusedId))) return String(this.focusedId);
+      const id = String(record?.id || "");
+      for (const edge of this.currentData.edges || []) {
+        const start = String(edge.start);
+        const end = String(edge.end);
+        if (kind === "node" && start !== id && end !== id) continue;
+        if (itemIds.has(start)) return start;
+        if (itemIds.has(end)) return end;
+      }
+      return null;
+    }
+
     selectNodeForDrag(node) {
-      this.renderDetail("node", node);
       this.root.dispatchEvent(new CustomEvent("graphnodeselect", {
         bubbles: true,
         detail: { id: node.id, interaction: "long-press-drag" }
@@ -121,48 +186,95 @@
     }
 
     activateNode(node) {
-      this.renderDetail("node", node);
       const type = node.properties?.timelineType;
       if (type === "chronology-item") {
+        this.clearDetail();
         this.root.dispatchEvent(new CustomEvent("graphnodefocus", {
           bubbles: true,
           detail: { id: node.id }
         }));
-      } else if (type === "story") {
-        this.root.dispatchEvent(new CustomEvent("graphstoryfocus", {
-          bubbles: true,
-          detail: { id: node.id }
-        }));
-      } else {
-        this.root.dispatchEvent(new CustomEvent("graphentityfocus", {
-          bubbles: true,
-          detail: { id: node.id }
-        }));
+        return;
       }
+
+      const significant = this.renderDetail("node", node);
+      const detail = {
+        id: node.id,
+        significant,
+        fallbackEventId: this.fallbackEventId("node", node)
+      };
+      this.root.dispatchEvent(new CustomEvent(
+        type === "story" ? "graphstoryfocus" : "graphentityfocus",
+        { bubbles: true, detail }
+      ));
+    }
+
+    activateEdge(edge) {
+      const significant = this.renderDetail("edge", edge);
+      this.root.dispatchEvent(new CustomEvent("graphedgefocus", {
+        bubbles: true,
+        detail: {
+          id: edge.id,
+          significant,
+          fallbackEventId: this.fallbackEventId("edge", edge)
+        }
+      }));
     }
 
     renderDetail(kind, record) {
+      if (!this.detail) return false;
+      const rows = detailRows(kind, record);
+      if (!rows.length) {
+        this.clearDetail();
+        return false;
+      }
+
       this.detail.replaceChildren();
+      this.detail.hidden = false;
+      this.detail.dataset.kind = kind;
+      this.detailSelection = { kind, id: String(record.id) };
+
+      const header = document.createElement("div");
+      header.className = "temporal-graph-detail-header";
+      const identity = document.createElement("div");
       const title = document.createElement("strong");
       title.textContent = kind === "node" ? record.label : record.label || "relatedTo";
       const meta = document.createElement("span");
       meta.textContent = kind === "node"
         ? record.properties?.timelineType || "entity"
         : `${record.start} → ${record.end}`;
-      if (this.presentationMode) {
-        this.detail.append(title, meta);
-        return;
+      identity.append(title, meta);
+      const close = document.createElement("button");
+      close.type = "button";
+      close.className = "icon-button temporal-graph-detail-close";
+      close.setAttribute("aria-label", "Close graph detail");
+      close.textContent = "×";
+      close.addEventListener("click", () => this.clearDetail());
+      header.append(identity, close);
+
+      const list = document.createElement("dl");
+      list.className = "temporal-graph-detail-list";
+      for (const [label, value] of rows) {
+        const term = document.createElement("dt");
+        term.textContent = label;
+        const description = document.createElement("dd");
+        description.textContent = formatDetailValue(value);
+        list.append(term, description);
       }
-      const pre = document.createElement("pre");
-      pre.textContent = JSON.stringify(record.properties || {}, null, 2);
-      this.detail.append(title, meta, pre);
+      this.detail.append(header, list);
+      return true;
     }
 
     render() {
       const data = this.focusedId
         ? graph.neighborhoodGraph(this.model, this.focusedId, this.viewport, { depth: 1, limit: 36 })
         : graph.graphForWindow(this.model, this.viewport);
-      const activeEdges = data.edges.filter((edge) => edge.temporalState !== "inactive");
+      this.currentData = data;
+      if (this.detailSelection) {
+        const records = this.detailSelection.kind === "node" ? data.nodes : data.edges;
+        if (!records.some((record) => String(record.id) === this.detailSelection.id)) {
+          this.clearDetail();
+        }
+      }
       const nextHasFocusedContext = Boolean(this.focusedId && data.nodes.length > 1 && data.edges.length > 0);
       if (nextHasFocusedContext !== this.hasFocusedContext) {
         this.hasFocusedContext = nextHasFocusedContext;
@@ -177,7 +289,9 @@
         }));
       }
       const scopeText = this.focusedId ? `${data.nodes.length} relevant nodes · ` : "";
-      const countText = `${scopeText}${activeEdges.length} / ${data.edges.length} edges active`;
+      const timelessCount = data.edges.filter((edge) => edge.temporalState === "timeless").length;
+      const persistentText = timelessCount ? ` · ${timelessCount} persistent` : "";
+      const countText = `${scopeText}${data.edges.length} relations in window${persistentText}`;
       if (this.status) {
         this.status.dataset.edgeCount = countText;
         this.status.textContent = `${countText} · ${this.orb.getMode()}`;
