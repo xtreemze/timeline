@@ -5,9 +5,37 @@
   const DB_VERSION = 1;
   const STORE = "blobs";
   const TYPES = Object.freeze(["article", "pdf", "note", "document"]);
+  const RECORD_CLASSES = Object.freeze(["source", "acquired-copy", "derived-artifact"]);
+  const DIGEST_ALGORITHMS = Object.freeze(["sha-256", "sha-384", "sha-512"]);
+  const CUSTODY_ACTION_TYPES = Object.freeze([
+    "identified",
+    "collected",
+    "acquired",
+    "received",
+    "transferred",
+    "stored",
+    "examined",
+    "returned",
+    "released",
+    "disposed",
+    "other"
+  ]);
 
   function text(value, max) {
     return typeof value === "string" ? value.trim().slice(0, max) : "";
+  }
+
+  function textList(value, max = 120, limit = 64) {
+    const seen = new Set();
+    const result = [];
+    for (const raw of Array.isArray(value) ? value : []) {
+      const normalized = text(raw, max);
+      if (!normalized || seen.has(normalized)) continue;
+      seen.add(normalized);
+      result.push(normalized);
+      if (result.length >= limit) break;
+    }
+    return result;
   }
 
   function safeUrl(value) {
@@ -19,6 +47,87 @@
     } catch {
       return "";
     }
+  }
+
+  function normalizeDigest(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    const algorithm = text(raw.algorithm, 40).toLowerCase();
+    const value = text(raw.value ?? raw.digest, 2048);
+    if (!algorithm || !value) return null;
+    const digest = { algorithm, value };
+    const encoding = text(raw.encoding, 24).toLowerCase();
+    if (encoding) digest.encoding = encoding;
+    return digest;
+  }
+
+  function normalizeDigests(value) {
+    const seen = new Set();
+    const digests = [];
+    for (const raw of Array.isArray(value) ? value : []) {
+      const digest = normalizeDigest(raw);
+      if (!digest) continue;
+      const key = `${digest.algorithm}\u0000${digest.encoding || ""}\u0000${digest.value}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      digests.push(digest);
+      if (digests.length >= 16) break;
+    }
+    return digests;
+  }
+
+  function normalizeForensic(raw) {
+    if (!raw || typeof raw !== "object") return null;
+
+    const recordClass = RECORD_CLASSES.includes(raw.recordClass) ? raw.recordClass : "";
+    const sourceFilename = text(raw.sourceFilename, 260);
+    const sourceLocator = text(raw.sourceLocator, 2000);
+    const exhibitNumber = text(raw.exhibitNumber, 160);
+    const rootExhibitNumber = text(raw.rootExhibitNumber, 160);
+    const acquiredAt = text(raw.acquiredAt, 80);
+    const acquiredByEntityId = text(raw.acquiredByEntityId, 120);
+    const acquisitionMethod = text(raw.acquisitionMethod, 500);
+    const acquisitionPlaceEntityId = text(raw.acquisitionPlaceEntityId, 120);
+    const sourceItemId = text(raw.sourceItemId, 120);
+    const digests = normalizeDigests(raw.digests);
+    const derivedFromIds = textList(raw.derivedFromIds, 120, 64);
+
+    const toolName = text(raw.tool?.name, 160);
+    const toolVersion = text(raw.tool?.version, 120);
+    const tool = toolName || toolVersion ? { name: toolName, version: toolVersion } : null;
+
+    if (
+      !recordClass &&
+      !sourceFilename &&
+      !sourceLocator &&
+      !exhibitNumber &&
+      !rootExhibitNumber &&
+      !acquiredAt &&
+      !acquiredByEntityId &&
+      !acquisitionMethod &&
+      !acquisitionPlaceEntityId &&
+      !sourceItemId &&
+      !digests.length &&
+      !derivedFromIds.length &&
+      !tool
+    ) {
+      return null;
+    }
+
+    return {
+      recordClass,
+      sourceFilename,
+      sourceLocator,
+      exhibitNumber,
+      rootExhibitNumber,
+      acquiredAt,
+      acquiredByEntityId,
+      acquisitionMethod,
+      acquisitionPlaceEntityId,
+      sourceItemId,
+      tool,
+      digests,
+      derivedFromIds
+    };
   }
 
   function normalizeRecord(raw, index = 0) {
@@ -45,6 +154,8 @@
         size: Number.isFinite(Number(raw.file.size)) ? Math.max(0, Number(raw.file.size)) : 0
       };
     }
+    const forensic = normalizeForensic(raw.forensic);
+    if (forensic) record.forensic = forensic;
     return record;
   }
 
@@ -59,6 +170,41 @@
       records.push(record);
     });
     return records;
+  }
+
+  function normalizeCustodyAction(raw, index = 0) {
+    if (!raw || typeof raw !== "object") return null;
+    const evidenceIds = textList(raw.evidenceIds, 120, 64);
+    const occurredAt = text(raw.occurredAt, 80);
+    if (!evidenceIds.length || !occurredAt) return null;
+
+    const id = text(raw.id, 120) || `custody-${index + 1}`;
+    const actionType = text(raw.actionType, 80).toLowerCase() || "other";
+    return {
+      id,
+      actionType,
+      evidenceIds,
+      occurredAt,
+      fromEntityId: text(raw.fromEntityId, 120),
+      toEntityId: text(raw.toEntityId, 120),
+      placeEntityId: text(raw.placeEntityId, 120),
+      recorderEntityId: text(raw.recorderEntityId, 120),
+      reason: text(raw.reason, 1000),
+      note: text(raw.note, 5000),
+      sourceEvidenceIds: textList(raw.sourceEvidenceIds, 120, 32)
+    };
+  }
+
+  function normalizeCustodyActions(value) {
+    const seen = new Set();
+    const actions = [];
+    (Array.isArray(value) ? value : []).forEach((raw, index) => {
+      const action = normalizeCustodyAction(raw, index);
+      if (!action || seen.has(action.id)) return;
+      seen.add(action.id);
+      actions.push(action);
+    });
+    return actions;
   }
 
   function openDb() {
@@ -125,8 +271,16 @@
 
   globalThis.TimelineEvidence = Object.freeze({
     TYPES,
+    RECORD_CLASSES,
+    DIGEST_ALGORITHMS,
+    CUSTODY_ACTION_TYPES,
+    normalizeDigest,
+    normalizeDigests,
+    normalizeForensic,
     normalizeRecord,
     normalizeRecords,
+    normalizeCustodyAction,
+    normalizeCustodyActions,
     putBlob,
     getBlob,
     deleteBlob,
