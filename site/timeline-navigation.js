@@ -180,10 +180,15 @@
     bind() {
       document.addEventListener("keydown", (event) => {
         const command = commandFromKeyboard(event, this.isNavigationActive());
-        if (!command) return;
-        if (command !== "toggle-auto" && command !== "resume-auto" && command !== "pause-auto") {
-          this.auto?.noteInteraction();
+        if (!command) {
+          if (!isEditableTarget(event.target) && !event.target.closest?.("[data-auto-control]")) {
+            this.auto?.noteInteraction();
+          }
+          return;
         }
+        const autoCommand = command === "toggle-auto" || command === "resume-auto" || command === "pause-auto";
+        const activatesAutoControl = command === "activate" && event.target.closest?.("[data-auto-control]");
+        if (!autoCommand && !activatesAutoControl) this.auto?.noteInteraction();
         if (this.onCommand(command, { source: "keyboard", event }) !== false) {
           event.preventDefault();
         }
