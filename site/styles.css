@@ -1267,7 +1267,7 @@ footer p { margin: 0; }
   font-size: .58em;
   vertical-align: .12em;
 }
-.graph-lens [data-graph-status][data-simulation-mode="gpu-force"]::after {
+.graph-lens [data-graph-status][data-simulation-mode="gpu-main-force"]::after {
   content: " · GPU";
 }
 .temporal-graph-detail {
