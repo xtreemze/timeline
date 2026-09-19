@@ -33,13 +33,16 @@ The application is static and runs entirely in the browser. Timeline data is sto
 - Assign an optional structured place and WGS 84 point; choose coordinates manually, from the map, or through Chrome's native geolocation control.
 - Attach up to three photographs to an event and browse them as a hero slideshow in focused view.
 - Add semantic tags with selectable icons and hue-only theming; lightness/chroma and foreground contrast stay under design-system control and meaning never depends on color alone.
-- Select an event to give it the full 12-column chronology workspace; the editor yields the screen, the event becomes an asymmetric hero composition, and the timeline docks to an edge for context.
+- Select an event to give it the full 12-column chronology workspace; the editor yields the screen, the event becomes an asymmetric composition, and the timeline docks to an edge for context.
+- Choose among three focused-event grid compositions: **Hero split**, **Evidence dossier**, and **Editorial mosaic**.
+- Move explicitly to the previous or next focused event without leaving the composition.
 - Run a configurable auto-advance presentation timer; any manual interaction pauses it until explicitly resumed.
 - Navigate focused events and stories with keyboard, TV-remote D-pad/media keys, or standard-mapped gamepads using one shared command model.
 - Edit and delete items without manually re-sorting the chronology.
 - Deterministic sorting by start, end, and title.
 - Search titles and descriptions.
 - Filter the visible chronology by category.
+- Expand or collapse case-oriented category groups in the detailed chronology while story focus preserves authored narrative order.
 - Responsive timeline rendering for desktop, tablet, and narrow mobile layouts.
 - Pixel-collision clustering: overlapping event terminals temporarily fuse into interactive clusters while zoomed out, then separate as zoom creates room.
 - Weighted zoom and inertial pointer panning using frame-aligned/coalesced pointer samples where Chrome exposes them.
@@ -50,6 +53,8 @@ The application is static and runs entirely in the browser. Timeline data is sto
 
 ### Categories
 
+The defaults use case-oriented classifications: Incident, Witness / Interview, Communication, Evidence, Document / Record, Decision / Action, Transaction, and Observation.
+
 - Create unlimited custom categories.
 - Edit category names and accent colors.
 - Reclassify chronology visually without changing temporal data.
@@ -58,7 +63,8 @@ The application is static and runs entirely in the browser. Timeline data is sto
 
 ### Stories
 
-A story is an ordered list of references to chronology items.
+A story is an ordered list of references to chronology items. The bundled case fixture contains five concurrent stories at different temporal scales: one within a day, others spanning months, and long-range narratives spanning multiple years. Three recurring people-groups and three recurring locations connect the stories through the relation graph.
+
 
 - Select any events or ranges for a story.
 - Arrange them independently of chronological order.
@@ -69,12 +75,22 @@ A story is an ordered list of references to chronology items.
 
 This is deliberately a reference model rather than a copy model: stories do not own events.
 
+### Evidence and claims
+
+Events can reference reusable evidence records through `evidenceIds[]`. Supported source types include news/articles, PDF exhibits, text notes, and generic documents/records.
+
+Evidence metadata—title, source, URL, date, explanatory note, file metadata—is part of the portable timeline document. Uploaded PDF bytes are stored separately in IndexedDB under the evidence ID and are intentionally **not** embedded in JSON or interchange exports. This avoids turning local chronology files into large binary containers.
+
+The focused event composition includes a dedicated Evidence section. An attachment means “this source is offered in support of this event/claim”; Timeline does not automatically infer truth, evidentiary weight, or causation from attachment alone.
+
+See `docs/EVIDENCE-MODEL.md`.
+
 ### Data and portability
 
 - Browser-local persistence with `localStorage`.
 - Automatic migration of the original v1 `events[]` browser data to v2.
 - Strict JSON validation at import boundaries.
-- JSON export preserving categories, chronology items, ranges, stories, structured temporal extents, locations, entities, temporal relationships, and namespaced interchange extensions.
+- JSON export preserving categories, chronology items, ranges, stories, structured temporal extents, locations, entities, temporal relationships, evidence metadata, focus-layout preferences, and namespaced interchange extensions.
 - Vendor-neutral JSON/XML interchange import for events, periods, groups, and common external field aliases, with unrecognized source records preserved under `extensions.externalInterchange`.
 - Vendor-neutral interchange JSON export with a published JSON Schema and round-trip preservation of imported extension fields.
 - Markdown export containing the canonical chronology plus each narrative story.
