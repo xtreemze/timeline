@@ -68,6 +68,9 @@
         },
         "evidence": {
           "type": "array"
+        },
+        "reasoning": {
+          "type": "object"
         }
       },
       "additionalProperties": true
