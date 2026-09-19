@@ -582,6 +582,75 @@
     transparent 2px 7px
   );
 }
+.timeline-event[data-connector-endpoint="dot"] .timeline-event-connector::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--event-color) 82%, var(--line-strong));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--paper) 78%, transparent);
+  pointer-events: none;
+}
+.is-landscape .timeline-event[data-side="before"][data-connector-endpoint="dot"] .timeline-event-connector::after {
+  left: 50%;
+  bottom: 0;
+  transform: translate(-50%, 50%);
+}
+.is-landscape .timeline-event[data-side="after"][data-connector-endpoint="dot"] .timeline-event-connector::after {
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -50%);
+}
+.is-portrait .timeline-event[data-side="before"][data-connector-endpoint="dot"] .timeline-event-connector::after {
+  top: 50%;
+  right: 0;
+  transform: translate(50%, -50%);
+}
+.is-portrait .timeline-event[data-side="after"][data-connector-endpoint="dot"] .timeline-event-connector::after {
+  top: 50%;
+  left: 0;
+  transform: translate(-50%, -50%);
+}
+.timeline-event[data-connector-endpoint="arrow"] .timeline-event-connector::after {
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.is-landscape .timeline-event[data-side="before"][data-connector-endpoint="arrow"] .timeline-event-connector::after {
+  left: 50%;
+  bottom: -1px;
+  transform: translateX(-50%);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 8px solid color-mix(in srgb, var(--event-color) 82%, var(--line-strong));
+}
+.is-landscape .timeline-event[data-side="after"][data-connector-endpoint="arrow"] .timeline-event-connector::after {
+  left: 50%;
+  top: -1px;
+  transform: translateX(-50%);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 8px solid color-mix(in srgb, var(--event-color) 82%, var(--line-strong));
+}
+.is-portrait .timeline-event[data-side="before"][data-connector-endpoint="arrow"] .timeline-event-connector::after {
+  top: 50%;
+  right: -1px;
+  transform: translateY(-50%);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 8px solid color-mix(in srgb, var(--event-color) 82%, var(--line-strong));
+}
+.is-portrait .timeline-event[data-side="after"][data-connector-endpoint="arrow"] .timeline-event-connector::after {
+  top: 50%;
+  left: -1px;
+  transform: translateY(-50%);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-right: 8px solid color-mix(in srgb, var(--event-color) 82%, var(--line-strong));
+}
 .timeline-focus-view {
   position: relative;
   z-index: 4;

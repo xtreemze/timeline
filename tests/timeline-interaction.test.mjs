@@ -464,7 +464,7 @@ test("timeline terminals use media thumbnails, semantic badges, and earlier clus
 });
 
 
-test("event editor persists configurable terminal shapes and connector styles into timeline rendering", async () => {
+test("event editor persists configurable terminal and connector presentation into timeline rendering", async () => {
   const [html, app, view, styles] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
@@ -476,15 +476,28 @@ test("event editor persists configurable terminal shapes and connector styles in
   assert.ok(html.includes('<option value="diamond">Diamond</option>'));
   assert.ok(html.includes('id="item-connector-style"'));
   assert.ok(html.includes('<option value="dotted">Dotted</option>'));
+  assert.ok(html.includes('id="item-connector-weight"'));
+  assert.ok(html.includes('<option value="strong">Strong</option>'));
+  assert.ok(html.includes('id="item-connector-endpoint"'));
+  assert.ok(html.includes('<option value="arrow">Arrow</option>'));
   assert.ok(app.includes('terminalShape: els.itemTerminalShape.value'));
   assert.ok(app.includes('connectorStyle: els.itemConnectorStyle.value'));
+  assert.ok(app.includes('connectorWeight: els.itemConnectorWeight.value'));
+  assert.ok(app.includes('connectorEndpoint: els.itemConnectorEndpoint.value'));
   assert.ok(app.includes('terminalShape: item.presentation?.terminalShape || "rounded"'));
   assert.ok(app.includes('connectorStyle: item.presentation?.connectorStyle || "solid"'));
+  assert.ok(app.includes('connectorWeight: item.presentation?.connectorWeight || "normal"'));
+  assert.ok(app.includes('connectorEndpoint: item.presentation?.connectorEndpoint || "none"'));
   assert.ok(view.includes('node.dataset.terminalShape = item.terminalShape || "rounded"'));
   assert.ok(view.includes('node.dataset.connectorStyle = item.connectorStyle || "solid"'));
+  assert.ok(view.includes('node.dataset.connectorWeight = item.connectorWeight || "normal"'));
+  assert.ok(view.includes('node.dataset.connectorEndpoint = item.connectorEndpoint || "none"'));
+  assert.ok(view.includes('node.style.setProperty("--connector-thickness"'));
   assert.ok(styles.includes('.timeline-event[data-terminal-shape="diamond"] .timeline-event-dot'));
   assert.ok(styles.includes('.timeline-event[data-connector-style="dashed"] .timeline-event-connector'));
   assert.ok(styles.includes('.timeline-event[data-connector-style="dotted"] .timeline-event-connector'));
+  assert.ok(styles.includes('.timeline-event[data-connector-endpoint="dot"] .timeline-event-connector::after'));
+  assert.ok(styles.includes('.timeline-event[data-connector-endpoint="arrow"] .timeline-event-connector::after'));
 });
 
 
