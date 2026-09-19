@@ -209,6 +209,7 @@
     if (raw.location && typeof raw.location === "object") item.location = boundedClone(raw.location);
     if (raw.time && typeof raw.time === "object") item.time = boundedClone(raw.time);
     if (raw.presentation && typeof raw.presentation === "object") item.presentation = boundedClone(raw.presentation);
+    if (Array.isArray(raw.relationChanges)) item.relationChanges = boundedClone(raw.relationChanges);
     if (Array.isArray(raw.evidenceIds)) item.evidenceIds = boundedClone(raw.evidenceIds);
     return item;
   }
@@ -427,6 +428,7 @@
     if (item.location) base.location = cloneJson(item.location);
     if (item.tags?.length) base.tags = cloneJson(item.tags);
     if (item.presentation) base.presentation = cloneJson(item.presentation);
+    if (item.relationChanges?.length) base.relationChanges = cloneJson(item.relationChanges);
     if (item.evidenceIds?.length) base.evidenceIds = cloneJson(item.evidenceIds);
 
     if (item.media?.length) {
