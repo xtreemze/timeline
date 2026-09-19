@@ -89,6 +89,8 @@
     itemMediaRows: [...document.querySelectorAll("[data-media-slot]")],
     itemTagsDetails: document.querySelector("#item-tags-details"),
     itemTagRows: [...document.querySelectorAll("[data-tag-slot]")],
+    itemRelationChangesDetails: document.querySelector("#item-relation-changes-details"),
+    itemRelationChangeRows: [...document.querySelectorAll("[data-relation-change-slot]")],
     itemEvidenceDetails: document.querySelector("#item-evidence-details"),
     itemEvidenceRows: [...document.querySelectorAll("[data-evidence-slot]")],
     itemLocationDetails: document.querySelector("#item-location-details"),
@@ -145,6 +147,7 @@
     graphEdgePredicate: document.querySelector("#graph-edge-predicate"),
     graphEdgeObject: document.querySelector("#graph-edge-object"),
     graphEdgeRole: document.querySelector("#graph-edge-role"),
+    graphEdgeInitialState: document.querySelector("#graph-edge-initial-state"),
     graphEdgeProperties: document.querySelector("#graph-edge-properties"),
     graphEdgeTimeKind: document.querySelector("#graph-edge-time-kind"),
     graphEdgeDateField: document.querySelector("#graph-edge-date-field"),
@@ -435,6 +438,7 @@
         ? raw.presentation.variant
         : "hero-split";
       item.presentation = { variant };
+      item.relationChanges = graph.normalizeRelationChanges(raw.relationChanges);
       item.evidenceIds = (Array.isArray(raw.evidenceIds) ? raw.evidenceIds : [])
         .filter((id) => typeof id === "string" && evidenceIds.has(id))
         .slice(0, 12);
@@ -482,6 +486,12 @@
         graphEndpointIds.has(relationship.subjectId) &&
         graphEndpointIds.has(relationship.objectId)
     );
+    const relationshipIds = new Set(graphData.relationships.map((relationship) => relationship.id));
+    for (const item of items) {
+      item.relationChanges = (item.relationChanges || []).filter(
+        (change) => relationshipIds.has(change.relationshipId)
+      );
+    }
     const normalized = {
       version: VERSION,
       title: typeof input.title === "string" ? input.title.slice(0, 120) : "",
