@@ -304,8 +304,8 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.doesNotMatch(html, /class="hero"|class="site-header"|<footer>/);
   assert.match(html, /class="project-bar app-command-bar"/);
   assert.match(html, /class="app-tool-dock"/);
-  assert.match(html, /data-open-panel="items"[^>]*data-semantic-icon="note"/);
-  assert.doesNotMatch(html, /data-open-panel="stories"/);
+  assert.match(html, /id="editor-toggle"[^>]*data-semantic-icon="note"/);
+  assert.doesNotMatch(html, /data-open-panel="items"|data-open-panel="stories"/);
   assert.match(html, /id="timeline-browser-toggle"[^>]*data-semantic-icon="search"/);
   assert.match(html, /id="graph-lens-toggle"[^>]*data-semantic-icon="relation"/);
   assert.match(html, /id="timeline-view-controls-toggle"[^>]*data-semantic-icon="magic"/);
@@ -326,6 +326,7 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(timelineCss, /timeline-focus-view\[popover\][\s\S]*position:/);
   assert.match(html, /id="timeline-focus-view"[^>]*popover="manual"/);
   assert.match(app, /function decorateSemanticControls/);
+  assert.match(app, /editorToggle\?\.addEventListener\("click",[\s\S]*setEditorSurfaceOpen\(!ui\.editorOpen\)/);
   assert.match(app, /function setEditorSurfaceOpen/);
   assert.match(app, /function setBrowserSurfaceOpen/);
   assert.match(app, /function setGraphSurfaceOpen/);
