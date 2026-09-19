@@ -19,57 +19,53 @@
 <body>
   <a class="skip-link" href="#workspace">Skip to timeline workspace</a>
 
-  <header class="site-header">
+  <header class="app-header" aria-label="Timeline application bar">
     <a class="brand" href="./" aria-label="Timeline home">
       <img src="./icon.svg" alt="" width="32" height="32">
       <span>Timeline</span>
     </a>
-    <nav aria-label="Project links">
-      <a href="https://github.com/xtreemze/timeline">GitHub</a>
-      <a href="https://github.com/xtreemze/timeline#data-format">Data format</a>
-    </nav>
+    <label class="project-title-field">
+      <span class="sr-only">Timeline title</span>
+      <input id="timeline-title" type="text" maxlength="120" autocomplete="off" placeholder="Untitled timeline">
+    </label>
+    <div class="project-stats" aria-label="Timeline statistics">
+      <span id="item-count">0 items</span>
+      <span id="story-count">0 stories</span>
+      <span id="category-count">0 categories</span>
+    </div>
+    <button id="project-actions-toggle" class="button secondary compact-button" type="button" popovertarget="project-actions-popover" aria-label="Open project menu">File</button>
   </header>
 
+  <div id="project-actions-popover" class="project-actions-popover" popover="auto" aria-label="Project actions">
+    <div class="popover-heading">
+      <strong>Project</strong>
+      <button class="icon-button" type="button" popovertarget="project-actions-popover" popovertargetaction="hide" aria-label="Close project menu">×</button>
+    </div>
+    <div class="project-actions">
+      <button id="load-sample" class="button secondary" type="button">Load example</button>
+      <label class="button secondary file-button">Import JSON<input id="import-json" type="file" accept="application/json,.json"></label>
+      <label class="button secondary file-button">Import interchange<input id="import-interchange" type="file" accept="application/json,application/xml,text/xml,.json,.xml"></label>
+      <button id="export-json" class="button secondary" type="button">Export JSON</button>
+      <button id="export-interchange" class="button secondary" type="button">Export interchange</button>
+      <button id="export-markdown" class="button secondary" type="button">Export Markdown</button>
+      <button id="clear-timeline" class="button danger" type="button">Clear timeline</button>
+    </div>
+    <nav class="project-links" aria-label="Project links">
+      <a href="https://github.com/xtreemze/timeline">Source</a>
+      <a href="https://github.com/xtreemze/timeline#data-format">Data format</a>
+    </nav>
+  </div>
+
   <main id="workspace">
-    <section class="hero" aria-labelledby="hero-title">
-      <div>
-        <p class="eyebrow">Local-first chronology workspace</p>
-        <h1 id="hero-title">Events become structure. Structure becomes a story.</h1>
-      </div>
-      <div class="hero-copy-wrap">
-        <p class="hero-copy">Build precise events and ranges, organize them with your own categories, then create focused narrative paths through the chronology without duplicating the underlying data.</p>
-        <div class="hero-meta" aria-label="Application characteristics">
-          <span>Events + ranges</span>
-          <span>Custom categories</span>
-          <span>Story focus</span>
-          <span>Local-only data</span>
-        </div>
-      </div>
-    </section>
-
-    <section class="project-bar" aria-label="Timeline project controls">
-      <label class="project-title-field">
-        <span class="sr-only">Timeline title</span>
-        <input id="timeline-title" type="text" maxlength="120" autocomplete="off" placeholder="Untitled timeline">
-      </label>
-      <div class="project-stats" aria-label="Timeline statistics">
-        <span id="item-count">0 items</span>
-        <span id="story-count">0 stories</span>
-        <span id="category-count">0 categories</span>
-      </div>
-      <div class="project-actions">
-        <button id="load-sample" class="button secondary" type="button">Load example</button>
-        <label class="button secondary file-button">Import JSON<input id="import-json" type="file" accept="application/json,.json"></label>
-        <label class="button secondary file-button">Import interchange<input id="import-interchange" type="file" accept="application/json,application/xml,text/xml,.json,.xml"></label>
-        <button id="export-json" class="button secondary" type="button">JSON</button>
-        <button id="export-interchange" class="button secondary" type="button">Interchange</button>
-        <button id="export-markdown" class="button secondary" type="button">Markdown</button>
-        <button id="clear-timeline" class="button danger" type="button">Clear</button>
-      </div>
-    </section>
-
     <section id="app-shell" class="app-shell" aria-label="Timeline application">
-      <aside class="control-panel" aria-label="Timeline editors">
+      <aside id="control-panel" class="control-panel" popover="manual" aria-labelledby="editor-sheet-title">
+        <header class="control-panel-header">
+          <div>
+            <p class="kicker">Authoring</p>
+            <h2 id="editor-sheet-title">Edit timeline</h2>
+          </div>
+          <button id="control-panel-close" class="icon-button" type="button" popovertarget="control-panel" popovertargetaction="hide" aria-label="Close editor">×</button>
+        </header>
         <div class="tabs" role="tablist" aria-label="Editor sections">
           <button class="tab is-active" id="tab-items" role="tab" aria-selected="true" aria-controls="panel-items" data-panel="items" type="button">Items</button>
           <button class="tab" id="tab-stories" role="tab" aria-selected="false" aria-controls="panel-stories" data-panel="stories" type="button">Stories</button>
@@ -808,16 +804,10 @@
         </section>
       </aside>
 
-      <section class="timeline-panel" aria-labelledby="timeline-heading">
-        <div class="timeline-heading-row">
-          <div>
-            <p class="kicker">Chronology</p>
-            <h2 id="timeline-heading">Untitled timeline</h2>
-          </div>
-          <p id="visible-count" class="visible-count">0 shown</p>
-        </div>
-
+      <section class="timeline-panel" aria-label="Timeline canvas">
+        <h1 id="timeline-heading" class="sr-only">Untitled timeline</h1>
         <div class="timeline-toolbar" aria-label="Timeline filters">
+          <span id="visible-count" class="visible-count">0 shown</span>
           <label class="search-field">
             <span class="sr-only">Search timeline</span>
             <input id="timeline-search" type="search" autocomplete="off" placeholder="Search title or description">
@@ -916,16 +906,34 @@
           <p>Change the search, category filter, or leave story focus to restore the full chronology.</p>
         </div>
 
-        <p class="timeline-list-heading">Detailed chronology</p>
-        <div id="timeline-list" class="timeline-list" aria-live="polite"></div>
+        <section id="chronology-sheet" class="chronology-sheet" popover="manual" aria-labelledby="chronology-sheet-title">
+          <header class="sheet-header">
+            <div>
+              <p class="kicker">Timeline index</p>
+              <h2 id="chronology-sheet-title">Events and ranges</h2>
+            </div>
+            <button class="icon-button" type="button" popovertarget="chronology-sheet" popovertargetaction="hide" aria-label="Close chronology list">×</button>
+          </header>
+          <div id="timeline-list" class="timeline-list" aria-live="polite"></div>
+        </section>
       </section>
     </section>
   </main>
 
-  <footer>
-    <p>Timeline runs entirely in your browser and is released under the MIT License.</p>
-    <a href="https://github.com/xtreemze/timeline">Source on GitHub</a>
-  </footer>
+  <nav class="app-dock" aria-label="Workspace tools">
+    <button class="app-dock-action" type="button" popovertarget="control-panel" data-editor-panel="items" aria-label="Add or edit timeline items">
+      <span aria-hidden="true">＋</span><span>Items</span>
+    </button>
+    <button class="app-dock-action" type="button" popovertarget="control-panel" data-editor-panel="stories" aria-label="Edit stories">
+      <span aria-hidden="true">↝</span><span>Stories</span>
+    </button>
+    <button class="app-dock-action" type="button" popovertarget="control-panel" data-editor-panel="graph" aria-label="Edit relation graph">
+      <span aria-hidden="true">⌘</span><span>Graph</span>
+    </button>
+    <button class="app-dock-action" type="button" popovertarget="chronology-sheet" aria-label="Open chronology list">
+      <span aria-hidden="true">≡</span><span>List</span>
+    </button>
+  </nav>
 
   <div id="status" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
   <script src="./time-scale.js" defer></script>
