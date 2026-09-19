@@ -253,6 +253,7 @@
           (this.orientation === "vertical" && (verticalBack || verticalForward))
         ) {
           event.preventDefault();
+          this.clearClusterExpansion();
           this.cancelViewportAnimation();
           const backwards = horizontalBack || verticalBack;
           this.animateViewportTo(scale.pan(this.viewport, backwards ? -panDelta : panDelta));
@@ -1066,13 +1067,23 @@
         || cluster?.items?.[0];
       if (!item) return false;
       const plan = this.clusterExpansionPlan(cluster);
-      this.expandedClusterItemIds = new Set(cluster.items.map((candidate) => String(candidate.id)));
+      const expandedIds = new Set(cluster.items.map((candidate) => String(candidate.id)));
+      this.clearClusterExpansion();
       this.select(item.id, {
         preserveViewport: true,
         forceUnique: true,
         transitionOrigin
       });
-      if (plan?.viewport) void this.animateViewportTo(plan.viewport);
+      if (plan?.viewport) {
+        void this.animateViewportTo(plan.viewport).then((completed) => {
+          if (!completed || !plan.forceExpanded || String(this.selectedId) !== String(item.id)) return;
+          this.expandedClusterItemIds = expandedIds;
+          this.scheduleRender();
+        });
+      } else if (plan?.forceExpanded) {
+        this.expandedClusterItemIds = expandedIds;
+        this.scheduleRender();
+      }
       void motion.pulseHaptic("selection");
       return true;
     }
