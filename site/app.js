@@ -2688,7 +2688,10 @@
   });
 
   els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
-    els.appShell.classList.toggle("is-event-focused", Boolean(event.detail?.focused));
+    const focused = Boolean(event.detail?.focused);
+    els.appShell.classList.toggle("is-event-focused", focused);
+    temporalGraphView?.setFocus(focused ? event.detail?.id : null);
+    schedulePresentationGeometryRefresh({ recenterGraph: true });
   });
   els.timelineViewRoot.addEventListener("timelinefocusedit", (event) => {
     if (event.detail?.id) beginItemEdit(event.detail.id);
