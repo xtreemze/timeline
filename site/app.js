@@ -91,7 +91,9 @@
     visibleCount: document.querySelector("#visible-count"),
     loadSample: document.querySelector("#load-sample"),
     importJson: document.querySelector("#import-json"),
+    importTimeGraphics: document.querySelector("#import-timegraphics"),
     exportJson: document.querySelector("#export-json"),
+    exportTimeGraphics: document.querySelector("#export-timegraphics"),
     exportMarkdown: document.querySelector("#export-markdown"),
     clear: document.querySelector("#clear-timeline"),
     tabs: [...document.querySelectorAll(".tab")],
@@ -172,6 +174,15 @@
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
+  }
+
+  function normalizeExtensions(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    try {
+      return clone(value);
+    } catch {
+      return undefined;
+    }
   }
 
   function parseDate(value) {
@@ -258,7 +269,10 @@
       const id = String(raw.id || fallbackId).trim().slice(0, 80) || fallbackId;
       if (categoryIds.has(id)) return;
       const name = String(raw.name || categoryLabelFromId(id)).trim().slice(0, 60) || categoryLabelFromId(id);
-      categories.push({ id, name, color: normalizeColor(raw.color) });
+      const category = { id, name, color: normalizeColor(raw.color) };
+      const extensions = normalizeExtensions(raw.extensions);
+      if (extensions) category.extensions = extensions;
+      categories.push(category);
       categoryIds.add(id);
     });
 
@@ -310,7 +324,7 @@
         if (endParsed.sortKey < startParsed.sortKey) throw new Error(`Range ${index + 1} ends before it starts.`);
       }
 
-      return {
+      const item = {
         id: typeof raw.id === "string" && raw.id.trim() ? raw.id.trim().slice(0, 120) : newId("item"),
         kind,
         start,
@@ -319,6 +333,9 @@
         description: typeof raw.description === "string" ? raw.description.slice(0, 2000) : "",
         categoryId: ensureCategory(raw.categoryId || raw.category)
       };
+      const extensions = normalizeExtensions(raw.extensions);
+      if (extensions) item.extensions = extensions;
+      return item;
     });
 
     const itemIds = new Set(items.map((item) => item.id));
@@ -338,21 +355,27 @@
           seenItems.add(itemId);
         }
       }
-      return {
+      const story = {
         id,
         title,
         description: typeof raw.description === "string" ? raw.description.slice(0, 1500) : "",
         itemIds: uniqueIds
       };
+      const extensions = normalizeExtensions(raw.extensions);
+      if (extensions) story.extensions = extensions;
+      return story;
     });
 
-    return {
+    const normalized = {
       version: VERSION,
       title: typeof input.title === "string" ? input.title.slice(0, 120) : "",
       categories,
       items,
       stories
     };
+    const extensions = normalizeExtensions(input.extensions);
+    if (extensions) normalized.extensions = extensions;
+    return normalized;
   }
 
   function blankTimeline() {
@@ -1232,25 +1255,37 @@
     showStatus("Example timeline loaded.");
   });
 
+  function applyImportedTimeline(imported, statusPrefix = "Imported", warningCount = 0) {
+    state = normalizeTimeline(imported);
+    ui.search = "";
+    ui.categoryFilter = "all";
+    ui.activeStoryId = null;
+    ui.storyCursor = 0;
+    els.search.value = "";
+    resetItemForm();
+    resetStoryForm();
+    resetCategoryForm();
+    persist();
+    renderAll();
+    const warningText = warningCount ? ` · ${warningCount} conversion ${warningCount === 1 ? "warning" : "warnings"}` : "";
+    showStatus(`${statusPrefix} ${state.items.length} ${state.items.length === 1 ? "item" : "items"} and ${state.stories.length} ${state.stories.length === 1 ? "story" : "stories"}${warningText}.`);
+  }
+
   els.importJson.addEventListener("change", async () => {
     const file = els.importJson.files?.[0];
     if (!file) return;
     try {
       if (file.size > 5_000_000) throw new Error("Import is limited to 5 MB.");
-      const imported = normalizeTimeline(JSON.parse(await file.text()));
+      const raw = JSON.parse(await file.text());
+      const timeGraphics = globalThis.TimeGraphicsAdapter;
+      const converted = timeGraphics?.isLikelyTimeGraphics(raw) ? timeGraphics.importData(raw) : null;
+      const imported = converted?.timeline || raw;
       if ((state.items.length || state.stories.length) && !window.confirm("Replace the current timeline with the imported file?")) return;
-      state = imported;
-      ui.search = "";
-      ui.categoryFilter = "all";
-      ui.activeStoryId = null;
-      ui.storyCursor = 0;
-      els.search.value = "";
-      resetItemForm();
-      resetStoryForm();
-      resetCategoryForm();
-      persist();
-      renderAll();
-      showStatus(`Imported ${state.items.length} ${state.items.length === 1 ? "item" : "items"} and ${state.stories.length} ${state.stories.length === 1 ? "story" : "stories"}.`);
+      applyImportedTimeline(
+        imported,
+        converted ? "Imported Time.Graphics" : "Imported",
+        converted?.warnings?.length || 0
+      );
     } catch (error) {
       showStatus(error instanceof Error ? error.message : "Could not import that file.");
     } finally {
@@ -1258,9 +1293,42 @@
     }
   });
 
+  els.importTimeGraphics.addEventListener("change", async () => {
+    const file = els.importTimeGraphics.files?.[0];
+    if (!file) return;
+    try {
+      if (file.size > 5_000_000) throw new Error("Import is limited to 5 MB.");
+      const adapter = globalThis.TimeGraphicsAdapter;
+      if (!adapter) throw new Error("Time.Graphics adapter is unavailable.");
+      const converted = adapter.importData(await file.text());
+      if ((state.items.length || state.stories.length) && !window.confirm("Replace the current timeline with the Time.Graphics export?")) return;
+      applyImportedTimeline(converted.timeline, "Imported Time.Graphics", converted.warnings.length);
+      if (converted.warnings.length) console.warn("Time.Graphics import warnings:", converted.warnings);
+    } catch (error) {
+      showStatus(error instanceof Error ? error.message : "Could not import that Time.Graphics export.");
+    } finally {
+      els.importTimeGraphics.value = "";
+    }
+  });
+
   els.exportJson.addEventListener("click", () => {
     download(`${JSON.stringify(state, null, 2)}\n`, `${slug(state.title)}.json`, "application/json;charset=utf-8");
     showStatus("JSON exported.");
+  });
+
+  els.exportTimeGraphics.addEventListener("click", () => {
+    const adapter = globalThis.TimeGraphicsAdapter;
+    if (!adapter) {
+      showStatus("Time.Graphics adapter is unavailable.");
+      return;
+    }
+    const exported = adapter.exportData(state);
+    download(
+      `${JSON.stringify(exported, null, 2)}\n`,
+      `${slug(state.title)}.timegraphics.json`,
+      "application/json;charset=utf-8"
+    );
+    showStatus("Time.Graphics interchange JSON exported.");
   });
 
   els.exportMarkdown.addEventListener("click", () => {
