@@ -339,6 +339,7 @@
     itemId: document.querySelector("#item-id"),
     itemKind: document.querySelector("#item-kind"),
     itemCategory: document.querySelector("#item-category"),
+    itemLayoutVariant: document.querySelector("#item-layout-variant"),
     itemDateRange: document.querySelector("#item-date-range"),
     itemCalendarPopover: document.querySelector("#item-calendar-popover"),
     itemCalendarGrid: document.querySelector("#item-calendar-grid"),
@@ -369,6 +370,8 @@
     itemMediaRows: [...document.querySelectorAll("[data-media-slot]")],
     itemTagsDetails: document.querySelector("#item-tags-details"),
     itemTagRows: [...document.querySelectorAll("[data-tag-slot]")],
+    itemEvidenceDetails: document.querySelector("#item-evidence-details"),
+    itemEvidenceRows: [...document.querySelectorAll("[data-evidence-slot]")],
     itemLocationDetails: document.querySelector("#item-location-details"),
     itemLocationName: document.querySelector("#item-location-name"),
     itemLocationIdentifier: document.querySelector("#item-location-identifier"),
@@ -582,6 +585,9 @@
       return candidate;
     };
 
+    const evidence = evidenceStore.normalizeRecords(input.evidence);
+    const evidenceIds = new Set(evidence.map((record) => record.id));
+
     let sourceItems;
     if (Array.isArray(input.items)) {
       sourceItems = input.items;
@@ -639,6 +645,13 @@
       if (location) item.location = location;
       if (media.length) item.media = media;
       if (tags.length) item.tags = tags;
+      const variant = ["hero-split", "evidence-dossier", "editorial-mosaic"].includes(raw.presentation?.variant)
+        ? raw.presentation.variant
+        : "hero-split";
+      item.presentation = { variant };
+      item.evidenceIds = (Array.isArray(raw.evidenceIds) ? raw.evidenceIds : [])
+        .filter((id) => typeof id === "string" && evidenceIds.has(id))
+        .slice(0, 12);
       const extensions = normalizeExtensions(raw.extensions);
       if (extensions) item.extensions = extensions;
       return item;
@@ -680,7 +693,8 @@
       items,
       stories,
       entities: graphData.entities,
-      relationships: graphData.relationships
+      relationships: graphData.relationships,
+      evidence
     };
     const extensions = normalizeExtensions(input.extensions);
     if (extensions) normalized.extensions = extensions;
@@ -695,7 +709,8 @@
       items: [],
       stories: [],
       entities: [],
-      relationships: []
+      relationships: [],
+      evidence: []
     };
   }
 
