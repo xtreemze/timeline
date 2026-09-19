@@ -48,3 +48,7 @@ Stories, entities, temporal relationships, and evidence metadata are retained in
 The schema is published at `schemas/interchange-v1.schema.json`.
 
 This contract is intentionally vendor-neutral. Individual source adapters may recognize additional aliases, but the rest of Timeline should work only with canonical chronology, temporal, spatial, media, tag, entity, relationship, story, and extension structures.
+
+## Relation lifecycle preservation
+
+Event-level `relationChanges[]` are preserved on exported event/period records. Relationship `initialState` and other edge metadata are preserved under the `_timeline.relationships` envelope. This allows activate/deactivate/update history to round-trip without flattening the graph to its latest visible state.
