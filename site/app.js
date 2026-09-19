@@ -930,6 +930,14 @@
       els.browserSheet.hidden = !ui.browserOpen;
       els.browserSheet.setAttribute("aria-hidden", String(!ui.browserOpen));
     }
+    if (els.title) {
+      els.title.readOnly = !editing;
+      els.title.tabIndex = editing ? 0 : -1;
+      els.title.setAttribute("aria-readonly", String(!editing));
+    }
+    for (const control of [els.loadSample, els.importJsonTrigger, els.importInterchangeTrigger, els.clear]) {
+      if (control) control.disabled = !editing;
+    }
     if (els.editorToggle) {
       els.editorToggle.setAttribute("aria-expanded", String(ui.editorOpen));
       els.editorToggle.setAttribute("aria-pressed", String(editing));
@@ -1231,9 +1239,7 @@
       actions.append(focus);
     }
     actions.append(
-      actionButton("Focus", "focus-item", `Focus ${item.title}`),
-      actionButton("Edit", "edit-item", `Edit ${item.title}`),
-      actionButton("Delete", "delete-item", `Delete ${item.title}`, "delete")
+      actionButton("Focus", "focus-item", `Focus ${item.title}`)
     );
     top.append(heading, actions);
 
@@ -2489,8 +2495,14 @@
     if (els.projectMenu?.matches?.(":popover-open")) els.projectMenu.hidePopover();
   }
 
-  els.importJsonTrigger?.addEventListener("click", () => els.importJson?.click());
-  els.importInterchangeTrigger?.addEventListener("click", () => els.importInterchange?.click());
+  els.importJsonTrigger?.addEventListener("click", () => {
+    if (ui.mode !== "edit") return;
+    els.importJson?.click();
+  });
+  els.importInterchangeTrigger?.addEventListener("click", () => {
+    if (ui.mode !== "edit") return;
+    els.importInterchange?.click();
+  });
   els.projectMenu?.addEventListener("click", (event) => {
     const action = event.target.closest("[data-project-menu-close]");
     if (!action) return;
@@ -2822,8 +2834,6 @@
       setBrowserSurfaceOpen(false);
       timelineView?.focusItem(itemElement.dataset.id);
     }
-    if (button.dataset.action === "edit-item") beginItemEdit(itemElement.dataset.id);
-    if (button.dataset.action === "delete-item") removeItem(itemElement.dataset.id);
     if (button.dataset.action === "story-focus") {
       ui.storyCursor = Number(button.dataset.storyIndex);
       renderTimeline();
@@ -3070,12 +3080,14 @@
   });
 
   els.title.addEventListener("input", () => {
+    if (ui.mode !== "edit") return;
     state.title = els.title.value.slice(0, 120);
     els.heading.textContent = state.title.trim() || "Untitled timeline";
     persist();
   });
 
   els.loadSample.addEventListener("click", () => {
+    if (ui.mode !== "edit") return;
     if ((state.items.length || state.stories.length) && !window.confirm("Replace the current timeline with the example dataset?")) return;
     timelineView?.closeFocus();
     state = normalizeTimeline(clone(SAMPLE));
@@ -3113,6 +3125,7 @@
   }
 
   els.importJson.addEventListener("change", async () => {
+    if (ui.mode !== "edit") return;
     const file = els.importJson.files?.[0];
     if (!file) return;
     try {
@@ -3136,6 +3149,7 @@
   });
 
   els.importInterchange.addEventListener("change", async () => {
+    if (ui.mode !== "edit") return;
     const file = els.importInterchange.files?.[0];
     if (!file) return;
     try {
@@ -3180,6 +3194,7 @@
   });
 
   els.clear.addEventListener("click", () => {
+    if (ui.mode !== "edit") return;
     if ((state.items.length || state.stories.length || state.title) && !window.confirm("Clear this timeline? This removes its locally stored items and stories.")) return;
     timelineView?.closeFocus();
     state = blankTimeline();
