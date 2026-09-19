@@ -81,7 +81,9 @@ Events can reference reusable evidence records through `evidenceIds[]`. Supporte
 
 Evidence metadata—title, source, URL, date, explanatory note, file metadata—is part of the portable timeline document. Uploaded PDF bytes are stored separately in IndexedDB under the evidence ID and are intentionally **not** embedded in JSON or interchange exports. This avoids turning local chronology files into large binary containers.
 
-The focused event composition includes a dedicated Evidence section. An attachment means “this source is offered in support of this event/claim”; Timeline does not automatically infer truth, evidentiary weight, or causation from attachment alone.
+Evidence records can optionally preserve forensic identity and integrity metadata: source/original filename and locator, exhibit/root-exhibit identifiers, source/acquired-copy/derived-artifact class, explicit digest values, acquisition time/person/method/place/tool, source-item identity, and derived-artifact lineage. The canonical document also preserves separate timestamped `custodyActions[]`; custody history is not represented by overwriting a single current-custodian field.
+
+The focused event composition includes a dedicated Evidence section and surfaces available forensic class, exhibit and digest metadata. An attachment means “this source is offered in support of this event/claim”; Timeline does not automatically infer truth, evidentiary weight, authenticity, admissibility, or causation from attachment alone.
 
 See `docs/EVIDENCE-MODEL.md`.
 
