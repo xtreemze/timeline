@@ -120,6 +120,7 @@
       this.drag = null;
       this.touchPointers = new Map();
       this.pinch = null;
+      this.suppressClickUntil = 0;
       this.resizeObserver = null;
       this.focusResizeFrame = 0;
       this.renderFrame = 0;
@@ -168,9 +169,14 @@
       );
 
       this.surface.addEventListener("click", (event) => {
+        if (performance.now() < this.suppressClickUntil) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
         if (!this.selectedId || event.target.closest("button, a, input, select, textarea")) return;
         this.closeFocus();
-      });
+      }, true);
 
       const beginSurfaceDrag = (pointerId, point, sourceEvent = null) => {
         if (!this.viewport) return;
@@ -239,7 +245,8 @@
       };
 
       this.surface.addEventListener("pointerdown", (event) => {
-        if (!this.viewport || !this.items.length || event.button !== 0 || event.target.closest("button")) return;
+        if (!this.viewport || !this.items.length || event.button !== 0) return;
+        const interactiveTarget = event.target.closest("button, a, input, select, textarea");
 
         if (event.pointerType === "touch") {
           this.touchPointers.set(event.pointerId, {
@@ -251,6 +258,9 @@
             beginPinch();
             return;
           }
+          if (interactiveTarget) return;
+        } else if (interactiveTarget) {
+          return;
         }
 
         if (this.pinch) return;
@@ -320,6 +330,7 @@
         }
 
         if (wasPinching) {
+          this.suppressClickUntil = performance.now() + 450;
           this.drag = null;
           this.surface.classList.remove("is-panning");
           if (this.touchPointers.size >= 2) {
