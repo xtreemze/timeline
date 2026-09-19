@@ -435,9 +435,12 @@
       els.presentationFullscreenToggle.setAttribute("aria-pressed", String(active));
       els.presentationFullscreenToggle.textContent = active ? "Exit full screen" : "Present full screen";
     }
-    const contextual = syncContextualPresentationPanels();
-    if (!active && !timelineView?.hasFocusedItem?.()) {
-      ui.graphOpen = graphOpenBeforeFullscreen && ui.graphOpen;
+    syncContextualPresentationPanels();
+    if (active && timelineView?.hasFocusedItem?.()) {
+      requestAnimationFrame(() => {
+        timelineView?.ensureFocusPopover?.();
+        requestAnimationFrame(() => timelineView?.ensureFocusPopover?.());
+      });
     }
     if (els.viewControls) els.viewControls.hidden = !(active || ui.viewControlsOpen);
     temporalGraphView?.setPresentationMode?.(presentationModeActive());
@@ -953,6 +956,11 @@
     if (except !== "editor") ui.editorOpen = false;
     if (except !== "browser") ui.browserOpen = false;
     if (except !== "graph") ui.graphOpen = false;
+    if (except !== "view") ui.viewControlsOpen = false;
+  }
+
+  function closeFocusedEventForUtility() {
+    if (timelineView?.hasFocusedItem?.()) timelineView.closeFocus();
   }
 
   function setEditorSurfaceOpen(open) {
@@ -961,8 +969,8 @@
     ui.editorOpen = editing;
     if (editing) {
       closeLargeUtilitySurfaces("editor");
-      ui.viewControlsOpen = false;
-      if (timelineView?.hasFocusedItem?.()) timelineView.closeFocus();
+      closeProjectMenu();
+      closeFocusedEventForUtility();
     }
     syncApplicationSurfaces();
   }
@@ -970,7 +978,11 @@
   function setBrowserSurfaceOpen(open) {
     if (ui.mode === "edit") return;
     ui.browserOpen = Boolean(open);
-    if (ui.browserOpen) closeLargeUtilitySurfaces("browser");
+    if (ui.browserOpen) {
+      closeLargeUtilitySurfaces("browser");
+      closeProjectMenu();
+      closeFocusedEventForUtility();
+    }
     syncApplicationSurfaces();
     if (ui.browserOpen) requestAnimationFrame(() => els.search?.focus({ preventScroll: true }));
   }
@@ -978,13 +990,23 @@
   function setGraphSurfaceOpen(open) {
     if (ui.mode === "edit") return;
     ui.graphOpen = Boolean(open);
-    if (ui.graphOpen) closeLargeUtilitySurfaces("graph");
+    if (ui.graphOpen) {
+      closeLargeUtilitySurfaces("graph");
+      closeProjectMenu();
+      closeFocusedEventForUtility();
+    }
     syncApplicationSurfaces();
+    if (ui.graphOpen) requestAnimationFrame(() => temporalGraphView?.refreshLayout?.());
   }
 
   function setViewControlsOpen(open) {
     if (ui.mode === "edit") return;
     ui.viewControlsOpen = Boolean(open);
+    if (ui.viewControlsOpen) {
+      closeLargeUtilitySurfaces("view");
+      closeProjectMenu();
+      closeFocusedEventForUtility();
+    }
     syncApplicationSurfaces();
   }
 
@@ -2994,6 +3016,10 @@
 
   els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
     const focused = Boolean(event.detail?.focused);
+    if (focused) {
+      closeLargeUtilitySurfaces("focus");
+      closeProjectMenu();
+    }
     els.appShell.classList.toggle("is-event-focused", focused);
     temporalGraphView?.setFocus(focused ? event.detail?.id : null);
     focusedGraphContextAvailable = focused && Boolean(temporalGraphView?.hasContext?.());
