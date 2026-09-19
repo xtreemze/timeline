@@ -517,7 +517,7 @@ test("focused popover uses a two-row overview with Evidence as a separate tab", 
   assert.match(source, /evidence\.hidden = true/);
   assert.match(css, /timeline-focus-view\[popover\][\s\S]*padding-top:\s*0/);
   assert.match(css, /data-active-tab="overview"[\s\S]*timeline-focus-summary[\s\S]*padding-top:\s*3\.2rem/);
-  assert.match(css, /data-active-tab="overview"[\s\S]*data-active-tab="evidence"[\s\S]*grid-template-rows:\s*minmax\(180px, min\(27dvh, 250px\)\)\s*minmax\(120px, min\(34dvh, 300px\)\)/);
+  assert.match(css, /data-active-tab="overview"[\s\S]*data-active-tab="evidence"[\s\S]*grid-template-rows:\s*clamp\(240px, 30dvh, 290px\)\s*clamp\(120px, 18dvh, 160px\)/);
   assert.match(css, /data-active-tab="evidence"[\s\S]*timeline-focus-evidence[\s\S]*grid-row:\s*2 !important/);
 });
 
