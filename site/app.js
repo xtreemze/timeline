@@ -2361,6 +2361,11 @@
     requestAnimationFrame(() => timelineView?.focusItem(id));
   });
 
+  els.graphViewRoot.addEventListener("graphstoryfocus", (event) => {
+    const id = event.detail?.id;
+    if (id && getStory(id)) focusStory(id);
+  });
+
   els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
     els.appShell.classList.toggle("is-event-focused", Boolean(event.detail?.focused));
   });
