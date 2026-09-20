@@ -606,9 +606,10 @@ test("focused popover keeps one hero composition while Overview and Evidence own
 });
 
 test("fullscreen preserves the left workspace tool dock inside the fullscreen subtree", async () => {
-  const [app, styles] = await Promise.all([
+  const [app, styles, timelineCss] = await Promise.all([
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
   ]);
   assert.match(app, /appToolDock:\s*document\.querySelector\("\.app-tool-dock"\)/);
   assert.match(app, /timeline-tool-dock-home/);
@@ -616,6 +617,9 @@ test("fullscreen preserves the left workspace tool dock inside the fullscreen su
   assert.match(app, /function positionWorkspaceToolDock\(\)[\s\S]*projectMenuToggle\.getBoundingClientRect\(\)[\s\S]*dataset\.timelineOrientation = orientation/);
   assert.match(app, /orientation === "portrait"[\s\S]*triggerRect\.left - dockWidth - gap[\s\S]*triggerRect\.top \+ \(triggerRect\.height - dockHeight\) \/ 2/);
   assert.match(app, /preferredTop = triggerRect\.bottom \+ gap[\s\S]*triggerRect\.left \+ \(triggerRect\.width - dockWidth\) \/ 2/);
+  assert.match(timelineCss, /app-tool-dock\[data-project-anchored="true"\]\[data-timeline-orientation="landscape"\][\s\S]*flex-direction:\s*column/);
+  assert.match(timelineCss, /app-tool-dock\[data-project-anchored="true"\]\[data-timeline-orientation="portrait"\][\s\S]*flex-direction:\s*row/);
+  assert.match(timelineCss, /Project-aligned Browse\/Edit controls[\s\S]*z-index:\s*1420[\s\S]*pointer-events:\s*auto[\s\S]*app-tool[\s\S]*pointer-events:\s*auto/);
   assert.match(app, /mountFullscreenToolDock/);
   assert.match(app, /restoreToolDock/);
   assert.match(app, /if \(active\)[\s\S]*mountFullscreenToolDock\(\)/);
