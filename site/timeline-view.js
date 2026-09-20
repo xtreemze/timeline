@@ -1814,7 +1814,7 @@
       };
 
       reserveTopChrome(document.querySelector(".app-command-bar"));
-      reserveBottomChrome(document.querySelector(".timeline-view-toolbar:not([hidden])"));
+      reserveBottomChrome(document.querySelector(".timeline-view-toolbar:popover-open"));
       reserveBottomChrome(document.querySelector(".app-view-tool"));
 
       const dock = document.querySelector(".app-tool-dock");

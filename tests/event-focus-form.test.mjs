@@ -420,7 +420,10 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.doesNotMatch(app, /viewControlsOpen \|\| presentationIsFullscreen\(\)/);
   assert.match(app, /viewControlsToggle\?\.addEventListener\("click", \(\) => setViewControlsOpen\(!ui\.viewControlsOpen\)\)/);
   assert.doesNotMatch(app, /viewControls\.hidden\s*=/);
+  assert.doesNotMatch(timelineCss, /timeline-view-toolbar:not\(\[hidden\]\)/);
+  assert.match(timelineCss, /timeline-view-toolbar\[popover\]:popover-open/);
   assert.match(styles, /\.timeline-view-toolbar\[popover\][\s\S]*max-inline-size:[\s\S]*max-block-size:[\s\S]*overflow-x:\s*auto/);
+  assert.match(styles, /\.app-view-controls\[popover\]:popover-open[\s\S]*display:\s*flex/);
   assert.match(app, /setActivePanel\("items", \{ open: false \}\)/);
 });
 
@@ -802,7 +805,7 @@ test("focused popover stays opposite chronology and reserves persistent applicat
   assert.match(source, /FOCUS_POPOVER_MARGIN = 12/);
   assert.match(source, /focusChromeInsets\(\)/);
   assert.match(source, /reserveTopChrome\(document\.querySelector\("\.app-command-bar"\)\)/);
-  assert.match(source, /reserveBottomChrome\(document\.querySelector\("\.timeline-view-toolbar:not\(\[hidden\]\)"\)\)/);
+  assert.match(source, /reserveBottomChrome\(document\.querySelector\("\.timeline-view-toolbar:popover-open"\)\)/);
   assert.match(source, /reserveBottomChrome\(document\.querySelector\("\.app-view-tool"\)\)/);
   assert.match(source, /document\.querySelector\("\.app-tool-dock"\)/);
   assert.match(source, /contextualTimelineDocked[\s\S]*viewportWidth - timelineRect\.left/);
