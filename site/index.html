@@ -85,16 +85,13 @@
       </div>
     </header>
 
-    <section id="app-shell" class="app-shell" aria-label="Timeline application" data-mode="view" data-editor-open="false" data-browser-open="false" data-graph-open="false" data-view-controls-open="false">
+    <section id="app-shell" class="app-shell" aria-label="Timeline application" data-mode="view" data-editor-open="false" data-browser-open="false" data-graph-open="true" data-view-controls-open="false">
       <nav class="app-tool-dock" aria-label="Workspace tools">
         <button id="editor-toggle" class="app-tool" type="button" data-semantic-icon="note" aria-controls="control-panel" aria-expanded="false" aria-pressed="false">
           <span class="app-tool-label">Edit</span>
         </button>
         <button id="timeline-browser-toggle" class="app-tool" type="button" data-semantic-icon="search" aria-controls="timeline-browser-sheet" aria-expanded="false">
           <span class="app-tool-label">Browse</span>
-        </button>
-        <button id="graph-lens-toggle" class="app-tool" type="button" data-semantic-icon="relation" aria-controls="graph-lens" aria-expanded="false">
-          <span class="app-tool-label">Relations</span>
         </button>
       </nav>
       <button id="timeline-view-controls-toggle" class="app-tool app-view-tool" type="button" data-semantic-icon="magic" aria-controls="timeline-view-toolbar" aria-expanded="false" title="View controls">
@@ -1117,12 +1114,12 @@
             </div>
             <span id="timeline-window-readout" class="timeline-window-readout" aria-live="polite">No visible events</span>
           </div>
-          <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan with inertia. Scroll or pinch over the timeline for slow pointer-anchored zoom. The View zoom slider runs from whole chronology context, through the focused event with two neighboring events, to a solo focused-event view. Home fits the currently visible or filtered chronology; Shift+Home fits the full chronology. Selecting an event enters a full focused composition. In focused presentation mode, Left and Right move between events, Up and Down move between photographs, Space or media Play/Pause toggles automatic advance, and Escape or Browser Back returns. Standard gamepads and TV remote D-pads use the same commands. Any manual interaction pauses automatic advance. Press F while the presentation stage has focus to enter or leave full screen; the timeline always remains visible, while relation graph and place map surfaces appear only when the focused event provides that context.</p>
+          <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan with inertia. Scroll or pinch over the timeline for slow pointer-anchored zoom. The View zoom slider runs from whole chronology context, through the focused event with two neighboring events, to a solo focused-event view. Home fits the currently visible or filtered chronology; Shift+Home fits the full chronology. Selecting an event enters a full focused composition. In focused presentation mode, Left and Right move between events, Up and Down move between photographs, Space or media Play/Pause toggles automatic advance, and Escape or Browser Back returns. Standard gamepads and TV remote D-pads use the same commands. Any manual interaction pauses automatic advance. Press F while the presentation stage has focus to enter or leave full screen; the timeline and relation graph remain visible, and focused detail opens above the graph while place context appears when available.</p>
           <div id="timeline-surface" class="timeline-surface is-landscape" tabindex="0" role="group" aria-describedby="timeline-surface-help"></div>
           <section id="timeline-focus-view" class="timeline-focus-view" popover="manual" aria-live="polite" hidden></section>
         </section>
 
-        <section id="graph-lens" class="graph-lens graph-surface" aria-label="Temporal relation graph" hidden>
+        <section id="graph-lens" class="graph-lens graph-surface" aria-label="Temporal relation graph">
           <div id="temporal-graph-view" class="temporal-graph-view">
             <span class="sr-only" data-graph-window>All time</span>
             <span class="sr-only" data-graph-status aria-live="polite">0 relations in window</span>
