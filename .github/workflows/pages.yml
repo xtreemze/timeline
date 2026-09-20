@@ -65,6 +65,8 @@ jobs:
           node --check site/timeline-migration.js
           node --check site/spatial.js
           node --check site/location-map.js
+          node --check site/webmcp.js
+          node --check site/memgraph-interchange.js
           node --check site/app.js
 
       - name: Validate application
