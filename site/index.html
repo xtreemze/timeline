@@ -1093,21 +1093,23 @@
               </label>
               <span id="timeline-zoom-level-hint" class="sr-only">Farthest shows the whole timeline context. The middle centers the focused event with two neighboring events. Closest isolates the focused event.</span>
             </div>
-            <div class="timeline-auto-controls" data-auto-control role="group" aria-label="Automatic advance">
-              <button id="timeline-auto-toggle" class="button secondary" type="button" aria-pressed="false">Auto</button>
-              <label class="timeline-auto-timer">
-                <span>Timer</span>
-                <input id="timeline-auto-seconds" type="number" min="2" max="3600" step="1" value="10" inputmode="numeric" aria-label="Auto advance timer in seconds">
+            <div class="timeline-auto-controls" data-auto-control role="group" aria-label="Slideshow">
+              <button id="timeline-auto-toggle" class="view-icon-button" type="button" data-semantic-icon="play" aria-pressed="false" aria-keyshortcuts="Space" aria-label="Play slideshow" title="Play slideshow">
+                <span class="sr-only">Play slideshow</span>
+              </button>
+              <label class="timeline-auto-timer" title="Slideshow interval">
+                <span class="sr-only">Slideshow interval</span>
+                <input id="timeline-auto-seconds" type="number" min="2" max="3600" step="1" value="10" inputmode="numeric" aria-label="Slideshow interval in seconds">
                 <span aria-hidden="true">s</span>
               </label>
-              <span id="timeline-auto-status" class="timeline-auto-status" aria-live="polite">Off</span>
+              <span id="timeline-auto-status" class="timeline-auto-status sr-only" aria-live="polite">Slideshow stopped</span>
             </div>
             <div class="presentation-controls" role="group" aria-label="Presentation display">
               <button id="presentation-fullscreen-toggle" class="view-icon-button" type="button" data-semantic-icon="fullscreen" aria-pressed="false" aria-keyshortcuts="F" aria-label="Enter full screen" title="Enter full screen">
                 <span class="sr-only">Enter full screen</span>
               </button>
             </div>
-            <span id="timeline-window-readout" class="timeline-window-readout" aria-live="polite">No visible events</span>
+            <span id="timeline-window-readout" class="timeline-window-readout toolbar-readout" aria-live="polite">No visible events</span>
           </div>
           <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan with inertia. Scroll or pinch over the timeline for slow pointer-anchored zoom. The View zoom slider runs from whole chronology context, through the focused event with two neighboring events, to a solo focused-event view. Home fits the currently visible or filtered chronology; Shift+Home fits the full chronology. Selecting an event enters a full focused composition. In focused presentation mode, Left and Right move between events, Up and Down move between photographs, Space or media Play/Pause toggles automatic advance, and Escape or Browser Back returns. Standard gamepads and TV remote D-pads use the same commands. Any manual interaction pauses automatic advance. Press F while the presentation stage has focus to enter or leave full screen; the timeline and relation graph remain visible, with focused detail layered above the graph and place context shown when the focused event provides it.</p>
           <div id="timeline-surface" class="timeline-surface is-landscape" tabindex="0" role="group" aria-describedby="timeline-surface-help"></div>
