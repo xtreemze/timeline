@@ -5,6 +5,10 @@
   const PAN_RESPONSE_MS = 78;
   const STOP_VELOCITY_PX_PER_MS = 0.012;
   const MAX_RELEASE_VELOCITY_PX_PER_MS = 3.2;
+  const MAX_RELEASE_SPEED_PX_PER_S = MAX_RELEASE_VELOCITY_PX_PER_MS * 1000;
+  const CAMERA_INERTIA_DECELERATION_PX_PER_S2 = Math.round(
+    MAX_RELEASE_SPEED_PX_PER_S / (2 * (INERTIA_TAU_MS / 1000))
+  );
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -67,6 +71,54 @@
     return target;
   }
 
+  function appendPointerVectorSamples(samples, event, maxSamples = 24) {
+    const target = Array.isArray(samples) ? samples : [];
+    for (const pointerEvent of coalescedPointerEvents(event)) {
+      const x = Number(pointerEvent.clientX);
+      const y = Number(pointerEvent.clientY);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      target.push({
+        x,
+        y,
+        time: Number(pointerEvent.timeStamp) || performance.now()
+      });
+    }
+    if (target.length > maxSamples) target.splice(0, target.length - maxSamples);
+    return target;
+  }
+
+  function estimatePointerVectorVelocity(samples, windowMs = 90) {
+    const source = Array.isArray(samples)
+      ? samples.filter((sample) =>
+          sample &&
+          Number.isFinite(sample.x) &&
+          Number.isFinite(sample.y) &&
+          Number.isFinite(sample.time)
+        )
+      : [];
+    if (source.length < 2) return { x: 0, y: 0, magnitude: 0 };
+
+    const last = source[source.length - 1];
+    const minimumTime = last.time - Math.max(16, Number(windowMs) || 90);
+    let first = source[0];
+    for (let index = source.length - 2; index >= 0; index -= 1) {
+      if (source[index].time < minimumTime) break;
+      first = source[index];
+    }
+
+    const elapsed = Math.max(1, last.time - first.time);
+    let x = (last.x - first.x) / elapsed;
+    let y = (last.y - first.y) / elapsed;
+    let magnitude = Math.hypot(x, y);
+    if (magnitude > MAX_RELEASE_VELOCITY_PX_PER_MS) {
+      const scale = MAX_RELEASE_VELOCITY_PX_PER_MS / magnitude;
+      x *= scale;
+      y *= scale;
+      magnitude = MAX_RELEASE_VELOCITY_PX_PER_MS;
+    }
+    return { x, y, magnitude };
+  }
+
   async function gamepadPulse(duration, magnitude) {
     if (typeof navigator === "undefined" || typeof navigator.getGamepads !== "function") return false;
     const gamepads = Array.from(navigator.getGamepads() || []).filter(Boolean);
@@ -119,9 +171,14 @@
     INERTIA_TAU_MS,
     PAN_RESPONSE_MS,
     STOP_VELOCITY_PX_PER_MS,
+    MAX_RELEASE_VELOCITY_PX_PER_MS,
+    MAX_RELEASE_SPEED_PX_PER_S,
+    CAMERA_INERTIA_DECELERATION_PX_PER_S2,
     appendPointerSamples,
+    appendPointerVectorSamples,
     decayVelocity,
     estimatePointerVelocity,
+    estimatePointerVectorVelocity,
     pulseHaptic,
     responseForElapsed
   });
