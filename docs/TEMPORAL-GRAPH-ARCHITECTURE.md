@@ -97,9 +97,10 @@ Top-level data may include:
     {
       "id": "rel-1",
       "subjectId": "person-a",
-      "objectId": "event-1",
-      "predicate": "participant",
+      "objectId": "place-a",
+      "predicate": "witnessedAt",
       "role": "witness",
+      "itemIds": ["event-1"],
       "time": {
         "type": "interval",
         "start": {
@@ -121,7 +122,7 @@ Top-level data may include:
 }
 ```
 
-A temporal relationship is projected into the timeline relation band using its own start/end coordinates. Untimed relationships remain valid graph edges but do not appear in that temporal band.
+A temporal relationship is projected into the timeline relation band using its own start/end coordinates. Its endpoints remain entity nodes; `itemIds[]` links the action back to relevant chronology records without creating event nodes. Untimed relationships remain valid graph edges only when they still describe a concrete action relation, but they do not appear in the temporal band.
 
 ## Memgraph Orb compatibility
 
