@@ -540,3 +540,17 @@ test("timeline pinch zoom tracks two touch pointers and keeps the temporal ancho
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   assert.match(css, /\.timeline-surface\s*\{[\s\S]*touch-action:\s*none/);
 });
+
+
+test("timeline double tap zooms toward the tapped temporal coordinate without competing with pan or pinch", async () => {
+  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  assert.match(source, /DOUBLE_TAP_ZOOM_FACTOR\s*=\s*0\.5/);
+  assert.match(source, /TOUCH_DOUBLE_TAP_MS\s*=\s*320/);
+  assert.match(source, /this\.touchTap = null/);
+  assert.match(source, /const registerTouchTap = \(event, tap\) =>/);
+  assert.match(source, /Math\.hypot\(point\.x - previous\.x, point\.y - previous\.y\).*TOUCH_DOUBLE_TAP_DISTANCE_PX/s);
+  assert.match(source, /const ratio = clamp\(\(primary - padding\) \/ usable, 0, 1\)/);
+  assert.match(source, /this\.queueZoom\(DOUBLE_TAP_ZOOM_FACTOR, ratio\)/);
+  assert.match(source, /distance > TOUCH_TAP_MOVE_TOLERANCE_PX[\s\S]*this\.lastTouchTap = null/);
+  assert.match(source, /beginPinch[\s\S]*this\.touchTap = null[\s\S]*this\.lastTouchTap = null/);
+});
