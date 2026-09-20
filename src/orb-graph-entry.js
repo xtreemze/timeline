@@ -267,7 +267,19 @@ function create(container, handlers = {}) {
     orb.setSettings({ interaction: { isDragEnabled: enabled } });
   }
 
+  function syncCameraZoomState() {
+    const canvas = orb.canvas;
+    const transform = orb?._renderer?.transform;
+    if (!canvas || !transform) return;
+    // D3 zoom updates canvas.__zoom before Orb's zoom callback runs. When
+    // camera ownership is disabled, Orb intentionally ignores that callback,
+    // so reset D3's private state to the renderer's authoritative transform
+    // before changing ownership to avoid a jump on the next touch gesture.
+    canvas.__zoom = transform;
+  }
+
   function setZoomEnabled(enabled) {
+    syncCameraZoomState();
     orb.setSettings({ interaction: { isZoomEnabled: enabled } });
   }
 
@@ -755,6 +767,8 @@ function create(container, handlers = {}) {
 
   function onTouchEnd(event) {
     if (event.touches?.length) return;
+    activeTouchPointers.clear();
+    cameraGesture = null;
     if (touchHold?.activated) {
       finishActiveTouchNodeDrag();
       finishTouchGesture();
@@ -762,6 +776,21 @@ function create(container, handlers = {}) {
     }
     finishTouchGesture();
   }
+
+  function abortTouchInteraction() {
+    cancelCameraInertia();
+    cameraGesture = null;
+    touchTap = null;
+    lastTouchTap = null;
+    activeTouchPointers.clear();
+    if (touchHold?.activated) finishActiveTouchNodeDrag();
+    finishTouchGesture();
+  }
+
+  const onWindowBlur = () => abortTouchInteraction();
+  const onVisibilityChange = () => {
+    if (document.visibilityState === "hidden") abortTouchInteraction();
+  };
 
   const onClickCapture = (event) => {
     if (performance.now() >= suppressGraphClickUntil) return;
@@ -785,6 +814,8 @@ function create(container, handlers = {}) {
   container.addEventListener("lostpointercapture", onLostPointerCapture, { capture: true });
   container.addEventListener("touchend", onTouchEnd);
   container.addEventListener("touchcancel", onTouchEnd);
+  globalThis.addEventListener?.("blur", onWindowBlur);
+  document.addEventListener("visibilitychange", onVisibilityChange);
 
   function nodeStyle(data) {
     const type = semanticType(data);
@@ -1202,6 +1233,8 @@ function create(container, handlers = {}) {
       container.removeEventListener("lostpointercapture", onLostPointerCapture, true);
       container.removeEventListener("touchend", onTouchEnd);
       container.removeEventListener("touchcancel", onTouchEnd);
+      globalThis.removeEventListener?.("blur", onWindowBlur);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       orb.events.off(OrbEventType.NODE_CLICK, onNodeClick);
       orb.events.off(OrbEventType.EDGE_CLICK, onEdgeClick);
       orb.events.off(OrbEventType.NODE_DRAG_START, onNodeDragStart);
