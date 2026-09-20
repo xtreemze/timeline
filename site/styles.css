@@ -2693,8 +2693,8 @@ body {
 }
 
 
-/* Graph exploration is a canvas, not a card/dialog. All chrome and inspectors are
-   intentionally absent; the global Relations tool is the open/close affordance. */
+/* The relation graph is a persistent workspace canvas, not a card/dialog. All chrome and
+   inspectors remain absent; focused detail popovers layer above this stage-level surface. */
 .graph-lens > summary,
 .temporal-graph-toolbar,
 .temporal-graph-detail {
