@@ -99,4 +99,3 @@ test("Browse and Edit are vertical sidebars without horizontal scrolling", async
   assert.match(architecture, /vertical right-side workspace columns at every viewport size/);
   assert.match(architecture, /Horizontal overflow is a layout defect/);
 });
-
