@@ -160,8 +160,8 @@ test("temporal context progressively sheds detail as zoom broadens", () => {
     },
     spec: { unit: "year", step: 1 }
   });
-  assert.equal(yearPlan.mode, "axis-only");
-  assert.deepEqual(yearPlan.edgeAccents, []);
+  assert.equal(yearPlan.mode, "year-edge");
+  assert.deepEqual(yearPlan.edgeAccents.map((accent) => accent.label), ["1000"]);
 });
 
 test("temporal accent planner keeps full month-year accents only when they cannot overlap", () => {
