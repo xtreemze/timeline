@@ -1056,6 +1056,27 @@
     element.hidden = !message;
   }
 
+  function syncUtilityPopover(element, open) {
+    if (!element) return;
+    const supportsPopover =
+      typeof element.showPopover === "function" &&
+      typeof element.hidePopover === "function";
+    if (!supportsPopover) {
+      element.hidden = !open;
+      element.setAttribute("aria-hidden", String(!open));
+      return;
+    }
+
+    if (open) {
+      element.hidden = false;
+      if (!element.matches(":popover-open")) element.showPopover();
+    } else {
+      if (element.matches(":popover-open")) element.hidePopover();
+      element.hidden = true;
+    }
+    element.setAttribute("aria-hidden", String(!open));
+  }
+
   function syncApplicationSurfaces() {
     if (ui.mode !== "edit") ui.editorOpen = false;
     const editing = ui.mode === "edit";
@@ -1067,14 +1088,8 @@
       els.appShell.dataset.viewControlsOpen = String(ui.viewControlsOpen);
     }
 
-    if (els.controlPanel) {
-      els.controlPanel.hidden = !ui.editorOpen;
-      els.controlPanel.setAttribute("aria-hidden", String(!ui.editorOpen));
-    }
-    if (els.browserSheet) {
-      els.browserSheet.hidden = !ui.browserOpen;
-      els.browserSheet.setAttribute("aria-hidden", String(!ui.browserOpen));
-    }
+    syncUtilityPopover(els.controlPanel, ui.editorOpen);
+    syncUtilityPopover(els.browserSheet, ui.browserOpen);
     if (els.title) {
       els.title.readOnly = !editing;
       els.title.tabIndex = editing ? 0 : -1;
@@ -1129,7 +1144,7 @@
       closeProjectMenu();
       closeFocusedEventForUtility();
     }
-    syncApplicationSurfaces();
+    runApplicationViewTransition(() => syncApplicationSurfaces());
   }
 
   function setBrowserSurfaceOpen(open) {
@@ -1140,7 +1155,7 @@
       closeProjectMenu();
       closeFocusedEventForUtility();
     }
-    syncApplicationSurfaces();
+    runApplicationViewTransition(() => syncApplicationSurfaces());
     if (ui.browserOpen) {
       requestAnimationFrame(() => {
         const firstStory = els.browserStoryList?.querySelector(".browser-story-card");
