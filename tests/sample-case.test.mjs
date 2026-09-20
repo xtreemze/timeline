@@ -309,7 +309,7 @@ test("Cinderella includes household formation, practical transformation, palace 
 
 test("detailed stories add graph and place depth without conflating categories with stories", () => {
   assert.ok(sample.items.length >= 55);
-  assert.ok(sample.entities.length >= 30);
+  assert.ok(sample.entities.length >= 40);
   assert.ok(sample.places.length >= 27);
   assert.ok(sample.relationships.length >= 46);
   assert.ok(sample.relationships.filter((relationship) => relationship.time?.start?.value).length >= 30);
@@ -373,6 +373,7 @@ test("chronology items remain edge context and never become graph nodes", () => 
   for (const relationship of sample.relationships) {
     assert.ok(entityIds.has(relationship.subjectId), `${relationship.id}: subject must be an entity node`);
     assert.ok(entityIds.has(relationship.objectId), `${relationship.id}: object must be an entity node`);
+    assert.notEqual(relationship.subjectId, relationship.objectId, `${relationship.id}: self-loop edges are forbidden`);
     assert.equal(itemIds.has(relationship.subjectId), false, `${relationship.id}: event cannot be a subject node`);
     assert.equal(itemIds.has(relationship.objectId), false, `${relationship.id}: event cannot be an object node`);
     assert.equal(storyIds.has(relationship.subjectId), false, `${relationship.id}: story cannot be a subject node`);
