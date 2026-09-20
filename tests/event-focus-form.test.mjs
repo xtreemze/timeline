@@ -420,12 +420,14 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(app, /viewControls\?\.addEventListener\("toggle",[\s\S]*syncViewControlsChrome\(\)/);
   assert.match(app, /viewControlsToggle\?\.addEventListener\("click",[\s\S]*viewControlsAreOpen\(\)[\s\S]*closeLargeUtilitySurfaces\("view"\)[\s\S]*syncApplicationSurfaces\(\)/);
   assert.doesNotMatch(app, /viewControlsOpen:\s*false|ui\.viewControlsOpen/);
-  assert.doesNotMatch(app, /function syncViewControlsSurface|function positionViewControls|--view-controls-(?:top|left)/);
+  assert.doesNotMatch(app, /function syncViewControlsSurface|viewControlsOpen:\s*false|ui\.viewControlsOpen/);
+  assert.match(app, /function positionViewControls\(\)[\s\S]*viewControlsToggle\.getBoundingClientRect\(\)[\s\S]*viewControls\.getBoundingClientRect\(\)/);
   assert.doesNotMatch(app, /viewControls\.hidden\s*=/);
   assert.doesNotMatch(timelineCss, /timeline-view-toolbar:not\(\[hidden\]\)/);
   assert.doesNotMatch(timelineCss, /\.timeline-view-toolbar\s*\{[^}]*display\s*:/s);
   assert.match(timelineCss, /Canonical View popover contract/);
-  assert.match(timelineCss, /right:\s*anchor\(right\)[\s\S]*bottom:\s*calc\(anchor\(top\) \+ \.5rem\)[\s\S]*position-try-fallbacks:/);
+  assert.match(timelineCss, /top:\s*var\(--view-controls-top, auto\)[\s\S]*left:\s*var\(--view-controls-left, auto\)/);
+  assert.doesNotMatch(timelineCss, /anchor\(right\)|anchor\(top\)|position-try-fallbacks/);
   assert.doesNotMatch(styles, /\.app-view-controls\[popover\]:popover-open/);
   assert.match(app, /setActivePanel\("items", \{ open: false \}\)/);
 });
