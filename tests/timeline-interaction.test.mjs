@@ -771,7 +771,7 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(timelineCss, /\.timeline-zoom-scale[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar:not\(\[hidden\]\)[\s\S]*bottom:\s*max\(4\.35rem/);
   assert.match(timelineCss, /\.timeline-auto-controls[\s\S]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto/);
-  assert.match(timelineCss, /Mobile Relations composition/);
+  assert.match(timelineCss, /Mobile persistent relation composition/);
   assert.match(timelineCss, /--mobile-relations-rail:\s*clamp\(88px, 25dvw, 116px\)/);
   assert.match(timelineCss, /:has\(> #timeline-view\[data-orientation="portrait"\]\)[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*right:\s*calc\(var\(--mobile-relations-rail\)/);
   assert.match(timelineCss, /#timeline-view\[data-orientation="portrait"\] > \.timeline-surface[\s\S]*width:\s*var\(--mobile-relations-rail\)/);
@@ -795,13 +795,15 @@ test("shared camera motion exposes capped two-dimensional release velocity and m
   assert.equal(motion.CAMERA_INERTIA_DECELERATION_PX_PER_S2, 3810);
 });
 
-test("relations mode docks chronology opposite the graph inside chrome-safe bounds", async () => {
-  const [timelineCss, appSource] = await Promise.all([
+test("persistent relation graph docks opposite chronology and stays behind focused detail", async () => {
+  const [timelineCss, appSource, indexSource, viewSource] = await Promise.all([
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8")
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8")
   ]);
 
-  assert.match(timelineCss, /Relations edge docking/);
+  assert.match(timelineCss, /Persistent relation-graph docking/);
   assert.match(timelineCss, /@media \(min-width:\s*700px\)[\s\S]*--relations-inline-rail:\s*clamp\(280px, 28dvw, 400px\)/);
   assert.match(timelineCss, /--relations-top-safe:\s*max\(4\.55rem,[\s\S]*safe-area-inset-top/);
   assert.match(timelineCss, /data-orientation="portrait"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*right:\s*calc\(var\(--relations-inline-rail\)[\s\S]*left:\s*var\(--relations-left-safe\)/);
@@ -809,7 +811,12 @@ test("relations mode docks chronology opposite the graph inside chrome-safe boun
   assert.match(timelineCss, /data-orientation="landscape"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*bottom:\s*calc\(var\(--relations-bottom-safe\) \+ var\(--relations-block-rail\)/);
   assert.match(timelineCss, /data-orientation="landscape"\] > \.timeline-surface[\s\S]*--timeline-axis-cross:\s*42%[\s\S]*height:\s*var\(--relations-block-rail\)/);
   assert.match(timelineCss, /@media \(min-width:\s*900px\)[\s\S]*--relations-left-safe:\s*max\(5\.45rem,[\s\S]*safe-area-inset-left[\s\S]*--relations-bottom-safe:\s*max\(\.55rem/);
-  assert.match(timelineCss, /Mobile Relations composition[\s\S]*data-orientation="portrait"[\s\S]*--timeline-axis-cross:\s*42%/);
-  assert.match(timelineCss, /Mobile Relations composition[\s\S]*data-orientation="landscape"[\s\S]*--timeline-axis-cross:\s*38%/);
-  assert.match(appSource, /function setGraphSurfaceOpen[\s\S]*runApplicationViewTransition\(\(\) => syncApplicationSurfaces\(\)\)/);
+  assert.match(timelineCss, /Mobile persistent relation composition[\s\S]*data-orientation="portrait"[\s\S]*--timeline-axis-cross:\s*42%/);
+  assert.match(timelineCss, /Mobile persistent relation composition[\s\S]*data-orientation="landscape"[\s\S]*--timeline-axis-cross:\s*38%/);
+  assert.match(timelineCss, /#presentation-stage:fullscreen > \.graph-lens \{\s*display:\s*block !important;/);
+  assert.doesNotMatch(indexSource, /id="graph-lens-toggle"/);
+  assert.match(indexSource, /id="graph-lens"[^>]*aria-label="Persistent temporal relation graph"/);
+  assert.match(appSource, /els\.graphLens\.hidden = false/);
+  assert.doesNotMatch(appSource, /setGraphSurfaceOpen|mountGraphBackdrop|ui\.graphOpen/);
+  assert.doesNotMatch(viewSource, /focusGraphSlot|timeline-focus-relations-backdrop/);
 });
