@@ -622,7 +622,7 @@ test("focused popover runtime owns its final width and height budget", async () 
     readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
   ]);
-  assert.match(source, /const preferredWidth = compact[\s\S]*this\.orientation === "vertical"[\s\S]*\? \(desktop \? 620 : 520\)[\s\S]*: \(desktop \? 760 : 640\)/);
+  assert.match(source, /const preferredWidth = mobileFocusLayout[\s\S]*compactAvailableWidth[\s\S]*: compact[\s\S]*rawAvailableWidth[\s\S]*this\.orientation === "vertical"[\s\S]*\? \(desktop \? 620 : 520\)[\s\S]*: \(desktop \? 760 : 640\)/);
   assert.match(source, /const minimumDesktopWidth = this\.orientation === "vertical" \? 480 : 560/);
   assert.match(source, /rawAvailableWidth < minimumDesktopWidth[\s\S]*unreservedWidth >= minimumDesktopWidth/);
   assert.match(source, /this\.focusView\.style\.inlineSize = Math\.round\(targetWidth\) \+ "px"/);
