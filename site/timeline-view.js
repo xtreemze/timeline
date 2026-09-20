@@ -103,6 +103,7 @@
       this.surface = root.querySelector("#timeline-surface");
       this.focusView = root.querySelector("#timeline-focus-view");
       this.readout = root.querySelector("#timeline-window-readout");
+      this.projectHeading = root.querySelector(".timeline-project-heading");
       this.orientationToggle = root.querySelector("#timeline-orientation-toggle");
       this.zoomSlider = root.querySelector("#timeline-zoom-level");
       this.items = [];
@@ -489,6 +490,7 @@
         });
         this.resizeObserver.observe(this.surface);
         this.resizeObserver.observe(this.focusView);
+        if (this.projectHeading) this.resizeObserver.observe(this.projectHeading);
       } else {
         window.addEventListener("resize", () => {
           this.scheduleRender();
@@ -1022,6 +1024,28 @@
       void motion.pulseHaptic("cluster");
     }
 
+    clearTemporalAccentFromProjectHeading(label) {
+      if (!label || !this.projectHeading) return;
+      const labelRect = label.getBoundingClientRect?.();
+      const headingRect = this.projectHeading.getBoundingClientRect?.();
+      if (!labelRect || !headingRect || headingRect.width <= 0 || headingRect.height <= 0) return;
+
+      const gap = 10;
+      const intersects =
+        labelRect.left < headingRect.right + gap &&
+        labelRect.right > headingRect.left - gap &&
+        labelRect.top < headingRect.bottom + gap &&
+        labelRect.bottom > headingRect.top - gap;
+      if (!intersects) return;
+
+      const clearance = this.orientation === "horizontal"
+        ? headingRect.height + gap
+        : headingRect.width + gap;
+      label.classList.add("avoids-project-heading");
+      label.style.setProperty("--timeline-project-heading-clearance", `${Math.ceil(clearance)}px`);
+      label.dataset.projectHeadingCollision = "avoided";
+    }
+
     renderTemporalAccents(stage, plan) {
       for (const accent of plan.edgeAccents) {
         const className = accent.kind === "year"
@@ -1033,6 +1057,7 @@
         if (this.orientation === "horizontal") label.style.left = accent.position + "px";
         else label.style.top = accent.position + "px";
         stage.append(label);
+        this.clearTemporalAccentFromProjectHeading(label);
       }
 
       for (const month of plan.axisMonths) {

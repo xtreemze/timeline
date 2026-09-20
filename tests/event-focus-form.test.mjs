@@ -378,6 +378,7 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(timelineCss, /timeline-focus-view[\s\S]*grid-template-columns:\s*repeat\(6,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(timelineCss, /Compact application presentation contract/);
   assert.match(timelineCss, /\.timeline-project-heading\s*\{[\s\S]*position:\s*absolute/);
+  assert.match(timelineCss, /\.is-portrait \.timeline-month-accent\.avoids-project-heading[\s\S]*right:\s*calc\(7px \+ var\(--timeline-project-heading-clearance, 52px\)\)/);
   assert.match(timelineCss, /\.timeline-view\[data-orientation="portrait"\] \.timeline-project-title input[\s\S]*writing-mode:\s*vertical-rl/);
   assert.match(timelineCss, /data-timeline-orientation="horizontal"[\s\S]*\.timeline-project-heading[\s\S]*bottom:\s*calc\(var\(--timeline-context-edge-span\) - 2\.8rem\)/);
   assert.match(app, /function positionProjectMenu\(\)[\s\S]*projectMenuToggle\.getBoundingClientRect\(\)/);
