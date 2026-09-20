@@ -34,7 +34,7 @@ The application is static and runs entirely in the browser. Timeline data is sto
 - Attach up to three photographs to an event and browse them as a hero slideshow in focused view.
 - Add semantic tags with selectable icons and hue-only theming; lightness/chroma and foreground contrast stay under design-system control and meaning never depends on color alone.
 - Select an event to give it the full 12-column chronology workspace; the editor yields the screen, the event becomes an asymmetric composition, and the timeline docks to an edge for context.
-- Focus framing is density-aware: if the selected event is fused into a cluster, Timeline zooms toward a unique terminal; if it is already unique, Timeline expands toward the nearest one or two events for relative context. Identical timestamps are explicitly pinned out of the residual cluster because no amount of temporal zoom can separate equal coordinates.
+- Focus framing zooms the chronology inward around the selected event. Nearby preceding/following events are retained when they fit the local frame, distant neighbours never force a zoom-out, clustered events zoom further toward a unique terminal, and identical timestamps stay lane-separated because no amount of temporal zoom can separate equal coordinates. Previous/Next navigation preserves the established focused scale unless additional collision separation is required.
 - Choose among three focused-event grid compositions: **Hero split**, **Evidence dossier**, and **Editorial mosaic**.
 - Move explicitly to the previous or next focused event without leaving the composition.
 - Run a configurable auto-advance presentation timer; any manual interaction pauses it until explicitly resumed.
