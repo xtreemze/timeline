@@ -59,6 +59,8 @@ test("timeline exposes semantic zoom while retaining keyboard fit commands", asy
   assert.match(htmlSource, /id="presentation-fullscreen-toggle"[^>]*data-semantic-icon="fullscreen"/);
   assert.match(viewSource, /setSemanticZoom\(value\)/);
   assert.match(viewSource, /semanticContextItems\(item\)/);
+  assert.match(viewSource, /clearTemporalAccentFromProjectHeading\(label\)[\s\S]*getBoundingClientRect[\s\S]*avoids-project-heading/);
+  assert.match(viewSource, /resizeObserver\.observe\(this\.projectHeading\)/);
   assert.match(viewSource, /while \(selected\.length < 2/);
   assert.match(viewSource, /this\.soloZoomActive = normalized >= 99/);
   assert.match(viewSource, /fitVisible\(\)/);
