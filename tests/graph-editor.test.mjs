@@ -223,3 +223,14 @@ test("touch node long press is armed from capture-phase hit testing before Orb d
   assert.match(bridge, /touchHold\.activated = true[\s\S]*setDragEnabled\(true\)[\s\S]*setInteractionHeat\(DRAG_ALPHA_TARGET\)/);
   assert.doesNotMatch(bridge, /onNodeDragStart[\s\S]{0,180}beginTouchHold/);
 });
+
+
+test("touch graph gesture ownership separates node drag from graph pan and pinch", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+  assert.match(bridge, /function setZoomEnabled\(enabled\)[\s\S]*isZoomEnabled:\s*enabled/);
+  assert.match(bridge, /function finishTouchGesture\(\)[\s\S]*setDragEnabled\(true\)[\s\S]*setZoomEnabled\(true\)/);
+  assert.match(bridge, /function cancelPendingTouchHold\(\)[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(true\)/);
+  assert.match(bridge, /function beginTouchHold\([\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(true\)[\s\S]*TOUCH_NODE_HOLD_MS/);
+  assert.match(bridge, /touchHold\.activated = true[\s\S]*setDragEnabled\(true\)[\s\S]*setZoomEnabled\(false\)/);
+  assert.match(bridge, /activeTouchPointers\.size > 1[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(true\)/);
+});
