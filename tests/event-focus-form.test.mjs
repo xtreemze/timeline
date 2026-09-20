@@ -910,8 +910,8 @@ test("mobile focused-event composition stays opposite chronology and keeps compa
 
   assert.match(source, /createElement\("button", "button primary", "Close"\)/);
   assert.match(source, /close\.setAttribute\("aria-label", "Return to timeline"\)/);
-  assert.match(source, /mobileFocusRail = compact[\s\S]*clamp\(bounds\.viewportWidth \* 0\.24, 84, 108\)/);
-  assert.match(source, /compactAvailableWidth = compact && this\.orientation === "vertical"[\s\S]*rawAvailableWidth - mobileFocusRail - mobileFocusGap/);
-  assert.match(source, /compactAvailableHeight = compact && this\.orientation === "horizontal"[\s\S]*availableHeight - mobileFocusRail - mobileFocusGap/);
-  assert.match(source, /left = compact[\s\S]*bounds\.left[\s\S]*top = bounds\.top/);
+  assert.match(source, /mobileFocusLayout = bounds\.viewportWidth <= 699[\s\S]*mobileFocusRail = mobileFocusLayout[\s\S]*clamp\(bounds\.viewportWidth \* 0\.24, 84, 108\)/);
+  assert.match(source, /compactAvailableWidth = mobileFocusLayout && this\.orientation === "vertical"[\s\S]*rawAvailableWidth - mobileFocusRail - mobileFocusGap/);
+  assert.match(source, /compactAvailableHeight = mobileFocusLayout && this\.orientation === "horizontal"[\s\S]*availableHeight - mobileFocusRail - mobileFocusGap/);
+  assert.match(source, /left = mobileFocusLayout[\s\S]*bounds\.left[\s\S]*top = bounds\.top/);
 });
