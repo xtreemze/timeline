@@ -80,6 +80,7 @@ test("Browse and Edit reserve workspace layout space around the persistent graph
   assert.match(css, /#app-shell\[data-browser-open="true"\]\s*>\s*\.timeline-panel\s*>\s*\.app-browser-sheet\s*\{[\s\S]*position:\s*relative/);
   assert.match(css, /@media \(min-width:\s*760px\)[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) clamp\(320px, 34vw, 440px\)/);
   assert.match(css, /#app-shell\[data-browser-open="true"\] #presentation-stage:not\(:fullscreen\)\s*\{[\s\S]*position:\s*relative/);
+  assert.match(css, /#app-shell:is\([\s\S]*data-editor-open="true"[\s\S]*data-browser-open="true"[\s\S]*#presentation-stage:not\(:fullscreen\) > \.graph-lens:not\(\[hidden\]\)[\s\S]*position:\s*absolute/);
   assert.match(architecture, /Browse and Edit participate in workspace layout geometry/);
   assert.match(architecture, /reflow the workspace rather than layering over it/);
 });
