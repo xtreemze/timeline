@@ -353,7 +353,7 @@
 }
 
 .is-landscape .timeline-month-accent.avoids-project-heading {
-  bottom: calc(8px + var(--timeline-project-heading-clearance, 52px));
+  bottom: 8px;
 }
 .is-portrait .timeline-month-accent.avoids-project-heading {
   right: calc(7px + var(--timeline-project-heading-clearance, 52px));
