@@ -503,10 +503,14 @@ test("graph semantics reject action nodes and generic association predicates", (
   assert.equal(graph.validateEntityNode({ name: "Stockholm", type: "place" }).valid, false);
   assert.equal(graph.validateEntityNode({ name: "Alice", type: "person", attributes: { location: "Stockholm" } }).valid, false);
 
-  for (const predicate of ["participatesIn", "part of", "took part in", "memberOf", "relatedTo", "associatedWith", "metAt", "visitedNear", "searchedDuring"]) {
+  for (const predicate of [
+    "participatesIn", "part of", "took part in", "memberOf", "relatedTo", "associatedWith",
+    "metAt", "visitedNear", "searchedDuring", "attacksBrickHouse", "dancesWithCinderella",
+    "poisonsApple", "ordersKilling", "keepsVigilBeside"
+  ]) {
     assert.equal(graph.validateActionPredicate(predicate).valid, false, predicate);
   }
-  for (const predicate of ["called", "warned", "built", "transferredTo", "authorized"]) {
+  for (const predicate of ["called", "warned", "built", "transferredTo", "authorized", "dancesWith", "searchesFor", "descendsThrough"]) {
     assert.equal(graph.validateActionPredicate(predicate).valid, true, predicate);
   }
 
@@ -520,6 +524,19 @@ test("graph semantics reject action nodes and generic association predicates", (
     ]
   });
   assert.deepEqual(normalized.relationships, []);
+
+  const invalidSelfLoop = graph.validateGraphInput({
+    entities: [{ id: "a", type: "person", name: "A" }],
+    relationships: [{ id: "self", subjectId: "a", objectId: "a", predicate: "called" }]
+  });
+  assert.ok(invalidSelfLoop.some((error) => /source and target must be different entity nodes/.test(error)));
+  assert.deepEqual(
+    graph.normalizeGraphData({
+      entities: [{ id: "a", type: "person", name: "A" }],
+      relationships: [{ id: "self", subjectId: "a", objectId: "a", predicate: "called" }]
+    }).relationships,
+    []
+  );
 
   const invalidContext = graph.validateGraphInput({
     entities: [
@@ -550,6 +567,24 @@ test("graph semantics reject action nodes and generic association predicates", (
   assert.ok(invalidPlaces.some((error) => /unsupported marker shape/.test(error)));
   assert.equal(graph.contextPropertyKey("geometry"), true);
   assert.equal(graph.contextPropertyKey("channel"), false);
+});
+
+test("graph records cannot retain timeline category membership in arbitrary attributes", () => {
+  const normalized = graph.normalizeGraphData({
+    entities: [
+      { id: "a", type: "person", name: "A", attributes: { categoryId: "people", occupation: "builder" } },
+      { id: "b", type: "person", name: "B" }
+    ],
+    relationships: [{
+      id: "r", subjectId: "a", objectId: "b", predicate: "called",
+      attributes: { category: "communication", groupId: "story-like-group", channel: "phone" }
+    }]
+  });
+  assert.equal(normalized.entities[0].attributes.categoryId, undefined);
+  assert.equal(normalized.entities[0].attributes.occupation, "builder");
+  assert.equal(normalized.relationships[0].attributes.category, undefined);
+  assert.equal(normalized.relationships[0].attributes.groupId, undefined);
+  assert.equal(normalized.relationships[0].attributes.channel, "phone");
 });
 
 test("legacy place nodes and item locations migrate into reusable edge place context", () => {
@@ -592,6 +627,25 @@ test("legacy place nodes and item locations migrate into reusable edge place con
   assert.equal("location" in migrated.items[0], false);
   assert.ok(migrated.relationships.every((edge) => edge.placeId));
   assert.equal(migrated.relationships.find((edge) => edge.id === "legacy-place-edge")?.predicate, "met");
+});
+
+test("focused event popover is compact, shows range duration, and uses dot-only media controls", async () => {
+  const [source, css] = await Promise.all([
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+  assert.ok(source.includes("function formatElapsedDuration"));
+  assert.ok(source.includes("Duration ${duration}"));
+  assert.ok(source.includes("timeline-focus-slide-dot"));
+  assert.ok(source.includes("Show image ${index + 1} of ${media.length}"));
+  assert.equal(source.includes("timeline-focus-slide-count"), false);
+  assert.equal(source.includes("timeline-focus-media-caption"), false);
+  assert.equal(source.includes('createElement("h3", "timeline-focus-section-heading"'), false);
+  assert.ok(source.includes('summary.setAttribute("aria-label", "Context")'));
+  assert.ok(source.includes('place.setAttribute("aria-label", "Place")'));
+  assert.ok(source.includes('relations.setAttribute("aria-label", "Relations")'));
+  assert.ok(source.includes('evidence.setAttribute("aria-label", "Evidence")'));
+  assert.ok(css.includes(".timeline-focus-slide-dot"));
 });
 
 test("timeline CSS uses Monaspace texture healing and metric-aware text trimming", async () => {
