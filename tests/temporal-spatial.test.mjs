@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 await import("../site/temporal-standards.js");
+await import("../site/timeline-migration.js");
 await import("../site/spatial.js");
 
 const temporal = globalThis.TimelineTemporal;
+const migration = globalThis.TimelineMigration;
 const spatial = globalThis.TimelineSpatial;
 
 test("parses ISO 8601 calendar dates and progressively precise local date-times", () => {
@@ -280,4 +282,77 @@ test("treats malformed external temporal values as untrusted", () => {
   assert.equal(temporal.endpointFrom("2026-13"), null);
   assert.equal(temporal.endpointFrom({ value: "2026-09-19" }), null);
   assert.equal(temporal.normalizeExtent(null, "<script>", null, "event"), null);
+});
+
+
+test("retains the complete original v2 payload exactly once during temporal migration", () => {
+  const source = {
+    version: 2,
+    title: "Legacy",
+    categories: [{ id: "incident", name: "Incident", color: "#b42318" }],
+    items: [{
+      id: "legacy-event",
+      kind: "event",
+      start: "2026-09-19T12:06",
+      end: null,
+      title: "Legacy event",
+      description: "Original v2 record",
+      categoryId: "incident"
+    }],
+    stories: [{ id: "story-a", title: "Story", itemIds: ["legacy-event"] }],
+    extensions: { vendorExample: { keep: true } }
+  };
+
+  const extensions = migration.extensionsWithRetainedV2(source);
+  assert.deepEqual(
+    extensions.timelineMigration.originalV2,
+    source,
+    "the retained payload is a verbatim structural clone of the imported v2 source"
+  );
+  assert.equal(extensions.timelineMigration.sourceVersion, 2);
+  assert.equal(extensions.timelineMigration.temporalSchema, "v3");
+  assert.deepEqual(extensions.vendorExample, { keep: true });
+
+  source.items[0].title = "Mutated after capture";
+  assert.equal(
+    extensions.timelineMigration.originalV2.items[0].title,
+    "Legacy event",
+    "retained migration provenance does not share mutable references with source state"
+  );
+});
+
+test("re-normalizing a migrated payload preserves the original v2 source without recursive envelopes", () => {
+  const original = {
+    version: 2,
+    title: "Legacy",
+    items: [{ id: "a", kind: "event", start: "2026-09-19", title: "A", categoryId: "incident" }]
+  };
+  const first = {
+    ...original,
+    extensions: migration.extensionsWithRetainedV2(original)
+  };
+  const secondExtensions = migration.extensionsWithRetainedV2(first);
+
+  assert.deepEqual(secondExtensions.timelineMigration.originalV2, original);
+  assert.equal(
+    secondExtensions.timelineMigration.originalV2.extensions?.timelineMigration,
+    undefined,
+    "the original payload never contains a nested copy of its own migration envelope"
+  );
+  assert.deepEqual(migration.originalV2Payload({ extensions: secondExtensions }), original);
+});
+
+test("current structured-temporal projects are not mislabeled as legacy v2 migrations", () => {
+  const current = {
+    version: 2,
+    items: [{
+      id: "current",
+      kind: "event",
+      start: "2026-09-20",
+      time: { type: "instant", start: { value: "2026-09-20", precision: "day", certainty: "exact" }, end: null },
+      title: "Current"
+    }]
+  };
+  assert.equal(migration.isLegacyV2Timeline(current), false);
+  assert.equal(migration.extensionsWithRetainedV2(current), undefined);
 });
