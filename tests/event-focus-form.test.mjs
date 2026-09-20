@@ -880,3 +880,34 @@ test("phone focus popovers collapse to one intrinsic-safe column after the appli
   assert.match(css, /\.timeline-focus-view\[popover\] > \*[\s\S]*min-inline-size:\s*0[\s\S]*max-inline-size:\s*100%/);
   assert.match(css, /@media \(min-width: 501px\)[\s\S]*grid-template-columns:\s*repeat\(6, minmax\(0, 1fr\)\) !important/);
 });
+
+
+test("mobile focused-event composition stays opposite chronology and keeps compact chrome", async () => {
+  const [html, css, source, styles] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(html, /id="project-menu-toggle"[^>]*aria-label="Project actions"/);
+  assert.match(styles, /Phone command bar refinement/);
+  assert.match(styles, /@media \(max-width: 460px\)[\s\S]*\.project-menu-toggle[\s\S]*width:\s*42px/);
+
+  assert.match(css, /Mobile focused-event composition/);
+  assert.match(css, /--mobile-focus-rail:\s*clamp\(84px, 24dvw, 108px\)/);
+  assert.match(
+    css,
+    /data-orientation="landscape"\] > \.timeline-focus-view:popover-open[\s\S]*bottom:\s*calc\(var\(--mobile-focus-bottom\) \+ var\(--mobile-focus-rail\)/
+  );
+  assert.match(
+    css,
+    /data-orientation="portrait"\] > \.timeline-focus-view:popover-open[\s\S]*right:\s*calc\(var\(--mobile-focus-rail\)/
+  );
+  assert.match(css, /\.timeline-focus-hero,[\s\S]*min-height:\s*clamp\(170px, 26dvh, 230px\)/);
+  assert.match(css, /timeline-focus-summary \.timeline-focus-actions[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(css, /:is\(\.timeline-focus-place, \.timeline-focus-relations\) \.timeline-focus-section-content[\s\S]*width:\s*min\(60%, 17rem\)/);
+
+  assert.match(source, /createElement\("button", "button primary", "Close"\)/);
+  assert.match(source, /close\.setAttribute\("aria-label", "Return to timeline"\)/);
+});
