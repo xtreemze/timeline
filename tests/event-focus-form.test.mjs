@@ -416,7 +416,9 @@ test("presentation map renders semantic GeoJSON features instead of an empty poi
   assert.match(mapSource, /semanticMarkerIcon/);
   assert.match(mapSource, /fitBounds/);
   assert.match(mapSource, /L\.circle/);
-  assert.match(app, /iconName/);
+  assert.match(app, /placeForItem\(item\.id\)/);
+  assert.match(app, /iconName:\s*place\.icon/);
+  assert.match(app, /markerShape:\s*place\.markerShape/);
   assert.match(app, /hasRenderableGeometry/);
   assert.match(styles, /\.timeline-map-marker-shell/);
 });
