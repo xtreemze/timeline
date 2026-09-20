@@ -773,10 +773,12 @@ test("timeline view assigns automatic lanes and honors a persisted manual lane i
     source.indexOf("createClusterNode(cluster"),
     source.indexOf("createEventNode(item")
   );
-  const eventSource = source.slice(
-    source.indexOf("createEventNode(item"),
-    source.indexOf("resolveEventLane(", source.indexOf("createEventNode(item"))
+  const eventStart = source.indexOf("createEventNode(item");
+  const eventEnd = source.indexOf(
+    "\n    resolveEventLane(position, occupied, minDistance",
+    eventStart
   );
+  const eventSource = source.slice(eventStart, eventEnd);
   assert.match(eventSource, /const lane = this\.resolveEventLane\(position, occupied, 236, item\.lane\)/);
   assert.match(eventSource, /const laneIndex = this\.resolveEventLane\(position, occupied, 78, item\.lane\)/);
   assert.doesNotMatch(clusterSource, /item\.lane/);
