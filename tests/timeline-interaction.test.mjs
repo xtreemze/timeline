@@ -859,13 +859,15 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
 
   assert.match(timelineCss, /Narrow-screen control composition/);
   assert.match(timelineCss, /Consolidated view control cluster/);
+  assert.match(htmlSource, /id="timeline-view-controls-toggle"[^>]*popovertarget="timeline-view-toolbar"[^>]*popovertargetaction="toggle"/, "View uses the native invoker relationship");
   assert.match(htmlSource, /id="timeline-view-toolbar"[^>]*popover="manual"/, "expanded View controls use the native popover top layer");
   assert.doesNotMatch(timelineCss, /timeline-view-toolbar:not\(\[hidden\]\)/, "closed popover must not be forced visible by legacy hidden selectors");
   assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*display:\s*flex/);
-  assert.match(timelineCss, /timeline-view-toolbar\[popover\]:popover-open[\s\S]*max-inline-size:[\s\S]*max-block-size:[\s\S]*overflow-y:\s*auto/);
+  assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar\[popover\]\s*\{[\s\S]*max-inline-size:[\s\S]*max-block-size:/);
+  assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*overflow-y:\s*auto/);
   assert.match(timelineCss, /\.timeline-zoom-control[\s\S]*grid-template-rows:\s*22px auto/);
   assert.match(timelineCss, /\.timeline-zoom-scale[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
-  assert.match(timelineCss, /Expanded View controls are positioned from the View trigger[\s\S]*top:\s*var\(--view-controls-top[\s\S]*left:\s*var\(--view-controls-left/);
+  assert.match(timelineCss, /Canonical View popover contract[\s\S]*right:\s*anchor\(right\)[\s\S]*bottom:\s*calc\(anchor\(top\) \+ \.5rem\)[\s\S]*position-try-fallbacks:/);
   assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*flex-wrap:\s*nowrap/);
   assert.match(timelineCss, /\.timeline-auto-controls[\s\S]*display:\s*flex[\s\S]*flex-wrap:\s*nowrap/);
   assert.doesNotMatch(timelineCss, /\.timeline-auto-controls[\s\S]{0,180}grid-column:\s*1 \/ -1/);
@@ -883,23 +885,29 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
 });
 
 
-test("View toolbar stays anchored to the View trigger and clamps to the visual viewport", async () => {
-  const [appSource, timelineCss] = await Promise.all([
+test("View toolbar uses native toggle state and anchor positioning without measured coordinates", async () => {
+  const [htmlSource, appSource, styles, timelineCss] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
   ]);
 
-  assert.match(appSource, /function positionViewControls\(\)[\s\S]*viewControlsToggle\.getBoundingClientRect\(\)[\s\S]*workspaceToolViewport\(\)/);
-  assert.match(appSource, /preferredTop = triggerRect\.top - toolbarHeight - gap[\s\S]*triggerRect\.right - toolbarWidth/);
-  assert.doesNotMatch(appSource, /preferredLeft = triggerRect\.left - toolbarWidth - gap/);
-  assert.match(appSource, /Math\.max\(minLeft, maxRight - toolbarWidth\)[\s\S]*Math\.max\(minTop, maxBottom - toolbarHeight\)/);
-  assert.match(appSource, /--view-controls-left/);
-  assert.match(appSource, /--view-controls-top/);
-  assert.match(appSource, /showPopover\(\)[\s\S]*positionViewControls\(\)/);
-  assert.match(appSource, /window\.visualViewport\?\.addEventListener\("resize", positionViewControls\)/);
-  assert.match(appSource, /window\.visualViewport\?\.addEventListener\("scroll", positionViewControls\)/);
-  assert.match(timelineCss, /#app-shell:not\(:has\(#presentation-stage:fullscreen\)\)[\s\S]*--view-controls-top[\s\S]*--view-controls-left/);
-  assert.match(timelineCss, /#presentation-stage:fullscreen \.timeline-view-toolbar:popover-open[\s\S]*top:\s*max\(\.4rem/);
+  assert.match(htmlSource, /id="timeline-view-controls-toggle"[^>]*popovertarget="timeline-view-toolbar"[^>]*popovertargetaction="toggle"/);
+  assert.match(appSource, /function viewControlsAreOpen\(\)[\s\S]*:popover-open/);
+  assert.match(appSource, /viewControls\?\.addEventListener\("toggle",[\s\S]*syncViewControlsChrome\(\)/);
+  assert.match(appSource, /function closeViewControls\(\)[\s\S]*hidePopover\(\)/);
+  assert.doesNotMatch(appSource, /viewControlsOpen:\s*false|ui\.viewControlsOpen/);
+  assert.doesNotMatch(appSource, /function positionViewControls\(|--view-controls-(?:left|top)/);
+  assert.doesNotMatch(appSource, /viewControlsToggle\.getBoundingClientRect\(\)|viewControls\.getBoundingClientRect\(\)/);
+  assert.doesNotMatch(styles, /\.app-view-controls\[popover\]:popover-open/);
+  assert.match(timelineCss, /Canonical View popover contract/);
+  assert.match(timelineCss, /@supports \(right: anchor\(right\)\) and \(bottom: anchor\(top\)\)/);
+  assert.match(timelineCss, /right:\s*anchor\(right\)[\s\S]*bottom:\s*calc\(anchor\(top\) \+ \.5rem\)/);
+  assert.match(timelineCss, /position-try-fallbacks:[\s\S]*flip-block[\s\S]*flip-inline/);
+  assert.match(timelineCss, /#presentation-stage:fullscreen \.timeline-view-toolbar:popover-open[\s\S]*position-anchor:\s*--timeline-view-fullscreen-unanchored/);
+  assert.doesNotMatch(timelineCss, /--view-controls-(?:left|top)/);
+  assert.doesNotMatch(timelineCss, /\.timeline-view-toolbar\s*\{[^}]*display\s*:/s);
 });
 
 test("View toolbar uses vertical composition when the semantic zoom control is vertical", async () => {
