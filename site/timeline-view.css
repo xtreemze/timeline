@@ -3238,105 +3238,7 @@
 
 /* Narrow-screen control composition: mobile is the constrained baseline, not a wrapped desktop toolbar. */
 @media (max-width: 699px) {
-  #app-shell .app-view-controls:not([hidden]) {
-    top: auto;
-    right: max(.35rem, env(safe-area-inset-right));
-    bottom: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
-    left: max(.35rem, env(safe-area-inset-left));
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    align-items: stretch;
-    width: auto;
-    max-width: none;
-    max-height: none;
-    padding: .38rem;
-    gap: .34rem;
-    overflow: visible;
-    border-radius: .82rem;
-  }
-
-  #app-shell .app-view-controls:not([hidden]) > * {
-    min-width: 0;
-    width: 100%;
-  }
-
-  #app-shell .timeline-orientation-control {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    padding: .16rem;
-    gap: .2rem;
-  }
-
-  #app-shell .timeline-orientation-control .button {
-    width: 100%;
-    min-width: 0;
-    min-height: 42px;
-    padding-inline: .42rem;
-  }
-
-  #app-shell .timeline-zoom-controls {
-    display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 44px;
-    gap: .24rem;
-  }
-
-  #app-shell .timeline-zoom-controls .button {
-    width: 100%;
-    min-width: 0;
-    min-height: 42px;
-    padding-inline: .35rem;
-  }
-
-  #app-shell .timeline-auto-controls {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: .28rem;
-    padding: .16rem;
-  }
-
-  #app-shell .timeline-auto-controls .button {
-    min-width: 64px;
-    min-height: 42px;
-  }
-
-  #app-shell .timeline-auto-timer {
-    display: grid;
-    grid-template-columns: auto minmax(3.1rem, 1fr) auto;
-    min-width: 0;
-    gap: .24rem;
-  }
-
-  #app-shell .timeline-auto-timer input {
-    width: 100%;
-    min-width: 0;
-    min-height: 38px;
-  }
-
-  #app-shell .timeline-auto-status {
-    min-width: 0;
-    padding-right: .32rem;
-    text-align: right;
-    white-space: nowrap;
-  }
-
-  #app-shell .presentation-controls .button {
-    width: 100%;
-    min-height: 42px;
-  }
-
-  #app-shell .timeline-window-readout {
-    min-width: 0;
-    width: 100%;
-    flex-basis: auto;
-    padding: .05rem .12rem 0;
-    overflow: hidden;
-    color: color-mix(in srgb, var(--muted) 88%, transparent);
-    font-size: .6rem;
-    line-height: 1.25;
-    text-align: left;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+  /* Timeline event sizing remains mobile-specific; view controls are defined above as one row. */
 
   #app-shell .timeline-event-terminal {
     max-width: min(62vw, 200px);
@@ -3367,20 +3269,6 @@
 }
 
 @media (max-width: 380px) {
-  #app-shell .timeline-zoom-controls {
-    grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1fr) 42px;
-  }
-
-  #app-shell .timeline-auto-controls {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  #app-shell .timeline-auto-status {
-    grid-column: 1 / -1;
-    padding: 0 .32rem .12rem;
-    text-align: left;
-  }
-
   #app-shell .timeline-event-terminal {
     max-width: min(60vw, 174px);
   }
@@ -3894,12 +3782,54 @@
 .timeline-zoom-scale span:nth-child(2) { text-align: center; }
 .timeline-zoom-scale span:last-child { text-align: right; }
 
+#app-shell .timeline-auto-controls {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  width: auto;
+  min-width: 0;
+  gap: .22rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+#app-shell .timeline-auto-controls .view-icon-button {
+  flex: 0 0 42px;
+}
+#app-shell .timeline-auto-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: .16rem;
+  min-width: 0;
+}
+#app-shell .timeline-auto-timer input {
+  width: 3.2rem;
+  min-width: 0;
+  min-height: 36px;
+  padding: .26rem .3rem;
+  text-align: center;
+}
+#app-shell .timeline-auto-timer > span[aria-hidden="true"] {
+  font-size: .62rem;
+}
+#app-shell .timeline-view-toolbar > .toolbar-readout {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 #app-shell .app-view-controls.timeline-view-toolbar:not([hidden]) {
   top: auto;
   right: max(.45rem, env(safe-area-inset-right));
   bottom: max(4.35rem, calc(env(safe-area-inset-bottom) + 4rem));
   left: auto;
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
   width: max-content;
@@ -3923,41 +3853,49 @@
     right: max(.35rem, env(safe-area-inset-right));
     bottom: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
     left: auto;
-    display: grid;
-    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    display: flex;
+    flex-wrap: nowrap;
     align-items: center;
-    width: min(410px, calc(100dvw - .7rem));
+    width: min(430px, calc(100dvw - .7rem));
     max-width: none;
-    padding: .34rem;
-    gap: .3rem;
-    overflow: visible;
+    padding: .32rem;
+    gap: .22rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  #app-shell .app-view-controls.timeline-view-toolbar:not([hidden])::-webkit-scrollbar {
+    display: none;
   }
 
   #app-shell .app-view-controls.timeline-view-toolbar:not([hidden]) > * {
     width: auto;
     min-width: 0;
+    flex: 0 0 auto;
   }
 
-  #app-shell .timeline-orientation-control {
-    display: flex;
-    grid-template-columns: none;
+  #app-shell .timeline-orientation-control,
+  #app-shell .presentation-controls {
     width: 42px;
   }
 
   #app-shell .timeline-zoom-controls {
     display: flex;
-    grid-template-columns: none;
-    width: 100%;
-    min-width: 0;
-  }
-
-  #app-shell .presentation-controls {
-    width: 42px;
+    width: auto;
+    min-width: 96px;
+    flex: 1 1 150px;
+    padding-inline: .32rem;
   }
 
   #app-shell .timeline-auto-controls {
-    grid-column: 1 / -1;
-    width: 100%;
+    display: flex;
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  #app-shell .timeline-auto-timer input {
+    width: 2.8rem;
   }
 
   #app-shell .presentation-controls .view-icon-button,
@@ -3970,11 +3908,20 @@
 
 @media (max-width: 380px) {
   #app-shell .timeline-zoom-controls {
-    display: flex;
-    grid-template-columns: none;
+    min-width: 76px;
+    padding: .3rem;
   }
+
+  .timeline-zoom-control {
+    grid-template-rows: 22px;
+  }
+
   .timeline-zoom-scale {
-    font-size: .5rem;
+    display: none;
+  }
+
+  #app-shell .timeline-auto-timer input {
+    width: 2.65rem;
   }
 }
 
