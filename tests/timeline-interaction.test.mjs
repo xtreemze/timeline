@@ -57,6 +57,8 @@ test("timeline exposes semantic zoom while retaining keyboard fit commands", asy
   assert.match(htmlSource, /Context[\s\S]*Focus[\s\S]*Solo/);
   assert.match(htmlSource, /id="timeline-orientation-toggle"[^>]*data-semantic-icon="portrait"/);
   assert.match(htmlSource, /id="presentation-fullscreen-toggle"[^>]*data-semantic-icon="fullscreen"/);
+  assert.match(htmlSource, /id="timeline-auto-toggle"[^>]*data-semantic-icon="play"[^>]*aria-label="Play slideshow"/);
+  assert.match(appSource, /setSemanticControlIcon\([\s\S]*playing \? "pause" : "play"[\s\S]*playing \? "Pause slideshow" : "Play slideshow"/);
   assert.match(viewSource, /setSemanticZoom\(value\)/);
   assert.match(viewSource, /semanticContextItems\(item\)/);
   assert.match(viewSource, /clearTemporalAccentFromProjectHeading\(label\)[\s\S]*getBoundingClientRect[\s\S]*avoids-project-heading/);
@@ -772,7 +774,9 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(timelineCss, /\.timeline-zoom-control[\s\S]*grid-template-rows:\s*22px auto/);
   assert.match(timelineCss, /\.timeline-zoom-scale[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar:not\(\[hidden\]\)[\s\S]*bottom:\s*max\(4\.35rem/);
-  assert.match(timelineCss, /\.timeline-auto-controls[\s\S]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto/);
+  assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar:not\(\[hidden\]\)[\s\S]*flex-wrap:\s*nowrap/);
+  assert.match(timelineCss, /\.timeline-auto-controls[\s\S]*display:\s*flex[\s\S]*flex-wrap:\s*nowrap/);
+  assert.doesNotMatch(timelineCss, /\.timeline-auto-controls[\s\S]{0,180}grid-column:\s*1 \/ -1/);
   assert.match(timelineCss, /Mobile persistent relation composition/);
   assert.match(timelineCss, /--mobile-relations-rail:\s*clamp\(88px, 25dvw, 116px\)/);
   assert.match(timelineCss, /:has\(> #timeline-view\[data-orientation="portrait"\]\)[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*right:\s*calc\(var\(--mobile-relations-rail\)/);
