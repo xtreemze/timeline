@@ -1565,21 +1565,24 @@
       const availableHeight = Math.max(1, bounds.viewportHeight - bounds.top - bounds.bottom);
       const desktop = bounds.viewportWidth >= 900 && bounds.viewportHeight >= 700;
       const compact = bounds.viewportWidth <= 760;
-      const mobileFocusRail = compact
+      const mobileFocusLayout = bounds.viewportWidth <= 699;
+      const mobileFocusRail = mobileFocusLayout
         ? clamp(bounds.viewportWidth * 0.24, 84, 108)
         : 0;
-      const mobileFocusGap = compact ? 4 : 0;
-      const compactAvailableWidth = compact && this.orientation === "vertical"
+      const mobileFocusGap = mobileFocusLayout ? 4 : 0;
+      const compactAvailableWidth = mobileFocusLayout && this.orientation === "vertical"
         ? Math.max(1, rawAvailableWidth - mobileFocusRail - mobileFocusGap)
         : rawAvailableWidth;
-      const compactAvailableHeight = compact && this.orientation === "horizontal"
+      const compactAvailableHeight = mobileFocusLayout && this.orientation === "horizontal"
         ? Math.max(1, availableHeight - mobileFocusRail - mobileFocusGap)
         : availableHeight;
-      const preferredWidth = compact
+      const preferredWidth = mobileFocusLayout
         ? compactAvailableWidth
-        : this.orientation === "vertical"
-          ? (desktop ? 620 : 520)
-          : (desktop ? 760 : 640);
+        : compact
+          ? rawAvailableWidth
+          : this.orientation === "vertical"
+            ? (desktop ? 620 : 520)
+            : (desktop ? 760 : 640);
       const minimumDesktopWidth = this.orientation === "vertical" ? 480 : 560;
       const unreservedWidth = Math.max(
         1,
@@ -1598,7 +1601,7 @@
       const preferredMaxHeight = this.orientation === "vertical"
         ? (desktop ? 700 : 660)
         : (desktop ? 500 : 640);
-      const targetMaxHeight = compact
+      const targetMaxHeight = mobileFocusLayout
         ? compactAvailableHeight
         : Math.max(1, Math.min(preferredMaxHeight, availableHeight));
 
@@ -1626,13 +1629,13 @@
         // Vertical chronology is docked on the right. On phones the detail consumes
         // the remaining left region rather than floating over the chronology rail.
         left = bounds.left;
-        top = compact
+        top = mobileFocusLayout
           ? bounds.top
           : bounds.top + Math.max(0, (availableHeight - height) / 2);
       } else {
         // Horizontal chronology is docked on the bottom. On phones the detail uses
         // the chrome-safe upper region and explicitly leaves the bottom rail exposed.
-        left = compact
+        left = mobileFocusLayout
           ? bounds.left
           : bounds.left + Math.max(0, (availableWidth - width) / 2);
         top = bounds.top;
