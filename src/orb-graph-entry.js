@@ -4,6 +4,8 @@ const LARGE_GRAPH_NODE_THRESHOLD = 1200;
 const GPU_LAYOUT_NODE_THRESHOLD = 3000;
 const TOUCH_NODE_HOLD_MS = 420;
 const TOUCH_NODE_MOVE_TOLERANCE_PX = 12;
+const TOUCH_NODE_TARGET_DIAMETER_PX = 44;
+const TOUCH_EDGE_TARGET_RADIUS_PX = 14;
 const TOUCH_DOUBLE_TAP_MS = 320;
 const TOUCH_DOUBLE_TAP_DISTANCE_PX = 28;
 const GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX = -500;
@@ -316,12 +318,18 @@ function create(container, handlers = {}) {
     touchHold.timer = 0;
   }
 
+  function clearTouchHoldVisual() {
+    container.style.removeProperty("--graph-touch-hold-x");
+    container.style.removeProperty("--graph-touch-hold-y");
+  }
+
   function finishTouchGesture() {
     clearTouchReleaseFallback();
     clearTouchHoldTimer();
     touchHold = null;
     touchDragBlockedUntilRelease = false;
     delete container.dataset.touchDrag;
+    clearTouchHoldVisual();
     setDragEnabled(true);
     setZoomEnabled(true);
   }
@@ -332,11 +340,12 @@ function create(container, handlers = {}) {
     touchHold = null;
     touchDragBlockedUntilRelease = true;
     container.dataset.touchDrag = "cancelled";
+    clearTouchHoldVisual();
     setDragEnabled(false);
     setZoomEnabled(true);
   }
 
-  function touchNodePayload(event) {
+  function touchGeometry(event) {
     const point = eventClientPoint(event);
     if (!point || !orb.canvas) return null;
     const rect = orb.canvas.getBoundingClientRect();
@@ -345,8 +354,63 @@ function create(container, handlers = {}) {
       y: Math.max(0, Math.min(rect.height, point.y - rect.top))
     };
     const localPoint = orb.getSimulationPosition(globalPoint);
-    const node = orb.data.getNearestNode(localPoint);
-    return node ? { node, event, globalPoint, localPoint } : null;
+    return { event, globalPoint, localPoint };
+  }
+
+  function simulationRadiusForPixels(globalPoint, radiusPx) {
+    if (!orb.canvas || !globalPoint) return 0;
+    const rect = orb.canvas.getBoundingClientRect();
+    const offsetPoint = {
+      x: Math.max(0, Math.min(rect.width, globalPoint.x + radiusPx)),
+      y: globalPoint.y
+    };
+    const localStart = orb.getSimulationPosition(globalPoint);
+    const localEnd = orb.getSimulationPosition(offsetPoint);
+    return Math.hypot(localEnd.x - localStart.x, localEnd.y - localStart.y);
+  }
+
+  function expandedTouchNode(localPoint, globalPoint) {
+    const exact = orb.data.getNearestNode(localPoint);
+    if (exact) return exact;
+    const minimumRadius = simulationRadiusForPixels(
+      globalPoint,
+      TOUCH_NODE_TARGET_DIAMETER_PX / 2
+    );
+    let best = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    const nodes = orb.data.getNodes();
+    for (let index = nodes.length - 1; index >= 0; index -= 1) {
+      const node = nodes[index];
+      const center = node.getCenter?.();
+      if (!center || !Number.isFinite(center.x) || !Number.isFinite(center.y)) continue;
+      const distance = Math.hypot(localPoint.x - center.x, localPoint.y - center.y);
+      const hitRadius = Math.max(Number(node.getBorderedRadius?.()) || 0, minimumRadius);
+      if (distance <= hitRadius && distance < bestDistance) {
+        best = node;
+        bestDistance = distance;
+      }
+    }
+    return best;
+  }
+
+  function touchTargetPayload(event) {
+    const geometry = touchGeometry(event);
+    if (!geometry) return null;
+    const node = expandedTouchNode(geometry.localPoint, geometry.globalPoint);
+    if (node) return { ...geometry, kind: "node", object: node };
+    const edgeTolerance = simulationRadiusForPixels(
+      geometry.globalPoint,
+      TOUCH_EDGE_TARGET_RADIUS_PX
+    );
+    const edge = orb.data.getNearestEdge(geometry.localPoint, edgeTolerance);
+    return edge ? { ...geometry, kind: "edge", object: edge } : { ...geometry, kind: null, object: null };
+  }
+
+  function touchNodePayload(event) {
+    const payload = touchTargetPayload(event);
+    return payload?.kind === "node"
+      ? { node: payload.object, event, globalPoint: payload.globalPoint, localPoint: payload.localPoint }
+      : null;
   }
 
   function beginTouchHold({ node, event, globalPoint, localPoint }) {
@@ -371,6 +435,8 @@ function create(container, handlers = {}) {
       activated: false,
       timer: 0
     };
+    container.style.setProperty("--graph-touch-hold-x", globalPoint.x + "px");
+    container.style.setProperty("--graph-touch-hold-y", globalPoint.y + "px");
     container.dataset.touchDrag = "holding";
 
     touchHold.timer = globalThis.setTimeout(() => {
@@ -396,9 +462,11 @@ function create(container, handlers = {}) {
   function onPointerDown(event) {
     if (event.pointerType !== "touch") return;
     activeTouchPointers.add(event.pointerId);
+    const target = touchTargetPayload(event);
     touchTap = {
       pointerId: event.pointerId,
       startClientPoint: eventClientPoint(event),
+      target,
       cancelled: false
     };
     if (activeTouchPointers.size > 1) {
@@ -411,7 +479,9 @@ function create(container, handlers = {}) {
       return;
     }
 
-    const payload = touchNodePayload(event);
+    const payload = target?.kind === "node"
+      ? { node: target.object, event, globalPoint: target.globalPoint, localPoint: target.localPoint }
+      : null;
     if (payload) beginTouchHold(payload);
   }
 
@@ -465,8 +535,17 @@ function create(container, handlers = {}) {
       lastTouchTap = null;
       return;
     }
-    if (tap && !tap.cancelled) registerTouchTap(event, tap);
-    else touchTap = null;
+    if (tap && !tap.cancelled) {
+      const didDoubleTap = registerTouchTap(event, tap);
+      if (!didDoubleTap && tap.target?.object) {
+        suppressGraphClickUntil = performance.now() + 300;
+        selectGraphObject(tap.target.object);
+        if (tap.target.kind === "node") handlers.onNodeClick?.(tap.target.object.getData());
+        if (tap.target.kind === "edge") handlers.onEdgeClick?.(tap.target.object.getData());
+      }
+    } else {
+      touchTap = null;
+    }
   }
 
   function onTouchEnd(event) {
