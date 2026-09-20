@@ -3395,3 +3395,34 @@ body {
   }
 }
 
+
+
+/* Workspace chrome follows the selected timeline orientation, not viewport width.
+   Landscape timelines use edge-aligned vertical controls; portrait timelines use bottom rows. */
+#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock {
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  left: max(.45rem, env(safe-area-inset-left));
+  flex-direction: column;
+  width: auto;
+  max-width: 78px;
+  max-height: calc(100dvh - max(.9rem, env(safe-area-inset-top)) - max(.9rem, env(safe-area-inset-bottom)));
+  overflow-x: hidden;
+  overflow-y: auto;
+  transform: translateY(-50%);
+}
+
+#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
+  top: auto;
+  right: auto;
+  bottom: max(.45rem, env(safe-area-inset-bottom));
+  left: 50%;
+  flex-direction: row;
+  width: max-content;
+  max-width: calc(100dvw - max(5rem, calc(env(safe-area-inset-left) + env(safe-area-inset-right) + 4rem)));
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  transform: translateX(-50%);
+}
