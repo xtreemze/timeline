@@ -3365,27 +3365,23 @@
 }
 
 
-/* Persistent relation-graph docking: chronology and graph occupy opposite cross-axis regions.
-   The graph respects persistent application chrome, while chronology always spans the full
-   primary time axis: full viewport height in portrait and full viewport width in landscape. */
+/* Persistent relation-graph docking: chronology owns its edge rail and the graph fills every
+   remaining stage pixel. Application chrome may overlay the graph instead of creating gutters. */
 @media (min-width: 700px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
     --relations-inline-rail: clamp(280px, 28dvw, 400px);
     --relations-block-rail: clamp(220px, 31dvh, 320px);
-    --relations-gap: clamp(.35rem, .7vw, .7rem);
-    --relations-top-safe: max(4.55rem, calc(env(safe-area-inset-top) + 4.15rem));
     --relations-right-safe: max(.55rem, env(safe-area-inset-right));
     --relations-bottom-safe: max(4.45rem, calc(env(safe-area-inset-bottom) + 4.1rem));
-    --relations-left-safe: max(.55rem, env(safe-area-inset-left));
   }
 
   #app-shell[data-graph-open="true"]
     #presentation-stage:has(> #timeline-view[data-orientation="portrait"])
     > .graph-lens:not([hidden]) {
-    top: var(--relations-top-safe);
-    right: calc(var(--relations-inline-rail) + var(--relations-right-safe) + var(--relations-gap));
-    bottom: var(--relations-bottom-safe);
-    left: var(--relations-left-safe);
+    top: 0;
+    right: calc(var(--relations-inline-rail) + var(--relations-right-safe));
+    bottom: 0;
+    left: 0;
     width: auto;
     height: auto;
     max-width: none;
@@ -3418,10 +3414,10 @@
   #app-shell[data-graph-open="true"]
     #presentation-stage:has(> #timeline-view[data-orientation="landscape"])
     > .graph-lens:not([hidden]) {
-    top: var(--relations-top-safe);
-    right: var(--relations-right-safe);
-    bottom: calc(var(--relations-bottom-safe) + var(--relations-block-rail) + var(--relations-gap));
-    left: var(--relations-left-safe);
+    top: 0;
+    right: 0;
+    bottom: calc(var(--relations-bottom-safe) + var(--relations-block-rail));
+    left: 0;
     width: auto;
     height: auto;
     max-width: none;
@@ -3433,10 +3429,7 @@
     top: auto;
     right: auto;
     bottom: calc(var(--relations-bottom-safe) + .35rem);
-    left: max(
-      calc(var(--relations-left-safe) + .35rem),
-      calc(env(safe-area-inset-left) + .35rem)
-    );
+    left: max(.35rem, calc(env(safe-area-inset-left) + .35rem));
   }
 
   #app-shell[data-graph-open="true"]
@@ -3460,27 +3453,26 @@
 
 @media (min-width: 900px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
-    --relations-left-safe: max(5.45rem, calc(env(safe-area-inset-left) + 5rem));
     --relations-bottom-safe: max(.55rem, env(safe-area-inset-bottom));
   }
 }
 
-/* Mobile persistent relation composition: graph and chronology are siblings, never overlapping canvases. */
+/* Mobile persistent relation composition: chronology keeps its edge rail while the graph uses
+   the complete complementary canvas; mobile chrome may cover graph edges without shrinking it. */
 @media (max-width: 699px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
     --mobile-relations-inline-rail: clamp(88px, 25dvw, 116px);
     --mobile-relations-block-rail: clamp(136px, 32dvh, 184px);
-    --mobile-top-chrome: max(3.75rem, calc(env(safe-area-inset-top) + 3.45rem));
     --mobile-bottom-chrome: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
   }
 
   #app-shell[data-graph-open="true"]
     #presentation-stage:has(> #timeline-view[data-orientation="portrait"])
     > .graph-lens:not([hidden]) {
-    top: var(--mobile-top-chrome);
+    top: 0;
     right: calc(var(--mobile-relations-inline-rail) + max(.25rem, env(safe-area-inset-right)));
-    bottom: var(--mobile-bottom-chrome);
-    left: max(.35rem, env(safe-area-inset-left));
+    bottom: 0;
+    left: 0;
   }
 
   #app-shell[data-graph-open="true"]
@@ -3505,10 +3497,10 @@
   #app-shell[data-graph-open="true"]
     #presentation-stage:has(> #timeline-view[data-orientation="landscape"])
     > .graph-lens:not([hidden]) {
-    top: var(--mobile-top-chrome);
-    right: max(.35rem, env(safe-area-inset-right));
-    bottom: calc(var(--mobile-bottom-chrome) + var(--mobile-relations-block-rail) + .25rem);
-    left: max(.35rem, env(safe-area-inset-left));
+    top: 0;
+    right: 0;
+    bottom: calc(var(--mobile-bottom-chrome) + var(--mobile-relations-block-rail));
+    left: 0;
   }
 
   #app-shell[data-graph-open="true"]

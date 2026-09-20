@@ -852,7 +852,10 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(timelineCss, /Project-aligned Browse\/Edit controls[\s\S]*z-index:\s*1420[\s\S]*pointer-events:\s*auto/);
   assert.match(timelineCss, /app-tool-dock\[data-project-anchored="true"\] \.app-tool[\s\S]*touch-action:\s*manipulation/);
   assert.match(styles, /\.app-editor-sheet,[\s\S]*\.app-browser-sheet[\s\S]*max-height:\s*min\(58dvh/);
-  assert.match(styles, /#app-shell #presentation-stage > \.graph-lens:not\(\[hidden\]\)[\s\S]*top:[\s\S]*bottom:[\s\S]*background:/);
+  assert.match(styles, /The persistent relation graph is a stage canvas/);
+  assert.match(styles, /#app-shell #presentation-stage:not\(:fullscreen\) > \.graph-lens:not\(\[hidden\]\)\s*\{[\s\S]*position:\s*absolute[\s\S]*z-index:\s*1050/);
+  assert.match(styles, /#app-shell #presentation-stage > \.graph-lens:not\(\[hidden\]\)\s*\{[\s\S]*margin:\s*0[\s\S]*padding:\s*0[\s\S]*scrollbar-gutter:\s*auto[\s\S]*border-radius:\s*0[\s\S]*backdrop-filter:\s*none/);
+  assert.doesNotMatch(styles, /\.app-editor-sheet,\s*\.app-browser-sheet,\s*#app-shell #presentation-stage > \.graph-lens/);
 
   assert.match(timelineCss, /Narrow-screen control composition/);
   assert.match(timelineCss, /Consolidated view control cluster/);
@@ -869,7 +872,8 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(timelineCss, /Mobile persistent relation composition/);
   assert.match(timelineCss, /--mobile-relations-inline-rail:\s*clamp\(88px, 25dvw, 116px\)/);
   assert.match(timelineCss, /--mobile-relations-block-rail:\s*clamp\(136px, 32dvh, 184px\)/);
-  assert.match(timelineCss, /:has\(> #timeline-view\[data-orientation="portrait"\]\)[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*right:\s*calc\(var\(--mobile-relations-inline-rail\)/);
+  assert.match(timelineCss, /Mobile persistent relation composition[\s\S]*data-orientation="portrait"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*top:\s*0;[\s\S]*right:\s*calc\(var\(--mobile-relations-inline-rail\)[\s\S]*bottom:\s*0;[\s\S]*left:\s*0;/);
+  assert.match(timelineCss, /Mobile persistent relation composition[\s\S]*data-orientation="landscape"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*top:\s*0;[\s\S]*right:\s*0;[\s\S]*bottom:\s*calc\(var\(--mobile-bottom-chrome\) \+ var\(--mobile-relations-block-rail\)\);[\s\S]*left:\s*0;/);
   assert.match(timelineCss, /#timeline-view\[data-orientation="portrait"\] > \.timeline-surface[\s\S]*top:\s*0;[\s\S]*bottom:\s*0;[\s\S]*width:\s*var\(--mobile-relations-inline-rail\)[\s\S]*height:\s*100%/);
   assert.match(timelineCss, /#timeline-view\[data-orientation="landscape"\] > \.timeline-surface[\s\S]*right:\s*0;[\s\S]*left:\s*0;[\s\S]*width:\s*100%[\s\S]*height:\s*var\(--mobile-relations-block-rail\)/);
   assert.match(viewSource, /terminalExtent = compact \? Math\.min\(width \* 0\.58, 190\) : 232/);
@@ -968,8 +972,9 @@ test("shared camera motion exposes capped two-dimensional release velocity and m
   assert.equal(motion.CAMERA_INERTIA_DECELERATION_PX_PER_S2, 3810);
 });
 
-test("persistent relation graph docks opposite chronology and stays behind focused detail", async () => {
-  const [timelineCss, appSource, indexSource, viewSource] = await Promise.all([
+test("persistent relation graph fills the stage outside chronology and stays behind focused detail", async () => {
+  const [styles, timelineCss, appSource, indexSource, viewSource] = await Promise.all([
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
@@ -977,18 +982,32 @@ test("persistent relation graph docks opposite chronology and stays behind focus
   ]);
 
   assert.match(timelineCss, /Persistent relation-graph docking/);
+  assert.match(timelineCss, /graph fills every[\s\S]*remaining stage pixel/);
   assert.match(timelineCss, /\.timeline-surface\.is-landscape[\s\S]*width:\s*100%[\s\S]*max-width:\s*none/);
   assert.match(timelineCss, /\.timeline-surface\.is-portrait[\s\S]*height:\s*100%[\s\S]*max-height:\s*none/);
+
+  assert.match(styles, /The persistent relation graph is a stage canvas/);
+  assert.match(styles, /#app-shell #presentation-stage:not\(:fullscreen\) > \.graph-lens:not\(\[hidden\]\)\s*\{[\s\S]*position:\s*absolute/);
+  assert.match(styles, /#app-shell #presentation-stage > \.graph-lens:not\(\[hidden\]\)\s*\{[\s\S]*margin:\s*0[\s\S]*padding:\s*0[\s\S]*scrollbar-gutter:\s*auto[\s\S]*border:\s*0[\s\S]*border-radius:\s*0/);
+  assert.match(styles, /\.temporal-graph-view,[\s\S]*\.temporal-graph-canvas\s*\{[\s\S]*width:\s*100%[\s\S]*height:\s*100%[\s\S]*min-width:\s*0[\s\S]*min-height:\s*0[\s\S]*margin:\s*0[\s\S]*padding:\s*0/);
+  assert.doesNotMatch(styles, /\.app-editor-sheet,\s*\.app-browser-sheet,\s*#app-shell #presentation-stage > \.graph-lens/);
+  assert.doesNotMatch(styles, /height:\s*min\(72dvh,\s*680px\)/);
+
   assert.match(timelineCss, /@media \(min-width:\s*700px\)[\s\S]*--relations-inline-rail:\s*clamp\(280px, 28dvw, 400px\)/);
   assert.match(timelineCss, /--relations-block-rail:\s*clamp\(220px, 31dvh, 320px\)/);
-  assert.match(timelineCss, /--relations-top-safe:\s*max\(4\.55rem,[\s\S]*safe-area-inset-top/);
-  assert.match(timelineCss, /data-orientation="portrait"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*right:\s*calc\(var\(--relations-inline-rail\)[\s\S]*left:\s*var\(--relations-left-safe\)/);
+  assert.doesNotMatch(timelineCss, /--relations-gap|--relations-top-safe|--relations-left-safe/);
+
+  assert.match(timelineCss, /data-orientation="portrait"[\s\S]*> \.graph-lens:not\(\[hidden\]\)\s*\{[\s\S]*top:\s*0;[\s\S]*right:\s*calc\(var\(--relations-inline-rail\) \+ var\(--relations-right-safe\)\);[\s\S]*bottom:\s*0;[\s\S]*left:\s*0;/);
   assert.match(timelineCss, /data-orientation="portrait"\] > \.timeline-surface[\s\S]*--timeline-axis-cross:\s*68%[\s\S]*top:\s*0;[\s\S]*bottom:\s*0;[\s\S]*width:\s*var\(--relations-inline-rail\)[\s\S]*height:\s*100%/);
-  assert.match(timelineCss, /data-orientation="landscape"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*bottom:\s*calc\(var\(--relations-bottom-safe\) \+ var\(--relations-block-rail\)/);
+
+  assert.match(timelineCss, /data-orientation="landscape"[\s\S]*> \.graph-lens:not\(\[hidden\]\)\s*\{[\s\S]*top:\s*0;[\s\S]*right:\s*0;[\s\S]*bottom:\s*calc\(var\(--relations-bottom-safe\) \+ var\(--relations-block-rail\)\);[\s\S]*left:\s*0;/);
   assert.match(timelineCss, /data-orientation="landscape"\] > \.timeline-surface[\s\S]*--timeline-axis-cross:\s*42%[\s\S]*right:\s*0;[\s\S]*left:\s*0;[\s\S]*width:\s*100%[\s\S]*height:\s*var\(--relations-block-rail\)/);
-  assert.match(timelineCss, /@media \(min-width:\s*900px\)[\s\S]*--relations-left-safe:\s*max\(5\.45rem,[\s\S]*safe-area-inset-left[\s\S]*--relations-bottom-safe:\s*max\(\.55rem/);
-  assert.match(timelineCss, /Mobile persistent relation composition[\s\S]*data-orientation="portrait"[\s\S]*--timeline-axis-cross:\s*42%/);
-  assert.match(timelineCss, /Mobile persistent relation composition[\s\S]*data-orientation="landscape"[\s\S]*--timeline-axis-cross:\s*38%/);
+  assert.match(timelineCss, /@media \(min-width:\s*900px\)[\s\S]*--relations-bottom-safe:\s*max\(\.55rem/);
+
+  assert.match(timelineCss, /Mobile persistent relation composition[\s\S]*data-orientation="portrait"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*top:\s*0;[\s\S]*bottom:\s*0;[\s\S]*left:\s*0/);
+  assert.match(timelineCss, /Mobile persistent relation composition[\s\S]*data-orientation="landscape"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*top:\s*0;[\s\S]*right:\s*0;[\s\S]*left:\s*0/);
+  assert.doesNotMatch(timelineCss, /--mobile-top-chrome/);
+
   assert.match(timelineCss, /#presentation-stage:fullscreen > \.graph-lens \{\s*display:\s*block !important;/);
   assert.doesNotMatch(indexSource, /id="graph-lens-toggle"/);
   assert.match(indexSource, /id="graph-lens"[^>]*aria-label="Persistent temporal relation graph"/);
@@ -996,7 +1015,6 @@ test("persistent relation graph docks opposite chronology and stays behind focus
   assert.doesNotMatch(appSource, /setGraphSurfaceOpen|mountGraphBackdrop|ui\.graphOpen/);
   assert.doesNotMatch(viewSource, /focusGraphSlot|timeline-focus-relations-backdrop/);
 });
-
 
 test("timeline touch state recovers from lost capture, backgrounding, viewport changes, and rotation", async () => {
   const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
