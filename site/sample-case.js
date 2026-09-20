@@ -3587,7 +3587,10 @@
       "attributes": {
         "storyId": "story-three-little-pigs",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "First Pig"
+      ]
     },
     {
       "id": "pigs-second",
@@ -3597,7 +3600,10 @@
       "attributes": {
         "storyId": "story-three-little-pigs",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Second Pig"
+      ]
     },
     {
       "id": "pigs-third",
@@ -3607,7 +3613,10 @@
       "attributes": {
         "storyId": "story-three-little-pigs",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Third Pig"
+      ]
     },
     {
       "id": "pigs-mother",
@@ -3617,7 +3626,10 @@
       "attributes": {
         "storyId": "story-three-little-pigs",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Mother Pig"
+      ]
     },
     {
       "id": "pigs-wolf",
@@ -3627,7 +3639,10 @@
       "attributes": {
         "storyId": "story-three-little-pigs",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Wolf"
+      ]
     },
     {
       "id": "pigs-brothers",
@@ -3637,7 +3652,14 @@
       "attributes": {
         "storyId": "story-three-little-pigs",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Three Pigs",
+        "The Pigs",
+        "Pigs",
+        "Three Brothers",
+        "Brothers"
+      ]
     },
     {
       "id": "pigs-brick-house",
@@ -3647,7 +3669,10 @@
       "attributes": {
         "storyId": "story-three-little-pigs",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Brick House"
+      ]
     },
     {
       "id": "snow-white",
@@ -3657,7 +3682,10 @@
       "attributes": {
         "storyId": "story-snow-white",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Snow White"
+      ]
     },
     {
       "id": "snow-queen",
@@ -3667,7 +3695,10 @@
       "attributes": {
         "storyId": "story-snow-white",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Queen"
+      ]
     },
     {
       "id": "snow-huntsman",
@@ -3677,7 +3708,10 @@
       "attributes": {
         "storyId": "story-snow-white",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Huntsman"
+      ]
     },
     {
       "id": "snow-prince",
@@ -3687,7 +3721,10 @@
       "attributes": {
         "storyId": "story-snow-white",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Prince"
+      ]
     },
     {
       "id": "snow-dwarfs",
@@ -3697,7 +3734,11 @@
       "attributes": {
         "storyId": "story-snow-white",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Dwarfs",
+        "The Dwarfs"
+      ]
     },
     {
       "id": "snow-mirror-object",
@@ -3707,7 +3748,11 @@
       "attributes": {
         "storyId": "story-snow-white",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Mirror",
+        "The Mirror"
+      ]
     },
     {
       "id": "snow-apple-object",
@@ -3717,7 +3762,11 @@
       "attributes": {
         "storyId": "story-snow-white",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Poisoned Apple",
+        "The Apple"
+      ]
     },
     {
       "id": "cinderella",
@@ -3727,7 +3776,10 @@
       "attributes": {
         "storyId": "story-cinderella",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Cinderella"
+      ]
     },
     {
       "id": "cinderella-stepmother",
@@ -3737,7 +3789,10 @@
       "attributes": {
         "storyId": "story-cinderella",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "The Stepmother"
+      ]
     },
     {
       "id": "cinderella-stepsisters",
@@ -3747,7 +3802,11 @@
       "attributes": {
         "storyId": "story-cinderella",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "The Stepsisters",
+        "Two Daughters"
+      ]
     },
     {
       "id": "cinderella-fairy",
@@ -3757,7 +3816,10 @@
       "attributes": {
         "storyId": "story-cinderella",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "The Fairy Godmother"
+      ]
     },
     {
       "id": "cinderella-prince",
@@ -3767,7 +3829,10 @@
       "attributes": {
         "storyId": "story-cinderella",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Prince"
+      ]
     },
     {
       "id": "cinderella-slipper-object",
@@ -3777,7 +3842,11 @@
       "attributes": {
         "storyId": "story-cinderella",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Slipper",
+        "The Slipper"
+      ]
     },
     {
       "id": "cinderella-coach",
@@ -3787,7 +3856,11 @@
       "attributes": {
         "storyId": "story-cinderella",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Coach",
+        "The Coach"
+      ]
     },
     {
       "id": "pigs-material-vendors",
@@ -3797,7 +3870,12 @@
       "attributes": {
         "storyId": "story-three-little-pigs",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Material Seller",
+        "Material Sellers",
+        "Seller"
+      ]
     },
     {
       "id": "pigs-straw-bundle",
@@ -3807,7 +3885,10 @@
       "attributes": {
         "storyId": "story-three-little-pigs",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Straw Bundle"
+      ]
     },
     {
       "id": "pigs-stick-bundle",
@@ -3817,7 +3898,11 @@
       "attributes": {
         "storyId": "story-three-little-pigs",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Bundled Sticks",
+        "Stick Bundle"
+      ]
     },
     {
       "id": "pigs-brick-load",
@@ -3827,7 +3912,12 @@
       "attributes": {
         "storyId": "story-three-little-pigs",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Bricks and Mortar",
+        "Brick and Mortar",
+        "Masonry"
+      ]
     },
     {
       "id": "snow-laces-object",
@@ -3837,7 +3927,11 @@
       "attributes": {
         "storyId": "story-snow-white",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Laces",
+        "The Laces"
+      ]
     },
     {
       "id": "snow-comb-object",
@@ -3847,7 +3941,11 @@
       "attributes": {
         "storyId": "story-snow-white",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Poisoned Comb",
+        "The Comb"
+      ]
     },
     {
       "id": "snow-coffin-object",
@@ -3857,7 +3955,11 @@
       "attributes": {
         "storyId": "story-snow-white",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Coffin",
+        "The Coffin"
+      ]
     },
     {
       "id": "cinderella-father",
@@ -3867,7 +3969,11 @@
       "attributes": {
         "storyId": "story-cinderella",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Father",
+        "Her Father"
+      ]
     },
     {
       "id": "cinderella-pumpkin",
@@ -3877,7 +3983,10 @@
       "attributes": {
         "storyId": "story-cinderella",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "The Pumpkin"
+      ]
     },
     {
       "id": "cinderella-gown",
@@ -3887,7 +3996,11 @@
       "attributes": {
         "storyId": "story-cinderella",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Gown",
+        "The Gown"
+      ]
     },
     {
       "id": "cinderella-herald",
@@ -3897,61 +4010,102 @@
       "attributes": {
         "storyId": "story-cinderella",
         "fictional": true
-      }
+      },
+      "alternateNames": [
+        "Herald",
+        "The Herald"
+      ]
     },
     {
       "id": "snow-mother",
       "name": "Snow White's Mother",
       "type": "person",
-      "alternateNames": [],
+      "alternateNames": [
+        "Snow White's Mother"
+      ],
       "identifiers": [],
       "sourceIds": [],
-      "attributes": {}
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true
+      }
     },
     {
       "id": "cinderella-mother-person",
       "name": "Cinderella's Mother",
       "type": "person",
-      "alternateNames": [],
+      "alternateNames": [
+        "Mother",
+        "Her Mother"
+      ],
       "identifiers": [],
       "sourceIds": [],
-      "attributes": {}
+      "attributes": {
+        "storyId": "story-cinderella",
+        "fictional": true
+      }
     },
     {
       "id": "pigs-straw-house-object",
       "name": "Straw House",
       "type": "object",
-      "alternateNames": [],
+      "alternateNames": [
+        "Straw House",
+        "The Straw House"
+      ],
       "identifiers": [],
       "sourceIds": [],
-      "attributes": {}
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true
+      }
     },
     {
       "id": "pigs-stick-house-object",
       "name": "Stick House",
       "type": "object",
-      "alternateNames": [],
+      "alternateNames": [
+        "Stick House",
+        "The Stick House"
+      ],
       "identifiers": [],
       "sourceIds": [],
-      "attributes": {}
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true
+      }
     },
     {
       "id": "snow-cottage-object",
       "name": "Seven Dwarfs' Cottage",
       "type": "object",
-      "alternateNames": [],
+      "alternateNames": [
+        "Cottage",
+        "The Cottage",
+        "Dwarfs' Cottage",
+        "The Dwarfs' Cottage"
+      ],
       "identifiers": [],
       "sourceIds": [],
-      "attributes": {}
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true
+      }
     },
     {
       "id": "pigs-chimney-object",
       "name": "Brick House Chimney",
       "type": "object",
-      "alternateNames": [],
+      "alternateNames": [
+        "Chimney",
+        "The Chimney"
+      ],
       "identifiers": [],
       "sourceIds": [],
-      "attributes": {}
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true
+      }
     }
   ],
   "relationships": [
@@ -4003,7 +4157,11 @@
       "attributes": {
         "storyId": "story-three-little-pigs"
       },
-      "placeId": ""
+      "placeId": "",
+      "itemIds": [
+        "pigs-childhood",
+        "pigs-two-flee"
+      ]
     },
     {
       "id": "rel-snow-mirror-owned",
@@ -4026,7 +4184,12 @@
       "attributes": {
         "question": "fairest"
       },
-      "placeId": ""
+      "placeId": "",
+      "itemIds": [
+        "snow-birth",
+        "snow-childhood",
+        "snow-queen-discovers"
+      ]
     },
     {
       "id": "rel-snow-huntsman-order",
@@ -4106,7 +4269,16 @@
         }
       },
       "attributes": {},
-      "placeId": "snow-cottage-place"
+      "placeId": "snow-cottage-place",
+      "itemIds": [
+        "snow-birth",
+        "snow-huntsman-spares",
+        "snow-forest-flight",
+        "snow-finds-cottage",
+        "snow-queen-discovers",
+        "snow-disguises",
+        "snow-prince-arrives"
+      ]
     },
     {
       "id": "rel-snow-apple-object",
@@ -4221,7 +4393,8 @@
       "placeId": "",
       "itemIds": [
         "cinderella-mother",
-        "cinderella-hardship"
+        "cinderella-hardship",
+        "cinderella-stepfamily-arrives"
       ]
     },
     {
@@ -4277,7 +4450,12 @@
         "end": null
       },
       "attributes": {},
-      "placeId": "place-cinderella-royal-carriage-road"
+      "placeId": "place-cinderella-royal-carriage-road",
+      "itemIds": [
+        "cinderella-prince-dance",
+        "cinderella-second-ball",
+        "cinderella-midnight-flight"
+      ]
     },
     {
       "id": "rel-cinderella-prince-search",
@@ -4367,7 +4545,10 @@
       "attributes": {
         "from": "Pigwood Material Sellers"
       },
-      "placeId": ""
+      "placeId": "",
+      "itemIds": [
+        "pigs-stick-house"
+      ]
     },
     {
       "id": "rel-pigs-third-bricks",
@@ -4390,7 +4571,11 @@
       "attributes": {
         "from": "Pigwood Material Sellers"
       },
-      "placeId": ""
+      "placeId": "",
+      "itemIds": [
+        "pigs-acquire-sticks",
+        "pigs-brick-build"
+      ]
     },
     {
       "id": "rel-pigs-first-shelter-second",
@@ -4460,7 +4645,11 @@
       "attributes": {
         "attempt": 1
       },
-      "placeId": ""
+      "placeId": "",
+      "itemIds": [
+        "snow-disguises",
+        "snow-laces-recovery"
+      ]
     },
     {
       "id": "rel-snow-queen-comb",
@@ -4580,7 +4769,10 @@
       "attributes": {
         "household": "Cinderella's House"
       },
-      "placeId": ""
+      "placeId": "",
+      "itemIds": [
+        "cinderella-mother"
+      ]
     },
     {
       "id": "rel-cinderella-fairy-pumpkin",
@@ -4688,7 +4880,8 @@
       },
       "placeId": "",
       "itemIds": [
-        "cinderella-search"
+        "cinderella-search",
+        "cinderella-asks-to-try"
       ]
     },
     {
@@ -4724,7 +4917,8 @@
       "itemIds": [
         "pigs-wolf-straw",
         "pigs-wolf-sticks",
-        "pigs-acquire-sticks"
+        "pigs-acquire-sticks",
+        "pigs-first-flees"
       ]
     },
     {
@@ -4751,7 +4945,8 @@
         "pigs-stick-house",
         "pigs-wolf-straw",
         "pigs-chimney",
-        "pigs-safe"
+        "pigs-safe",
+        "pigs-acquire-bricks"
       ]
     },
     {
@@ -4771,7 +4966,8 @@
       "placeId": "",
       "itemIds": [
         "snow-coffin",
-        "snow-prince-arrives"
+        "snow-prince-arrives",
+        "snow-revival"
       ]
     },
     {
@@ -5297,7 +5493,13 @@
       "objectId": "snow-cottage-object",
       "predicate": "discovers",
       "itemIds": [
-        "snow-finds-cottage"
+        "snow-finds-cottage",
+        "snow-huntsman-spares",
+        "snow-forest-flight",
+        "snow-dwarfs-shelter",
+        "snow-queen-discovers",
+        "snow-disguises",
+        "snow-laces"
       ],
       "time": {
         "type": "instant",
@@ -5554,7 +5756,8 @@
       "predicate": "destroys",
       "itemIds": [
         "pigs-wolf-straw",
-        "pigs-safe"
+        "pigs-safe",
+        "pigs-straw-house"
       ],
       "time": {
         "type": "instant",
@@ -5930,7 +6133,9 @@
       "objectId": "pigs-chimney-object",
       "predicate": "descendsThrough",
       "itemIds": [
-        "pigs-chimney"
+        "pigs-chimney",
+        "pigs-wolf-roof",
+        "pigs-safe"
       ],
       "time": {
         "type": "instant",
@@ -6028,7 +6233,8 @@
       "objectId": "snow-coffin-object",
       "predicate": "guards",
       "itemIds": [
-        "snow-coffin"
+        "snow-coffin",
+        "snow-prince-arrives"
       ],
       "time": {
         "type": "interval",
