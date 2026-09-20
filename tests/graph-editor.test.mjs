@@ -27,7 +27,7 @@ test("graph editor separates entity nodes, reusable places, and action-edge cont
   assert.match(html, /id="graph-edge-item-ids"/);
   assert.match(html, /One node = one durable entity/);
   assert.match(html, /Places are map records, never graph nodes/);
-  assert.match(html, /Action only\. Do not put a place, date, time, period/);
+  assert.match(html, /Action only: use one specific verb/);
   assert.match(html, /Self-loop edges are structurally invalid/);
   assert.match(html, /One directed action fact gets one edge/);
   assert.match(html, /Distinct reverse actions and genuine graph cycles are allowed/);
