@@ -2102,8 +2102,6 @@
       place.append(placeBackdrop, placeContent);
 
       const relations = createElement("section", "timeline-focus-section timeline-focus-relations");
-      const relationBackdrop = createElement("div", "timeline-focus-section-backdrop timeline-focus-relations-backdrop");
-      relationBackdrop.dataset.focusGraphSlot = "";
       const relationContent = createElement("div", "timeline-focus-section-content");
       relationContent.append(createElement("h3", "timeline-focus-section-heading", "Relations"));
       if (item.relations?.length) {
@@ -2143,7 +2141,7 @@
         }
         relationContent.append(changes);
       }
-      relations.append(relationBackdrop, relationContent);
+      relations.append(relationContent);
 
       const evidence = createElement("section", "timeline-focus-section timeline-focus-evidence");
       evidence.append(createElement("h3", "timeline-focus-section-heading", "Evidence"));
