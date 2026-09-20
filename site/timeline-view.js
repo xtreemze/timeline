@@ -2067,8 +2067,11 @@
         hero.append(controls);
       }
 
-      if (active?.caption) {
-        const caption = createElement("p", "timeline-focus-media-caption", active.caption);
+      const mediaCaption = String(active?.caption || "").trim();
+      const isIllustrationDisclaimer =
+        mediaCaption.startsWith("Public-domain story illustration via Wikimedia Commons;");
+      if (mediaCaption && !isIllustrationDisclaimer) {
+        const caption = createElement("p", "timeline-focus-media-caption", mediaCaption);
         hero.append(caption);
       }
       return hero;
