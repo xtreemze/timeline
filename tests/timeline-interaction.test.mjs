@@ -882,8 +882,8 @@ test("View toolbar stays anchored to the View trigger and clamps to the visual v
   ]);
 
   assert.match(appSource, /function positionViewControls\(\)[\s\S]*viewControlsToggle\.getBoundingClientRect\(\)[\s\S]*workspaceToolViewport\(\)/);
-  assert.match(appSource, /orientation === "landscape"[\s\S]*triggerRect\.top - toolbarHeight - gap[\s\S]*triggerRect\.right - toolbarWidth/);
-  assert.match(appSource, /preferredLeft = triggerRect\.left - toolbarWidth - gap[\s\S]*fallbackLeft = triggerRect\.right \+ gap/);
+  assert.match(appSource, /preferredTop = triggerRect\.top - toolbarHeight - gap[\s\S]*triggerRect\.right - toolbarWidth/);
+  assert.doesNotMatch(appSource, /preferredLeft = triggerRect\.left - toolbarWidth - gap/);
   assert.match(appSource, /Math\.max\(minLeft, maxRight - toolbarWidth\)[\s\S]*Math\.max\(minTop, maxBottom - toolbarHeight\)/);
   assert.match(appSource, /--view-controls-left/);
   assert.match(appSource, /--view-controls-top/);
@@ -894,7 +894,7 @@ test("View toolbar stays anchored to the View trigger and clamps to the visual v
   assert.match(timelineCss, /#presentation-stage:fullscreen \.timeline-view-toolbar:popover-open[\s\S]*top:\s*max\(\.4rem/);
 });
 
-test("workspace toolbars deploy vertically in landscape and horizontally in portrait", async () => {
+test("View toolbar uses vertical composition when the semantic zoom control is vertical", async () => {
   const [styles, timelineCss] = await Promise.all([
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
@@ -918,7 +918,11 @@ test("workspace toolbars deploy vertically in landscape and horizontally in port
   );
   assert.match(
     timelineCss,
-    /#app-shell:has\(#timeline-view\[data-orientation="portrait"\]\)[\s\S]*\.app-view-controls\.timeline-view-toolbar\[popover\]:popover-open,[\s\S]*#presentation-stage:fullscreen \.timeline-view-toolbar:popover-open\s*\{[\s\S]*flex-direction:\s*row/
+    /#app-shell:has\(#timeline-view\[data-orientation="portrait"\]\)[\s\S]*\.app-view-controls\.timeline-view-toolbar\[popover\]:popover-open,[\s\S]*#presentation-stage:fullscreen \.timeline-view-toolbar:popover-open\s*\{[\s\S]*flex-direction:\s*column[\s\S]*width:\s*clamp\(82px, 22dvw, 96px\)[\s\S]*overflow-y:\s*auto/
+  );
+  assert.match(
+    timelineCss,
+    /#app-shell:has\(#timeline-view\[data-orientation="portrait"\]\)[\s\S]*\.timeline-auto-controls\s*\{[\s\S]*flex-direction:\s*column/
   );
 });
 

@@ -408,7 +408,6 @@
       return;
     }
 
-    const orientation = els.timelineViewRoot.dataset.orientation === "portrait" ? "portrait" : "landscape";
     const triggerRect = els.viewControlsToggle.getBoundingClientRect();
     const toolbarRect = els.viewControls.getBoundingClientRect();
     const viewport = workspaceToolViewport();
@@ -425,31 +424,11 @@
     let top;
     let placement;
 
-    if (orientation === "landscape") {
-      const preferredTop = triggerRect.top - toolbarHeight - gap;
-      const fallbackTop = triggerRect.bottom + gap;
-      left = triggerRect.right - toolbarWidth;
-      top = preferredTop >= minTop ? preferredTop : fallbackTop;
-      placement = preferredTop >= minTop ? "above" : "below";
-    } else {
-      const preferredLeft = triggerRect.left - toolbarWidth - gap;
-      const fallbackLeft = triggerRect.right + gap;
-      const preferredTop = triggerRect.bottom - toolbarHeight;
-
-      if (preferredLeft >= minLeft) {
-        left = preferredLeft;
-        top = preferredTop;
-        placement = "left";
-      } else if (fallbackLeft + toolbarWidth <= maxRight) {
-        left = fallbackLeft;
-        top = preferredTop;
-        placement = "right";
-      } else {
-        left = triggerRect.right - toolbarWidth;
-        top = triggerRect.top - toolbarHeight - gap;
-        placement = "above";
-      }
-    }
+    const preferredTop = triggerRect.top - toolbarHeight - gap;
+    const fallbackTop = triggerRect.bottom + gap;
+    left = triggerRect.right - toolbarWidth;
+    top = preferredTop >= minTop ? preferredTop : fallbackTop;
+    placement = preferredTop >= minTop ? "above" : "below";
 
     left = Math.min(
       Math.max(minLeft, left),
