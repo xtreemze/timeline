@@ -380,8 +380,12 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(timelineCss, /\.timeline-project-heading\s*\{[\s\S]*position:\s*absolute/);
   assert.match(timelineCss, /\.is-portrait \.timeline-month-accent\.avoids-project-heading[\s\S]*right:\s*calc\(7px \+ var\(--timeline-project-heading-clearance, 52px\)\)/);
   assert.match(timelineCss, /\.timeline-view\[data-orientation="portrait"\] \.timeline-project-title input[\s\S]*writing-mode:\s*vertical-rl/);
-  assert.match(timelineCss, /data-timeline-orientation="horizontal"[\s\S]*\.timeline-project-heading[\s\S]*bottom:\s*calc\(var\(--timeline-context-edge-span\) - 2\.8rem\)/);
+  assert.match(timelineCss, /\.timeline-view\[data-orientation="landscape"\] \.timeline-project-heading[\s\S]*bottom:\s*max\(\.5rem, env\(safe-area-inset-bottom\)\)/);
+  assert.match(timelineCss, /data-timeline-orientation="horizontal"[\s\S]*\.timeline-project-heading[\s\S]*bottom:\s*max\(\.45rem, env\(safe-area-inset-bottom\)\)/);
+  assert.match(timelineCss, /data-graph-open="true"[\s\S]*data-orientation="landscape"[\s\S]*\.timeline-project-heading[\s\S]*bottom:\s*calc\(var\(--relations-bottom-safe\) \+ \.35rem\)/);
+  assert.match(timelineCss, /data-graph-open="true"[\s\S]*data-orientation="landscape"[\s\S]*\.timeline-project-heading[\s\S]*bottom:\s*calc\(var\(--mobile-bottom-chrome\) \+ \.25rem\)/);
   assert.match(app, /function positionProjectMenu\(\)[\s\S]*projectMenuToggle\.getBoundingClientRect\(\)/);
+  assert.match(app, /const opensUpward = !portrait && rect\.top > viewportHeight \/ 2[\s\S]*rect\.top - menuHeight - gap/);
   assert.match(timelineCss, /#presentation-stage[\s\S]*display:\s*block\s*!important/);
   assert.match(timelineCss, /timeline-focus-view\[popover\][\s\S]*position:/);
   assert.match(timelineCss, /inline-size:\s*min\(640px,\s*calc\(100dvw - 6\.5rem\)\)/);
