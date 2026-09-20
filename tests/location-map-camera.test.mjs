@@ -76,17 +76,39 @@ test("secondary GeoJSON points render as labeled semantic route markers", async 
 });
 
 
-test("interactive maps use the shared camera release speed and equivalent weighted deceleration", async () => {
+test("interactive maps use the timeline weighted drag response and shared release decay", async () => {
   const source = await readFile(new URL("../site/location-map.js", import.meta.url), "utf8");
   assert.match(source, /const motion = globalThis\.TimelineMotion/);
-  assert.match(source, /function mapMotionOptions\(interactive = true\)/);
-  assert.match(source, /inertia:\s*Boolean\(interactive && !reducedMotion\)/);
+  assert.match(source, /function weightedMapDragAvailable\(\)/);
+  assert.match(source, /motion\?\.appendPointerVectorSamples/);
+  assert.match(source, /motion\?\.estimatePointerVectorVelocity/);
+  assert.match(source, /motion\?\.responseForElapsed/);
+  assert.match(source, /motion\?\.decayVelocity/);
+  assert.match(source, /inertia:\s*Boolean\(interactive && !reducedMotion && !weightedDrag\)/);
   assert.match(source, /inertiaDeceleration:\s*motion\?\.CAMERA_INERTIA_DECELERATION_PX_PER_S2 \|\| 3810/);
   assert.match(source, /inertiaMaxSpeed:\s*motion\?\.MAX_RELEASE_SPEED_PX_PER_S \|\| 3200/);
-  assert.match(source, /easeLinearity:\s*0\.2/);
-  assert.match(source, /touchZoom:\s*this\.interactive,[\s\S]*\.\.\.mapMotionOptions\(this\.interactive\)/);
-  assert.match(source, /attributionControl:\s*true,[\s\S]*\.\.\.mapMotionOptions\(true\)/);
-  assert.match(source, /zoomAnimation:\s*!reducedMotion/);
+  assert.match(
+    source,
+    /function installWeightedMapDragging\(map, container, interactive = true\)[\s\S]*motion\.responseForElapsed\(now - drag\.lastTime\)/
+  );
+  assert.match(
+    source,
+    /startCenter[\s\S]*target = \{[\s\S]*drag\.startCenter\.x - deltaX[\s\S]*drag\.startCenter\.y - deltaY/
+  );
+  assert.match(
+    source,
+    /motion\.estimatePointerVectorVelocity\(finishedDrag\.samples\)[\s\S]*startInertia\(velocity\)/
+  );
+  assert.match(
+    source,
+    /velocityX = -velocity\.x[\s\S]*velocityY = -velocity\.y[\s\S]*motion\.decayVelocity\(velocityX, elapsed\)[\s\S]*map\.panBy/
+  );
+  assert.match(source, /dragging:\s*this\.interactive && !weightedDrag/);
+  assert.match(source, /dragging:\s*!weightedDrag/);
+  assert.match(source, /touchZoom:\s*this\.interactive/);
+  assert.match(source, /pointers\.size > 1[\s\S]*cancelDrag\(\)/);
+  assert.match(source, /pointers\.size === 1[\s\S]*beginDrag\(remaining\.pointerId, remaining\)/);
+  assert.match(source, /prefersReducedMotion\(\)/);
 });
 
 
