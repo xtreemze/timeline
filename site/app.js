@@ -1721,6 +1721,10 @@
         }
         change.role = parts.role.value.trim().slice(0, 120);
         change.properties = parseJsonObject(parts.properties.value, "Relation property patch");
+        const duplicateContextKey = Object.keys(change.properties).find(graph.contextPropertyKey);
+        if (duplicateContextKey) {
+          throw new Error(`Relation property “${duplicateContextKey}” duplicates structured context. Time and place must use the edge's canonical fields.`);
+        }
       }
       changes.push(change);
     }
@@ -3112,6 +3116,10 @@
     let time;
     try {
       attributes = parseJsonObject(els.graphEdgeProperties.value, "Edge properties");
+      const duplicateContextKey = Object.keys(attributes).find(graph.contextPropertyKey);
+      if (duplicateContextKey) {
+        throw new Error(`Edge property “${duplicateContextKey}” duplicates structured context. Use the Time and Place fields instead.`);
+      }
       time = buildGraphEdgeTime();
     } catch (error) {
       setError(els.graphEdgeError, error instanceof Error ? error.message : "Check the edge properties and time.");
