@@ -485,8 +485,8 @@ Physical screen orientation never rewrites the timeline orientation.
 
 Normal application mode distinguishes presentation overlays from workspace utilities. Event focus and compact View controls may overlay the presentation, but Browse and Edit participate in workspace layout geometry so they never cover the timeline or persistent relation graph.
 
-- Mobile is the baseline. Browse and Edit reserve a bounded stacked region of the viewport; the presentation stage receives the remaining space instead of being covered by a bottom sheet.
-- At wider viewports Browse and Edit become narrow right-side columns. Opening either column reduces the presentation-stage width and lets the existing resize pipeline reflow both timeline and graph geometry; editor forms keep their six-column internal grid, typically expressed as two three-column fields or one six-column field.
+- Browse and Edit are vertical right-side workspace columns at every viewport size, including mobile. They never switch into bottom-sheet or floating-sheet geometry. Opening either column reduces the presentation-stage width and lets the existing resize pipeline reflow both timeline and graph geometry.
+- Sidebar content scrolls vertically only. Horizontal overflow is a layout defect: descendants must shrink, wrap, or switch to a narrower internal grid. Editor forms use their six-column grid when space permits and collapse to one-column field rows when the sidebar itself becomes narrow.
 - Closing Browse or Edit removes that reserved region and returns the full workspace to the presentation without discarding filter, tab or form state.
 - Browse owns search, category filtering, empty-state explanation and the chronology list. Those are not repeated on the primary canvas.
 - Active Story navigation is a compact contextual mode overlay outside Browse, so story position/previous/next/exit remain available while the timeline is being read.
