@@ -67,7 +67,7 @@ test("application provides CRUD handlers for graph nodes and labeled edges", asy
   assert.match(source, /graphContextItemOptions/);
   assert.match(source, /Confidence must be between 0 and 1/);
   assert.match(source, /connected \$\{edgeCount === 1 \? "edge" : "edges"\} will also be removed/);
-  assert.match(source, /pruneRelationChanges\(removedRelationshipIds\)/);
+  assert.match(source, /state\.relationships = state\.relationships\.map\(\(relationship\)[\s\S]*itemIds: \(relationship\.itemIds \|\| \[\]\)\.filter\(\(itemId\) => itemId !== id\)/);
   assert.match(source, /collectRelationChangeForm/);
   assert.match(source, /buildGraphEdgeTime/);
   assert.match(source, /timelineviewportchange/);
