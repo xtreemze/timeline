@@ -22,7 +22,7 @@
     )].slice(0, maxItems);
   }
 
-  const ACTION_NODE_TYPES = new Set([
+  const NON_ENTITY_NODE_TYPES = new Set([
     "action",
     "activity",
     "event",
@@ -35,7 +35,31 @@
     "decision",
     "movement",
     "meeting",
-    "visit"
+    "visit",
+    "place",
+    "location",
+    "date",
+    "time",
+    "period",
+    "geometry",
+    "coordinate"
+  ]);
+
+  const ENTITY_CONTEXT_KEYS = new Set([
+    "time",
+    "date",
+    "period",
+    "start",
+    "end",
+    "location",
+    "place",
+    "placeid",
+    "geometry",
+    "coordinates",
+    "latitude",
+    "longitude",
+    "radius",
+    "radiusmeters"
   ]);
 
   const GENERIC_RELATION_KEYS = new Set([
@@ -80,21 +104,44 @@
     return text(value, 120).toLocaleLowerCase().replace(/[^a-z0-9]+/g, "");
   }
 
+  function contextPropertyKey(value) {
+    return ENTITY_CONTEXT_KEYS.has(semanticKey(value));
+  }
+
+  function cleanContextFreeAttributes(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    const cleaned = {};
+    for (const [key, entry] of Object.entries(value)) {
+      if (!contextPropertyKey(key)) cleaned[key] = cloneJson(entry);
+    }
+    return cleaned;
+  }
+
   function validateEntityNode(raw) {
     const name = text(raw?.name || raw?.label || raw?.title, 180);
     const type = text(raw?.type, 60) || "entity";
     const typeKey = semanticKey(type);
-    if (ACTION_NODE_TYPES.has(typeKey)) {
+    if (NON_ENTITY_NODE_TYPES.has(typeKey)) {
       return {
         valid: false,
-        message: `“${type}” describes an action or occurrence. Graph nodes must be durable nouns/entities; put the action on the timeline and express it as an edge predicate.`
+        message: `“${type}” is not an entity-node type. A graph node represents one entity only; actions belong to edge predicates, time belongs to edge.time, and place belongs to edge.placeId.`
       };
     }
-    if (typeKey === "entity" && ACTION_NAME_PATTERN.test(name)) {
+    if (ACTION_NAME_PATTERN.test(name)) {
       return {
         valid: false,
-        message: `“${name}” reads like an action. Create the occurrence as a timeline item and connect noun/entity nodes with a specific action edge.`
+        message: `“${name}” reads like an action. Nodes name one entity only; express the action as an edge predicate.`
       };
+    }
+    const attributes = raw?.attributes || raw?.properties;
+    if (attributes && typeof attributes === "object" && !Array.isArray(attributes)) {
+      const invalidKey = Object.keys(attributes).find((key) => ENTITY_CONTEXT_KEYS.has(semanticKey(key)));
+      if (invalidKey) {
+        return {
+          valid: false,
+          message: `Node property “${invalidKey}” is spatiotemporal context. Store time on edge.time and place on edge.placeId instead of the entity node.`
+        };
+      }
     }
     return { valid: true, message: "" };
   }
@@ -115,6 +162,12 @@
         message: `“${predicate}” is too general. Name the concrete action performed by the source toward the target.`
       };
     }
+    if (/\b(?:at|near|during|on\s+\d{4}|in\s+\d{4})\b/i.test(predicate) || /(?:At|Near|During|Via|Along|Toward|From|Into|Onto|In)$/.test(predicate) || /\d{4}-\d{2}-\d{2}/.test(predicate)) {
+      return {
+        valid: false,
+        message: `“${predicate}” mixes action with place or time. Keep the label to the action only; select placeId and time separately on the edge.`
+      };
+    }
     return { valid: true, message: "" };
   }
 
@@ -129,11 +182,13 @@
       alternateNames: textList(raw.alternateNames || raw.aliases, { maxItems: 48, maxLength: 180 }),
       identifiers: Array.isArray(raw.identifiers) ? cloneJson(raw.identifiers) : [],
       sourceIds: textList(raw.sourceIds, { maxItems: 96, maxLength: 120 }),
-      attributes: raw.properties && typeof raw.properties === "object"
-        ? cloneJson(raw.properties)
-        : raw.attributes && typeof raw.attributes === "object"
-          ? cloneJson(raw.attributes)
-          : {}
+      attributes: cleanContextFreeAttributes(
+        raw.properties && typeof raw.properties === "object"
+          ? raw.properties
+          : raw.attributes && typeof raw.attributes === "object"
+            ? raw.attributes
+            : {}
+      )
     };
   }
 
@@ -169,16 +224,19 @@
       objectId,
       predicate,
       role: text(raw.role, 120),
+      placeId: text(raw.placeId || raw.locationId, 120),
       itemIds: textList(raw.itemIds || raw.contextItemIds || raw.eventIds, { maxItems: 96, maxLength: 120 }),
       initialState: raw.initialState === "inactive" ? "inactive" : "active",
       time,
       sourceIds: textList(raw.sourceIds, { maxItems: 96, maxLength: 120 }),
       confidence: normalizeConfidence(raw.confidence),
-      attributes: raw.properties && typeof raw.properties === "object"
-        ? cloneJson(raw.properties)
-        : raw.attributes && typeof raw.attributes === "object"
-          ? cloneJson(raw.attributes)
-          : {}
+      attributes: cleanContextFreeAttributes(
+        raw.properties && typeof raw.properties === "object"
+          ? raw.properties
+          : raw.attributes && typeof raw.attributes === "object"
+            ? raw.attributes
+            : {}
+      )
     };
   }
 
@@ -193,14 +251,16 @@
       const operation = RELATION_CHANGE_OPERATIONS.has(raw.operation) ? raw.operation : "update";
       const predicate = text(raw.predicate, 120);
       if (predicate && !validateActionPredicate(predicate).valid) return null;
+      const properties = raw.properties && typeof raw.properties === "object" && !Array.isArray(raw.properties)
+        ? raw.properties
+        : {};
+      if (Object.keys(properties).some(contextPropertyKey)) return null;
       return {
         relationshipId,
         operation,
         predicate,
         role: text(raw.role, 120),
-        properties: raw.properties && typeof raw.properties === "object" && !Array.isArray(raw.properties)
-          ? cloneJson(raw.properties)
-          : {}
+        properties: cloneJson(properties)
       };
     }).filter(Boolean);
   }
@@ -283,28 +343,34 @@
     };
   }
 
-  function normalizeGraphData(input, temporal = globalThis.TimelineTemporal) {
+  function normalizeGraphData(input, temporal = globalThis.TimelineTemporal, spatial = globalThis.TimelineSpatial) {
     const entities = (Array.isArray(input?.entities) ? input.entities : [])
       .map(normalizeEntity)
       .filter(Boolean);
+    const places = spatial?.normalizePlaces?.(input?.places) || [];
     const entityIds = new Set(entities.map((entity) => String(entity.id)));
+    const placeIds = new Set(places.map((place) => String(place.id)));
     const relationships = (Array.isArray(input?.relationships) ? input.relationships : [])
       .map((raw, index) => normalizeRelationship(raw, index, temporal))
       .filter((relationship) =>
         relationship &&
         entityIds.has(String(relationship.subjectId)) &&
-        entityIds.has(String(relationship.objectId))
+        entityIds.has(String(relationship.objectId)) &&
+        (!relationship.placeId || placeIds.has(String(relationship.placeId)))
       );
-    return { entities, relationships };
+    return { entities, places, relationships };
   }
 
-  function validateGraphInput(input) {
+  function validateGraphInput(input, spatial = globalThis.TimelineSpatial) {
     const errors = [];
     const rawEntities = Array.isArray(input?.entities) ? input.entities : [];
     const rawRelationships = Array.isArray(input?.relationships) ? input.relationships : [];
     const rawItems = Array.isArray(input?.items) ? input.items : [];
     const rawStories = Array.isArray(input?.stories) ? input.stories : [];
+    const places = spatial?.normalizePlaces?.(input?.places) || [];
     const entityIds = new Set();
+    const placeIds = new Set(places.map((place) => String(place.id)));
+    const placeNames = places.map((place) => semanticKey(place.name)).filter((name) => name.length >= 4);
     const itemIds = new Set(rawItems.map((item) => text(item?.id, 120)).filter(Boolean));
     const storyIds = new Set(rawStories.map((story) => text(story?.id, 120)).filter(Boolean));
 
@@ -322,10 +388,23 @@
       const predicate = text(relationship?.predicate || relationship?.label || relationship?.type, 120);
       const validation = validateActionPredicate(predicate);
       if (!validation.valid) errors.push(`Edge ${id}: ${validation.message}`);
+      const predicateKey = semanticKey(predicate);
+      const embeddedPlace = placeNames.find((name) => predicateKey.includes(name));
+      if (embeddedPlace) errors.push(`Edge ${id}: the action label must not contain a place name; select the reusable place through placeId.`);
       const subjectId = text(relationship?.subjectId ?? relationship?.start ?? relationship?.source, 120);
       const objectId = text(relationship?.objectId ?? relationship?.end ?? relationship?.target, 120);
       if (!entityIds.has(subjectId) || !entityIds.has(objectId)) {
-        errors.push(`Edge ${id}: endpoints must both be entity nodes. Link chronology through itemIds/context, not by making an event or story a graph node.`);
+        errors.push(`Edge ${id}: endpoints must both be entity nodes. Time and place are edge properties, never endpoint nodes.`);
+      }
+      const placeId = text(relationship?.placeId || relationship?.locationId, 120);
+      if (placeId && !placeIds.has(placeId)) errors.push(`Edge ${id}: unknown placeId “${placeId}”. Create/reuse a canonical place record first.`);
+      const relationshipAttributes =
+        relationship?.properties && typeof relationship.properties === "object" ? relationship.properties :
+        relationship?.attributes && typeof relationship.attributes === "object" ? relationship.attributes :
+        {};
+      const duplicateContextKey = Object.keys(relationshipAttributes).find(contextPropertyKey);
+      if (duplicateContextKey) {
+        errors.push(`Edge ${id}: property “${duplicateContextKey}” duplicates canonical spatiotemporal context. Use edge.time or edge.placeId.`);
       }
       const contextIds = textList(
         relationship?.itemIds || relationship?.contextItemIds || relationship?.eventIds,
@@ -348,6 +427,132 @@
     });
 
     return errors;
+  }
+
+
+  function stripLegacySpatialPredicate(value) {
+    let predicate = text(value, 120);
+    const replacements = [
+      [/Toward$/, ""],
+      [/Along$/, ""],
+      [/Near$/, ""],
+      [/During$/, ""],
+      [/Via$/, ""],
+      [/From$/, ""],
+      [/Into$/, ""],
+      [/Onto$/, ""],
+      [/At$/, ""],
+      [/In$/, ""],
+      [/To$/, ""]
+    ];
+    for (const [pattern, replacement] of replacements) {
+      if (pattern.test(predicate)) {
+        predicate = predicate.replace(pattern, replacement);
+        break;
+      }
+    }
+    return predicate || text(value, 120);
+  }
+
+  function placeIdentityKey(place) {
+    const geometry = place?.geometry ? JSON.stringify(place.geometry) : "";
+    return `${semanticKey(place?.name)}|${geometry}`;
+  }
+
+  function migrateLegacySpatialModel(input, spatial = globalThis.TimelineSpatial) {
+    const migrated = cloneJson(input) || {};
+    const rawEntities = Array.isArray(migrated.entities) ? migrated.entities : [];
+    const legacyPlaceEntities = rawEntities.filter((entity) => ["place", "location"].includes(semanticKey(entity?.type)));
+    const places = spatial?.normalizePlaces?.(migrated.places) || [];
+    const placeByKey = new Map(places.map((place) => [placeIdentityKey(place), place]));
+    const placeByLegacyId = new Map();
+
+    const addPlace = (raw, preferredId = "") => {
+      if (!spatial?.normalizePlace) return null;
+      const candidate = spatial.normalizePlace({
+        id: preferredId || raw?.id,
+        name: raw?.name || raw?.label || "Place",
+        geographicIdentifier: raw?.geographicIdentifier || raw?.attributes?.geographicIdentifier,
+        address: raw?.address || raw?.attributes?.address,
+        geometry: raw?.geometry || raw?.attributes?.geometry,
+        radiusMeters: raw?.radiusMeters ?? raw?.attributes?.radiusMeters ?? raw?.attributes?.accuracyMeters,
+        icon: raw?.icon || raw?.attributes?.icon || "place",
+        markerShape: raw?.markerShape || raw?.attributes?.markerShape || "pin",
+        attributes: raw?.attributes || {}
+      }, places.length);
+      if (!candidate) return null;
+      const key = placeIdentityKey(candidate);
+      const existing = placeByKey.get(key);
+      if (existing) return existing;
+      places.push(candidate);
+      placeByKey.set(key, candidate);
+      return candidate;
+    };
+
+    for (const entity of legacyPlaceEntities) {
+      const place = addPlace(entity, text(entity.id, 120));
+      if (place) placeByLegacyId.set(String(entity.id), place.id);
+    }
+
+    const itemPlaceIds = new Map();
+    migrated.items = (Array.isArray(migrated.items) ? migrated.items : []).map((item) => {
+      if (!item || typeof item !== "object") return item;
+      const copy = { ...item };
+      if (copy.location) {
+        const place = addPlace(copy.location);
+        if (place && copy.id) itemPlaceIds.set(String(copy.id), place.id);
+        delete copy.location;
+      }
+      return copy;
+    });
+
+    migrated.entities = rawEntities.filter((entity) => !["place", "location"].includes(semanticKey(entity?.type)));
+    const entityIds = new Set(migrated.entities.map((entity) => String(entity?.id || "")));
+
+    migrated.relationships = (Array.isArray(migrated.relationships) ? migrated.relationships : []).map((raw) => {
+      if (!raw || typeof raw !== "object") return raw;
+      const relationship = { ...raw };
+      let subjectId = text(relationship.subjectId ?? relationship.start ?? relationship.source, 120);
+      let objectId = text(relationship.objectId ?? relationship.end ?? relationship.target, 120);
+      let placeId = text(relationship.placeId || relationship.locationId, 120);
+      let usedPlaceEndpoint = false;
+
+      if (placeByLegacyId.has(subjectId)) {
+        placeId ||= placeByLegacyId.get(subjectId);
+        subjectId = objectId;
+        usedPlaceEndpoint = true;
+      }
+      if (placeByLegacyId.has(objectId)) {
+        placeId ||= placeByLegacyId.get(objectId);
+        objectId = subjectId;
+        usedPlaceEndpoint = true;
+      }
+
+      const contexts = textList(relationship.itemIds || relationship.contextItemIds || relationship.eventIds, { maxItems: 96, maxLength: 120 });
+      if (!placeId) {
+        for (const itemId of contexts) {
+          const contextualPlaceId = itemPlaceIds.get(String(itemId));
+          if (contextualPlaceId) {
+            placeId = contextualPlaceId;
+            break;
+          }
+        }
+      }
+
+      if (usedPlaceEndpoint) relationship.predicate = stripLegacySpatialPredicate(relationship.predicate || relationship.label || relationship.type);
+      relationship.subjectId = subjectId;
+      relationship.objectId = objectId;
+      relationship.placeId = placeId || "";
+      delete relationship.locationId;
+      return relationship;
+    }).filter((relationship) =>
+      relationship &&
+      entityIds.has(String(relationship.subjectId || "")) &&
+      entityIds.has(String(relationship.objectId || ""))
+    );
+
+    migrated.places = places;
+    return migrated;
   }
 
   function toOrbGraph({ entities = [], relationships = [] } = {}) {
@@ -385,6 +590,7 @@
         role: relationship.role || "",
         initialState: relationship.initialState || "active",
         time: cloneJson(relationship.time || null),
+        placeId: relationship.placeId || "",
         itemIds: cloneJson(relationship.itemIds || []),
         sourceIds: cloneJson(relationship.sourceIds || []),
         confidence: relationship.confidence ?? null,
@@ -547,6 +753,7 @@
         objectId: relationship.objectId,
         predicate: relationship.predicate,
         role: relationship.role,
+        placeId: relationship.placeId || "",
         itemIds: cloneJson(relationship.itemIds || []),
         start,
         end
@@ -557,10 +764,12 @@
 
   globalThis.TimelineGraph = Object.freeze({
     graphForWindow,
+    migrateLegacySpatialModel,
     normalizeGraphData,
     validateGraphInput,
     validateActionPredicate,
     validateEntityNode,
+    contextPropertyKey,
     normalizeRelationChanges,
     neighborhoodGraph,
     relationshipStateAt,

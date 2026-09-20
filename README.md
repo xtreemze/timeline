@@ -30,7 +30,7 @@ The application is static and runs entirely in the browser. Timeline data is sto
 - Create point **events** or **ranges** through one calendar field: events select one date; ranges select two dates in the same calendar, with an explicit year control.
 - Add native clock inputs independently to either range boundary while retaining explicit temporal precision.
 - Preserve ISO 8601 date/time values, certainty, IANA time zone identifiers, and source UTC offsets.
-- Assign an optional structured place and WGS 84 point; choose coordinates manually, from the map, or through Chrome's native geolocation control.
+- Create reusable canonical places once, with point/area geometry, optional radius, semantic icon, and marker shape; edges reference those places by ID for map projection.
 - Attach up to three photographs to an event and browse them as a hero slideshow in focused view.
 - Add semantic tags with selectable icons and hue-only theming; lightness/chroma and foreground contrast stay under design-system control and meaning never depends on color alone.
 - Select an event to give it the full 12-column chronology workspace; the editor yields the screen, the event becomes an asymmetric composition, and the timeline docks to an edge for context.
@@ -86,15 +86,18 @@ This is deliberately a reference model rather than a copy model: stories do not 
 
 Timeline includes an authorable subject–action–object graph alongside the chronology:
 
-- **Nodes** represent durable nouns/subjects such as people, organizations, groups, devices, places, accounts, documents, or domain objects. Actions, events, meetings, transactions, decisions and processes are never graph nodes.
-- Nodes carry a type plus arbitrary JSON properties.
-- **Edges** connect an entity subject/source node to an entity object/target and use a specific action verb or verb phrase such as `called`, `warned`, `built`, `transferredTo`, or `authorized`.
+- **One node = one entity.** Nodes represent durable entity records such as people, organizations, groups, devices, accounts, documents, or domain objects. Actions, events, meetings, transactions, decisions, processes, places, dates, times, coordinates, and geometry are never graph nodes.
+- Node properties must describe the entity itself. Spatiotemporal fields such as `time`, `date`, `location`, `place`, `geometry`, `coordinates`, latitude/longitude, or radius are rejected on nodes.
+- **Edges** connect an entity subject/source node to an entity object/target and use only a specific action verb or verb phrase such as `called`, `warned`, `built`, `transferredTo`, or `authorized`.
+- Edge labels must not encode where or when the action happened. Spatial/temporal wording belongs in structured edge properties, not in the predicate.
+- `relationship.time` is the canonical temporal property used for timeline/temporal-graph projection.
+- `relationship.placeId` references one record from reusable `places[]`; the place carries point/area geometry, optional radius, semantic icon, and map-marker shape.
 - Generic associations such as `participatesIn`, `partOf`, `memberOf`, `relatedTo`, `associatedWith`, or `connectedTo` are invalid canonical predicates.
-- Edges can carry a role, arbitrary JSON properties, an optional instant/date range, and `itemIds[]` linking the action to chronology records without turning those events into nodes.
+- `itemIds[]` can link an action edge to chronology/presentation records without turning those records into graph nodes.
 - Stories remain narrative groupings through `story.itemIds[]`; they are not graph nodes or edge endpoints.
 - The graph lens is synchronized to the visible timeline window: timed edges inside the window are emphasized, out-of-window edges fade, and explicitly timeless action relations remain visible.
 
-The canonical graph remains `entities[] + relationships[]`. `TimelineGraph.toOrbGraph()` emits the node/edge contract expected by Orb-like visualization layers without making a force-layout view the source of truth.
+The canonical model is `entities[] + places[] + relationships[]`: entity topology is separate from reusable spatial records. `TimelineGraph.toOrbGraph()` emits the node/edge contract expected by Orb-like visualization layers without making a force-layout view the source of truth.
 
 The graph lens is rendered with bundled `@memgraph/orb`. Focused presentation scopes the global graph to the selected event's relevant one-hop neighborhood, including relation changes. Nodes use semantic shapes and embedded SVG glyphs; directed edges combine action labels, semantic glyphs, state-aware line styling and arrows.
 
@@ -123,7 +126,7 @@ Timeline separates evidence, observations, factual assertions, competing hypothe
 - Browser-local persistence with `localStorage`.
 - Automatic migration of the original v1 `events[]` browser data to v2.
 - Strict JSON validation at import boundaries.
-- JSON export preserving categories, chronology items, ranges, stories, structured temporal extents, locations, entities, temporal relationships, evidence metadata, focus-layout preferences, and namespaced interchange extensions.
+- JSON export preserving categories, chronology items, ranges, stories, entities, reusable places, edge time/place context, evidence metadata, focus-layout preferences, and namespaced interchange extensions.
 - Vendor-neutral JSON/XML interchange import for events, periods, groups, and common external field aliases, with unrecognized source records preserved under `extensions.externalInterchange`.
 - Vendor-neutral interchange JSON export with a published JSON Schema and round-trip preservation of imported extension fields.
 - Markdown export containing the canonical chronology plus each narrative story.
@@ -132,7 +135,7 @@ Timeline separates evidence, observations, factual assertions, competing hypothe
 
 ## Data format
 
-Version 2 uses four top-level concepts:
+Version 2 now treats graph/spatial data as separate top-level concepts:
 
 ```json
 {
@@ -184,7 +187,7 @@ The exported interchange schema is `schemas/interchange-v1.schema.json`. See `do
 
 ### Temporal graph values
 
-Timeline preserves reusable `entities[]` and `relationships[]` alongside chronology items. Relationship endpoints must resolve to entity nodes. Relationships use `subjectId`, `objectId`, a specific action `predicate`, optional `role`, optional `itemIds[]` chronology context, arbitrary properties, an initial active/inactive state, and an optional temporal extent.
+Timeline preserves reusable `entities[]`, `places[]`, and `relationships[]` alongside chronology items. Relationship endpoints must resolve to entity nodes. Relationships use `subjectId`, `objectId`, a specific action-only `predicate`, optional `role`, optional `itemIds[]` chronology context, optional `placeId`, arbitrary properties, an initial active/inactive state, and an optional `time` extent. Places are not nodes.
 
 Events can change an existing relationship without rewriting its history. `item.relationChanges[]` records `activate`, `deactivate`, or `update` operations whose effective time is the event timestamp. An update can change the effective edge label, role, or properties from that event onward. The graph reconstructs effective relation state for the visible timeline window and marks an edge as changed when its lifecycle changes inside that window.
 
@@ -198,35 +201,47 @@ See `docs/TEMPORAL-GRAPH-ARCHITECTURE.md`.
 
 ```json
 {
-  "start": "2026-09-19T12:06:31.125+08:00",
-  "time": {
-    "type": "instant",
-    "start": {
-      "value": "2026-09-19T12:06:31.125+08:00",
-      "precision": "millisecond",
-      "certainty": "exact",
-      "calendar": "gregorian",
-      "timeZone": "Asia/Manila",
-      "utcOffset": "+08:00",
-      "sourceText": null
-    },
-    "end": null
-  },
-  "location": {
-    "name": "Stockholm",
-    "geographicIdentifier": "Stockholm, Sweden",
-    "address": "",
-    "geometry": {
-      "type": "Point",
-      "coordinates": [18.0686, 59.3293]
-    },
-    "crs": "OGC:CRS84",
-    "source": "manual"
-  }
+  "places": [
+    {
+      "id": "place-stockholm",
+      "name": "Stockholm",
+      "geographicIdentifier": "Stockholm, Sweden",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [18.0686, 59.3293]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": 250,
+      "icon": "place",
+      "markerShape": "pin"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "rel-example",
+      "subjectId": "person-a",
+      "predicate": "met",
+      "objectId": "person-b",
+      "placeId": "place-stockholm",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "2026-09-19T12:06:31.125+08:00",
+          "precision": "millisecond",
+          "certainty": "exact",
+          "calendar": "gregorian",
+          "timeZone": "Asia/Manila",
+          "utcOffset": "+08:00",
+          "sourceText": null
+        },
+        "end": null
+      }
+    }
+  ]
 }
 ```
 
-Ranges require both endpoints and the normalized end instant cannot precede the start. GeoJSON/CRS84 point coordinates are stored in longitude-latitude order. See `docs/TEMPORAL-SPATIAL-INTERCHANGE.md`.
+Edge ranges require both endpoints and the normalized end instant cannot precede the start. Canonical place GeoJSON/CRS84 coordinates are stored in longitude-latitude order. Places are referenced, not copied, so multiple edges can share one location definition. See `docs/TEMPORAL-SPATIAL-INTERCHANGE.md`.
 
 ### Referential rules
 
@@ -247,7 +262,7 @@ The application has four editing surfaces plus coordinated chronology and graph 
 │ Event/range editor                       │  │ focused event composition  │
 │ Story sequence builder                   │  │ node-edge graph lens       │
 │ Category manager                         │  │ shared temporal window     │
-│ Node + labeled edge editor               │  │                            │
+│ Entity + place + action-edge editor      │  │                            │
 └───────────────────────────────────────────┘  └────────────────────────────┘
 ```
 

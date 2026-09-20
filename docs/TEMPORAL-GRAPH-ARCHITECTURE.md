@@ -80,48 +80,37 @@ The timeline owns the application viewport and is not compressed into a page-lev
 
 ## Temporal graph contract
 
-Top-level data may include:
+The canonical model deliberately separates entity topology from spatial context:
 
 ```json
 {
   "entities": [
-    {
-      "id": "person-a",
-      "type": "person",
-      "name": "Example Person",
-      "identifiers": [],
-      "attributes": {}
-    },
+    { "id": "person-a", "type": "person", "name": "Example Person", "attributes": {} },
+    { "id": "person-b", "type": "person", "name": "Example Witness", "attributes": {} }
+  ],
+  "places": [
     {
       "id": "place-a",
-      "type": "place",
       "name": "Example Place",
-      "identifiers": [],
-      "attributes": {}
+      "geometry": { "type": "Point", "coordinates": [18.0686, 59.3293] },
+      "crs": "OGC:CRS84",
+      "radiusMeters": 250,
+      "icon": "place",
+      "markerShape": "pin"
     }
   ],
   "relationships": [
     {
       "id": "rel-1",
       "subjectId": "person-a",
-      "objectId": "place-a",
-      "predicate": "witnessedAt",
-      "role": "witness",
+      "objectId": "person-b",
+      "predicate": "witnessed",
+      "placeId": "place-a",
       "itemIds": ["event-1"],
       "time": {
         "type": "interval",
-        "start": {
-          "value": "2026-09-01",
-          "precision": "day",
-          "certainty": "exact",
-          "calendar": "gregorian"
-        },
-        "end": {
-          "value": "2026-09-30",
-          "precision": "day",
-          "certainty": "exact",
-          "calendar": "gregorian"
-        }
+        "start": { "value": "2026-09-01", "precision": "day", "certainty": "exact", "calendar": "gregorian" },
+        "end": { "value": "2026-09-30", "precision": "day", "certainty": "exact", "calendar": "gregorian" }
       },
       "attributes": {}
     }
@@ -129,7 +118,9 @@ Top-level data may include:
 }
 ```
 
-A temporal relationship is projected into the timeline relation band using its own start/end coordinates. Its endpoints remain entity nodes; `itemIds[]` links the action back to relevant chronology records without creating event nodes. Untimed relationships remain valid graph edges only when they still describe a concrete action relation, but they do not appear in the temporal band.
+A node represents exactly one entity. Places, locations, coordinates, geometry, dates, times, periods, actions and events are never graph nodes. A relationship label contains only the action predicate. Its temporal extent is stored in `relationship.time`; its spatial context is a `relationship.placeId` reference to one canonical `places[]` record. Those properties drive timeline and map projections independently from the label.
+
+`itemIds[]` links an action back to chronology/presentation records without turning chronology items into graph nodes. Untimed relationships remain valid only when the action genuinely has no temporal extent.
 
 ## Memgraph Orb compatibility
 
@@ -138,7 +129,7 @@ Memgraph Orb's public data contract requires:
 - node: unique `id`;
 - edge: unique `id`, `start`, and `end`.
 
-`TimelineGraph.toOrbGraph()` emits those structures and retains Timeline type, temporal extent, location and attributes inside properties.
+`TimelineGraph.toOrbGraph()` emits those structures and retains entity type plus edge `time`, `placeId`, chronology context and attributes inside renderer properties. Place geometry itself stays in the canonical place registry.
 
 Orb currently supports interactive Canvas/WebGL rendering plus force, GPU, grid, circular and hierarchical layouts. That makes it a suitable future graph surface. However, Memgraph explicitly notes that its direct browser-link build cannot use simulation web workers and therefore runs graph simulation on the main thread.
 
@@ -169,7 +160,7 @@ The Graph editor now exposes the canonical graph directly.
 
 ### Node contract
 
-Nodes are nouns/subjects. The minimum authoring shape is:
+A node is one entity, with no verb/action and no spatiotemporal context. The minimum authoring shape is:
 
 ```json
 {
@@ -183,7 +174,25 @@ Nodes are nouns/subjects. The minimum authoring shape is:
 }
 ```
 
-The UI labels `attributes` as **Properties** because graph-database users typically reason about node properties rather than implementation field names. Import normalization accepts either `properties` or `attributes`.
+The UI labels `attributes` as **Properties** because graph-database users typically reason about node properties rather than implementation field names. Import normalization accepts either `properties` or `attributes`. Node validation rejects place/location, date/time/period, coordinates, geometry, latitude/longitude, radius and similar fields: those describe an action's context, not the entity itself.
+
+### Place contract
+
+Places are reusable spatial records outside graph topology. Create a place once and reference it from many edges:
+
+```json
+{
+  "id": "place-a",
+  "name": "Example Place",
+  "geometry": { "type": "Point", "coordinates": [18.0686, 59.3293] },
+  "crs": "OGC:CRS84",
+  "radiusMeters": 250,
+  "icon": "place",
+  "markerShape": "pin"
+}
+```
+
+Geometry may be a Point, Polygon or MultiPolygon. A Point may additionally carry `radiusMeters`. `icon` is the semantic marker icon and `markerShape` is one of `pin`, `circle`, `square` or `diamond`. Canonical-place identity is deduplicated so equivalent name/geometry/radius records are reused instead of copied.
 
 ### Edge contract
 
@@ -196,6 +205,7 @@ Edges are directed subject–action–object statements:
   "predicate": "called",
   "objectId": "person-b",
   "role": "caller",
+  "placeId": "place-a",
   "attributes": {
     "channel": "phone"
   },
@@ -207,7 +217,7 @@ Edges are directed subject–action–object statements:
 }
 ```
 
-The action label is stored in `predicate`. Both endpoints must reference reusable entity nodes. Chronology items and stories are never graph endpoints: `relationships[].itemIds[]` records which timeline items contextualize an action, while story membership stays in `story.itemIds[]`. Referential normalization rejects or drops relationships whose endpoints are not valid entities.
+The action label is stored in `predicate` and contains the action only. It must not contain a place name, date/time, or spatial/temporal suffix such as “at”, “near” or “during”. Both endpoints must reference reusable entity nodes. `placeId` and `time` are independent edge properties. Chronology items and stories are never graph endpoints: `relationships[].itemIds[]` records which timeline items contextualize an action, while story membership stays in `story.itemIds[]`. Referential normalization rejects invalid entity endpoints or unknown place references.
 
 Authoring SHOULD give a relation an instant or interval whenever its temporal extent is known. The editor therefore defaults new relations to a dated instant. “Persistent / no temporal anchor” is an explicit exception for genuinely timeless topology rather than the default way to avoid entering a date.
 

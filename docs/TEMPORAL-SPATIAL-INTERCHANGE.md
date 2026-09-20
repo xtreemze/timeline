@@ -80,36 +80,57 @@ This distinction matters because ISO 8601 represents UTC offsets, while IANA ide
 
 Legacy `start` and `end` remain present as compatibility projections of `time.start.value` and `time.end.value`.
 
-## Location structure
+## Reusable place registry and edge spatial context
 
-A location may be descriptive without coordinates, coordinate-only, or both.
+Spatial context is canonicalized separately from chronology items and graph nodes. A place is created once in top-level `places[]`, then any number of relationships reference it through `placeId`.
 
 ```json
 {
-  "location": {
-    "name": "Stockholm Central Station",
-    "geographicIdentifier": "Stockholm, Sweden",
-    "address": "Centralplan 15, Stockholm",
-    "geometry": {
-      "type": "Point",
-      "coordinates": [18.0586, 59.3300]
-    },
-    "crs": "OGC:CRS84",
-    "source": "manual",
-    "accuracyMeters": null
-  }
+  "places": [
+    {
+      "id": "place-stockholm-central",
+      "name": "Stockholm Central Station",
+      "geographicIdentifier": "Stockholm, Sweden",
+      "address": "Centralplan 15, Stockholm",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [18.0586, 59.3300]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": 150,
+      "icon": "place",
+      "markerShape": "pin"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "rel-meeting",
+      "subjectId": "person-a",
+      "predicate": "met",
+      "objectId": "person-b",
+      "placeId": "place-stockholm-central",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "2026-09-19",
+          "precision": "day",
+          "certainty": "exact",
+          "calendar": "gregorian"
+        },
+        "end": null
+      }
+    }
+  ]
 }
 ```
 
-Coordinate order is always `[longitude, latitude]`.
+Coordinate order is always `[longitude, latitude]`. Supported canonical place geometry is GeoJSON Point, Polygon, or MultiPolygon. A Point may carry `radiusMeters`; area geometries already encode their extent and therefore cannot also carry a radius.
 
-Presentation rendering is not limited to Point geometry. Imported or programmatic records may supply any RFC 7946 geometry supported by Leaflet's GeoJSON layer. Optional `location.mapFeatures[]` entries can add secondary GeoJSON Feature/Geometry overlays without replacing the canonical location geometry. This is useful for routes, trails, search areas, site boundaries, corridors or other event-specific spatial context.
+`icon` identifies the semantic marker symbol. `markerShape` is one of `pin`, `circle`, `square`, or `diamond`. Leaflet resolves both from the referenced place when rendering a relationship's map context.
 
-`source` is one of:
+Place identity is reusable and deduplicated. The editor rejects creating an equivalent name/geometry/radius record and directs the author to reuse the existing place from the edge selector. This prevents many events or edges from carrying copies of the same coordinates.
 
-- `manual` — typed coordinates or map placement;
-- `device` — obtained from the browser geolocation control;
-- `imported` — retained from external data.
+Legacy/imported `item.location` values remain accepted at the adapter boundary for compatibility, but canonical normalization migrates them into `places[]`, removes the copied item location, and assigns the resulting `placeId` to contextual edges. Place/location entities from older graph data are migrated out of graph topology by the same boundary.
 
 ## Browser-native location permission
 
@@ -131,9 +152,9 @@ Timeline:
 
 - shows OpenStreetMap attribution on the map;
 - renders presentation geometry through Leaflet GeoJSON layers;
-- uses semantic SVG icon markers for points and the event/category color for spatial overlays;
+- uses each canonical place's semantic SVG icon and marker shape for point markers, with relationship/event color available as presentation accent;
 - fits routes, areas and collections to their visible bounds rather than leaving an empty generic map;
-- may render recorded point accuracy as a non-interactive uncertainty circle;
+- renders a canonical Point `radiusMeters` as a non-interactive Leaflet circle;
 - does not prefetch or bulk-download tiles;
 - does not offer offline map-tile download;
 - relies on normal browser HTTP caching;

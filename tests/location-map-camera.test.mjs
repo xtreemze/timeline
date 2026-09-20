@@ -30,7 +30,10 @@ test("focused map ties the semantic place identity to the stored coordinate", as
   ]);
 
   assert.match(appSource, /label:\s*name/);
-  assert.match(mapSource, /semanticMarkerIcon\([\s\S]*label = ""/);
+  assert.match(mapSource, /semanticMarkerIcon\([\s\S]*label = ""[\s\S]*markerShape = "pin"/);
+  assert.match(appSource, /placeForItem\(item\.id\)/);
+  assert.match(appSource, /markerShape:\s*place\.markerShape/);
+  assert.match(mapSource, /radiusMeters/);
   assert.match(mapSource, /isPrimaryPlacePoint[\s\S]*this\.label/);
   assert.match(mapSource, /L\.marker\(latlng,[\s\S]*icon:\s*markerIcon/);
   assert.match(mapSource, /timeline-map-marker-label/);
@@ -39,6 +42,8 @@ test("focused map ties the semantic place identity to the stored coordinate", as
   assert.match(mapSource, /this\.container\.setAttribute\("aria-label", this\.label\)/);
   assert.match(styles, /\.timeline-map-marker-identity/);
   assert.match(styles, /\.timeline-map-marker-label/);
+  assert.match(styles, /timeline-map-marker-shape-diamond/);
+  assert.match(styles, /timeline-map-marker-shape-pin/);
   assert.match(styles, /\.timeline-map-place-placeholder/);
 });
 

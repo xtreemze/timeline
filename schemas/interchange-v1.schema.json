@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://xtreemze.github.io/timeline/schemas/interchange-v1.schema.json",
   "title": "Timeline External Interchange v1",
-  "description": "A vendor-neutral event, period, grouping, story, entity, and relationship interchange envelope used by Timeline adapters.",
+  "description": "A vendor-neutral event, period, grouping, story, entity, reusable-place, and relationship interchange envelope used by Timeline adapters.",
   "type": "object",
   "required": [
     "title",
@@ -71,6 +71,9 @@
         },
         "reasoning": {
           "type": "object"
+        },
+        "places": {
+          "type": "array"
         }
       },
       "additionalProperties": true

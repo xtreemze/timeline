@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 await import("../site/temporal-standards.js");
 await import("../site/timeline-clustering.js");
 await import("../site/timeline-motion.js");
+await import("../site/spatial.js");
 await import("../site/timeline-graph.js");
 
 const clustering = globalThis.TimelineClustering;
@@ -400,7 +401,7 @@ test("pointer velocity uses recent samples and clamps extreme release speed", ()
   assert.ok(velocity <= 3.2);
 });
 
-test("Orb adapter preserves temporal relationship metadata", () => {
+test("Orb adapter preserves temporal and reusable-place relationship metadata", () => {
   const normalized = graph.normalizeGraphData({
     entities: [
       {
@@ -413,11 +414,19 @@ test("Orb adapter preserves temporal relationship metadata", () => {
       },
       { id: "person-b", type: "person", name: "B" }
     ],
+    places: [{
+      id: "place-a",
+      name: "Meeting Room",
+      geometry: { type: "Point", coordinates: [18.0686, 59.3293] },
+      icon: "place",
+      markerShape: "pin"
+    }],
     relationships: [{
       id: "rel-1",
       subjectId: "person-a",
       objectId: "person-b",
       predicate: "workedWith",
+      placeId: "place-a",
       sourceIds: ["evidence-rel-1", "evidence-rel-1", "source-rel-2"],
       confidence: 0.82,
       time: {
@@ -441,33 +450,45 @@ test("Orb adapter preserves temporal relationship metadata", () => {
   assert.deepEqual(orb.edges[0].properties.sourceIds, ["evidence-rel-1", "source-rel-2"]);
   assert.equal(orb.edges[0].properties.confidence, 0.82);
   assert.equal(orb.edges[0].properties.time.type, "interval");
+  assert.equal(orb.edges[0].properties.placeId, "place-a");
+  assert.equal(normalized.places.length, 1);
 
   const projected = graph.temporalRelationProjection(normalized.relationships);
   assert.equal(projected.length, 1);
   assert.ok(projected[0].end > projected[0].start);
+  assert.equal(projected[0].placeId, "place-a");
 });
 
-test("Orb adapter keeps chronology and stories out of the canonical node graph", () => {
+test("Orb adapter keeps chronology, stories, and places out of the canonical node graph", () => {
   const input = {
     entities: [
       { id: "person-a", type: "person", name: "Person A" },
-      { id: "place-a", type: "place", name: "Place A" }
+      { id: "person-b", type: "person", name: "Person B" }
     ],
+    places: [{
+      id: "place-a",
+      name: "Place A",
+      geometry: { type: "Point", coordinates: [18.0686, 59.3293] },
+      icon: "place",
+      markerShape: "pin"
+    }],
     stories: [{ id: "story-a", title: "Story A", description: "", itemIds: ["event-a"] }],
     items: [{ id: "event-a", title: "Event A", kind: "event" }],
     relationships: [{
       id: "edge-a",
       subjectId: "person-a",
-      objectId: "place-a",
-      predicate: "travelsTo",
+      objectId: "person-b",
+      predicate: "travels",
+      placeId: "place-a",
       itemIds: ["event-a"]
     }]
   };
   const normalized = graph.normalizeGraphData(input);
   const orb = graph.toOrbGraph({ ...input, ...normalized });
-  assert.deepEqual(orb.nodes.map((node) => node.id).sort(), ["person-a", "place-a"]);
-  assert.equal(orb.nodes.some((node) => node.id === "event-a" || node.id === "story-a"), false);
+  assert.deepEqual(orb.nodes.map((node) => node.id).sort(), ["person-a", "person-b"]);
+  assert.equal(orb.nodes.some((node) => node.id === "event-a" || node.id === "story-a" || node.id === "place-a"), false);
   assert.deepEqual(orb.edges[0].properties.itemIds, ["event-a"]);
+  assert.equal(orb.edges[0].properties.placeId, "place-a");
 });
 
 test("graph semantics reject action nodes and generic association predicates", () => {
@@ -478,8 +499,11 @@ test("graph semantics reject action nodes and generic association predicates", (
     "direct projection must not reintroduce action nodes"
   );
   assert.equal(graph.validateEntityNode({ name: "Alice", type: "person" }).valid, true);
+  assert.equal(graph.validateEntityNode({ name: "Called Alice", type: "person" }).valid, false);
+  assert.equal(graph.validateEntityNode({ name: "Stockholm", type: "place" }).valid, false);
+  assert.equal(graph.validateEntityNode({ name: "Alice", type: "person", attributes: { location: "Stockholm" } }).valid, false);
 
-  for (const predicate of ["participatesIn", "part of", "took part in", "memberOf", "relatedTo", "associatedWith"]) {
+  for (const predicate of ["participatesIn", "part of", "took part in", "memberOf", "relatedTo", "associatedWith", "metAt", "visitedNear", "searchedDuring"]) {
     assert.equal(graph.validateActionPredicate(predicate).valid, false, predicate);
   }
   for (const predicate of ["called", "warned", "built", "transferredTo", "authorized"]) {
@@ -488,12 +512,75 @@ test("graph semantics reject action nodes and generic association predicates", (
 
   const normalized = graph.normalizeGraphData({
     entities: [{ id: "person-a", type: "person", name: "A" }],
+    places: [{ id: "known-place", name: "Known Place", geometry: { type: "Point", coordinates: [1, 1] } }],
     relationships: [
       { id: "generic", subjectId: "person-a", objectId: "person-a", predicate: "relatedTo" },
-      { id: "event-endpoint", subjectId: "person-a", objectId: "event-a", predicate: "called" }
+      { id: "event-endpoint", subjectId: "person-a", objectId: "event-a", predicate: "called" },
+      { id: "unknown-place", subjectId: "person-a", objectId: "person-a", predicate: "called", placeId: "missing-place" }
     ]
   });
   assert.deepEqual(normalized.relationships, []);
+
+  const invalidContext = graph.validateGraphInput({
+    entities: [
+      { id: "a", type: "person", name: "A" },
+      { id: "b", type: "person", name: "B" }
+    ],
+    places: [{ id: "p", name: "Place", geometry: { type: "Point", coordinates: [1, 1] } }],
+    relationships: [{
+      id: "r",
+      subjectId: "a",
+      objectId: "b",
+      predicate: "called",
+      placeId: "p",
+      attributes: { location: "duplicate", time: "duplicate" }
+    }]
+  });
+  assert.ok(invalidContext.some((error) => /duplicates canonical spatiotemporal context/.test(error)));
+  assert.equal(graph.contextPropertyKey("geometry"), true);
+  assert.equal(graph.contextPropertyKey("channel"), false);
+});
+
+test("legacy place nodes and item locations migrate into reusable edge place context", () => {
+  const migrated = graph.migrateLegacySpatialModel({
+    entities: [
+      { id: "person-a", type: "person", name: "A" },
+      { id: "person-b", type: "person", name: "B" },
+      {
+        id: "place-old",
+        type: "place",
+        name: "Station",
+        attributes: { geometry: { type: "Point", coordinates: [18.0686, 59.3293] } }
+      }
+    ],
+    items: [{
+      id: "event-a",
+      title: "Meeting",
+      location: {
+        name: "Station",
+        geometry: { type: "Point", coordinates: [18.0686, 59.3293] }
+      }
+    }],
+    relationships: [{
+      id: "legacy-place-edge",
+      subjectId: "person-a",
+      objectId: "place-old",
+      predicate: "metAt",
+      itemIds: ["event-a"]
+    }, {
+      id: "entity-edge",
+      subjectId: "person-a",
+      objectId: "person-b",
+      predicate: "met",
+      itemIds: ["event-a"]
+    }]
+  }, globalThis.TimelineSpatial);
+
+  assert.equal(migrated.entities.some((entity) => entity.id === "place-old"), false);
+  assert.ok(migrated.places.some((place) => place.name === "Station"));
+  assert.equal("location" in migrated.items[0], false);
+  assert.ok(migrated.relationships.every((edge) => edge.placeId));
+  assert.equal(migrated.relationships.find((edge) => edge.id === "legacy-place-edge")?.predicate, "met");
 });
 
 test("timeline CSS uses Monaspace texture healing and metric-aware text trimming", async () => {
@@ -705,4 +792,3 @@ test("relations mode docks chronology opposite the graph inside chrome-safe boun
   assert.match(timelineCss, /Mobile Relations composition[\s\S]*data-orientation="landscape"[\s\S]*--timeline-axis-cross:\s*38%/);
   assert.match(appSource, /function setGraphSurfaceOpen[\s\S]*runApplicationViewTransition\(\(\) => syncApplicationSurfaces\(\)\)/);
 });
-

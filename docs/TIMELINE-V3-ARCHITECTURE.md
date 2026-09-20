@@ -13,7 +13,7 @@ It is deliberately conservative about standards claims: the product can implemen
 3. **The timeline is continuous.** The primary axis is linear and zoomable from century-scale overview to millisecond-scale inspection.
 4. **Precision is not certainty.** A value can be precise to a millisecond and still be uncertain; a year-only value can be exact at year precision.
 5. **Evidence is never silently rewritten.** Source facts, derived observations, analyst interpretations, and presentation annotations are distinct.
-6. **People, places, organizations, software, devices, and other entities are reusable records.** Events reference them through typed relationships rather than copying descriptive text.
+6. **Graph nodes are entity-only records.** People, organizations, software, devices and other domain entities may be nodes; places are reusable spatial records referenced by edges, never nodes.
 7. **Local-first remains a product property.** Evidence-grade metadata does not imply a backend, cloud custody, or remote processing.
 8. **Rendering is not the source of truth.** Marker position, connector style, terminal shape, icon, image, and expanded presentation are view metadata or derived state.
 9. **Interchange is explicit.** Internal records may be richer than any one export format; lossy exports must report what cannot be represented.
@@ -199,36 +199,38 @@ Do not make "person", "place", or "evidence" special text fields on events. Intr
       "id": "person-1",
       "type": "person",
       "name": "Example Person",
-      "identifiers": [
-        { "scheme": "isni", "value": "..." }
-      ],
+      "identifiers": [{ "scheme": "isni", "value": "..." }],
       "attributes": {}
     },
     {
-      "id": "place-1",
-      "type": "place",
-      "name": "Example Place",
+      "id": "person-2",
+      "type": "person",
+      "name": "Example Witness",
       "identifiers": [],
-      "location": {
-        "geographicIdentifier": "Example Place, Example Region",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [18.0686, 59.3293]
-        }
-      }
+      "attributes": {}
+    }
+  ],
+  "places": [
+    {
+      "id": "place-1",
+      "name": "Example Place",
+      "geographicIdentifier": "Example Place, Example Region",
+      "geometry": { "type": "Point", "coordinates": [18.0686, 59.3293] },
+      "crs": "OGC:CRS84",
+      "icon": "place",
+      "markerShape": "pin"
     }
   ],
   "relationships": [
     {
       "id": "rel-1",
       "subjectId": "person-1",
-      "predicate": "witnessedAt",
-      "objectId": "place-1",
-      "role": "witness",
+      "predicate": "witnessed",
+      "objectId": "person-2",
+      "placeId": "place-1",
       "itemIds": ["event-1"]
     }
   ]
-}
 ```
 
 ### Person/entity alignment
@@ -243,7 +245,7 @@ Do not make "person", "place", or "evidence" special text fields on events. Intr
 - ISO 19111:2019: coordinate reference systems.
 - RFC 7946 GeoJSON: practical geometry interchange in WGS 84 / CRS84.
 
-The UI should allow a minimal place record (name only) and progressively disclose identifiers, address/gazetteer references, coordinates, geometry, CRS metadata, and source provenance.
+The UI creates places in a dedicated reusable registry rather than as graph nodes. A canonical place requires a name plus point or area geometry, may add a Point radius, and carries a semantic icon and marker shape for Leaflet. Edges reference the place by ID; geometry is never copied into nodes or edge labels.
 
 ## Evidence and provenance model
 
@@ -367,7 +369,7 @@ Stories remain ordered references and must not alter chronology.
 
 Timed relationships are first-class temporal graph edges. A relationship MAY carry the same `time` extent as an event so the renderer can answer both “who/what is related?” and “during which temporal interval did that relationship hold?”. The timeline reserves a relation band separate from event terminals; full graph exploration is a distinct linked surface.
 
-Timeline exposes node and edge authoring only in explicit Edit mode. Nodes are durable subject/noun entity records with a type and arbitrary properties; actions, events, activities, meetings, transactions, decisions and processes are categorically not nodes. Directed edges connect entity endpoints and require a specific action verb or verb phrase. Generic association predicates such as `participatesIn`, `partOf`, `memberOf`, `relatedTo`, `associatedWith` or `connectedTo` are invalid. An edge may carry `itemIds[]` to identify chronology records that contextualize the action without promoting those records into graph nodes. Stories remain narrative references through `story.itemIds[]`, not graph topology. Persistent/no-anchor relations remain supported only when the action relation genuinely lacks a temporal extent and are intentionally not the authoring default.
+Timeline exposes entity-node, reusable-place and edge authoring only in explicit Edit mode. Each node is exactly one durable entity. Actions, events, activities, meetings, transactions, decisions, processes, places/locations, dates/times and geometry are categorically not nodes. Directed edges connect entity endpoints and require a specific action verb or verb phrase. The predicate is action-only; `relationship.time` contains when it occurred and `relationship.placeId` references where it occurred. Generic association predicates such as `participatesIn`, `partOf`, `memberOf`, `relatedTo`, `associatedWith` or `connectedTo` are invalid. An edge may carry `itemIds[]` to identify chronology records that contextualize the action without promoting those records into graph nodes. Stories remain narrative references through `story.itemIds[]`, not graph topology. Persistent/no-anchor relations remain supported only when the action relation genuinely lacks a temporal extent and are intentionally not the authoring default.
 
 The graph lens consumes the same canonical data as a temporal slice: timed relations and orphaned topology outside the visible timeline window are removed from the rendered graph, while explicitly persistent relations remain. Timeline bundles Memgraph Orb through npm so force simulation uses its worker-backed path rather than the direct-link main-thread fallback. Dense graphs can switch to WebGL rendering and GPU force without changing canonical records.
 

@@ -171,11 +171,28 @@
     cancelGraphNodeEdit: document.querySelector("#cancel-graph-node-edit"),
     graphNodeList: document.querySelector("#graph-node-list"),
     graphNodeCount: document.querySelector("#graph-node-count"),
+    graphPlaceForm: document.querySelector("#graph-place-form"),
+    graphPlaceId: document.querySelector("#graph-place-id"),
+    graphPlaceName: document.querySelector("#graph-place-name"),
+    graphPlaceIdentifier: document.querySelector("#graph-place-identifier"),
+    graphPlaceAddress: document.querySelector("#graph-place-address"),
+    graphPlaceLatitude: document.querySelector("#graph-place-latitude"),
+    graphPlaceLongitude: document.querySelector("#graph-place-longitude"),
+    graphPlaceRadius: document.querySelector("#graph-place-radius"),
+    graphPlaceIcon: document.querySelector("#graph-place-icon"),
+    graphPlaceMarkerShape: document.querySelector("#graph-place-marker-shape"),
+    graphPlaceArea: document.querySelector("#graph-place-area"),
+    graphPlaceError: document.querySelector("#graph-place-error"),
+    saveGraphPlace: document.querySelector("#save-graph-place"),
+    cancelGraphPlaceEdit: document.querySelector("#cancel-graph-place-edit"),
+    graphPlaceList: document.querySelector("#graph-place-list"),
+    graphPlaceCount: document.querySelector("#graph-place-count"),
     graphEdgeForm: document.querySelector("#graph-edge-form"),
     graphEdgeId: document.querySelector("#graph-edge-id"),
     graphEdgeSubject: document.querySelector("#graph-edge-subject"),
     graphEdgePredicate: document.querySelector("#graph-edge-predicate"),
     graphEdgeObject: document.querySelector("#graph-edge-object"),
+    graphEdgePlace: document.querySelector("#graph-edge-place"),
     graphEdgeItemIds: document.querySelector("#graph-edge-item-ids"),
     graphEdgeRole: document.querySelector("#graph-edge-role"),
     graphEdgeInitialState: document.querySelector("#graph-edge-initial-state"),
@@ -388,7 +405,8 @@
   function renderPresentationMap() {
     const item = focusedPresentationItem();
     const mapApi = globalThis.TimelineLocationMap;
-    if (!item || !mapApi?.hasRenderableGeometry?.(item.location)) {
+    const place = item ? placeForItem(item.id) : null;
+    if (!item || !place || !mapApi?.hasRenderableGeometry?.(place)) {
       destroyPresentationMap();
       return false;
     }
@@ -397,7 +415,7 @@
       state.extensions?.narrative?.spatialReferenceFrame?.fictional === true;
     const mapKey = JSON.stringify({
       id: item.id,
-      location: item.location,
+      place,
       fictionalReferenceFrame
     });
 
@@ -411,19 +429,18 @@
     if (!mountMapBackdrop()) return false;
 
     const name =
-      item.location.name ||
-      item.location.geographicIdentifier ||
-      item.location.address ||
+      place.name ||
+      place.geographicIdentifier ||
+      place.address ||
       item.title;
     if (els.presentationMapLabel) els.presentationMapLabel.textContent = name;
     const category = getCategory(item.categoryId);
-    const categoryIcon = presentation.ICON_NAMES.includes(item.categoryId) ? item.categoryId : null;
-    const iconName = item.tags?.[0]?.icon || categoryIcon || "place";
     presentationMap = mapApi.createReadOnly?.({
       container: els.presentationMap,
-      location: item.location,
+      location: place,
       color: category?.color || "#315fbd",
-      iconName,
+      iconName: place.icon || "place",
+      markerShape: place.markerShape || "pin",
       label: name,
       interactive: true,
       countryContextIntro: true,
@@ -715,6 +732,7 @@
 
   function normalizeTimeline(input, { strictGraph = false } = {}) {
     if (!input || typeof input !== "object") throw new Error("Expected a timeline object.");
+    input = graph.migrateLegacySpatialModel(input, spatial);
 
     const categories = [];
     const categoryIds = new Set();
@@ -791,13 +809,6 @@
         }
       }
 
-      let location = null;
-      try {
-        location = spatial.normalize(raw.location);
-      } catch (error) {
-        throw new Error(`Item ${index + 1} has invalid location coordinates: ${error instanceof Error ? error.message : "invalid location"}`);
-      }
-
       const item = {
         id: typeof raw.id === "string" && raw.id.trim() ? raw.id.trim().slice(0, 120) : newId("item"),
         kind,
@@ -810,7 +821,6 @@
       };
       const media = presentation.normalizeMedia(raw.media);
       const tags = presentation.normalizeTags(raw.tags);
-      if (location) item.location = location;
       if (media.length) item.media = media;
       if (tags.length) item.tags = tags;
       const variant = ["hero-split", "evidence-dossier", "editorial-mosaic"].includes(raw.presentation?.variant)
@@ -893,6 +903,7 @@
       items,
       stories,
       entities: graphData.entities,
+      places: graphData.places,
       relationships: graphData.relationships,
       evidence,
       custodyActions,
@@ -911,6 +922,7 @@
       items: [],
       stories: [],
       entities: [],
+      places: [],
       relationships: [],
       evidence: [],
       custodyActions: [],
@@ -1014,8 +1026,9 @@
       const needle = ui.search.trim().toLocaleLowerCase();
       items = items.filter((item) => {
         const tagText = (item.tags || []).map((tag) => tag.label).join(" ");
-        const locationText = item.location
-          ? [item.location.name, item.location.geographicIdentifier, item.location.address].filter(Boolean).join(" ")
+        const place = placeForItem(item.id);
+        const locationText = place
+          ? [place.name, place.geographicIdentifier, place.address].filter(Boolean).join(" ")
           : "";
         const evidenceText = (item.evidenceIds || [])
           .map((id) => state.evidence.find((record) => record.id === id))
@@ -1347,8 +1360,8 @@
         end: item.end ? temporal.sortKey(item.time?.end || item.end) : null,
         startLabel: formatDateInline(item.start),
         endLabel: item.end ? formatDateInline(item.end) : "",
-        locationName: item.location?.name || item.location?.geographicIdentifier || "",
-        location: item.location || null,
+        locationName: placeForItem(item.id)?.name || placeForItem(item.id)?.geographicIdentifier || "",
+        location: placeForItem(item.id) || null,
         media: item.media || [],
         tags: item.tags || [],
         layoutVariant: item.presentation?.variant || "hero-split",
@@ -1471,7 +1484,8 @@
     kindBadge.textContent = item.kind;
     meta.append(categoryBadge, kindBadge);
 
-    const locationLabel = item.location?.name || item.location?.geographicIdentifier;
+    const itemPlace = placeForItem(item.id);
+    const locationLabel = itemPlace?.name || itemPlace?.geographicIdentifier;
     if (locationLabel) {
       const placeBadge = document.createElement("span");
       placeBadge.className = "location-badge";
@@ -1707,6 +1721,10 @@
         }
         change.role = parts.role.value.trim().slice(0, 120);
         change.properties = parseJsonObject(parts.properties.value, "Relation property patch");
+        const duplicateContextKey = Object.keys(change.properties).find(graph.contextPropertyKey);
+        if (duplicateContextKey) {
+          throw new Error(`Relation property “${duplicateContextKey}” duplicates structured context. Time and place must use the edge's canonical fields.`);
+        }
       }
       changes.push(change);
     }
@@ -1894,7 +1912,7 @@
     els.itemConnectorStyle.value = item.presentation?.connectorStyle || "solid";
     els.itemConnectorWeight.value = item.presentation?.connectorWeight || "normal";
     els.itemConnectorEndpoint.value = item.presentation?.connectorEndpoint || "none";
-    fillLocationForm(item.location || null);
+    fillLocationForm(null);
     els.saveItem.textContent = "Save changes";
     els.cancelItemEdit.hidden = false;
     els.deleteItemEdit.hidden = false;
@@ -2332,10 +2350,124 @@
     if (!rows.length) {
       const empty = document.createElement("p");
       empty.className = "privacy-note";
-      empty.textContent = "No graph nodes yet. Nodes represent nouns or subjects such as people, organizations, devices, places, accounts, or objects.";
+      empty.textContent = "No graph nodes yet. Each node represents one entity such as a person, organization, device, account, document, or object. Places and time are edge context, not nodes.";
       rows.push(empty);
     }
     els.graphNodeList.replaceChildren(...rows);
+  }
+
+  function graphPlaceOptions(select, selected = "") {
+    if (!select) return;
+    const options = [document.createElement("option")];
+    options[0].value = "";
+    options[0].textContent = "No place";
+    for (const place of state.places) {
+      const option = document.createElement("option");
+      option.value = place.id;
+      option.textContent = place.name;
+      options.push(option);
+    }
+    select.replaceChildren(...options);
+    select.value = options.some((option) => option.value === selected) ? selected : "";
+  }
+
+  function getPlace(id) {
+    return state.places.find((place) => String(place.id) === String(id)) || null;
+  }
+
+  function relationshipsForItem(itemId) {
+    return state.relationships.filter((relationship) =>
+      (relationship.itemIds || []).some((id) => String(id) === String(itemId))
+    );
+  }
+
+  function placeForItem(itemId) {
+    for (const relationship of relationshipsForItem(itemId)) {
+      const place = getPlace(relationship.placeId);
+      if (place) return place;
+    }
+    return null;
+  }
+
+  function resetGraphPlaceForm() {
+    els.graphPlaceForm?.reset();
+    if (!els.graphPlaceForm) return;
+    els.graphPlaceId.value = "";
+    els.graphPlaceIcon.value = "place";
+    els.graphPlaceMarkerShape.value = "pin";
+    els.graphPlaceArea.value = "";
+    els.saveGraphPlace.textContent = "Add place";
+    els.cancelGraphPlaceEdit.hidden = true;
+    setError(els.graphPlaceError);
+  }
+
+  function beginGraphPlaceEdit(id) {
+    const place = getPlace(id);
+    if (!place) return;
+    setActivePanel("graph");
+    const parts = spatial.placeFormParts(place);
+    els.graphPlaceId.value = place.id;
+    els.graphPlaceName.value = parts.name;
+    els.graphPlaceIdentifier.value = parts.geographicIdentifier;
+    els.graphPlaceAddress.value = parts.address;
+    els.graphPlaceLatitude.value = parts.latitude;
+    els.graphPlaceLongitude.value = parts.longitude;
+    els.graphPlaceRadius.value = parts.radiusMeters;
+    els.graphPlaceIcon.value = presentation.ICON_NAMES.includes(parts.icon) ? parts.icon : "place";
+    els.graphPlaceMarkerShape.value = parts.markerShape;
+    els.graphPlaceArea.value = parts.areaGeometry;
+    els.saveGraphPlace.textContent = "Save place";
+    els.cancelGraphPlaceEdit.hidden = false;
+    setError(els.graphPlaceError);
+    els.graphPlaceName.focus();
+  }
+
+  function removeGraphPlace(id) {
+    const place = getPlace(id);
+    if (!place) return;
+    const usage = state.relationships.filter((relationship) => relationship.placeId === id).length;
+    const suffix = usage ? ` ${usage} ${usage === 1 ? "edge" : "edges"} will lose this spatial reference.` : "";
+    if (!window.confirm(`Delete place “${place.name}”?${suffix}`)) return;
+    state.places = state.places.filter((candidate) => candidate.id !== id);
+    state.relationships = state.relationships.map((relationship) =>
+      relationship.placeId === id ? { ...relationship, placeId: "" } : relationship
+    );
+    if (els.graphPlaceId.value === id) resetGraphPlaceForm();
+    persist();
+    renderAll();
+    showStatus("Place deleted.");
+  }
+
+  function renderGraphPlaces() {
+    els.graphPlaceCount.textContent = String(state.places.length);
+    const rows = state.places.map((place) => {
+      const row = document.createElement("article");
+      row.className = "graph-record graph-place-record";
+      row.dataset.id = place.id;
+      const copy = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = place.name;
+      const meta = document.createElement("span");
+      const geometry = place.geometry?.type || "no geometry";
+      const radius = Number.isFinite(place.radiusMeters) ? ` · ${place.radiusMeters} m radius` : "";
+      meta.textContent = `${geometry}${radius} · ${place.icon || "place"} · ${place.markerShape || "pin"}`;
+      copy.append(title, meta);
+      const actions = document.createElement("div");
+      actions.className = "graph-record-actions";
+      actions.append(
+        actionButton("Edit", "edit-graph-place", `Edit place ${place.name}`),
+        actionButton("Delete", "delete-graph-place", `Delete place ${place.name}`, "delete")
+      );
+      row.append(copy, actions);
+      return row;
+    });
+    if (!rows.length) {
+      const empty = document.createElement("p");
+      empty.className = "privacy-note";
+      empty.textContent = "No places yet. Create reusable point, radius, or area records here, then select them from edges.";
+      rows.push(empty);
+    }
+    els.graphPlaceList.replaceChildren(...rows);
   }
 
   function configureGraphEdgeTime() {
@@ -2360,6 +2492,7 @@
     els.graphEdgeDateField.hidden = false;
     graphEndpointOptions(els.graphEdgeSubject);
     graphEndpointOptions(els.graphEdgeObject);
+    graphPlaceOptions(els.graphEdgePlace);
     graphContextItemOptions(els.graphEdgeItemIds);
     els.saveGraphEdge.textContent = "Add edge";
     els.cancelGraphEdgeEdit.hidden = true;
@@ -2406,6 +2539,7 @@
     els.graphEdgeId.value = relationship.id;
     graphEndpointOptions(els.graphEdgeSubject, relationship.subjectId);
     graphEndpointOptions(els.graphEdgeObject, relationship.objectId);
+    graphPlaceOptions(els.graphEdgePlace, relationship.placeId || "");
     graphContextItemOptions(els.graphEdgeItemIds, relationship.itemIds || []);
     els.graphEdgePredicate.value = relationship.predicate || "";
     els.graphEdgeRole.value = relationship.role || "";
@@ -2452,7 +2586,9 @@
       const when = relationship.time ? temporal.intervalRepresentation(relationship.time) : "event-driven / timeless";
       const propertyCount = Object.keys(relationship.attributes || {}).length;
       const contextCount = (relationship.itemIds || []).length;
-      meta.textContent = `${relationship.initialState === "inactive" ? "initially inactive" : "initially active"} · ${when} · ${contextCount} timeline ${contextCount === 1 ? "context" : "contexts"} · ${propertyCount} ${propertyCount === 1 ? "property" : "properties"}`;
+      const place = getPlace(relationship.placeId);
+      const where = place ? ` · @ ${place.name}` : "";
+      meta.textContent = `${relationship.initialState === "inactive" ? "initially inactive" : "initially active"} · ${when}${where} · ${contextCount} timeline ${contextCount === 1 ? "context" : "contexts"} · ${propertyCount} ${propertyCount === 1 ? "property" : "properties"}`;
       copy.append(title, meta);
       const actions = document.createElement("div");
       actions.className = "graph-record-actions";
@@ -2466,7 +2602,7 @@
     if (!rows.length) {
       const empty = document.createElement("p");
       empty.className = "privacy-note";
-      empty.textContent = "No graph edges yet. Edges connect subjects and carry an action label, properties, and an optional active time.";
+      empty.textContent = "No graph edges yet. Edges connect entity nodes, use an action-only label, and carry structured time plus an optional reusable place reference.";
       rows.push(empty);
     }
     els.graphEdgeList.replaceChildren(...rows);
@@ -2477,9 +2613,12 @@
     const object = els.graphEdgeObject.value;
     graphEndpointOptions(els.graphEdgeSubject, subject);
     graphEndpointOptions(els.graphEdgeObject, object);
+    const placeId = els.graphEdgePlace.value;
+    graphPlaceOptions(els.graphEdgePlace, placeId);
     const contextItemIds = [...els.graphEdgeItemIds.selectedOptions].map((option) => option.value);
     graphContextItemOptions(els.graphEdgeItemIds, contextItemIds);
     renderGraphNodes();
+    renderGraphPlaces();
     renderGraphEdges();
     for (const row of els.itemRelationChangeRows) {
       const parts = relationChangeRowParts(row);
@@ -2553,10 +2692,11 @@
         ? `${formatDateInline(item.start)} → ${formatDateInline(item.end)}`
         : formatDateInline(item.start);
       lines.push(`### ${when} — ${item.title}`, "", `Type: ${item.kind}  `, `Category: ${category.name}`);
-      if (item.location) {
-        const place = item.location.name || item.location.geographicIdentifier || item.location.address || "Coordinates";
-        const coordinates = item.location.geometry?.coordinates;
-        lines.push(`Location: ${place}${coordinates ? ` (${coordinates[1]}, ${coordinates[0]})` : ""}  `);
+      const place = placeForItem(item.id);
+      if (place) {
+        const label = place.name || place.geographicIdentifier || place.address || "Coordinates";
+        const coordinates = place.geometry?.type === "Point" ? place.geometry.coordinates : null;
+        lines.push(`Location: ${label}${coordinates ? ` (${coordinates[1]}, ${coordinates[0]})` : ""}  `);
       }
       if (item.tags?.length) lines.push(`Tags: ${item.tags.map((tag) => tag.label).join(", ")}  `);
       if (item.media?.length) {
@@ -2607,8 +2747,10 @@
         const when = relationship.time
           ? temporal.intervalRepresentation(relationship.time)
           : "untimed";
+        const place = getPlace(relationship.placeId);
+        const spatialContext = place ? `; place: ${place.name}` : "";
         lines.push(
-          `- ${relationship.subjectId} —${relationship.predicate}→ ${relationship.objectId} (${when})`
+          `- ${relationship.subjectId} —${relationship.predicate}→ ${relationship.objectId} (time: ${when}${spatialContext})`
         );
       }
       lines.push("");
@@ -2856,6 +2998,11 @@
       sourceIds,
       attributes
     };
+    const fullNodeValidation = graph.validateEntityNode(entity);
+    if (!fullNodeValidation.valid) {
+      setError(els.graphNodeError, fullNodeValidation.message);
+      return;
+    }
     const index = state.entities.findIndex((candidate) => candidate.id === entity.id);
     if (index >= 0) {
       state.entities[index] = entity;
@@ -2877,6 +3024,55 @@
     if (!button || !row) return;
     if (button.dataset.action === "edit-graph-node") beginGraphNodeEdit(row.dataset.id);
     if (button.dataset.action === "delete-graph-node") removeGraphNode(row.dataset.id);
+  });
+
+  els.graphPlaceForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    setError(els.graphPlaceError);
+    try {
+      const place = spatial.placeFromForm({
+        id: els.graphPlaceId.value || newId("place"),
+        name: els.graphPlaceName.value,
+        geographicIdentifier: els.graphPlaceIdentifier.value,
+        address: els.graphPlaceAddress.value,
+        latitude: els.graphPlaceLatitude.value,
+        longitude: els.graphPlaceLongitude.value,
+        radiusMeters: els.graphPlaceRadius.value,
+        icon: els.graphPlaceIcon.value,
+        markerShape: els.graphPlaceMarkerShape.value,
+        areaGeometry: els.graphPlaceArea.value.trim()
+      });
+      if (!place) throw new Error("A place name is required.");
+      if (!place.geometry) throw new Error("A place needs point coordinates or an area geometry.");
+      const duplicate = state.places.find((candidate) =>
+        candidate.id !== place.id &&
+        spatial.placeIdentity(candidate) === spatial.placeIdentity(place)
+      );
+      if (duplicate) throw new Error(`This location already exists as “${duplicate.name}”. Reuse it from the edge Place selector instead of creating a duplicate.`);
+      const index = state.places.findIndex((candidate) => candidate.id === place.id);
+      if (index >= 0) {
+        state.places[index] = place;
+        showStatus("Place updated.");
+      } else {
+        state.places.push(place);
+        showStatus("Place added.");
+      }
+      persist();
+      resetGraphPlaceForm();
+      renderAll();
+    } catch (error) {
+      setError(els.graphPlaceError, error instanceof Error ? error.message : "Check the place geometry.");
+    }
+  });
+
+  els.cancelGraphPlaceEdit.addEventListener("click", resetGraphPlaceForm);
+
+  els.graphPlaceList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    const row = event.target.closest(".graph-record");
+    if (!button || !row) return;
+    if (button.dataset.action === "edit-graph-place") beginGraphPlaceEdit(row.dataset.id);
+    if (button.dataset.action === "delete-graph-place") removeGraphPlace(row.dataset.id);
   });
 
   els.graphEdgeTimeKind.addEventListener("change", () => {
@@ -2920,6 +3116,10 @@
     let time;
     try {
       attributes = parseJsonObject(els.graphEdgeProperties.value, "Edge properties");
+      const duplicateContextKey = Object.keys(attributes).find(graph.contextPropertyKey);
+      if (duplicateContextKey) {
+        throw new Error(`Edge property “${duplicateContextKey}” duplicates structured context. Use the Time and Place fields instead.`);
+      }
       time = buildGraphEdgeTime();
     } catch (error) {
       setError(els.graphEdgeError, error instanceof Error ? error.message : "Check the edge properties and time.");
@@ -2932,6 +3132,7 @@
       objectId,
       predicate: predicate.slice(0, 120),
       role: els.graphEdgeRole.value.trim().slice(0, 120),
+      placeId: els.graphEdgePlace.value,
       itemIds,
       initialState: els.graphEdgeInitialState.value === "inactive" ? "inactive" : "active",
       time,
@@ -3027,7 +3228,6 @@
 
     let startEndpoint;
     let endEndpoint = null;
-    let location = null;
     let media = [];
     let tags = [];
     let relationChanges = [];
@@ -3044,17 +3244,8 @@
       tags = collectTagForm();
       relationChanges = collectRelationChangeForm();
       evidenceRecords = await collectEvidenceForm();
-      location = spatial.fromForm({
-        name: els.itemLocationName.value,
-        geographicIdentifier: els.itemLocationIdentifier.value,
-        address: els.itemLocationAddress.value,
-        latitude: els.itemLocationLatitude.value,
-        longitude: els.itemLocationLongitude.value,
-        source: els.itemLocationSource.value,
-        accuracyMeters: els.itemLocationAccuracy.value
-      });
     } catch (error) {
-      setError(els.itemFormError, error instanceof Error ? error.message : "Check the temporal, media, tag, or location values.");
+      setError(els.itemFormError, error instanceof Error ? error.message : "Check the temporal, media, tag, or evidence values.");
       els.itemDateRange.focus();
       return;
     }
@@ -3090,7 +3281,6 @@
       relationChanges,
       evidenceIds: evidenceRecords.map((record) => record.id)
     };
-    if (location) item.location = location;
     if (media.length) item.media = media;
     if (tags.length) item.tags = tags;
     mergeEvidenceRecords(evidenceRecords);

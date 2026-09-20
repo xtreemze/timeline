@@ -107,20 +107,6 @@
       "title": "Snow White is born",
       "description": "Snow White is born in the royal household and becomes the child whose beauty later triggers the Queen's jealousy. This early event anchors the long prologue before the concentrated action around the mirror, huntsman, dwarfs, and disguised attacks.",
       "categoryId": "state-change",
-      "location": {
-        "name": "Queen's Castle",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.32,
-            48.54
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -187,20 +173,6 @@
       "title": "Snow White grows up at the castle",
       "description": "Snow White grows from infancy into the young princess later named by the mirror. The long background range makes the Queen's later jealousy a change in an established household rather than an isolated incident.",
       "categoryId": "context",
-      "location": {
-        "name": "Queen's Castle",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.32,
-            48.54
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -259,20 +231,6 @@
       "title": "Cinderella's mother dies",
       "description": "Cinderella's mother dies while Cinderella is still young. The loss removes her closest protector and begins the household transition that later leaves her dependent on her father, stepmother, and stepsisters.",
       "categoryId": "state-change",
-      "location": {
-        "name": "Cinderella's House",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.74,
-            47.31
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -331,20 +289,6 @@
       "title": "Cinderella's father remarries and the stepfamily joins the household",
       "description": "Cinderella's father remarries, bringing the stepmother and her two daughters into the house. The household structure changes immediately after Cinderella's loss and creates the relationship network behind the later years of unequal treatment.",
       "categoryId": "relationship",
-      "location": {
-        "name": "Cinderella's House",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.74,
-            47.31
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -411,20 +355,6 @@
       "title": "Cinderella lives under her stepfamily's control",
       "description": "After the household changes, Cinderella is assigned the hardest domestic work and is repeatedly excluded from the privileges enjoyed by her stepsisters. The long range provides the background condition against which the invitation to the royal ball becomes significant.",
       "categoryId": "context",
-      "location": {
-        "name": "Cinderella's House",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.74,
-            47.31
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "evidence-dossier"
       },
@@ -491,20 +421,6 @@
       "title": "The three pigs grow up together",
       "description": "The three brothers grow up together under Mother Pig's care. Their shared upbringing establishes the family bond that later explains why each pig repeatedly seeks shelter with his brothers when the wolf destroys a home.",
       "categoryId": "context",
-      "location": {
-        "name": "Mother Pig's Cottage",
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.1,
-            50.02
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -563,87 +479,6 @@
       "title": "The pigs leave home",
       "description": "Mother Pig tells her sons they are old enough to establish homes of their own and warns them to build carefully. They depart together, then separate along Pigwood Market Road as each chooses a different material and level of effort.",
       "categoryId": "movement",
-      "location": {
-        "name": "Mother Pig's Cottage",
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.1,
-            50.02
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported",
-        "mapFeatures": [
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "The pigs leave home route"
-            },
-            "geometry": {
-              "type": "LineString",
-              "coordinates": [
-                [
-                  8.1,
-                  50.02
-                ],
-                [
-                  8.125,
-                  50.01
-                ],
-                [
-                  8.15,
-                  50.005
-                ]
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Mother Pig's Cottage",
-              "icon": "home"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                8.1,
-                50.02
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Pigwood Fork",
-              "icon": "place"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                8.125,
-                50.01
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Pigwood Market Road",
-              "icon": "place"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                8.15,
-                50.005
-              ]
-            }
-          }
-        ]
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -702,20 +537,6 @@
       "title": "First Pig acquires straw",
       "description": "The First Pig meets a material seller on Pigwood Market Road and chooses straw because it can be assembled quickly. The choice minimizes construction time but leaves him with the least resistant shelter.",
       "categoryId": "decision",
-      "location": {
-        "name": "Straw Seller's Field",
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.14,
-            50.012
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -774,20 +595,6 @@
       "title": "The mirror names Snow White the fairest",
       "description": "The Queen consults the magic mirror expecting confirmation that she remains the fairest. The mirror instead names Snow White, converting the Queen's jealousy into a specific threat directed at her.",
       "categoryId": "discovery",
-      "location": {
-        "name": "Queen's Mirror Chamber",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.326,
-            48.542
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "evidence-dossier"
       },
@@ -846,20 +653,6 @@
       "title": "Second Pig acquires sticks",
       "description": "The Second Pig selects bundled sticks from the same road, choosing a somewhat sturdier material while still prioritizing speed. His decision sits between the First Pig's straw and the Third Pig's masonry in both effort and resilience.",
       "categoryId": "decision",
-      "location": {
-        "name": "Timber Track",
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.19,
-            50.003
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -918,20 +711,6 @@
       "title": "Third Pig acquires bricks and mortar",
       "description": "The Third Pig chooses bricks and mortar even though the material is heavier and the build will take much longer. This explicit planning decision begins the causal chain that later makes the brick house the brothers' refuge.",
       "categoryId": "decision",
-      "location": {
-        "name": "Pigwood Mason's Yard",
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.245,
-            49.988
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "evidence-dossier"
       },
@@ -998,20 +777,6 @@
       "title": "Third Pig builds the brick house",
       "description": "The Third Pig begins laying brick and mortar soon after acquiring his materials. His slower construction overlaps the quick completion of the straw and stick houses, making the later difference in resilience a consequence of an earlier planning choice.",
       "categoryId": "creation",
-      "location": {
-        "name": "Brick House Hill",
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.3,
-            49.96
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "evidence-dossier"
       },
@@ -1075,20 +840,6 @@
       "title": "The Queen orders the huntsman to kill Snow White",
       "description": "The Queen commands the huntsman to take Snow White into the forest and not return with her alive.",
       "categoryId": "conflict",
-      "location": {
-        "name": "Castle Great Hall",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.334,
-            48.536
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -1153,20 +904,6 @@
       "title": "First Pig builds a straw house",
       "description": "The First Pig chooses speed and builds a light house of straw shortly after acquiring his material. The rapid construction leaves him free sooner, but the shelter has little resistance when the wolf later arrives.",
       "categoryId": "creation",
-      "location": {
-        "name": "Straw House Meadow",
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.16,
-            50
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -1225,20 +962,6 @@
       "title": "The huntsman spares Snow White",
       "description": "In the forest, the huntsman cannot carry out the Queen's order and tells Snow White to flee. His choice creates the path that leads her away from the castle and toward the dwarfs' cottage.",
       "categoryId": "decision",
-      "location": {
-        "name": "Deep Forest",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.48,
-            48.45
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -1297,87 +1020,6 @@
       "title": "Snow White flees deeper into the forest",
       "description": "After the huntsman releases her, Snow White follows a ridge path away from the castle and becomes disoriented in the deeper forest. The movement event makes the spatial transition to the dwarfs' cottage explicit and shows why the cottage functions as an accidental refuge.",
       "categoryId": "movement",
-      "location": {
-        "name": "Forest Ridge Path",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.55,
-            48.42
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported",
-        "mapFeatures": [
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Snow White flees deeper into the forest route"
-            },
-            "geometry": {
-              "type": "LineString",
-              "coordinates": [
-                [
-                  10.48,
-                  48.45
-                ],
-                [
-                  10.55,
-                  48.42
-                ],
-                [
-                  10.61,
-                  48.39
-                ]
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Deep Forest",
-              "icon": "home"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                10.48,
-                48.45
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Forest Ridge Path",
-              "icon": "place"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                10.55,
-                48.42
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Seven Dwarfs' Cottage",
-              "icon": "place"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                10.61,
-                48.39
-              ]
-            }
-          }
-        ]
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -1436,20 +1078,6 @@
       "title": "Second Pig builds a stick house",
       "description": "The Second Pig builds a house from bundled sticks, spending more effort than his brother with straw but still finishing quickly. The resulting shelter is stronger than straw yet remains vulnerable to the same attack.",
       "categoryId": "creation",
-      "location": {
-        "name": "Stick House Grove",
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.22,
-            49.98
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -1508,20 +1136,6 @@
       "title": "Snow White finds the dwarfs' cottage",
       "description": "After fleeing through the forest, Snow White discovers the dwarfs' cottage and enters seeking food, rest, and safety. The location becomes her refuge and later the fixed point the Queen targets through repeated disguises.",
       "categoryId": "discovery",
-      "location": {
-        "name": "Seven Dwarfs' Cottage",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.61,
-            48.39
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -1593,20 +1207,6 @@
       "title": "The seven dwarfs shelter Snow White",
       "description": "The seven dwarfs agree to shelter Snow White after hearing how she came to the cottage. Their protection creates a new relationship network around her, but it also establishes the fixed place where the Queen's later disguises can reach her.",
       "categoryId": "relationship",
-      "location": {
-        "name": "Seven Dwarfs' Cottage",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.61,
-            48.39
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "evidence-dossier"
       },
@@ -1665,20 +1265,6 @@
       "title": "The royal ball invitation arrives",
       "description": "A palace invitation announces festivities at which the prince will meet the kingdom's eligible guests.",
       "categoryId": "discovery",
-      "location": {
-        "name": "Cinderella's House",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.74,
-            47.31
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -1737,20 +1323,6 @@
       "title": "The Queen learns Snow White survives",
       "description": "The Queen consults the mirror again and learns that Snow White survived the huntsman's mission and is living at the dwarfs' cottage. This discovery restarts the threat and causes the Queen to plan direct disguised attacks.",
       "categoryId": "discovery",
-      "location": {
-        "name": "Queen's Mirror Chamber",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.326,
-            48.542
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -1809,20 +1381,6 @@
       "title": "Cinderella is prevented from attending",
       "description": "Cinderella asks to attend the ball but her stepfamily blocks her participation and adds work that makes attendance seem impossible. The setback directly precedes the fairy godmother's intervention.",
       "categoryId": "conflict",
-      "location": {
-        "name": "Cinderella's House",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.74,
-            47.31
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -1881,20 +1439,6 @@
       "title": "Stepmother adds impossible chores before departure",
       "description": "After denying Cinderella permission to attend, the stepmother leaves additional sorting and household work to be completed. The added tasks make the exclusion concrete and explain why Cinderella remains behind as the others leave for the palace.",
       "categoryId": "conflict",
-      "location": {
-        "name": "Cinderella's House",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.74,
-            47.31
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "evidence-dossier"
       },
@@ -1961,87 +1505,6 @@
       "title": "The Queen makes disguised attempts",
       "description": "After learning Snow White is still alive, the Queen repeatedly travels in disguise to the dwarfs' cottage. The range contains two separate failed attacks—tightened laces and a poisoned comb—before the later apple plot.",
       "categoryId": "conflict",
-      "location": {
-        "name": "Cottage Approach",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.592,
-            48.398
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported",
-        "mapFeatures": [
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "The Queen makes disguised attempts route"
-            },
-            "geometry": {
-              "type": "LineString",
-              "coordinates": [
-                [
-                  10.32,
-                  48.54
-                ],
-                [
-                  10.58,
-                  48.405
-                ],
-                [
-                  10.61,
-                  48.39
-                ]
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Queen's Castle",
-              "icon": "home"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                10.32,
-                48.54
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Cottage Approach",
-              "icon": "place"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                10.58,
-                48.405
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Seven Dwarfs' Cottage",
-              "icon": "place"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                10.61,
-                48.39
-              ]
-            }
-          }
-        ]
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -2111,20 +1574,6 @@
       "title": "Disguised Queen tightens enchanted laces",
       "description": "The Queen reaches the cottage in disguise and persuades Snow White to accept laces, then tightens them until Snow White collapses. This is the first distinct disguised attack inside the broader attack range.",
       "categoryId": "conflict",
-      "location": {
-        "name": "Seven Dwarfs' Cottage",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.61,
-            48.39
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -2183,20 +1632,6 @@
       "title": "Dwarfs loosen the laces and revive Snow White",
       "description": "The dwarfs return, recognize that the laces are constricting Snow White, and loosen them. Her recovery proves that the first disguised attack failed and prompts another warning not to admit strangers.",
       "categoryId": "relationship",
-      "location": {
-        "name": "Seven Dwarfs' Cottage",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.61,
-            48.39
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -2255,20 +1690,6 @@
       "title": "Wolf blows down the straw house",
       "description": "The wolf reaches the straw house, demands entry, and destroys the light shelter by blowing against it. The First Pig escapes toward the Second Pig's house, turning an individual threat into a moving pursuit.",
       "categoryId": "conflict",
-      "location": {
-        "name": "Straw House Meadow",
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.16,
-            50
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -2333,87 +1754,6 @@
       "title": "First Pig flees to the stick house",
       "description": "After the straw house collapses, the First Pig escapes along the road to the Second Pig's house. The pursuit changes from a threat to one pig into a threat shared by two brothers.",
       "categoryId": "movement",
-      "location": {
-        "name": "Pigwood Escape Path",
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.205,
-            49.992
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported",
-        "mapFeatures": [
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "First Pig flees to the stick house route"
-            },
-            "geometry": {
-              "type": "LineString",
-              "coordinates": [
-                [
-                  8.16,
-                  50
-                ],
-                [
-                  8.19,
-                  49.99
-                ],
-                [
-                  8.22,
-                  49.98
-                ]
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Straw House Meadow",
-              "icon": "home"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                8.16,
-                50
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Pigwood Escape Path",
-              "icon": "place"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                8.19,
-                49.99
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Stick House Grove",
-              "icon": "place"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                8.22,
-                49.98
-              ]
-            }
-          }
-        ]
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -2472,20 +1812,6 @@
       "title": "The fairy godmother transforms Cinderella's circumstances",
       "description": "The fairy godmother appears after Cinderella's exclusion and offers a temporary way to attend the ball. The intervention changes Cinderella's appearance and resources but comes with an explicit midnight limit that governs later events.",
       "categoryId": "state-change",
-      "location": {
-        "name": "Garden and Pumpkin Patch",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.82,
-            47.28
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -2549,20 +1875,6 @@
       "title": "Pumpkin and animals are transformed into transport",
       "description": "The fairy godmother turns a pumpkin into a coach and transforms nearby animals into the team and attendants needed for the journey. The transformation gives Cinderella mobility as well as appearance, while remaining temporary until midnight.",
       "categoryId": "creation",
-      "location": {
-        "name": "Garden and Pumpkin Patch",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.82,
-            47.28
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -2621,20 +1933,6 @@
       "title": "Wolf blows down the stick house",
       "description": "The wolf follows the First Pig to the stick house and destroys that shelter as well. The First and Second Pigs escape together toward the Third Pig's brick house, concentrating the pursuit on the strongest remaining refuge.",
       "categoryId": "conflict",
-      "location": {
-        "name": "Stick House Grove",
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.22,
-            49.98
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -2693,87 +1991,6 @@
       "title": "First and Second Pig flee to the brick house",
       "description": "When the stick house is destroyed, both pigs run to the Third Pig's completed brick house. Their movement concentrates all three brothers at one defensible location before the wolf arrives.",
       "categoryId": "movement",
-      "location": {
-        "name": "Brick House Approach",
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.275,
-            49.972
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported",
-        "mapFeatures": [
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "First and Second Pig flee to the brick house route"
-            },
-            "geometry": {
-              "type": "LineString",
-              "coordinates": [
-                [
-                  8.22,
-                  49.98
-                ],
-                [
-                  8.26,
-                  49.97
-                ],
-                [
-                  8.3,
-                  49.96
-                ]
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Stick House Grove",
-              "icon": "home"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                8.22,
-                49.98
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Brick House Approach",
-              "icon": "place"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                8.26,
-                49.97
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Brick House Hill",
-              "icon": "place"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                8.3,
-                49.96
-              ]
-            }
-          }
-        ]
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -2832,20 +2049,6 @@
       "title": "Disguised Queen uses a poisoned comb",
       "description": "The Queen returns in another disguise with a poisoned comb and places it in Snow White's hair. Snow White collapses again, showing that the threat persists despite the earlier rescue and warning.",
       "categoryId": "conflict",
-      "location": {
-        "name": "Seven Dwarfs' Cottage",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.61,
-            48.39
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "evidence-dossier"
       },
@@ -2904,20 +2107,6 @@
       "title": "Dwarfs remove the comb and revive Snow White again",
       "description": "The dwarfs find the poisoned comb, remove it, and Snow White recovers. The second failed attack leads the Queen to prepare a method designed to look harmless and survive inspection.",
       "categoryId": "relationship",
-      "location": {
-        "name": "Seven Dwarfs' Cottage",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.61,
-            48.39
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -2984,20 +2173,6 @@
       "title": "Cinderella attends the royal ball",
       "description": "Cinderella arrives at the palace transformed and initially unrecognized by her household. She attracts the prince's attention and experiences the social world from which she had been excluded, while the midnight condition remains active.",
       "categoryId": "relationship",
-      "location": {
-        "name": "Royal Ballroom",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.986,
-            47.232
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "evidence-dossier"
       },
@@ -3056,20 +2231,6 @@
       "title": "Prince dances with the unknown guest",
       "description": "At the first ball, the prince gives sustained attention to Cinderella without recognizing her household identity. The encounter establishes the relationship that makes her later absence and the slipper clue personally significant to him.",
       "categoryId": "relationship",
-      "location": {
-        "name": "Royal Ballroom",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.986,
-            47.232
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -3128,87 +2289,6 @@
       "title": "Cinderella leaves the first ball before midnight",
       "description": "Remembering the fairy godmother's condition, Cinderella leaves the palace in time on the first night and returns home before the transformation ends. The successful departure makes her decision to stay later on the second night consequential.",
       "categoryId": "movement",
-      "location": {
-        "name": "Moonlit Carriage Road",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.925,
-            47.248
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported",
-        "mapFeatures": [
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Cinderella leaves the first ball before midnight route"
-            },
-            "geometry": {
-              "type": "LineString",
-              "coordinates": [
-                [
-                  12.98,
-                  47.23
-                ],
-                [
-                  12.9,
-                  47.25
-                ],
-                [
-                  12.74,
-                  47.31
-                ]
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Royal Ballroom",
-              "icon": "home"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                12.98,
-                47.23
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Moonlit Carriage Road",
-              "icon": "place"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                12.9,
-                47.25
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Cinderella's House",
-              "icon": "place"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                12.74,
-                47.31
-              ]
-            }
-          }
-        ]
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -3275,20 +2355,6 @@
       "title": "The brick house withstands the wolf",
       "description": "The wolf reaches the completed brick house after chasing the first two pigs there. Repeated huffing and blowing fails to breach the walls, shifting the conflict from direct destruction to a search for another entry route.",
       "categoryId": "conflict",
-      "location": {
-        "name": "Brick House Hill",
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.3,
-            49.96
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "evidence-dossier"
       },
@@ -3357,20 +2423,6 @@
       "title": "Wolf climbs onto the brick-house roof",
       "description": "Unable to destroy the walls, the wolf changes tactics and climbs onto the roof to reach the chimney. The event marks the transition from failed frontal attack to attempted entry from above.",
       "categoryId": "decision",
-      "location": {
-        "name": "Brick House Hill",
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.3,
-            49.96
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "evidence-dossier"
       },
@@ -3429,20 +2481,6 @@
       "title": "Wolf tries the chimney",
       "description": "Unable to breach the brick walls, the wolf descends toward the chimney as an alternate entry route. The attempted vertical approach is the final escalation after direct attacks on the house have failed.",
       "categoryId": "conflict",
-      "location": {
-        "name": "Brick House Hill",
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.3,
-            49.96
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -3501,20 +2539,6 @@
       "title": "The wolf is defeated and the pigs are safe",
       "description": "The chimney attempt fails and the immediate threat ends. The three brothers remain together inside the brick house, with the earlier material and construction choices now visibly linked to their survival.",
       "categoryId": "resolution",
-      "location": {
-        "name": "Brick House Hill",
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.3,
-            49.96
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -3580,20 +2604,6 @@
       "title": "Queen prepares the poisoned apple",
       "description": "After two failed attempts, the Queen prepares an apple whose poisoned portion can be offered deceptively. The object becomes the mechanism for the third attack and the key causal link to Snow White's apparent death.",
       "categoryId": "creation",
-      "location": {
-        "name": "Queen's Workshop",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.342,
-            48.531
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "evidence-dossier"
       },
@@ -3652,20 +2662,6 @@
       "title": "Snow White bites the poisoned apple",
       "description": "The Queen's poisoned apple causes Snow White to collapse into an enchanted sleep.",
       "categoryId": "state-change",
-      "location": {
-        "name": "Seven Dwarfs' Cottage",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.61,
-            48.39
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "evidence-dossier"
       },
@@ -3742,20 +2738,6 @@
       "title": "The dwarfs keep vigil beside a glass coffin",
       "description": "Believing Snow White dead after the apple, the dwarfs place her in a glass coffin rather than burying her. Their vigil preserves the social bond around her and creates the setting in which the prince later encounters her.",
       "categoryId": "relationship",
-      "location": {
-        "name": "Glass Coffin Clearing",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.69,
-            48.34
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -3822,20 +2804,6 @@
       "title": "Cinderella returns to the palace",
       "description": "Cinderella returns to the palace a second time and spends longer with the prince. Because she leaves later, the midnight limit becomes the direct cause of the hurried flight and lost slipper.",
       "categoryId": "relationship",
-      "location": {
-        "name": "Royal Ballroom",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.986,
-            47.232
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -3894,87 +2862,6 @@
       "title": "Midnight warning triggers Cinderella's hurried flight",
       "description": "During the second ball, Cinderella notices that midnight is imminent and abruptly leaves the prince. The hurried descent from the palace steps leads directly to the lost slipper moments later.",
       "categoryId": "movement",
-      "location": {
-        "name": "Royal Palace Steps",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.965,
-            47.235
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported",
-        "mapFeatures": [
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Midnight warning triggers Cinderella's hurried flight route"
-            },
-            "geometry": {
-              "type": "LineString",
-              "coordinates": [
-                [
-                  12.98,
-                  47.23
-                ],
-                [
-                  12.965,
-                  47.235
-                ],
-                [
-                  12.9,
-                  47.25
-                ]
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Royal Ballroom",
-              "icon": "home"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                12.98,
-                47.23
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Royal Palace Steps",
-              "icon": "place"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                12.965,
-                47.235
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Royal Carriage Road",
-              "icon": "place"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                12.9,
-                47.25
-              ]
-            }
-          }
-        ]
-      },
       "presentation": {
         "variant": "evidence-dossier"
       },
@@ -4033,20 +2920,6 @@
       "title": "Cinderella loses a glass slipper at midnight",
       "description": "Fleeing as the enchantment ends, Cinderella leaves one glass slipper behind on the palace steps.",
       "categoryId": "state-change",
-      "location": {
-        "name": "Royal Carriage Road",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.902,
-            47.254
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -4119,87 +2992,6 @@
       "title": "The prince searches for the slipper's owner",
       "description": "The prince uses the recovered glass slipper as the identifying clue for a house-to-house search. The search turns a private palace encounter into a public investigation that eventually reaches Cinderella's household.",
       "categoryId": "discovery",
-      "location": {
-        "name": "Ashenvale Village Search Route",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.845,
-            47.275
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported",
-        "mapFeatures": [
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "The prince searches for the slipper's owner route"
-            },
-            "geometry": {
-              "type": "LineString",
-              "coordinates": [
-                [
-                  12.98,
-                  47.23
-                ],
-                [
-                  12.86,
-                  47.27
-                ],
-                [
-                  12.74,
-                  47.31
-                ]
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Royal Palace",
-              "icon": "home"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                12.98,
-                47.23
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Ashenvale Village Search Route",
-              "icon": "place"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                12.86,
-                47.27
-              ]
-            }
-          },
-          {
-            "type": "Feature",
-            "properties": {
-              "name": "Cinderella's House",
-              "icon": "place"
-            },
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                12.74,
-                47.31
-              ]
-            }
-          }
-        ]
-      },
       "presentation": {
         "variant": "evidence-dossier"
       },
@@ -4258,20 +3050,6 @@
       "title": "Prince encounters the glass coffin",
       "description": "A prince travelling through the forest clearing sees Snow White in the glass coffin and speaks with the dwarfs. His arrival connects the isolated vigil to the event that immediately precedes her revival.",
       "categoryId": "discovery",
-      "location": {
-        "name": "Glass Coffin Clearing",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.69,
-            48.34
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -4330,20 +3108,6 @@
       "title": "Snow White revives",
       "description": "As the coffin is moved, the poisoned piece of apple is dislodged and Snow White awakens. The revival changes her state and ends the apparent death without treating the preceding attacks as though they never occurred.",
       "categoryId": "state-change",
-      "location": {
-        "name": "Glass Coffin Clearing",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.69,
-            48.34
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -4403,20 +3167,6 @@
       "title": "Stepsisters attempt the slipper test",
       "description": "The search reaches Cinderella's house and the stepsisters each attempt to fit the recovered slipper. Their failure eliminates the obvious household candidates and creates the opening for Cinderella to ask for a turn.",
       "categoryId": "discovery",
-      "location": {
-        "name": "Cinderella's House",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.74,
-            47.31
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "editorial-mosaic"
       },
@@ -4475,20 +3225,6 @@
       "title": "Cinderella asks to try the slipper",
       "description": "After the other candidates fail, Cinderella steps forward and asks to be included in the test despite her stepfamily's resistance. The request is the decision that converts the search from an external process into direct recognition.",
       "categoryId": "decision",
-      "location": {
-        "name": "Cinderella's House",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.74,
-            47.31
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -4547,20 +3283,6 @@
       "title": "The slipper fits Cinderella",
       "description": "After the other members of the household fail the test, Cinderella is allowed to try the slipper. It fits, linking the unknown guest from the palace to Cinderella and resolving the prince's search.",
       "categoryId": "discovery",
-      "location": {
-        "name": "Cinderella's House",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.74,
-            47.31
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "hero-split"
       },
@@ -4630,20 +3352,6 @@
       "title": "Snow White's story reaches its wedding resolution",
       "description": "The Queen's threat is ended and Snow White's new life is marked by a royal wedding.",
       "categoryId": "resolution",
-      "location": {
-        "name": "Queen's Castle",
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.32,
-            48.54
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "evidence-dossier"
       },
@@ -4709,20 +3417,6 @@
       "title": "Cinderella and the prince marry",
       "description": "The search ends, Cinderella leaves her imposed household role, and the tale closes with the royal marriage.",
       "categoryId": "resolution",
-      "location": {
-        "name": "Royal Palace",
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "address": "Fictional place — map coordinates are staging anchors, not an Earth-location claim.",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.98,
-            47.23
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "source": "imported"
-      },
       "presentation": {
         "variant": "evidence-dossier"
       },
@@ -4956,26 +3650,6 @@
       }
     },
     {
-      "id": "pigs-brick-place",
-      "type": "place",
-      "name": "Brick House Hill",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-three-little-pigs",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.3,
-            49.96
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
       "id": "snow-white",
       "type": "person",
       "name": "Snow White",
@@ -5038,31 +3712,11 @@
     {
       "id": "snow-apple-object",
       "type": "object",
-      "name": "Poisoned Apple",
+      "name": "Apple",
       "identifiers": [],
       "attributes": {
         "storyId": "story-snow-white",
         "fictional": true
-      }
-    },
-    {
-      "id": "snow-cottage-place",
-      "type": "place",
-      "name": "Seven Dwarfs' Cottage",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-snow-white",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.61,
-            48.39
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
       }
     },
     {
@@ -5136,26 +3790,6 @@
       }
     },
     {
-      "id": "cinderella-palace-place",
-      "type": "place",
-      "name": "Royal Palace",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-cinderella",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.98,
-            47.23
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
       "id": "pigs-material-vendors",
       "type": "group",
       "name": "Pigwood Material Sellers",
@@ -5196,16 +3830,6 @@
       }
     },
     {
-      "id": "pigs-market-place",
-      "type": "place",
-      "name": "Pigwood Market Road",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-three-little-pigs",
-        "fictional": true
-      }
-    },
-    {
       "id": "snow-laces-object",
       "type": "object",
       "name": "Enchanted Laces",
@@ -5218,7 +3842,7 @@
     {
       "id": "snow-comb-object",
       "type": "object",
-      "name": "Poisoned Comb",
+      "name": "Comb",
       "identifiers": [],
       "attributes": {
         "storyId": "story-snow-white",
@@ -5233,26 +3857,6 @@
       "attributes": {
         "storyId": "story-snow-white",
         "fictional": true
-      }
-    },
-    {
-      "id": "snow-clearing-place",
-      "type": "place",
-      "name": "Glass Coffin Clearing",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-snow-white",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.69,
-            48.34
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
       }
     },
     {
@@ -5294,446 +3898,6 @@
         "storyId": "story-cinderella",
         "fictional": true
       }
-    },
-    {
-      "id": "cinderella-palace-steps-place",
-      "type": "place",
-      "name": "Royal Palace Steps",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-cinderella",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.965,
-            47.235
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "snow-forest-ridge-place",
-      "type": "place",
-      "name": "Forest Ridge Path",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-snow-white",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.55,
-            48.42
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-snow-white-queen-s-castle",
-      "type": "place",
-      "name": "Queen's Castle",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-snow-white",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.32,
-            48.54
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-cinderella-cinderella-s-house",
-      "type": "place",
-      "name": "Cinderella's House",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-cinderella",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.74,
-            47.31
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-three-little-pigs-mother-pig-s-cottage",
-      "type": "place",
-      "name": "Mother Pig's Cottage",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-three-little-pigs",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.1,
-            50.02
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-three-little-pigs-straw-seller-s-field",
-      "type": "place",
-      "name": "Straw Seller's Field",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-three-little-pigs",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.14,
-            50.012
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-snow-white-queen-s-mirror-chamber",
-      "type": "place",
-      "name": "Queen's Mirror Chamber",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-snow-white",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.326,
-            48.542
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-three-little-pigs-timber-track",
-      "type": "place",
-      "name": "Timber Track",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-three-little-pigs",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.19,
-            50.003
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-three-little-pigs-pigwood-mason-s-yard",
-      "type": "place",
-      "name": "Pigwood Mason's Yard",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-three-little-pigs",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.245,
-            49.988
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-snow-white-castle-great-hall",
-      "type": "place",
-      "name": "Castle Great Hall",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-snow-white",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.334,
-            48.536
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-three-little-pigs-straw-house-meadow",
-      "type": "place",
-      "name": "Straw House Meadow",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-three-little-pigs",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.16,
-            50
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-snow-white-deep-forest",
-      "type": "place",
-      "name": "Deep Forest",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-snow-white",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.48,
-            48.45
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-three-little-pigs-stick-house-grove",
-      "type": "place",
-      "name": "Stick House Grove",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-three-little-pigs",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.22,
-            49.98
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-cinderella-garden-and-pumpkin-patch",
-      "type": "place",
-      "name": "Garden and Pumpkin Patch",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-cinderella",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.82,
-            47.28
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-cinderella-royal-ballroom",
-      "type": "place",
-      "name": "Royal Ballroom",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-cinderella",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.986,
-            47.232
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-cinderella-moonlit-carriage-road",
-      "type": "place",
-      "name": "Moonlit Carriage Road",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-cinderella",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.925,
-            47.248
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-snow-white-cottage-approach",
-      "type": "place",
-      "name": "Cottage Approach",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-snow-white",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.592,
-            48.398
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-three-little-pigs-pigwood-escape-path",
-      "type": "place",
-      "name": "Pigwood Escape Path",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-three-little-pigs",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.205,
-            49.992
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-three-little-pigs-brick-house-approach",
-      "type": "place",
-      "name": "Brick House Approach",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-three-little-pigs",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            8.275,
-            49.972
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-cinderella-royal-carriage-road",
-      "type": "place",
-      "name": "Royal Carriage Road",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-cinderella",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.902,
-            47.254
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-cinderella-ashenvale-village-search-route",
-      "type": "place",
-      "name": "Ashenvale Village Search Route",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-cinderella",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            12.845,
-            47.275
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
-    },
-    {
-      "id": "place-snow-white-queen-s-workshop",
-      "type": "place",
-      "name": "Queen's Workshop",
-      "identifiers": [],
-      "attributes": {
-        "storyId": "story-snow-white",
-        "fictional": true,
-        "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            10.342,
-            48.531
-          ]
-        },
-        "crs": "OGC:CRS84",
-        "mapMarker": true
-      }
     }
   ],
   "relationships": [
@@ -5766,7 +3930,8 @@
       "attributes": {
         "material": "brick",
         "materialSource": "Pigwood Market Road"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-pigs-wolf-threat",
@@ -5776,7 +3941,8 @@
       "initialState": "inactive",
       "attributes": {
         "storyId": "story-three-little-pigs"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-snow-mirror-owned",
@@ -5798,7 +3964,8 @@
       },
       "attributes": {
         "question": "fairest"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-snow-huntsman-order",
@@ -5820,7 +3987,8 @@
       },
       "attributes": {
         "target": "Snow White"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-snow-huntsman-spares",
@@ -5840,9 +4008,8 @@
         },
         "end": null
       },
-      "attributes": {
-        "location": "Deep Forest"
-      }
+      "attributes": {},
+      "placeId": "place-snow-white-deep-forest"
     },
     {
       "id": "rel-snow-dwarfs-shelter",
@@ -5870,9 +4037,8 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         }
       },
-      "attributes": {
-        "place": "Seven Dwarfs' Cottage"
-      }
+      "attributes": {},
+      "placeId": "snow-cottage-place"
     },
     {
       "id": "rel-snow-apple-object",
@@ -5895,7 +4061,8 @@
       "attributes": {
         "purpose": "deception",
         "attempt": 3
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-snow-queen-threat",
@@ -5905,7 +4072,8 @@
       "initialState": "inactive",
       "attributes": {
         "storyId": "story-snow-white"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-cinderella-control",
@@ -5935,7 +4103,8 @@
       },
       "attributes": {
         "domain": "household"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-cinderella-stepsisters",
@@ -5965,7 +4134,8 @@
       },
       "attributes": {
         "domain": "household labor"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-cinderella-fairy",
@@ -5993,7 +4163,8 @@
           "attendants",
           "glass slippers"
         ]
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-cinderella-slipper-loss",
@@ -6013,9 +4184,8 @@
         },
         "end": null
       },
-      "attributes": {
-        "place": "Midnight Road"
-      }
+      "attributes": {},
+      "placeId": "place-cinderella-royal-carriage-road"
     },
     {
       "id": "rel-cinderella-prince-search",
@@ -6027,7 +4197,8 @@
         "storyId": "story-cinderella",
         "clue": "glass slipper",
         "agent": "Royal Herald"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-cinderella-stepfamily-control",
@@ -6057,12 +4228,13 @@
       },
       "attributes": {
         "storyId": "story-cinderella"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-cinderella-palace",
       "subjectId": "cinderella",
-      "objectId": "cinderella-palace-place",
+      "objectId": "cinderella",
       "predicate": "visits",
       "time": {
         "type": "interval",
@@ -6087,7 +4259,8 @@
       },
       "attributes": {
         "occasion": "royal balls"
-      }
+      },
+      "placeId": "cinderella-palace-place"
     },
     {
       "id": "rel-pigs-first-straw",
@@ -6109,7 +4282,8 @@
       },
       "attributes": {
         "from": "Pigwood Material Sellers"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-pigs-second-sticks",
@@ -6131,7 +4305,8 @@
       },
       "attributes": {
         "from": "Pigwood Material Sellers"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-pigs-third-bricks",
@@ -6153,7 +4328,8 @@
       },
       "attributes": {
         "from": "Pigwood Material Sellers"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-pigs-first-shelter-second",
@@ -6175,7 +4351,8 @@
       },
       "attributes": {
         "after": "straw house destroyed"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-pigs-brothers-shelter-third",
@@ -6195,9 +4372,8 @@
         },
         "end": null
       },
-      "attributes": {
-        "place": "Brick House Hill"
-      }
+      "attributes": {},
+      "placeId": "pigs-brick-place"
     },
     {
       "id": "rel-snow-queen-laces",
@@ -6219,7 +4395,8 @@
       },
       "attributes": {
         "attempt": 1
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-snow-queen-comb",
@@ -6241,7 +4418,8 @@
       },
       "attributes": {
         "attempt": 2
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-snow-dwarfs-laces-rescue",
@@ -6263,7 +4441,8 @@
       },
       "attributes": {
         "method": "loosen laces"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-snow-dwarfs-comb-rescue",
@@ -6285,7 +4464,8 @@
       },
       "attributes": {
         "method": "remove comb"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-snow-prince-coffin",
@@ -6305,9 +4485,8 @@
         },
         "end": null
       },
-      "attributes": {
-        "place": "Glass Coffin Clearing"
-      }
+      "attributes": {},
+      "placeId": "snow-clearing-place"
     },
     {
       "id": "rel-cinderella-father-stepmother",
@@ -6329,7 +4508,8 @@
       },
       "attributes": {
         "household": "Cinderella's House"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-cinderella-fairy-pumpkin",
@@ -6351,7 +4531,8 @@
       },
       "attributes": {
         "result": "Enchanted Coach"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-cinderella-fairy-gown",
@@ -6373,7 +4554,8 @@
       },
       "attributes": {
         "expiresAt": "midnight"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-cinderella-prince-dance",
@@ -6395,7 +4577,8 @@
       },
       "attributes": {
         "identityKnown": false
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-cinderella-herald-slipper",
@@ -6425,7 +4608,8 @@
       },
       "attributes": {
         "purpose": "identify owner"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-cinderella-stepsisters-slipper",
@@ -6447,12 +4631,13 @@
       },
       "attributes": {
         "result": "no match"
-      }
+      },
+      "placeId": ""
     },
     {
       "id": "rel-snow-forest-flight",
       "subjectId": "snow-white",
-      "objectId": "snow-forest-ridge-place",
+      "objectId": "snow-white",
       "predicate": "traverses",
       "time": {
         "type": "instant",
@@ -6470,48 +4655,54 @@
       "attributes": {
         "from": "Deep Forest",
         "toward": "Seven Dwarfs' Cottage"
-      }
+      },
+      "placeId": "snow-forest-ridge-place"
     },
     {
       "id": "rel-pigs-first-group",
       "subjectId": "pigs-first",
       "objectId": "pigs-brothers",
       "predicate": "joinsSiblingGroup",
-      "attributes": {}
+      "attributes": {},
+      "placeId": ""
     },
     {
       "id": "rel-pigs-second-group",
       "subjectId": "pigs-second",
       "objectId": "pigs-brothers",
       "predicate": "joinsSiblingGroup",
-      "attributes": {}
+      "attributes": {},
+      "placeId": ""
     },
     {
       "id": "rel-pigs-third-group",
       "subjectId": "pigs-third",
       "objectId": "pigs-brothers",
       "predicate": "joinsSiblingGroup",
-      "attributes": {}
+      "attributes": {},
+      "placeId": ""
     },
     {
       "id": "rel-pigs-vendors-market",
       "subjectId": "pigs-material-vendors",
-      "objectId": "pigs-market-place",
-      "predicate": "sellsMaterialsAt",
-      "attributes": {}
+      "objectId": "pigs-material-vendors",
+      "predicate": "sellsMaterials",
+      "attributes": {},
+      "placeId": "pigs-market-place"
     },
     {
       "id": "rel-snow-coffin-contains",
       "subjectId": "snow-white",
       "objectId": "snow-coffin-object",
-      "predicate": "restsIn",
-      "attributes": {}
+      "predicate": "rests",
+      "attributes": {},
+      "placeId": ""
     },
     {
       "id": "rel-event-snow-birth-action",
       "subjectId": "snow-white",
-      "objectId": "place-snow-white-queen-s-castle",
-      "predicate": "isBornAt",
+      "objectId": "snow-white",
+      "predicate": "isBorn",
       "itemIds": [
         "snow-birth"
       ],
@@ -6528,13 +4719,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-snow-white-queen-s-castle"
     },
     {
       "id": "rel-event-snow-childhood-action",
       "subjectId": "snow-white",
-      "objectId": "place-snow-white-queen-s-castle",
-      "predicate": "growsUpAt",
+      "objectId": "snow-white",
+      "predicate": "growsUp",
       "itemIds": [
         "snow-childhood"
       ],
@@ -6559,13 +4751,14 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         }
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-snow-white-queen-s-castle"
     },
     {
       "id": "rel-event-cinderella-mother-action",
       "subjectId": "cinderella",
-      "objectId": "place-cinderella-cinderella-s-house",
-      "predicate": "mournsAt",
+      "objectId": "cinderella",
+      "predicate": "mourns",
       "itemIds": [
         "cinderella-mother"
       ],
@@ -6582,13 +4775,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-cinderella-s-house"
     },
     {
       "id": "rel-event-cinderella-stepfamily-arrives-action",
       "subjectId": "cinderella-father",
-      "objectId": "place-cinderella-cinderella-s-house",
-      "predicate": "remarriesAt",
+      "objectId": "cinderella-father",
+      "predicate": "remarries",
       "itemIds": [
         "cinderella-stepfamily-arrives"
       ],
@@ -6605,13 +4799,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-cinderella-s-house"
     },
     {
       "id": "rel-event-cinderella-hardship-action",
       "subjectId": "cinderella",
-      "objectId": "place-cinderella-cinderella-s-house",
-      "predicate": "laborsAt",
+      "objectId": "cinderella",
+      "predicate": "labors",
       "itemIds": [
         "cinderella-hardship"
       ],
@@ -6636,13 +4831,14 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         }
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-cinderella-s-house"
     },
     {
       "id": "rel-event-pigs-childhood-action",
       "subjectId": "pigs-brothers",
-      "objectId": "place-three-little-pigs-mother-pig-s-cottage",
-      "predicate": "growsUpAt",
+      "objectId": "pigs-brothers",
+      "predicate": "growsUp",
       "itemIds": [
         "pigs-childhood"
       ],
@@ -6667,13 +4863,14 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         }
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-three-little-pigs-mother-pig-s-cottage"
     },
     {
       "id": "rel-event-pigs-leave-home-action",
       "subjectId": "pigs-brothers",
-      "objectId": "place-three-little-pigs-mother-pig-s-cottage",
-      "predicate": "departsFrom",
+      "objectId": "pigs-brothers",
+      "predicate": "departs",
       "itemIds": [
         "pigs-leave-home"
       ],
@@ -6690,13 +4887,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-three-little-pigs-mother-pig-s-cottage"
     },
     {
       "id": "rel-event-pigs-acquire-straw-action",
       "subjectId": "pigs-first",
-      "objectId": "place-three-little-pigs-straw-seller-s-field",
-      "predicate": "buysStrawAt",
+      "objectId": "pigs-first",
+      "predicate": "buysStraw",
       "itemIds": [
         "pigs-acquire-straw"
       ],
@@ -6713,7 +4911,8 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-three-little-pigs-straw-seller-s-field"
     },
     {
       "id": "rel-event-pigs-acquire-straw-object-action",
@@ -6736,13 +4935,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-three-little-pigs-straw-seller-s-field"
     },
     {
       "id": "rel-event-snow-mirror-action",
       "subjectId": "snow-queen",
-      "objectId": "place-snow-white-queen-s-mirror-chamber",
-      "predicate": "consultsMirrorAt",
+      "objectId": "snow-queen",
+      "predicate": "consultsMirror",
       "itemIds": [
         "snow-mirror"
       ],
@@ -6759,7 +4959,8 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-snow-white-queen-s-mirror-chamber"
     },
     {
       "id": "rel-event-snow-mirror-object-action",
@@ -6782,13 +4983,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-snow-white-queen-s-mirror-chamber"
     },
     {
       "id": "rel-event-pigs-acquire-sticks-action",
       "subjectId": "pigs-second",
-      "objectId": "place-three-little-pigs-timber-track",
-      "predicate": "buysSticksAt",
+      "objectId": "pigs-second",
+      "predicate": "buysSticks",
       "itemIds": [
         "pigs-acquire-sticks"
       ],
@@ -6805,7 +5007,8 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-three-little-pigs-timber-track"
     },
     {
       "id": "rel-event-pigs-acquire-sticks-object-action",
@@ -6828,13 +5031,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-three-little-pigs-timber-track"
     },
     {
       "id": "rel-event-pigs-acquire-bricks-action",
       "subjectId": "pigs-third",
-      "objectId": "place-three-little-pigs-pigwood-mason-s-yard",
-      "predicate": "buysBricksAt",
+      "objectId": "pigs-third",
+      "predicate": "buysBricks",
       "itemIds": [
         "pigs-acquire-bricks"
       ],
@@ -6851,7 +5055,8 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-three-little-pigs-pigwood-mason-s-yard"
     },
     {
       "id": "rel-event-pigs-acquire-bricks-object-action",
@@ -6874,13 +5079,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-three-little-pigs-pigwood-mason-s-yard"
     },
     {
       "id": "rel-event-pigs-brick-build-action",
       "subjectId": "pigs-third",
-      "objectId": "pigs-brick-place",
-      "predicate": "buildsAt",
+      "objectId": "pigs-third",
+      "predicate": "builds",
       "itemIds": [
         "pigs-brick-build"
       ],
@@ -6905,13 +5111,14 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         }
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "pigs-brick-place"
     },
     {
       "id": "rel-event-snow-huntsman-order-action",
       "subjectId": "snow-queen",
-      "objectId": "place-snow-white-castle-great-hall",
-      "predicate": "ordersKillingAt",
+      "objectId": "snow-queen",
+      "predicate": "ordersKilling",
       "itemIds": [
         "snow-huntsman-order"
       ],
@@ -6928,13 +5135,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-snow-white-castle-great-hall"
     },
     {
       "id": "rel-event-pigs-straw-house-action",
       "subjectId": "pigs-first",
-      "objectId": "place-three-little-pigs-straw-house-meadow",
-      "predicate": "buildsAt",
+      "objectId": "pigs-first",
+      "predicate": "builds",
       "itemIds": [
         "pigs-straw-house"
       ],
@@ -6951,13 +5159,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-three-little-pigs-straw-house-meadow"
     },
     {
       "id": "rel-event-snow-huntsman-spares-action",
       "subjectId": "snow-huntsman",
-      "objectId": "place-snow-white-deep-forest",
-      "predicate": "sparesSnowWhiteAt",
+      "objectId": "snow-huntsman",
+      "predicate": "sparesSnowWhite",
       "itemIds": [
         "snow-huntsman-spares"
       ],
@@ -6974,13 +5183,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-snow-white-deep-forest"
     },
     {
       "id": "rel-event-snow-forest-flight-action",
       "subjectId": "snow-white",
-      "objectId": "snow-forest-ridge-place",
-      "predicate": "fleesTo",
+      "objectId": "snow-white",
+      "predicate": "flees",
       "itemIds": [
         "snow-forest-flight"
       ],
@@ -6997,13 +5207,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "snow-forest-ridge-place"
     },
     {
       "id": "rel-event-pigs-stick-house-action",
       "subjectId": "pigs-second",
-      "objectId": "place-three-little-pigs-stick-house-grove",
-      "predicate": "buildsAt",
+      "objectId": "pigs-second",
+      "predicate": "builds",
       "itemIds": [
         "pigs-stick-house"
       ],
@@ -7020,13 +5231,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-three-little-pigs-stick-house-grove"
     },
     {
       "id": "rel-event-snow-finds-cottage-action",
       "subjectId": "snow-white",
-      "objectId": "snow-cottage-place",
-      "predicate": "seeksShelterAt",
+      "objectId": "snow-white",
+      "predicate": "seeksShelter",
       "itemIds": [
         "snow-finds-cottage"
       ],
@@ -7043,13 +5255,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "snow-cottage-place"
     },
     {
       "id": "rel-event-snow-dwarfs-shelter-action",
       "subjectId": "snow-dwarfs",
-      "objectId": "snow-cottage-place",
-      "predicate": "sheltersSnowWhiteAt",
+      "objectId": "snow-dwarfs",
+      "predicate": "sheltersSnowWhite",
       "itemIds": [
         "snow-dwarfs-shelter"
       ],
@@ -7074,13 +5287,14 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         }
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "snow-cottage-place"
     },
     {
       "id": "rel-event-cinderella-invitation-action",
       "subjectId": "cinderella-herald",
-      "objectId": "place-cinderella-cinderella-s-house",
-      "predicate": "deliversInvitationAt",
+      "objectId": "cinderella-herald",
+      "predicate": "deliversInvitation",
       "itemIds": [
         "cinderella-invitation"
       ],
@@ -7097,13 +5311,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-cinderella-s-house"
     },
     {
       "id": "rel-event-snow-queen-discovers-action",
       "subjectId": "snow-queen",
-      "objectId": "place-snow-white-queen-s-mirror-chamber",
-      "predicate": "discoversSurvivalAt",
+      "objectId": "snow-queen",
+      "predicate": "discoversSurvival",
       "itemIds": [
         "snow-queen-discovers"
       ],
@@ -7120,13 +5335,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-snow-white-queen-s-mirror-chamber"
     },
     {
       "id": "rel-event-cinderella-denied-action",
       "subjectId": "cinderella-stepmother",
-      "objectId": "place-cinderella-cinderella-s-house",
-      "predicate": "forbidsAttendanceAt",
+      "objectId": "cinderella-stepmother",
+      "predicate": "forbidsAttendance",
       "itemIds": [
         "cinderella-denied"
       ],
@@ -7143,13 +5359,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-cinderella-s-house"
     },
     {
       "id": "rel-event-cinderella-extra-chores-action",
       "subjectId": "cinderella-stepmother",
-      "objectId": "place-cinderella-cinderella-s-house",
-      "predicate": "assignsChoresAt",
+      "objectId": "cinderella-stepmother",
+      "predicate": "assignsChores",
       "itemIds": [
         "cinderella-extra-chores"
       ],
@@ -7166,13 +5383,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-cinderella-s-house"
     },
     {
       "id": "rel-event-snow-disguises-action",
       "subjectId": "snow-queen",
-      "objectId": "place-snow-white-cottage-approach",
-      "predicate": "disguisesSelfAt",
+      "objectId": "snow-queen",
+      "predicate": "disguisesSelf",
       "itemIds": [
         "snow-disguises"
       ],
@@ -7197,13 +5415,14 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         }
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-snow-white-cottage-approach"
     },
     {
       "id": "rel-event-snow-laces-action",
       "subjectId": "snow-queen",
-      "objectId": "snow-cottage-place",
-      "predicate": "attacksWithLacesAt",
+      "objectId": "snow-queen",
+      "predicate": "attacksWithLaces",
       "itemIds": [
         "snow-laces"
       ],
@@ -7220,7 +5439,8 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "snow-cottage-place"
     },
     {
       "id": "rel-event-snow-laces-object-action",
@@ -7243,13 +5463,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "snow-cottage-place"
     },
     {
       "id": "rel-event-snow-laces-recovery-action",
       "subjectId": "snow-dwarfs",
-      "objectId": "snow-cottage-place",
-      "predicate": "revivesSnowWhiteAt",
+      "objectId": "snow-dwarfs",
+      "predicate": "revivesSnowWhite",
       "itemIds": [
         "snow-laces-recovery"
       ],
@@ -7266,13 +5487,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "snow-cottage-place"
     },
     {
       "id": "rel-event-pigs-wolf-straw-action",
       "subjectId": "pigs-wolf",
-      "objectId": "place-three-little-pigs-straw-house-meadow",
-      "predicate": "attacksStrawHouseAt",
+      "objectId": "pigs-wolf",
+      "predicate": "attacksStrawHouse",
       "itemIds": [
         "pigs-wolf-straw"
       ],
@@ -7289,13 +5511,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-three-little-pigs-straw-house-meadow"
     },
     {
       "id": "rel-event-pigs-first-flees-action",
       "subjectId": "pigs-first",
-      "objectId": "place-three-little-pigs-pigwood-escape-path",
-      "predicate": "fleesToward",
+      "objectId": "pigs-first",
+      "predicate": "flees",
       "itemIds": [
         "pigs-first-flees"
       ],
@@ -7312,13 +5535,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-three-little-pigs-pigwood-escape-path"
     },
     {
       "id": "rel-event-cinderella-transformation-action",
       "subjectId": "cinderella-fairy",
-      "objectId": "place-cinderella-garden-and-pumpkin-patch",
-      "predicate": "transformsCinderellaAt",
+      "objectId": "cinderella-fairy",
+      "predicate": "transformsCinderella",
       "itemIds": [
         "cinderella-transformation"
       ],
@@ -7335,7 +5559,8 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-garden-and-pumpkin-patch"
     },
     {
       "id": "rel-event-cinderella-transformation-object-action",
@@ -7358,13 +5583,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-garden-and-pumpkin-patch"
     },
     {
       "id": "rel-event-cinderella-coach-created-action",
       "subjectId": "cinderella-fairy",
-      "objectId": "place-cinderella-garden-and-pumpkin-patch",
-      "predicate": "createsCoachAt",
+      "objectId": "cinderella-fairy",
+      "predicate": "createsCoach",
       "itemIds": [
         "cinderella-coach-created"
       ],
@@ -7381,13 +5607,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-garden-and-pumpkin-patch"
     },
     {
       "id": "rel-event-pigs-wolf-sticks-action",
       "subjectId": "pigs-wolf",
-      "objectId": "place-three-little-pigs-stick-house-grove",
-      "predicate": "attacksStickHouseAt",
+      "objectId": "pigs-wolf",
+      "predicate": "attacksStickHouse",
       "itemIds": [
         "pigs-wolf-sticks"
       ],
@@ -7404,13 +5631,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-three-little-pigs-stick-house-grove"
     },
     {
       "id": "rel-event-pigs-two-flee-action",
       "subjectId": "pigs-brothers",
-      "objectId": "place-three-little-pigs-brick-house-approach",
-      "predicate": "fleesToward",
+      "objectId": "pigs-brothers",
+      "predicate": "flees",
       "itemIds": [
         "pigs-two-flee"
       ],
@@ -7427,13 +5655,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-three-little-pigs-brick-house-approach"
     },
     {
       "id": "rel-event-snow-comb-action",
       "subjectId": "snow-queen",
-      "objectId": "snow-cottage-place",
-      "predicate": "attacksWithCombAt",
+      "objectId": "snow-queen",
+      "predicate": "attacksWithComb",
       "itemIds": [
         "snow-comb"
       ],
@@ -7450,7 +5679,8 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "snow-cottage-place"
     },
     {
       "id": "rel-event-snow-comb-object-action",
@@ -7473,13 +5703,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "snow-cottage-place"
     },
     {
       "id": "rel-event-snow-comb-recovery-action",
       "subjectId": "snow-dwarfs",
-      "objectId": "snow-cottage-place",
-      "predicate": "revivesSnowWhiteAt",
+      "objectId": "snow-dwarfs",
+      "predicate": "revivesSnowWhite",
       "itemIds": [
         "snow-comb-recovery"
       ],
@@ -7496,13 +5727,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "snow-cottage-place"
     },
     {
       "id": "rel-event-cinderella-first-ball-action",
       "subjectId": "cinderella",
-      "objectId": "place-cinderella-royal-ballroom",
-      "predicate": "attendsBallAt",
+      "objectId": "cinderella",
+      "predicate": "attendsBall",
       "itemIds": [
         "cinderella-first-ball"
       ],
@@ -7527,13 +5759,14 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         }
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-royal-ballroom"
     },
     {
       "id": "rel-event-cinderella-prince-dance-action",
       "subjectId": "cinderella-prince",
-      "objectId": "place-cinderella-royal-ballroom",
-      "predicate": "dancesWithCinderellaAt",
+      "objectId": "cinderella-prince",
+      "predicate": "dancesWithCinderella",
       "itemIds": [
         "cinderella-prince-dance"
       ],
@@ -7550,13 +5783,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-royal-ballroom"
     },
     {
       "id": "rel-event-cinderella-first-return-action",
       "subjectId": "cinderella",
-      "objectId": "place-cinderella-moonlit-carriage-road",
-      "predicate": "returnsHomeVia",
+      "objectId": "cinderella",
+      "predicate": "returnsHome",
       "itemIds": [
         "cinderella-first-return"
       ],
@@ -7573,13 +5807,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-moonlit-carriage-road"
     },
     {
       "id": "rel-event-pigs-brick-siege-action",
       "subjectId": "pigs-wolf",
-      "objectId": "pigs-brick-place",
-      "predicate": "besiegesBrickHouseAt",
+      "objectId": "pigs-wolf",
+      "predicate": "besiegesBrickHouse",
       "itemIds": [
         "pigs-brick-siege"
       ],
@@ -7604,13 +5839,14 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         }
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "pigs-brick-place"
     },
     {
       "id": "rel-event-pigs-wolf-roof-action",
       "subjectId": "pigs-wolf",
-      "objectId": "pigs-brick-place",
-      "predicate": "climbsOntoRoofAt",
+      "objectId": "pigs-wolf",
+      "predicate": "climbsOntoRoof",
       "itemIds": [
         "pigs-wolf-roof"
       ],
@@ -7627,13 +5863,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "pigs-brick-place"
     },
     {
       "id": "rel-event-pigs-chimney-action",
       "subjectId": "pigs-wolf",
-      "objectId": "pigs-brick-place",
-      "predicate": "descendsThroughChimneyAt",
+      "objectId": "pigs-wolf",
+      "predicate": "descendsThroughChimney",
       "itemIds": [
         "pigs-chimney"
       ],
@@ -7650,13 +5887,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "pigs-brick-place"
     },
     {
       "id": "rel-event-pigs-safe-action",
       "subjectId": "pigs-brothers",
-      "objectId": "pigs-brick-place",
-      "predicate": "takesShelterAt",
+      "objectId": "pigs-brothers",
+      "predicate": "takesShelter",
       "itemIds": [
         "pigs-safe"
       ],
@@ -7673,13 +5911,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "pigs-brick-place"
     },
     {
       "id": "rel-event-snow-apple-prepared-action",
       "subjectId": "snow-queen",
-      "objectId": "place-snow-white-queen-s-workshop",
-      "predicate": "poisonsAppleAt",
+      "objectId": "snow-queen",
+      "predicate": "poisonsApple",
       "itemIds": [
         "snow-apple-prepared"
       ],
@@ -7696,13 +5935,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-snow-white-queen-s-workshop"
     },
     {
       "id": "rel-event-snow-apple-action",
       "subjectId": "snow-white",
-      "objectId": "snow-cottage-place",
-      "predicate": "bitesPoisonedAppleAt",
+      "objectId": "snow-white",
+      "predicate": "bitesPoisonedApple",
       "itemIds": [
         "snow-apple"
       ],
@@ -7719,7 +5959,8 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "snow-cottage-place"
     },
     {
       "id": "rel-event-snow-apple-object-action",
@@ -7742,13 +5983,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "snow-cottage-place"
     },
     {
       "id": "rel-event-snow-coffin-action",
       "subjectId": "snow-dwarfs",
-      "objectId": "snow-clearing-place",
-      "predicate": "keepsVigilAt",
+      "objectId": "snow-dwarfs",
+      "predicate": "keepsVigil",
       "itemIds": [
         "snow-coffin"
       ],
@@ -7773,7 +6015,8 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         }
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "snow-clearing-place"
     },
     {
       "id": "rel-event-snow-coffin-object-action",
@@ -7804,13 +6047,14 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         }
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "snow-clearing-place"
     },
     {
       "id": "rel-event-cinderella-second-ball-action",
       "subjectId": "cinderella",
-      "objectId": "place-cinderella-royal-ballroom",
-      "predicate": "returnsToBallAt",
+      "objectId": "cinderella",
+      "predicate": "returnsToBall",
       "itemIds": [
         "cinderella-second-ball"
       ],
@@ -7835,13 +6079,14 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         }
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-royal-ballroom"
     },
     {
       "id": "rel-event-cinderella-midnight-flight-action",
       "subjectId": "cinderella",
-      "objectId": "cinderella-palace-steps-place",
-      "predicate": "fleesFrom",
+      "objectId": "cinderella",
+      "predicate": "flees",
       "itemIds": [
         "cinderella-midnight-flight"
       ],
@@ -7858,13 +6103,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "cinderella-palace-steps-place"
     },
     {
       "id": "rel-event-cinderella-slipper-action",
       "subjectId": "cinderella",
-      "objectId": "place-cinderella-royal-carriage-road",
-      "predicate": "losesSlipperAt",
+      "objectId": "cinderella",
+      "predicate": "losesSlipper",
       "itemIds": [
         "cinderella-slipper"
       ],
@@ -7881,7 +6127,8 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-royal-carriage-road"
     },
     {
       "id": "rel-event-cinderella-slipper-object-action",
@@ -7904,13 +6151,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-royal-carriage-road"
     },
     {
       "id": "rel-event-cinderella-search-action",
       "subjectId": "cinderella-herald",
-      "objectId": "place-cinderella-ashenvale-village-search-route",
-      "predicate": "searchesForOwnerAlong",
+      "objectId": "cinderella-herald",
+      "predicate": "searchesForOwner",
       "itemIds": [
         "cinderella-search"
       ],
@@ -7935,13 +6183,14 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         }
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-ashenvale-village-search-route"
     },
     {
       "id": "rel-event-snow-prince-arrives-action",
       "subjectId": "snow-prince",
-      "objectId": "snow-clearing-place",
-      "predicate": "encountersCoffinAt",
+      "objectId": "snow-prince",
+      "predicate": "encountersCoffin",
       "itemIds": [
         "snow-prince-arrives"
       ],
@@ -7958,13 +6207,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "snow-clearing-place"
     },
     {
       "id": "rel-event-snow-revival-action",
       "subjectId": "snow-white",
-      "objectId": "snow-clearing-place",
-      "predicate": "revivesAt",
+      "objectId": "snow-white",
+      "predicate": "revives",
       "itemIds": [
         "snow-revival"
       ],
@@ -7981,13 +6231,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "snow-clearing-place"
     },
     {
       "id": "rel-event-cinderella-stepsisters-try-action",
       "subjectId": "cinderella-stepsisters",
-      "objectId": "place-cinderella-cinderella-s-house",
-      "predicate": "triesSlipperAt",
+      "objectId": "cinderella-stepsisters",
+      "predicate": "triesSlipper",
       "itemIds": [
         "cinderella-stepsisters-try"
       ],
@@ -8004,13 +6255,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-cinderella-s-house"
     },
     {
       "id": "rel-event-cinderella-asks-to-try-action",
       "subjectId": "cinderella",
-      "objectId": "place-cinderella-cinderella-s-house",
-      "predicate": "requestsSlipperTrialAt",
+      "objectId": "cinderella",
+      "predicate": "requestsSlipperTrial",
       "itemIds": [
         "cinderella-asks-to-try"
       ],
@@ -8027,13 +6279,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-cinderella-s-house"
     },
     {
       "id": "rel-event-cinderella-fit-action",
       "subjectId": "cinderella",
-      "objectId": "place-cinderella-cinderella-s-house",
-      "predicate": "fitsSlipperAt",
+      "objectId": "cinderella",
+      "predicate": "fitsSlipper",
       "itemIds": [
         "cinderella-fit"
       ],
@@ -8050,13 +6303,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-cinderella-cinderella-s-house"
     },
     {
       "id": "rel-event-snow-resolution-action",
       "subjectId": "snow-white",
-      "objectId": "place-snow-white-queen-s-castle",
-      "predicate": "marriesAt",
+      "objectId": "snow-white",
+      "predicate": "marries",
       "itemIds": [
         "snow-resolution"
       ],
@@ -8073,13 +6327,14 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "place-snow-white-queen-s-castle"
     },
     {
       "id": "rel-event-cinderella-resolution-action",
       "subjectId": "cinderella",
-      "objectId": "cinderella-palace-place",
-      "predicate": "marriesAt",
+      "objectId": "cinderella",
+      "predicate": "marries",
       "itemIds": [
         "cinderella-resolution"
       ],
@@ -8096,7 +6351,8 @@
         },
         "end": null
       },
-      "attributes": {}
+      "attributes": {},
+      "placeId": "cinderella-palace-place"
     }
   ],
   "extensions": {
@@ -8125,7 +6381,596 @@
         ]
       }
     }
-  }
+  },
+  "places": [
+    {
+      "id": "pigs-brick-place",
+      "name": "Brick House Hill",
+      "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          8.3,
+          49.96
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": 180,
+      "icon": "home",
+      "markerShape": "square",
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true
+      }
+    },
+    {
+      "id": "snow-cottage-place",
+      "name": "Seven Dwarfs' Cottage",
+      "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.61,
+          48.39
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "home",
+      "markerShape": "square",
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true
+      }
+    },
+    {
+      "id": "cinderella-palace-place",
+      "name": "Royal Palace",
+      "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.98,
+          47.23
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "crown",
+      "markerShape": "square",
+      "attributes": {
+        "storyId": "story-cinderella",
+        "fictional": true
+      }
+    },
+    {
+      "id": "pigs-market-place",
+      "name": "Pigwood Market Road",
+      "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          8.16,
+          49.91
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "object",
+      "markerShape": "square",
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true
+      }
+    },
+    {
+      "id": "snow-clearing-place",
+      "name": "Glass Coffin Clearing",
+      "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.69,
+          48.34
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "place",
+      "markerShape": "pin",
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true
+      }
+    },
+    {
+      "id": "cinderella-palace-steps-place",
+      "name": "Royal Palace Steps",
+      "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.965,
+          47.235
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "crown",
+      "markerShape": "square",
+      "attributes": {
+        "storyId": "story-cinderella",
+        "fictional": true
+      }
+    },
+    {
+      "id": "snow-forest-ridge-place",
+      "name": "Forest Ridge Path",
+      "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              10.535,
+              48.410000000000004
+            ],
+            [
+              10.568000000000001,
+              48.412
+            ],
+            [
+              10.562000000000001,
+              48.434000000000005
+            ],
+            [
+              10.536000000000001,
+              48.432
+            ],
+            [
+              10.535,
+              48.410000000000004
+            ]
+          ]
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "place",
+      "markerShape": "diamond",
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-snow-white-queen-s-castle",
+      "name": "Queen's Castle",
+      "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.32,
+          48.54
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "crown",
+      "markerShape": "square",
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-cinderella-cinderella-s-house",
+      "name": "Cinderella's House",
+      "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.74,
+          47.31
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "home",
+      "markerShape": "square",
+      "attributes": {
+        "storyId": "story-cinderella",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-three-little-pigs-mother-pig-s-cottage",
+      "name": "Mother Pig's Cottage",
+      "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          8.1,
+          50.02
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "home",
+      "markerShape": "square",
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-three-little-pigs-straw-seller-s-field",
+      "name": "Straw Seller's Field",
+      "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          8.14,
+          50.012
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "place",
+      "markerShape": "pin",
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-snow-white-queen-s-mirror-chamber",
+      "name": "Queen's Mirror Chamber",
+      "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.326,
+          48.542
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "place",
+      "markerShape": "pin",
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-three-little-pigs-timber-track",
+      "name": "Timber Track",
+      "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          8.19,
+          50.003
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "place",
+      "markerShape": "pin",
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-three-little-pigs-pigwood-mason-s-yard",
+      "name": "Pigwood Mason's Yard",
+      "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          8.245,
+          49.988
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "object",
+      "markerShape": "pin",
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-snow-white-castle-great-hall",
+      "name": "Castle Great Hall",
+      "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.334,
+          48.536
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "crown",
+      "markerShape": "square",
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-three-little-pigs-straw-house-meadow",
+      "name": "Straw House Meadow",
+      "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          8.16,
+          50
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "home",
+      "markerShape": "square",
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-snow-white-deep-forest",
+      "name": "Deep Forest",
+      "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.48,
+          48.45
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "place",
+      "markerShape": "pin",
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-three-little-pigs-stick-house-grove",
+      "name": "Stick House Grove",
+      "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          8.22,
+          49.98
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "home",
+      "markerShape": "square",
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-cinderella-garden-and-pumpkin-patch",
+      "name": "Garden and Pumpkin Patch",
+      "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.82,
+          47.28
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "place",
+      "markerShape": "pin",
+      "attributes": {
+        "storyId": "story-cinderella",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-cinderella-royal-ballroom",
+      "name": "Royal Ballroom",
+      "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.986,
+          47.232
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "crown",
+      "markerShape": "square",
+      "attributes": {
+        "storyId": "story-cinderella",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-cinderella-moonlit-carriage-road",
+      "name": "Moonlit Carriage Road",
+      "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.925,
+          47.248
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "place",
+      "markerShape": "pin",
+      "attributes": {
+        "storyId": "story-cinderella",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-snow-white-cottage-approach",
+      "name": "Cottage Approach",
+      "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.592,
+          48.398
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "home",
+      "markerShape": "square",
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-three-little-pigs-pigwood-escape-path",
+      "name": "Pigwood Escape Path",
+      "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          8.205,
+          49.992
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "place",
+      "markerShape": "pin",
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-three-little-pigs-brick-house-approach",
+      "name": "Brick House Approach",
+      "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          8.275,
+          49.972
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "home",
+      "markerShape": "square",
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-cinderella-royal-carriage-road",
+      "name": "Royal Carriage Road",
+      "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.902,
+          47.254
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "crown",
+      "markerShape": "square",
+      "attributes": {
+        "storyId": "story-cinderella",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-cinderella-ashenvale-village-search-route",
+      "name": "Ashenvale Village Search Route",
+      "geographicIdentifier": "Storybook Cycle 1000 · Ashenvale · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.845,
+          47.275
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "search",
+      "markerShape": "diamond",
+      "attributes": {
+        "storyId": "story-cinderella",
+        "fictional": true
+      }
+    },
+    {
+      "id": "place-snow-white-queen-s-workshop",
+      "name": "Queen's Workshop",
+      "geographicIdentifier": "Storybook Cycle 1000 · Mirrorwood · fictional staging anchor",
+      "address": "",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.342,
+          48.531
+        ]
+      },
+      "crs": "OGC:CRS84",
+      "radiusMeters": null,
+      "icon": "object",
+      "markerShape": "pin",
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true
+      }
+    }
+  ]
 };
 
   globalThis.TimelineSampleCase = Object.freeze(SAMPLE);

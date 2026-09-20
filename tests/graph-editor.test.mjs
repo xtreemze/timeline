@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-test("graph editor exposes noun nodes, action edges, properties, and temporal ranges", async () => {
+test("graph editor separates entity nodes, reusable places, and action-edge context", async () => {
   const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
   assert.match(html, /id="tab-graph"/);
   assert.match(html, /id="panel-graph"/);
@@ -12,12 +12,22 @@ test("graph editor exposes noun nodes, action edges, properties, and temporal ra
   assert.match(html, /id="graph-node-identifiers"/);
   assert.match(html, /id="graph-node-source-ids"/);
   assert.match(html, /id="graph-node-properties"/);
+  assert.match(html, /id="graph-place-form"/);
+  assert.match(html, /id="graph-place-name"/);
+  assert.match(html, /id="graph-place-latitude"/);
+  assert.match(html, /id="graph-place-longitude"/);
+  assert.match(html, /id="graph-place-radius"/);
+  assert.match(html, /id="graph-place-icon"/);
+  assert.match(html, /id="graph-place-marker-shape"/);
+  assert.match(html, /id="graph-place-area"/);
   assert.match(html, /id="graph-edge-subject"/);
   assert.match(html, /id="graph-edge-predicate"/);
   assert.match(html, /id="graph-edge-object"/);
+  assert.match(html, /id="graph-edge-place"/);
   assert.match(html, /id="graph-edge-item-ids"/);
-  assert.match(html, /Nodes are durable nouns\/entities only/);
-  assert.match(html, /Generic associations such as participatedIn, partOf, memberOf, relatedTo/);
+  assert.match(html, /One node = one entity/);
+  assert.match(html, /Places are map records, never graph nodes/);
+  assert.match(html, /Action only\. Do not put a place, date, time, period/);
   assert.match(html, /id="graph-edge-properties"/);
   assert.match(html, /id="graph-edge-initial-state"/);
   assert.match(html, /id="graph-edge-provenance-details"/);
@@ -26,7 +36,7 @@ test("graph editor exposes noun nodes, action edges, properties, and temporal ra
   assert.match(html, /id="graph-edge-time-kind"/);
   assert.match(html, /id="graph-edge-time-kind"[\s\S]*value="event" selected/);
   assert.match(html, /Persistent \/ no temporal anchor/);
-  assert.match(html, /Prefer a date or range so the relation can enter and leave the graph/);
+  assert.match(html, /Time\/date\/period is a property of the edge/);
   assert.match(html, /id="graph-edge-date-range"/);
 });
 
@@ -48,10 +58,17 @@ test("timeline includes an interactive temporal node-edge graph lens", async () 
   assert.match(css, /\.temporal-graph-canvas canvas/);
 });
 
-test("application provides CRUD handlers for graph nodes and labeled edges", async () => {
+test("application provides CRUD handlers for entity nodes, places, and structured action edges", async () => {
   const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   assert.match(source, /beginGraphNodeEdit/);
   assert.match(source, /removeGraphNode/);
+  assert.match(source, /beginGraphPlaceEdit/);
+  assert.match(source, /removeGraphPlace/);
+  assert.match(source, /renderGraphPlaces/);
+  assert.match(source, /spatial\.placeFromForm/);
+  assert.match(source, /spatial\.placeIdentity/);
+  assert.match(source, /graphPlaceOptions/);
+  assert.match(source, /placeForItem/);
   assert.match(source, /beginGraphEdgeEdit/);
   assert.match(source, /removeGraphEdge/);
   assert.match(source, /parseJsonObject/);
@@ -65,6 +82,7 @@ test("application provides CRUD handlers for graph nodes and labeled edges", asy
   assert.match(source, /graph\.validateActionPredicate/);
   assert.match(source, /graph\.validateGraphInput/);
   assert.match(source, /graphContextItemOptions/);
+  assert.match(source, /placeId:\s*els\.graphEdgePlace\.value/);
   assert.match(source, /Confidence must be between 0 and 1/);
   assert.match(source, /connected \$\{edgeCount === 1 \? "edge" : "edges"\} will also be removed/);
   assert.match(source, /state\.relationships = state\.relationships\.map\(\(relationship\)[\s\S]*itemIds: \(relationship\.itemIds \|\| \[\]\)\.filter\(\(itemId\) => itemId !== id\)/);
@@ -314,7 +332,6 @@ test("activated touch long press directly drives the Orb simulator instead of de
   assert.match(bridge, /onLostPointerCapture[\s\S]*finishActiveTouchNodeDrag\(\)[\s\S]*finishTouchGesture\(\)/);
 });
 
-
 test("active touch node drag keeps exclusive camera ownership and releases when its owning finger lifts", async () => {
   const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
@@ -332,7 +349,6 @@ test("active touch node drag keeps exclusive camera ownership and releases when 
   );
 });
 
-
 test("touch node hold freezes the graph camera until drag or navigation intent is resolved", async () => {
   const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
@@ -349,7 +365,6 @@ test("touch node hold freezes the graph camera until drag or navigation intent i
     /setInteractionHeat\(DRAG_ALPHA_TARGET\)[\s\S]*simulator\?\.startDragNode\(\)/
   );
 });
-
 
 test("graph touch ownership keeps D3 zoom state synchronized and recovers from interruptions", async () => {
   const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
