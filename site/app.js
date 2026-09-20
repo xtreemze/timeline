@@ -2975,6 +2975,11 @@
       sourceIds,
       attributes
     };
+    const fullNodeValidation = graph.validateEntityNode(entity);
+    if (!fullNodeValidation.valid) {
+      setError(els.graphNodeError, fullNodeValidation.message);
+      return;
+    }
     const index = state.entities.findIndex((candidate) => candidate.id === entity.id);
     if (index >= 0) {
       state.entities[index] = entity;
@@ -2996,6 +3001,50 @@
     if (!button || !row) return;
     if (button.dataset.action === "edit-graph-node") beginGraphNodeEdit(row.dataset.id);
     if (button.dataset.action === "delete-graph-node") removeGraphNode(row.dataset.id);
+  });
+
+  els.graphPlaceForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    setError(els.graphPlaceError);
+    try {
+      const place = spatial.placeFromForm({
+        id: els.graphPlaceId.value || newId("place"),
+        name: els.graphPlaceName.value,
+        geographicIdentifier: els.graphPlaceIdentifier.value,
+        address: els.graphPlaceAddress.value,
+        latitude: els.graphPlaceLatitude.value,
+        longitude: els.graphPlaceLongitude.value,
+        radiusMeters: els.graphPlaceRadius.value,
+        icon: els.graphPlaceIcon.value,
+        markerShape: els.graphPlaceMarkerShape.value,
+        areaGeometry: els.graphPlaceArea.value.trim()
+      });
+      if (!place) throw new Error("A place name is required.");
+      if (!place.geometry) throw new Error("A place needs point coordinates or an area geometry.");
+      const index = state.places.findIndex((candidate) => candidate.id === place.id);
+      if (index >= 0) {
+        state.places[index] = place;
+        showStatus("Place updated.");
+      } else {
+        state.places.push(place);
+        showStatus("Place added.");
+      }
+      persist();
+      resetGraphPlaceForm();
+      renderAll();
+    } catch (error) {
+      setError(els.graphPlaceError, error instanceof Error ? error.message : "Check the place geometry.");
+    }
+  });
+
+  els.cancelGraphPlaceEdit.addEventListener("click", resetGraphPlaceForm);
+
+  els.graphPlaceList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    const row = event.target.closest(".graph-record");
+    if (!button || !row) return;
+    if (button.dataset.action === "edit-graph-place") beginGraphPlaceEdit(row.dataset.id);
+    if (button.dataset.action === "delete-graph-place") removeGraphPlace(row.dataset.id);
   });
 
   els.graphEdgeTimeKind.addEventListener("change", () => {
@@ -3051,6 +3100,7 @@
       objectId,
       predicate: predicate.slice(0, 120),
       role: els.graphEdgeRole.value.trim().slice(0, 120),
+      placeId: els.graphEdgePlace.value,
       itemIds,
       initialState: els.graphEdgeInitialState.value === "inactive" ? "inactive" : "active",
       time,
@@ -3146,7 +3196,6 @@
 
     let startEndpoint;
     let endEndpoint = null;
-    let location = null;
     let media = [];
     let tags = [];
     let relationChanges = [];
@@ -3163,17 +3212,8 @@
       tags = collectTagForm();
       relationChanges = collectRelationChangeForm();
       evidenceRecords = await collectEvidenceForm();
-      location = spatial.fromForm({
-        name: els.itemLocationName.value,
-        geographicIdentifier: els.itemLocationIdentifier.value,
-        address: els.itemLocationAddress.value,
-        latitude: els.itemLocationLatitude.value,
-        longitude: els.itemLocationLongitude.value,
-        source: els.itemLocationSource.value,
-        accuracyMeters: els.itemLocationAccuracy.value
-      });
     } catch (error) {
-      setError(els.itemFormError, error instanceof Error ? error.message : "Check the temporal, media, tag, or location values.");
+      setError(els.itemFormError, error instanceof Error ? error.message : "Check the temporal, media, tag, or evidence values.");
       els.itemDateRange.focus();
       return;
     }
@@ -3209,7 +3249,6 @@
       relationChanges,
       evidenceIds: evidenceRecords.map((record) => record.id)
     };
-    if (location) item.location = location;
     if (media.length) item.media = media;
     if (tags.length) item.tags = tags;
     mergeEvidenceRecords(evidenceRecords);
