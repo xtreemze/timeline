@@ -1192,6 +1192,7 @@
     if (shouldOpen && !isOpen) {
       try {
         els.viewControls.showPopover();
+        positionViewControls();
         requestAnimationFrame(positionViewControls);
       } catch {
         return;
@@ -2791,10 +2792,16 @@
     window.addEventListener("resize", () => schedulePresentationGeometryRefresh());
   }
   updatePresentationStageLayout();
-  requestAnimationFrame(positionWorkspaceToolDock);
+  requestAnimationFrame(() => {
+    positionWorkspaceToolDock();
+    positionViewControls();
+  });
   window.addEventListener("resize", positionWorkspaceToolDock);
+  window.addEventListener("resize", positionViewControls);
   window.visualViewport?.addEventListener("resize", positionWorkspaceToolDock);
+  window.visualViewport?.addEventListener("resize", positionViewControls);
   window.visualViewport?.addEventListener("scroll", positionWorkspaceToolDock);
+  window.visualViewport?.addEventListener("scroll", positionViewControls);
 
   function collapseAllCategories() {
     ui.collapsedCategoryIds.clear();
