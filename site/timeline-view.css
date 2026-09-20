@@ -91,6 +91,15 @@
   display: none;
 }
 
+.timeline-view[data-orientation="landscape"] .timeline-project-heading {
+  top: auto;
+  right: auto;
+  bottom: max(.5rem, env(safe-area-inset-bottom));
+  left: max(.5rem, env(safe-area-inset-left));
+  flex-direction: row;
+  max-width: min(34rem, calc(100% - 1rem));
+}
+
 .timeline-view[data-orientation="portrait"] .timeline-project-heading {
   top: max(.5rem, env(safe-area-inset-top));
   right: max(.38rem, env(safe-area-inset-right));
@@ -114,7 +123,7 @@
   .timeline-project-heading {
   top: auto;
   right: auto;
-  bottom: calc(var(--timeline-context-edge-span) - 2.8rem);
+  bottom: max(.45rem, env(safe-area-inset-bottom));
   left: max(.45rem, env(safe-area-inset-left));
   flex-direction: row;
   max-width: min(34rem, calc(100% - 1rem));
@@ -3440,6 +3449,17 @@
   }
 
   #app-shell[data-graph-open="true"]
+    #timeline-view[data-orientation="landscape"] .timeline-project-heading {
+    top: auto;
+    right: auto;
+    bottom: calc(var(--relations-bottom-safe) + .35rem);
+    left: max(
+      calc(var(--relations-left-safe) + .35rem),
+      calc(env(safe-area-inset-left) + .35rem)
+    );
+  }
+
+  #app-shell[data-graph-open="true"]
     #timeline-view[data-orientation="landscape"] > .timeline-surface {
     --timeline-axis-cross: 42%;
     top: auto;
@@ -3508,6 +3528,14 @@
     right: max(.35rem, env(safe-area-inset-right));
     bottom: calc(var(--mobile-bottom-chrome) + var(--mobile-relations-rail) + .25rem);
     left: max(.35rem, env(safe-area-inset-left));
+  }
+
+  #app-shell[data-graph-open="true"]
+    #timeline-view[data-orientation="landscape"] .timeline-project-heading {
+    top: auto;
+    right: auto;
+    bottom: calc(var(--mobile-bottom-chrome) + .25rem);
+    left: max(.6rem, calc(env(safe-area-inset-left) + .6rem));
   }
 
   #app-shell[data-graph-open="true"]
