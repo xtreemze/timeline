@@ -60,3 +60,12 @@ test("fictional spatial reference frames use local procedural texture instead of
   assert.match(mapSource, /Fictional reference frame · procedural texture/);
   assert.match(styles, /\.presentation-map\.is-fictional-map/);
 });
+
+
+test("secondary GeoJSON points render as labeled semantic route markers", async () => {
+  const mapSource = await readFile(new URL("../site/location-map.js", import.meta.url), "utf8");
+  assert.match(mapSource, /feature\?\.properties/);
+  assert.match(mapSource, /properties\.name \|\| properties\.label/);
+  assert.match(mapSource, /properties\.icon \|\| this\.iconName/);
+  assert.match(mapSource, /markerLabel \|\| "Map feature"/);
+});
