@@ -4269,10 +4269,12 @@
   isolation: isolate;
 }
 #app-shell .app-tool-dock[data-project-anchored="true"][data-timeline-orientation="landscape"] {
-  flex-direction: row;
+  flex-direction: column;
+  align-items: stretch;
 }
 #app-shell .app-tool-dock[data-project-anchored="true"][data-timeline-orientation="portrait"] {
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
 }
 #app-shell .app-tool-dock[data-project-anchored="true"] .app-tool {
   position: relative;
