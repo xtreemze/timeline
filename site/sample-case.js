@@ -3909,7 +3909,7 @@
       "attributes": {}
     },
     {
-      "id": "cinderella-mother",
+      "id": "cinderella-mother-person",
       "name": "Cinderella's Mother",
       "type": "person",
       "alternateNames": [],
@@ -3918,7 +3918,7 @@
       "attributes": {}
     },
     {
-      "id": "pigs-straw-house",
+      "id": "pigs-straw-house-object",
       "name": "Straw House",
       "type": "object",
       "alternateNames": [],
@@ -3927,7 +3927,7 @@
       "attributes": {}
     },
     {
-      "id": "pigs-stick-house",
+      "id": "pigs-stick-house-object",
       "name": "Stick House",
       "type": "object",
       "alternateNames": [],
@@ -3945,7 +3945,7 @@
       "attributes": {}
     },
     {
-      "id": "pigs-chimney",
+      "id": "pigs-chimney-object",
       "name": "Brick House Chimney",
       "type": "object",
       "alternateNames": [],
@@ -4833,7 +4833,7 @@
     {
       "id": "rel-event-cinderella-mother-action",
       "subjectId": "cinderella",
-      "objectId": "cinderella-mother",
+      "objectId": "cinderella-mother-person",
       "predicate": "mourns",
       "itemIds": [
         "cinderella-mother"
@@ -5193,7 +5193,7 @@
     {
       "id": "rel-event-pigs-straw-house-action",
       "subjectId": "pigs-first",
-      "objectId": "pigs-straw-house",
+      "objectId": "pigs-straw-house-object",
       "predicate": "builds",
       "itemIds": [
         "pigs-straw-house",
@@ -5245,7 +5245,7 @@
       "id": "rel-event-snow-forest-flight-action",
       "subjectId": "snow-white",
       "objectId": "snow-huntsman",
-      "predicate": "fleesFrom",
+      "predicate": "flees",
       "itemIds": [
         "snow-forest-flight"
       ],
@@ -5268,7 +5268,7 @@
     {
       "id": "rel-event-pigs-stick-house-action",
       "subjectId": "pigs-second",
-      "objectId": "pigs-stick-house",
+      "objectId": "pigs-stick-house-object",
       "predicate": "builds",
       "itemIds": [
         "pigs-stick-house",
@@ -5550,7 +5550,7 @@
     {
       "id": "rel-event-pigs-wolf-straw-action",
       "subjectId": "pigs-wolf",
-      "objectId": "pigs-straw-house",
+      "objectId": "pigs-straw-house-object",
       "predicate": "destroys",
       "itemIds": [
         "pigs-wolf-straw",
@@ -5671,7 +5671,7 @@
     {
       "id": "rel-event-pigs-wolf-sticks-action",
       "subjectId": "pigs-wolf",
-      "objectId": "pigs-stick-house",
+      "objectId": "pigs-stick-house-object",
       "predicate": "destroys",
       "itemIds": [
         "pigs-wolf-sticks"
@@ -5927,7 +5927,7 @@
     {
       "id": "rel-event-pigs-chimney-action",
       "subjectId": "pigs-wolf",
-      "objectId": "pigs-chimney",
+      "objectId": "pigs-chimney-object",
       "predicate": "descendsThrough",
       "itemIds": [
         "pigs-chimney"
