@@ -298,6 +298,54 @@
     return { entities, relationships };
   }
 
+  function validateGraphInput(input) {
+    const errors = [];
+    const rawEntities = Array.isArray(input?.entities) ? input.entities : [];
+    const rawRelationships = Array.isArray(input?.relationships) ? input.relationships : [];
+    const rawItems = Array.isArray(input?.items) ? input.items : [];
+    const entityIds = new Set();
+    const itemIds = new Set(rawItems.map((item) => text(item?.id, 120)).filter(Boolean));
+
+    rawEntities.forEach((entity, index) => {
+      const validation = validateEntityNode(entity);
+      const id = text(entity?.id, 120);
+      if (!validation.valid) errors.push(`Node ${id || index + 1}: ${validation.message}`);
+      if (id) entityIds.add(id);
+    });
+
+    rawRelationships.forEach((relationship, index) => {
+      const id = text(relationship?.id, 120) || `relationship ${index + 1}`;
+      const predicate = text(relationship?.predicate || relationship?.label || relationship?.type, 120);
+      const validation = validateActionPredicate(predicate);
+      if (!validation.valid) errors.push(`Edge ${id}: ${validation.message}`);
+      const subjectId = text(relationship?.subjectId ?? relationship?.start ?? relationship?.source, 120);
+      const objectId = text(relationship?.objectId ?? relationship?.end ?? relationship?.target, 120);
+      if (!entityIds.has(subjectId) || !entityIds.has(objectId)) {
+        errors.push(`Edge ${id}: endpoints must both be entity nodes. Link chronology through itemIds/context, not by making an event or story a graph node.`);
+      }
+      const contextIds = textList(
+        relationship?.itemIds || relationship?.contextItemIds || relationship?.eventIds,
+        { maxItems: 96, maxLength: 120 }
+      );
+      for (const contextId of contextIds) {
+        if (!itemIds.has(contextId)) errors.push(`Edge ${id}: unknown timeline context item “${contextId}”.`);
+      }
+    });
+
+    rawItems.forEach((item, itemIndex) => {
+      for (const change of Array.isArray(item?.relationChanges) ? item.relationChanges : []) {
+        const predicate = text(change?.predicate, 120);
+        if (!predicate) continue;
+        const validation = validateActionPredicate(predicate);
+        if (!validation.valid) {
+          errors.push(`Item ${text(item?.id, 120) || itemIndex + 1} relation update: ${validation.message}`);
+        }
+      }
+    });
+
+    return errors;
+  }
+
   function toOrbGraph({ entities = [], relationships = [], items = [], stories = [] } = {}) {
     const nodes = [];
     const seen = new Set();
@@ -518,6 +566,7 @@
   globalThis.TimelineGraph = Object.freeze({
     graphForWindow,
     normalizeGraphData,
+    validateGraphInput,
     validateActionPredicate,
     validateEntityNode,
     normalizeRelationChanges,
