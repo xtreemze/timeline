@@ -397,6 +397,74 @@
     els.appToolDock.style.setProperty("--workspace-tool-dock-top", `${Math.round(top)}px`);
   }
 
+  function positionViewControls() {
+    if (!els.viewControls || !els.viewControlsToggle || !els.timelineViewRoot) return;
+    if (!els.viewControls.matches(":popover-open")) return;
+
+    if (presentationIsFullscreen()) {
+      els.viewControls.dataset.anchorPlacement = "fullscreen";
+      els.viewControls.style.removeProperty("--view-controls-left");
+      els.viewControls.style.removeProperty("--view-controls-top");
+      return;
+    }
+
+    const orientation = els.timelineViewRoot.dataset.orientation === "portrait" ? "portrait" : "landscape";
+    const triggerRect = els.viewControlsToggle.getBoundingClientRect();
+    const toolbarRect = els.viewControls.getBoundingClientRect();
+    const viewport = workspaceToolViewport();
+    const gap = 8;
+    const edge = 8;
+    const minLeft = viewport.left + edge;
+    const minTop = viewport.top + edge;
+    const maxRight = viewport.left + viewport.width - edge;
+    const maxBottom = viewport.top + viewport.height - edge;
+    const toolbarWidth = Math.max(1, toolbarRect.width || els.viewControls.offsetWidth || 1);
+    const toolbarHeight = Math.max(1, toolbarRect.height || els.viewControls.offsetHeight || 1);
+
+    let left;
+    let top;
+    let placement;
+
+    if (orientation === "landscape") {
+      const preferredTop = triggerRect.top - toolbarHeight - gap;
+      const fallbackTop = triggerRect.bottom + gap;
+      left = triggerRect.right - toolbarWidth;
+      top = preferredTop >= minTop ? preferredTop : fallbackTop;
+      placement = preferredTop >= minTop ? "above" : "below";
+    } else {
+      const preferredLeft = triggerRect.left - toolbarWidth - gap;
+      const fallbackLeft = triggerRect.right + gap;
+      const preferredTop = triggerRect.bottom - toolbarHeight;
+
+      if (preferredLeft >= minLeft) {
+        left = preferredLeft;
+        top = preferredTop;
+        placement = "left";
+      } else if (fallbackLeft + toolbarWidth <= maxRight) {
+        left = fallbackLeft;
+        top = preferredTop;
+        placement = "right";
+      } else {
+        left = triggerRect.right - toolbarWidth;
+        top = triggerRect.top - toolbarHeight - gap;
+        placement = "above";
+      }
+    }
+
+    left = Math.min(
+      Math.max(minLeft, left),
+      Math.max(minLeft, maxRight - toolbarWidth)
+    );
+    top = Math.min(
+      Math.max(minTop, top),
+      Math.max(minTop, maxBottom - toolbarHeight)
+    );
+
+    els.viewControls.dataset.anchorPlacement = placement;
+    els.viewControls.style.setProperty("--view-controls-left", `${Math.round(left)}px`);
+    els.viewControls.style.setProperty("--view-controls-top", `${Math.round(top)}px`);
+  }
+
   function mountFullscreenToolDock() {
     if (!els.appToolDock || !els.presentationStage) return;
     if (els.appToolDock.parentNode !== els.presentationStage) {
@@ -573,6 +641,7 @@
     timelineView?.refreshLayout?.();
     presentationMap?.refresh?.();
     positionWorkspaceToolDock();
+    positionViewControls();
     if (recenterGraph) temporalGraphView?.refreshLayout?.();
   }
 
@@ -1123,11 +1192,14 @@
     if (shouldOpen && !isOpen) {
       try {
         els.viewControls.showPopover();
+        requestAnimationFrame(positionViewControls);
       } catch {
         return;
       }
     } else if (!shouldOpen && isOpen) {
       els.viewControls.hidePopover();
+    } else if (shouldOpen && isOpen) {
+      requestAnimationFrame(positionViewControls);
     }
   }
 
