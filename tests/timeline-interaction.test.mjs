@@ -834,8 +834,8 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(timelineCss, /timeline-view-toolbar\[popover\]:popover-open[\s\S]*max-inline-size:[\s\S]*max-block-size:[\s\S]*overflow-y:\s*auto/);
   assert.match(timelineCss, /\.timeline-zoom-control[\s\S]*grid-template-rows:\s*22px auto/);
   assert.match(timelineCss, /\.timeline-zoom-scale[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
-  assert.match(timelineCss, /app-view-controls\\.timeline-view-toolbar\\[popover\\]:popover-open[\s\S]*bottom:\s*max\(4\.35rem/);
-  assert.match(timelineCss, /app-view-controls\\.timeline-view-toolbar\\[popover\\]:popover-open[\s\S]*flex-wrap:\s*nowrap/);
+  assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*bottom:\s*max\(4\.35rem/);
+  assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*flex-wrap:\s*nowrap/);
   assert.match(timelineCss, /\.timeline-auto-controls[\s\S]*display:\s*flex[\s\S]*flex-wrap:\s*nowrap/);
   assert.doesNotMatch(timelineCss, /\.timeline-auto-controls[\s\S]{0,180}grid-column:\s*1 \/ -1/);
   assert.match(timelineCss, /Mobile persistent relation composition/);
@@ -867,15 +867,15 @@ test("workspace toolbars deploy vertically in landscape and horizontally in port
   );
   assert.match(
     timelineCss,
-    /#app-shell:has\(#timeline-view\[data-orientation="landscape"\]\)[\s\S]*\.app-view-controls\\.timeline-view-toolbar\\[popover\\]:popover-open\s*\{[\s\S]*flex-direction:\s*column[\s\S]*overflow-x:\s*hidden[\s\S]*overflow-y:\s*auto/
+    /#app-shell:has\(#timeline-view\[data-orientation="landscape"\]\)[\s\S]*\.app-view-controls\.timeline-view-toolbar\[popover\]:popover-open\s*\{[\s\S]*flex-direction:\s*column[\s\S]*overflow-x:\s*hidden[\s\S]*overflow-y:\s*auto/
   );
   assert.match(
     timelineCss,
-    /#app-shell:has\(#timeline-view\[data-orientation="landscape"\]\)[\s\S]*#presentation-stage:fullscreen \.timeline-view-toolbar\s*\{[\s\S]*flex-direction:\s*column/
+    /#app-shell:has\(#timeline-view\[data-orientation="landscape"\]\)[\s\S]*#presentation-stage:fullscreen \.timeline-view-toolbar:popover-open\s*\{[\s\S]*flex-direction:\s*column/
   );
   assert.match(
     timelineCss,
-    /#app-shell:has\(#timeline-view\[data-orientation="portrait"\]\)[\s\S]*\.app-view-controls\\.timeline-view-toolbar\\[popover\\]:popover-open,[\s\S]*#presentation-stage:fullscreen \.timeline-view-toolbar\s*\{[\s\S]*flex-direction:\s*row/
+    /#app-shell:has\(#timeline-view\[data-orientation="portrait"\]\)[\s\S]*\.app-view-controls\.timeline-view-toolbar\[popover\]:popover-open,[\s\S]*#presentation-stage:fullscreen \.timeline-view-toolbar:popover-open\s*\{[\s\S]*flex-direction:\s*row/
   );
 });
 
