@@ -448,7 +448,7 @@
       "media": [
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20straw.jpg",
-          "alt": "First Pig carrying straw",
+          "alt": "Pig carrying straw",
           "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         },
         {
@@ -814,7 +814,7 @@
         },
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20straw.jpg",
-          "alt": "First Pig carrying straw",
+          "alt": "Pig carrying straw",
           "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
       ]
@@ -936,7 +936,7 @@
         },
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20straw.jpg",
-          "alt": "First Pig carrying straw",
+          "alt": "Pig carrying straw",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
@@ -1105,7 +1105,7 @@
       "media": [
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20straw.jpg",
-          "alt": "First Pig carrying straw",
+          "alt": "Pig carrying straw",
           "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         },
         {
@@ -2455,7 +2455,7 @@
         },
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20straw.jpg",
-          "alt": "First Pig carrying straw",
+          "alt": "Pig carrying straw",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
@@ -2508,7 +2508,7 @@
       "media": [
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20straw.jpg",
-          "alt": "First Pig carrying straw",
+          "alt": "Pig carrying straw",
           "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         },
         {
