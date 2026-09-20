@@ -313,3 +313,21 @@ test("activated touch long press directly drives the Orb simulator instead of de
   assert.match(bridge, /lostpointercapture", onLostPointerCapture/);
   assert.match(bridge, /onLostPointerCapture[\s\S]*finishActiveTouchNodeDrag\(\)[\s\S]*finishTouchGesture\(\)/);
 });
+
+
+test("active touch node drag keeps exclusive camera ownership and releases when its owning finger lifts", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(
+    bridge,
+    /activeTouchPointers\.size > 1[\s\S]*touchHold\?\.activated[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)[\s\S]*return/
+  );
+  assert.match(
+    bridge,
+    /const ownsActiveNodeDrag = Boolean\([\s\S]*touchHold\?\.activated && touchHold\.pointerId === event\.pointerId/
+  );
+  assert.match(
+    bridge,
+    /if \(ownsActiveNodeDrag\)[\s\S]*finishActiveTouchNodeDrag\(\)[\s\S]*finishTouchGesture\(\)[\s\S]*activeTouchPointers\.size[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(true\)/
+  );
+});
