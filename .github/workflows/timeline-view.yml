@@ -23,6 +23,7 @@ on:
       - 'site/case-reasoning.js'
       - 'site/sample-case.js'
       - 'site/temporal-standards.js'
+      - 'site/timeline-migration.js'
       - 'site/spatial.js'
       - 'site/location-map.js'
       - 'tests/temporal-spatial.test.mjs'
@@ -61,6 +62,7 @@ on:
       - 'site/case-reasoning.js'
       - 'site/sample-case.js'
       - 'site/temporal-standards.js'
+      - 'site/timeline-migration.js'
       - 'site/spatial.js'
       - 'site/location-map.js'
       - 'tests/temporal-spatial.test.mjs'
@@ -111,6 +113,7 @@ jobs:
       - run: node --check site/sample-case.js
       - run: node --check site/interchange-adapter.js
       - run: node --check site/temporal-standards.js
+      - run: node --check site/timeline-migration.js
       - run: node --check site/spatial.js
       - run: node --check site/location-map.js
       - run: node --check site/app.js
