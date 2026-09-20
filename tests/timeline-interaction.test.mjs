@@ -757,10 +757,11 @@ test("timeline double tap zooms toward the tapped temporal coordinate without co
 
 
 test("mobile-first shell keeps primary controls compact and bounded", async () => {
-  const [styles, timelineCss, viewSource] = await Promise.all([
+  const [styles, timelineCss, viewSource, htmlSource] = await Promise.all([
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8")
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/index.html", import.meta.url), "utf8")
   ]);
 
   assert.match(styles, /Mobile-first responsive application shell/);
@@ -772,6 +773,7 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(timelineCss, /Narrow-screen control composition/);
   assert.match(timelineCss, /Consolidated view control cluster/);
   assert.match(htmlSource, /id="timeline-view-toolbar"[^>]*popover="manual"/, "expanded View controls use the native popover top layer");
+  assert.match(timelineCss, /timeline-view-toolbar\[popover\]:popover-open[\s\S]*max-inline-size:[\s\S]*max-block-size:[\s\S]*overflow-y:\s*auto/);
   assert.match(timelineCss, /\.timeline-zoom-control[\s\S]*grid-template-rows:\s*22px auto/);
   assert.match(timelineCss, /\.timeline-zoom-scale[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar:not\(\[hidden\]\)[\s\S]*bottom:\s*max\(4\.35rem/);
