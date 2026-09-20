@@ -871,7 +871,6 @@
       throw new Error(`Graph semantics are invalid: ${graphErrors[0]}`);
     }
     const graphData = graph.normalizeGraphData(input, temporal);
-    const itemIds = new Set(items.map((item) => String(item.id)));
     for (const relationship of graphData.relationships) {
       relationship.itemIds = (relationship.itemIds || []).filter((id) => itemIds.has(String(id)));
     }
