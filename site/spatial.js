@@ -156,14 +156,23 @@
     return result;
   }
 
+  function placeIdentity(place) {
+    if (!place) return "";
+    return `${String(place.name || "").trim().toLocaleLowerCase()}|${JSON.stringify(place.geometry || null)}|${place.radiusMeters ?? ""}`;
+  }
+
   function normalizePlaces(value) {
     if (!Array.isArray(value)) return [];
     const places = [];
-    const seen = new Set();
+    const seenIds = new Set();
+    const seenIdentities = new Set();
     value.forEach((raw, index) => {
       const place = normalizePlace(raw, index);
-      if (!place || seen.has(place.id)) return;
-      seen.add(place.id);
+      if (!place || seenIds.has(place.id)) return;
+      const identity = placeIdentity(place);
+      if (identity && seenIdentities.has(identity)) return;
+      seenIds.add(place.id);
+      if (identity) seenIdentities.add(identity);
       places.push(place);
     });
     return places;
@@ -217,6 +226,7 @@
     normalize,
     normalizePlace,
     normalizePlaces,
+    placeIdentity,
     placeFormParts,
     placeFromForm
   });
