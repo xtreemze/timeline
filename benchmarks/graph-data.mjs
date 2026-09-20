@@ -17,7 +17,7 @@ const sizes = requestedSizes.length ? requestedSizes : [1000, 5000, 10000];
 function createFixture(nodeCount, edgeFactor = 2) {
   const entities = Array.from({ length: nodeCount }, (_, index) => ({
     id: `entity-${index}`,
-    type: index % 11 === 0 ? "organization" : index % 7 === 0 ? "place" : "person",
+    type: index % 11 === 0 ? "organization" : index % 7 === 0 ? "device" : "person",
     name: `Entity ${index}`,
     properties: { fixture: true, index }
   }));
