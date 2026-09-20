@@ -92,7 +92,11 @@ A temporal endpoint SHOULD support:
 - `sourceText`: verbatim human date wording where normalization could lose meaning;
 - `referenceSystem`: optional URI/identifier for non-default temporal reference systems.
 
-The persisted object is canonical. Numeric epoch coordinates are derived for rendering and indexing. Do not make epoch milliseconds the only stored representation because they erase precision, uncertainty, timezone semantics, source wording, and alternative reference systems.
+An endpoint whose date is genuinely unknown may set `value: null` only with `certainty: "unknown"`; it may still carry `earliest`, `latest`, `sourceText`, and `referenceSystem`. This is distinct from an **open interval boundary**. Open intervals use `openStart: true` or `openEnd: true` on the extent and keep the corresponding endpoint `null`. Missing endpoints without an explicit open flag are invalid.
+
+The persisted object is canonical. Numeric epoch coordinates are derived for rendering and indexing. Do not make epoch milliseconds the only stored representation because they erase precision, uncertainty, timezone semantics, source wording, and alternative reference systems. Runtime intersection math may derive negative/positive infinity for explicitly open boundaries, but infinities and sentinel dates are never persisted. An unknown endpoint receives a derived coordinate only from real declared uncertainty bounds; a completely unbounded unknown date remains unlocatable.
+
+Chronology records require a finite, known endpoint value for every boundary that the current finite timeline renderer must draw. Consequently, completely unknown or open chronology boundaries are rejected rather than being silently placed. Temporal graph relationships may retain open/unknown extents because graph topology can expose an `unknown` temporal state without fabricating a chronology coordinate.
 
 ### Standards alignment
 
