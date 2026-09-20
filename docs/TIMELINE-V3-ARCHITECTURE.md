@@ -221,16 +221,11 @@ Do not make "person", "place", or "evidence" special text fields on events. Intr
   "relationships": [
     {
       "id": "rel-1",
-      "subjectId": "event-1",
-      "predicate": "participant",
-      "objectId": "person-1",
-      "role": "witness"
-    },
-    {
-      "id": "rel-2",
-      "subjectId": "event-1",
-      "predicate": "occurredAt",
-      "objectId": "place-1"
+      "subjectId": "person-1",
+      "predicate": "witnessedAt",
+      "objectId": "place-1",
+      "role": "witness",
+      "itemIds": ["event-1"]
     }
   ]
 }
