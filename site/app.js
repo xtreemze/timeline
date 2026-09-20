@@ -1910,15 +1910,12 @@
     const affectedStories = state.stories.filter((story) => story.itemIds.includes(id)).length;
     const suffix = affectedStories ? ` It will also be removed from ${affectedStories} ${affectedStories === 1 ? "story" : "stories"}.` : "";
     if (!window.confirm(`Delete “${item.title}”?${suffix}`)) return;
-    const removedRelationshipIds = state.relationships
-      .filter((relationship) => relationship.subjectId === id || relationship.objectId === id)
-      .map((relationship) => relationship.id);
     state.items = state.items.filter((candidate) => candidate.id !== id);
     state.stories = state.stories.map((story) => ({ ...story, itemIds: story.itemIds.filter((itemId) => itemId !== id) }));
-    state.relationships = state.relationships.filter(
-      (relationship) => relationship.subjectId !== id && relationship.objectId !== id
-    );
-    pruneRelationChanges(removedRelationshipIds);
+    state.relationships = state.relationships.map((relationship) => ({
+      ...relationship,
+      itemIds: (relationship.itemIds || []).filter((itemId) => itemId !== id)
+    }));
     if (els.itemId.value === id) resetItemForm();
     if (storyDraftIds.includes(id)) storyDraftIds = storyDraftIds.filter((itemId) => itemId !== id);
     const activeStory = getStory(ui.activeStoryId);
