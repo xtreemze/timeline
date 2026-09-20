@@ -364,7 +364,7 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.doesNotMatch(html, /Detailed chronology/);
   assert.match(html, /id="control-panel"[^>]*hidden/);
   assert.match(html, /id="timeline-browser-sheet"[^>]*hidden/);
-  assert.match(html, /id="timeline-view-toolbar"[^>]*hidden/);
+  assert.match(html, /id="timeline-view-toolbar"[^>]*popover="manual"[^>]*role="toolbar"/);
   assert.match(styles, /#workspace\s*\{[\s\S]*position:\s*fixed[\s\S]*height:\s*100dvh/);
   assert.match(styles, /#app-shell\s*\{[\s\S]*position:\s*fixed[\s\S]*overflow:\s*hidden/);
   assert.match(styles, /#app-shell #presentation-stage[\s\S]*display:\s*block/);
@@ -408,6 +408,9 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(app, /function setBrowserSurfaceOpen/);
   assert.doesNotMatch(app, /function setGraphSurfaceOpen/);
   assert.match(app, /function setViewControlsOpen/);
+  assert.match(app, /function syncViewControlsSurface\(\)[\s\S]*showPopover\(\)[\s\S]*hidePopover\(\)/);
+  assert.doesNotMatch(app, /viewControls\.hidden\s*=/);
+  assert.match(styles, /\.timeline-view-toolbar\[popover\][\s\S]*max-inline-size:[\s\S]*max-block-size:[\s\S]*overflow-x:\s*auto/);
   assert.match(app, /setActivePanel\("items", \{ open: false \}\)/);
 });
 
