@@ -450,7 +450,7 @@ The variant is stored under `item.presentation.variant`. The content and evidenc
 
 Focused event presentation uses the 12-column system as a composition constraint rather than a generic equal-column dashboard.
 
-- common lower row: Place and Relations remain explicit semantic sections, with their interactive map/graph reused as subdued section backdrops;
+- common lower row: Place and Relations remain explicit semantic sections; Place may reuse the interactive map as a subdued section backdrop, while the persistent stage-level relation graph remains visible behind the focused popover;
 - focused overlays use a compact six-column grid; the timeline stage itself has no column grid;
 - following row: evidence spans all six overlay columns;
 - hero split: four-column visual field with a two-column context rail;
@@ -462,7 +462,7 @@ Hero titles use container-relative `cqi` sizing rather than viewport width and d
 
 ## Responsive presentation stage
 
-The timeline is the persistent application and presentation canvas. The temporal relation graph retains an independent interaction model, but appears as an explicit overlay exploration surface in normal application mode and as a contextual backdrop inside focused Relations.
+The timeline and temporal relation graph are persistent presentation surfaces. The timeline docks to an edge when context requires it, while the graph remains mounted at stage level with its independent interaction model. Focused detail popovers layer above the graph rather than moving or hiding its canvas.
 
 Presentation state records two independent dimensions:
 
@@ -490,13 +490,13 @@ Normal application mode follows the same ownership principle as fullscreen: the 
 - Browse owns search, category filtering, empty-state explanation and the chronology list. Those are not repeated on the primary canvas.
 - Active Story navigation is a compact contextual mode overlay outside Browse, so story position/previous/next/exit remain available while the timeline is being read.
 - Item, Story, Category and Graph forms reuse the existing data model inside one editor surface with internal tabs; the global tool dock therefore exposes one Edit entry rather than duplicating editor tabs.
-- Viewing is the default application paradigm. Browse, Relations, View, event focus, graph inspection and fullscreen presentation are non-mutating.
+- Viewing is the default application paradigm. Browse, View, event focus, graph inspection and fullscreen presentation are non-mutating.
 - Edit is the only supported transition into mutation mode. Entering it closes event focus and other large viewing surfaces; the dock collapses to the Edit/Done control until editing ends. Graph clicks cannot enter an editor while viewing.
-- The global viewing dock is limited to Edit, Browse, Relations and View, using semantic icon + text pairs for recognition at touch and desktop distances.
-- Relation-graph exploration is opened explicitly as the Relations overlay rather than occupying a permanent sibling column.
+- The global viewing dock is limited to Edit, Browse and View, using semantic icon + text pairs for recognition at touch and desktop distances. The relation graph has no visibility toggle because it is a persistent stage surface.
+- Relation-graph exploration is continuously available as a persistent stage-level surface; focused popovers layer above it without reparenting or unmounting the graph canvas.
 - Timeline orientation, zoom, auto-advance and presentation controls are progressively disclosed in a compact View surface.
 - Project identity is permanently integrated at the start of the timeline rail as a compact icon + title heading. The leading project icon opens the native grouped Project popover adjacent to that heading; the title rotates into the vertical timeline orientation rather than becoming separate viewport chrome. Export and source navigation remain available while viewing; import, load-example, clear-project and project-title mutation are disabled until Edit mode is explicitly entered. Import actions remain explicit buttons wired to hidden file inputs so every visible enabled menu command is keyboard-operable.
-- Exactly one major viewing/authoring surface is shown at a time. Opening Edit, Browse, Relations, View controls, or an event focus automatically closes the other major surfaces. Contextual Story controls yield while a utility surface is open. The timeline stays visually present beneath overlays.
+- Utility and authoring overlays remain mutually exclusive: opening Edit, Browse or View controls closes competing utility surfaces as appropriate. Event focus may coexist with the persistent relation graph, which stays mounted behind its popover. Contextual Story controls yield while a utility surface is open.
 - With no events the timeline still renders its neutral axis; guidance for the empty project lives in Browse rather than replacing the workspace.
 
 Fullscreen targets `#presentation-stage`, not editor/browser/project surfaces. Browser fullscreen therefore naturally excludes application chrome and preserves the timeline-plus-focused-event presentation.
@@ -505,9 +505,9 @@ Focus/unfocus changes use named Web View Transitions for the timeline and detail
 
 ### Focused event presentation
 
-Focused event mode does not duplicate chronology in the detail overlay: the fullscreen timeline is the chronology, and the enlarged hero heading is the selected event's identity. It reuses the existing Place and Relations sections rather than creating independent fullscreen lenses. The canonical temporal graph remains one renderer: its Orb canvas moves into the Relations section while focused and returns to the ordinary graph lens afterward. The presentation map follows the same ownership pattern, moving into the Place section and retaining pan/zoom/touch interaction.
+Focused event mode does not duplicate chronology in the detail overlay: the fullscreen timeline is the chronology, and the enlarged hero heading is the selected event's identity. It reuses the existing Place and Relations sections rather than creating independent fullscreen lenses. The canonical temporal graph remains one renderer and stays mounted at stage level throughout focus changes; the focused popover layers above it. The presentation map may still move into the Place section while retaining pan/zoom/touch interaction.
 
-Text remains the foreground information layer. Map and graph backdrops use reduced opacity/saturation plus a directional paper scrim, keeping labels readable while leaving exposed portions of each visualization directly interactive. The relation graph is a direct-manipulation surface: selecting a node or edge only changes graph selection styling and never opens an inspector, JSON panel, navigation target, or editor.
+Text remains the foreground information layer. The Place map backdrop uses reduced opacity/saturation plus a directional paper scrim. The relation graph remains visible outside and behind the focused popover as a direct-manipulation stage surface: selecting a node or edge only changes graph selection styling and never opens an inspector, JSON panel, navigation target, or editor.
 
 ### Resize synchronization
 
@@ -523,6 +523,6 @@ A focused fullscreen event has two compositional layers:
 
 The Place section renders stored GeoJSON context behind its foreground text. Semantic-icon markers identify points; LineString/MultiLineString geometries provide tracks or trails; Polygon/MultiPolygon geometries provide areas; GeometryCollection/Feature/FeatureCollection inputs and optional `mapFeatures[]` overlays are supported. Recorded point accuracy may appear as an uncertainty circle. The presentation map is interactive: panning, wheel/pinch zoom, double-click zoom, box zoom and keyboard navigation are enabled.
 
-The Relations section reuses the focused event's one-hop Orb neighborhood behind the foreground relation text. The graph remains interactive for node/edge selection, long-press/touch drag, pan/zoom and force-mediated repositioning. Selection has no interface side effect; mutation is unavailable until the user explicitly enters Edit mode.
+The Relations section presents focused relation text while the stage-level graph is filtered to the focused event's relevant one-hop context without moving its canvas into the popover. Exposed graph regions remain interactive for node/edge selection, long-press/touch drag, pan/zoom and force-mediated repositioning. Selection has no interface side effect; mutation is unavailable until the user explicitly enters Edit mode.
 
 Physical screen orientation never mutates the selected timeline-axis orientation; it only influences whether event detail behaves as a bounded popover or a sheet.
