@@ -131,7 +131,7 @@ test("exports event/period/group structures and round-trips source extensions", 
   assert.equal(exported.groups[0].vendorGroup, 9);
   assert.equal(exported._timeline.format, "timeline-interchange");
   assert.equal(exported._timeline.stories.length, 1);
-  assert.equal(exported._timeline.entities.length, 1);
+  assert.equal(exported._timeline.entities.length, 2);
   assert.equal(exported._timeline.relationships.length, 1);
   assert.equal(exported._timeline.evidence.length, 1);
   assert.equal(exported._timeline.reasoning.theses[0].id, "thesis-1");
@@ -140,10 +140,11 @@ test("exports event/period/group structures and round-trips source extensions", 
   assert.equal(exported.events[0].presentation.variant, "evidence-dossier");
   assert.equal(exported.events[0].relationChanges[0].operation, "update");
   assert.equal(exported._timeline.relationships[0].initialState, "inactive");
+  assert.deepEqual(exported._timeline.relationships[0].itemIds, ["ext-e1"]);
   assert.deepEqual(exported.events[0].evidenceIds, ["evidence-a"]);
 
   const reimported = adapter.importData(exported);
-  assert.equal(reimported.timeline.entities.length, 1);
+  assert.equal(reimported.timeline.entities.length, 2);
   assert.equal(reimported.timeline.relationships.length, 1);
   assert.equal(reimported.timeline.evidence.length, 1);
   assert.equal(reimported.timeline.reasoning.claims[0].id, "claim-1");
