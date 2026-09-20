@@ -4222,3 +4222,37 @@
 #presentation-stage:fullscreen .app-tool-dock[data-project-anchored="true"] {
   pointer-events: auto;
 }
+
+
+/* Touch ergonomics for small/coarse-pointer devices.
+   Rendered icons can remain compact; the interactive box must not. */
+@media (pointer: coarse) {
+  .timeline-project-menu-toggle,
+  .story-nav-button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .timeline-focus-tab,
+  .timeline-focus-close,
+  .timeline-focus-slideshow-controls .button {
+    min-height: 44px;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 699px) {
+  .timeline-view[data-orientation="portrait"] .timeline-project-heading {
+    max-width: 52px;
+  }
+
+  .timeline-view[data-orientation="portrait"] .story-focus-controls > span {
+    min-width: 44px;
+  }
+
+  #app-shell .timeline-focus-tab,
+  #app-shell .timeline-focus-close {
+    min-height: 44px;
+  }
+}
