@@ -217,7 +217,7 @@ test("touch node long press is armed from capture-phase hit testing before Orb d
   assert.match(bridge, /function touchNodePayload\(event\)/);
   assert.match(bridge, /orb\.getSimulationPosition\(globalPoint\)/);
   assert.match(bridge, /orb\.data\.getNearestNode\(localPoint\)/);
-  assert.match(bridge, /const payload = touchNodePayload\(event\)[\s\S]*beginTouchHold\(payload\)/);
+  assert.match(bridge, /const target = touchTargetPayload\(event\)[\s\S]*target\?\.kind === "node"[\s\S]*beginTouchHold\(payload\)/);
   assert.match(bridge, /pointerdown", onPointerDown, \{ capture: true \}/);
   assert.match(bridge, /beginTouchHold\([\s\S]*setDragEnabled\(false\)[\s\S]*TOUCH_NODE_HOLD_MS/);
   assert.match(bridge, /touchHold\.activated = true[\s\S]*setDragEnabled\(true\)[\s\S]*setInteractionHeat\(DRAG_ALPHA_TARGET\)/);
@@ -248,4 +248,28 @@ test("graph double tap zooms at the tapped point while long press and multi-touc
   assert.match(bridge, /distance > TOUCH_NODE_MOVE_TOLERANCE_PX[\s\S]*lastTouchTap = null/);
   assert.match(bridge, /suppressGraphClickUntil = now \+ 450/);
   assert.match(bridge, /addEventListener\("click", onClickCapture, \{ capture: true \}\)/);
+});
+
+
+test("touch graph uses forgiving node and edge hit targets with visible long-press progress", async () => {
+  const [bridge, styles] = await Promise.all([
+    readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(bridge, /TOUCH_NODE_TARGET_DIAMETER_PX\s*=\s*44/);
+  assert.match(bridge, /TOUCH_EDGE_TARGET_RADIUS_PX\s*=\s*14/);
+  assert.match(bridge, /function simulationRadiusForPixels\(globalPoint, radiusPx\)/);
+  assert.match(bridge, /function expandedTouchNode\(localPoint, globalPoint\)[\s\S]*orb\.data\.getNodes\(\)/);
+  assert.match(bridge, /Math\.max\(Number\(node\.getBorderedRadius\?\.\(\)\) \|\| 0, minimumRadius\)/);
+  assert.match(bridge, /orb\.data\.getNearestEdge\(geometry\.localPoint, edgeTolerance\)/);
+  assert.match(bridge, /touchTap = \{[\s\S]*target,[\s\S]*cancelled: false/);
+  assert.match(bridge, /!didDoubleTap && tap\.target\?\.object[\s\S]*handlers\.onNodeClick\?\.[\s\S]*handlers\.onEdgeClick\?\./);
+  assert.match(bridge, /--graph-touch-hold-x/);
+  assert.match(bridge, /--graph-touch-hold-y/);
+
+  assert.match(styles, /temporal-graph-canvas\[data-touch-drag="holding"\]::after/);
+  assert.match(styles, /width:\s*44px[\s\S]*height:\s*44px/);
+  assert.match(styles, /animation:\s*graph-touch-hold 420ms linear both/);
+  assert.match(styles, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*data-touch-drag="holding"/);
 });
