@@ -115,7 +115,7 @@ test("events can activate update and deactivate a relationship over time", () =>
   assert.equal(september.nodes.length, 0);
 });
 
-test("focused event neighborhood exposes the relation it changes and a derived change link", () => {
+test("focused event neighborhood exposes the canonical relation it changes without creating an event node", () => {
   const input = {
     entities: [
       { id: "a", type: "person", name: "A" },
@@ -125,17 +125,17 @@ test("focused event neighborhood exposes the relation it changes and a derived c
       id: "r",
       subjectId: "a",
       objectId: "b",
-      predicate: "owns",
+      predicate: "controls",
       initialState: "active"
     }],
     items: [{
       id: "event-change",
-      title: "Ownership transferred",
+      title: "Control transferred",
       start: "2026-09-19",
       relationChanges: [{
         relationshipId: "r",
         operation: "update",
-        predicate: "transferredTo"
+        predicate: "transfersControlTo"
       }]
     }],
     stories: []
@@ -147,11 +147,11 @@ test("focused event neighborhood exposes the relation it changes and a derived c
     { start: time, end: time },
     { depth: 1, limit: 12 }
   );
-  assert.ok(neighborhood.nodes.some((node) => node.id === "event-change"));
+  assert.equal(neighborhood.nodes.some((node) => node.id === "event-change"), false);
   assert.ok(neighborhood.nodes.some((node) => node.id === "a"));
   assert.ok(neighborhood.nodes.some((node) => node.id === "b"));
-  assert.ok(neighborhood.edges.some((edge) => edge.id === "r"));
-  assert.ok(neighborhood.edges.some((edge) => edge.id === "change:event-change:r" && edge.label === "updates"));
+  assert.ok(neighborhood.edges.some((edge) => edge.id === "r" && edge.label === "transfersControlTo"));
+  assert.equal(neighborhood.edges.some((edge) => edge.id.startsWith("change:")), false);
 });
 
 

@@ -447,15 +447,53 @@ test("Orb adapter preserves temporal relationship metadata", () => {
   assert.ok(projected[0].end > projected[0].start);
 });
 
-test("Orb adapter can expose stories as graph nodes for group-to-story relations", () => {
-  const orb = graph.toOrbGraph({
-    entities: [{ id: "group-a", type: "group", name: "Group A" }],
+test("Orb adapter keeps chronology and stories out of the canonical node graph", () => {
+  const input = {
+    entities: [
+      { id: "person-a", type: "person", name: "Person A" },
+      { id: "place-a", type: "place", name: "Place A" }
+    ],
     stories: [{ id: "story-a", title: "Story A", description: "", itemIds: ["event-a"] }],
     items: [{ id: "event-a", title: "Event A", kind: "event" }],
-    relationships: [{ id: "edge-a", subjectId: "group-a", objectId: "story-a", predicate: "participatesIn" }]
+    relationships: [{
+      id: "edge-a",
+      subjectId: "person-a",
+      objectId: "place-a",
+      predicate: "travelsTo",
+      itemIds: ["event-a"]
+    }]
+  };
+  const normalized = graph.normalizeGraphData(input);
+  const orb = graph.toOrbGraph({ ...input, ...normalized });
+  assert.deepEqual(orb.nodes.map((node) => node.id).sort(), ["person-a", "place-a"]);
+  assert.equal(orb.nodes.some((node) => node.id === "event-a" || node.id === "story-a"), false);
+  assert.deepEqual(orb.edges[0].properties.itemIds, ["event-a"]);
+});
+
+test("graph semantics reject action nodes and generic association predicates", () => {
+  assert.equal(graph.validateEntityNode({ name: "Payment", type: "transaction" }).valid, false);
+  assert.deepEqual(
+    graph.toOrbGraph({ entities: [{ id: "payment", name: "Payment", type: "transaction" }] }).nodes,
+    [],
+    "direct projection must not reintroduce action nodes"
+  );
+  assert.equal(graph.validateEntityNode({ name: "Alice", type: "person" }).valid, true);
+
+  for (const predicate of ["participatesIn", "part of", "took part in", "memberOf", "relatedTo", "associatedWith"]) {
+    assert.equal(graph.validateActionPredicate(predicate).valid, false, predicate);
+  }
+  for (const predicate of ["called", "warned", "built", "transferredTo", "authorized"]) {
+    assert.equal(graph.validateActionPredicate(predicate).valid, true, predicate);
+  }
+
+  const normalized = graph.normalizeGraphData({
+    entities: [{ id: "person-a", type: "person", name: "A" }],
+    relationships: [
+      { id: "generic", subjectId: "person-a", objectId: "person-a", predicate: "relatedTo" },
+      { id: "event-endpoint", subjectId: "person-a", objectId: "event-a", predicate: "called" }
+    ]
   });
-  assert.ok(orb.nodes.some((node) => node.id === "story-a" && node.properties.timelineType === "story"));
-  assert.ok(orb.edges.some((edge) => edge.start === "group-a" && edge.end === "story-a"));
+  assert.deepEqual(normalized.relationships, []);
 });
 
 test("timeline CSS uses Monaspace texture healing and metric-aware text trimming", async () => {

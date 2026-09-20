@@ -31,7 +31,7 @@ function createFixture(nodeCount, edgeFactor = 2) {
       id: `relationship-${index}`,
       subjectId: `entity-${startIndex}`,
       objectId: `entity-${endIndex}`,
-      predicate: index % 5 === 0 ? "workedWith" : "relatedTo",
+      predicate: ["called", "authorized", "supplied", "transferredTo", "reportedTo"][index % 5],
       time: null,
       properties: { fixture: true, index }
     };

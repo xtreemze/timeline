@@ -91,15 +91,23 @@ Top-level data may include:
       "name": "Example Person",
       "identifiers": [],
       "attributes": {}
+    },
+    {
+      "id": "place-a",
+      "type": "place",
+      "name": "Example Place",
+      "identifiers": [],
+      "attributes": {}
     }
   ],
   "relationships": [
     {
       "id": "rel-1",
       "subjectId": "person-a",
-      "objectId": "event-1",
-      "predicate": "participant",
+      "objectId": "place-a",
+      "predicate": "witnessedAt",
       "role": "witness",
+      "itemIds": ["event-1"],
       "time": {
         "type": "interval",
         "start": {
@@ -121,7 +129,7 @@ Top-level data may include:
 }
 ```
 
-A temporal relationship is projected into the timeline relation band using its own start/end coordinates. Untimed relationships remain valid graph edges but do not appear in that temporal band.
+A temporal relationship is projected into the timeline relation band using its own start/end coordinates. Its endpoints remain entity nodes; `itemIds[]` links the action back to relevant chronology records without creating event nodes. Untimed relationships remain valid graph edges only when they still describe a concrete action relation, but they do not appear in the temporal band.
 
 ## Memgraph Orb compatibility
 
@@ -199,7 +207,7 @@ Edges are directed subject–action–object statements:
 }
 ```
 
-The action label is stored in `predicate`. Endpoints can reference reusable entities, chronology items, or stories. Referential normalization drops imported edges whose endpoints do not exist, and deletion of a node/item/story removes edges that would otherwise become orphaned.
+The action label is stored in `predicate`. Both endpoints must reference reusable entity nodes. Chronology items and stories are never graph endpoints: `relationships[].itemIds[]` records which timeline items contextualize an action, while story membership stays in `story.itemIds[]`. Referential normalization rejects or drops relationships whose endpoints are not valid entities.
 
 Authoring SHOULD give a relation an instant or interval whenever its temporal extent is known. The editor therefore defaults new relations to a dated instant. “Persistent / no temporal anchor” is an explicit exception for genuinely timeless topology rather than the default way to avoid entering a date.
 
@@ -210,15 +218,15 @@ Authoring SHOULD give a relation an instant or interval whenever its temporal ex
 - explicitly persistent/timeless edges remain visible across timeline windows;
 - timed relations are rendered only while their extent intersects the timeline viewport;
 - event-driven relation state is replayed against the same viewport and inactive relations are removed from the rendered topology;
-- nodes are retained when they participate in a visible relation or are chronology items whose own temporal extent intersects the viewport;
-- edge labels display the action/predicate;
-- chronology-item nodes focus the corresponding event;
+- nodes are retained only when entity nodes participate in a visible relation;
+- edge labels display the specific action/predicate;
+- chronology focus is synchronized through edge `itemIds[]` context rather than event nodes;
 - node/edge selection is direct manipulation only: the selected object is emphasized in the graph and no inspector, navigation, editor, or JSON surface is opened;
 - wheel zoom, pan and node drag manipulate the graph view without changing canonical graph data.
 
 The authoring lens now uses the scale path directly. `@memgraph/orb` is bundled through esbuild, preserving its worker-backed CPU force simulation. Canvas is the default renderer; dense graphs switch to WebGL when WebGL2 is available, and very large graphs can enable Orb's GPU force path.
 
-Temporal navigation does not restart force simulation merely because the viewport coordinate changes. Timeline compares a topology signature (visible node IDs plus visible edge endpoints): movement within the same active temporal topology updates effective edge state without resetting physics, while crossing a relation/event temporal boundary changes the signature and calls Orb data setup for the new visible topology.
+Temporal navigation does not restart force simulation merely because the viewport coordinate changes. Timeline compares a topology signature (visible entity-node IDs plus visible edge endpoints): movement within the same active temporal topology updates effective edge state without resetting physics, while crossing a relationship temporal boundary changes the signature and calls Orb data setup for the new visible topology.
 
 Current implementation thresholds are: below 1,200 nodes Canvas + worker CPU force; 1,200–2,999 nodes WebGL + worker CPU force when available; 3,000+ nodes WebGL + GPU force when available. These thresholds are presentation policy, not canonical data.
 
@@ -233,7 +241,7 @@ A relation can exist independently of a chronology event, while events can chang
 - `update` can change the effective action label, role, and/or merge a property patch from the event timestamp.
 - changes are replayed in canonical event-time order to derive edge state for the current timeline window.
 
-The focused-event graph includes derived event-to-context links labelled **activates**, **deactivates**, or **updates**, while the canonical subject-to-object edge remains the actual relation. This keeps the event that changed the relation visible without incorrectly turning the relation itself into a node.
+The focused-event graph uses the focused item's `itemIds[]` relationship context plus any `relationChanges[]` references to seed the relevant canonical entity-to-entity edges. The event itself never enters graph topology.
 
 ## Focused graph integration
 
@@ -241,21 +249,20 @@ Each focused chronology event receives a bounded one-hop graph neighborhood. The
 
 ## Presentation graph semantics
 
-When an event is focused, the global graph switches from the full case topology to a bounded one-hop neighborhood rooted at that chronology item. The neighborhood retains:
+When an event is focused, the global graph switches from the full case topology to a bounded one-hop entity neighborhood seeded by relationships whose `itemIds[]` contain that chronology item and by relationships named in the item's `relationChanges[]`. The neighborhood retains:
 
-- the focused event;
-- directly relevant entities/items/stories;
-- temporally active or timeless relations among those nodes;
-- an otherwise-inactive relation when the focused event itself changes it;
-- derived event-to-relation-context links for activate/deactivate/update operations.
+- entity nodes connected by those contextual action edges;
+- neighboring entity nodes reachable within the configured depth;
+- temporally active or explicitly timeless action relations among those nodes;
+- an otherwise-inactive canonical relation when the focused event itself changes it.
 
 Inactive unrelated edges are excluded from neighborhood traversal so the presentation graph remains explanatory rather than becoming a miniature version of the entire case graph.
 
-Orb node styling uses the canonical `timelineType` to select semantic shape, color, mass and an embedded SVG icon. Edge styling derives a visual family and glyph from the action/predicate while keeping the action text as the primary semantic label.
+Orb node styling uses the entity's canonical type to select semantic shape, color, mass and an embedded SVG icon. Edge styling derives a visual family and glyph from the action/predicate while keeping the action text as the primary semantic label.
 
 ### Force execution
 
-The npm/bundled Orb path keeps CPU force simulation in a Web Worker. Timeline enables continuous physics plus centering and position forces, and assigns larger mass to chronology/story nodes so drag release has a weighted physical response.
+The npm/bundled Orb path keeps CPU force simulation in a Web Worker. Timeline enables continuous physics plus centering and position forces, and may assign entity-type-specific mass so drag release has a weighted physical response without changing canonical graph semantics.
 
 Orb 1.0.2's GPU force implementation uses WebGL2 on the main thread; upstream documents that its GPU engine cannot use the worker because it requires a WebGL context. Timeline therefore keeps ordinary and presentation neighborhoods on worker CPU and only switches to GPU force for very large graphs. WebGL rendering remains independent from force-engine choice.
 

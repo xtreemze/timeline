@@ -22,8 +22,105 @@
     )].slice(0, maxItems);
   }
 
+  const ACTION_NODE_TYPES = new Set([
+    "action",
+    "activity",
+    "event",
+    "occurrence",
+    "process",
+    "operation",
+    "transaction",
+    "interaction",
+    "communication",
+    "decision",
+    "movement",
+    "meeting",
+    "visit"
+  ]);
+
+  const GENERIC_RELATION_KEYS = new Set([
+    "relatedto",
+    "relationto",
+    "associatedwith",
+    "associationwith",
+    "connectedto",
+    "linkedto",
+    "linksto",
+    "involvedin",
+    "involves",
+    "involvesobject",
+    "participatesin",
+    "participatedin",
+    "participantof",
+    "tookpartin",
+    "partof",
+    "partofstory",
+    "memberof",
+    "belongsto",
+    "belongto",
+    "haspart",
+    "contains",
+    "containsstory",
+    "includes",
+    "includesstory",
+    "features",
+    "protagonistof",
+    "presentat",
+    "locatedat",
+    "occursat",
+    "is",
+    "was",
+    "were",
+    "has"
+  ]);
+
+  const ACTION_NAME_PATTERN = /^(?:called|calls|met|meets|sent|sends|transferred|transfers|paid|pays|visited|visits|arrived|arrives|departed|departs|left|leaves|built|builds|created|creates|attacked|attacks|ordered|orders|warned|warns|approved|approves|authorized|authorizes|signed|signs|moved|moves|travelled|traveled|travels|fled|flees|married|marries|danced|dances|consulted|consults|poisoned|poisons|searched|searches|found|finds|lost|loses|gave|gives|took|takes|received|receives)\b/i;
+
+  function semanticKey(value) {
+    return text(value, 120).toLocaleLowerCase().replace(/[^a-z0-9]+/g, "");
+  }
+
+  function validateEntityNode(raw) {
+    const name = text(raw?.name || raw?.label || raw?.title, 180);
+    const type = text(raw?.type, 60) || "entity";
+    const typeKey = semanticKey(type);
+    if (ACTION_NODE_TYPES.has(typeKey)) {
+      return {
+        valid: false,
+        message: `“${type}” describes an action or occurrence. Graph nodes must be durable nouns/entities; put the action on the timeline and express it as an edge predicate.`
+      };
+    }
+    if (typeKey === "entity" && ACTION_NAME_PATTERN.test(name)) {
+      return {
+        valid: false,
+        message: `“${name}” reads like an action. Create the occurrence as a timeline item and connect noun/entity nodes with a specific action edge.`
+      };
+    }
+    return { valid: true, message: "" };
+  }
+
+  function validateActionPredicate(value) {
+    const predicate = text(value, 120);
+    if (!predicate) return { valid: false, message: "A specific action verb is required for every edge." };
+    const key = semanticKey(predicate);
+    if (!key || GENERIC_RELATION_KEYS.has(key)) {
+      return {
+        valid: false,
+        message: `“${predicate}” is a generic association, not a specific action. Use a concrete verb such as called, warned, built, transferredTo, acquired, or authorized.`
+      };
+    }
+    if (/^(?:related|associated|connected|linked|involved|participat|member|belong|partof|protagonist|presentat|locatedat|occursat)/.test(key)) {
+      return {
+        valid: false,
+        message: `“${predicate}” is too general. Name the concrete action performed by the source toward the target.`
+      };
+    }
+    return { valid: true, message: "" };
+  }
+
   function normalizeEntity(raw, index) {
     if (!raw || typeof raw !== "object") return null;
+    if (!validateEntityNode(raw).valid) return null;
     const id = text(raw.id, 120) || `entity-${index + 1}`;
     return {
       id,
@@ -51,7 +148,8 @@
     if (!raw || typeof raw !== "object") return null;
     const subjectId = text(raw.subjectId ?? raw.start ?? raw.source, 120);
     const objectId = text(raw.objectId ?? raw.end ?? raw.target, 120);
-    if (!subjectId || !objectId) return null;
+    const predicate = text(raw.predicate || raw.label || raw.type, 120);
+    if (!subjectId || !objectId || !validateActionPredicate(predicate).valid) return null;
 
     let time = null;
     const sourceTime = raw.time && typeof raw.time === "object" ? raw.time : null;
@@ -69,8 +167,9 @@
       id: text(raw.id, 120) || `relationship-${index + 1}`,
       subjectId,
       objectId,
-      predicate: text(raw.predicate || raw.label || raw.type, 120) || "relatedTo",
+      predicate,
       role: text(raw.role, 120),
+      itemIds: textList(raw.itemIds || raw.contextItemIds || raw.eventIds, { maxItems: 96, maxLength: 120 }),
       initialState: raw.initialState === "inactive" ? "inactive" : "active",
       time,
       sourceIds: textList(raw.sourceIds, { maxItems: 96, maxLength: 120 }),
@@ -92,10 +191,12 @@
       const relationshipId = text(raw.relationshipId || raw.edgeId, 120);
       if (!relationshipId) return null;
       const operation = RELATION_CHANGE_OPERATIONS.has(raw.operation) ? raw.operation : "update";
+      const predicate = text(raw.predicate, 120);
+      if (predicate && !validateActionPredicate(predicate).valid) return null;
       return {
         relationshipId,
         operation,
-        predicate: text(raw.predicate, 120),
+        predicate,
         role: text(raw.role, 120),
         properties: raw.properties && typeof raw.properties === "object" && !Array.isArray(raw.properties)
           ? cloneJson(raw.properties)
@@ -186,18 +287,75 @@
     const entities = (Array.isArray(input?.entities) ? input.entities : [])
       .map(normalizeEntity)
       .filter(Boolean);
+    const entityIds = new Set(entities.map((entity) => String(entity.id)));
     const relationships = (Array.isArray(input?.relationships) ? input.relationships : [])
       .map((raw, index) => normalizeRelationship(raw, index, temporal))
-      .filter(Boolean);
+      .filter((relationship) =>
+        relationship &&
+        entityIds.has(String(relationship.subjectId)) &&
+        entityIds.has(String(relationship.objectId))
+      );
     return { entities, relationships };
   }
 
-  function toOrbGraph({ entities = [], relationships = [], items = [], stories = [] } = {}) {
+  function validateGraphInput(input) {
+    const errors = [];
+    const rawEntities = Array.isArray(input?.entities) ? input.entities : [];
+    const rawRelationships = Array.isArray(input?.relationships) ? input.relationships : [];
+    const rawItems = Array.isArray(input?.items) ? input.items : [];
+    const rawStories = Array.isArray(input?.stories) ? input.stories : [];
+    const entityIds = new Set();
+    const itemIds = new Set(rawItems.map((item) => text(item?.id, 120)).filter(Boolean));
+    const storyIds = new Set(rawStories.map((story) => text(story?.id, 120)).filter(Boolean));
+
+    rawEntities.forEach((entity, index) => {
+      const validation = validateEntityNode(entity);
+      const id = text(entity?.id, 120);
+      if (!validation.valid) errors.push(`Node ${id || index + 1}: ${validation.message}`);
+      if (id && itemIds.has(id)) errors.push(`Node ${id}: entity IDs cannot collide with chronology item IDs.`);
+      if (id && storyIds.has(id)) errors.push(`Node ${id}: entity IDs cannot collide with story IDs.`);
+      if (id) entityIds.add(id);
+    });
+
+    rawRelationships.forEach((relationship, index) => {
+      const id = text(relationship?.id, 120) || `relationship ${index + 1}`;
+      const predicate = text(relationship?.predicate || relationship?.label || relationship?.type, 120);
+      const validation = validateActionPredicate(predicate);
+      if (!validation.valid) errors.push(`Edge ${id}: ${validation.message}`);
+      const subjectId = text(relationship?.subjectId ?? relationship?.start ?? relationship?.source, 120);
+      const objectId = text(relationship?.objectId ?? relationship?.end ?? relationship?.target, 120);
+      if (!entityIds.has(subjectId) || !entityIds.has(objectId)) {
+        errors.push(`Edge ${id}: endpoints must both be entity nodes. Link chronology through itemIds/context, not by making an event or story a graph node.`);
+      }
+      const contextIds = textList(
+        relationship?.itemIds || relationship?.contextItemIds || relationship?.eventIds,
+        { maxItems: 96, maxLength: 120 }
+      );
+      for (const contextId of contextIds) {
+        if (!itemIds.has(contextId)) errors.push(`Edge ${id}: unknown timeline context item “${contextId}”.`);
+      }
+    });
+
+    rawItems.forEach((item, itemIndex) => {
+      for (const change of Array.isArray(item?.relationChanges) ? item.relationChanges : []) {
+        const predicate = text(change?.predicate, 120);
+        if (!predicate) continue;
+        const validation = validateActionPredicate(predicate);
+        if (!validation.valid) {
+          errors.push(`Item ${text(item?.id, 120) || itemIndex + 1} relation update: ${validation.message}`);
+        }
+      }
+    });
+
+    return errors;
+  }
+
+  function toOrbGraph({ entities = [], relationships = [] } = {}) {
     const nodes = [];
     const seen = new Set();
 
     for (const entity of entities) {
-      if (!entity?.id || seen.has(entity.id)) continue;
+      if (!entity?.id || seen.has(entity.id) || !validateEntityNode(entity).valid) continue;
       seen.add(entity.id);
       nodes.push({
         id: entity.id,
@@ -212,36 +370,13 @@
       });
     }
 
-    for (const item of items) {
-      if (!item?.id || seen.has(item.id)) continue;
-      seen.add(item.id);
-      nodes.push({
-        id: item.id,
-        label: item.title || item.id,
-        properties: {
-          timelineType: "chronology-item",
-          kind: item.kind || "event",
-          time: cloneJson(item.time || null),
-          location: cloneJson(item.location || null)
-        }
-      });
-    }
-
-    for (const story of stories) {
-      if (!story?.id || seen.has(story.id)) continue;
-      seen.add(story.id);
-      nodes.push({
-        id: story.id,
-        label: story.title || story.id,
-        properties: {
-          timelineType: "story",
-          description: story.description || "",
-          itemIds: cloneJson(story.itemIds || [])
-        }
-      });
-    }
-
-    const edges = relationships.map((relationship) => ({
+    const edges = relationships
+      .filter((relationship) =>
+        seen.has(String(relationship.subjectId)) &&
+        seen.has(String(relationship.objectId)) &&
+        validateActionPredicate(relationship.predicate).valid
+      )
+      .map((relationship) => ({
       id: relationship.id,
       start: relationship.subjectId,
       end: relationship.objectId,
@@ -250,6 +385,7 @@
         role: relationship.role || "",
         initialState: relationship.initialState || "active",
         time: cloneJson(relationship.time || null),
+        itemIds: cloneJson(relationship.itemIds || []),
         sourceIds: cloneJson(relationship.sourceIds || []),
         confidence: relationship.confidence ?? null,
         attributes: cloneJson(relationship.attributes || {})
@@ -272,9 +408,7 @@
   function graphForWindow(input, viewport, temporal = globalThis.TimelineTemporal) {
     const entities = Array.isArray(input?.entities) ? input.entities : [];
     const relationships = Array.isArray(input?.relationships) ? input.relationships : [];
-    const items = Array.isArray(input?.items) ? input.items : [];
-    const stories = Array.isArray(input?.stories) ? input.stories : [];
-    const graphData = toOrbGraph({ entities, relationships, items, stories });
+    const graphData = toOrbGraph({ entities, relationships });
     const states = new Map();
     const relationshipById = new Map(
       relationships.map((relationship) => [String(relationship.id), relationship])
@@ -340,20 +474,6 @@
       visibleNodeIds.add(String(edge.end));
     }
 
-    for (const item of items) {
-      const startValue = temporal?.sortKey(item.time?.start || item.start);
-      const endSource = item.time?.end || item.end || item.time?.start || item.start;
-      const endValue = temporal?.sortKey(endSource);
-      if (
-        Number.isFinite(startValue) &&
-        Number.isFinite(endValue) &&
-        endValue >= viewport.start &&
-        startValue <= viewport.end
-      ) {
-        visibleNodeIds.add(String(item.id));
-      }
-    }
-
     return {
       nodes: graphData.nodes.filter((node) => visibleNodeIds.has(String(node.id))),
       edges
@@ -364,44 +484,31 @@
     const data = graphForWindow(input, viewport);
     const nodeById = new Map(data.nodes.map((node) => [String(node.id), node]));
     const root = String(rootId || "");
-    if (!root || !nodeById.has(root)) return { nodes: [], edges: [] };
+    if (!root) return { nodes: [], edges: [] };
 
-    const selected = new Set([root]);
-    const derivedEdges = [];
     const rootItem = (Array.isArray(input?.items) ? input.items : []).find(
       (item) => String(item.id) === root
     );
     const rootChangeIds = new Set(
       normalizeRelationChanges(rootItem?.relationChanges).map((change) => String(change.relationshipId))
     );
-    const relevantEdges = data.edges.filter((edge) =>
-      edge.temporalState !== "inactive" ||
-      String(edge.start) === root ||
-      String(edge.end) === root ||
+    const contextEdges = data.edges.filter((edge) =>
+      (Array.isArray(edge.properties?.itemIds) && edge.properties.itemIds.some((id) => String(id) === root)) ||
       rootChangeIds.has(String(edge.id))
     );
-    for (const change of normalizeRelationChanges(rootItem?.relationChanges)) {
-      const edge = relevantEdges.find((candidate) => String(candidate.id) === String(change.relationshipId));
-      if (!edge) continue;
+
+    const selected = new Set();
+    if (nodeById.has(root)) selected.add(root);
+    for (const edge of contextEdges) {
       selected.add(String(edge.start));
       selected.add(String(edge.end));
-      derivedEdges.push({
-        id: `change:${root}:${edge.id}`,
-        start: root,
-        end: String(edge.start),
-        label:
-          change.operation === "activate" ? "activates" :
-          change.operation === "deactivate" ? "deactivates" :
-          "updates",
-        temporalState: "changed",
-        properties: {
-          timelineType: "relation-change",
-          relationshipId: edge.id,
-          operation: change.operation,
-          attributes: cloneJson(change.properties || {})
-        }
-      });
     }
+    if (!selected.size) return { nodes: [], edges: [] };
+
+    const relevantEdges = data.edges.filter((edge) =>
+      edge.temporalState !== "inactive" ||
+      contextEdges.some((candidate) => String(candidate.id) === String(edge.id))
+    );
 
     let frontier = new Set(selected);
     for (let level = 0; level < Math.max(0, depth); level += 1) {
@@ -424,7 +531,7 @@
     const edges = relevantEdges.filter(
       (edge) => selected.has(String(edge.start)) && selected.has(String(edge.end))
     );
-    return { nodes, edges: [...edges, ...derivedEdges] };
+    return { nodes, edges };
   }
 
   function temporalRelationProjection(relationships, temporal = globalThis.TimelineTemporal) {
@@ -440,6 +547,7 @@
         objectId: relationship.objectId,
         predicate: relationship.predicate,
         role: relationship.role,
+        itemIds: cloneJson(relationship.itemIds || []),
         start,
         end
       });
@@ -450,6 +558,9 @@
   globalThis.TimelineGraph = Object.freeze({
     graphForWindow,
     normalizeGraphData,
+    validateGraphInput,
+    validateActionPredicate,
+    validateEntityNode,
     normalizeRelationChanges,
     neighborhoodGraph,
     relationshipStateAt,
