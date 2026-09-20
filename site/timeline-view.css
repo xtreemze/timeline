@@ -3097,3 +3097,158 @@
 .timeline-focus-view[popover] .timeline-focus-evidence-type {
   color: color-mix(in srgb, var(--focus-chrome-color) 74%, var(--ink));
 }
+
+
+/* Narrow-screen control composition: mobile is the constrained baseline, not a wrapped desktop toolbar. */
+@media (max-width: 699px) {
+  #app-shell .app-view-controls:not([hidden]) {
+    top: auto;
+    right: max(.35rem, env(safe-area-inset-right));
+    bottom: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
+    left: max(.35rem, env(safe-area-inset-left));
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    width: auto;
+    max-width: none;
+    max-height: none;
+    padding: .38rem;
+    gap: .34rem;
+    overflow: visible;
+    border-radius: .82rem;
+  }
+
+  #app-shell .app-view-controls:not([hidden]) > * {
+    min-width: 0;
+    width: 100%;
+  }
+
+  #app-shell .timeline-orientation-control {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: .16rem;
+    gap: .2rem;
+  }
+
+  #app-shell .timeline-orientation-control .button {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding-inline: .42rem;
+  }
+
+  #app-shell .timeline-zoom-controls {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 44px;
+    gap: .24rem;
+  }
+
+  #app-shell .timeline-zoom-controls .button {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding-inline: .35rem;
+  }
+
+  #app-shell .timeline-auto-controls {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: .28rem;
+    padding: .16rem;
+  }
+
+  #app-shell .timeline-auto-controls .button {
+    min-width: 64px;
+    min-height: 42px;
+  }
+
+  #app-shell .timeline-auto-timer {
+    display: grid;
+    grid-template-columns: auto minmax(3.1rem, 1fr) auto;
+    min-width: 0;
+    gap: .24rem;
+  }
+
+  #app-shell .timeline-auto-timer input {
+    width: 100%;
+    min-width: 0;
+    min-height: 38px;
+  }
+
+  #app-shell .timeline-auto-status {
+    min-width: 0;
+    padding-right: .32rem;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  #app-shell .presentation-controls .button {
+    width: 100%;
+    min-height: 42px;
+  }
+
+  #app-shell .timeline-window-readout {
+    min-width: 0;
+    width: 100%;
+    flex-basis: auto;
+    padding: .05rem .12rem 0;
+    overflow: hidden;
+    color: color-mix(in srgb, var(--muted) 88%, transparent);
+    font-size: .6rem;
+    line-height: 1.25;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #app-shell .timeline-event-terminal {
+    max-width: min(62vw, 200px);
+    min-height: 50px;
+    gap: .48rem;
+    padding: .38rem .5rem;
+    border-radius: .72rem;
+  }
+
+  #app-shell .timeline-cluster-terminal {
+    max-width: min(68vw, 220px);
+  }
+
+  #app-shell .timeline-cluster-tiles {
+    width: 3.7rem;
+    height: 2.35rem;
+    flex-basis: 3.7rem;
+  }
+
+  #app-shell .timeline-cluster-tile {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  #app-shell .timeline-surface.is-portrait {
+    --timeline-axis-cross: clamp(66px, 21vw, 92px);
+  }
+
+  #app-shell .timeline-surface.is-portrait .timeline-event-terminal {
+    max-width: min(58vw, 190px);
+  }
+}
+
+@media (max-width: 380px) {
+  #app-shell .timeline-zoom-controls {
+    grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1fr) 42px;
+  }
+
+  #app-shell .timeline-auto-controls {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  #app-shell .timeline-auto-status {
+    grid-column: 1 / -1;
+    padding: 0 .32rem .12rem;
+    text-align: left;
+  }
+
+  #app-shell .timeline-event-terminal {
+    max-width: min(60vw, 174px);
+  }
+}

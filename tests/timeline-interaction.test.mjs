@@ -554,3 +554,21 @@ test("timeline double tap zooms toward the tapped temporal coordinate without co
   assert.match(source, /distance > TOUCH_TAP_MOVE_TOLERANCE_PX[\s\S]*this\.lastTouchTap = null/);
   assert.match(source, /beginPinch[\s\S]*this\.touchTap = null[\s\S]*this\.lastTouchTap = null/);
 });
+
+
+test("mobile-first shell keeps primary controls compact and bounded", async () => {
+  const [styles, timelineCss] = await Promise.all([
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(styles, /Mobile-first responsive application shell/);
+  assert.match(styles, /@media \(max-width:\s*699px\)[\s\S]*\.app-tool-dock[\s\S]*left:\s*max\(\.4rem[\s\S]*right:\s*max\(\.4rem/);
+  assert.match(styles, /\.app-editor-sheet,[\s\S]*\.app-browser-sheet[\s\S]*max-height:\s*min\(58dvh/);
+  assert.match(styles, /#app-shell #presentation-stage > \.graph-lens:not\(\[hidden\]\)[\s\S]*top:[\s\S]*bottom:[\s\S]*background:/);
+
+  assert.match(timelineCss, /Narrow-screen control composition/);
+  assert.match(timelineCss, /\.timeline-zoom-controls[\s\S]*grid-template-columns:\s*44px minmax\(0, 1fr\) minmax\(0, 1fr\) 44px/);
+  assert.match(timelineCss, /\.timeline-auto-controls[\s\S]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto/);
+  assert.match(timelineCss, /\.timeline-surface\.is-portrait[\s\S]*--timeline-axis-cross:\s*clamp\(66px, 21vw, 92px\)/);
+});
