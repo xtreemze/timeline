@@ -3088,3 +3088,120 @@ body {
     height: 20px;
   }
 }
+
+/* Browse and Edit are layout-reserving utility sidebars.
+   They remain collapsible, but an open utility surface owns explicit workspace space instead
+   of covering either the timeline or the persistent relation graph. */
+#app-shell[data-editor-open="true"] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: clamp(180px, 42dvh, 420px) minmax(0, 1fr);
+}
+
+#app-shell[data-editor-open="true"] > .app-editor-sheet {
+  position: relative;
+  z-index: 2;
+  inset: auto;
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  overflow: auto;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+#app-shell[data-editor-open="true"] > .timeline-panel {
+  position: relative;
+  inset: auto;
+  grid-column: 1;
+  grid-row: 2;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+#app-shell[data-browser-open="true"] > .timeline-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: clamp(180px, 42dvh, 420px) minmax(0, 1fr);
+}
+
+#app-shell[data-browser-open="true"] > .timeline-panel > .app-browser-sheet {
+  position: relative;
+  z-index: 2;
+  inset: auto;
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  overflow: auto;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+#app-shell:is(
+  [data-editor-open="true"],
+  [data-browser-open="true"]
+) #presentation-stage:not(:fullscreen) > .graph-lens:not([hidden]) {
+  position: absolute;
+}
+
+#app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen) {
+  position: relative;
+  inset: auto;
+  grid-column: 1;
+  grid-row: 2;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+@media (min-width: 760px) {
+  #app-shell[data-editor-open="true"] {
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 34vw, 440px);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  #app-shell[data-editor-open="true"] > .timeline-panel {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  #app-shell[data-editor-open="true"] > .app-editor-sheet {
+    grid-column: 2;
+    grid-row: 1;
+    border-bottom: 0;
+    border-left: 1px solid var(--line);
+  }
+
+  #app-shell[data-browser-open="true"] > .timeline-panel {
+    grid-template-columns: minmax(0, 1fr) clamp(300px, 31vw, 400px);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  #app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen) {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  #app-shell[data-browser-open="true"] > .timeline-panel > .app-browser-sheet {
+    grid-column: 2;
+    grid-row: 1;
+    border-bottom: 0;
+    border-left: 1px solid var(--line);
+  }
+}
+
