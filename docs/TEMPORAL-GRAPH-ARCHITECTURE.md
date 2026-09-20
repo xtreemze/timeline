@@ -118,7 +118,9 @@ The canonical model deliberately separates entity topology from spatial context:
 }
 ```
 
-A node represents exactly one entity. Places, locations, coordinates, geometry, dates, times, periods, actions and events are never graph nodes. A relationship label contains only the action predicate. Its temporal extent is stored in `relationship.time`; its spatial context is a `relationship.placeId` reference to one canonical `places[]` record. Those properties drive timeline and map projections independently from the label.
+A node represents exactly one entity. Places, locations, coordinates, geometry, dates, times, periods, actions and events are never graph nodes. Every relationship must connect two different entity nodes; self-loop edges are invalid. A self-loop usually indicates that an object/entity was incorrectly embedded in the predicate and should instead be modeled as the target node.
+
+A relationship label contains only the action verb. It may use a small relational particle such as `to`, `from`, `with`, `for`, `onto`, `through`, or `beside` when needed, but it must never contain a noun or entity identifier. For example, prefer `attacks` from the wolf node to the house node, not `attacksBrickHouse`; prefer `dancesWith` from the prince node to Cinderella, not `dancesWithCinderella`. Its temporal extent is stored in `relationship.time`; its spatial context is a `relationship.placeId` reference to one canonical `places[]` record. Those properties drive timeline and map projections independently from the label.
 
 `itemIds[]` links an action back to chronology/presentation records without turning chronology items into graph nodes. Untimed relationships remain valid only when the action genuinely has no temporal extent.
 
