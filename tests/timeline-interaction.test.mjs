@@ -781,6 +781,7 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(timelineCss, /app-tool-dock\[data-project-anchored="true"\][\s\S]*top:\s*var\(--workspace-tool-dock-top[\s\S]*left:\s*var\(--workspace-tool-dock-left/);
   assert.match(timelineCss, /data-timeline-orientation="landscape"[\s\S]*flex-direction:\s*row/);
   assert.match(timelineCss, /data-timeline-orientation="portrait"[\s\S]*flex-direction:\s*column/);
+  assert.match(timelineCss, /Project-aligned Browse\/Edit controls[\s\S]*z-index:\s*1320[\s\S]*pointer-events:\s*auto/);
   assert.match(styles, /\.app-editor-sheet,[\s\S]*\.app-browser-sheet[\s\S]*max-height:\s*min\(58dvh/);
   assert.match(styles, /#app-shell #presentation-stage > \.graph-lens:not\(\[hidden\]\)[\s\S]*top:[\s\S]*bottom:[\s\S]*background:/);
 
