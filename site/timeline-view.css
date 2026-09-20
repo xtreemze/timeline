@@ -243,9 +243,15 @@
   cursor: grab;
   background: color-mix(in srgb, var(--paper) 96%, var(--panel));
 }
-.timeline-surface.is-landscape { height: clamp(390px, 44vw, 560px); }
+.timeline-surface.is-landscape {
+  width: 100%;
+  max-width: none;
+  height: clamp(390px, 44vw, 560px);
+}
 .timeline-surface.is-portrait {
-  height: clamp(620px, 72vw, 900px);
+  height: 100%;
+  min-height: 0;
+  max-height: none;
 }
 .timeline-surface:focus-visible { box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--focus) 55%, transparent); }
 .timeline-surface.is-panning { cursor: grabbing; }
@@ -1177,8 +1183,15 @@
     grid-template-columns: repeat(3, 1fr);
   }
   .timeline-zoom-controls .button { width: 100%; }
-  .timeline-surface.is-landscape { height: 420px; }
-  .timeline-surface.is-portrait { height: 720px; }
+  .timeline-surface.is-landscape {
+    width: 100%;
+    height: 420px;
+  }
+  .timeline-surface.is-portrait {
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+  }
   .is-portrait .timeline-tick-label {
     left: 16px;
     max-width: 80px;
@@ -3387,9 +3400,9 @@
 }
 
 
-/* Persistent relation-graph docking: the chronology and graph occupy opposite safe regions.
-   The dock is measured against persistent application chrome rather than the raw viewport,
-   so date/year labels never pass under the command bar or workspace toolbar. */
+/* Persistent relation-graph docking: chronology and graph occupy opposite cross-axis regions.
+   The graph respects persistent application chrome, while chronology always spans the full
+   primary time axis: full viewport height in portrait and full viewport width in landscape. */
 @media (min-width: 700px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
     --relations-inline-rail: clamp(280px, 28dvw, 400px);
@@ -3417,19 +3430,18 @@
   #app-shell[data-graph-open="true"]
     #timeline-view[data-orientation="portrait"] > .timeline-surface {
     --timeline-axis-cross: 68%;
-    top: var(--relations-top-safe);
+    top: 0;
     right: var(--relations-right-safe);
-    bottom: var(--relations-bottom-safe);
+    bottom: 0;
     left: auto;
     width: var(--relations-inline-rail);
-    height: auto;
+    height: 100%;
     min-height: 0;
+    max-height: none;
     border-left: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
     background: color-mix(in srgb, var(--paper) 90%, transparent);
     transition:
-      top 280ms cubic-bezier(.2, .8, .2, 1),
       right 280ms cubic-bezier(.2, .8, .2, 1),
-      bottom 280ms cubic-bezier(.2, .8, .2, 1),
       width 280ms cubic-bezier(.2, .8, .2, 1);
   }
 
@@ -3466,18 +3478,17 @@
     #timeline-view[data-orientation="landscape"] > .timeline-surface {
     --timeline-axis-cross: 42%;
     top: auto;
-    right: var(--relations-right-safe);
+    right: 0;
     bottom: var(--relations-bottom-safe);
-    left: var(--relations-left-safe);
-    width: auto;
+    left: 0;
+    width: 100%;
+    max-width: none;
     height: var(--relations-block-rail);
     min-height: 0;
     border-top: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
     background: color-mix(in srgb, var(--paper) 90%, transparent);
     transition:
-      right 280ms cubic-bezier(.2, .8, .2, 1),
       bottom 280ms cubic-bezier(.2, .8, .2, 1),
-      left 280ms cubic-bezier(.2, .8, .2, 1),
       height 280ms cubic-bezier(.2, .8, .2, 1);
   }
 }
@@ -3509,14 +3520,15 @@
   #app-shell[data-graph-open="true"]
     #timeline-view[data-orientation="portrait"] > .timeline-surface {
     position: absolute;
-    top: var(--mobile-top-chrome);
+    top: 0;
     right: max(.25rem, env(safe-area-inset-right));
-    bottom: var(--mobile-bottom-chrome);
+    bottom: 0;
     left: auto;
     --timeline-axis-cross: 42%;
     width: var(--mobile-relations-rail);
-    height: auto;
+    height: 100%;
     min-height: 0;
+    max-height: none;
     border-left: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
     background: color-mix(in srgb, var(--paper) 84%, transparent);
     transition:
@@ -3545,11 +3557,12 @@
     #timeline-view[data-orientation="landscape"] > .timeline-surface {
     position: absolute;
     top: auto;
-    right: max(.35rem, env(safe-area-inset-right));
+    right: 0;
     bottom: var(--mobile-bottom-chrome);
-    left: max(.35rem, env(safe-area-inset-left));
+    left: 0;
     --timeline-axis-cross: 38%;
-    width: auto;
+    width: 100%;
+    max-width: none;
     height: var(--mobile-relations-rail);
     min-height: 0;
     border-top: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
