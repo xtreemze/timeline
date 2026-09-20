@@ -2587,7 +2587,7 @@
     if (!rows.length) {
       const empty = document.createElement("p");
       empty.className = "privacy-note";
-      empty.textContent = "No graph edges yet. Edges connect entity nodes, use an action-only label, and carry structured time plus an optional reusable place reference.";
+      empty.textContent = "No graph edges yet. Edges connect two different entity nodes, use an action-only label, and carry structured time plus an optional reusable place reference.";
       rows.push(empty);
     }
     els.graphEdgeList.replaceChildren(...rows);
@@ -3164,6 +3164,11 @@
     const predicate = els.graphEdgePredicate.value.trim();
     if (!subjectId || !objectId) {
       setError(els.graphEdgeError, "Choose both a subject and an object.");
+      return;
+    }
+    if (subjectId === objectId) {
+      setError(els.graphEdgeError, "Choose two different entities. An edge cannot originate from and target the same node.");
+      els.graphEdgeObject.focus();
       return;
     }
     const predicateValidation = graph.validateActionPredicate(predicate);
