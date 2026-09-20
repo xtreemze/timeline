@@ -2750,3 +2750,209 @@ body {
     animation: none !important;
   }
 }
+
+
+/* Mobile-first responsive application shell: compact chrome, bounded sheets, dedicated graph lens. */
+@media (max-width: 699px) {
+  .app-command-bar {
+    inset:
+      max(.3rem, env(safe-area-inset-top))
+      max(.3rem, env(safe-area-inset-right))
+      auto
+      max(.3rem, env(safe-area-inset-left));
+    gap: .25rem;
+    min-height: 0;
+    padding: .25rem;
+    border-radius: .72rem;
+  }
+
+  .app-brand {
+    width: 38px;
+    height: 38px;
+    border-radius: .58rem;
+  }
+
+  .app-command-bar .project-title-field input {
+    min-height: 38px;
+    padding: .32rem .38rem;
+    font-size: clamp(.78rem, 3.8vw, .92rem);
+  }
+
+  .project-menu-toggle {
+    min-width: 68px;
+    min-height: 38px;
+    padding: .34rem .48rem;
+    gap: .28rem;
+    font-size: .72rem;
+  }
+
+  .app-tool-dock {
+    left: max(.4rem, env(safe-area-inset-left));
+    right: max(.4rem, env(safe-area-inset-right));
+    bottom: max(.38rem, env(safe-area-inset-bottom));
+    width: auto;
+    max-width: none;
+    padding: .22rem;
+    gap: .12rem;
+    overflow: hidden;
+    transform: none;
+    border-radius: .78rem;
+  }
+
+  .app-tool {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 50px;
+    padding: .3rem .28rem;
+    gap: .12rem;
+    border-radius: .58rem;
+    font-size: .64rem;
+  }
+
+  .app-tool .semantic-icon {
+    width: 21px;
+    height: 21px;
+  }
+
+  .app-editor-sheet,
+  .app-browser-sheet {
+    left: max(.35rem, env(safe-area-inset-left));
+    right: max(.35rem, env(safe-area-inset-right));
+    bottom: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
+    max-height: min(58dvh, calc(100dvh - 8.1rem));
+    border-radius: .82rem;
+  }
+
+  .app-browser-sheet {
+    padding: 0 .52rem .58rem;
+  }
+
+  .app-surface-header {
+    min-height: 48px;
+    padding: .48rem .5rem;
+    gap: .5rem;
+  }
+
+  .app-surface-header h2 {
+    font-size: .96rem;
+  }
+
+  .app-surface-header-actions {
+    gap: .32rem;
+  }
+
+  .visible-count {
+    font-size: .68rem;
+  }
+
+  .browser-story-section {
+    gap: .42rem;
+    padding: .12rem 0 .7rem;
+  }
+
+  .browser-section-heading {
+    gap: .5rem;
+  }
+
+  .browser-section-heading h3 {
+    font-size: .84rem;
+  }
+
+  .browser-story-list {
+    gap: .32rem;
+  }
+
+  .browser-story-card {
+    padding: .56rem .6rem;
+    border-radius: .6rem;
+  }
+
+  .browser-story-card strong {
+    font-size: .78rem;
+  }
+
+  .browser-story-meta,
+  .browser-story-description {
+    margin-top: .18rem;
+    font-size: .63rem;
+    line-height: 1.32;
+  }
+
+  .browser-story-description {
+    display: -webkit-box;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .browser-category-heading {
+    margin-top: .68rem;
+  }
+
+  .app-browser-sheet .timeline-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .35rem;
+    padding-bottom: .7rem;
+  }
+
+  .app-browser-sheet .timeline-toolbar .search-field {
+    grid-column: 1 / -1;
+  }
+
+  .app-browser-sheet .timeline-toolbar .compact-field {
+    min-width: 0;
+  }
+
+  .app-browser-sheet .timeline-toolbar :is(input, select, button) {
+    min-height: 42px;
+  }
+
+  #app-shell #presentation-stage > .graph-lens:not([hidden]) {
+    top: max(3.75rem, calc(env(safe-area-inset-top) + 3.45rem));
+    right: max(.35rem, env(safe-area-inset-right));
+    bottom: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
+    left: max(.35rem, env(safe-area-inset-left));
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+    border-radius: .82rem;
+    background:
+      radial-gradient(
+        circle at 50% 46%,
+        color-mix(in srgb, var(--panel) 74%, transparent) 0,
+        color-mix(in srgb, var(--paper) 96%, transparent) 54%,
+        var(--paper) 100%
+      );
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 6%, transparent);
+    backdrop-filter: blur(18px);
+    overflow: hidden;
+  }
+
+  #app-shell #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-view,
+  #app-shell #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-canvas {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+  }
+
+}
+
+@media (max-width: 380px) {
+  .project-menu-toggle {
+    min-width: 44px;
+    width: 44px;
+    padding-inline: .35rem;
+  }
+
+  .project-menu-toggle > span:not(.semantic-icon) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
