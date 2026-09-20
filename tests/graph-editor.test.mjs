@@ -291,3 +291,18 @@ test("graph camera release reuses Timeline weighted inertia without changing nod
   assert.match(bridge, /prefersReducedMotion\(\)/);
   assert.match(bridge, /wheel", onWheelCapture/);
 });
+
+
+test("activated touch long press directly drives the Orb simulator instead of depending on a pre-armed D3 drag", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(bridge, /function touchDragSimulator\(\)[\s\S]*simulator\.startDragNode[\s\S]*simulator\.dragNode[\s\S]*simulator\.endDragNode/);
+  assert.match(bridge, /touchHold\.activated = true[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)/);
+  assert.match(bridge, /simulator\?\.startDragNode\(\)/);
+  assert.match(bridge, /container\.setPointerCapture\?\.\(touchHold\.pointerId\)/);
+  assert.match(bridge, /if \(touchHold\.activated\)[\s\S]*touchGeometry\(event\)[\s\S]*simulator\.dragNode\(touchHold\.node\.getId\(\), geometry\.localPoint\)/);
+  assert.match(bridge, /function finishActiveTouchNodeDrag[\s\S]*simulator\.endDragNode\(node\.getId\(\)\)/);
+  assert.match(bridge, /finishActiveTouchNodeDrag\(\)[\s\S]*finishTouchGesture\(\)/);
+  assert.match(bridge, /lostpointercapture", onLostPointerCapture/);
+  assert.match(bridge, /onLostPointerCapture[\s\S]*finishActiveTouchNodeDrag\(\)[\s\S]*finishTouchGesture\(\)/);
+});
