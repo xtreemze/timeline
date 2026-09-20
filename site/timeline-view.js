@@ -537,6 +537,63 @@
         .sort((a, b) => Math.abs(a.start - center) - Math.abs(b.start - center))[0] || null;
     }
 
+    semanticContextItems(item) {
+      if (!item) return [];
+      const focusedId = String(item.id);
+      const focusedStart = Number(item.start);
+      const distinct = this.items
+        .filter((candidate) => String(candidate.id) !== focusedId && Number(candidate.start) !== focusedStart);
+      const before = distinct
+        .filter((candidate) => Number(candidate.start) < focusedStart)
+        .sort((a, b) => Number(b.start) - Number(a.start));
+      const after = distinct
+        .filter((candidate) => Number(candidate.start) > focusedStart)
+        .sort((a, b) => Number(a.start) - Number(b.start));
+      const selected = [];
+      if (before[0]) selected.push(before[0]);
+      if (after[0] && selected.length < 2) selected.push(after[0]);
+      const remaining = distinct
+        .filter((candidate) => !selected.some((chosen) => String(chosen.id) === String(candidate.id)))
+        .sort((a, b) => Math.abs(Number(a.start) - focusedStart) - Math.abs(Number(b.start) - focusedStart));
+      while (selected.length < 2 && remaining.length) selected.push(remaining.shift());
+      if (selected.length < 2) {
+        const coincident = this.items.filter(
+          (candidate) =>
+            String(candidate.id) !== focusedId &&
+            Number(candidate.start) === focusedStart &&
+            !selected.some((chosen) => String(chosen.id) === String(candidate.id))
+        );
+        while (selected.length < 2 && coincident.length) selected.push(coincident.shift());
+      }
+      return [item, ...selected];
+    }
+
+    contextViewportForItem(item, allViewport) {
+      if (!item || !allViewport) return null;
+      const contextItems = this.semanticContextItems(item);
+      if (!contextItems.length) return null;
+      const values = [];
+      for (const candidate of contextItems) {
+        values.push(Number(candidate.start));
+        if (Number.isFinite(candidate.end)) values.push(Number(candidate.end));
+      }
+      const minimum = Math.min(...values);
+      const maximum = Math.max(...values);
+      const allSpan = Math.max(MIN_SPAN_MS, allViewport.end - allViewport.start);
+      const rawSpan = Math.max(0, maximum - minimum);
+      const targetSpan = Math.min(
+        allSpan,
+        rawSpan > 0
+          ? Math.max(MIN_SPAN_MS, rawSpan / 0.72)
+          : Math.max(MIN_SPAN_MS, allSpan * 0.18)
+      );
+      const center = minimum + (maximum - minimum) / 2;
+      return {
+        start: center - targetSpan / 2,
+        end: center + targetSpan / 2
+      };
+    }
+
     isolatedViewportForItem(item, allViewport) {
       if (!item || !allViewport) return null;
       const start = Number(item.start);
@@ -572,24 +629,7 @@
       const all = scale.fit(coordinates, { paddingRatio: 0.1, minSpanMs: DEFAULT_SPAN_MS });
       const item = this.semanticZoomAnchorItem();
       if (!item) return { all, context: all, isolated: all, item: null };
-      const rect = this.surface.getBoundingClientRect();
-      const primaryLength = this.orientation === "horizontal" ? rect.width : rect.height;
-      const padding = this.axisPadding(primaryLength);
-      const usable = Math.max(1, primaryLength - padding * 2);
-      const contextPlan = clustering.focusContextViewport(
-        this.items,
-        item.id,
-        all,
-        usable,
-        this.clusterThreshold(rect.width),
-        {
-          desiredContext: 2,
-          paddingRatio: 0.14,
-          minSpanMs: MIN_SPAN_MS,
-          preserveScale: false
-        }
-      );
-      const context = contextPlan?.viewport || all;
+      const context = this.contextViewportForItem(item, all) || all;
       const isolated = this.isolatedViewportForItem(item, all) || context;
       return { all, context, isolated, item };
     }
@@ -649,7 +689,7 @@
       const isolatedSpan = Math.max(MIN_SPAN_MS, targets.isolated.end - targets.isolated.start);
       if (currentSpan >= contextSpan) {
         const denominator = Math.log(allSpan / contextSpan);
-        if (Math.abs(denominator) < 1e-9) return 50;
+        if (Math.abs(denominator) < 1e-9) return currentSpan >= allSpan * 0.999 ? 0 : 50;
         return clamp(50 * (Math.log(allSpan / currentSpan) / denominator), 0, 50);
       }
       const denominator = Math.log(contextSpan / isolatedSpan);
