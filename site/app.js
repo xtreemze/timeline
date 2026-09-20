@@ -349,7 +349,6 @@
 
   function positionWorkspaceToolDock() {
     if (!els.appToolDock || !els.projectMenuToggle || !els.timelineViewRoot) return;
-    const orientation = els.timelineViewRoot.dataset.orientation === "portrait" ? "portrait" : "landscape";
     els.appToolDock.dataset.projectAnchored = "true";
     els.appToolDock.dataset.timelineOrientation = orientation;
 
