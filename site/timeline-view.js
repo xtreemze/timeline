@@ -1565,8 +1565,18 @@
       const availableHeight = Math.max(1, bounds.viewportHeight - bounds.top - bounds.bottom);
       const desktop = bounds.viewportWidth >= 900 && bounds.viewportHeight >= 700;
       const compact = bounds.viewportWidth <= 760;
+      const mobileFocusRail = compact
+        ? clamp(bounds.viewportWidth * 0.24, 84, 108)
+        : 0;
+      const mobileFocusGap = compact ? 4 : 0;
+      const compactAvailableWidth = compact && this.orientation === "vertical"
+        ? Math.max(1, rawAvailableWidth - mobileFocusRail - mobileFocusGap)
+        : rawAvailableWidth;
+      const compactAvailableHeight = compact && this.orientation === "horizontal"
+        ? Math.max(1, availableHeight - mobileFocusRail - mobileFocusGap)
+        : availableHeight;
       const preferredWidth = compact
-        ? rawAvailableWidth
+        ? compactAvailableWidth
         : this.orientation === "vertical"
           ? (desktop ? 620 : 520)
           : (desktop ? 760 : 640);
@@ -1588,7 +1598,9 @@
       const preferredMaxHeight = this.orientation === "vertical"
         ? (desktop ? 700 : 660)
         : (desktop ? 500 : 640);
-      const targetMaxHeight = Math.max(1, Math.min(preferredMaxHeight, availableHeight));
+      const targetMaxHeight = compact
+        ? compactAvailableHeight
+        : Math.max(1, Math.min(preferredMaxHeight, availableHeight));
 
       this.focusView.style.inset = "auto";
       this.focusView.style.right = "auto";
@@ -1611,14 +1623,18 @@
       let left;
       let top;
       if (this.orientation === "vertical") {
-        // Vertical chronology is docked on the right: keep detail on the left and
-        // center it vertically inside the chrome-safe region.
+        // Vertical chronology is docked on the right. On phones the detail consumes
+        // the remaining left region rather than floating over the chronology rail.
         left = bounds.left;
-        top = bounds.top + Math.max(0, (availableHeight - height) / 2);
+        top = compact
+          ? bounds.top
+          : bounds.top + Math.max(0, (availableHeight - height) / 2);
       } else {
-        // Horizontal chronology is docked on the bottom: keep detail at the top and
-        // center it horizontally inside the chrome-safe region.
-        left = bounds.left + Math.max(0, (availableWidth - width) / 2);
+        // Horizontal chronology is docked on the bottom. On phones the detail uses
+        // the chrome-safe upper region and explicitly leaves the bottom rail exposed.
+        left = compact
+          ? bounds.left
+          : bounds.left + Math.max(0, (availableWidth - width) / 2);
         top = bounds.top;
       }
 
