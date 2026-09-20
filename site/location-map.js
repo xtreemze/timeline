@@ -210,9 +210,9 @@
     return layer;
   }
 
-  function semanticMarkerIcon(L, iconName, color, label = "") {
+  function semanticMarkerIcon(L, iconName, color, label = "", markerShape = "pin") {
     const identity = document.createElement("span");
-    identity.className = "timeline-map-marker-identity";
+    identity.className = `timeline-map-marker-identity timeline-map-marker-shape-${markerShape}`;
     identity.style.setProperty("--map-marker-color", String(color));
 
     const shell = document.createElement("span");
@@ -243,7 +243,8 @@
       this.location = options.location || null;
       this.provider = globalThis.TimelineMapTileProvider || DEFAULT_PROVIDER;
       this.color = options.color || "#315fbd";
-      this.iconName = options.iconName || "place";
+      this.iconName = options.iconName || this.location?.icon || "place";
+      this.markerShape = options.markerShape || this.location?.markerShape || "pin";
       this.label =
         options.label ||
         this.location?.name ||
@@ -268,7 +269,7 @@
     renderPlacePlaceholder() {
       if (!this.container || this.placePlaceholder) return;
       const placeholder = document.createElement("div");
-      placeholder.className = "timeline-map-place-placeholder";
+      placeholder.className = `timeline-map-place-placeholder timeline-map-marker-shape-${this.markerShape}`;
       placeholder.style.setProperty("--map-marker-color", this.color);
       placeholder.setAttribute("aria-hidden", "true");
 
@@ -358,7 +359,8 @@
                 L,
                 String(properties.icon || this.iconName || "place"),
                 String(properties.color || this.color),
-                markerLabel
+                markerLabel,
+                String(properties.markerShape || this.markerShape || "pin")
               );
               return L.marker(latlng, {
                 icon: markerIcon,
@@ -374,10 +376,10 @@
         this.clearPlacePlaceholder();
 
         const point = pointCoordinates(this.location);
-        const accuracy = Number(this.location?.accuracyMeters ?? this.location?.accuracy);
-        if (point && Number.isFinite(accuracy) && accuracy > 0) {
+        const radius = Number(this.location?.radiusMeters ?? this.location?.accuracyMeters ?? this.location?.accuracy);
+        if (point && Number.isFinite(radius) && radius > 0) {
           this.layers.push(L.circle([point.lat, point.lng], {
-            radius: accuracy,
+            radius,
             color: this.color,
             weight: 1.5,
             opacity: 0.55,
