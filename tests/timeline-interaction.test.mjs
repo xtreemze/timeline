@@ -298,7 +298,8 @@ test("cluster activation marks impossible all-visible temporal separation for la
   assert.equal(plan.forceExpanded, true);
 });
 
-test("focused event expands to include nearby relative context when already unique", () => {
+test("focused event zooms into local context when already unique", () => {
+  const viewport = { start: -500, end: 1500 };
   const plan = clustering.focusContextViewport(
     [
       { id: "a", start: 0 },
@@ -306,14 +307,48 @@ test("focused event expands to include nearby relative context when already uniq
       { id: "c", start: 1000 }
     ],
     "b",
-    { start: 450, end: 550 },
+    viewport,
     700,
     100
   );
   assert.equal(plan.mode, "context");
   assert.deepEqual(new Set(plan.contextIds), new Set(["a", "c"]));
-  assert.ok(plan.viewport.start <= 0);
-  assert.ok(plan.viewport.end >= 1000);
+  assert.ok(plan.viewport.end - plan.viewport.start < viewport.end - viewport.start);
+  assert.ok(plan.viewport.start <= 500 && plan.viewport.end >= 500);
+});
+
+test("focused previous/next navigation preserves the established local scale", () => {
+  const viewport = { start: -100, end: 1100 };
+  const plan = clustering.focusContextViewport(
+    [
+      { id: "a", start: 0 },
+      { id: "b", start: 500 },
+      { id: "c", start: 1000 }
+    ],
+    "b",
+    viewport,
+    700,
+    100,
+    { preserveScale: true }
+  );
+  assert.equal(plan.mode, "keep");
+  assert.deepEqual(plan.viewport, viewport);
+});
+
+test("focused viewport never expands to include distant context", () => {
+  const viewport = { start: -100, end: 100 };
+  const plan = clustering.focusContextViewport(
+    [
+      { id: "a", start: 0 },
+      { id: "b", start: 5000 }
+    ],
+    "a",
+    viewport,
+    700,
+    100
+  );
+  assert.ok(plan.viewport.end - plan.viewport.start <= viewport.end - viewport.start);
+  assert.ok(plan.viewport.end - plan.viewport.start < viewport.end - viewport.start);
 });
 
 test("coincident events remain separate representations and use layout lanes instead of impossible zoom separation", () => {
@@ -333,16 +368,17 @@ test("coincident events remain separate representations and use layout lanes ins
     [["item", "a"], ["item", "b"]]
   );
 
+  const viewport = { start: -400, end: 600 };
   const plan = clustering.focusContextViewport(
     items,
     "a",
-    { start: 50, end: 250 },
+    viewport,
     500,
     100
   );
   assert.equal(plan.mode, "coincident");
-  assert.deepEqual(plan.viewport, { start: 50, end: 250 });
-  assert.deepEqual(plan.contextIds, ["b"]);
+  assert.ok(plan.viewport.end - plan.viewport.start < viewport.end - viewport.start);
+  assert.ok(plan.contextIds.includes("b"));
   assert.equal(plan.forceUnique, false);
 });
 
