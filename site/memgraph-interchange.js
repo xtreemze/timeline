@@ -132,7 +132,7 @@
     const statements = [];
     const projectMeta = projectRecord(project);
     statements.push(
-      `MERGE (n:TimelineProject {timelineKey: ${cypherString(`${namespace}:project`)}}) SET n.timelineId = "project", n.timelineProjectId = ${cypherString(namespace)}, n.recordJson = ${cypherString(recordJson(projectMeta))}, n.title = ${cypherString(projectMeta.title)} RETURN n.timelineId AS timelineId`
+      `MERGE (n:TimelineProject {timelineKey: ${cypherString(`${namespace}:project`)}}) SET n.timelineId = ${cypherString("project")}, n.timelineProjectId = ${cypherString(namespace)}, n.recordJson = ${cypherString(recordJson(projectMeta))}, n.title = ${cypherString(projectMeta.title)} RETURN n.timelineId AS timelineId`
     );
 
     for (const [collection, label] of Object.entries(COLLECTION_LABELS)) {
@@ -218,8 +218,19 @@
       ? snapshot.records
       : snapshot;
 
+    const wrappedProject =
+      source.project &&
+      typeof source.project === "object" &&
+      !Array.isArray(source.project) &&
+      !("recordJson" in source.project) &&
+      !("record_json" in source.project) &&
+      !("json" in source.project) &&
+      !("record" in source.project) &&
+      !("properties" in source.project)
+        ? clone(source.project)
+        : null;
     const projectRows = Array.isArray(source.project) ? source.project : source.project ? [source.project] : [];
-    const project = projectRows.map(rowRecord).find(Boolean);
+    const project = wrappedProject || projectRows.map(rowRecord).find(Boolean);
     if (project) {
       if ("version" in project) next.version = project.version;
       if ("title" in project) next.title = project.title;
