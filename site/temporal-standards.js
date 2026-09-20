@@ -230,44 +230,71 @@
     return withEndpointMetadata(endpoint, metadata);
   }
 
+  function unknownEndpoint(metadata = {}) {
+    if (!metadata || typeof metadata !== "object" || metadata.certainty !== "unknown") return null;
+    const endpoint = withEndpointMetadata({
+      value: null,
+      precision: PRECISIONS.has(metadata.precision) ? metadata.precision : null,
+      certainty: "unknown",
+      calendar: metadata.calendar === "gregorian" ? "gregorian" : "gregorian",
+      timeZone: null,
+      utcOffset: null,
+      sourceText: text(metadata.sourceText, 4000) || null
+    }, metadata);
+    const earliest = endpoint.earliest ? sortKey(endpoint.earliest) : Number.NaN;
+    const latest = endpoint.latest ? sortKey(endpoint.latest) : Number.NaN;
+    if (Number.isFinite(earliest) && Number.isFinite(latest) && earliest > latest) return null;
+    return endpoint;
+  }
+
+  function normalizeEndpointInput(raw, fallback) {
+    if (raw && typeof raw === "object") {
+      if (typeof raw.value === "string" && raw.value.trim()) return endpointFrom(raw.value, raw);
+      if ((raw.value === null || raw.value === undefined || raw.value === "") && raw.certainty === "unknown") {
+        return unknownEndpoint(raw);
+      }
+      return null;
+    }
+    return endpointFrom(fallback, { sourceText: typeof fallback === "string" ? fallback : null });
+  }
+
   function normalizeExtent(rawTime, start, end, kind) {
     const source = rawTime && typeof rawTime === "object" ? rawTime : {};
-    const normalizedStart = source.start?.value
-      ? endpointFrom(source.start.value, source.start)
-      : endpointFrom(start, { sourceText: typeof start === "string" ? start : null });
-    if (!normalizedStart) return null;
+    const interval = kind === "range" || source.type === "interval";
+    const openStart = interval && source.openStart === true;
+    const openEnd = interval && source.openEnd === true;
+    if (!interval && (source.openStart === true || source.openEnd === true)) return null;
 
-    const interval = kind === "range";
+    const normalizedStart = openStart ? null : normalizeEndpointInput(source.start, start);
+    if (!openStart && !normalizedStart) return null;
+
     const normalizedEnd = interval
-      ? source.end?.value
-        ? endpointFrom(source.end.value, source.end)
-        : endpointFrom(end, { sourceText: typeof end === "string" ? end : null })
+      ? openEnd
+        ? null
+        : normalizeEndpointInput(source.end, end)
       : null;
-    if (interval && !normalizedEnd) return null;
+    if (interval && !openEnd && !normalizedEnd) return null;
 
-    if (
-      interval &&
-      normalizedStart.certainty === "exact" &&
-      normalizedEnd.certainty === "exact"
-    ) {
-      const startKey = sortKey(normalizedStart);
-      const endKey = sortKey(normalizedEnd);
-      if (Number.isFinite(startKey) && Number.isFinite(endKey) && startKey > endKey) return null;
-    }
+    const bounds = extentBounds({
+      type: interval ? "interval" : "instant",
+      start: normalizedStart,
+      end: normalizedEnd,
+      ...(openStart ? { openStart: true } : {}),
+      ...(openEnd ? { openEnd: true } : {})
+    });
+    if (bounds.locatable && bounds.start > bounds.end) return null;
 
     return {
       type: interval ? "interval" : "instant",
       start: normalizedStart,
-      end: normalizedEnd
+      end: normalizedEnd,
+      ...(openStart ? { openStart: true } : {}),
+      ...(openEnd ? { openEnd: true } : {})
     };
   }
 
-  function sortKey(endpointOrValue) {
-    const endpoint = typeof endpointOrValue === "string"
-      ? endpointFrom(endpointOrValue)
-      : endpointOrValue;
-    if (!endpoint) return Number.NaN;
-    const parsed = parse(endpoint.value);
+  function knownSortKey(value) {
+    const parsed = parse(value);
     if (!parsed) return Number.NaN;
 
     const probe = new Date(0);
@@ -289,6 +316,58 @@
     return timestamp;
   }
 
+  function endpointBounds(endpointOrValue) {
+    const endpoint = typeof endpointOrValue === "string"
+      ? endpointFrom(endpointOrValue)
+      : endpointOrValue;
+    if (!endpoint || typeof endpoint !== "object") {
+      return { start: Number.NaN, end: Number.NaN, locatable: false };
+    }
+    const value = typeof endpoint.value === "string" ? knownSortKey(endpoint.value) : Number.NaN;
+    const earliest = endpoint.earliest ? knownSortKey(endpoint.earliest) : Number.NaN;
+    const latest = endpoint.latest ? knownSortKey(endpoint.latest) : Number.NaN;
+    let start = Number.isFinite(earliest) ? earliest : value;
+    let end = Number.isFinite(latest) ? latest : value;
+    if (!Number.isFinite(start) && Number.isFinite(end)) start = end;
+    if (!Number.isFinite(end) && Number.isFinite(start)) end = start;
+    return {
+      start,
+      end,
+      locatable: Number.isFinite(start) && Number.isFinite(end) && start <= end
+    };
+  }
+
+  function extentBounds(extent) {
+    if (!extent || typeof extent !== "object") {
+      return { start: Number.NaN, end: Number.NaN, locatable: false };
+    }
+    const interval = extent.type === "interval";
+    const startBounds = endpointBounds(extent.start);
+    if (!interval) return startBounds;
+
+    const endBounds = endpointBounds(extent.end);
+    const start = extent.openStart === true ? Number.NEGATIVE_INFINITY : startBounds.start;
+    const end = extent.openEnd === true ? Number.POSITIVE_INFINITY : endBounds.end;
+    const startKnown = start === Number.NEGATIVE_INFINITY || Number.isFinite(start);
+    const endKnown = end === Number.POSITIVE_INFINITY || Number.isFinite(end);
+    return {
+      start,
+      end,
+      locatable: startKnown && endKnown && start <= end
+    };
+  }
+
+  function sortKey(endpointOrValue) {
+    const endpoint = typeof endpointOrValue === "string"
+      ? endpointFrom(endpointOrValue)
+      : endpointOrValue;
+    if (!endpoint) return Number.NaN;
+    if (typeof endpoint.value === "string" && endpoint.value) return knownSortKey(endpoint.value);
+    const bounds = endpointBounds(endpoint);
+    if (!bounds.locatable) return Number.NaN;
+    return bounds.start + (bounds.end - bounds.start) / 2;
+  }
+
   function formParts(endpointOrValue) {
     const endpoint = typeof endpointOrValue === "string"
       ? endpointFrom(endpointOrValue)
@@ -298,7 +377,13 @@
     }
     const parsed = parse(endpoint.value);
     if (!parsed) {
-      return { date: "", time: "", precision: "day", certainty: "exact", timeZone: "" };
+      return {
+        date: "",
+        time: "",
+        precision: PRECISIONS.has(endpoint.precision) ? endpoint.precision : "day",
+        certainty: certaintyFromForm(endpoint.certainty),
+        timeZone: ""
+      };
     }
     const precision = PRECISIONS.has(endpoint.precision) ? endpoint.precision : parsed.precision;
     const date = parsed.day !== null
@@ -325,10 +410,18 @@
     };
   }
 
+  function endpointRepresentation(endpoint) {
+    if (endpoint?.value) return endpoint.value;
+    if (endpoint?.certainty === "unknown") return endpoint.sourceText || "unknown";
+    return "";
+  }
+
   function intervalRepresentation(extent) {
-    if (!extent?.start?.value) return "";
-    if (extent.type !== "interval" || !extent.end?.value) return extent.start.value;
-    return `${extent.start.value}/${extent.end.value}`;
+    if (!extent || typeof extent !== "object") return "";
+    if (extent.type !== "interval") return endpointRepresentation(extent.start);
+    const start = extent.openStart === true ? "" : endpointRepresentation(extent.start);
+    const end = extent.openEnd === true ? "" : endpointRepresentation(extent.end);
+    return `${start}/${end}`;
   }
 
   function supportedTimeZones() {
@@ -344,12 +437,15 @@
     CERTAINTIES: [...CERTAINTIES],
     PRECISIONS: [...PRECISIONS],
     buildEndpoint,
+    endpointBounds,
     endpointFrom,
+    extentBounds,
     formParts,
     intervalRepresentation,
     normalizeExtent,
     parse,
     sortKey,
-    supportedTimeZones
+    supportedTimeZones,
+    unknownEndpoint
   });
 })();
