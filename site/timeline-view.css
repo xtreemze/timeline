@@ -3250,6 +3250,97 @@
 }
 
 
+/* Relations edge docking: the chronology and graph occupy opposite safe regions.
+   The dock is measured against persistent application chrome rather than the raw viewport,
+   so date/year labels never pass under the command bar or workspace toolbar. */
+@media (min-width: 700px) {
+  #app-shell[data-graph-open="true"] #presentation-stage {
+    --relations-inline-rail: clamp(280px, 28dvw, 400px);
+    --relations-block-rail: clamp(160px, 22dvh, 220px);
+    --relations-gap: clamp(.35rem, .7vw, .7rem);
+    --relations-top-safe: max(4.55rem, calc(env(safe-area-inset-top) + 4.15rem));
+    --relations-right-safe: max(.55rem, env(safe-area-inset-right));
+    --relations-bottom-safe: max(4.45rem, calc(env(safe-area-inset-bottom) + 4.1rem));
+    --relations-left-safe: max(.55rem, env(safe-area-inset-left));
+  }
+
+  #app-shell[data-graph-open="true"]
+    #presentation-stage:has(> #timeline-view[data-orientation="portrait"])
+    > .graph-lens:not([hidden]) {
+    top: var(--relations-top-safe);
+    right: calc(var(--relations-inline-rail) + var(--relations-right-safe) + var(--relations-gap));
+    bottom: var(--relations-bottom-safe);
+    left: var(--relations-left-safe);
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+  }
+
+  #app-shell[data-graph-open="true"]
+    #timeline-view[data-orientation="portrait"] > .timeline-surface {
+    --timeline-axis-cross: 68%;
+    top: var(--relations-top-safe);
+    right: var(--relations-right-safe);
+    bottom: var(--relations-bottom-safe);
+    left: auto;
+    width: var(--relations-inline-rail);
+    height: auto;
+    min-height: 0;
+    border-left: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
+    background: color-mix(in srgb, var(--paper) 90%, transparent);
+    transition:
+      top 280ms cubic-bezier(.2, .8, .2, 1),
+      right 280ms cubic-bezier(.2, .8, .2, 1),
+      bottom 280ms cubic-bezier(.2, .8, .2, 1),
+      width 280ms cubic-bezier(.2, .8, .2, 1);
+  }
+
+  #app-shell[data-graph-open="true"]
+    #timeline-view[data-orientation="portrait"] .timeline-event-terminal {
+    max-width: min(232px, calc(var(--relations-inline-rail) - 96px));
+  }
+
+  #app-shell[data-graph-open="true"]
+    #presentation-stage:has(> #timeline-view[data-orientation="landscape"])
+    > .graph-lens:not([hidden]) {
+    top: var(--relations-top-safe);
+    right: var(--relations-right-safe);
+    bottom: calc(var(--relations-bottom-safe) + var(--relations-block-rail) + var(--relations-gap));
+    left: var(--relations-left-safe);
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+  }
+
+  #app-shell[data-graph-open="true"]
+    #timeline-view[data-orientation="landscape"] > .timeline-surface {
+    --timeline-axis-cross: 42%;
+    top: auto;
+    right: var(--relations-right-safe);
+    bottom: var(--relations-bottom-safe);
+    left: var(--relations-left-safe);
+    width: auto;
+    height: var(--relations-block-rail);
+    min-height: 0;
+    border-top: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
+    background: color-mix(in srgb, var(--paper) 90%, transparent);
+    transition:
+      right 280ms cubic-bezier(.2, .8, .2, 1),
+      bottom 280ms cubic-bezier(.2, .8, .2, 1),
+      left 280ms cubic-bezier(.2, .8, .2, 1),
+      height 280ms cubic-bezier(.2, .8, .2, 1);
+  }
+}
+
+@media (min-width: 900px) {
+  #app-shell[data-graph-open="true"] #presentation-stage {
+    --relations-left-safe: max(5.45rem, calc(env(safe-area-inset-left) + 5rem));
+    --relations-bottom-safe: max(.55rem, env(safe-area-inset-bottom));
+  }
+}
+
 /* Mobile Relations composition: graph and chronology are siblings, never overlapping canvases. */
 @media (max-width: 699px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
@@ -3274,6 +3365,7 @@
     right: max(.25rem, env(safe-area-inset-right));
     bottom: var(--mobile-bottom-chrome);
     left: auto;
+    --timeline-axis-cross: 42%;
     width: var(--mobile-relations-rail);
     height: auto;
     min-height: 0;
@@ -3300,6 +3392,7 @@
     right: max(.35rem, env(safe-area-inset-right));
     bottom: var(--mobile-bottom-chrome);
     left: max(.35rem, env(safe-area-inset-left));
+    --timeline-axis-cross: 38%;
     width: auto;
     height: var(--mobile-relations-rail);
     min-height: 0;
