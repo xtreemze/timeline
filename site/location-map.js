@@ -332,20 +332,26 @@
           const isPrimaryPlacePoint =
             index === 0 &&
             this.location?.geometry?.type === "Point";
-          const markerIcon = semanticMarkerIcon(
-            L,
-            this.iconName,
-            this.color,
-            isPrimaryPlacePoint ? this.label : ""
-          );
           const layer = L.geoJSON(object, {
             ...baseGeoJsonOptions,
-            pointToLayer: (_feature, latlng) => L.marker(latlng, {
-              icon: markerIcon,
-              interactive: this.interactive,
-              keyboard: this.interactive,
-              title: isPrimaryPlacePoint ? this.label : "Map feature"
-            })
+            pointToLayer: (feature, latlng) => {
+              const properties = feature?.properties || {};
+              const markerLabel = isPrimaryPlacePoint
+                ? this.label
+                : String(properties.name || properties.label || "");
+              const markerIcon = semanticMarkerIcon(
+                L,
+                String(properties.icon || this.iconName || "place"),
+                String(properties.color || this.color),
+                markerLabel
+              );
+              return L.marker(latlng, {
+                icon: markerIcon,
+                interactive: this.interactive,
+                keyboard: this.interactive,
+                title: markerLabel || "Map feature"
+              });
+            }
           }).addTo(this.map);
           this.layers.push(layer);
         }
