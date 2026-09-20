@@ -79,7 +79,7 @@
   }
 
   function presentationZoom(location) {
-    const accuracy = Number(location?.accuracyMeters ?? location?.accuracy);
+    const accuracy = Number(location?.radiusMeters ?? location?.accuracyMeters ?? location?.accuracy);
     if (Number.isFinite(accuracy)) {
       if (accuracy <= 50) return 15;
       if (accuracy <= 250) return 14;
