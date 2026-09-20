@@ -434,7 +434,7 @@ test("graph exploration is chrome-free and selection-only", async () => {
   ]);
   const graphMarkup = html.slice(html.indexOf('id="graph-lens"'), html.indexOf('id="presentation-map-panel"'));
   assert.doesNotMatch(graphMarkup, /<summary|temporal-graph-toolbar|data-graph-detail|graph-reset-view/);
-  assert.match(styles, /relation graph is a persistent workspace canvas, not a card\\/dialog/i);
+  assert.match(styles, /relation graph is a persistent workspace canvas, not a card\/dialog/i);
   assert.match(styles, /\.graph-lens > summary,[\s\S]*\.temporal-graph-toolbar,[\s\S]*\.temporal-graph-detail[\s\S]*display:\s*none/);
   assert.match(graphView, /graphselectionchange/);
   assert.doesNotMatch(graphView, /renderDetail|temporal-graph-detail-list/);
