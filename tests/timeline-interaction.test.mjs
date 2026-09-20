@@ -585,7 +585,7 @@ test("named entities in event narrative context require contextual action edges"
     id: "event-a",
     title: "Alice called Bob",
     description: "Robert replied after the call.",
-    media: [{ src: "https://example.test/a.jpg", alt: "Alice and Bob", caption: "Robert at the scene" }],
+    media: [{ src: "https://example.test/a.jpg", alt: "Alice and Bob", caption: "Carol at the scene" }],
     evidenceIds: ["evidence-a"]
   };
   const evidenceById = new Map([[
@@ -647,6 +647,30 @@ test("named entities in event narrative context require contextual action edges"
     new Set(["alice", "bob"]),
     "evidence note counts as narrative context while title/source metadata do not"
   );
+
+  const storyScopedEntities = [
+    { id: "snow-prince", type: "person", name: "The Prince", alternateNames: ["Prince"], attributes: { storyId: "snow" } },
+    { id: "cinderella-prince", type: "person", name: "The Prince", alternateNames: ["Prince"], attributes: { storyId: "cinderella" } }
+  ];
+  const storyScopedMentions = graph.namedEntityMentions(
+    {
+      id: "event-c",
+      title: "The Prince arrives",
+      extensions: { narrative: { storyId: "cinderella" } }
+    },
+    storyScopedEntities
+  );
+  assert.deepEqual(
+    new Set(storyScopedMentions.flatMap((mention) => mention.entityIds)),
+    new Set(["cinderella-prince"]),
+    "duplicate labels resolve to the entity in the active story"
+  );
+
+  const captionOnly = graph.namedEntityMentions(
+    { id: "event-d", title: "Routine update", media: [{ alt: "", caption: "Carol at the scene" }] },
+    entities
+  );
+  assert.deepEqual(captionOnly, [], "media credit/provenance captions do not create story participants");
 });
 
 test("graph records cannot retain timeline category membership in arbitrary attributes", () => {
