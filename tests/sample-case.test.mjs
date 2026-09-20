@@ -407,6 +407,7 @@ test("chronology items remain edge context and never become graph nodes", () => 
 
 test("every entity named in sample event context participates in a contextual action edge", () => {
   const relationshipById = new Map(sample.relationships.map((relationship) => [relationship.id, relationship]));
+  const evidenceById = new Map(sample.evidence.map((record) => [record.id, record]));
   for (const item of sample.items) {
     const contextualEdges = sample.relationships.filter(
       (relationship) => (relationship.itemIds || []).includes(item.id)
@@ -418,7 +419,7 @@ test("every entity named in sample event context participates in a contextual ac
     const contextualEntityIds = new Set(
       contextualEdges.flatMap((relationship) => [relationship.subjectId, relationship.objectId])
     );
-    for (const mention of graph.namedEntityMentions(item, sample.entities)) {
+    for (const mention of graph.namedEntityMentions(item, sample.entities, evidenceById)) {
       assert.ok(
         mention.entityIds.some((entityId) => contextualEntityIds.has(entityId)),
         `${item.id}: named entity ${mention.label} must participate in an action edge linked to the event`
