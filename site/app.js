@@ -405,7 +405,8 @@
   function renderPresentationMap() {
     const item = focusedPresentationItem();
     const mapApi = globalThis.TimelineLocationMap;
-    if (!item || !mapApi?.hasRenderableGeometry?.(item.location)) {
+    const place = item ? placeForItem(item.id) : null;
+    if (!item || !place || !mapApi?.hasRenderableGeometry?.(place)) {
       destroyPresentationMap();
       return false;
     }
@@ -414,7 +415,7 @@
       state.extensions?.narrative?.spatialReferenceFrame?.fictional === true;
     const mapKey = JSON.stringify({
       id: item.id,
-      location: item.location,
+      place,
       fictionalReferenceFrame
     });
 
@@ -428,19 +429,18 @@
     if (!mountMapBackdrop()) return false;
 
     const name =
-      item.location.name ||
-      item.location.geographicIdentifier ||
-      item.location.address ||
+      place.name ||
+      place.geographicIdentifier ||
+      place.address ||
       item.title;
     if (els.presentationMapLabel) els.presentationMapLabel.textContent = name;
     const category = getCategory(item.categoryId);
-    const categoryIcon = presentation.ICON_NAMES.includes(item.categoryId) ? item.categoryId : null;
-    const iconName = item.tags?.[0]?.icon || categoryIcon || "place";
     presentationMap = mapApi.createReadOnly?.({
       container: els.presentationMap,
-      location: item.location,
+      location: place,
       color: category?.color || "#315fbd",
-      iconName,
+      iconName: place.icon || "place",
+      markerShape: place.markerShape || "pin",
       label: name,
       interactive: true,
       countryContextIntro: true,
@@ -1026,8 +1026,9 @@
       const needle = ui.search.trim().toLocaleLowerCase();
       items = items.filter((item) => {
         const tagText = (item.tags || []).map((tag) => tag.label).join(" ");
-        const locationText = item.location
-          ? [item.location.name, item.location.geographicIdentifier, item.location.address].filter(Boolean).join(" ")
+        const place = placeForItem(item.id);
+        const locationText = place
+          ? [place.name, place.geographicIdentifier, place.address].filter(Boolean).join(" ")
           : "";
         const evidenceText = (item.evidenceIds || [])
           .map((id) => state.evidence.find((record) => record.id === id))
@@ -1359,8 +1360,8 @@
         end: item.end ? temporal.sortKey(item.time?.end || item.end) : null,
         startLabel: formatDateInline(item.start),
         endLabel: item.end ? formatDateInline(item.end) : "",
-        locationName: item.location?.name || item.location?.geographicIdentifier || "",
-        location: item.location || null,
+        locationName: placeForItem(item.id)?.name || placeForItem(item.id)?.geographicIdentifier || "",
+        location: placeForItem(item.id) || null,
         media: item.media || [],
         tags: item.tags || [],
         layoutVariant: item.presentation?.variant || "hero-split",
@@ -1483,7 +1484,8 @@
     kindBadge.textContent = item.kind;
     meta.append(categoryBadge, kindBadge);
 
-    const locationLabel = item.location?.name || item.location?.geographicIdentifier;
+    const itemPlace = placeForItem(item.id);
+    const locationLabel = itemPlace?.name || itemPlace?.geographicIdentifier;
     if (locationLabel) {
       const placeBadge = document.createElement("span");
       placeBadge.className = "location-badge";
@@ -1906,7 +1908,7 @@
     els.itemConnectorStyle.value = item.presentation?.connectorStyle || "solid";
     els.itemConnectorWeight.value = item.presentation?.connectorWeight || "normal";
     els.itemConnectorEndpoint.value = item.presentation?.connectorEndpoint || "none";
-    fillLocationForm(item.location || null);
+    fillLocationForm(null);
     els.saveItem.textContent = "Save changes";
     els.cancelItemEdit.hidden = false;
     els.deleteItemEdit.hidden = false;
@@ -2369,6 +2371,20 @@
     return state.places.find((place) => String(place.id) === String(id)) || null;
   }
 
+  function relationshipsForItem(itemId) {
+    return state.relationships.filter((relationship) =>
+      (relationship.itemIds || []).some((id) => String(id) === String(itemId))
+    );
+  }
+
+  function placeForItem(itemId) {
+    for (const relationship of relationshipsForItem(itemId)) {
+      const place = getPlace(relationship.placeId);
+      if (place) return place;
+    }
+    return null;
+  }
+
   function resetGraphPlaceForm() {
     els.graphPlaceForm?.reset();
     if (!els.graphPlaceForm) return;
@@ -2672,10 +2688,11 @@
         ? `${formatDateInline(item.start)} → ${formatDateInline(item.end)}`
         : formatDateInline(item.start);
       lines.push(`### ${when} — ${item.title}`, "", `Type: ${item.kind}  `, `Category: ${category.name}`);
-      if (item.location) {
-        const place = item.location.name || item.location.geographicIdentifier || item.location.address || "Coordinates";
-        const coordinates = item.location.geometry?.coordinates;
-        lines.push(`Location: ${place}${coordinates ? ` (${coordinates[1]}, ${coordinates[0]})` : ""}  `);
+      const place = placeForItem(item.id);
+      if (place) {
+        const label = place.name || place.geographicIdentifier || place.address || "Coordinates";
+        const coordinates = place.geometry?.type === "Point" ? place.geometry.coordinates : null;
+        lines.push(`Location: ${label}${coordinates ? ` (${coordinates[1]}, ${coordinates[0]})` : ""}  `);
       }
       if (item.tags?.length) lines.push(`Tags: ${item.tags.map((tag) => tag.label).join(", ")}  `);
       if (item.media?.length) {
