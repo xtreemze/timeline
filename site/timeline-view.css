@@ -4294,7 +4294,8 @@
    Rendered icons can remain compact; the interactive box must not. */
 @media (pointer: coarse) {
   .timeline-project-menu-toggle,
-  .story-nav-button {
+  .story-nav-button,
+  .view-icon-button {
     width: 44px;
     min-width: 44px;
     height: 44px;
@@ -4303,8 +4304,52 @@
 
   .timeline-focus-tab,
   .timeline-focus-close,
-  .timeline-focus-slideshow-controls .button {
+  .timeline-focus-slideshow-controls .button,
+  .timeline-focus-actions .button {
     min-height: 44px;
+  }
+
+  #app-shell .timeline-auto-timer input {
+    min-height: 44px;
+  }
+
+  /* Range bars stay visually thin, but their pseudo-element expands the
+     actual hit region to at least 44px in both axes, including very short ranges. */
+  .timeline-range-segment::before {
+    content: "";
+    position: absolute;
+    inset: -19px;
+    border-radius: 999px;
+    background: transparent;
+    pointer-events: auto;
+  }
+
+  .timeline-view[data-orientation="portrait"] .timeline-zoom-control input[type="range"] {
+    width: 44px;
+    min-width: 44px;
+  }
+
+  .timeline-view[data-orientation="landscape"] .timeline-zoom-control input[type="range"] {
+    height: 44px;
+    min-height: 44px;
+  }
+
+  #app-shell:has(#timeline-view[data-orientation="portrait"])
+    .app-view-controls.timeline-view-toolbar[popover]:popover-open,
+  #app-shell:has(#timeline-view[data-orientation="portrait"])
+    #presentation-stage:fullscreen .timeline-view-toolbar:popover-open {
+    width: 104px;
+  }
+
+  .timeline-view[data-orientation="portrait"] .timeline-zoom-controls {
+    width: 100%;
+    min-width: 0;
+    padding-inline: .25rem;
+  }
+
+  .timeline-view[data-orientation="portrait"] .timeline-zoom-control {
+    grid-template-columns: 30px minmax(44px, 1fr);
+    column-gap: .2rem;
   }
 }
 

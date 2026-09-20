@@ -3459,12 +3459,47 @@ body {
     min-height: 44px;
   }
 
+  .button,
+  .tab {
+    min-height: 44px;
+  }
+
+  .icon-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .field input:not([type="color"]),
+  .field select,
+  .search-field input,
+  .compact-field select {
+    min-height: 44px;
+  }
+
   .range-calendar-nav {
     min-width: 44px;
     min-height: 44px;
   }
 
   .project-menu-toggle {
+    min-height: 44px;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 380px) {
+  .range-calendar {
+    width: calc(100dvw - 4px);
+    max-width: calc(100dvw - 4px);
+    margin: 2px;
+    padding: .125rem;
+  }
+
+  .range-calendar-grid {
+    gap: 0;
+  }
+
+  .range-calendar-day {
+    min-width: 44px;
     min-height: 44px;
   }
 }

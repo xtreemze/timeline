@@ -149,6 +149,40 @@ function create(container, handlers = {}) {
     zoomFitTransitionMs: 240
   });
 
+  const ORB_TOUCH_DRAG_EVENT_TYPES = new Set([
+    "touchstart",
+    "touchmove",
+    "touchend",
+    "touchcancel"
+  ]);
+
+  function removeOrbTouchDragListeners() {
+    const canvas = orb.canvas;
+    const listeners = Array.isArray(canvas?.__on) ? canvas.__on : null;
+    if (!canvas || !listeners?.length) return;
+
+    const retained = [];
+    for (const listener of listeners) {
+      const isTouchDragListener =
+        listener?.name === "drag" &&
+        ORB_TOUCH_DRAG_EVENT_TYPES.has(listener.type);
+      if (!isTouchDragListener) {
+        retained.push(listener);
+        continue;
+      }
+      canvas.removeEventListener(listener.type, listener.listener, listener.options);
+    }
+
+    if (retained.length) canvas.__on = retained;
+    else delete canvas.__on;
+  }
+
+  // Orb 1.0.2 wires d3-drag before d3-zoom. d3-drag consumes touchstart and
+  // touchmove when a node is its subject, which prevents camera navigation
+  // from taking over when Timeline cancels a pending long press. Timeline owns
+  // touch node dragging directly, so keep Orb drag for mouse input only.
+  removeOrbTouchDragListeners();
+
   function forceAlphaProfile(nodeCount = forceNodeCount, alphaTarget = 0) {
     const dense = nodeCount >= 1000;
     return {
@@ -987,6 +1021,8 @@ function create(container, handlers = {}) {
     lastSizeClass = sizeClass;
     currentMode = wantsGPU ? "gpu-main-force" : "worker-cpu";
     orb.setRenderer(wantsWebGL ? "webgl" : "canvas");
+    // Renderer switches recreate the canvas and re-register Orb's D3 handlers.
+    removeOrbTouchDragListeners();
     orb.setSettings({
       render: {
         labelsIsEnabled: nodeCount < 1800,
