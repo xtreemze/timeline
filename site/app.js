@@ -2743,8 +2743,10 @@
         const when = relationship.time
           ? temporal.intervalRepresentation(relationship.time)
           : "untimed";
+        const place = getPlace(relationship.placeId);
+        const spatialContext = place ? `; place: ${place.name}` : "";
         lines.push(
-          `- ${relationship.subjectId} —${relationship.predicate}→ ${relationship.objectId} (${when})`
+          `- ${relationship.subjectId} —${relationship.predicate}→ ${relationship.objectId} (time: ${when}${spatialContext})`
         );
       }
       lines.push("");
@@ -3038,6 +3040,11 @@
       });
       if (!place) throw new Error("A place name is required.");
       if (!place.geometry) throw new Error("A place needs point coordinates or an area geometry.");
+      const duplicate = state.places.find((candidate) =>
+        candidate.id !== place.id &&
+        spatial.placeIdentity(candidate) === spatial.placeIdentity(place)
+      );
+      if (duplicate) throw new Error(`This location already exists as “${duplicate.name}”. Reuse it from the edge Place selector instead of creating a duplicate.`);
       const index = state.places.findIndex((candidate) => candidate.id === place.id);
       if (index >= 0) {
         state.places[index] = place;
