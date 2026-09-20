@@ -379,7 +379,8 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(timelineCss, /Compact application presentation contract/);
   assert.match(timelineCss, /\.timeline-project-heading\s*\{[\s\S]*position:\s*absolute/);
   assert.match(timelineCss, /\.is-portrait \.timeline-month-accent\.avoids-project-heading[\s\S]*right:\s*calc\(7px \+ var\(--timeline-project-heading-clearance, 52px\)\)/);
-  assert.match(timelineCss, /\.is-landscape \.timeline-month-accent\.avoids-project-heading[\s\S]*bottom:\s*calc\(8px \+ var\(--timeline-project-heading-clearance, 52px\)\)/);
+  assert.match(timelineCss, /\.is-landscape \.timeline-month-accent\.avoids-project-heading[\s\S]*bottom:\s*8px/);
+  assert.doesNotMatch(timelineCss, /\.is-landscape \.timeline-month-accent\.avoids-project-heading[\s\S]{0,120}bottom:\s*calc\(/);
   assert.match(timelineCss, /\.timeline-view\[data-orientation="portrait"\] \.timeline-project-title input[\s\S]*writing-mode:\s*vertical-rl/);
   assert.match(timelineCss, /\.timeline-view\[data-orientation="landscape"\] \.timeline-project-heading[\s\S]*bottom:\s*max\(\.5rem, env\(safe-area-inset-bottom\)\)/);
   assert.match(timelineCss, /data-timeline-orientation="horizontal"[\s\S]*\.timeline-project-heading[\s\S]*bottom:\s*max\(\.45rem, env\(safe-area-inset-bottom\)\)/);

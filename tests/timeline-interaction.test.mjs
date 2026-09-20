@@ -62,6 +62,8 @@ test("timeline exposes semantic zoom while retaining keyboard fit commands", asy
   assert.match(viewSource, /setSemanticZoom\(value\)/);
   assert.match(viewSource, /semanticContextItems\(item\)/);
   assert.match(viewSource, /clearTemporalAccentFromProjectHeading\(label\)[\s\S]*getBoundingClientRect[\s\S]*avoids-project-heading/);
+  assert.match(viewSource, /this\.orientation === "horizontal"[\s\S]*shiftRight[\s\S]*label\.style\.left[\s\S]*projectHeadingCollisionAxis = "inline"/);
+  assert.doesNotMatch(viewSource, /this\.orientation === "horizontal"[\s\S]{0,220}headingRect\.height \+ gap/);
   assert.match(viewSource, /resizeObserver\.observe\(this\.projectHeading\)/);
   assert.match(viewSource, /while \(selected\.length < 2/);
   assert.match(viewSource, /this\.soloZoomActive = normalized >= 99/);
