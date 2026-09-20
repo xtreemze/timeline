@@ -787,6 +787,9 @@
       this.root.dataset.orientation = vertical ? "portrait" : "landscape";
       this.surface.classList.toggle("is-portrait", vertical);
       this.surface.classList.toggle("is-landscape", !vertical);
+      if (this.zoomSlider) {
+        this.zoomSlider.setAttribute("aria-orientation", vertical ? "vertical" : "horizontal");
+      }
       if (this.orientationToggle) {
         const targetLabel = vertical ? "Switch to landscape timeline" : "Switch to portrait timeline";
         this.orientationToggle.setAttribute("aria-label", targetLabel);

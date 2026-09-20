@@ -904,6 +904,31 @@ test("workspace toolbars deploy vertically in landscape and horizontally in port
 });
 
 
+test("portrait mode gives the semantic zoom slider a vertical axis", async () => {
+  const [timelineCss, viewSource] = await Promise.all([
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8")
+  ]);
+
+  assert.match(
+    timelineCss,
+    /\.timeline-view\[data-orientation="portrait"\] \.timeline-zoom-control input\[type="range"\]\s*\{[\s\S]*writing-mode:\s*vertical-lr[\s\S]*height:\s*100%[\s\S]*cursor:\s*ns-resize[\s\S]*touch-action:\s*pan-x/
+  );
+  assert.match(
+    timelineCss,
+    /\.timeline-view\[data-orientation="portrait"\] \.timeline-zoom-scale\s*\{[\s\S]*grid-template-rows:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/
+  );
+  assert.match(
+    timelineCss,
+    /\.timeline-view\[data-orientation="landscape"\] \.timeline-zoom-control input\[type="range"\]\s*\{[\s\S]*writing-mode:\s*horizontal-tb[\s\S]*cursor:\s*ew-resize[\s\S]*touch-action:\s*pan-y/
+  );
+  assert.match(
+    viewSource,
+    /zoomSlider\.setAttribute\("aria-orientation", vertical \? "vertical" : "horizontal"\)/
+  );
+});
+
+
 test("shared camera motion exposes capped two-dimensional release velocity and map-equivalent deceleration", () => {
   const velocity = motion.estimatePointerVectorVelocity([
     { x: 0, y: 0, time: 0 },
