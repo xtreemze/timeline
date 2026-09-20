@@ -3102,66 +3102,99 @@ body {
   }
 }
 
-/* Browse and Edit are layout-reserving utility sidebars.
-   They remain collapsible, but an open utility surface owns explicit workspace space instead
-   of covering either the timeline or the persistent relation graph. */
+/* Browse and Edit are true layout-reserving sidebars.
+   They are vertical in-flow workspace columns at every viewport size; only their own
+   vertical content scrolls, never the workspace beneath them or a horizontal sheet axis. */
 #app-shell[data-editor-open="true"] {
+  --utility-sidebar-width: min(320px, 72dvw);
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: clamp(180px, 42dvh, 420px) minmax(0, 1fr);
-}
-
-#app-shell[data-editor-open="true"] > .app-editor-sheet {
-  position: relative;
-  z-index: 2;
-  inset: auto;
-  grid-column: 1;
-  grid-row: 1;
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  max-height: none;
-  margin: 0;
-  overflow: auto;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  border-radius: 0;
-  box-shadow: none;
+  grid-template-columns: minmax(0, 1fr) var(--utility-sidebar-width);
+  grid-template-rows: minmax(0, 1fr);
 }
 
 #app-shell[data-editor-open="true"] > .timeline-panel {
   position: relative;
   inset: auto;
   grid-column: 1;
-  grid-row: 2;
+  grid-row: 1;
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
 }
 
+#app-shell[data-editor-open="true"] > .app-editor-sheet {
+  position: relative;
+  z-index: 2;
+  inset: auto;
+  grid-column: 2;
+  grid-row: 1;
+  align-self: stretch;
+  box-sizing: border-box;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  margin: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--panel);
+  box-shadow: none;
+  backdrop-filter: none;
+  container: utility-sidebar / inline-size;
+}
+
 #app-shell[data-browser-open="true"] > .timeline-panel {
+  --utility-sidebar-width: min(300px, 68dvw);
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: clamp(180px, 42dvh, 420px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) var(--utility-sidebar-width);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+#app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen) {
+  position: relative;
+  inset: auto;
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
 }
 
 #app-shell[data-browser-open="true"] > .timeline-panel > .app-browser-sheet {
   position: relative;
   z-index: 2;
   inset: auto;
-  grid-column: 1;
+  grid-column: 2;
   grid-row: 1;
-  width: 100%;
-  height: 100%;
+  align-self: stretch;
+  box-sizing: border-box;
+  width: auto;
+  min-width: 0;
   max-width: none;
+  height: 100%;
+  min-height: 0;
   max-height: none;
   margin: 0;
-  overflow: auto;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   border: 0;
-  border-bottom: 1px solid var(--line);
+  border-left: 1px solid var(--line);
   border-radius: 0;
+  background: var(--paper);
   box-shadow: none;
+  backdrop-filter: none;
+  container: utility-sidebar / inline-size;
 }
 
 #app-shell:is(
@@ -3171,50 +3204,194 @@ body {
   position: absolute;
 }
 
-#app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen) {
-  position: relative;
-  inset: auto;
-  grid-column: 1;
-  grid-row: 2;
-  width: 100%;
-  height: 100%;
+.app-editor-sheet :is(
+  form,
+  fieldset,
+  details,
+  .editor-section,
+  .field-grid,
+  .field,
+  .temporal-editor,
+  .temporal-clock-grid,
+  .temporal-clock-section,
+  .temporal-range-grid,
+  .temporal-endpoint,
+  .temporal-fields,
+  .optional-editor,
+  .location-fields,
+  .location-actions,
+  .media-editor,
+  .media-editor-row,
+  .tag-editor,
+  .tag-editor-row,
+  .evidence-editor,
+  .evidence-editor-row,
+  .story-builder,
+  .picker-list,
+  .sequence-list,
+  .graph-editor-form,
+  .graph-record-list,
+  .graph-record,
+  .graph-record-actions,
+  .relation-change-editor,
+  .relation-change-row,
+  .form-actions,
+  .subheading-row
+),
+.app-browser-sheet :is(
+  .app-surface-header,
+  .app-surface-header-actions,
+  .browser-story-section,
+  .browser-section-heading,
+  .browser-story-list,
+  .browser-story-card,
+  .timeline-toolbar,
+  .timeline-list,
+  .timeline-category-shell,
+  .timeline-category-group,
+  .timeline-category-summary,
+  .timeline-category-summary-identity,
+  .timeline-category-items,
+  .timeline-item,
+  .timeline-card,
+  .timeline-card-top,
+  .card-actions,
+  .card-meta
+) {
   min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.app-editor-sheet :is(input, select, textarea, button),
+.app-browser-sheet :is(input, select, textarea, button) {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.app-editor-sheet :is(p, small, strong, span, label, legend, h2, h3),
+.app-browser-sheet :is(p, small, strong, span, label, h2, h3, button) {
+  overflow-wrap: anywhere;
+}
+
+.app-editor-sheet .form-actions,
+.app-editor-sheet .graph-record,
+.app-editor-sheet .graph-record-actions,
+.app-browser-sheet .app-surface-header,
+.app-browser-sheet .app-surface-header-actions,
+.app-browser-sheet .timeline-card-top,
+.app-browser-sheet .card-actions,
+.app-browser-sheet .card-meta {
+  flex-wrap: wrap;
+}
+
+.app-browser-sheet .timeline-toolbar {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app-browser-sheet .browser-story-description {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.app-browser-sheet .timeline-category-shell {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app-browser-sheet .timeline-category-focus {
+  width: 100%;
+  white-space: normal;
+}
+
+.app-browser-sheet .timeline-category-items {
+  padding: .55rem 0 .2rem;
+}
+
+.app-browser-sheet .timeline-category-items::before {
+  display: none;
+}
+
+.app-browser-sheet .timeline-item {
+  grid-template-columns: minmax(0, 1fr);
+  gap: .25rem;
   min-height: 0;
+  padding: .25rem 0;
+}
+
+.app-browser-sheet .timeline-date {
+  grid-column: 1;
+  grid-row: auto;
+  padding: .15rem .1rem 0;
+  text-align: left;
+}
+
+.app-browser-sheet .timeline-date :is(strong, span) {
+  display: inline;
+}
+
+.app-browser-sheet .timeline-date span::before {
+  content: " · ";
+}
+
+.app-browser-sheet .timeline-marker {
+  display: none;
+}
+
+.app-browser-sheet .timeline-card {
+  grid-column: 1;
+  grid-row: auto;
+  margin: 0 0 .65rem;
+  padding: .7rem .75rem .8rem;
+}
+
+.app-browser-sheet .timeline-card-top > :first-child {
+  min-width: 0;
+  flex: 1 1 10rem;
+}
+
+.app-browser-sheet .card-actions {
+  flex: 0 1 auto;
+  margin-left: auto;
 }
 
 @media (min-width: 760px) {
   #app-shell[data-editor-open="true"] {
-    grid-template-columns: minmax(0, 1fr) clamp(320px, 34vw, 440px);
-    grid-template-rows: minmax(0, 1fr);
-  }
-
-  #app-shell[data-editor-open="true"] > .timeline-panel {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  #app-shell[data-editor-open="true"] > .app-editor-sheet {
-    grid-column: 2;
-    grid-row: 1;
-    border-bottom: 0;
-    border-left: 1px solid var(--line);
+    --utility-sidebar-width: clamp(320px, 34dvw, 440px);
   }
 
   #app-shell[data-browser-open="true"] > .timeline-panel {
-    grid-template-columns: minmax(0, 1fr) clamp(300px, 31vw, 400px);
-    grid-template-rows: minmax(0, 1fr);
+    --utility-sidebar-width: clamp(300px, 31dvw, 400px);
+  }
+}
+
+@container utility-sidebar (max-width: 360px) {
+  .app-editor-sheet .field-grid,
+  .app-editor-sheet .temporal-fields,
+  .app-editor-sheet .location-fields,
+  .app-editor-sheet .media-editor-row,
+  .app-editor-sheet .tag-editor-row,
+  .app-editor-sheet .evidence-editor-row,
+  .app-editor-sheet .relation-change-row,
+  .app-editor-sheet .category-form {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  #app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen) {
+  .app-editor-sheet .field-grid > .field:not(.field-wide),
+  .app-editor-sheet .field-grid > .field-wide,
+  .app-editor-sheet .tag-editor-row .hue-field,
+  .app-editor-sheet .category-form .category-actions,
+  .app-editor-sheet .media-editor-row > p {
     grid-column: 1;
-    grid-row: 1;
   }
 
-  #app-shell[data-browser-open="true"] > .timeline-panel > .app-browser-sheet {
-    grid-column: 2;
-    grid-row: 1;
-    border-bottom: 0;
-    border-left: 1px solid var(--line);
+  .app-editor-sheet .graph-record {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-editor-sheet .graph-record-actions {
+    justify-content: flex-start;
   }
 }
 
