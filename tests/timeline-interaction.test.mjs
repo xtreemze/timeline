@@ -792,10 +792,11 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(timelineCss, /\.timeline-auto-controls[\s\S]*display:\s*flex[\s\S]*flex-wrap:\s*nowrap/);
   assert.doesNotMatch(timelineCss, /\.timeline-auto-controls[\s\S]{0,180}grid-column:\s*1 \/ -1/);
   assert.match(timelineCss, /Mobile persistent relation composition/);
-  assert.match(timelineCss, /--mobile-relations-rail:\s*clamp\(88px, 25dvw, 116px\)/);
-  assert.match(timelineCss, /:has\(> #timeline-view\[data-orientation="portrait"\]\)[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*right:\s*calc\(var\(--mobile-relations-rail\)/);
-  assert.match(timelineCss, /#timeline-view\[data-orientation="portrait"\] > \.timeline-surface[\s\S]*top:\s*0;[\s\S]*bottom:\s*0;[\s\S]*width:\s*var\(--mobile-relations-rail\)[\s\S]*height:\s*100%/);
-  assert.match(timelineCss, /#timeline-view\[data-orientation="landscape"\] > \.timeline-surface[\s\S]*right:\s*0;[\s\S]*left:\s*0;[\s\S]*width:\s*100%[\s\S]*height:\s*var\(--mobile-relations-rail\)/);
+  assert.match(timelineCss, /--mobile-relations-inline-rail:\s*clamp\(88px, 25dvw, 116px\)/);
+  assert.match(timelineCss, /--mobile-relations-block-rail:\s*clamp\(136px, 32dvh, 184px\)/);
+  assert.match(timelineCss, /:has\(> #timeline-view\[data-orientation="portrait"\]\)[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*right:\s*calc\(var\(--mobile-relations-inline-rail\)/);
+  assert.match(timelineCss, /#timeline-view\[data-orientation="portrait"\] > \.timeline-surface[\s\S]*top:\s*0;[\s\S]*bottom:\s*0;[\s\S]*width:\s*var\(--mobile-relations-inline-rail\)[\s\S]*height:\s*100%/);
+  assert.match(timelineCss, /#timeline-view\[data-orientation="landscape"\] > \.timeline-surface[\s\S]*right:\s*0;[\s\S]*left:\s*0;[\s\S]*width:\s*100%[\s\S]*height:\s*var\(--mobile-relations-block-rail\)/);
   assert.match(viewSource, /terminalExtent = compact \? Math\.min\(width \* 0\.58, 190\) : 232/);
   assert.match(viewSource, /afterAvailable = width - edgeInset - terminalExtent \+ terminalAnchor - axisCross/);
   assert.match(viewSource, /clusterTerminalExtent = compact \? Math\.min\(width \* 0\.68, 220\) : 232/);
@@ -856,6 +857,7 @@ test("persistent relation graph docks opposite chronology and stays behind focus
   assert.match(timelineCss, /\.timeline-surface\.is-landscape[\s\S]*width:\s*100%[\s\S]*max-width:\s*none/);
   assert.match(timelineCss, /\.timeline-surface\.is-portrait[\s\S]*height:\s*100%[\s\S]*max-height:\s*none/);
   assert.match(timelineCss, /@media \(min-width:\s*700px\)[\s\S]*--relations-inline-rail:\s*clamp\(280px, 28dvw, 400px\)/);
+  assert.match(timelineCss, /--relations-block-rail:\s*clamp\(220px, 31dvh, 320px\)/);
   assert.match(timelineCss, /--relations-top-safe:\s*max\(4\.55rem,[\s\S]*safe-area-inset-top/);
   assert.match(timelineCss, /data-orientation="portrait"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*right:\s*calc\(var\(--relations-inline-rail\)[\s\S]*left:\s*var\(--relations-left-safe\)/);
   assert.match(timelineCss, /data-orientation="portrait"\] > \.timeline-surface[\s\S]*--timeline-axis-cross:\s*68%[\s\S]*top:\s*0;[\s\S]*bottom:\s*0;[\s\S]*width:\s*var\(--relations-inline-rail\)[\s\S]*height:\s*100%/);
