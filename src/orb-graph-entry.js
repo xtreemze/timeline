@@ -360,8 +360,9 @@ function create(container, handlers = {}) {
   function simulationRadiusForPixels(globalPoint, radiusPx) {
     if (!orb.canvas || !globalPoint) return 0;
     const rect = orb.canvas.getBoundingClientRect();
+    const direction = globalPoint.x + radiusPx <= rect.width ? 1 : -1;
     const offsetPoint = {
-      x: Math.max(0, Math.min(rect.width, globalPoint.x + radiusPx)),
+      x: Math.max(0, Math.min(rect.width, globalPoint.x + radiusPx * direction)),
       y: globalPoint.y
     };
     const localStart = orb.getSimulationPosition(globalPoint);
