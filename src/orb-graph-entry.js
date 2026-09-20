@@ -723,6 +723,9 @@ function create(container, handlers = {}) {
     if (touchHold.activated) {
       if (touchHold.pointerId !== event.pointerId) return;
       event.preventDefault();
+      // The active node drag owns this pointer. Stop the event before it
+      // reaches Orb/D3 camera listeners on the canvas.
+      event.stopPropagation();
       const geometry = touchGeometry(event);
       const simulator = touchDragSimulator();
       if (geometry && simulator) {
@@ -797,6 +800,17 @@ function create(container, handlers = {}) {
     } else {
       touchTap = null;
     }
+  }
+
+  function onTouchMoveCapture(event) {
+    if (!touchHold?.activated) return;
+    // Orb 1.0.2's camera uses D3 touch listeners on the canvas. Disabling
+    // isZoomEnabled prevents Timeline from accepting camera updates, but D3
+    // can still retain and advance the touch gesture that began before the
+    // long-press threshold resolved. Block those touchmove events while the
+    // node drag owns the gesture so the graph camera cannot move with it.
+    event.preventDefault();
+    event.stopPropagation();
   }
 
   function onTouchEnd(event) {
@@ -881,6 +895,7 @@ function create(container, handlers = {}) {
   container.addEventListener("pointerup", onPointerUp, { capture: true });
   container.addEventListener("pointercancel", onPointerUp, { capture: true });
   container.addEventListener("lostpointercapture", onLostPointerCapture, { capture: true });
+  container.addEventListener("touchmove", onTouchMoveCapture, { capture: true, passive: false });
   container.addEventListener("touchend", onTouchEnd);
   container.addEventListener("touchcancel", onTouchEnd);
   globalThis.addEventListener?.("blur", onWindowBlur);
@@ -1303,6 +1318,7 @@ function create(container, handlers = {}) {
       container.removeEventListener("pointerup", onPointerUp, true);
       container.removeEventListener("pointercancel", onPointerUp, true);
       container.removeEventListener("lostpointercapture", onLostPointerCapture, true);
+      container.removeEventListener("touchmove", onTouchMoveCapture, true);
       container.removeEventListener("touchend", onTouchEnd);
       container.removeEventListener("touchcancel", onTouchEnd);
       globalThis.removeEventListener?.("blur", onWindowBlur);
