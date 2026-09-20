@@ -269,6 +269,19 @@
     }
   }
 
+  function setSemanticControlIcon(element, iconName, label) {
+    if (!element) return;
+    const icon = presentation.createIcon(iconName, { size: 22 });
+    const currentIcon = element.querySelector(":scope > .semantic-icon");
+    if (currentIcon) currentIcon.replaceWith(icon);
+    else element.prepend(icon);
+    element.dataset.semanticIcon = iconName;
+    element.setAttribute("aria-label", label);
+    element.title = label;
+    const accessibleLabel = element.querySelector(":scope > .sr-only");
+    if (accessibleLabel) accessibleLabel.textContent = label;
+  }
+
   decorateSemanticControls();
 
   const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
@@ -2731,21 +2744,24 @@
 
   function renderAutoAdvanceState(autoState) {
     const seconds = Math.round(autoState.intervalMs / 1000);
-    els.autoToggle.setAttribute("aria-pressed", String(autoState.running && !autoState.paused));
+    const playing = autoState.running && !autoState.paused;
+    els.autoToggle.setAttribute("aria-pressed", String(playing));
+    setSemanticControlIcon(
+      els.autoToggle,
+      playing ? "pause" : "play",
+      playing ? "Pause slideshow" : "Play slideshow"
+    );
     if (!autoState.running) {
-      els.autoToggle.textContent = "Auto";
-      els.autoStatus.textContent = "Off";
+      els.autoStatus.textContent = "Slideshow stopped";
       return;
     }
     if (autoState.paused) {
-      els.autoToggle.textContent = "Resume";
       els.autoStatus.textContent = autoState.pauseReason === "interaction"
-        ? "Paused · interaction"
-        : "Paused";
+        ? "Slideshow paused after interaction"
+        : "Slideshow paused";
       return;
     }
-    els.autoToggle.textContent = "Pause";
-    els.autoStatus.textContent = `Auto · ${seconds}s`;
+    els.autoStatus.textContent = `Slideshow playing · ${seconds}s interval`;
   }
 
   function ensurePresentationFocus() {
