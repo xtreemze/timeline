@@ -3898,6 +3898,76 @@
         "storyId": "story-cinderella",
         "fictional": true
       }
+    },
+    {
+      "id": "snow-royal-family",
+      "type": "group",
+      "name": "Snow White's Royal Family",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true
+      }
+    },
+    {
+      "id": "cinderella-late-mother",
+      "type": "person",
+      "name": "Cinderella's Mother",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-cinderella",
+        "fictional": true
+      }
+    },
+    {
+      "id": "pigs-straw-house",
+      "type": "object",
+      "name": "Straw House",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true
+      }
+    },
+    {
+      "id": "pigs-stick-house",
+      "type": "object",
+      "name": "Stick House",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-three-little-pigs",
+        "fictional": true
+      }
+    },
+    {
+      "id": "snow-dwarfs-cottage",
+      "type": "object",
+      "name": "Dwarfs' Cottage",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true
+      }
+    },
+    {
+      "id": "snow-peddler-disguise",
+      "type": "object",
+      "name": "Peddler Disguise",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-snow-white",
+        "fictional": true
+      }
+    },
+    {
+      "id": "cinderella-household",
+      "type": "group",
+      "name": "Cinderella's Household",
+      "identifiers": [],
+      "attributes": {
+        "storyId": "story-cinderella",
+        "fictional": true
+      }
     }
   ],
   "relationships": [
@@ -3988,7 +4058,10 @@
       "attributes": {
         "target": "Snow White"
       },
-      "placeId": ""
+      "placeId": "place-snow-white-castle-great-hall",
+      "itemIds": [
+        "snow-huntsman-order"
+      ]
     },
     {
       "id": "rel-snow-huntsman-spares",
@@ -4009,7 +4082,10 @@
         "end": null
       },
       "attributes": {},
-      "placeId": "place-snow-white-deep-forest"
+      "placeId": "place-snow-white-deep-forest",
+      "itemIds": [
+        "snow-huntsman-spares"
+      ]
     },
     {
       "id": "rel-snow-dwarfs-shelter",
@@ -4038,13 +4114,16 @@
         }
       },
       "attributes": {},
-      "placeId": "snow-cottage-place"
+      "placeId": "snow-cottage-place",
+      "itemIds": [
+        "snow-dwarfs-shelter"
+      ]
     },
     {
       "id": "rel-snow-apple-object",
       "subjectId": "snow-queen",
       "objectId": "snow-apple-object",
-      "predicate": "prepares",
+      "predicate": "poisons",
       "time": {
         "type": "instant",
         "start": {
@@ -4062,7 +4141,10 @@
         "purpose": "deception",
         "attempt": 3
       },
-      "placeId": ""
+      "placeId": "place-snow-white-queen-s-workshop",
+      "itemIds": [
+        "snow-apple-prepared"
+      ]
     },
     {
       "id": "rel-snow-queen-threat",
@@ -4164,7 +4246,10 @@
           "glass slippers"
         ]
       },
-      "placeId": ""
+      "placeId": "place-cinderella-garden-and-pumpkin-patch",
+      "itemIds": [
+        "cinderella-transformation"
+      ]
     },
     {
       "id": "rel-cinderella-slipper-loss",
@@ -4230,37 +4315,6 @@
         "storyId": "story-cinderella"
       },
       "placeId": ""
-    },
-    {
-      "id": "rel-cinderella-palace",
-      "subjectId": "cinderella",
-      "objectId": "cinderella",
-      "predicate": "visits",
-      "time": {
-        "type": "interval",
-        "start": {
-          "value": "1000-04-26T20:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": {
-          "value": "1000-05-06T23:55Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        }
-      },
-      "attributes": {
-        "occasion": "royal balls"
-      },
-      "placeId": "cinderella-palace-place"
     },
     {
       "id": "rel-pigs-first-straw",
@@ -4352,13 +4406,16 @@
       "attributes": {
         "after": "straw house destroyed"
       },
-      "placeId": ""
+      "placeId": "place-three-little-pigs-pigwood-escape-path",
+      "itemIds": [
+        "pigs-first-flees"
+      ]
     },
     {
       "id": "rel-pigs-brothers-shelter-third",
-      "subjectId": "pigs-brothers",
+      "subjectId": "pigs-second",
       "objectId": "pigs-third",
-      "predicate": "regroupsWith",
+      "predicate": "seeksShelterWith",
       "time": {
         "type": "instant",
         "start": {
@@ -4373,7 +4430,10 @@
         "end": null
       },
       "attributes": {},
-      "placeId": "pigs-brick-place"
+      "placeId": "place-three-little-pigs-brick-house-approach",
+      "itemIds": [
+        "pigs-two-flee"
+      ]
     },
     {
       "id": "rel-snow-queen-laces",
@@ -4442,7 +4502,10 @@
       "attributes": {
         "method": "loosen laces"
       },
-      "placeId": ""
+      "placeId": "snow-cottage-place",
+      "itemIds": [
+        "snow-laces-recovery"
+      ]
     },
     {
       "id": "rel-snow-dwarfs-comb-rescue",
@@ -4465,7 +4528,10 @@
       "attributes": {
         "method": "remove comb"
       },
-      "placeId": ""
+      "placeId": "snow-cottage-place",
+      "itemIds": [
+        "snow-comb-recovery"
+      ]
     },
     {
       "id": "rel-snow-prince-coffin",
@@ -4486,7 +4552,10 @@
         "end": null
       },
       "attributes": {},
-      "placeId": "snow-clearing-place"
+      "placeId": "snow-clearing-place",
+      "itemIds": [
+        "snow-prince-arrives"
+      ]
     },
     {
       "id": "rel-cinderella-father-stepmother",
@@ -4509,7 +4578,10 @@
       "attributes": {
         "household": "Cinderella's House"
       },
-      "placeId": ""
+      "placeId": "place-cinderella-cinderella-s-house",
+      "itemIds": [
+        "cinderella-stepfamily-arrives"
+      ]
     },
     {
       "id": "rel-cinderella-fairy-pumpkin",
@@ -4578,7 +4650,10 @@
       "attributes": {
         "identityKnown": false
       },
-      "placeId": ""
+      "placeId": "place-cinderella-royal-ballroom",
+      "itemIds": [
+        "cinderella-prince-dance"
+      ]
     },
     {
       "id": "rel-cinderella-herald-slipper",
@@ -4635,30 +4710,6 @@
       "placeId": ""
     },
     {
-      "id": "rel-snow-forest-flight",
-      "subjectId": "snow-white",
-      "objectId": "snow-white",
-      "predicate": "traverses",
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-08T11:30Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {
-        "from": "Deep Forest",
-        "toward": "Seven Dwarfs' Cottage"
-      },
-      "placeId": "snow-forest-ridge-place"
-    },
-    {
       "id": "rel-pigs-first-group",
       "subjectId": "pigs-first",
       "objectId": "pigs-brothers",
@@ -4683,14 +4734,6 @@
       "placeId": ""
     },
     {
-      "id": "rel-pigs-vendors-market",
-      "subjectId": "pigs-material-vendors",
-      "objectId": "pigs-material-vendors",
-      "predicate": "sellsMaterials",
-      "attributes": {},
-      "placeId": "pigs-market-place"
-    },
-    {
       "id": "rel-snow-coffin-contains",
       "subjectId": "snow-white",
       "objectId": "snow-coffin-object",
@@ -4700,9 +4743,9 @@
     },
     {
       "id": "rel-event-snow-birth-action",
-      "subjectId": "snow-white",
+      "subjectId": "snow-royal-family",
       "objectId": "snow-white",
-      "predicate": "isBorn",
+      "predicate": "welcomes",
       "itemIds": [
         "snow-birth"
       ],
@@ -4724,9 +4767,9 @@
     },
     {
       "id": "rel-event-snow-childhood-action",
-      "subjectId": "snow-white",
+      "subjectId": "snow-royal-family",
       "objectId": "snow-white",
-      "predicate": "growsUp",
+      "predicate": "raises",
       "itemIds": [
         "snow-childhood"
       ],
@@ -4757,7 +4800,7 @@
     {
       "id": "rel-event-cinderella-mother-action",
       "subjectId": "cinderella",
-      "objectId": "cinderella",
+      "objectId": "cinderella-late-mother",
       "predicate": "mourns",
       "itemIds": [
         "cinderella-mother"
@@ -4779,34 +4822,10 @@
       "placeId": "place-cinderella-cinderella-s-house"
     },
     {
-      "id": "rel-event-cinderella-stepfamily-arrives-action",
-      "subjectId": "cinderella-father",
-      "objectId": "cinderella-father",
-      "predicate": "remarries",
-      "itemIds": [
-        "cinderella-stepfamily-arrives"
-      ],
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "0997-06-01",
-          "precision": "day",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": null,
-          "utcOffset": null,
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {},
-      "placeId": "place-cinderella-cinderella-s-house"
-    },
-    {
       "id": "rel-event-cinderella-hardship-action",
       "subjectId": "cinderella",
-      "objectId": "cinderella",
-      "predicate": "labors",
+      "objectId": "cinderella-stepmother",
+      "predicate": "serves",
       "itemIds": [
         "cinderella-hardship"
       ],
@@ -4836,9 +4855,9 @@
     },
     {
       "id": "rel-event-pigs-childhood-action",
-      "subjectId": "pigs-brothers",
+      "subjectId": "pigs-mother",
       "objectId": "pigs-brothers",
-      "predicate": "growsUp",
+      "predicate": "raises",
       "itemIds": [
         "pigs-childhood"
       ],
@@ -4868,9 +4887,9 @@
     },
     {
       "id": "rel-event-pigs-leave-home-action",
-      "subjectId": "pigs-brothers",
+      "subjectId": "pigs-mother",
       "objectId": "pigs-brothers",
-      "predicate": "departs",
+      "predicate": "sendsForth",
       "itemIds": [
         "pigs-leave-home"
       ],
@@ -4892,9 +4911,9 @@
     },
     {
       "id": "rel-event-pigs-acquire-straw-action",
-      "subjectId": "pigs-first",
+      "subjectId": "pigs-material-vendors",
       "objectId": "pigs-first",
-      "predicate": "buysStraw",
+      "predicate": "sells",
       "itemIds": [
         "pigs-acquire-straw"
       ],
@@ -4939,30 +4958,6 @@
       "placeId": "place-three-little-pigs-straw-seller-s-field"
     },
     {
-      "id": "rel-event-snow-mirror-action",
-      "subjectId": "snow-queen",
-      "objectId": "snow-queen",
-      "predicate": "consultsMirror",
-      "itemIds": [
-        "snow-mirror"
-      ],
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-03T08:20Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {},
-      "placeId": "place-snow-white-queen-s-mirror-chamber"
-    },
-    {
       "id": "rel-event-snow-mirror-object-action",
       "subjectId": "snow-queen",
       "objectId": "snow-mirror-object",
@@ -4988,9 +4983,9 @@
     },
     {
       "id": "rel-event-pigs-acquire-sticks-action",
-      "subjectId": "pigs-second",
+      "subjectId": "pigs-material-vendors",
       "objectId": "pigs-second",
-      "predicate": "buysSticks",
+      "predicate": "sells",
       "itemIds": [
         "pigs-acquire-sticks"
       ],
@@ -5036,9 +5031,9 @@
     },
     {
       "id": "rel-event-pigs-acquire-bricks-action",
-      "subjectId": "pigs-third",
+      "subjectId": "pigs-material-vendors",
       "objectId": "pigs-third",
-      "predicate": "buysBricks",
+      "predicate": "sells",
       "itemIds": [
         "pigs-acquire-bricks"
       ],
@@ -5085,7 +5080,7 @@
     {
       "id": "rel-event-pigs-brick-build-action",
       "subjectId": "pigs-third",
-      "objectId": "pigs-third",
+      "objectId": "pigs-brick-house",
       "predicate": "builds",
       "itemIds": [
         "pigs-brick-build"
@@ -5115,33 +5110,9 @@
       "placeId": "pigs-brick-place"
     },
     {
-      "id": "rel-event-snow-huntsman-order-action",
-      "subjectId": "snow-queen",
-      "objectId": "snow-queen",
-      "predicate": "ordersKilling",
-      "itemIds": [
-        "snow-huntsman-order"
-      ],
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-05T09:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {},
-      "placeId": "place-snow-white-castle-great-hall"
-    },
-    {
       "id": "rel-event-pigs-straw-house-action",
       "subjectId": "pigs-first",
-      "objectId": "pigs-first",
+      "objectId": "pigs-straw-house",
       "predicate": "builds",
       "itemIds": [
         "pigs-straw-house"
@@ -5163,34 +5134,10 @@
       "placeId": "place-three-little-pigs-straw-house-meadow"
     },
     {
-      "id": "rel-event-snow-huntsman-spares-action",
-      "subjectId": "snow-huntsman",
-      "objectId": "snow-huntsman",
-      "predicate": "sparesSnowWhite",
-      "itemIds": [
-        "snow-huntsman-spares"
-      ],
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-07T10:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {},
-      "placeId": "place-snow-white-deep-forest"
-    },
-    {
       "id": "rel-event-snow-forest-flight-action",
       "subjectId": "snow-white",
-      "objectId": "snow-white",
-      "predicate": "flees",
+      "objectId": "snow-queen",
+      "predicate": "evades",
       "itemIds": [
         "snow-forest-flight"
       ],
@@ -5213,7 +5160,7 @@
     {
       "id": "rel-event-pigs-stick-house-action",
       "subjectId": "pigs-second",
-      "objectId": "pigs-second",
+      "objectId": "pigs-stick-house",
       "predicate": "builds",
       "itemIds": [
         "pigs-stick-house"
@@ -5237,8 +5184,8 @@
     {
       "id": "rel-event-snow-finds-cottage-action",
       "subjectId": "snow-white",
-      "objectId": "snow-white",
-      "predicate": "seeksShelter",
+      "objectId": "snow-dwarfs-cottage",
+      "predicate": "enters",
       "itemIds": [
         "snow-finds-cottage"
       ],
@@ -5259,42 +5206,10 @@
       "placeId": "snow-cottage-place"
     },
     {
-      "id": "rel-event-snow-dwarfs-shelter-action",
-      "subjectId": "snow-dwarfs",
-      "objectId": "snow-dwarfs",
-      "predicate": "sheltersSnowWhite",
-      "itemIds": [
-        "snow-dwarfs-shelter"
-      ],
-      "time": {
-        "type": "interval",
-        "start": {
-          "value": "1000-04-10T19:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": {
-          "value": "1000-05-04T07:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        }
-      },
-      "attributes": {},
-      "placeId": "snow-cottage-place"
-    },
-    {
       "id": "rel-event-cinderella-invitation-action",
       "subjectId": "cinderella-herald",
-      "objectId": "cinderella-herald",
-      "predicate": "deliversInvitation",
+      "objectId": "cinderella",
+      "predicate": "invites",
       "itemIds": [
         "cinderella-invitation"
       ],
@@ -5317,8 +5232,8 @@
     {
       "id": "rel-event-snow-queen-discovers-action",
       "subjectId": "snow-queen",
-      "objectId": "snow-queen",
-      "predicate": "discoversSurvival",
+      "objectId": "snow-white",
+      "predicate": "discovers",
       "itemIds": [
         "snow-queen-discovers"
       ],
@@ -5341,8 +5256,8 @@
     {
       "id": "rel-event-cinderella-denied-action",
       "subjectId": "cinderella-stepmother",
-      "objectId": "cinderella-stepmother",
-      "predicate": "forbidsAttendance",
+      "objectId": "cinderella",
+      "predicate": "forbids",
       "itemIds": [
         "cinderella-denied"
       ],
@@ -5365,8 +5280,8 @@
     {
       "id": "rel-event-cinderella-extra-chores-action",
       "subjectId": "cinderella-stepmother",
-      "objectId": "cinderella-stepmother",
-      "predicate": "assignsChores",
+      "objectId": "cinderella",
+      "predicate": "assigns",
       "itemIds": [
         "cinderella-extra-chores"
       ],
@@ -5389,8 +5304,8 @@
     {
       "id": "rel-event-snow-disguises-action",
       "subjectId": "snow-queen",
-      "objectId": "snow-queen",
-      "predicate": "disguisesSelf",
+      "objectId": "snow-peddler-disguise",
+      "predicate": "adopts",
       "itemIds": [
         "snow-disguises"
       ],
@@ -5421,8 +5336,8 @@
     {
       "id": "rel-event-snow-laces-action",
       "subjectId": "snow-queen",
-      "objectId": "snow-queen",
-      "predicate": "attacksWithLaces",
+      "objectId": "snow-white",
+      "predicate": "attacks",
       "itemIds": [
         "snow-laces"
       ],
@@ -5467,34 +5382,10 @@
       "placeId": "snow-cottage-place"
     },
     {
-      "id": "rel-event-snow-laces-recovery-action",
-      "subjectId": "snow-dwarfs",
-      "objectId": "snow-dwarfs",
-      "predicate": "revivesSnowWhite",
-      "itemIds": [
-        "snow-laces-recovery"
-      ],
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-18T18:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {},
-      "placeId": "snow-cottage-place"
-    },
-    {
       "id": "rel-event-pigs-wolf-straw-action",
       "subjectId": "pigs-wolf",
-      "objectId": "pigs-wolf",
-      "predicate": "attacksStrawHouse",
+      "objectId": "pigs-straw-house",
+      "predicate": "attacks",
       "itemIds": [
         "pigs-wolf-straw"
       ],
@@ -5513,54 +5404,6 @@
       },
       "attributes": {},
       "placeId": "place-three-little-pigs-straw-house-meadow"
-    },
-    {
-      "id": "rel-event-pigs-first-flees-action",
-      "subjectId": "pigs-first",
-      "objectId": "pigs-first",
-      "predicate": "flees",
-      "itemIds": [
-        "pigs-first-flees"
-      ],
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-20T08:30Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {},
-      "placeId": "place-three-little-pigs-pigwood-escape-path"
-    },
-    {
-      "id": "rel-event-cinderella-transformation-action",
-      "subjectId": "cinderella-fairy",
-      "objectId": "cinderella-fairy",
-      "predicate": "transformsCinderella",
-      "itemIds": [
-        "cinderella-transformation"
-      ],
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-22T18:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {},
-      "placeId": "place-cinderella-garden-and-pumpkin-patch"
     },
     {
       "id": "rel-event-cinderella-transformation-object-action",
@@ -5589,8 +5432,8 @@
     {
       "id": "rel-event-cinderella-coach-created-action",
       "subjectId": "cinderella-fairy",
-      "objectId": "cinderella-fairy",
-      "predicate": "createsCoach",
+      "objectId": "cinderella-coach",
+      "predicate": "creates",
       "itemIds": [
         "cinderella-coach-created"
       ],
@@ -5613,8 +5456,8 @@
     {
       "id": "rel-event-pigs-wolf-sticks-action",
       "subjectId": "pigs-wolf",
-      "objectId": "pigs-wolf",
-      "predicate": "attacksStickHouse",
+      "objectId": "pigs-stick-house",
+      "predicate": "attacks",
       "itemIds": [
         "pigs-wolf-sticks"
       ],
@@ -5635,34 +5478,10 @@
       "placeId": "place-three-little-pigs-stick-house-grove"
     },
     {
-      "id": "rel-event-pigs-two-flee-action",
-      "subjectId": "pigs-brothers",
-      "objectId": "pigs-brothers",
-      "predicate": "flees",
-      "itemIds": [
-        "pigs-two-flee"
-      ],
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-23T09:30Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {},
-      "placeId": "place-three-little-pigs-brick-house-approach"
-    },
-    {
       "id": "rel-event-snow-comb-action",
       "subjectId": "snow-queen",
-      "objectId": "snow-queen",
-      "predicate": "attacksWithComb",
+      "objectId": "snow-white",
+      "predicate": "attacks",
       "itemIds": [
         "snow-comb"
       ],
@@ -5707,34 +5526,10 @@
       "placeId": "snow-cottage-place"
     },
     {
-      "id": "rel-event-snow-comb-recovery-action",
-      "subjectId": "snow-dwarfs",
-      "objectId": "snow-dwarfs",
-      "predicate": "revivesSnowWhite",
-      "itemIds": [
-        "snow-comb-recovery"
-      ],
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-25T20:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {},
-      "placeId": "snow-cottage-place"
-    },
-    {
       "id": "rel-event-cinderella-first-ball-action",
       "subjectId": "cinderella",
-      "objectId": "cinderella",
-      "predicate": "attendsBall",
+      "objectId": "cinderella-prince",
+      "predicate": "meets",
       "itemIds": [
         "cinderella-first-ball"
       ],
@@ -5763,34 +5558,10 @@
       "placeId": "place-cinderella-royal-ballroom"
     },
     {
-      "id": "rel-event-cinderella-prince-dance-action",
-      "subjectId": "cinderella-prince",
-      "objectId": "cinderella-prince",
-      "predicate": "dancesWithCinderella",
-      "itemIds": [
-        "cinderella-prince-dance"
-      ],
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-26T21:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {},
-      "placeId": "place-cinderella-royal-ballroom"
-    },
-    {
       "id": "rel-event-cinderella-first-return-action",
       "subjectId": "cinderella",
-      "objectId": "cinderella",
-      "predicate": "returnsHome",
+      "objectId": "cinderella-household",
+      "predicate": "rejoins",
       "itemIds": [
         "cinderella-first-return"
       ],
@@ -5813,8 +5584,8 @@
     {
       "id": "rel-event-pigs-brick-siege-action",
       "subjectId": "pigs-wolf",
-      "objectId": "pigs-wolf",
-      "predicate": "besiegesBrickHouse",
+      "objectId": "pigs-brick-house",
+      "predicate": "besieges",
       "itemIds": [
         "pigs-brick-siege"
       ],
@@ -5845,8 +5616,8 @@
     {
       "id": "rel-event-pigs-wolf-roof-action",
       "subjectId": "pigs-wolf",
-      "objectId": "pigs-wolf",
-      "predicate": "climbsOntoRoof",
+      "objectId": "pigs-brick-house",
+      "predicate": "climbs",
       "itemIds": [
         "pigs-wolf-roof"
       ],
@@ -5869,8 +5640,8 @@
     {
       "id": "rel-event-pigs-chimney-action",
       "subjectId": "pigs-wolf",
-      "objectId": "pigs-wolf",
-      "predicate": "descendsThroughChimney",
+      "objectId": "pigs-brick-house",
+      "predicate": "enters",
       "itemIds": [
         "pigs-chimney"
       ],
@@ -5893,8 +5664,8 @@
     {
       "id": "rel-event-pigs-safe-action",
       "subjectId": "pigs-brothers",
-      "objectId": "pigs-brothers",
-      "predicate": "takesShelter",
+      "objectId": "pigs-brick-house",
+      "predicate": "occupies",
       "itemIds": [
         "pigs-safe"
       ],
@@ -5913,54 +5684,6 @@
       },
       "attributes": {},
       "placeId": "pigs-brick-place"
-    },
-    {
-      "id": "rel-event-snow-apple-prepared-action",
-      "subjectId": "snow-queen",
-      "objectId": "snow-queen",
-      "predicate": "poisonsApple",
-      "itemIds": [
-        "snow-apple-prepared"
-      ],
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-05-02T15:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {},
-      "placeId": "place-snow-white-queen-s-workshop"
-    },
-    {
-      "id": "rel-event-snow-apple-action",
-      "subjectId": "snow-white",
-      "objectId": "snow-white",
-      "predicate": "bitesPoisonedApple",
-      "itemIds": [
-        "snow-apple"
-      ],
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-05-04T11:30Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {},
-      "placeId": "snow-cottage-place"
     },
     {
       "id": "rel-event-snow-apple-object-action",
@@ -5985,38 +5708,6 @@
       },
       "attributes": {},
       "placeId": "snow-cottage-place"
-    },
-    {
-      "id": "rel-event-snow-coffin-action",
-      "subjectId": "snow-dwarfs",
-      "objectId": "snow-dwarfs",
-      "predicate": "keepsVigil",
-      "itemIds": [
-        "snow-coffin"
-      ],
-      "time": {
-        "type": "interval",
-        "start": {
-          "value": "1000-05-05T18:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": {
-          "value": "1000-05-14T09:30Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        }
-      },
-      "attributes": {},
-      "placeId": "snow-clearing-place"
     },
     {
       "id": "rel-event-snow-coffin-object-action",
@@ -6053,8 +5744,8 @@
     {
       "id": "rel-event-cinderella-second-ball-action",
       "subjectId": "cinderella",
-      "objectId": "cinderella",
-      "predicate": "returnsToBall",
+      "objectId": "cinderella-prince",
+      "predicate": "meets",
       "itemIds": [
         "cinderella-second-ball"
       ],
@@ -6085,8 +5776,8 @@
     {
       "id": "rel-event-cinderella-midnight-flight-action",
       "subjectId": "cinderella",
-      "objectId": "cinderella",
-      "predicate": "flees",
+      "objectId": "cinderella-prince",
+      "predicate": "leaves",
       "itemIds": [
         "cinderella-midnight-flight"
       ],
@@ -6105,30 +5796,6 @@
       },
       "attributes": {},
       "placeId": "cinderella-palace-steps-place"
-    },
-    {
-      "id": "rel-event-cinderella-slipper-action",
-      "subjectId": "cinderella",
-      "objectId": "cinderella",
-      "predicate": "losesSlipper",
-      "itemIds": [
-        "cinderella-slipper"
-      ],
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-05-07T00:02Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {},
-      "placeId": "place-cinderella-royal-carriage-road"
     },
     {
       "id": "rel-event-cinderella-slipper-object-action",
@@ -6156,9 +5823,9 @@
     },
     {
       "id": "rel-event-cinderella-search-action",
-      "subjectId": "cinderella-herald",
+      "subjectId": "cinderella-prince",
       "objectId": "cinderella-herald",
-      "predicate": "searchesForOwner",
+      "predicate": "dispatches",
       "itemIds": [
         "cinderella-search"
       ],
@@ -6187,34 +5854,10 @@
       "placeId": "place-cinderella-ashenvale-village-search-route"
     },
     {
-      "id": "rel-event-snow-prince-arrives-action",
-      "subjectId": "snow-prince",
-      "objectId": "snow-prince",
-      "predicate": "encountersCoffin",
-      "itemIds": [
-        "snow-prince-arrives"
-      ],
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-05-14T09:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {},
-      "placeId": "snow-clearing-place"
-    },
-    {
       "id": "rel-event-snow-revival-action",
       "subjectId": "snow-white",
-      "objectId": "snow-white",
-      "predicate": "revives",
+      "objectId": "snow-apple-object",
+      "predicate": "expels",
       "itemIds": [
         "snow-revival"
       ],
@@ -6237,8 +5880,8 @@
     {
       "id": "rel-event-cinderella-stepsisters-try-action",
       "subjectId": "cinderella-stepsisters",
-      "objectId": "cinderella-stepsisters",
-      "predicate": "triesSlipper",
+      "objectId": "cinderella-slipper-object",
+      "predicate": "tries",
       "itemIds": [
         "cinderella-stepsisters-try"
       ],
@@ -6261,8 +5904,8 @@
     {
       "id": "rel-event-cinderella-asks-to-try-action",
       "subjectId": "cinderella",
-      "objectId": "cinderella",
-      "predicate": "requestsSlipperTrial",
+      "objectId": "cinderella-herald",
+      "predicate": "requests",
       "itemIds": [
         "cinderella-asks-to-try"
       ],
@@ -6285,8 +5928,8 @@
     {
       "id": "rel-event-cinderella-fit-action",
       "subjectId": "cinderella",
-      "objectId": "cinderella",
-      "predicate": "fitsSlipper",
+      "objectId": "cinderella-slipper-object",
+      "predicate": "wears",
       "itemIds": [
         "cinderella-fit"
       ],
@@ -6309,7 +5952,7 @@
     {
       "id": "rel-event-snow-resolution-action",
       "subjectId": "snow-white",
-      "objectId": "snow-white",
+      "objectId": "snow-prince",
       "predicate": "marries",
       "itemIds": [
         "snow-resolution"
@@ -6333,7 +5976,7 @@
     {
       "id": "rel-event-cinderella-resolution-action",
       "subjectId": "cinderella",
-      "objectId": "cinderella",
+      "objectId": "cinderella-prince",
       "predicate": "marries",
       "itemIds": [
         "cinderella-resolution"
@@ -6353,6 +5996,30 @@
       },
       "attributes": {},
       "placeId": "cinderella-palace-place"
+    },
+    {
+      "id": "rel-pigs-first-shelter-third",
+      "subjectId": "pigs-first",
+      "objectId": "pigs-third",
+      "predicate": "seeksShelterWith",
+      "time": {
+        "type": "instant",
+        "start": {
+          "value": "1000-04-23T09:30Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": null
+      },
+      "attributes": {},
+      "placeId": "place-three-little-pigs-brick-house-approach",
+      "itemIds": [
+        "pigs-two-flee"
+      ]
     }
   ],
   "extensions": {
