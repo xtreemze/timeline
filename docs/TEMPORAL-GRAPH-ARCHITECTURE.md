@@ -217,7 +217,7 @@ Edges are directed subject–action–object statements:
 }
 ```
 
-The action label is stored in `predicate` and contains the action only. It must not contain a place name, date/time, or spatial/temporal suffix such as “at”, “near” or “during”. Both endpoints must reference reusable entity nodes. `placeId` and `time` are independent edge properties. Chronology items and stories are never graph endpoints: `relationships[].itemIds[]` records which timeline items contextualize an action, while story membership stays in `story.itemIds[]`. Referential normalization rejects invalid entity endpoints or unknown place references.
+The action label is stored in `predicate` and contains the action only. It must not contain a place name, date/time, or spatial/temporal suffix such as “at”, “near” or “during”. Both endpoints must reference reusable entity nodes, and they must be different entities. Self-loop edges (`subjectId === objectId`) are structurally invalid: if an action has no meaningful second entity, it remains chronology context rather than being represented by a synthetic loop. `placeId` and `time` are independent edge properties. Chronology items and stories are never graph endpoints: `relationships[].itemIds[]` records which timeline items contextualize an action, while story membership stays in `story.itemIds[]`. Referential normalization rejects invalid entity endpoints or unknown place references.
 
 Authoring SHOULD give a relation an instant or interval whenever its temporal extent is known. The editor therefore defaults new relations to a dated instant. “Persistent / no temporal anchor” is an explicit exception for genuinely timeless topology rather than the default way to avoid entering a date.
 
