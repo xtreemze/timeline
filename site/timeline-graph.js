@@ -274,7 +274,7 @@
         ? group.candidates.filter((candidate) => candidate.storyId === itemStoryId)
         : [];
       const globalEntities = group.candidates.filter((candidate) => !candidate.storyId);
-      const candidates = sameStory.length ? [...sameStory, ...globalEntities] : group.candidates;
+      const candidates = itemStoryId ? [...sameStory, ...globalEntities] : group.candidates;
       return {
         label: group.label,
         entityIds: [...new Set(candidates.map((candidate) => candidate.id))]
