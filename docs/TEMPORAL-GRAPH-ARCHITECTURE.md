@@ -91,6 +91,13 @@ Top-level data may include:
       "name": "Example Person",
       "identifiers": [],
       "attributes": {}
+    },
+    {
+      "id": "place-a",
+      "type": "place",
+      "name": "Example Place",
+      "identifiers": [],
+      "attributes": {}
     }
   ],
   "relationships": [
