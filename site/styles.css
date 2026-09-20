@@ -203,7 +203,6 @@ main > * {
 }
 .app-shell.is-event-focused .timeline-heading-row,
 .app-shell.is-event-focused .timeline-toolbar,
-.app-shell.is-event-focused .story-focus,
 .app-shell.is-event-focused .empty-state,
 .app-shell.is-event-focused .timeline-list-heading,
 .app-shell.is-event-focused .timeline-list {
@@ -930,21 +929,88 @@ geolocation {
 .search-field input, .compact-field select { padding: .58rem .65rem; font-size: .76rem; }
 
 .story-focus {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1rem;
+  display: flex;
   align-items: center;
-  margin: 1rem 0;
-  padding: 1rem;
-  border: 1px solid color-mix(in srgb, var(--story) 45%, var(--line));
-  border-radius: .85rem;
-  background: color-mix(in srgb, var(--story) 7%, var(--paper));
+  min-width: 0;
+  gap: .28rem;
+  padding-left: .34rem;
+  border-left: 1px solid color-mix(in srgb, var(--story) 42%, var(--line));
 }
-.story-focus .kicker { color: var(--story); }
-.story-focus h3 { margin: 0; font-size: 1.05rem; letter-spacing: -.025em; }
-.story-focus p { margin: .3rem 0 0; color: var(--muted); font-size: .76rem; line-height: 1.45; }
-.story-focus-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: .4rem; }
-.story-focus-controls > span { min-width: 48px; text-align: center; color: var(--muted); font: 750 .7rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.story-focus[hidden] { display: none !important; }
+.story-focus-copy {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  max-width: min(16rem, 30vw);
+  gap: .28rem;
+}
+.story-focus-context {
+  flex: 0 0 auto;
+  color: var(--story);
+  font: 780 .56rem/1 "Monaspace Krypton Timeline", ui-monospace, monospace;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.story-focus h3,
+.story-focus strong {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  color: var(--ink);
+  font-size: .72rem;
+  font-weight: 790;
+  line-height: 1.15;
+  letter-spacing: -.015em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.story-focus-controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: .16rem;
+}
+.story-focus-controls > span {
+  min-width: 34px;
+  padding-inline: .1rem;
+  text-align: center;
+  color: var(--muted);
+  font: 750 .58rem/1 "Monaspace Krypton Timeline", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.story-nav-button {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: .42rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.story-nav-button:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--story) 10%, var(--paper-2));
+  color: var(--ink);
+  outline: none;
+}
+.story-nav-button:focus-visible {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--focus) 62%, transparent);
+}
+.story-nav-button:disabled {
+  opacity: .32;
+  cursor: default;
+}
+.story-nav-button .semantic-icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+}
 
 .empty-state {
   display: grid;
