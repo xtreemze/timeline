@@ -320,7 +320,7 @@ Typical edges:
 - counterclaim `opposes` claim;
 - thesis `reliesOn` claim.
 
-Unlike a traditional static proof chart, Timeline must preserve temporal scope on nodes and edges where relevant.
+Unlike a traditional static proof chart, Timeline keeps nodes entity-only and preserves temporal/spatial scope on relationships through structured edge properties (`time` and `placeId`) where relevant.
 
 ## 12. Review and reporting
 
