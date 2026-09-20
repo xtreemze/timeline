@@ -553,8 +553,16 @@
         }
       }
       if (els.presentationFullscreenToggle) {
+        const label = active ? "Exit full screen" : "Enter full screen";
         els.presentationFullscreenToggle.setAttribute("aria-pressed", String(active));
-        els.presentationFullscreenToggle.textContent = active ? "Exit full screen" : "Present full screen";
+        els.presentationFullscreenToggle.setAttribute("aria-label", label);
+        els.presentationFullscreenToggle.title = label;
+        const srLabel = els.presentationFullscreenToggle.querySelector(".sr-only");
+        if (srLabel) srLabel.textContent = label;
+        const icon = presentation.createIcon(active ? "minimize" : "fullscreen", { size: 20 });
+        const currentIcon = els.presentationFullscreenToggle.querySelector(":scope > .semantic-icon");
+        if (currentIcon) currentIcon.replaceWith(icon);
+        else els.presentationFullscreenToggle.prepend(icon);
       }
       syncContextualPresentationPanels();
       if (els.viewControls) els.viewControls.hidden = !(active || ui.viewControlsOpen);
