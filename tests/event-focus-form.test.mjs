@@ -346,7 +346,9 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   ]);
 
   assert.doesNotMatch(html, /class="hero"|class="site-header"|<footer>/);
-  assert.match(html, /class="project-bar app-command-bar"/);
+  assert.doesNotMatch(html, /class="project-bar app-command-bar"/);
+  assert.match(html, /id="timeline-view"[\s\S]*class="timeline-project-heading"/);
+  assert.match(html, /id="project-menu-toggle"[^>]*popovertarget="project-menu"[\s\S]*<img src="\.\/icon\.svg"/);
   assert.match(html, /class="app-tool-dock"/);
   assert.match(html, /id="editor-toggle"[^>]*data-semantic-icon="note"/);
   assert.doesNotMatch(html, /data-open-panel="items"|data-open-panel="stories"/);
@@ -375,6 +377,10 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.doesNotMatch(timelineCss, /repeat\(12,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(timelineCss, /timeline-focus-view[\s\S]*grid-template-columns:\s*repeat\(6,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(timelineCss, /Compact application presentation contract/);
+  assert.match(timelineCss, /\.timeline-project-heading\s*\{[\s\S]*position:\s*absolute/);
+  assert.match(timelineCss, /\.timeline-view\[data-orientation="portrait"\] \.timeline-project-title input[\s\S]*writing-mode:\s*vertical-rl/);
+  assert.match(timelineCss, /data-timeline-orientation="horizontal"[\s\S]*\.timeline-project-heading[\s\S]*bottom:\s*calc\(var\(--timeline-context-edge-span\) - 2\.8rem\)/);
+  assert.match(app, /function positionProjectMenu\(\)[\s\S]*projectMenuToggle\.getBoundingClientRect\(\)/);
   assert.match(timelineCss, /#presentation-stage[\s\S]*display:\s*block\s*!important/);
   assert.match(timelineCss, /timeline-focus-view\[popover\][\s\S]*position:/);
   assert.match(timelineCss, /inline-size:\s*min\(640px,\s*calc\(100dvw - 6\.5rem\)\)/);

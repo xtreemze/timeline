@@ -2069,12 +2069,13 @@ body {
 .project-menu-toggle .semantic-icon { flex: 0 0 auto; }
 
 .project-menu[popover] {
-  inset: max(3.75rem, calc(env(safe-area-inset-top) + 3.45rem))
-    max(.4rem, env(safe-area-inset-right))
-    auto
-    auto;
+  inset: auto;
+  top: var(--project-menu-top, max(.5rem, env(safe-area-inset-top)));
+  left: var(--project-menu-left, max(.5rem, env(safe-area-inset-left)));
+  right: auto;
+  bottom: auto;
   width: min(340px, calc(100dvw - .8rem));
-  max-height: min(72dvh, 620px);
+  max-height: min(72dvh, calc(100dvh - var(--project-menu-top, .5rem) - .5rem), 620px);
   margin: 0;
   padding: .45rem;
   overflow: auto;
