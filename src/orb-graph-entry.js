@@ -4,6 +4,9 @@ const LARGE_GRAPH_NODE_THRESHOLD = 1200;
 const GPU_LAYOUT_NODE_THRESHOLD = 3000;
 const TOUCH_NODE_HOLD_MS = 420;
 const TOUCH_NODE_MOVE_TOLERANCE_PX = 12;
+const TOUCH_DOUBLE_TAP_MS = 320;
+const TOUCH_DOUBLE_TAP_DISTANCE_PX = 28;
+const GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX = -500;
 const INTERACTION_SETTLE_MS = 2400;
 const DRAG_ALPHA_TARGET = 0.12;
 const RELEASE_ALPHA_TARGET = 0.065;
@@ -90,8 +93,11 @@ function create(container, handlers = {}) {
   let lastSizeClass = "";
   let firstRender = true;
   let touchHold = null;
+  let touchTap = null;
+  let lastTouchTap = null;
   let touchReleaseFallback = 0;
   let touchDragBlockedUntilRelease = false;
+  let suppressGraphClickUntil = 0;
   let selectedGraphObject = null;
   let interactionSettleTimer = 0;
   let forceNodeCount = 0;
@@ -247,6 +253,42 @@ function create(container, handlers = {}) {
     orb.setSettings({ interaction: { isZoomEnabled: enabled } });
   }
 
+  function zoomGraphAtClientPoint(point) {
+    if (!point || !orb.canvas) return;
+    const event = new WheelEvent("wheel", {
+      clientX: point.x,
+      clientY: point.y,
+      deltaY: GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX,
+      deltaMode: 0,
+      bubbles: true,
+      cancelable: true
+    });
+    orb.canvas.dispatchEvent(event);
+  }
+
+  function registerTouchTap(event, tap) {
+    if (!tap || tap.cancelled) return false;
+    const now = performance.now();
+    const point = eventClientPoint(event);
+    const previous = lastTouchTap;
+    touchTap = null;
+    if (!point) return false;
+
+    if (
+      previous &&
+      now - previous.time <= TOUCH_DOUBLE_TAP_MS &&
+      Math.hypot(point.x - previous.x, point.y - previous.y) <= TOUCH_DOUBLE_TAP_DISTANCE_PX
+    ) {
+      lastTouchTap = null;
+      suppressGraphClickUntil = now + 450;
+      zoomGraphAtClientPoint(point);
+      return true;
+    }
+
+    lastTouchTap = { time: now, x: point.x, y: point.y };
+    return false;
+  }
+
   function selectGraphObject(object) {
     if (
       selectedGraphObject &&
@@ -334,6 +376,8 @@ function create(container, handlers = {}) {
     touchHold.timer = globalThis.setTimeout(() => {
       if (!touchHold || touchHold.node !== node || activeTouchPointers.size > 1) return;
       touchHold.activated = true;
+      touchTap = null;
+      lastTouchTap = null;
       touchDragBlockedUntilRelease = false;
       container.dataset.touchDrag = "active";
       setDragEnabled(true);
@@ -352,7 +396,14 @@ function create(container, handlers = {}) {
   function onPointerDown(event) {
     if (event.pointerType !== "touch") return;
     activeTouchPointers.add(event.pointerId);
+    touchTap = {
+      pointerId: event.pointerId,
+      startClientPoint: eventClientPoint(event),
+      cancelled: false
+    };
     if (activeTouchPointers.size > 1) {
+      touchTap = null;
+      lastTouchTap = null;
       if (touchHold && !touchHold.activated) cancelPendingTouchHold();
       touchDragBlockedUntilRelease = true;
       setDragEnabled(false);
@@ -365,7 +416,18 @@ function create(container, handlers = {}) {
   }
 
   function onPointerMove(event) {
-    if (event.pointerType !== "touch" || !touchHold) return;
+    if (event.pointerType !== "touch") return;
+    if (touchTap?.pointerId === event.pointerId && !touchTap.cancelled) {
+      const origin = touchTap.startClientPoint;
+      if (origin) {
+        const distance = Math.hypot(event.clientX - origin.x, event.clientY - origin.y);
+        if (distance > TOUCH_NODE_MOVE_TOLERANCE_PX) {
+          touchTap.cancelled = true;
+          lastTouchTap = null;
+        }
+      }
+    }
+    if (!touchHold) return;
     if (touchHold.activated) {
       event.preventDefault();
       return;
@@ -385,13 +447,26 @@ function create(container, handlers = {}) {
 
   function onPointerUp(event) {
     if (event.pointerType !== "touch") return;
+    const tap = touchTap?.pointerId === event.pointerId ? touchTap : null;
     activeTouchPointers.delete(event.pointerId);
-    if (activeTouchPointers.size) return;
+    if (activeTouchPointers.size) {
+      touchTap = null;
+      return;
+    }
     if (touchHold?.activated) {
+      touchTap = null;
+      lastTouchTap = null;
       scheduleTouchReleaseFallback();
       return;
     }
     finishTouchGesture();
+    if (event.type === "pointercancel") {
+      touchTap = null;
+      lastTouchTap = null;
+      return;
+    }
+    if (tap && !tap.cancelled) registerTouchTap(event, tap);
+    else touchTap = null;
   }
 
   function onTouchEnd(event) {
@@ -403,6 +478,13 @@ function create(container, handlers = {}) {
     finishTouchGesture();
   }
 
+  const onClickCapture = (event) => {
+    if (performance.now() >= suppressGraphClickUntil) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+
+  container.addEventListener("click", onClickCapture, { capture: true });
   container.addEventListener("pointerdown", onPointerDown, { capture: true });
   container.addEventListener("pointermove", onPointerMove, { capture: true });
   container.addEventListener("pointerup", onPointerUp, { capture: true });
@@ -809,6 +891,7 @@ function create(container, handlers = {}) {
       finishTouchGesture();
       clearInteractionSettleTimer();
       clearTopologyTimers();
+      container.removeEventListener("click", onClickCapture, true);
       container.removeEventListener("pointerdown", onPointerDown, true);
       container.removeEventListener("pointermove", onPointerMove, true);
       container.removeEventListener("pointerup", onPointerUp, true);
