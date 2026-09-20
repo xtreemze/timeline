@@ -4450,3 +4450,78 @@
     grid-row: 4 !important;
   }
 }
+
+
+/* The semantic zoom slider follows the timeline axis itself.
+   Portrait is a true vertical range control; landscape keeps the horizontal baseline. */
+.timeline-view[data-orientation="portrait"] .timeline-zoom-controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  justify-content: center;
+  width: 74px;
+  min-width: 74px;
+  height: clamp(156px, 28dvh, 228px);
+  padding: .4rem .3rem;
+}
+
+.timeline-view[data-orientation="portrait"] .timeline-zoom-control {
+  display: grid;
+  grid-template-columns: 24px minmax(34px, auto);
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+  column-gap: .24rem;
+  width: auto;
+  height: 100%;
+  min-height: 0;
+}
+
+.timeline-view[data-orientation="portrait"] .timeline-zoom-control input[type="range"] {
+  writing-mode: vertical-lr;
+  direction: ltr;
+  width: 22px;
+  min-width: 22px;
+  height: 100%;
+  min-height: 128px;
+  margin: 0;
+  cursor: ns-resize;
+  touch-action: pan-x;
+}
+
+.timeline-view[data-orientation="portrait"] .timeline-zoom-scale {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.timeline-view[data-orientation="portrait"] .timeline-zoom-scale span {
+  min-width: 0;
+  text-align: left;
+}
+
+.timeline-view[data-orientation="portrait"] .timeline-zoom-scale span:first-child {
+  align-self: start;
+}
+
+.timeline-view[data-orientation="portrait"] .timeline-zoom-scale span:nth-child(2) {
+  align-self: center;
+  text-align: left;
+}
+
+.timeline-view[data-orientation="portrait"] .timeline-zoom-scale span:last-child {
+  align-self: end;
+  text-align: left;
+}
+
+.timeline-view[data-orientation="landscape"] .timeline-zoom-control input[type="range"] {
+  writing-mode: horizontal-tb;
+  direction: ltr;
+  width: 100%;
+  height: 22px;
+  cursor: ew-resize;
+  touch-action: pan-y;
+}
