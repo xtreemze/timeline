@@ -88,3 +88,20 @@ test("interactive maps use the shared camera release speed and equivalent weight
   assert.match(source, /attributionControl:\s*true,[\s\S]*\.\.\.mapMotionOptions\(true\)/);
   assert.match(source, /zoomAnimation:\s*!reducedMotion/);
 });
+
+
+test("map touch targets match the coarse-pointer interaction floor and editing has non-drag alternatives", async () => {
+  const [source, styles, html] = await Promise.all([
+    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/index.html", import.meta.url), "utf8")
+  ]);
+  assert.match(source, /iconSize:\s*\[44, 44\]/);
+  assert.match(source, /iconAnchor:\s*\[22, 22\]/);
+  assert.match(source, /L\.marker\(\[lat, lng\],[\s\S]*draggable:\s*true[\s\S]*keyboard:\s*true[\s\S]*semanticMarkerIcon/);
+  assert.match(source, /this\.map\.on\("click"[\s\S]*this\.applyPosition/);
+  assert.match(styles, /\.timeline-map-marker\s*\{[\s\S]*width:\s*44px !important[\s\S]*height:\s*44px !important/);
+  assert.match(styles, /@media \(pointer:\s*coarse\)[\s\S]*leaflet-control-zoom a[\s\S]*width:\s*44px !important[\s\S]*height:\s*44px !important/);
+  assert.match(html, /id="item-location-latitude"[^>]*inputmode="decimal"/);
+  assert.match(html, /id="item-location-longitude"[^>]*inputmode="decimal"/);
+});
