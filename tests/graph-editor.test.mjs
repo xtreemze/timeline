@@ -220,7 +220,7 @@ test("touch node long press is armed from capture-phase hit testing before Orb d
   assert.match(bridge, /const target = touchTargetPayload\(event\)[\s\S]*target\?\.kind === "node"[\s\S]*beginTouchHold\(payload\)/);
   assert.match(bridge, /pointerdown", onPointerDown, \{ capture: true \}/);
   assert.match(bridge, /beginTouchHold\([\s\S]*setDragEnabled\(false\)[\s\S]*TOUCH_NODE_HOLD_MS/);
-  assert.match(bridge, /touchHold\.activated = true[\s\S]*setDragEnabled\(true\)[\s\S]*setInteractionHeat\(DRAG_ALPHA_TARGET\)/);
+  assert.match(bridge, /touchHold\.activated = true[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)[\s\S]*simulator\?\.startDragNode\(\)[\s\S]*setInteractionHeat\(DRAG_ALPHA_TARGET\)/);
   assert.doesNotMatch(bridge, /onNodeDragStart[\s\S]{0,180}beginTouchHold/);
 });
 
@@ -231,7 +231,7 @@ test("touch graph gesture ownership separates node drag from graph pan and pinch
   assert.match(bridge, /function finishTouchGesture\(\)[\s\S]*setDragEnabled\(true\)[\s\S]*setZoomEnabled\(true\)/);
   assert.match(bridge, /function cancelPendingTouchHold\(\)[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(true\)/);
   assert.match(bridge, /function beginTouchHold\([\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(true\)[\s\S]*TOUCH_NODE_HOLD_MS/);
-  assert.match(bridge, /touchHold\.activated = true[\s\S]*setDragEnabled\(true\)[\s\S]*setZoomEnabled\(false\)/);
+  assert.match(bridge, /touchHold\.activated = true[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)/);
   assert.match(bridge, /activeTouchPointers\.size > 1[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(true\)/);
 });
 
@@ -290,4 +290,19 @@ test("graph camera release reuses Timeline weighted inertia without changing nod
   assert.match(bridge, /requestAnimationFrame\(\(\) => startCameraInertia\(velocity\)\)/);
   assert.match(bridge, /prefersReducedMotion\(\)/);
   assert.match(bridge, /wheel", onWheelCapture/);
+});
+
+
+test("activated touch long press directly drives the Orb simulator instead of depending on a pre-armed D3 drag", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(bridge, /function touchDragSimulator\(\)[\s\S]*simulator\.startDragNode[\s\S]*simulator\.dragNode[\s\S]*simulator\.endDragNode/);
+  assert.match(bridge, /touchHold\.activated = true[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)/);
+  assert.match(bridge, /simulator\?\.startDragNode\(\)/);
+  assert.match(bridge, /container\.setPointerCapture\?\.\(touchHold\.pointerId\)/);
+  assert.match(bridge, /if \(touchHold\.activated\)[\s\S]*touchGeometry\(event\)[\s\S]*simulator\.dragNode\(touchHold\.node\.getId\(\), geometry\.localPoint\)/);
+  assert.match(bridge, /function finishActiveTouchNodeDrag[\s\S]*simulator\.endDragNode\(node\.getId\(\)\)/);
+  assert.match(bridge, /finishActiveTouchNodeDrag\(\)[\s\S]*finishTouchGesture\(\)/);
+  assert.match(bridge, /lostpointercapture", onLostPointerCapture/);
+  assert.match(bridge, /onLostPointerCapture[\s\S]*finishActiveTouchNodeDrag\(\)[\s\S]*finishTouchGesture\(\)/);
 });
