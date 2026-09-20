@@ -45,6 +45,8 @@ test("form and focus markup use one range input and no small popover detail", as
   assert.match(html, /id="item-date-range"/);
   assert.match(html, /id="item-calendar-popover"[^>]*popover="auto"/);
   assert.match(html, /id="timeline-focus-view"/);
+  assert.match(html, /id="item-description-entity-hint"/);
+  assert.match(html, /must exist as a graph node and participate in a concrete action edge linked to this event/);
   assert.doesNotMatch(html, /id="timeline-detail"/);
 });
 
@@ -250,7 +252,7 @@ test("presentation stage shape is independent from selected timeline axis orient
   assert.notEqual(landscapeShape, "landscape");
 });
 
-test("focused Place and Relations reuse the single map and graph surfaces as interactive backdrops", async () => {
+test("focused Place reuses the map while the relation graph stays stage-level behind the popover", async () => {
   const [html, timelineCss, app, view, mapSource, graphView] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
@@ -262,29 +264,21 @@ test("focused Place and Relations reuse the single map and graph surfaces as int
 
   assert.equal((html.match(/class="temporal-graph-canvas"/g) || []).length, 1);
   assert.equal((html.match(/id="presentation-map"/g) || []).length, 1);
+  assert.match(html, /id="graph-lens" class="graph-lens graph-surface" aria-label="Temporal relation graph">/);
   assert.match(view, /dataset\.focusMapSlot/);
-  assert.match(view, /dataset\.focusGraphSlot/);
+  assert.doesNotMatch(view, /dataset\.focusGraphSlot/);
   assert.match(view, /timeline-focus-section-content/);
-  assert.match(app, /mountGraphBackdrop/);
+  assert.doesNotMatch(app, /mountGraphBackdrop|presentationGraphAnchor|presentationGraphCanvas/);
   assert.match(app, /mountMapBackdrop/);
-  assert.match(app, /presentationGraphAnchor/);
   assert.match(app, /presentationMapAnchor/);
+  assert.match(app, /if \(els\.graphLens\) els\.graphLens\.hidden = false/);
+  assert.match(app, /graphContextAvailable = focused && focusedGraphContextAvailable/);
   assert.match(app, /interactive:\s*true/);
   assert.match(mapSource, /this\.interactive = options\.interactive === true/);
   assert.match(mapSource, /dragging:\s*this\.interactive/);
   assert.match(mapSource, /touchZoom:\s*this\.interactive/);
   assert.match(timelineCss, /timeline-focus-view\[popover\][\s\S]*pointer-events:\s*auto/);
-  assert.match(
-    timelineCss,
-    /timeline-focus-view\[popover\]\s*>\s*:is\(\.timeline-focus-place,\s*\.timeline-focus-relations\)[\s\S]*pointer-events:\s*auto/
-  );
   assert.match(timelineCss, /timeline-focus-place-backdrop \.presentation-map[\s\S]*touch-action:\s*none/);
-  assert.match(timelineCss, /timeline-focus-section-backdrop[\s\S]*z-index:\s*1[\s\S]*pointer-events:\s*auto/);
-  assert.match(timelineCss, /timeline-focus-relations-backdrop[\s\S]*opacity:\s*\.64/);
-  assert.match(
-    timelineCss,
-    /timeline-focus-place-backdrop \.presentation-map,[\s\S]*timeline-focus-relations-backdrop \.temporal-graph-canvas[\s\S]*pointer-events:\s*auto/
-  );
   assert.match(graphView, /neighborhoodGraph\(this\.model, this\.focusedId/);
 });
 
@@ -351,7 +345,9 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(html, /id="editor-toggle"[^>]*data-semantic-icon="note"/);
   assert.doesNotMatch(html, /data-open-panel="items"|data-open-panel="stories"/);
   assert.match(html, /id="timeline-browser-toggle"[^>]*data-semantic-icon="search"/);
-  assert.match(html, /id="graph-lens-toggle"[^>]*data-semantic-icon="relation"/);
+  assert.doesNotMatch(html, /id="graph-lens-toggle"/);
+  assert.match(html, /data-graph-open="true"/);
+  assert.match(html, /id="graph-lens" class="graph-lens graph-surface" aria-label="Temporal relation graph">/);
   assert.match(html, /id="timeline-view-controls-toggle"[^>]*data-semantic-icon="magic"/);
   assert.match(html, /id="project-menu"[^>]*popover="auto"/);
   assert.match(html, /id="import-json-trigger"[^>]*role="menuitem"/);
@@ -387,7 +383,8 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(app, /editorToggle\?\.addEventListener\("click",[\s\S]*setEditorSurfaceOpen\(!ui\.editorOpen\)/);
   assert.match(app, /function setEditorSurfaceOpen/);
   assert.match(app, /function setBrowserSurfaceOpen/);
-  assert.match(app, /function setGraphSurfaceOpen/);
+  assert.doesNotMatch(app, /function setGraphSurfaceOpen|ui\.graphOpen|graphLensToggle/);
+  assert.match(app, /if \(els\.graphLens\) els\.graphLens\.hidden = false/);
   assert.match(app, /function setViewControlsOpen/);
   assert.match(app, /setActivePanel\("items", \{ open: false \}\)/);
 });
@@ -497,13 +494,14 @@ test("fullscreen restores the focused event popover after the browser changes to
   assert.match(app, /active && timelineView\?\.hasFocusedItem\?\.\(\)[\s\S]*ensureFocusPopover/);
 });
 
-test("major viewing surfaces are mutually exclusive and opening Relations closes event focus", async () => {
+test("utility overlays stay mutually exclusive while the relation graph remains persistent during focus", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   assert.match(app, /closeLargeUtilitySurfaces\(except = ""\)[\s\S]*viewControlsOpen/);
   assert.match(app, /setBrowserSurfaceOpen[\s\S]*closeLargeUtilitySurfaces\("browser"\)[\s\S]*closeFocusedEventForUtility/);
-  assert.match(app, /setGraphSurfaceOpen[\s\S]*closeLargeUtilitySurfaces\("graph"\)[\s\S]*closeFocusedEventForUtility/);
   assert.match(app, /setViewControlsOpen[\s\S]*closeLargeUtilitySurfaces\("view"\)[\s\S]*closeFocusedEventForUtility/);
   assert.match(app, /timelinefocuschange[\s\S]*closeLargeUtilitySurfaces\("focus"\)/);
+  assert.match(app, /syncContextualPresentationPanels[\s\S]*els\.graphLens\.hidden = false/);
+  assert.doesNotMatch(app, /setGraphSurfaceOpen|ui\.graphOpen|graphLensToggle/);
 });
 
 
@@ -746,8 +744,7 @@ test("focused popover stays opposite chronology and reserves persistent applicat
   assert.match(source, /FOCUS_POPOVER_MARGIN = 12/);
   assert.match(source, /focusChromeInsets\(\)/);
   assert.match(source, /reserveTopChrome\(document\.querySelector\("\.app-command-bar"\)\)/);
-  assert.match(source, /reserveBottomChrome\(document\.querySelector\("\.timeline-view-toolbar:not\(\[hidden\]\)"\)\)/);
-  assert.match(source, /reserveBottomChrome\(document\.querySelector\("\.app-view-tool"\)\)/);
+  assert.match(source, /reserveTopChrome\(document\.querySelector\("\.timeline-view-toolbar:not\(\[hidden\]\)"\)\)/);
   assert.match(source, /document\.querySelector\("\.app-tool-dock"\)/);
   assert.match(source, /contextualTimelineDocked[\s\S]*viewportWidth - timelineRect\.left/);
   assert.match(source, /contextualTimelineDocked[\s\S]*viewportHeight - timelineRect\.top/);
