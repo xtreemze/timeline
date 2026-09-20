@@ -1150,7 +1150,7 @@
       closeProjectMenu();
       closeFocusedEventForUtility();
     }
-    syncApplicationSurfaces();
+    runApplicationViewTransition(() => syncApplicationSurfaces());
     if (ui.graphOpen) requestAnimationFrame(() => temporalGraphView?.refreshLayout?.());
   }
 
