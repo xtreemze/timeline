@@ -2938,9 +2938,6 @@ body {
     min-height: 0;
   }
 
-  #app-shell[data-graph-open="true"] .timeline-view {
-    filter: saturate(.82) contrast(.92);
-  }
 }
 
 @media (max-width: 380px) {
