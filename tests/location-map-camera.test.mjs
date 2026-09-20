@@ -69,3 +69,17 @@ test("secondary GeoJSON points render as labeled semantic route markers", async 
   assert.match(mapSource, /properties\.icon \|\| this\.iconName/);
   assert.match(mapSource, /markerLabel \|\| "Map feature"/);
 });
+
+
+test("interactive maps use the shared camera release speed and equivalent weighted deceleration", async () => {
+  const source = await readFile(new URL("../site/location-map.js", import.meta.url), "utf8");
+  assert.match(source, /const motion = globalThis\.TimelineMotion/);
+  assert.match(source, /function mapMotionOptions\(interactive = true\)/);
+  assert.match(source, /inertia:\s*Boolean\(interactive && !reducedMotion\)/);
+  assert.match(source, /inertiaDeceleration:\s*motion\?\.CAMERA_INERTIA_DECELERATION_PX_PER_S2 \|\| 3810/);
+  assert.match(source, /inertiaMaxSpeed:\s*motion\?\.MAX_RELEASE_SPEED_PX_PER_S \|\| 3200/);
+  assert.match(source, /easeLinearity:\s*0\.2/);
+  assert.match(source, /touchZoom:\s*this\.interactive,[\s\S]*\.\.\.mapMotionOptions\(this\.interactive\)/);
+  assert.match(source, /attributionControl:\s*true,[\s\S]*\.\.\.mapMotionOptions\(true\)/);
+  assert.match(source, /zoomAnimation:\s*!reducedMotion/);
+});

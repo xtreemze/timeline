@@ -16,6 +16,7 @@ const TOPOLOGY_ALPHA_TARGET = 0.085;
 const TOPOLOGY_EDGE_RELEASE_MS = 280;
 const TOPOLOGY_SETTLE_MS = 820;
 const TOPOLOGY_ENTRY_OFFSET = 36;
+const motion = globalThis.TimelineMotion;
 
 function resolvedColor(container, name, fallback) {
   const value = getComputedStyle(container).getPropertyValue(name).trim();
@@ -101,6 +102,8 @@ function create(container, handlers = {}) {
   let touchDragBlockedUntilRelease = false;
   let suppressGraphClickUntil = 0;
   let selectedGraphObject = null;
+  let cameraGesture = null;
+  let cameraInertiaAnimationFrame = 0;
   let interactionSettleTimer = 0;
   let forceNodeCount = 0;
   let hasGraphData = false;
@@ -253,6 +256,103 @@ function create(container, handlers = {}) {
 
   function setZoomEnabled(enabled) {
     orb.setSettings({ interaction: { isZoomEnabled: enabled } });
+  }
+
+  function cancelCameraInertia() {
+    if (cameraInertiaAnimationFrame) cancelAnimationFrame(cameraInertiaAnimationFrame);
+    cameraInertiaAnimationFrame = 0;
+  }
+
+  function applyCameraPan(deltaX, deltaY) {
+    const canvas = orb.canvas;
+    const transform = canvas?.__zoom || orb?._renderer?.transform;
+    if (
+      !canvas ||
+      !transform ||
+      typeof transform.translate !== "function" ||
+      !Number.isFinite(transform.k) ||
+      transform.k <= 0
+    ) {
+      return false;
+    }
+    const next = transform.translate(deltaX / transform.k, deltaY / transform.k);
+    canvas.__zoom = next;
+    if (orb._renderer) orb._renderer.transform = next;
+    orb.render();
+    return true;
+  }
+
+  function startCameraInertia(velocity) {
+    if (
+      !velocity ||
+      prefersReducedMotion() ||
+      !motion?.decayVelocity ||
+      velocity.magnitude < (motion.STOP_VELOCITY_PX_PER_MS || 0.012)
+    ) {
+      return;
+    }
+    cancelCameraInertia();
+    let velocityX = velocity.x;
+    let velocityY = velocity.y;
+    let lastFrame = 0;
+
+    const step = (now) => {
+      cameraInertiaAnimationFrame = 0;
+      const magnitude = Math.hypot(velocityX, velocityY);
+      if (magnitude < (motion.STOP_VELOCITY_PX_PER_MS || 0.012)) return;
+
+      const elapsed = lastFrame ? Math.min(48, Math.max(1, now - lastFrame)) : 16;
+      lastFrame = now;
+      velocityX = motion.decayVelocity(velocityX, elapsed);
+      velocityY = motion.decayVelocity(velocityY, elapsed);
+      if (!applyCameraPan(velocityX * elapsed, velocityY * elapsed)) return;
+
+      if (Math.hypot(velocityX, velocityY) >= (motion.STOP_VELOCITY_PX_PER_MS || 0.012)) {
+        cameraInertiaAnimationFrame = requestAnimationFrame(step);
+      }
+    };
+
+    cameraInertiaAnimationFrame = requestAnimationFrame(step);
+  }
+
+  function beginCameraGesture(event, target) {
+    cancelCameraInertia();
+    if (
+      event.button !== 0 ||
+      target?.object ||
+      !motion?.appendPointerVectorSamples ||
+      !motion?.estimatePointerVectorVelocity
+    ) {
+      cameraGesture = null;
+      return;
+    }
+    cameraGesture = {
+      pointerId: event.pointerId,
+      startClientPoint: eventClientPoint(event),
+      samples: [],
+      moved: false
+    };
+    motion.appendPointerVectorSamples(cameraGesture.samples, event);
+  }
+
+  function updateCameraGesture(event) {
+    if (!cameraGesture || cameraGesture.pointerId !== event.pointerId) return;
+    motion.appendPointerVectorSamples(cameraGesture.samples, event);
+    const origin = cameraGesture.startClientPoint;
+    if (!origin) return;
+    if (Math.hypot(event.clientX - origin.x, event.clientY - origin.y) > TOUCH_NODE_MOVE_TOLERANCE_PX) {
+      cameraGesture.moved = true;
+    }
+  }
+
+  function finishCameraGesture(event) {
+    if (!cameraGesture || cameraGesture.pointerId !== event.pointerId) return;
+    const gesture = cameraGesture;
+    cameraGesture = null;
+    if (event.type === "pointercancel" || !gesture.moved) return;
+    motion.appendPointerVectorSamples(gesture.samples, event);
+    const velocity = motion.estimatePointerVectorVelocity(gesture.samples);
+    requestAnimationFrame(() => startCameraInertia(velocity));
   }
 
   function zoomGraphAtClientPoint(point) {
@@ -461,9 +561,20 @@ function create(container, handlers = {}) {
   }
 
   function onPointerDown(event) {
-    if (event.pointerType !== "touch") return;
-    activeTouchPointers.add(event.pointerId);
+    if (event.button !== 0) return;
     const target = touchTargetPayload(event);
+    if (event.pointerType !== "touch") {
+      beginCameraGesture(event, target);
+      return;
+    }
+
+    activeTouchPointers.add(event.pointerId);
+    if (activeTouchPointers.size > 1) {
+      cameraGesture = null;
+      cancelCameraInertia();
+    } else {
+      beginCameraGesture(event, target);
+    }
     touchTap = {
       pointerId: event.pointerId,
       startClientPoint: eventClientPoint(event),
@@ -487,6 +598,7 @@ function create(container, handlers = {}) {
   }
 
   function onPointerMove(event) {
+    updateCameraGesture(event);
     if (event.pointerType !== "touch") return;
     if (touchTap?.pointerId === event.pointerId && !touchTap.cancelled) {
       const origin = touchTap.startClientPoint;
@@ -517,6 +629,7 @@ function create(container, handlers = {}) {
   }
 
   function onPointerUp(event) {
+    finishCameraGesture(event);
     if (event.pointerType !== "touch") return;
     const tap = touchTap?.pointerId === event.pointerId ? touchTap : null;
     activeTouchPointers.delete(event.pointerId);
@@ -564,7 +677,10 @@ function create(container, handlers = {}) {
     event.stopImmediatePropagation();
   };
 
+  const onWheelCapture = () => cancelCameraInertia();
+
   container.addEventListener("click", onClickCapture, { capture: true });
+  container.addEventListener("wheel", onWheelCapture, { capture: true, passive: true });
   container.addEventListener("pointerdown", onPointerDown, { capture: true });
   container.addEventListener("pointermove", onPointerMove, { capture: true });
   container.addEventListener("pointerup", onPointerUp, { capture: true });
@@ -823,6 +939,8 @@ function create(container, handlers = {}) {
 
   function setData(data) {
     clearTopologyTimers();
+    cancelCameraInertia();
+    cameraGesture = null;
     finishTouchGesture();
     selectedGraphObject = null;
     const nodes = Array.isArray(data?.nodes) ? data.nodes : [];
@@ -952,6 +1070,8 @@ function create(container, handlers = {}) {
       return true;
     },
     recenter() {
+      cancelCameraInertia();
+      cameraGesture = null;
       orb.recenter();
     },
     refreshLayout() {
@@ -959,19 +1079,24 @@ function create(container, handlers = {}) {
       orb.render(() => orb.recenter());
     },
     zoomIn() {
+      cancelCameraInertia();
       orb.zoomIn();
     },
     zoomOut() {
+      cancelCameraInertia();
       orb.zoomOut();
     },
     getMode() {
       return currentMode;
     },
     destroy() {
+      cancelCameraInertia();
+      cameraGesture = null;
       finishTouchGesture();
       clearInteractionSettleTimer();
       clearTopologyTimers();
       container.removeEventListener("click", onClickCapture, true);
+      container.removeEventListener("wheel", onWheelCapture, true);
       container.removeEventListener("pointerdown", onPointerDown, true);
       container.removeEventListener("pointermove", onPointerMove, true);
       container.removeEventListener("pointerup", onPointerUp, true);

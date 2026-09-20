@@ -20,6 +20,7 @@
   const PRESENTATION_COUNTRY_ZOOM = 5;
   const PRESENTATION_FLY_DURATION_SECONDS = 7;
   const PRESENTATION_WORLD_DWELL_MS = 450;
+  const motion = globalThis.TimelineMotion;
 
   let loadPromise = null;
 
@@ -62,6 +63,19 @@
 
   function prefersReducedMotion() {
     return globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+  }
+
+  function mapMotionOptions(interactive = true) {
+    const reducedMotion = prefersReducedMotion();
+    return {
+      inertia: Boolean(interactive && !reducedMotion),
+      inertiaDeceleration: motion?.CAMERA_INERTIA_DECELERATION_PX_PER_S2 || 3810,
+      inertiaMaxSpeed: motion?.MAX_RELEASE_SPEED_PX_PER_S || 3200,
+      easeLinearity: 0.2,
+      zoomAnimation: !reducedMotion,
+      fadeAnimation: !reducedMotion,
+      markerZoomAnimation: !reducedMotion
+    };
   }
 
   function presentationZoom(location) {
@@ -296,7 +310,8 @@
           doubleClickZoom: this.interactive,
           boxZoom: this.interactive,
           keyboard: this.interactive,
-          touchZoom: this.interactive
+          touchZoom: this.interactive,
+          ...mapMotionOptions(this.interactive)
         });
 
         if (this.countryContextIntro) {
@@ -610,7 +625,8 @@
         if (!L) throw new Error("Leaflet did not initialize.");
         this.map = L.map(this.container, {
           zoomControl: true,
-          attributionControl: true
+          attributionControl: true,
+          ...mapMotionOptions(true)
         }).setView([20, 0], 2);
 
         L.tileLayer(this.provider.url, {
