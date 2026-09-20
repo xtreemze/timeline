@@ -104,6 +104,19 @@
     return text(value, 120).toLocaleLowerCase().replace(/[^a-z0-9]+/g, "");
   }
 
+  function contextPropertyKey(value) {
+    return ENTITY_CONTEXT_KEYS.has(semanticKey(value));
+  }
+
+  function cleanContextFreeAttributes(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    const cleaned = {};
+    for (const [key, entry] of Object.entries(value)) {
+      if (!contextPropertyKey(key)) cleaned[key] = cloneJson(entry);
+    }
+    return cleaned;
+  }
+
   function validateEntityNode(raw) {
     const name = text(raw?.name || raw?.label || raw?.title, 180);
     const type = text(raw?.type, 60) || "entity";
@@ -114,7 +127,7 @@
         message: `“${type}” is not an entity-node type. A graph node represents one entity only; actions belong to edge predicates, time belongs to edge.time, and place belongs to edge.placeId.`
       };
     }
-    if (typeKey === "entity" && ACTION_NAME_PATTERN.test(name)) {
+    if (ACTION_NAME_PATTERN.test(name)) {
       return {
         valid: false,
         message: `“${name}” reads like an action. Nodes name one entity only; express the action as an edge predicate.`
@@ -169,11 +182,13 @@
       alternateNames: textList(raw.alternateNames || raw.aliases, { maxItems: 48, maxLength: 180 }),
       identifiers: Array.isArray(raw.identifiers) ? cloneJson(raw.identifiers) : [],
       sourceIds: textList(raw.sourceIds, { maxItems: 96, maxLength: 120 }),
-      attributes: raw.properties && typeof raw.properties === "object"
-        ? cloneJson(raw.properties)
-        : raw.attributes && typeof raw.attributes === "object"
-          ? cloneJson(raw.attributes)
-          : {}
+      attributes: cleanContextFreeAttributes(
+        raw.properties && typeof raw.properties === "object"
+          ? raw.properties
+          : raw.attributes && typeof raw.attributes === "object"
+            ? raw.attributes
+            : {}
+      )
     };
   }
 
@@ -215,11 +230,13 @@
       time,
       sourceIds: textList(raw.sourceIds, { maxItems: 96, maxLength: 120 }),
       confidence: normalizeConfidence(raw.confidence),
-      attributes: raw.properties && typeof raw.properties === "object"
-        ? cloneJson(raw.properties)
-        : raw.attributes && typeof raw.attributes === "object"
-          ? cloneJson(raw.attributes)
-          : {}
+      attributes: cleanContextFreeAttributes(
+        raw.properties && typeof raw.properties === "object"
+          ? raw.properties
+          : raw.attributes && typeof raw.attributes === "object"
+            ? raw.attributes
+            : {}
+      )
     };
   }
 
@@ -379,6 +396,14 @@
       }
       const placeId = text(relationship?.placeId || relationship?.locationId, 120);
       if (placeId && !placeIds.has(placeId)) errors.push(`Edge ${id}: unknown placeId “${placeId}”. Create/reuse a canonical place record first.`);
+      const relationshipAttributes =
+        relationship?.properties && typeof relationship.properties === "object" ? relationship.properties :
+        relationship?.attributes && typeof relationship.attributes === "object" ? relationship.attributes :
+        {};
+      const duplicateContextKey = Object.keys(relationshipAttributes).find(contextPropertyKey);
+      if (duplicateContextKey) {
+        errors.push(`Edge ${id}: property “${duplicateContextKey}” duplicates canonical spatiotemporal context. Use edge.time or edge.placeId.`);
+      }
       const contextIds = textList(
         relationship?.itemIds || relationship?.contextItemIds || relationship?.eventIds,
         { maxItems: 96, maxLength: 120 }
@@ -742,6 +767,7 @@
     validateGraphInput,
     validateActionPredicate,
     validateEntityNode,
+    contextPropertyKey,
     normalizeRelationChanges,
     neighborhoodGraph,
     relationshipStateAt,
