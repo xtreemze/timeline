@@ -974,3 +974,19 @@ test("mobile focused-event composition stays opposite chronology and keeps compa
   assert.match(source, /compactAvailableHeight = mobileFocusLayout && this\.orientation === "horizontal"[\s\S]*availableHeight - mobileFocusRail - mobileFocusGap/);
   assert.match(source, /left = mobileFocusLayout[\s\S]*bounds\.left[\s\S]*top = bounds\.top/);
 });
+
+
+test("coarse-pointer phone controls preserve a 44 CSS px interaction target", async () => {
+  const [styles, timelineCss] = await Promise.all([
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(styles, /@media \(pointer: coarse\)[\s\S]*\.story-nav-button[\s\S]*width:\s*44px[\s\S]*min-height:\s*44px/);
+  assert.match(styles, /@media \(pointer: coarse\)[\s\S]*\.range-calendar-nav[\s\S]*min-width:\s*44px[\s\S]*min-height:\s*44px/);
+  assert.match(styles, /@media \(pointer: coarse\) and \(max-width: 460px\)[\s\S]*\.project-menu-toggle[\s\S]*width:\s*44px[\s\S]*min-height:\s*44px/);
+
+  assert.match(timelineCss, /@media \(pointer: coarse\)[\s\S]*\.timeline-project-menu-toggle,[\s\S]*\.story-nav-button[\s\S]*width:\s*44px[\s\S]*min-height:\s*44px/);
+  assert.match(timelineCss, /@media \(pointer: coarse\)[\s\S]*\.timeline-focus-tab,[\s\S]*\.timeline-focus-close[\s\S]*min-height:\s*44px/);
+  assert.match(timelineCss, /@media \(pointer: coarse\) and \(max-width: 699px\)[\s\S]*data-orientation="portrait"[\s\S]*max-width:\s*52px/);
+});
