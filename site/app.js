@@ -56,6 +56,7 @@
     panelOpeners: [...document.querySelectorAll("[data-open-panel]")],
     semanticIconTargets: [...document.querySelectorAll("[data-semantic-icon]")],
     projectMenu: document.querySelector("#project-menu"),
+    projectMenuToggle: document.querySelector("#project-menu-toggle"),
     importJsonTrigger: document.querySelector("#import-json-trigger"),
     importInterchangeTrigger: document.querySelector("#import-interchange-trigger"),
     browserSheet: document.querySelector("#timeline-browser-sheet"),
@@ -2918,6 +2919,36 @@
     if (ui.mode !== "edit") return;
     els.importInterchange?.click();
   });
+  function positionProjectMenu() {
+    if (!els.projectMenu || !els.projectMenuToggle) return;
+    const rect = els.projectMenuToggle.getBoundingClientRect();
+    const viewportWidth = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+    const viewportHeight = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+    const gap = 8;
+    const edge = 8;
+    const menuWidth = Math.min(340, Math.max(240, viewportWidth - edge * 2));
+    const portrait = els.timelineViewRoot?.dataset.orientation === "portrait";
+    const preferredLeft = portrait ? rect.left - menuWidth - gap : rect.left;
+    const left = Math.min(
+      Math.max(edge, preferredLeft),
+      Math.max(edge, viewportWidth - menuWidth - edge)
+    );
+    const preferredTop = portrait ? rect.top : rect.bottom + gap;
+    const top = Math.min(
+      Math.max(edge, preferredTop),
+      Math.max(edge, viewportHeight - 160)
+    );
+    els.projectMenu.style.setProperty("--project-menu-left", `${Math.round(left)}px`);
+    els.projectMenu.style.setProperty("--project-menu-top", `${Math.round(top)}px`);
+  }
+
+  els.projectMenu?.addEventListener("beforetoggle", (event) => {
+    if (event.newState === "open") positionProjectMenu();
+  });
+  window.addEventListener("resize", () => {
+    if (els.projectMenu?.matches(":popover-open")) positionProjectMenu();
+  });
+
   els.projectMenu?.addEventListener("click", (event) => {
     const action = event.target.closest("[data-project-menu-close]");
     if (!action) return;
