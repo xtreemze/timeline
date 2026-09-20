@@ -81,26 +81,22 @@ test("long visible ranges trace from the midpoint of their visible portion", () 
   );
 });
 
-test("Browse and Edit overlay the presentation without resizing timeline or graph geometry", async () => {
-  const [css, app, architecture] = await Promise.all([
+test("Browse and Edit are vertical sidebars without horizontal scrolling", async () => {
+  const [css, architecture] = await Promise.all([
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
     readFile(new URL("../docs/TIMELINE-V3-ARCHITECTURE.md", import.meta.url), "utf8")
   ]);
 
-  assert.match(css, /Browse and Edit are overlay drawers/);
-  assert.match(css, /#app-shell\[data-editor-open="true"\]\s*>\s*\.app-editor-sheet,[\s\S]*\.app-browser-sheet\s*\{[\s\S]*position:\s*fixed[\s\S]*z-index:\s*1180/);
-  assert.match(css, /#app-shell\[data-editor-open="true"\]\s*>\s*\.app-editor-sheet\s*\{[\s\S]*width:\s*min\(440px, calc\(100dvw - 1rem\)\)/);
-  assert.match(css, /#app-shell\[data-browser-open="true"\]\s*>\s*\.timeline-panel\s*>\s*\.app-browser-sheet\s*\{[\s\S]*width:\s*min\(400px, calc\(100dvw - 1rem\)\)/);
-  assert.match(css, /@media \(max-width:\s*699px\)[\s\S]*\.app-editor-sheet,[\s\S]*\.app-browser-sheet[\s\S]*left:\s*max\(\.5rem, env\(safe-area-inset-left\)\)[\s\S]*width:\s*auto/);
-  assert.doesNotMatch(css, /--utility-sidebar-width/);
-  assert.doesNotMatch(css, /#app-shell:is\([\s\S]{0,240}data-browser-open="true"[\s\S]{0,320}graph-lens[\s\S]{0,120}position:\s*absolute/);
+  assert.match(css, /#app-shell\[data-editor-open="true"\]\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--utility-sidebar-width\)[\s\S]*grid-template-rows:\s*minmax\(0, 1fr\)/);
+  assert.match(css, /#app-shell\[data-editor-open="true"\]\s*>\s*\.app-editor-sheet\s*\{[\s\S]*grid-column:\s*2[\s\S]*height:\s*100%[\s\S]*overflow-x:\s*clip[\s\S]*overflow-y:\s*auto/);
+  assert.match(css, /#app-shell\[data-browser-open="true"\]\s*>\s*\.timeline-panel\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--utility-sidebar-width\)[\s\S]*grid-template-rows:\s*minmax\(0, 1fr\)/);
+  assert.match(css, /#app-shell\[data-browser-open="true"\]\s*>\s*\.timeline-panel\s*>\s*\.app-browser-sheet\s*\{[\s\S]*grid-column:\s*2[\s\S]*height:\s*100%[\s\S]*overflow-x:\s*clip[\s\S]*overflow-y:\s*auto/);
+  assert.doesNotMatch(css, /grid-template-rows:\s*clamp\(180px,\s*42dvh,\s*420px\)/);
   assert.match(css, /\.app-browser-sheet \.timeline-item\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
   assert.match(css, /\.app-browser-sheet \.timeline-marker\s*\{\s*display:\s*none/);
   assert.match(css, /@container utility-sidebar \(max-width:\s*360px\)[\s\S]*\.app-editor-sheet \.temporal-fields[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
-  assert.match(app, /function syncApplicationSurfaces\(\)[\s\S]*schedulePresentationGeometryRefresh\(\{ recenterGraph: false \}\)/);
-  assert.match(architecture, /right-edge overlay drawers/);
-  assert.match(architecture, /must not resize, crop, or reflow the timeline or persistent relation graph/);
+  assert.match(css, /#app-shell:is\([\s\S]*data-editor-open="true"[\s\S]*data-browser-open="true"[\s\S]*#presentation-stage:not\(:fullscreen\) > \.graph-lens:not\(\[hidden\]\)[\s\S]*position:\s*absolute/);
+  assert.match(architecture, /vertical right-side workspace columns at every viewport size/);
   assert.match(architecture, /Horizontal overflow is a layout defect/);
 });
 
