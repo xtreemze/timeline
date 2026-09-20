@@ -104,6 +104,8 @@ function create(container, handlers = {}) {
   let selectedGraphObject = null;
   let cameraGesture = null;
   let cameraInertiaAnimationFrame = 0;
+  let userOwnsCamera = false;
+  let pendingAutoFit = false;
   let interactionSettleTimer = 0;
   let forceNodeCount = 0;
   let hasGraphData = false;
@@ -322,6 +324,27 @@ function create(container, handlers = {}) {
     cameraInertiaAnimationFrame = 0;
   }
 
+  function markCameraOwnedByUser() {
+    userOwnsCamera = true;
+    pendingAutoFit = false;
+  }
+
+  function releaseCameraToAutoFit() {
+    userOwnsCamera = false;
+    pendingAutoFit = false;
+  }
+
+  function requestAutoFit() {
+    if (!userOwnsCamera) pendingAutoFit = true;
+  }
+
+  function applyPendingAutoFit() {
+    if (userOwnsCamera || !pendingAutoFit) return false;
+    pendingAutoFit = false;
+    orb.recenter();
+    return true;
+  }
+
   function applyCameraPan(deltaX, deltaY) {
     const canvas = orb.canvas;
     const transform = canvas?.__zoom || orb?._renderer?.transform;
@@ -334,6 +357,7 @@ function create(container, handlers = {}) {
     ) {
       return false;
     }
+    markCameraOwnedByUser();
     const next = transform.translate(deltaX / transform.k, deltaY / transform.k);
     canvas.__zoom = next;
     if (orb._renderer) orb._renderer.transform = next;
@@ -519,6 +543,7 @@ function create(container, handlers = {}) {
 
   function cancelPendingTouchHold() {
     if (!touchHold || touchHold.activated) return;
+    markCameraOwnedByUser();
     clearTouchHoldTimer();
     touchHold = null;
     touchDragBlockedUntilRelease = true;
@@ -681,6 +706,7 @@ function create(container, handlers = {}) {
         setZoomEnabled(false);
         return;
       }
+      markCameraOwnedByUser();
     } else {
       beginCameraGesture(event, target);
     }
@@ -832,7 +858,10 @@ function create(container, handlers = {}) {
     event.stopImmediatePropagation();
   };
 
-  const onWheelCapture = () => cancelCameraInertia();
+  const onWheelCapture = () => {
+    markCameraOwnedByUser();
+    cancelCameraInertia();
+  };
   const onGraphKeyDown = (event) => {
     if (event.target !== container || event.altKey || event.ctrlKey || event.metaKey) return;
     let handled = true;
@@ -852,14 +881,17 @@ function create(container, handlers = {}) {
         break;
       case "+":
       case "=":
+        markCameraOwnedByUser();
         orb.zoomIn();
         break;
       case "-":
       case "_":
+        markCameraOwnedByUser();
         orb.zoomOut();
         break;
       case "Home":
       case "0":
+        releaseCameraToAutoFit();
         orb.recenter();
         break;
       default:
@@ -1000,8 +1032,9 @@ function create(container, handlers = {}) {
     handlers.onSimulationState?.({ running: false, mode: currentMode, durationMs });
     if (firstRender) {
       firstRender = false;
-      orb.recenter();
+      requestAutoFit();
     }
+    applyPendingAutoFit();
   };
 
   orb.events.on(OrbEventType.NODE_CLICK, onNodeClick);
@@ -1142,6 +1175,7 @@ function create(container, handlers = {}) {
     cancelCameraInertia();
     cameraGesture = null;
     finishTouchGesture();
+    releaseCameraToAutoFit();
     selectedGraphObject = null;
     const nodes = Array.isArray(data?.nodes) ? data.nodes : [];
     const edges = Array.isArray(data?.edges) ? data.edges : [];
@@ -1185,6 +1219,14 @@ function create(container, handlers = {}) {
     const rewiredIds = new Set(rewiredEdges.map((edge) => String(edge.id)));
     const enteringEdges = edges.filter((edge) => !currentEdgeById.has(String(edge.id)));
     const stableEdges = edges.filter((edge) => currentEdgeById.has(String(edge.id)) && !rewiredIds.has(String(edge.id)));
+    const topologyChanged = Boolean(
+      outgoingNodes.length ||
+      outgoingEdges.length ||
+      incomingNodes.length ||
+      enteringEdges.length ||
+      rewiredEdges.length
+    );
+    if (topologyChanged) requestAutoFit();
 
     if (prefersReducedMotion()) {
       const breakIds = [
@@ -1272,18 +1314,23 @@ function create(container, handlers = {}) {
     recenter() {
       cancelCameraInertia();
       cameraGesture = null;
+      releaseCameraToAutoFit();
       orb.recenter();
     },
     refreshLayout() {
       if (!hasGraphData) return;
-      orb.render(() => orb.recenter());
+      orb.render(() => {
+        if (!userOwnsCamera) orb.recenter();
+      });
     },
     zoomIn() {
       cancelCameraInertia();
+      markCameraOwnedByUser();
       orb.zoomIn();
     },
     zoomOut() {
       cancelCameraInertia();
+      markCameraOwnedByUser();
       orb.zoomOut();
     },
     getMode() {
