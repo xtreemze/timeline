@@ -70,12 +70,16 @@ test("exports event/period/group structures and round-trips source extensions", 
   });
 
   imported.timeline.stories = [{ id: "s1", title: "Story", description: "", itemIds: ["ext-e1"] }];
-  imported.timeline.entities = [{ id: "person-a", type: "person", name: "A" }];
+  imported.timeline.entities = [
+    { id: "person-a", type: "person", name: "A" },
+    { id: "place-a", type: "place", name: "Example Place" }
+  ];
   imported.timeline.relationships = [{
     id: "rel-a",
     subjectId: "person-a",
-    objectId: "ext-e1",
-    predicate: "participant",
+    objectId: "place-a",
+    predicate: "witnessedAt",
+    itemIds: ["ext-e1"],
     initialState: "inactive"
   }];
   imported.timeline.items[0].media = [{
