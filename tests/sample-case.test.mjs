@@ -113,7 +113,7 @@ test("sample exercises focus compositions, media, source surfaces, and tags", ()
   const variants = new Set(sample.items.map((item) => item.presentation?.variant).filter(Boolean));
   assert.deepEqual([...variants].sort(), ["editorial-mosaic", "evidence-dossier", "hero-split"]);
   assert.ok(sample.items.some((item) => item.media?.length === 3));
-  assert.ok(sample.items.some((item) => item.media?.length === 1));
+  assert.ok(sample.items.every((item) => item.media?.length >= 2));
   assert.ok(sample.items.every((item) => item.tags?.length));
   const evidenceTypes = new Set(sample.evidence.map((record) => record.type));
   assert.deepEqual([...evidenceTypes].sort(), ["article", "document", "note", "pdf"]);
