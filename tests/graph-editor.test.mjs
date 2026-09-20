@@ -349,3 +349,29 @@ test("touch node hold freezes the graph camera until drag or navigation intent i
     /setInteractionHeat\(DRAG_ALPHA_TARGET\)[\s\S]*simulator\?\.startDragNode\(\)/
   );
 });
+
+
+test("graph touch ownership keeps D3 zoom state synchronized and recovers from interruptions", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(
+    bridge,
+    /function syncCameraZoomState\(\)[\s\S]*canvas\.__zoom = transform/
+  );
+  assert.match(
+    bridge,
+    /function setZoomEnabled\(enabled\)[\s\S]*syncCameraZoomState\(\)[\s\S]*isZoomEnabled:\s*enabled/
+  );
+  assert.match(
+    bridge,
+    /function onTouchEnd\(event\)[\s\S]*activeTouchPointers\.clear\(\)[\s\S]*cameraGesture = null/
+  );
+  assert.match(
+    bridge,
+    /function abortTouchInteraction\(\)[\s\S]*cancelCameraInertia\(\)[\s\S]*activeTouchPointers\.clear\(\)[\s\S]*finishTouchGesture\(\)/
+  );
+  assert.match(bridge, /addEventListener\?\.\("blur", onWindowBlur\)/);
+  assert.match(bridge, /document\.addEventListener\("visibilitychange", onVisibilityChange\)/);
+  assert.match(bridge, /removeEventListener\?\.\("blur", onWindowBlur\)/);
+  assert.match(bridge, /document\.removeEventListener\("visibilitychange", onVisibilityChange\)/);
+});
