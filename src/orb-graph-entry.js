@@ -243,6 +243,10 @@ function create(container, handlers = {}) {
     orb.setSettings({ interaction: { isDragEnabled: enabled } });
   }
 
+  function setZoomEnabled(enabled) {
+    orb.setSettings({ interaction: { isZoomEnabled: enabled } });
+  }
+
   function selectGraphObject(object) {
     if (
       selectedGraphObject &&
@@ -277,6 +281,7 @@ function create(container, handlers = {}) {
     touchDragBlockedUntilRelease = false;
     delete container.dataset.touchDrag;
     setDragEnabled(true);
+    setZoomEnabled(true);
   }
 
   function cancelPendingTouchHold() {
@@ -286,6 +291,7 @@ function create(container, handlers = {}) {
     touchDragBlockedUntilRelease = true;
     container.dataset.touchDrag = "cancelled";
     setDragEnabled(false);
+    setZoomEnabled(true);
   }
 
   function touchNodePayload(event) {
@@ -305,6 +311,7 @@ function create(container, handlers = {}) {
     clearTouchReleaseFallback();
     clearTouchHoldTimer();
     setDragEnabled(false);
+    setZoomEnabled(true);
     touchDragBlockedUntilRelease = true;
 
     if (activeTouchPointers.size > 1) {
@@ -330,6 +337,7 @@ function create(container, handlers = {}) {
       touchDragBlockedUntilRelease = false;
       container.dataset.touchDrag = "active";
       setDragEnabled(true);
+      setZoomEnabled(false);
       setInteractionHeat(DRAG_ALPHA_TARGET);
       selectGraphObject(node);
       handlers.onNodeLongPress?.(node.getData());
@@ -348,6 +356,7 @@ function create(container, handlers = {}) {
       if (touchHold && !touchHold.activated) cancelPendingTouchHold();
       touchDragBlockedUntilRelease = true;
       setDragEnabled(false);
+      setZoomEnabled(true);
       return;
     }
 
