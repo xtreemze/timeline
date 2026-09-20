@@ -553,9 +553,9 @@ test("fresh startup loads the storybook sample while persisted timelines retain 
 
   assert.match(loadState, /localStorage\.getItem\(STORAGE_KEY\)[\s\S]*return normalizeTimeline\(JSON\.parse\(current\)\)/);
   assert.match(loadState, /localStorage\.getItem\(LEGACY_STORAGE_KEY\)[\s\S]*return migrated/);
-  assert.match(loadState, /return normalizeTimeline\(clone\(SAMPLE\)\)/);
+  assert.match(loadState, /return normalizeTimeline\(clone\(SAMPLE\), \{ strictGraph: true \}\)/);
   assert.ok(
-    loadState.indexOf("return normalizeTimeline(clone(SAMPLE))") >
+    loadState.indexOf("return normalizeTimeline(clone(SAMPLE), { strictGraph: true })") >
       loadState.indexOf("localStorage.getItem(LEGACY_STORAGE_KEY)"),
     "sample fallback must run only after current and legacy storage checks"
   );
