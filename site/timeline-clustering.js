@@ -480,7 +480,7 @@
     viewport,
     pixelLength,
     thresholdPx,
-    { desiredContext = 2, paddingRatio = 0.14, minSpanMs = 1 } = {}
+    { desiredContext = 2, paddingRatio = 0.14, minSpanMs = 1, preserveScale = false } = {}
   ) {
     const source = (Array.isArray(items) ? items : [])
       .filter((item) => item && Number.isFinite(item.start))
@@ -494,6 +494,14 @@
     const span = Math.max(minSpanMs, viewport.end - viewport.start);
     const length = Math.max(1, Number(pixelLength) || 1);
     const threshold = Math.max(1, Number(thresholdPx) || 1);
+    const padding = Math.min(0.4, Math.max(0, Number(paddingRatio) || 0));
+    const availableRatio = Math.max(0.2, 1 - padding * 2);
+    const focusedEnd = Number.isFinite(focused.end) ? focused.end : focused.start;
+    const focusedCenter = focused.start + (focusedEnd - focused.start) / 2;
+    const focusedContainingSpan = Math.max(
+      minSpanMs,
+      Math.abs(focusedEnd - focused.start) / availableRatio
+    );
     const overlapsViewport = (item) => {
       const end = Number.isFinite(item.end) ? item.end : item.start;
       return end >= viewport.start && item.start <= viewport.end;
@@ -511,14 +519,6 @@
         item.start === focused.start
       )
       .map((item) => String(item.id));
-    if (coincidentIds.length) {
-      return {
-        mode: "coincident",
-        viewport: { ...viewport },
-        forceUnique: false,
-        contextIds: coincidentIds
-      };
-    }
 
     if (representation?.kind === "cluster") {
       const deltas = representation.items
@@ -530,71 +530,112 @@
           mode: "pin",
           viewport: { ...viewport },
           forceUnique: true,
-          contextIds: []
+          contextIds: coincidentIds
         };
       }
       const nearest = Math.min(...deltas);
       const targetDistance = threshold * 1.18;
-      const targetSpan = Math.max(minSpanMs, Math.min(span * 0.96, nearest * length / targetDistance));
-      const center = focused.start;
+      const separatingSpan = Math.max(minSpanMs, nearest * length / targetDistance);
+      const minimumSpan = Math.min(span, focusedContainingSpan);
+      const targetSpan = Math.max(
+        minimumSpan,
+        Math.min(span * 0.6, separatingSpan)
+      );
+      const achievedDistance = nearest / targetSpan * length;
       return {
         mode: "separate",
         viewport: {
-          start: center - targetSpan / 2,
-          end: center + targetSpan / 2
+          start: focusedCenter - targetSpan / 2,
+          end: focusedCenter + targetSpan / 2
         },
-        forceUnique: false,
-        contextIds: []
+        forceUnique: achievedDistance <= threshold,
+        contextIds: coincidentIds
       };
     }
 
-    const visibleOthers = visibleSource.filter(
-      (item) => String(item.id) !== String(focused.id) && overlapsViewport(item)
-    );
-    const targetContextCount = Math.min(Math.max(0, desiredContext), Math.max(0, source.length - 1));
-    if (visibleOthers.length >= targetContextCount) {
+    // Previous/Next navigation should preserve the established focused scale.
+    // It may still zoom further above when the target is collision-clustered.
+    if (preserveScale) {
       return {
-        mode: "keep",
+        mode: coincidentIds.length ? "coincident" : "keep",
         viewport: { ...viewport },
         forceUnique: false,
-        contextIds: visibleOthers.slice(0, targetContextCount).map((item) => String(item.id))
+        contextIds: coincidentIds
       };
     }
 
-    const before = source.filter((item) => item.start < focused.start).sort((a, b) => b.start - a.start);
-    const after = source.filter((item) => item.start > focused.start).sort((a, b) => a.start - b.start);
+    const distinctOthers = source.filter(
+      (item) =>
+        String(item.id) !== String(focused.id) &&
+        item.start !== focused.start
+    );
+    const targetContextCount = Math.min(
+      Math.max(0, desiredContext),
+      distinctOthers.length
+    );
+    const before = distinctOthers
+      .filter((item) => item.start < focused.start)
+      .sort((a, b) => b.start - a.start);
+    const after = distinctOthers
+      .filter((item) => item.start > focused.start)
+      .sort((a, b) => a.start - b.start);
     const selected = [];
     if (before[0]) selected.push(before[0]);
     if (after[0] && selected.length < targetContextCount) selected.push(after[0]);
-    const remaining = source
+
+    const remaining = distinctOthers
       .filter((item) =>
-        String(item.id) !== String(focused.id) &&
         !selected.some((candidate) => String(candidate.id) === String(item.id))
       )
       .sort((a, b) => Math.abs(a.start - focused.start) - Math.abs(b.start - focused.start));
     while (selected.length < targetContextCount && remaining.length) selected.push(remaining.shift());
 
-    const values = [focused.start];
-    if (Number.isFinite(focused.end)) values.push(focused.end);
+    const values = [focused.start, focusedEnd];
     for (const item of selected) {
       values.push(item.start);
       if (Number.isFinite(item.end)) values.push(item.end);
     }
     const min = Math.min(...values);
     const max = Math.max(...values);
-    const rawSpan = Math.max(minSpanMs, max - min || span);
-    const paddedSpan = rawSpan * (1 + Math.max(0, paddingRatio) * 2);
-    const targetSpan = Math.max(span, paddedSpan);
-    const center = (min + max) / 2;
+    const rawLocalSpan = Math.max(0, max - min);
+    const localSpan = rawLocalSpan > 0 ? rawLocalSpan / availableRatio : 0;
+
+    // Focus is a deliberate chronology zoom. Cap the first focused viewport to
+    // 60% of the pre-focus span, while avoiding an excessive one-step jump below
+    // 18%. Nearby events can make the target tighter; distant events never force
+    // the viewport to expand.
+    const minimumFocusSpan = Math.min(
+      span,
+      Math.max(minSpanMs, span * 0.18, focusedContainingSpan)
+    );
+    const maximumFocusSpan = Math.max(minimumFocusSpan, span * 0.6);
+    const targetSpan = Math.min(
+      span,
+      Math.max(
+        minimumFocusSpan,
+        localSpan > 0 ? Math.min(maximumFocusSpan, localSpan) : maximumFocusSpan
+      )
+    );
+    const localCenter = min + (max - min) / 2;
+    const center = localSpan > 0 && localSpan <= targetSpan
+      ? localCenter
+      : focusedCenter;
+    const targetViewport = {
+      start: center - targetSpan / 2,
+      end: center + targetSpan / 2
+    };
+    const contextualIds = selected
+      .filter((item) => {
+        const end = Number.isFinite(item.end) ? item.end : item.start;
+        return end >= targetViewport.start && item.start <= targetViewport.end;
+      })
+      .map((item) => String(item.id));
 
     return {
-      mode: "context",
-      viewport: {
-        start: center - targetSpan / 2,
-        end: center + targetSpan / 2
-      },
+      mode: coincidentIds.length ? "coincident" : "context",
+      viewport: targetViewport,
       forceUnique: false,
-      contextIds: selected.map((item) => String(item.id))
+      contextIds: [...coincidentIds, ...contextualIds]
     };
   }
 
