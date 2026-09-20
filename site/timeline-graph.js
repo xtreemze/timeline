@@ -251,14 +251,16 @@
       const operation = RELATION_CHANGE_OPERATIONS.has(raw.operation) ? raw.operation : "update";
       const predicate = text(raw.predicate, 120);
       if (predicate && !validateActionPredicate(predicate).valid) return null;
+      const properties = raw.properties && typeof raw.properties === "object" && !Array.isArray(raw.properties)
+        ? raw.properties
+        : {};
+      if (Object.keys(properties).some(contextPropertyKey)) return null;
       return {
         relationshipId,
         operation,
         predicate,
         role: text(raw.role, 120),
-        properties: raw.properties && typeof raw.properties === "object" && !Array.isArray(raw.properties)
-          ? cloneJson(raw.properties)
-          : {}
+        properties: cloneJson(properties)
       };
     }).filter(Boolean);
   }
