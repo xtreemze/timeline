@@ -313,6 +313,7 @@
         items,
         stories: Array.isArray(timelineMetadata.stories) ? boundedClone(timelineMetadata.stories) : [],
         entities: Array.isArray(timelineMetadata.entities) ? boundedClone(timelineMetadata.entities) : [],
+        places: Array.isArray(timelineMetadata.places) ? boundedClone(timelineMetadata.places) : [],
         relationships: Array.isArray(timelineMetadata.relationships) ? boundedClone(timelineMetadata.relationships) : [],
         evidence: Array.isArray(timelineMetadata.evidence) ? boundedClone(timelineMetadata.evidence) : [],
         reasoning: timelineMetadata.reasoning && typeof timelineMetadata.reasoning === "object"
@@ -497,10 +498,11 @@
         canonicalVersion: Number(timeline.version) || 2,
         stories: cloneJson(Array.isArray(timeline.stories) ? timeline.stories : []),
         entities: cloneJson(Array.isArray(timeline.entities) ? timeline.entities : []),
+        places: cloneJson(Array.isArray(timeline.places) ? timeline.places : []),
         relationships: cloneJson(Array.isArray(timeline.relationships) ? timeline.relationships : []),
         evidence: cloneJson(Array.isArray(timeline.evidence) ? timeline.evidence : []),
         reasoning: cloneJson(timeline.reasoning && typeof timeline.reasoning === "object" ? timeline.reasoning : {}),
-        note: "Timeline interchange keeps external event, period, group, story, entity, relationship, evidence, and analytical reasoning metadata behind a vendor-neutral adapter and preserves imported extension records when available. PDF blobs remain browser-local and are not embedded in interchange JSON."
+        note: "Timeline interchange keeps external event, period, group, story, entity, reusable place, relationship, evidence, and analytical reasoning metadata behind a vendor-neutral adapter and preserves imported extension records when available. PDF blobs remain browser-local and are not embedded in interchange JSON."
       }
     };
   }
