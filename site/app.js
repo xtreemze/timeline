@@ -542,7 +542,7 @@
         else els.presentationFullscreenToggle.prepend(icon);
       }
       syncContextualPresentationPanels();
-      if (els.viewControls) els.viewControls.hidden = !(active || ui.viewControlsOpen);
+      syncViewControlsSurface();
       temporalGraphView?.setPresentationMode?.(presentationModeActive());
     });
     if (active && timelineView?.hasFocusedItem?.()) {
@@ -1032,6 +1032,22 @@
     element.hidden = !message;
   }
 
+  function syncViewControlsSurface() {
+    if (!els.viewControls) return;
+    const shouldOpen = Boolean(ui.viewControlsOpen || presentationIsFullscreen());
+    const isOpen = els.viewControls.matches(":popover-open");
+
+    if (shouldOpen && !isOpen) {
+      try {
+        els.viewControls.showPopover();
+      } catch {
+        return;
+      }
+    } else if (!shouldOpen && isOpen) {
+      els.viewControls.hidePopover();
+    }
+  }
+
   function syncApplicationSurfaces() {
     if (ui.mode !== "edit") ui.editorOpen = false;
     const editing = ui.mode === "edit";
@@ -1075,9 +1091,7 @@
     if (els.viewControlsToggle) {
       els.viewControlsToggle.setAttribute("aria-expanded", String(ui.viewControlsOpen));
     }
-    if (els.viewControls) {
-      els.viewControls.hidden = !(ui.viewControlsOpen || presentationIsFullscreen());
-    }
+    syncViewControlsSurface();
 
     temporalGraphView?.setPresentationMode?.(presentationModeActive());
     syncContextualPresentationPanels();
