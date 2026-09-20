@@ -25,7 +25,7 @@
   display: flex;
   align-items: center;
   gap: .28rem;
-  max-width: min(34rem, calc(100% - 1rem));
+  max-width: min(52rem, calc(100% - 1rem));
   padding: .18rem .22rem;
   border: 1px solid color-mix(in srgb, var(--line) 54%, transparent);
   border-radius: .68rem;
@@ -64,12 +64,14 @@
 }
 .timeline-project-title {
   display: block;
+  flex: 1 1 auto;
   min-width: 0;
 }
 .timeline-project-title input {
   appearance: none;
   display: block;
-  width: min(30rem, calc(100dvw - 5.5rem));
+  width: clamp(10rem, 28vw, 26rem);
+  max-width: 100%;
   min-width: 0;
   min-height: 34px;
   margin: 0;
@@ -97,7 +99,19 @@
   bottom: max(.5rem, env(safe-area-inset-bottom));
   left: max(.5rem, env(safe-area-inset-left));
   flex-direction: row;
-  max-width: min(34rem, calc(100% - 1rem));
+  max-width: min(52rem, calc(100% - 1rem));
+}
+
+.timeline-view[data-orientation="landscape"] .timeline-project-heading:has(.story-focus:not([hidden])) .timeline-project-title input {
+  width: clamp(9rem, 20vw, 18rem);
+}
+
+.timeline-view[data-orientation="landscape"] .story-focus-header {
+  max-width: min(24rem, 46vw);
+}
+
+.timeline-view[data-orientation="landscape"] .story-focus-copy {
+  flex: 1 1 auto;
 }
 
 .timeline-view[data-orientation="portrait"] .timeline-project-heading {
@@ -111,12 +125,42 @@
 }
 .timeline-view[data-orientation="portrait"] .timeline-project-title input {
   width: 34px;
-  height: min(32dvh, 280px);
-  min-height: 112px;
+  height: min(28dvh, 240px);
+  min-height: 96px;
   padding: .35rem .22rem;
   writing-mode: vertical-rl;
   text-orientation: mixed;
   text-align: start;
+}
+
+.timeline-view[data-orientation="portrait"] .story-focus-header {
+  flex-direction: column;
+  gap: .18rem;
+  max-width: 34px;
+  padding: .28rem 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--story) 42%, var(--line));
+  border-left: 0;
+}
+
+.timeline-view[data-orientation="portrait"] .story-focus-copy {
+  display: none;
+}
+
+.timeline-view[data-orientation="portrait"] .story-focus-controls {
+  flex-direction: column;
+  gap: .08rem;
+}
+
+.timeline-view[data-orientation="portrait"] .story-focus-controls > span {
+  min-width: 30px;
+  padding: .16rem 0;
+}
+
+.timeline-view[data-orientation="portrait"] .story-nav-button {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
 }
 
 #app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(.timeline-focus-view:popover-open)
@@ -126,7 +170,7 @@
   bottom: max(.45rem, env(safe-area-inset-bottom));
   left: max(.45rem, env(safe-area-inset-left));
   flex-direction: row;
-  max-width: min(34rem, calc(100% - 1rem));
+  max-width: min(52rem, calc(100% - 1rem));
 }
 #app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(.timeline-focus-view:popover-open)
   .timeline-project-title input {
@@ -3294,7 +3338,7 @@
 @media (min-width: 700px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
     --relations-inline-rail: clamp(280px, 28dvw, 400px);
-    --relations-block-rail: clamp(160px, 22dvh, 220px);
+    --relations-block-rail: clamp(220px, 31dvh, 320px);
     --relations-gap: clamp(.35rem, .7vw, .7rem);
     --relations-top-safe: max(4.55rem, calc(env(safe-area-inset-top) + 4.15rem));
     --relations-right-safe: max(.55rem, env(safe-area-inset-right));
@@ -3391,7 +3435,8 @@
 /* Mobile persistent relation composition: graph and chronology are siblings, never overlapping canvases. */
 @media (max-width: 699px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
-    --mobile-relations-rail: clamp(88px, 25dvw, 116px);
+    --mobile-relations-inline-rail: clamp(88px, 25dvw, 116px);
+    --mobile-relations-block-rail: clamp(136px, 32dvh, 184px);
     --mobile-top-chrome: max(3.75rem, calc(env(safe-area-inset-top) + 3.45rem));
     --mobile-bottom-chrome: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
   }
@@ -3400,7 +3445,7 @@
     #presentation-stage:has(> #timeline-view[data-orientation="portrait"])
     > .graph-lens:not([hidden]) {
     top: var(--mobile-top-chrome);
-    right: calc(var(--mobile-relations-rail) + max(.25rem, env(safe-area-inset-right)));
+    right: calc(var(--mobile-relations-inline-rail) + max(.25rem, env(safe-area-inset-right)));
     bottom: var(--mobile-bottom-chrome);
     left: max(.35rem, env(safe-area-inset-left));
   }
@@ -3413,7 +3458,7 @@
     bottom: 0;
     left: auto;
     --timeline-axis-cross: 42%;
-    width: var(--mobile-relations-rail);
+    width: var(--mobile-relations-inline-rail);
     height: 100%;
     min-height: 0;
     max-height: none;
@@ -3429,7 +3474,7 @@
     > .graph-lens:not([hidden]) {
     top: var(--mobile-top-chrome);
     right: max(.35rem, env(safe-area-inset-right));
-    bottom: calc(var(--mobile-bottom-chrome) + var(--mobile-relations-rail) + .25rem);
+    bottom: calc(var(--mobile-bottom-chrome) + var(--mobile-relations-block-rail) + .25rem);
     left: max(.35rem, env(safe-area-inset-left));
   }
 
@@ -3451,7 +3496,7 @@
     --timeline-axis-cross: 38%;
     width: 100%;
     max-width: none;
-    height: var(--mobile-relations-rail);
+    height: var(--mobile-relations-block-rail);
     min-height: 0;
     border-top: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
     background: color-mix(in srgb, var(--paper) 84%, transparent);
