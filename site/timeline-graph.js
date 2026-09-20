@@ -367,7 +367,11 @@
     }
 
     const edges = relationships
-      .filter((relationship) => seen.has(String(relationship.subjectId)) && seen.has(String(relationship.objectId)))
+      .filter((relationship) =>
+        seen.has(String(relationship.subjectId)) &&
+        seen.has(String(relationship.objectId)) &&
+        validateActionPredicate(relationship.predicate).valid
+      )
       .map((relationship) => ({
       id: relationship.id,
       start: relationship.subjectId,
@@ -466,20 +470,6 @@
     for (const edge of edges) {
       visibleNodeIds.add(String(edge.start));
       visibleNodeIds.add(String(edge.end));
-    }
-
-    for (const item of items) {
-      const startValue = temporal?.sortKey(item.time?.start || item.start);
-      const endSource = item.time?.end || item.end || item.time?.start || item.start;
-      const endValue = temporal?.sortKey(endSource);
-      if (
-        Number.isFinite(startValue) &&
-        Number.isFinite(endValue) &&
-        endValue >= viewport.start &&
-        startValue <= viewport.end
-      ) {
-        visibleNodeIds.add(String(item.id));
-      }
     }
 
     return {
