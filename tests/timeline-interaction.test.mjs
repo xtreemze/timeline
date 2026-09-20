@@ -521,6 +521,48 @@ test("graph semantics reject action nodes and generic association predicates", (
   assert.deepEqual(normalized.relationships, []);
 });
 
+test("legacy place nodes and item locations migrate into reusable edge place context", () => {
+  const migrated = graph.migrateLegacySpatialModel({
+    entities: [
+      { id: "person-a", type: "person", name: "A" },
+      { id: "person-b", type: "person", name: "B" },
+      {
+        id: "place-old",
+        type: "place",
+        name: "Station",
+        attributes: { geometry: { type: "Point", coordinates: [18.0686, 59.3293] } }
+      }
+    ],
+    items: [{
+      id: "event-a",
+      title: "Meeting",
+      location: {
+        name: "Station",
+        geometry: { type: "Point", coordinates: [18.0686, 59.3293] }
+      }
+    }],
+    relationships: [{
+      id: "legacy-place-edge",
+      subjectId: "person-a",
+      objectId: "place-old",
+      predicate: "metAt",
+      itemIds: ["event-a"]
+    }, {
+      id: "entity-edge",
+      subjectId: "person-a",
+      objectId: "person-b",
+      predicate: "met",
+      itemIds: ["event-a"]
+    }]
+  }, globalThis.TimelineSpatial);
+
+  assert.equal(migrated.entities.some((entity) => entity.id === "place-old"), false);
+  assert.ok(migrated.places.some((place) => place.name === "Station"));
+  assert.equal("location" in migrated.items[0], false);
+  assert.ok(migrated.relationships.every((edge) => edge.placeId));
+  assert.equal(migrated.relationships.find((edge) => edge.id === "legacy-place-edge")?.predicate, "met");
+});
+
 test("timeline CSS uses Monaspace texture healing and metric-aware text trimming", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   assert.match(css, /Monaspace Krypton/);
