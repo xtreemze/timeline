@@ -100,6 +100,98 @@
 
   const ACTION_NAME_PATTERN = /^(?:called|calls|met|meets|sent|sends|transferred|transfers|paid|pays|visited|visits|arrived|arrives|departed|departs|left|leaves|built|builds|created|creates|attacked|attacks|ordered|orders|warned|warns|approved|approves|authorized|authorizes|signed|signs|moved|moves|travelled|traveled|travels|fled|flees|married|marries|danced|dances|consulted|consults|poisoned|poisons|searched|searches|found|finds|lost|loses|gave|gives|took|takes|received|receives)\b/i;
 
+  const ACTION_PREDICATE_VERBS = new Set([
+    "acquire", "acquired", "acquires",
+    "approach", "approached", "approaches",
+    "approve", "approved", "approves",
+    "attack", "attacked", "attacks",
+    "authorize", "authorized", "authorizes",
+    "awaken", "awakened", "awakens",
+    "bear", "bears", "bore",
+    "besiege", "besieged", "besieges",
+    "bite", "bites", "bit",
+    "build", "builds", "built",
+    "burden", "burdened", "burdens",
+    "buy", "buys", "bought",
+    "call", "called", "calls",
+    "carry", "carried", "carries",
+    "climb", "climbed", "climbs",
+    "command", "commanded", "commands",
+    "conjure", "conjured", "conjures",
+    "consult", "consulted", "consults",
+    "control", "controlled", "controls",
+    "create", "created", "creates",
+    "dance", "danced", "dances",
+    "deceive", "deceived", "deceives",
+    "defeat", "defeated", "defeats",
+    "depart", "departed", "departs",
+    "descend", "descended", "descends",
+    "discover", "discovered", "discovers",
+    "destroy", "destroyed", "destroys",
+    "encounter", "encountered", "encounters",
+    "enter", "entered", "enters",
+    "find", "finds", "found",
+    "flee", "flees", "fled",
+    "forbid", "forbade", "forbids",
+    "give", "gave", "gives",
+    "guard", "guarded", "guards",
+    "identify", "identified", "identifies",
+    "invite", "invited", "invites",
+    "join", "joined", "joins",
+    "leave", "leaves", "left",
+    "live", "lived", "lives",
+    "lose", "loses", "lost",
+    "marry", "married", "marries",
+    "meet", "meets", "met",
+    "mourn", "mourned", "mourns",
+    "move", "moved", "moves",
+    "pay", "paid", "pays",
+    "poison", "poisoned", "poisons",
+    "prepare", "prepared", "prepares",
+    "provide", "provided", "provides",
+    "pursue", "pursued", "pursues",
+    "raise", "raised", "raises",
+    "receive", "received", "receives",
+    "regroup", "regrouped", "regroups",
+    "request", "requested", "requests",
+    "restrict", "restricted", "restricts",
+    "return", "returned", "returns",
+    "revive", "revived", "revives",
+    "search", "searched", "searches",
+    "sell", "sells", "sold",
+    "send", "sends", "sent",
+    "serve", "served", "serves",
+    "shelter", "sheltered", "shelters",
+    "sign", "signed", "signs",
+    "spare", "spared", "spares",
+    "take", "takes", "took",
+    "threaten", "threatened", "threatens",
+    "transfer", "transferred", "transfers",
+    "transform", "transformed", "transforms",
+    "travel", "traveled", "travelled", "travels",
+    "try", "tried", "tries",
+    "use", "used", "uses",
+    "visit", "visited", "visits",
+    "warn", "warned", "warns",
+    "wear", "wears", "wore",
+    "witness", "witnessed", "witnesses",
+    "rest", "rested", "rests"
+  ]);
+
+  const ACTION_PREDICATE_PARTICLES = new Set([
+    "beside", "from", "into", "onto", "through", "to", "with", "for"
+  ]);
+
+  function actionPredicateTokens(value) {
+    const predicate = text(value, 120);
+    if (!predicate || !/^[A-Za-z]+$/.test(predicate)) return [];
+    return predicate
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .toLocaleLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
+  }
+
   function semanticKey(value) {
     return text(value, 120).toLocaleLowerCase().replace(/[^a-z0-9]+/g, "");
   }
@@ -108,11 +200,23 @@
     return ENTITY_CONTEXT_KEYS.has(semanticKey(value));
   }
 
+  const CATEGORY_ATTRIBUTE_KEYS = new Set([
+    "category",
+    "categoryid",
+    "categoryids",
+    "group",
+    "groupid",
+    "groupids"
+  ]);
+
   function cleanContextFreeAttributes(value) {
     if (!value || typeof value !== "object" || Array.isArray(value)) return {};
     const cleaned = {};
     for (const [key, entry] of Object.entries(value)) {
-      if (!contextPropertyKey(key)) cleaned[key] = cloneJson(entry);
+      const semantic = semanticKey(key);
+      if (!contextPropertyKey(key) && !CATEGORY_ATTRIBUTE_KEYS.has(semantic)) {
+        cleaned[key] = cloneJson(entry);
+      }
     }
     return cleaned;
   }
@@ -156,16 +260,24 @@
         message: `“${predicate}” is a generic association, not a specific action. Use a concrete verb such as called, warned, built, transferredTo, acquired, or authorized.`
       };
     }
-    if (/^(?:related|associated|connected|linked|involved|participat|member|belong|partof|protagonist|presentat|locatedat|occursat)/.test(key)) {
-      return {
-        valid: false,
-        message: `“${predicate}” is too general. Name the concrete action performed by the source toward the target.`
-      };
-    }
-    if (/\b(?:at|near|during|on\s+\d{4}|in\s+\d{4})\b/i.test(predicate) || /(?:At|Near|During|Via|Along|Toward|From|Into|Onto|In)$/.test(predicate) || /\d{4}-\d{2}-\d{2}/.test(predicate)) {
+    if (/\b(?:at|near|during|on\s+\d{4}|in\s+\d{4})\b/i.test(predicate) || /(?:At|Near|During|Via|Along|Toward|In)$/.test(predicate) || /\d{4}-\d{2}-\d{2}/.test(predicate)) {
       return {
         valid: false,
         message: `“${predicate}” mixes action with place or time. Keep the label to the action only; select placeId and time separately on the edge.`
+      };
+    }
+    const tokens = actionPredicateTokens(predicate);
+    if (!tokens.length || !ACTION_PREDICATE_VERBS.has(tokens[0])) {
+      return {
+        valid: false,
+        message: `“${predicate}” must begin with a recognized action verb. Edge predicates are verbs only; nouns and entity names belong in nodes.`
+      };
+    }
+    const invalidTail = tokens.slice(1).find((token) => !ACTION_PREDICATE_PARTICLES.has(token));
+    if (invalidTail) {
+      return {
+        valid: false,
+        message: `“${predicate}” contains “${invalidTail}”, which is not part of the action. Put nouns/entities in source or target nodes and keep the edge to the verb only.`
       };
     }
     return { valid: true, message: "" };
@@ -204,7 +316,7 @@
     const subjectId = text(raw.subjectId ?? raw.start ?? raw.source, 120);
     const objectId = text(raw.objectId ?? raw.end ?? raw.target, 120);
     const predicate = text(raw.predicate || raw.label || raw.type, 120);
-    if (!subjectId || !objectId || !validateActionPredicate(predicate).valid) return null;
+    if (!subjectId || !objectId || subjectId === objectId || !validateActionPredicate(predicate).valid) return null;
 
     let time = null;
     const sourceTime = raw.time && typeof raw.time === "object" ? raw.time : null;
@@ -422,6 +534,9 @@
       const objectId = text(relationship?.objectId ?? relationship?.end ?? relationship?.target, 120);
       if (!entityIds.has(subjectId) || !entityIds.has(objectId)) {
         errors.push(`Edge ${id}: endpoints must both be entity nodes. Time and place are edge properties, never endpoint nodes.`);
+      }
+      if (subjectId && objectId && subjectId === objectId) {
+        errors.push(`Edge ${id}: source and target must be different entity nodes. Self-loop edges are invalid; if the predicate contains the missing object/entity, create that entity as a node and target it explicitly.`);
       }
       const placeId = text(relationship?.placeId || relationship?.locationId, 120);
       if (placeId && !placeIds.has(placeId)) errors.push(`Edge ${id}: unknown placeId “${placeId}”. Create/reuse a canonical place record first.`);
