@@ -93,7 +93,58 @@ test("rejects incomplete coordinate pairs", () => {
   assert.throws(() => spatial.fromForm({ latitude: "59.3", longitude: "" }), /both latitude and longitude/i);
 });
 
-test("item form uses one range calendar, native clocks, and Chrome geolocation", async () => {
+test("canonical places support point radius, area geometry, semantic icon and marker shape", () => {
+  const point = spatial.placeFromForm({
+    id: "place-a",
+    name: "Stockholm Central",
+    latitude: "59.3293",
+    longitude: "18.0686",
+    radiusMeters: "250",
+    icon: "place",
+    markerShape: "diamond"
+  });
+  assert.deepEqual(point.geometry, { type: "Point", coordinates: [18.0686, 59.3293] });
+  assert.equal(point.radiusMeters, 250);
+  assert.equal(point.icon, "place");
+  assert.equal(point.markerShape, "diamond");
+
+  const area = spatial.placeFromForm({
+    id: "place-area",
+    name: "Search Area",
+    areaGeometry: JSON.stringify({
+      type: "Polygon",
+      coordinates: [[[18, 59], [18.1, 59], [18.1, 59.1], [18, 59]]]
+    }),
+    icon: "search",
+    markerShape: "square"
+  });
+  assert.equal(area.geometry.type, "Polygon");
+  assert.equal(area.radiusMeters, null);
+  assert.throws(
+    () => spatial.normalizePlace({
+      id: "bad-area",
+      name: "Bad area",
+      geometry: area.geometry,
+      radiusMeters: 10
+    }),
+    /radius can only be used with Point/i
+  );
+});
+
+test("canonical places deduplicate equivalent location records", () => {
+  const places = spatial.normalizePlaces([
+    { id: "one", name: "Same place", geometry: { type: "Point", coordinates: [18, 59] }, radiusMeters: 100 },
+    { id: "two", name: "Same place", geometry: { type: "Point", coordinates: [18, 59] }, radiusMeters: 100 }
+  ]);
+  assert.equal(places.length, 1);
+  assert.equal(spatial.placeIdentity(places[0]), spatial.placeIdentity({
+    name: "Same place",
+    geometry: { type: "Point", coordinates: [18, 59] },
+    radiusMeters: 100
+  }));
+});
+
+test("item form uses one range calendar while canonical place authoring is separated into the graph editor", async () => {
   const [html, mapSource, appSource] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
@@ -113,7 +164,9 @@ test("item form uses one range calendar, native clocks, and Chrome geolocation",
   assert.ok(html.includes('<option value="month">Month</option>'));
   assert.equal(html.split('<option value="millennium">Millennium</option>').length - 1, 2);
   assert.ok(appSource.includes('const hasClock = !["millennium", "century", "decade", "year", "month", "day"].includes(precision);'));
-  assert.match(html, /<geolocation id="item-geolocation"/);
+  assert.match(html, /id="item-location-details"[^>]*hidden/);
+  assert.match(html, /id="graph-place-form"/);
+  assert.match(html, /id="graph-edge-place"/);
   assert.match(mapSource, /tile\.openstreetmap\.org/);
   assert.match(mapSource, /OpenStreetMap/);
   assert.match(mapSource, /1\.9\.4/);
@@ -129,11 +182,13 @@ test("omits location accuracy when the form field is empty", () => {
   assert.equal("accuracyMeters" in location, false);
 });
 
-test("presentation map is read-only, semantic, and selects a reasonable zoom from accuracy", async () => {
+test("presentation map is semantic and selects a reasonable zoom from canonical place radius", async () => {
   const source = await readFile(new URL("../site/location-map.js", import.meta.url), "utf8");
   assert.match(source, /class ReadOnlyLocationMap/);
   assert.match(source, /createReadOnly/);
   assert.match(source, /presentationZoom/);
+  assert.match(source, /radiusMeters/);
+  assert.match(source, /markerShape/);
   assert.match(source, /this\.interactive = options\.interactive === true/);
   assert.match(source, /zoomControl:\s*this\.interactive/);
   assert.match(source, /dragging:\s*this\.interactive/);
