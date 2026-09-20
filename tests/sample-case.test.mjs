@@ -352,13 +352,17 @@ test("main-action chronology is spread across realistic multi-day spans without 
   }
 });
 
-test("every chronology item has public-domain illustrative media", () => {
+test("every chronology item has Commons-hosted illustrative media without the repeated overlay disclaimer", () => {
   assert.equal(sample.items.filter((item) => item.media?.length).length, sample.items.length);
   for (const item of sample.items) {
     assert.ok(item.media.length >= 1, item.id);
     for (const media of item.media) {
       assert.match(media.src, /^https:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\//, item.id);
-      assert.match(media.caption || "", /Public-domain story illustration via Wikimedia Commons/i, item.id);
+      assert.doesNotMatch(
+        media.caption || "",
+        /Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction\./i,
+        item.id
+      );
     }
   }
 });
