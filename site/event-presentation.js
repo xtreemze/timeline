@@ -17,11 +17,7 @@
     "magic",
     "search",
     "crown",
-    "object",
-    "landscape",
-    "portrait",
-    "fullscreen",
-    "minimize"
+    "object"
   ]);
 
   const ICON_PATHS = Object.freeze({
@@ -102,7 +98,7 @@
   }
 
   function createIcon(name, options = {}) {
-    const iconName = ICON_NAMES.includes(name) ? name : "note";
+    const iconName = Object.prototype.hasOwnProperty.call(ICON_PATHS, name) ? name : "note";
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", "0 0 24 24");
     svg.setAttribute("width", String(options.size || 16));
