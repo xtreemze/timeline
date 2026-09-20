@@ -84,6 +84,10 @@
 
   const PLACE_GEOMETRY_TYPES = new Set(["Point", "Polygon", "MultiPolygon"]);
   const PLACE_MARKER_SHAPES = new Set(["pin", "circle", "square", "diamond"]);
+  const PLACE_ICON_NAMES = new Set([
+    "milestone", "decision", "evidence", "person", "place", "media", "relation",
+    "note", "home", "danger", "magic", "search", "crown", "object"
+  ]);
 
   function clone(value) {
     try {
@@ -127,7 +131,8 @@
       throw new Error("Place radius can only be used with Point geometry.");
     }
 
-    const icon = text(raw.icon || raw.marker?.icon || raw.attributes?.icon, 48) || "place";
+    const iconCandidate = text(raw.icon || raw.marker?.icon || raw.attributes?.icon, 48);
+    const icon = PLACE_ICON_NAMES.has(iconCandidate) ? iconCandidate : "place";
     const markerShapeCandidate = text(raw.markerShape || raw.marker?.shape || raw.attributes?.markerShape, 24);
     const markerShape = PLACE_MARKER_SHAPES.has(markerShapeCandidate) ? markerShapeCandidate : "pin";
 
@@ -168,7 +173,7 @@
     const seenIdentities = new Set();
     value.forEach((raw, index) => {
       const place = normalizePlace(raw, index);
-      if (!place || seenIds.has(place.id)) return;
+      if (!place || !place.geometry || seenIds.has(place.id)) return;
       const identity = placeIdentity(place);
       if (identity && seenIdentities.has(identity)) return;
       seenIds.add(place.id);
@@ -220,6 +225,7 @@
   }
 
   globalThis.TimelineSpatial = Object.freeze({
+    PLACE_ICON_NAMES: Object.freeze([...PLACE_ICON_NAMES]),
     PLACE_MARKER_SHAPES: Object.freeze([...PLACE_MARKER_SHAPES]),
     formParts,
     fromForm,
