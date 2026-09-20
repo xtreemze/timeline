@@ -3177,106 +3177,61 @@ body {
   }
 }
 
-/* Browse and Edit are true layout-reserving sidebars.
-   They are vertical in-flow workspace columns at every viewport size; only their own
-   vertical content scrolls, never the workspace beneath them or a horizontal sheet axis. */
-#app-shell[data-editor-open="true"] {
-  --utility-sidebar-width: min(320px, 72dvw);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--utility-sidebar-width);
-  grid-template-rows: minmax(0, 1fr);
-}
-
-#app-shell[data-editor-open="true"] > .timeline-panel {
-  position: relative;
-  inset: auto;
-  grid-column: 1;
-  grid-row: 1;
-  width: 100%;
-  height: 100%;
+/* Browse and Edit are overlay drawers.
+   Opening either surface must not change timeline or persistent-graph geometry. */
+#app-shell[data-editor-open="true"] > .timeline-panel,
+#app-shell[data-browser-open="true"] > .timeline-panel,
+#app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen) {
   min-width: 0;
   min-height: 0;
+}
+
+#app-shell[data-editor-open="true"] > .app-editor-sheet,
+#app-shell[data-browser-open="true"] > .timeline-panel > .app-browser-sheet {
+  position: fixed;
+  z-index: 1180;
+  top: max(.5rem, env(safe-area-inset-top));
+  right: max(.5rem, env(safe-area-inset-right));
+  bottom: max(4.45rem, calc(env(safe-area-inset-bottom) + 4.1rem));
+  left: auto;
+  align-self: auto;
+  box-sizing: border-box;
+  width: min(420px, calc(100dvw - 1rem));
+  min-width: 0;
+  max-width: calc(100dvw - 1rem);
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  margin: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 84%, transparent);
+  border-radius: 1rem;
+  box-shadow: 0 14px 42px color-mix(in srgb, var(--ink) 14%, transparent);
+  backdrop-filter: blur(16px);
+  container: utility-sidebar / inline-size;
 }
 
 #app-shell[data-editor-open="true"] > .app-editor-sheet {
-  position: relative;
-  z-index: 2;
-  inset: auto;
-  grid-column: 2;
-  grid-row: 1;
-  align-self: stretch;
-  box-sizing: border-box;
-  width: auto;
-  min-width: 0;
-  max-width: none;
-  height: 100%;
-  min-height: 0;
-  max-height: none;
-  margin: 0;
-  overflow-x: clip;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  border: 0;
-  border-left: 1px solid var(--line);
-  border-radius: 0;
-  background: var(--panel);
-  box-shadow: none;
-  backdrop-filter: none;
-  container: utility-sidebar / inline-size;
-}
-
-#app-shell[data-browser-open="true"] > .timeline-panel {
-  --utility-sidebar-width: min(300px, 68dvw);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--utility-sidebar-width);
-  grid-template-rows: minmax(0, 1fr);
-}
-
-#app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen) {
-  position: relative;
-  inset: auto;
-  grid-column: 1;
-  grid-row: 1;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
+  width: min(440px, calc(100dvw - 1rem));
+  background: color-mix(in srgb, var(--panel) 97%, transparent);
 }
 
 #app-shell[data-browser-open="true"] > .timeline-panel > .app-browser-sheet {
-  position: relative;
-  z-index: 2;
-  inset: auto;
-  grid-column: 2;
-  grid-row: 1;
-  align-self: stretch;
-  box-sizing: border-box;
-  width: auto;
-  min-width: 0;
-  max-width: none;
-  height: 100%;
-  min-height: 0;
-  max-height: none;
-  margin: 0;
-  overflow-x: clip;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  border: 0;
-  border-left: 1px solid var(--line);
-  border-radius: 0;
-  background: var(--paper);
-  box-shadow: none;
-  backdrop-filter: none;
-  container: utility-sidebar / inline-size;
+  width: min(400px, calc(100dvw - 1rem));
+  background: color-mix(in srgb, var(--paper) 97%, transparent);
 }
 
-#app-shell:is(
-  [data-editor-open="true"],
-  [data-browser-open="true"]
-) #presentation-stage:not(:fullscreen) > .graph-lens:not([hidden]) {
-  position: absolute;
+@media (max-width: 699px) {
+  #app-shell[data-editor-open="true"] > .app-editor-sheet,
+  #app-shell[data-browser-open="true"] > .timeline-panel > .app-browser-sheet {
+    left: max(.5rem, env(safe-area-inset-left));
+    right: max(.5rem, env(safe-area-inset-right));
+    width: auto;
+    max-width: none;
+  }
 }
 
 .app-editor-sheet :is(
@@ -3428,16 +3383,6 @@ body {
 .app-browser-sheet .card-actions {
   flex: 0 1 auto;
   margin-left: auto;
-}
-
-@media (min-width: 760px) {
-  #app-shell[data-editor-open="true"] {
-    --utility-sidebar-width: clamp(320px, 34dvw, 440px);
-  }
-
-  #app-shell[data-browser-open="true"] > .timeline-panel {
-    --utility-sidebar-width: clamp(300px, 31dvw, 400px);
-  }
 }
 
 @container utility-sidebar (max-width: 360px) {
