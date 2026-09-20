@@ -355,7 +355,7 @@
     const seen = new Set();
 
     for (const entity of entities) {
-      if (!entity?.id || seen.has(entity.id)) continue;
+      if (!entity?.id || seen.has(entity.id) || !validateEntityNode(entity).valid) continue;
       seen.add(entity.id);
       nodes.push({
         id: entity.id,
