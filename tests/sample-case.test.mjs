@@ -278,7 +278,7 @@ test("Three Little Pigs includes material choices, escapes, regrouping and alter
     "pigs-wolf-roof"
   ]) assert.ok(ids.has(id), id);
   assert.ok(sample.entities.some((entity) => entity.id === "pigs-material-vendors"));
-  assert.ok(sample.relationships.some((relationship) => relationship.id === "rel-pigs-third-bricks"));
+  assert.ok(sample.relationships.some((relationship) => relationship.id === "rel-event-pigs-acquire-bricks-object-action"));
 });
 
 test("Snow White separates the disguised attacks, recoveries, apple preparation and coffin encounter", () => {
