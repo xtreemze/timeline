@@ -858,7 +858,7 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(timelineCss, /timeline-view-toolbar\[popover\]:popover-open[\s\S]*max-inline-size:[\s\S]*max-block-size:[\s\S]*overflow-y:\s*auto/);
   assert.match(timelineCss, /\.timeline-zoom-control[\s\S]*grid-template-rows:\s*22px auto/);
   assert.match(timelineCss, /\.timeline-zoom-scale[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
-  assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*bottom:\s*max\(4\.35rem/);
+  assert.match(timelineCss, /Expanded View controls are positioned from the View trigger[\s\S]*top:\s*var\(--view-controls-top[\s\S]*left:\s*var\(--view-controls-left/);
   assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*flex-wrap:\s*nowrap/);
   assert.match(timelineCss, /\.timeline-auto-controls[\s\S]*display:\s*flex[\s\S]*flex-wrap:\s*nowrap/);
   assert.doesNotMatch(timelineCss, /\.timeline-auto-controls[\s\S]{0,180}grid-column:\s*1 \/ -1/);
@@ -874,6 +874,25 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(viewSource, /clusterAfterAvailable = width - 12 - clusterTerminalExtent \+ 32 - axisCross/);
 });
 
+
+test("View toolbar stays anchored to the View trigger and clamps to the visual viewport", async () => {
+  const [appSource, timelineCss] = await Promise.all([
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(appSource, /function positionViewControls\(\)[\s\S]*viewControlsToggle\.getBoundingClientRect\(\)[\s\S]*workspaceToolViewport\(\)/);
+  assert.match(appSource, /orientation === "landscape"[\s\S]*triggerRect\.top - toolbarHeight - gap[\s\S]*triggerRect\.right - toolbarWidth/);
+  assert.match(appSource, /preferredLeft = triggerRect\.left - toolbarWidth - gap[\s\S]*fallbackLeft = triggerRect\.right \+ gap/);
+  assert.match(appSource, /Math\.max\(minLeft, maxRight - toolbarWidth\)[\s\S]*Math\.max\(minTop, maxBottom - toolbarHeight\)/);
+  assert.match(appSource, /--view-controls-left/);
+  assert.match(appSource, /--view-controls-top/);
+  assert.match(appSource, /showPopover\(\)[\s\S]*positionViewControls\(\)/);
+  assert.match(appSource, /window\.visualViewport\?\.addEventListener\("resize", positionViewControls\)/);
+  assert.match(appSource, /window\.visualViewport\?\.addEventListener\("scroll", positionViewControls\)/);
+  assert.match(timelineCss, /#app-shell:not\(:has\(#presentation-stage:fullscreen\)\)[\s\S]*--view-controls-top[\s\S]*--view-controls-left/);
+  assert.match(timelineCss, /#presentation-stage:fullscreen \.timeline-view-toolbar:popover-open[\s\S]*top:\s*max\(\.4rem/);
+});
 
 test("workspace toolbars deploy vertically in landscape and horizontally in portrait", async () => {
   const [styles, timelineCss] = await Promise.all([

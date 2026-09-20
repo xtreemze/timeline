@@ -3912,10 +3912,6 @@
 }
 
 #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
-  top: auto;
-  right: max(.45rem, env(safe-area-inset-right));
-  bottom: max(4.35rem, calc(env(safe-area-inset-bottom) + 4rem));
-  left: auto;
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
@@ -3945,10 +3941,6 @@
 
 @media (max-width: 699px) {
   #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
-    top: auto;
-    right: max(.35rem, env(safe-area-inset-right));
-    bottom: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
-    left: auto;
     display: flex;
     flex-wrap: nowrap;
     align-items: center;
@@ -4158,6 +4150,17 @@
   }
 }
 
+
+/* Expanded View controls are positioned from the View trigger by app.js.
+   CSS owns shape; measured JS coordinates own placement so viewport-edge rules cannot drift. */
+#app-shell:not(:has(#presentation-stage:fullscreen))
+  .app-view-controls.timeline-view-toolbar[popover]:popover-open {
+  top: var(--view-controls-top, max(.5rem, env(safe-area-inset-top)));
+  right: auto;
+  bottom: auto;
+  left: var(--view-controls-left, max(.5rem, env(safe-area-inset-left)));
+  margin: 0;
+}
 
 /* Toolbar deployment follows timeline orientation.
    Landscape expands upward/downward as a narrow vertical stack; portrait remains a compact row. */
