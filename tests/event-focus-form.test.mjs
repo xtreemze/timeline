@@ -741,10 +741,10 @@ test("desktop popover chrome clips every content band", async () => {
 });
 
 
-test("desktop focus card preserves readable hero and context proportions", async () => {
+test("desktop focus card preserves readable hero and persistent context proportions", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
-  assert.match(css, /grid-template-rows:\s*clamp\(240px, 30dvh, 290px\) clamp\(120px, 18dvh, 160px\)/);
-  assert.doesNotMatch(css, /grid-template-rows:\s*auto auto/);
+  assert.match(css, /Focused popover usability audit[\s\S]*grid-template-rows:\s*auto minmax\(160px, auto\) minmax\(92px, auto\) !important/);
+  assert.match(css, /timeline-focus-summary[\s\S]*min-height:\s*160px[\s\S]*max-height:\s*220px/);
   assert.match(css, /timeline-focus-title[\s\S]*font-size:\s*clamp\(2\.2rem, 7cqi, 4\.6rem\)[\s\S]*line-height:\s*\.94/);
   assert.match(css, /data-orientation="landscape"[\s\S]*inline-size:\s*min\(640px, calc\(100dvw - 6\.5rem\)\)/);
   assert.match(css, /data-orientation="portrait"[\s\S]*inline-size:\s*min\(520px, calc\(100dvw - 7\.2rem\)\)/);
@@ -933,12 +933,14 @@ test("focused map mount stays idempotent while the graph remains in its persiste
   );
 });
 
-test("focused popover keeps deterministic content bands and View Transition snapshots cannot capture pointer input", async () => {
+test("focused popover keeps deterministic non-overlapping content bands and View Transition snapshots cannot capture pointer input", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
 
   assert.match(css, /timeline-focus-view\[popover\]:popover-open[\s\S]*box-sizing:\s*border-box[\s\S]*align-content:\s*start[\s\S]*block-size:\s*auto[\s\S]*grid-auto-rows:\s*auto/);
-  assert.match(css, /@media \(min-width: 900px\) and \(min-height: 700px\)[\s\S]*data-active-tab="overview"[\s\S]*grid-template-rows:\s*clamp\(240px, 30dvh, 290px\) clamp\(120px, 18dvh, 160px\)/);
-  assert.doesNotMatch(css, /grid-template-rows:\s*auto auto/);
+  assert.match(css, /Focused popover usability audit[\s\S]*grid-template-rows:\s*auto minmax\(160px, auto\) minmax\(92px, auto\) !important/);
+  assert.match(css, /timeline-focus-tabs[\s\S]*position:\s*relative[\s\S]*grid-row:\s*1 !important/);
+  assert.match(css, /timeline-focus-summary[\s\S]*grid-row:\s*2 !important/);
+  assert.match(css, /timeline-focus-place[\s\S]*grid-row:\s*3 !important/);
   assert.match(css, /::view-transition\s*\{[\s\S]*pointer-events:\s*none/);
 });
 
