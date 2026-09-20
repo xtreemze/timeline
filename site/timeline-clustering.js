@@ -188,6 +188,30 @@
     return accents.filter((_, index) => index % stride === 0).slice(0, limit);
   }
 
+  function yearAccents(items, { limit = 18 } = {}) {
+    const buckets = new Map();
+    for (const item of Array.isArray(items) ? items : []) {
+      if (!item || !Number.isFinite(item.start)) continue;
+      const label = yearLabelForTime(item.start);
+      if (!label) continue;
+      if (!buckets.has(label)) buckets.set(label, []);
+      buckets.get(label).push(item);
+    }
+
+    const accents = [...buckets.entries()].map(([label, bucket]) => ({
+      key: label,
+      kind: "year",
+      label,
+      count: bucket.length,
+      time: bucket.reduce((sum, item) => sum + item.start, 0) / bucket.length,
+      itemIds: bucket.map((item) => String(item.id))
+    })).sort((a, b) => a.time - b.time);
+
+    if (accents.length <= limit) return accents;
+    const stride = Math.ceil(accents.length / limit);
+    return accents.filter((_, index) => index % stride === 0).slice(0, limit);
+  }
+
   const SUBDAY_UNITS = new Set(["millisecond", "second", "minute", "hour"]);
   const FINE_UNITS = new Set([...SUBDAY_UNITS, "day", "week"]);
 
@@ -249,6 +273,27 @@
     const usable = Math.max(1, Number(pixelLength) || 1);
     const unit = spec?.unit || null;
     const dayContext = SUBDAY_UNITS.has(unit);
+    if (unit === "year") {
+      const yearExtent = orientation === "vertical" ? 110 : 132;
+      const edgeAccents = nonOverlapping(
+        yearAccents(items, { limit })
+          .map((accent) => ({
+            ...accent,
+            position: projectedPosition(accent.time, viewport, usable, padding)
+          }))
+          .filter((accent) => Number.isFinite(accent.position))
+          .sort((a, b) => a.position - b.position),
+        () => yearExtent,
+        { min: padding, max: padding + usable, gap: 16 }
+      );
+      return {
+        mode: edgeAccents.length ? "year-edge" : "axis-only",
+        edgeAccents,
+        axisMonths: [],
+        hasAmbientContext: edgeAccents.length > 0
+      };
+    }
+
     const sourceAccents = dayContext
       ? dayAccents(items, { maxItemsPerDay: maxItemsPerMonth, limit })
       : monthAccents(items, { maxItemsPerMonth, limit });
@@ -260,7 +305,7 @@
       .filter((accent) => Number.isFinite(accent.position))
       .sort((a, b) => a.position - b.position);
 
-    if (!accents.length || unit === "year") {
+    if (!accents.length) {
       return { mode: "axis-only", edgeAccents: [], axisMonths: [], hasAmbientContext: false };
     }
 
@@ -584,6 +629,7 @@
     monthAccents,
     monthKey,
     planTemporalAccents,
+    yearAccents,
     projectedPosition,
     yearLabelForTime,
     monthLabelForTime

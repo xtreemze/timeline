@@ -160,8 +160,8 @@ test("temporal context progressively sheds detail as zoom broadens", () => {
     },
     spec: { unit: "year", step: 1 }
   });
-  assert.equal(yearPlan.mode, "axis-only");
-  assert.deepEqual(yearPlan.edgeAccents, []);
+  assert.equal(yearPlan.mode, "year-edge");
+  assert.deepEqual(yearPlan.edgeAccents.map((accent) => accent.label), ["1000"]);
 });
 
 test("temporal accent planner keeps full month-year accents only when they cannot overlap", () => {
@@ -200,7 +200,7 @@ test("overlapping month-year accents collapse to year on the edge and month on t
   assert.ok(plan.axisMonths.every((accent) => /^[A-Z]{3}$/.test(accent.label)));
 });
 
-test("year-scale views keep temporal context on the normal axis instead of ambient accents", () => {
+test("year-scale views retain an ambient year context in addition to axis ticks", () => {
   const plan = clustering.planTemporalAccents([
     { id: "a", start: Date.UTC(2018, 1, 1) },
     { id: "b", start: Date.UTC(2026, 8, 1) }
@@ -211,9 +211,27 @@ test("year-scale views keep temporal context on the normal axis instead of ambie
     orientation: "vertical",
     spec: { unit: "year", step: 2 }
   });
-  assert.equal(plan.mode, "axis-only");
-  assert.equal(plan.edgeAccents.length, 0);
+  assert.equal(plan.mode, "year-edge");
+  assert.deepEqual(plan.edgeAccents.map((accent) => accent.label), ["2018", "2026"]);
   assert.equal(plan.axisMonths.length, 0);
+  assert.equal(plan.hasAmbientContext, true);
+});
+
+test("dense same-year clusters still emit one ambient year label on narrow mobile timelines", () => {
+  const items = Array.from({ length: 55 }, (_, index) => ({
+    id: `event-${index}`,
+    start: Date.UTC(1000, index % 12, 1 + (index % 27))
+  }));
+  const plan = clustering.planTemporalAccents(items, {
+    viewport: { start: Date.UTC(900, 0, 1), end: Date.UTC(1100, 0, 1) },
+    pixelLength: 620,
+    padding: 48,
+    orientation: "horizontal",
+    spec: { unit: "year", step: 50 }
+  });
+  assert.equal(plan.mode, "year-edge");
+  assert.deepEqual(plan.edgeAccents.map((accent) => accent.label), ["1000"]);
+  assert.equal(plan.edgeAccents[0].count, 55);
 });
 
 test("focused clustered event zooms toward a unique projected position", () => {
