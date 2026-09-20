@@ -847,8 +847,8 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(styles, /@media \(max-width:\s*699px\)[\s\S]*\.app-tool-dock[\s\S]*left:\s*max\(\.4rem[\s\S]*right:\s*max\(4\.2rem/);
   assert.match(styles, /\.app-view-tool[\s\S]*position:\s*fixed[\s\S]*right:\s*max\(\.45rem[\s\S]*bottom:\s*max\(\.45rem/);
   assert.match(timelineCss, /app-tool-dock\[data-project-anchored="true"\][\s\S]*top:\s*var\(--workspace-tool-dock-top[\s\S]*left:\s*var\(--workspace-tool-dock-left/);
-  assert.match(timelineCss, /data-timeline-orientation="landscape"[\s\S]*flex-direction:\s*column[\s\S]*align-items:\s*stretch/);
-  assert.match(timelineCss, /data-timeline-orientation="portrait"[\s\S]*flex-direction:\s*row[\s\S]*align-items:\s*center/);
+  assert.match(timelineCss, /\.timeline-view\[data-orientation="landscape"\] > \.app-view-controls[\s\S]*flex-direction:\s*row[\s\S]*align-items:\s*center/);
+  assert.match(timelineCss, /\.timeline-view\[data-orientation="portrait"\] > \.app-view-controls[\s\S]*flex-direction:\s*column[\s\S]*align-items:\s*stretch/);
   assert.match(timelineCss, /Project-aligned Browse\/Edit controls[\s\S]*z-index:\s*1420[\s\S]*pointer-events:\s*auto/);
   assert.match(timelineCss, /app-tool-dock\[data-project-anchored="true"\] \.app-tool[\s\S]*touch-action:\s*manipulation/);
   assert.match(styles, /\.app-editor-sheet,[\s\S]*\.app-browser-sheet[\s\S]*max-height:\s*min\(58dvh/);
@@ -867,7 +867,7 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*overflow-y:\s*auto/);
   assert.match(timelineCss, /\.timeline-zoom-control[\s\S]*grid-template-rows:\s*22px auto/);
   assert.match(timelineCss, /\.timeline-zoom-scale[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
-  assert.match(timelineCss, /Canonical View popover contract[\s\S]*right:\s*anchor\(right\)[\s\S]*bottom:\s*calc\(anchor\(top\) \+ \.5rem\)[\s\S]*position-try-fallbacks:/);
+  assert.match(timelineCss, /Canonical View popover contract[\s\S]*top:\s*var\(--view-controls-top[\s\S]*left:\s*var\(--view-controls-left/);
   assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*flex-wrap:\s*nowrap/);
   assert.match(timelineCss, /\.timeline-auto-controls[\s\S]*display:\s*flex[\s\S]*flex-wrap:\s*nowrap/);
   assert.doesNotMatch(timelineCss, /\.timeline-auto-controls[\s\S]{0,180}grid-column:\s*1 \/ -1/);
@@ -885,7 +885,7 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
 });
 
 
-test("View toolbar uses native toggle state and anchor positioning without measured coordinates", async () => {
+test("View toolbar keeps native toggle state while measured coordinates attach it to the trigger", async () => {
   const [htmlSource, appSource, styles, timelineCss] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
@@ -898,19 +898,22 @@ test("View toolbar uses native toggle state and anchor positioning without measu
   assert.match(appSource, /viewControls\?\.addEventListener\("toggle",[\s\S]*syncViewControlsChrome\(\)/);
   assert.match(appSource, /function closeViewControls\(\)[\s\S]*hidePopover\(\)/);
   assert.doesNotMatch(appSource, /viewControlsOpen:\s*false|ui\.viewControlsOpen/);
-  assert.doesNotMatch(appSource, /function positionViewControls\(|--view-controls-(?:left|top)/);
-  assert.doesNotMatch(appSource, /viewControlsToggle\.getBoundingClientRect\(\)|viewControls\.getBoundingClientRect\(\)/);
+  assert.match(appSource, /function positionViewControls\(\)[\s\S]*viewControlsToggle\.getBoundingClientRect\(\)[\s\S]*viewControls\.getBoundingClientRect\(\)/);
+  assert.match(appSource, /workspaceToolViewport\(\)[\s\S]*preferredTop[\s\S]*fallbackTop[\s\S]*clamped-above[\s\S]*clamped-below/);
+  assert.match(appSource, /--view-controls-left[\s\S]*--view-controls-top[\s\S]*--view-controls-right[\s\S]*--view-controls-bottom/);
+  assert.match(appSource, /visualViewport\?\.addEventListener\("resize", positionViewControls\)/);
+  assert.match(appSource, /visualViewport\?\.addEventListener\("scroll", positionViewControls\)/);
+  assert.match(appSource, /ResizeObserver[\s\S]*viewControlsResizeObserver[\s\S]*observe\(els\.viewControls\)[\s\S]*observe\(els\.viewControlsToggle\)/);
   assert.doesNotMatch(styles, /\.app-view-controls\[popover\]:popover-open/);
   assert.match(timelineCss, /Canonical View popover contract/);
-  assert.match(timelineCss, /@supports \(right: anchor\(right\)\) and \(bottom: anchor\(top\)\)/);
-  assert.match(timelineCss, /right:\s*anchor\(right\)[\s\S]*bottom:\s*calc\(anchor\(top\) \+ \.5rem\)/);
-  assert.match(timelineCss, /position-try-fallbacks:[\s\S]*flip-block[\s\S]*flip-inline/);
-  assert.match(timelineCss, /#presentation-stage:fullscreen \.timeline-view-toolbar:popover-open[\s\S]*position-anchor:\s*--timeline-view-fullscreen-unanchored/);
-  assert.doesNotMatch(timelineCss, /--view-controls-(?:left|top)/);
+  assert.match(timelineCss, /top:\s*var\(--view-controls-top, auto\)/);
+  assert.match(timelineCss, /right:\s*var\(--view-controls-right,[\s\S]*bottom:\s*var\(--view-controls-bottom,[\s\S]*left:\s*var\(--view-controls-left, auto\)/);
+  assert.doesNotMatch(timelineCss, /anchor\(right\)|anchor\(top\)|position-try-fallbacks/);
+  assert.match(timelineCss, /#app-shell #presentation-stage:fullscreen \.timeline-view-toolbar:popover-open[\s\S]*top:\s*max\(\.4rem[\s\S]*right:\s*max\(\.4rem/);
   assert.doesNotMatch(timelineCss, /\.timeline-view-toolbar\s*\{[^}]*display\s*:/s);
 });
 
-test("View toolbar uses vertical composition when the semantic zoom control is vertical", async () => {
+test("View toolbar follows timeline orientation without selector-dependent deployment", async () => {
   const [styles, timelineCss] = await Promise.all([
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
@@ -926,22 +929,21 @@ test("View toolbar uses vertical composition when the semantic zoom control is v
   );
   assert.match(
     timelineCss,
-    /#app-shell:has\(#timeline-view\[data-orientation="landscape"\]\)[\s\S]*\.app-view-controls\.timeline-view-toolbar\[popover\]:popover-open\s*\{[\s\S]*flex-direction:\s*column[\s\S]*overflow-x:\s*hidden[\s\S]*overflow-y:\s*auto/
+    /\.timeline-view\[data-orientation="landscape"\] > \.app-view-controls\.timeline-view-toolbar\[popover\]:popover-open\s*\{[\s\S]*flex-direction:\s*row[\s\S]*overflow-x:\s*auto[\s\S]*overflow-y:\s*hidden/
   );
   assert.match(
     timelineCss,
-    /#app-shell:has\(#timeline-view\[data-orientation="landscape"\]\)[\s\S]*#presentation-stage:fullscreen \.timeline-view-toolbar:popover-open\s*\{[\s\S]*flex-direction:\s*column/
+    /\.timeline-view\[data-orientation="portrait"\] > \.app-view-controls\.timeline-view-toolbar\[popover\]:popover-open\s*\{[\s\S]*flex-direction:\s*column[\s\S]*width:\s*clamp\(82px, 22dvw, 96px\)[\s\S]*overflow-y:\s*auto/
   );
   assert.match(
     timelineCss,
-    /#app-shell:has\(#timeline-view\[data-orientation="portrait"\]\)[\s\S]*\.app-view-controls\.timeline-view-toolbar\[popover\]:popover-open,[\s\S]*#presentation-stage:fullscreen \.timeline-view-toolbar:popover-open\s*\{[\s\S]*flex-direction:\s*column[\s\S]*width:\s*clamp\(82px, 22dvw, 96px\)[\s\S]*overflow-y:\s*auto/
+    /\.timeline-view\[data-orientation="portrait"\] > \.app-view-controls[\s\S]*\.timeline-auto-controls\s*\{[\s\S]*flex-direction:\s*column/
   );
-  assert.match(
+  assert.doesNotMatch(
     timelineCss,
-    /#app-shell:has\(#timeline-view\[data-orientation="portrait"\]\)[\s\S]*\.timeline-auto-controls\s*\{[\s\S]*flex-direction:\s*column/
+    /#app-shell:has\(#timeline-view\[data-orientation="(?:landscape|portrait)"\]\)[\s\S]{0,220}\.app-view-controls/
   );
 });
-
 
 test("portrait mode gives the semantic zoom slider a vertical axis", async () => {
   const [timelineCss, viewSource] = await Promise.all([
