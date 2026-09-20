@@ -3920,7 +3920,7 @@
       }
     },
     {
-      "id": "pigs-straw-house",
+      "id": "pigs-straw-house-object",
       "type": "object",
       "name": "Straw House",
       "identifiers": [],
@@ -3930,7 +3930,7 @@
       }
     },
     {
-      "id": "pigs-stick-house",
+      "id": "pigs-stick-house-object",
       "type": "object",
       "name": "Stick House",
       "identifiers": [],
@@ -5112,7 +5112,7 @@
     {
       "id": "rel-event-pigs-straw-house-action",
       "subjectId": "pigs-first",
-      "objectId": "pigs-straw-house",
+      "objectId": "pigs-straw-house-object",
       "predicate": "builds",
       "itemIds": [
         "pigs-straw-house"
@@ -5160,7 +5160,7 @@
     {
       "id": "rel-event-pigs-stick-house-action",
       "subjectId": "pigs-second",
-      "objectId": "pigs-stick-house",
+      "objectId": "pigs-stick-house-object",
       "predicate": "builds",
       "itemIds": [
         "pigs-stick-house"
@@ -5384,7 +5384,7 @@
     {
       "id": "rel-event-pigs-wolf-straw-action",
       "subjectId": "pigs-wolf",
-      "objectId": "pigs-straw-house",
+      "objectId": "pigs-straw-house-object",
       "predicate": "attacks",
       "itemIds": [
         "pigs-wolf-straw"
@@ -5456,7 +5456,7 @@
     {
       "id": "rel-event-pigs-wolf-sticks-action",
       "subjectId": "pigs-wolf",
-      "objectId": "pigs-stick-house",
+      "objectId": "pigs-stick-house-object",
       "predicate": "attacks",
       "itemIds": [
         "pigs-wolf-sticks"
