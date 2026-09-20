@@ -1703,8 +1703,8 @@
 
 
 /* Overlay-first presentation contract.
-   The timeline always owns the fullscreen stage. Focused event detail enters the top layer,
-   while map/graph reuse their existing semantic sections as interactive subdued backdrops. */
+   The timeline and relation graph remain mounted in fullscreen. Focused event detail enters
+   the top layer while the persistent graph stays interactive in the uncovered background. */
 #presentation-stage:fullscreen[data-stage-shape][data-viewport-orientation] {
   grid-template-columns: repeat(6, minmax(0, 1fr));
   grid-template-rows: repeat(6, minmax(0, 1fr));
@@ -1721,7 +1721,10 @@
   overflow: hidden;
 }
 
-#presentation-stage:fullscreen > .graph-lens,
+#presentation-stage:fullscreen > .graph-lens {
+  display: block !important;
+}
+
 #presentation-stage:fullscreen > .presentation-map-panel {
   display: none !important;
 }
@@ -3368,7 +3371,7 @@
 }
 
 
-/* Relations edge docking: the chronology and graph occupy opposite safe regions.
+/* Persistent relation-graph docking: the chronology and graph occupy opposite safe regions.
    The dock is measured against persistent application chrome rather than the raw viewport,
    so date/year labels never pass under the command bar or workspace toolbar. */
 @media (min-width: 700px) {
@@ -3459,7 +3462,7 @@
   }
 }
 
-/* Mobile Relations composition: graph and chronology are siblings, never overlapping canvases. */
+/* Mobile persistent relation composition: graph and chronology are siblings, never overlapping canvases. */
 @media (max-width: 699px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
     --mobile-relations-rail: clamp(88px, 25dvw, 116px);
@@ -3521,7 +3524,7 @@
       bottom 280ms cubic-bezier(.2, .8, .2, 1);
   }
 
-  /* Relations mode preserves chronology as an orientation/context rail. Text labels yield
+  /* The persistent graph preserves chronology as an orientation/context rail. Text labels yield
      to semantic event and cluster visuals so the graph keeps the readable majority area. */
   #app-shell[data-graph-open="true"] .timeline-event-copy {
     display: none;
