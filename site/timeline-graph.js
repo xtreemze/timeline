@@ -367,12 +367,39 @@
     const rawRelationships = Array.isArray(input?.relationships) ? input.relationships : [];
     const rawItems = Array.isArray(input?.items) ? input.items : [];
     const rawStories = Array.isArray(input?.stories) ? input.stories : [];
-    const places = spatial?.normalizePlaces?.(input?.places) || [];
+    const rawPlaces = Array.isArray(input?.places) ? input.places : [];
+    const places = spatial?.normalizePlaces?.(rawPlaces) || [];
     const entityIds = new Set();
     const placeIds = new Set(places.map((place) => String(place.id)));
     const placeNames = places.map((place) => semanticKey(place.name)).filter((name) => name.length >= 4);
     const itemIds = new Set(rawItems.map((item) => text(item?.id, 120)).filter(Boolean));
     const storyIds = new Set(rawStories.map((story) => text(story?.id, 120)).filter(Boolean));
+
+    rawPlaces.forEach((place, index) => {
+      const id = text(place?.id, 120) || `place ${index + 1}`;
+      let normalized = null;
+      try {
+        normalized = spatial?.normalizePlace?.(place, index) || null;
+      } catch (error) {
+        errors.push(`Place ${id}: ${error instanceof Error ? error.message : "invalid geometry."}`);
+        return;
+      }
+      if (!normalized) {
+        errors.push(`Place ${id}: a canonical place requires a name and point or area geometry.`);
+        return;
+      }
+      if (!normalized.geometry) {
+        errors.push(`Place ${id}: a canonical place requires Point coordinates or Polygon/MultiPolygon area geometry.`);
+      }
+      const icon = text(place?.icon || place?.marker?.icon || place?.attributes?.icon, 48);
+      if (icon && Array.isArray(spatial?.PLACE_ICON_NAMES) && !spatial.PLACE_ICON_NAMES.includes(icon)) {
+        errors.push(`Place ${id}: unsupported semantic icon “${icon}”. Choose a registered semantic icon.`);
+      }
+      const markerShape = text(place?.markerShape || place?.marker?.shape || place?.attributes?.markerShape, 24);
+      if (markerShape && Array.isArray(spatial?.PLACE_MARKER_SHAPES) && !spatial.PLACE_MARKER_SHAPES.includes(markerShape)) {
+        errors.push(`Place ${id}: unsupported marker shape “${markerShape}”.`);
+      }
+    });
 
     rawEntities.forEach((entity, index) => {
       const validation = validateEntityNode(entity);
