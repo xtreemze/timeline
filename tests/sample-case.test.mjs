@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 await import("../site/temporal-standards.js");
 await import("../site/event-presentation.js");
+await import("../site/spatial.js");
 await import("../site/timeline-graph.js");
 await import("../site/sample-case.js");
 
@@ -10,6 +11,7 @@ const sample = globalThis.TimelineSampleCase;
 const temporal = globalThis.TimelineTemporal;
 const presentation = globalThis.TimelinePresentation;
 const graph = globalThis.TimelineGraph;
+const spatial = globalThis.TimelineSpatial;
 
 function storyItems(story) {
   return story.itemIds.map((id) => sample.items.find((item) => item.id === id)).filter(Boolean);
@@ -88,18 +90,23 @@ test("fictional chronology is explicitly marked instead of weakening ISO validat
   }
 });
 
-test("each story has distinct fictional geography with valid staging coordinates", () => {
+test("each story has distinct reusable fictional places referenced by edges", () => {
+  const placeById = new Map(sample.places.map((place) => [place.id, place]));
   const placeSets = [];
   for (const story of sample.stories) {
     const set = new Set();
     for (const item of storyItems(story)) {
-      assert.ok(item.location?.name, item.id);
-      assert.match(item.location?.geographicIdentifier || "", /fictional staging anchor/);
-      assert.match(item.location?.address || "", /not an Earth-location claim/);
-      const coordinates = item.location?.geometry?.coordinates;
-      assert.equal(coordinates?.length, 2);
-      assert.ok(coordinates.every(Number.isFinite));
-      set.add(item.location.name);
+      assert.equal("location" in item, false, `${item.id}: chronology item must not copy location`);
+      const edges = sample.relationships.filter((relationship) => (relationship.itemIds || []).includes(item.id));
+      const places = edges.map((edge) => placeById.get(edge.placeId)).filter(Boolean);
+      assert.ok(places.length >= 1, `${item.id}: contextual edge place`);
+      for (const place of places) {
+        assert.match(place.geographicIdentifier || "", /fictional staging anchor/);
+        assert.ok(place.geometry, `${place.id}: geometry`);
+        assert.ok(presentation.ICON_NAMES.includes(place.icon), `${place.id}: semantic icon`);
+        assert.ok(spatial.PLACE_MARKER_SHAPES.includes(place.markerShape), `${place.id}: marker shape`);
+        set.add(place.name);
+      }
     }
     assert.ok(set.size >= 4);
     placeSets.push(set);
@@ -163,14 +170,16 @@ test("each tale demonstrates an event-driven relationship lifecycle", () => {
   }
 });
 
-test("timed graph edges cover intervals, instants, attributes, characters, objects, and places", () => {
+test("timed graph edges cover intervals, instants, attributes, entities, and reusable places", () => {
   const timed = sample.relationships.filter((relationship) => relationship.time?.start?.value);
   assert.ok(timed.length >= 12);
   assert.ok(timed.some((relationship) => relationship.time?.type === "interval"));
   assert.ok(timed.some((relationship) => relationship.time?.type === "instant"));
   assert.ok(timed.some((relationship) => Object.keys(relationship.attributes || {}).length > 0));
   const entityTypes = new Set(sample.entities.map((entity) => entity.type));
-  for (const type of ["group", "object", "person", "place"]) assert.ok(entityTypes.has(type));
+  for (const type of ["group", "object", "person"]) assert.ok(entityTypes.has(type));
+  assert.equal(entityTypes.has("place"), false);
+  assert.ok(sample.places.length >= 27);
 });
 
 
@@ -308,8 +317,13 @@ test("detailed stories add graph and place depth without conflating categories w
   for (const category of sample.categories) assert.equal(storyTitles.has(category.name), false);
 
   const placesByStory = new Map(sample.stories.map((story) => [story.id, new Set()]));
+  const placeById = new Map(sample.places.map((place) => [place.id, place]));
   for (const item of sample.items) {
-    placesByStory.get(item.extensions?.narrative?.storyId)?.add(item.location?.name);
+    const storyId = item.extensions?.narrative?.storyId;
+    for (const relationship of sample.relationships.filter((edge) => (edge.itemIds || []).includes(item.id))) {
+      const place = placeById.get(relationship.placeId);
+      if (place) placesByStory.get(storyId)?.add(place.name);
+    }
   }
   for (const [storyId, places] of placesByStory) {
     assert.ok(places.size >= 5, `${storyId}: expected richer geography`);
@@ -385,39 +399,27 @@ test("chronology items remain edge context and never become graph nodes", () => 
   assert.ok(orb.nodes.every((node) => entityIds.has(node.id)));
 });
 
-test("every event place has a coordinate-backed graph node and map marker", () => {
-  const placeEntities = sample.entities.filter((entity) => entity.type === "place");
-  const placeIndex = new Map(
-    placeEntities.map((entity) => [`${entity.attributes?.storyId}|${entity.name}`, entity])
-  );
-  const placesByStory = new Map(sample.stories.map((story) => [story.id, new Set()]));
+test("places are reusable spatial records and never graph nodes", () => {
+  const placeIds = new Set(sample.places.map((place) => place.id));
+  const entityIds = new Set(sample.entities.map((entity) => entity.id));
+  assert.ok(sample.places.length >= 27);
+  assert.ok(sample.entities.every((entity) => entity.type !== "place" && entity.type !== "location"));
+
+  for (const place of sample.places) {
+    assert.equal(entityIds.has(place.id), false, `${place.id}: place ID must not be a graph node`);
+    assert.ok(place.geometry, `${place.id}: geometry`);
+    assert.ok(presentation.ICON_NAMES.includes(place.icon), `${place.id}: icon`);
+    assert.ok(spatial.PLACE_MARKER_SHAPES.includes(place.markerShape), `${place.id}: shape`);
+  }
+  assert.ok(sample.places.some((place) => Number.isFinite(place.radiusMeters) && place.radiusMeters > 0), "radius example");
+  assert.ok(sample.places.some((place) => ["Polygon", "MultiPolygon"].includes(place.geometry?.type)), "area example");
 
   for (const item of sample.items) {
-    const storyId = item.extensions?.narrative?.storyId;
-    const coordinates = item.location?.geometry?.coordinates;
-    assert.equal(coordinates?.length, 2, `${item.id}: marker coordinates`);
-    assert.ok(coordinates.every(Number.isFinite), `${item.id}: finite marker coordinates`);
-
-    const place = placeIndex.get(`${storyId}|${item.location.name}`);
-    assert.ok(place, `${item.id}: matching place graph node`);
-    assert.equal(place.attributes?.mapMarker, true, `${item.id}: map marker enabled`);
-    assert.deepEqual(place.attributes?.geometry?.coordinates, coordinates, `${item.id}: graph/map coordinates match`);
-
-    const edge = sample.relationships.find((relationship) =>
-      (relationship.itemIds || []).includes(item.id) &&
-      relationship.objectId === place.id
-    );
-    assert.ok(edge, `${item.id}: semantic action edge reaches the mapped place node`);
-    assert.equal(graph.validateActionPredicate(edge.predicate).valid, true, `${item.id}: place edge uses an action verb`);
-    placesByStory.get(storyId)?.add(item.location.name);
-  }
-
-  assert.ok(placeEntities.length >= 27);
-  for (const [storyId, places] of placesByStory) {
-    assert.ok(places.size >= 8, `${storyId}: expected richer mapped geography`);
+    assert.equal("location" in item, false, `${item.id}: no duplicated item location`);
+    const edges = sample.relationships.filter((edge) => (edge.itemIds || []).includes(item.id));
+    assert.ok(edges.some((edge) => placeIds.has(edge.placeId)), `${item.id}: edge references canonical place`);
   }
 });
-
 
 test("widened anthology chronology keeps same-day density low across all stories", () => {
   const startsPerDay = new Map();
@@ -450,7 +452,7 @@ test("every story scene carries multiple public-domain illustrations", () => {
   }
 });
 
-test("movement and travel-heavy events expose routes and named endpoint markers", () => {
+test("movement-heavy events keep movement in the action label and place in edge context", () => {
   const routedIds = new Set([
     "pigs-leave-home",
     "pigs-first-flees",
@@ -461,13 +463,11 @@ test("movement and travel-heavy events expose routes and named endpoint markers"
     "cinderella-midnight-flight",
     "cinderella-search"
   ]);
+  const placeIds = new Set(sample.places.map((place) => place.id));
   for (const id of routedIds) {
-    const item = sample.items.find((candidate) => candidate.id === id);
-    assert.ok(item, id);
-    const features = item.location?.mapFeatures || [];
-    assert.ok(features.some((feature) => feature.geometry?.type === "LineString"), `${id}: route line`);
-    const markers = features.filter((feature) => feature.geometry?.type === "Point");
-    assert.ok(markers.length >= 2, `${id}: endpoint markers`);
-    assert.ok(markers.every((feature) => feature.properties?.name), `${id}: named markers`);
+    const edges = sample.relationships.filter((edge) => (edge.itemIds || []).includes(id));
+    assert.ok(edges.length >= 1, id);
+    assert.ok(edges.some((edge) => placeIds.has(edge.placeId)), `${id}: canonical place reference`);
+    assert.ok(edges.every((edge) => !/(At|Near|During|Via|Along|Toward|From|Into|Onto|In)$/.test(edge.predicate)), `${id}: no spatial suffix in predicate`);
   }
 });
