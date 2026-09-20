@@ -72,13 +72,22 @@ test("exports event/period/group structures and round-trips source extensions", 
   imported.timeline.stories = [{ id: "s1", title: "Story", description: "", itemIds: ["ext-e1"] }];
   imported.timeline.entities = [
     { id: "person-a", type: "person", name: "A" },
-    { id: "place-a", type: "place", name: "Example Place" }
+    { id: "person-b", type: "person", name: "B" }
   ];
+  imported.timeline.places = [{
+    id: "place-a",
+    name: "Example Place",
+    geometry: { type: "Point", coordinates: [18.0686, 59.3293] },
+    radiusMeters: 100,
+    icon: "place",
+    markerShape: "pin"
+  }];
   imported.timeline.relationships = [{
     id: "rel-a",
     subjectId: "person-a",
-    objectId: "place-a",
-    predicate: "witnessedAt",
+    objectId: "person-b",
+    predicate: "witnessed",
+    placeId: "place-a",
     itemIds: ["ext-e1"],
     initialState: "inactive"
   }];
@@ -132,6 +141,7 @@ test("exports event/period/group structures and round-trips source extensions", 
   assert.equal(exported._timeline.format, "timeline-interchange");
   assert.equal(exported._timeline.stories.length, 1);
   assert.equal(exported._timeline.entities.length, 2);
+  assert.equal(exported._timeline.places.length, 1);
   assert.equal(exported._timeline.relationships.length, 1);
   assert.equal(exported._timeline.evidence.length, 1);
   assert.equal(exported._timeline.reasoning.theses[0].id, "thesis-1");
@@ -141,10 +151,13 @@ test("exports event/period/group structures and round-trips source extensions", 
   assert.equal(exported.events[0].relationChanges[0].operation, "update");
   assert.equal(exported._timeline.relationships[0].initialState, "inactive");
   assert.deepEqual(exported._timeline.relationships[0].itemIds, ["ext-e1"]);
+  assert.equal(exported._timeline.relationships[0].placeId, "place-a");
+  assert.equal(exported._timeline.places[0].markerShape, "pin");
   assert.deepEqual(exported.events[0].evidenceIds, ["evidence-a"]);
 
   const reimported = adapter.importData(exported);
   assert.equal(reimported.timeline.entities.length, 2);
+  assert.equal(reimported.timeline.places.length, 1);
   assert.equal(reimported.timeline.relationships.length, 1);
   assert.equal(reimported.timeline.evidence.length, 1);
   assert.equal(reimported.timeline.reasoning.claims[0].id, "claim-1");
@@ -153,6 +166,7 @@ test("exports event/period/group structures and round-trips source extensions", 
   assert.equal(reimported.timeline.items[0].presentation.variant, "evidence-dossier");
   assert.equal(reimported.timeline.items[0].relationChanges[0].relationshipId, "rel-a");
   assert.equal(reimported.timeline.relationships[0].initialState, "inactive");
+  assert.equal(reimported.timeline.relationships[0].placeId, "place-a");
   assert.deepEqual(reimported.timeline.items[0].evidenceIds, ["evidence-a"]);
 });
 
@@ -164,5 +178,6 @@ test("publishes a JSON Schema and documents the vendor-schema boundary", async (
   const schema = JSON.parse(schemaText);
   assert.equal(schema.properties._timeline.properties.format.const, "timeline-interchange");
   assert.equal(schema.properties._timeline.properties.reasoning.type, "object");
+  assert.equal(schema.properties._timeline.properties.places.type, "array");
   assert.match(docs, /vendor-neutral/i);
 });
