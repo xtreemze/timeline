@@ -4225,7 +4225,7 @@
    underneath without intercepting button input. */
 #app-shell .app-tool-dock[data-project-anchored="true"] {
   position: fixed;
-  z-index: 1320;
+  z-index: 1420;
   top: var(--workspace-tool-dock-top, max(.5rem, env(safe-area-inset-top)));
   right: auto;
   bottom: auto;
@@ -4249,6 +4249,7 @@
   position: relative;
   z-index: 1;
   pointer-events: auto;
+  touch-action: manipulation;
 }
 #presentation-stage:fullscreen .app-tool-dock[data-project-anchored="true"] {
   pointer-events: auto;
