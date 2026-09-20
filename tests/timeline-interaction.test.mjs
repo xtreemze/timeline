@@ -981,12 +981,12 @@ test("persistent relation graph docks opposite chronology and stays behind focus
   assert.match(timelineCss, /\.timeline-surface\.is-portrait[\s\S]*height:\s*100%[\s\S]*max-height:\s*none/);
   assert.match(timelineCss, /@media \(min-width:\s*700px\)[\s\S]*--relations-inline-rail:\s*clamp\(280px, 28dvw, 400px\)/);
   assert.match(timelineCss, /--relations-block-rail:\s*clamp\(220px, 31dvh, 320px\)/);
-  assert.match(timelineCss, /--relations-top-safe:\s*max\(4\.55rem,[\s\S]*safe-area-inset-top/);
-  assert.match(timelineCss, /data-orientation="portrait"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*right:\s*calc\(var\(--relations-inline-rail\)[\s\S]*left:\s*var\(--relations-left-safe\)/);
+  assert.doesNotMatch(timelineCss, /--relations-(?:gap|top-safe|left-safe)/);
+  assert.match(timelineCss, /data-orientation="portrait"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*top:\s*0;[\s\S]*right:\s*calc\(var\(--relations-inline-rail\) \+ var\(--relations-right-safe\)\)[\s\S]*bottom:\s*0;[\s\S]*left:\s*0;/);
   assert.match(timelineCss, /data-orientation="portrait"\] > \.timeline-surface[\s\S]*--timeline-axis-cross:\s*68%[\s\S]*top:\s*0;[\s\S]*bottom:\s*0;[\s\S]*width:\s*var\(--relations-inline-rail\)[\s\S]*height:\s*100%/);
-  assert.match(timelineCss, /data-orientation="landscape"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*bottom:\s*calc\(var\(--relations-bottom-safe\) \+ var\(--relations-block-rail\)/);
+  assert.match(timelineCss, /data-orientation="landscape"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*top:\s*0;[\s\S]*right:\s*0;[\s\S]*bottom:\s*calc\(var\(--relations-bottom-safe\) \+ var\(--relations-block-rail\)\)[\s\S]*left:\s*0;/);
   assert.match(timelineCss, /data-orientation="landscape"\] > \.timeline-surface[\s\S]*--timeline-axis-cross:\s*42%[\s\S]*right:\s*0;[\s\S]*left:\s*0;[\s\S]*width:\s*100%[\s\S]*height:\s*var\(--relations-block-rail\)/);
-  assert.match(timelineCss, /@media \(min-width:\s*900px\)[\s\S]*--relations-left-safe:\s*max\(5\.45rem,[\s\S]*safe-area-inset-left[\s\S]*--relations-bottom-safe:\s*max\(\.55rem/);
+  assert.match(timelineCss, /@media \(min-width:\s*900px\)[\s\S]*--relations-bottom-safe:\s*max\(\.55rem, env\(safe-area-inset-bottom\)\)/);
   assert.match(timelineCss, /Mobile persistent relation composition[\s\S]*data-orientation="portrait"[\s\S]*--timeline-axis-cross:\s*42%/);
   assert.match(timelineCss, /Mobile persistent relation composition[\s\S]*data-orientation="landscape"[\s\S]*--timeline-axis-cross:\s*38%/);
   assert.match(timelineCss, /#presentation-stage:fullscreen > \.graph-lens \{\s*display:\s*block !important;/);
