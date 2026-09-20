@@ -46,8 +46,8 @@ When `extensions.narrative.spatialReferenceFrame.fictional` is true, the present
 
 Categories and stories serve different axes and should not be used interchangeably.
 
-- A **category** classifies what an event is, such as a conflict, discovery, decision, relationship change, or resolution. Category filtering is taxonomy.
-- A **story** groups and orders events into a narrative sequence. Story focus is narrative membership and traversal.
+- A **category** classifies what a timeline event is, such as a conflict, discovery, decision, relationship change, or resolution. Category filtering is taxonomy. Categories belong only to timeline items; places, graph entities, and relationships/edges have their own domains and must never carry category membership.
+- A **story** groups and orders associated timeline events into a navigable narrative sequence. Story focus is narrative membership and traversal.
 - Events in one story should normally span several categories.
 - The same category should be reusable by unrelated stories when their events have the same semantic type.
 - A story title or story identifier should not be copied into `categoryId` merely to color or group that story. Story identity belongs in `story.itemIds` and, where useful, narrative extension metadata.
