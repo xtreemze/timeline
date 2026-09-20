@@ -176,6 +176,7 @@
     graphEdgeSubject: document.querySelector("#graph-edge-subject"),
     graphEdgePredicate: document.querySelector("#graph-edge-predicate"),
     graphEdgeObject: document.querySelector("#graph-edge-object"),
+    graphEdgeItemIds: document.querySelector("#graph-edge-item-ids"),
     graphEdgeRole: document.querySelector("#graph-edge-role"),
     graphEdgeInitialState: document.querySelector("#graph-edge-initial-state"),
     graphEdgeSourceIds: document.querySelector("#graph-edge-source-ids"),
@@ -712,7 +713,7 @@
       .slice(0, 60);
   }
 
-  function normalizeTimeline(input) {
+  function normalizeTimeline(input, { strictGraph = false } = {}) {
     if (!input || typeof input !== "object") throw new Error("Expected a timeline object.");
 
     const categories = [];
@@ -865,12 +866,16 @@
       return story;
     });
 
+    const graphErrors = graph.validateGraphInput({ ...input, items });
+    if (strictGraph && graphErrors.length) {
+      throw new Error(`Graph semantics are invalid: ${graphErrors[0]}`);
+    }
     const graphData = graph.normalizeGraphData(input, temporal);
-    const graphEndpointIds = new Set([
-      ...items.map((item) => item.id),
-      ...stories.map((story) => story.id),
-      ...graphData.entities.map((entity) => entity.id)
-    ]);
+    const itemIds = new Set(items.map((item) => String(item.id)));
+    for (const relationship of graphData.relationships) {
+      relationship.itemIds = (relationship.itemIds || []).filter((id) => itemIds.has(String(id)));
+    }
+    const graphEndpointIds = new Set(graphData.entities.map((entity) => entity.id));
     graphData.relationships = graphData.relationships.filter(
       (relationship) =>
         graphEndpointIds.has(relationship.subjectId) &&
@@ -930,7 +935,7 @@
     }
     // A first launch should demonstrate the complete application rather than an empty shell.
     // Persisted current/legacy timelines still take precedence above this sample fallback.
-    return normalizeTimeline(clone(SAMPLE));
+    return normalizeTimeline(clone(SAMPLE), { strictGraph: true });
   }
 
   function persist() {
@@ -1356,7 +1361,7 @@
           .map((id) => state.evidence.find((record) => record.id === id))
           .filter(Boolean),
         relations: state.relationships
-          .filter((relationship) => relationship.subjectId === item.id || relationship.objectId === item.id)
+          .filter((relationship) => (relationship.itemIds || []).some((id) => String(id) === String(item.id)))
           .map((relationship) => ({
             id: relationship.id,
             predicate: relationship.predicate,
@@ -1371,7 +1376,7 @@
           const relationship = relationshipById.get(change.relationshipId);
           return {
             ...change,
-            predicate: change.predicate || relationship?.predicate || "relatedTo",
+            predicate: change.predicate || relationship?.predicate || "",
             subjectName: relationship ? entityOrItemName(relationship.subjectId) : "",
             objectName: relationship ? entityOrItemName(relationship.objectId) : ""
           };
@@ -1697,6 +1702,10 @@
       };
       if (operation === "update") {
         change.predicate = parts.predicate.value.trim().slice(0, 120);
+        if (change.predicate) {
+          const predicateValidation = graph.validateActionPredicate(change.predicate);
+          if (!predicateValidation.valid) throw new Error(predicateValidation.message);
+        }
         change.role = parts.role.value.trim().slice(0, 120);
         change.properties = parseJsonObject(parts.properties.value, "Relation property patch");
       }
@@ -2202,9 +2211,7 @@
 
   function graphEndpointOptions(select, selected = "") {
     const groups = [
-      ["Nodes", state.entities.map((entity) => ({ id: entity.id, label: entity.name, type: entity.type }))],
-      ["Timeline items", sortItems().map((item) => ({ id: item.id, label: item.title, type: item.kind }))],
-      ["Stories", state.stories.map((story) => ({ id: story.id, label: story.title, type: "story" }))]
+      ["Entity nodes", state.entities.map((entity) => ({ id: entity.id, label: entity.name, type: entity.type }))]
     ];
     const nodes = [];
     for (const [label, records] of groups) {
@@ -2224,6 +2231,19 @@
     select.value = available.some((option) => option.value === selected)
       ? selected
       : available[0]?.value || "";
+  }
+
+  function graphContextItemOptions(select, selected = []) {
+    if (!select) return;
+    const selectedIds = new Set(Array.from(selected || [], String));
+    const options = sortItems().map((item) => {
+      const option = document.createElement("option");
+      option.value = item.id;
+      option.textContent = `${item.title} · ${temporal.intervalRepresentation(item.time)}`;
+      option.selected = selectedIds.has(String(item.id));
+      return option;
+    });
+    select.replaceChildren(...options);
   }
 
   function resetGraphNodeForm() {
@@ -2344,6 +2364,7 @@
     els.graphEdgeDateField.hidden = false;
     graphEndpointOptions(els.graphEdgeSubject);
     graphEndpointOptions(els.graphEdgeObject);
+    graphContextItemOptions(els.graphEdgeItemIds);
     els.saveGraphEdge.textContent = "Add edge";
     els.cancelGraphEdgeEdit.hidden = true;
     setError(els.graphEdgeError);
@@ -2389,7 +2410,8 @@
     els.graphEdgeId.value = relationship.id;
     graphEndpointOptions(els.graphEdgeSubject, relationship.subjectId);
     graphEndpointOptions(els.graphEdgeObject, relationship.objectId);
-    els.graphEdgePredicate.value = relationship.predicate || "relatedTo";
+    graphContextItemOptions(els.graphEdgeItemIds, relationship.itemIds || []);
+    els.graphEdgePredicate.value = relationship.predicate || "";
     els.graphEdgeRole.value = relationship.role || "";
     els.graphEdgeInitialState.value = relationship.initialState === "inactive" ? "inactive" : "active";
     els.graphEdgeSourceIds.value = (relationship.sourceIds || []).join("\n");
@@ -2433,7 +2455,8 @@
       const meta = document.createElement("span");
       const when = relationship.time ? temporal.intervalRepresentation(relationship.time) : "event-driven / timeless";
       const propertyCount = Object.keys(relationship.attributes || {}).length;
-      meta.textContent = `${relationship.initialState === "inactive" ? "initially inactive" : "initially active"} · ${when} · ${propertyCount} ${propertyCount === 1 ? "property" : "properties"}`;
+      const contextCount = (relationship.itemIds || []).length;
+      meta.textContent = `${relationship.initialState === "inactive" ? "initially inactive" : "initially active"} · ${when} · ${contextCount} timeline ${contextCount === 1 ? "context" : "contexts"} · ${propertyCount} ${propertyCount === 1 ? "property" : "properties"}`;
       copy.append(title, meta);
       const actions = document.createElement("div");
       actions.className = "graph-record-actions";
@@ -2458,6 +2481,8 @@
     const object = els.graphEdgeObject.value;
     graphEndpointOptions(els.graphEdgeSubject, subject);
     graphEndpointOptions(els.graphEdgeObject, object);
+    const contextItemIds = [...els.graphEdgeItemIds.selectedOptions].map((option) => option.value);
+    graphContextItemOptions(els.graphEdgeItemIds, contextItemIds);
     renderGraphNodes();
     renderGraphEdges();
     for (const row of els.itemRelationChangeRows) {
@@ -2468,8 +2493,7 @@
     temporalGraphView?.setModel({
       entities: state.entities,
       relationships: state.relationships,
-      items: state.items,
-      stories: state.stories
+      items: state.items
     });
   }
 
@@ -2810,6 +2834,12 @@
       els.graphNodeName.focus();
       return;
     }
+    const nodeValidation = graph.validateEntityNode({ name, type });
+    if (!nodeValidation.valid) {
+      setError(els.graphNodeError, nodeValidation.message);
+      els.graphNodeType.focus();
+      return;
+    }
     const alternateNames = parseLineList(els.graphNodeAlternateNames.value, { maxItems: 48, maxLength: 180 });
     const sourceIds = parseLineList(els.graphNodeSourceIds.value, { maxItems: 96, maxLength: 120 });
     let identifiers;
@@ -2875,11 +2905,13 @@
       setError(els.graphEdgeError, "Choose both a subject and an object.");
       return;
     }
-    if (!predicate) {
-      setError(els.graphEdgeError, "An action label is required.");
+    const predicateValidation = graph.validateActionPredicate(predicate);
+    if (!predicateValidation.valid) {
+      setError(els.graphEdgeError, predicateValidation.message);
       els.graphEdgePredicate.focus();
       return;
     }
+    const itemIds = [...els.graphEdgeItemIds.selectedOptions].map((option) => option.value);
     const sourceIds = parseLineList(els.graphEdgeSourceIds.value, { maxItems: 96, maxLength: 120 });
     const confidenceText = els.graphEdgeConfidence.value.trim();
     const confidence = confidenceText === "" ? null : Number(confidenceText);
@@ -2904,6 +2936,7 @@
       objectId,
       predicate: predicate.slice(0, 120),
       role: els.graphEdgeRole.value.trim().slice(0, 120),
+      itemIds,
       initialState: els.graphEdgeInitialState.value === "inactive" ? "inactive" : "active",
       time,
       sourceIds,
@@ -3343,7 +3376,7 @@
     if (ui.mode !== "edit") return;
     if ((state.items.length || state.stories.length) && !window.confirm("Replace the current timeline with the example dataset?")) return;
     timelineView?.closeFocus();
-    state = normalizeTimeline(clone(SAMPLE));
+    state = normalizeTimeline(clone(SAMPLE), { strictGraph: true });
     collapseAllCategories();
     ui.search = "";
     ui.categoryFilter = "all";
@@ -3361,7 +3394,7 @@
   });
 
   function applyImportedTimeline(imported, statusPrefix = "Imported", warningCount = 0) {
-    state = normalizeTimeline(imported);
+    state = normalizeTimeline(imported, { strictGraph: true });
     collapseAllCategories();
     ui.search = "";
     ui.categoryFilter = "all";
