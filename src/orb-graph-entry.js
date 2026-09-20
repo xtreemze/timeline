@@ -74,7 +74,6 @@ function semanticIconUrl(type) {
 function nodeShape(type) {
   if (type === "event") return NodeShapeType.DIAMOND;
   if (type === "story") return NodeShapeType.HEXAGON;
-  if (type === "place") return NodeShapeType.TRIANGLE;
   if (type === "organization") return NodeShapeType.SQUARE;
   if (type === "evidence") return NodeShapeType.DIAMOND;
   if (type === "device" || type === "account") return NodeShapeType.HEXAGON;
