@@ -237,7 +237,7 @@ test("touch graph gesture ownership separates node drag from graph pan and pinch
   assert.match(bridge, /function setZoomEnabled\(enabled\)[\s\S]*isZoomEnabled:\s*enabled/);
   assert.match(bridge, /function finishTouchGesture\(\)[\s\S]*setDragEnabled\(true\)[\s\S]*setZoomEnabled\(true\)/);
   assert.match(bridge, /function cancelPendingTouchHold\(\)[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(true\)/);
-  assert.match(bridge, /function beginTouchHold\([\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(true\)[\s\S]*TOUCH_NODE_HOLD_MS/);
+  assert.match(bridge, /function beginTouchHold\([\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)[\s\S]*TOUCH_NODE_HOLD_MS/);
   assert.match(bridge, /touchHold\.activated = true[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)/);
   assert.match(bridge, /activeTouchPointers\.size > 1[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(true\)/);
 });
@@ -312,4 +312,66 @@ test("activated touch long press directly drives the Orb simulator instead of de
   assert.match(bridge, /finishActiveTouchNodeDrag\(\)[\s\S]*finishTouchGesture\(\)/);
   assert.match(bridge, /lostpointercapture", onLostPointerCapture/);
   assert.match(bridge, /onLostPointerCapture[\s\S]*finishActiveTouchNodeDrag\(\)[\s\S]*finishTouchGesture\(\)/);
+});
+
+
+test("active touch node drag keeps exclusive camera ownership and releases when its owning finger lifts", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(
+    bridge,
+    /activeTouchPointers\.size > 1[\s\S]*touchHold\?\.activated[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)[\s\S]*return/
+  );
+  assert.match(
+    bridge,
+    /const ownsActiveNodeDrag = Boolean\([\s\S]*touchHold\?\.activated && touchHold\.pointerId === event\.pointerId/
+  );
+  assert.match(
+    bridge,
+    /if \(ownsActiveNodeDrag\)[\s\S]*finishActiveTouchNodeDrag\(\)[\s\S]*finishTouchGesture\(\)[\s\S]*activeTouchPointers\.size[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)/
+  );
+});
+
+
+test("touch node hold freezes the graph camera until drag or navigation intent is resolved", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(
+    bridge,
+    /function beginTouchHold\([\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)[\s\S]*touchDragBlockedUntilRelease = true/
+  );
+  assert.match(
+    bridge,
+    /function cancelPendingTouchHold\(\)[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(true\)/
+  );
+  assert.match(
+    bridge,
+    /setInteractionHeat\(DRAG_ALPHA_TARGET\)[\s\S]*simulator\?\.startDragNode\(\)/
+  );
+});
+
+
+test("graph touch ownership keeps D3 zoom state synchronized and recovers from interruptions", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(
+    bridge,
+    /function syncCameraZoomState\(\)[\s\S]*canvas\.__zoom = transform/
+  );
+  assert.match(
+    bridge,
+    /function setZoomEnabled\(enabled\)[\s\S]*syncCameraZoomState\(\)[\s\S]*isZoomEnabled:\s*enabled/
+  );
+  assert.match(
+    bridge,
+    /function onTouchEnd\(event\)[\s\S]*activeTouchPointers\.clear\(\)[\s\S]*cameraGesture = null/
+  );
+  assert.match(
+    bridge,
+    /function abortTouchInteraction\(\)[\s\S]*cancelCameraInertia\(\)[\s\S]*activeTouchPointers\.clear\(\)[\s\S]*finishTouchGesture\(\)/
+  );
+  assert.match(bridge, /addEventListener\?\.\("blur", onWindowBlur\)/);
+  assert.match(bridge, /document\.addEventListener\("visibilitychange", onVisibilityChange\)/);
+  assert.match(bridge, /removeEventListener\?\.\("blur", onWindowBlur\)/);
+  assert.match(bridge, /document\.removeEventListener\("visibilitychange", onVisibilityChange\)/);
 });
