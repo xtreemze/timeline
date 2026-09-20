@@ -263,11 +263,10 @@ test("focused Place and Relations reuse the single map and graph surfaces as int
   assert.equal((html.match(/class="temporal-graph-canvas"/g) || []).length, 1);
   assert.equal((html.match(/id="presentation-map"/g) || []).length, 1);
   assert.match(view, /dataset\.focusMapSlot/);
-  assert.match(view, /dataset\.focusGraphSlot/);
+  assert.doesNotMatch(view, /dataset\.focusGraphSlot/);
   assert.match(view, /timeline-focus-section-content/);
-  assert.match(app, /mountGraphBackdrop/);
+  assert.doesNotMatch(app, /mountGraphBackdrop|presentationGraphAnchor/);
   assert.match(app, /mountMapBackdrop/);
-  assert.match(app, /presentationGraphAnchor/);
   assert.match(app, /presentationMapAnchor/);
   assert.match(app, /interactive:\s*true/);
   assert.match(mapSource, /this\.interactive = options\.interactive === true/);
@@ -353,7 +352,8 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(html, /id="editor-toggle"[^>]*data-semantic-icon="note"/);
   assert.doesNotMatch(html, /data-open-panel="items"|data-open-panel="stories"/);
   assert.match(html, /id="timeline-browser-toggle"[^>]*data-semantic-icon="search"/);
-  assert.match(html, /id="graph-lens-toggle"[^>]*data-semantic-icon="relation"/);
+  assert.doesNotMatch(html, /id="graph-lens-toggle"/);
+  assert.match(html, /id="graph-lens"[^>]*aria-label="Persistent temporal relation graph"/);
   assert.match(html, /id="timeline-view-controls-toggle"[^>]*data-semantic-icon="magic"/);
   assert.match(html, /id="project-menu"[^>]*popover="auto"/);
   assert.match(html, /id="import-json-trigger"[^>]*role="menuitem"/);
@@ -394,7 +394,7 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(app, /editorToggle\?\.addEventListener\("click",[\s\S]*setEditorSurfaceOpen\(!ui\.editorOpen\)/);
   assert.match(app, /function setEditorSurfaceOpen/);
   assert.match(app, /function setBrowserSurfaceOpen/);
-  assert.match(app, /function setGraphSurfaceOpen/);
+  assert.doesNotMatch(app, /function setGraphSurfaceOpen/);
   assert.match(app, /function setViewControlsOpen/);
   assert.match(app, /setActivePanel\("items", \{ open: false \}\)/);
 });
@@ -504,13 +504,14 @@ test("fullscreen restores the focused event popover after the browser changes to
   assert.match(app, /active && timelineView\?\.hasFocusedItem\?\.\(\)[\s\S]*ensureFocusPopover/);
 });
 
-test("major viewing surfaces are mutually exclusive and opening Relations closes event focus", async () => {
+test("utility surfaces remain coordinated while the relation graph stays persistent", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   assert.match(app, /closeLargeUtilitySurfaces\(except = ""\)[\s\S]*viewControlsOpen/);
   assert.match(app, /setBrowserSurfaceOpen[\s\S]*closeLargeUtilitySurfaces\("browser"\)[\s\S]*closeFocusedEventForUtility/);
-  assert.match(app, /setGraphSurfaceOpen[\s\S]*closeLargeUtilitySurfaces\("graph"\)[\s\S]*closeFocusedEventForUtility/);
   assert.match(app, /setViewControlsOpen[\s\S]*closeLargeUtilitySurfaces\("view"\)[\s\S]*closeFocusedEventForUtility/);
   assert.match(app, /timelinefocuschange[\s\S]*closeLargeUtilitySurfaces\("focus"\)/);
+  assert.match(app, /els\.graphLens\.hidden = false/);
+  assert.doesNotMatch(app, /setGraphSurfaceOpen|ui\.graphOpen/);
 });
 
 
@@ -839,16 +840,16 @@ test("focus chrome remains outside tab animation and semantic panels stay bounde
 });
 
 
-test("focused map and graph mounts are idempotent so pointer gestures survive focus renders", async () => {
+test("focused map mount stays idempotent while the graph remains in its persistent surface", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
 
-  assert.match(app, /const moved = presentationGraphCanvas\.parentNode !== slot/);
-  assert.match(app, /if \(moved\) slot\.replaceChildren\(presentationGraphCanvas\)/);
+  assert.doesNotMatch(app, /presentationGraphCanvas|mountGraphBackdrop|focusGraphSlot/);
   assert.match(app, /const moved = els\.presentationMap\.parentNode !== slot/);
   assert.match(app, /if \(moved\) slot\.replaceChildren\(els\.presentationMap\)/);
   assert.match(app, /presentationMapKey/);
   assert.match(app, /if \(presentationMap && presentationMapKey === mapKey\)/);
   assert.match(app, /requestAnimationFrame\(\(\) => presentationMap\?\.refresh\?\.\(\)\)/);
+  assert.match(app, /if \(els\.graphLens\) els\.graphLens\.hidden = false/);
   assert.doesNotMatch(
     app,
     /function renderPresentationMap\(\) \{\s*destroyPresentationMap\(\)/
