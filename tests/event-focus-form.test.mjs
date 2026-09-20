@@ -537,7 +537,7 @@ test("utility surfaces remain coordinated while the relation graph stays persist
 test("focused overview omits redundant Context, Place, Relations headings and the Relations panel", async () => {
   const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
   const renderStart = source.indexOf("renderFocus(item)");
-  const renderEnd = source.indexOf("closeFocus()", renderStart);
+  const renderEnd = source.indexOf("\n    closeFocus() {", renderStart);
   const renderFocus = source.slice(renderStart, renderEnd);
   assert.doesNotMatch(renderFocus, /timeline-focus-section-heading", "Context"/);
   assert.doesNotMatch(renderFocus, /timeline-focus-section-heading", "Place"/);
