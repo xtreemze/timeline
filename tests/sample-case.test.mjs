@@ -377,6 +377,7 @@ test("chronology items remain edge context and never become graph nodes", () => 
     assert.equal(itemIds.has(relationship.objectId), false, `${relationship.id}: event cannot be an object node`);
     assert.equal(storyIds.has(relationship.subjectId), false, `${relationship.id}: story cannot be a subject node`);
     assert.equal(storyIds.has(relationship.objectId), false, `${relationship.id}: story cannot be an object node`);
+    assert.notEqual(relationship.subjectId, relationship.objectId, `${relationship.id}: self-loop edges are forbidden`);
     assert.equal(graph.validateActionPredicate(relationship.predicate).valid, true, `${relationship.id}: specific action predicate`);
   }
 
