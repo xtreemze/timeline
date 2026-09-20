@@ -999,20 +999,6 @@
 
         </aside>
 
-        <section id="story-focus" class="story-focus" aria-live="polite" hidden>
-          <div class="story-focus-copy">
-            <p class="kicker">Story focus</p>
-            <h3 id="story-focus-title"></h3>
-            <p id="story-focus-description"></p>
-          </div>
-          <div class="story-focus-controls">
-            <span id="story-focus-position">1 / 1</span>
-            <button id="story-prev" class="button secondary" type="button">Previous</button>
-            <button id="story-next" class="button secondary" type="button">Next</button>
-            <button id="story-exit" class="button ghost" type="button">Exit story</button>
-          </div>
-        </section>
-
         <section id="presentation-stage" class="presentation-stage" data-stage-shape="stacked" data-timeline-orientation="horizontal" aria-label="Timeline presentation with contextual relation graph and place map">
           <section id="timeline-view" class="timeline-view" aria-label="Interactive timeline" hidden>
             <header class="timeline-project-heading" aria-label="Timeline project">
@@ -1023,6 +1009,25 @@
                 <span class="sr-only">Timeline title</span>
                 <input id="timeline-title" type="text" maxlength="120" autocomplete="off" placeholder="Untitled timeline" readonly aria-readonly="true" tabindex="-1">
               </label>
+              <div id="story-focus" class="story-focus story-focus-header" aria-live="polite" hidden>
+                <div class="story-focus-copy">
+                  <span class="story-focus-context" aria-hidden="true">Story</span>
+                  <strong id="story-focus-title"></strong>
+                  <span id="story-focus-description" class="sr-only"></span>
+                </div>
+                <div class="story-focus-controls" role="group" aria-label="Story navigation">
+                  <span id="story-focus-position" aria-label="Story position">1 / 1</span>
+                  <button id="story-prev" class="story-nav-button" type="button" data-semantic-icon="chevron-left" aria-label="Previous story event" title="Previous story event">
+                    <span class="sr-only">Previous story event</span>
+                  </button>
+                  <button id="story-next" class="story-nav-button" type="button" data-semantic-icon="chevron-right" aria-label="Next story event" title="Next story event">
+                    <span class="sr-only">Next story event</span>
+                  </button>
+                  <button id="story-exit" class="story-nav-button" type="button" data-semantic-icon="close" aria-label="Exit story" title="Exit story">
+                    <span class="sr-only">Exit story</span>
+                  </button>
+                </div>
+              </div>
               <div class="project-stats timeline-project-stats" aria-label="Timeline statistics">
                 <span id="item-count">0 items</span>
                 <span id="story-count">0 stories</span>
