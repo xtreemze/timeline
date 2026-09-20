@@ -4704,7 +4704,7 @@
       "id": "rel-snow-coffin-contains",
       "subjectId": "snow-white",
       "objectId": "snow-coffin-object",
-      "predicate": "restsIn",
+      "predicate": "rests",
       "attributes": {},
       "placeId": ""
     },
@@ -6459,13 +6459,19 @@
     {
       "id": "pigs-market-place",
       "name": "Pigwood Market Road",
-      "geographicIdentifier": "",
+      "geographicIdentifier": "Storybook Cycle 1000 · Pigwood · fictional staging anchor",
       "address": "",
-      "geometry": null,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          8.16,
+          49.91
+        ]
+      },
       "crs": "OGC:CRS84",
       "radiusMeters": null,
       "icon": "object",
-      "markerShape": "pin",
+      "markerShape": "square",
       "attributes": {
         "storyId": "story-three-little-pigs",
         "fictional": true
