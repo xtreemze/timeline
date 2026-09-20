@@ -1,6 +1,58 @@
 (() => {
   "use strict";
 
+  /**
+   * Canonical Timeline graph profile. General property graphs are more permissive;
+   * these types document the stricter contract enforced by Timeline.
+   * @typedef {Object} TimelineGraphEntity
+   * @property {string} id Stable explicit identifier for one durable entity.
+   * @property {string} type Entity classification such as person, organization, group, object, device, account, or document.
+   * @property {string} name Human-readable entity name; never an event/action phrase.
+   * @property {string[]} [alternateNames]
+   * @property {Array<Object>} [identifiers]
+   * @property {string[]} [sourceIds]
+   * @property {Object} [attributes] Entity-only properties; no time/place/geometry context.
+   *
+   * @typedef {Object} TimelineGraphRelationship
+   * @property {string} id Stable explicit identifier for one directed action fact.
+   * @property {string} subjectId Source entity ID.
+   * @property {string} objectId Different target entity ID.
+   * @property {string} predicate One action verb, optionally followed by one grammatical particle.
+   * @property {string} [role]
+   * @property {string} [placeId] Reference to the reusable place registry.
+   * @property {string[]} [itemIds] Chronology records that contextualize this same action fact.
+   * @property {"active"|"inactive"} [initialState]
+   * @property {Object|null} [time] Canonical instant/interval context.
+   * @property {string[]} [sourceIds]
+   * @property {number|null} [confidence]
+   * @property {Object} [attributes] Non-spatiotemporal action properties.
+   *
+   * @typedef {Object} TimelineGraphModel
+   * @property {TimelineGraphEntity[]} entities
+   * @property {Array<Object>} places
+   * @property {TimelineGraphRelationship[]} relationships
+   * @property {Array<Object>} [items]
+   * @property {Array<Object>} [stories]
+   *
+   * @typedef {Object} TimelineGraphAudit
+   * @property {string[]} orphanEntityIds
+   * @property {string[][]} duplicateFactGroups
+   * @property {Array<[string,string]>} mirroredFactPairs
+   * @property {Array<{entityIds:[string,string],relationshipIds:string[]}>} reciprocalActionPairs
+   */
+  const GRAPH_MODEL_RULES = Object.freeze({
+    nodeIdentity: "one-durable-entity",
+    relationshipIdentity: "one-directed-action-fact",
+    stableExplicitIds: true,
+    selfLoops: "forbidden",
+    duplicateFacts: "merge-context-on-one-edge",
+    mirroredDuplicates: "forbidden",
+    cycles: "allowed-when-each-directed-edge-is-a-distinct-fact",
+    orphanCanonicalEntities: "forbidden",
+    eventActionPlaceTimeNodes: "forbidden",
+    spatiotemporalContext: "relationship.time-and-relationship.placeId"
+  });
+
   function cloneJson(value) {
     try {
       return JSON.parse(JSON.stringify(value));
@@ -100,8 +152,132 @@
 
   const ACTION_NAME_PATTERN = /^(?:called|calls|met|meets|sent|sends|transferred|transfers|paid|pays|visited|visits|arrived|arrives|departed|departs|left|leaves|built|builds|created|creates|attacked|attacks|ordered|orders|warned|warns|approved|approves|authorized|authorizes|signed|signs|moved|moves|travelled|traveled|travels|fled|flees|married|marries|danced|dances|consulted|consults|poisoned|poisons|searched|searches|found|finds|lost|loses|gave|gives|took|takes|received|receives)\b/i;
 
+  const ACTION_PREDICATE_PARTICLES = new Set(["for", "with", "to", "over", "under", "through", "across", "up", "down", "out", "off", "away", "back", "forth", "against", "around"]);
+
   function semanticKey(value) {
     return text(value, 120).toLocaleLowerCase().replace(/[^a-z0-9]+/g, "");
+  }
+
+
+  function predicateTerms(value) {
+    return text(value, 120)
+      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+      .split(/[^A-Za-z0-9]+/)
+      .filter(Boolean);
+  }
+  
+  function temporalFactKey(time) {
+    if (!time || typeof time !== "object") return "timeless";
+    const start = text(time?.start?.value ?? time?.start, 120);
+    const end = text(time?.end?.value ?? time?.end, 120);
+    if (!start) return "timeless";
+    const type = text(time.type, 24) || (end ? "interval" : "instant");
+    return `${type}:${start}->${end}`;
+  }
+  
+  function relationshipFactKey(raw) {
+    if (!raw || typeof raw !== "object") return "";
+    const subjectId = text(raw.subjectId ?? raw.start ?? raw.source, 120);
+    const objectId = text(raw.objectId ?? raw.end ?? raw.target, 120);
+    const predicate = semanticKey(raw.predicate ?? raw.label ?? raw.type);
+    if (!subjectId || !objectId || !predicate) return "";
+    return JSON.stringify([subjectId, predicate, objectId, temporalFactKey(raw.time)]);
+  }
+  
+  function findDuplicateRelationship(candidate, relationships, excludeId = "") {
+    const key = relationshipFactKey(candidate);
+    if (!key) return null;
+    return (Array.isArray(relationships) ? relationships : []).find((relationship) =>
+      String(relationship?.id || "") !== String(excludeId || "") &&
+      relationshipFactKey(relationship) === key
+    ) || null;
+  }
+  
+  function findMirroredRelationship(candidate, relationships, excludeId = "") {
+    if (!candidate || String(candidate.subjectId || "") === String(candidate.objectId || "")) return null;
+    const reverseKey = relationshipFactKey({
+      ...candidate,
+      subjectId: candidate.objectId,
+      objectId: candidate.subjectId
+    });
+    if (!reverseKey) return null;
+    return (Array.isArray(relationships) ? relationships : []).find((relationship) =>
+      String(relationship?.id || "") !== String(excludeId || "") &&
+      relationshipFactKey(relationship) === reverseKey
+    ) || null;
+  }
+  
+  function auditGraphStructure(input) {
+    const entities = Array.isArray(input?.entities) ? input.entities : [];
+    const relationships = Array.isArray(input?.relationships) ? input.relationships : [];
+    const entityIds = new Set(entities.map((entity) => text(entity?.id, 120)).filter(Boolean));
+    const incident = new Set();
+    const factGroups = new Map();
+    const mirroredFactPairs = [];
+    const mirroredSeen = new Set();
+    const endpointPairs = new Map();
+  
+    for (const relationship of relationships) {
+      const subjectId = text(relationship?.subjectId, 120);
+      const objectId = text(relationship?.objectId, 120);
+      const predicate = text(relationship?.predicate, 120);
+      if (
+        !subjectId ||
+        !objectId ||
+        subjectId === objectId ||
+        !entityIds.has(subjectId) ||
+        !entityIds.has(objectId) ||
+        !validateActionPredicate(predicate).valid
+      ) continue;
+  
+      incident.add(subjectId);
+      incident.add(objectId);
+  
+      const key = relationshipFactKey(relationship);
+      if (key) {
+        if (!factGroups.has(key)) factGroups.set(key, []);
+        factGroups.get(key).push(String(relationship.id || ""));
+      }
+  
+      const mirrored = findMirroredRelationship(relationship, relationships, relationship.id);
+      if (mirrored) {
+        const pair = [String(relationship.id || ""), String(mirrored.id || "")].sort();
+        const pairKey = pair.join("\u0000");
+        if (!mirroredSeen.has(pairKey)) {
+          mirroredSeen.add(pairKey);
+          mirroredFactPairs.push(pair);
+        }
+      }
+  
+      const [first, second] = [subjectId, objectId].sort();
+      const endpointKey = `${first}\u0000${second}`;
+      if (!endpointPairs.has(endpointKey)) endpointPairs.set(endpointKey, []);
+      endpointPairs.get(endpointKey).push({
+        id: String(relationship.id || ""),
+        subjectId,
+        objectId
+      });
+    }
+  
+    const reciprocalActionPairs = [];
+    for (const [endpointKey, records] of endpointPairs) {
+      const [first, second] = endpointKey.split("\u0000");
+      const forward = records.some((record) => record.subjectId === first && record.objectId === second);
+      const reverse = records.some((record) => record.subjectId === second && record.objectId === first);
+      if (forward && reverse) {
+        reciprocalActionPairs.push({
+          entityIds: [first, second],
+          relationshipIds: records.map((record) => record.id).filter(Boolean)
+        });
+      }
+    }
+  
+    return {
+      orphanEntityIds: [...entityIds].filter((id) => !incident.has(id)),
+      duplicateFactGroups: [...factGroups.values()].filter((ids) => ids.length > 1),
+      mirroredFactPairs,
+      reciprocalActionPairs
+    };
   }
 
   function contextPropertyKey(value) {
@@ -166,6 +342,13 @@
       return {
         valid: false,
         message: `“${predicate}” mixes action with place or time. Keep the label to the action only; select placeId and time separately on the edge.`
+      };
+    }
+    const terms = predicateTerms(predicate);
+    if (terms.length > 2 || (terms.length === 2 && !ACTION_PREDICATE_PARTICLES.has(terms[1].toLowerCase()))) {
+      return {
+        valid: false,
+        message: `“${predicate}” embeds a noun, instrument, role, cause, or other context in the edge label. Canonical predicates are one action verb, optionally followed by one grammatical particle (for example searchesFor, dancesWith, transferredTo). Model other entities as nodes and time/place/other context as properties.`
       };
     }
     return { valid: true, message: "" };
@@ -368,97 +551,134 @@
     const rawItems = Array.isArray(input?.items) ? input.items : [];
     const rawStories = Array.isArray(input?.stories) ? input.stories : [];
     const rawPlaces = Array.isArray(input?.places) ? input.places : [];
-    const places = spatial?.normalizePlaces?.(rawPlaces) || [];
-    const entityIds = new Set();
-    const placeIds = new Set(places.map((place) => String(place.id)));
-    const placeNames = places.map((place) => semanticKey(place.name)).filter((name) => name.length >= 4);
     const itemIds = new Set(rawItems.map((item) => text(item?.id, 120)).filter(Boolean));
     const storyIds = new Set(rawStories.map((story) => text(story?.id, 120)).filter(Boolean));
-
-    rawPlaces.forEach((place, index) => {
-      const id = text(place?.id, 120) || `place ${index + 1}`;
+    const entityIds = new Set();
+    const placeIds = new Set();
+    const canonicalIds = new Map();
+  
+    const registerId = (rawId, kind, label) => {
+      const id = text(rawId, 120);
+      if (!id) {
+        errors.push(`${label}: a stable explicit ID is required; generated positional IDs are not canonical.`);
+        return "";
+      }
+      const previous = canonicalIds.get(id);
+      if (previous) {
+        errors.push(`ID “${id}” is reused by ${previous} and ${kind}. Canonical entity, place, chronology, story, and relationship IDs must be unique.`);
+      } else {
+        canonicalIds.set(id, kind);
+      }
+      return id;
+    };
+  
+    rawItems.forEach((item, index) => registerId(item?.id, `chronology item ${index + 1}`, `Chronology item ${index + 1}`));
+    rawStories.forEach((story, index) => registerId(story?.id, `story ${index + 1}`, `Story ${index + 1}`));
+  
+    rawPlaces.forEach((raw, index) => {
+      const label = `Place ${text(raw?.id, 120) || index + 1}`;
+      const id = registerId(raw?.id, `place ${index + 1}`, label);
+      if (id) placeIds.add(id);
+      if (!raw || typeof raw !== "object") {
+        errors.push(`${label}: place must be an object.`);
+        return;
+      }
       let normalized = null;
       try {
-        normalized = spatial?.normalizePlace?.(place, index) || null;
+        normalized = spatial?.normalizePlace?.(raw, index) || null;
       } catch (error) {
-        errors.push(`Place ${id}: ${error instanceof Error ? error.message : "invalid geometry."}`);
-        return;
+        errors.push(`${label}: ${error instanceof Error ? error.message : "invalid geometry."}`);
       }
-      if (!normalized) {
-        errors.push(`Place ${id}: a canonical place requires a name and point or area geometry.`);
-        return;
+      if (!normalized?.geometry) {
+        errors.push(`${label}: canonical place requires Point coordinates or Polygon/MultiPolygon area geometry.`);
       }
-      if (!normalized.geometry) {
-        errors.push(`Place ${id}: a canonical place requires Point coordinates or Polygon/MultiPolygon area geometry.`);
-      }
-      const icon = text(place?.icon || place?.marker?.icon || place?.attributes?.icon, 48);
+      const icon = text(raw.icon || raw.marker?.icon || raw.attributes?.icon, 48);
       if (icon && Array.isArray(spatial?.PLACE_ICON_NAMES) && !spatial.PLACE_ICON_NAMES.includes(icon)) {
-        errors.push(`Place ${id}: unsupported semantic icon “${icon}”. Choose a registered semantic icon.`);
+        errors.push(`${label}: unsupported semantic icon “${icon}”. Choose a registered semantic icon.`);
       }
-      const markerShape = text(place?.markerShape || place?.marker?.shape || place?.attributes?.markerShape, 24);
+      const markerShape = text(raw.markerShape || raw.marker?.shape || raw.attributes?.markerShape, 24);
       if (markerShape && Array.isArray(spatial?.PLACE_MARKER_SHAPES) && !spatial.PLACE_MARKER_SHAPES.includes(markerShape)) {
-        errors.push(`Place ${id}: unsupported marker shape “${markerShape}”.`);
+        errors.push(`${label}: unsupported marker shape “${markerShape}”.`);
       }
     });
-
-    rawEntities.forEach((entity, index) => {
-      const validation = validateEntityNode(entity);
-      const id = text(entity?.id, 120);
-      if (!validation.valid) errors.push(`Node ${id || index + 1}: ${validation.message}`);
-      if (id && itemIds.has(id)) errors.push(`Node ${id}: entity IDs cannot collide with chronology item IDs.`);
-      if (id && storyIds.has(id)) errors.push(`Node ${id}: entity IDs cannot collide with story IDs.`);
+  
+    rawEntities.forEach((raw, index) => {
+      const label = `Node ${text(raw?.id, 120) || index + 1}`;
+      const id = registerId(raw?.id, `entity node ${index + 1}`, label);
       if (id) entityIds.add(id);
+      const result = validateEntityNode(raw);
+      if (!result.valid) errors.push(`${label}: ${result.message}`);
+      if (id && itemIds.has(id)) errors.push(`${label}: entity IDs cannot collide with chronology item IDs.`);
+      if (id && storyIds.has(id)) errors.push(`${label}: entity IDs cannot collide with story IDs.`);
     });
-
-    rawRelationships.forEach((relationship, index) => {
-      const id = text(relationship?.id, 120) || `relationship ${index + 1}`;
-      const predicate = text(relationship?.predicate || relationship?.label || relationship?.type, 120);
-      const validation = validateActionPredicate(predicate);
-      if (!validation.valid) errors.push(`Edge ${id}: ${validation.message}`);
+  
+    rawRelationships.forEach((raw, index) => {
+      if (!raw || typeof raw !== "object") {
+        errors.push(`Edge ${index + 1}: edge must be an object.`);
+        return;
+      }
+      const id = registerId(raw.id, `relationship ${index + 1}`, `Edge ${index + 1}`);
+      const label = `Edge ${id || index + 1}`;
+      const predicate = text(raw.predicate || raw.label || raw.type, 120);
+      const predicateResult = validateActionPredicate(predicate);
+      if (!predicateResult.valid) errors.push(`${label}: ${predicateResult.message}`);
+  
       const predicateKey = semanticKey(predicate);
-      const embeddedPlace = placeNames.find((name) => predicateKey.includes(name));
-      if (embeddedPlace) errors.push(`Edge ${id}: the action label must not contain a place name; select the reusable place through placeId.`);
-      const subjectId = text(relationship?.subjectId ?? relationship?.start ?? relationship?.source, 120);
-      const objectId = text(relationship?.objectId ?? relationship?.end ?? relationship?.target, 120);
-      if (subjectId && objectId && subjectId === objectId) {
-        errors.push(`Edge ${id}: source and target must be different entity nodes. Self-loop relationships are not permitted.`);
-      }
-      if (!entityIds.has(subjectId) || !entityIds.has(objectId)) {
-        errors.push(`Edge ${id}: endpoints must both be entity nodes. Time and place are edge properties, never endpoint nodes.`);
-      }
-      const placeId = text(relationship?.placeId || relationship?.locationId, 120);
-      if (placeId && !placeIds.has(placeId)) errors.push(`Edge ${id}: unknown placeId “${placeId}”. Create/reuse a canonical place record first.`);
-      const relationshipAttributes =
-        relationship?.properties && typeof relationship.properties === "object" ? relationship.properties :
-        relationship?.attributes && typeof relationship.attributes === "object" ? relationship.attributes :
-        {};
-      const duplicateContextKey = Object.keys(relationshipAttributes).find(contextPropertyKey);
-      if (duplicateContextKey) {
-        errors.push(`Edge ${id}: property “${duplicateContextKey}” duplicates canonical spatiotemporal context. Use edge.time or edge.placeId.`);
-      }
-      const contextIds = textList(
-        relationship?.itemIds || relationship?.contextItemIds || relationship?.eventIds,
-        { maxItems: 96, maxLength: 120 }
-      );
-      for (const contextId of contextIds) {
-        if (!itemIds.has(contextId)) errors.push(`Edge ${id}: unknown timeline context item “${contextId}”.`);
-      }
-    });
-
-    rawItems.forEach((item, itemIndex) => {
-      for (const change of Array.isArray(item?.relationChanges) ? item.relationChanges : []) {
-        const predicate = text(change?.predicate, 120);
-        if (!predicate) continue;
-        const validation = validateActionPredicate(predicate);
-        if (!validation.valid) {
-          errors.push(`Item ${text(item?.id, 120) || itemIndex + 1} relation update: ${validation.message}`);
+      for (const place of rawPlaces) {
+        const placeName = semanticKey(place?.name);
+        if (placeName && placeName.length >= 4 && predicateKey.includes(placeName)) {
+          errors.push(`${label}: predicate must not embed place name “${place.name}”; use placeId.`);
+          break;
         }
       }
+  
+      const subjectId = text(raw.subjectId || raw.start || raw.source, 120);
+      const objectId = text(raw.objectId || raw.end || raw.target, 120);
+      if (subjectId && objectId && subjectId === objectId) {
+        errors.push(`${label}: source and target must be different entity nodes. Self-loop relationships are not permitted.`);
+      }
+      if (!entityIds.has(subjectId)) errors.push(`${label}: subject/source must reference an entity node.`);
+      if (!entityIds.has(objectId)) errors.push(`${label}: object/target must reference an entity node.`);
+  
+      const placeId = text(raw.placeId, 120);
+      if (placeId && !placeIds.has(placeId)) errors.push(`${label}: placeId must reference one canonical place record.`);
+  
+      const attributes = raw.attributes && typeof raw.attributes === "object" && !Array.isArray(raw.attributes)
+        ? raw.attributes
+        : raw.properties && typeof raw.properties === "object" && !Array.isArray(raw.properties)
+          ? raw.properties
+          : {};
+      const duplicateKeys = Object.keys(attributes).filter(contextPropertyKey);
+      if (duplicateKeys.length) {
+        errors.push(`${label}: generic edge attributes duplicates canonical spatiotemporal context (${duplicateKeys.join(", ")}). Use edge.time and edge.placeId.`);
+      }
+  
+      for (const itemId of Array.isArray(raw.itemIds) ? raw.itemIds : []) {
+        if (!itemIds.has(String(itemId))) errors.push(`${label}: itemIds must reference chronology records, not create graph endpoints.`);
+      }
     });
-
+  
+    const audit = auditGraphStructure(input);
+    for (const ids of audit.duplicateFactGroups) {
+      errors.push(`Edges ${ids.join(", ")} duplicate one directed action fact (same source, action, target, and temporal extent). Keep one canonical edge and merge itemIds, sourceIds, place, confidence, and other properties onto it.`);
+    }
+    for (const [first, second] of audit.mirroredFactPairs) {
+      errors.push(`Edges ${first} and ${second} mirror the same action and temporal extent in opposite directions. Do not create a reverse copy to simulate bidirectionality; add a reverse edge only for a genuinely distinct reverse action.`);
+    }
+    for (const id of audit.orphanEntityIds) {
+      errors.push(`Node ${id}: canonical entity is orphaned. Navigation containers, stories, categories, roles, and labels stay outside graph topology; a durable entity belongs in the graph only when it participates in at least one meaningful action edge.`);
+    }
+  
+    for (const item of rawItems) {
+      for (const change of Array.isArray(item?.relationChanges) ? item.relationChanges : []) {
+        if (change?.operation !== "update" || !change.predicate) continue;
+        const result = validateActionPredicate(change.predicate);
+        if (!result.valid) errors.push(`Relation change ${item?.id || "item"}: ${result.message}`);
+      }
+    }
+  
     return errors;
   }
-
 
   function stripLegacySpatialPredicate(value) {
     let predicate = text(value, 120);
@@ -794,6 +1014,11 @@
   }
 
   globalThis.TimelineGraph = Object.freeze({
+    GRAPH_MODEL_RULES,
+    auditGraphStructure,
+    findDuplicateRelationship,
+    findMirroredRelationship,
+    relationshipFactKey,
     graphForWindow,
     migrateLegacySpatialModel,
     normalizeGraphData,

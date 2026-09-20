@@ -515,10 +515,10 @@ test("graph semantics reject action nodes and generic association predicates", (
   assert.equal(graph.validateEntityNode({ name: "Stockholm", type: "place" }).valid, false);
   assert.equal(graph.validateEntityNode({ name: "Alice", type: "person", attributes: { location: "Stockholm" } }).valid, false);
 
-  for (const predicate of ["participatesIn", "part of", "took part in", "memberOf", "relatedTo", "associatedWith", "metAt", "visitedNear", "searchedDuring"]) {
+  for (const predicate of ["participatesIn", "part of", "took part in", "memberOf", "relatedTo", "associatedWith", "metAt", "visitedNear", "searchedDuring", "transformsCircumstances", "seeksShelterWith", "revivesAfterLaces", "usesToAttack", "carriesForTest", "keepsVigilBeside"]) {
     assert.equal(graph.validateActionPredicate(predicate).valid, false, predicate);
   }
-  for (const predicate of ["called", "warned", "built", "transferredTo", "authorized"]) {
+  for (const predicate of ["called", "warned", "built", "transferredTo", "authorized", "searchesFor", "dancesWith", "sendsForth"]) {
     assert.equal(graph.validateActionPredicate(predicate).valid, true, predicate);
   }
 
@@ -541,6 +541,47 @@ test("graph semantics reject action nodes and generic association predicates", (
   assert.deepEqual(graph.normalizeGraphData(selfLoopInput).relationships, []);
   assert.deepEqual(graph.toOrbGraph(selfLoopInput).edges, []);
   assert.ok(graph.validateGraphInput(selfLoopInput).some((error) => /Self-loop relationships are not permitted/.test(error)));
+
+  const duplicateAndMirrorInput = {
+    entities: [
+      { id: "a", type: "person", name: "A" },
+      { id: "b", type: "person", name: "B" }
+    ],
+    relationships: [
+      { id: "r1", subjectId: "a", objectId: "b", predicate: "calls", time: { type: "instant", start: { value: "2026-09-20T10:00Z" } } },
+      { id: "r2", subjectId: "a", objectId: "b", predicate: "calls", time: { type: "instant", start: { value: "2026-09-20T10:00Z" } }, itemIds: [] },
+      { id: "r3", subjectId: "b", objectId: "a", predicate: "calls", time: { type: "instant", start: { value: "2026-09-20T10:00Z" } } }
+    ]
+  };
+  const structuralErrors = graph.validateGraphInput(duplicateAndMirrorInput);
+  assert.ok(structuralErrors.some((error) => /duplicate one directed action fact/.test(error)));
+  assert.ok(structuralErrors.some((error) => /mirror the same action/.test(error)));
+  const structuralAudit = graph.auditGraphStructure(duplicateAndMirrorInput);
+  assert.equal(structuralAudit.duplicateFactGroups.length, 1);
+  assert.ok(structuralAudit.mirroredFactPairs.length >= 1);
+
+  const legitimateCycle = {
+    entities: [
+      { id: "actor-a", type: "person", name: "Actor A" },
+      { id: "actor-b", type: "person", name: "Actor B" }
+    ],
+    relationships: [
+      { id: "attack", subjectId: "actor-a", objectId: "actor-b", predicate: "attacks" },
+      { id: "evade", subjectId: "actor-b", objectId: "actor-a", predicate: "evades" }
+    ]
+  };
+  assert.deepEqual(graph.validateGraphInput(legitimateCycle), []);
+  assert.equal(graph.auditGraphStructure(legitimateCycle).reciprocalActionPairs.length, 1);
+  assert.match(graph.GRAPH_MODEL_RULES.cycles, /distinct-fact/);
+
+  const reusedIdErrors = graph.validateGraphInput({
+    entities: [
+      { id: "shared", type: "person", name: "A" },
+      { id: "b", type: "person", name: "B" }
+    ],
+    relationships: [{ id: "shared", subjectId: "shared", objectId: "b", predicate: "calls" }]
+  });
+  assert.ok(reusedIdErrors.some((error) => /ID “shared” is reused/.test(error)));
 
   const invalidContext = graph.validateGraphInput({
     entities: [

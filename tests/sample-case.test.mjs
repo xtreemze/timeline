@@ -147,6 +147,17 @@ test("the anthology keeps tales separate through narrative membership, not graph
   ));
 });
 
+test("sample graph satisfies canonical action-fact topology without synthetic containers", () => {
+  const audit = graph.auditGraphStructure(sample);
+  assert.deepEqual(audit.orphanEntityIds, []);
+  assert.deepEqual(audit.duplicateFactGroups, []);
+  assert.deepEqual(audit.mirroredFactPairs, []);
+  assert.equal(sample.entities.some((entity) => entity.id === "storybook-anthology"), false);
+  assert.equal(sample.relationships.some((relationship) => relationship.predicate === "joinsSiblingGroup"), false);
+  assert.equal(sample.relationships.some((relationship) => /AfterLaces|AfterComb|InDisguise|ToAttack|ForTest|VigilBeside|Circumstances/.test(relationship.predicate)), false);
+  assert.ok(sample.relationships.every((relationship) => graph.relationshipFactKey(relationship)));
+});
+
 test("each tale demonstrates an event-driven relationship lifecycle", () => {
   const dynamicIds = new Set(
     sample.relationships
@@ -267,7 +278,7 @@ test("Three Little Pigs includes material choices, escapes, regrouping and alter
     "pigs-wolf-roof"
   ]) assert.ok(ids.has(id), id);
   assert.ok(sample.entities.some((entity) => entity.id === "pigs-material-vendors"));
-  assert.ok(sample.relationships.some((relationship) => relationship.id === "rel-pigs-third-bricks"));
+  assert.ok(sample.relationships.some((relationship) => relationship.id === "rel-event-pigs-acquire-bricks-object-action"));
 });
 
 test("Snow White separates the disguised attacks, recoveries, apple preparation and coffin encounter", () => {
@@ -309,7 +320,7 @@ test("Cinderella includes household formation, practical transformation, palace 
 
 test("detailed stories add graph and place depth without conflating categories with stories", () => {
   assert.ok(sample.items.length >= 55);
-  assert.ok(sample.entities.length >= 40);
+  assert.ok(sample.entities.length >= 39);
   assert.ok(sample.places.length >= 27);
   assert.ok(sample.relationships.length >= 46);
   assert.ok(sample.relationships.filter((relationship) => relationship.time?.start?.value).length >= 30);

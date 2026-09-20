@@ -142,7 +142,8 @@
           "alt": "1852 public-domain Snow White illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "snow-childhood",
@@ -208,7 +209,8 @@
           "alt": "1919 public-domain Snow White illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "cinderella-mother",
@@ -266,7 +268,8 @@
           "alt": "William Henry Margetson public-domain Cinderella illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "cinderella-stepfamily-arrives",
@@ -324,7 +327,8 @@
           "alt": "Helen Stratton public-domain Cinderella illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "cinderella-hardship",
@@ -390,7 +394,8 @@
           "alt": "Arthur Rackham public-domain Cinderella illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "pigs-childhood",
@@ -456,7 +461,8 @@
           "alt": "L. Leslie Brooke illustration of the third pig building",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "pigs-leave-home",
@@ -514,7 +520,8 @@
           "alt": "1904 illustration of the wolf at the straw house",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "pigs-acquire-straw",
@@ -572,7 +579,8 @@
           "alt": "L. Leslie Brooke Three Little Pigs illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "snow-mirror",
@@ -630,7 +638,8 @@
           "alt": "1913 public-domain Snow White illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "pigs-acquire-sticks",
@@ -688,7 +697,8 @@
           "alt": "L. Leslie Brooke illustration of the wolf at the brick house",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "pigs-acquire-bricks",
@@ -746,7 +756,8 @@
           "alt": "L. Leslie Brooke illustration of the chimney attempt",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "pigs-brick-build",
@@ -817,7 +828,8 @@
           "alt": "L. Leslie Brooke illustration of a pig carrying straw",
           "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "snow-huntsman-order",
@@ -939,7 +951,8 @@
           "alt": "L. Leslie Brooke illustration of a pig carrying straw",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "snow-huntsman-spares",
@@ -997,7 +1010,8 @@
           "alt": "1913 public-domain Snow White illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "snow-forest-flight",
@@ -1055,7 +1069,8 @@
           "alt": "1913 public-domain Snow White illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "pigs-stick-house",
@@ -1113,7 +1128,8 @@
           "alt": "L. Leslie Brooke illustration of the third pig building",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "snow-finds-cottage",
@@ -1176,7 +1192,8 @@
           "alt": "1913 public-domain Snow White illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "snow-dwarfs-shelter",
@@ -1242,7 +1259,8 @@
           "alt": "1913 public-domain Snow White illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "cinderella-invitation",
@@ -1300,7 +1318,8 @@
           "alt": "Gustave Doré public-domain Cinderella illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "snow-queen-discovers",
@@ -1358,7 +1377,8 @@
           "alt": "1913 public-domain Snow White illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "cinderella-denied",
@@ -1416,7 +1436,8 @@
           "alt": "Elenore Abbott public-domain Cinderella illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "cinderella-extra-chores",
@@ -1474,7 +1495,8 @@
           "alt": "William Henry Margetson public-domain Cinderella illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "snow-disguises",
@@ -1609,7 +1631,8 @@
           "alt": "1919 public-domain Snow White illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "snow-laces-recovery",
@@ -1667,7 +1690,8 @@
           "alt": "1913 public-domain Snow White illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "pigs-wolf-straw",
@@ -1789,7 +1813,8 @@
           "alt": "L. Leslie Brooke Three Little Pigs illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "cinderella-transformation",
@@ -1852,7 +1877,8 @@
           "alt": "Arthur Rackham public-domain Cinderella illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "cinderella-coach-created",
@@ -1910,7 +1936,8 @@
           "alt": "Arthur Rackham public-domain Cinderella illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "pigs-wolf-sticks",
@@ -1968,7 +1995,8 @@
           "alt": "L. Leslie Brooke illustration of the wolf at the brick house",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "pigs-two-flee",
@@ -2026,7 +2054,8 @@
           "alt": "L. Leslie Brooke illustration of the chimney attempt",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "snow-comb",
@@ -2084,7 +2113,8 @@
           "alt": "1913 public-domain Snow White illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "snow-comb-recovery",
@@ -2142,7 +2172,8 @@
           "alt": "1913 public-domain Snow White illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "cinderella-first-ball",
@@ -2208,7 +2239,8 @@
           "alt": "Gustave Doré public-domain Cinderella illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "cinderella-prince-dance",
@@ -2266,7 +2298,8 @@
           "alt": "Elenore Abbott public-domain Cinderella illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "cinderella-first-return",
@@ -2324,7 +2357,8 @@
           "alt": "William Henry Margetson public-domain Cinderella illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "pigs-brick-siege",
@@ -2458,7 +2492,8 @@
           "alt": "L. Leslie Brooke illustration of a pig carrying straw",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "pigs-chimney",
@@ -2516,7 +2551,8 @@
           "alt": "L. Leslie Brooke illustration of the third pig building",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "pigs-safe",
@@ -2639,7 +2675,8 @@
           "alt": "1913 public-domain Snow White illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "snow-apple",
@@ -2773,7 +2810,8 @@
           "alt": "1913 public-domain Snow White illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "cinderella-second-ball",
@@ -2839,7 +2877,8 @@
           "alt": "Helen Stratton public-domain Cinderella illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "cinderella-midnight-flight",
@@ -2897,7 +2936,8 @@
           "alt": "Arthur Rackham public-domain Cinderella illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "cinderella-slipper",
@@ -3027,7 +3067,8 @@
           "alt": "Elenore Abbott public-domain Cinderella illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "snow-prince-arrives",
@@ -3085,7 +3126,8 @@
           "alt": "1913 public-domain Snow White illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "snow-revival",
@@ -3144,7 +3186,8 @@
           "alt": "1852 public-domain Snow White illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "cinderella-stepsisters-try",
@@ -3202,7 +3245,8 @@
           "alt": "William Henry Margetson public-domain Cinderella illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "cinderella-asks-to-try",
@@ -3260,7 +3304,8 @@
           "alt": "Helen Stratton public-domain Cinderella illustration",
           "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
-      ]
+      ],
+      "relationChanges": []
     },
     {
       "id": "cinderella-fit",
@@ -3569,16 +3614,6 @@
     }
   ],
   "entities": [
-    {
-      "id": "storybook-anthology",
-      "type": "group",
-      "name": "Classic Tale Anthology",
-      "identifiers": [],
-      "attributes": {
-        "container": true,
-        "fictional": true
-      }
-    },
     {
       "id": "pigs-first",
       "type": "person",
@@ -3972,38 +4007,6 @@
   ],
   "relationships": [
     {
-      "id": "rel-pigs-builds",
-      "subjectId": "pigs-third",
-      "objectId": "pigs-brick-house",
-      "predicate": "builds",
-      "time": {
-        "type": "interval",
-        "start": {
-          "value": "1000-04-05T08:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": {
-          "value": "1000-04-17T18:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        }
-      },
-      "attributes": {
-        "material": "brick",
-        "materialSource": "Pigwood Market Road"
-      },
-      "placeId": ""
-    },
-    {
       "id": "rel-pigs-wolf-threat",
       "subjectId": "pigs-wolf",
       "objectId": "pigs-brothers",
@@ -4011,29 +4014,6 @@
       "initialState": "inactive",
       "attributes": {
         "storyId": "story-three-little-pigs"
-      },
-      "placeId": ""
-    },
-    {
-      "id": "rel-snow-mirror-owned",
-      "subjectId": "snow-queen",
-      "objectId": "snow-mirror-object",
-      "predicate": "consults",
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-03T08:20Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {
-        "question": "fairest"
       },
       "placeId": ""
     },
@@ -4158,37 +4138,6 @@
       "placeId": ""
     },
     {
-      "id": "rel-cinderella-control",
-      "subjectId": "cinderella-stepmother",
-      "objectId": "cinderella",
-      "predicate": "controls",
-      "time": {
-        "type": "interval",
-        "start": {
-          "value": "0997-06-02",
-          "precision": "day",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": null,
-          "utcOffset": null,
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": {
-          "value": "1000-05-05",
-          "precision": "day",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": null,
-          "utcOffset": null,
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        }
-      },
-      "attributes": {
-        "domain": "household"
-      },
-      "placeId": ""
-    },
-    {
       "id": "rel-cinderella-stepsisters",
       "subjectId": "cinderella-stepsisters",
       "objectId": "cinderella",
@@ -4223,7 +4172,7 @@
       "id": "rel-cinderella-fairy",
       "subjectId": "cinderella-fairy",
       "objectId": "cinderella",
-      "predicate": "transformsCircumstances",
+      "predicate": "assists",
       "time": {
         "type": "instant",
         "start": {
@@ -4250,27 +4199,6 @@
       "itemIds": [
         "cinderella-transformation"
       ]
-    },
-    {
-      "id": "rel-cinderella-slipper-loss",
-      "subjectId": "cinderella",
-      "objectId": "cinderella-slipper-object",
-      "predicate": "loses",
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-05-07T00:02Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {},
-      "placeId": "place-cinderella-royal-carriage-road"
     },
     {
       "id": "rel-cinderella-prince-search",
@@ -4317,79 +4245,10 @@
       "placeId": ""
     },
     {
-      "id": "rel-pigs-first-straw",
-      "subjectId": "pigs-first",
-      "objectId": "pigs-straw-bundle",
-      "predicate": "acquires",
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-02T09:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {
-        "from": "Pigwood Material Sellers"
-      },
-      "placeId": ""
-    },
-    {
-      "id": "rel-pigs-second-sticks",
-      "subjectId": "pigs-second",
-      "objectId": "pigs-stick-bundle",
-      "predicate": "acquires",
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-03T11:30Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {
-        "from": "Pigwood Material Sellers"
-      },
-      "placeId": ""
-    },
-    {
-      "id": "rel-pigs-third-bricks",
-      "subjectId": "pigs-third",
-      "objectId": "pigs-brick-load",
-      "predicate": "acquires",
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-04T14:30Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {
-        "from": "Pigwood Material Sellers"
-      },
-      "placeId": ""
-    },
-    {
       "id": "rel-pigs-first-shelter-second",
       "subjectId": "pigs-first",
       "objectId": "pigs-second",
-      "predicate": "seeksShelterWith",
+      "predicate": "joins",
       "time": {
         "type": "instant",
         "start": {
@@ -4415,7 +4274,7 @@
       "id": "rel-pigs-brothers-shelter-third",
       "subjectId": "pigs-second",
       "objectId": "pigs-third",
-      "predicate": "seeksShelterWith",
+      "predicate": "joins",
       "time": {
         "type": "instant",
         "start": {
@@ -4436,56 +4295,10 @@
       ]
     },
     {
-      "id": "rel-snow-queen-laces",
-      "subjectId": "snow-queen",
-      "objectId": "snow-laces-object",
-      "predicate": "usesInDisguise",
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-18T10:15Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {
-        "attempt": 1
-      },
-      "placeId": ""
-    },
-    {
-      "id": "rel-snow-queen-comb",
-      "subjectId": "snow-queen",
-      "objectId": "snow-comb-object",
-      "predicate": "usesInDisguise",
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-25T14:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {
-        "attempt": 2
-      },
-      "placeId": ""
-    },
-    {
       "id": "rel-snow-dwarfs-laces-rescue",
       "subjectId": "snow-dwarfs",
       "objectId": "snow-white",
-      "predicate": "revivesAfterLaces",
+      "predicate": "revives",
       "time": {
         "type": "instant",
         "start": {
@@ -4511,7 +4324,7 @@
       "id": "rel-snow-dwarfs-comb-rescue",
       "subjectId": "snow-dwarfs",
       "objectId": "snow-white",
-      "predicate": "revivesAfterComb",
+      "predicate": "revives",
       "time": {
         "type": "instant",
         "start": {
@@ -4607,29 +4420,6 @@
       "placeId": ""
     },
     {
-      "id": "rel-cinderella-fairy-gown",
-      "subjectId": "cinderella-fairy",
-      "objectId": "cinderella-gown",
-      "predicate": "provides",
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-04-22T18:00Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {
-        "expiresAt": "midnight"
-      },
-      "placeId": ""
-    },
-    {
       "id": "rel-cinderella-prince-dance",
       "subjectId": "cinderella-prince",
       "objectId": "cinderella",
@@ -4659,7 +4449,7 @@
       "id": "rel-cinderella-herald-slipper",
       "subjectId": "cinderella-herald",
       "objectId": "cinderella-slipper-object",
-      "predicate": "carriesForTest",
+      "predicate": "carries",
       "time": {
         "type": "interval",
         "start": {
@@ -4684,61 +4474,6 @@
       "attributes": {
         "purpose": "identify owner"
       },
-      "placeId": ""
-    },
-    {
-      "id": "rel-cinderella-stepsisters-slipper",
-      "subjectId": "cinderella-stepsisters",
-      "objectId": "cinderella-slipper-object",
-      "predicate": "failsFitTest",
-      "time": {
-        "type": "instant",
-        "start": {
-          "value": "1000-05-20T14:30Z",
-          "precision": "minute",
-          "certainty": "inferred",
-          "calendar": "gregorian",
-          "timeZone": "UTC",
-          "utcOffset": "+00:00",
-          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
-        },
-        "end": null
-      },
-      "attributes": {
-        "result": "no match"
-      },
-      "placeId": ""
-    },
-    {
-      "id": "rel-pigs-first-group",
-      "subjectId": "pigs-first",
-      "objectId": "pigs-brothers",
-      "predicate": "joinsSiblingGroup",
-      "attributes": {},
-      "placeId": ""
-    },
-    {
-      "id": "rel-pigs-second-group",
-      "subjectId": "pigs-second",
-      "objectId": "pigs-brothers",
-      "predicate": "joinsSiblingGroup",
-      "attributes": {},
-      "placeId": ""
-    },
-    {
-      "id": "rel-pigs-third-group",
-      "subjectId": "pigs-third",
-      "objectId": "pigs-brothers",
-      "predicate": "joinsSiblingGroup",
-      "attributes": {},
-      "placeId": ""
-    },
-    {
-      "id": "rel-snow-coffin-contains",
-      "subjectId": "snow-white",
-      "objectId": "snow-coffin-object",
-      "predicate": "rests",
-      "attributes": {},
       "placeId": ""
     },
     {
@@ -5361,7 +5096,7 @@
       "id": "rel-event-snow-laces-object-action",
       "subjectId": "snow-queen",
       "objectId": "snow-laces-object",
-      "predicate": "usesToAttack",
+      "predicate": "uses",
       "itemIds": [
         "snow-laces"
       ],
@@ -5505,7 +5240,7 @@
       "id": "rel-event-snow-comb-object-action",
       "subjectId": "snow-queen",
       "objectId": "snow-comb-object",
-      "predicate": "usesToAttack",
+      "predicate": "uses",
       "itemIds": [
         "snow-comb"
       ],
@@ -5713,7 +5448,7 @@
       "id": "rel-event-snow-coffin-object-action",
       "subjectId": "snow-dwarfs",
       "objectId": "snow-coffin-object",
-      "predicate": "keepsVigilBeside",
+      "predicate": "guards",
       "itemIds": [
         "snow-coffin"
       ],
@@ -6001,7 +5736,7 @@
       "id": "rel-pigs-first-shelter-third",
       "subjectId": "pigs-first",
       "objectId": "pigs-third",
-      "predicate": "seeksShelterWith",
+      "predicate": "joins",
       "time": {
         "type": "instant",
         "start": {

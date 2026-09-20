@@ -221,6 +221,14 @@ The action label is stored in `predicate` and contains the action only. It must 
 
 Authoring SHOULD give a relation an instant or interval whenever its temporal extent is known. The editor therefore defaults new relations to a dated instant. “Persistent / no temporal anchor” is an explicit exception for genuinely timeless topology rather than the default way to avoid entering a date.
 
+## Canonical property-graph discipline
+
+Timeline follows a stricter profile than a general labelled-property graph. The normative rules, external Memgraph/Neo4j/Neptune references, type contract, deduplication identity, cycle policy, and n-ary-action guidance are collected in [GRAPH-MODELING-RULES.md](GRAPH-MODELING-RULES.md).
+
+At runtime, `TimelineGraph.GRAPH_MODEL_RULES` publishes the profile, `relationshipFactKey()` defines canonical action-fact identity, `auditGraphStructure()` detects orphan entities/duplicate facts/mirrored copies while preserving legitimate reciprocal cycles, and `validateGraphInput()` enforces the same rules on strict input. The editor uses `findDuplicateRelationship()` and `findMirroredRelationship()` before mutation so authoring and import validation do not diverge.
+
+A cycle is not intrinsically invalid. Two opposite-direction edges are allowed when they describe different actions or distinct temporal facts. What is prohibited is using a same-action reverse copy as a substitute for query-time bidirectionality, or creating a dummy node/edge simply to force a chronology action into the graph.
+
 ## Timeline-synchronized graph lens
 
 `site/temporal-graph-view.js` renders the current graph through the bundled Memgraph Orb canvas/WebGL surface.

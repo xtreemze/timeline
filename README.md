@@ -93,9 +93,15 @@ Timeline includes an authorable subject–action–object graph alongside the ch
 - `relationship.time` is the canonical temporal property used for timeline/temporal-graph projection.
 - `relationship.placeId` references one record from reusable `places[]`; the place carries point/area geometry, optional radius, semantic icon, and map-marker shape.
 - Generic associations such as `participatesIn`, `partOf`, `memberOf`, `relatedTo`, `associatedWith`, or `connectedTo` are invalid canonical predicates.
+- Edge predicates are intentionally narrow: one action verb, optionally followed by one grammatical particle. Instruments, causes, roles, places, times, and other entities are modeled separately rather than encoded into the relationship type.
+- **One directed action fact = one edge.** Repeated source–action–target facts at the same temporal extent must merge chronology/provenance/context properties onto the existing relationship instead of creating parallel copies.
+- Do not add a same-action reverse edge to simulate bidirectionality. A reverse edge is valid only for a genuinely distinct reverse action. Genuine cycles with distinct facts are allowed.
+- Canonical graph data must not contain orphan navigation/container nodes. Groups belong in topology only when the collective itself acts or is acted upon.
 - `itemIds[]` can link an action edge to chronology/presentation records without turning those records into graph nodes.
 - Stories remain narrative groupings through `story.itemIds[]`; they are not graph nodes or edge endpoints.
 - The graph lens is synchronized to the visible timeline window: timed edges inside the window are emphasized, out-of-window edges fade, and explicitly timeless action relations remain visible.
+
+See `docs/GRAPH-MODELING-RULES.md` for the normative property-graph profile and reviewed Memgraph/Neo4j/Neptune guidance.
 
 The canonical model is `entities[] + places[] + relationships[]`: entity topology is separate from reusable spatial records. `TimelineGraph.toOrbGraph()` emits the node/edge contract expected by Orb-like visualization layers without making a force-layout view the source of truth.
 

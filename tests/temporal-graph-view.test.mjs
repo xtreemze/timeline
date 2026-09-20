@@ -78,7 +78,7 @@ test("events can activate update and deactivate a relationship over time", () =>
         relationChanges: [{
           relationshipId: "r",
           operation: "update",
-          predicate: "formallyInvestigates",
+          predicate: "examines",
           properties: { phase: "formal" }
         }]
       },
@@ -104,7 +104,7 @@ test("events can activate update and deactivate a relationship over time", () =>
     end: Date.UTC(2026, 6, 2)
   });
   assert.equal(july.edges[0].temporalState, "changed");
-  assert.equal(july.edges[0].label, "formallyInvestigates");
+  assert.equal(july.edges[0].label, "examines");
   assert.equal(july.edges[0].properties.attributes.phase, "formal");
 
   const september = graph.graphForWindow(input, {
@@ -135,7 +135,7 @@ test("focused event neighborhood exposes the canonical relation it changes witho
       relationChanges: [{
         relationshipId: "r",
         operation: "update",
-        predicate: "transfersControlTo"
+        predicate: "transfersTo"
       }]
     }],
     stories: []
@@ -150,7 +150,7 @@ test("focused event neighborhood exposes the canonical relation it changes witho
   assert.equal(neighborhood.nodes.some((node) => node.id === "event-change"), false);
   assert.ok(neighborhood.nodes.some((node) => node.id === "a"));
   assert.ok(neighborhood.nodes.some((node) => node.id === "b"));
-  assert.ok(neighborhood.edges.some((edge) => edge.id === "r" && edge.label === "transfersControlTo"));
+  assert.ok(neighborhood.edges.some((edge) => edge.id === "r" && edge.label === "transfersTo"));
   assert.equal(neighborhood.edges.some((edge) => edge.id.startsWith("change:")), false);
 });
 
