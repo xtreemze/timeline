@@ -1030,3 +1030,16 @@ test("timeline releases pointer capture only after gesture state is finalized", 
     /if \(this\.touchPointers\.size >= 2\)[\s\S]*beginPinch\(\)[\s\S]*releaseFinishedPointer\(\)[\s\S]*return/
   );
 });
+
+
+test("coarse-pointer timeline controls and ranges retain a 44 CSS px interaction floor", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+
+  assert.match(css, /@media \(pointer: coarse\)[\s\S]*\.view-icon-button[\s\S]*width:\s*44px[\s\S]*height:\s*44px/);
+  assert.match(css, /@media \(pointer: coarse\)[\s\S]*timeline-focus-actions \.button[\s\S]*min-height:\s*44px/);
+  assert.match(css, /@media \(pointer: coarse\)[\s\S]*timeline-auto-timer input[\s\S]*min-height:\s*44px/);
+  assert.match(css, /@media \(pointer: coarse\)[\s\S]*timeline-range-segment::before[\s\S]*inset:\s*-19px[\s\S]*pointer-events:\s*auto/);
+  assert.match(css, /data-orientation="portrait"\] \.timeline-zoom-control input\[type="range"\][\s\S]*width:\s*44px[\s\S]*min-width:\s*44px/);
+  assert.match(css, /data-orientation="landscape"\] \.timeline-zoom-control input\[type="range"\][\s\S]*height:\s*44px[\s\S]*min-height:\s*44px/);
+  assert.match(css, /data-orientation="portrait"[\s\S]*timeline-view-toolbar\[popover\]:popover-open[\s\S]*width:\s*104px/);
+});
