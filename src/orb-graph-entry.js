@@ -452,6 +452,7 @@ function create(container, handlers = {}) {
     const simulator = touchDragSimulator();
     if (simulator && node) simulator.endDragNode(node.getId());
     releaseTouchPointerCapture(pointerId);
+    touchHold.activated = false;
     if (settle) keepForceActiveAfterInteraction();
     return true;
   }
