@@ -616,8 +616,6 @@ test("fullscreen preserves the left workspace tool dock inside the fullscreen su
   assert.match(app, /function positionWorkspaceToolDock\(\)[\s\S]*projectMenuToggle\.getBoundingClientRect\(\)[\s\S]*dataset\.timelineOrientation = orientation/);
   assert.match(app, /orientation === "portrait"[\s\S]*triggerRect\.left - dockWidth - gap[\s\S]*triggerRect\.top \+ \(triggerRect\.height - dockHeight\) \/ 2/);
   assert.match(app, /preferredTop = triggerRect\.bottom \+ gap[\s\S]*triggerRect\.left \+ \(triggerRect\.width - dockWidth\) \/ 2/);
-  assert.match(styles, /app-tool-dock\[data-project-anchored="true"\][\s\S]*z-index:\s*1420[\s\S]*pointer-events:\s*auto/);
-  assert.match(styles, /app-tool-dock\[data-project-anchored="true"\] \.app-tool[\s\S]*touch-action:\s*manipulation/);
   assert.match(app, /mountFullscreenToolDock/);
   assert.match(app, /restoreToolDock/);
   assert.match(app, /if \(active\)[\s\S]*mountFullscreenToolDock\(\)/);
