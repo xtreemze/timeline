@@ -536,7 +536,7 @@
                     </label>
                   </section>
                 </div>
-                <p class="field-hint">The event timestamp is the effective time of each change. Activate/deactivate changes relation existence; Update changes the edge action label, role, or properties from this event onward.</p>
+                <p class="field-hint">The event timestamp is the effective time of each change. Activate/deactivate changes relation existence; Update may replace the edge verb, role, or properties from this event onward. Any replacement label must remain a specific action verb; generic association labels are rejected.</p>
               </details>
 
               <details id="item-evidence-details" class="optional-editor field-wide">
@@ -789,8 +789,19 @@
             </label>
             <label class="field">
               <span>Type</span>
-              <input id="graph-node-type" type="text" maxlength="60" autocomplete="off" placeholder="person, organization, account…" value="entity">
+              <input id="graph-node-type" type="text" maxlength="60" autocomplete="off" list="graph-node-type-suggestions" placeholder="person, organization, account…" value="entity">
+              <datalist id="graph-node-type-suggestions">
+                <option value="person"></option>
+                <option value="organization"></option>
+                <option value="group"></option>
+                <option value="place"></option>
+                <option value="object"></option>
+                <option value="device"></option>
+                <option value="account"></option>
+                <option value="document"></option>
+              </datalist>
             </label>
+            <p class="field-hint field-wide">Nodes are durable nouns/entities only. Do not create nodes for actions, events, meetings, transactions, decisions, or processes; put those on the timeline and express what happened with a specific edge verb.</p>
             <details id="graph-node-identity-details" class="optional-editor field-wide">
               <summary>Identity & provenance <small>optional</small></summary>
               <label class="field field-wide">
@@ -829,11 +840,17 @@
             </label>
             <label class="field">
               <span>Action label</span>
-              <input id="graph-edge-predicate" type="text" maxlength="120" autocomplete="off" placeholder="met, called, transferredTo, owns…" required>
+              <input id="graph-edge-predicate" type="text" maxlength="120" autocomplete="off" placeholder="called, warned, built, transferredTo, authorized…" required>
+              <small class="field-hint">Use the concrete action performed by the source toward the target. Generic associations such as participatedIn, partOf, memberOf, relatedTo, associatedWith, or connectedTo are rejected.</small>
             </label>
             <label class="field">
               <span>Object / target</span>
               <select id="graph-edge-object" required></select>
+            </label>
+            <label class="field field-wide">
+              <span>Timeline context <small>optional · does not create event nodes</small></span>
+              <select id="graph-edge-item-ids" multiple size="5" aria-describedby="graph-edge-item-ids-hint"></select>
+              <small id="graph-edge-item-ids-hint" class="field-hint">Associate this action with one or more chronology records. The event remains timeline context; only noun/entity endpoints become graph nodes.</small>
             </label>
             <label class="field">
               <span>Role <small>optional</small></span>
