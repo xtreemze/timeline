@@ -88,7 +88,7 @@ Timeline includes an authorable subject–action–object graph alongside the ch
 
 - **One node = one entity.** Nodes represent durable entity records such as people, organizations, groups, devices, accounts, documents, or domain objects. Actions, events, meetings, transactions, decisions, processes, places, dates, times, coordinates, and geometry are never graph nodes.
 - Node properties must describe the entity itself. Spatiotemporal fields such as `time`, `date`, `location`, `place`, `geometry`, `coordinates`, latitude/longitude, or radius are rejected on nodes.
-- **Edges** connect an entity subject/source node to an entity object/target and use only a specific action verb or verb phrase such as `called`, `warned`, `built`, `transferredTo`, or `authorized`.
+- **Edges** connect an entity subject/source node to a different entity object/target and use only a specific action verb or verb phrase such as `called`, `warned`, `built`, `transferredTo`, or `authorized`. Self-loop edges are invalid; a unary action without a meaningful second entity stays on the chronology instead of becoming a synthetic graph relation.
 - Edge labels must not encode where or when the action happened. Spatial/temporal wording belongs in structured edge properties, not in the predicate.
 - `relationship.time` is the canonical temporal property used for timeline/temporal-graph projection.
 - `relationship.placeId` references one record from reusable `places[]`; the place carries point/area geometry, optional radius, semantic icon, and map-marker shape.
