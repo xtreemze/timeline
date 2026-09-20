@@ -409,11 +409,13 @@
           : null;
         if (event.pointerType === "touch") this.touchPointers.delete(event.pointerId);
 
-        try {
-          if (this.surface.hasPointerCapture(event.pointerId)) this.surface.releasePointerCapture(event.pointerId);
-        } catch {
-          // Pointer capture may already have been released by pointer cancellation.
-        }
+        const releaseFinishedPointer = () => {
+          try {
+            if (this.surface.hasPointerCapture(event.pointerId)) this.surface.releasePointerCapture(event.pointerId);
+          } catch {
+            // Pointer capture may already have been released by pointer cancellation.
+          }
+        };
 
         if (wasPinching) {
           this.touchTap = null;
@@ -423,6 +425,7 @@
           this.surface.classList.remove("is-panning");
           if (this.touchPointers.size >= 2) {
             beginPinch();
+            releaseFinishedPointer();
             return;
           }
           this.pinch = null;
@@ -430,6 +433,7 @@
           if (remaining && this.viewport) {
             beginSurfaceDrag(remaining.pointerId, remaining);
           }
+          releaseFinishedPointer();
           return;
         }
 
@@ -450,10 +454,12 @@
         if (event.type === "pointercancel") {
           this.touchTap = null;
           this.lastTouchTap = null;
+          releaseFinishedPointer();
           return;
         }
         if (touchTap && !touchTap.cancelled) registerTouchTap(event, touchTap);
         else if (event.pointerType === "touch") this.touchTap = null;
+        releaseFinishedPointer();
       };
       this.surface.addEventListener("pointerup", finishDrag);
       this.surface.addEventListener("pointercancel", finishDrag);
