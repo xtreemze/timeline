@@ -2404,8 +2404,7 @@ body {
 }
 
 .app-editor-sheet,
-.app-browser-sheet,
-#app-shell #presentation-stage > .graph-lens:not([hidden]) {
+.app-browser-sheet {
   position: fixed;
   z-index: 1050;
   left: max(.4rem, env(safe-area-inset-left));
@@ -2540,24 +2539,6 @@ body {
   padding-bottom: 1rem;
 }
 
-#app-shell #presentation-stage > .graph-lens:not([hidden]) {
-  top: auto;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  height: min(72dvh, 680px);
-}
-#app-shell #presentation-stage > .graph-lens:not([hidden]) > summary {
-  min-height: 54px;
-  padding: .6rem .7rem;
-}
-#app-shell #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-view {
-  min-height: 0;
-  height: 100%;
-}
-#app-shell #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-canvas {
-  min-height: 260px;
-}
-
 .timeline-view-toolbar[popover] {
   inset: auto;
   margin: 0;
@@ -2634,8 +2615,7 @@ body {
   }
 
   .app-editor-sheet,
-  .app-browser-sheet,
-  #app-shell #presentation-stage > .graph-lens:not([hidden]) {
+  .app-browser-sheet {
     top: max(4.4rem, calc(env(safe-area-inset-top) + 4rem));
     bottom: max(.55rem, env(safe-area-inset-bottom));
     right: max(.55rem, env(safe-area-inset-right));
@@ -2650,9 +2630,6 @@ body {
     width: min(430px, calc(100dvw - 6.5rem));
   }
 
-  #app-shell #presentation-stage > .graph-lens:not([hidden]) {
-    width: min(520px, calc(100dvw - 7.5rem));
-  }
 
   .app-view-controls[popover]:popover-open {
     top: max(4.4rem, calc(env(safe-area-inset-top) + 4rem));
@@ -2666,9 +2643,6 @@ body {
 @media (min-width: 1280px) {
   .app-editor-sheet { width: min(440px, 34dvw); }
   .app-browser-sheet { width: min(400px, 31dvw); }
-  #app-shell #presentation-stage > .graph-lens:not([hidden]) {
-    width: min(480px, 36dvw);
-  }
 }
 
 
@@ -2749,11 +2723,6 @@ body {
   }
 }
 
-@media (min-width: 900px) {
-  #app-shell #presentation-stage > .graph-lens:not([hidden]) {
-    width: min(480px, calc(100dvw - 6.5rem));
-  }
-}
 
 /* The persistent application no longer uses a page-level 12-column grid. */
 #app-shell #presentation-stage {
@@ -2784,29 +2753,46 @@ body {
 }
 
 
-/* Graph exploration is a canvas, not a card/dialog. All chrome and inspectors are
-   intentionally absent; the global Relations tool is the open/close affordance. */
+/* The persistent relation graph is a stage canvas, never a utility card. Application chrome
+   may overlay it; timeline-view.css alone reserves the chronology rail. */
 .graph-lens > summary,
 .temporal-graph-toolbar,
 .temporal-graph-detail {
   display: none !important;
 }
 
+#app-shell #presentation-stage:not(:fullscreen) > .graph-lens:not([hidden]) {
+  position: absolute;
+  z-index: 1050;
+}
+
 #app-shell #presentation-stage > .graph-lens:not([hidden]) {
   display: block;
+  box-sizing: border-box;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
   padding: 0;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: auto;
   border: 0;
-  border-radius: .9rem;
+  border-radius: 0;
   background: transparent;
   box-shadow: none;
-  overflow: hidden;
+  backdrop-filter: none;
 }
 
 #app-shell #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-view,
 #app-shell #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-canvas {
   width: 100%;
   height: 100%;
+  min-width: 0;
   min-height: 0;
+  margin: 0;
+  padding: 0;
   border: 0;
 }
 
@@ -3088,37 +3074,6 @@ body {
 
   .app-browser-sheet .timeline-toolbar :is(input, select, button) {
     min-height: 42px;
-  }
-
-  #app-shell #presentation-stage > .graph-lens:not([hidden]) {
-    top: max(3.75rem, calc(env(safe-area-inset-top) + 3.45rem));
-    right: max(.35rem, env(safe-area-inset-right));
-    bottom: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
-    left: max(.35rem, env(safe-area-inset-left));
-    width: auto;
-    height: auto;
-    max-width: none;
-    max-height: none;
-    border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
-    border-radius: .82rem;
-    background:
-      radial-gradient(
-        circle at 50% 46%,
-        color-mix(in srgb, var(--panel) 74%, transparent) 0,
-        color-mix(in srgb, var(--paper) 96%, transparent) 54%,
-        var(--paper) 100%
-      );
-    box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 6%, transparent);
-    backdrop-filter: blur(18px);
-    overflow: hidden;
-  }
-
-  #app-shell #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-view,
-  #app-shell #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-canvas {
-    width: 100%;
-    height: 100%;
-    min-width: 0;
-    min-height: 0;
   }
 
 }
