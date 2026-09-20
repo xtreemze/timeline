@@ -297,7 +297,7 @@ test("focused event detail uses a shared View Transition with its timeline termi
   assert.match(source, /focusTransitionOrigin\(id\)/);
   assert.match(source, /transitionOrigin\.style\.viewTransitionName = FOCUS_VIEW_TRANSITION_NAME/);
   assert.match(source, /this\.focusView\.style\.viewTransitionName = FOCUS_VIEW_TRANSITION_NAME/);
-  assert.match(source, /transition\.ready\.then\(renderAfterCapture, renderAfterCapture\)/);
+  assert.match(source, /this\.renderForViewTransition\(\);[\s\S]*returnOrigin = this\.focusTransitionOrigin\(previousId\)/);
   assert.match(source, /clearFocus\(\{ deferRender: true, deferSurfaceFocus: true \}\)/);
   assert.match(css, /::view-transition-group\(timeline-event-detail-shared\)/);
   assert.doesNotMatch(css, /view-transition-name:\s*timeline-detail-overlay/);
