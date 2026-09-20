@@ -100,19 +100,194 @@
 
   const ACTION_NAME_PATTERN = /^(?:called|calls|met|meets|sent|sends|transferred|transfers|paid|pays|visited|visits|arrived|arrives|departed|departs|left|leaves|built|builds|created|creates|attacked|attacks|ordered|orders|warned|warns|approved|approves|authorized|authorizes|signed|signs|moved|moves|travelled|traveled|travels|fled|flees|married|marries|danced|dances|consulted|consults|poisoned|poisons|searched|searches|found|finds|lost|loses|gave|gives|took|takes|received|receives)\b/i;
 
+  const ACTION_PREDICATE_VERBS = new Set([
+    "acquire", "acquired", "acquires",
+    "approach", "approached", "approaches",
+    "approve", "approved", "approves",
+    "attack", "attacked", "attacks",
+    "authorize", "authorized", "authorizes",
+    "awaken", "awakened", "awakens",
+    "bear", "bears", "bore",
+    "besiege", "besieged", "besieges",
+    "bite", "bites", "bit",
+    "build", "builds", "built",
+    "burden", "burdened", "burdens",
+    "buy", "buys", "bought",
+    "call", "called", "calls",
+    "carry", "carried", "carries",
+    "climb", "climbed", "climbs",
+    "command", "commanded", "commands",
+    "conjure", "conjured", "conjures",
+    "consult", "consulted", "consults",
+    "control", "controlled", "controls",
+    "create", "created", "creates",
+    "dance", "danced", "dances",
+    "deceive", "deceived", "deceives",
+    "defeat", "defeated", "defeats",
+    "depart", "departed", "departs",
+    "descend", "descended", "descends",
+    "discover", "discovered", "discovers",
+    "destroy", "destroyed", "destroys",
+    "encounter", "encountered", "encounters",
+    "enter", "entered", "enters",
+    "find", "finds", "found",
+    "flee", "flees", "fled",
+    "forbid", "forbade", "forbids",
+    "give", "gave", "gives",
+    "guard", "guarded", "guards",
+    "identify", "identified", "identifies",
+    "investigate", "investigated", "investigates",
+    "invite", "invited", "invites",
+    "join", "joined", "joins",
+    "leave", "leaves", "left",
+    "live", "lived", "lives",
+    "lose", "loses", "lost",
+    "marry", "married", "marries",
+    "meet", "meets", "met",
+    "mourn", "mourned", "mourns",
+    "move", "moved", "moves",
+    "pay", "paid", "pays",
+    "poison", "poisoned", "poisons",
+    "prepare", "prepared", "prepares",
+    "provide", "provided", "provides",
+    "pursue", "pursued", "pursues",
+    "raise", "raised", "raises",
+    "receive", "received", "receives",
+    "regroup", "regrouped", "regroups",
+    "request", "requested", "requests",
+    "restrict", "restricted", "restricts",
+    "return", "returned", "returns",
+    "revive", "revived", "revives",
+    "search", "searched", "searches",
+    "sell", "sells", "sold",
+    "send", "sends", "sent",
+    "serve", "served", "serves",
+    "shelter", "sheltered", "shelters",
+    "sign", "signed", "signs",
+    "spare", "spared", "spares",
+    "take", "takes", "took",
+    "threaten", "threatened", "threatens",
+    "transfer", "transferred", "transfers",
+    "transform", "transformed", "transforms",
+    "travel", "traveled", "travelled", "travels",
+    "try", "tried", "tries",
+    "use", "used", "uses",
+    "visit", "visited", "visits",
+    "warn", "warned", "warns",
+    "wear", "wears", "wore",
+    "witness", "witnessed", "witnesses",
+    "work", "worked", "works",
+    "rest", "rested", "rests"
+  ]);
+
+  const ACTION_PREDICATE_PARTICLES = new Set([
+    "beside", "from", "into", "onto", "through", "to", "with", "for"
+  ]);
+
+  function actionPredicateTokens(value) {
+    const predicate = text(value, 120);
+    if (!predicate || !/^[A-Za-z]+$/.test(predicate)) return [];
+    return predicate
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .toLocaleLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
+  }
+
   function semanticKey(value) {
     return text(value, 120).toLocaleLowerCase().replace(/[^a-z0-9]+/g, "");
+  }
+
+  function entityMentionKey(value) {
+    return String(value || "")
+      .normalize("NFKD")
+      .toLocaleLowerCase()
+      .replace(/[’']s\b/g, "")
+      .replace(/[’']/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function entityMentionVariants(value) {
+    const key = entityMentionKey(value);
+    if (!key) return [];
+    const variants = new Set([key]);
+    const withoutArticle = key.replace(/^(?:the|a|an)\s+/, "");
+    if (withoutArticle.length >= 3) variants.add(withoutArticle);
+    return [...variants];
+  }
+
+  function itemNarrativeContext(item) {
+    if (!item || typeof item !== "object") return "";
+    const mediaContext = Array.isArray(item.media)
+      ? item.media.flatMap((media) => [
+          typeof media?.alt === "string" ? media.alt : "",
+          typeof media?.caption === "string" ? media.caption : ""
+        ])
+      : [];
+    return [
+      typeof item.title === "string" ? item.title : "",
+      typeof item.description === "string" ? item.description : "",
+      ...mediaContext
+    ].filter(Boolean).join(" ");
+  }
+
+  function namedEntityMentions(item, entities) {
+    const context = entityMentionKey(itemNarrativeContext(item));
+    if (!context) return [];
+    const padded = ` ${context} `;
+    const groups = new Map();
+
+    for (const entity of Array.isArray(entities) ? entities : []) {
+      const id = text(entity?.id, 120);
+      if (!id || !validateEntityNode(entity).valid) continue;
+      const labels = [
+        text(entity?.name || entity?.label || entity?.title, 180),
+        ...textList(entity?.alternateNames || entity?.aliases, { maxItems: 48, maxLength: 180 })
+      ].filter(Boolean);
+
+      for (const label of labels) {
+        const variants = entityMentionVariants(label);
+        const matched = variants.some(
+          (variant) => variant.length >= 3 && padded.includes(` ${variant} `)
+        );
+        if (!matched) continue;
+        const groupKey = entityMentionKey(label);
+        if (!groups.has(groupKey)) {
+          groups.set(groupKey, { label, entityIds: new Set() });
+        }
+        groups.get(groupKey).entityIds.add(id);
+      }
+    }
+
+    return [...groups.values()].map((group) => ({
+      label: group.label,
+      entityIds: [...group.entityIds]
+    }));
   }
 
   function contextPropertyKey(value) {
     return ENTITY_CONTEXT_KEYS.has(semanticKey(value));
   }
 
+  const CATEGORY_ATTRIBUTE_KEYS = new Set([
+    "category",
+    "categoryid",
+    "categoryids",
+    "group",
+    "groupid",
+    "groupids"
+  ]);
+
   function cleanContextFreeAttributes(value) {
     if (!value || typeof value !== "object" || Array.isArray(value)) return {};
     const cleaned = {};
     for (const [key, entry] of Object.entries(value)) {
-      if (!contextPropertyKey(key)) cleaned[key] = cloneJson(entry);
+      const semantic = semanticKey(key);
+      if (!contextPropertyKey(key) && !CATEGORY_ATTRIBUTE_KEYS.has(semantic)) {
+        cleaned[key] = cloneJson(entry);
+      }
     }
     return cleaned;
   }
@@ -156,16 +331,24 @@
         message: `“${predicate}” is a generic association, not a specific action. Use a concrete verb such as called, warned, built, transferredTo, acquired, or authorized.`
       };
     }
-    if (/^(?:related|associated|connected|linked|involved|participat|member|belong|partof|protagonist|presentat|locatedat|occursat)/.test(key)) {
-      return {
-        valid: false,
-        message: `“${predicate}” is too general. Name the concrete action performed by the source toward the target.`
-      };
-    }
-    if (/\b(?:at|near|during|on\s+\d{4}|in\s+\d{4})\b/i.test(predicate) || /(?:At|Near|During|Via|Along|Toward|From|Into|Onto|In)$/.test(predicate) || /\d{4}-\d{2}-\d{2}/.test(predicate)) {
+    if (/\b(?:at|near|during|on\s+\d{4}|in\s+\d{4})\b/i.test(predicate) || /(?:At|Near|During|Via|Along|Toward|In)$/.test(predicate) || /\d{4}-\d{2}-\d{2}/.test(predicate)) {
       return {
         valid: false,
         message: `“${predicate}” mixes action with place or time. Keep the label to the action only; select placeId and time separately on the edge.`
+      };
+    }
+    const tokens = actionPredicateTokens(predicate);
+    if (!tokens.length || !ACTION_PREDICATE_VERBS.has(tokens[0])) {
+      return {
+        valid: false,
+        message: `“${predicate}” must begin with a recognized action verb. Edge predicates are verbs only; nouns and entity names belong in nodes.`
+      };
+    }
+    const invalidTail = tokens.slice(1).find((token) => !ACTION_PREDICATE_PARTICLES.has(token));
+    if (invalidTail) {
+      return {
+        valid: false,
+        message: `“${predicate}” contains “${invalidTail}”, which is not part of the action. Put nouns/entities in source or target nodes and keep the edge to the verb only.`
       };
     }
     return { valid: true, message: "" };
@@ -204,7 +387,7 @@
     const subjectId = text(raw.subjectId ?? raw.start ?? raw.source, 120);
     const objectId = text(raw.objectId ?? raw.end ?? raw.target, 120);
     const predicate = text(raw.predicate || raw.label || raw.type, 120);
-    if (!subjectId || !objectId || !validateActionPredicate(predicate).valid) return null;
+    if (!subjectId || !objectId || subjectId === objectId || !validateActionPredicate(predicate).valid) return null;
 
     let time = null;
     const sourceTime = raw.time && typeof raw.time === "object" ? raw.time : null;
@@ -375,6 +558,17 @@
     const itemIds = new Set(rawItems.map((item) => text(item?.id, 120)).filter(Boolean));
     const storyIds = new Set(rawStories.map((story) => text(story?.id, 120)).filter(Boolean));
 
+    const relationshipById = new Map();
+    const contextualEntityIdsByItem = new Map();
+
+    const addContextualEndpoints = (itemId, subjectId, objectId) => {
+      if (!itemId || !subjectId || !objectId) return;
+      if (!contextualEntityIdsByItem.has(itemId)) contextualEntityIdsByItem.set(itemId, new Set());
+      const endpointIds = contextualEntityIdsByItem.get(itemId);
+      endpointIds.add(subjectId);
+      endpointIds.add(objectId);
+    };
+
     rawPlaces.forEach((place, index) => {
       const id = text(place?.id, 120) || `place ${index + 1}`;
       let normalized = null;
@@ -423,6 +617,9 @@
       if (!entityIds.has(subjectId) || !entityIds.has(objectId)) {
         errors.push(`Edge ${id}: endpoints must both be entity nodes. Time and place are edge properties, never endpoint nodes.`);
       }
+      if (subjectId && objectId && subjectId === objectId) {
+        errors.push(`Edge ${id}: source and target must be different entity nodes. Self-loop edges are invalid; if the predicate contains the missing object/entity, create that entity as a node and target it explicitly.`);
+      }
       const placeId = text(relationship?.placeId || relationship?.locationId, 120);
       if (placeId && !placeIds.has(placeId)) errors.push(`Edge ${id}: unknown placeId “${placeId}”. Create/reuse a canonical place record first.`);
       const relationshipAttributes =
@@ -437,19 +634,45 @@
         relationship?.itemIds || relationship?.contextItemIds || relationship?.eventIds,
         { maxItems: 96, maxLength: 120 }
       );
+      const validEndpoints =
+        entityIds.has(subjectId) &&
+        entityIds.has(objectId) &&
+        subjectId !== objectId &&
+        validation.valid;
+      if (id && validEndpoints) relationshipById.set(id, { subjectId, objectId });
       for (const contextId of contextIds) {
-        if (!itemIds.has(contextId)) errors.push(`Edge ${id}: unknown timeline context item “${contextId}”.`);
+        if (!itemIds.has(contextId)) {
+          errors.push(`Edge ${id}: unknown timeline context item “${contextId}”.`);
+        } else if (validEndpoints) {
+          addContextualEndpoints(contextId, subjectId, objectId);
+        }
       }
     });
 
     rawItems.forEach((item, itemIndex) => {
+      const itemId = text(item?.id, 120);
       for (const change of Array.isArray(item?.relationChanges) ? item.relationChanges : []) {
         const predicate = text(change?.predicate, 120);
-        if (!predicate) continue;
-        const validation = validateActionPredicate(predicate);
-        if (!validation.valid) {
-          errors.push(`Item ${text(item?.id, 120) || itemIndex + 1} relation update: ${validation.message}`);
+        if (predicate) {
+          const validation = validateActionPredicate(predicate);
+          if (!validation.valid) {
+            errors.push(`Item ${itemId || itemIndex + 1} relation update: ${validation.message}`);
+          }
         }
+        const relationshipId = text(change?.relationshipId || change?.edgeId, 120);
+        const relationship = relationshipById.get(relationshipId);
+        if (itemId && relationship) {
+          addContextualEndpoints(itemId, relationship.subjectId, relationship.objectId);
+        }
+      }
+
+      if (!itemId) return;
+      const contextualEntityIds = contextualEntityIdsByItem.get(itemId) || new Set();
+      for (const mention of namedEntityMentions(item, rawEntities)) {
+        if (mention.entityIds.some((entityId) => contextualEntityIds.has(entityId))) continue;
+        errors.push(
+          `Item ${itemId}: narrative context names entity “${mention.label}”, but no action edge linked to this event includes that entity. Every named entity in an event title, description, or media context must be a graph node and an endpoint of a contextual action edge.`
+        );
       }
     });
 
@@ -714,8 +937,12 @@
   }
 
   function neighborhoodGraph(input, rootId, viewport, { depth = 1, limit = 36 } = {}) {
-    const data = graphForWindow(input, viewport);
-    const nodeById = new Map(data.nodes.map((node) => [String(node.id), node]));
+    const activeData = graphForWindow(input, viewport);
+    const allData = toOrbGraph({
+      entities: Array.isArray(input?.entities) ? input.entities : [],
+      relationships: Array.isArray(input?.relationships) ? input.relationships : []
+    });
+    const nodeById = new Map(allData.nodes.map((node) => [String(node.id), node]));
     const root = String(rootId || "");
     if (!root) return { nodes: [], edges: [] };
 
@@ -725,10 +952,30 @@
     const rootChangeIds = new Set(
       normalizeRelationChanges(rootItem?.relationChanges).map((change) => String(change.relationshipId))
     );
-    const contextEdges = data.edges.filter((edge) =>
-      (Array.isArray(edge.properties?.itemIds) && edge.properties.itemIds.some((id) => String(id) === root)) ||
-      rootChangeIds.has(String(edge.id))
+    const activeEdgeById = new Map(
+      activeData.edges.map((edge) => [String(edge.id), edge])
     );
+    const contextEdges = allData.edges
+      .filter((edge) =>
+        (Array.isArray(edge.properties?.itemIds) && edge.properties.itemIds.some((id) => String(id) === root)) ||
+        rootChangeIds.has(String(edge.id))
+      )
+      .map((edge) =>
+        activeEdgeById.get(String(edge.id)) || {
+          ...edge,
+          temporalState: "context",
+          properties: {
+            ...edge.properties,
+            contextOnly: true
+          }
+        }
+      );
+
+    const relevantById = new Map(
+      activeData.edges.map((edge) => [String(edge.id), edge])
+    );
+    for (const edge of contextEdges) relevantById.set(String(edge.id), edge);
+    const relevantEdges = [...relevantById.values()];
 
     const selected = new Set();
     if (nodeById.has(root)) selected.add(root);
@@ -737,11 +984,6 @@
       selected.add(String(edge.end));
     }
     if (!selected.size) return { nodes: [], edges: [] };
-
-    const relevantEdges = data.edges.filter((edge) =>
-      edge.temporalState !== "inactive" ||
-      contextEdges.some((candidate) => String(candidate.id) === String(edge.id))
-    );
 
     let frontier = new Set(selected);
     for (let level = 0; level < Math.max(0, depth); level += 1) {
@@ -793,6 +1035,7 @@
     graphForWindow,
     migrateLegacySpatialModel,
     normalizeGraphData,
+    namedEntityMentions,
     validateGraphInput,
     validateActionPredicate,
     validateEntityNode,
