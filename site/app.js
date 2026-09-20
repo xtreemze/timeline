@@ -373,12 +373,12 @@
       const preferredLeft = triggerRect.left - dockWidth - gap;
       const fallbackLeft = triggerRect.right + gap;
       left = preferredLeft >= minLeft ? preferredLeft : fallbackLeft;
-      top = triggerRect.top;
+      top = triggerRect.top + (triggerRect.height - dockHeight) / 2;
       placement = preferredLeft >= minLeft ? "left" : "right";
     } else {
       const preferredTop = triggerRect.bottom + gap;
       const fallbackTop = triggerRect.top - dockHeight - gap;
-      left = triggerRect.left;
+      left = triggerRect.left + (triggerRect.width - dockWidth) / 2;
       top = preferredTop + dockHeight <= maxBottom ? preferredTop : fallbackTop;
       placement = preferredTop + dockHeight <= maxBottom ? "below" : "inward";
     }
