@@ -320,6 +320,7 @@
     mode: "range"
   });
   let presentationResizeObserver = null;
+  let viewControlsResizeObserver = null;
   let presentationResizeFrame = 0;
   let timelineOrientationBeforeFullscreen = null;
   let presentationMap = null;
@@ -344,6 +345,83 @@
       left: Math.max(0, visualViewport?.offsetLeft || 0),
       top: Math.max(0, visualViewport?.offsetTop || 0)
     };
+  }
+
+  function clearViewControlsPosition() {
+    if (!els.viewControls) return;
+    for (const property of [
+      "--view-controls-left",
+      "--view-controls-top",
+      "--view-controls-right",
+      "--view-controls-bottom"
+    ]) {
+      els.viewControls.style.removeProperty(property);
+    }
+  }
+
+  function positionViewControls() {
+    if (!els.viewControls || !els.viewControlsToggle || !viewControlsAreOpen()) return;
+
+    if (presentationIsFullscreen()) {
+      clearViewControlsPosition();
+      els.viewControls.dataset.anchorPlacement = "fullscreen";
+      return;
+    }
+
+    const triggerRect = els.viewControlsToggle.getBoundingClientRect();
+    const toolbarRect = els.viewControls.getBoundingClientRect();
+    const viewport = workspaceToolViewport();
+    const gap = 8;
+    const edge = 8;
+    const minLeft = viewport.left + edge;
+    const minTop = viewport.top + edge;
+    const maxRight = viewport.left + viewport.width - edge;
+    const maxBottom = viewport.top + viewport.height - edge;
+    const toolbarWidth = Math.min(
+      Math.max(1, toolbarRect.width || els.viewControls.offsetWidth || 1),
+      Math.max(1, maxRight - minLeft)
+    );
+    const toolbarHeight = Math.min(
+      Math.max(1, toolbarRect.height || els.viewControls.offsetHeight || 1),
+      Math.max(1, maxBottom - minTop)
+    );
+
+    const preferredTop = triggerRect.top - toolbarHeight - gap;
+    const fallbackTop = triggerRect.bottom + gap;
+    const roomAbove = Math.max(0, triggerRect.top - gap - minTop);
+    const roomBelow = Math.max(0, maxBottom - triggerRect.bottom - gap);
+
+    let top;
+    let placement;
+    if (preferredTop >= minTop) {
+      top = preferredTop;
+      placement = "above";
+    } else if (fallbackTop + toolbarHeight <= maxBottom) {
+      top = fallbackTop;
+      placement = "below";
+    } else if (roomAbove >= roomBelow) {
+      top = Math.max(minTop, triggerRect.top - gap - toolbarHeight);
+      placement = "clamped-above";
+    } else {
+      top = Math.min(maxBottom - toolbarHeight, fallbackTop);
+      placement = "clamped-below";
+    }
+
+    let left = triggerRect.right - toolbarWidth;
+    left = Math.min(
+      Math.max(minLeft, left),
+      Math.max(minLeft, maxRight - toolbarWidth)
+    );
+    top = Math.min(
+      Math.max(minTop, top),
+      Math.max(minTop, maxBottom - toolbarHeight)
+    );
+
+    els.viewControls.dataset.anchorPlacement = placement;
+    els.viewControls.style.setProperty("--view-controls-left", `${Math.round(left)}px`);
+    els.viewControls.style.setProperty("--view-controls-top", `${Math.round(top)}px`);
+    els.viewControls.style.setProperty("--view-controls-right", "auto");
+    els.viewControls.style.setProperty("--view-controls-bottom", "auto");
   }
 
   function positionWorkspaceToolDock() {
@@ -572,6 +650,7 @@
     timelineView?.refreshLayout?.();
     presentationMap?.refresh?.();
     positionWorkspaceToolDock();
+    positionViewControls();
     if (recenterGraph) temporalGraphView?.refreshLayout?.();
   }
 
@@ -2709,11 +2788,25 @@
   } else {
     window.addEventListener("resize", () => schedulePresentationGeometryRefresh());
   }
+  if ("ResizeObserver" in globalThis && els.viewControls && els.viewControlsToggle) {
+    viewControlsResizeObserver = new ResizeObserver(() => {
+      if (viewControlsAreOpen()) positionViewControls();
+    });
+    viewControlsResizeObserver.observe(els.viewControls);
+    viewControlsResizeObserver.observe(els.viewControlsToggle);
+  }
+
   updatePresentationStageLayout();
-  requestAnimationFrame(positionWorkspaceToolDock);
+  requestAnimationFrame(() => {
+    positionWorkspaceToolDock();
+    positionViewControls();
+  });
   window.addEventListener("resize", positionWorkspaceToolDock);
+  window.addEventListener("resize", positionViewControls);
   window.visualViewport?.addEventListener("resize", positionWorkspaceToolDock);
+  window.visualViewport?.addEventListener("resize", positionViewControls);
   window.visualViewport?.addEventListener("scroll", positionWorkspaceToolDock);
+  window.visualViewport?.addEventListener("scroll", positionViewControls);
 
   function collapseAllCategories() {
     ui.collapsedCategoryIds.clear();
@@ -3093,7 +3186,13 @@
     if (event.newState === "open" && ui.mode === "edit") event.preventDefault();
   });
   els.viewControls?.addEventListener("toggle", () => {
-    syncViewControlsChrome();
+    const open = syncViewControlsChrome();
+    if (open) {
+      positionViewControls();
+      requestAnimationFrame(positionViewControls);
+    } else {
+      clearViewControlsPosition();
+    }
     schedulePresentationGeometryRefresh({ recenterGraph: false });
   });
 
