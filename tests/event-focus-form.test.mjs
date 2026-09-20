@@ -577,6 +577,9 @@ test("fullscreen preserves the left workspace tool dock inside the fullscreen su
   ]);
   assert.match(app, /appToolDock:\s*document\.querySelector\("\.app-tool-dock"\)/);
   assert.match(app, /timeline-tool-dock-home/);
+  assert.match(app, /function workspaceToolViewport\(\)[\s\S]*visualViewport/);
+  assert.match(app, /function positionWorkspaceToolDock\(\)[\s\S]*projectMenuToggle\.getBoundingClientRect\(\)[\s\S]*dataset\.timelineOrientation = orientation/);
+  assert.match(app, /orientation === "portrait"[\s\S]*triggerRect\.left - dockWidth - gap[\s\S]*preferredTop = triggerRect\.bottom \+ gap/);
   assert.match(app, /mountFullscreenToolDock/);
   assert.match(app, /restoreToolDock/);
   assert.match(app, /if \(active\)[\s\S]*mountFullscreenToolDock\(\)/);
