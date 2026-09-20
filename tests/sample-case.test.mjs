@@ -113,7 +113,7 @@ test("sample exercises focus compositions, media, source surfaces, and tags", ()
   const variants = new Set(sample.items.map((item) => item.presentation?.variant).filter(Boolean));
   assert.deepEqual([...variants].sort(), ["editorial-mosaic", "evidence-dossier", "hero-split"]);
   assert.ok(sample.items.some((item) => item.media?.length === 3));
-  assert.ok(sample.items.some((item) => item.media?.length === 1));
+  assert.ok(sample.items.every((item) => item.media?.length >= 2));
   assert.ok(sample.items.every((item) => item.tags?.length));
   const evidenceTypes = new Set(sample.evidence.map((record) => record.type));
   assert.deepEqual([...evidenceTypes].sort(), ["article", "document", "note", "pdf"]);
@@ -403,5 +403,58 @@ test("every event place has a coordinate-backed graph node and map marker", () =
   assert.ok(placeEntities.length >= 27);
   for (const [storyId, places] of placesByStory) {
     assert.ok(places.size >= 8, `${storyId}: expected richer mapped geography`);
+  }
+});
+
+
+test("widened anthology chronology keeps same-day density low across all stories", () => {
+  const startsPerDay = new Map();
+  for (const item of sample.items.filter((candidate) => candidate.start.startsWith("1000-"))) {
+    const day = item.start.slice(0, 10);
+    startsPerDay.set(day, (startsPerDay.get(day) || 0) + 1);
+  }
+  assert.ok(Math.max(...startsPerDay.values()) <= 3, "no synthetic date should carry more than three chronology starts");
+  assert.ok([...startsPerDay.values()].filter((count) => count === 3).length <= 4, "three-event dates should remain exceptional");
+});
+
+test("every event has story, actor and place graph context", () => {
+  for (const item of sample.items) {
+    const edges = sample.relationships.filter(
+      (relationship) => relationship.subjectId === item.id || relationship.objectId === item.id
+    );
+    assert.ok(edges.length >= 3, `${item.id}: expected story + actor + place connectivity`);
+    assert.ok(edges.some((relationship) => relationship.predicate === "partOfStory"), `${item.id}: story edge`);
+    assert.ok(edges.some((relationship) => relationship.predicate === "occursAt"), `${item.id}: place edge`);
+    assert.ok(edges.some((relationship) => relationship.predicate === "participatesIn"), `${item.id}: actor edge`);
+  }
+});
+
+test("every story scene carries multiple public-domain illustrations", () => {
+  for (const item of sample.items) {
+    assert.ok(item.media?.length >= 2, `${item.id}: at least two images`);
+    const unique = new Set(item.media.map((media) => media.src));
+    assert.equal(unique.size, item.media.length, `${item.id}: duplicate media source`);
+  }
+});
+
+test("movement and travel-heavy events expose routes and named endpoint markers", () => {
+  const routedIds = new Set([
+    "pigs-leave-home",
+    "pigs-first-flees",
+    "pigs-two-flee",
+    "snow-forest-flight",
+    "snow-disguises",
+    "cinderella-first-return",
+    "cinderella-midnight-flight",
+    "cinderella-search"
+  ]);
+  for (const id of routedIds) {
+    const item = sample.items.find((candidate) => candidate.id === id);
+    assert.ok(item, id);
+    const features = item.location?.mapFeatures || [];
+    assert.ok(features.some((feature) => feature.geometry?.type === "LineString"), `${id}: route line`);
+    const markers = features.filter((feature) => feature.geometry?.type === "Point");
+    assert.ok(markers.length >= 2, `${id}: endpoint markers`);
+    assert.ok(markers.every((feature) => feature.properties?.name), `${id}: named markers`);
   }
 });
