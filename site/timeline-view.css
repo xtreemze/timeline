@@ -3158,6 +3158,7 @@
 
 /* Tabs keep Hero, Context, and application chrome stationary. Only the lower contextual
    region participates in the tab transition, avoiding a whole-popover/root cross-fade. */
+::view-transition-group(timeline-focus-tab-context),
 ::view-transition-group(timeline-focus-tab-place),
 ::view-transition-group(timeline-focus-tab-evidence) {
   animation-duration: 220ms;
@@ -3178,12 +3179,14 @@
   }
 }
 
+::view-transition-old(timeline-focus-tab-context),
 ::view-transition-old(timeline-focus-tab-place),
 ::view-transition-old(timeline-focus-tab-evidence) {
   animation: 220ms cubic-bezier(.2, .8, .2, 1) both timeline-focus-tab-out;
   mix-blend-mode: normal;
 }
 
+::view-transition-new(timeline-focus-tab-context),
 ::view-transition-new(timeline-focus-tab-place),
 ::view-transition-new(timeline-focus-tab-evidence) {
   animation: 220ms cubic-bezier(.2, .8, .2, 1) both timeline-focus-tab-in;
@@ -4369,16 +4372,17 @@
 }
 
 
-/* Focused popover usability audit:
-   - Context is persistent and receives a dedicated content row.
-   - Tabs/Close occupy layout space instead of floating over content.
-   - Narrative copy may scroll, but navigation actions never share that scrollport.
-   - Mobile places Context before media so the narrative remains immediately available. */
+/* Focused popover tab contract:
+   - Overview owns Context + Place.
+   - Evidence owns only Evidence; Context/Place are removed from that tab.
+   - Hero is outside the tab-swapped region and keeps identical responsive dimensions.
+   - Tabs/Close own layout space and never overlap either tab's content. */
 @media (min-width: 761px) {
   .timeline-focus-view[popover][data-active-tab="overview"],
   .timeline-focus-view[popover][data-active-tab="evidence"] {
+    --focus-hero-block-size: clamp(320px, 44dvh, 400px);
     grid-template-columns: minmax(0, 1.08fr) minmax(16rem, .92fr) !important;
-    grid-template-rows: auto minmax(160px, auto) minmax(92px, auto) !important;
+    grid-template-rows: auto minmax(0, 1fr) 104px !important;
   }
 
   .timeline-focus-view[popover] > .timeline-focus-tabs {
@@ -4408,16 +4412,19 @@
   #presentation-stage:fullscreen .timeline-focus-view .timeline-focus-hero {
     grid-column: 1 !important;
     grid-row: 1 / span 3 !important;
+    min-height: var(--focus-hero-block-size) !important;
+    height: var(--focus-hero-block-size) !important;
+    max-height: var(--focus-hero-block-size) !important;
   }
 
-  .timeline-focus-view[popover] .timeline-focus-summary,
-  #presentation-stage:fullscreen .timeline-focus-view .timeline-focus-summary {
+  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary,
+  #presentation-stage:fullscreen .timeline-focus-view[data-active-tab="overview"] .timeline-focus-summary {
     grid-column: 2 !important;
     grid-row: 2 !important;
     display: flex;
     flex-direction: column;
-    min-height: 160px;
-    max-height: 220px;
+    min-height: 0;
+    max-height: none;
     padding: .72rem 1rem .8rem;
     overflow: hidden;
   }
@@ -4448,21 +4455,38 @@
   #presentation-stage:fullscreen .timeline-focus-view[data-active-tab="overview"] .timeline-focus-place {
     grid-column: 2 !important;
     grid-row: 3 !important;
+    min-height: 104px;
+    max-height: 104px;
+  }
+
+  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-summary,
+  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-place {
+    display: none !important;
   }
 
   .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence,
   #presentation-stage:fullscreen .timeline-focus-view[data-active-tab="evidence"] .timeline-focus-evidence {
     grid-column: 2 !important;
-    grid-row: 3 !important;
-    max-height: 180px;
+    grid-row: 2 / span 2 !important;
+    min-height: 0;
+    max-height: none;
+    padding: .72rem 1rem;
+    overflow: auto;
+    overscroll-behavior: contain;
   }
 }
 
 @media (max-width: 760px) {
-  .timeline-focus-view[popover][data-active-tab="overview"],
-  .timeline-focus-view[popover][data-active-tab="evidence"] {
+  .timeline-focus-view[popover][data-active-tab="overview"] {
+    --focus-hero-block-size: clamp(190px, 30dvh, 250px);
     grid-template-columns: minmax(0, 1fr) !important;
-    grid-template-rows: auto auto auto auto !important;
+    grid-template-rows: auto auto var(--focus-hero-block-size) auto !important;
+  }
+
+  .timeline-focus-view[popover][data-active-tab="evidence"] {
+    --focus-hero-block-size: clamp(190px, 30dvh, 250px);
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto var(--focus-hero-block-size) minmax(120px, auto) !important;
   }
 
   #app-shell .timeline-focus-view[popover] > .timeline-focus-tabs,
@@ -4487,8 +4511,16 @@
     min-width: 0;
   }
 
-  .timeline-focus-view[popover] .timeline-focus-summary,
-  #app-shell .timeline-focus-view[popover] .timeline-focus-summary {
+  .timeline-focus-view[popover] .timeline-focus-hero,
+  #app-shell .timeline-focus-view[popover] .timeline-focus-hero {
+    grid-column: 1 !important;
+    min-height: var(--focus-hero-block-size) !important;
+    height: var(--focus-hero-block-size) !important;
+    max-height: var(--focus-hero-block-size) !important;
+  }
+
+  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary,
+  #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary {
     grid-column: 1 !important;
     grid-row: 2 !important;
     display: flex;
@@ -4497,6 +4529,36 @@
     max-height: min(32dvh, 240px);
     padding: .7rem;
     overflow: hidden;
+  }
+
+  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero,
+  #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero {
+    grid-row: 3 !important;
+  }
+
+  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place,
+  #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place {
+    grid-column: 1 !important;
+    grid-row: 4 !important;
+  }
+
+  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-summary,
+  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-place {
+    display: none !important;
+  }
+
+  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero,
+  #app-shell .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero {
+    grid-row: 2 !important;
+  }
+
+  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence,
+  #app-shell .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
+    grid-column: 1 !important;
+    grid-row: 3 !important;
+    min-height: 120px;
+    max-height: min(38dvh, 300px);
+    overflow: auto;
   }
 
   .timeline-focus-view[popover] .timeline-focus-description {
@@ -4514,22 +4576,7 @@
     width: 100%;
     margin-top: .5rem;
   }
-
-  .timeline-focus-view[popover] .timeline-focus-hero,
-  #app-shell .timeline-focus-view[popover] .timeline-focus-hero {
-    grid-column: 1 !important;
-    grid-row: 3 !important;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place,
-  #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place,
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence,
-  #app-shell .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
-    grid-column: 1 !important;
-    grid-row: 4 !important;
-  }
 }
-
 
 /* The semantic zoom slider follows the timeline axis itself.
    Portrait is a true vertical range control; landscape keeps the horizontal baseline. */
