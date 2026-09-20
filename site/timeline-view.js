@@ -937,7 +937,11 @@
           ? Math.min(110, Math.max(80, width * 0.24))
           : Math.min(232, Math.max(130, width * 0.30));
         const inwardLimit = Math.max(64, axisCross - 72);
-        const distance = focused ? Math.min(desiredDistance, inwardLimit) : desiredDistance;
+        const clusterTerminalExtent = compact ? Math.min(width * 0.68, 220) : 232;
+        const clusterAfterAvailable = width - 12 - clusterTerminalExtent + 32 - axisCross;
+        const distance = focused
+          ? Math.min(desiredDistance, inwardLimit)
+          : (compact ? Math.min(desiredDistance, Math.max(48, clusterAfterAvailable)) : desiredDistance);
         const eventX = axisCross + lane * distance;
         const segment = connectorSegment(axisCross, eventX);
         node.style.left = eventX + "px";
@@ -1243,8 +1247,14 @@
           ? Math.min(96, Math.max(72, width * 0.20))
           : Math.min(156, Math.max(108, width * 0.22));
         const desiredDistance = baseDistance + depth * (compact ? 58 : 72);
-        const available = side < 0 ? axisCross - 72 : width - axisCross - 72;
-        const distance = Math.min(desiredDistance, Math.max(64, available));
+        const terminalExtent = compact ? Math.min(width * 0.58, 190) : 232;
+        const terminalAnchor = 32;
+        const edgeInset = compact ? 12 : 24;
+        const afterAvailable = width - edgeInset - terminalExtent + terminalAnchor - axisCross;
+        const available = side < 0
+          ? axisCross - 72
+          : (compact ? afterAvailable : width - axisCross - 72);
+        const distance = Math.min(desiredDistance, Math.max(compact ? 48 : 64, available));
         const eventX = axisCross + side * distance;
         const segment = connectorSegment(axisCross, eventX);
 
