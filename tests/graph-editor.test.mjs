@@ -255,7 +255,7 @@ test("touch graph gesture ownership separates node drag from graph pan and pinch
   assert.match(bridge, /function setZoomEnabled\(enabled\)[\s\S]*isZoomEnabled:\s*enabled/);
   assert.match(bridge, /function finishTouchGesture\(\)[\s\S]*setDragEnabled\(true\)[\s\S]*setZoomEnabled\(true\)/);
   assert.match(bridge, /function cancelPendingTouchHold\(\)[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(true\)/);
-  assert.match(bridge, /function beginTouchHold\([\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(true\)[\s\S]*TOUCH_NODE_HOLD_MS/);
+  assert.match(bridge, /function beginTouchHold\([\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)[\s\S]*TOUCH_NODE_HOLD_MS/);
   assert.match(bridge, /touchHold\.activated = true[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)/);
   assert.match(bridge, /activeTouchPointers\.size > 1[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(true\)/);
 });
