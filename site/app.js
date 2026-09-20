@@ -2344,10 +2344,110 @@
     if (!rows.length) {
       const empty = document.createElement("p");
       empty.className = "privacy-note";
-      empty.textContent = "No graph nodes yet. Nodes represent nouns or subjects such as people, organizations, devices, places, accounts, or objects.";
+      empty.textContent = "No graph nodes yet. Each node represents one entity such as a person, organization, device, account, document, or object. Places and time are edge context, not nodes.";
       rows.push(empty);
     }
     els.graphNodeList.replaceChildren(...rows);
+  }
+
+  function graphPlaceOptions(select, selected = "") {
+    if (!select) return;
+    const options = [document.createElement("option")];
+    options[0].value = "";
+    options[0].textContent = "No place";
+    for (const place of state.places) {
+      const option = document.createElement("option");
+      option.value = place.id;
+      option.textContent = place.name;
+      options.push(option);
+    }
+    select.replaceChildren(...options);
+    select.value = options.some((option) => option.value === selected) ? selected : "";
+  }
+
+  function getPlace(id) {
+    return state.places.find((place) => String(place.id) === String(id)) || null;
+  }
+
+  function resetGraphPlaceForm() {
+    els.graphPlaceForm?.reset();
+    if (!els.graphPlaceForm) return;
+    els.graphPlaceId.value = "";
+    els.graphPlaceIcon.value = "place";
+    els.graphPlaceMarkerShape.value = "pin";
+    els.graphPlaceArea.value = "";
+    els.saveGraphPlace.textContent = "Add place";
+    els.cancelGraphPlaceEdit.hidden = true;
+    setError(els.graphPlaceError);
+  }
+
+  function beginGraphPlaceEdit(id) {
+    const place = getPlace(id);
+    if (!place) return;
+    setActivePanel("graph");
+    const parts = spatial.placeFormParts(place);
+    els.graphPlaceId.value = place.id;
+    els.graphPlaceName.value = parts.name;
+    els.graphPlaceIdentifier.value = parts.geographicIdentifier;
+    els.graphPlaceAddress.value = parts.address;
+    els.graphPlaceLatitude.value = parts.latitude;
+    els.graphPlaceLongitude.value = parts.longitude;
+    els.graphPlaceRadius.value = parts.radiusMeters;
+    els.graphPlaceIcon.value = presentation.ICON_NAMES.includes(parts.icon) ? parts.icon : "place";
+    els.graphPlaceMarkerShape.value = parts.markerShape;
+    els.graphPlaceArea.value = parts.areaGeometry;
+    els.saveGraphPlace.textContent = "Save place";
+    els.cancelGraphPlaceEdit.hidden = false;
+    setError(els.graphPlaceError);
+    els.graphPlaceName.focus();
+  }
+
+  function removeGraphPlace(id) {
+    const place = getPlace(id);
+    if (!place) return;
+    const usage = state.relationships.filter((relationship) => relationship.placeId === id).length;
+    const suffix = usage ? ` ${usage} ${usage === 1 ? "edge" : "edges"} will lose this spatial reference.` : "";
+    if (!window.confirm(`Delete place “${place.name}”?${suffix}`)) return;
+    state.places = state.places.filter((candidate) => candidate.id !== id);
+    state.relationships = state.relationships.map((relationship) =>
+      relationship.placeId === id ? { ...relationship, placeId: "" } : relationship
+    );
+    if (els.graphPlaceId.value === id) resetGraphPlaceForm();
+    persist();
+    renderAll();
+    showStatus("Place deleted.");
+  }
+
+  function renderGraphPlaces() {
+    els.graphPlaceCount.textContent = String(state.places.length);
+    const rows = state.places.map((place) => {
+      const row = document.createElement("article");
+      row.className = "graph-record graph-place-record";
+      row.dataset.id = place.id;
+      const copy = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = place.name;
+      const meta = document.createElement("span");
+      const geometry = place.geometry?.type || "no geometry";
+      const radius = Number.isFinite(place.radiusMeters) ? ` · ${place.radiusMeters} m radius` : "";
+      meta.textContent = `${geometry}${radius} · ${place.icon || "place"} · ${place.markerShape || "pin"}`;
+      copy.append(title, meta);
+      const actions = document.createElement("div");
+      actions.className = "graph-record-actions";
+      actions.append(
+        actionButton("Edit", "edit-graph-place", `Edit place ${place.name}`),
+        actionButton("Delete", "delete-graph-place", `Delete place ${place.name}`, "delete")
+      );
+      row.append(copy, actions);
+      return row;
+    });
+    if (!rows.length) {
+      const empty = document.createElement("p");
+      empty.className = "privacy-note";
+      empty.textContent = "No places yet. Create reusable point, radius, or area records here, then select them from edges.";
+      rows.push(empty);
+    }
+    els.graphPlaceList.replaceChildren(...rows);
   }
 
   function configureGraphEdgeTime() {
@@ -2372,6 +2472,7 @@
     els.graphEdgeDateField.hidden = false;
     graphEndpointOptions(els.graphEdgeSubject);
     graphEndpointOptions(els.graphEdgeObject);
+    graphPlaceOptions(els.graphEdgePlace);
     graphContextItemOptions(els.graphEdgeItemIds);
     els.saveGraphEdge.textContent = "Add edge";
     els.cancelGraphEdgeEdit.hidden = true;
@@ -2418,6 +2519,7 @@
     els.graphEdgeId.value = relationship.id;
     graphEndpointOptions(els.graphEdgeSubject, relationship.subjectId);
     graphEndpointOptions(els.graphEdgeObject, relationship.objectId);
+    graphPlaceOptions(els.graphEdgePlace, relationship.placeId || "");
     graphContextItemOptions(els.graphEdgeItemIds, relationship.itemIds || []);
     els.graphEdgePredicate.value = relationship.predicate || "";
     els.graphEdgeRole.value = relationship.role || "";
@@ -2464,7 +2566,9 @@
       const when = relationship.time ? temporal.intervalRepresentation(relationship.time) : "event-driven / timeless";
       const propertyCount = Object.keys(relationship.attributes || {}).length;
       const contextCount = (relationship.itemIds || []).length;
-      meta.textContent = `${relationship.initialState === "inactive" ? "initially inactive" : "initially active"} · ${when} · ${contextCount} timeline ${contextCount === 1 ? "context" : "contexts"} · ${propertyCount} ${propertyCount === 1 ? "property" : "properties"}`;
+      const place = getPlace(relationship.placeId);
+      const where = place ? ` · @ ${place.name}` : "";
+      meta.textContent = `${relationship.initialState === "inactive" ? "initially inactive" : "initially active"} · ${when}${where} · ${contextCount} timeline ${contextCount === 1 ? "context" : "contexts"} · ${propertyCount} ${propertyCount === 1 ? "property" : "properties"}`;
       copy.append(title, meta);
       const actions = document.createElement("div");
       actions.className = "graph-record-actions";
@@ -2478,7 +2582,7 @@
     if (!rows.length) {
       const empty = document.createElement("p");
       empty.className = "privacy-note";
-      empty.textContent = "No graph edges yet. Edges connect subjects and carry an action label, properties, and an optional active time.";
+      empty.textContent = "No graph edges yet. Edges connect entity nodes, use an action-only label, and carry structured time plus an optional reusable place reference.";
       rows.push(empty);
     }
     els.graphEdgeList.replaceChildren(...rows);
@@ -2489,9 +2593,12 @@
     const object = els.graphEdgeObject.value;
     graphEndpointOptions(els.graphEdgeSubject, subject);
     graphEndpointOptions(els.graphEdgeObject, object);
+    const placeId = els.graphEdgePlace.value;
+    graphPlaceOptions(els.graphEdgePlace, placeId);
     const contextItemIds = [...els.graphEdgeItemIds.selectedOptions].map((option) => option.value);
     graphContextItemOptions(els.graphEdgeItemIds, contextItemIds);
     renderGraphNodes();
+    renderGraphPlaces();
     renderGraphEdges();
     for (const row of els.itemRelationChangeRows) {
       const parts = relationChangeRowParts(row);
