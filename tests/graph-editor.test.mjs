@@ -27,7 +27,8 @@ test("graph editor separates entity nodes, reusable places, and action-edge cont
   assert.match(html, /id="graph-edge-item-ids"/);
   assert.match(html, /One node = one entity/);
   assert.match(html, /Places are map records, never graph nodes/);
-  assert.match(html, /Action only\. Do not put a place, date, time, period/);
+  assert.match(html, /Verb\/action only\. Source and target must be different entity nodes/);
+  assert.match(html, /Never encode a noun, person, object, place, date, or time in the predicate/);
   assert.match(html, /id="graph-edge-properties"/);
   assert.match(html, /id="graph-edge-initial-state"/);
   assert.match(html, /id="graph-edge-provenance-details"/);
@@ -81,6 +82,9 @@ test("application provides CRUD handlers for entity nodes, places, and structure
   assert.match(source, /graph\.validateEntityNode/);
   assert.match(source, /graph\.validateActionPredicate/);
   assert.match(source, /graph\.validateGraphInput/);
+  assert.match(source, /syncGraphEdgeEndpointConstraints/);
+  assert.match(source, /subjectId === objectId/);
+  assert.match(source, /Self-loop edges are not allowed/);
   assert.match(source, /graphContextItemOptions/);
   assert.match(source, /placeId:\s*els\.graphEdgePlace\.value/);
   assert.match(source, /Confidence must be between 0 and 1/);
