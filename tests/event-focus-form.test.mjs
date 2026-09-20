@@ -360,6 +360,8 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.doesNotMatch(html, /class="button secondary file-button" role="menuitem"/);
   assert.match(html, /id="timeline-browser-sheet"[\s\S]*?<\/aside>\s*<section id="story-focus"/);
   assert.doesNotMatch(html, /Detailed chronology/);
+  assert.match(html, /id="control-panel"[^>]*popover="manual"/);
+  assert.match(html, /id="timeline-browser-sheet"[^>]*popover="manual"/);
   assert.match(html, /id="control-panel"[^>]*hidden/);
   assert.match(html, /id="timeline-browser-sheet"[^>]*hidden/);
   assert.match(html, /id="timeline-view-toolbar"[^>]*hidden/);
@@ -385,6 +387,9 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(app, /importInterchangeTrigger\?\.addEventListener\("click",[\s\S]*importInterchange\?\.click\(\)/);
   assert.match(app, /function closeProjectMenu/);
   assert.match(app, /editorToggle\?\.addEventListener\("click",[\s\S]*setEditorSurfaceOpen\(!ui\.editorOpen\)/);
+  assert.match(app, /function syncUtilityPopover[\s\S]*showPopover[\s\S]*hidePopover/);
+  assert.match(app, /syncUtilityPopover\(els\.controlPanel, ui\.editorOpen\)/);
+  assert.match(app, /syncUtilityPopover\(els\.browserSheet, ui\.browserOpen\)/);
   assert.match(app, /function setEditorSurfaceOpen/);
   assert.match(app, /function setBrowserSurfaceOpen/);
   assert.match(app, /function setGraphSurfaceOpen/);
