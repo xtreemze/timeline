@@ -657,7 +657,7 @@
                 <p class="field-hint">Evidence records can be reused by export/import as metadata. Uploaded PDF bytes remain local to this browser; the JSON stores only the evidence ID and file metadata.</p>
               </details>
 
-              <details id="item-location-details" class="optional-editor field-wide">
+              <details id="item-location-details" class="optional-editor field-wide" hidden>
                 <summary>Location <small>optional · WGS 84 / GeoJSON point</small></summary>
                 <div class="location-fields">
                   <label class="field field-wide">
@@ -700,7 +700,7 @@
               <button id="delete-item-edit" class="button danger" type="button" hidden>Delete item</button>
             </div>
           </form>
-          <p class="privacy-note">Temporal values use ISO 8601 representations and preserve precision, certainty, IANA time zone and source offset when supplied. Location geometry uses WGS 84 / CRS84 longitude-latitude coordinates. Imported text is always rendered as text, never HTML.</p>
+          <p class="privacy-note">Chronology items provide narrative/presentation context. Canonical graph time and place belong to edges: edge.time drives timeline projection and edge.placeId resolves reusable WGS 84 / CRS84 place geometry for maps. Imported text is always rendered as text, never HTML.</p>
         </section>
 
         <section id="panel-stories" class="editor-section" role="tabpanel" aria-labelledby="tab-stories" hidden>
@@ -794,14 +794,13 @@
                 <option value="person"></option>
                 <option value="organization"></option>
                 <option value="group"></option>
-                <option value="place"></option>
                 <option value="object"></option>
                 <option value="device"></option>
                 <option value="account"></option>
                 <option value="document"></option>
               </datalist>
             </label>
-            <p class="field-hint field-wide">Nodes are durable nouns/entities only. Do not create nodes for actions, events, meetings, transactions, decisions, or processes; put those on the timeline and express what happened with a specific edge verb.</p>
+            <p class="field-hint field-wide">One node = one entity. A node must not contain an action, verb, date/time, place/location, coordinates, radius, or geometry. Put the action in the edge predicate, time in edge.time, and spatial context in edge.placeId.</p>
             <details id="graph-node-identity-details" class="optional-editor field-wide">
               <summary>Identity & provenance <small>optional</small></summary>
               <label class="field field-wide">
@@ -831,6 +830,71 @@
 
           <div class="divider"></div>
 
+          <form id="graph-place-form" class="graph-editor-form" novalidate>
+            <input id="graph-place-id" type="hidden">
+            <div class="subheading-row"><h3>Place</h3><span>reusable spatial record</span></div>
+            <p class="field-hint field-wide">Create a place once, then reference it from any number of edges. Places are map records, never graph nodes and never part of an edge label.</p>
+            <label class="field field-wide">
+              <span>Name</span>
+              <input id="graph-place-name" type="text" maxlength="180" autocomplete="off" placeholder="Central Station" required>
+            </label>
+            <label class="field field-wide">
+              <span>Geographic identifier <small>optional</small></span>
+              <input id="graph-place-identifier" type="text" maxlength="300" autocomplete="off" placeholder="Stockholm, Sweden">
+            </label>
+            <label class="field field-wide">
+              <span>Address <small>optional</small></span>
+              <input id="graph-place-address" type="text" maxlength="500" autocomplete="street-address" placeholder="Street address or descriptive location">
+            </label>
+            <label class="field">
+              <span>Latitude <small>point/radius</small></span>
+              <input id="graph-place-latitude" type="number" min="-90" max="90" step="any" inputmode="decimal" placeholder="59.329300">
+            </label>
+            <label class="field">
+              <span>Longitude <small>point/radius</small></span>
+              <input id="graph-place-longitude" type="number" min="-180" max="180" step="any" inputmode="decimal" placeholder="18.068600">
+            </label>
+            <label class="field">
+              <span>Radius <small>meters · optional</small></span>
+              <input id="graph-place-radius" type="number" min="0" step="any" inputmode="decimal" placeholder="250">
+            </label>
+            <label class="field">
+              <span>Semantic icon</span>
+              <select id="graph-place-icon">
+                <option value="place">Place</option>
+                <option value="home">Home</option>
+                <option value="person">Person context</option>
+                <option value="object">Object context</option>
+                <option value="evidence">Evidence</option>
+                <option value="danger">Danger</option>
+                <option value="search">Search</option>
+                <option value="crown">Civic / institutional</option>
+                <option value="milestone">Milestone</option>
+                <option value="note">Note</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Marker shape</span>
+              <select id="graph-place-marker-shape">
+                <option value="pin">Pin</option>
+                <option value="circle">Circle</option>
+                <option value="square">Square</option>
+                <option value="diamond">Diamond</option>
+              </select>
+            </label>
+            <label class="field field-wide">
+              <span>Area geometry <small>optional GeoJSON Polygon/MultiPolygon; use instead of point coordinates</small></span>
+              <textarea id="graph-place-area" rows="5" spellcheck="false" placeholder='{"type":"Polygon","coordinates":[[[18.06,59.32],[18.07,59.32],[18.07,59.33],[18.06,59.32]]]}'></textarea>
+            </label>
+            <p id="graph-place-error" class="form-error" role="alert" hidden></p>
+            <div class="form-actions">
+              <button id="save-graph-place" class="button primary" type="submit">Add place</button>
+              <button id="cancel-graph-place-edit" class="button ghost" type="button" hidden>Cancel</button>
+            </div>
+          </form>
+
+          <div class="divider"></div>
+
           <form id="graph-edge-form" class="graph-editor-form" novalidate>
             <input id="graph-edge-id" type="hidden">
             <div class="subheading-row"><h3>Edge</h3><span>action / relation</span></div>
@@ -841,11 +905,16 @@
             <label class="field">
               <span>Action label</span>
               <input id="graph-edge-predicate" type="text" maxlength="120" autocomplete="off" placeholder="called, warned, built, transferredTo, authorized…" required>
-              <small class="field-hint">Use the concrete action performed by the source toward the target. Generic associations such as participatedIn, partOf, memberOf, relatedTo, associatedWith, or connectedTo are rejected.</small>
+              <small class="field-hint">Action only. Do not put a place, date, time, period, coordinates, or spatial preposition such as “at/near/during” in this label. Use the structured time and place fields below.</small>
             </label>
             <label class="field">
               <span>Object / target</span>
               <select id="graph-edge-object" required></select>
+            </label>
+            <label class="field">
+              <span>Place <small>optional · reusable map record</small></span>
+              <select id="graph-edge-place"><option value="">No place</option></select>
+              <small class="field-hint">Select a canonical place. Coordinates, radius/area, icon, and marker shape are resolved from the place registry and are not copied into this edge.</small>
             </label>
             <label class="field field-wide">
               <span>Timeline context <small>optional · does not create event nodes</small></span>
@@ -890,7 +959,7 @@
                   <option value="timeless">Persistent / no temporal anchor</option>
                 </select>
               </label>
-              <p class="field-hint">Prefer a date or range so the relation can enter and leave the graph with the visible timeline window. Use persistent only when the relation genuinely has no temporal extent.</p>
+              <p class="field-hint">Time/date/period is a property of the edge and drives timeline projection. It must not be embedded in the action label. Use persistent only when the action genuinely has no temporal extent.</p>
               <label id="graph-edge-date-field" class="field date-range-field">
                 <span>Date / range</span>
                 <input id="graph-edge-date-range" type="text" readonly autocomplete="off" placeholder="Choose active date" aria-haspopup="dialog" aria-controls="graph-edge-calendar-popover">
@@ -927,6 +996,8 @@
           <div class="divider"></div>
           <div class="subheading-row"><h3>Nodes</h3><span id="graph-node-count">0</span></div>
           <div id="graph-node-list" class="graph-record-list"></div>
+          <div class="subheading-row"><h3>Places</h3><span id="graph-place-count">0</span></div>
+          <div id="graph-place-list" class="graph-record-list"></div>
           <div class="subheading-row"><h3>Edges</h3><span id="graph-edge-count">0</span></div>
           <div id="graph-edge-list" class="graph-record-list"></div>
         </section>
