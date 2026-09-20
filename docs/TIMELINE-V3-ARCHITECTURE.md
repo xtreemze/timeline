@@ -483,10 +483,11 @@ Physical screen orientation never rewrites the timeline orientation.
 
 ### Application-shell ownership
 
-Normal application mode follows the same ownership principle as fullscreen: the timeline remains viewport-sized and utility UI never participates in its layout geometry.
+Normal application mode distinguishes presentation overlays from workspace utilities. Event focus and compact View controls may overlay the presentation, but Browse and Edit participate in workspace layout geometry so they never cover the timeline or persistent relation graph.
 
-- Mobile is the baseline. The editor and Browse experience are compact bottom sheets above the timeline, capped below full-screen height and using safe-area insets and touch-sized controls.
-- At wider viewports those sheets progressively become narrow bounded sidebars without changing timeline dimensions; editor forms use a six-column internal grid, typically expressed as two three-column fields or one six-column field.
+- Mobile is the baseline. Browse and Edit reserve a bounded stacked region of the viewport; the presentation stage receives the remaining space instead of being covered by a bottom sheet.
+- At wider viewports Browse and Edit become narrow right-side columns. Opening either column reduces the presentation-stage width and lets the existing resize pipeline reflow both timeline and graph geometry; editor forms keep their six-column internal grid, typically expressed as two three-column fields or one six-column field.
+- Closing Browse or Edit removes that reserved region and returns the full workspace to the presentation without discarding filter, tab or form state.
 - Browse owns search, category filtering, empty-state explanation and the chronology list. Those are not repeated on the primary canvas.
 - Active Story navigation is a compact contextual mode overlay outside Browse, so story position/previous/next/exit remain available while the timeline is being read.
 - Item, Story, Category and Graph forms reuse the existing data model inside one editor surface with internal tabs; the global tool dock therefore exposes one Edit entry rather than duplicating editor tabs.
@@ -496,7 +497,7 @@ Normal application mode follows the same ownership principle as fullscreen: the 
 - The relation graph is a permanent workspace surface rather than a mode. It remains mounted opposite the edge-docked timeline in both ordinary and fullscreen presentation, including while focused event detail is open.
 - Timeline orientation, zoom, auto-advance and presentation controls are progressively disclosed in a compact View surface.
 - Project identity is permanently integrated at the start of the timeline rail as a compact icon + title heading. The leading project icon opens the native grouped Project popover adjacent to that heading; the title rotates into the vertical timeline orientation rather than becoming separate viewport chrome. Export and source navigation remain available while viewing; import, load-example, clear-project and project-title mutation are disabled until Edit mode is explicitly entered. Import actions remain explicit buttons wired to hidden file inputs so every visible enabled menu command is keyboard-operable.
-- Edit, Browse, View controls, and focused event detail are mutually coordinated utility/overlay surfaces, but none owns relation-graph visibility. The timeline and graph remain visually present beneath overlays; focused detail layers above the graph instead of reparenting the graph canvas into the popover.
+- Edit, Browse, View controls, and focused event detail are mutually coordinated utility/overlay surfaces, but none owns relation-graph visibility. Browse and Edit reflow the workspace rather than layering over it; focused detail may still layer above the persistent graph.
 - With no events the timeline still renders its neutral axis; guidance for the empty project lives in Browse rather than replacing the workspace.
 
 Fullscreen targets `#presentation-stage`, not editor/browser/project surfaces. Browser fullscreen therefore naturally excludes application chrome and preserves the timeline-plus-focused-event presentation.
