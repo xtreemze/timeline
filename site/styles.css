@@ -3492,3 +3492,33 @@ body {
   overflow-y: hidden;
   transform: translateX(-50%);
 }
+
+
+/* Coarse-pointer target floor.
+   Keep desktop density unchanged while making primary phone controls consistent with
+   the graph's existing 44 CSS px touch-hit contract. */
+@media (pointer: coarse) {
+  .story-nav-button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .range-calendar-nav {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .project-menu-toggle {
+    min-height: 44px;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 460px) {
+  .project-menu-toggle {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
