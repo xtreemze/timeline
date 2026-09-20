@@ -1038,12 +1038,30 @@
         labelRect.bottom > headingRect.top - gap;
       if (!intersects) return;
 
-      const clearance = this.orientation === "horizontal"
-        ? headingRect.height + gap
-        : headingRect.width + gap;
       label.classList.add("avoids-project-heading");
-      label.style.setProperty("--timeline-project-heading-clearance", `${Math.ceil(clearance)}px`);
       label.dataset.projectHeadingCollision = "avoided";
+
+      if (this.orientation === "horizontal") {
+        const stageRect = label.parentElement?.getBoundingClientRect?.();
+        const currentLeft = Number.parseFloat(label.style.left) || label.offsetLeft || 0;
+        const shiftRight = headingRect.right + gap - labelRect.left;
+        let nextLeft = currentLeft + Math.max(0, shiftRight);
+
+        if (stageRect?.width > 0) {
+          const halfWidth = labelRect.width / 2;
+          const minCenter = halfWidth + gap;
+          const maxCenter = Math.max(minCenter, stageRect.width - halfWidth - gap);
+          nextLeft = Math.min(maxCenter, Math.max(minCenter, nextLeft));
+        }
+
+        label.style.left = `${Math.round(nextLeft)}px`;
+        label.dataset.projectHeadingCollisionAxis = "inline";
+        return;
+      }
+
+      const clearance = headingRect.width + gap;
+      label.style.setProperty("--timeline-project-heading-clearance", `${Math.ceil(clearance)}px`);
+      label.dataset.projectHeadingCollisionAxis = "cross";
     }
 
     renderTemporalAccents(stage, plan) {
