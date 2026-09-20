@@ -555,7 +555,10 @@ function create(container, handlers = {}) {
     clearTouchReleaseFallback();
     clearTouchHoldTimer();
     setDragEnabled(false);
-    setZoomEnabled(true);
+    // Freeze the camera while the hold threshold is unresolved. If movement
+    // exceeds the tolerance, cancelPendingTouchHold() re-enables camera zoom
+    // before Orb receives the rest of that gesture.
+    setZoomEnabled(false);
     touchDragBlockedUntilRelease = true;
 
     if (activeTouchPointers.size > 1) {
@@ -592,13 +595,15 @@ function create(container, handlers = {}) {
       cancelCameraInertia();
       cameraGesture = null;
       const simulator = touchDragSimulator();
+      // Apply force heat before entering the simulator's drag state so any
+      // settings-driven simulation restart cannot clear or reorder drag setup.
+      setInteractionHeat(DRAG_ALPHA_TARGET);
       simulator?.startDragNode();
       try {
         container.setPointerCapture?.(touchHold.pointerId);
       } catch {
         // Pointer capture is an enhancement; direct simulator drag still works.
       }
-      setInteractionHeat(DRAG_ALPHA_TARGET);
       selectGraphObject(node);
       handlers.onNodeLongPress?.(node.getData());
       try {
@@ -706,12 +711,13 @@ function create(container, handlers = {}) {
       touchTap = null;
       lastTouchTap = null;
       finishActiveTouchNodeDrag();
-      // If another finger remains down, keep normal node dragging disabled but
-      // hand camera ownership back to Orb so that pointer can pan/pinch.
+      // Keep the gesture exclusive until all contacts lift. D3 may have seen
+      // the additional touch while zoom was disabled; handing it camera control
+      // mid-gesture can produce a discontinuous transform.
       finishTouchGesture();
       if (activeTouchPointers.size) {
         setDragEnabled(false);
-        setZoomEnabled(true);
+        setZoomEnabled(false);
         touchDragBlockedUntilRelease = true;
       }
       return;
