@@ -3079,7 +3079,6 @@
 /* Tabs keep Hero, Context, and application chrome stationary. Only the lower contextual
    region participates in the tab transition, avoiding a whole-popover/root cross-fade. */
 ::view-transition-group(timeline-focus-tab-place),
-::view-transition-group(timeline-focus-tab-relations),
 ::view-transition-group(timeline-focus-tab-evidence) {
   animation-duration: 220ms;
   animation-timing-function: cubic-bezier(.2, .8, .2, 1);
@@ -3100,14 +3099,12 @@
 }
 
 ::view-transition-old(timeline-focus-tab-place),
-::view-transition-old(timeline-focus-tab-relations),
 ::view-transition-old(timeline-focus-tab-evidence) {
   animation: 220ms cubic-bezier(.2, .8, .2, 1) both timeline-focus-tab-out;
   mix-blend-mode: normal;
 }
 
 ::view-transition-new(timeline-focus-tab-place),
-::view-transition-new(timeline-focus-tab-relations),
 ::view-transition-new(timeline-focus-tab-evidence) {
   animation: 220ms cubic-bezier(.2, .8, .2, 1) both timeline-focus-tab-in;
   mix-blend-mode: normal;
@@ -3134,13 +3131,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(timeline-focus-tab-place),
-  ::view-transition-group(timeline-focus-tab-relations),
   ::view-transition-group(timeline-focus-tab-evidence),
   ::view-transition-old(timeline-focus-tab-place),
-  ::view-transition-old(timeline-focus-tab-relations),
   ::view-transition-old(timeline-focus-tab-evidence),
   ::view-transition-new(timeline-focus-tab-place),
-  ::view-transition-new(timeline-focus-tab-relations),
   ::view-transition-new(timeline-focus-tab-evidence) {
     animation: none !important;
     animation-duration: 0s !important;
@@ -3968,5 +3962,117 @@
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(timeline-project-heading) {
     animation-duration: 0s;
+  }
+}
+
+
+/* Compact focused-event detail: one visual column and one information column.
+   Context stays beside the hero; Place occupies a small footer in that information column.
+   Evidence replaces Place. Relations remain in the persistent graph, not in the popover. */
+@media (min-width: 761px) {
+  .timeline-focus-view[popover][data-active-tab="overview"],
+  .timeline-focus-view[popover][data-active-tab="evidence"] {
+    grid-template-columns: minmax(0, 1.08fr) minmax(16rem, .92fr) !important;
+    grid-template-rows: minmax(240px, auto) minmax(92px, auto) !important;
+    gap: 0;
+    padding: 0;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-hero,
+  #presentation-stage:fullscreen .timeline-focus-view .timeline-focus-hero {
+    grid-column: 1 !important;
+    grid-row: 1 / span 2 !important;
+    min-height: 0 !important;
+    height: 100%;
+    max-height: none;
+    border-radius: calc(1rem - 1px) 0 0 calc(1rem - 1px);
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-summary,
+  #presentation-stage:fullscreen .timeline-focus-view .timeline-focus-summary {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    align-self: stretch;
+    min-height: 0;
+    max-height: none;
+    padding: 3.15rem 1rem .8rem;
+    border-top: 0;
+    overflow: auto;
+  }
+
+  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place,
+  #presentation-stage:fullscreen .timeline-focus-view[data-active-tab="overview"] .timeline-focus-place {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    min-height: 92px;
+    max-height: 132px;
+    padding: .72rem 1rem;
+    overflow: hidden;
+  }
+
+  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence,
+  #presentation-stage:fullscreen .timeline-focus-view[data-active-tab="evidence"] .timeline-focus-evidence {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    min-height: 92px;
+    max-height: min(38dvh, 300px);
+    padding: .72rem 1rem;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-description {
+    margin: 0;
+    font-size: .9rem;
+    line-height: 1.48;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-place-name {
+    font-size: .86rem;
+    line-height: 1.35;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-place-coordinates {
+    margin-top: .28rem;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: .32rem;
+    margin-top: .7rem;
+    padding: 0;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-actions .button {
+    min-height: 32px;
+    padding: .38rem .55rem;
+    font-size: .72rem;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-evidence-grid {
+    grid-template-columns: 1fr;
+    gap: .5rem;
+  }
+}
+
+@media (max-width: 760px) {
+  .timeline-focus-view[popover][data-active-tab="overview"],
+  .timeline-focus-view[popover][data-active-tab="evidence"] {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto !important;
+    gap: 0;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-hero,
+  .timeline-focus-view[popover] .timeline-focus-summary,
+  .timeline-focus-view[popover] .timeline-focus-place,
+  .timeline-focus-view[popover] .timeline-focus-evidence {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+  }
+
+  .timeline-focus-view[popover] .timeline-focus-summary {
+    padding-top: 3.15rem;
   }
 }

@@ -29,7 +29,6 @@
   const FOCUS_VIEW_TRANSITION_NAME = "timeline-event-detail-shared";
   const FOCUS_SWAP_TRANSITION_NAME = "timeline-event-detail-swap";
   const FOCUS_TAB_PLACE_TRANSITION_NAME = "timeline-focus-tab-place";
-  const FOCUS_TAB_RELATIONS_TRANSITION_NAME = "timeline-focus-tab-relations";
   const FOCUS_TAB_EVIDENCE_TRANSITION_NAME = "timeline-focus-tab-evidence";
   const FOCUS_POPOVER_MARGIN = 12;
 
@@ -2068,8 +2067,11 @@
         hero.append(controls);
       }
 
-      if (active?.caption) {
-        const caption = createElement("p", "timeline-focus-media-caption", active.caption);
+      const mediaCaption = String(active?.caption || "").trim();
+      const isIllustrationDisclaimer =
+        mediaCaption.startsWith("Public-domain story illustration via Wikimedia Commons;");
+      if (mediaCaption && !isIllustrationDisclaimer) {
+        const caption = createElement("p", "timeline-focus-media-caption", mediaCaption);
         hero.append(caption);
       }
       return hero;
@@ -2085,20 +2087,17 @@
 
       const hero = this.createFocusHero(item);
 
-      const summary = createElement("section", "timeline-focus-section timeline-focus-summary");
-      const summaryHeading = createElement("h3", "timeline-focus-section-heading", "Context");
-      summary.append(summaryHeading);
+      const summary = createElement("div", "timeline-focus-section timeline-focus-summary");
       if (item.description) {
         summary.append(createElement("p", "timeline-focus-description", item.description));
       } else {
         summary.append(createElement("p", "timeline-focus-description", "No narrative description has been recorded for this event."));
       }
 
-      const place = createElement("section", "timeline-focus-section timeline-focus-place");
+      const place = createElement("div", "timeline-focus-section timeline-focus-place");
       const placeBackdrop = createElement("div", "timeline-focus-section-backdrop timeline-focus-place-backdrop");
       placeBackdrop.dataset.focusMapSlot = "";
       const placeContent = createElement("div", "timeline-focus-section-content");
-      placeContent.append(createElement("h3", "timeline-focus-section-heading", "Place"));
       if (item.location) {
         const placeName =
           item.location.name ||
@@ -2118,48 +2117,6 @@
         placeContent.append(createElement("p", "timeline-focus-muted", "No location assigned."));
       }
       place.append(placeBackdrop, placeContent);
-
-      const relations = createElement("section", "timeline-focus-section timeline-focus-relations");
-      const relationContent = createElement("div", "timeline-focus-section-content");
-      relationContent.append(createElement("h3", "timeline-focus-section-heading", "Relations"));
-      if (item.relations?.length) {
-        const list = createElement("ul", "timeline-focus-relation-list");
-        for (const relation of item.relations.slice(0, 8)) {
-          const li = createElement("li", "");
-          li.append(presentation.createIcon("relation", { size: 20 }));
-          const relationText = relation.subjectName && relation.objectName
-            ? `${relation.subjectName} —${relation.predicate}→ ${relation.objectName}`
-            : relation.predicate;
-          const label = createElement(
-            "span",
-            "",
-            relation.role ? `${relationText} · ${relation.role}` : relationText
-          );
-          li.append(label);
-          list.append(li);
-        }
-        relationContent.append(list);
-      } else {
-        relationContent.append(createElement("p", "timeline-focus-muted", "No relationships attached."));
-      }
-
-      if (item.relationChanges?.length) {
-        const changes = createElement("div", "timeline-focus-relation-changes");
-        changes.append(createElement("p", "timeline-focus-kicker", "Changed by this event"));
-        for (const change of item.relationChanges) {
-          const row = createElement("p", "timeline-focus-relation-change");
-          const relationText = change.subjectName && change.objectName
-            ? `${change.subjectName} —${change.predicate || "relatedTo"}→ ${change.objectName}`
-            : change.relationshipId;
-          row.textContent =
-            change.operation === "activate" ? `Activates ${relationText}` :
-            change.operation === "deactivate" ? `Deactivates ${relationText}` :
-            `Updates ${relationText}`;
-          changes.append(row);
-        }
-        relationContent.append(changes);
-      }
-      relations.append(relationContent);
 
       const evidence = createElement("section", "timeline-focus-section timeline-focus-evidence");
       evidence.append(createElement("h3", "timeline-focus-section-heading", "Evidence"));
@@ -2280,7 +2237,7 @@
         const evidenceActive = name === "evidence";
         const applyTabState = () => {
           this.focusView.dataset.activeTab = evidenceActive ? "evidence" : "overview";
-          for (const panel of [place, relations]) panel.hidden = evidenceActive;
+          place.hidden = evidenceActive;
           evidence.hidden = !evidenceActive;
           overviewTab.classList.toggle("is-active", !evidenceActive);
           evidenceTab.classList.toggle("is-active", evidenceActive);
@@ -2309,20 +2266,17 @@
         }
 
         place.style.viewTransitionName = FOCUS_TAB_PLACE_TRANSITION_NAME;
-        relations.style.viewTransitionName = FOCUS_TAB_RELATIONS_TRANSITION_NAME;
         evidence.style.viewTransitionName = FOCUS_TAB_EVIDENCE_TRANSITION_NAME;
         try {
           const transition = document.startViewTransition(applyTabState);
           const cleanupTabTransition = () => {
             place.style.removeProperty("view-transition-name");
-            relations.style.removeProperty("view-transition-name");
             evidence.style.removeProperty("view-transition-name");
           };
           void transition.ready.then(finishTabChange, finishTabChange);
           void transition.finished.then(cleanupTabTransition, cleanupTabTransition);
         } catch {
           place.style.removeProperty("view-transition-name");
-          relations.style.removeProperty("view-transition-name");
           evidence.style.removeProperty("view-transition-name");
           applyTabState();
           finishTabChange();
@@ -2332,7 +2286,7 @@
       evidenceTab.addEventListener("click", () => setFocusTab("evidence"));
       tabs.append(overviewTab, evidenceTab, close);
 
-      this.focusView.append(tabs, hero, summary, place, relations, evidence);
+      this.focusView.append(tabs, hero, summary, place, evidence);
     }
 
     closeFocus() {

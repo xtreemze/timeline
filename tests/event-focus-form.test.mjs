@@ -534,7 +534,25 @@ test("utility surfaces remain coordinated while the relation graph stays persist
 });
 
 
-test("focused popover uses a two-row overview with Evidence as a separate tab", async () => {
+test("focused overview omits redundant Context, Place, Relations headings and the Relations panel", async () => {
+  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const renderStart = source.indexOf("renderFocus(item)");
+  const renderEnd = source.indexOf("\n    closeFocus() {", renderStart);
+  const renderFocus = source.slice(renderStart, renderEnd);
+  assert.doesNotMatch(renderFocus, /timeline-focus-section-heading", "Context"/);
+  assert.doesNotMatch(renderFocus, /timeline-focus-section-heading", "Place"/);
+  assert.doesNotMatch(renderFocus, /timeline-focus-section-heading", "Relations"/);
+  assert.doesNotMatch(renderFocus, /timeline-focus-relations/);
+  assert.match(renderFocus, /this\.focusView\.append\(tabs, hero, summary, place, evidence\)/);
+});
+
+test("focused hero suppresses repeated Wikimedia illustration disclaimers while preserving media metadata", async () => {
+  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  assert.match(source, /mediaCaption\.startsWith\("Public-domain story illustration via Wikimedia Commons;"\)/);
+  assert.match(source, /if \(mediaCaption && !isIllustrationDisclaimer\)/);
+});
+
+test("focused popover uses a compact two-column overview with Evidence as a separate tab", async () => {
   const [css, source] = await Promise.all([
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8")
@@ -544,10 +562,12 @@ test("focused popover uses a two-row overview with Evidence as a separate tab", 
   assert.match(source, /dataset\.activeTab = "overview"/);
   assert.match(source, /setFocusTab/);
   assert.match(source, /evidence\.hidden = true/);
-  assert.match(css, /timeline-focus-view\[popover\][\s\S]*padding-top:\s*0/);
-  assert.match(css, /data-active-tab="overview"[\s\S]*timeline-focus-summary[\s\S]*padding-top:\s*3\.2rem/);
-  assert.match(css, /data-active-tab="overview"[\s\S]*data-active-tab="evidence"[\s\S]*grid-template-rows:\s*clamp\(240px, 30dvh, 290px\)\s*clamp\(120px, 18dvh, 160px\)/);
-  assert.match(css, /data-active-tab="evidence"[\s\S]*timeline-focus-evidence[\s\S]*grid-row:\s*2 !important/);
+  assert.match(css, /Compact focused-event detail/);
+  assert.match(css, /grid-template-columns:\s*minmax\(0, 1\.08fr\) minmax\(16rem, \.92fr\) !important/);
+  assert.match(css, /timeline-focus-hero[\s\S]*grid-column:\s*1 !important[\s\S]*grid-row:\s*1 \/ span 2 !important/);
+  assert.match(css, /timeline-focus-summary[\s\S]*grid-column:\s*2 !important[\s\S]*grid-row:\s*1 !important/);
+  assert.match(css, /data-active-tab="overview"[\s\S]*timeline-focus-place[\s\S]*grid-column:\s*2 !important[\s\S]*grid-row:\s*2 !important/);
+  assert.match(css, /data-active-tab="evidence"[\s\S]*timeline-focus-evidence[\s\S]*grid-column:\s*2 !important[\s\S]*grid-row:\s*2 !important/);
 });
 
 test("fullscreen preserves the left workspace tool dock inside the fullscreen subtree", async () => {
@@ -751,17 +771,17 @@ test("story previous and next navigation use the same directional focus travel",
 });
 
 
-test("Evidence tab preserves Hero and Context and only swaps the lower contextual region", async () => {
+test("Evidence tab preserves Hero and Context and swaps only the compact Place region", async () => {
   const [source, css] = await Promise.all([
     readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
   ]);
-  assert.match(source, /for \(const panel of \[place, relations\]\) panel\.hidden = evidenceActive/);
-  assert.doesNotMatch(source, /\[hero, summary, place, relations\]/);
+  assert.match(source, /place\.hidden = evidenceActive/);
+  assert.doesNotMatch(source, /const relations = createElement/);
+  assert.doesNotMatch(source, /timeline-focus-relations/);
   assert.match(source, /requestAnimationFrame\(\(\) => \{[\s\S]*this\.positionFocusPopover\(\)/);
-  assert.match(css, /Hero and Context are persistent identity\/context surfaces/);
-  assert.match(css, /timeline-focus-view\[popover\] \.timeline-focus-hero[\s\S]*grid-row:\s*1 !important/);
-  assert.match(css, /timeline-focus-view\[popover\] \.timeline-focus-summary[\s\S]*grid-row:\s*1 !important/);
+  assert.match(css, /Context stays beside the hero/);
+  assert.match(css, /timeline-focus-summary[\s\S]*grid-row:\s*1 !important/);
   assert.match(css, /data-active-tab="evidence"[\s\S]*timeline-focus-evidence[\s\S]*grid-row:\s*2 !important/);
 });
 
@@ -825,23 +845,23 @@ test("focused popover re-clamps after late content resize", async () => {
   assert.match(source, /cancelAnimationFrame\(this\.focusResizeFrame\)[\s\S]*this\.focusResizeFrame = 0/);
 });
 
-test("tab transitions animate only lower contextual panels while Hero and Context persist", async () => {
+test("tab transitions animate Place and Evidence while Hero and Context persist", async () => {
   const [source, css] = await Promise.all([
     readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
   ]);
   assert.match(source, /FOCUS_TAB_PLACE_TRANSITION_NAME = "timeline-focus-tab-place"/);
-  assert.match(source, /FOCUS_TAB_RELATIONS_TRANSITION_NAME = "timeline-focus-tab-relations"/);
+  assert.doesNotMatch(source, /FOCUS_TAB_RELATIONS_TRANSITION_NAME/);
   assert.match(source, /FOCUS_TAB_EVIDENCE_TRANSITION_NAME = "timeline-focus-tab-evidence"/);
   assert.match(source, /place\.style\.viewTransitionName = FOCUS_TAB_PLACE_TRANSITION_NAME/);
-  assert.match(source, /relations\.style\.viewTransitionName = FOCUS_TAB_RELATIONS_TRANSITION_NAME/);
+  assert.doesNotMatch(source, /relations\.style\.viewTransitionName/);
   assert.match(source, /evidence\.style\.viewTransitionName = FOCUS_TAB_EVIDENCE_TRANSITION_NAME/);
   assert.doesNotMatch(source, /hero\.style\.viewTransitionName/);
   assert.doesNotMatch(source, /summary\.style\.viewTransitionName/);
   assert.match(source, /document\.startViewTransition\(applyTabState\)/);
   assert.match(source, /applyTabState[\s\S]*this\.positionFocusPopover\(\)/);
   assert.match(css, /::view-transition-group\(timeline-focus-tab-place\)/);
-  assert.match(css, /::view-transition-old\(timeline-focus-tab-relations\)/);
+  assert.doesNotMatch(css, /::view-transition-(?:group|old|new)\(timeline-focus-tab-relations\)/);
   assert.match(css, /::view-transition-new\(timeline-focus-tab-evidence\)/);
 });
 
