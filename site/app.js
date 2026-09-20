@@ -1251,7 +1251,7 @@
 
     temporalGraphView?.setPresentationMode?.(presentationModeActive());
     syncContextualPresentationPanels();
-    schedulePresentationGeometryRefresh({ recenterGraph: true });
+    schedulePresentationGeometryRefresh({ recenterGraph: false });
   }
 
   function closeLargeUtilitySurfaces(except = "") {
