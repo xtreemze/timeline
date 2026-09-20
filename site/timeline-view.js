@@ -872,7 +872,14 @@
       const coordinates = this.itemCoordinates();
       if (!coordinates.length) return;
       if (!this.viewport) {
-        this.viewport = scale.fit(coordinates, { paddingRatio: 0.1, minSpanMs: DEFAULT_SPAN_MS });
+        const targets = this.semanticZoomTargets();
+        if (targets?.isolated) {
+          this.viewport = { ...targets.isolated };
+          this.zoomAnchorId = targets.item ? String(targets.item.id) : null;
+          this.soloZoomActive = Boolean(targets.item);
+        } else {
+          this.viewport = scale.fit(coordinates, { paddingRatio: 0.1, minSpanMs: DEFAULT_SPAN_MS });
+        }
         return;
       }
       const min = Math.min(...coordinates);

@@ -53,8 +53,12 @@ test("timeline exposes semantic zoom while retaining keyboard fit commands", asy
     readFile(new URL("../site/app.js", import.meta.url), "utf8")
   ]);
 
-  assert.match(htmlSource, /id="timeline-zoom-level"[^>]*type="range"[^>]*min="0"[^>]*max="100"/);
+  assert.match(htmlSource, /id="timeline-zoom-level"[^>]*type="range"[^>]*min="0"[^>]*max="100"[^>]*value="100"[^>]*aria-valuetext="Focused event only"/);
   assert.match(htmlSource, /Context[\s\S]*Focus[\s\S]*Solo/);
+  assert.match(
+    viewSource,
+    /ensureUsefulViewport\(\)[\s\S]*if \(!this\.viewport\)[\s\S]*semanticZoomTargets\(\)[\s\S]*targets\?\.isolated[\s\S]*zoomAnchorId = targets\.item[\s\S]*soloZoomActive = Boolean\(targets\.item\)/
+  );
   assert.match(htmlSource, /id="timeline-orientation-toggle"[^>]*data-semantic-icon="portrait"/);
   assert.match(htmlSource, /id="presentation-fullscreen-toggle"[^>]*data-semantic-icon="fullscreen"/);
   assert.match(htmlSource, /id="timeline-auto-toggle"[^>]*data-semantic-icon="play"[^>]*aria-label="Play slideshow"/);
