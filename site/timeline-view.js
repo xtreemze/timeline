@@ -1345,7 +1345,7 @@
       return true;
     }
 
-    focusContextPlan(item, viewport = this.viewport) {
+    focusContextPlan(item, viewport = this.viewport, options = {}) {
       if (!item || !viewport) return null;
       const rect = this.surface.getBoundingClientRect();
       const primaryLength = this.orientation === "horizontal" ? rect.width : rect.height;
@@ -1357,7 +1357,12 @@
         viewport,
         usable,
         this.clusterThreshold(rect.width),
-        { desiredContext: 2, paddingRatio: 0.14, minSpanMs: MIN_SPAN_MS }
+        {
+          desiredContext: 2,
+          paddingRatio: 0.14,
+          minSpanMs: MIN_SPAN_MS,
+          preserveScale: Boolean(options.preserveScale)
+        }
       );
     }
 
@@ -1376,7 +1381,7 @@
       if (!item || !this.viewport) return { viewport: null, forceUnique: false };
       const visibilityViewport = this.visibilityViewportForItem(item, this.viewport);
       const baseViewport = visibilityViewport || this.viewport;
-      const contextPlan = this.focusContextPlan(item, baseViewport);
+      const contextPlan = this.focusContextPlan(item, baseViewport, { preserveScale: true });
       const contextViewport =
         contextPlan && (contextPlan.mode === "separate" || contextPlan.mode === "context")
           ? contextPlan.viewport
@@ -1407,9 +1412,12 @@
       const plan = this.focusContextPlan(item);
       if (!plan) return;
       this.focusForceUnique = Boolean(plan.forceUnique);
-      if (plan.mode === "separate" || plan.mode === "context") {
-        void this.animateViewportTo(plan.viewport);
-      }
+      const target = plan.viewport;
+      const changed = target && this.viewport && (
+        Math.abs(target.start - this.viewport.start) > 0.001 ||
+        Math.abs(target.end - this.viewport.end) > 0.001
+      );
+      if (changed) void this.animateViewportTo(target);
     }
 
     hasFocusedItem() {
