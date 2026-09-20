@@ -2128,14 +2128,16 @@
 
       const hero = this.createFocusHero(item);
 
-      const summary = createElement("div", "timeline-focus-section timeline-focus-summary");
+      const summary = createElement("section", "timeline-focus-section timeline-focus-summary");
+      summary.setAttribute("aria-label", "Context");
       if (item.description) {
         summary.append(createElement("p", "timeline-focus-description", item.description));
       } else {
         summary.append(createElement("p", "timeline-focus-description", "No narrative description has been recorded for this event."));
       }
 
-      const place = createElement("div", "timeline-focus-section timeline-focus-place");
+      const place = createElement("section", "timeline-focus-section timeline-focus-place");
+      place.setAttribute("aria-label", "Place");
       const placeBackdrop = createElement("div", "timeline-focus-section-backdrop timeline-focus-place-backdrop");
       placeBackdrop.dataset.focusMapSlot = "";
       const placeContent = createElement("div", "timeline-focus-section-content");
@@ -2265,10 +2267,13 @@
       overviewTab.type = "button";
       overviewTab.setAttribute("role", "tab");
       overviewTab.setAttribute("aria-selected", "true");
+      overviewTab.setAttribute("aria-controls", "timeline-focus-place-panel");
       const evidenceTab = createElement("button", "timeline-focus-tab", "Evidence");
       evidenceTab.type = "button";
       evidenceTab.setAttribute("role", "tab");
       evidenceTab.setAttribute("aria-selected", "false");
+      evidenceTab.setAttribute("aria-controls", "timeline-focus-evidence-panel");
+      place.id = "timeline-focus-place-panel";
       evidence.id = "timeline-focus-evidence-panel";
       evidence.setAttribute("role", "tabpanel");
       evidence.hidden = true;
