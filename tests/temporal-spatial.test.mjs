@@ -143,6 +143,19 @@ test("canonical place normalization requires geometry and clamps imported marker
   assert.ok(spatial.PLACE_ICON_NAMES.includes("place"));
 });
 
+test("canonical places discard timeline category membership while preserving place metadata", () => {
+  const place = spatial.normalizePlace({
+    id: "place-taxonomy",
+    name: "Place",
+    geometry: { type: "Point", coordinates: [18, 59] },
+    attributes: { categoryId: "location-category", category: "location-category", groupId: "location-group", note: "keep this" }
+  });
+  assert.equal(place.attributes.categoryId, undefined);
+  assert.equal(place.attributes.category, undefined);
+  assert.equal(place.attributes.groupId, undefined);
+  assert.equal(place.attributes.note, "keep this");
+});
+
 test("canonical places deduplicate equivalent location records", () => {
   const places = spatial.normalizePlaces([
     { id: "one", name: "Same place", geometry: { type: "Point", coordinates: [18, 59] }, radiusMeters: 100 },
