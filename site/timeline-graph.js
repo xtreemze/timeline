@@ -303,13 +303,17 @@
     const rawEntities = Array.isArray(input?.entities) ? input.entities : [];
     const rawRelationships = Array.isArray(input?.relationships) ? input.relationships : [];
     const rawItems = Array.isArray(input?.items) ? input.items : [];
+    const rawStories = Array.isArray(input?.stories) ? input.stories : [];
     const entityIds = new Set();
     const itemIds = new Set(rawItems.map((item) => text(item?.id, 120)).filter(Boolean));
+    const storyIds = new Set(rawStories.map((story) => text(story?.id, 120)).filter(Boolean));
 
     rawEntities.forEach((entity, index) => {
       const validation = validateEntityNode(entity);
       const id = text(entity?.id, 120);
       if (!validation.valid) errors.push(`Node ${id || index + 1}: ${validation.message}`);
+      if (id && itemIds.has(id)) errors.push(`Node ${id}: entity IDs cannot collide with chronology item IDs.`);
+      if (id && storyIds.has(id)) errors.push(`Node ${id}: entity IDs cannot collide with story IDs.`);
       if (id) entityIds.add(id);
     });
 
@@ -346,7 +350,7 @@
     return errors;
   }
 
-  function toOrbGraph({ entities = [], relationships = [], items = [], stories = [] } = {}) {
+  function toOrbGraph({ entities = [], relationships = [] } = {}) {
     const nodes = [];
     const seen = new Set();
 
@@ -404,9 +408,7 @@
   function graphForWindow(input, viewport, temporal = globalThis.TimelineTemporal) {
     const entities = Array.isArray(input?.entities) ? input.entities : [];
     const relationships = Array.isArray(input?.relationships) ? input.relationships : [];
-    const items = Array.isArray(input?.items) ? input.items : [];
-    const stories = Array.isArray(input?.stories) ? input.stories : [];
-    const graphData = toOrbGraph({ entities, relationships, items, stories });
+    const graphData = toOrbGraph({ entities, relationships });
     const states = new Map();
     const relationshipById = new Map(
       relationships.map((relationship) => [String(relationship.id), relationship])
