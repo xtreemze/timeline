@@ -244,6 +244,8 @@ A cycle is not intrinsically invalid. Two opposite-direction edges are allowed w
 
 The authoring lens now uses the scale path directly. `@memgraph/orb` is bundled through esbuild, preserving its worker-backed CPU force simulation. Canvas is the default renderer; dense graphs switch to WebGL when WebGL2 is available, and very large graphs can enable Orb's GPU force path.
 
+Disconnected rendered components are packed deterministically after force simulation settles so unrelated topology islands do not make an otherwise large graph canvas illegible. Packing translates whole connected components without changing their internal geometry or canonical graph records, follows the current graph-canvas aspect ratio, and reruns only when the undirected topology signature changes. Manual node dragging therefore remains authoritative until the topology itself changes.
+
 Temporal navigation does not restart force simulation merely because the viewport coordinate changes. Timeline compares a topology signature (visible entity-node IDs plus visible edge endpoints): movement within the same active temporal topology updates effective edge state without resetting physics, while crossing a relationship temporal boundary changes the signature and calls Orb data setup for the new visible topology.
 
 Current implementation thresholds are: below 1,200 nodes Canvas + worker CPU force; 1,200–2,999 nodes WebGL + worker CPU force when available; 3,000+ nodes WebGL + GPU force when available. These thresholds are presentation policy, not canonical data.
