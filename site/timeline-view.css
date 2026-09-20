@@ -3248,3 +3248,101 @@
     max-width: min(60vw, 174px);
   }
 }
+
+
+/* Mobile Relations composition: graph and chronology are siblings, never overlapping canvases. */
+@media (max-width: 699px) {
+  #app-shell[data-graph-open="true"] #presentation-stage {
+    --mobile-relations-rail: clamp(88px, 25dvw, 116px);
+    --mobile-top-chrome: max(3.75rem, calc(env(safe-area-inset-top) + 3.45rem));
+    --mobile-bottom-chrome: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
+  }
+
+  #app-shell[data-graph-open="true"]
+    #presentation-stage:has(> #timeline-view[data-orientation="portrait"])
+    > .graph-lens:not([hidden]) {
+    top: var(--mobile-top-chrome);
+    right: calc(var(--mobile-relations-rail) + max(.25rem, env(safe-area-inset-right)));
+    bottom: var(--mobile-bottom-chrome);
+    left: max(.35rem, env(safe-area-inset-left));
+  }
+
+  #app-shell[data-graph-open="true"]
+    #timeline-view[data-orientation="portrait"] > .timeline-surface {
+    position: absolute;
+    top: var(--mobile-top-chrome);
+    right: max(.25rem, env(safe-area-inset-right));
+    bottom: var(--mobile-bottom-chrome);
+    left: auto;
+    width: var(--mobile-relations-rail);
+    height: auto;
+    min-height: 0;
+    border-left: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
+    background: color-mix(in srgb, var(--paper) 84%, transparent);
+    transition:
+      width 280ms cubic-bezier(.2, .8, .2, 1),
+      right 280ms cubic-bezier(.2, .8, .2, 1);
+  }
+
+  #app-shell[data-graph-open="true"]
+    #presentation-stage:has(> #timeline-view[data-orientation="landscape"])
+    > .graph-lens:not([hidden]) {
+    top: var(--mobile-top-chrome);
+    right: max(.35rem, env(safe-area-inset-right));
+    bottom: calc(var(--mobile-bottom-chrome) + var(--mobile-relations-rail) + .25rem);
+    left: max(.35rem, env(safe-area-inset-left));
+  }
+
+  #app-shell[data-graph-open="true"]
+    #timeline-view[data-orientation="landscape"] > .timeline-surface {
+    position: absolute;
+    top: auto;
+    right: max(.35rem, env(safe-area-inset-right));
+    bottom: var(--mobile-bottom-chrome);
+    left: max(.35rem, env(safe-area-inset-left));
+    width: auto;
+    height: var(--mobile-relations-rail);
+    min-height: 0;
+    border-top: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
+    background: color-mix(in srgb, var(--paper) 84%, transparent);
+    transition:
+      height 280ms cubic-bezier(.2, .8, .2, 1),
+      bottom 280ms cubic-bezier(.2, .8, .2, 1);
+  }
+
+  /* Relations mode preserves chronology as an orientation/context rail. Text labels yield
+     to semantic event and cluster visuals so the graph keeps the readable majority area. */
+  #app-shell[data-graph-open="true"] .timeline-event-copy {
+    display: none;
+  }
+
+  #app-shell[data-graph-open="true"] .timeline-event-terminal {
+    min-width: 46px;
+    max-width: 62px;
+    min-height: 46px;
+    justify-content: center;
+    padding: .28rem;
+    gap: 0;
+  }
+
+  #app-shell[data-graph-open="true"] .timeline-cluster-terminal {
+    max-width: 72px;
+  }
+
+  #app-shell[data-graph-open="true"] .timeline-cluster-tiles {
+    width: 3.25rem;
+    flex-basis: 3.25rem;
+  }
+}
+
+@media (max-width: 380px) {
+  #app-shell[data-graph-open="true"] #presentation-stage {
+    --mobile-relations-rail: clamp(80px, 24dvw, 96px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app-shell[data-graph-open="true"] #timeline-view > .timeline-surface {
+    transition-duration: 0s !important;
+  }
+}
