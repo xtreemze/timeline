@@ -16,6 +16,8 @@
   const presentationLayout = globalThis.TimelinePresentationLayout;
   const caseReasoning = globalThis.TimelineCaseReasoning;
   const migration = globalThis.TimelineMigration;
+  const memgraphInterchange = globalThis.TimelineMemgraphInterchange;
+  const webMcp = globalThis.TimelineWebMCP;
   if (!temporal) throw new Error("TimelineTemporal must load before app.js.");
   if (!spatial) throw new Error("TimelineSpatial must load before app.js.");
   if (!graph) throw new Error("TimelineGraph must load before app.js.");
@@ -27,6 +29,8 @@
   if (!presentationLayout) throw new Error("TimelinePresentationLayout must load before app.js.");
   if (!caseReasoning) throw new Error("TimelineCaseReasoning must load before app.js.");
   if (!migration) throw new Error("TimelineMigration must load before app.js.");
+  if (!memgraphInterchange) throw new Error("TimelineMemgraphInterchange must load before app.js.");
+  if (!webMcp) throw new Error("TimelineWebMCP must load before app.js.");
 
   const DEFAULT_CATEGORIES = [
     { id: "incident", name: "Incident", color: "#b42318" },
@@ -3751,6 +3755,66 @@
     showStatus(`${statusPrefix} ${state.items.length} ${state.items.length === 1 ? "item" : "items"} and ${state.stories.length} ${state.stories.length === 1 ? "story" : "stories"}${warningText}.`);
   }
 
+  function validateAgentProject(project) {
+    try {
+      const normalized = normalizeTimeline(clone(project ?? state), { strictGraph: true });
+      return {
+        valid: true,
+        errors: [],
+        summary: {
+          items: normalized.items.length,
+          stories: normalized.stories.length,
+          entities: normalized.entities.length,
+          places: normalized.places.length,
+          relationships: normalized.relationships.length
+        }
+      };
+    } catch (error) {
+      return {
+        valid: false,
+        errors: [error instanceof Error ? error.message : "Timeline validation failed."]
+      };
+    }
+  }
+
+  function replaceProjectFromAgent(project, statusPrefix = "AI replaced") {
+    timelineView?.closeFocus();
+    applyImportedTimeline(clone(project), statusPrefix);
+    return clone(state);
+  }
+
+  function applyAgentTransaction(operations) {
+    const draft = webMcp.applyOperations(clone(state), operations);
+    const normalized = normalizeTimeline(draft, { strictGraph: true });
+    timelineView?.closeFocus();
+    applyImportedTimeline(normalized, "AI updated");
+    return {
+      project: clone(state),
+      appliedOperations: operations.length,
+      validation: validateAgentProject(state)
+    };
+  }
+
+  const agentApi = Object.freeze({
+    getProject: () => clone(state),
+    validateProject: validateAgentProject,
+    applyOperations: applyAgentTransaction,
+    replaceProject: (project) => ({
+      project: replaceProjectFromAgent(project),
+      validation: validateAgentProject(state)
+    }),
+    exportMemgraph: (options = {}) => memgraphInterchange.exportBundle(state, options),
+    importMemgraph: (snapshot) => {
+      const draft = memgraphInterchange.importSnapshot(snapshot, state);
+      return {
+        project: replaceProjectFromAgent(draft, "Imported from Memgraph"),
+        validation: validateAgentProject(state)
+      };
+    }
+  });
+
+  globalThis.TimelineAgentAPI = agentApi;
+
   els.importJson.addEventListener("change", async () => {
     if (ui.mode !== "edit") return;
     const file = els.importJson.files?.[0];
@@ -3850,4 +3914,13 @@
   setActivePanel("items", { open: false });
   syncApplicationSurfaces();
   renderAll();
+
+  webMcp.register(agentApi).then((registration) => {
+    globalThis.TimelineWebMCPRegistration = registration;
+    if (!registration.registered) {
+      console.info("Timeline WebMCP tools are not registered:", registration.reason);
+    }
+  }).catch((error) => {
+    console.warn("Timeline WebMCP registration failed:", error);
+  });
 })();
