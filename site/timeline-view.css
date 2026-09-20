@@ -193,7 +193,6 @@
 }
 
 .timeline-view-toolbar {
-  display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
@@ -1293,7 +1292,6 @@
     display: block;
     min-height: 0;
   }
-  .timeline-view.is-event-focused .timeline-view-toolbar { display: flex; }
   .timeline-view.is-event-focused .timeline-focus-view {
     display: grid;
     grid-template-columns: 1fr;
@@ -1838,20 +1836,6 @@
   display: none !important;
 }
 
-#presentation-stage:fullscreen .timeline-view-toolbar:popover-open {
-  position: absolute;
-  z-index: 12;
-  inset: max(.4rem, env(safe-area-inset-top)) max(.4rem, env(safe-area-inset-right)) auto max(.4rem, env(safe-area-inset-left));
-  width: max-content;
-  max-width: calc(100% - max(.8rem, env(safe-area-inset-left)) - max(.8rem, env(safe-area-inset-right)));
-  padding: .3rem;
-  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
-  border-radius: .65rem;
-  background: color-mix(in srgb, var(--paper) 82%, transparent);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 4%, transparent);
-}
-
 #presentation-stage:fullscreen .timeline-surface,
 #presentation-stage:fullscreen .timeline-view.is-event-focused .timeline-surface,
 #presentation-stage:fullscreen .timeline-view.is-event-focused[data-orientation="portrait"] .timeline-surface,
@@ -2117,14 +2101,6 @@
 }
 
 @media (max-width: 500px) {
-  #presentation-stage:fullscreen .timeline-view-toolbar:popover-open {
-    max-width: calc(100% - .6rem);
-    inset-inline: .3rem;
-    gap: .25rem;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
   .timeline-focus-view[popover] {
     grid-template-columns: 1fr;
     padding: .55rem;
@@ -2241,33 +2217,6 @@
   min-height: 100%;
 }
 
-#app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
-  position: fixed;
-  z-index: 1150;
-  top: max(4.15rem, calc(env(safe-area-inset-top) + 3.8rem));
-  left: max(.4rem, env(safe-area-inset-left));
-  right: max(.4rem, env(safe-area-inset-right));
-  display: flex;
-  width: auto;
-  min-width: 0;
-  min-height: 0;
-  max-width: none;
-  padding: .35rem;
-  gap: .3rem;
-  overflow-x: auto;
-  overflow-y: hidden;
-  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
-  border-radius: .8rem;
-  background: color-mix(in srgb, var(--paper) 91%, transparent);
-  box-shadow: 0 3px 10px color-mix(in srgb, var(--ink) 5%, transparent);
-  backdrop-filter: blur(12px);
-  scrollbar-width: thin;
-}
-
-#app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open > * {
-  flex: 0 0 auto;
-}
-
 #app-shell .app-view-controls .timeline-window-readout {
   display: none;
 }
@@ -2280,15 +2229,6 @@
     max(4.5rem, calc(env(safe-area-inset-right) + 4rem))
     max(5rem, calc(env(safe-area-inset-bottom) + 4.6rem))
     max(4.5rem, calc(env(safe-area-inset-left) + 4rem));
-}
-
-@media (min-width: 900px) {
-  #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
-    left: auto;
-    right: max(.55rem, env(safe-area-inset-right));
-    width: max-content;
-    max-width: min(760px, calc(100dvw - 8rem));
-  }
 }
 
 /* Utility chrome is not part of the fullscreen presentation. */
@@ -3906,57 +3846,64 @@
   white-space: nowrap;
 }
 
+/* Canonical View popover contract.
+   The native popover state owns visibility; the View invoker is the positioning anchor.
+   Fallback fixed offsets cover engines without CSS anchor positioning. */
+#app-shell .app-view-controls.timeline-view-toolbar[popover] {
+  inset: auto;
+  margin: 0;
+  max-inline-size: calc(100dvw - max(.8rem, env(safe-area-inset-left)) - max(.8rem, env(safe-area-inset-right)));
+  max-block-size: calc(100dvh - max(.8rem, env(safe-area-inset-top)) - max(4.8rem, calc(env(safe-area-inset-bottom) + 4.4rem)));
+  overscroll-behavior: contain;
+}
+
+#app-shell .app-view-controls.timeline-view-toolbar[popover]::backdrop {
+  background: transparent;
+}
+
 #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
+  position: fixed;
+  z-index: 1150;
+  top: auto;
+  right: max(.45rem, env(safe-area-inset-right));
+  bottom: max(4.35rem, calc(env(safe-area-inset-bottom) + 4rem));
+  left: auto;
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
   width: max-content;
-  max-width: min(620px, calc(100dvw - .9rem));
   padding: .34rem;
   gap: .3rem;
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: auto;
   border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
   border-radius: .82rem;
   background: color-mix(in srgb, var(--paper) 91%, transparent);
   box-shadow: 0 3px 10px color-mix(in srgb, var(--ink) 5%, transparent);
   backdrop-filter: blur(12px);
+  scrollbar-width: thin;
 }
+
 #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open > * {
   flex: 0 0 auto;
 }
 
-#app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
-  max-inline-size: min(620px, calc(100dvw - max(.9rem, env(safe-area-inset-left)) - max(.9rem, env(safe-area-inset-right))));
-  max-block-size: calc(100dvh - max(.8rem, env(safe-area-inset-top)) - max(4.8rem, calc(env(safe-area-inset-bottom) + 4.4rem)));
-  overflow-x: auto;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+@supports (right: anchor(right)) and (bottom: anchor(top)) {
+  #app-shell:not(:has(#presentation-stage:fullscreen))
+    .app-view-controls.timeline-view-toolbar[popover]:popover-open {
+    top: auto;
+    right: anchor(right);
+    bottom: calc(anchor(top) + .5rem);
+    left: auto;
+    position-try-fallbacks:
+      flip-block,
+      flip-inline,
+      flip-block flip-inline;
+  }
 }
 
 @media (max-width: 699px) {
-  #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    width: min(430px, calc(100dvw - .7rem));
-    max-width: none;
-    padding: .32rem;
-    gap: .22rem;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
-  }
-
-  #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open::-webkit-scrollbar {
-    display: none;
-  }
-
-  #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open > * {
-    width: auto;
-    min-width: 0;
-    flex: 0 0 auto;
-  }
 
   #app-shell .timeline-orientation-control,
   #app-shell .presentation-controls {
@@ -4008,9 +3955,10 @@
   }
 }
 
-/* When the View popover is open in fullscreen, keep its control cluster in the upper-right safe area. */
+/* Fullscreen has no usable external View invoker, so it intentionally leaves anchor positioning. */
 #presentation-stage:fullscreen .timeline-view-toolbar:popover-open {
-  position: absolute;
+  position: fixed;
+  position-anchor: --timeline-view-fullscreen-unanchored;
   top: max(.4rem, env(safe-area-inset-top));
   right: max(.4rem, env(safe-area-inset-right));
   bottom: auto;
@@ -4018,8 +3966,10 @@
   display: flex;
   width: max-content;
   max-width: calc(100% - max(.8rem, env(safe-area-inset-left)) - max(.8rem, env(safe-area-inset-right)));
+  max-height: calc(100dvh - max(.8rem, env(safe-area-inset-top)) - max(.8rem, env(safe-area-inset-bottom)));
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
+  position-try-fallbacks: none;
 }
 
 
@@ -4145,17 +4095,6 @@
   }
 }
 
-
-/* Expanded View controls are positioned from the View trigger by app.js.
-   CSS owns shape; measured JS coordinates own placement so viewport-edge rules cannot drift. */
-#app-shell:not(:has(#presentation-stage:fullscreen))
-  .app-view-controls.timeline-view-toolbar[popover]:popover-open {
-  top: var(--view-controls-top, max(.5rem, env(safe-area-inset-top)));
-  right: auto;
-  bottom: auto;
-  left: var(--view-controls-left, max(.5rem, env(safe-area-inset-left)));
-  margin: 0;
-}
 
 /* Toolbar deployment follows the timeline control geometry.
    Portrait must remain vertical because its semantic zoom slider is a true vertical control. */
