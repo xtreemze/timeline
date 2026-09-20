@@ -99,3 +99,22 @@ test("Browse and Edit are vertical sidebars without horizontal scrolling", async
   assert.match(architecture, /vertical right-side workspace columns at every viewport size/);
   assert.match(architecture, /Horizontal overflow is a layout defect/);
 });
+
+
+test("desktop persistent Relations graph fills its allocated canvas without chrome gutters", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  const start = css.indexOf("/* Persistent relation-graph docking:");
+  const end = css.indexOf("/* Mobile persistent relation composition:", start);
+  assert.ok(start >= 0 && end > start);
+  const desktopDocking = css.slice(start, end);
+
+  assert.doesNotMatch(desktopDocking, /--relations-(?:gap|top-safe|left-safe)/);
+  assert.match(
+    desktopDocking,
+    /#presentation-stage:has\(> #timeline-view\[data-orientation="portrait"\]\)[\s\S]*?> \.graph-lens:not\(\[hidden\]\) \{[\s\S]*?top:\s*0;[\s\S]*?right:\s*calc\(var\(--relations-inline-rail\) \+ var\(--relations-right-safe\)\);[\s\S]*?bottom:\s*0;[\s\S]*?left:\s*0;/
+  );
+  assert.match(
+    desktopDocking,
+    /#presentation-stage:has\(> #timeline-view\[data-orientation="landscape"\]\)[\s\S]*?> \.graph-lens:not\(\[hidden\]\) \{[\s\S]*?top:\s*0;[\s\S]*?right:\s*0;[\s\S]*?bottom:\s*calc\(var\(--relations-bottom-safe\) \+ var\(--relations-block-rail\)\);[\s\S]*?left:\s*0;/
+  );
+});
