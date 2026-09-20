@@ -275,14 +275,17 @@
       : null;
     if (interval && !openEnd && !normalizedEnd) return null;
 
-    const bounds = extentBounds({
-      type: interval ? "interval" : "instant",
-      start: normalizedStart,
-      end: normalizedEnd,
-      ...(openStart ? { openStart: true } : {}),
-      ...(openEnd ? { openEnd: true } : {})
-    });
-    if (bounds.locatable && bounds.start > bounds.end) return null;
+    if (
+      interval &&
+      normalizedStart &&
+      normalizedEnd &&
+      normalizedStart.certainty === "exact" &&
+      normalizedEnd.certainty === "exact"
+    ) {
+      const startKey = sortKey(normalizedStart);
+      const endKey = sortKey(normalizedEnd);
+      if (Number.isFinite(startKey) && Number.isFinite(endKey) && startKey > endKey) return null;
+    }
 
     return {
       type: interval ? "interval" : "instant",
