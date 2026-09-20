@@ -2309,7 +2309,6 @@ body {
 .app-tool:focus-visible,
 #app-shell[data-editor-open="true"] #editor-toggle,
 #app-shell[data-browser-open="true"] #timeline-browser-toggle,
-#app-shell[data-graph-open="true"] #graph-lens-toggle,
 #app-shell[data-view-controls-open="true"] #timeline-view-controls-toggle {
   background: var(--paper-2);
   color: var(--ink);
@@ -2636,8 +2635,7 @@ body {
 }
 #app-shell:is(
   [data-editor-open="true"],
-  [data-browser-open="true"],
-  [data-graph-open="true"]
+  [data-browser-open="true"]
 ) .timeline-panel > .story-focus {
   opacity: 0;
   pointer-events: none;
