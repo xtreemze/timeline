@@ -86,13 +86,13 @@ This is deliberately a reference model rather than a copy model: stories do not 
 
 Timeline includes an authorable subject–action–object graph alongside the chronology:
 
-- **Nodes** represent nouns/subjects such as people, organizations, groups, devices, places, accounts, documents, or arbitrary domain entities.
+- **Nodes** represent durable nouns/subjects such as people, organizations, groups, devices, places, accounts, documents, or domain objects. Actions, events, meetings, transactions, decisions and processes are never graph nodes.
 - Nodes carry a type plus arbitrary JSON properties.
-- **Edges** connect a subject/source node to an object/target and use an action/relation label such as `called`, `owns`, `met`, `transferredTo`, or `authorized`.
-- Edges can carry a role, arbitrary JSON properties, and an optional instant/date range describing when the relationship held.
-- Edge endpoints may also reference chronology items and stories, allowing graph entities to associate directly with temporal records.
-- The graph lens is synchronized to the visible timeline window: timed edges inside the window are emphasized, out-of-window edges fade, and timeless structural edges remain visible.
-- Clicking a chronology-item node in the graph focuses that event on the timeline.
+- **Edges** connect an entity subject/source node to an entity object/target and use a specific action verb or verb phrase such as `called`, `warned`, `built`, `transferredTo`, or `authorized`.
+- Generic associations such as `participatesIn`, `partOf`, `memberOf`, `relatedTo`, `associatedWith`, or `connectedTo` are invalid canonical predicates.
+- Edges can carry a role, arbitrary JSON properties, an optional instant/date range, and `itemIds[]` linking the action to chronology records without turning those events into nodes.
+- Stories remain narrative groupings through `story.itemIds[]`; they are not graph nodes or edge endpoints.
+- The graph lens is synchronized to the visible timeline window: timed edges inside the window are emphasized, out-of-window edges fade, and explicitly timeless action relations remain visible.
 
 The canonical graph remains `entities[] + relationships[]`. `TimelineGraph.toOrbGraph()` emits the node/edge contract expected by Orb-like visualization layers without making a force-layout view the source of truth.
 
@@ -100,7 +100,7 @@ The graph lens is rendered with bundled `@memgraph/orb`. Focused presentation sc
 
 Force simulation uses Orb's worker-backed CPU engine for ordinary and focused graphs, with continuous physics, centering forces and node mass for weighted drag/release behavior. Node drag start explicitly reheats the force engine; release reheats it again and holds a nonzero alpha target for 2.4 seconds before normal cooling resumes, so moved nodes have time to push their neighborhood into a new equilibrium. Link distance, many-body repulsion and collision radii are deliberately larger than Orb defaults to prevent dense node bunching. Very large WebGL2 graphs may switch to Orb's GPU force engine. Orb 1.0.2 documents that GPU force requires the main thread because its WebGL context cannot run in Orb's worker, so Timeline labels that mode explicitly rather than calling it worker-backed. Timeline-window-only edge updates do not restart physics; topology changes do.
 
-Focused events also render a one-hop graph neighborhood containing the event, connected entities/records, canonical relations, and derived links showing which relation the event activates, deactivates, or updates.
+Focused events render a one-hop entity neighborhood seeded by relationships whose `itemIds[]` reference that chronology record. The event remains temporal context outside the graph topology; relation changes still select the affected canonical action edges.
 
 ### Evidence and claims
 
@@ -184,7 +184,7 @@ The exported interchange schema is `schemas/interchange-v1.schema.json`. See `do
 
 ### Temporal graph values
 
-Timeline preserves reusable `entities[]` and `relationships[]` alongside chronology items. Relationships use `subjectId`, `objectId`, an action `predicate`, optional `role`, arbitrary properties, an initial active/inactive state, and an optional temporal extent.
+Timeline preserves reusable `entities[]` and `relationships[]` alongside chronology items. Relationship endpoints must resolve to entity nodes. Relationships use `subjectId`, `objectId`, a specific action `predicate`, optional `role`, optional `itemIds[]` chronology context, arbitrary properties, an initial active/inactive state, and an optional temporal extent.
 
 Events can change an existing relationship without rewriting its history. `item.relationChanges[]` records `activate`, `deactivate`, or `update` operations whose effective time is the event timestamp. An update can change the effective edge label, role, or properties from that event onward. The graph reconstructs effective relation state for the visible timeline window and marks an edge as changed when its lifecycle changes inside that window.
 
