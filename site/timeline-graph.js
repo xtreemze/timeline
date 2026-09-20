@@ -641,7 +641,7 @@
           : {};
       const duplicateKeys = Object.keys(attributes).filter(contextPropertyKey);
       if (duplicateKeys.length) {
-        errors.push(`${label}: generic edge attributes duplicate canonical spatiotemporal context (${duplicateKeys.join(", ")}). Use edge.time and edge.placeId.`);
+        errors.push(`${label}: generic edge attributes duplicates canonical spatiotemporal context (${duplicateKeys.join(", ")}). Use edge.time and edge.placeId.`);
       }
   
       for (const itemId of Array.isArray(raw.itemIds) ? raw.itemIds : []) {
