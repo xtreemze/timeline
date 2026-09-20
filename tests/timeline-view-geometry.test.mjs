@@ -67,3 +67,19 @@ test("long visible ranges trace from the midpoint of their visible portion", () 
     500
   );
 });
+
+test("Browse and Edit reserve workspace layout space around the persistent graph", async () => {
+  const [css, architecture] = await Promise.all([
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../docs/TIMELINE-V3-ARCHITECTURE.md", import.meta.url), "utf8")
+  ]);
+
+  assert.match(css, /#app-shell\\[data-editor-open="true"\\]\\s*\\{[\\s\\S]*grid-template-rows:\\s*clamp\\(180px, 42dvh, 420px\\)/);
+  assert.match(css, /#app-shell\\[data-editor-open="true"\\]\\s*>\\s*\\.app-editor-sheet\\s*\\{[\\s\\S]*position:\\s*relative/);
+  assert.match(css, /#app-shell\\[data-browser-open="true"\\]\\s*>\\s*\\.timeline-panel\\s*\\{[\\s\\S]*grid-template-rows:\\s*clamp\\(180px, 42dvh, 420px\\)/);
+  assert.match(css, /#app-shell\\[data-browser-open="true"\\]\\s*>\\s*\\.timeline-panel\\s*>\\s*\\.app-browser-sheet\\s*\\{[\\s\\S]*position:\\s*relative/);
+  assert.match(css, /@media \\(min-width:\\s*760px\\)[\\s\\S]*grid-template-columns:\\s*minmax\\(0, 1fr\\) clamp\\(320px, 34vw, 440px\\)/);
+  assert.match(css, /#app-shell\\[data-browser-open="true"\\] #presentation-stage:not\\(:fullscreen\\)\\s*\\{[\\s\\S]*position:\\s*relative/);
+  assert.match(architecture, /Browse and Edit participate in workspace layout geometry/);
+  assert.match(architecture, /reflow the workspace rather than layering over it/);
+});
