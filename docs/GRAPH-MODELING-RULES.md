@@ -115,6 +115,12 @@ Timeline stores action predicates as readable lower-camel verbs because they are
 
 The adapter spelling is not canonical meaning; IDs, direction, predicate semantics, and properties are.
 
+## Memgraph interchange boundary
+
+The Memgraph adapter may persist non-topology Timeline records under dedicated labels such as `:TimelinePlace`, `:TimelineItem`, or `:TimelineStory` so Memgraph MCP can round-trip the complete application state. These labelled records are interchange/storage envelopes only. They do not become canonical Timeline entity nodes and must not be interpreted as permission to introduce place/event/story nodes into `entities[]`.
+
+Only `:TimelineEntity` records participate in the exported canonical action topology. Directed Memgraph relationship types are derived from Timeline action predicates while the original predicate and complete canonical relationship remain preserved as properties. See [WEBMCP-MEMGRAPH.md](WEBMCP-MEMGRAPH.md).
+
 ## Validation layers
 
 `TimelineGraph.validateGraphInput()` rejects:
