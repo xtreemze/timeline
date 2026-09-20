@@ -499,6 +499,7 @@ test("graph semantics reject action nodes and generic association predicates", (
     "direct projection must not reintroduce action nodes"
   );
   assert.equal(graph.validateEntityNode({ name: "Alice", type: "person" }).valid, true);
+  assert.equal(graph.validateEntityNode({ name: "Called Alice", type: "person" }).valid, false);
   assert.equal(graph.validateEntityNode({ name: "Stockholm", type: "place" }).valid, false);
   assert.equal(graph.validateEntityNode({ name: "Alice", type: "person", attributes: { location: "Stockholm" } }).valid, false);
 
@@ -519,6 +520,25 @@ test("graph semantics reject action nodes and generic association predicates", (
     ]
   });
   assert.deepEqual(normalized.relationships, []);
+
+  const invalidContext = graph.validateGraphInput({
+    entities: [
+      { id: "a", type: "person", name: "A" },
+      { id: "b", type: "person", name: "B" }
+    ],
+    places: [{ id: "p", name: "Place", geometry: { type: "Point", coordinates: [1, 1] } }],
+    relationships: [{
+      id: "r",
+      subjectId: "a",
+      objectId: "b",
+      predicate: "called",
+      placeId: "p",
+      attributes: { location: "duplicate", time: "duplicate" }
+    }]
+  });
+  assert.ok(invalidContext.some((error) => /duplicates canonical spatiotemporal context/.test(error)));
+  assert.equal(graph.contextPropertyKey("geometry"), true);
+  assert.equal(graph.contextPropertyKey("channel"), false);
 });
 
 test("legacy place nodes and item locations migrate into reusable edge place context", () => {
