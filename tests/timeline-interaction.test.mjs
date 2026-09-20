@@ -46,15 +46,21 @@ test("events less than 50 ms apart separate after zoom without temporal drift", 
   assert.ok(Math.abs(detailAnchorRatio - overviewAnchorRatio) < 1e-12);
 });
 
-test("timeline exposes distinct fit-visible and fit-all commands", async () => {
+test("timeline exposes semantic zoom while retaining keyboard fit commands", async () => {
   const [viewSource, htmlSource, appSource] = await Promise.all([
     readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8")
   ]);
 
-  assert.match(htmlSource, /id="timeline-fit"[^>]*>Fit visible<\/button>/);
-  assert.match(htmlSource, /id="timeline-fit-all"[^>]*>Fit all<\/button>/);
+  assert.match(htmlSource, /id="timeline-zoom-level"[^>]*type="range"[^>]*min="0"[^>]*max="100"/);
+  assert.match(htmlSource, /Context[\s\S]*Focus[\s\S]*Solo/);
+  assert.match(htmlSource, /id="timeline-orientation-toggle"[^>]*data-semantic-icon="portrait"/);
+  assert.match(htmlSource, /id="presentation-fullscreen-toggle"[^>]*data-semantic-icon="fullscreen"/);
+  assert.match(viewSource, /setSemanticZoom\(value\)/);
+  assert.match(viewSource, /semanticContextItems\(item\)/);
+  assert.match(viewSource, /while \(selected\.length < 2/);
+  assert.match(viewSource, /this\.soloZoomActive = normalized >= 99/);
   assert.match(viewSource, /fitVisible\(\)/);
   assert.match(viewSource, /fitAll\(\)/);
   assert.match(viewSource, /event\.shiftKey\) this\.fitAll\(\)/);
@@ -754,12 +760,16 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   ]);
 
   assert.match(styles, /Mobile-first responsive application shell/);
-  assert.match(styles, /@media \(max-width:\s*699px\)[\s\S]*\.app-tool-dock[\s\S]*left:\s*max\(\.4rem[\s\S]*right:\s*max\(\.4rem/);
+  assert.match(styles, /@media \(max-width:\s*699px\)[\s\S]*\.app-tool-dock[\s\S]*left:\s*max\(\.4rem[\s\S]*right:\s*max\(4\.2rem/);
+  assert.match(styles, /\.app-view-tool[\s\S]*position:\s*fixed[\s\S]*right:\s*max\(\.45rem[\s\S]*bottom:\s*max\(\.45rem/);
   assert.match(styles, /\.app-editor-sheet,[\s\S]*\.app-browser-sheet[\s\S]*max-height:\s*min\(58dvh/);
   assert.match(styles, /#app-shell #presentation-stage > \.graph-lens:not\(\[hidden\]\)[\s\S]*top:[\s\S]*bottom:[\s\S]*background:/);
 
   assert.match(timelineCss, /Narrow-screen control composition/);
-  assert.match(timelineCss, /\.timeline-zoom-controls[\s\S]*grid-template-columns:\s*44px minmax\(0, 1fr\) minmax\(0, 1fr\) 44px/);
+  assert.match(timelineCss, /Consolidated view control cluster/);
+  assert.match(timelineCss, /\.timeline-zoom-control[\s\S]*grid-template-rows:\s*22px auto/);
+  assert.match(timelineCss, /\.timeline-zoom-scale[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar:not\(\[hidden\]\)[\s\S]*bottom:\s*max\(4\.35rem/);
   assert.match(timelineCss, /\.timeline-auto-controls[\s\S]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto/);
   assert.match(timelineCss, /Mobile Relations composition/);
   assert.match(timelineCss, /--mobile-relations-rail:\s*clamp\(88px, 25dvw, 116px\)/);

@@ -3648,3 +3648,190 @@
     scroll-behavior: auto;
   }
 }
+
+
+/* Consolidated view control cluster: compact semantic controls live beside the bottom-right View affordance. */
+.view-icon-button {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: .62rem;
+  background: var(--paper-2);
+  color: var(--ink);
+  cursor: pointer;
+}
+.view-icon-button:hover,
+.view-icon-button:focus-visible {
+  border-color: var(--line-strong);
+  background: color-mix(in srgb, var(--paper-2) 78%, var(--panel));
+  outline: none;
+}
+.view-icon-button:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 36%, transparent);
+}
+.view-icon-button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+.view-icon-button .semantic-icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.9;
+}
+
+#app-shell .timeline-orientation-control,
+#app-shell .presentation-controls {
+  display: flex;
+  align-items: center;
+  width: auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+#app-shell .timeline-zoom-controls {
+  display: flex;
+  align-items: center;
+  width: clamp(180px, 24vw, 250px);
+  min-width: 180px;
+  padding: .28rem .42rem .2rem;
+  border: 1px solid var(--line);
+  border-radius: .68rem;
+  background: var(--paper-2);
+}
+
+.timeline-zoom-control {
+  display: grid;
+  grid-template-rows: 22px auto;
+  gap: .04rem;
+  width: 100%;
+  min-width: 0;
+}
+.timeline-zoom-control input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--ink);
+  cursor: ew-resize;
+  touch-action: pan-y;
+}
+.timeline-zoom-control input[type="range"]:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.timeline-zoom-scale {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .25rem;
+  color: var(--muted);
+  font: 720 .54rem/1.1 "Monaspace Krypton Timeline", ui-monospace, monospace;
+  letter-spacing: .02em;
+}
+.timeline-zoom-scale span:nth-child(2) { text-align: center; }
+.timeline-zoom-scale span:last-child { text-align: right; }
+
+#app-shell .app-view-controls.timeline-view-toolbar:not([hidden]) {
+  top: auto;
+  right: max(.45rem, env(safe-area-inset-right));
+  bottom: max(4.35rem, calc(env(safe-area-inset-bottom) + 4rem));
+  left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: max-content;
+  max-width: min(620px, calc(100dvw - .9rem));
+  padding: .34rem;
+  gap: .3rem;
+  overflow: visible;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  border-radius: .82rem;
+  background: color-mix(in srgb, var(--paper) 91%, transparent);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--ink) 5%, transparent);
+  backdrop-filter: blur(12px);
+}
+#app-shell .app-view-controls.timeline-view-toolbar:not([hidden]) > * {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 699px) {
+  #app-shell .app-view-controls.timeline-view-toolbar:not([hidden]) {
+    top: auto;
+    right: max(.35rem, env(safe-area-inset-right));
+    bottom: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
+    left: auto;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    align-items: center;
+    width: min(410px, calc(100dvw - .7rem));
+    max-width: none;
+    padding: .34rem;
+    gap: .3rem;
+    overflow: visible;
+  }
+
+  #app-shell .app-view-controls.timeline-view-toolbar:not([hidden]) > * {
+    width: auto;
+    min-width: 0;
+  }
+
+  #app-shell .timeline-orientation-control {
+    display: flex;
+    grid-template-columns: none;
+    width: 42px;
+  }
+
+  #app-shell .timeline-zoom-controls {
+    display: flex;
+    grid-template-columns: none;
+    width: 100%;
+    min-width: 0;
+  }
+
+  #app-shell .presentation-controls {
+    width: 42px;
+  }
+
+  #app-shell .timeline-auto-controls {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  #app-shell .presentation-controls .view-icon-button,
+  #app-shell .timeline-orientation-control .view-icon-button {
+    width: 42px;
+    min-width: 42px;
+    min-height: 42px;
+  }
+}
+
+@media (max-width: 380px) {
+  #app-shell .timeline-zoom-controls {
+    display: flex;
+    grid-template-columns: none;
+  }
+  .timeline-zoom-scale {
+    font-size: .5rem;
+  }
+}
+
+/* Fullscreen has no separate View button, so keep its always-visible control cluster in the upper-right safe area. */
+#presentation-stage:fullscreen .timeline-view-toolbar {
+  position: absolute;
+  top: max(.4rem, env(safe-area-inset-top));
+  right: max(.4rem, env(safe-area-inset-right));
+  bottom: auto;
+  left: auto;
+  display: flex;
+  width: max-content;
+  max-width: calc(100% - max(.8rem, env(safe-area-inset-left)) - max(.8rem, env(safe-area-inset-right)));
+  overflow-x: auto;
+  overflow-y: hidden;
+}

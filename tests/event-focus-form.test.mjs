@@ -746,7 +746,8 @@ test("focused popover stays opposite chronology and reserves persistent applicat
   assert.match(source, /FOCUS_POPOVER_MARGIN = 12/);
   assert.match(source, /focusChromeInsets\(\)/);
   assert.match(source, /reserveTopChrome\(document\.querySelector\("\.app-command-bar"\)\)/);
-  assert.match(source, /reserveTopChrome\(document\.querySelector\("\.timeline-view-toolbar:not\(\[hidden\]\)"\)\)/);
+  assert.match(source, /reserveBottomChrome\(document\.querySelector\("\.timeline-view-toolbar:not\(\[hidden\]\)"\)\)/);
+  assert.match(source, /reserveBottomChrome\(document\.querySelector\("\.app-view-tool"\)\)/);
   assert.match(source, /document\.querySelector\("\.app-tool-dock"\)/);
   assert.match(source, /contextualTimelineDocked[\s\S]*viewportWidth - timelineRect\.left/);
   assert.match(source, /contextualTimelineDocked[\s\S]*viewportHeight - timelineRect\.top/);

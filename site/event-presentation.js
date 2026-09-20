@@ -34,7 +34,11 @@
     magic: ["m12 2 1.2 3.2L16.5 6.5l-3.3 1.3L12 11l-1.2-3.2-3.3-1.3 3.3-1.3z", "m18 13 .8 2.2L21 16l-2.2.8L18 19l-.8-2.2L15 16l2.2-.8z", "M5 15v6", "M2 18h6"],
     search: ["M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4z", "m16 16 5 5"],
     crown: ["m3 7 4 4 5-7 5 7 4-4-2 11H5z", "M6 21h12"],
-    object: ["M12 3 20 7 12 11 4 7z", "M4 7v10l8 4 8-4V7", "M12 11v10"]
+    object: ["M12 3 20 7 12 11 4 7z", "M4 7v10l8 4 8-4V7", "M12 11v10"],
+    landscape: ["M3 5h18v14H3z", "M8 16h8"],
+    portrait: ["M6 2h12v20H6z", "M10 18h4"],
+    fullscreen: ["M8 3H3v5", "M16 3h5v5", "M8 21H3v-5", "M16 21h5v-5"],
+    minimize: ["M3 8h5V3", "M21 8h-5V3", "M3 16h5v5", "M21 16h-5v5"]
   });
 
   function clone(value) {
@@ -94,7 +98,7 @@
   }
 
   function createIcon(name, options = {}) {
-    const iconName = ICON_NAMES.includes(name) ? name : "note";
+    const iconName = Object.prototype.hasOwnProperty.call(ICON_PATHS, name) ? name : "note";
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", "0 0 24 24");
     svg.setAttribute("width", String(options.size || 16));

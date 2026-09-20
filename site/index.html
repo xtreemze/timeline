@@ -96,10 +96,10 @@
         <button id="graph-lens-toggle" class="app-tool" type="button" data-semantic-icon="relation" aria-controls="graph-lens" aria-expanded="false">
           <span class="app-tool-label">Relations</span>
         </button>
-        <button id="timeline-view-controls-toggle" class="app-tool" type="button" data-semantic-icon="magic" aria-controls="timeline-view-toolbar" aria-expanded="false">
-          <span class="app-tool-label">View</span>
-        </button>
       </nav>
+      <button id="timeline-view-controls-toggle" class="app-tool app-view-tool" type="button" data-semantic-icon="magic" aria-controls="timeline-view-toolbar" aria-expanded="false" title="View controls">
+        <span class="app-tool-label">View</span>
+      </button>
       <aside id="control-panel" class="control-panel app-editor-sheet" aria-label="Timeline editors" aria-hidden="true" hidden>
         <header class="app-surface-header">
           <div>
@@ -1084,14 +1084,21 @@
           <section id="timeline-view" class="timeline-view" aria-label="Interactive timeline" hidden>
           <div id="timeline-view-toolbar" class="timeline-view-toolbar app-view-controls" hidden>
             <div class="timeline-orientation-control" role="group" aria-label="Timeline orientation">
-              <button id="timeline-orientation-landscape" class="button secondary" type="button" aria-pressed="true">Landscape</button>
-              <button id="timeline-orientation-portrait" class="button secondary" type="button" aria-pressed="false">Portrait</button>
+              <button id="timeline-orientation-toggle" class="view-icon-button" type="button" data-semantic-icon="portrait" aria-label="Switch to portrait timeline" title="Switch to portrait timeline">
+                <span class="sr-only">Switch to portrait timeline</span>
+              </button>
             </div>
             <div class="timeline-zoom-controls" aria-label="Timeline zoom">
-              <button id="timeline-zoom-out" class="button secondary" type="button" aria-label="Zoom out">−</button>
-              <button id="timeline-fit" class="button secondary" type="button" aria-keyshortcuts="Home">Fit visible</button>
-              <button id="timeline-fit-all" class="button secondary" type="button" aria-keyshortcuts="Shift+Home">Fit all</button>
-              <button id="timeline-zoom-in" class="button secondary" type="button" aria-label="Zoom in">+</button>
+              <label class="timeline-zoom-control" for="timeline-zoom-level">
+                <span class="sr-only">Timeline zoom level</span>
+                <input id="timeline-zoom-level" type="range" min="0" max="100" step="1" value="0" aria-describedby="timeline-zoom-level-hint" aria-valuetext="Whole context">
+                <span class="timeline-zoom-scale" aria-hidden="true">
+                  <span>Context</span>
+                  <span>Focus</span>
+                  <span>Solo</span>
+                </span>
+              </label>
+              <span id="timeline-zoom-level-hint" class="sr-only">Farthest shows the whole timeline context. The middle centers the focused event with two neighboring events. Closest isolates the focused event.</span>
             </div>
             <div class="timeline-auto-controls" data-auto-control role="group" aria-label="Automatic advance">
               <button id="timeline-auto-toggle" class="button secondary" type="button" aria-pressed="false">Auto</button>
@@ -1103,11 +1110,13 @@
               <span id="timeline-auto-status" class="timeline-auto-status" aria-live="polite">Off</span>
             </div>
             <div class="presentation-controls" role="group" aria-label="Presentation display">
-              <button id="presentation-fullscreen-toggle" class="button secondary" type="button" aria-pressed="false" aria-keyshortcuts="F">Present full screen</button>
+              <button id="presentation-fullscreen-toggle" class="view-icon-button" type="button" data-semantic-icon="fullscreen" aria-pressed="false" aria-keyshortcuts="F" aria-label="Enter full screen" title="Enter full screen">
+                <span class="sr-only">Enter full screen</span>
+              </button>
             </div>
             <span id="timeline-window-readout" class="timeline-window-readout" aria-live="polite">No visible events</span>
           </div>
-          <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan with inertia. Scroll or pinch over the timeline for slow pointer-anchored zoom. Home fits the currently visible or filtered chronology; Shift+Home fits the full chronology. Selecting an event enters a full focused composition. In focused presentation mode, Left and Right move between events, Up and Down move between photographs, Space or media Play/Pause toggles automatic advance, and Escape or Browser Back returns. Standard gamepads and TV remote D-pads use the same commands. Any manual interaction pauses automatic advance. Press F while the presentation stage has focus to enter or leave full screen; the timeline always remains visible, while relation graph and place map surfaces appear only when the focused event provides that context.</p>
+          <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan with inertia. Scroll or pinch over the timeline for slow pointer-anchored zoom. The View zoom slider runs from whole chronology context, through the focused event with two neighboring events, to a solo focused-event view. Home fits the currently visible or filtered chronology; Shift+Home fits the full chronology. Selecting an event enters a full focused composition. In focused presentation mode, Left and Right move between events, Up and Down move between photographs, Space or media Play/Pause toggles automatic advance, and Escape or Browser Back returns. Standard gamepads and TV remote D-pads use the same commands. Any manual interaction pauses automatic advance. Press F while the presentation stage has focus to enter or leave full screen; the timeline always remains visible, while relation graph and place map surfaces appear only when the focused event provides that context.</p>
           <div id="timeline-surface" class="timeline-surface is-landscape" tabindex="0" role="group" aria-describedby="timeline-surface-help"></div>
           <section id="timeline-focus-view" class="timeline-focus-view" popover="manual" aria-live="polite" hidden></section>
         </section>

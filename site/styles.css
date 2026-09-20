@@ -2286,6 +2286,19 @@ body {
   height: 22px;
   stroke-width: 1.9;
 }
+
+.app-view-tool {
+  view-transition-name: timeline-view-button;
+  position: fixed;
+  z-index: 1210;
+  right: max(.45rem, env(safe-area-inset-right));
+  bottom: max(.45rem, env(safe-area-inset-bottom));
+  min-width: 62px;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 6%, transparent);
+  backdrop-filter: blur(14px);
+}
 .app-tool:disabled {
   opacity: .35;
   cursor: not-allowed;
@@ -2858,7 +2871,7 @@ body {
 
   .app-tool-dock {
     left: max(.4rem, env(safe-area-inset-left));
-    right: max(.4rem, env(safe-area-inset-right));
+    right: max(4.2rem, calc(env(safe-area-inset-right) + 3.9rem));
     bottom: max(.38rem, env(safe-area-inset-bottom));
     width: auto;
     max-width: none;
@@ -2877,6 +2890,14 @@ body {
     gap: .12rem;
     border-radius: .58rem;
     font-size: .64rem;
+  }
+
+  .app-view-tool {
+    right: max(.4rem, env(safe-area-inset-right));
+    bottom: max(.38rem, env(safe-area-inset-bottom));
+    width: 58px;
+    min-width: 58px;
+    flex: none;
   }
 
   .app-tool .semantic-icon {
