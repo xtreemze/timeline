@@ -571,6 +571,11 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(timelineCss, /Narrow-screen control composition/);
   assert.match(timelineCss, /\.timeline-zoom-controls[\s\S]*grid-template-columns:\s*44px minmax\(0, 1fr\) minmax\(0, 1fr\) 44px/);
   assert.match(timelineCss, /\.timeline-auto-controls[\s\S]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto/);
+  assert.match(timelineCss, /Mobile Relations composition/);
+  assert.match(timelineCss, /--mobile-relations-rail:\s*clamp\(88px, 25dvw, 116px\)/);
+  assert.match(timelineCss, /:has\(> #timeline-view\[data-orientation="portrait"\]\)[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*right:\s*calc\(var\(--mobile-relations-rail\)/);
+  assert.match(timelineCss, /#timeline-view\[data-orientation="portrait"\] > \.timeline-surface[\s\S]*width:\s*var\(--mobile-relations-rail\)/);
+  assert.match(timelineCss, /#timeline-view\[data-orientation="landscape"\] > \.timeline-surface[\s\S]*height:\s*var\(--mobile-relations-rail\)/);
   assert.match(viewSource, /terminalExtent = compact \? Math\.min\(width \* 0\.58, 190\) : 232/);
   assert.match(viewSource, /afterAvailable = width - edgeInset - terminalExtent \+ terminalAnchor - axisCross/);
   assert.match(viewSource, /clusterTerminalExtent = compact \? Math\.min\(width \* 0\.68, 220\) : 232/);
