@@ -922,5 +922,6 @@ test("relations mode docks chronology opposite the graph inside chrome-safe boun
   assert.match(timelineCss, /@media \(min-width:\s*900px\)[\s\S]*--relations-left-safe:\s*max\(5\.45rem,[\s\S]*safe-area-inset-left[\s\S]*--relations-bottom-safe:\s*max\(\.55rem/);
   assert.match(timelineCss, /Mobile Relations composition[\s\S]*data-orientation="portrait"[\s\S]*--timeline-axis-cross:\s*42%/);
   assert.match(timelineCss, /Mobile Relations composition[\s\S]*data-orientation="landscape"[\s\S]*--timeline-axis-cross:\s*38%/);
-  assert.match(appSource, /function setGraphSurfaceOpen[\s\S]*runApplicationViewTransition\(\(\) => syncApplicationSurfaces\(\)\)/);
+  assert.doesNotMatch(appSource, /function setGraphSurfaceOpen|ui\.graphOpen|graphLensToggle/);
+  assert.match(appSource, /if \(els\.graphLens\) els\.graphLens\.hidden = false/);
 });
