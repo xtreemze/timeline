@@ -621,6 +621,15 @@ function create(container, handlers = {}) {
     if (activeTouchPointers.size > 1) {
       cameraGesture = null;
       cancelCameraInertia();
+      if (touchHold?.activated) {
+        // An activated node drag owns the gesture until its original pointer
+        // is released. Additional fingers must not turn camera zoom back on.
+        touchTap = null;
+        lastTouchTap = null;
+        setDragEnabled(false);
+        setZoomEnabled(false);
+        return;
+      }
     } else {
       beginCameraGesture(event, target);
     }
@@ -688,7 +697,26 @@ function create(container, handlers = {}) {
     finishCameraGesture(event);
     if (event.pointerType !== "touch") return;
     const tap = touchTap?.pointerId === event.pointerId ? touchTap : null;
+    const ownsActiveNodeDrag = Boolean(
+      touchHold?.activated && touchHold.pointerId === event.pointerId
+    );
     activeTouchPointers.delete(event.pointerId);
+
+    if (ownsActiveNodeDrag) {
+      touchTap = null;
+      lastTouchTap = null;
+      finishActiveTouchNodeDrag();
+      // If another finger remains down, keep normal node dragging disabled but
+      // hand camera ownership back to Orb so that pointer can pan/pinch.
+      finishTouchGesture();
+      if (activeTouchPointers.size) {
+        setDragEnabled(false);
+        setZoomEnabled(true);
+        touchDragBlockedUntilRelease = true;
+      }
+      return;
+    }
+
     if (activeTouchPointers.size) {
       touchTap = null;
       return;
