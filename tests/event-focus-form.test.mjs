@@ -750,8 +750,8 @@ test("focused popover stays opposite chronology and reserves persistent applicat
   assert.match(source, /contextualTimelineDocked[\s\S]*viewportHeight - timelineRect\.top/);
   assert.match(source, /positionFocusPopover\(originRect = null\)/);
   assert.match(source, /void originRect/);
-  assert.match(source, /this\.orientation === "vertical"[\s\S]*left = bounds\.left[\s\S]*top = bounds\.top \+ Math\.max\(0, \(availableHeight - height\) \/ 2\)/);
-  assert.match(source, /else \{[\s\S]*left = bounds\.left \+ Math\.max\(0, \(availableWidth - width\) \/ 2\)[\s\S]*top = bounds\.top/);
+  assert.match(source, /this\.orientation === "vertical"[\s\S]*left = bounds\.left[\s\S]*top = mobileFocusLayout[\s\S]*bounds\.top[\s\S]*bounds\.top \+ Math\.max\(0, \(availableHeight - height\) \/ 2\)/);
+  assert.match(source, /else \{[\s\S]*left = mobileFocusLayout[\s\S]*bounds\.left[\s\S]*bounds\.left \+ Math\.max\(0, \(availableWidth - width\) \/ 2\)[\s\S]*top = bounds\.top/);
   assert.doesNotMatch(source, /const targetRect = originRect/);
   assert.match(source, /transitionOriginRect = transitionOrigin\?\.getBoundingClientRect/);
   assert.match(source, /this\.positionFocusPopover\(options\.originRect/);
