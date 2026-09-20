@@ -487,11 +487,11 @@ Physical screen orientation never rewrites the timeline orientation.
 
 ### Application-shell ownership
 
-Normal application mode keeps presentation geometry independent from utility surfaces. Event focus, compact View controls, Browse, and Edit may overlay the presentation; opening a utility surface must not resize, crop, or reflow the timeline or persistent relation graph.
+Normal application mode distinguishes presentation overlays from workspace utilities. Event focus and compact View controls may overlay the presentation, but Browse and Edit participate in workspace layout geometry so they never cover the timeline or persistent relation graph.
 
-- Browse and Edit are right-edge overlay drawers on larger viewports and expand to a near-full-width overlay on constrained mobile viewports. They remain above the presentation plane rather than receiving layout ownership, so timeline dimensions, graph dimensions, zoom state, and graph camera are not changed merely by opening or closing a drawer.
+- Browse and Edit are vertical right-side workspace columns at every viewport size, including mobile. They never switch into bottom-sheet or floating-sheet geometry. Opening either column reduces the presentation-stage width and lets the existing resize pipeline reflow both timeline and graph geometry.
 - Sidebar content scrolls vertically only. Horizontal overflow is a layout defect: descendants must shrink, wrap, or switch to a narrower internal grid. Editor forms use their six-column grid when space permits and collapse to one-column field rows when the sidebar itself becomes narrow.
-- Closing Browse or Edit removes only the overlay surface and returns pointer access to the unchanged presentation without discarding filter, tab, form, timeline viewport, or graph state.
+- Closing Browse or Edit removes that reserved region and returns the full workspace to the presentation without discarding filter, tab or form state.
 - Browse owns search, category filtering, empty-state explanation and the chronology list. Those are not repeated on the primary canvas.
 - Active Story navigation is a compact contextual mode overlay outside Browse, so story position/previous/next/exit remain available while the timeline is being read.
 - Item, Story, Category and Graph forms reuse the existing data model inside one editor surface with internal tabs; the global tool dock therefore exposes one Edit entry rather than duplicating editor tabs.
@@ -503,7 +503,7 @@ Normal application mode keeps presentation geometry independent from utility sur
 - Timeline orientation, zoom, auto-advance and presentation controls are progressively disclosed in a compact View surface.
 - The semantic zoom slider follows the timeline axis: horizontal in landscape mode and vertically oriented in portrait mode, including matching pointer/touch direction and `aria-orientation`.
 - Project identity is permanently integrated at the start of the timeline rail as a compact icon + title heading. The leading project icon opens the native grouped Project popover adjacent to that heading; the title rotates into the vertical timeline orientation rather than becoming separate viewport chrome. Export and source navigation remain available while viewing; import, load-example, clear-project and project-title mutation are disabled until Edit mode is explicitly entered. Import actions remain explicit buttons wired to hidden file inputs so every visible enabled menu command is keyboard-operable.
-- Edit, Browse, View controls, and focused event detail are mutually coordinated overlay surfaces, but none owns relation-graph visibility or presentation geometry. Browse and Edit layer above the persistent timeline/graph workspace; focused detail may layer above the graph as well.
+- Edit, Browse, View controls, and focused event detail are mutually coordinated utility/overlay surfaces, but none owns relation-graph visibility. Browse and Edit reflow the workspace rather than layering over it; focused detail may still layer above the persistent graph.
 - With no events the timeline still renders its neutral axis; guidance for the empty project lives in Browse rather than replacing the workspace.
 
 Fullscreen targets `#presentation-stage`, not editor/browser/project surfaces. Browser fullscreen therefore naturally excludes application chrome and preserves the timeline-plus-focused-event presentation.
