@@ -848,10 +848,14 @@
       const end = kind === "range" && typeof rawEnd === "string" ? rawEnd.trim() : null;
       const title = typeof raw.title === "string" ? raw.title.trim().slice(0, 160) : "";
       const time = temporal.normalizeExtent(raw.time, start, end, kind);
-      if (!time?.start) throw new Error(`Item ${index + 1} has an invalid ISO 8601 start value: ${start || "(missing)"}.`);
+      if (!time?.start?.value || !Number.isFinite(temporal.sortKey(time.start))) {
+        throw new Error(`Item ${index + 1} requires a known, locatable ISO 8601 start value; open or unbounded-unknown chronology starts cannot be placed on the timeline.`);
+      }
       if (!title) throw new Error(`Item ${index + 1} is missing a title.`);
       if (kind === "range") {
-        if (!time.end) throw new Error(`Range ${index + 1} has an invalid ISO 8601 end value: ${end || "(missing)"}.`);
+        if (!time.end?.value || !Number.isFinite(temporal.sortKey(time.end))) {
+          throw new Error(`Range ${index + 1} requires a known, locatable ISO 8601 end value; open or unbounded-unknown chronology ends are not rendered as finite ranges.`);
+        }
         if (temporal.sortKey(time.end) < temporal.sortKey(time.start)) {
           throw new Error(`Range ${index + 1} ends before it starts.`);
         }
