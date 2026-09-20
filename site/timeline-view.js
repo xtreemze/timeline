@@ -2086,8 +2086,6 @@
 
       const relations = createElement("section", "timeline-focus-section timeline-focus-relations");
       relations.setAttribute("aria-label", "Relations");
-      const relationBackdrop = createElement("div", "timeline-focus-section-backdrop timeline-focus-relations-backdrop");
-      relationBackdrop.dataset.focusGraphSlot = "";
       const relationContent = createElement("div", "timeline-focus-section-content");
       if (item.relations?.length) {
         const list = createElement("ul", "timeline-focus-relation-list");
@@ -2126,7 +2124,7 @@
         }
         relationContent.append(changes);
       }
-      relations.append(relationBackdrop, relationContent);
+      relations.append(relationContent);
 
       const evidence = createElement("section", "timeline-focus-section timeline-focus-evidence");
       evidence.setAttribute("aria-label", "Evidence");
