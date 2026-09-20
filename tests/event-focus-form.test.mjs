@@ -423,6 +423,7 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.doesNotMatch(timelineCss, /timeline-view-toolbar:not\(\[hidden\]\)/);
   assert.match(timelineCss, /timeline-view-toolbar\[popover\]:popover-open/);
   assert.match(styles, /\.timeline-view-toolbar\[popover\][\s\S]*max-inline-size:[\s\S]*max-block-size:[\s\S]*overflow-x:\s*auto/);
+  assert.match(styles, /\.app-view-controls\[popover\]:popover-open[\s\S]*display:\s*flex/);
   assert.match(app, /setActivePanel\("items", \{ open: false \}\)/);
 });
 
