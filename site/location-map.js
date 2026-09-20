@@ -20,6 +20,8 @@
   const PRESENTATION_COUNTRY_ZOOM = 5;
   const PRESENTATION_FLY_DURATION_SECONDS = 7;
   const PRESENTATION_WORLD_DWELL_MS = 450;
+  const MAP_DRAG_MOVE_TOLERANCE_PX = 8;
+  const MAP_CLICK_SUPPRESSION_MS = 350;
   const motion = globalThis.TimelineMotion;
 
   let loadPromise = null;
@@ -65,16 +67,256 @@
     return globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
   }
 
+  function weightedMapDragAvailable() {
+    return Boolean(
+      motion?.appendPointerVectorSamples &&
+      motion?.estimatePointerVectorVelocity &&
+      motion?.responseForElapsed &&
+      motion?.decayVelocity
+    );
+  }
+
   function mapMotionOptions(interactive = true) {
     const reducedMotion = prefersReducedMotion();
+    const weightedDrag = weightedMapDragAvailable();
     return {
-      inertia: Boolean(interactive && !reducedMotion),
+      // Timeline owns one-pointer camera dragging when the shared weighted
+      // motion primitives are available. Keep Leaflet inertia only as a
+      // compatibility fallback.
+      inertia: Boolean(interactive && !reducedMotion && !weightedDrag),
       inertiaDeceleration: motion?.CAMERA_INERTIA_DECELERATION_PX_PER_S2 || 3810,
       inertiaMaxSpeed: motion?.MAX_RELEASE_SPEED_PX_PER_S || 3200,
       easeLinearity: 0.2,
       zoomAnimation: !reducedMotion,
       fadeAnimation: !reducedMotion,
       markerZoomAnimation: !reducedMotion
+    };
+  }
+
+  function installWeightedMapDragging(map, container, interactive = true) {
+    if (!interactive || !map || !container || !weightedMapDragAvailable()) return () => {};
+
+    const pointers = new Map();
+    let drag = null;
+    let inertiaAnimationFrame = 0;
+    let suppressClickUntil = 0;
+
+    const releasePointerCapture = (pointerId) => {
+      if (!Number.isFinite(pointerId)) return;
+      try {
+        if (container.hasPointerCapture?.(pointerId)) container.releasePointerCapture(pointerId);
+      } catch {
+        // Browsers may release capture before cancellation reaches the map.
+      }
+    };
+
+    const cancelInertia = () => {
+      if (inertiaAnimationFrame) cancelAnimationFrame(inertiaAnimationFrame);
+      inertiaAnimationFrame = 0;
+    };
+
+    const targetBlocksCameraDrag = (target) => Boolean(
+      target instanceof Element &&
+      target.closest(".leaflet-control, .leaflet-marker-icon, button, a, input, select, textarea")
+    );
+
+    const beginDrag = (pointerId, point, sourceEvent = null) => {
+      if (!point || pointers.size > 1) return;
+      cancelInertia();
+      const zoom = map.getZoom();
+      const center = map.project(map.getCenter(), zoom);
+      drag = {
+        pointerId,
+        pointerType: sourceEvent?.pointerType || point.pointerType || "",
+        startPoint: { x: point.x, y: point.y },
+        startCenter: { x: center.x, y: center.y },
+        zoom,
+        lastTime: sourceEvent ? (Number(sourceEvent.timeStamp) || performance.now()) : performance.now(),
+        samples: [],
+        moved: false
+      };
+      if (sourceEvent) motion.appendPointerVectorSamples(drag.samples, sourceEvent);
+      try {
+        container.setPointerCapture?.(pointerId);
+      } catch {
+        // Weighted dragging remains usable without capture.
+      }
+    };
+
+    const cancelDrag = () => {
+      const pointerId = drag?.pointerId;
+      drag = null;
+      releasePointerCapture(pointerId);
+    };
+
+    const applyWeightedDrag = (event) => {
+      if (!drag || drag.pointerId !== event.pointerId || pointers.size > 1) return;
+      motion.appendPointerVectorSamples(drag.samples, event);
+      const deltaX = event.clientX - drag.startPoint.x;
+      const deltaY = event.clientY - drag.startPoint.y;
+      if (Math.hypot(deltaX, deltaY) > MAP_DRAG_MOVE_TOLERANCE_PX) drag.moved = true;
+
+      const target = {
+        x: drag.startCenter.x - deltaX,
+        y: drag.startCenter.y - deltaY
+      };
+      const current = map.project(map.getCenter(), drag.zoom);
+      const now = Number(event.timeStamp) || performance.now();
+      const response = motion.responseForElapsed(now - drag.lastTime);
+      drag.lastTime = now;
+      const next = {
+        x: current.x + (target.x - current.x) * response,
+        y: current.y + (target.y - current.y) * response
+      };
+      map.setView(map.unproject([next.x, next.y], drag.zoom), drag.zoom, { animate: false });
+      if (drag.moved) event.preventDefault();
+    };
+
+    const startInertia = (velocity) => {
+      if (
+        !velocity ||
+        prefersReducedMotion() ||
+        velocity.magnitude < (motion.STOP_VELOCITY_PX_PER_MS || 0.012)
+      ) {
+        return;
+      }
+      cancelInertia();
+      // Map center moves opposite to the finger so map content follows it.
+      let velocityX = -velocity.x;
+      let velocityY = -velocity.y;
+      let lastFrame = 0;
+
+      const step = (now) => {
+        inertiaAnimationFrame = 0;
+        const magnitude = Math.hypot(velocityX, velocityY);
+        if (magnitude < (motion.STOP_VELOCITY_PX_PER_MS || 0.012)) return;
+
+        const elapsed = lastFrame ? Math.min(48, Math.max(1, now - lastFrame)) : 16;
+        lastFrame = now;
+        velocityX = motion.decayVelocity(velocityX, elapsed);
+        velocityY = motion.decayVelocity(velocityY, elapsed);
+        map.panBy([velocityX * elapsed, velocityY * elapsed], { animate: false });
+
+        if (Math.hypot(velocityX, velocityY) >= (motion.STOP_VELOCITY_PX_PER_MS || 0.012)) {
+          inertiaAnimationFrame = requestAnimationFrame(step);
+        }
+      };
+
+      inertiaAnimationFrame = requestAnimationFrame(step);
+    };
+
+    const onPointerDown = (event) => {
+      if (event.button !== 0) return;
+      cancelInertia();
+      const blocked = targetBlocksCameraDrag(event.target);
+      pointers.set(event.pointerId, {
+        pointerId: event.pointerId,
+        pointerType: event.pointerType,
+        x: event.clientX,
+        y: event.clientY,
+        blocked
+      });
+
+      if (pointers.size > 1) {
+        cancelDrag();
+        return;
+      }
+      if (!blocked) beginDrag(event.pointerId, pointers.get(event.pointerId), event);
+    };
+
+    const onPointerMove = (event) => {
+      const pointer = pointers.get(event.pointerId);
+      if (pointer) {
+        pointer.x = event.clientX;
+        pointer.y = event.clientY;
+      }
+      if (pointers.size > 1) {
+        cancelDrag();
+        return;
+      }
+      applyWeightedDrag(event);
+    };
+
+    const finishPointer = (event) => {
+      const ownsDrag = Boolean(drag && drag.pointerId === event.pointerId);
+      const finishedDrag = ownsDrag ? drag : null;
+      if (finishedDrag) motion.appendPointerVectorSamples(finishedDrag.samples, event);
+      pointers.delete(event.pointerId);
+
+      if (ownsDrag) {
+        drag = null;
+        releasePointerCapture(event.pointerId);
+        if (event.type !== "pointercancel" && finishedDrag.moved) {
+          const velocity = motion.estimatePointerVectorVelocity(finishedDrag.samples);
+          suppressClickUntil = performance.now() + MAP_CLICK_SUPPRESSION_MS;
+          void motion.pulseHaptic?.("release");
+          requestAnimationFrame(() => startInertia(velocity));
+        }
+      }
+
+      if (
+        event.type !== "pointercancel" &&
+        event.pointerType === "touch" &&
+        pointers.size === 1
+      ) {
+        const remaining = Array.from(pointers.values())[0];
+        if (!remaining.blocked) {
+          requestAnimationFrame(() => {
+            if (pointers.size === 1 && pointers.has(remaining.pointerId) && !drag) {
+              beginDrag(remaining.pointerId, remaining);
+            }
+          });
+        }
+      }
+    };
+
+    const abortInteraction = () => {
+      cancelInertia();
+      const pointerIds = Array.from(pointers.keys());
+      drag = null;
+      pointers.clear();
+      for (const pointerId of pointerIds) releasePointerCapture(pointerId);
+    };
+
+    const onLostPointerCapture = (event) => {
+      if (drag?.pointerId !== event.pointerId) return;
+      drag = null;
+      pointers.delete(event.pointerId);
+    };
+
+    const onClickCapture = (event) => {
+      if (performance.now() >= suppressClickUntil) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") abortInteraction();
+    };
+
+    container.addEventListener("pointerdown", onPointerDown);
+    container.addEventListener("pointermove", onPointerMove, { passive: false });
+    container.addEventListener("pointerup", finishPointer);
+    container.addEventListener("pointercancel", finishPointer);
+    container.addEventListener("lostpointercapture", onLostPointerCapture);
+    container.addEventListener("click", onClickCapture, { capture: true });
+    container.addEventListener("wheel", cancelInertia, { passive: true });
+    globalThis.addEventListener?.("blur", abortInteraction);
+    globalThis.addEventListener?.("orientationchange", abortInteraction);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      abortInteraction();
+      container.removeEventListener("pointerdown", onPointerDown);
+      container.removeEventListener("pointermove", onPointerMove);
+      container.removeEventListener("pointerup", finishPointer);
+      container.removeEventListener("pointercancel", finishPointer);
+      container.removeEventListener("lostpointercapture", onLostPointerCapture);
+      container.removeEventListener("click", onClickCapture, true);
+      container.removeEventListener("wheel", cancelInertia);
+      globalThis.removeEventListener?.("blur", abortInteraction);
+      globalThis.removeEventListener?.("orientationchange", abortInteraction);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }
 
@@ -265,6 +507,7 @@
       this.cameraUserControlled = false;
       this.introInteractionAbort = null;
       this.introTimer = 0;
+      this.weightedDragCleanup = null;
       this.ready = this.render();
     }
 
@@ -305,10 +548,11 @@
         const L = await loadLeaflet();
         if (this.destroyed || !this.container.isConnected) return;
 
+        const weightedDrag = weightedMapDragAvailable();
         this.map = L.map(this.container, {
           zoomControl: this.interactive,
           attributionControl: true,
-          dragging: this.interactive,
+          dragging: this.interactive && !weightedDrag,
           scrollWheelZoom: this.interactive,
           doubleClickZoom: this.interactive,
           boxZoom: this.interactive,
@@ -316,6 +560,11 @@
           touchZoom: this.interactive,
           ...mapMotionOptions(this.interactive)
         });
+        this.weightedDragCleanup = installWeightedMapDragging(
+          this.map,
+          this.container,
+          this.interactive
+        );
 
         if (this.countryContextIntro) {
           this.map.setView(
@@ -561,6 +810,8 @@
       if (this.introTimer) globalThis.clearTimeout(this.introTimer);
       this.introTimer = 0;
       this.clearCountryContextInteractionGuard();
+      this.weightedDragCleanup?.();
+      this.weightedDragCleanup = null;
       this.clearPlacePlaceholder();
       this.container?.classList.remove("is-fictional-map");
       if (this.container) delete this.container.dataset.referenceFrame;
@@ -583,6 +834,7 @@
       this.clearButton = options.clearButton;
       this.map = null;
       this.marker = null;
+      this.weightedDragCleanup = null;
       this.provider = globalThis.TimelineMapTileProvider || DEFAULT_PROVIDER;
       this.bind();
     }
@@ -627,11 +879,14 @@
       try {
         const L = await loadLeaflet();
         if (!L) throw new Error("Leaflet did not initialize.");
+        const weightedDrag = weightedMapDragAvailable();
         this.map = L.map(this.container, {
           zoomControl: true,
           attributionControl: true,
+          dragging: !weightedDrag,
           ...mapMotionOptions(true)
         }).setView([20, 0], 2);
+        this.weightedDragCleanup = installWeightedMapDragging(this.map, this.container, true);
 
         L.tileLayer(this.provider.url, {
           maxZoom: this.provider.maxZoom || 19,
@@ -710,6 +965,15 @@
         this.updateFromInputs(true);
         this.map?.invalidateSize();
       });
+    }
+
+    destroy() {
+      this.weightedDragCleanup?.();
+      this.weightedDragCleanup = null;
+      this.marker?.remove();
+      this.marker = null;
+      this.map?.remove();
+      this.map = null;
     }
   }
 

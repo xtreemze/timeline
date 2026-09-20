@@ -155,6 +155,7 @@ function create(container, handlers = {}) {
     "touchend",
     "touchcancel"
   ]);
+  const ORB_NATIVE_CAMERA_DRAG_EVENT_TYPES = new Set(["mousedown"]);
 
   function removeOrbTouchDragListeners() {
     const canvas = orb.canvas;
@@ -182,6 +183,32 @@ function create(container, handlers = {}) {
   // from taking over when Timeline cancels a pending long press. Timeline owns
   // touch node dragging directly, so keep Orb drag for mouse input only.
   removeOrbTouchDragListeners();
+
+  function removeOrbNativeCameraDragListeners() {
+    const canvas = orb.canvas;
+    const listeners = Array.isArray(canvas?.__on) ? canvas.__on : null;
+    if (!canvas || !listeners?.length) return;
+
+    const retained = [];
+    for (const listener of listeners) {
+      const isNativeCameraDrag =
+        listener?.name === "zoom" &&
+        ORB_NATIVE_CAMERA_DRAG_EVENT_TYPES.has(listener.type);
+      if (!isNativeCameraDrag) {
+        retained.push(listener);
+        continue;
+      }
+      canvas.removeEventListener(listener.type, listener.listener, listener.options);
+    }
+
+    if (retained.length) canvas.__on = retained;
+    else delete canvas.__on;
+  }
+
+  // Timeline owns background mouse/pen camera dragging so it can use the same
+  // weighted response and release decay as the chronology. Keep Orb/D3 wheel,
+  // double-click, and multi-touch zoom listeners intact.
+  removeOrbNativeCameraDragListeners();
 
   function forceAlphaProfile(nodeCount = forceNodeCount, alphaTarget = 0) {
     const dense = nodeCount >= 1000;
@@ -376,41 +403,83 @@ function create(container, handlers = {}) {
 
   function beginCameraGesture(event, target) {
     cancelCameraInertia();
+    const transform = orb.canvas?.__zoom || orb?._renderer?.transform;
     if (
       event.button !== 0 ||
       target?.object ||
+      !transform ||
+      typeof transform.translate !== "function" ||
       !motion?.appendPointerVectorSamples ||
-      !motion?.estimatePointerVectorVelocity
+      !motion?.estimatePointerVectorVelocity ||
+      !motion?.responseForElapsed
     ) {
+      cameraGesture = null;
+      return;
+    }
+    const startClientPoint = eventClientPoint(event);
+    if (!startClientPoint) {
       cameraGesture = null;
       return;
     }
     cameraGesture = {
       pointerId: event.pointerId,
-      startClientPoint: eventClientPoint(event),
+      startClientPoint,
+      startTransform: transform,
+      weightedTransform: transform,
+      lastTime: Number(event.timeStamp) || performance.now(),
       samples: [],
       moved: false
     };
     motion.appendPointerVectorSamples(cameraGesture.samples, event);
+    try {
+      container.setPointerCapture?.(event.pointerId);
+    } catch {
+      // Weighted panning still works when pointer capture is unavailable.
+    }
   }
 
   function updateCameraGesture(event) {
-    if (!cameraGesture || cameraGesture.pointerId !== event.pointerId) return;
-    motion.appendPointerVectorSamples(cameraGesture.samples, event);
-    const origin = cameraGesture.startClientPoint;
-    if (!origin) return;
-    if (Math.hypot(event.clientX - origin.x, event.clientY - origin.y) > TOUCH_NODE_MOVE_TOLERANCE_PX) {
-      cameraGesture.moved = true;
+    if (!cameraGesture || cameraGesture.pointerId !== event.pointerId) return false;
+    const gesture = cameraGesture;
+    motion.appendPointerVectorSamples(gesture.samples, event);
+    const origin = gesture.startClientPoint;
+    if (!origin) return false;
+
+    const deltaX = event.clientX - origin.x;
+    const deltaY = event.clientY - origin.y;
+    if (Math.hypot(deltaX, deltaY) > TOUCH_NODE_MOVE_TOLERANCE_PX) {
+      gesture.moved = true;
     }
+
+    const target = gesture.startTransform.translate(
+      deltaX / gesture.startTransform.k,
+      deltaY / gesture.startTransform.k
+    );
+    const now = Number(event.timeStamp) || performance.now();
+    const response = motion.responseForElapsed(now - gesture.lastTime);
+    gesture.lastTime = now;
+    const current = gesture.weightedTransform;
+    const next = current.translate(
+      ((target.x - current.x) * response) / current.k,
+      ((target.y - current.y) * response) / current.k
+    );
+    gesture.weightedTransform = next;
+    if (orb.canvas) orb.canvas.__zoom = next;
+    if (orb._renderer) orb._renderer.transform = next;
+    orb.render();
+    return true;
   }
 
   function finishCameraGesture(event) {
     if (!cameraGesture || cameraGesture.pointerId !== event.pointerId) return;
     const gesture = cameraGesture;
     cameraGesture = null;
+    releaseTouchPointerCapture(event.pointerId);
     if (event.type === "pointercancel" || !gesture.moved) return;
     motion.appendPointerVectorSamples(gesture.samples, event);
     const velocity = motion.estimatePointerVectorVelocity(gesture.samples);
+    suppressGraphClickUntil = performance.now() + 300;
+    void motion.pulseHaptic?.("release");
     requestAnimationFrame(() => startCameraInertia(velocity));
   }
 
@@ -670,6 +739,7 @@ function create(container, handlers = {}) {
 
     activeTouchPointers.add(event.pointerId);
     if (activeTouchPointers.size > 1) {
+      if (cameraGesture?.pointerId != null) releaseTouchPointerCapture(cameraGesture.pointerId);
       cameraGesture = null;
       cancelCameraInertia();
       if (touchHold?.activated) {
@@ -737,7 +807,10 @@ function create(container, handlers = {}) {
     const origin = touchHold.startClientPoint;
     if (!origin) return;
     const distance = Math.hypot(event.clientX - origin.x, event.clientY - origin.y);
-    if (distance > TOUCH_NODE_MOVE_TOLERANCE_PX) cancelPendingTouchHold();
+    if (distance > TOUCH_NODE_MOVE_TOLERANCE_PX) {
+      cancelPendingTouchHold();
+      beginCameraGesture(event, null);
+    }
   }
 
   function scheduleTouchReleaseFallback() {
@@ -803,12 +876,15 @@ function create(container, handlers = {}) {
   }
 
   function onTouchMoveCapture(event) {
-    if (!touchHold?.activated) return;
-    // Orb 1.0.2's camera uses D3 touch listeners on the canvas. Disabling
-    // isZoomEnabled prevents Timeline from accepting camera updates, but D3
-    // can still retain and advance the touch gesture that began before the
-    // long-press threshold resolved. Block those touchmove events while the
-    // node drag owns the gesture so the graph camera cannot move with it.
+    const nodeDragOwnsGesture = Boolean(touchHold?.activated);
+    const weightedCameraOwnsGesture = Boolean(
+      cameraGesture && activeTouchPointers.size === 1
+    );
+    if (!nodeDragOwnsGesture && !weightedCameraOwnsGesture) return;
+    // Orb 1.0.2's camera uses D3 touch listeners on the canvas. Once Timeline
+    // owns either an active node drag or a one-finger weighted camera pan,
+    // block D3's direct touchmove path. Multi-touch remains available to D3
+    // for pinch zoom because cameraGesture is cleared when a second touch lands.
     event.preventDefault();
     event.stopPropagation();
   }
@@ -1038,6 +1114,7 @@ function create(container, handlers = {}) {
     orb.setRenderer(wantsWebGL ? "webgl" : "canvas");
     // Renderer switches recreate the canvas and re-register Orb's D3 handlers.
     removeOrbTouchDragListeners();
+    removeOrbNativeCameraDragListeners();
     orb.setSettings({
       render: {
         labelsIsEnabled: nodeCount < 1800,

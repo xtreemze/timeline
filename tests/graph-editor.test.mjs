@@ -326,6 +326,36 @@ test("graph camera release reuses Timeline weighted inertia without changing nod
 });
 
 
+test("graph background drag uses the timeline weighted response before shared release inertia", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(bridge, /ORB_NATIVE_CAMERA_DRAG_EVENT_TYPES = new Set\(\["mousedown"\]\)/);
+  assert.match(
+    bridge,
+    /function removeOrbNativeCameraDragListeners\(\)[\s\S]*listener\?\.name === "zoom"[\s\S]*ORB_NATIVE_CAMERA_DRAG_EVENT_TYPES\.has\(listener\.type\)/
+  );
+  assert.match(
+    bridge,
+    /function beginCameraGesture\(event, target\)[\s\S]*startTransform:\s*transform[\s\S]*weightedTransform:\s*transform[\s\S]*setPointerCapture/
+  );
+  assert.match(
+    bridge,
+    /function updateCameraGesture\(event\)[\s\S]*motion\.responseForElapsed\(now - gesture\.lastTime\)[\s\S]*target\.x - current\.x[\s\S]*orb\._renderer\.transform = next/
+  );
+  assert.match(
+    bridge,
+    /function onTouchMoveCapture\(event\)[\s\S]*weightedCameraOwnsGesture[\s\S]*activeTouchPointers\.size === 1[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)/
+  );
+  assert.match(
+    bridge,
+    /activeTouchPointers\.size > 1[\s\S]*releaseTouchPointerCapture\(cameraGesture\.pointerId\)[\s\S]*cameraGesture = null/
+  );
+  assert.match(
+    bridge,
+    /removeOrbTouchDragListeners\(\);[\s\S]*removeOrbNativeCameraDragListeners\(\);/
+  );
+});
+
 test("activated touch long press directly drives the Orb simulator instead of depending on a pre-armed D3 drag", async () => {
   const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
