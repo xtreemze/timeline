@@ -3,11 +3,13 @@ import assert from "node:assert/strict";
 
 await import("../site/temporal-standards.js");
 await import("../site/event-presentation.js");
+await import("../site/timeline-graph.js");
 await import("../site/sample-case.js");
 
 const sample = globalThis.TimelineSampleCase;
 const temporal = globalThis.TimelineTemporal;
 const presentation = globalThis.TimelinePresentation;
+const graph = globalThis.TimelineGraph;
 
 function storyItems(story) {
   return story.itemIds.map((id) => sample.items.find((item) => item.id === id)).filter(Boolean);
@@ -343,24 +345,28 @@ test("every chronology item has public-domain illustrative media", () => {
   }
 });
 
-test("every event is a direct graph node with actor and place edges", () => {
+test("chronology items remain edge context and never become graph nodes", () => {
   const itemIds = new Set(sample.items.map((item) => item.id));
   const entityIds = new Set(sample.entities.map((entity) => entity.id));
   const storyIds = new Set(sample.stories.map((story) => story.id));
 
-  for (const id of itemIds) {
-    assert.equal(entityIds.has(id), false, `item/entity graph id collision: ${id}`);
-    assert.equal(storyIds.has(id), false, `item/story graph id collision: ${id}`);
+  assert.deepEqual(graph.validateGraphInput(sample), []);
+
+  for (const relationship of sample.relationships) {
+    assert.ok(entityIds.has(relationship.subjectId), `${relationship.id}: subject must be an entity node`);
+    assert.ok(entityIds.has(relationship.objectId), `${relationship.id}: object must be an entity node`);
+    assert.equal(itemIds.has(relationship.subjectId), false, `${relationship.id}: event cannot be a subject node`);
+    assert.equal(itemIds.has(relationship.objectId), false, `${relationship.id}: event cannot be an object node`);
+    assert.equal(storyIds.has(relationship.subjectId), false, `${relationship.id}: story cannot be a subject node`);
+    assert.equal(storyIds.has(relationship.objectId), false, `${relationship.id}: story cannot be an object node`);
+    assert.equal(graph.validateActionPredicate(relationship.predicate).valid, true, `${relationship.id}: specific action predicate`);
   }
-  for (const id of entityIds) assert.equal(storyIds.has(id), false, `entity/story graph id collision: ${id}`);
 
   for (const item of sample.items) {
     const edges = sample.relationships.filter(
-      (relationship) => relationship.subjectId === item.id || relationship.objectId === item.id
+      (relationship) => (relationship.itemIds || []).includes(item.id)
     );
-    assert.ok(edges.length >= 2, `${item.id}: expected direct graph connectivity`);
-    assert.ok(edges.some((relationship) => relationship.predicate === "occursAt"), `${item.id}: place edge`);
-    assert.ok(edges.some((relationship) => relationship.predicate === "participatesIn"), `${item.id}: actor edge`);
+    assert.ok(edges.length >= 1, `${item.id}: expected at least one semantic action edge`);
 
     const itemStart = temporal.sortKey(item.start);
     const itemEnd = temporal.sortKey(item.end || item.start);
@@ -370,6 +376,10 @@ test("every event is a direct graph node with actor and place edges", () => {
       assert.ok(edgeEnd >= itemStart && edgeStart <= itemEnd, `${edge.id}: must overlap ${item.id}`);
     }
   }
+
+  const orb = graph.toOrbGraph(sample);
+  assert.equal(orb.nodes.length, sample.entities.length);
+  assert.ok(orb.nodes.every((node) => entityIds.has(node.id)));
 });
 
 test("every event place has a coordinate-backed graph node and map marker", () => {
@@ -391,12 +401,11 @@ test("every event place has a coordinate-backed graph node and map marker", () =
     assert.deepEqual(place.attributes?.geometry?.coordinates, coordinates, `${item.id}: graph/map coordinates match`);
 
     const edge = sample.relationships.find((relationship) =>
-      relationship.subjectId === item.id &&
-      relationship.objectId === place.id &&
-      relationship.predicate === "occursAt"
+      (relationship.itemIds || []).includes(item.id) &&
+      relationship.objectId === place.id
     );
-    assert.ok(edge, `${item.id}: occursAt relationship to marker node`);
-    assert.equal(edge.attributes?.mapMarker, true, `${item.id}: relationship marks location for map use`);
+    assert.ok(edge, `${item.id}: semantic action edge reaches the mapped place node`);
+    assert.equal(graph.validateActionPredicate(edge.predicate).valid, true, `${item.id}: place edge uses an action verb`);
     placesByStory.get(storyId)?.add(item.location.name);
   }
 
@@ -417,16 +426,17 @@ test("widened anthology chronology keeps same-day density low across all stories
   assert.ok([...startsPerDay.values()].filter((count) => count === 3).length <= 4, "three-event dates should remain exceptional");
 });
 
-test("every event has story, actor and place graph context", () => {
-  for (const item of sample.items) {
-    const edges = sample.relationships.filter(
-      (relationship) => relationship.subjectId === item.id || relationship.objectId === item.id
-    );
-    assert.ok(edges.length >= 3, `${item.id}: expected story + actor + place connectivity`);
-    assert.ok(edges.some((relationship) => relationship.predicate === "partOfStory"), `${item.id}: story edge`);
-    assert.ok(edges.some((relationship) => relationship.predicate === "occursAt"), `${item.id}: place edge`);
-    assert.ok(edges.some((relationship) => relationship.predicate === "participatesIn"), `${item.id}: actor edge`);
+test("story membership stays narrative metadata rather than generic graph topology", () => {
+  const storyIds = new Set(sample.stories.map((story) => story.id));
+  for (const story of sample.stories) {
+    assert.ok(story.itemIds.length > 0, `${story.id}: narrative membership retained`);
+    for (const itemId of story.itemIds) {
+      assert.ok(sample.items.some((item) => item.id === itemId), `${story.id}: known chronology item ${itemId}`);
+    }
   }
+  assert.ok(sample.relationships.every(
+    (relationship) => !storyIds.has(relationship.subjectId) && !storyIds.has(relationship.objectId)
+  ));
 });
 
 test("every story scene carries multiple public-domain illustrations", () => {
