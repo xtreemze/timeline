@@ -656,6 +656,33 @@ geolocation {
   color: var(--map-marker-color, var(--focus));
   box-shadow: 0 2px 10px color-mix(in srgb, var(--ink) 18%, transparent);
 }
+.timeline-map-marker-shape-circle .timeline-map-marker-shell,
+.timeline-map-marker-shape-circle .timeline-map-place-icon {
+  border-radius: 50%;
+}
+.timeline-map-marker-shape-square .timeline-map-marker-shell,
+.timeline-map-marker-shape-square .timeline-map-place-icon {
+  border-radius: .28rem;
+}
+.timeline-map-marker-shape-diamond .timeline-map-marker-shell,
+.timeline-map-marker-shape-diamond .timeline-map-place-icon {
+  border-radius: .25rem;
+  transform: rotate(45deg);
+}
+.timeline-map-marker-shape-diamond .timeline-map-marker-shell .semantic-icon,
+.timeline-map-marker-shape-diamond .timeline-map-place-icon .semantic-icon {
+  transform: rotate(-45deg);
+}
+.timeline-map-marker-shape-pin .timeline-map-marker-shell,
+.timeline-map-marker-shape-pin .timeline-map-place-icon {
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+}
+.timeline-map-marker-shape-pin .timeline-map-marker-shell .semantic-icon,
+.timeline-map-marker-shape-pin .timeline-map-place-icon .semantic-icon {
+  transform: rotate(45deg);
+}
+
 .timeline-map-marker-shell .semantic-icon {
   width: 1.05rem;
   height: 1.05rem;
