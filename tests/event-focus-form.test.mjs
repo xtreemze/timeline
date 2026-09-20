@@ -360,7 +360,10 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(html, /id="import-interchange-trigger"[^>]*role="menuitem"/);
   assert.match(html, /class="project-menu-group"/);
   assert.doesNotMatch(html, /class="button secondary file-button" role="menuitem"/);
-  assert.match(html, /id="timeline-browser-sheet"[\s\S]*?<\/aside>\s*<section id="story-focus"/);
+  assert.match(html, /class="timeline-project-heading"[\s\S]*id="story-focus"[^>]*story-focus-header/);
+  assert.match(html, /id="story-prev"[^>]*data-semantic-icon="chevron-left"[^>]*aria-label="Previous story event"/);
+  assert.match(html, /id="story-next"[^>]*data-semantic-icon="chevron-right"[^>]*aria-label="Next story event"/);
+  assert.match(html, /id="story-exit"[^>]*data-semantic-icon="close"[^>]*aria-label="Exit story"/);
   assert.doesNotMatch(html, /Detailed chronology/);
   assert.match(html, /id="control-panel"[^>]*hidden/);
   assert.match(html, /id="timeline-browser-sheet"[^>]*hidden/);
@@ -378,6 +381,9 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(timelineCss, /timeline-focus-view[\s\S]*grid-template-columns:\s*repeat\(6,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(timelineCss, /Compact application presentation contract/);
   assert.match(timelineCss, /\.timeline-project-heading\s*\{[\s\S]*position:\s*absolute/);
+  assert.match(timelineCss, /\.timeline-project-heading[\s\S]*max-width:\s*min\(52rem/);
+  assert.match(timelineCss, /\.timeline-view\[data-orientation="portrait"\] \.story-focus-header[\s\S]*flex-direction:\s*column/);
+  assert.doesNotMatch(styles, /\.app-shell\.is-event-focused[\s\S]{0,220}\.story-focus/);
   assert.match(timelineCss, /\.is-portrait \.timeline-month-accent\.avoids-project-heading[\s\S]*right:\s*calc\(7px \+ var\(--timeline-project-heading-clearance, 52px\)\)/);
   assert.match(timelineCss, /\.is-landscape \.timeline-month-accent\.avoids-project-heading[\s\S]*bottom:\s*8px/);
   assert.doesNotMatch(timelineCss, /\.is-landscape \.timeline-month-accent\.avoids-project-heading[\s\S]{0,120}bottom:\s*calc\(/);
