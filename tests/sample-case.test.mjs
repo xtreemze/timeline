@@ -309,7 +309,8 @@ test("Cinderella includes household formation, practical transformation, palace 
 
 test("detailed stories add graph and place depth without conflating categories with stories", () => {
   assert.ok(sample.items.length >= 55);
-  assert.ok(sample.entities.length >= 40);
+  assert.ok(sample.entities.length >= 30);
+  assert.ok(sample.places.length >= 27);
   assert.ok(sample.relationships.length >= 46);
   assert.ok(sample.relationships.filter((relationship) => relationship.time?.start?.value).length >= 30);
 
