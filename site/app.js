@@ -64,7 +64,6 @@
     browserClose: document.querySelector("#timeline-browser-close"),
     browserStoryList: document.querySelector("#browser-story-list"),
     browserStoryCount: document.querySelector("#browser-story-count"),
-    graphLensToggle: document.querySelector("#graph-lens-toggle"),
     viewControls: document.querySelector("#timeline-view-toolbar"),
     viewControlsToggle: document.querySelector("#timeline-view-controls-toggle"),
     loadSample: document.querySelector("#load-sample"),
@@ -258,7 +257,6 @@
     mode: "view",
     editorOpen: false,
     browserOpen: false,
-    graphOpen: false,
     viewControlsOpen: false,
     collapsedCategoryIds: new Set(state.categories.map((category) => category.id))
   };
@@ -303,17 +301,10 @@
   });
   let presentationResizeObserver = null;
   let presentationResizeFrame = 0;
-  let graphOpenBeforeFullscreen = true;
   let timelineOrientationBeforeFullscreen = null;
   let presentationMap = null;
   let presentationMapKey = "";
   let focusedGraphContextAvailable = false;
-
-  const presentationGraphCanvas = els.graphViewRoot?.querySelector(".temporal-graph-canvas") || null;
-  const presentationGraphAnchor = presentationGraphCanvas
-    ? document.createComment("timeline-graph-home")
-    : null;
-  presentationGraphCanvas?.after(presentationGraphAnchor);
 
   const presentationMapAnchor = els.presentationMap
     ? document.createComment("timeline-map-home")
@@ -339,34 +330,11 @@
     }
   }
 
-  function restoreGraphSurface() {
-    if (presentationGraphCanvas && presentationGraphAnchor?.parentNode &&
-        presentationGraphCanvas.parentNode !== presentationGraphAnchor.parentNode) {
-      presentationGraphAnchor.parentNode.insertBefore(presentationGraphCanvas, presentationGraphAnchor);
-    }
-  }
-
   function restoreMapSurface() {
     if (!els.presentationMap || !presentationMapAnchor?.parentNode) return;
     if (els.presentationMap.parentNode !== presentationMapAnchor.parentNode) {
       presentationMapAnchor.parentNode.insertBefore(els.presentationMap, presentationMapAnchor);
     }
-  }
-
-  function mountGraphBackdrop() {
-    const slot = els.timelineViewRoot?.querySelector("[data-focus-graph-slot]");
-    if (!slot || !presentationGraphCanvas) {
-      restoreGraphSurface();
-      return false;
-    }
-    const moved = presentationGraphCanvas.parentNode !== slot;
-    if (moved) slot.replaceChildren(presentationGraphCanvas);
-    if (moved) {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => temporalGraphView?.refreshLayout?.());
-      });
-    }
-    return true;
   }
 
   function mountMapBackdrop() {
@@ -453,23 +421,18 @@
 
   function syncContextualPresentationPanels() {
     const focused = Boolean(timelineView?.hasFocusedItem?.());
-    const graphVisible = focused && focusedGraphContextAvailable && mountGraphBackdrop();
     const mapVisible = focused ? renderPresentationMap() : (destroyPresentationMap(), false);
 
-    if (!focused) restoreGraphSurface();
-
-    if (els.graphLens) {
-      const standaloneGraphVisible = !focused && !presentationIsFullscreen() && ui.graphOpen;
-      els.graphLens.hidden = !standaloneGraphVisible;
-    }
+    if (els.graphLens) els.graphLens.hidden = false;
     if (els.presentationMapPanel) els.presentationMapPanel.hidden = true;
 
     if (els.presentationStage) {
       els.presentationStage.dataset.eventFocused = String(focused);
-      els.presentationStage.dataset.hasContextGraph = String(Boolean(graphVisible));
+      els.presentationStage.dataset.hasContextGraph =
+        String(Boolean(focused && focusedGraphContextAvailable));
       els.presentationStage.dataset.hasContextMap = String(Boolean(mapVisible));
     }
-    return { graphVisible: Boolean(graphVisible), mapVisible: Boolean(mapVisible) };
+    return { graphVisible: Boolean(els.graphLens), mapVisible: Boolean(mapVisible) };
   }
 
   function presentationIsFullscreen() {
@@ -592,7 +555,6 @@
       showStatus("Full-screen presentation is not available in this browser.");
       return;
     }
-    graphOpenBeforeFullscreen = Boolean(ui.graphOpen);
     timelineOrientationBeforeFullscreen = timelineView?.getOrientation?.() || null;
     syncContextualPresentationPanels();
     try {
@@ -1064,7 +1026,7 @@
       els.appShell.dataset.mode = ui.mode;
       els.appShell.dataset.editorOpen = String(ui.editorOpen);
       els.appShell.dataset.browserOpen = String(ui.browserOpen);
-      els.appShell.dataset.graphOpen = String(ui.graphOpen);
+      els.appShell.dataset.graphOpen = "true";
       els.appShell.dataset.viewControlsOpen = String(ui.viewControlsOpen);
     }
 
@@ -1090,14 +1052,13 @@
       const label = els.editorToggle.querySelector(".app-tool-label");
       if (label) label.textContent = editing ? "Done" : "Edit";
     }
-    for (const control of [els.browserToggle, els.graphLensToggle, els.viewControlsToggle]) {
+    for (const control of [els.browserToggle, els.viewControlsToggle]) {
       if (control) control.disabled = editing;
     }
     for (const opener of els.panelOpeners) {
       opener.setAttribute("aria-expanded", String(ui.editorOpen));
     }
     if (els.browserToggle) els.browserToggle.setAttribute("aria-expanded", String(ui.browserOpen));
-    if (els.graphLensToggle) els.graphLensToggle.setAttribute("aria-expanded", String(ui.graphOpen));
     if (els.viewControlsToggle) {
       els.viewControlsToggle.setAttribute("aria-expanded", String(ui.viewControlsOpen));
     }
@@ -1107,13 +1068,12 @@
 
     temporalGraphView?.setPresentationMode?.(presentationModeActive());
     syncContextualPresentationPanels();
-    schedulePresentationGeometryRefresh({ recenterGraph: ui.graphOpen });
+    schedulePresentationGeometryRefresh({ recenterGraph: true });
   }
 
   function closeLargeUtilitySurfaces(except = "") {
     if (except !== "editor") ui.editorOpen = false;
     if (except !== "browser") ui.browserOpen = false;
-    if (except !== "graph") ui.graphOpen = false;
     if (except !== "view") ui.viewControlsOpen = false;
   }
 
@@ -1151,17 +1111,6 @@
     }
   }
 
-  function setGraphSurfaceOpen(open) {
-    if (ui.mode === "edit") return;
-    ui.graphOpen = Boolean(open);
-    if (ui.graphOpen) {
-      closeLargeUtilitySurfaces("graph");
-      closeProjectMenu();
-      closeFocusedEventForUtility();
-    }
-    runApplicationViewTransition(() => syncApplicationSurfaces());
-    if (ui.graphOpen) requestAnimationFrame(() => temporalGraphView?.refreshLayout?.());
-  }
 
   function setViewControlsOpen(open) {
     if (ui.mode === "edit") return;
@@ -2962,7 +2911,6 @@
   els.controlPanelClose?.addEventListener("click", () => setEditorSurfaceOpen(false));
   els.browserToggle?.addEventListener("click", () => setBrowserSurfaceOpen(!ui.browserOpen));
   els.browserClose?.addEventListener("click", () => setBrowserSurfaceOpen(false));
-  els.graphLensToggle?.addEventListener("click", () => setGraphSurfaceOpen(!ui.graphOpen));
   els.viewControlsToggle?.addEventListener("click", () => setViewControlsOpen(!ui.viewControlsOpen));
 
   document.addEventListener("keydown", (event) => {
@@ -2975,11 +2923,6 @@
     if (ui.browserOpen) {
       event.preventDefault();
       setBrowserSurfaceOpen(false);
-      return;
-    }
-    if (ui.graphOpen) {
-      event.preventDefault();
-      setGraphSurfaceOpen(false);
       return;
     }
     if (ui.viewControlsOpen && !presentationIsFullscreen()) {
