@@ -266,7 +266,19 @@ function create(container, handlers = {}) {
     orb.setSettings({ interaction: { isDragEnabled: enabled } });
   }
 
+  function syncCameraZoomState() {
+    const canvas = orb.canvas;
+    const transform = orb?._renderer?.transform;
+    if (!canvas || !transform) return;
+    // D3 zoom updates canvas.__zoom before Orb's zoom callback runs. When
+    // camera ownership is disabled, Orb intentionally ignores that callback,
+    // so reset D3's private state to the renderer's authoritative transform
+    // before changing ownership to avoid a jump on the next touch gesture.
+    canvas.__zoom = transform;
+  }
+
   function setZoomEnabled(enabled) {
+    syncCameraZoomState();
     orb.setSettings({ interaction: { isZoomEnabled: enabled } });
   }
 
@@ -554,7 +566,10 @@ function create(container, handlers = {}) {
     clearTouchReleaseFallback();
     clearTouchHoldTimer();
     setDragEnabled(false);
-    setZoomEnabled(true);
+    // Freeze the camera while the hold threshold is unresolved. If movement
+    // exceeds the tolerance, cancelPendingTouchHold() re-enables camera zoom
+    // before Orb receives the rest of that gesture.
+    setZoomEnabled(false);
     touchDragBlockedUntilRelease = true;
 
     if (activeTouchPointers.size > 1) {
@@ -591,13 +606,15 @@ function create(container, handlers = {}) {
       cancelCameraInertia();
       cameraGesture = null;
       const simulator = touchDragSimulator();
+      // Apply force heat before entering the simulator's drag state so any
+      // settings-driven simulation restart cannot clear or reorder drag setup.
+      setInteractionHeat(DRAG_ALPHA_TARGET);
       simulator?.startDragNode();
       try {
         container.setPointerCapture?.(touchHold.pointerId);
       } catch {
         // Pointer capture is an enhancement; direct simulator drag still works.
       }
-      setInteractionHeat(DRAG_ALPHA_TARGET);
       selectGraphObject(node);
       handlers.onNodeLongPress?.(node.getData());
       try {
@@ -620,6 +637,15 @@ function create(container, handlers = {}) {
     if (activeTouchPointers.size > 1) {
       cameraGesture = null;
       cancelCameraInertia();
+      if (touchHold?.activated) {
+        // An activated node drag owns the gesture until its original pointer
+        // is released. Additional fingers must not turn camera zoom back on.
+        touchTap = null;
+        lastTouchTap = null;
+        setDragEnabled(false);
+        setZoomEnabled(false);
+        return;
+      }
     } else {
       beginCameraGesture(event, target);
     }
@@ -687,7 +713,27 @@ function create(container, handlers = {}) {
     finishCameraGesture(event);
     if (event.pointerType !== "touch") return;
     const tap = touchTap?.pointerId === event.pointerId ? touchTap : null;
+    const ownsActiveNodeDrag = Boolean(
+      touchHold?.activated && touchHold.pointerId === event.pointerId
+    );
     activeTouchPointers.delete(event.pointerId);
+
+    if (ownsActiveNodeDrag) {
+      touchTap = null;
+      lastTouchTap = null;
+      finishActiveTouchNodeDrag();
+      // Keep the gesture exclusive until all contacts lift. D3 may have seen
+      // the additional touch while zoom was disabled; handing it camera control
+      // mid-gesture can produce a discontinuous transform.
+      finishTouchGesture();
+      if (activeTouchPointers.size) {
+        setDragEnabled(false);
+        setZoomEnabled(false);
+        touchDragBlockedUntilRelease = true;
+      }
+      return;
+    }
+
     if (activeTouchPointers.size) {
       touchTap = null;
       return;
@@ -720,6 +766,8 @@ function create(container, handlers = {}) {
 
   function onTouchEnd(event) {
     if (event.touches?.length) return;
+    activeTouchPointers.clear();
+    cameraGesture = null;
     if (touchHold?.activated) {
       finishActiveTouchNodeDrag();
       finishTouchGesture();
@@ -727,6 +775,21 @@ function create(container, handlers = {}) {
     }
     finishTouchGesture();
   }
+
+  function abortTouchInteraction() {
+    cancelCameraInertia();
+    cameraGesture = null;
+    touchTap = null;
+    lastTouchTap = null;
+    activeTouchPointers.clear();
+    if (touchHold?.activated) finishActiveTouchNodeDrag();
+    finishTouchGesture();
+  }
+
+  const onWindowBlur = () => abortTouchInteraction();
+  const onVisibilityChange = () => {
+    if (document.visibilityState === "hidden") abortTouchInteraction();
+  };
 
   const onClickCapture = (event) => {
     if (performance.now() >= suppressGraphClickUntil) return;
@@ -750,6 +813,8 @@ function create(container, handlers = {}) {
   container.addEventListener("lostpointercapture", onLostPointerCapture, { capture: true });
   container.addEventListener("touchend", onTouchEnd);
   container.addEventListener("touchcancel", onTouchEnd);
+  globalThis.addEventListener?.("blur", onWindowBlur);
+  document.addEventListener("visibilitychange", onVisibilityChange);
 
   function nodeStyle(data) {
     const type = semanticType(data);
@@ -1167,6 +1232,8 @@ function create(container, handlers = {}) {
       container.removeEventListener("lostpointercapture", onLostPointerCapture, true);
       container.removeEventListener("touchend", onTouchEnd);
       container.removeEventListener("touchcancel", onTouchEnd);
+      globalThis.removeEventListener?.("blur", onWindowBlur);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       orb.events.off(OrbEventType.NODE_CLICK, onNodeClick);
       orb.events.off(OrbEventType.EDGE_CLICK, onEdgeClick);
       orb.events.off(OrbEventType.NODE_DRAG_START, onNodeDragStart);
