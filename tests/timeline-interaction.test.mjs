@@ -959,6 +959,14 @@ test("portrait mode gives the semantic zoom slider a vertical axis", async () =>
   );
   assert.match(
     timelineCss,
+    /\.timeline-view\[data-orientation="portrait"\] \.timeline-zoom-scale span\s*\{[\s\S]*writing-mode:\s*vertical-rl[\s\S]*text-orientation:\s*mixed[\s\S]*white-space:\s*nowrap/
+  );
+  assert.match(
+    timelineCss,
+    /\.timeline-view\[data-orientation="landscape"\] \.timeline-zoom-scale span\s*\{[\s\S]*writing-mode:\s*horizontal-tb[\s\S]*white-space:\s*nowrap/
+  );
+  assert.match(
+    timelineCss,
     /\.timeline-view\[data-orientation="landscape"\] \.timeline-zoom-control input\[type="range"\]\s*\{[\s\S]*writing-mode:\s*horizontal-tb[\s\S]*cursor:\s*ew-resize[\s\S]*touch-action:\s*pan-y/
   );
   assert.match(
