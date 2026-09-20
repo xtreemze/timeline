@@ -131,6 +131,7 @@ Timeline separates evidence, observations, factual assertions, competing hypothe
 
 - Browser-local persistence with `localStorage`.
 - Automatic migration of the original v1 `events[]` browser data to v2.
+- Legacy v2 projects that predate structured temporal extents retain an exact deep-cloned source payload under `extensions.timelineMigration.originalV2`; re-import/re-normalization preserves that payload without recursive nesting so migration remains reversible during v3 temporal stabilization.
 - Strict JSON validation at import boundaries.
 - JSON export preserving categories, chronology items, ranges, stories, entities, reusable places, edge time/place context, evidence metadata, focus-layout preferences, and namespaced interchange extensions.
 - Vendor-neutral JSON/XML interchange import for events, periods, groups, and common external field aliases, with unrecognized source records preserved under `extensions.externalInterchange`.
