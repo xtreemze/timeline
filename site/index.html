@@ -732,7 +732,7 @@
                 <option value="document"></option>
               </datalist>
             </label>
-            <p class="field-hint field-wide">One node = one entity. A node must not contain an action, verb, date/time, place/location, coordinates, radius, or geometry. Put the action in the edge predicate, time in edge.time, and spatial context in edge.placeId.</p>
+            <p class="field-hint field-wide">One node = one durable entity. A canonical node must participate in at least one meaningful action edge; stories, categories, navigation containers, roles, events, actions, time, and places stay outside graph topology. A node must not contain a verb, date/time, place/location, coordinates, radius, or geometry. Put the action in the edge predicate, time in edge.time, and spatial context in edge.placeId.</p>
             <details id="graph-node-identity-details" class="optional-editor field-wide">
               <summary>Identity & provenance <small>optional</small></summary>
               <label class="field field-wide">
@@ -837,7 +837,7 @@
             <label class="field">
               <span>Action label</span>
               <input id="graph-edge-predicate" type="text" maxlength="120" autocomplete="off" placeholder="called, warned, built, transferredTo, authorized…" required>
-              <small class="field-hint">Action only. Do not put a place, date, time, period, coordinates, or spatial preposition such as “at/near/during” in this label. Use the structured time and place fields below.</small>
+              <small class="field-hint">Action only: use one specific verb, optionally followed by one grammatical particle (for example searchesFor, dancesWith, transferredTo). Do not embed another entity, instrument, role, cause, place, date, time, period, coordinates, or spatial wording in the label. One directed action fact gets one edge; merge context onto that edge instead of making parallel or reverse copies. Distinct reverse actions and genuine graph cycles are allowed.</small>
             </label>
             <label class="field">
               <span>Object / target</span>
