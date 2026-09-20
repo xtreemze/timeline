@@ -166,12 +166,25 @@
       .filter(Boolean);
   }
   
+  function temporalEndpointFactKey(endpoint, open) {
+    if (open) return "<open>";
+    if (!endpoint || typeof endpoint !== "object") return "";
+    const value = text(endpoint.value, 120);
+    if (value) return value;
+    if (endpoint.certainty === "unknown") {
+      return `<unknown:${text(endpoint.earliest, 120)}:${text(endpoint.latest, 120)}:${text(endpoint.sourceText, 120)}>`;
+    }
+    return "";
+  }
+
   function temporalFactKey(time) {
     if (!time || typeof time !== "object") return "timeless";
-    const start = text(time?.start?.value ?? time?.start, 120);
-    const end = text(time?.end?.value ?? time?.end, 120);
-    if (!start) return "timeless";
-    const type = text(time.type, 24) || (end ? "interval" : "instant");
+    const type = text(time.type, 24) || "instant";
+    const start = temporalEndpointFactKey(time.start, time.openStart === true);
+    const end = type === "interval"
+      ? temporalEndpointFactKey(time.end, time.openEnd === true)
+      : "";
+    if (!start && type !== "interval") return "timeless";
     return `${type}:${start}->${end}`;
   }
   
@@ -392,12 +405,16 @@
     let time = null;
     const sourceTime = raw.time && typeof raw.time === "object" ? raw.time : null;
     if (sourceTime && temporal) {
-      const hasEnd = Boolean(sourceTime.end?.value);
+      const interval =
+        sourceTime.type === "interval" ||
+        sourceTime.openStart === true ||
+        sourceTime.openEnd === true ||
+        sourceTime.end !== null && sourceTime.end !== undefined;
       time = temporal.normalizeExtent(
         sourceTime,
         sourceTime.start?.value || "",
-        hasEnd ? sourceTime.end?.value || "" : null,
-        hasEnd ? "range" : "event"
+        sourceTime.end?.value || "",
+        interval ? "range" : "event"
       );
     }
 
@@ -490,12 +507,11 @@
     let role = relationship.role || "";
     let attributes = cloneJson(relationship.attributes || {}) || {};
 
-    if (relationship.time?.start && temporal) {
-      const start = temporal.sortKey(relationship.time.start);
-      const end = relationship.time.end ? temporal.sortKey(relationship.time.end) : start;
-      if (Number.isFinite(start) && Number.isFinite(end)) {
+    if (relationship.time && temporal) {
+      const bounds = temporal.extentBounds?.(relationship.time);
+      if (bounds?.locatable) {
         active = hasViewport
-          ? end >= viewport.start && start <= viewport.end
+          ? bounds.end >= viewport.start && bounds.start <= viewport.end
           : true;
       }
     }
@@ -854,12 +870,11 @@
 
   function relationshipWindowState(relationship, viewport, temporal = globalThis.TimelineTemporal) {
     if (!relationship) return "inactive";
-    if (!relationship.time?.start || !temporal) return "timeless";
-    const start = temporal.sortKey(relationship.time.start);
-    const end = relationship.time.end ? temporal.sortKey(relationship.time.end) : start;
-    if (!Number.isFinite(start) || !Number.isFinite(end)) return "inactive";
+    if (!relationship.time || !temporal) return "timeless";
+    const bounds = temporal.extentBounds?.(relationship.time);
+    if (!bounds?.locatable) return "unknown";
     if (!viewport || !Number.isFinite(viewport.start) || !Number.isFinite(viewport.end)) return "active";
-    return end >= viewport.start && start <= viewport.end ? "active" : "inactive";
+    return bounds.end >= viewport.start && bounds.start <= viewport.end ? "active" : "inactive";
   }
 
   function graphForWindow(input, viewport, temporal = globalThis.TimelineTemporal) {
@@ -889,7 +904,7 @@
       if (!relationship || !state) return { ...edge, temporalState: "inactive" };
 
       const structurallyTimeless =
-        !relationship.time?.start &&
+        !relationship.time &&
         state.changes.length === 0 &&
         state.active;
       const explicitWindowState = relationshipWindowState(relationship, viewport, temporal);
@@ -897,10 +912,12 @@
         ? "changed"
         : structurallyTimeless
           ? "timeless"
-          : relationship.time?.start
-            ? explicitWindowState === "active" && state.active
-              ? "active"
-              : "inactive"
+          : relationship.time
+            ? explicitWindowState === "unknown" && state.active
+              ? "unknown"
+              : explicitWindowState === "active" && state.active
+                ? "active"
+                : "inactive"
             : state.active
               ? "active"
               : "inactive";

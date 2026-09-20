@@ -245,3 +245,127 @@ test("temporal graph stages topology deltas instead of resetting Orb after first
   assert.match(source, /this\.orb\.transitionData\(data\)/);
   assert.match(source, /this\.orb\.setData\(data\)[\s\S]*this\.hasRenderedData\s*=\s*true/);
 });
+
+
+test("open-ended relationship intervals intersect only the appropriate timeline side", () => {
+  const afterStart = {
+    id: "open-end",
+    subjectId: "a",
+    objectId: "b",
+    predicate: "calls",
+    time: {
+      type: "interval",
+      start: { value: "2026-09-20", certainty: "exact" },
+      end: null,
+      openEnd: true
+    }
+  };
+  assert.equal(
+    graph.relationshipWindowState(afterStart, {
+      start: Date.UTC(2026, 8, 21),
+      end: Date.UTC(2026, 8, 22)
+    }),
+    "active"
+  );
+  assert.equal(
+    graph.relationshipWindowState(afterStart, {
+      start: Date.UTC(2026, 8, 1),
+      end: Date.UTC(2026, 8, 2)
+    }),
+    "inactive"
+  );
+
+  const beforeEnd = {
+    ...afterStart,
+    id: "open-start",
+    time: {
+      type: "interval",
+      start: null,
+      openStart: true,
+      end: { value: "2026-09-20", certainty: "exact" }
+    }
+  };
+  assert.equal(
+    graph.relationshipWindowState(beforeEnd, {
+      start: Date.UTC(2026, 8, 1),
+      end: Date.UTC(2026, 8, 2)
+    }),
+    "active"
+  );
+  assert.equal(
+    graph.relationshipWindowState(beforeEnd, {
+      start: Date.UTC(2026, 8, 21),
+      end: Date.UTC(2026, 8, 22)
+    }),
+    "inactive"
+  );
+});
+
+test("unknown relationship time stays explicit instead of becoming timeless or inactive", () => {
+  const input = {
+    entities: [
+      { id: "a", type: "person", name: "A" },
+      { id: "b", type: "person", name: "B" }
+    ],
+    relationships: [{
+      id: "unknown-time",
+      subjectId: "a",
+      objectId: "b",
+      predicate: "calls",
+      time: {
+        type: "instant",
+        start: { value: null, certainty: "unknown", sourceText: "date not established" },
+        end: null
+      }
+    }],
+    items: [],
+    stories: []
+  };
+  assert.equal(
+    graph.relationshipWindowState(input.relationships[0], {
+      start: Date.UTC(2026, 8, 1),
+      end: Date.UTC(2026, 8, 30)
+    }),
+    "unknown"
+  );
+  const data = graph.graphForWindow(input, {
+    start: Date.UTC(2026, 8, 1),
+    end: Date.UTC(2026, 8, 30)
+  });
+  assert.equal(data.edges.length, 1);
+  assert.equal(data.edges[0].temporalState, "unknown");
+  assert.equal(data.nodes.length, 2);
+});
+
+test("bounded unknown relationship time uses only its declared bounds for window filtering", () => {
+  const relationship = {
+    id: "bounded-unknown",
+    subjectId: "a",
+    objectId: "b",
+    predicate: "calls",
+    time: {
+      type: "instant",
+      start: {
+        value: null,
+        certainty: "unknown",
+        earliest: "2026-09-10",
+        latest: "2026-09-20"
+      },
+      end: null
+    }
+  };
+  assert.equal(
+    graph.relationshipWindowState(relationship, {
+      start: Date.UTC(2026, 8, 15),
+      end: Date.UTC(2026, 8, 16)
+    }),
+    "active"
+  );
+  assert.equal(
+    graph.relationshipWindowState(relationship, {
+      start: Date.UTC(2026, 9, 1),
+      end: Date.UTC(2026, 9, 2)
+    }),
+    "inactive"
+  );
+});
