@@ -410,6 +410,9 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.doesNotMatch(app, /function setGraphSurfaceOpen/);
   assert.match(app, /function setViewControlsOpen/);
   assert.match(app, /function syncViewControlsSurface\(\)[\s\S]*showPopover\(\)[\s\S]*hidePopover\(\)/);
+  assert.match(app, /const shouldOpen = Boolean\(ui\.viewControlsOpen\)/);
+  assert.doesNotMatch(app, /viewControlsOpen \|\| presentationIsFullscreen\(\)/);
+  assert.match(app, /viewControlsToggle\?\.addEventListener\("click", \(\) => setViewControlsOpen\(!ui\.viewControlsOpen\)\)/);
   assert.doesNotMatch(app, /viewControls\.hidden\s*=/);
   assert.match(styles, /\.timeline-view-toolbar\[popover\][\s\S]*max-inline-size:[\s\S]*max-block-size:[\s\S]*overflow-x:\s*auto/);
   assert.match(app, /setActivePanel\("items", \{ open: false \}\)/);
