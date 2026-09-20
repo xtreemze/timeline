@@ -433,6 +433,7 @@ function create(container, handlers = {}) {
     const gesture = cameraGesture;
     cameraGesture = null;
     if (event.type === "pointercancel" || !gesture.moved) return;
+    markCameraOwnedByUser();
     motion.appendPointerVectorSamples(gesture.samples, event);
     const velocity = motion.estimatePointerVectorVelocity(gesture.samples);
     requestAnimationFrame(() => startCameraInertia(velocity));
@@ -1243,6 +1244,7 @@ function create(container, handlers = {}) {
       setPerformanceMode(nodes.length);
       orb.render();
       applyInteractionForce(0);
+      applyPendingAutoFit();
       return;
     }
 
