@@ -3151,6 +3151,13 @@ body {
   box-shadow: none;
 }
 
+#app-shell:is(
+  [data-editor-open="true"],
+  [data-browser-open="true"]
+) #presentation-stage:not(:fullscreen) > .graph-lens:not([hidden]) {
+  position: absolute;
+}
+
 #app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen) {
   position: relative;
   inset: auto;
