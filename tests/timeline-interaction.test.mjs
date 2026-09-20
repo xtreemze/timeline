@@ -773,3 +773,22 @@ test("shared camera motion exposes capped two-dimensional release velocity and m
   assert.equal(motion.MAX_RELEASE_SPEED_PX_PER_S, 3200);
   assert.equal(motion.CAMERA_INERTIA_DECELERATION_PX_PER_S2, 3810);
 });
+
+test("relations mode docks chronology opposite the graph inside chrome-safe bounds", async () => {
+  const [timelineCss, appSource] = await Promise.all([
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8")
+  ]);
+
+  assert.match(timelineCss, /Relations edge docking/);
+  assert.match(timelineCss, /@media \(min-width:\s*700px\)[\s\S]*--relations-inline-rail:\s*clamp\(280px, 28dvw, 400px\)/);
+  assert.match(timelineCss, /--relations-top-safe:\s*max\(4\.55rem,[\s\S]*safe-area-inset-top/);
+  assert.match(timelineCss, /data-orientation="portrait"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*right:\s*calc\(var\(--relations-inline-rail\)[\s\S]*left:\s*var\(--relations-left-safe\)/);
+  assert.match(timelineCss, /data-orientation="portrait"\] > \.timeline-surface[\s\S]*--timeline-axis-cross:\s*68%[\s\S]*right:\s*var\(--relations-right-safe\)[\s\S]*width:\s*var\(--relations-inline-rail\)/);
+  assert.match(timelineCss, /data-orientation="landscape"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*bottom:\s*calc\(var\(--relations-bottom-safe\) \+ var\(--relations-block-rail\)/);
+  assert.match(timelineCss, /data-orientation="landscape"\] > \.timeline-surface[\s\S]*--timeline-axis-cross:\s*42%[\s\S]*height:\s*var\(--relations-block-rail\)/);
+  assert.match(timelineCss, /@media \(min-width:\s*900px\)[\s\S]*--relations-left-safe:\s*max\(5\.45rem,[\s\S]*safe-area-inset-left[\s\S]*--relations-bottom-safe:\s*max\(\.55rem/);
+  assert.match(timelineCss, /Mobile Relations composition[\s\S]*data-orientation="portrait"[\s\S]*--timeline-axis-cross:\s*42%/);
+  assert.match(timelineCss, /Mobile Relations composition[\s\S]*data-orientation="landscape"[\s\S]*--timeline-axis-cross:\s*38%/);
+  assert.match(appSource, /function setGraphSurfaceOpen[\s\S]*runApplicationViewTransition\(\(\) => syncApplicationSurfaces\(\)\)/);
+});
