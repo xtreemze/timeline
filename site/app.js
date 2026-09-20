@@ -15,6 +15,7 @@
   const temporalGraphFactory = globalThis.TemporalGraphView;
   const presentationLayout = globalThis.TimelinePresentationLayout;
   const caseReasoning = globalThis.TimelineCaseReasoning;
+  const migration = globalThis.TimelineMigration;
   if (!temporal) throw new Error("TimelineTemporal must load before app.js.");
   if (!spatial) throw new Error("TimelineSpatial must load before app.js.");
   if (!graph) throw new Error("TimelineGraph must load before app.js.");
@@ -25,6 +26,7 @@
   if (!temporalGraphFactory) throw new Error("TemporalGraphView must load before app.js.");
   if (!presentationLayout) throw new Error("TimelinePresentationLayout must load before app.js.");
   if (!caseReasoning) throw new Error("TimelineCaseReasoning must load before app.js.");
+  if (!migration) throw new Error("TimelineMigration must load before app.js.");
 
   const DEFAULT_CATEGORIES = [
     { id: "incident", name: "Incident", color: "#b42318" },
@@ -777,6 +779,7 @@
 
   function normalizeTimeline(input, { strictGraph = false } = {}) {
     if (!input || typeof input !== "object") throw new Error("Expected a timeline object.");
+    const retainedMigrationExtensions = migration.extensionsWithRetainedV2(input);
     input = graph.migrateLegacySpatialModel(input, spatial);
 
     const categories = [];
@@ -954,7 +957,7 @@
       custodyActions,
       reasoning
     };
-    const extensions = normalizeExtensions(input.extensions);
+    const extensions = normalizeExtensions(retainedMigrationExtensions || input.extensions);
     if (extensions) normalized.extensions = extensions;
     return normalized;
   }
