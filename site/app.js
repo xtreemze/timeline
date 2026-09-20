@@ -3279,6 +3279,17 @@
       confidence,
       attributes
     };
+    const duplicateFact = graph.findDuplicateRelationship(relationship, state.relationships, relationship.id);
+    if (duplicateFact) {
+      setError(els.graphEdgeError, `This action fact already exists as “${duplicateFact.id}”. Keep one canonical edge and add chronology, provenance, place, confidence, or other context to that edge instead of duplicating it.`);
+      return;
+    }
+    const mirroredFact = graph.findMirroredRelationship(relationship, state.relationships, relationship.id);
+    if (mirroredFact) {
+      setError(els.graphEdgeError, `A reverse copy of this same action fact already exists as “${mirroredFact.id}”. Direction is part of the fact; create a reverse edge only when it describes a genuinely different reverse action.`);
+      return;
+    }
+
     const index = state.relationships.findIndex((candidate) => candidate.id === relationship.id);
     if (index >= 0) {
       state.relationships[index] = relationship;
