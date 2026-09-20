@@ -622,7 +622,7 @@ test("focused popover runtime owns its final width and height budget", async () 
     readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
   ]);
-  assert.match(source, /const preferredWidth = compact[\s\S]*this\.orientation === "vertical"[\s\S]*\? \(desktop \? 620 : 520\)[\s\S]*: \(desktop \? 760 : 640\)/);
+  assert.match(source, /const preferredWidth = mobileFocusLayout[\s\S]*compactAvailableWidth[\s\S]*: compact[\s\S]*rawAvailableWidth[\s\S]*this\.orientation === "vertical"[\s\S]*\? \(desktop \? 620 : 520\)[\s\S]*: \(desktop \? 760 : 640\)/);
   assert.match(source, /const minimumDesktopWidth = this\.orientation === "vertical" \? 480 : 560/);
   assert.match(source, /rawAvailableWidth < minimumDesktopWidth[\s\S]*unreservedWidth >= minimumDesktopWidth/);
   assert.match(source, /this\.focusView\.style\.inlineSize = Math\.round\(targetWidth\) \+ "px"/);
@@ -750,8 +750,8 @@ test("focused popover stays opposite chronology and reserves persistent applicat
   assert.match(source, /contextualTimelineDocked[\s\S]*viewportHeight - timelineRect\.top/);
   assert.match(source, /positionFocusPopover\(originRect = null\)/);
   assert.match(source, /void originRect/);
-  assert.match(source, /this\.orientation === "vertical"[\s\S]*left = bounds\.left[\s\S]*top = bounds\.top \+ Math\.max\(0, \(availableHeight - height\) \/ 2\)/);
-  assert.match(source, /else \{[\s\S]*left = bounds\.left \+ Math\.max\(0, \(availableWidth - width\) \/ 2\)[\s\S]*top = bounds\.top/);
+  assert.match(source, /this\.orientation === "vertical"[\s\S]*left = bounds\.left[\s\S]*top = mobileFocusLayout[\s\S]*bounds\.top[\s\S]*bounds\.top \+ Math\.max\(0, \(availableHeight - height\) \/ 2\)/);
+  assert.match(source, /else \{[\s\S]*left = mobileFocusLayout[\s\S]*bounds\.left[\s\S]*bounds\.left \+ Math\.max\(0, \(availableWidth - width\) \/ 2\)[\s\S]*top = bounds\.top/);
   assert.doesNotMatch(source, /const targetRect = originRect/);
   assert.match(source, /transitionOriginRect = transitionOrigin\?\.getBoundingClientRect/);
   assert.match(source, /this\.positionFocusPopover\(options\.originRect/);
@@ -879,4 +879,39 @@ test("phone focus popovers collapse to one intrinsic-safe column after the appli
   assert.match(css, /@media \(max-width: 500px\)[\s\S]*\.timeline-focus-view\[popover\][\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) !important/);
   assert.match(css, /\.timeline-focus-view\[popover\] > \*[\s\S]*min-inline-size:\s*0[\s\S]*max-inline-size:\s*100%/);
   assert.match(css, /@media \(min-width: 501px\)[\s\S]*grid-template-columns:\s*repeat\(6, minmax\(0, 1fr\)\) !important/);
+});
+
+
+test("mobile focused-event composition stays opposite chronology and keeps compact chrome", async () => {
+  const [html, css, source, styles] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(html, /id="project-menu-toggle"[^>]*aria-label="Project actions"/);
+  assert.match(styles, /Phone command bar refinement/);
+  assert.match(styles, /@media \(max-width: 460px\)[\s\S]*\.project-menu-toggle[\s\S]*width:\s*42px/);
+
+  assert.match(css, /Mobile focused-event composition/);
+  assert.match(css, /--mobile-focus-rail:\s*clamp\(84px, 24dvw, 108px\)/);
+  assert.match(
+    css,
+    /data-orientation="landscape"\] > \.timeline-focus-view:popover-open[\s\S]*bottom:\s*calc\(var\(--mobile-focus-bottom\) \+ var\(--mobile-focus-rail\)/
+  );
+  assert.match(
+    css,
+    /data-orientation="portrait"\] > \.timeline-focus-view:popover-open[\s\S]*right:\s*calc\(var\(--mobile-focus-rail\)/
+  );
+  assert.match(css, /\.timeline-focus-hero,[\s\S]*min-height:\s*clamp\(170px, 26dvh, 230px\)/);
+  assert.match(css, /timeline-focus-summary \.timeline-focus-actions[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(css, /:is\(\.timeline-focus-place, \.timeline-focus-relations\) \.timeline-focus-section-content[\s\S]*width:\s*min\(60%, 17rem\)/);
+
+  assert.match(source, /createElement\("button", "button primary", "Close"\)/);
+  assert.match(source, /close\.setAttribute\("aria-label", "Return to timeline"\)/);
+  assert.match(source, /mobileFocusLayout = bounds\.viewportWidth <= 699[\s\S]*mobileFocusRail = mobileFocusLayout[\s\S]*clamp\(bounds\.viewportWidth \* 0\.24, 84, 108\)/);
+  assert.match(source, /compactAvailableWidth = mobileFocusLayout && this\.orientation === "vertical"[\s\S]*rawAvailableWidth - mobileFocusRail - mobileFocusGap/);
+  assert.match(source, /compactAvailableHeight = mobileFocusLayout && this\.orientation === "horizontal"[\s\S]*availableHeight - mobileFocusRail - mobileFocusGap/);
+  assert.match(source, /left = mobileFocusLayout[\s\S]*bounds\.left[\s\S]*top = bounds\.top/);
 });

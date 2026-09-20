@@ -1565,11 +1565,24 @@
       const availableHeight = Math.max(1, bounds.viewportHeight - bounds.top - bounds.bottom);
       const desktop = bounds.viewportWidth >= 900 && bounds.viewportHeight >= 700;
       const compact = bounds.viewportWidth <= 760;
-      const preferredWidth = compact
-        ? rawAvailableWidth
-        : this.orientation === "vertical"
-          ? (desktop ? 620 : 520)
-          : (desktop ? 760 : 640);
+      const mobileFocusLayout = bounds.viewportWidth <= 699;
+      const mobileFocusRail = mobileFocusLayout
+        ? clamp(bounds.viewportWidth * 0.24, 84, 108)
+        : 0;
+      const mobileFocusGap = mobileFocusLayout ? 4 : 0;
+      const compactAvailableWidth = mobileFocusLayout && this.orientation === "vertical"
+        ? Math.max(1, rawAvailableWidth - mobileFocusRail - mobileFocusGap)
+        : rawAvailableWidth;
+      const compactAvailableHeight = mobileFocusLayout && this.orientation === "horizontal"
+        ? Math.max(1, availableHeight - mobileFocusRail - mobileFocusGap)
+        : availableHeight;
+      const preferredWidth = mobileFocusLayout
+        ? compactAvailableWidth
+        : compact
+          ? rawAvailableWidth
+          : this.orientation === "vertical"
+            ? (desktop ? 620 : 520)
+            : (desktop ? 760 : 640);
       const minimumDesktopWidth = this.orientation === "vertical" ? 480 : 560;
       const unreservedWidth = Math.max(
         1,
@@ -1588,7 +1601,9 @@
       const preferredMaxHeight = this.orientation === "vertical"
         ? (desktop ? 700 : 660)
         : (desktop ? 500 : 640);
-      const targetMaxHeight = Math.max(1, Math.min(preferredMaxHeight, availableHeight));
+      const targetMaxHeight = mobileFocusLayout
+        ? compactAvailableHeight
+        : Math.max(1, Math.min(preferredMaxHeight, availableHeight));
 
       this.focusView.style.inset = "auto";
       this.focusView.style.right = "auto";
@@ -1611,14 +1626,18 @@
       let left;
       let top;
       if (this.orientation === "vertical") {
-        // Vertical chronology is docked on the right: keep detail on the left and
-        // center it vertically inside the chrome-safe region.
+        // Vertical chronology is docked on the right. On phones the detail consumes
+        // the remaining left region rather than floating over the chronology rail.
         left = bounds.left;
-        top = bounds.top + Math.max(0, (availableHeight - height) / 2);
+        top = mobileFocusLayout
+          ? bounds.top
+          : bounds.top + Math.max(0, (availableHeight - height) / 2);
       } else {
-        // Horizontal chronology is docked on the bottom: keep detail at the top and
-        // center it horizontally inside the chrome-safe region.
-        left = bounds.left + Math.max(0, (availableWidth - width) / 2);
+        // Horizontal chronology is docked on the bottom. On phones the detail uses
+        // the chrome-safe upper region and explicitly leaves the bottom rail exposed.
+        left = mobileFocusLayout
+          ? bounds.left
+          : bounds.left + Math.max(0, (availableWidth - width) / 2);
         top = bounds.top;
       }
 
@@ -1955,8 +1974,9 @@
       next.type = "button";
       next.disabled = currentIndex < 0 || currentIndex >= this.items.length - 1;
       next.addEventListener("click", () => this.focusAdjacent(1));
-      const close = createElement("button", "button primary", "Return to timeline");
+      const close = createElement("button", "button primary", "Close");
       close.type = "button";
+      close.setAttribute("aria-label", "Return to timeline");
       close.addEventListener("click", () => this.closeFocus());
       const edit = createElement("button", "button secondary", "Edit event");
       edit.type = "button";
