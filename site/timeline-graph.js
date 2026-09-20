@@ -149,7 +149,7 @@
         message: `“${predicate}” is too general. Name the concrete action performed by the source toward the target.`
       };
     }
-    if (/\b(?:at|near|during|on\s+\d{4}|in\s+\d{4})\b/i.test(predicate) || /(?:At|Near|During|Via|Along|Toward)$/.test(predicate) || /\d{4}-\d{2}-\d{2}/.test(predicate)) {
+    if (/\b(?:at|near|during|on\s+\d{4}|in\s+\d{4})\b/i.test(predicate) || /(?:At|Near|During|Via|Along|Toward|From|Into|Onto|In)$/.test(predicate) || /\d{4}-\d{2}-\d{2}/.test(predicate)) {
       return {
         valid: false,
         message: `“${predicate}” mixes action with place or time. Keep the label to the action only; select placeId and time separately on the edge.`
