@@ -204,7 +204,7 @@
     const subjectId = text(raw.subjectId ?? raw.start ?? raw.source, 120);
     const objectId = text(raw.objectId ?? raw.end ?? raw.target, 120);
     const predicate = text(raw.predicate || raw.label || raw.type, 120);
-    if (!subjectId || !objectId || !validateActionPredicate(predicate).valid) return null;
+    if (!subjectId || !objectId || subjectId === objectId || !validateActionPredicate(predicate).valid) return null;
 
     let time = null;
     const sourceTime = raw.time && typeof raw.time === "object" ? raw.time : null;
@@ -420,6 +420,9 @@
       if (embeddedPlace) errors.push(`Edge ${id}: the action label must not contain a place name; select the reusable place through placeId.`);
       const subjectId = text(relationship?.subjectId ?? relationship?.start ?? relationship?.source, 120);
       const objectId = text(relationship?.objectId ?? relationship?.end ?? relationship?.target, 120);
+      if (subjectId && objectId && subjectId === objectId) {
+        errors.push(`Edge ${id}: source and target must be different entity nodes. Self-loop relationships are not permitted.`);
+      }
       if (!entityIds.has(subjectId) || !entityIds.has(objectId)) {
         errors.push(`Edge ${id}: endpoints must both be entity nodes. Time and place are edge properties, never endpoint nodes.`);
       }
@@ -606,6 +609,7 @@
       .filter((relationship) =>
         seen.has(String(relationship.subjectId)) &&
         seen.has(String(relationship.objectId)) &&
+        String(relationship.subjectId) !== String(relationship.objectId) &&
         validateActionPredicate(relationship.predicate).valid
       )
       .map((relationship) => ({
