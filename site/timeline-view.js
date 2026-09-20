@@ -44,6 +44,21 @@
     return Math.min(max, Math.max(min, value));
   }
 
+  function formatElapsedDuration(durationMs) {
+    if (!Number.isFinite(durationMs) || durationMs < 0) return "";
+    const totalSeconds = Math.round(durationMs / 1000);
+    const days = Math.floor(totalSeconds / 86_400);
+    const hours = Math.floor((totalSeconds % 86_400) / 3_600);
+    const minutes = Math.floor((totalSeconds % 3_600) / 60);
+    const seconds = totalSeconds % 60;
+    const parts = [];
+    if (days) parts.push(`${days} day${days === 1 ? "" : "s"}`);
+    if (hours && parts.length < 2) parts.push(`${hours} hr`);
+    if (minutes && parts.length < 2) parts.push(`${minutes} min`);
+    if (!parts.length) parts.push(`${seconds} sec`);
+    return parts.join(" ");
+  }
+
   function normalizeWheelDelta(event, pageLength) {
     let delta = Number(event.deltaY) || 0;
     if (event.deltaMode === 1) delta *= 16;
@@ -1761,10 +1776,15 @@
       const eyebrow = createElement("p", "timeline-focus-kicker", item.categoryName || item.kind);
       const heading = createElement("h2", "timeline-focus-title", item.title);
       heading.id = "timeline-focus-heading";
+      const duration = Number.isFinite(item.end)
+        ? formatElapsedDuration(Math.max(0, item.end - item.start))
+        : "";
       const time = createElement(
         "p",
         "timeline-focus-time",
-        Number.isFinite(item.end) ? item.startLabel + " → " + item.endLabel : item.startLabel
+        Number.isFinite(item.end)
+          ? `${item.startLabel} → ${item.endLabel}${duration ? ` · Duration ${duration}` : ""}`
+          : item.startLabel
       );
       const tags = createElement("div", "timeline-focus-tags");
       for (const tag of item.tags || []) {
@@ -1777,36 +1797,25 @@
 
       if (media.length > 1) {
         const controls = createElement("div", "timeline-focus-slideshow-controls");
-        const previous = createElement("button", "button secondary", "Previous image");
-        previous.type = "button";
-        previous.setAttribute("aria-label", "Previous event photograph");
-        previous.addEventListener("click", () => {
-          this.focusMediaIndex = (activeIndex - 1 + media.length) % media.length;
-          this.renderFocus(item);
-          this.root.dispatchEvent(new CustomEvent("timelinefocusrender", {
-            bubbles: true,
-            detail: { id: item.id }
-          }));
+        controls.setAttribute("role", "group");
+        controls.setAttribute("aria-label", "Event images");
+        media.forEach((_, index) => {
+          const dot = createElement("button", "timeline-focus-slide-dot");
+          dot.type = "button";
+          dot.setAttribute("aria-label", `Show image ${index + 1} of ${media.length}`);
+          dot.setAttribute("aria-current", index === activeIndex ? "true" : "false");
+          dot.classList.toggle("is-active", index === activeIndex);
+          dot.addEventListener("click", () => {
+            this.focusMediaIndex = index;
+            this.renderFocus(item);
+            this.root.dispatchEvent(new CustomEvent("timelinefocusrender", {
+              bubbles: true,
+              detail: { id: item.id }
+            }));
+          });
+          controls.append(dot);
         });
-        const count = createElement("span", "timeline-focus-slide-count", `${activeIndex + 1} / ${media.length}`);
-        const next = createElement("button", "button secondary", "Next image");
-        next.type = "button";
-        next.setAttribute("aria-label", "Next event photograph");
-        next.addEventListener("click", () => {
-          this.focusMediaIndex = (activeIndex + 1) % media.length;
-          this.renderFocus(item);
-          this.root.dispatchEvent(new CustomEvent("timelinefocusrender", {
-            bubbles: true,
-            detail: { id: item.id }
-          }));
-        });
-        controls.append(previous, count, next);
         hero.append(controls);
-      }
-
-      if (active?.caption) {
-        const caption = createElement("p", "timeline-focus-media-caption", active.caption);
-        hero.append(caption);
       }
       return hero;
     }
@@ -1822,8 +1831,7 @@
       const hero = this.createFocusHero(item);
 
       const summary = createElement("section", "timeline-focus-section timeline-focus-summary");
-      const summaryHeading = createElement("h3", "timeline-focus-section-heading", "Context");
-      summary.append(summaryHeading);
+      summary.setAttribute("aria-label", "Context");
       if (item.description) {
         summary.append(createElement("p", "timeline-focus-description", item.description));
       } else {
@@ -1831,10 +1839,10 @@
       }
 
       const place = createElement("section", "timeline-focus-section timeline-focus-place");
+      place.setAttribute("aria-label", "Place");
       const placeBackdrop = createElement("div", "timeline-focus-section-backdrop timeline-focus-place-backdrop");
       placeBackdrop.dataset.focusMapSlot = "";
       const placeContent = createElement("div", "timeline-focus-section-content");
-      placeContent.append(createElement("h3", "timeline-focus-section-heading", "Place"));
       if (item.location) {
         const placeName =
           item.location.name ||
@@ -1856,10 +1864,10 @@
       place.append(placeBackdrop, placeContent);
 
       const relations = createElement("section", "timeline-focus-section timeline-focus-relations");
+      relations.setAttribute("aria-label", "Relations");
       const relationBackdrop = createElement("div", "timeline-focus-section-backdrop timeline-focus-relations-backdrop");
       relationBackdrop.dataset.focusGraphSlot = "";
       const relationContent = createElement("div", "timeline-focus-section-content");
-      relationContent.append(createElement("h3", "timeline-focus-section-heading", "Relations"));
       if (item.relations?.length) {
         const list = createElement("ul", "timeline-focus-relation-list");
         for (const relation of item.relations.slice(0, 8)) {
@@ -1900,7 +1908,7 @@
       relations.append(relationBackdrop, relationContent);
 
       const evidence = createElement("section", "timeline-focus-section timeline-focus-evidence");
-      evidence.append(createElement("h3", "timeline-focus-section-heading", "Evidence"));
+      evidence.setAttribute("aria-label", "Evidence");
       if (item.evidence?.length) {
         const grid = createElement("div", "timeline-focus-evidence-grid");
         const visibleEvidence = item.evidence.slice(0, 6);
