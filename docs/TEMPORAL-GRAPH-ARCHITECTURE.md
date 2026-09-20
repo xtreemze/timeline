@@ -118,9 +118,19 @@ The canonical model deliberately separates entity topology from spatial context:
 }
 ```
 
-A node represents exactly one entity. Places, locations, coordinates, geometry, dates, times, periods, actions and events are never graph nodes. A relationship label contains only the action predicate. Its temporal extent is stored in `relationship.time`; its spatial context is a `relationship.placeId` reference to one canonical `places[]` record. Those properties drive timeline and map projections independently from the label.
+A node represents exactly one entity. Places, locations, coordinates, geometry, dates, times, periods, actions and events are never graph nodes. Every relationship must connect two different entity nodes; self-loop edges are invalid. A self-loop usually indicates that an object/entity was incorrectly embedded in the predicate and should instead be modeled as the target node.
+
+A relationship label contains only the action verb. It may use a small relational particle such as `to`, `from`, `with`, `for`, `onto`, `through`, or `beside` when needed, but it must never contain a noun or entity identifier. For example, prefer `attacks` from the wolf node to the house node, not `attacksBrickHouse`; prefer `dancesWith` from the prince node to Cinderella, not `dancesWithCinderella`. Its temporal extent is stored in `relationship.time`; its spatial context is a `relationship.placeId` reference to one canonical `places[]` record. Those properties drive timeline and map projections independently from the label.
 
 `itemIds[]` links an action back to chronology/presentation records without turning chronology items into graph nodes. Untimed relationships remain valid only when the action genuinely has no temporal extent.
+
+### Named entities in event context
+
+Event narrative and graph topology must stay semantically complete. If an existing canonical entity name or alternate name appears in an event title, description, image alt text, or image caption, that entity must participate as a source or target of at least one concrete action edge linked to the event through `relationship.itemIds[]` or the event's `relationChanges[]`.
+
+This is a graph-integrity rule, not entity extraction by guesswork. Free text does not create nodes automatically. When prose introduces a person, organization, group, object, document, account, device, or other entity that is not yet canonical, the author must first create/reuse that entity node and then connect it with the action that makes the entity relevant to the event. Evidence metadata and semantic tags are excluded from this narrative-mention rule because they may identify sources, publishers, classifications, or evidentiary context rather than event participants.
+
+A contextual edge does not need to occur at exactly the same instant as the event when the prose is explicitly causal or background context. `itemIds[]` expresses that the action is relevant to the event; the edge's own `time` remains authoritative for when the action occurred. Every sample event still retains at least one contemporaneous action edge. Focused event neighborhoods include explicitly linked context edges even when their action time lies outside the current event viewport, marking them as contextual rather than rewriting their timestamp.
 
 ## Memgraph Orb compatibility
 
