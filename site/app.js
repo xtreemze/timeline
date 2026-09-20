@@ -2255,6 +2255,28 @@
       : available[0]?.value || "";
   }
 
+  function syncGraphEdgeEndpointConstraints(changed = "subject") {
+    const subjectId = els.graphEdgeSubject.value;
+    const objectId = els.graphEdgeObject.value;
+
+    if (subjectId && objectId && subjectId === objectId) {
+      const target = changed === "object" ? els.graphEdgeSubject : els.graphEdgeObject;
+      const forbidden = changed === "object" ? objectId : subjectId;
+      const replacement = [...target.querySelectorAll("option")]
+        .find((option) => option.value !== forbidden);
+      target.value = replacement?.value || "";
+    }
+
+    const nextSubjectId = els.graphEdgeSubject.value;
+    const nextObjectId = els.graphEdgeObject.value;
+    for (const option of els.graphEdgeSubject.querySelectorAll("option")) {
+      option.disabled = Boolean(nextObjectId && option.value === nextObjectId);
+    }
+    for (const option of els.graphEdgeObject.querySelectorAll("option")) {
+      option.disabled = Boolean(nextSubjectId && option.value === nextSubjectId);
+    }
+  }
+
   function graphContextItemOptions(select, selected = []) {
     if (!select) return;
     const selectedIds = new Set(Array.from(selected || [], String));
@@ -2500,6 +2522,7 @@
     els.graphEdgeDateField.hidden = false;
     graphEndpointOptions(els.graphEdgeSubject);
     graphEndpointOptions(els.graphEdgeObject);
+    syncGraphEdgeEndpointConstraints("subject");
     graphPlaceOptions(els.graphEdgePlace);
     graphContextItemOptions(els.graphEdgeItemIds);
     els.saveGraphEdge.textContent = "Add edge";
@@ -2547,6 +2570,7 @@
     els.graphEdgeId.value = relationship.id;
     graphEndpointOptions(els.graphEdgeSubject, relationship.subjectId);
     graphEndpointOptions(els.graphEdgeObject, relationship.objectId);
+    syncGraphEdgeEndpointConstraints("subject");
     graphPlaceOptions(els.graphEdgePlace, relationship.placeId || "");
     graphContextItemOptions(els.graphEdgeItemIds, relationship.itemIds || []);
     els.graphEdgePredicate.value = relationship.predicate || "";
@@ -2621,6 +2645,7 @@
     const object = els.graphEdgeObject.value;
     graphEndpointOptions(els.graphEdgeSubject, subject);
     graphEndpointOptions(els.graphEdgeObject, object);
+    syncGraphEdgeEndpointConstraints("subject");
     const placeId = els.graphEdgePlace.value;
     graphPlaceOptions(els.graphEdgePlace, placeId);
     const contextItemIds = [...els.graphEdgeItemIds.selectedOptions].map((option) => option.value);
@@ -3083,6 +3108,9 @@
     if (button.dataset.action === "delete-graph-place") removeGraphPlace(row.dataset.id);
   });
 
+  els.graphEdgeSubject.addEventListener("change", () => syncGraphEdgeEndpointConstraints("subject"));
+  els.graphEdgeObject.addEventListener("change", () => syncGraphEdgeEndpointConstraints("object"));
+
   els.graphEdgeTimeKind.addEventListener("change", () => {
     const start = els.graphEdgeStartDate.value;
     const end = els.graphEdgeEndDate.value;
@@ -3103,6 +3131,11 @@
     const predicate = els.graphEdgePredicate.value.trim();
     if (!subjectId || !objectId) {
       setError(els.graphEdgeError, "Choose both a subject and an object.");
+      return;
+    }
+    if (subjectId === objectId) {
+      setError(els.graphEdgeError, "Source and target must be different entity nodes. Self-loop edges are not allowed.");
+      els.graphEdgeObject.focus();
       return;
     }
     const predicateValidation = graph.validateActionPredicate(predicate);
