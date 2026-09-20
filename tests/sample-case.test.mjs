@@ -122,19 +122,22 @@ test("sample exercises focus compositions, media, source surfaces, and tags", ()
   assert.ok(sample.evidence.every((record) => /fixture|Timeline demo/i.test(record.sourceName)));
 });
 
-test("the graph keeps tales separate under one anthology container", () => {
+test("the anthology keeps tales separate through narrative membership, not graph topology", () => {
   const storyIds = new Set(sample.stories.map((story) => story.id));
-  const anthologyLinks = sample.relationships.filter(
-    (relationship) => relationship.subjectId === "storybook-anthology" && relationship.predicate === "containsStory"
-  );
-  assert.deepEqual(new Set(anthologyLinks.map((relationship) => relationship.objectId)), storyIds);
+  const allStoryItems = new Set();
 
-  const storyLinks = sample.relationships.filter((relationship) => storyIds.has(relationship.objectId));
   for (const story of sample.stories) {
-    assert.ok(storyLinks.some(
-      (relationship) => relationship.objectId === story.id && relationship.subjectId !== "storybook-anthology"
-    ));
+    assert.ok(story.itemIds.length > 0, story.id);
+    for (const itemId of story.itemIds) {
+      assert.equal(allStoryItems.has(itemId), false, `${itemId}: each fixture scene belongs to one tale`);
+      allStoryItems.add(itemId);
+    }
   }
+
+  assert.equal(allStoryItems.size, sample.items.length);
+  assert.ok(sample.relationships.every(
+    (relationship) => !storyIds.has(relationship.subjectId) && !storyIds.has(relationship.objectId)
+  ));
 });
 
 test("each tale demonstrates an event-driven relationship lifecycle", () => {
