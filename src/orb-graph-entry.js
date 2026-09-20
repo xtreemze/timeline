@@ -451,8 +451,10 @@ function create(container, handlers = {}) {
     const pointerId = touchHold.pointerId;
     const simulator = touchDragSimulator();
     if (simulator && node) simulator.endDragNode(node.getId());
-    releaseTouchPointerCapture(pointerId);
+    // Mark inactive before releasing capture because browsers may dispatch
+    // lostpointercapture synchronously from releasePointerCapture().
     touchHold.activated = false;
+    releaseTouchPointerCapture(pointerId);
     if (settle) keepForceActiveAfterInteraction();
     return true;
   }
