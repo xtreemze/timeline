@@ -803,6 +803,35 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
 });
 
 
+test("workspace toolbars deploy vertically in landscape and horizontally in portrait", async () => {
+  const [styles, timelineCss] = await Promise.all([
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(
+    styles,
+    /#app-shell:has\(#timeline-view\[data-orientation="landscape"\]\) \.app-tool-dock\s*\{[\s\S]*flex-direction:\s*column[\s\S]*overflow-x:\s*hidden[\s\S]*overflow-y:\s*auto/
+  );
+  assert.match(
+    styles,
+    /#app-shell:has\(#timeline-view\[data-orientation="portrait"\]\) \.app-tool-dock\s*\{[\s\S]*flex-direction:\s*row[\s\S]*overflow-x:\s*auto[\s\S]*overflow-y:\s*hidden/
+  );
+  assert.match(
+    timelineCss,
+    /#app-shell:has\(#timeline-view\[data-orientation="landscape"\]\)[\s\S]*\.app-view-controls\.timeline-view-toolbar:not\(\[hidden\]\)\s*\{[\s\S]*flex-direction:\s*column[\s\S]*overflow-x:\s*hidden[\s\S]*overflow-y:\s*auto/
+  );
+  assert.match(
+    timelineCss,
+    /#app-shell:has\(#timeline-view\[data-orientation="landscape"\]\)[\s\S]*#presentation-stage:fullscreen \.timeline-view-toolbar\s*\{[\s\S]*flex-direction:\s*column/
+  );
+  assert.match(
+    timelineCss,
+    /#app-shell:has\(#timeline-view\[data-orientation="portrait"\]\)[\s\S]*\.app-view-controls\.timeline-view-toolbar:not\(\[hidden\]\),[\s\S]*#presentation-stage:fullscreen \.timeline-view-toolbar\s*\{[\s\S]*flex-direction:\s*row/
+  );
+});
+
+
 test("shared camera motion exposes capped two-dimensional release velocity and map-equivalent deceleration", () => {
   const velocity = motion.estimatePointerVectorVelocity([
     { x: 0, y: 0, time: 0 },
