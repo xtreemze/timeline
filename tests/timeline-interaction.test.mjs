@@ -771,6 +771,7 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
 
   assert.match(timelineCss, /Narrow-screen control composition/);
   assert.match(timelineCss, /Consolidated view control cluster/);
+  assert.match(htmlSource, /id="timeline-view-toolbar"[^>]*popover="manual"/, "expanded View controls use the native popover top layer");
   assert.match(timelineCss, /\.timeline-zoom-control[\s\S]*grid-template-rows:\s*22px auto/);
   assert.match(timelineCss, /\.timeline-zoom-scale[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar:not\(\[hidden\]\)[\s\S]*bottom:\s*max\(4\.35rem/);
