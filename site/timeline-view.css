@@ -3990,7 +3990,7 @@
   }
 }
 
-/* Fullscreen has no separate View button, so keep its always-visible control cluster in the upper-right safe area. */
+/* When the View popover is open in fullscreen, keep its control cluster in the upper-right safe area. */
 #presentation-stage:fullscreen .timeline-view-toolbar:popover-open {
   position: absolute;
   top: max(.4rem, env(safe-area-inset-top));
