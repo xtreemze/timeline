@@ -2323,6 +2323,11 @@ body {
   view-transition-name: timeline-browser-sidebar;
 }
 
+.app-editor-sheet::backdrop,
+.app-browser-sheet::backdrop {
+  background: transparent;
+}
+
 .app-editor-sheet,
 .app-browser-sheet,
 #app-shell #presentation-stage > .graph-lens:not([hidden]) {
