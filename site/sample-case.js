@@ -154,7 +154,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite.png",
           "alt": "1852 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -234,7 +234,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Snow%20White%20illustration%20from%20german%20children's%20book%201919%20(3917968514).jpg",
           "alt": "1919 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -306,7 +306,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20and%20the%20Fairy%20Godmother.jpg",
           "alt": "William Henry Margetson public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -378,7 +378,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Helen%20Stratton%20Cinderella.jpg",
           "alt": "Helen Stratton public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -458,7 +458,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Arthur%20Rackham%20Cinderella%20silhouette%20illustration.jpg",
           "alt": "Arthur Rackham public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -538,7 +538,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%20-%20third%20pig%20builds%20a%20house%20-%20Project%20Gutenberg%20eText%2015661.jpg",
           "alt": "L. Leslie Brooke illustration of the third pig building",
-          "caption": "Additional public-domain The Three Little Pigs illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -677,7 +677,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%201904%20straw%20house.jpg",
           "alt": "1904 illustration of the wolf at the straw house",
-          "caption": "Additional public-domain The Three Little Pigs illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -749,7 +749,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20Little%20pigs%2C%20Img005.jpg",
           "alt": "L. Leslie Brooke Three Little Pigs illustration",
-          "caption": "Additional public-domain The Three Little Pigs illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -821,7 +821,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite21.jpg",
           "alt": "1913 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -893,7 +893,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20Img006.jpg",
           "alt": "L. Leslie Brooke illustration of the wolf at the brick house",
-          "caption": "Additional public-domain The Three Little Pigs illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -965,7 +965,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20Img013.jpg",
           "alt": "L. Leslie Brooke illustration of the chimney attempt",
-          "caption": "Additional public-domain The Three Little Pigs illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -1128,7 +1128,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite23.jpg",
           "alt": "1913 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -1200,7 +1200,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20straw.jpg",
           "alt": "L. Leslie Brooke illustration of a pig carrying straw",
-          "caption": "Additional public-domain The Three Little Pigs illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -1272,7 +1272,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite31.jpg",
           "alt": "1913 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -1411,7 +1411,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite32.jpg",
           "alt": "1913 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -1483,7 +1483,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%20-%20third%20pig%20builds%20a%20house%20-%20Project%20Gutenberg%20eText%2015661.jpg",
           "alt": "L. Leslie Brooke illustration of the third pig building",
-          "caption": "Additional public-domain The Three Little Pigs illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -1640,7 +1640,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite36.jpg",
           "alt": "1913 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -1712,7 +1712,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20Gustav%20Dor%C3%A9%20illustration%20for%20Charles%20Perrault%20-%20Il%20libro%20delle%20fate%2C%20Longanesi%2C%20Milano%2C%201891.jpg",
           "alt": "Gustave Doré public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -1784,7 +1784,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite.jpg",
           "alt": "1913 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -1856,7 +1856,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20by%20Elenore%20Abbott.jpg",
           "alt": "Elenore Abbott public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -1928,7 +1928,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20and%20the%20Fairy%20Godmother.jpg",
           "alt": "William Henry Margetson public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -2086,7 +2086,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite.png",
           "alt": "1852 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -2158,7 +2158,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Snow%20White%20illustration%20from%20german%20children's%20book%201919%20(3917968514).jpg",
           "alt": "1919 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -2230,7 +2230,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite21.jpg",
           "alt": "1913 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -2308,7 +2308,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%201904%20straw%20house.jpg",
           "alt": "1904 illustration of the wolf at the straw house",
-          "caption": "Additional public-domain The Three Little Pigs illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -2447,7 +2447,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20Little%20pigs%2C%20Img005.jpg",
           "alt": "L. Leslie Brooke Three Little Pigs illustration",
-          "caption": "Additional public-domain The Three Little Pigs illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -2596,7 +2596,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Arthur%20Rackham%20Cinderella%20silhouette%20illustration.jpg",
           "alt": "Arthur Rackham public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -2668,7 +2668,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20Img006.jpg",
           "alt": "L. Leslie Brooke illustration of the wolf at the brick house",
-          "caption": "Additional public-domain The Three Little Pigs illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -2807,7 +2807,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20Img013.jpg",
           "alt": "L. Leslie Brooke illustration of the chimney attempt",
-          "caption": "Additional public-domain The Three Little Pigs illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -2879,7 +2879,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite23.jpg",
           "alt": "1913 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -2951,7 +2951,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite31.jpg",
           "alt": "1913 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -3031,7 +3031,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20Gustav%20Dor%C3%A9%20illustration%20for%20Charles%20Perrault%20-%20Il%20libro%20delle%20fate%2C%20Longanesi%2C%20Milano%2C%201891.jpg",
           "alt": "Gustave Doré public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -3103,7 +3103,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20by%20Elenore%20Abbott.jpg",
           "alt": "Elenore Abbott public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -3242,7 +3242,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20and%20the%20Fairy%20Godmother.jpg",
           "alt": "William Henry Margetson public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -3332,7 +3332,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%20-%20the%20wolf%20lands%20in%20the%20cooking%20pot%20-%20Project%20Gutenberg%20eText%2015661.jpg",
           "alt": "L. Leslie Brooke illustration of the final chimney scene",
-          "caption": "Additional public-domain The Three Little Pigs illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -3404,7 +3404,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%2C%20straw.jpg",
           "alt": "L. Leslie Brooke illustration of a pig carrying straw",
-          "caption": "Additional public-domain The Three Little Pigs illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -3476,7 +3476,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%20-%20third%20pig%20builds%20a%20house%20-%20Project%20Gutenberg%20eText%2015661.jpg",
           "alt": "L. Leslie Brooke illustration of the third pig building",
-          "caption": "Additional public-domain The Three Little Pigs illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -3555,7 +3555,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Three%20little%20pigs%201904%20straw%20house.jpg",
           "alt": "1904 illustration of the wolf at the straw house",
-          "caption": "Additional public-domain The Three Little Pigs illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -3627,7 +3627,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite32.jpg",
           "alt": "1913 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -3709,7 +3709,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite35.jpg",
           "alt": "1913 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -3789,7 +3789,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite36.jpg",
           "alt": "1913 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -3869,7 +3869,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Helen%20Stratton%20Cinderella.jpg",
           "alt": "Helen Stratton public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -4008,7 +4008,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Arthur%20Rackham%20Cinderella%20silhouette%20illustration.jpg",
           "alt": "Arthur Rackham public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -4086,7 +4086,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20Gustav%20Dor%C3%A9%20illustration%20for%20Charles%20Perrault%20-%20Il%20libro%20delle%20fate%2C%20Longanesi%2C%20Milano%2C%201891.jpg",
           "alt": "Gustave Doré public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -4233,7 +4233,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20by%20Elenore%20Abbott.jpg",
           "alt": "Elenore Abbott public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -4305,7 +4305,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite.jpg",
           "alt": "1913 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -4378,7 +4378,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/SnowWhite.png",
           "alt": "1852 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -4450,7 +4450,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20and%20the%20Fairy%20Godmother.jpg",
           "alt": "William Henry Margetson public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -4522,7 +4522,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Helen%20Stratton%20Cinderella.jpg",
           "alt": "Helen Stratton public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -4605,7 +4605,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Arthur%20Rackham%20Cinderella%20silhouette%20illustration.jpg",
           "alt": "Arthur Rackham public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -4684,7 +4684,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Snow%20White%20illustration%20from%20german%20children's%20book%201919%20(3917968514).jpg",
           "alt": "1919 public-domain Snow White illustration",
-          "caption": "Additional public-domain Snow White illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     },
@@ -4767,7 +4767,7 @@
         {
           "src": "https://commons.wikimedia.org/wiki/Special:FilePath/Cinderella%20Gustav%20Dor%C3%A9%20illustration%20for%20Charles%20Perrault%20-%20Il%20libro%20delle%20fate%2C%20Longanesi%2C%20Milano%2C%201891.jpg",
           "alt": "Gustave Doré public-domain Cinderella illustration",
-          "caption": "Additional public-domain Cinderella illustration for narrative context; illustrative only."
+          "caption": "Public-domain story illustration via Wikimedia Commons; additional narrative context only."
         }
       ]
     }
@@ -10316,7 +10316,7 @@
     {
       "id": "rel-event-snow-mirror-involvesObject",
       "subjectId": "snow-mirror",
-      "objectId": "snow-mirror",
+      "objectId": "snow-mirror-object",
       "predicate": "involvesObject",
       "time": {
         "type": "instant",
@@ -10470,7 +10470,7 @@
     {
       "id": "rel-event-snow-apple-prepared-createsObject",
       "subjectId": "snow-apple-prepared",
-      "objectId": "snow-apple",
+      "objectId": "snow-apple-object",
       "predicate": "createsObject",
       "time": {
         "type": "instant",
@@ -10492,7 +10492,7 @@
     {
       "id": "rel-event-snow-apple-involvesObject",
       "subjectId": "snow-apple",
-      "objectId": "snow-apple",
+      "objectId": "snow-apple-object",
       "predicate": "involvesObject",
       "time": {
         "type": "instant",
