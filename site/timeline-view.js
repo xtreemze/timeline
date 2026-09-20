@@ -1202,7 +1202,7 @@
       node.append(connector, button);
 
       if (this.orientation === "horizontal") {
-        const lane = this.allocateEventLane(position, occupied);
+        const lane = this.resolveEventLane(position, occupied, 236, item.lane);
         const focused = Boolean(this.selectedId);
         const side = focused ? -1 : (lane % 2 === 0 ? -1 : 1);
         const depth = focused ? lane : Math.floor(lane / 2);
@@ -1464,6 +1464,8 @@
       node.dataset.connectorStyle = item.connectorStyle || "solid";
       node.dataset.connectorWeight = item.connectorWeight || "normal";
       node.dataset.connectorEndpoint = item.connectorEndpoint || "none";
+      node.dataset.laneMode = Number.isInteger(item.lane) ? "manual" : "auto";
+      if (Number.isInteger(item.lane)) node.dataset.lane = String(item.lane);
       node.style.setProperty("--connector-thickness", item.connectorWeight === "fine" ? "1px" : item.connectorWeight === "strong" ? "4px" : "2px");
       node.style.setProperty("--event-color", item.color || "var(--accent)");
       if (item.id === this.focusId) node.classList.add("is-story-current");
@@ -1533,7 +1535,7 @@
       } else {
         const compact = width < 560;
         const focused = Boolean(this.selectedId);
-        const laneIndex = this.allocateEventLane(position, occupied, 78);
+        const laneIndex = this.resolveEventLane(position, occupied, 78, item.lane);
         const side = focused ? -1 : (compact ? 1 : laneIndex % 2 === 0 ? -1 : 1);
         const depth = focused || compact ? laneIndex : Math.floor(laneIndex / 2);
         const baseDistance = compact
@@ -1562,6 +1564,15 @@
         if (side < 0) node.classList.add("label-before");
       }
       return node;
+    }
+
+    resolveEventLane(position, occupied, minDistance = 236, preferredLane = null) {
+      if (Number.isInteger(preferredLane) && preferredLane >= 0) {
+        while (occupied.length <= preferredLane) occupied.push(undefined);
+        occupied[preferredLane] = position;
+        return preferredLane;
+      }
+      return this.allocateEventLane(position, occupied, minDistance);
     }
 
     allocateEventLane(position, occupied, minDistance = 236) {
