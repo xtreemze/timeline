@@ -2868,43 +2868,92 @@
     if (ui.mode !== "edit") return;
     els.importInterchange?.click();
   });
+  function projectMenuViewport() {
+    const visualViewport = window.visualViewport;
+    const width = Math.max(
+      1,
+      visualViewport?.width || document.documentElement.clientWidth || window.innerWidth || 1
+    );
+    const height = Math.max(
+      1,
+      visualViewport?.height || document.documentElement.clientHeight || window.innerHeight || 1
+    );
+    return {
+      width,
+      height,
+      left: Math.max(0, visualViewport?.offsetLeft || 0),
+      top: Math.max(0, visualViewport?.offsetTop || 0)
+    };
+  }
+
   function positionProjectMenu() {
     if (!els.projectMenu || !els.projectMenuToggle) return;
     const rect = els.projectMenuToggle.getBoundingClientRect();
-    const viewportWidth = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
-    const viewportHeight = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+    const viewport = projectMenuViewport();
     const gap = 8;
     const edge = 8;
-    const menuWidth = Math.min(340, Math.max(240, viewportWidth - edge * 2));
+    const minLeft = viewport.left + edge;
+    const minTop = viewport.top + edge;
+    const maxRight = viewport.left + viewport.width - edge;
+    const maxBottom = viewport.top + viewport.height - edge;
+    const availableWidth = Math.max(1, maxRight - minLeft);
+    const availableHeight = Math.max(1, maxBottom - minTop);
+    const menuWidth = Math.min(340, availableWidth);
+    const menuHeight = Math.min(
+      620,
+      Math.max(1, els.projectMenu.scrollHeight || 340),
+      availableHeight
+    );
     const portrait = els.timelineViewRoot?.dataset.orientation === "portrait";
     const preferredLeft = portrait ? rect.left - menuWidth - gap : rect.left;
     const left = Math.min(
-      Math.max(edge, preferredLeft),
-      Math.max(edge, viewportWidth - menuWidth - edge)
+      Math.max(minLeft, preferredLeft),
+      Math.max(minLeft, maxRight - menuWidth)
     );
-    const menuHeight = Math.min(
-      620,
-      Math.max(160, els.projectMenu.scrollHeight || 340),
-      Math.max(160, viewportHeight - edge * 2)
-    );
-    const opensUpward = !portrait && rect.top > viewportHeight / 2;
+    const opensUpward = !portrait && rect.top > viewport.top + viewport.height / 2;
     const preferredTop = opensUpward
       ? rect.top - menuHeight - gap
       : portrait ? rect.top : rect.bottom + gap;
     const top = Math.min(
-      Math.max(edge, preferredTop),
-      Math.max(edge, viewportHeight - menuHeight - edge)
+      Math.max(minTop, preferredTop),
+      Math.max(minTop, maxBottom - menuHeight)
     );
+
     els.projectMenu.style.setProperty("--project-menu-left", `${Math.round(left)}px`);
     els.projectMenu.style.setProperty("--project-menu-top", `${Math.round(top)}px`);
+    els.projectMenu.style.setProperty("--project-menu-max-width", `${Math.floor(availableWidth)}px`);
+    els.projectMenu.style.setProperty("--project-menu-max-height", `${Math.floor(availableHeight)}px`);
+
+    if (els.projectMenu.matches(":popover-open")) {
+      const menuRect = els.projectMenu.getBoundingClientRect();
+      const clampedLeft = Math.min(
+        Math.max(minLeft, menuRect.left),
+        Math.max(minLeft, maxRight - menuRect.width)
+      );
+      const clampedTop = Math.min(
+        Math.max(minTop, menuRect.top),
+        Math.max(minTop, maxBottom - menuRect.height)
+      );
+      els.projectMenu.style.setProperty("--project-menu-left", `${Math.round(clampedLeft)}px`);
+      els.projectMenu.style.setProperty("--project-menu-top", `${Math.round(clampedTop)}px`);
+    }
+  }
+
+  function repositionOpenProjectMenu() {
+    if (!els.projectMenu?.matches(":popover-open")) return;
+    positionProjectMenu();
   }
 
   els.projectMenu?.addEventListener("beforetoggle", (event) => {
     if (event.newState === "open") positionProjectMenu();
   });
-  window.addEventListener("resize", () => {
-    if (els.projectMenu?.matches(":popover-open")) positionProjectMenu();
+  els.projectMenu?.addEventListener("toggle", (event) => {
+    if (event.newState !== "open") return;
+    requestAnimationFrame(positionProjectMenu);
   });
+  window.addEventListener("resize", repositionOpenProjectMenu);
+  window.visualViewport?.addEventListener("resize", repositionOpenProjectMenu);
+  window.visualViewport?.addEventListener("scroll", repositionOpenProjectMenu);
 
   els.projectMenu?.addEventListener("click", (event) => {
     const action = event.target.closest("[data-project-menu-close]");
