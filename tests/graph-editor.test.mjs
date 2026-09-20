@@ -25,7 +25,7 @@ test("graph editor separates entity nodes, reusable places, and action-edge cont
   assert.match(html, /id="graph-edge-object"/);
   assert.match(html, /id="graph-edge-place"/);
   assert.match(html, /id="graph-edge-item-ids"/);
-  assert.match(html, /One node = one entity/);
+  assert.match(html, /One node = one durable entity/);
   assert.match(html, /Places are map records, never graph nodes/);
   assert.match(html, /Action only\. Do not put a place, date, time, period/);
   assert.match(html, /Self-loop edges are structurally invalid/);
