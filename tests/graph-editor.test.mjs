@@ -291,7 +291,7 @@ test("touch graph uses forgiving node and edge hit targets with visible long-pre
   ]);
 
   assert.match(bridge, /TOUCH_NODE_TARGET_DIAMETER_PX\s*=\s*44/);
-  assert.match(bridge, /TOUCH_EDGE_TARGET_RADIUS_PX\s*=\s*14/);
+  assert.match(bridge, /TOUCH_EDGE_TARGET_RADIUS_PX\s*=\s*22/);
   assert.match(bridge, /function simulationRadiusForPixels\(globalPoint, radiusPx\)/);
   assert.match(bridge, /function expandedTouchNode\(localPoint, globalPoint\)[\s\S]*orb\.data\.getNodes\(\)/);
   assert.match(bridge, /Math\.max\(Number\(node\.getBorderedRadius\?\.\(\)\) \|\| 0, minimumRadius\)/);
