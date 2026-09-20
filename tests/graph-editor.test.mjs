@@ -28,6 +28,7 @@ test("graph editor separates entity nodes, reusable places, and action-edge cont
   assert.match(html, /One node = one entity/);
   assert.match(html, /Places are map records, never graph nodes/);
   assert.match(html, /Action only\. Do not put a place, date, time, period/);
+  assert.match(html, /Self-loop edges are structurally invalid/);
   assert.match(html, /id="graph-edge-properties"/);
   assert.match(html, /id="graph-edge-initial-state"/);
   assert.match(html, /id="graph-edge-provenance-details"/);
@@ -84,6 +85,8 @@ test("application provides CRUD handlers for entity nodes, places, and structure
   assert.match(source, /graphContextItemOptions/);
   assert.match(source, /placeId:\s*els\.graphEdgePlace\.value/);
   assert.match(source, /Confidence must be between 0 and 1/);
+  assert.match(source, /subjectId === objectId/);
+  assert.match(source, /edge cannot originate from and target the same node/);
   assert.match(source, /connected \$\{edgeCount === 1 \? "edge" : "edges"\} will also be removed/);
   assert.match(source, /state\.relationships = state\.relationships\.map\(\(relationship\)[\s\S]*itemIds: \(relationship\.itemIds \|\| \[\]\)\.filter\(\(itemId\) => itemId !== id\)/);
   assert.match(source, /collectRelationChangeForm/);
