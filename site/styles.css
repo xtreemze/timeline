@@ -2539,43 +2539,6 @@ body {
   padding-bottom: 1rem;
 }
 
-.timeline-view-toolbar[popover] {
-  inset: auto;
-  margin: 0;
-  max-inline-size: calc(100dvw - max(.8rem, env(safe-area-inset-left)) - max(.8rem, env(safe-area-inset-right)));
-  max-block-size: calc(100dvh - max(.8rem, env(safe-area-inset-top)) - max(4.8rem, calc(env(safe-area-inset-bottom) + 4.4rem)));
-  overflow-x: auto;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-.timeline-view-toolbar[popover]::backdrop {
-  background: transparent;
-}
-
-.app-view-controls[popover]:popover-open {
-  position: fixed;
-  z-index: 1150;
-  top: max(4.15rem, calc(env(safe-area-inset-top) + 3.8rem));
-  left: max(.4rem, env(safe-area-inset-left));
-  right: max(.4rem, env(safe-area-inset-right));
-  display: flex;
-  width: auto;
-  max-height: min(48dvh, 320px);
-  padding: .35rem;
-  gap: .3rem;
-  overflow-x: auto;
-  overflow-y: hidden;
-  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
-  border-radius: .8rem;
-  background: color-mix(in srgb, var(--paper) 91%, transparent);
-  box-shadow: 0 3px 10px color-mix(in srgb, var(--ink) 5%, transparent);
-  backdrop-filter: blur(12px);
-  scrollbar-width: thin;
-}
-.app-view-controls[popover]:popover-open > * {
-  flex: 0 0 auto;
-}
-
 .status {
   z-index: 1600;
   max-width: min(520px, calc(100dvw - 1rem));
@@ -2631,13 +2594,6 @@ body {
   }
 
 
-  .app-view-controls[popover]:popover-open {
-    top: max(4.4rem, calc(env(safe-area-inset-top) + 4rem));
-    left: auto;
-    right: max(.55rem, env(safe-area-inset-right));
-    width: max-content;
-    max-width: min(760px, calc(100dvw - 8rem));
-  }
 }
 
 @media (min-width: 1280px) {
