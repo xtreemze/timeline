@@ -62,6 +62,7 @@ jobs:
           node --check site/sample-case.js
           node --check site/interchange-adapter.js
           node --check site/temporal-standards.js
+          node --check site/timeline-migration.js
           node --check site/spatial.js
           node --check site/location-map.js
           node --check site/app.js
