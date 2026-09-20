@@ -20,71 +20,6 @@
   <a class="skip-link" href="#workspace">Skip to timeline workspace</a>
 
   <main id="workspace">
-    <header class="project-bar app-command-bar" aria-label="Timeline project controls">
-      <a class="app-brand" href="./" aria-label="Timeline home">
-        <img src="./icon.svg" alt="" width="28" height="28">
-        <span>Timeline</span>
-      </a>
-      <label class="project-title-field">
-        <span class="sr-only">Timeline title</span>
-        <input id="timeline-title" type="text" maxlength="120" autocomplete="off" placeholder="Untitled timeline" readonly aria-readonly="true" tabindex="-1">
-      </label>
-      <div class="project-stats" aria-label="Timeline statistics">
-        <span id="item-count">0 items</span>
-        <span id="story-count">0 stories</span>
-        <span id="category-count">0 categories</span>
-      </div>
-      <button id="project-menu-toggle" class="button secondary project-menu-toggle" type="button" popovertarget="project-menu" aria-haspopup="menu" aria-label="Project actions" data-semantic-icon="object">
-        <span>Project</span>
-      </button>
-      <div id="project-menu" class="project-menu" popover="auto" role="menu" aria-label="Project actions">
-        <header class="project-menu-header">
-          <strong>Project</strong>
-          <span>Local timeline file and workspace actions</span>
-        </header>
-        <div class="project-actions">
-          <section class="project-menu-group" aria-labelledby="project-start-label">
-            <p id="project-start-label" class="project-menu-label">Start</p>
-            <button id="load-sample" class="project-menu-action" type="button" disabled role="menuitem" data-semantic-icon="magic" data-project-menu-close>
-              <span>Load example</span><small>Replace this project with the example case</small>
-            </button>
-          </section>
-          <section class="project-menu-group" aria-labelledby="project-import-label">
-            <p id="project-import-label" class="project-menu-label">Import</p>
-            <button id="import-json-trigger" class="project-menu-action" type="button" disabled role="menuitem" data-semantic-icon="object" data-project-menu-close>
-              <span>JSON</span><small>Timeline JSON or compatible interchange JSON</small>
-            </button>
-            <button id="import-interchange-trigger" class="project-menu-action" type="button" disabled role="menuitem" data-semantic-icon="relation" data-project-menu-close>
-              <span>Interchange</span><small>JSON or XML interchange document</small>
-            </button>
-            <input id="import-json" type="file" accept="application/json,.json" hidden>
-            <input id="import-interchange" type="file" accept="application/json,application/xml,text/xml,.json,.xml" hidden>
-          </section>
-          <section class="project-menu-group" aria-labelledby="project-export-label">
-            <p id="project-export-label" class="project-menu-label">Export</p>
-            <button id="export-json" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="object" data-project-menu-close>
-              <span>JSON</span><small>Canonical local project data</small>
-            </button>
-            <button id="export-interchange" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="relation" data-project-menu-close>
-              <span>Interchange JSON</span><small>Portable standards-oriented representation</small>
-            </button>
-            <button id="export-markdown" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="note" data-project-menu-close>
-              <span>Markdown</span><small>Readable chronology document</small>
-            </button>
-          </section>
-          <section class="project-menu-group" aria-labelledby="project-other-label">
-            <p id="project-other-label" class="project-menu-label">Project</p>
-            <a class="project-menu-action" href="https://github.com/xtreemze/timeline" role="menuitem" data-semantic-icon="note" data-project-menu-close>
-              <span>GitHub</span><small>Source, issues and project history</small>
-            </a>
-            <button id="clear-timeline" class="project-menu-action is-danger" type="button" disabled role="menuitem" data-semantic-icon="danger" data-project-menu-close>
-              <span>Clear timeline</span><small>Remove locally stored project data</small>
-            </button>
-          </section>
-        </div>
-      </div>
-    </header>
-
     <section id="app-shell" class="app-shell" aria-label="Timeline application" data-mode="view" data-editor-open="false" data-browser-open="false" data-graph-open="false" data-view-controls-open="false">
       <nav class="app-tool-dock" aria-label="Workspace tools">
         <button id="editor-toggle" class="app-tool" type="button" data-semantic-icon="note" aria-controls="control-panel" aria-expanded="false" aria-pressed="false">
@@ -1082,6 +1017,67 @@
 
         <section id="presentation-stage" class="presentation-stage" data-stage-shape="stacked" data-timeline-orientation="horizontal" aria-label="Timeline presentation with contextual relation graph and place map">
           <section id="timeline-view" class="timeline-view" aria-label="Interactive timeline" hidden>
+            <header class="timeline-project-heading" aria-label="Timeline project">
+              <button id="project-menu-toggle" class="timeline-project-menu-toggle project-menu-toggle" type="button" popovertarget="project-menu" aria-haspopup="menu" aria-controls="project-menu" aria-label="Project actions" title="Project actions">
+                <img src="./icon.svg" alt="" width="24" height="24">
+              </button>
+              <label class="project-title-field timeline-project-title">
+                <span class="sr-only">Timeline title</span>
+                <input id="timeline-title" type="text" maxlength="120" autocomplete="off" placeholder="Untitled timeline" readonly aria-readonly="true" tabindex="-1">
+              </label>
+              <div class="project-stats timeline-project-stats" aria-label="Timeline statistics">
+                <span id="item-count">0 items</span>
+                <span id="story-count">0 stories</span>
+                <span id="category-count">0 categories</span>
+              </div>
+            <div id="project-menu" class="project-menu" popover="auto" role="menu" aria-label="Project actions">
+              <header class="project-menu-header">
+                <strong>Project</strong>
+                <span>Local timeline file and workspace actions</span>
+              </header>
+              <div class="project-actions">
+                <section class="project-menu-group" aria-labelledby="project-start-label">
+                  <p id="project-start-label" class="project-menu-label">Start</p>
+                  <button id="load-sample" class="project-menu-action" type="button" disabled role="menuitem" data-semantic-icon="magic" data-project-menu-close>
+                    <span>Load example</span><small>Replace this project with the example case</small>
+                  </button>
+                </section>
+                <section class="project-menu-group" aria-labelledby="project-import-label">
+                  <p id="project-import-label" class="project-menu-label">Import</p>
+                  <button id="import-json-trigger" class="project-menu-action" type="button" disabled role="menuitem" data-semantic-icon="object" data-project-menu-close>
+                    <span>JSON</span><small>Timeline JSON or compatible interchange JSON</small>
+                  </button>
+                  <button id="import-interchange-trigger" class="project-menu-action" type="button" disabled role="menuitem" data-semantic-icon="relation" data-project-menu-close>
+                    <span>Interchange</span><small>JSON or XML interchange document</small>
+                  </button>
+                  <input id="import-json" type="file" accept="application/json,.json" hidden>
+                  <input id="import-interchange" type="file" accept="application/json,application/xml,text/xml,.json,.xml" hidden>
+                </section>
+                <section class="project-menu-group" aria-labelledby="project-export-label">
+                  <p id="project-export-label" class="project-menu-label">Export</p>
+                  <button id="export-json" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="object" data-project-menu-close>
+                    <span>JSON</span><small>Canonical local project data</small>
+                  </button>
+                  <button id="export-interchange" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="relation" data-project-menu-close>
+                    <span>Interchange JSON</span><small>Portable standards-oriented representation</small>
+                  </button>
+                  <button id="export-markdown" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="note" data-project-menu-close>
+                    <span>Markdown</span><small>Readable chronology document</small>
+                  </button>
+                </section>
+                <section class="project-menu-group" aria-labelledby="project-other-label">
+                  <p id="project-other-label" class="project-menu-label">Project</p>
+                  <a class="project-menu-action" href="https://github.com/xtreemze/timeline" role="menuitem" data-semantic-icon="note" data-project-menu-close>
+                    <span>GitHub</span><small>Source, issues and project history</small>
+                  </a>
+                  <button id="clear-timeline" class="project-menu-action is-danger" type="button" disabled role="menuitem" data-semantic-icon="danger" data-project-menu-close>
+                    <span>Clear timeline</span><small>Remove locally stored project data</small>
+                  </button>
+                </section>
+              </div>
+            </div>
+
+            </header>
           <div id="timeline-view-toolbar" class="timeline-view-toolbar app-view-controls" hidden>
             <div class="timeline-orientation-control" role="group" aria-label="Timeline orientation">
               <button id="timeline-orientation-toggle" class="view-icon-button" type="button" data-semantic-icon="portrait" aria-label="Switch to portrait timeline" title="Switch to portrait timeline">
