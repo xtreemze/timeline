@@ -221,10 +221,7 @@
   function itemNarrativeContext(item, evidenceById = null) {
     if (!item || typeof item !== "object") return "";
     const mediaContext = Array.isArray(item.media)
-      ? item.media.flatMap((media) => [
-          typeof media?.alt === "string" ? media.alt : "",
-          typeof media?.caption === "string" ? media.caption : ""
-        ])
+      ? item.media.map((media) => typeof media?.alt === "string" ? media.alt : "")
       : [];
     const evidenceNotes = evidenceById instanceof Map
       ? textList(item.evidenceIds, { maxItems: 96, maxLength: 120 })
@@ -692,7 +689,7 @@
       for (const mention of namedEntityMentions(item, rawEntities, evidenceById)) {
         if (mention.entityIds.some((entityId) => contextualEntityIds.has(entityId))) continue;
         errors.push(
-          `Item ${itemId}: narrative context names entity “${mention.label}”, but no action edge linked to this event includes that entity. Every named entity in an event title, description, media context, or attached evidence note must be a graph node and an endpoint of a contextual action edge.`
+          `Item ${itemId}: narrative context names entity “${mention.label}”, but no action edge linked to this event includes that entity. Every named entity in an event title, description, media description, or attached evidence note must be a graph node and an endpoint of a contextual action edge.`
         );
       }
     });
