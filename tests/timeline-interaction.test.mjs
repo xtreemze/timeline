@@ -585,9 +585,14 @@ test("named entities in event narrative context require contextual action edges"
     id: "event-a",
     title: "Alice called Bob",
     description: "Robert replied after the call.",
-    media: [{ src: "https://example.test/a.jpg", alt: "Alice and Bob", caption: "Robert at the scene" }]
+    media: [{ src: "https://example.test/a.jpg", alt: "Alice and Bob", caption: "Robert at the scene" }],
+    evidenceIds: ["evidence-a"]
   };
-  const mentions = graph.namedEntityMentions(item, entities);
+  const evidenceById = new Map([[
+    "evidence-a",
+    { id: "evidence-a", title: "Source metadata may name Carol", sourceName: "Carol News", note: "Bob warned Alice." }
+  ]]);
+  const mentions = graph.namedEntityMentions(item, entities, evidenceById);
   assert.deepEqual(
     new Set(mentions.flatMap((mention) => mention.entityIds)),
     new Set(["alice", "bob"])
@@ -595,6 +600,7 @@ test("named entities in event narrative context require contextual action edges"
 
   const uncovered = graph.validateGraphInput({
     entities,
+    evidence: [...evidenceById.values()],
     items: [item],
     relationships: [{
       id: "r-a",
@@ -611,6 +617,7 @@ test("named entities in event narrative context require contextual action edges"
 
   const covered = graph.validateGraphInput({
     entities,
+    evidence: [...evidenceById.values()],
     items: [item],
     relationships: [
       {
@@ -630,6 +637,16 @@ test("named entities in event narrative context require contextual action edges"
     ]
   });
   assert.deepEqual(covered, []);
+  const evidenceOnlyMention = graph.namedEntityMentions(
+    { id: "event-b", title: "Routine update", evidenceIds: ["evidence-b"] },
+    entities,
+    new Map([["evidence-b", { id: "evidence-b", title: "Carol report", sourceName: "Bob Press", note: "Alice warned Bob." }]])
+  );
+  assert.deepEqual(
+    new Set(evidenceOnlyMention.flatMap((mention) => mention.entityIds)),
+    new Set(["alice", "bob"]),
+    "evidence note counts as narrative context while title/source metadata do not"
+  );
 });
 
 test("graph records cannot retain timeline category membership in arbitrary attributes", () => {
