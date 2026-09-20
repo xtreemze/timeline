@@ -329,6 +329,66 @@
     : null;
   els.appToolDock?.after(appToolDockAnchor);
 
+  function workspaceToolViewport() {
+    const visualViewport = window.visualViewport;
+    return {
+      width: Math.max(1, visualViewport?.width || document.documentElement.clientWidth || window.innerWidth || 1),
+      height: Math.max(1, visualViewport?.height || document.documentElement.clientHeight || window.innerHeight || 1),
+      left: Math.max(0, visualViewport?.offsetLeft || 0),
+      top: Math.max(0, visualViewport?.offsetTop || 0)
+    };
+  }
+
+  function positionWorkspaceToolDock() {
+    if (!els.appToolDock || !els.projectMenuToggle || !els.timelineViewRoot) return;
+    const orientation = els.timelineViewRoot.dataset.orientation === "portrait" ? "portrait" : "landscape";
+    els.appToolDock.dataset.projectAnchored = "true";
+    els.appToolDock.dataset.timelineOrientation = orientation;
+
+    const triggerRect = els.projectMenuToggle.getBoundingClientRect();
+    const viewport = workspaceToolViewport();
+    const gap = 6;
+    const edge = 8;
+    const minLeft = viewport.left + edge;
+    const minTop = viewport.top + edge;
+    const maxRight = viewport.left + viewport.width - edge;
+    const maxBottom = viewport.top + viewport.height - edge;
+    const dockRect = els.appToolDock.getBoundingClientRect();
+    const dockWidth = Math.max(1, dockRect.width || els.appToolDock.offsetWidth || 1);
+    const dockHeight = Math.max(1, dockRect.height || els.appToolDock.offsetHeight || 1);
+
+    let left;
+    let top;
+    let placement;
+
+    if (orientation === "portrait") {
+      const preferredLeft = triggerRect.left - dockWidth - gap;
+      const fallbackLeft = triggerRect.right + gap;
+      left = preferredLeft >= minLeft ? preferredLeft : fallbackLeft;
+      top = triggerRect.top;
+      placement = preferredLeft >= minLeft ? "left" : "right";
+    } else {
+      const preferredTop = triggerRect.bottom + gap;
+      const fallbackTop = triggerRect.top - dockHeight - gap;
+      left = triggerRect.left;
+      top = preferredTop + dockHeight <= maxBottom ? preferredTop : fallbackTop;
+      placement = preferredTop + dockHeight <= maxBottom ? "below" : "inward";
+    }
+
+    left = Math.min(
+      Math.max(minLeft, left),
+      Math.max(minLeft, maxRight - dockWidth)
+    );
+    top = Math.min(
+      Math.max(minTop, top),
+      Math.max(minTop, maxBottom - dockHeight)
+    );
+
+    els.appToolDock.dataset.projectAnchorPlacement = placement;
+    els.appToolDock.style.setProperty("--workspace-tool-dock-left", `${Math.round(left)}px`);
+    els.appToolDock.style.setProperty("--workspace-tool-dock-top", `${Math.round(top)}px`);
+  }
+
   function mountFullscreenToolDock() {
     if (!els.appToolDock || !els.presentationStage) return;
     if (els.appToolDock.parentNode !== els.presentationStage) {
@@ -504,6 +564,7 @@
     updatePresentationStageLayout();
     timelineView?.refreshLayout?.();
     presentationMap?.refresh?.();
+    positionWorkspaceToolDock();
     if (recenterGraph) temporalGraphView?.refreshLayout?.();
   }
 
@@ -2630,6 +2691,10 @@
     window.addEventListener("resize", () => schedulePresentationGeometryRefresh());
   }
   updatePresentationStageLayout();
+  requestAnimationFrame(positionWorkspaceToolDock);
+  window.addEventListener("resize", positionWorkspaceToolDock);
+  window.visualViewport?.addEventListener("resize", positionWorkspaceToolDock);
+  window.visualViewport?.addEventListener("scroll", positionWorkspaceToolDock);
 
   function collapseAllCategories() {
     ui.collapsedCategoryIds.clear();
