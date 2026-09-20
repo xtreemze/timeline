@@ -356,3 +356,91 @@ test("current structured-temporal projects are not mislabeled as legacy v2 migra
   assert.equal(migration.isLegacyV2Timeline(current), false);
   assert.equal(migration.extensionsWithRetainedV2(current), undefined);
 });
+
+
+test("models unknown endpoint values without fabricating a persisted date", () => {
+  const endpoint = temporal.unknownEndpoint({
+    certainty: "unknown",
+    sourceText: "date not established"
+  });
+  assert.deepEqual(endpoint, {
+    value: null,
+    precision: null,
+    certainty: "unknown",
+    calendar: "gregorian",
+    timeZone: null,
+    utcOffset: null,
+    sourceText: "date not established"
+  });
+  assert.equal(Number.isNaN(temporal.sortKey(endpoint)), true);
+  assert.equal(JSON.stringify(endpoint).includes("0000-01-01"), false);
+  assert.equal(temporal.intervalRepresentation({ type: "instant", start: endpoint, end: null }), "date not established");
+});
+
+test("derives coordinates only from explicit uncertainty bounds", () => {
+  const endpoint = temporal.unknownEndpoint({
+    certainty: "unknown",
+    earliest: "2026-09-10",
+    latest: "2026-09-20",
+    sourceText: "sometime in mid-September"
+  });
+  const bounds = temporal.endpointBounds(endpoint);
+  assert.equal(bounds.locatable, true);
+  assert.equal(bounds.start, Date.UTC(2026, 8, 10));
+  assert.equal(bounds.end, Date.UTC(2026, 8, 20));
+  assert.equal(temporal.sortKey(endpoint), Date.UTC(2026, 8, 15));
+  assert.equal(
+    temporal.unknownEndpoint({ certainty: "unknown", earliest: "2026-09-20", latest: "2026-09-10" }),
+    null
+  );
+});
+
+test("represents explicitly open interval boundaries without sentinel dates", () => {
+  const openEnd = temporal.normalizeExtent({
+    type: "interval",
+    start: { value: "2026-09-20", certainty: "exact" },
+    end: null,
+    openEnd: true
+  }, null, null, "range");
+  assert.equal(openEnd.type, "interval");
+  assert.equal(openEnd.end, null);
+  assert.equal(openEnd.openEnd, true);
+  assert.equal(temporal.intervalRepresentation(openEnd), "2026-09-20/");
+  assert.deepEqual(temporal.extentBounds(openEnd), {
+    start: Date.UTC(2026, 8, 20),
+    end: Number.POSITIVE_INFINITY,
+    locatable: true
+  });
+
+  const openStart = temporal.normalizeExtent({
+    type: "interval",
+    start: null,
+    openStart: true,
+    end: { value: "2026-09-20", certainty: "exact" }
+  }, null, null, "range");
+  assert.equal(openStart.start, null);
+  assert.equal(openStart.openStart, true);
+  assert.equal(temporal.intervalRepresentation(openStart), "/2026-09-20");
+  assert.deepEqual(temporal.extentBounds(openStart), {
+    start: Number.NEGATIVE_INFINITY,
+    end: Date.UTC(2026, 8, 20),
+    locatable: true
+  });
+
+  assert.equal(
+    temporal.normalizeExtent({ type: "interval", start: { value: "2026-09-20" }, end: null }, null, null, "range"),
+    null,
+    "a missing boundary is not open unless the explicit open flag is present"
+  );
+});
+
+test("keeps open-boundary flags invalid on instants", () => {
+  assert.equal(
+    temporal.normalizeExtent({
+      type: "instant",
+      start: { value: "2026-09-20" },
+      openEnd: true
+    }, null, null, "event"),
+    null
+  );
+});
