@@ -131,6 +131,18 @@ test("canonical places support point radius, area geometry, semantic icon and ma
   );
 });
 
+test("canonical place normalization requires geometry and clamps imported marker semantics", () => {
+  const places = spatial.normalizePlaces([
+    { id: "missing-geometry", name: "Name only", icon: "unknown-icon", markerShape: "hexagon" },
+    { id: "valid", name: "Valid", geometry: { type: "Point", coordinates: [18, 59] }, icon: "unknown-icon", markerShape: "hexagon" }
+  ]);
+  assert.equal(places.length, 1);
+  assert.equal(places[0].id, "valid");
+  assert.equal(places[0].icon, "place");
+  assert.equal(places[0].markerShape, "pin");
+  assert.ok(spatial.PLACE_ICON_NAMES.includes("place"));
+});
+
 test("canonical places deduplicate equivalent location records", () => {
   const places = spatial.normalizePlaces([
     { id: "one", name: "Same place", geometry: { type: "Point", coordinates: [18, 59] }, radiusMeters: 100 },
