@@ -728,6 +728,8 @@ test("event editor persists configurable terminal and connector presentation int
   assert.ok(html.includes('<option value="diamond">Diamond</option>'));
   assert.ok(html.includes('id="item-connector-style"'));
   assert.ok(html.includes('<option value="dotted">Dotted</option>'));
+  assert.ok(html.includes('id="item-connector-routing"'));
+  assert.ok(html.includes('<option value="orthogonal">Orthogonal</option>'));
   assert.ok(html.includes('id="item-connector-weight"'));
   assert.ok(html.includes('<option value="strong">Strong</option>'));
   assert.ok(html.includes('id="item-connector-endpoint"'));
@@ -735,21 +737,25 @@ test("event editor persists configurable terminal and connector presentation int
   assert.ok(html.includes('id="item-lane"'));
   assert.ok(app.includes('terminalShape: els.itemTerminalShape.value'));
   assert.ok(app.includes('connectorStyle: els.itemConnectorStyle.value'));
+  assert.ok(app.includes('connectorRouting: els.itemConnectorRouting.value'));
   assert.ok(app.includes('connectorWeight: els.itemConnectorWeight.value'));
   assert.ok(app.includes('connectorEndpoint: els.itemConnectorEndpoint.value'));
   assert.ok(app.includes('lane: manualLane'));
   assert.ok(app.includes('terminalShape: item.presentation?.terminalShape || "rounded"'));
   assert.ok(app.includes('connectorStyle: item.presentation?.connectorStyle || "solid"'));
+  assert.ok(app.includes('connectorRouting: item.presentation?.connectorRouting || "straight"'));
   assert.ok(app.includes('connectorWeight: item.presentation?.connectorWeight || "normal"'));
   assert.ok(app.includes('connectorEndpoint: item.presentation?.connectorEndpoint || "none"'));
   assert.ok(app.includes('lane: Number.isInteger(item.presentation?.lane) ? item.presentation.lane : null'));
   assert.ok(view.includes('node.dataset.terminalShape = item.terminalShape || "rounded"'));
   assert.ok(view.includes('node.dataset.connectorStyle = item.connectorStyle || "solid"'));
+  assert.ok(view.includes('node.dataset.connectorRouting = item.connectorRouting || "straight"'));
   assert.ok(view.includes('node.dataset.connectorWeight = item.connectorWeight || "normal"'));
   assert.ok(view.includes('node.dataset.connectorEndpoint = item.connectorEndpoint || "none"'));
   assert.ok(view.includes('node.dataset.laneMode = Number.isInteger(item.lane) ? "manual" : "auto"'));
   assert.ok(view.includes('node.style.setProperty("--connector-thickness"'));
   assert.ok(styles.includes('.timeline-event[data-terminal-shape="diamond"] .timeline-event-dot'));
+  assert.ok(styles.includes('.timeline-event[data-connector-routing="orthogonal"] .timeline-event-connector-turn'));
   assert.ok(styles.includes('.timeline-event[data-connector-style="dashed"] .timeline-event-connector'));
   assert.ok(styles.includes('.timeline-event[data-connector-style="dotted"] .timeline-event-connector'));
   assert.ok(styles.includes('.timeline-event[data-connector-endpoint="dot"] .timeline-event-connector::after'));
@@ -763,8 +769,19 @@ test("timeline view assigns automatic lanes and honors a persisted manual lane i
   assert.match(source, /Number\.isInteger\(preferredLane\)[\s\S]*occupied\[preferredLane\] = position[\s\S]*return preferredLane/);
   assert.match(source, /allocateEventLane\(position, occupied, minDistance = 236\)/);
   assert.match(source, /occupied\.push\(position\)/);
-  assert.match(source, /const lane = this\.resolveEventLane\(position, occupied, 236, item\.lane\)/);
-  assert.match(source, /const laneIndex = this\.resolveEventLane\(position, occupied, 78, item\.lane\)/);
+  const clusterSource = source.slice(
+    source.indexOf("createClusterNode(cluster"),
+    source.indexOf("createEventNode(item")
+  );
+  const eventStart = source.indexOf("createEventNode(item");
+  const eventEnd = source.indexOf(
+    "\n    resolveEventLane(position, occupied, minDistance",
+    eventStart
+  );
+  const eventSource = source.slice(eventStart, eventEnd);
+  assert.match(eventSource, /const lane = this\.resolveEventLane\(position, occupied, 236, item\.lane\)/);
+  assert.match(eventSource, /const laneIndex = this\.resolveEventLane\(position, occupied, 78, item\.lane\)/);
+  assert.doesNotMatch(clusterSource, /item\.lane/);
 });
 
 

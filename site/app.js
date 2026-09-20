@@ -89,6 +89,7 @@
     itemLayoutVariant: document.querySelector("#item-layout-variant"),
     itemTerminalShape: document.querySelector("#item-terminal-shape"),
     itemConnectorStyle: document.querySelector("#item-connector-style"),
+    itemConnectorRouting: document.querySelector("#item-connector-routing"),
     itemConnectorWeight: document.querySelector("#item-connector-weight"),
     itemConnectorEndpoint: document.querySelector("#item-connector-endpoint"),
     itemLane: document.querySelector("#item-lane"),
@@ -889,6 +890,9 @@
       const connectorStyle = ["solid", "dashed", "dotted"].includes(raw.presentation?.connectorStyle)
         ? raw.presentation.connectorStyle
         : "solid";
+      const connectorRouting = ["straight", "orthogonal"].includes(raw.presentation?.connectorRouting)
+        ? raw.presentation.connectorRouting
+        : "straight";
       const connectorWeight = ["fine", "normal", "strong"].includes(raw.presentation?.connectorWeight)
         ? raw.presentation.connectorWeight
         : "normal";
@@ -901,7 +905,7 @@
         : Number.isInteger(Number(laneCandidate)) && Number(laneCandidate) >= 0 && Number(laneCandidate) <= 31
           ? Number(laneCandidate)
           : null;
-      item.presentation = { variant, terminalShape, connectorStyle, connectorWeight, connectorEndpoint, lane };
+      item.presentation = { variant, terminalShape, connectorStyle, connectorRouting, connectorWeight, connectorEndpoint, lane };
       item.relationChanges = graph.normalizeRelationChanges(raw.relationChanges);
       item.evidenceIds = (Array.isArray(raw.evidenceIds) ? raw.evidenceIds : [])
         .filter((id) => typeof id === "string" && evidenceIds.has(id))
@@ -1431,6 +1435,7 @@
         layoutVariant: item.presentation?.variant || "hero-split",
         terminalShape: item.presentation?.terminalShape || "rounded",
         connectorStyle: item.presentation?.connectorStyle || "solid",
+        connectorRouting: item.presentation?.connectorRouting || "straight",
         connectorWeight: item.presentation?.connectorWeight || "normal",
         connectorEndpoint: item.presentation?.connectorEndpoint || "none",
         lane: Number.isInteger(item.presentation?.lane) ? item.presentation.lane : null,
@@ -1942,6 +1947,7 @@
     els.itemLayoutVariant.value = "hero-split";
     els.itemTerminalShape.value = "rounded";
     els.itemConnectorStyle.value = "solid";
+    els.itemConnectorRouting.value = "straight";
     els.itemConnectorWeight.value = "normal";
     els.itemConnectorEndpoint.value = "none";
     els.itemLane.value = "";
@@ -1976,6 +1982,7 @@
     els.itemLayoutVariant.value = item.presentation?.variant || "hero-split";
     els.itemTerminalShape.value = item.presentation?.terminalShape || "rounded";
     els.itemConnectorStyle.value = item.presentation?.connectorStyle || "solid";
+    els.itemConnectorRouting.value = item.presentation?.connectorRouting || "straight";
     els.itemConnectorWeight.value = item.presentation?.connectorWeight || "normal";
     els.itemConnectorEndpoint.value = item.presentation?.connectorEndpoint || "none";
     els.itemLane.value = Number.isInteger(item.presentation?.lane) ? String(item.presentation.lane) : "";
@@ -3454,6 +3461,7 @@
         variant: els.itemLayoutVariant.value,
         terminalShape: els.itemTerminalShape.value,
         connectorStyle: els.itemConnectorStyle.value,
+        connectorRouting: els.itemConnectorRouting.value,
         connectorWeight: els.itemConnectorWeight.value,
         connectorEndpoint: els.itemConnectorEndpoint.value,
         lane: manualLane

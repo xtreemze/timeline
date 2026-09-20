@@ -26,6 +26,8 @@
   const HORIZONTAL_CLUSTER_THRESHOLD_MAX = 224;
   const VERTICAL_CLUSTER_THRESHOLD = 74;
   const RELATION_LANES = 4;
+  const CONNECTOR_ROUTE_OFFSET_PX = 22;
+  const CONNECTOR_ROUTE_EDGE_INSET_PX = 32;
   const FOCUS_VIEW_TRANSITION_NAME = "timeline-event-detail-shared";
   const FOCUS_SWAP_TRANSITION_NAME = "timeline-event-detail-swap";
   const FOCUS_TAB_PLACE_TRANSITION_NAME = "timeline-focus-tab-place";
@@ -75,6 +77,20 @@
       offset: Math.min(0, delta),
       length: Math.abs(delta)
     };
+  }
+
+  function connectorRouteOffset(routing, position, extent, index = 0) {
+    if (routing !== "orthogonal") return 0;
+    const anchor = Number(position);
+    const available = Number(extent);
+    if (!Number.isFinite(anchor) || !Number.isFinite(available) || available <= 0) return 0;
+    const inset = Math.min(CONNECTOR_ROUTE_EDGE_INSET_PX, available / 2);
+    const min = inset;
+    const max = Math.max(inset, available - inset);
+    const direction = index % 2 === 0 ? 1 : -1;
+    const preferred = clamp(anchor + direction * CONNECTOR_ROUTE_OFFSET_PX, min, max);
+    if (Math.abs(preferred - anchor) >= 1) return preferred - anchor;
+    return clamp(anchor - direction * CONNECTOR_ROUTE_OFFSET_PX, min, max) - anchor;
   }
 
   function loadPreferences() {
@@ -1164,7 +1180,13 @@
     createClusterNode(cluster, position, width, height, axisCross, occupied) {
       const node = createElement("div", "timeline-event timeline-cluster");
       node.dataset.id = cluster.id;
+      const firstRouting = cluster.items[0]?.connectorRouting || "straight";
+      const compatibleRouting = cluster.items.length > 0 &&
+        cluster.items.every((item) => (item.connectorRouting || "straight") === firstRouting);
+      const connectorRouting = compatibleRouting ? firstRouting : "straight";
+      node.dataset.connectorRouting = connectorRouting;
       const connector = createElement("div", "timeline-event-connector");
+      const connectorTurn = createElement("div", "timeline-event-connector-turn");
       const button = createElement("button", "timeline-event-terminal timeline-cluster-terminal");
       button.type = "button";
       button.setAttribute("aria-label", `Select an event and expand cluster of ${cluster.items.length} events`);
@@ -1205,10 +1227,10 @@
         this.activateCluster(cluster, selectedId, button);
       });
 
-      node.append(connector, button);
+      node.append(connector, connectorTurn, button);
 
       if (this.orientation === "horizontal") {
-        const lane = this.resolveEventLane(position, occupied, 236, item.lane);
+        const lane = this.allocateEventLane(position, occupied);
         const focused = Boolean(this.selectedId);
         const side = focused ? -1 : (lane % 2 === 0 ? -1 : 1);
         const depth = focused ? lane : Math.floor(lane / 2);
@@ -1217,14 +1239,20 @@
         const distance = focused ? Math.min(desiredDistance, inwardLimit) : desiredDistance;
         const eventY = axisCross + side * distance;
         const segment = connectorSegment(axisCross, eventY);
-        node.style.left = position + "px";
+        const routeOffset = connectorRouteOffset(connectorRouting, position, width, cluster.items.length);
+        const terminalPosition = position + routeOffset;
+        node.style.left = terminalPosition + "px";
         node.style.top = eventY + "px";
         node.dataset.side = side < 0 ? "before" : "after";
-        connector.style.left = "0";
+        connector.style.left = -routeOffset + "px";
         connector.style.top = segment.offset + "px";
         connector.style.width = "2px";
         connector.style.height = Math.max(1, segment.length) + "px";
-        if (position > width - 244) node.classList.add("label-before");
+        connectorTurn.style.left = Math.min(-routeOffset, 0) + "px";
+        connectorTurn.style.top = "0";
+        connectorTurn.style.width = Math.max(1, Math.abs(routeOffset)) + "px";
+        connectorTurn.style.height = "2px";
+        if (terminalPosition > width - 244) node.classList.add("label-before");
       } else {
         const compact = width < 560;
         const focused = Boolean(this.selectedId);
@@ -1240,13 +1268,19 @@
           : (compact ? Math.min(desiredDistance, Math.max(48, clusterAfterAvailable)) : desiredDistance);
         const eventX = axisCross + lane * distance;
         const segment = connectorSegment(axisCross, eventX);
+        const routeOffset = connectorRouteOffset(connectorRouting, position, height, cluster.items.length);
+        const terminalPosition = position + routeOffset;
         node.style.left = eventX + "px";
-        node.style.top = position + "px";
+        node.style.top = terminalPosition + "px";
         node.dataset.side = lane < 0 ? "before" : "after";
         connector.style.left = segment.offset + "px";
-        connector.style.top = "0";
+        connector.style.top = -routeOffset + "px";
         connector.style.width = Math.max(1, segment.length) + "px";
         connector.style.height = "2px";
+        connectorTurn.style.left = "0";
+        connectorTurn.style.top = Math.min(-routeOffset, 0) + "px";
+        connectorTurn.style.width = "2px";
+        connectorTurn.style.height = Math.max(1, Math.abs(routeOffset)) + "px";
         if (lane < 0) node.classList.add("label-before");
       }
       return node;
@@ -1468,6 +1502,7 @@
       node.dataset.id = item.id;
       node.dataset.terminalShape = item.terminalShape || "rounded";
       node.dataset.connectorStyle = item.connectorStyle || "solid";
+      node.dataset.connectorRouting = item.connectorRouting || "straight";
       node.dataset.connectorWeight = item.connectorWeight || "normal";
       node.dataset.connectorEndpoint = item.connectorEndpoint || "none";
       node.dataset.laneMode = Number.isInteger(item.lane) ? "manual" : "auto";
@@ -1478,6 +1513,7 @@
       if (item.id === this.selectedId) node.classList.add("is-selected");
 
       const connector = createElement("div", "timeline-event-connector");
+      const connectorTurn = createElement("div", "timeline-event-connector-turn");
       const button = createElement("button", "timeline-event-terminal");
       button.type = "button";
       button.setAttribute("aria-label", "Focus " + item.title + ", " + item.startLabel);
@@ -1516,10 +1552,10 @@
         void motion.pulseHaptic("selection");
       });
 
-      node.append(connector, button);
+      node.append(connector, connectorTurn, button);
 
       if (this.orientation === "horizontal") {
-        const lane = this.allocateEventLane(position, occupied);
+        const lane = this.resolveEventLane(position, occupied, 236, item.lane);
         const focused = Boolean(this.selectedId);
         const side = focused ? -1 : (lane % 2 === 0 ? -1 : 1);
         const depth = focused ? lane : Math.floor(lane / 2);
@@ -1529,15 +1565,21 @@
         const eventY = axisCross + side * distance;
         const segment = connectorSegment(axisCross, eventY);
 
-        node.style.left = position + "px";
+        const routeOffset = connectorRouteOffset(item.connectorRouting, position, width, index);
+        const terminalPosition = position + routeOffset;
+        node.style.left = terminalPosition + "px";
         node.style.top = eventY + "px";
         node.dataset.side = side < 0 ? "before" : "after";
-        connector.style.left = "0";
+        connector.style.left = -routeOffset + "px";
         connector.style.top = segment.offset + "px";
         connector.style.width = "var(--connector-thickness)";
         connector.style.height = Math.max(1, segment.length) + "px";
+        connectorTurn.style.left = Math.min(-routeOffset, 0) + "px";
+        connectorTurn.style.top = "0";
+        connectorTurn.style.width = Math.max(1, Math.abs(routeOffset)) + "px";
+        connectorTurn.style.height = "var(--connector-thickness)";
 
-        if (position > width - 244) node.classList.add("label-before");
+        if (terminalPosition > width - 244) node.classList.add("label-before");
       } else {
         const compact = width < 560;
         const focused = Boolean(this.selectedId);
@@ -1559,13 +1601,19 @@
         const eventX = axisCross + side * distance;
         const segment = connectorSegment(axisCross, eventX);
 
+        const routeOffset = connectorRouteOffset(item.connectorRouting, position, height, index);
+        const terminalPosition = position + routeOffset;
         node.style.left = eventX + "px";
-        node.style.top = position + "px";
+        node.style.top = terminalPosition + "px";
         node.dataset.side = side < 0 ? "before" : "after";
         connector.style.left = segment.offset + "px";
-        connector.style.top = "0";
+        connector.style.top = -routeOffset + "px";
         connector.style.width = Math.max(1, segment.length) + "px";
         connector.style.height = "var(--connector-thickness)";
+        connectorTurn.style.left = "0";
+        connectorTurn.style.top = Math.min(-routeOffset, 0) + "px";
+        connectorTurn.style.width = "var(--connector-thickness)";
+        connectorTurn.style.height = Math.max(1, Math.abs(routeOffset)) + "px";
 
         if (side < 0) node.classList.add("label-before");
       }
@@ -2437,6 +2485,7 @@
     },
     geometry: Object.freeze({
       connectorSegment,
+      connectorRouteOffset,
       visibleIntervalAnchor,
       wheelZoomFactor
     })

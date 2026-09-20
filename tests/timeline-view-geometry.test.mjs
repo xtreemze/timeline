@@ -16,6 +16,19 @@ test("connector segment reaches the axis exactly from either side", () => {
   assert.deepEqual(geometry.connectorSegment(75, 75), { offset: 0, length: 0 });
 });
 
+test("connector routing keeps the canonical axis anchor while offsetting orthogonal terminals inward", () => {
+  assert.equal(geometry.connectorRouteOffset("straight", 160, 320, 0), 0);
+  assert.equal(geometry.connectorRouteOffset("orthogonal", 160, 320, 0), 22);
+  assert.equal(geometry.connectorRouteOffset("orthogonal", 160, 320, 1), -22);
+
+  const nearStart = geometry.connectorRouteOffset("orthogonal", 4, 320, 1);
+  const nearEnd = geometry.connectorRouteOffset("orthogonal", 316, 320, 0);
+  assert.ok(nearStart > 0);
+  assert.ok(nearEnd < 0);
+  assert.ok(4 + nearStart >= 32);
+  assert.ok(316 + nearEnd <= 288);
+});
+
 test("wheel zoom is deliberately capped and symmetric enough for fine control", () => {
   const zoomOut = geometry.wheelZoomFactor(1000);
   const zoomIn = geometry.wheelZoomFactor(-1000);

@@ -736,15 +736,25 @@
   font-weight: 680;
   font-variant-numeric: tabular-nums;
 }
-.timeline-event-connector {
+.timeline-event-connector,
+.timeline-event-connector-turn {
   position: absolute;
   z-index: 0;
   background: color-mix(in srgb, var(--event-color) 66%, var(--line-strong));
   pointer-events: none;
 }
+.timeline-event-connector-turn { display: none; }
+.timeline-event[data-connector-routing="orthogonal"] .timeline-event-connector-turn { display: block; }
 .is-landscape .timeline-event[data-connector-style="dashed"] .timeline-event-connector {
   background: repeating-linear-gradient(
     to bottom,
+    color-mix(in srgb, var(--event-color) 66%, var(--line-strong)) 0 8px,
+    transparent 8px 13px
+  );
+}
+.is-landscape .timeline-event[data-connector-style="dashed"] .timeline-event-connector-turn {
+  background: repeating-linear-gradient(
+    to right,
     color-mix(in srgb, var(--event-color) 66%, var(--line-strong)) 0 8px,
     transparent 8px 13px
   );
@@ -756,6 +766,13 @@
     transparent 8px 13px
   );
 }
+.is-portrait .timeline-event[data-connector-style="dashed"] .timeline-event-connector-turn {
+  background: repeating-linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--event-color) 66%, var(--line-strong)) 0 8px,
+    transparent 8px 13px
+  );
+}
 .is-landscape .timeline-event[data-connector-style="dotted"] .timeline-event-connector {
   background: repeating-linear-gradient(
     to bottom,
@@ -763,9 +780,23 @@
     transparent 2px 7px
   );
 }
+.is-landscape .timeline-event[data-connector-style="dotted"] .timeline-event-connector-turn {
+  background: repeating-linear-gradient(
+    to right,
+    color-mix(in srgb, var(--event-color) 66%, var(--line-strong)) 0 2px,
+    transparent 2px 7px
+  );
+}
 .is-portrait .timeline-event[data-connector-style="dotted"] .timeline-event-connector {
   background: repeating-linear-gradient(
     to right,
+    color-mix(in srgb, var(--event-color) 66%, var(--line-strong)) 0 2px,
+    transparent 2px 7px
+  );
+}
+.is-portrait .timeline-event[data-connector-style="dotted"] .timeline-event-connector-turn {
+  background: repeating-linear-gradient(
+    to bottom,
     color-mix(in srgb, var(--event-color) 66%, var(--line-strong)) 0 2px,
     transparent 2px 7px
   );
