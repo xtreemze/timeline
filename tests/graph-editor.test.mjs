@@ -217,7 +217,7 @@ test("touch node long press is armed from capture-phase hit testing before Orb d
   assert.match(bridge, /function touchNodePayload\(event\)/);
   assert.match(bridge, /orb\.getSimulationPosition\(globalPoint\)/);
   assert.match(bridge, /orb\.data\.getNearestNode\(localPoint\)/);
-  assert.match(bridge, /const payload = touchNodePayload\(event\)[\s\S]*beginTouchHold\(payload\)/);
+  assert.match(bridge, /const target = touchTargetPayload\(event\)[\s\S]*target\?\.kind === "node"[\s\S]*beginTouchHold\(payload\)/);
   assert.match(bridge, /pointerdown", onPointerDown, \{ capture: true \}/);
   assert.match(bridge, /beginTouchHold\([\s\S]*setDragEnabled\(false\)[\s\S]*TOUCH_NODE_HOLD_MS/);
   assert.match(bridge, /touchHold\.activated = true[\s\S]*setDragEnabled\(true\)[\s\S]*setInteractionHeat\(DRAG_ALPHA_TARGET\)/);
