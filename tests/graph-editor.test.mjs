@@ -234,3 +234,18 @@ test("touch graph gesture ownership separates node drag from graph pan and pinch
   assert.match(bridge, /touchHold\.activated = true[\s\S]*setDragEnabled\(true\)[\s\S]*setZoomEnabled\(false\)/);
   assert.match(bridge, /activeTouchPointers\.size > 1[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(true\)/);
 });
+
+
+test("graph double tap zooms at the tapped point while long press and multi-touch cancel the tap sequence", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+  assert.match(bridge, /TOUCH_DOUBLE_TAP_MS\s*=\s*320/);
+  assert.match(bridge, /GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX\s*=\s*-500/);
+  assert.match(bridge, /function zoomGraphAtClientPoint\(point\)[\s\S]*new WheelEvent\("wheel"/);
+  assert.match(bridge, /clientX:\s*point\.x[\s\S]*clientY:\s*point\.y[\s\S]*deltaY:\s*GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX/);
+  assert.match(bridge, /function registerTouchTap\(event, tap\)[\s\S]*zoomGraphAtClientPoint\(point\)/);
+  assert.match(bridge, /touchHold\.activated = true[\s\S]*touchTap = null[\s\S]*lastTouchTap = null/);
+  assert.match(bridge, /activeTouchPointers\.size > 1[\s\S]*touchTap = null[\s\S]*lastTouchTap = null/);
+  assert.match(bridge, /distance > TOUCH_NODE_MOVE_TOLERANCE_PX[\s\S]*lastTouchTap = null/);
+  assert.match(bridge, /suppressGraphClickUntil = now \+ 450/);
+  assert.match(bridge, /addEventListener\("click", onClickCapture, \{ capture: true \}\)/);
+});
