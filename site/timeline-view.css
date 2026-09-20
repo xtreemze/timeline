@@ -4559,7 +4559,11 @@
 
 .timeline-view[data-orientation="portrait"] .timeline-zoom-scale span {
   min-width: 0;
-  text-align: left;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  white-space: nowrap;
+  justify-self: center;
+  text-align: start;
 }
 
 .timeline-view[data-orientation="portrait"] .timeline-zoom-scale span:first-child {
@@ -4574,6 +4578,12 @@
 .timeline-view[data-orientation="portrait"] .timeline-zoom-scale span:last-child {
   align-self: end;
   text-align: left;
+}
+
+.timeline-view[data-orientation="landscape"] .timeline-zoom-scale span {
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  white-space: nowrap;
 }
 
 .timeline-view[data-orientation="landscape"] .timeline-zoom-control input[type="range"] {
