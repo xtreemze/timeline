@@ -557,9 +557,10 @@ test("timeline double tap zooms toward the tapped temporal coordinate without co
 
 
 test("mobile-first shell keeps primary controls compact and bounded", async () => {
-  const [styles, timelineCss] = await Promise.all([
+  const [styles, timelineCss, viewSource] = await Promise.all([
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8")
   ]);
 
   assert.match(styles, /Mobile-first responsive application shell/);
@@ -570,5 +571,8 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(timelineCss, /Narrow-screen control composition/);
   assert.match(timelineCss, /\.timeline-zoom-controls[\s\S]*grid-template-columns:\s*44px minmax\(0, 1fr\) minmax\(0, 1fr\) 44px/);
   assert.match(timelineCss, /\.timeline-auto-controls[\s\S]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto/);
-  assert.match(timelineCss, /\.timeline-surface\.is-portrait[\s\S]*--timeline-axis-cross:\s*clamp\(66px, 21vw, 92px\)/);
+  assert.match(viewSource, /terminalExtent = compact \? Math\.min\(width \* 0\.58, 190\) : 232/);
+  assert.match(viewSource, /afterAvailable = width - edgeInset - terminalExtent \+ terminalAnchor - axisCross/);
+  assert.match(viewSource, /clusterTerminalExtent = compact \? Math\.min\(width \* 0\.68, 220\) : 232/);
+  assert.match(viewSource, /clusterAfterAvailable = width - 12 - clusterTerminalExtent \+ 32 - axisCross/);
 });
