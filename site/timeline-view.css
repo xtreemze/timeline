@@ -3224,10 +3224,6 @@
     height: 2rem;
   }
 
-  #app-shell .timeline-surface.is-portrait {
-    --timeline-axis-cross: clamp(66px, 21vw, 92px);
-  }
-
   #app-shell .timeline-surface.is-portrait .timeline-event-terminal {
     max-width: min(58vw, 190px);
   }
