@@ -531,6 +531,15 @@ test("graph semantics reject action nodes and generic association predicates", (
   });
   assert.deepEqual(normalized.relationships, []);
 
+  const selfLoopInput = {
+    entities: [{ id: "person-a", type: "person", name: "A" }],
+    places: [{ id: "known-place", name: "Known Place", geometry: { type: "Point", coordinates: [1, 1] } }],
+    relationships: [{ id: "self-loop", subjectId: "person-a", objectId: "person-a", predicate: "called", placeId: "known-place" }]
+  };
+  assert.deepEqual(graph.normalizeGraphData(selfLoopInput).relationships, []);
+  assert.deepEqual(graph.toOrbGraph(selfLoopInput).edges, []);
+  assert.ok(graph.validateGraphInput(selfLoopInput).some((error) => /Self-loop relationships are not permitted/.test(error)));
+
   const invalidContext = graph.validateGraphInput({
     entities: [
       { id: "a", type: "person", name: "A" },
