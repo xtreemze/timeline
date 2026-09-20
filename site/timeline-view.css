@@ -3346,3 +3346,212 @@
     transition-duration: 0s !important;
   }
 }
+
+
+/* Mobile focused-event composition: detail stays opposite the chronology edge. */
+@media (max-width: 699px) {
+  #app-shell #presentation-stage {
+    --mobile-focus-top: max(3.75rem, calc(env(safe-area-inset-top) + 3.45rem));
+    --mobile-focus-bottom: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
+    --mobile-focus-rail: clamp(84px, 24dvw, 108px);
+  }
+
+  #app-shell .timeline-view[data-orientation="landscape"] > .timeline-focus-view:popover-open {
+    top: var(--mobile-focus-top);
+    right: max(.35rem, env(safe-area-inset-right));
+    bottom: calc(var(--mobile-focus-bottom) + var(--mobile-focus-rail) + .25rem);
+    left: max(.35rem, env(safe-area-inset-left));
+    inline-size: auto;
+    block-size: auto;
+    max-inline-size: none;
+    max-block-size: none;
+    transform: none;
+    overflow: auto;
+    border-radius: .82rem;
+  }
+
+  #app-shell .timeline-view[data-orientation="portrait"] > .timeline-focus-view:popover-open {
+    top: var(--mobile-focus-top);
+    right: calc(var(--mobile-focus-rail) + max(.25rem, env(safe-area-inset-right)));
+    bottom: var(--mobile-focus-bottom);
+    left: max(.35rem, env(safe-area-inset-left));
+    inline-size: auto;
+    block-size: auto;
+    max-inline-size: none;
+    max-block-size: none;
+    transform: none;
+    overflow: auto;
+    border-radius: .82rem;
+  }
+
+  #app-shell .timeline-focus-view[popover] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: .38rem;
+    padding: .42rem;
+    padding-top: 0;
+    scrollbar-gutter: stable;
+  }
+
+  #app-shell .timeline-focus-tabs {
+    top: .4rem;
+    right: .4rem;
+    gap: .18rem;
+    max-width: calc(100% - .8rem);
+    padding: .18rem;
+    border-radius: .62rem;
+  }
+
+  #app-shell .timeline-focus-tab,
+  #app-shell .timeline-focus-close {
+    min-height: 38px;
+    padding: .42rem .52rem;
+    font-size: .66rem;
+  }
+
+  #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary,
+  #app-shell .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
+    padding-top: 3rem;
+  }
+
+  #app-shell .timeline-focus-view[popover] :is(
+    .timeline-focus-hero,
+    .timeline-focus-summary,
+    .timeline-focus-place,
+    .timeline-focus-relations,
+    .timeline-focus-evidence
+  ) {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+    min-width: 0;
+  }
+
+  #app-shell .timeline-focus-hero,
+  #app-shell .timeline-focus-view[data-layout] .timeline-focus-hero {
+    min-height: clamp(170px, 26dvh, 230px);
+    border-radius: .72rem;
+  }
+
+  #app-shell .timeline-focus-hero-veil {
+    gap: .32rem;
+    padding: .8rem;
+  }
+
+  #app-shell .timeline-focus-title {
+    font-size: clamp(1.8rem, 12cqi, 3.25rem);
+    line-height: .94;
+  }
+
+  #app-shell .timeline-focus-time {
+    margin-top: .12rem;
+    font-size: .76rem;
+  }
+
+  #app-shell .timeline-focus-tags {
+    gap: .22rem;
+    margin-top: .12rem;
+  }
+
+  #app-shell .timeline-focus-tags .event-tag {
+    min-height: 28px;
+    padding: .28rem .42rem;
+    font-size: .66rem;
+  }
+
+  #app-shell .timeline-focus-section {
+    padding: .62rem;
+  }
+
+  #app-shell .timeline-focus-section-heading {
+    margin-bottom: .42rem;
+    font-size: clamp(1.12rem, 7vw, 1.55rem);
+    line-height: .96;
+  }
+
+  #app-shell .timeline-focus-description,
+  #app-shell .timeline-focus-place-name {
+    font-size: .78rem;
+    line-height: 1.42;
+  }
+
+  #app-shell .timeline-focus-place,
+  #app-shell .timeline-focus-relations {
+    min-height: clamp(132px, 19dvh, 180px);
+  }
+
+  #app-shell :is(.timeline-focus-place, .timeline-focus-relations) .timeline-focus-section-content {
+    width: min(60%, 17rem);
+    padding: .62rem;
+  }
+
+  #app-shell .timeline-focus-relation-list {
+    gap: .2rem;
+  }
+
+  #app-shell .timeline-focus-relation-list li {
+    min-height: 26px;
+    font-size: .66rem;
+  }
+
+  #app-shell .timeline-focus-summary .timeline-focus-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .24rem;
+    margin-top: .55rem;
+  }
+
+  #app-shell .timeline-focus-summary .timeline-focus-actions .button {
+    min-width: 0;
+    min-height: 40px;
+    padding: .42rem .3rem;
+    font-size: .64rem;
+    white-space: normal;
+  }
+
+  #app-shell .timeline-focus-evidence-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: .38rem;
+  }
+
+  #app-shell .timeline-focus-evidence-card {
+    padding: .58rem;
+  }
+
+  #app-shell .timeline-focus-slideshow-controls {
+    top: .5rem;
+    right: .5rem;
+    gap: .2rem;
+    padding: .22rem;
+  }
+
+  #app-shell .timeline-focus-slideshow-controls .button {
+    min-width: 38px;
+    min-height: 38px;
+    padding: .34rem;
+  }
+}
+
+@media (max-width: 380px) {
+  #app-shell #presentation-stage {
+    --mobile-focus-rail: clamp(76px, 23dvw, 92px);
+  }
+
+  #app-shell .timeline-focus-tab,
+  #app-shell .timeline-focus-close {
+    padding-inline: .42rem;
+    font-size: .62rem;
+  }
+
+  #app-shell .timeline-focus-summary .timeline-focus-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #app-shell .timeline-focus-summary .timeline-focus-actions .button:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app-shell .timeline-view > .timeline-focus-view:popover-open {
+    scroll-behavior: auto;
+  }
+}
