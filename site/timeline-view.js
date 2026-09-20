@@ -30,6 +30,7 @@
   const CONNECTOR_ROUTE_EDGE_INSET_PX = 32;
   const FOCUS_VIEW_TRANSITION_NAME = "timeline-event-detail-shared";
   const FOCUS_SWAP_TRANSITION_NAME = "timeline-event-detail-swap";
+  const FOCUS_TAB_CONTEXT_TRANSITION_NAME = "timeline-focus-tab-context";
   const FOCUS_TAB_PLACE_TRANSITION_NAME = "timeline-focus-tab-place";
   const FOCUS_TAB_EVIDENCE_TRANSITION_NAME = "timeline-focus-tab-evidence";
   const FOCUS_POPOVER_MARGIN = 12;
@@ -2197,6 +2198,7 @@
       const hero = this.createFocusHero(item);
 
       const summary = createElement("section", "timeline-focus-section timeline-focus-summary");
+      summary.id = "timeline-focus-context-panel";
       summary.setAttribute("aria-label", "Context");
       if (item.description) {
         summary.append(createElement("p", "timeline-focus-description", item.description));
@@ -2335,7 +2337,10 @@
       overviewTab.type = "button";
       overviewTab.setAttribute("role", "tab");
       overviewTab.setAttribute("aria-selected", "true");
-      overviewTab.setAttribute("aria-controls", "timeline-focus-place-panel");
+      overviewTab.setAttribute(
+        "aria-controls",
+        "timeline-focus-context-panel timeline-focus-place-panel"
+      );
       const evidenceTab = createElement("button", "timeline-focus-tab", "Evidence");
       evidenceTab.type = "button";
       evidenceTab.setAttribute("role", "tab");
@@ -2351,6 +2356,7 @@
         const evidenceActive = name === "evidence";
         const applyTabState = () => {
           this.focusView.dataset.activeTab = evidenceActive ? "evidence" : "overview";
+          summary.hidden = evidenceActive;
           place.hidden = evidenceActive;
           evidence.hidden = !evidenceActive;
           overviewTab.classList.toggle("is-active", !evidenceActive);
@@ -2379,17 +2385,20 @@
           return;
         }
 
+        summary.style.viewTransitionName = FOCUS_TAB_CONTEXT_TRANSITION_NAME;
         place.style.viewTransitionName = FOCUS_TAB_PLACE_TRANSITION_NAME;
         evidence.style.viewTransitionName = FOCUS_TAB_EVIDENCE_TRANSITION_NAME;
         try {
           const transition = document.startViewTransition(applyTabState);
           const cleanupTabTransition = () => {
+            summary.style.removeProperty("view-transition-name");
             place.style.removeProperty("view-transition-name");
             evidence.style.removeProperty("view-transition-name");
           };
           void transition.ready.then(finishTabChange, finishTabChange);
           void transition.finished.then(cleanupTabTransition, cleanupTabTransition);
         } catch {
+          summary.style.removeProperty("view-transition-name");
           place.style.removeProperty("view-transition-name");
           evidence.style.removeProperty("view-transition-name");
           applyTabState();
