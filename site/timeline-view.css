@@ -1807,7 +1807,7 @@
   display: none !important;
 }
 
-#presentation-stage:fullscreen .timeline-view-toolbar {
+#presentation-stage:fullscreen .timeline-view-toolbar:popover-open {
   position: absolute;
   z-index: 12;
   inset: max(.4rem, env(safe-area-inset-top)) max(.4rem, env(safe-area-inset-right)) auto max(.4rem, env(safe-area-inset-left));
@@ -2086,7 +2086,7 @@
 }
 
 @media (max-width: 500px) {
-  #presentation-stage:fullscreen .timeline-view-toolbar {
+  #presentation-stage:fullscreen .timeline-view-toolbar:popover-open {
     max-width: calc(100% - .6rem);
     inset-inline: .3rem;
     gap: .25rem;
@@ -2210,7 +2210,7 @@
   min-height: 100%;
 }
 
-#app-shell .app-view-controls.timeline-view-toolbar:not([hidden]) {
+#app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
   position: fixed;
   z-index: 1150;
   top: max(4.15rem, calc(env(safe-area-inset-top) + 3.8rem));
@@ -2233,7 +2233,7 @@
   scrollbar-width: thin;
 }
 
-#app-shell .app-view-controls.timeline-view-toolbar:not([hidden]) > * {
+#app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open > * {
   flex: 0 0 auto;
 }
 
@@ -2252,7 +2252,7 @@
 }
 
 @media (min-width: 900px) {
-  #app-shell .app-view-controls.timeline-view-toolbar:not([hidden]) {
+  #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
     left: auto;
     right: max(.55rem, env(safe-area-inset-right));
     width: max-content;
@@ -3880,7 +3880,7 @@
   white-space: nowrap;
 }
 
-#app-shell .app-view-controls.timeline-view-toolbar:not([hidden]) {
+#app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
   top: auto;
   right: max(.45rem, env(safe-area-inset-right));
   bottom: max(4.35rem, calc(env(safe-area-inset-bottom) + 4rem));
@@ -3900,7 +3900,7 @@
   box-shadow: 0 3px 10px color-mix(in srgb, var(--ink) 5%, transparent);
   backdrop-filter: blur(12px);
 }
-#app-shell .app-view-controls.timeline-view-toolbar:not([hidden]) > * {
+#app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open > * {
   flex: 0 0 auto;
 }
 
@@ -3913,7 +3913,7 @@
 }
 
 @media (max-width: 699px) {
-  #app-shell .app-view-controls.timeline-view-toolbar:not([hidden]) {
+  #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
     top: auto;
     right: max(.35rem, env(safe-area-inset-right));
     bottom: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
@@ -3930,11 +3930,11 @@
     scrollbar-width: none;
   }
 
-  #app-shell .app-view-controls.timeline-view-toolbar:not([hidden])::-webkit-scrollbar {
+  #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open::-webkit-scrollbar {
     display: none;
   }
 
-  #app-shell .app-view-controls.timeline-view-toolbar:not([hidden]) > * {
+  #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open > * {
     width: auto;
     min-width: 0;
     flex: 0 0 auto;
@@ -3991,7 +3991,7 @@
 }
 
 /* Fullscreen has no separate View button, so keep its always-visible control cluster in the upper-right safe area. */
-#presentation-stage:fullscreen .timeline-view-toolbar {
+#presentation-stage:fullscreen .timeline-view-toolbar:popover-open {
   position: absolute;
   top: max(.4rem, env(safe-area-inset-top));
   right: max(.4rem, env(safe-area-inset-right));
@@ -4131,7 +4131,7 @@
 /* Toolbar deployment follows timeline orientation.
    Landscape expands upward/downward as a narrow vertical stack; portrait remains a compact row. */
 #app-shell:has(#timeline-view[data-orientation="landscape"])
-  .app-view-controls.timeline-view-toolbar:not([hidden]) {
+  .app-view-controls.timeline-view-toolbar[popover]:popover-open {
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-end;
@@ -4143,7 +4143,7 @@
 }
 
 #app-shell:has(#timeline-view[data-orientation="landscape"])
-  .app-view-controls.timeline-view-toolbar:not([hidden]) > * {
+  .app-view-controls.timeline-view-toolbar[popover]:popover-open > * {
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -4172,7 +4172,7 @@
 }
 
 #app-shell:has(#timeline-view[data-orientation="landscape"])
-  #presentation-stage:fullscreen .timeline-view-toolbar {
+  #presentation-stage:fullscreen .timeline-view-toolbar:popover-open {
   flex-direction: column;
   align-items: stretch;
   width: min(290px, calc(100dvw - max(.8rem, env(safe-area-inset-left)) - max(.8rem, env(safe-area-inset-right))));
@@ -4182,9 +4182,9 @@
 }
 
 #app-shell:has(#timeline-view[data-orientation="portrait"])
-  .app-view-controls.timeline-view-toolbar:not([hidden]),
+  .app-view-controls.timeline-view-toolbar[popover]:popover-open,
 #app-shell:has(#timeline-view[data-orientation="portrait"])
-  #presentation-stage:fullscreen .timeline-view-toolbar {
+  #presentation-stage:fullscreen .timeline-view-toolbar:popover-open {
   flex-direction: row;
 }
 
