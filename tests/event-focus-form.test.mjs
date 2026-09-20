@@ -414,16 +414,19 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(app, /function setEditorSurfaceOpen/);
   assert.match(app, /function setBrowserSurfaceOpen/);
   assert.doesNotMatch(app, /function setGraphSurfaceOpen/);
-  assert.match(app, /function setViewControlsOpen/);
-  assert.match(app, /function syncViewControlsSurface\(\)[\s\S]*showPopover\(\)[\s\S]*hidePopover\(\)/);
-  assert.match(app, /const shouldOpen = Boolean\(ui\.viewControlsOpen\)/);
-  assert.doesNotMatch(app, /viewControlsOpen \|\| presentationIsFullscreen\(\)/);
-  assert.match(app, /viewControlsToggle\?\.addEventListener\("click", \(\) => setViewControlsOpen\(!ui\.viewControlsOpen\)\)/);
+  assert.match(html, /id="timeline-view-controls-toggle"[^>]*popovertarget="timeline-view-toolbar"[^>]*popovertargetaction="toggle"/);
+  assert.match(app, /function viewControlsAreOpen\(\)[\s\S]*matches\(":popover-open"\)/);
+  assert.match(app, /function closeViewControls\(\)[\s\S]*hidePopover\(\)/);
+  assert.match(app, /viewControls\?\.addEventListener\("toggle",[\s\S]*syncViewControlsChrome\(\)/);
+  assert.match(app, /viewControlsToggle\?\.addEventListener\("click",[\s\S]*viewControlsAreOpen\(\)[\s\S]*closeLargeUtilitySurfaces\("view"\)[\s\S]*syncApplicationSurfaces\(\)/);
+  assert.doesNotMatch(app, /viewControlsOpen:\s*false|ui\.viewControlsOpen/);
+  assert.doesNotMatch(app, /function syncViewControlsSurface|function positionViewControls|--view-controls-(?:top|left)/);
   assert.doesNotMatch(app, /viewControls\.hidden\s*=/);
   assert.doesNotMatch(timelineCss, /timeline-view-toolbar:not\(\[hidden\]\)/);
-  assert.match(timelineCss, /timeline-view-toolbar\[popover\]:popover-open/);
-  assert.match(styles, /\.timeline-view-toolbar\[popover\][\s\S]*max-inline-size:[\s\S]*max-block-size:[\s\S]*overflow-x:\s*auto/);
-  assert.match(styles, /\.app-view-controls\[popover\]:popover-open[\s\S]*display:\s*flex/);
+  assert.doesNotMatch(timelineCss, /\.timeline-view-toolbar\s*\{[^}]*display\s*:/s);
+  assert.match(timelineCss, /Canonical View popover contract/);
+  assert.match(timelineCss, /right:\s*anchor\(right\)[\s\S]*bottom:\s*calc\(anchor\(top\) \+ \.5rem\)[\s\S]*position-try-fallbacks:/);
+  assert.doesNotMatch(styles, /\.app-view-controls\[popover\]:popover-open/);
   assert.match(app, /setActivePanel\("items", \{ open: false \}\)/);
 });
 
@@ -534,9 +537,9 @@ test("fullscreen restores the focused event popover after the browser changes to
 
 test("utility surfaces remain coordinated while the relation graph stays persistent", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
-  assert.match(app, /closeLargeUtilitySurfaces\(except = ""\)[\s\S]*viewControlsOpen/);
+  assert.match(app, /closeLargeUtilitySurfaces\(except = ""\)[\s\S]*closeViewControls\(\)/);
   assert.match(app, /setBrowserSurfaceOpen[\s\S]*closeLargeUtilitySurfaces\("browser"\)[\s\S]*closeFocusedEventForUtility/);
-  assert.match(app, /setViewControlsOpen[\s\S]*closeLargeUtilitySurfaces\("view"\)[\s\S]*closeFocusedEventForUtility/);
+  assert.match(app, /viewControlsToggle\?\.addEventListener\("click",[\s\S]*closeLargeUtilitySurfaces\("view"\)[\s\S]*closeFocusedEventForUtility/);
   assert.match(app, /timelinefocuschange[\s\S]*closeLargeUtilitySurfaces\("focus"\)/);
   assert.match(app, /els\.graphLens\.hidden = false/);
   assert.doesNotMatch(app, /setGraphSurfaceOpen|ui\.graphOpen/);
