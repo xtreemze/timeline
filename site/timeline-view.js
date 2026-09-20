@@ -103,12 +103,8 @@
       this.surface = root.querySelector("#timeline-surface");
       this.focusView = root.querySelector("#timeline-focus-view");
       this.readout = root.querySelector("#timeline-window-readout");
-      this.landscapeButton = root.querySelector("#timeline-orientation-landscape");
-      this.portraitButton = root.querySelector("#timeline-orientation-portrait");
-      this.zoomInButton = root.querySelector("#timeline-zoom-in");
-      this.zoomOutButton = root.querySelector("#timeline-zoom-out");
-      this.fitVisibleButton = root.querySelector("#timeline-fit");
-      this.fitAllButton = root.querySelector("#timeline-fit-all");
+      this.orientationToggle = root.querySelector("#timeline-orientation-toggle");
+      this.zoomSlider = root.querySelector("#timeline-zoom-level");
       this.items = [];
       this.allCoordinates = [];
       this.relationships = [];
@@ -137,6 +133,10 @@
       this.inertiaAnimationFrame = 0;
       this.clusterSignature = null;
       this.lastClusterHapticAt = 0;
+      this.zoomAnchorId = null;
+      this.soloZoomActive = false;
+      this.semanticZoomInputToken = 0;
+      this.semanticZoomInputActive = false;
       this.reducedMotionQuery =
         typeof globalThis.matchMedia === "function"
           ? globalThis.matchMedia("(prefers-reduced-motion: reduce)")
@@ -146,12 +146,15 @@
     }
 
     bind() {
-      this.landscapeButton.addEventListener("click", () => this.setOrientation("horizontal"));
-      this.portraitButton.addEventListener("click", () => this.setOrientation("vertical"));
-      this.zoomInButton.addEventListener("click", () => this.zoomBy(BUTTON_ZOOM_FACTOR));
-      this.zoomOutButton.addEventListener("click", () => this.zoomBy(1 / BUTTON_ZOOM_FACTOR));
-      this.fitVisibleButton.addEventListener("click", () => this.fitVisible());
-      this.fitAllButton.addEventListener("click", () => this.fitAll());
+      this.orientationToggle?.addEventListener("click", () => {
+        this.setOrientation(this.orientation === "horizontal" ? "vertical" : "horizontal");
+      });
+      this.zoomSlider?.addEventListener("input", () => {
+        this.setSemanticZoom(Number(this.zoomSlider.value));
+      });
+      this.zoomSlider?.addEventListener("change", () => {
+        this.surface.focus({ preventScroll: true });
+      });
 
       this.surface.addEventListener(
         "wheel",
@@ -520,6 +523,154 @@
       return this.orientation;
     }
 
+    semanticZoomAnchorItem() {
+      if (!this.items.length) return null;
+      const preferredId = this.selectedId || this.zoomAnchorId;
+      const preferred = preferredId
+        ? this.items.find((item) => String(item.id) === String(preferredId))
+        : null;
+      if (preferred) return preferred;
+      if (!this.viewport) return this.items[0] || null;
+      const center = this.viewport.start + (this.viewport.end - this.viewport.start) / 2;
+      return this.items
+        .slice()
+        .sort((a, b) => Math.abs(a.start - center) - Math.abs(b.start - center))[0] || null;
+    }
+
+    isolatedViewportForItem(item, allViewport) {
+      if (!item || !allViewport) return null;
+      const start = Number(item.start);
+      const end = Number.isFinite(item.end) ? Number(item.end) : start;
+      const center = start + (end - start) / 2;
+      const duration = Math.max(0, end - start);
+      const allSpan = Math.max(MIN_SPAN_MS, allViewport.end - allViewport.start);
+      const neighborDeltas = this.items
+        .filter((candidate) => String(candidate.id) !== String(item.id))
+        .map((candidate) => Math.abs(Number(candidate.start) - center))
+        .filter((delta) => Number.isFinite(delta) && delta > 0);
+      const nearest = neighborDeltas.length ? Math.min(...neighborDeltas) : Number.POSITIVE_INFINITY;
+      const pointSpan = Number.isFinite(nearest)
+        ? Math.max(MIN_SPAN_MS, nearest * 1.5)
+        : Math.max(MIN_SPAN_MS, allSpan * 0.08);
+      const containingSpan = duration > 0
+        ? Math.max(MIN_SPAN_MS, duration / 0.72)
+        : pointSpan;
+      const targetSpan = Math.min(
+        allSpan,
+        Math.max(containingSpan, Math.min(pointSpan, allSpan * 0.18))
+      );
+      return {
+        start: center - targetSpan / 2,
+        end: center + targetSpan / 2
+      };
+    }
+
+    semanticZoomTargets() {
+      if (!this.items.length) return null;
+      const coordinates = this.allCoordinates.length ? this.allCoordinates : this.itemCoordinates();
+      if (!coordinates.length) return null;
+      const all = scale.fit(coordinates, { paddingRatio: 0.1, minSpanMs: DEFAULT_SPAN_MS });
+      const item = this.semanticZoomAnchorItem();
+      if (!item) return { all, context: all, isolated: all, item: null };
+      const rect = this.surface.getBoundingClientRect();
+      const primaryLength = this.orientation === "horizontal" ? rect.width : rect.height;
+      const padding = this.axisPadding(primaryLength);
+      const usable = Math.max(1, primaryLength - padding * 2);
+      const contextPlan = clustering.focusContextViewport(
+        this.items,
+        item.id,
+        all,
+        usable,
+        this.clusterThreshold(rect.width),
+        {
+          desiredContext: 2,
+          paddingRatio: 0.14,
+          minSpanMs: MIN_SPAN_MS,
+          preserveScale: false
+        }
+      );
+      const context = contextPlan?.viewport || all;
+      const isolated = this.isolatedViewportForItem(item, all) || context;
+      return { all, context, isolated, item };
+    }
+
+    interpolateSemanticViewport(from, to, ratio) {
+      const t = clamp(Number(ratio), 0, 1);
+      const fromSpan = Math.max(MIN_SPAN_MS, from.end - from.start);
+      const toSpan = Math.max(MIN_SPAN_MS, to.end - to.start);
+      const fromCenter = from.start + fromSpan / 2;
+      const toCenter = to.start + toSpan / 2;
+      const center = fromCenter + (toCenter - fromCenter) * t;
+      const span = Math.exp(Math.log(fromSpan) + (Math.log(toSpan) - Math.log(fromSpan)) * t);
+      return {
+        start: center - span / 2,
+        end: center + span / 2
+      };
+    }
+
+    semanticZoomValueText(value) {
+      const normalized = clamp(Number(value), 0, 100);
+      if (normalized <= 2) return "Whole context";
+      if (Math.abs(normalized - 50) <= 2) return "Focused event plus two neighboring events";
+      if (normalized >= 98) return "Focused event only";
+      if (normalized < 50) return `Context to focus, ${Math.round(normalized)} percent`;
+      return `Focus to solo, ${Math.round(normalized)} percent`;
+    }
+
+    setSemanticZoom(value) {
+      if (!this.viewport || !this.items.length) return;
+      const normalized = clamp(Number(value), 0, 100);
+      const anchor = this.semanticZoomAnchorItem();
+      if (anchor) this.zoomAnchorId = String(anchor.id);
+      const targets = this.semanticZoomTargets();
+      if (!targets) return;
+      const target = normalized <= 50
+        ? this.interpolateSemanticViewport(targets.all, targets.context, normalized / 50)
+        : this.interpolateSemanticViewport(targets.context, targets.isolated, (normalized - 50) / 50);
+      this.soloZoomActive = normalized >= 99;
+      if (this.zoomSlider) {
+        this.zoomSlider.value = String(Math.round(normalized));
+        this.zoomSlider.setAttribute("aria-valuetext", this.semanticZoomValueText(normalized));
+        this.zoomSlider.title = this.semanticZoomValueText(normalized);
+      }
+      const token = ++this.semanticZoomInputToken;
+      this.semanticZoomInputActive = true;
+      void this.animateViewportTo(target).finally(() => {
+        if (token !== this.semanticZoomInputToken) return;
+        this.semanticZoomInputActive = false;
+        this.syncZoomSlider();
+      });
+    }
+
+    semanticZoomValueForSpan(span, targets) {
+      const currentSpan = Math.max(MIN_SPAN_MS, Number(span) || MIN_SPAN_MS);
+      const allSpan = Math.max(MIN_SPAN_MS, targets.all.end - targets.all.start);
+      const contextSpan = Math.max(MIN_SPAN_MS, targets.context.end - targets.context.start);
+      const isolatedSpan = Math.max(MIN_SPAN_MS, targets.isolated.end - targets.isolated.start);
+      if (currentSpan >= contextSpan) {
+        const denominator = Math.log(allSpan / contextSpan);
+        if (Math.abs(denominator) < 1e-9) return 50;
+        return clamp(50 * (Math.log(allSpan / currentSpan) / denominator), 0, 50);
+      }
+      const denominator = Math.log(contextSpan / isolatedSpan);
+      if (Math.abs(denominator) < 1e-9) return 100;
+      return clamp(50 + 50 * (Math.log(contextSpan / currentSpan) / denominator), 50, 100);
+    }
+
+    syncZoomSlider() {
+      if (!this.zoomSlider) return;
+      this.zoomSlider.disabled = !this.viewport || !this.items.length;
+      if (this.zoomSlider.disabled || this.semanticZoomInputActive) return;
+      const targets = this.semanticZoomTargets();
+      if (!targets) return;
+      const value = this.semanticZoomValueForSpan(this.viewport.end - this.viewport.start, targets);
+      const rounded = Math.round(value);
+      this.zoomSlider.value = String(rounded);
+      this.zoomSlider.setAttribute("aria-valuetext", this.semanticZoomValueText(rounded));
+      this.zoomSlider.title = this.semanticZoomValueText(rounded);
+      this.soloZoomActive = rounded >= 99;
+    }
+
     refreshLayout() {
       this.scheduleRender();
       if (this.selectedId && this.focusView.matches(":popover-open")) {
@@ -532,14 +683,24 @@
       this.root.dataset.orientation = vertical ? "portrait" : "landscape";
       this.surface.classList.toggle("is-portrait", vertical);
       this.surface.classList.toggle("is-landscape", !vertical);
-      this.landscapeButton.setAttribute("aria-pressed", String(!vertical));
-      this.portraitButton.setAttribute("aria-pressed", String(vertical));
+      if (this.orientationToggle) {
+        const targetLabel = vertical ? "Switch to landscape timeline" : "Switch to portrait timeline";
+        this.orientationToggle.setAttribute("aria-label", targetLabel);
+        this.orientationToggle.title = targetLabel;
+        const label = this.orientationToggle.querySelector(".sr-only");
+        if (label) label.textContent = targetLabel;
+        const icon = presentation.createIcon(vertical ? "landscape" : "portrait", { size: 20 });
+        const currentIcon = this.orientationToggle.querySelector(":scope > .semantic-icon");
+        if (currentIcon) currentIcon.replaceWith(icon);
+        else this.orientationToggle.prepend(icon);
+      }
       this.surface.setAttribute(
         "aria-label",
         vertical
-          ? "Portrait timeline. Time runs from top to bottom. Drag vertically to pan; use plus and minus to zoom."
-          : "Landscape timeline. Time runs from left to right. Drag horizontally to pan; use plus and minus to zoom."
+          ? "Portrait timeline. Time runs from top to bottom. Drag vertically to pan; use the View zoom slider, wheel, pinch, or keyboard shortcuts to zoom."
+          : "Landscape timeline. Time runs from left to right. Drag horizontally to pan; use the View zoom slider, wheel, pinch, or keyboard shortcuts to zoom."
       );
+      this.syncZoomSlider();
       this.root.dispatchEvent(new CustomEvent("timelineorientationchange", {
         bubbles: true,
         detail: { orientation: this.orientation }
@@ -568,17 +729,23 @@
             }))
         : [];
       this.focusId = options.focusId || null;
+      if (this.zoomAnchorId && !this.items.some((item) => String(item.id) === String(this.zoomAnchorId))) {
+        this.zoomAnchorId = null;
+        this.soloZoomActive = false;
+      }
 
       if (!this.items.length) {
         this.cancelViewportAnimation();
         this.viewport = null;
         this.closeFocus();
         this.root.hidden = false;
+        if (this.zoomSlider) this.zoomSlider.disabled = true;
         this.scheduleRender();
         return;
       }
 
       this.root.hidden = false;
+      if (this.zoomSlider) this.zoomSlider.disabled = false;
       if (!this.viewport || previousSignature !== nextSignature) this.ensureUsefulViewport();
       if (this.focusId && !this.selectedId) this.ensureItemVisible(this.focusId);
       if (this.selectedId && !this.items.some((item) => item.id === this.selectedId)) {
@@ -981,6 +1148,7 @@
         this.readout.textContent = "No events yet";
         return;
       }
+      this.syncZoomSlider();
       const primaryLength = this.orientation === "horizontal" ? width : height;
       const padding = this.axisPadding(primaryLength);
       const usable = Math.max(1, primaryLength - padding * 2);
@@ -1000,10 +1168,12 @@
       const axis = createElement("div", "timeline-axis");
       stage.append(axis);
 
+      const soloItemId = this.soloZoomActive ? String(this.semanticZoomAnchorItem()?.id || "") : "";
       const visibleItems = this.items
         .filter((item) => {
           const end = Number.isFinite(item.end) ? item.end : item.start;
-          return end >= this.viewport.start && item.start <= this.viewport.end;
+          const overlaps = end >= this.viewport.start && item.start <= this.viewport.end;
+          return overlaps && (!soloItemId || String(item.id) === soloItemId);
         })
         .sort((a, b) => a.start - b.start || a.title.localeCompare(b.title));
 
@@ -1052,7 +1222,7 @@
         stage.append(mark);
       }
 
-      this.renderRelationships(stage, padding, usable);
+      if (!this.soloZoomActive) this.renderRelationships(stage, padding, usable);
 
       for (const item of visibleItems) {
         const startPosition = padding + scale.coordinateFor(item.start, this.viewport, usable);
@@ -1511,8 +1681,18 @@
         );
       };
 
+      const reserveBottomChrome = (element) => {
+        const rect = element?.getBoundingClientRect?.();
+        if (!rect || rect.width <= 0 || rect.height <= 0 || rect.top <= viewportHeight / 2) return;
+        insets.bottom = Math.max(
+          insets.bottom,
+          Math.min(viewportHeight - FOCUS_POPOVER_MARGIN, viewportHeight - rect.top + 8)
+        );
+      };
+
       reserveTopChrome(document.querySelector(".app-command-bar"));
-      reserveTopChrome(document.querySelector(".timeline-view-toolbar:not([hidden])"));
+      reserveBottomChrome(document.querySelector(".timeline-view-toolbar:not([hidden])"));
+      reserveBottomChrome(document.querySelector(".app-view-tool"));
 
       const dock = document.querySelector(".app-tool-dock");
       const dockRect = dock?.getBoundingClientRect?.();
@@ -1671,6 +1851,7 @@
       if (!options.originRect && transitionOriginRect) options.originRect = transitionOriginRect;
       const applyFocus = () => {
         this.selectedId = id;
+        this.zoomAnchorId = String(id);
         this.focusMediaIndex = 0;
         this.focusForceUnique = Boolean(options.forceUnique);
         if (!options.preserveViewport) {
