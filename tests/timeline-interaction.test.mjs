@@ -599,3 +599,16 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(viewSource, /clusterTerminalExtent = compact \? Math\.min\(width \* 0\.68, 220\) : 232/);
   assert.match(viewSource, /clusterAfterAvailable = width - 12 - clusterTerminalExtent \+ 32 - axisCross/);
 });
+
+
+test("shared camera motion exposes capped two-dimensional release velocity and map-equivalent deceleration", () => {
+  const velocity = motion.estimatePointerVectorVelocity([
+    { x: 0, y: 0, time: 0 },
+    { x: 400, y: 300, time: 100 }
+  ]);
+  assert.ok(Math.abs(velocity.magnitude - motion.MAX_RELEASE_VELOCITY_PX_PER_MS) < 1e-9);
+  assert.ok(velocity.x > 0);
+  assert.ok(velocity.y > 0);
+  assert.equal(motion.MAX_RELEASE_SPEED_PX_PER_S, 3200);
+  assert.equal(motion.CAMERA_INERTIA_DECELERATION_PX_PER_S2, 3810);
+});
