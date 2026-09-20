@@ -82,6 +82,12 @@ A story is an ordered list of references to chronology items. The bundled case f
 
 This is deliberately a reference model rather than a copy model: stories do not own events.
 
+### AI / WebMCP control
+
+Timeline exposes its active local-first project to browser AI agents through the standards-track `document.modelContext` WebMCP API when that API is available. The tool surface supports complete project reads, validation, atomic CRUD transactions, full-project replacement, Memgraph export, and Memgraph import. Mutations reuse the same strict normalization, persistence, and rendering path as the human editor.
+
+For Memgraph interoperability, Timeline emits namespace-scoped Cypher and lossless `recordJson` payloads that an MCP client connected to both Timeline and Memgraph MCP can relay without DOM scraping or storing Memgraph credentials in the page. See `docs/WEBMCP-MEMGRAPH.md`.
+
 ### Relation graph
 
 Timeline includes an authorable subject–action–object graph alongside the chronology:
