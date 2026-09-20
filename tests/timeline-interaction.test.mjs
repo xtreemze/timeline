@@ -537,6 +537,17 @@ test("graph semantics reject action nodes and generic association predicates", (
     }]
   });
   assert.ok(invalidContext.some((error) => /duplicates canonical spatiotemporal context/.test(error)));
+  const invalidPlaces = graph.validateGraphInput({
+    entities: [{ id: "a", type: "person", name: "A" }],
+    places: [
+      { id: "name-only", name: "Name only" },
+      { id: "bad-icon", name: "Bad icon", geometry: { type: "Point", coordinates: [1, 1] }, icon: "rocket", markerShape: "hexagon" }
+    ],
+    relationships: []
+  });
+  assert.ok(invalidPlaces.some((error) => /requires Point coordinates or Polygon\/MultiPolygon area geometry/.test(error)));
+  assert.ok(invalidPlaces.some((error) => /unsupported semantic icon/.test(error)));
+  assert.ok(invalidPlaces.some((error) => /unsupported marker shape/.test(error)));
   assert.equal(graph.contextPropertyKey("geometry"), true);
   assert.equal(graph.contextPropertyKey("channel"), false);
 });
