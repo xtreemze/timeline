@@ -732,18 +732,22 @@ test("event editor persists configurable terminal and connector presentation int
   assert.ok(html.includes('<option value="strong">Strong</option>'));
   assert.ok(html.includes('id="item-connector-endpoint"'));
   assert.ok(html.includes('<option value="arrow">Arrow</option>'));
+  assert.ok(html.includes('id="item-lane"'));
   assert.ok(app.includes('terminalShape: els.itemTerminalShape.value'));
   assert.ok(app.includes('connectorStyle: els.itemConnectorStyle.value'));
   assert.ok(app.includes('connectorWeight: els.itemConnectorWeight.value'));
   assert.ok(app.includes('connectorEndpoint: els.itemConnectorEndpoint.value'));
+  assert.ok(app.includes('lane: manualLane'));
   assert.ok(app.includes('terminalShape: item.presentation?.terminalShape || "rounded"'));
   assert.ok(app.includes('connectorStyle: item.presentation?.connectorStyle || "solid"'));
   assert.ok(app.includes('connectorWeight: item.presentation?.connectorWeight || "normal"'));
   assert.ok(app.includes('connectorEndpoint: item.presentation?.connectorEndpoint || "none"'));
+  assert.ok(app.includes('lane: Number.isInteger(item.presentation?.lane) ? item.presentation.lane : null'));
   assert.ok(view.includes('node.dataset.terminalShape = item.terminalShape || "rounded"'));
   assert.ok(view.includes('node.dataset.connectorStyle = item.connectorStyle || "solid"'));
   assert.ok(view.includes('node.dataset.connectorWeight = item.connectorWeight || "normal"'));
   assert.ok(view.includes('node.dataset.connectorEndpoint = item.connectorEndpoint || "none"'));
+  assert.ok(view.includes('node.dataset.laneMode = Number.isInteger(item.lane) ? "manual" : "auto"'));
   assert.ok(view.includes('node.style.setProperty("--connector-thickness"'));
   assert.ok(styles.includes('.timeline-event[data-terminal-shape="diamond"] .timeline-event-dot'));
   assert.ok(styles.includes('.timeline-event[data-connector-style="dashed"] .timeline-event-connector'));
@@ -753,12 +757,14 @@ test("event editor persists configurable terminal and connector presentation int
 });
 
 
-test("timeline view assigns unbounded perpendicular lanes so coincident terminals do not reuse positions", async () => {
+test("timeline view assigns automatic lanes and honors a persisted manual lane in both orientations", async () => {
   const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  assert.match(source, /resolveEventLane\(position, occupied, minDistance = 236, preferredLane = null\)/);
+  assert.match(source, /Number\.isInteger\(preferredLane\)[\s\S]*occupied\[preferredLane\] = position[\s\S]*return preferredLane/);
   assert.match(source, /allocateEventLane\(position, occupied, minDistance = 236\)/);
   assert.match(source, /occupied\.push\(position\)/);
-  assert.match(source, /const depth = focused \? lane : Math\.floor\(lane \/ 2\)/);
-  assert.match(source, /const laneIndex = this\.allocateEventLane\(position, occupied, 78\)/);
+  assert.match(source, /const lane = this\.resolveEventLane\(position, occupied, 236, item\.lane\)/);
+  assert.match(source, /const laneIndex = this\.resolveEventLane\(position, occupied, 78, item\.lane\)/);
 });
 
 

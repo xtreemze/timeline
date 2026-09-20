@@ -91,6 +91,7 @@
     itemConnectorStyle: document.querySelector("#item-connector-style"),
     itemConnectorWeight: document.querySelector("#item-connector-weight"),
     itemConnectorEndpoint: document.querySelector("#item-connector-endpoint"),
+    itemLane: document.querySelector("#item-lane"),
     itemDateRange: document.querySelector("#item-date-range"),
     itemCalendarPopover: document.querySelector("#item-calendar-popover"),
     itemCalendarGrid: document.querySelector("#item-calendar-grid"),
@@ -894,7 +895,13 @@
       const connectorEndpoint = ["none", "dot", "arrow"].includes(raw.presentation?.connectorEndpoint)
         ? raw.presentation.connectorEndpoint
         : "none";
-      item.presentation = { variant, terminalShape, connectorStyle, connectorWeight, connectorEndpoint };
+      const laneCandidate = raw.presentation?.lane;
+      const lane = laneCandidate === null || laneCandidate === undefined || laneCandidate === ""
+        ? null
+        : Number.isInteger(Number(laneCandidate)) && Number(laneCandidate) >= 0 && Number(laneCandidate) <= 31
+          ? Number(laneCandidate)
+          : null;
+      item.presentation = { variant, terminalShape, connectorStyle, connectorWeight, connectorEndpoint, lane };
       item.relationChanges = graph.normalizeRelationChanges(raw.relationChanges);
       item.evidenceIds = (Array.isArray(raw.evidenceIds) ? raw.evidenceIds : [])
         .filter((id) => typeof id === "string" && evidenceIds.has(id))
@@ -1426,6 +1433,7 @@
         connectorStyle: item.presentation?.connectorStyle || "solid",
         connectorWeight: item.presentation?.connectorWeight || "normal",
         connectorEndpoint: item.presentation?.connectorEndpoint || "none",
+        lane: Number.isInteger(item.presentation?.lane) ? item.presentation.lane : null,
         evidence: (item.evidenceIds || [])
           .map((id) => state.evidence.find((record) => record.id === id))
           .filter(Boolean),
@@ -1936,6 +1944,7 @@
     els.itemConnectorStyle.value = "solid";
     els.itemConnectorWeight.value = "normal";
     els.itemConnectorEndpoint.value = "none";
+    els.itemLane.value = "";
     resetLocationForm();
     fillCategorySelect(els.itemCategory, false, state.categories[0]?.id || "");
     els.saveItem.textContent = "Add item";
@@ -1969,6 +1978,7 @@
     els.itemConnectorStyle.value = item.presentation?.connectorStyle || "solid";
     els.itemConnectorWeight.value = item.presentation?.connectorWeight || "normal";
     els.itemConnectorEndpoint.value = item.presentation?.connectorEndpoint || "none";
+    els.itemLane.value = Number.isInteger(item.presentation?.lane) ? String(item.presentation.lane) : "";
     fillLocationForm(null);
     els.saveItem.textContent = "Save changes";
     els.cancelItemEdit.hidden = false;
@@ -3417,6 +3427,14 @@
       return;
     }
 
+    const laneText = els.itemLane.value.trim();
+    const manualLane = laneText === "" ? null : Number(laneText);
+    if (manualLane !== null && (!Number.isInteger(manualLane) || manualLane < 0 || manualLane > 31)) {
+      setError(els.itemFormError, "Lane must be a whole number from 0 through 31, or left blank for automatic placement.");
+      els.itemLane.focus();
+      return;
+    }
+
     const item = {
       id: els.itemId.value || newId("item"),
       kind,
@@ -3437,7 +3455,8 @@
         terminalShape: els.itemTerminalShape.value,
         connectorStyle: els.itemConnectorStyle.value,
         connectorWeight: els.itemConnectorWeight.value,
-        connectorEndpoint: els.itemConnectorEndpoint.value
+        connectorEndpoint: els.itemConnectorEndpoint.value,
+        lane: manualLane
       },
       relationChanges,
       evidenceIds: evidenceRecords.map((record) => record.id)
