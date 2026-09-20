@@ -40,7 +40,10 @@
     fullscreen: ["M8 3H3v5", "M16 3h5v5", "M8 21H3v-5", "M16 21h5v-5"],
     minimize: ["M3 8h5V3", "M21 8h-5V3", "M3 16h5v5", "M21 16h-5v5"],
     play: ["M8 5 19 12 8 19z"],
-    pause: ["M8 5v14", "M16 5v14"]
+    pause: ["M8 5v14", "M16 5v14"],
+    "chevron-left": ["m15 18-6-6 6-6"],
+    "chevron-right": ["m9 18 6-6-6-6"],
+    close: ["M6 6l12 12", "M18 6 6 18"]
   });
 
   function clone(value) {
