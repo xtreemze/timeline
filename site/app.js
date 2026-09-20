@@ -171,11 +171,28 @@
     cancelGraphNodeEdit: document.querySelector("#cancel-graph-node-edit"),
     graphNodeList: document.querySelector("#graph-node-list"),
     graphNodeCount: document.querySelector("#graph-node-count"),
+    graphPlaceForm: document.querySelector("#graph-place-form"),
+    graphPlaceId: document.querySelector("#graph-place-id"),
+    graphPlaceName: document.querySelector("#graph-place-name"),
+    graphPlaceIdentifier: document.querySelector("#graph-place-identifier"),
+    graphPlaceAddress: document.querySelector("#graph-place-address"),
+    graphPlaceLatitude: document.querySelector("#graph-place-latitude"),
+    graphPlaceLongitude: document.querySelector("#graph-place-longitude"),
+    graphPlaceRadius: document.querySelector("#graph-place-radius"),
+    graphPlaceIcon: document.querySelector("#graph-place-icon"),
+    graphPlaceMarkerShape: document.querySelector("#graph-place-marker-shape"),
+    graphPlaceArea: document.querySelector("#graph-place-area"),
+    graphPlaceError: document.querySelector("#graph-place-error"),
+    saveGraphPlace: document.querySelector("#save-graph-place"),
+    cancelGraphPlaceEdit: document.querySelector("#cancel-graph-place-edit"),
+    graphPlaceList: document.querySelector("#graph-place-list"),
+    graphPlaceCount: document.querySelector("#graph-place-count"),
     graphEdgeForm: document.querySelector("#graph-edge-form"),
     graphEdgeId: document.querySelector("#graph-edge-id"),
     graphEdgeSubject: document.querySelector("#graph-edge-subject"),
     graphEdgePredicate: document.querySelector("#graph-edge-predicate"),
     graphEdgeObject: document.querySelector("#graph-edge-object"),
+    graphEdgePlace: document.querySelector("#graph-edge-place"),
     graphEdgeItemIds: document.querySelector("#graph-edge-item-ids"),
     graphEdgeRole: document.querySelector("#graph-edge-role"),
     graphEdgeInitialState: document.querySelector("#graph-edge-initial-state"),
@@ -715,6 +732,7 @@
 
   function normalizeTimeline(input, { strictGraph = false } = {}) {
     if (!input || typeof input !== "object") throw new Error("Expected a timeline object.");
+    input = graph.migrateLegacySpatialModel(input, spatial);
 
     const categories = [];
     const categoryIds = new Set();
@@ -791,13 +809,6 @@
         }
       }
 
-      let location = null;
-      try {
-        location = spatial.normalize(raw.location);
-      } catch (error) {
-        throw new Error(`Item ${index + 1} has invalid location coordinates: ${error instanceof Error ? error.message : "invalid location"}`);
-      }
-
       const item = {
         id: typeof raw.id === "string" && raw.id.trim() ? raw.id.trim().slice(0, 120) : newId("item"),
         kind,
@@ -810,7 +821,6 @@
       };
       const media = presentation.normalizeMedia(raw.media);
       const tags = presentation.normalizeTags(raw.tags);
-      if (location) item.location = location;
       if (media.length) item.media = media;
       if (tags.length) item.tags = tags;
       const variant = ["hero-split", "evidence-dossier", "editorial-mosaic"].includes(raw.presentation?.variant)
@@ -893,6 +903,7 @@
       items,
       stories,
       entities: graphData.entities,
+      places: graphData.places,
       relationships: graphData.relationships,
       evidence,
       custodyActions,
@@ -911,6 +922,7 @@
       items: [],
       stories: [],
       entities: [],
+      places: [],
       relationships: [],
       evidence: [],
       custodyActions: [],
