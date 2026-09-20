@@ -1955,8 +1955,9 @@
       next.type = "button";
       next.disabled = currentIndex < 0 || currentIndex >= this.items.length - 1;
       next.addEventListener("click", () => this.focusAdjacent(1));
-      const close = createElement("button", "button primary", "Return to timeline");
+      const close = createElement("button", "button primary", "Close");
       close.type = "button";
+      close.setAttribute("aria-label", "Return to timeline");
       close.addEventListener("click", () => this.closeFocus());
       const edit = createElement("button", "button secondary", "Edit event");
       edit.type = "button";
