@@ -273,3 +273,21 @@ test("touch graph uses forgiving node and edge hit targets with visible long-pre
   assert.match(styles, /animation:\s*graph-touch-hold 420ms linear both/);
   assert.match(styles, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*data-touch-drag="holding"/);
 });
+
+
+test("graph camera release reuses Timeline weighted inertia without changing node force physics", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+  assert.match(bridge, /const motion = globalThis\.TimelineMotion/);
+  assert.match(bridge, /let cameraGesture = null/);
+  assert.match(bridge, /let cameraInertiaAnimationFrame = 0/);
+  assert.match(bridge, /motion\?\.appendPointerVectorSamples/);
+  assert.match(bridge, /motion\.estimatePointerVectorVelocity\(gesture\.samples\)/);
+  assert.match(bridge, /motion\.decayVelocity\(velocityX, elapsed\)/);
+  assert.match(bridge, /motion\.decayVelocity\(velocityY, elapsed\)/);
+  assert.match(bridge, /transform\.translate\(deltaX \/ transform\.k, deltaY \/ transform\.k\)/);
+  assert.match(bridge, /canvas\.__zoom = next/);
+  assert.match(bridge, /orb\._renderer\.transform = next/);
+  assert.match(bridge, /requestAnimationFrame\(\(\) => startCameraInertia\(velocity\)\)/);
+  assert.match(bridge, /prefersReducedMotion\(\)/);
+  assert.match(bridge, /wheel", onWheelCapture/);
+});
