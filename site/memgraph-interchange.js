@@ -64,7 +64,9 @@
   function nodeStatement(label, record, namespace) {
     const id = text(record?.id, 120);
     if (!id) throw new Error(`${label} record requires a stable id.`);
+    const timelineKey = `${namespace}:${id}`;
     const properties = [
+      `n.timelineId = ${cypherString(id)}`,
       `n.timelineProjectId = ${cypherString(namespace)}`,
       `n.recordKind = ${cypherString(label)}`,
       `n.recordJson = ${cypherString(recordJson(record))}`
@@ -73,7 +75,7 @@
     if (record.title) properties.push(`n.title = ${cypherString(record.title)}`);
     if (record.type) properties.push(`n.entityType = ${cypherString(record.type)}`);
     if (record.kind) properties.push(`n.itemKind = ${cypherString(record.kind)}`);
-    return `MERGE (n:${label} {timelineId: ${cypherString(id)}, timelineProjectId: ${cypherString(namespace)}}) SET ${properties.join(", ")} RETURN n.timelineId AS timelineId`;
+    return `MERGE (n:${label} {timelineKey: ${cypherString(timelineKey)}}) SET ${properties.join(", ")} RETURN n.timelineId AS timelineId`;
   }
 
   function relationshipStatements(relationship, namespace) {
@@ -85,12 +87,15 @@
       throw new Error("Memgraph export requires relationship id, subjectId, objectId, and predicate.");
     }
     const type = relationshipType(predicate);
-    const deleteExisting = `MATCH ()-[r]->() WHERE r.timelineId = ${cypherString(id)} AND r.timelineProjectId = ${cypherString(namespace)} DELETE r`;
+    const relationshipKey = `${namespace}:${id}`;
+    const subjectKey = `${namespace}:${subjectId}`;
+    const objectKey = `${namespace}:${objectId}`;
+    const deleteExisting = `MATCH ()-[r]->() WHERE r.timelineKey = ${cypherString(relationshipKey)} DELETE r`;
     const create = [
-      `MATCH (s:TimelineEntity {timelineId: ${cypherString(subjectId)}, timelineProjectId: ${cypherString(namespace)}})`,
-      `MATCH (o:TimelineEntity {timelineId: ${cypherString(objectId)}, timelineProjectId: ${cypherString(namespace)}})`,
+      `MATCH (s:TimelineEntity {timelineKey: ${cypherString(subjectKey)}})`,
+      `MATCH (o:TimelineEntity {timelineKey: ${cypherString(objectKey)}})`,
       `CREATE (s)-[r:${type}]->(o)`,
-      `SET r.timelineId = ${cypherString(id)}, r.timelineProjectId = ${cypherString(namespace)}, r.predicate = ${cypherString(predicate)}, r.recordJson = ${cypherString(recordJson(relationship))}`,
+      `SET r.timelineKey = ${cypherString(relationshipKey)}, r.timelineId = ${cypherString(id)}, r.timelineProjectId = ${cypherString(namespace)}, r.predicate = ${cypherString(predicate)}, r.recordJson = ${cypherString(recordJson(relationship))}`,
       "RETURN r.timelineId AS timelineId"
     ].join(" ");
     return [deleteExisting, create];
@@ -114,7 +119,7 @@
 
   function setupCypher() {
     return [
-      "CREATE CONSTRAINT ON (n:TimelineEntity) ASSERT n.timelineId IS UNIQUE;",
+      "CREATE CONSTRAINT ON (n:TimelineEntity) ASSERT n.timelineKey IS UNIQUE;",
       "CREATE INDEX ON :TimelineEntity(timelineProjectId);",
       "CREATE INDEX ON :TimelinePlace(timelineProjectId);",
       "CREATE INDEX ON :TimelineItem(timelineProjectId);",
@@ -127,7 +132,7 @@
     const statements = [];
     const projectMeta = projectRecord(project);
     statements.push(
-      `MERGE (n:TimelineProject {timelineId: "project", timelineProjectId: ${cypherString(namespace)}}) SET n.recordJson = ${cypherString(recordJson(projectMeta))}, n.title = ${cypherString(projectMeta.title)} RETURN n.timelineId AS timelineId`
+      `MERGE (n:TimelineProject {timelineKey: ${cypherString(`${namespace}:project`)}}) SET n.timelineId = "project", n.timelineProjectId = ${cypherString(namespace)}, n.recordJson = ${cypherString(recordJson(projectMeta))}, n.title = ${cypherString(projectMeta.title)} RETURN n.timelineId AS timelineId`
     );
 
     for (const [collection, label] of Object.entries(COLLECTION_LABELS)) {
@@ -164,13 +169,17 @@
         collectionLabels: clone(COLLECTION_LABELS)
       },
       setupCypher: setupCypher(),
+      replacePrelude: [
+        `MATCH ()-[r]->() WHERE r.timelineProjectId = ${cypherString(namespace)} DELETE r`,
+        `MATCH (n) WHERE n.timelineProjectId = ${cypherString(namespace)} DETACH DELETE n`
+      ],
       statements,
       queries: queryRecipes(namespace),
       records,
       mcp: {
         server: "memgraph/mcp-memgraph",
         writeRequirement: "Set MCP_READ_ONLY=false before asking Memgraph MCP to execute write Cypher.",
-        writeWorkflow: "Execute statements in order with the Memgraph MCP query tool. setupCypher is optional and should be reviewed before first use.",
+        writeWorkflow: "For a full mirror, execute replacePrelude first, then statements in order with the Memgraph MCP query tool. For non-destructive upsert-only sync, skip replacePrelude. setupCypher is optional and should be reviewed before first use.",
         readWorkflow: "Execute the generated queries with Memgraph MCP and pass their returned rows to timeline.memgraph_import."
       }
     };
