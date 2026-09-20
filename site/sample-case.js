@@ -3712,7 +3712,7 @@
     {
       "id": "snow-apple-object",
       "type": "object",
-      "name": "Poisoned Apple",
+      "name": "Apple",
       "identifiers": [],
       "attributes": {
         "storyId": "story-snow-white",
@@ -3842,7 +3842,7 @@
     {
       "id": "snow-comb-object",
       "type": "object",
-      "name": "Poisoned Comb",
+      "name": "Comb",
       "identifiers": [],
       "attributes": {
         "storyId": "story-snow-white",
@@ -4008,10 +4008,8 @@
         },
         "end": null
       },
-      "attributes": {
-        "location": "Deep Forest"
-      },
-      "placeId": ""
+      "attributes": {},
+      "placeId": "place-snow-white-deep-forest"
     },
     {
       "id": "rel-snow-dwarfs-shelter",
@@ -4039,10 +4037,8 @@
           "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
         }
       },
-      "attributes": {
-        "place": "Seven Dwarfs' Cottage"
-      },
-      "placeId": ""
+      "attributes": {},
+      "placeId": "snow-cottage-place"
     },
     {
       "id": "rel-snow-apple-object",
@@ -4188,10 +4184,8 @@
         },
         "end": null
       },
-      "attributes": {
-        "place": "Midnight Road"
-      },
-      "placeId": ""
+      "attributes": {},
+      "placeId": "place-cinderella-royal-carriage-road"
     },
     {
       "id": "rel-cinderella-prince-search",
@@ -4378,10 +4372,8 @@
         },
         "end": null
       },
-      "attributes": {
-        "place": "Brick House Hill"
-      },
-      "placeId": ""
+      "attributes": {},
+      "placeId": "pigs-brick-place"
     },
     {
       "id": "rel-snow-queen-laces",
@@ -4493,10 +4485,8 @@
         },
         "end": null
       },
-      "attributes": {
-        "place": "Glass Coffin Clearing"
-      },
-      "placeId": ""
+      "attributes": {},
+      "placeId": "snow-clearing-place"
     },
     {
       "id": "rel-cinderella-father-stepmother",
