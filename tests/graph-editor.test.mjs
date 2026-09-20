@@ -417,3 +417,16 @@ test("graph camera gestures have explicit keyboard equivalents", async () => {
   assert.match(bridge, /addEventListener\("keydown", onGraphKeyDown\)/);
   assert.match(bridge, /removeEventListener\("keydown", onGraphKeyDown\)/);
 });
+
+
+test("touch camera navigation is not intercepted by Orb's D3 node-drag recognizer", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(bridge, /ORB_TOUCH_DRAG_EVENT_TYPES = new Set\(\[[\s\S]*"touchstart"[\s\S]*"touchmove"[\s\S]*"touchend"[\s\S]*"touchcancel"/);
+  assert.match(bridge, /function removeOrbTouchDragListeners\(\)[\s\S]*Array\.isArray\(canvas\?\.__on\)/);
+  assert.match(bridge, /listener\?\.name === "drag"[\s\S]*ORB_TOUCH_DRAG_EVENT_TYPES\.has\(listener\.type\)/);
+  assert.match(bridge, /canvas\.removeEventListener\(listener\.type, listener\.listener, listener\.options\)/);
+  assert.match(bridge, /removeOrbTouchDragListeners\(\);[\s\S]*function forceAlphaProfile/);
+  assert.match(bridge, /orb\.setRenderer\([\s\S]*removeOrbTouchDragListeners\(\);[\s\S]*orb\.setSettings/);
+  assert.match(bridge, /simulator\.dragNode\(touchHold\.node\.getId\(\), geometry\.localPoint\)/);
+});
