@@ -7,7 +7,7 @@ await import("../site/timeline-graph.js");
 const graph = globalThis.TimelineGraph;
 
 test("timeless edges remain active in every timeline window", () => {
-  const relationship = { id: "r", subjectId: "a", objectId: "b", predicate: "knows", time: null };
+  const relationship = { id: "r", subjectId: "a", objectId: "b", predicate: "calls", time: null };
   assert.equal(graph.relationshipWindowState(relationship, { start: 0, end: 10 }), "timeless");
 });
 
@@ -42,7 +42,7 @@ test("timed edges activate only while their temporal extent intersects the timel
 test("graphForWindow retains structure while annotating edge temporal state", () => {
   const data = graph.graphForWindow({
     entities: [{ id: "a", type: "person", name: "A" }, { id: "b", type: "person", name: "B" }],
-    relationships: [{ id: "r", subjectId: "a", objectId: "b", predicate: "knows" }],
+    relationships: [{ id: "r", subjectId: "a", objectId: "b", predicate: "calls" }],
     items: [],
     stories: []
   }, { start: 0, end: 10 });
@@ -78,7 +78,7 @@ test("events can activate update and deactivate a relationship over time", () =>
         relationChanges: [{
           relationshipId: "r",
           operation: "update",
-          predicate: "formallyInvestigates",
+          predicate: "investigates",
           properties: { phase: "formal" }
         }]
       },
@@ -104,7 +104,7 @@ test("events can activate update and deactivate a relationship over time", () =>
     end: Date.UTC(2026, 6, 2)
   });
   assert.equal(july.edges[0].temporalState, "changed");
-  assert.equal(july.edges[0].label, "formallyInvestigates");
+  assert.equal(july.edges[0].label, "investigates");
   assert.equal(july.edges[0].properties.attributes.phase, "formal");
 
   const september = graph.graphForWindow(input, {
@@ -135,7 +135,7 @@ test("focused event neighborhood exposes the canonical relation it changes witho
       relationChanges: [{
         relationshipId: "r",
         operation: "update",
-        predicate: "transfersControlTo"
+        predicate: "transfersTo"
       }]
     }],
     stories: []
@@ -150,10 +150,49 @@ test("focused event neighborhood exposes the canonical relation it changes witho
   assert.equal(neighborhood.nodes.some((node) => node.id === "event-change"), false);
   assert.ok(neighborhood.nodes.some((node) => node.id === "a"));
   assert.ok(neighborhood.nodes.some((node) => node.id === "b"));
-  assert.ok(neighborhood.edges.some((edge) => edge.id === "r" && edge.label === "transfersControlTo"));
+  assert.ok(neighborhood.edges.some((edge) => edge.id === "r" && edge.label === "transfersTo"));
   assert.equal(neighborhood.edges.some((edge) => edge.id.startsWith("change:")), false);
 });
 
+
+test("focused event neighborhood keeps explicitly contextual edges even when their action time is outside the viewport", () => {
+  const input = {
+    entities: [
+      { id: "alice", type: "person", name: "Alice" },
+      { id: "bob", type: "person", name: "Bob" }
+    ],
+    relationships: [{
+      id: "old-call",
+      subjectId: "alice",
+      objectId: "bob",
+      predicate: "called",
+      itemIds: ["event-context"],
+      time: {
+        type: "instant",
+        start: { value: "2020-01-01", precision: "day", certainty: "exact", calendar: "gregorian" },
+        end: null
+      }
+    }],
+    items: [{
+      id: "event-context",
+      title: "Alice remembers Bob's earlier call",
+      start: "2026-09-20"
+    }],
+    stories: []
+  };
+  const viewport = {
+    start: Date.UTC(2026, 8, 20),
+    end: Date.UTC(2026, 8, 20)
+  };
+
+  assert.equal(graph.graphForWindow(input, viewport).edges.length, 0);
+  const neighborhood = graph.neighborhoodGraph(input, "event-context", viewport, { depth: 1, limit: 12 });
+  assert.deepEqual(new Set(neighborhood.nodes.map((node) => node.id)), new Set(["alice", "bob"]));
+  assert.equal(neighborhood.edges.length, 1);
+  assert.equal(neighborhood.edges[0].id, "old-call");
+  assert.equal(neighborhood.edges[0].temporalState, "context");
+  assert.equal(neighborhood.edges[0].properties.contextOnly, true);
+});
 
 test("graph window removes out-of-window timed topology while retaining persistent relations", () => {
   const input = {
@@ -174,7 +213,7 @@ test("graph window removes out-of-window timed topology while retaining persiste
           end: { value: "2026-09-30", precision: "day", certainty: "exact", calendar: "gregorian" }
         }
       },
-      { id: "persistent", subjectId: "b", objectId: "c", predicate: "knows", time: null }
+      { id: "persistent", subjectId: "b", objectId: "c", predicate: "calls", time: null }
     ],
     items: [],
     stories: []
