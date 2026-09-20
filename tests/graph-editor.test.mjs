@@ -430,3 +430,24 @@ test("touch camera navigation is not intercepted by Orb's D3 node-drag recognize
   assert.match(bridge, /orb\.setRenderer\([\s\S]*removeOrbTouchDragListeners\(\);[\s\S]*orb\.setSettings/);
   assert.match(bridge, /simulator\.dragNode\(touchHold\.node\.getId\(\), geometry\.localPoint\)/);
 });
+
+test("active touch node drag blocks Orb camera movement at the event boundary", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(
+    bridge,
+    /if \(touchHold\.activated\)[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*simulator\.dragNode\(touchHold\.node\.getId\(\), geometry\.localPoint\)/
+  );
+  assert.match(
+    bridge,
+    /function onTouchMoveCapture\(event\)[\s\S]*touchHold\?\.activated[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)/
+  );
+  assert.match(
+    bridge,
+    /addEventListener\("touchmove", onTouchMoveCapture, \{ capture: true, passive: false \}\)/
+  );
+  assert.match(
+    bridge,
+    /removeEventListener\("touchmove", onTouchMoveCapture, true\)/
+  );
+});
