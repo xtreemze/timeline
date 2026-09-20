@@ -583,13 +583,22 @@
         errors.push(`${label}: place must be an object.`);
         return;
       }
-      const geometry = spatial?.normalizeGeometry ? spatial.normalizeGeometry(raw.geometry) : raw.geometry;
-      if (!geometry) errors.push(`${label}: canonical place requires Point coordinates or Polygon/MultiPolygon area geometry.`);
-      if (raw.icon && spatial?.PLACE_SEMANTIC_ICONS && !spatial.PLACE_SEMANTIC_ICONS.includes(String(raw.icon))) {
-        errors.push(`${label}: unsupported semantic icon “${raw.icon}”.`);
+      let normalized = null;
+      try {
+        normalized = spatial?.normalizePlace?.(raw, index) || null;
+      } catch (error) {
+        errors.push(`${label}: ${error instanceof Error ? error.message : "invalid geometry."}`);
       }
-      if (raw.markerShape && spatial?.PLACE_MARKER_SHAPES && !spatial.PLACE_MARKER_SHAPES.includes(String(raw.markerShape))) {
-        errors.push(`${label}: unsupported marker shape “${raw.markerShape}”.`);
+      if (!normalized?.geometry) {
+        errors.push(`${label}: canonical place requires Point coordinates or Polygon/MultiPolygon area geometry.`);
+      }
+      const icon = text(raw.icon || raw.marker?.icon || raw.attributes?.icon, 48);
+      if (icon && Array.isArray(spatial?.PLACE_ICON_NAMES) && !spatial.PLACE_ICON_NAMES.includes(icon)) {
+        errors.push(`${label}: unsupported semantic icon “${icon}”. Choose a registered semantic icon.`);
+      }
+      const markerShape = text(raw.markerShape || raw.marker?.shape || raw.attributes?.markerShape, 24);
+      if (markerShape && Array.isArray(spatial?.PLACE_MARKER_SHAPES) && !spatial.PLACE_MARKER_SHAPES.includes(markerShape)) {
+        errors.push(`${label}: unsupported marker shape “${markerShape}”.`);
       }
     });
   
