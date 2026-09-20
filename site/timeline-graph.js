@@ -218,7 +218,7 @@
     return [...variants];
   }
 
-  function itemNarrativeContext(item) {
+  function itemNarrativeContext(item, evidenceById = null) {
     if (!item || typeof item !== "object") return "";
     const mediaContext = Array.isArray(item.media)
       ? item.media.flatMap((media) => [
@@ -226,15 +226,21 @@
           typeof media?.caption === "string" ? media.caption : ""
         ])
       : [];
+    const evidenceNotes = evidenceById instanceof Map
+      ? textList(item.evidenceIds, { maxItems: 96, maxLength: 120 })
+          .map((id) => evidenceById.get(String(id))?.note)
+          .filter((note) => typeof note === "string" && note.trim())
+      : [];
     return [
       typeof item.title === "string" ? item.title : "",
       typeof item.description === "string" ? item.description : "",
-      ...mediaContext
+      ...mediaContext,
+      ...evidenceNotes
     ].filter(Boolean).join(" ");
   }
 
-  function namedEntityMentions(item, entities) {
-    const context = entityMentionKey(itemNarrativeContext(item));
+  function namedEntityMentions(item, entities, evidenceById = null) {
+    const context = entityMentionKey(itemNarrativeContext(item, evidenceById));
     if (!context) return [];
     const padded = ` ${context} `;
     const groups = new Map();
@@ -551,12 +557,18 @@
     const rawItems = Array.isArray(input?.items) ? input.items : [];
     const rawStories = Array.isArray(input?.stories) ? input.stories : [];
     const rawPlaces = Array.isArray(input?.places) ? input.places : [];
+    const rawEvidence = Array.isArray(input?.evidence) ? input.evidence : [];
     const places = spatial?.normalizePlaces?.(rawPlaces) || [];
     const entityIds = new Set();
     const placeIds = new Set(places.map((place) => String(place.id)));
     const placeNames = places.map((place) => semanticKey(place.name)).filter((name) => name.length >= 4);
     const itemIds = new Set(rawItems.map((item) => text(item?.id, 120)).filter(Boolean));
     const storyIds = new Set(rawStories.map((story) => text(story?.id, 120)).filter(Boolean));
+    const evidenceById = new Map(
+      rawEvidence
+        .map((record) => [text(record?.id, 120), record])
+        .filter(([id]) => Boolean(id))
+    );
 
     const relationshipById = new Map();
     const contextualEntityIdsByItem = new Map();
@@ -668,10 +680,10 @@
 
       if (!itemId) return;
       const contextualEntityIds = contextualEntityIdsByItem.get(itemId) || new Set();
-      for (const mention of namedEntityMentions(item, rawEntities)) {
+      for (const mention of namedEntityMentions(item, rawEntities, evidenceById)) {
         if (mention.entityIds.some((entityId) => contextualEntityIds.has(entityId))) continue;
         errors.push(
-          `Item ${itemId}: narrative context names entity “${mention.label}”, but no action edge linked to this event includes that entity. Every named entity in an event title, description, or media context must be a graph node and an endpoint of a contextual action edge.`
+          `Item ${itemId}: narrative context names entity “${mention.label}”, but no action edge linked to this event includes that entity. Every named entity in an event title, description, media context, or attached evidence note must be a graph node and an endpoint of a contextual action edge.`
         );
       }
     });
