@@ -206,8 +206,8 @@ test("fullscreen keeps the timeline full-stage and moves focused detail into a r
   assert.match(timelineSource, /focusInset/);
   assert.match(timelineSource, /height - focusInset/);
   assert.match(timelineSource, /width - focusInset/);
-  assert.match(timelineSource, /document\.startViewTransition\(applyFocus\)/);
-  assert.match(timelineSource, /document\.startViewTransition\(clearFocus\)/);
+  assert.match(timelineSource, /startFocusViewTransition\([\s\S]*"open"/);
+  assert.match(timelineSource, /startFocusViewTransition\([\s\S]*"close"/);
   assert.match(app, /dataset\.viewportOrientation/);
 });
 
@@ -318,7 +318,7 @@ test("adjacent focused-event navigation finishes viewport motion before swapping
   assert.match(source, /cancelViewportAnimation\(\)[\s\S]*resolveViewportAnimation\(false\)/);
   assert.match(source, /transitionFocusTo\(item, direction = 1\)[\s\S]*await this\.animateViewportTo\(plan\.viewport\)[\s\S]*token !== this\.focusNavigationToken/);
   assert.match(source, /this\.selectedId && this\.selectedId !== id && !this\.prefersReducedMotion\(\)/);
-  assert.match(source, /dataset\.timelineFocusDirection = adjacentDirection < 0 \? "backward" : "forward"/);
+  assert.match(source, /focusTransitionTypes\(kind, direction = 0\)[\s\S]*timeline-focus-backward[\s\S]*timeline-focus-forward/);
   assert.match(source, /transition\.finished\.then\(cleanupAdjacentTransition, cleanupAdjacentTransition\)/);
 });
 
@@ -788,11 +788,31 @@ test("opening and adjacent focused events use distinct shared View Transition id
   assert.match(source, /transitionOrigin\.style\.viewTransitionName = FOCUS_VIEW_TRANSITION_NAME/);
   assert.match(source, /this\.focusView\.style\.viewTransitionName = FOCUS_VIEW_TRANSITION_NAME/);
   assert.match(source, /this\.focusView\.style\.viewTransitionName = FOCUS_SWAP_TRANSITION_NAME/);
-  assert.match(source, /dataset\.timelineFocusDirection = adjacentDirection < 0 \? "backward" : "forward"/);
+  assert.match(source, /focusTransitionTypes\(kind, direction = 0\)[\s\S]*timeline-focus-backward[\s\S]*timeline-focus-forward/);
   assert.match(css, /::view-transition-group\(timeline-event-detail-shared\)/);
   assert.match(css, /::view-transition-group\(timeline-event-detail-swap\)/);
-  assert.match(css, /data-timeline-focus-direction="forward"[\s\S]*view-transition-old\(timeline-event-detail-swap\)/);
-  assert.match(css, /data-timeline-focus-direction="backward"[\s\S]*view-transition-new\(timeline-event-detail-swap\)/);
+  assert.match(css, /active-view-transition-type\(timeline-focus-forward\)[\s\S]*active-view-transition-type\(timeline-landscape\)[\s\S]*view-transition-old\(timeline-event-detail-swap\)/);
+  assert.match(css, /active-view-transition-type\(timeline-focus-backward\)[\s\S]*active-view-transition-type\(timeline-portrait\)[\s\S]*view-transition-new\(timeline-event-detail-swap\)/);
+});
+
+test("focus View Transitions capture chronology movement on the active timeline axis", async () => {
+  const [source, css] = await Promise.all([
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(source, /FOCUS_TIMELINE_TRANSITION_NAME = "timeline-focus-chronology"/);
+  assert.match(source, /document\.startViewTransition\(\{[\s\S]*update,[\s\S]*types: this\.focusTransitionTypes\(kind, direction\)/);
+  assert.match(source, /adjustFocusedViewport\(item, \{ immediate: captureTimeline \}\)/);
+  assert.match(source, /renderForViewTransition\(\)[\s\S]*cancelAnimationFrame\(this\.renderFrame\)[\s\S]*this\.render\(\)/);
+  assert.match(source, /this\.surface\.style\.viewTransitionName = FOCUS_TIMELINE_TRANSITION_NAME/);
+  assert.match(source, /clearFocus\(\{ deferRender: true, deferSurfaceFocus: true \}\);[\s\S]*this\.renderForViewTransition\(\);[\s\S]*returnOrigin = this\.focusTransitionOrigin\(previousId\)/);
+
+  assert.match(css, /::view-transition-group\(timeline-focus-chronology\)/);
+  assert.match(css, /active-view-transition-type\(timeline-focus-open\)[\s\S]*active-view-transition-type\(timeline-landscape\)[\s\S]*timeline-chronology-open-landscape-old/);
+  assert.match(css, /active-view-transition-type\(timeline-focus-open\)[\s\S]*active-view-transition-type\(timeline-portrait\)[\s\S]*timeline-chronology-open-portrait-old/);
+  assert.match(css, /timeline-focus-old-forward-landscape[\s\S]*translateX\(-1\.1rem\)/);
+  assert.match(css, /timeline-focus-old-forward-portrait[\s\S]*translateY\(-1\.1rem\)/);
 });
 
 test("workspace sidebar and side sheets are named View Transition participants", async () => {

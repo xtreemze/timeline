@@ -1972,14 +1972,19 @@
   font-size: 8px;
 }
 
-::view-transition-group(timeline-event-detail-shared) {
-  animation-duration: 300ms;
+::view-transition-group(timeline-event-detail-shared),
+::view-transition-group(timeline-focus-chronology) {
+  animation-duration: 320ms;
   animation-timing-function: cubic-bezier(.2, .8, .2, 1);
 }
 
 ::view-transition-old(timeline-event-detail-shared),
-::view-transition-new(timeline-event-detail-shared) {
+::view-transition-new(timeline-event-detail-shared),
+::view-transition-old(timeline-focus-chronology),
+::view-transition-new(timeline-focus-chronology) {
   mix-blend-mode: normal;
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(.2, .8, .2, 1);
 }
 
 ::view-transition-group(timeline-event-detail-swap) {
@@ -1994,48 +1999,183 @@
   animation-timing-function: cubic-bezier(.2, .8, .2, 1);
 }
 
-@keyframes timeline-focus-old-forward {
+/* Focus opening/closing is one spatial transition: chronology yields toward its edge
+   while the shared event/detail element expands into the opposite reading region. */
+@keyframes timeline-chronology-open-landscape-old {
+  to {
+    opacity: .18;
+    transform: translateY(3rem) scale(.992);
+  }
+}
+
+@keyframes timeline-chronology-open-landscape-new {
+  from {
+    opacity: .42;
+    transform: translateY(-1.5rem) scale(.996);
+  }
+}
+
+@keyframes timeline-chronology-close-landscape-old {
+  to {
+    opacity: .18;
+    transform: translateY(-3rem) scale(.992);
+  }
+}
+
+@keyframes timeline-chronology-close-landscape-new {
+  from {
+    opacity: .42;
+    transform: translateY(1.5rem) scale(.996);
+  }
+}
+
+@keyframes timeline-chronology-open-portrait-old {
+  to {
+    opacity: .18;
+    transform: translateX(3rem) scale(.992);
+  }
+}
+
+@keyframes timeline-chronology-open-portrait-new {
+  from {
+    opacity: .42;
+    transform: translateX(-1.5rem) scale(.996);
+  }
+}
+
+@keyframes timeline-chronology-close-portrait-old {
+  to {
+    opacity: .18;
+    transform: translateX(-3rem) scale(.992);
+  }
+}
+
+@keyframes timeline-chronology-close-portrait-new {
+  from {
+    opacity: .42;
+    transform: translateX(1.5rem) scale(.996);
+  }
+}
+
+:root:active-view-transition-type(timeline-focus-open):active-view-transition-type(timeline-landscape)::view-transition-old(timeline-focus-chronology) {
+  animation-name: timeline-chronology-open-landscape-old;
+}
+
+:root:active-view-transition-type(timeline-focus-open):active-view-transition-type(timeline-landscape)::view-transition-new(timeline-focus-chronology) {
+  animation-name: timeline-chronology-open-landscape-new;
+}
+
+:root:active-view-transition-type(timeline-focus-close):active-view-transition-type(timeline-landscape)::view-transition-old(timeline-focus-chronology) {
+  animation-name: timeline-chronology-close-landscape-old;
+}
+
+:root:active-view-transition-type(timeline-focus-close):active-view-transition-type(timeline-landscape)::view-transition-new(timeline-focus-chronology) {
+  animation-name: timeline-chronology-close-landscape-new;
+}
+
+:root:active-view-transition-type(timeline-focus-open):active-view-transition-type(timeline-portrait)::view-transition-old(timeline-focus-chronology) {
+  animation-name: timeline-chronology-open-portrait-old;
+}
+
+:root:active-view-transition-type(timeline-focus-open):active-view-transition-type(timeline-portrait)::view-transition-new(timeline-focus-chronology) {
+  animation-name: timeline-chronology-open-portrait-new;
+}
+
+:root:active-view-transition-type(timeline-focus-close):active-view-transition-type(timeline-portrait)::view-transition-old(timeline-focus-chronology) {
+  animation-name: timeline-chronology-close-portrait-old;
+}
+
+:root:active-view-transition-type(timeline-focus-close):active-view-transition-type(timeline-portrait)::view-transition-new(timeline-focus-chronology) {
+  animation-name: timeline-chronology-close-portrait-new;
+}
+
+/* Adjacent focus follows the time axis: X for landscape, Y for portrait. */
+@keyframes timeline-focus-old-forward-landscape {
   to {
     opacity: 0;
     transform: translateX(-1.1rem) scale(.985);
   }
 }
 
-@keyframes timeline-focus-new-forward {
+@keyframes timeline-focus-new-forward-landscape {
   from {
     opacity: 0;
     transform: translateX(1.1rem) scale(.985);
   }
 }
 
-@keyframes timeline-focus-old-backward {
+@keyframes timeline-focus-old-backward-landscape {
   to {
     opacity: 0;
     transform: translateX(1.1rem) scale(.985);
   }
 }
 
-@keyframes timeline-focus-new-backward {
+@keyframes timeline-focus-new-backward-landscape {
   from {
     opacity: 0;
     transform: translateX(-1.1rem) scale(.985);
   }
 }
 
-:root[data-timeline-focus-direction="forward"]::view-transition-old(timeline-event-detail-swap) {
-  animation-name: timeline-focus-old-forward;
+@keyframes timeline-focus-old-forward-portrait {
+  to {
+    opacity: 0;
+    transform: translateY(-1.1rem) scale(.985);
+  }
 }
 
-:root[data-timeline-focus-direction="forward"]::view-transition-new(timeline-event-detail-swap) {
-  animation-name: timeline-focus-new-forward;
+@keyframes timeline-focus-new-forward-portrait {
+  from {
+    opacity: 0;
+    transform: translateY(1.1rem) scale(.985);
+  }
 }
 
-:root[data-timeline-focus-direction="backward"]::view-transition-old(timeline-event-detail-swap) {
-  animation-name: timeline-focus-old-backward;
+@keyframes timeline-focus-old-backward-portrait {
+  to {
+    opacity: 0;
+    transform: translateY(1.1rem) scale(.985);
+  }
 }
 
-:root[data-timeline-focus-direction="backward"]::view-transition-new(timeline-event-detail-swap) {
-  animation-name: timeline-focus-new-backward;
+@keyframes timeline-focus-new-backward-portrait {
+  from {
+    opacity: 0;
+    transform: translateY(-1.1rem) scale(.985);
+  }
+}
+
+:root:active-view-transition-type(timeline-focus-forward):active-view-transition-type(timeline-landscape)::view-transition-old(timeline-event-detail-swap) {
+  animation-name: timeline-focus-old-forward-landscape;
+}
+
+:root:active-view-transition-type(timeline-focus-forward):active-view-transition-type(timeline-landscape)::view-transition-new(timeline-event-detail-swap) {
+  animation-name: timeline-focus-new-forward-landscape;
+}
+
+:root:active-view-transition-type(timeline-focus-backward):active-view-transition-type(timeline-landscape)::view-transition-old(timeline-event-detail-swap) {
+  animation-name: timeline-focus-old-backward-landscape;
+}
+
+:root:active-view-transition-type(timeline-focus-backward):active-view-transition-type(timeline-landscape)::view-transition-new(timeline-event-detail-swap) {
+  animation-name: timeline-focus-new-backward-landscape;
+}
+
+:root:active-view-transition-type(timeline-focus-forward):active-view-transition-type(timeline-portrait)::view-transition-old(timeline-event-detail-swap) {
+  animation-name: timeline-focus-old-forward-portrait;
+}
+
+:root:active-view-transition-type(timeline-focus-forward):active-view-transition-type(timeline-portrait)::view-transition-new(timeline-event-detail-swap) {
+  animation-name: timeline-focus-new-forward-portrait;
+}
+
+:root:active-view-transition-type(timeline-focus-backward):active-view-transition-type(timeline-portrait)::view-transition-old(timeline-event-detail-swap) {
+  animation-name: timeline-focus-old-backward-portrait;
+}
+
+:root:active-view-transition-type(timeline-focus-backward):active-view-transition-type(timeline-portrait)::view-transition-new(timeline-event-detail-swap) {
+  animation-name: timeline-focus-new-backward-portrait;
 }
 
 @media (max-width: 900px), (max-height: 650px) {
@@ -2884,6 +3024,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(timeline-event-detail-shared),
+  ::view-transition-group(timeline-focus-chronology),
+  ::view-transition-old(timeline-focus-chronology),
+  ::view-transition-new(timeline-focus-chronology),
   ::view-transition-group(timeline-event-detail-swap),
   ::view-transition-old(timeline-event-detail-swap),
   ::view-transition-new(timeline-event-detail-swap) {

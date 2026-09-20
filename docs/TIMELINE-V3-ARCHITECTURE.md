@@ -509,7 +509,7 @@ Normal application mode distinguishes presentation overlays from workspace utili
 
 Fullscreen targets `#presentation-stage`, not editor/browser/project surfaces. Browser fullscreen therefore naturally excludes application chrome and preserves the timeline-plus-focused-event presentation.
 
-Focus/unfocus changes use named Web View Transitions for the timeline and detail overlay. Reduced-motion preferences bypass animated transitions.
+Focus/unfocus changes use named Web View Transitions for both chronology and detail, and the transition update must synchronously render the post-focus timeline geometry before the new snapshot is captured. Transition types encode focus opening, closing, adjacent navigation, and timeline orientation: a horizontal/landscape chronology yields toward the lower edge while detail expands above it; a vertical/portrait chronology yields toward the right edge while detail expands to its left. Adjacent focus navigation follows the chronology axis (horizontal travel for landscape, vertical travel for portrait). Reduced-motion preferences bypass animated transitions.
 
 ### Focused event presentation
 
