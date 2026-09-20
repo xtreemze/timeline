@@ -265,7 +265,6 @@
     mode: "view",
     editorOpen: false,
     browserOpen: false,
-    viewControlsOpen: false,
     collapsedCategoryIds: new Set(state.categories.map((category) => category.id))
   };
 
@@ -395,53 +394,6 @@
     els.appToolDock.dataset.projectAnchorPlacement = placement;
     els.appToolDock.style.setProperty("--workspace-tool-dock-left", `${Math.round(left)}px`);
     els.appToolDock.style.setProperty("--workspace-tool-dock-top", `${Math.round(top)}px`);
-  }
-
-  function positionViewControls() {
-    if (!els.viewControls || !els.viewControlsToggle || !els.timelineViewRoot) return;
-    if (!els.viewControls.matches(":popover-open")) return;
-
-    if (presentationIsFullscreen()) {
-      els.viewControls.dataset.anchorPlacement = "fullscreen";
-      els.viewControls.style.removeProperty("--view-controls-left");
-      els.viewControls.style.removeProperty("--view-controls-top");
-      return;
-    }
-
-    const triggerRect = els.viewControlsToggle.getBoundingClientRect();
-    const toolbarRect = els.viewControls.getBoundingClientRect();
-    const viewport = workspaceToolViewport();
-    const gap = 8;
-    const edge = 8;
-    const minLeft = viewport.left + edge;
-    const minTop = viewport.top + edge;
-    const maxRight = viewport.left + viewport.width - edge;
-    const maxBottom = viewport.top + viewport.height - edge;
-    const toolbarWidth = Math.max(1, toolbarRect.width || els.viewControls.offsetWidth || 1);
-    const toolbarHeight = Math.max(1, toolbarRect.height || els.viewControls.offsetHeight || 1);
-
-    let left;
-    let top;
-    let placement;
-
-    const preferredTop = triggerRect.top - toolbarHeight - gap;
-    const fallbackTop = triggerRect.bottom + gap;
-    left = triggerRect.right - toolbarWidth;
-    top = preferredTop >= minTop ? preferredTop : fallbackTop;
-    placement = preferredTop >= minTop ? "above" : "below";
-
-    left = Math.min(
-      Math.max(minLeft, left),
-      Math.max(minLeft, maxRight - toolbarWidth)
-    );
-    top = Math.min(
-      Math.max(minTop, top),
-      Math.max(minTop, maxBottom - toolbarHeight)
-    );
-
-    els.viewControls.dataset.anchorPlacement = placement;
-    els.viewControls.style.setProperty("--view-controls-left", `${Math.round(left)}px`);
-    els.viewControls.style.setProperty("--view-controls-top", `${Math.round(top)}px`);
   }
 
   function mountFullscreenToolDock() {
@@ -620,7 +572,6 @@
     timelineView?.refreshLayout?.();
     presentationMap?.refresh?.();
     positionWorkspaceToolDock();
-    positionViewControls();
     if (recenterGraph) temporalGraphView?.refreshLayout?.();
   }
 
@@ -659,7 +610,7 @@
         else els.presentationFullscreenToggle.prepend(icon);
       }
       syncContextualPresentationPanels();
-      syncViewControlsSurface();
+      syncViewControlsChrome();
       temporalGraphView?.setPresentationMode?.(presentationModeActive());
     });
     if (active && timelineView?.hasFocusedItem?.()) {
@@ -1163,35 +1114,35 @@
     element.hidden = !message;
   }
 
-  function syncViewControlsSurface() {
-    if (!els.viewControls) return;
-    const shouldOpen = Boolean(ui.viewControlsOpen);
-    const isOpen = els.viewControls.matches(":popover-open");
-
-    if (shouldOpen && !isOpen) {
-      try {
-        els.viewControls.showPopover();
-        positionViewControls();
-        requestAnimationFrame(positionViewControls);
-      } catch {
-        return;
-      }
-    } else if (!shouldOpen && isOpen) {
-      els.viewControls.hidePopover();
-    } else if (shouldOpen && isOpen) {
-      requestAnimationFrame(positionViewControls);
-    }
+  function viewControlsAreOpen() {
+    return Boolean(els.viewControls?.matches(":popover-open"));
   }
 
+  function syncViewControlsChrome() {
+    const open = viewControlsAreOpen();
+    if (els.appShell) els.appShell.dataset.viewControlsOpen = String(open);
+    if (els.viewControlsToggle) els.viewControlsToggle.setAttribute("aria-expanded", String(open));
+    return open;
+  }
+
+  function closeViewControls() {
+    if (!viewControlsAreOpen()) return;
+    try {
+      els.viewControls.hidePopover();
+    } catch {
+      // The native popover may already be transitioning; its toggle event will resync chrome.
+    }
+  }
   function syncApplicationSurfaces() {
     if (ui.mode !== "edit") ui.editorOpen = false;
     const editing = ui.mode === "edit";
+    const viewControlsOpen = viewControlsAreOpen();
     if (els.appShell) {
       els.appShell.dataset.mode = ui.mode;
       els.appShell.dataset.editorOpen = String(ui.editorOpen);
       els.appShell.dataset.browserOpen = String(ui.browserOpen);
       els.appShell.dataset.graphOpen = "true";
-      els.appShell.dataset.viewControlsOpen = String(ui.viewControlsOpen);
+      els.appShell.dataset.viewControlsOpen = String(viewControlsOpen);
     }
 
     if (els.controlPanel) {
@@ -1224,9 +1175,8 @@
     }
     if (els.browserToggle) els.browserToggle.setAttribute("aria-expanded", String(ui.browserOpen));
     if (els.viewControlsToggle) {
-      els.viewControlsToggle.setAttribute("aria-expanded", String(ui.viewControlsOpen));
+      els.viewControlsToggle.setAttribute("aria-expanded", String(viewControlsOpen));
     }
-    syncViewControlsSurface();
 
     temporalGraphView?.setPresentationMode?.(presentationModeActive());
     syncContextualPresentationPanels();
@@ -1236,7 +1186,7 @@
   function closeLargeUtilitySurfaces(except = "") {
     if (except !== "editor") ui.editorOpen = false;
     if (except !== "browser") ui.browserOpen = false;
-    if (except !== "view") ui.viewControlsOpen = false;
+    if (except !== "view") closeViewControls();
   }
 
   function closeFocusedEventForUtility() {
@@ -1273,17 +1223,6 @@
     }
   }
 
-
-  function setViewControlsOpen(open) {
-    if (ui.mode === "edit") return;
-    ui.viewControlsOpen = Boolean(open);
-    if (ui.viewControlsOpen) {
-      closeLargeUtilitySurfaces("view");
-      closeProjectMenu();
-      closeFocusedEventForUtility();
-    }
-    syncApplicationSurfaces();
-  }
 
   function setActivePanel(name, { open = true } = {}) {
     ui.activePanel = name;
@@ -2771,16 +2710,10 @@
     window.addEventListener("resize", () => schedulePresentationGeometryRefresh());
   }
   updatePresentationStageLayout();
-  requestAnimationFrame(() => {
-    positionWorkspaceToolDock();
-    positionViewControls();
-  });
+  requestAnimationFrame(positionWorkspaceToolDock);
   window.addEventListener("resize", positionWorkspaceToolDock);
-  window.addEventListener("resize", positionViewControls);
   window.visualViewport?.addEventListener("resize", positionWorkspaceToolDock);
-  window.visualViewport?.addEventListener("resize", positionViewControls);
   window.visualViewport?.addEventListener("scroll", positionWorkspaceToolDock);
-  window.visualViewport?.addEventListener("scroll", positionViewControls);
 
   function collapseAllCategories() {
     ui.collapsedCategoryIds.clear();
@@ -3149,7 +3082,20 @@
   els.controlPanelClose?.addEventListener("click", () => setEditorSurfaceOpen(false));
   els.browserToggle?.addEventListener("click", () => setBrowserSurfaceOpen(!ui.browserOpen));
   els.browserClose?.addEventListener("click", () => setBrowserSurfaceOpen(false));
-  els.viewControlsToggle?.addEventListener("click", () => setViewControlsOpen(!ui.viewControlsOpen));
+  els.viewControlsToggle?.addEventListener("click", () => {
+    if (viewControlsAreOpen()) return;
+    closeLargeUtilitySurfaces("view");
+    closeProjectMenu();
+    closeFocusedEventForUtility();
+    syncApplicationSurfaces();
+  });
+  els.viewControls?.addEventListener("beforetoggle", (event) => {
+    if (event.newState === "open" && ui.mode === "edit") event.preventDefault();
+  });
+  els.viewControls?.addEventListener("toggle", () => {
+    syncViewControlsChrome();
+    schedulePresentationGeometryRefresh({ recenterGraph: false });
+  });
 
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
@@ -3163,9 +3109,9 @@
       setBrowserSurfaceOpen(false);
       return;
     }
-    if (ui.viewControlsOpen && !presentationIsFullscreen()) {
+    if (viewControlsAreOpen() && !presentationIsFullscreen()) {
       event.preventDefault();
-      setViewControlsOpen(false);
+      closeViewControls();
     }
   });
 
