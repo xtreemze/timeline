@@ -2933,10 +2933,18 @@
       Math.max(edge, preferredLeft),
       Math.max(edge, viewportWidth - menuWidth - edge)
     );
-    const preferredTop = portrait ? rect.top : rect.bottom + gap;
+    const menuHeight = Math.min(
+      620,
+      Math.max(160, els.projectMenu.scrollHeight || 340),
+      Math.max(160, viewportHeight - edge * 2)
+    );
+    const opensUpward = !portrait && rect.top > viewportHeight / 2;
+    const preferredTop = opensUpward
+      ? rect.top - menuHeight - gap
+      : portrait ? rect.top : rect.bottom + gap;
     const top = Math.min(
       Math.max(edge, preferredTop),
-      Math.max(edge, viewportHeight - 160)
+      Math.max(edge, viewportHeight - menuHeight - edge)
     );
     els.projectMenu.style.setProperty("--project-menu-left", `${Math.round(left)}px`);
     els.projectMenu.style.setProperty("--project-menu-top", `${Math.round(top)}px`);
