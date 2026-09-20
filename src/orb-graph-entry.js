@@ -9,6 +9,7 @@ const TOUCH_EDGE_TARGET_RADIUS_PX = 14;
 const TOUCH_DOUBLE_TAP_MS = 320;
 const TOUCH_DOUBLE_TAP_DISTANCE_PX = 28;
 const GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX = -500;
+const GRAPH_KEYBOARD_PAN_PX = 72;
 const INTERACTION_SETTLE_MS = 2400;
 const DRAG_ALPHA_TARGET = 0.12;
 const RELEASE_ALPHA_TARGET = 0.065;
@@ -798,6 +799,40 @@ function create(container, handlers = {}) {
   };
 
   const onWheelCapture = () => cancelCameraInertia();
+  const onGraphKeyDown = (event) => {
+    if (event.target !== container || event.altKey || event.ctrlKey || event.metaKey) return;
+    let handled = true;
+    cancelCameraInertia();
+    switch (event.key) {
+      case "ArrowLeft":
+        applyCameraPan(GRAPH_KEYBOARD_PAN_PX, 0);
+        break;
+      case "ArrowRight":
+        applyCameraPan(-GRAPH_KEYBOARD_PAN_PX, 0);
+        break;
+      case "ArrowUp":
+        applyCameraPan(0, GRAPH_KEYBOARD_PAN_PX);
+        break;
+      case "ArrowDown":
+        applyCameraPan(0, -GRAPH_KEYBOARD_PAN_PX);
+        break;
+      case "+":
+      case "=":
+        orb.zoomIn();
+        break;
+      case "-":
+      case "_":
+        orb.zoomOut();
+        break;
+      case "Home":
+      case "0":
+        orb.recenter();
+        break;
+      default:
+        handled = false;
+    }
+    if (handled) event.preventDefault();
+  };
   const onLostPointerCapture = (event) => {
     if (!touchHold?.activated || touchHold.pointerId !== event.pointerId) return;
     finishActiveTouchNodeDrag();
@@ -806,6 +841,7 @@ function create(container, handlers = {}) {
 
   container.addEventListener("click", onClickCapture, { capture: true });
   container.addEventListener("wheel", onWheelCapture, { capture: true, passive: true });
+  container.addEventListener("keydown", onGraphKeyDown);
   container.addEventListener("pointerdown", onPointerDown, { capture: true });
   container.addEventListener("pointermove", onPointerMove, { capture: true });
   container.addEventListener("pointerup", onPointerUp, { capture: true });
@@ -1225,6 +1261,7 @@ function create(container, handlers = {}) {
       clearTopologyTimers();
       container.removeEventListener("click", onClickCapture, true);
       container.removeEventListener("wheel", onWheelCapture, true);
+      container.removeEventListener("keydown", onGraphKeyDown);
       container.removeEventListener("pointerdown", onPointerDown, true);
       container.removeEventListener("pointermove", onPointerMove, true);
       container.removeEventListener("pointerup", onPointerUp, true);

@@ -946,3 +946,21 @@ test("timeline touch state recovers from lost capture, backgrounding, viewport c
   assert.match(source, /screen\?\.orientation\?\.addEventListener\?\.\("change", abortSurfaceGesture\)/);
   assert.match(source, /visualViewport\?\.addEventListener\("resize"[\s\S]*abortSurfaceGesture/);
 });
+
+
+test("timeline releases pointer capture only after gesture state is finalized", async () => {
+  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  assert.match(source, /const releaseFinishedPointer = \(\) => \{/);
+  assert.doesNotMatch(
+    source,
+    /this\.touchPointers\.delete\(event\.pointerId\);\s*try \{\s*if \(this\.surface\.hasPointerCapture/
+  );
+  assert.match(
+    source,
+    /if \(this\.drag && this\.drag\.pointerId === event\.pointerId\)[\s\S]*this\.drag = null[\s\S]*releaseFinishedPointer\(\)/
+  );
+  assert.match(
+    source,
+    /if \(this\.touchPointers\.size >= 2\)[\s\S]*beginPinch\(\)[\s\S]*releaseFinishedPointer\(\)[\s\S]*return/
+  );
+});

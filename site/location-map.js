@@ -232,8 +232,10 @@
     return L.divIcon({
       className: "timeline-map-marker",
       html: identity.outerHTML,
-      iconSize: [32, 32],
-      iconAnchor: [16, 16]
+      // Keep the visible semantic marker compact while giving touch users a
+      // 44 CSS px hit target consistent with the rest of the application.
+      iconSize: [44, 44],
+      iconAnchor: [22, 22]
     });
   }
 
@@ -673,7 +675,14 @@
       }
 
       if (!this.marker) {
-        this.marker = L.marker([lat, lng], { draggable: true }).addTo(this.map);
+        const markerColor =
+          getComputedStyle(this.container).getPropertyValue("--focus").trim() || "#315fbd";
+        this.marker = L.marker([lat, lng], {
+          draggable: true,
+          keyboard: true,
+          title: "Selected location",
+          icon: semanticMarkerIcon(L, "place", markerColor, "", "pin")
+        }).addTo(this.map);
         this.marker.on("dragend", () => {
           const point = this.marker.getLatLng();
           this.applyPosition(point.lat, point.lng, { source: "manual" });

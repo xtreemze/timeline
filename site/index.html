@@ -1130,7 +1130,8 @@
           <div id="temporal-graph-view" class="temporal-graph-view">
             <span class="sr-only" data-graph-window>All time</span>
             <span class="sr-only" data-graph-status aria-live="polite">0 relations in window</span>
-            <div class="temporal-graph-canvas" role="application" aria-label="Node and edge graph synchronized to the visible timeline window"></div>
+            <p id="graph-surface-help" class="sr-only">Touch: drag empty graph space to pan, pinch to zoom, double tap to zoom in, and long press then drag a node to reposition it. Keyboard: arrow keys pan, plus and minus zoom, and Home recenters the graph.</p>
+            <div class="temporal-graph-canvas" role="application" tabindex="0" aria-describedby="graph-surface-help" aria-label="Node and edge graph synchronized to the visible timeline window"></div>
           </div>
         </section>
 

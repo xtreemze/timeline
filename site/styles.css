@@ -610,6 +610,14 @@ geolocation {
 
 .leaflet-container { font: inherit; background: var(--paper-2); }
 .leaflet-control-attribution { font-size: 10px; }
+
+@media (pointer: coarse) {
+  .leaflet-container .leaflet-control-zoom a {
+    width: 44px !important;
+    height: 44px !important;
+    line-height: 44px !important;
+  }
+}
 .presentation-map.is-fictional-map {
   background:
     radial-gradient(circle at 22% 18%, color-mix(in srgb, var(--story) 7%, transparent), transparent 32%),
@@ -628,14 +636,15 @@ geolocation {
   backdrop-filter: blur(6px);
 }
 .timeline-map-marker {
-  width: 2rem !important;
-  height: 2rem !important;
+  width: 44px !important;
+  height: 44px !important;
   overflow: visible;
   border: 0;
   background: transparent;
 }
 .timeline-map-marker-identity {
   position: relative;
+  transform: translate(6px, 6px);
   display: flex;
   align-items: center;
   gap: .45rem;

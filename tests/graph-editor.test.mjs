@@ -398,3 +398,22 @@ test("graph touch ownership keeps D3 zoom state synchronized and recovers from i
   assert.match(bridge, /removeEventListener\?\.\("blur", onWindowBlur\)/);
   assert.match(bridge, /document\.removeEventListener\("visibilitychange", onVisibilityChange\)/);
 });
+
+
+test("graph camera gestures have explicit keyboard equivalents", async () => {
+  const [bridge, html] = await Promise.all([
+    readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/index.html", import.meta.url), "utf8")
+  ]);
+  assert.match(html, /id="graph-surface-help"[^>]*class="sr-only"/);
+  assert.match(html, /temporal-graph-canvas[^>]*tabindex="0"[^>]*aria-describedby="graph-surface-help"/);
+  assert.match(bridge, /GRAPH_KEYBOARD_PAN_PX\s*=\s*72/);
+  assert.match(bridge, /const onGraphKeyDown = \(event\) =>/);
+  assert.match(bridge, /case "ArrowLeft":[\s\S]*applyCameraPan/);
+  assert.match(bridge, /case "ArrowRight":[\s\S]*applyCameraPan/);
+  assert.match(bridge, /case "\+":[\s\S]*orb\.zoomIn\(\)/);
+  assert.match(bridge, /case "-":[\s\S]*orb\.zoomOut\(\)/);
+  assert.match(bridge, /case "Home":[\s\S]*orb\.recenter\(\)/);
+  assert.match(bridge, /addEventListener\("keydown", onGraphKeyDown\)/);
+  assert.match(bridge, /removeEventListener\("keydown", onGraphKeyDown\)/);
+});
