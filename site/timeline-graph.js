@@ -243,11 +243,13 @@
     const context = entityMentionKey(itemNarrativeContext(item, evidenceById));
     if (!context) return [];
     const padded = ` ${context} `;
+    const itemStoryId = text(item?.extensions?.narrative?.storyId, 120);
     const groups = new Map();
 
     for (const entity of Array.isArray(entities) ? entities : []) {
       const id = text(entity?.id, 120);
       if (!id || !validateEntityNode(entity).valid) continue;
+      const entityStoryId = text(entity?.attributes?.storyId, 120);
       const labels = [
         text(entity?.name || entity?.label || entity?.title, 180),
         ...textList(entity?.alternateNames || entity?.aliases, { maxItems: 48, maxLength: 180 })
@@ -261,16 +263,23 @@
         if (!matched) continue;
         const groupKey = entityMentionKey(label);
         if (!groups.has(groupKey)) {
-          groups.set(groupKey, { label, entityIds: new Set() });
+          groups.set(groupKey, { label, candidates: [] });
         }
-        groups.get(groupKey).entityIds.add(id);
+        groups.get(groupKey).candidates.push({ id, storyId: entityStoryId });
       }
     }
 
-    return [...groups.values()].map((group) => ({
-      label: group.label,
-      entityIds: [...group.entityIds]
-    }));
+    return [...groups.values()].map((group) => {
+      const sameStory = itemStoryId
+        ? group.candidates.filter((candidate) => candidate.storyId === itemStoryId)
+        : [];
+      const globalEntities = group.candidates.filter((candidate) => !candidate.storyId);
+      const candidates = sameStory.length ? [...sameStory, ...globalEntities] : group.candidates;
+      return {
+        label: group.label,
+        entityIds: [...new Set(candidates.map((candidate) => candidate.id))]
+      };
+    });
   }
 
   function contextPropertyKey(value) {
