@@ -918,3 +918,23 @@ test("persistent relation graph docks opposite chronology and stays behind focus
   assert.doesNotMatch(appSource, /setGraphSurfaceOpen|mountGraphBackdrop|ui\.graphOpen/);
   assert.doesNotMatch(viewSource, /focusGraphSlot|timeline-focus-relations-backdrop/);
 });
+
+
+test("timeline touch state recovers from lost capture, backgrounding, viewport changes, and rotation", async () => {
+  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+
+  assert.match(source, /const abortSurfaceGesture = \(\) => \{/);
+  assert.match(source, /new Set\(this\.touchPointers\.keys\(\)\)/);
+  assert.match(source, /this\.touchPointers\.clear\(\)/);
+  assert.match(source, /this\.pinch = null/);
+  assert.match(source, /this\.drag = null/);
+  assert.match(source, /this\.surface\.classList\.remove\("is-panning"\)/);
+  assert.match(source, /this\.cancelViewportAnimation\(\)/);
+  assert.match(source, /releasePointerCapture\(pointerId\)/);
+  assert.match(source, /addEventListener\("lostpointercapture"/);
+  assert.match(source, /window\.addEventListener\("blur", abortSurfaceGesture\)/);
+  assert.match(source, /document\.addEventListener\("visibilitychange"[\s\S]*document\.hidden[\s\S]*abortSurfaceGesture/);
+  assert.match(source, /window\.addEventListener\("orientationchange", abortSurfaceGesture\)/);
+  assert.match(source, /screen\?\.orientation\?\.addEventListener\?\.\("change", abortSurfaceGesture\)/);
+  assert.match(source, /visualViewport\?\.addEventListener\("resize"[\s\S]*abortSurfaceGesture/);
+});

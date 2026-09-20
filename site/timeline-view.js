@@ -209,6 +209,30 @@
         this.surface.classList.add("is-panning");
       };
 
+      const abortSurfaceGesture = () => {
+        const pointerIds = new Set(this.touchPointers.keys());
+        if (this.drag?.pointerId != null) pointerIds.add(this.drag.pointerId);
+        const interrupted = Boolean(this.drag || this.pinch || this.touchPointers.size);
+
+        this.touchPointers.clear();
+        this.pinch = null;
+        this.touchTap = null;
+        this.lastTouchTap = null;
+        this.drag = null;
+        this.surface.classList.remove("is-panning");
+        this.cancelViewportAnimation();
+
+        for (const pointerId of pointerIds) {
+          try {
+            if (this.surface.hasPointerCapture(pointerId)) this.surface.releasePointerCapture(pointerId);
+          } catch {
+            // Lost capture, browser cancellation, and backgrounding can make release invalid.
+          }
+        }
+
+        if (interrupted) this.suppressClickUntil = performance.now() + 450;
+      };
+
       const pinchGeometry = () => {
         if (this.touchPointers.size < 2) return null;
         const [first, second] = Array.from(this.touchPointers.values()).slice(0, 2);
@@ -433,6 +457,23 @@
       };
       this.surface.addEventListener("pointerup", finishDrag);
       this.surface.addEventListener("pointercancel", finishDrag);
+      this.surface.addEventListener("lostpointercapture", (event) => {
+        if (
+          this.drag?.pointerId === event.pointerId ||
+          this.touchPointers.has(event.pointerId)
+        ) {
+          abortSurfaceGesture();
+        }
+      });
+      window.addEventListener("blur", abortSurfaceGesture);
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) abortSurfaceGesture();
+      });
+      window.addEventListener("orientationchange", abortSurfaceGesture);
+      globalThis.screen?.orientation?.addEventListener?.("change", abortSurfaceGesture);
+      window.visualViewport?.addEventListener("resize", () => {
+        if (this.drag || this.pinch || this.touchPointers.size) abortSurfaceGesture();
+      });
 
       this.root.addEventListener("keydown", (event) => {
         if (event.key !== "Escape" || !this.selectedId) return;
