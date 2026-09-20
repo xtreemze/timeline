@@ -15,6 +15,10 @@
   const MIN_SPAN_MS = 1;
   const MAX_TICKS = 240;
   const BUTTON_ZOOM_FACTOR = 0.82;
+  const DOUBLE_TAP_ZOOM_FACTOR = 0.5;
+  const TOUCH_DOUBLE_TAP_MS = 320;
+  const TOUCH_DOUBLE_TAP_DISTANCE_PX = 28;
+  const TOUCH_TAP_MOVE_TOLERANCE_PX = 12;
   const ZOOM_RESPONSE_MS = 170;
   const WHEEL_ZOOM_SENSITIVITY = 0.00065;
   const MAX_WHEEL_EXPONENT = 0.045;
@@ -120,6 +124,8 @@
       this.drag = null;
       this.touchPointers = new Map();
       this.pinch = null;
+      this.touchTap = null;
+      this.lastTouchTap = null;
       this.suppressClickUntil = 0;
       this.resizeObserver = null;
       this.focusResizeFrame = 0;
@@ -224,6 +230,8 @@
         if (!this.viewport) return false;
         const geometry = pinchGeometry();
         if (!geometry) return false;
+        this.touchTap = null;
+        this.lastTouchTap = null;
         const span = this.viewport.end - this.viewport.start;
         this.clearClusterExpansion();
         this.cancelInertia();
@@ -245,6 +253,37 @@
         return true;
       };
 
+      const registerTouchTap = (event, tap) => {
+        if (!this.viewport || !tap || tap.cancelled) return false;
+        const now = performance.now();
+        const point = { x: event.clientX, y: event.clientY };
+        const previous = this.lastTouchTap;
+        this.touchTap = null;
+
+        if (
+          previous &&
+          now - previous.time <= TOUCH_DOUBLE_TAP_MS &&
+          Math.hypot(point.x - previous.x, point.y - previous.y) <= TOUCH_DOUBLE_TAP_DISTANCE_PX
+        ) {
+          const rect = this.surface.getBoundingClientRect();
+          const primary = this.orientation === "horizontal"
+            ? point.x - rect.left
+            : point.y - rect.top;
+          const length = this.orientation === "horizontal" ? rect.width : rect.height;
+          const padding = this.axisPadding(length);
+          const usable = Math.max(1, length - padding * 2);
+          const ratio = clamp((primary - padding) / usable, 0, 1);
+          this.lastTouchTap = null;
+          this.suppressClickUntil = now + 450;
+          this.cancelInertia();
+          this.queueZoom(DOUBLE_TAP_ZOOM_FACTOR, ratio);
+          return true;
+        }
+
+        this.lastTouchTap = { time: now, x: point.x, y: point.y };
+        return false;
+      };
+
       this.surface.addEventListener("pointerdown", (event) => {
         if (!this.viewport || !this.items.length || event.button !== 0) return;
         const interactiveTarget = event.target.closest("button, a, input, select, textarea");
@@ -255,6 +294,12 @@
             x: event.clientX,
             y: event.clientY
           });
+          this.touchTap = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            cancelled: false
+          };
           if (this.touchPointers.size >= 2) {
             beginPinch();
             return;
@@ -281,6 +326,16 @@
             x: event.clientX,
             y: event.clientY
           });
+          if (this.touchTap?.pointerId === event.pointerId && !this.touchTap.cancelled) {
+            const distance = Math.hypot(
+              event.clientX - this.touchTap.startX,
+              event.clientY - this.touchTap.startY
+            );
+            if (distance > TOUCH_TAP_MOVE_TOLERANCE_PX) {
+              this.touchTap.cancelled = true;
+              this.lastTouchTap = null;
+            }
+          }
         }
 
         if (this.pinch && this.touchPointers.size >= 2) {
@@ -322,6 +377,9 @@
 
       const finishDrag = (event) => {
         const wasPinching = Boolean(this.pinch);
+        const touchTap = event.pointerType === "touch" && this.touchTap?.pointerId === event.pointerId
+          ? this.touchTap
+          : null;
         if (event.pointerType === "touch") this.touchPointers.delete(event.pointerId);
 
         try {
@@ -331,6 +389,8 @@
         }
 
         if (wasPinching) {
+          this.touchTap = null;
+          this.lastTouchTap = null;
           this.suppressClickUntil = performance.now() + 450;
           this.drag = null;
           this.surface.classList.remove("is-panning");
@@ -346,18 +406,27 @@
           return;
         }
 
-        if (!this.drag || this.drag.pointerId !== event.pointerId) return;
-        motion.appendPointerSamples(this.drag.samples, event, this.orientation);
-        const velocity = event.type === "pointercancel"
-          ? 0
-          : motion.estimatePointerVelocity(this.drag.samples);
-        const length = this.drag.length;
-        this.drag = null;
-        this.surface.classList.remove("is-panning");
-        if (Math.abs(velocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
-          this.startInertia(velocity, length);
-          void motion.pulseHaptic("release");
+        if (this.drag && this.drag.pointerId === event.pointerId) {
+          motion.appendPointerSamples(this.drag.samples, event, this.orientation);
+          const velocity = event.type === "pointercancel"
+            ? 0
+            : motion.estimatePointerVelocity(this.drag.samples);
+          const length = this.drag.length;
+          this.drag = null;
+          this.surface.classList.remove("is-panning");
+          if (Math.abs(velocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
+            this.startInertia(velocity, length);
+            void motion.pulseHaptic("release");
+          }
         }
+
+        if (event.type === "pointercancel") {
+          this.touchTap = null;
+          this.lastTouchTap = null;
+          return;
+        }
+        if (touchTap && !touchTap.cancelled) registerTouchTap(event, touchTap);
+        else if (event.pointerType === "touch") this.touchTap = null;
       };
       this.surface.addEventListener("pointerup", finishDrag);
       this.surface.addEventListener("pointercancel", finishDrag);
