@@ -201,6 +201,19 @@ function create(container, handlers = {}) {
     return null;
   }
 
+  function touchDragSimulator() {
+    const simulator = forceSimulator();
+    if (
+      simulator &&
+      typeof simulator.startDragNode === "function" &&
+      typeof simulator.dragNode === "function" &&
+      typeof simulator.endDragNode === "function"
+    ) {
+      return simulator;
+    }
+    return null;
+  }
+
   function applyInteractionForce(alphaTarget) {
     const layout = {
       type: "force",
@@ -423,9 +436,30 @@ function create(container, handlers = {}) {
     container.style.removeProperty("--graph-touch-hold-y");
   }
 
+  function releaseTouchPointerCapture(pointerId) {
+    if (!Number.isFinite(pointerId)) return;
+    try {
+      if (container.hasPointerCapture?.(pointerId)) container.releasePointerCapture(pointerId);
+    } catch {
+      // The browser can release capture before pointerup/pointercancel reaches us.
+    }
+  }
+
+  function finishActiveTouchNodeDrag({ settle = true } = {}) {
+    if (!touchHold?.activated) return false;
+    const node = touchHold.node;
+    const pointerId = touchHold.pointerId;
+    const simulator = touchDragSimulator();
+    if (simulator && node) simulator.endDragNode(node.getId());
+    releaseTouchPointerCapture(pointerId);
+    if (settle) keepForceActiveAfterInteraction();
+    return true;
+  }
+
   function finishTouchGesture() {
     clearTouchReleaseFallback();
     clearTouchHoldTimer();
+    if (touchHold?.activated) finishActiveTouchNodeDrag({ settle: false });
     touchHold = null;
     touchDragBlockedUntilRelease = false;
     delete container.dataset.touchDrag;
@@ -547,8 +581,20 @@ function create(container, handlers = {}) {
       lastTouchTap = null;
       touchDragBlockedUntilRelease = false;
       container.dataset.touchDrag = "active";
-      setDragEnabled(true);
+      // Once the long press resolves, Timeline owns this pointer. Do not rely
+      // on Orb/D3 preserving a drag gesture that began while node dragging was
+      // intentionally disabled during the hold threshold.
+      setDragEnabled(false);
       setZoomEnabled(false);
+      cancelCameraInertia();
+      cameraGesture = null;
+      const simulator = touchDragSimulator();
+      simulator?.startDragNode();
+      try {
+        container.setPointerCapture?.(touchHold.pointerId);
+      } catch {
+        // Pointer capture is an enhancement; direct simulator drag still works.
+      }
       setInteractionHeat(DRAG_ALPHA_TARGET);
       selectGraphObject(node);
       handlers.onNodeLongPress?.(node.getData());
@@ -612,7 +658,14 @@ function create(container, handlers = {}) {
     }
     if (!touchHold) return;
     if (touchHold.activated) {
+      if (touchHold.pointerId !== event.pointerId) return;
       event.preventDefault();
+      const geometry = touchGeometry(event);
+      const simulator = touchDragSimulator();
+      if (geometry && simulator) {
+        simulator.dragNode(touchHold.node.getId(), geometry.localPoint);
+        clearInteractionSettleTimer();
+      }
       return;
     }
     const origin = touchHold.startClientPoint;
@@ -640,7 +693,8 @@ function create(container, handlers = {}) {
     if (touchHold?.activated) {
       touchTap = null;
       lastTouchTap = null;
-      scheduleTouchReleaseFallback();
+      finishActiveTouchNodeDrag();
+      finishTouchGesture();
       return;
     }
     finishTouchGesture();
@@ -665,7 +719,8 @@ function create(container, handlers = {}) {
   function onTouchEnd(event) {
     if (event.touches?.length) return;
     if (touchHold?.activated) {
-      scheduleTouchReleaseFallback();
+      finishActiveTouchNodeDrag();
+      finishTouchGesture();
       return;
     }
     finishTouchGesture();
@@ -678,6 +733,11 @@ function create(container, handlers = {}) {
   };
 
   const onWheelCapture = () => cancelCameraInertia();
+  const onLostPointerCapture = (event) => {
+    if (!touchHold?.activated || touchHold.pointerId !== event.pointerId) return;
+    finishActiveTouchNodeDrag();
+    finishTouchGesture();
+  };
 
   container.addEventListener("click", onClickCapture, { capture: true });
   container.addEventListener("wheel", onWheelCapture, { capture: true, passive: true });
@@ -685,6 +745,7 @@ function create(container, handlers = {}) {
   container.addEventListener("pointermove", onPointerMove, { capture: true });
   container.addEventListener("pointerup", onPointerUp, { capture: true });
   container.addEventListener("pointercancel", onPointerUp, { capture: true });
+  container.addEventListener("lostpointercapture", onLostPointerCapture, { capture: true });
   container.addEventListener("touchend", onTouchEnd);
   container.addEventListener("touchcancel", onTouchEnd);
 
@@ -1101,6 +1162,7 @@ function create(container, handlers = {}) {
       container.removeEventListener("pointermove", onPointerMove, true);
       container.removeEventListener("pointerup", onPointerUp, true);
       container.removeEventListener("pointercancel", onPointerUp, true);
+      container.removeEventListener("lostpointercapture", onLostPointerCapture, true);
       container.removeEventListener("touchend", onTouchEnd);
       container.removeEventListener("touchcancel", onTouchEnd);
       orb.events.off(OrbEventType.NODE_CLICK, onNodeClick);
