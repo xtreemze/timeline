@@ -1034,7 +1034,7 @@
 
   function syncViewControlsSurface() {
     if (!els.viewControls) return;
-    const shouldOpen = Boolean(ui.viewControlsOpen || presentationIsFullscreen());
+    const shouldOpen = Boolean(ui.viewControlsOpen);
     const isOpen = els.viewControls.matches(":popover-open");
 
     if (shouldOpen && !isOpen) {
