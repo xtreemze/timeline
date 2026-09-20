@@ -158,6 +158,16 @@
     delete result.attributes.accuracyMeters;
     delete result.attributes.icon;
     delete result.attributes.markerShape;
+    delete result.attributes.category;
+    delete result.attributes.categoryId;
+    delete result.attributes.categoryIds;
+    delete result.attributes.category_id;
+    delete result.attributes.category_ids;
+    delete result.attributes.group;
+    delete result.attributes.groupId;
+    delete result.attributes.groupIds;
+    delete result.attributes.group_id;
+    delete result.attributes.group_ids;
     return result;
   }
 
