@@ -561,6 +561,30 @@ test("focused hero suppresses repeated Wikimedia illustration disclaimers while 
   assert.match(source, /if \(mediaCaption && !isIllustrationDisclaimer\)/);
 });
 
+test("focused Context remains persistent and interaction chrome cannot overlap it", async () => {
+  const [source, css] = await Promise.all([
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+  ]);
+  const renderStart = source.indexOf("renderFocus(item)");
+  const renderEnd = source.indexOf("\n    closeFocus() {", renderStart);
+  const renderFocus = source.slice(renderStart, renderEnd);
+
+  assert.match(renderFocus, /createElement\("section", "timeline-focus-section timeline-focus-summary"\)/);
+  assert.match(renderFocus, /summary\.setAttribute\("aria-label", "Context"\)/);
+  assert.match(renderFocus, /place\.setAttribute\("aria-label", "Place"\)/);
+  assert.match(renderFocus, /overviewTab\.setAttribute\("aria-controls", "timeline-focus-place-panel"\)/);
+  assert.match(renderFocus, /evidenceTab\.setAttribute\("aria-controls", "timeline-focus-evidence-panel"\)/);
+  assert.doesNotMatch(renderFocus, /summary\.hidden\s*=/);
+
+  assert.match(css, /Focused popover usability audit/);
+  assert.match(css, /timeline-focus-tabs[\s\S]*position:\s*relative/);
+  assert.match(css, /timeline-focus-summary[\s\S]*display:\s*flex[\s\S]*flex-direction:\s*column[\s\S]*overflow:\s*hidden/);
+  assert.match(css, /timeline-focus-description[\s\S]*overflow:\s*auto/);
+  assert.match(css, /timeline-focus-summary \.timeline-focus-actions[\s\S]*flex:\s*0 0 auto[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*timeline-focus-summary[\s\S]*grid-row:\s*2 !important[\s\S]*timeline-focus-hero[\s\S]*grid-row:\s*3 !important/);
+});
+
 test("focused popover uses a compact two-column overview with Evidence as a separate tab", async () => {
   const [css, source] = await Promise.all([
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
@@ -572,11 +596,13 @@ test("focused popover uses a compact two-column overview with Evidence as a sepa
   assert.match(source, /setFocusTab/);
   assert.match(source, /evidence\.hidden = true/);
   assert.match(css, /Compact focused-event detail/);
+  assert.match(css, /Focused popover usability audit/);
   assert.match(css, /grid-template-columns:\s*minmax\(0, 1\.08fr\) minmax\(16rem, \.92fr\) !important/);
-  assert.match(css, /timeline-focus-hero[\s\S]*grid-column:\s*1 !important[\s\S]*grid-row:\s*1 \/ span 2 !important/);
-  assert.match(css, /timeline-focus-summary[\s\S]*grid-column:\s*2 !important[\s\S]*grid-row:\s*1 !important/);
-  assert.match(css, /data-active-tab="overview"[\s\S]*timeline-focus-place[\s\S]*grid-column:\s*2 !important[\s\S]*grid-row:\s*2 !important/);
-  assert.match(css, /data-active-tab="evidence"[\s\S]*timeline-focus-evidence[\s\S]*grid-column:\s*2 !important[\s\S]*grid-row:\s*2 !important/);
+  assert.match(css, /timeline-focus-tabs[\s\S]*position:\s*relative[\s\S]*grid-column:\s*2 !important[\s\S]*grid-row:\s*1 !important/);
+  assert.match(css, /timeline-focus-hero[\s\S]*grid-column:\s*1 !important[\s\S]*grid-row:\s*1 \/ span 3 !important/);
+  assert.match(css, /timeline-focus-summary[\s\S]*grid-column:\s*2 !important[\s\S]*grid-row:\s*2 !important/);
+  assert.match(css, /data-active-tab="overview"[\s\S]*timeline-focus-place[\s\S]*grid-column:\s*2 !important[\s\S]*grid-row:\s*3 !important/);
+  assert.match(css, /data-active-tab="evidence"[\s\S]*timeline-focus-evidence[\s\S]*grid-column:\s*2 !important[\s\S]*grid-row:\s*3 !important/);
 });
 
 test("fullscreen preserves the left workspace tool dock inside the fullscreen subtree", async () => {
