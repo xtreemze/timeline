@@ -180,6 +180,11 @@
   writing-mode: horizontal-tb;
   text-orientation: mixed;
 }
+
+#app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(.timeline-focus-view:popover-open)
+  .timeline-project-heading:has(.story-focus:not([hidden])) .timeline-project-title input {
+  width: clamp(9rem, 20vw, 18rem);
+}
 #app-shell #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="vertical"]:has(.timeline-focus-view:popover-open)
   .timeline-project-heading {
   top: max(.45rem, env(safe-area-inset-top));
