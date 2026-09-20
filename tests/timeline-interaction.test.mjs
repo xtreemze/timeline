@@ -472,6 +472,11 @@ test("Orb adapter keeps chronology and stories out of the canonical node graph",
 
 test("graph semantics reject action nodes and generic association predicates", () => {
   assert.equal(graph.validateEntityNode({ name: "Payment", type: "transaction" }).valid, false);
+  assert.deepEqual(
+    graph.toOrbGraph({ entities: [{ id: "payment", name: "Payment", type: "transaction" }] }).nodes,
+    [],
+    "direct projection must not reintroduce action nodes"
+  );
   assert.equal(graph.validateEntityNode({ name: "Alice", type: "person" }).valid, true);
 
   for (const predicate of ["participatesIn", "part of", "took part in", "memberOf", "relatedTo", "associatedWith"]) {
