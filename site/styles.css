@@ -2562,7 +2562,7 @@ body {
   background: transparent;
 }
 
-.app-view-controls:not([hidden]) {
+.app-view-controls[popover]:popover-open {
   position: fixed;
   z-index: 1150;
   top: max(4.15rem, calc(env(safe-area-inset-top) + 3.8rem));
@@ -2582,7 +2582,7 @@ body {
   backdrop-filter: blur(12px);
   scrollbar-width: thin;
 }
-.app-view-controls:not([hidden]) > * {
+.app-view-controls[popover]:popover-open > * {
   flex: 0 0 auto;
 }
 
@@ -2645,7 +2645,7 @@ body {
     width: min(520px, calc(100dvw - 7.5rem));
   }
 
-  .app-view-controls:not([hidden]) {
+  .app-view-controls[popover]:popover-open {
     top: max(4.4rem, calc(env(safe-area-inset-top) + 4rem));
     left: auto;
     right: max(.55rem, env(safe-area-inset-right));
