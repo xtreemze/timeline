@@ -546,9 +546,10 @@ test("focused overview omits redundant Context, Place, Relations headings and th
   assert.match(renderFocus, /this\.focusView\.append\(tabs, hero, summary, place, evidence\)/);
 });
 
-test("fictional sample media no longer repeats the Wikimedia illustration disclaimer", async () => {
-  const sample = await readFile(new URL("../site/sample-case.js", import.meta.url), "utf8");
-  assert.doesNotMatch(sample, /Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction\./);
+test("focused hero suppresses repeated Wikimedia illustration disclaimers while preserving media metadata", async () => {
+  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  assert.match(source, /mediaCaption\.startsWith\("Public-domain story illustration via Wikimedia Commons;"\)/);
+  assert.match(source, /if \(mediaCaption && !isIllustrationDisclaimer\)/);
 });
 
 test("focused popover uses a compact two-column overview with Evidence as a separate tab", async () => {
