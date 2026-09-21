@@ -353,8 +353,8 @@ Focus also owns a viewport contract. Opening focused detail zooms the chronology
 
 Focused composition should be asymmetric and may include:
 - a dominant hero title representing the selected timeline event;
-- up to three photographs with slideshow controls and accessible alternative text;
-- the event's compact time/range label, while the timeline itself remains the chronology;
+- up to three photographs with compact pagination-dot slideshow controls and accessible alternative text; image captions/provenance remain metadata and do not overlay the hero;
+- the event's compact time/range label, with an explicit duration for ranged events, while the timeline itself remains the chronology;
 - semantic tags using icon + text + hue;
 - description/context;
 - place/location;

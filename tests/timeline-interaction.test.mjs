@@ -1211,3 +1211,27 @@ test("coarse-pointer forms and compact calendars keep touch controls usable", as
   assert.match(styles, /range-calendar-grid[\s\S]*gap:\s*0/);
   assert.match(styles, /range-calendar-day[\s\S]*min-width:\s*44px[\s\S]*min-height:\s*44px/);
 });
+
+
+test("focused event popover keeps event semantics compact and image controls dot-only", async () => {
+  const [source, cssSource, fictionDocs, architectureDocs] = await Promise.all([
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../docs/NARRATIVE-FICTION-MODE.md", import.meta.url), "utf8"),
+    readFile(new URL("../docs/TIMELINE-V3-ARCHITECTURE.md", import.meta.url), "utf8")
+  ]);
+
+  assert.ok(source.includes("function formatElapsedDuration"));
+  assert.ok(source.includes("Duration ${duration}"));
+  assert.ok(source.includes("timeline-focus-slide-dot"));
+  assert.ok(source.includes("Show image ${index + 1} of ${media.length}"));
+  assert.equal(source.includes("timeline-focus-slide-count"), false);
+  assert.equal(source.includes("timeline-focus-media-caption"), false);
+  assert.equal(source.includes('createElement("h3", "timeline-focus-section-heading"'), false);
+  assert.ok(source.includes('summary.setAttribute("aria-label", "Context")'));
+  assert.ok(source.includes('place.setAttribute("aria-label", "Place")'));
+  assert.ok(source.includes('evidence.setAttribute("aria-label", "Evidence")'));
+  assert.match(cssSource, /\.timeline-focus-slide-dot\s*\{[\s\S]*width:\s*44px;[\s\S]*height:\s*44px;/);
+  assert.match(fictionDocs, /Categories belong only to timeline events; places, graph entities, and relationships\/edges/);
+  assert.match(architectureDocs, /explicit duration for ranged events/);
+});
