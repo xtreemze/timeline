@@ -56,3 +56,34 @@ Initial observational targets from #286 remain non-fatal until a stable referenc
 Commit duration is reported independently and may exceed one frame, but must remain bounded and visible.
 
 Once #251 establishes stable hardware/browser baselines and variance, those values can be promoted to release gates without changing the structural invariants above.
+
+
+## Recorded baseline — 2026-09-21
+
+Reference CI environment:
+
+- GitHub-hosted Linux x64 runner;
+- Node v24.20.0;
+- deterministic sparse/range-heavy 1800–2200 fixture;
+- 120 moving five-year interval-intersection queries per fixture.
+
+| Projected occurrences | Average query | p95 query | Maximum query | Average matches |
+| ---: | ---: | ---: | ---: | ---: |
+| 10,000 | 0.193 ms | 0.406 ms | 1.607 ms | 127.5 |
+| 50,000 | 0.831 ms | 1.070 ms | 7.031 ms | 638.5 |
+| 100,000 | 1.673 ms | 2.194 ms | 10.717 ms | 1,274.7 |
+
+These are query-only measurements, not total frame timings. The live renderer instrumentation separately records interaction/commit frame duration and query/planner attribution.
+
+### Indexing decision
+
+**Keep the current linear interval-intersection query for now.**
+
+At the largest current fixture, p95 query cost is about 2.2 ms, materially below both the provisional 16.7 ms desktop interaction budget and 33.3 ms phone/tablet budget. An interval tree, sorted secondary index, or worker-hosted planner would add synchronization, mutation, serialization, and maintenance complexity without benchmark evidence that the existing query is the limiting stage.
+
+Revisit this decision when one of these becomes true:
+
+1. live renderer metrics show query cost consuming a material fraction of interaction or commit p95;
+2. representative fixture sizes materially exceed 100k projected occurrences;
+3. range density or filtering semantics change enough that this benchmark ceases to represent production use;
+4. a simpler sorted/binary-search implementation demonstrates a meaningful end-to-end improvement rather than a microbenchmark-only gain.
