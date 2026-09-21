@@ -48,7 +48,8 @@ async function installRetainedTimelineFixture(page) {
     root.append(orientationToggle, readout, surface, focusView);
     document.body.append(root);
 
-    const { TimelineView } = await import("/timeline-view.ts");
+    const timelineViewModulePath = "/timeline-view.ts";
+    const { TimelineView } = await import(timelineViewModulePath);
     const controller = TimelineView.create(root);
     if (!controller) throw new Error("Timeline fixture controller did not initialize");
 
