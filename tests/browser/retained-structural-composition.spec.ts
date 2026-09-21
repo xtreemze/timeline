@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("#269 focused occurrence survives an orientation transaction", async ({ page }) => {
-  const event = page.locator(".timeline-event").first();
+  const event = page.locator(".timeline-event:not(.timeline-cluster):visible").first();
   await expect(event).toBeVisible();
   await event.evaluate((element) => {
     element.dataset.tddIdentity = "focused-occurrence";
@@ -32,7 +32,9 @@ test("#269 focused occurrence survives an orientation transaction", async ({ pag
 });
 
 test("#269 keyboard focus identity survives a buffered camera interaction", async ({ page }) => {
-  const terminal = page.locator(".timeline-event-terminal").first();
+  const terminal = page
+    .locator(".timeline-event:not(.timeline-cluster):visible .timeline-event-terminal")
+    .first();
   await expect(terminal).toBeVisible();
   await terminal.evaluate((element) => {
     element.dataset.tddFocusIdentity = "keyboard-target";
