@@ -1,11 +1,11 @@
 ---
 name: timeline-graph-authoring
-description: Author, import, repair, or review Timeline chronology + entity graph data through Timeline WebMCP. Use whenever a task creates or edits event narrative context, entities, relationships, places, graph-linked evidence, or Memgraph round-trips. Do not use for visual/layout-only work.
+description: Author, import, repair, or review Lūm continuum data through the legacy timeline.* WebMCP compatibility surface. Use whenever a task creates or edits occurrence/event context, entities, relationships, places, graph-linked evidence, stories, or Memgraph round-trips. Do not use for visual/layout-only work.
 ---
 
-# Timeline graph authoring
+# Lūm continuum authoring
 
-Use Timeline's runtime contract as the authority. Do not rely on remembered graph rules.
+Use Lūm's runtime contract as the authority. The public product vocabulary is defined in `docs/LUM-TERMINOLOGY.md`; the `timeline.*` tool prefix remains a compatibility namespace. Do not rely on remembered graph rules.
 
 ## Required workflow
 
@@ -18,7 +18,7 @@ Use Timeline's runtime contract as the authority. Do not rely on remembered grap
    - exclude image credit/provenance captions and evidence source/title/URL/file/forensic metadata.
 4. Resolve mentions to existing canonical entities first. When an event has `extensions.narrative.storyId`, prefer entities scoped to that story over same-named entities from another story.
 5. If a durable named entity is not canonical yet, create/reuse exactly one entity node for it in the same atomic transaction. Never create nodes for actions, events, meetings, transactions, decisions, places, dates, times, coordinates, geometry, categories, or stories.
-6. Model each relationship as one directed subject–action–object fact:
+6. Model each relationship as one directed subject–action–object fact. A relationship with canonical time is an occurrence in the continuum:
    - source and target must be two different entity nodes;
    - predicate is one concrete action verb, optionally followed by one grammatical particle;
    - never put an entity/object name, role, instrument, cause, place, date, or time into the predicate;
@@ -26,7 +26,7 @@ Use Timeline's runtime contract as the authority. Do not rely on remembered grap
    - store place as `relationship.placeId`;
    - link event context through `relationship.itemIds[]` or a valid `relationChanges[]` reference.
 7. Every canonical entity named in an event's narrative context must be an endpoint of at least one meaningful action edge linked to that event. Never invent a relation merely to satisfy coverage. If the source does not establish a meaningful action, leave the mutation unresolved and report what relationship evidence is missing.
-8. Keep categories on chronology items only. Do not attach category/group taxonomy to entities, relationships, or places. Stories remain narrative membership and never graph topology.
+8. Keep categories on current v2 chronology items only. Do not attach category/group taxonomy to entities, relationships, or places. Stories remain authored traversals/membership and never graph topology. As #236 lands, prefer occurrence identity over duplicate manually-authored chronology identity.
 9. Reuse one edge for one directed action fact. Merge item/source/context metadata onto it instead of creating duplicate edges. Do not create a same-action reverse edge to fake bidirectionality. Distinct reverse actions and genuine cycles are allowed.
 10. Batch dependent item + entity + relationship + place changes into one `timeline.apply_transaction` call and pass the exact `graphContractVersion` from step 1.
 11. Call `timeline.audit_graph` after mutation. Resolve every error, including self-loops, invalid predicates, category leakage, duplicate/mirrored facts, orphan nodes, unknown references, and uncovered named entities.
