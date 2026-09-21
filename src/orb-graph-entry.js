@@ -723,8 +723,6 @@ function create(container, handlers = {}) {
       ? { ...geometry, kind: "edge", object: edge }
       : { ...geometry, kind: null, object: null };
   }
-
-  // eslint-disable-next-line no-unused-vars
   function _touchNodePayload(event) {
     const payload = touchTargetPayload(event);
     return payload?.kind === "node"
@@ -901,8 +899,6 @@ function create(container, handlers = {}) {
       beginCameraGesture(event, null);
     }
   }
-
-  // eslint-disable-next-line no-unused-vars
   function _scheduleTouchReleaseFallback() {
     clearTouchReleaseFallback();
     touchReleaseFallback = globalThis.setTimeout(() => {
