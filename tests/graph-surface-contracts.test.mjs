@@ -90,8 +90,8 @@ test("OrbGraphSurface preserves graph topology and semantic presentation", () =>
   assert.deepEqual(calls.setData, [
     {
       nodes: [
-        { id: "alice", properties: { label: "Alice", timelineType: "person" } },
-        { id: "bob", properties: { label: "Bob", timelineType: "person" } },
+        { id: "alice", label: "Alice", properties: { timelineType: "person" } },
+        { id: "bob", label: "Bob", properties: { timelineType: "person" } },
       ],
       edges: [
         {
