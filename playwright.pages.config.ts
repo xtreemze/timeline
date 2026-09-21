@@ -27,7 +27,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'node scripts/serve-pages-preview.mjs',
-    url: 'http://127.0.0.1:4173/timeline/',
+    url: 'http://127.0.0.1:4173/__ready',
     reuseExistingServer: false,
     timeout: 120_000,
   },
