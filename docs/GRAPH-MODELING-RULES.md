@@ -92,6 +92,29 @@ This mirrors database `MERGE`/constraint thinking: resolve identity first, then 
 
 Display names are not identity. Two different entities may have the same name if their stable IDs distinguish them.
 
+## Narrative entity coverage
+
+Event prose is not allowed to drift away from graph topology.
+
+Narrative context includes:
+
+- chronology item `title`;
+- chronology item `description`;
+- descriptive media `alt` text;
+- attached evidence `note` text.
+
+Media credit/provenance captions and evidence title/source/URL/file/forensic metadata are excluded because those fields identify the source or artifact rather than event participants.
+
+Rules:
+
+1. If a canonical entity name or alias is named in narrative context, that entity must be the subject or object of at least one meaningful action edge linked to the same chronology item through `relationship.itemIds[]` or `relationChanges[]`.
+2. Same-named entities are resolved within `item.extensions.narrative.storyId` when story scope is available. An entity from another story must never satisfy the mention merely because its display name matches.
+3. Authors and agents must extract newly named durable entities before committing narrative text. Create/reuse the entity and the relevant action edge in the same atomic operation.
+4. Validation never authorizes invention. If the source names an entity but does not establish a meaningful action involving it, do not fabricate an edge merely to satisfy coverage; leave the authoring operation unresolved and identify the missing relation/evidence.
+5. Categories classify chronology items only. Category/group taxonomy must not appear on entity nodes, relationships, or place records.
+
+The runtime can deterministically enforce references to already canonical names/aliases. Recognition of a previously uncatalogued entity in free text is an authoring/extraction responsibility, which is why the WebMCP workflow and repository skill require entity extraction before mutation.
+
 ## N-ary actions and compound events
 
 General graph models sometimes introduce intermediate event/action nodes to reify a relationship with many participants. Timeline does not do that in its canonical relation graph because the chronology already owns event identity.
@@ -128,6 +151,8 @@ Only `:TimelineEntity` records participate in the exported canonical action topo
 - missing or reused canonical IDs;
 - invalid node kinds or event/action-like names;
 - spatiotemporal node attributes;
+- category/group taxonomy on entities, relationships, or places;
+- canonical entity names/aliases mentioned in event narrative context without an event-linked action edge;
 - dangling/non-entity endpoints;
 - self-loops;
 - generic, spatial/temporal, or compound-context predicates;
