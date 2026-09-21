@@ -190,6 +190,63 @@ Every PR in this lane records:
 - migration/compatibility behavior;
 - benchmark before/after when performance-sensitive.
 
+## Red / green / refactor exit criteria
+
+For every gate:
+
+### Red
+
+- the test is executable and discovered by the intended runner;
+- the failure reason is recorded and maps to the missing behavior, not syntax/setup debt;
+- existing characterization and architecture gates remain green up to the new red gate;
+- the test asserts observable behavior or a stable renderer-neutral contract.
+
+### Green
+
+- the owning implementation makes the test pass without skip/TODO/timeout inflation;
+- related existing tests remain green;
+- no new renderer/provider state leaks into canonical/projection contracts;
+- browser behavior is verified in every applicable project from #287;
+- cancellation/reduced-motion behavior reaches the same committed semantic state.
+
+### Refactor
+
+- duplicate compatibility paths are removed only after equivalent coverage exists;
+- deterministic pure logic is moved inward to domain/projection/layout layers where appropriate;
+- performance instrumentation shows no hot-path regression;
+- architecture/type/lint gates remain green;
+- test names and issue traceability remain accurate after implementation changes.
+
+## Risks and guardrails
+
+### Over-specifying APIs
+
+Tests should freeze semantics, not arbitrary class/function decomposition. The named seams in #286 are appropriate where ownership is already clear. Upstream-dependent #248 placement and #245/#247 migration contracts get their red tests only after those public contracts exist.
+
+### Animation flakiness
+
+Prefer state/event/geometry assertions over fixed sleeps. Use animation completion, View Transition completion, retained-scene state, or double-`requestAnimationFrame` only when the assertion genuinely concerns rendered frames. Reduced-motion projects verify final semantics independently of interpolation.
+
+### Performance noise
+
+Machine-speed timing is not an immediate hard gate. Structural invariants—DOM churn, retained identity, bounded scene size, committed cleanup—are fatal now. p95/long-task thresholds become fatal only after #271 publishes a stable reference baseline and variance.
+
+### False browser coverage
+
+A browser test is not coverage merely because it exists. CI must prove discovery. #287 generalizes the discovery assertion and device matrix.
+
+### Unrealistic fixtures
+
+Performance and collision tests need deterministic fixtures for sparse, dense, coincident, range-heavy, long-range-spanning, rapid-reversal, BCE/extended-year, and 10k/50k/100k cases. Large fixtures should be generated from seeded deterministic builders rather than checked-in enormous JSON blobs.
+
+### Parallel-agent drift
+
+Implementation lanes normally branch from current `main` and absorb their owned tests. They do not claim exclusive ownership of shared files. When two lanes touch the same projection/layout contract, the canonical issue hierarchy (#244/#247/#248/#249) decides the shared boundary; tests should be reconciled around that boundary instead of duplicating state.
+
+### Recovery regressions
+
+Recovered behavior in #262/#263/#273/#278/#280/#281 is characterization baseline. A redesign PR that accidentally replaces it with a simpler fallback is a regression even if its newly added unit tests pass.
+
 ## Definition of done
 
 #239 is complete only when:
