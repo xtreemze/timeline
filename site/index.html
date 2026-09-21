@@ -12,6 +12,7 @@
   <meta property="og:url" content="https://xtreemze.github.io/timeline/">
   <title>Timeline — events, ranges, and stories</title>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./leaflet.css">
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./timeline-view.css">
   <link rel="stylesheet" href="./print.css" media="print">
@@ -659,8 +660,8 @@
                   </geolocation>
                   <button id="item-location-clear" class="button ghost" type="button">Clear location</button>
                 </div>
-                <div id="item-location-map" class="location-map" role="region" aria-label="OpenStreetMap location picker"></div>
-                <p class="field-hint">Click the map or drag its marker to set coordinates. Map tiles load only while this section is open; location records remain local. © OpenStreetMap contributors.</p>
+                <div id="item-location-map" class="location-map" role="region" aria-label="Location map picker"></div>
+                <p class="field-hint">Click the map or drag its marker to set coordinates. Basemap tiles load only while this section is open; Timeline-owned markers remain available if the provider fails. Location records remain local.</p>
               </details>
 
               <details id="item-inference-details" class="optional-editor field-wide inference-editor">
@@ -1222,6 +1223,7 @@
   <script src="./timeline-view.js" defer></script>
   <script src="./presentation-layout.js" defer></script>
   <script type="module" src="./spatial-shim.ts" defer></script>
+  <script src="./leaflet.bundle.js" defer></script>
   <script src="./location-map.js" defer></script>
   <script src="./case-reasoning.js" defer></script>
   <script type="module" src="./interchange-adapter-shim.ts" defer></script>

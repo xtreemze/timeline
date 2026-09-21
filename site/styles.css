@@ -720,12 +720,29 @@ geolocation {
   );
 }
 .location-map:empty::before {
-  content: "OpenStreetMap preview";
+  content: "Map preview";
   display: grid;
   place-items: center;
   min-height: 250px;
   color: var(--muted);
   font-size: 0.74rem;
+}
+.location-map[data-basemap-state="unavailable"]::after,
+.presentation-map[data-basemap-state="unavailable"]::after {
+  position: absolute;
+  z-index: 850;
+  top: 0.45rem;
+  left: 0.45rem;
+  content: "Basemap unavailable";
+  padding: 0.28rem 0.42rem;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 70%, transparent);
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 700;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
 }
 .location-map[data-error="true"] {
   display: grid;

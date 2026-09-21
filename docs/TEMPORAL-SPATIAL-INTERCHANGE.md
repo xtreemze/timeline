@@ -138,20 +138,26 @@ Chrome 144 introduced the `<geolocation>` element. Timeline uses it as the prima
 
 No location prompt runs automatically.
 
-## Leaflet / OpenStreetMap
+## Map renderer and basemap providers
 
-Leaflet 1.9.4 is currently the latest stable Leaflet release. It is loaded lazily from the documented distribution with Subresource Integrity only when the location section is opened.
+Timeline currently uses Leaflet 1.9.4 as its map renderer. Leaflet JavaScript and CSS are built into Timeline's static site from the pinned package dependency, so opening a map does not depend on a runtime CDN such as unpkg.
 
-The default map provider is:
+Canonical place geometry is independent from the basemap. Timeline-owned markers, labels, routes, polygons, radii, and fictional reference frames are rendered as overlays and remain meaningful when a basemap provider is unavailable.
+
+The compatibility/default provider remains the public OpenStreetMap raster endpoint:
 
 ```text
 https://tile.openstreetmap.org/{z}/{x}/{y}.png
 ```
 
+It is treated as best-effort rather than authoritative application infrastructure. Deployments can provide either `globalThis.TimelineMapTileProvider` or an ordered `globalThis.TimelineMapTileProviders` array. After repeated tile failures Timeline advances to the next configured provider; if every provider fails it removes only the basemap layer and exposes a non-blocking `basemapState=unavailable` state while retaining semantic geometry.
+
+Map containers are observed with `ResizeObserver`. Leaflet receives `invalidateSize()` after measurable layout changes so hidden, resized, fullscreen, portrait/landscape, and sidebar reflows do not leave stale map dimensions. A semantic placeholder remains until rendered Leaflet geometry is confirmed in the DOM. Places with no usable geometry show an explicit `No mapped coordinates` state rather than silently producing an empty map.
+
 Timeline:
 
-- shows OpenStreetMap attribution on the map;
-- renders presentation geometry through Leaflet GeoJSON layers;
+- keeps OpenStreetMap attribution when the compatibility provider is active;
+- renders presentation geometry through Leaflet GeoJSON layers independently from the basemap;
 - uses each canonical place's semantic SVG icon and marker shape for point markers, with relationship/event color available as presentation accent;
 - fits routes, areas and collections to their visible bounds rather than leaving an empty generic map;
 - renders a canonical Point `radiusMeters` as a non-interactive Leaflet circle;
@@ -159,9 +165,11 @@ Timeline:
 - does not offer offline map-tile download;
 - relies on normal browser HTTP caching;
 - does not use public Nominatim geocoding implicitly;
-- allows deployments to replace the tile provider through `globalThis.TimelineMapTileProvider`.
+- keeps renderer/provider state out of canonical project data.
 
-Opening the map sends tile requests to OpenStreetMap. This network/privacy boundary is distinct from Timeline's local storage of the location record.
+The integrated graph/geography architecture tracked in #236 may later replace the raster underlay with MapLibre GL + PMTiles/vector tiles. That renderer decision is intentionally separate from the canonical place model and this reliability contract.
+
+Opening a network basemap sends tile requests to the selected provider. This network/privacy boundary is distinct from Timeline's local storage of the location record.
 
 References:
 - https://leafletjs.com/download.html

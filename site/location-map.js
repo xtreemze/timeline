@@ -1,15 +1,11 @@
 (() => {
-  const LEAFLET_VERSION = "1.9.4";
-  const LEAFLET_CSS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-  const LEAFLET_JS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-  const LEAFLET_CSS_INTEGRITY = "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=";
-  const LEAFLET_JS_INTEGRITY = "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=";
-
   const DEFAULT_PROVIDER = Object.freeze({
+    id: "osm-public-compatibility",
     url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
+    bestEffort: true,
   });
 
   const PRESENTATION_WORLD_VIEW = Object.freeze({
@@ -23,40 +19,113 @@
   const MAP_CLICK_SUPPRESSION_MS = 350;
   const motion = globalThis.TimelineMotion;
 
-  let loadPromise = null;
-
   function loadLeaflet() {
+    if (globalThis.TimelineLeafletReady?.then) return globalThis.TimelineLeafletReady;
     if (globalThis.L) return Promise.resolve(globalThis.L);
-    if (loadPromise) return loadPromise;
+    return Promise.reject(new Error("Leaflet local bundle is unavailable."));
+  }
 
-    loadPromise = new Promise((resolve, reject) => {
-      if (!document.querySelector("link[data-timeline-leaflet]")) {
-        const stylesheet = document.createElement("link");
-        stylesheet.rel = "stylesheet";
-        stylesheet.href = LEAFLET_CSS;
-        stylesheet.integrity = LEAFLET_CSS_INTEGRITY;
-        stylesheet.crossOrigin = "";
-        stylesheet.dataset.timelineLeaflet = LEAFLET_VERSION;
-        document.head.append(stylesheet);
-      }
+  function tileProviders() {
+    const configured = globalThis.TimelineMapTileProviders;
+    const candidates =
+      Array.isArray(configured) && configured.length
+        ? configured
+        : globalThis.TimelineMapTileProvider
+          ? [globalThis.TimelineMapTileProvider]
+          : [DEFAULT_PROVIDER];
 
-      const existing = document.querySelector("script[data-timeline-leaflet]");
-      const script = existing || document.createElement("script");
-      if (!existing) {
-        script.src = LEAFLET_JS;
-        script.integrity = LEAFLET_JS_INTEGRITY;
-        script.crossOrigin = "";
-        script.dataset.timelineLeaflet = LEAFLET_VERSION;
-        document.head.append(script);
-      }
-      script.addEventListener("load", () => resolve(globalThis.L), { once: true });
-      script.addEventListener("error", () => reject(new Error("Leaflet could not be loaded.")), {
-        once: true,
+    return candidates.filter(
+      (provider) => provider && typeof provider.url === "string" && provider.url.length > 0,
+    );
+  }
+
+  function observeMapSize(map, container, afterResize = null) {
+    let animationFrame = 0;
+    const invalidate = () => {
+      const bounds = container?.getBoundingClientRect?.();
+      if (!bounds || bounds.width <= 0 || bounds.height <= 0) return;
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      animationFrame = requestAnimationFrame(() => {
+        animationFrame = 0;
+        map?.invalidateSize({ pan: false });
+        afterResize?.();
       });
-      if (globalThis.L) resolve(globalThis.L);
-    });
+    };
 
-    return loadPromise;
+    const observer =
+      typeof globalThis.ResizeObserver === "function" ? new ResizeObserver(invalidate) : null;
+    observer?.observe(container);
+    invalidate();
+
+    return () => {
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      animationFrame = 0;
+      observer?.disconnect();
+    };
+  }
+
+  function attachBasemap(L, map, container, providers = tileProviders()) {
+    let providerIndex = 0;
+    let tileErrors = 0;
+    let layer = null;
+    let destroyed = false;
+    const failureThreshold = 3;
+
+    const setState = (state, provider = null) => {
+      if (!container) return;
+      container.dataset.basemapState = state;
+      if (provider?.id) container.dataset.basemapProvider = String(provider.id);
+      else delete container.dataset.basemapProvider;
+    };
+
+    const activate = () => {
+      if (destroyed) return;
+      layer?.off();
+      layer?.remove();
+      layer = null;
+
+      const provider = providers[providerIndex];
+      if (!provider) {
+        setState("unavailable");
+        return;
+      }
+
+      tileErrors = 0;
+      setState("loading", provider);
+      layer = L.tileLayer(provider.url, {
+        ...(provider.options || {}),
+        maxZoom: provider.maxZoom || provider.options?.maxZoom || 19,
+        attribution: provider.attribution || DEFAULT_PROVIDER.attribution,
+      });
+
+      layer.on("load", () => {
+        tileErrors = 0;
+        setState("ready", provider);
+      });
+      layer.on("tileerror", () => {
+        tileErrors += 1;
+        if (tileErrors < failureThreshold) return;
+        if (providerIndex + 1 < providers.length) {
+          providerIndex += 1;
+          activate();
+          return;
+        }
+        layer?.off();
+        layer?.remove();
+        layer = null;
+        setState("unavailable", provider);
+      });
+      layer.addTo(map);
+    };
+
+    activate();
+
+    return () => {
+      destroyed = true;
+      layer?.off();
+      layer?.remove();
+      layer = null;
+    };
   }
 
   function numeric(input, min, max) {
@@ -493,7 +562,7 @@
     constructor(options) {
       this.container = options.container;
       this.location = options.location || null;
-      this.provider = globalThis.TimelineMapTileProvider || DEFAULT_PROVIDER;
+      this.providers = tileProviders();
       this.color = options.color || "#315fbd";
       this.iconName = options.iconName || this.location?.icon || "place";
       this.markerShape = options.markerShape || this.location?.markerShape || "pin";
@@ -516,6 +585,8 @@
       this.introInteractionAbort = null;
       this.introTimer = 0;
       this.weightedDragCleanup = null;
+      this.resizeCleanup = null;
+      this.basemapCleanup = null;
       this.ready = this.render();
     }
 
@@ -548,11 +619,40 @@
       this.placePlaceholder = null;
     }
 
+    setPlaceStatus(message) {
+      if (!this.placePlaceholder || !message) return;
+      let status = this.placePlaceholder.querySelector(".timeline-map-place-status");
+      if (!status) {
+        status = document.createElement("small");
+        status.className = "timeline-map-place-status";
+        this.placePlaceholder.append(status);
+      }
+      status.textContent = message;
+    }
+
+    confirmGeometryVisible() {
+      if (!this.container) return false;
+      const visibleGeometry = this.container.querySelector(
+        ".leaflet-marker-icon, .leaflet-overlay-pane svg path",
+      );
+      if (!visibleGeometry) return false;
+      this.container.dataset.mapState = "ready";
+      this.clearPlacePlaceholder();
+      return true;
+    }
+
     async render() {
       const objects = geoJsonObjects(this.location);
-      if (!this.container || objects.length === 0) return;
+      if (!this.container) return;
       this.container.setAttribute("aria-label", this.label);
       this.renderPlacePlaceholder();
+      if (objects.length === 0) {
+        this.container.dataset.mapState = "geometry-unavailable";
+        this.container.setAttribute("aria-label", `${this.label}. No mapped coordinates.`);
+        this.setPlaceStatus("No mapped coordinates");
+        return;
+      }
+      this.container.dataset.mapState = "loading";
 
       try {
         const L = await loadLeaflet();
@@ -575,6 +675,9 @@
           this.container,
           this.interactive,
         );
+        this.resizeCleanup = observeMapSize(this.map, this.container, () => {
+          this.confirmGeometryVisible();
+        });
 
         if (this.countryContextIntro) {
           this.map.setView(PRESENTATION_WORLD_VIEW.center, PRESENTATION_WORLD_VIEW.zoom, {
@@ -587,10 +690,7 @@
           this.container.dataset.referenceFrame = "fictional";
           fictionalTextureLayer(L, this.container).addTo(this.map);
         } else {
-          L.tileLayer(this.provider.url, {
-            maxZoom: this.provider.maxZoom || 19,
-            attribution: this.provider.attribution || DEFAULT_PROVIDER.attribution,
-          }).addTo(this.map);
+          this.basemapCleanup = attachBasemap(L, this.map, this.container, this.providers);
         }
 
         const baseGeoJsonOptions = {
@@ -630,7 +730,7 @@
           this.layers.push(layer);
         }
 
-        this.clearPlacePlaceholder();
+        requestAnimationFrame(() => this.confirmGeometryVisible());
 
         const point = pointCoordinates(this.location);
         const radius = Number(
@@ -653,21 +753,16 @@
         if (!this.countryContextIntro) this.fitGeometry({ animate: false });
         requestAnimationFrame(() => {
           this.map?.invalidateSize({ pan: false });
+          this.confirmGeometryVisible();
           if (this.countryContextIntro) this.prepareCountryContextIntro();
         });
       } catch (error) {
         if (!this.destroyed && this.container) {
           this.container.dataset.error = "true";
+          this.container.dataset.mapState = "renderer-unavailable";
+          this.container.setAttribute("aria-label", `${this.label}. Map renderer unavailable.`);
           this.placePlaceholder?.classList.add("is-error");
-          if (
-            this.placePlaceholder &&
-            !this.placePlaceholder.querySelector(".timeline-map-place-status")
-          ) {
-            const status = document.createElement("small");
-            status.className = "timeline-map-place-status";
-            status.textContent = "Map preview unavailable";
-            this.placePlaceholder.append(status);
-          }
+          this.setPlaceStatus("Map renderer unavailable");
         }
         // eslint-disable-next-line no-undef
         console.warn(error);
@@ -830,6 +925,10 @@
       this.clearCountryContextInteractionGuard();
       this.weightedDragCleanup?.();
       this.weightedDragCleanup = null;
+      this.resizeCleanup?.();
+      this.resizeCleanup = null;
+      this.basemapCleanup?.();
+      this.basemapCleanup = null;
       this.clearPlacePlaceholder();
       this.container?.classList.remove("is-fictional-map");
       if (this.container) delete this.container.dataset.referenceFrame;
@@ -853,7 +952,9 @@
       this.map = null;
       this.marker = null;
       this.weightedDragCleanup = null;
-      this.provider = globalThis.TimelineMapTileProvider || DEFAULT_PROVIDER;
+      this.resizeCleanup = null;
+      this.basemapCleanup = null;
+      this.providers = tileProviders();
       this.bind();
     }
 
@@ -906,11 +1007,10 @@
           ...mapMotionOptions(true),
         }).setView([20, 0], 2);
         this.weightedDragCleanup = installWeightedMapDragging(this.map, this.container, true);
-
-        L.tileLayer(this.provider.url, {
-          maxZoom: this.provider.maxZoom || 19,
-          attribution: this.provider.attribution || DEFAULT_PROVIDER.attribution,
-        }).addTo(this.map);
+        this.resizeCleanup = observeMapSize(this.map, this.container, () => {
+          this.updateFromInputs(false);
+        });
+        this.basemapCleanup = attachBasemap(L, this.map, this.container, this.providers);
 
         this.map.on("click", (event) => {
           this.applyPosition(event.latlng.lat, event.latlng.lng, { source: "manual" });
@@ -993,6 +1093,10 @@
     destroy() {
       this.weightedDragCleanup?.();
       this.weightedDragCleanup = null;
+      this.resizeCleanup?.();
+      this.resizeCleanup = null;
+      this.basemapCleanup?.();
+      this.basemapCleanup = null;
       this.marker?.remove();
       this.marker = null;
       this.map?.remove();
@@ -1016,5 +1120,6 @@
     loadLeaflet,
     presentationZoom,
     provider: DEFAULT_PROVIDER,
+    providers: tileProviders,
   });
 })();

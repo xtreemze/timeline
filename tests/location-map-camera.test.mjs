@@ -61,7 +61,7 @@ test("fictional spatial reference frames use local procedural texture instead of
   assert.match(mapSource, /createTile/);
   assert.match(mapSource, /timeline-fictional-map-tile/);
   assert.match(mapSource, /if \(this\.fictionalReferenceFrame\)[\s\S]*fictionalTextureLayer/);
-  assert.match(mapSource, /else \{[\s\S]*L\.tileLayer\(this\.provider\.url/);
+  assert.match(mapSource, /else \{[\s\S]*attachBasemap\(L, this\.map, this\.container, this\.providers\)/);
   assert.match(mapSource, /Fictional reference frame · procedural texture/);
   assert.match(styles, /\.presentation-map\.is-fictional-map/);
 });
@@ -135,4 +135,31 @@ test("map touch targets match the coarse-pointer interaction floor and editing h
   );
   assert.match(html, /id="item-location-latitude"[^>]*inputmode="decimal"/);
   assert.match(html, /id="item-location-longitude"[^>]*inputmode="decimal"/);
+});
+
+test("map runtime is local and basemap failure cannot remove semantic geometry", async () => {
+  const [mapSource, html, packageSource, styles] = await Promise.all([
+    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+  ]);
+  const pkg = JSON.parse(packageSource);
+
+  assert.equal(pkg.dependencies.leaflet, "1.9.4");
+  assert.match(pkg.scripts["build:leaflet"], /src\/leaflet-entry\.js/);
+  assert.match(html, /href="\.\/leaflet\.css"/);
+  assert.match(html, /src="\.\/leaflet\.bundle\.js"/);
+  assert.doesNotMatch(mapSource, /unpkg\.com\/leaflet/);
+  assert.match(mapSource, /function attachBasemap\(/);
+  assert.match(mapSource, /layer\.on\("tileerror"/);
+  assert.match(mapSource, /setState\("unavailable"/);
+  assert.match(mapSource, /layer\?\.remove\(\)/);
+  assert.match(mapSource, /function observeMapSize\(/);
+  assert.match(mapSource, /ResizeObserver/);
+  assert.match(mapSource, /invalidateSize\(\{ pan: false \}\)/);
+  assert.match(mapSource, /confirmGeometryVisible\(\)/);
+  assert.match(mapSource, /geometry-unavailable/);
+  assert.match(mapSource, /No mapped coordinates/);
+  assert.match(styles, /data-basemap-state="unavailable"/);
 });
