@@ -276,7 +276,7 @@ export function buildEndpoint(options: {
     );
   }
 
-  let zoned;
+  let zoned: { offset: string };
   try {
     zoned = (globalThis.Temporal as any).ZonedDateTime.from(
       {
