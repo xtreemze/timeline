@@ -16,6 +16,13 @@ async function installRetainedTimelineFixture(page) {
     const root = document.createElement("section");
     root.id = "tdd-timeline-view";
     root.className = "timeline-view";
+    Object.assign(root.style, {
+      position: "fixed",
+      inset: "0",
+      zIndex: "99999",
+      margin: "0",
+      background: "var(--paper, white)",
+    });
 
     const orientationToggle = document.createElement("button");
     orientationToggle.id = "timeline-orientation-toggle";
@@ -28,6 +35,11 @@ async function installRetainedTimelineFixture(page) {
     const surface = document.createElement("div");
     surface.className = "timeline-surface";
     surface.tabIndex = 0;
+    Object.assign(surface.style, {
+      width: "100%",
+      height: "min(70dvh, 520px)",
+      position: "relative",
+    });
 
     const focusView = document.createElement("div");
     focusView.className = "timeline-focus-view";
@@ -35,9 +47,6 @@ async function installRetainedTimelineFixture(page) {
 
     root.append(orientationToggle, readout, surface, focusView);
     document.body.append(root);
-    surface.style.width = "900px";
-    surface.style.height = "520px";
-    surface.style.position = "relative";
 
     const { TimelineView } = await import("/timeline-view.ts");
     const controller = TimelineView.create(root);
@@ -58,6 +67,51 @@ async function installRetainedTimelineFixture(page) {
   await frame(page);
 }
 
+async function activateOccurrence(terminal, testInfo) {
+  if (testInfo.project.use.hasTouch) await terminal.tap();
+  else await terminal.click();
+}
+
+async function dispatchCameraGesture(surface, pointerType, { cancel = false } = {}) {
+  const box = await surface.boundingBox();
+  if (!box) throw new Error("Timeline surface has no bounding box.");
+  const pointerId = 71;
+  const startX = box.x + box.width * 0.65;
+  const endX = box.x + box.width * 0.56;
+  const y = box.y + box.height * 0.6;
+
+  await surface.dispatchEvent("pointerdown", {
+    pointerId,
+    pointerType,
+    isPrimary: true,
+    button: 0,
+    buttons: 1,
+    clientX: startX,
+    clientY: y,
+  });
+  await surface.dispatchEvent("pointermove", {
+    pointerId,
+    pointerType,
+    isPrimary: true,
+    button: 0,
+    buttons: 1,
+    clientX: endX,
+    clientY: y,
+  });
+
+  return async () => {
+    await surface.dispatchEvent(cancel ? "pointercancel" : "pointerup", {
+      pointerId,
+      pointerType,
+      isPrimary: true,
+      button: 0,
+      buttons: 0,
+      clientX: endX,
+      clientY: y,
+    });
+  };
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await installRetainedTimelineFixture(page);
@@ -70,17 +124,16 @@ test.beforeEach(async ({ page }) => {
   ).toBeVisible();
 });
 
-test("#269 focused occurrence survives an orientation transaction", async ({ page }) => {
+test("#269 focused occurrence survives an orientation transaction", async ({ page }, testInfo) => {
   const root = page.locator("#tdd-timeline-view");
   const terminal = root
     .locator(".timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible")
     .first();
-  await expect(terminal).toBeVisible();
   await terminal.evaluate((element) => {
     element.closest(".timeline-event")?.setAttribute("data-tdd-identity", "focused-occurrence");
   });
 
-  await terminal.click();
+  await activateOccurrence(terminal, testInfo);
   await expect(root).toHaveAttribute("data-scene-state", "focused");
 
   await page.evaluate(() => {
@@ -90,60 +143,64 @@ test("#269 focused occurrence survives an orientation transaction", async ({ pag
 
   await expect(root.locator('[data-tdd-identity="focused-occurrence"]')).toHaveCount(1);
   await expect(root).toHaveAttribute("data-scene-state", "focused");
+  await expect(root).toHaveAttribute("data-orientation", "portrait");
 });
 
-test("#269 keyboard focus identity survives a buffered camera interaction", async ({ page }) => {
-  const root = page.locator("#tdd-timeline-view");
-  const terminal = root
-    .locator(".timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible")
-    .first();
-  await expect(terminal).toBeVisible();
-  await terminal.evaluate((element) => {
-    element.dataset.tddFocusIdentity = "keyboard-target";
-    element.focus();
-  });
-  await expect(terminal).toBeFocused();
+test(
+  "#269 retained focus identity survives a buffered camera interaction",
+  async ({ page }, testInfo) => {
+    const root = page.locator("#tdd-timeline-view");
+    const terminal = root
+      .locator(".timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible")
+      .first();
 
-  const surface = root.locator(".timeline-surface");
-  const box = await surface.boundingBox();
-  if (!box) throw new Error("Timeline surface has no bounding box.");
+    await terminal.evaluate((element) => {
+      element.dataset.tddFocusIdentity = "keyboard-target";
+      element.closest(".timeline-event")?.setAttribute("data-tdd-identity", "focused-occurrence");
+      element.focus();
+    });
+    await expect(terminal).toBeFocused();
+    await page.evaluate(() => {
+      globalThis.__retainedStructuralTddController?.focusItem?.("occurrence-a", {
+        moveViewport: false,
+      });
+    });
+    await expect(root).toHaveAttribute("data-scene-state", "focused");
 
-  await page.mouse.move(box.x + box.width * 0.65, box.y + box.height * 0.6);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width * 0.58, box.y + box.height * 0.6, { steps: 3 });
-  await frame(page);
+    const surface = root.locator(".timeline-surface");
+    const finish = await dispatchCameraGesture(
+      surface,
+      testInfo.project.use.hasTouch ? "touch" : "mouse",
+    );
+    await frame(page);
 
-  const focusedIdentity = await page.evaluate(
-    () =>
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement.dataset.tddFocusIdentity ?? null
-        : null,
-  );
-  expect(focusedIdentity).toBe("keyboard-target");
+    await expect(root).toHaveAttribute("data-scene-state", "interacting");
+    await expect(root.locator('[data-tdd-identity="focused-occurrence"]')).toHaveCount(1);
+    if (!testInfo.project.use.hasTouch) await expect(terminal).toBeFocused();
 
-  await page.mouse.up();
-});
+    await finish();
+    await frame(page);
 
+    await expect(root).toHaveAttribute("data-scene-state", "focused");
+    await expect(root.locator('[data-tdd-identity="focused-occurrence"]')).toHaveCount(1);
+    if (!testInfo.project.use.hasTouch) await expect(terminal).toBeFocused();
+  },
+);
 
-test("#271 live retained renderer reports interaction and commit metrics", async ({ page }) => {
+test("#271 live retained renderer reports interaction and commit metrics", async ({ page }, testInfo) => {
   const root = page.locator("#tdd-timeline-view");
   await page.evaluate(() => {
     globalThis.__retainedStructuralTddController?.resetPerformanceMetrics();
   });
 
   const surface = root.locator(".timeline-surface");
-  const box = await surface.boundingBox();
-  if (!box) throw new Error("Timeline surface has no bounding box.");
-
-  await page.mouse.move(box.x + box.width * 0.68, box.y + box.height * 0.58);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width * 0.58, box.y + box.height * 0.58, { steps: 4 });
+  const finish = await dispatchCameraGesture(
+    surface,
+    testInfo.project.use.hasTouch ? "touch" : "mouse",
+    { cancel: true },
+  );
   await frame(page);
-  await page.mouse.up();
-
-  await page.evaluate(() => {
-    globalThis.__retainedStructuralTddController?.commitInteraction();
-  });
+  await finish();
   await frame(page);
 
   const summary = await page.evaluate(() =>
