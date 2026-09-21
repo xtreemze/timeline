@@ -1373,19 +1373,24 @@ test("View toolbar keeps native toggle state while measured coordinates attach i
   assert.doesNotMatch(timelineCss, /\.timeline-view-toolbar\s*\{[^}]*display\s*:/s);
 });
 
-test("View toolbar follows timeline orientation without selector-dependent deployment", async () => {
-  const [styles, timelineCss] = await Promise.all([
+test("footer app bar is orientation-independent while View controls may recompose", async () => {
+  const [styles, timelineCss, html] = await Promise.all([
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
   ]);
 
   assert.match(
-    styles,
-    /#app-shell:has\(#timeline-view\[data-orientation="landscape"\]\) \.app-tool-dock\s*\{[\s\S]*flex-direction:\s*column[\s\S]*overflow-x:\s*hidden[\s\S]*overflow-y:\s*auto/,
+    html,
+    /class="app-tool-dock app-footer-bar"[\s\S]*id="project-menu-toggle"[\s\S]*id="editor-toggle"[\s\S]*id="timeline-browser-toggle"[\s\S]*id="timeline-view-controls-toggle"[\s\S]*<\/nav>/,
   );
   assert.match(
     styles,
-    /#app-shell:has\(#timeline-view\[data-orientation="portrait"\]\) \.app-tool-dock\s*\{[\s\S]*flex-direction:\s*row[\s\S]*overflow-x:\s*auto[\s\S]*overflow-y:\s*hidden/,
+    /\.app-tool-dock\s*\{[\s\S]*inset-inline-start:\s*50%[\s\S]*inset-block-end:[\s\S]*display:\s*flex[\s\S]*transform:\s*translateX\(-50%\)/,
+  );
+  assert.doesNotMatch(
+    styles,
+    /#app-shell:has\(#timeline-view\[data-orientation="(?:landscape|portrait)"\]\) \.app-tool-dock/,
   );
   assert.match(
     timelineCss,
@@ -1394,14 +1399,6 @@ test("View toolbar follows timeline orientation without selector-dependent deplo
   assert.match(
     timelineCss,
     /\.timeline-view\[data-orientation="portrait"\] > \.app-view-controls\.timeline-view-toolbar\[popover\]:popover-open\s*\{[\s\S]*flex-direction:\s*column[\s\S]*width:\s*clamp\(82px, 22dvw, 96px\)[\s\S]*overflow-y:\s*auto/,
-  );
-  assert.match(
-    timelineCss,
-    /\.timeline-view\[data-orientation="portrait"\] > \.app-view-controls[\s\S]*\.timeline-auto-controls\s*\{[\s\S]*flex-direction:\s*column/,
-  );
-  assert.doesNotMatch(
-    timelineCss,
-    /#app-shell:has\(#timeline-view\[data-orientation="(?:landscape|portrait)"\]\)[\s\S]{0,220}\.app-view-controls/,
   );
 });
 
