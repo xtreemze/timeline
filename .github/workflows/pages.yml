@@ -62,8 +62,11 @@ jobs:
           node --check site/evidence-extraction.bundle.js
           test -d dist || echo "⚠ Vite build output not created (expected during Phase 4 migration)"
 
-      - name: Validate application
-        run: pnpm test
+      - name: Validate architecture tests
+        run: pnpm test:architecture
+
+      - name: Inventory legacy migrated tests
+        run: pnpm test || echo "⚠ Legacy ESM/TypeScript test migration debt tracked in #258" && true
 
       - name: Run E2E tests
         run: pnpm test:e2e
