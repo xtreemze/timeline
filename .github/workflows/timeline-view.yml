@@ -3,83 +3,26 @@ name: Timeline view
 on:
   pull_request:
     paths:
-      - 'site/index.html'
+      - 'site/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'schemas/**'
       - 'package.json'
-      - 'src/orb-graph-entry.js'
-      - 'site/app.js'
-      - 'site/webmcp.js'
-      - 'site/memgraph-interchange.js'
-      - 'tests/webmcp.test.mjs'
-      - 'site/timeline-view.js'
-      - 'site/presentation-layout.js'
-      - 'site/timeline-clustering.js'
-      - 'site/timeline-motion.js'
-      - 'site/timeline-navigation.js'
-      - 'site/timeline-graph.js'
-      - 'site/temporal-graph-view.js'
-      - 'site/timeline-view.css'
-      - 'site/time-scale.js'
-      - 'site/interchange-adapter.js'
-      - 'site/date-range-picker.js'
-      - 'site/event-presentation.js'
-      - 'site/evidence-store.js'
-      - 'site/case-reasoning.js'
-      - 'site/sample-case.js'
-      - 'site/temporal-standards.js'
-      - 'site/timeline-migration.js'
-      - 'site/spatial.js'
-      - 'site/location-map.js'
-      - 'tests/temporal-spatial.test.mjs'
-      - 'tests/interchange-adapter.test.mjs'
-      - 'tests/event-focus-form.test.mjs'
-      - 'tests/evidence-store.test.mjs'
-      - 'tests/case-reasoning.test.mjs'
-      - 'tests/sample-case.test.mjs'
-      - 'schemas/interchange-v1.schema.json'
-      - 'tests/timeline-view-geometry.test.mjs'
-      - 'tests/timeline-interaction.test.mjs'
-      - 'tests/timeline-navigation.test.mjs'
-      - 'tests/temporal-graph-view.test.mjs'
-      - 'tests/graph-editor.test.mjs'
+      - 'jsconfig.json'
+      - 'tsconfig*.json'
       - '.github/workflows/timeline-view.yml'
   push:
     branches: [main]
     paths:
-      - 'site/index.html'
+      - 'site/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'schemas/**'
       - 'package.json'
-      - 'src/orb-graph-entry.js'
-      - 'site/app.js'
-      - 'site/timeline-view.js'
-      - 'site/presentation-layout.js'
-      - 'site/timeline-clustering.js'
-      - 'site/timeline-motion.js'
-      - 'site/timeline-navigation.js'
-      - 'site/timeline-graph.js'
-      - 'site/temporal-graph-view.js'
-      - 'site/timeline-view.css'
-      - 'site/time-scale.js'
-      - 'site/interchange-adapter.js'
-      - 'site/date-range-picker.js'
-      - 'site/event-presentation.js'
-      - 'site/evidence-store.js'
-      - 'site/case-reasoning.js'
-      - 'site/sample-case.js'
-      - 'site/temporal-standards.js'
-      - 'site/timeline-migration.js'
-      - 'site/spatial.js'
-      - 'site/location-map.js'
-      - 'tests/temporal-spatial.test.mjs'
-      - 'tests/interchange-adapter.test.mjs'
-      - 'tests/event-focus-form.test.mjs'
-      - 'tests/evidence-store.test.mjs'
-      - 'tests/case-reasoning.test.mjs'
-      - 'tests/sample-case.test.mjs'
-      - 'schemas/interchange-v1.schema.json'
-      - 'tests/timeline-view-geometry.test.mjs'
-      - 'tests/timeline-interaction.test.mjs'
-      - 'tests/timeline-navigation.test.mjs'
-      - 'tests/temporal-graph-view.test.mjs'
-      - 'tests/graph-editor.test.mjs'
+      - 'jsconfig.json'
+      - 'tsconfig*.json'
       - '.github/workflows/timeline-view.yml'
 
 permissions:
@@ -91,35 +34,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 12
       - uses: actions/setup-node@v4
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
-      - run: pnpm types || echo "⚠ Type errors found (non-fatal in Phase 2)" && true
+      - run: pnpm types:architecture
+      - name: Migration-wide type inventory
+        run: pnpm types || echo "⚠ Existing migration type errors remain; architecture packages are checked separately and fatally."
       - run: pnpm build
       - run: test -s site/orb-graph.bundle.js
-      - run: node --check src/orb-graph-entry.js
-      - run: node --check site/orb-graph.bundle.js
-      - run: node --check site/time-scale.js
-      - run: node --check site/timeline-clustering.js
-      - run: node --check site/timeline-motion.js
-      - run: node --check site/timeline-navigation.js
-      - run: node --check site/timeline-graph.js
-      - run: node --check site/temporal-graph-view.js
-      - run: node --check site/timeline-view.js
-      - run: node --check site/presentation-layout.js
-      - run: node --check site/date-range-picker.js
-      - run: node --check site/event-presentation.js
-      - run: node --check site/evidence-store.js
-      - run: node --check site/case-reasoning.js
-      - run: node --check site/sample-case.js
-      - run: node --check site/interchange-adapter.js
-      - run: node --check site/temporal-standards.js
-      - run: node --check site/timeline-migration.js
-      - run: node --check site/spatial.js
-      - run: node --check site/location-map.js
-      - run: node --check site/app.js
+      - name: Validate JavaScript syntax
+        run: |
+          find src site tests benchmarks scripts -type f \( -name '*.js' -o -name '*.mjs' \) \
+            ! -name 'orb-graph.bundle.js' \
+            ! -name 'evidence-extraction.bundle.js' \
+            -print0 | while IFS= read -r -d '' file; do
+              node --check "$file"
+            done
+      - run: pnpm test:architecture
       - run: pnpm test
