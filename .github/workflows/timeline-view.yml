@@ -58,6 +58,8 @@ on:
       - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
+      - 'tests/retained-structural-composition-runtime.test.mjs'
+      - 'tests/browser/retained-structural-composition.spec.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'benchmarks/retained-timeline.mjs'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
@@ -128,6 +130,8 @@ on:
       - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
+      - 'tests/retained-structural-composition-runtime.test.mjs'
+      - 'tests/browser/retained-structural-composition.spec.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'benchmarks/retained-timeline.mjs'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
@@ -170,6 +174,7 @@ jobs:
       - run: pnpm test:runtime-contracts
       - run: pnpm test:evidence-inference-runtime
       - run: pnpm test:temporal-layout-runtime
+      - run: pnpm test:structural-composition-runtime
       - run: pnpm test:retained-timeline-metrics
       - run: pnpm test:touch-runtime-contracts
       - run: pnpm test:temporal-context-runtime
@@ -178,3 +183,19 @@ jobs:
       - run: pnpm test:timeline-projection-runtime
       - run: |
           pnpm test || echo "⚠ Legacy ESM/TypeScript test migration debt tracked in issue 258"
+
+  structural-composition-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Verify structural browser test discovery
+        run: |
+          pnpm exec playwright test --config=playwright.config.mjs --list | tee /tmp/structural-playwright-list.txt
+          grep -F 'retained-structural-composition.spec.ts' /tmp/structural-playwright-list.txt
+      - run: pnpm test:structural-composition-browser
