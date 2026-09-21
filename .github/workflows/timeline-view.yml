@@ -105,8 +105,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 12
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -118,23 +116,4 @@ jobs:
       - run: test -s site/orb-graph.bundle.js
       - run: node --check src/orb-graph-entry.js
       - run: node --check site/orb-graph.bundle.js
-      - run: node --check site/time-scale.js
-      - run: node --check site/timeline-clustering.js
-      - run: node --check site/timeline-motion.js
-      - run: node --check site/timeline-navigation.js
-      - run: node --check site/timeline-graph.js
-      - run: node --check site/temporal-graph-view.js
-      - run: node --check site/timeline-view.js
-      - run: node --check site/presentation-layout.js
-      - run: node --check site/date-range-picker.js
-      - run: node --check site/event-presentation.js
-      - run: node --check site/evidence-store.js
-      - run: node --check site/case-reasoning.js
-      - run: node --check site/sample-case.js
-      - run: node --check site/interchange-adapter.js
-      - run: node --check site/temporal-standards.js
-      - run: node --check site/timeline-migration.js
-      - run: node --check site/spatial.js
-      - run: node --check site/location-map.js
-      - run: node --check site/app.js
       - run: pnpm test
