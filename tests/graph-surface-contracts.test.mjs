@@ -9,7 +9,6 @@ import { strict as assert } from "node:assert";
 
 class MockGraphSurface {
   #projection = { nodes: [], edges: [] };
-  #selection = null;
   #camera = { x: 0, y: 0, z: 1 };
   #eventListener = null;
 
@@ -33,7 +32,6 @@ class MockGraphSurface {
   }
 
   setSelection(selection) {
-    this.#selection = selection;
     if (selection && this.#eventListener) {
       this.#eventListener({ kind: "selection-changed", selection });
     }
