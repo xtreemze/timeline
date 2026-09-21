@@ -3858,7 +3858,8 @@
 
   #app-shell[data-graph-open="true"] .timeline-event-terminal {
     min-width: 46px;
-    max-width: min(58vw, 190px);
+    width: min(100%, 190px);
+    max-width: 190px;
     min-height: 46px;
     justify-content: flex-start;
     padding: 0.32rem 0.42rem;
