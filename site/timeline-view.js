@@ -2411,7 +2411,7 @@
             actions.append(link);
           }
           if (record.file?.blobKey) {
-            const open = createElement("button", "button secondary", "Open local PDF");
+            const open = createElement("button", "button secondary", record.type === "image" ? "Open local image" : "Open local file");
             open.type = "button";
             open.addEventListener("click", () => {
               this.root.dispatchEvent(new CustomEvent("timelineevidenceopen", {
