@@ -53,6 +53,7 @@ export default [
         HTMLButtonElement: "readonly",
         HTMLAnchorElement: "readonly",
         DOMParser: "readonly",
+        DOMException: "readonly",
         performance: "readonly",
         getComputedStyle: "readonly",
         structuredClone: "readonly",
