@@ -8,6 +8,7 @@ import { TimelineTemporal } from './temporal-standards.ts';
 import { TimelineSpatial } from './spatial.ts';
 import { TimelineInterchangeAdapter } from './interchange-adapter.ts';
 import { TimelineScale } from './time-scale.ts';
+import { projectTimelineOccurrences } from '../src/projection/timeline-projection.ts';
 
 // Import globals that still use globalThis (not yet converted)
 const graph = globalThis.TimelineGraph;
@@ -1575,17 +1576,55 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     const relationshipById = new Map(
       state.relationships.map((relationship) => [relationship.id, relationship]),
     );
+    const representedRelationshipIds = new Set(
+      state.relationships
+        .filter((relationship) =>
+          (relationship.itemIds || []).some((itemId) =>
+            state.items.some((item) => String(item.id) === String(itemId)),
+          ),
+        )
+        .map((relationship) => String(relationship.id)),
+    );
+    const relationshipOccurrences = projectTimelineOccurrences({
+      entities: state.entities,
+      relationships: state.relationships,
+    });
+    const searchNeedle = ui.search.trim().toLocaleLowerCase();
+    const derivedTimelineOccurrences =
+      activeStory || ui.categoryFilter !== "all"
+        ? []
+        : relationshipOccurrences.filter((occurrence) => {
+            if (representedRelationshipIds.has(occurrence.relationshipId)) return false;
+            if (!searchNeedle) return true;
+            return [
+              occurrence.title,
+              occurrence.predicate,
+              occurrence.subjectName,
+              occurrence.objectName,
+            ]
+              .join(" ")
+              .toLocaleLowerCase()
+              .includes(searchNeedle);
+          });
 
-    const allTimelineCoordinates = state.items.flatMap((item) => {
+    const allTimelineCoordinates = [
+      ...state.items.flatMap((item) => {
       const coordinates = [temporal.sortKey(item.time?.start || item.start)];
       if (item.end || item.time?.end)
         coordinates.push(temporal.sortKey(item.time?.end || item.end));
       return coordinates.filter(Number.isFinite);
-    });
+    }),
+      ...relationshipOccurrences.flatMap((occurrence) =>
+        occurrence.end === null
+          ? [occurrence.start]
+          : [occurrence.start, occurrence.end],
+      ),
+    ].filter(Number.isFinite);
 
     try {
       timelineView?.setItems(
-        visible.map((item) => {
+        [
+          ...visible.map((item) => {
           const category = getCategory(item.categoryId);
           const itemTime = temporal.sortKey(item.time?.start || item.start);
           const eventViewport = Number.isFinite(itemTime)
@@ -1653,6 +1692,72 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
           })(),
         };
       }),
+          ...derivedTimelineOccurrences.map((occurrence) => {
+            const relationship = relationshipById.get(occurrence.relationshipId);
+            const place = occurrence.placeId
+              ? state.places.find((candidate) => String(candidate.id) === occurrence.placeId) || null
+              : null;
+            const eventViewport = {
+              start: occurrence.start,
+              end: occurrence.end ?? occurrence.start,
+            };
+            return {
+              id: occurrence.occurrenceId,
+              kind: occurrence.end === null ? "event" : "range",
+              title: occurrence.title,
+              description: relationship?.role
+                ? `${occurrence.subjectName} ${occurrence.predicate} ${occurrence.objectName} · ${relationship.role}`
+                : `${occurrence.subjectName} ${occurrence.predicate} ${occurrence.objectName}`,
+              categoryName: "Relation",
+              color: "var(--accent)",
+              start: occurrence.start,
+              end: occurrence.end,
+              startLabel: occurrence.startLabel,
+              endLabel: occurrence.endLabel,
+              locationName: place?.name || place?.geographicIdentifier || "",
+              location: place,
+              media: [],
+              tags: [],
+              layoutVariant: "hero-split",
+              terminalShape: "rounded",
+              connectorStyle: "solid",
+              connectorRouting: "straight",
+              connectorWeight: "normal",
+              connectorEndpoint: "none",
+              lane: null,
+              editable: false,
+              evidence: [],
+              relations: relationship
+                ? [
+                    {
+                      id: relationship.id,
+                      predicate: relationship.predicate,
+                      role: relationship.role || "",
+                      subjectId: relationship.subjectId,
+                      objectId: relationship.objectId,
+                      subjectName: occurrence.subjectName,
+                      objectName: occurrence.objectName,
+                      time: relationship.time || null,
+                    },
+                  ]
+                : [],
+              relationChanges: [],
+              graphContext: (() => {
+                try {
+                  return graph.neighborhoodGraph(
+                    graphInput,
+                    occurrence.relationshipId,
+                    eventViewport,
+                    { depth: 1, limit: 28 },
+                  );
+                } catch (error) {
+                  console.error("Failed to generate relationship occurrence graph:", error);
+                  return { nodes: [], edges: [] };
+                }
+              })(),
+            };
+          }),
+        ],
       {
         focusId: storyCurrentId,
         allCoordinates: allTimelineCoordinates,
