@@ -1029,7 +1029,10 @@ class TimelineViewController {
       hierarchyKeys.add(hierarchyKey);
       node.dataset.tickHierarchies = [...hierarchyKeys].join(",");
       node.classList.toggle("is-incoming-hierarchy", incoming && created);
-      if (incoming && created) node.dataset.pendingHierarchy = hierarchyKey;
+      if (incoming && created) {
+        node.dataset.pendingHierarchy = hierarchyKey;
+        node.style.opacity = "0.35";
+      }
 
       const label = node.querySelector(".timeline-tick-label");
       if (label) {
@@ -1074,7 +1077,10 @@ class TimelineViewController {
         this.stage.append(node);
       }
       node.classList.toggle("is-incoming-hierarchy", incoming && created);
-      if (incoming && created) node.dataset.pendingHierarchy = "true";
+      if (incoming && created) {
+        node.dataset.pendingHierarchy = "true";
+        node.style.opacity = "0.35";
+      }
       node.textContent = String(accent.label || "");
       node.dataset.count = String(accent.count || 0);
       this.positionTemporalNode(node, Number(accent.time), padding, usable);
@@ -1177,6 +1183,7 @@ class TimelineViewController {
           if (node.dataset.pendingHierarchy) {
             delete node.dataset.pendingHierarchy;
             node.classList.remove("is-incoming-hierarchy");
+            node.style.opacity = "";
             this.animateTemporalContextEntry(node);
           }
           continue;
@@ -1189,6 +1196,7 @@ class TimelineViewController {
           if (node.dataset.pendingHierarchy) {
             delete node.dataset.pendingHierarchy;
             node.classList.remove("is-incoming-hierarchy");
+            node.style.opacity = "";
             this.animateTemporalContextEntry(node);
           }
           continue;
