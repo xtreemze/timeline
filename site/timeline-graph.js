@@ -40,18 +40,68 @@
    * @property {Array<[string,string]>} mirroredFactPairs
    * @property {Array<{entityIds:[string,string],relationshipIds:string[]}>} reciprocalActionPairs
    */
+  const GRAPH_CONTRACT_VERSION = "2026-09-21.1";
   const GRAPH_MODEL_RULES = Object.freeze({
     nodeIdentity: "one-durable-entity",
     relationshipIdentity: "one-directed-action-fact",
     stableExplicitIds: true,
     selfLoops: "forbidden",
+    predicateSemantics: "one-action-verb-plus-optional-particle-no-entities",
     duplicateFacts: "merge-context-on-one-edge",
     mirroredDuplicates: "forbidden",
     cycles: "allowed-when-each-directed-edge-is-a-distinct-fact",
     orphanCanonicalEntities: "forbidden",
     eventActionPlaceTimeNodes: "forbidden",
-    spatiotemporalContext: "relationship.time-and-relationship.placeId"
+    spatiotemporalContext: "relationship.time-and-relationship.placeId",
+    categories: "chronology-items-only",
+    stories: "narrative-membership-not-graph-topology",
+    namedNarrativeEntities: "known-canonical-mentions-must-be-endpoints-of-contextual-action-edges",
+    uncataloguedNarrativeEntities: "authors-and-agents-must-create-or-reuse-an-entity-before-writing-the-named-entity-into-context"
   });
+
+  const GRAPH_CONTRACT = Object.freeze({
+    version: GRAPH_CONTRACT_VERSION,
+    rules: GRAPH_MODEL_RULES,
+    narrativeContext: Object.freeze({
+      included: Object.freeze(["item.title", "item.description", "media.alt", "evidence.note"]),
+      excludedProvenance: Object.freeze([
+        "media.caption",
+        "evidence.title",
+        "evidence.sourceName",
+        "evidence.url",
+        "evidence.file",
+        "evidence.forensic"
+      ]),
+      matching: "canonical entity name or alternateNames/aliases, resolved within item.extensions.narrative.storyId when present"
+    }),
+    requiredAuthoringWorkflow: Object.freeze([
+      "Extract every durable named entity from event narrative context before mutation.",
+      "Create or reuse one canonical entity node for each durable entity.",
+      "Represent each relation as one directed subject-action-object edge between two different entity nodes.",
+      "Use one action verb, optionally followed by one grammatical particle, as the predicate; never encode entity, place, time, role, instrument, or cause in the predicate.",
+      "Store time on relationship.time and place on relationship.placeId.",
+      "Link every named contextual entity to the event through at least one meaningful action edge referenced by relationship.itemIds or relationChanges.",
+      "Keep categories on chronology items only and stories outside graph topology.",
+      "Run strict graph audit/validation before committing the mutation."
+    ]),
+    examples: Object.freeze({
+      valid: Object.freeze([
+        "wolf --attacks--> brick-house",
+        "queen --poisons--> apple",
+        "prince --dancesWith--> cinderella"
+      ]),
+      invalid: Object.freeze([
+        "wolf --attacksBrickHouse--> wolf",
+        "queen --poisonsApple--> queen",
+        "prince --dancesWithCinderella--> prince",
+        "entity --relatedTo--> entity"
+      ])
+    })
+  });
+
+  function getGraphContract() {
+    return cloneJson(GRAPH_CONTRACT);
+  }
 
   function cloneJson(value) {
     try {
@@ -153,9 +203,113 @@
   const ACTION_NAME_PATTERN = /^(?:called|calls|met|meets|sent|sends|transferred|transfers|paid|pays|visited|visits|arrived|arrives|departed|departs|left|leaves|built|builds|created|creates|attacked|attacks|ordered|orders|warned|warns|approved|approves|authorized|authorizes|signed|signs|moved|moves|travelled|traveled|travels|fled|flees|married|marries|danced|dances|consulted|consults|poisoned|poisons|searched|searches|found|finds|lost|loses|gave|gives|took|takes|received|receives)\b/i;
 
   const ACTION_PREDICATE_PARTICLES = new Set(["for", "with", "to", "over", "under", "through", "across", "up", "down", "out", "off", "away", "back", "forth", "against", "around"]);
+  const FORBIDDEN_GRAPH_TAXONOMY_KEYS = new Set([
+    "category",
+    "categoryid",
+    "categoryids",
+    "categories",
+    "group",
+    "groupid",
+    "groupids"
+  ]);
 
   function semanticKey(value) {
     return text(value, 120).toLocaleLowerCase().replace(/[^a-z0-9]+/g, "");
+  }
+
+  function entityMentionKey(value) {
+    return String(value || "")
+      .normalize("NFKD")
+      .toLocaleLowerCase()
+      .replace(/[’']s\b/g, "")
+      .replace(/[’']/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function entityMentionVariants(value) {
+    const key = entityMentionKey(value);
+    if (!key) return [];
+    const variants = new Set([key]);
+    const withoutArticle = key.replace(/^(?:the|a|an)\s+/, "");
+    if (withoutArticle.length >= 3) variants.add(withoutArticle);
+    return [...variants];
+  }
+
+  function itemNarrativeContext(item, evidenceById = null) {
+    if (!item || typeof item !== "object") return "";
+    const mediaContext = Array.isArray(item.media)
+      ? item.media.map((media) => typeof media?.alt === "string" ? media.alt : "")
+      : [];
+    const evidenceNotes = evidenceById instanceof Map
+      ? textList(item.evidenceIds, { maxItems: 96, maxLength: 120 })
+          .map((id) => evidenceById.get(String(id))?.note)
+          .filter((note) => typeof note === "string" && note.trim())
+      : [];
+    return [
+      typeof item.title === "string" ? item.title : "",
+      typeof item.description === "string" ? item.description : "",
+      ...mediaContext,
+      ...evidenceNotes
+    ].filter(Boolean).join(" ");
+  }
+
+  function namedEntityMentions(item, entities, evidenceById = null) {
+    const context = entityMentionKey(itemNarrativeContext(item, evidenceById));
+    if (!context) return [];
+    const padded = ` ${context} `;
+    const itemStoryId = text(item?.extensions?.narrative?.storyId, 120);
+    const groups = new Map();
+
+    for (const entity of Array.isArray(entities) ? entities : []) {
+      const id = text(entity?.id, 120);
+      if (!id || !validateEntityNode(entity).valid) continue;
+      const entityStoryId = text(entity?.attributes?.storyId, 120);
+      const canonicalLabel = text(entity?.name || entity?.label || entity?.title, 180);
+      const labels = [
+        canonicalLabel,
+        ...textList(entity?.alternateNames || entity?.aliases, { maxItems: 48, maxLength: 180 })
+      ].filter(Boolean);
+
+      for (const label of labels) {
+        const matched = entityMentionVariants(label).some(
+          (variant) => variant.length >= 3 && padded.includes(` ${variant} `)
+        );
+        if (!matched) continue;
+        const groupKey = entityMentionKey(label);
+        if (!groups.has(groupKey)) {
+          groups.set(groupKey, { label: canonicalLabel || label, candidates: [] });
+        }
+        groups.get(groupKey).candidates.push({ id, storyId: entityStoryId });
+      }
+    }
+
+    return [...groups.values()].map((group) => {
+      const sameStory = itemStoryId
+        ? group.candidates.filter((candidate) => candidate.storyId === itemStoryId)
+        : [];
+      const globalEntities = group.candidates.filter((candidate) => !candidate.storyId);
+      const candidates = itemStoryId ? [...sameStory, ...globalEntities] : group.candidates;
+      return {
+        label: group.label,
+        entityIds: [...new Set(candidates.map((candidate) => candidate.id))]
+      };
+    }).filter((mention) => mention.entityIds.length);
+  }
+
+  function graphTaxonomyKeys(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+    const attributes =
+      raw.attributes && typeof raw.attributes === "object" && !Array.isArray(raw.attributes)
+        ? raw.attributes
+        : raw.properties && typeof raw.properties === "object" && !Array.isArray(raw.properties)
+          ? raw.properties
+          : {};
+    return [...new Set([
+      ...Object.keys(raw),
+      ...Object.keys(attributes)
+    ].filter((key) => FORBIDDEN_GRAPH_TAXONOMY_KEYS.has(semanticKey(key))))];
   }
 
 
@@ -301,7 +455,12 @@
     if (!value || typeof value !== "object" || Array.isArray(value)) return {};
     const cleaned = {};
     for (const [key, entry] of Object.entries(value)) {
-      if (!contextPropertyKey(key)) cleaned[key] = cloneJson(entry);
+      if (
+        !contextPropertyKey(key) &&
+        !FORBIDDEN_GRAPH_TAXONOMY_KEYS.has(semanticKey(key))
+      ) {
+        cleaned[key] = cloneJson(entry);
+      }
     }
     return cleaned;
   }
@@ -567,11 +726,27 @@
     const rawItems = Array.isArray(input?.items) ? input.items : [];
     const rawStories = Array.isArray(input?.stories) ? input.stories : [];
     const rawPlaces = Array.isArray(input?.places) ? input.places : [];
+    const rawEvidence = Array.isArray(input?.evidence) ? input.evidence : [];
     const itemIds = new Set(rawItems.map((item) => text(item?.id, 120)).filter(Boolean));
     const storyIds = new Set(rawStories.map((story) => text(story?.id, 120)).filter(Boolean));
     const entityIds = new Set();
     const placeIds = new Set();
     const canonicalIds = new Map();
+    const relationshipById = new Map();
+    const contextualEntityIdsByItem = new Map();
+    const evidenceById = new Map(
+      rawEvidence
+        .map((record) => [text(record?.id, 120), record])
+        .filter(([id]) => Boolean(id))
+    );
+
+    const addContextualEndpoints = (itemId, subjectId, objectId) => {
+      if (!itemId || !subjectId || !objectId) return;
+      if (!contextualEntityIdsByItem.has(itemId)) contextualEntityIdsByItem.set(itemId, new Set());
+      const endpoints = contextualEntityIdsByItem.get(itemId);
+      endpoints.add(subjectId);
+      endpoints.add(objectId);
+    };
   
     const registerId = (rawId, kind, label) => {
       const id = text(rawId, 120);
@@ -599,6 +774,10 @@
         errors.push(`${label}: place must be an object.`);
         return;
       }
+      const taxonomyKeys = graphTaxonomyKeys(raw);
+      if (taxonomyKeys.length) {
+        errors.push(`${label}: graph/place records cannot carry timeline category/group taxonomy (${taxonomyKeys.join(", ")}). Categories classify chronology items only.`);
+      }
       let normalized = null;
       try {
         normalized = spatial?.normalizePlace?.(raw, index) || null;
@@ -624,6 +803,10 @@
       if (id) entityIds.add(id);
       const result = validateEntityNode(raw);
       if (!result.valid) errors.push(`${label}: ${result.message}`);
+      const taxonomyKeys = graphTaxonomyKeys(raw);
+      if (taxonomyKeys.length) {
+        errors.push(`${label}: entity nodes cannot carry timeline category/group taxonomy (${taxonomyKeys.join(", ")}). Categories classify chronology items only.`);
+      }
       if (id && itemIds.has(id)) errors.push(`${label}: entity IDs cannot collide with chronology item IDs.`);
       if (id && storyIds.has(id)) errors.push(`${label}: entity IDs cannot collide with story IDs.`);
     });
@@ -638,6 +821,10 @@
       const predicate = text(raw.predicate || raw.label || raw.type, 120);
       const predicateResult = validateActionPredicate(predicate);
       if (!predicateResult.valid) errors.push(`${label}: ${predicateResult.message}`);
+      const taxonomyKeys = graphTaxonomyKeys(raw);
+      if (taxonomyKeys.length) {
+        errors.push(`${label}: relationships cannot carry timeline category/group taxonomy (${taxonomyKeys.join(", ")}). Categories classify chronology items only.`);
+      }
   
       const predicateKey = semanticKey(predicate);
       for (const place of rawPlaces) {
@@ -669,8 +856,21 @@
         errors.push(`${label}: generic edge attributes duplicates canonical spatiotemporal context (${duplicateKeys.join(", ")}). Use edge.time and edge.placeId.`);
       }
   
+      const validEndpoints =
+        Boolean(id) &&
+        entityIds.has(subjectId) &&
+        entityIds.has(objectId) &&
+        subjectId !== objectId &&
+        predicateResult.valid;
+      if (validEndpoints) relationshipById.set(id, { subjectId, objectId });
+
       for (const itemId of Array.isArray(raw.itemIds) ? raw.itemIds : []) {
-        if (!itemIds.has(String(itemId))) errors.push(`${label}: itemIds must reference chronology records, not create graph endpoints.`);
+        const contextId = String(itemId);
+        if (!itemIds.has(contextId)) {
+          errors.push(`${label}: itemIds must reference chronology records, not create graph endpoints.`);
+        } else if (validEndpoints) {
+          addContextualEndpoints(contextId, subjectId, objectId);
+        }
       }
     });
   
@@ -686,10 +886,26 @@
     }
   
     for (const item of rawItems) {
+      const itemId = text(item?.id, 120);
       for (const change of Array.isArray(item?.relationChanges) ? item.relationChanges : []) {
-        if (change?.operation !== "update" || !change.predicate) continue;
-        const result = validateActionPredicate(change.predicate);
-        if (!result.valid) errors.push(`Relation change ${item?.id || "item"}: ${result.message}`);
+        if (change?.operation === "update" && change.predicate) {
+          const result = validateActionPredicate(change.predicate);
+          if (!result.valid) errors.push(`Relation change ${itemId || "item"}: ${result.message}`);
+        }
+        const relationshipId = text(change?.relationshipId || change?.edgeId, 120);
+        const relationship = relationshipById.get(relationshipId);
+        if (itemId && relationship) {
+          addContextualEndpoints(itemId, relationship.subjectId, relationship.objectId);
+        }
+      }
+
+      if (!itemId) continue;
+      const contextualEntityIds = contextualEntityIdsByItem.get(itemId) || new Set();
+      for (const mention of namedEntityMentions(item, rawEntities, evidenceById)) {
+        if (mention.entityIds.some((entityId) => contextualEntityIds.has(entityId))) continue;
+        errors.push(
+          `Item ${itemId}: narrative context names canonical entity “${mention.label}”, but no meaningful action edge linked to this event includes that entity. Create/reuse the entity and connect it as subject or target through relationship.itemIds or relationChanges.`
+        );
       }
     }
   
@@ -1031,7 +1247,9 @@
   }
 
   globalThis.TimelineGraph = Object.freeze({
+    GRAPH_CONTRACT_VERSION,
     GRAPH_MODEL_RULES,
+    getGraphContract,
     auditGraphStructure,
     findDuplicateRelationship,
     findMirroredRelationship,
@@ -1039,6 +1257,8 @@
     graphForWindow,
     migrateLegacySpatialModel,
     normalizeGraphData,
+    namedEntityMentions,
+    itemNarrativeContext,
     validateGraphInput,
     validateActionPredicate,
     validateEntityNode,

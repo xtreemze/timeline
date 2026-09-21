@@ -616,6 +616,122 @@ test("graph semantics reject action nodes and generic association predicates", (
   assert.ok(invalidPlaces.some((error) => /unsupported marker shape/.test(error)));
   assert.equal(graph.contextPropertyKey("geometry"), true);
   assert.equal(graph.contextPropertyKey("channel"), false);
+
+  assert.equal(graph.GRAPH_CONTRACT_VERSION, "2026-09-21.1");
+  assert.match(graph.GRAPH_MODEL_RULES.namedNarrativeEntities, /contextual-action-edges/);
+  assert.match(graph.getGraphContract().requiredAuthoringWorkflow.join(" "), /Extract every durable named entity/);
+
+  const taxonomyErrors = graph.validateGraphInput({
+    items: [{ id: "event-taxonomy", title: "A called B", categoryId: "incident" }],
+    entities: [
+      { id: "a", type: "person", name: "A", attributes: { categoryId: "people" } },
+      { id: "b", type: "person", name: "B" }
+    ],
+    places: [{
+      id: "place-taxonomy",
+      name: "Office",
+      geometry: { type: "Point", coordinates: [1, 1] },
+      attributes: { groupId: "places" }
+    }],
+    relationships: [{
+      id: "taxonomy-edge",
+      subjectId: "a",
+      objectId: "b",
+      predicate: "called",
+      itemIds: ["event-taxonomy"],
+      attributes: { category: "communication" }
+    }]
+  });
+  assert.ok(taxonomyErrors.some((error) => /entity nodes cannot carry timeline category\/group taxonomy/.test(error)));
+  assert.ok(taxonomyErrors.some((error) => /graph\/place records cannot carry timeline category\/group taxonomy/.test(error)));
+  assert.ok(taxonomyErrors.some((error) => /relationships cannot carry timeline category\/group taxonomy/.test(error)));
+
+  const narrativeEntities = [
+    { id: "alice", type: "person", name: "Alice" },
+    { id: "bob", type: "person", name: "Bob", alternateNames: ["Robert"] },
+    { id: "carol", type: "person", name: "Carol" }
+  ];
+  const narrativeItem = {
+    id: "event-narrative",
+    title: "Alice called Bob",
+    description: "Robert warned Alice after the call.",
+    media: [{ alt: "Alice and Bob", caption: "Carol News photo credit" }],
+    evidenceIds: ["evidence-narrative"]
+  };
+  const evidence = [{
+    id: "evidence-narrative",
+    type: "note",
+    title: "Carol report",
+    sourceName: "Carol News",
+    note: "Bob warned Alice."
+  }];
+  const mentions = graph.namedEntityMentions(
+    narrativeItem,
+    narrativeEntities,
+    new Map(evidence.map((record) => [record.id, record]))
+  );
+  assert.deepEqual(
+    new Set(mentions.flatMap((mention) => mention.entityIds)),
+    new Set(["alice", "bob"]),
+    "title/description/image alt/evidence note count; provenance caption/title/source do not"
+  );
+
+  const uncoveredNarrative = graph.validateGraphInput({
+    items: [narrativeItem],
+    evidence,
+    entities: narrativeEntities,
+    relationships: [{
+      id: "narrative-edge-a",
+      subjectId: "alice",
+      objectId: "carol",
+      predicate: "called",
+      itemIds: ["event-narrative"]
+    }, {
+      id: "narrative-edge-b",
+      subjectId: "bob",
+      objectId: "carol",
+      predicate: "warned",
+      itemIds: []
+    }]
+  });
+  assert.ok(uncoveredNarrative.some((error) =>
+    /narrative context names canonical entity “Bob”/.test(error) &&
+    /meaningful action edge linked to this event/.test(error)
+  ));
+
+  const coveredNarrative = graph.validateGraphInput({
+    items: [narrativeItem],
+    evidence,
+    entities: narrativeEntities,
+    relationships: [{
+      id: "narrative-edge-a",
+      subjectId: "alice",
+      objectId: "carol",
+      predicate: "called",
+      itemIds: ["event-narrative"]
+    }, {
+      id: "narrative-edge-b",
+      subjectId: "bob",
+      objectId: "alice",
+      predicate: "warned",
+      itemIds: ["event-narrative"]
+    }]
+  });
+  assert.deepEqual(coveredNarrative, []);
+
+  const scopedMentions = graph.namedEntityMentions({
+    id: "event-prince",
+    title: "The Prince arrives",
+    extensions: { narrative: { storyId: "cinderella" } }
+  }, [
+    { id: "snow-prince", type: "person", name: "The Prince", alternateNames: ["Prince"], attributes: { storyId: "snow" } },
+    { id: "cinderella-prince", type: "person", name: "The Prince", alternateNames: ["Prince"], attributes: { storyId: "cinderella" } }
+  ]);
+  assert.deepEqual(
+    new Set(scopedMentions.flatMap((mention) => mention.entityIds)),
+    new Set(["cinderella-prince"]),
+    "same-named entities resolve within the event's story scope"
+  );
 });
 
 test("legacy place nodes and item locations migrate into reusable edge place context", () => {

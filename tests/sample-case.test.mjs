@@ -400,10 +400,35 @@ test("chronology items remain edge context and never become graph nodes", () => 
 
     const itemStart = temporal.sortKey(item.start);
     const itemEnd = temporal.sortKey(item.end || item.start);
-    for (const edge of edges.filter((relationship) => relationship.time?.start?.value)) {
-      const edgeStart = temporal.sortKey(edge.time.start.value);
-      const edgeEnd = temporal.sortKey(edge.time.end?.value || edge.time.start.value);
-      assert.ok(edgeEnd >= itemStart && edgeStart <= itemEnd, `${edge.id}: must overlap ${item.id}`);
+    const timedEdges = edges.filter((relationship) => relationship.time?.start?.value);
+    assert.ok(
+      timedEdges.some((edge) => {
+        const edgeStart = temporal.sortKey(edge.time.start.value);
+        const edgeEnd = temporal.sortKey(edge.time.end?.value || edge.time.start.value);
+        return edgeEnd >= itemStart && edgeStart <= itemEnd;
+      }),
+      `${item.id}: expected at least one contemporaneous action edge; additional itemIds may provide causal/background context`
+    );
+  }
+
+  const evidenceById = new Map(sample.evidence.map((record) => [record.id, record]));
+  const relationshipById = new Map(sample.relationships.map((relationship) => [relationship.id, relationship]));
+  for (const item of sample.items) {
+    const contextualEdges = sample.relationships.filter(
+      (relationship) => (relationship.itemIds || []).includes(item.id)
+    );
+    for (const change of item.relationChanges || []) {
+      const relationship = relationshipById.get(change.relationshipId);
+      if (relationship && !contextualEdges.includes(relationship)) contextualEdges.push(relationship);
+    }
+    const contextualEntityIds = new Set(
+      contextualEdges.flatMap((relationship) => [relationship.subjectId, relationship.objectId])
+    );
+    for (const mention of graph.namedEntityMentions(item, sample.entities, evidenceById)) {
+      assert.ok(
+        mention.entityIds.some((entityId) => contextualEntityIds.has(entityId)),
+        `${item.id}: named entity ${mention.label} must participate in an action edge linked to the event`
+      );
     }
   }
 

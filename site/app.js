@@ -3889,12 +3889,50 @@
     showStatus(`${statusPrefix} ${state.items.length} ${state.items.length === 1 ? "item" : "items"} and ${state.stories.length} ${state.stories.length === 1 ? "story" : "stories"}${warningText}.`);
   }
 
+  function graphContract() {
+    return graph.getGraphContract?.() || {
+      version: graph.GRAPH_CONTRACT_VERSION || "unknown",
+      rules: clone(graph.GRAPH_MODEL_RULES || {})
+    };
+  }
+
+  function auditAgentGraph(project) {
+    const candidate = clone(project ?? state);
+    const errors = graph.validateGraphInput(candidate);
+    return {
+      valid: errors.length === 0,
+      graphContractVersion: graph.GRAPH_CONTRACT_VERSION || graphContract().version,
+      errors,
+      structure: graph.auditGraphStructure(candidate)
+    };
+  }
+
+  function assertAgentGraphValid(project) {
+    const audit = auditAgentGraph(project);
+    if (audit.valid) return audit;
+    throw new Error(
+      `Graph contract ${audit.graphContractVersion} rejected the mutation:\n- ${audit.errors.join("\n- ")}`
+    );
+  }
+
   function validateAgentProject(project) {
     try {
-      const normalized = normalizeTimeline(clone(project ?? state), { strictGraph: true });
+      const candidate = clone(project ?? state);
+      const graphAudit = auditAgentGraph(candidate);
+      if (!graphAudit.valid) {
+        return {
+          valid: false,
+          graphContractVersion: graphAudit.graphContractVersion,
+          errors: graphAudit.errors,
+          graph: graphAudit.structure
+        };
+      }
+      const normalized = normalizeTimeline(candidate, { strictGraph: true });
       return {
         valid: true,
+        graphContractVersion: graphAudit.graphContractVersion,
         errors: [],
+        graph: graphAudit.structure,
         summary: {
           items: normalized.items.length,
           stories: normalized.stories.length,
@@ -3906,19 +3944,23 @@
     } catch (error) {
       return {
         valid: false,
+        graphContractVersion: graph.GRAPH_CONTRACT_VERSION || graphContract().version,
         errors: [error instanceof Error ? error.message : "Timeline validation failed."]
       };
     }
   }
 
   function replaceProjectFromAgent(project, statusPrefix = "AI replaced") {
+    const candidate = clone(project);
+    assertAgentGraphValid(candidate);
     timelineView?.closeFocus();
-    applyImportedTimeline(clone(project), statusPrefix);
+    applyImportedTimeline(candidate, statusPrefix);
     return clone(state);
   }
 
   function applyAgentTransaction(operations) {
     const draft = webMcp.applyOperations(clone(state), operations);
+    assertAgentGraphValid(draft);
     const normalized = normalizeTimeline(draft, { strictGraph: true });
     timelineView?.closeFocus();
     applyImportedTimeline(normalized, "AI updated");
@@ -3931,6 +3973,8 @@
 
   const agentApi = Object.freeze({
     getProject: () => clone(state),
+    getGraphContract: graphContract,
+    auditGraph: auditAgentGraph,
     validateProject: validateAgentProject,
     applyOperations: applyAgentTransaction,
     replaceProject: (project) => ({
