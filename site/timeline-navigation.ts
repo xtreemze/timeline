@@ -8,12 +8,6 @@ const MIN_INTERVAL_MS = 2_000;
 const MAX_INTERVAL_MS = 3_600_000;
 const AXIS_THRESHOLD = 0.68;
 
-function clampInterval(value: unknown): number {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return DEFAULT_INTERVAL_MS;
-  return Math.max(MIN_INTERVAL_MS, Math.min(MAX_INTERVAL_MS, Math.round(numeric)));
-}
-
 function isEditableTarget(target: unknown): boolean {
   return (
     target instanceof Element &&
