@@ -51,12 +51,10 @@ function dispatchTouchPointer(
   );
 }
 
-test("long-press touch moves an Orb node", async ({ page }) => {
+test("long-press touch moves an Orb node", async ({ page }, testInfo) => {
+  expect(testInfo.project.use.hasTouch).toBe(true);
   await page.goto("/");
   await page.setViewportSize({ width: 375, height: 812 });
-  await expect
-    .poll(() => page.evaluate(() => navigator.maxTouchPoints))
-    .toBeGreaterThan(0);
   await page.waitForFunction(() => Boolean(window.TimelineOrbGraph?.create));
 
   await page.evaluate(() => {
