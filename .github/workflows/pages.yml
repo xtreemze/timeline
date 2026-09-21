@@ -53,6 +53,8 @@ jobs:
         run: |
           pnpm build
           test -s site/orb-graph.bundle.js
+          test -s site/leaflet.bundle.js
+          test -s site/leaflet.css
           test -s site/evidence-extraction.bundle.js
           test -s site/pdf.worker.mjs
           node --check src/orb-graph-entry.js
@@ -80,7 +82,7 @@ jobs:
           path: playwright-report/
 
       - name: Validate static entry point
-        run: test -f site/index.html && test -f site/styles.css && test -f site/icon.svg && test -s site/orb-graph.bundle.js && test -s site/evidence-extraction.bundle.js && test -s site/pdf.worker.mjs
+        run: test -f site/index.html && test -f site/styles.css && test -f site/icon.svg && test -s site/orb-graph.bundle.js && test -s site/leaflet.bundle.js && test -s site/leaflet.css && test -s site/evidence-extraction.bundle.js && test -s site/pdf.worker.mjs
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

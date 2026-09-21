@@ -99,7 +99,32 @@ Spatial context is canonicalized separately from chronology items and graph node
       "crs": "OGC:CRS84",
       "radiusMeters": 150,
       "icon": "place",
-      "markerShape": "pin"
+      "markerShape": "pin",
+      "style": {
+        "marker": {
+          "color": "#315fbd",
+          "fillColor": "#fffdf9",
+          "opacity": 1,
+          "size": 32,
+          "weight": 2
+        },
+        "path": {
+          "stroke": true,
+          "color": "#315fbd",
+          "weight": 3,
+          "opacity": 0.9,
+          "dashArray": "6 4",
+          "dashOffset": "0",
+          "lineCap": "round",
+          "lineJoin": "round"
+        },
+        "area": {
+          "fill": true,
+          "fillColor": "#315fbd",
+          "fillOpacity": 0.12,
+          "fillRule": "evenodd"
+        }
+      }
     }
   ],
   "relationships": [
@@ -124,9 +149,17 @@ Spatial context is canonicalized separately from chronology items and graph node
 }
 ```
 
-Coordinate order is always `[longitude, latitude]`. Supported canonical place geometry is GeoJSON Point, Polygon, or MultiPolygon. A Point may carry `radiusMeters`; area geometries already encode their extent and therefore cannot also carry a radius.
+Coordinate order is always `[longitude, latitude]`. Supported canonical place geometry is GeoJSON Point, LineString, MultiLineString, Polygon, or MultiPolygon. A Point may carry `radiusMeters`; path and area geometries already encode their extent and therefore cannot also carry a radius.
 
 `icon` identifies the semantic marker symbol. `markerShape` is one of `pin`, `circle`, `square`, or `diamond`. Leaflet resolves both from the referenced place when rendering a relationship's map context.
+
+Optional `style` is canonical presentation metadata rather than a Leaflet object. Blank editor values are omitted so the map can inherit Timeline/event colors. The supported portable subset maps directly to useful Leaflet visual options:
+
+- `marker`: `color`, `fillColor`, `opacity`, visual `size`, and outline `weight`;
+- `path`: `stroke`, `color`, `weight`, `opacity`, `dashArray`, `dashOffset`, `lineCap`, and `lineJoin`;
+- `area`: `fill`, `fillColor`, `fillOpacity`, and `fillRule`.
+
+Renderer behavior is deliberately excluded: arbitrary CSS classes, panes, event bubbling, interactivity, drag behavior, and Leaflet instances are never persisted. This keeps the same records portable to the MapLibre/PMTiles direction in #240.
 
 Place identity is reusable and deduplicated. The editor rejects creating an equivalent name/geometry/radius record and directs the author to reuse the existing place from the edge selector. This prevents many events or edges from carrying copies of the same coordinates.
 
@@ -138,30 +171,38 @@ Chrome 144 introduced the `<geolocation>` element. Timeline uses it as the prima
 
 No location prompt runs automatically.
 
-## Leaflet / OpenStreetMap
+## Map renderer and basemap providers
 
-Leaflet 1.9.4 is currently the latest stable Leaflet release. It is loaded lazily from the documented distribution with Subresource Integrity only when the location section is opened.
+Timeline currently uses Leaflet 1.9.4 as its map renderer. Leaflet JavaScript and CSS are built into Timeline's static site from the pinned package dependency, so opening a map does not depend on a runtime CDN such as unpkg.
 
-The default map provider is:
+Canonical place geometry is independent from the basemap. Timeline-owned markers, labels, routes, polygons, radii, and fictional reference frames are rendered as overlays and remain meaningful when a basemap provider is unavailable. Basemap state is diagnostic presentation state only and is never persisted into project data.
+
+The compatibility/default provider remains the public OpenStreetMap raster endpoint:
 
 ```text
 https://tile.openstreetmap.org/{z}/{x}/{y}.png
 ```
 
+It is treated as best-effort rather than authoritative application infrastructure. Deployments can provide either `globalThis.TimelineMapTileProvider` or an ordered `globalThis.TimelineMapTileProviders` array. After repeated tile failures Timeline advances to the next configured provider; if every provider fails it removes only the basemap layer and exposes a non-blocking `basemapState=unavailable` state while retaining semantic geometry. Provider failover never mutates the selected place, geometry, or event relationship.
+
+Map containers are observed with `ResizeObserver`. Leaflet receives `invalidateSize()` after measurable layout changes so hidden, resized, fullscreen, portrait/landscape, and sidebar reflows do not leave stale map dimensions. A semantic placeholder remains until rendered Leaflet geometry is confirmed in the DOM. Places with no usable geometry show an explicit `No mapped coordinates` state rather than silently producing an empty map.
+
 Timeline:
 
-- shows OpenStreetMap attribution on the map;
-- renders presentation geometry through Leaflet GeoJSON layers;
-- uses each canonical place's semantic SVG icon and marker shape for point markers, with relationship/event color available as presentation accent;
+- keeps OpenStreetMap attribution when the compatibility provider is active;
+- renders presentation geometry through Leaflet GeoJSON layers independently from the basemap;
+- uses each canonical place's semantic SVG icon, marker shape, and optional marker/path/area style overrides, with relationship/event color retained as the fallback presentation accent;
 - fits routes, areas and collections to their visible bounds rather than leaving an empty generic map;
 - renders a canonical Point `radiusMeters` as a non-interactive Leaflet circle;
 - does not prefetch or bulk-download tiles;
 - does not offer offline map-tile download;
 - relies on normal browser HTTP caching;
 - does not use public Nominatim geocoding implicitly;
-- allows deployments to replace the tile provider through `globalThis.TimelineMapTileProvider`.
+- keeps renderer/provider state out of canonical project data.
 
-Opening the map sends tile requests to OpenStreetMap. This network/privacy boundary is distinct from Timeline's local storage of the location record.
+The integrated graph/geography architecture tracked in #236 may later replace the raster underlay with MapLibre GL + PMTiles/vector tiles. That renderer decision is intentionally separate from the canonical place model and this reliability contract.
+
+Opening a network basemap sends tile requests to the selected provider. This network/privacy boundary is distinct from Timeline's local storage of the location record.
 
 References:
 - https://leafletjs.com/download.html

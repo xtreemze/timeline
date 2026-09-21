@@ -12,6 +12,7 @@
   <meta property="og:url" content="https://xtreemze.github.io/timeline/">
   <title>Timeline — events, ranges, and stories</title>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./leaflet.css">
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./timeline-view.css">
   <link rel="stylesheet" href="./print.css" media="print">
@@ -663,8 +664,8 @@
                   </geolocation>
                   <button id="item-location-clear" class="button ghost" type="button">Clear location</button>
                 </div>
-                <div id="item-location-map" class="location-map" role="region" aria-label="OpenStreetMap location picker"></div>
-                <p class="field-hint">Click the map or drag its marker to set coordinates. Map tiles load only while this section is open; location records remain local. © OpenStreetMap contributors.</p>
+                <div id="item-location-map" class="location-map" role="region" aria-label="Location map picker"></div>
+                <p class="field-hint">Click the map or drag its marker to set coordinates. Basemap tiles load only while this section is open; Timeline-owned markers remain available if the provider fails. Location records remain local.</p>
               </details>
 
               <details id="item-inference-details" class="optional-editor field-wide inference-editor">
@@ -878,9 +879,114 @@
                 <option value="diamond">Diamond</option>
               </select>
             </label>
+            <details class="optional-editor field-wide map-style-editor">
+              <summary>Map appearance <small>optional · blank values inherit Timeline defaults</small></summary>
+              <fieldset class="map-style-group">
+                <legend>Marker</legend>
+                <label class="field">
+                  <span>Stroke / icon color</span>
+                  <input id="graph-place-marker-color" type="text" inputmode="text" pattern="#[0-9A-Fa-f]{6}" maxlength="7" placeholder="#315fbd">
+                </label>
+                <label class="field">
+                  <span>Fill color</span>
+                  <input id="graph-place-marker-fill-color" type="text" inputmode="text" pattern="#[0-9A-Fa-f]{6}" maxlength="7" placeholder="#fffdf9">
+                </label>
+                <label class="field">
+                  <span>Opacity <small>0–1</small></span>
+                  <input id="graph-place-marker-opacity" type="number" min="0" max="1" step="0.05" inputmode="decimal" placeholder="1">
+                </label>
+                <label class="field">
+                  <span>Visual size <small>16–40 px</small></span>
+                  <input id="graph-place-marker-size" type="number" min="16" max="40" step="1" inputmode="numeric" placeholder="32">
+                </label>
+                <label class="field">
+                  <span>Stroke weight <small>0–8 px</small></span>
+                  <input id="graph-place-marker-weight" type="number" min="0" max="8" step="0.5" inputmode="decimal" placeholder="2">
+                </label>
+              </fieldset>
+
+              <fieldset class="map-style-group">
+                <legend>Path / outline</legend>
+                <label class="field">
+                  <span>Stroke</span>
+                  <select id="graph-place-path-stroke">
+                    <option value="">Inherit</option>
+                    <option value="true">On</option>
+                    <option value="false">Off</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Color</span>
+                  <input id="graph-place-path-color" type="text" inputmode="text" pattern="#[0-9A-Fa-f]{6}" maxlength="7" placeholder="#315fbd">
+                </label>
+                <label class="field">
+                  <span>Weight <small>0–24 px</small></span>
+                  <input id="graph-place-path-weight" type="number" min="0" max="24" step="0.5" inputmode="decimal" placeholder="3">
+                </label>
+                <label class="field">
+                  <span>Opacity <small>0–1</small></span>
+                  <input id="graph-place-path-opacity" type="number" min="0" max="1" step="0.05" inputmode="decimal" placeholder="0.9">
+                </label>
+                <label class="field">
+                  <span>Dash array <small>SVG pattern</small></span>
+                  <input id="graph-place-path-dash-array" type="text" maxlength="80" autocomplete="off" pattern="[0-9., ]+" placeholder="6 4">
+                </label>
+                <label class="field">
+                  <span>Dash offset</span>
+                  <input id="graph-place-path-dash-offset" type="text" maxlength="80" autocomplete="off" pattern="-?[0-9.]+" placeholder="0">
+                </label>
+                <label class="field">
+                  <span>Line cap</span>
+                  <select id="graph-place-path-line-cap">
+                    <option value="">Inherit</option>
+                    <option value="round">Round</option>
+                    <option value="butt">Butt</option>
+                    <option value="square">Square</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Line join</span>
+                  <select id="graph-place-path-line-join">
+                    <option value="">Inherit</option>
+                    <option value="round">Round</option>
+                    <option value="miter">Miter</option>
+                    <option value="bevel">Bevel</option>
+                  </select>
+                </label>
+              </fieldset>
+
+              <fieldset class="map-style-group">
+                <legend>Area / fill</legend>
+                <label class="field">
+                  <span>Fill</span>
+                  <select id="graph-place-area-fill">
+                    <option value="">Inherit</option>
+                    <option value="true">On</option>
+                    <option value="false">Off</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Fill color</span>
+                  <input id="graph-place-area-fill-color" type="text" inputmode="text" pattern="#[0-9A-Fa-f]{6}" maxlength="7" placeholder="#315fbd">
+                </label>
+                <label class="field">
+                  <span>Fill opacity <small>0–1</small></span>
+                  <input id="graph-place-area-fill-opacity" type="number" min="0" max="1" step="0.05" inputmode="decimal" placeholder="0.12">
+                </label>
+                <label class="field">
+                  <span>Fill rule</span>
+                  <select id="graph-place-area-fill-rule">
+                    <option value="">Inherit</option>
+                    <option value="evenodd">Even-odd</option>
+                    <option value="nonzero">Nonzero</option>
+                  </select>
+                </label>
+              </fieldset>
+              <p class="field-hint">These are portable visual overrides mapped to Leaflet path and marker styling. Interaction behavior, arbitrary CSS classes, and renderer-specific objects are not stored.</p>
+            </details>
             <label class="field field-wide">
-              <span>Area geometry <small>optional GeoJSON Polygon/MultiPolygon; use instead of point coordinates</small></span>
-              <textarea id="graph-place-area" rows="5" spellcheck="false" placeholder='{"type":"Polygon","coordinates":[[[18.06,59.32],[18.07,59.32],[18.07,59.33],[18.06,59.32]]]}'></textarea>
+              <span>Path / area geometry <small>optional GeoJSON LineString/MultiLineString/Polygon/MultiPolygon; use instead of point coordinates</small></span>
+              <textarea id="graph-place-area" rows="5" spellcheck="false" placeholder='{"type":"LineString","coordinates":[[18.06,59.32],[18.07,59.33]]}'></textarea>
             </label>
             <p id="graph-place-error" class="form-error" role="alert" hidden></p>
             <div class="form-actions">
@@ -1222,6 +1328,7 @@
   <script type="module" src="./timeline-navigation-shim.ts" defer></script>
   <script type="module" src="./presentation-layout-shim.ts" defer></script>
   <script type="module" src="./spatial-shim.ts" defer></script>
+  <script src="./leaflet.bundle.js" defer></script>
   <script type="module" src="./location-map-shim.ts" defer></script>
   <script type="module" src="./interchange-adapter-shim.ts" defer></script>
   <script type="module" src="./memgraph-interchange-shim.ts" defer></script>

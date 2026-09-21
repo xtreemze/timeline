@@ -3,17 +3,13 @@
  * Supports read-only display with geospatial features and interactive editing
  */
 
-const LEAFLET_VERSION = "1.9.4";
-const LEAFLET_CSS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-const LEAFLET_JS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-const LEAFLET_CSS_INTEGRITY = "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=";
-const LEAFLET_JS_INTEGRITY = "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=";
-
 const DEFAULT_PROVIDER = Object.freeze({
+  id: "osm-public-compatibility",
   url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
   attribution:
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   maxZoom: 19,
+  bestEffort: true,
 });
 
 const PRESENTATION_WORLD_VIEW = Object.freeze({
@@ -27,21 +23,48 @@ const MAP_DRAG_MOVE_TOLERANCE_PX = 8;
 const MAP_CLICK_SUPPRESSION_MS = 350;
 const motion = globalThis.TimelineMotion;
 
-let loadPromise: Promise<any> | null = null;
-
 interface PointCoord {
   lat: number;
   lng: number;
 }
 
 interface MapProvider {
+  id?: string;
   url: string;
-  attribution: string;
-  maxZoom: number;
+  attribution?: string;
+  maxZoom?: number;
+  bestEffort?: boolean;
+  options?: Record<string, unknown>;
+}
+
+interface MapStyle {
+  marker?: {
+    color?: string;
+    fillColor?: string;
+    opacity?: number;
+    size?: number;
+    weight?: number;
+  };
+  path?: {
+    stroke?: boolean;
+    color?: string;
+    weight?: number;
+    opacity?: number;
+    dashArray?: string;
+    dashOffset?: string;
+    lineCap?: string;
+    lineJoin?: string;
+  };
+  area?: {
+    fill?: boolean;
+    fillColor?: string;
+    fillOpacity?: number;
+    fillRule?: string;
+  };
 }
 
 interface LocationObject {
-  geometry?: { type: string; coordinates: number[] };
+  geometry?: { type: string; coordinates: unknown };
   mapFeatures?: unknown[];
   radiusMeters?: number;
   accuracyMeters?: number;
@@ -49,6 +72,7 @@ interface LocationObject {
   name?: string;
   icon?: string;
   markerShape?: string;
+  style?: MapStyle;
   geographicIdentifier?: string;
   address?: string;
 }
@@ -78,6 +102,7 @@ interface ReadOnlyLocationMapOptions {
   color?: string;
   iconName?: string;
   markerShape?: string;
+  style?: MapStyle;
   label?: string;
   interactive?: boolean;
   countryContextIntro?: boolean;
@@ -96,37 +121,123 @@ interface LocationMapControllerOptions {
 }
 
 function loadLeaflet(): Promise<any> {
+  const ready = Reflect.get(globalThis, "TimelineLeafletReady");
+  if (ready && typeof (ready as { then?: unknown }).then === "function") {
+    return ready as Promise<any>;
+  }
   if (globalThis.L) return Promise.resolve(globalThis.L);
-  if (loadPromise) return loadPromise;
+  return Promise.reject(new Error("Leaflet local bundle is unavailable."));
+}
 
-  loadPromise = new Promise((resolve, reject) => {
-    if (!document.querySelector("link[data-timeline-leaflet]")) {
-      const stylesheet = document.createElement("link");
-      stylesheet.rel = "stylesheet";
-      stylesheet.href = LEAFLET_CSS;
-      stylesheet.integrity = LEAFLET_CSS_INTEGRITY;
-      stylesheet.crossOrigin = "";
-      (stylesheet.dataset as any).timelineLeaflet = LEAFLET_VERSION;
-      document.head.append(stylesheet);
-    }
+function tileProviders(): MapProvider[] {
+  const configured = Reflect.get(globalThis, "TimelineMapTileProviders");
+  const single = Reflect.get(globalThis, "TimelineMapTileProvider");
+  const candidates =
+    Array.isArray(configured) && configured.length > 0
+      ? configured
+      : single
+        ? [single]
+        : [DEFAULT_PROVIDER];
+  return candidates.filter(
+    (provider): provider is MapProvider =>
+      Boolean(provider) &&
+      typeof provider === "object" &&
+      typeof (provider as MapProvider).url === "string" &&
+      (provider as MapProvider).url.length > 0,
+  );
+}
 
-    const existing = document.querySelector("script[data-timeline-leaflet]");
-    const script = existing || document.createElement("script");
-    if (!existing) {
-      script.src = LEAFLET_JS;
-      script.integrity = LEAFLET_JS_INTEGRITY;
-      script.crossOrigin = "";
-      (script.dataset as any).timelineLeaflet = LEAFLET_VERSION;
-      document.head.append(script);
-    }
-    script.addEventListener("load", () => resolve(globalThis.L), { once: true });
-    script.addEventListener("error", () => reject(new Error("Leaflet could not be loaded.")), {
-      once: true,
+function observeMapSize(
+  map: any,
+  container: HTMLElement,
+  afterResize: (() => void) | null = null,
+): () => void {
+  let animationFrame = 0;
+  const invalidate = () => {
+    const bounds = container.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) return;
+    if (animationFrame) cancelAnimationFrame(animationFrame);
+    animationFrame = requestAnimationFrame(() => {
+      animationFrame = 0;
+      map?.invalidateSize({ pan: false });
+      afterResize?.();
     });
-    if (globalThis.L) resolve(globalThis.L);
-  });
+  };
+  const observer =
+    typeof globalThis.ResizeObserver === "function" ? new ResizeObserver(invalidate) : null;
+  observer?.observe(container);
+  invalidate();
+  return () => {
+    if (animationFrame) cancelAnimationFrame(animationFrame);
+    animationFrame = 0;
+    observer?.disconnect();
+  };
+}
 
-  return loadPromise;
+function attachBasemap(
+  L: any,
+  map: any,
+  container: HTMLElement,
+  providers: MapProvider[] = tileProviders(),
+): () => void {
+  let providerIndex = 0;
+  let tileErrors = 0;
+  let layer: {
+    on: (event: string, listener: () => void) => void;
+    off: () => void;
+    remove: () => void;
+    addTo: (target: unknown) => void;
+  } | null = null;
+  let destroyed = false;
+  const failureThreshold = 3;
+  const setState = (state: "loading" | "ready" | "unavailable", provider?: MapProvider) => {
+    container.dataset.basemapState = state;
+    if (provider?.id) container.dataset.basemapProvider = String(provider.id);
+    else delete container.dataset.basemapProvider;
+  };
+  const activate = () => {
+    if (destroyed) return;
+    layer?.off();
+    layer?.remove();
+    layer = null;
+    const provider = providers[providerIndex];
+    if (!provider) {
+      setState("unavailable");
+      return;
+    }
+    tileErrors = 0;
+    setState("loading", provider);
+    layer = L.tileLayer(provider.url, {
+      ...(provider.options || {}),
+      maxZoom: provider.maxZoom || Number(provider.options?.maxZoom) || 19,
+      attribution: provider.attribution || DEFAULT_PROVIDER.attribution,
+    });
+    layer.on("load", () => {
+      tileErrors = 0;
+      setState("ready", provider);
+    });
+    layer.on("tileerror", () => {
+      tileErrors += 1;
+      if (tileErrors < failureThreshold) return;
+      if (providerIndex + 1 < providers.length) {
+        providerIndex += 1;
+        activate();
+        return;
+      }
+      layer?.off();
+      layer?.remove();
+      layer = null;
+      setState("unavailable", provider);
+    });
+    layer.addTo(map);
+  };
+  activate();
+  return () => {
+    destroyed = true;
+    layer?.off();
+    layer?.remove();
+    layer = null;
+  };
 }
 
 function numeric(input: HTMLInputElement, min: number, max: number): number | null {
@@ -541,20 +652,75 @@ function fictionalTextureLayer(L: any, container: HTMLElement): any {
   return layer;
 }
 
+function mergeMapStyle(base: MapStyle = {}, override: MapStyle = {}): MapStyle {
+  return {
+    marker: { ...(base.marker || {}), ...(override.marker || {}) },
+    path: { ...(base.path || {}), ...(override.path || {}) },
+    area: { ...(base.area || {}), ...(override.area || {}) },
+  };
+}
+
+function styleNumber(value: unknown, fallback: number, min: number, max: number): number {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric >= min && numeric <= max ? numeric : fallback;
+}
+
+function markerAppearance(style: MapStyle = {}, fallbackColor = "#315fbd") {
+  const marker = style.marker || {};
+  return {
+    color: String(marker.color || fallbackColor),
+    fillColor: String(marker.fillColor || ""),
+    opacity: styleNumber(marker.opacity, 1, 0, 1),
+    size: styleNumber(marker.size, 32, 16, 40),
+    weight: styleNumber(marker.weight, 2, 0, 8),
+  };
+}
+
+function leafletPathStyle(
+  style: MapStyle = {},
+  fallbackColor = "#315fbd",
+  defaults: Record<string, unknown> = {},
+) {
+  const path = style.path || {};
+  const area = style.area || {};
+  return {
+    stroke: typeof path.stroke === "boolean" ? path.stroke : (defaults.stroke ?? true),
+    color: String(path.color || defaults.color || fallbackColor),
+    weight: styleNumber(path.weight, Number(defaults.weight ?? 3), 0, 24),
+    opacity: styleNumber(path.opacity, Number(defaults.opacity ?? 0.9), 0, 1),
+    lineCap: path.lineCap || defaults.lineCap,
+    lineJoin: path.lineJoin || defaults.lineJoin,
+    dashArray: path.dashArray || defaults.dashArray,
+    dashOffset: path.dashOffset || defaults.dashOffset,
+    fill: typeof area.fill === "boolean" ? area.fill : (defaults.fill ?? true),
+    fillColor: String(area.fillColor || defaults.fillColor || fallbackColor),
+    fillOpacity: styleNumber(area.fillOpacity, Number(defaults.fillOpacity ?? 0.12), 0, 1),
+    fillRule: area.fillRule || defaults.fillRule,
+  };
+}
+
 function semanticMarkerIcon(
   L: any,
   iconName: string,
   color: string,
   label = "",
   markerShape = "pin",
+  style: MapStyle = {},
 ): any {
+  const appearance = markerAppearance(style, color);
   const identity = document.createElement("span");
   identity.className = `timeline-map-marker-identity timeline-map-marker-shape-${markerShape}`;
-  identity.style.setProperty("--map-marker-color", String(color));
+  identity.style.setProperty("--map-marker-color", appearance.color);
+  if (appearance.fillColor) identity.style.setProperty("--map-marker-fill", appearance.fillColor);
+  identity.style.setProperty("--map-marker-size", `${appearance.size}px`);
+  identity.style.setProperty("--map-marker-weight", `${appearance.weight}px`);
+  identity.style.opacity = String(appearance.opacity);
 
   const shell = document.createElement("span");
   shell.className = "timeline-map-marker-shell";
-  const icon = globalThis.TimelinePresentation?.createIcon?.(iconName || "place", { size: 18 });
+  const icon = globalThis.TimelinePresentation?.createIcon?.(iconName || "place", {
+    size: Math.max(14, Math.round(appearance.size * 0.56)),
+  });
   if (icon) shell.append(icon);
   else shell.textContent = "•";
   identity.append(shell);
@@ -577,10 +743,11 @@ function semanticMarkerIcon(
 class ReadOnlyLocationMap {
   container: HTMLElement | null;
   location: LocationObject | null;
-  provider: MapProvider;
+  providers: MapProvider[];
   color: string;
   iconName: string;
   markerShape: string;
+  style: MapStyle;
   label: string;
   interactive: boolean;
   countryContextIntro: boolean;
@@ -595,15 +762,18 @@ class ReadOnlyLocationMap {
   introInteractionAbort: AbortController | null;
   introTimer: number;
   weightedDragCleanup: (() => void) | null;
+  resizeCleanup: (() => void) | null;
+  basemapCleanup: (() => void) | null;
   ready: Promise<void>;
 
   constructor(options: ReadOnlyLocationMapOptions) {
     this.container = options.container;
     this.location = options.location || null;
-    this.provider = globalThis.TimelineMapTileProvider || DEFAULT_PROVIDER;
+    this.providers = tileProviders();
     this.color = options.color || "#315fbd";
     this.iconName = options.iconName || this.location?.icon || "place";
     this.markerShape = options.markerShape || this.location?.markerShape || "pin";
+    this.style = mergeMapStyle(this.location?.style, options.style);
     this.label =
       options.label ||
       this.location?.name ||
@@ -623,6 +793,8 @@ class ReadOnlyLocationMap {
     this.introInteractionAbort = null;
     this.introTimer = 0;
     this.weightedDragCleanup = null;
+    this.resizeCleanup = null;
+    this.basemapCleanup = null;
     this.ready = this.render();
   }
 
@@ -630,7 +802,12 @@ class ReadOnlyLocationMap {
     if (!this.container || this.placePlaceholder) return;
     const placeholder = document.createElement("div");
     placeholder.className = `timeline-map-place-placeholder timeline-map-marker-shape-${this.markerShape}`;
-    placeholder.style.setProperty("--map-marker-color", this.color);
+    const appearance = markerAppearance(this.style, this.color);
+    placeholder.style.setProperty("--map-marker-color", appearance.color);
+    if (appearance.fillColor) placeholder.style.setProperty("--map-marker-fill", appearance.fillColor);
+    placeholder.style.setProperty("--map-marker-size", `${appearance.size}px`);
+    placeholder.style.setProperty("--map-marker-weight", `${appearance.weight}px`);
+    placeholder.style.opacity = String(appearance.opacity);
     placeholder.setAttribute("aria-hidden", "true");
 
     const iconShell = document.createElement("span");
@@ -655,16 +832,44 @@ class ReadOnlyLocationMap {
     this.placePlaceholder = null;
   }
 
+  setPlaceStatus(message: string) {
+    if (!this.placePlaceholder || !message) return;
+    let status = this.placePlaceholder.querySelector<HTMLElement>(".timeline-map-place-status");
+    if (!status) {
+      status = document.createElement("small");
+      status.className = "timeline-map-place-status";
+      this.placePlaceholder.append(status);
+    }
+    status.textContent = message;
+  }
+
+  confirmGeometryVisible(): boolean {
+    if (!this.container) return false;
+    const visibleGeometry = this.container.querySelector(
+      ".leaflet-marker-icon, .leaflet-overlay-pane svg path",
+    );
+    if (!visibleGeometry) return false;
+    this.container.dataset.mapState = "ready";
+    this.clearPlacePlaceholder();
+    return true;
+  }
+
   async render(): Promise<void> {
     const objects = geoJsonObjects(this.location);
-    if (!this.container || objects.length === 0) return;
+    if (!this.container) return;
     this.container.setAttribute("aria-label", this.label);
     this.renderPlacePlaceholder();
+    if (objects.length === 0) {
+      this.container.dataset.mapState = "geometry-unavailable";
+      this.container.setAttribute("aria-label", `${this.label}. No mapped coordinates.`);
+      this.setPlaceStatus("No mapped coordinates");
+      return;
+    }
+    this.container.dataset.mapState = "loading";
 
     try {
       const L = await loadLeaflet();
       if (this.destroyed || !this.container.isConnected) return;
-
       const weightedDrag = weightedMapDragAvailable();
       this.map = L.map(this.container, {
         zoomControl: this.interactive,
@@ -682,6 +887,9 @@ class ReadOnlyLocationMap {
         this.container,
         this.interactive,
       );
+      this.resizeCleanup = observeMapSize(this.map, this.container, () => {
+        this.confirmGeometryVisible();
+      });
 
       if (this.countryContextIntro) {
         this.map.setView(PRESENTATION_WORLD_VIEW.center, PRESENTATION_WORLD_VIEW.zoom, {
@@ -691,23 +899,23 @@ class ReadOnlyLocationMap {
 
       if (this.fictionalReferenceFrame) {
         this.container.classList.add("is-fictional-map");
-        (this.container.dataset as any).referenceFrame = "fictional";
+        this.container.dataset.referenceFrame = "fictional";
         fictionalTextureLayer(L, this.container).addTo(this.map);
       } else {
-        L.tileLayer(this.provider.url, {
-          maxZoom: this.provider.maxZoom || 19,
-          attribution: this.provider.attribution || DEFAULT_PROVIDER.attribution,
-        }).addTo(this.map);
+        this.basemapCleanup = attachBasemap(L, this.map, this.container, this.providers);
       }
 
       const baseGeoJsonOptions = {
-        style: () => ({
-          color: this.color,
-          weight: 3,
-          opacity: 0.9,
-          fillColor: this.color,
-          fillOpacity: 0.12,
-        }),
+        style: (feature: { properties?: Record<string, unknown> } | undefined) => {
+          const properties = feature?.properties || {};
+          const featureStyle = mergeMapStyle(
+            this.style,
+            properties.style && typeof properties.style === "object"
+              ? (properties.style as MapStyle)
+              : {},
+          );
+          return leafletPathStyle(featureStyle, String(properties.color || this.color));
+        },
       };
 
       for (const [index, object] of objects.entries()) {
@@ -719,15 +927,22 @@ class ReadOnlyLocationMap {
             const markerLabel = isPrimaryPlacePoint
               ? this.label
               : String(properties.name || properties.label || "");
+            const featureStyle = mergeMapStyle(this.style, properties.style || {});
+            const appearance = markerAppearance(
+              featureStyle,
+              String(properties.color || this.color),
+            );
             const markerIcon = semanticMarkerIcon(
               L,
               String(properties.icon || this.iconName || "place"),
-              String(properties.color || this.color),
+              appearance.color,
               markerLabel,
               String(properties.markerShape || this.markerShape || "pin"),
+              featureStyle,
             );
             return L.marker(latlng, {
               icon: markerIcon,
+              opacity: appearance.opacity,
               interactive: this.interactive,
               keyboard: this.interactive,
               title: markerLabel || "Map feature",
@@ -737,7 +952,7 @@ class ReadOnlyLocationMap {
         this.layers.push(layer);
       }
 
-      this.clearPlacePlaceholder();
+      requestAnimationFrame(() => this.confirmGeometryVisible());
 
       const point = pointCoordinates(this.location);
       const radius = Number(
@@ -747,11 +962,11 @@ class ReadOnlyLocationMap {
         this.layers.push(
           L.circle([point.lat, point.lng], {
             radius,
-            color: this.color,
-            weight: 1.5,
-            opacity: 0.55,
-            fillColor: this.color,
-            fillOpacity: 0.06,
+            ...leafletPathStyle(this.style, this.color, {
+              weight: 1.5,
+              opacity: 0.55,
+              fillOpacity: 0.06,
+            }),
             interactive: false,
           }).addTo(this.map),
         );
@@ -760,21 +975,16 @@ class ReadOnlyLocationMap {
       if (!this.countryContextIntro) this.fitGeometry({ animate: false });
       requestAnimationFrame(() => {
         this.map?.invalidateSize({ pan: false });
+        this.confirmGeometryVisible();
         if (this.countryContextIntro) this.prepareCountryContextIntro();
       });
     } catch (error) {
       if (!this.destroyed && this.container) {
         this.container.dataset.error = "true";
+        this.container.dataset.mapState = "renderer-unavailable";
+        this.container.setAttribute("aria-label", `${this.label}. Map renderer unavailable.`);
         this.placePlaceholder?.classList.add("is-error");
-        if (
-          this.placePlaceholder &&
-          !this.placePlaceholder.querySelector(".timeline-map-place-status")
-        ) {
-          const status = document.createElement("small");
-          status.className = "timeline-map-place-status";
-          status.textContent = "Map preview unavailable";
-          this.placePlaceholder.append(status);
-        }
+        this.setPlaceStatus("Map renderer unavailable");
       }
       console.warn(error);
     }
@@ -936,6 +1146,10 @@ class ReadOnlyLocationMap {
     this.clearCountryContextInteractionGuard();
     this.weightedDragCleanup?.();
     this.weightedDragCleanup = null;
+    this.resizeCleanup?.();
+    this.resizeCleanup = null;
+    this.basemapCleanup?.();
+    this.basemapCleanup = null;
     this.clearPlacePlaceholder();
     this.container?.classList.remove("is-fictional-map");
     if (this.container) delete this.container.dataset.referenceFrame;
@@ -958,7 +1172,9 @@ class LocationMapController {
   map: any;
   marker: any;
   weightedDragCleanup: (() => void) | null;
-  provider: MapProvider;
+  resizeCleanup: (() => void) | null;
+  basemapCleanup: (() => void) | null;
+  providers: MapProvider[];
 
   constructor(options: LocationMapControllerOptions) {
     this.container = options.container;
@@ -972,7 +1188,9 @@ class LocationMapController {
     this.map = null;
     this.marker = null;
     this.weightedDragCleanup = null;
-    this.provider = globalThis.TimelineMapTileProvider || DEFAULT_PROVIDER;
+    this.resizeCleanup = null;
+    this.basemapCleanup = null;
+    this.providers = tileProviders();
     this.bind();
   }
 
@@ -1025,11 +1243,10 @@ class LocationMapController {
         ...mapMotionOptions(true),
       }).setView([20, 0], 2);
       this.weightedDragCleanup = installWeightedMapDragging(this.map, this.container, true);
-
-      L.tileLayer(this.provider.url, {
-        maxZoom: this.provider.maxZoom || 19,
-        attribution: this.provider.attribution || DEFAULT_PROVIDER.attribution,
-      }).addTo(this.map);
+      this.resizeCleanup = observeMapSize(this.map, this.container, () => {
+        this.updateFromInputs(false);
+      });
+      this.basemapCleanup = attachBasemap(L, this.map, this.container, this.providers);
 
       this.map.on("click", (event: any) => {
         this.applyPosition(event.latlng.lat, event.latlng.lng, { source: "manual" });
@@ -1111,6 +1328,10 @@ class LocationMapController {
   destroy() {
     this.weightedDragCleanup?.();
     this.weightedDragCleanup = null;
+    this.resizeCleanup?.();
+    this.resizeCleanup = null;
+    this.basemapCleanup?.();
+    this.basemapCleanup = null;
     this.marker?.remove();
     this.marker = null;
     this.map?.remove();
