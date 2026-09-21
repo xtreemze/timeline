@@ -9,13 +9,16 @@ import { TimelineSpatial } from './spatial.ts';
 import { TimelineInterchangeAdapter } from './interchange-adapter.ts';
 import { TimelineScale } from './time-scale.ts';
 import { projectTimelineOccurrences } from '../src/projection/timeline-projection.ts';
+import { TimelineEvidence } from './evidence-store.ts';
+import { TimelineGraphInference } from './graph-inference.ts';
 
 // Import globals that still use globalThis (not yet converted)
 const graph = globalThis.TimelineGraph;
 const presentation = globalThis.TimelinePresentation;
 const dateRangeFactory = globalThis.TimelineDateRangePicker;
 const navigationFactory = globalThis.TimelineNavigation;
-const evidenceStore = globalThis.TimelineEvidence;
+const evidenceStore = TimelineEvidence;
+const graphInference = TimelineGraphInference;
 const temporalGraphFactory = globalThis.TemporalGraphView;
 const presentationLayout = globalThis.TimelinePresentationLayout;
 const caseReasoning = globalThis.TimelineCaseReasoning;
@@ -50,6 +53,40 @@ const VERSION = 2;
 const STORAGE_KEY = "timeline:v2";
 const LEGACY_STORAGE_KEY = "timeline:v1";
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
+type EvidenceExtractionDraft = NonNullable<
+  ReturnType<(typeof TimelineEvidence)["normalizeExtraction"]>
+>;
+
+interface EvidenceExtractionProgress {
+  phase?: string;
+  page?: number;
+  total?: number;
+  loaded?: number;
+  method?: string;
+}
+
+interface EvidenceExtractionApi {
+  extract(
+    blob: Blob,
+    options?: {
+      mimeType?: string;
+      fileName?: string;
+      onProgress?: (progress: EvidenceExtractionProgress) => void;
+    },
+  ): Promise<EvidenceExtractionDraft | null>;
+}
+
+interface ItemInferenceDraft {
+  fingerprint: string;
+  graphContractVersion: string;
+  proposal: ReturnType<(typeof TimelineGraphInference)["reconcileProposal"]>;
+}
+
+const evidenceExtraction = Reflect.get(
+  globalThis,
+  "TimelineEvidenceExtraction",
+) as EvidenceExtractionApi | undefined;
 
   const els = {
     title: document.querySelector("#timeline-title"),
@@ -132,6 +169,11 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     itemRelationChangeRows: [...document.querySelectorAll("[data-relation-change-slot]")],
     itemEvidenceDetails: document.querySelector("#item-evidence-details"),
     itemEvidenceRows: [...document.querySelectorAll("[data-evidence-slot]")],
+    itemInferenceDetails: document.querySelector("#item-inference-details"),
+    itemInferenceRun: document.querySelector("#item-inference-run"),
+    itemInferenceClear: document.querySelector("#item-inference-clear"),
+    itemInferenceStatus: document.querySelector("#item-inference-status"),
+    itemInferenceResults: document.querySelector("#item-inference-results"),
     itemLocationDetails: document.querySelector("#item-location-details"),
     itemLocationName: document.querySelector("#item-location-name"),
     itemLocationIdentifier: document.querySelector("#item-location-identifier"),
@@ -156,6 +198,8 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     storyPickerCount: document.querySelector("#story-picker-count"),
     storySequence: document.querySelector("#story-sequence"),
     storySequenceCount: document.querySelector("#story-sequence-count"),
+    storyPlacePicker: document.querySelector("#story-place-picker"),
+    storyPlacePickerCount: document.querySelector("#story-place-picker-count"),
     storyFormError: document.querySelector("#story-form-error"),
     saveStory: document.querySelector("#save-story"),
     cancelStoryEdit: document.querySelector("#cancel-story-edit"),
@@ -259,6 +303,10 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
   let state = loadState();
   let storyDraftIds = [];
+  let storyDraftPlaceIds = [];
+  const evidenceExtractionDrafts = new Map<string, EvidenceExtractionDraft>();
+  let itemInferenceDraft: ItemInferenceDraft | null = null;
+  let inferenceAbortController: AbortController | null = null;
   let statusTimer = 0;
   let navigationController = null;
   const ui = {
@@ -1075,6 +1123,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
     const itemIds = new Set(items.map((item) => item.id));
     const seenStoryIds = new Set();
+    const storyIdsNeedingPlaceInference = new Set<string>();
     const stories = (Array.isArray(input.stories) ? input.stories : []).map((raw, index) => {
       if (!raw || typeof raw !== "object") throw new Error(`Story ${index + 1} is not an object.`);
       let id =
@@ -1091,11 +1140,20 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
           seenItems.add(itemId);
         }
       }
+      const hasExplicitPlaceIds = Array.isArray(raw.placeIds);
+      if (!hasExplicitPlaceIds) storyIdsNeedingPlaceInference.add(id);
       const story = {
         id,
         title,
         description: typeof raw.description === "string" ? raw.description.slice(0, 1500) : "",
         itemIds: uniqueIds,
+        placeIds: [
+          ...new Set(
+            (hasExplicitPlaceIds ? raw.placeIds : [])
+              .filter((placeId) => typeof placeId === "string" && placeId.trim())
+              .map((placeId) => placeId.trim().slice(0, 120)),
+          ),
+        ],
       };
       const extensions = normalizeExtensions(raw.extensions);
       if (extensions) story.extensions = extensions;
@@ -1107,6 +1165,17 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       throw new Error(`Graph semantics are invalid: ${graphErrors[0]}`);
     }
     const graphData = graph.normalizeGraphData(input, temporal);
+    const normalizedPlaceIds = new Set(graphData.places.map((place) => String(place.id)));
+    for (const story of stories) {
+      const inferredPlaceIds = storyIdsNeedingPlaceInference.has(story.id)
+        ? graphData.places
+            .filter((place) => String(place.attributes?.storyId || "") === story.id)
+            .map((place) => String(place.id))
+        : [];
+      story.placeIds = [...new Set([...(story.placeIds || []), ...inferredPlaceIds])].filter(
+        (placeId) => normalizedPlaceIds.has(String(placeId)),
+      );
+    }
     for (const relationship of graphData.relationships) {
       relationship.itemIds = (relationship.itemIds || []).filter((id) => itemIds.has(String(id)));
     }
@@ -2130,7 +2199,165 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       note: row.querySelector("textarea"),
       file: row.querySelector('input[type="file"]'),
       fileStatus: row.querySelector(".evidence-file-status"),
+      extractText: row.querySelector(".evidence-extract-text"),
+      extractionStatus: row.querySelector(".evidence-extraction-status"),
+      extractionPreview: row.querySelector(".evidence-extraction-preview"),
+      extractionText: row.querySelector(".evidence-extraction-preview pre"),
     };
+  }
+
+  function supportedEvidenceFile(file) {
+    if (!file) return false;
+    const mime = String(file.type || "").toLowerCase();
+    const name = "name" in file ? String(file.name || "") : "";
+    return (
+      mime === "application/pdf" ||
+      mime.startsWith("image/") ||
+      /\.(?:pdf|png|jpe?g|webp|gif)$/i.test(name)
+    );
+  }
+
+  function evidenceExtractionLabel(extraction) {
+    if (!extraction) return "No extracted text";
+    const segments = extraction.segments || [];
+    const native = segments.filter((segment) => segment.method === "pdf-text").length;
+    const ocr = segments.length - native;
+    const parts = [
+      `${segments.length} ${segments.length === 1 ? "segment" : "segments"}`,
+      native ? `${native} embedded-text` : "",
+      ocr ? `${ocr} OCR` : "",
+    ].filter(Boolean);
+    if (extraction.unresolved?.length) {
+      parts.push(`${extraction.unresolved.length} unresolved`);
+    }
+    return parts.join(" · ");
+  }
+
+  function renderEvidenceExtraction(parts, extraction) {
+    if (!parts.extractionStatus || !parts.extractionPreview || !parts.extractionText) return;
+    parts.extractionStatus.textContent = extraction ? evidenceExtractionLabel(extraction) : "";
+    const lines = [];
+    for (const segment of extraction?.segments || []) {
+      const locator =
+        segment.locator?.kind === "page"
+          ? `Page ${segment.locator.page}`
+          : `Image ${segment.locator?.index || 1}`;
+      lines.push(`[${locator} · ${segment.method}]\n${segment.text}`);
+    }
+    for (const unresolved of extraction?.unresolved || []) {
+      const locator =
+        unresolved.locator?.kind === "page"
+          ? `Page ${unresolved.locator.page}`
+          : `Image ${unresolved.locator?.index || 1}`;
+      lines.push(`[${locator} · unresolved]\n${unresolved.reason}`);
+    }
+    parts.extractionText.textContent = lines.join("\n\n");
+    parts.extractionPreview.hidden = !lines.length;
+  }
+
+  async function evidenceBlobForRow(row) {
+    const parts = evidenceRowParts(row);
+    const selected = parts.file.files?.[0] || null;
+    if (selected) {
+      return { blob: selected, fileName: selected.name, mimeType: selected.type };
+    }
+    const id = parts.id.value.trim();
+    const existing = state.evidence.find((record) => record.id === id);
+    if (!existing?.file?.blobKey) return null;
+    const blob = await evidenceStore.getBlob(existing.file.blobKey);
+    return blob
+      ? {
+          blob,
+          fileName: existing.file.name || "",
+          mimeType: existing.file.mimeType || blob.type || "",
+        }
+      : null;
+  }
+
+  async function extractEvidenceRow(row, { quiet = false } = {}) {
+    const parts = evidenceRowParts(row);
+    const title = parts.title.value.trim();
+    if (!title) {
+      if (!quiet) setError(els.itemFormError, "Add an evidence title before extracting text.");
+      return null;
+    }
+    if (!parts.id.value) parts.id.value = newId("evidence");
+    const id = parts.id.value;
+    const source = await evidenceBlobForRow(row);
+    if (!source) {
+      if (!quiet) setError(els.itemFormError, "Attach a PDF or image before extracting text.");
+      return null;
+    }
+    if (!supportedEvidenceFile(source.blob)) {
+      if (!quiet) setError(els.itemFormError, "Text extraction supports PDF and image evidence.");
+      return null;
+    }
+    if (!evidenceExtraction?.extract) {
+      const message = "Evidence extraction is unavailable in this build.";
+      if (parts.extractionStatus) parts.extractionStatus.textContent = message;
+      if (!quiet) setError(els.itemFormError, message);
+      return null;
+    }
+
+    if (parts.extractText) parts.extractText.disabled = true;
+    if (parts.extractionStatus) parts.extractionStatus.textContent = "Preparing extraction…";
+    try {
+      const extraction = await evidenceExtraction.extract(source.blob, {
+        mimeType: source.mimeType || source.blob.type,
+        fileName: source.fileName,
+        onProgress(progress) {
+          if (!parts.extractionStatus) return;
+          if (progress.phase === "pdf-page") {
+            parts.extractionStatus.textContent =
+              `Reading page ${progress.page} of ${progress.total}…`;
+          } else if (progress.phase === "model-download") {
+            parts.extractionStatus.textContent =
+              `Preparing local vision model… ${Math.round((progress.loaded || 0) * 100)}%`;
+          } else if (progress.phase === "ocr") {
+            parts.extractionStatus.textContent =
+              progress.method === "text-detector"
+                ? "Running native OCR…"
+                : "Running built-in AI OCR…";
+          } else {
+            parts.extractionStatus.textContent = "Extracting text…";
+          }
+        },
+      });
+      if (extraction) {
+        evidenceExtractionDrafts.set(id, extraction);
+        renderEvidenceExtraction(parts, extraction);
+        markInferenceStale();
+      } else {
+        evidenceExtractionDrafts.delete(id);
+        renderEvidenceExtraction(parts, null);
+      }
+      return extraction;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Evidence text extraction failed.";
+      if (parts.extractionStatus) parts.extractionStatus.textContent = message;
+      if (!quiet) setError(els.itemFormError, message);
+      return null;
+    } finally {
+      if (parts.extractText) parts.extractText.disabled = false;
+    }
+  }
+
+  async function ensureEvidenceExtractionForInference() {
+    for (const row of els.itemEvidenceRows) {
+      const parts = evidenceRowParts(row);
+      if (!parts.title.value.trim()) continue;
+      if (!parts.id.value && parts.file.files?.[0]) parts.id.value = newId("evidence");
+      const id = parts.id.value.trim();
+      if (!id) continue;
+      const existing = state.evidence.find((record) => record.id === id);
+      const hasNewFile = Boolean(parts.file.files?.[0]);
+      const extraction = hasNewFile
+        ? evidenceExtractionDrafts.get(id)
+        : evidenceExtractionDrafts.get(id) || existing?.extraction || null;
+      const hasFile = hasNewFile || Boolean(existing?.file?.blobKey);
+      if (hasFile && !extraction) await extractEvidenceRow(row, { quiet: true });
+    }
   }
 
   async function collectEvidenceForm() {
@@ -2140,24 +2367,34 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       const title = parts.title.value.trim();
       if (!title) continue;
       const id = parts.id.value || newId("evidence");
+      parts.id.value = id;
       const existing = state.evidence.find((record) => record.id === id);
       const file = parts.file.files?.[0] || null;
       let fileMetadata = existing?.file || null;
       if (file) {
-        if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-          throw new Error("Evidence uploads must be PDF files.");
+        if (!supportedEvidenceFile(file)) {
+          throw new Error("Evidence uploads must be PDF or image files.");
         }
-        if (file.size > 25_000_000)
-          throw new Error("PDF evidence uploads are limited to 25 MB each.");
+        const isPdf =
+          file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
+        const sizeLimit = isPdf ? 25_000_000 : 15_000_000;
+        if (file.size > sizeLimit) {
+          throw new Error(
+            `Evidence files are limited to ${Math.round(sizeLimit / 1_000_000)} MB for this format.`,
+          );
+        }
         const blobKey = `evidence:${id}`;
         await evidenceStore.putBlob(blobKey, file);
         fileMetadata = {
           blobKey,
           name: file.name.slice(0, 260),
-          mimeType: file.type || "application/pdf",
+          mimeType:
+            file.type || (parts.type.value === "image" ? "image/*" : "application/pdf"),
           size: file.size,
         };
       }
+      const extraction =
+        evidenceExtractionDrafts.get(id) || (file ? null : existing?.extraction || null);
       const record = evidenceStore.normalizeRecord({
         id,
         type: parts.type.value,
@@ -2168,6 +2405,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
         note: parts.note.value,
         file: fileMetadata,
         forensic: existing?.forensic || null,
+        extraction,
       });
       if (record) records.push(record);
     }
@@ -2175,6 +2413,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   }
 
   function fillEvidenceForm(item) {
+    evidenceExtractionDrafts.clear();
     const attached = (item?.evidenceIds || [])
       .map((id) => state.evidence.find((record) => record.id === id))
       .filter(Boolean)
@@ -2193,14 +2432,395 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       parts.fileStatus.textContent = record?.file?.name
         ? `Stored locally: ${record.file.name}`
         : "";
+      if (record?.extraction) evidenceExtractionDrafts.set(record.id, record.extraction);
+      renderEvidenceExtraction(parts, record?.extraction || null);
     });
     els.itemEvidenceDetails.open = attached.length > 0;
   }
 
-  function mergeEvidenceRecords(records) {
-    const map = new Map(state.evidence.map((record) => [record.id, record]));
-    for (const record of records) map.set(record.id, record);
-    state.evidence = [...map.values()];
+  function inferenceStoryIds(itemId) {
+    if (!itemId) return [];
+    return state.stories
+      .filter((story) => (story.itemIds || []).some((id) => String(id) === String(itemId)))
+      .map((story) => story.id);
+  }
+
+  function inferenceEventTime() {
+    if (!els.itemStartDate.value) return null;
+    try {
+      const start = endpointFromForm("Start");
+      const isRange = els.itemKind.value === "range" && Boolean(els.itemEndDate.value);
+      const end = isRange ? endpointFromForm("End") : null;
+      return {
+        type: isRange ? "interval" : "instant",
+        start,
+        end,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  function ensureInferenceEvidenceIds() {
+    for (const row of els.itemEvidenceRows) {
+      const parts = evidenceRowParts(row);
+      const title = parts.title.value.trim();
+      const existing = parts.id.value
+        ? state.evidence.find((record) => record.id === parts.id.value)
+        : null;
+      const hasSemanticContent =
+        Boolean(parts.note.value.trim()) ||
+        Boolean(parts.file.files?.[0]) ||
+        Boolean(existing?.file?.blobKey) ||
+        Boolean(parts.id.value && evidenceExtractionDrafts.get(parts.id.value));
+      if (!title || !hasSemanticContent) continue;
+      if (!parts.id.value) parts.id.value = newId("evidence");
+    }
+  }
+
+  function inferenceInputFromForm({ ensureIds = true } = {}) {
+    if (ensureIds && !els.itemId.value) els.itemId.value = newId("item");
+    if (ensureIds) ensureInferenceEvidenceIds();
+
+    const fragments = [];
+    const addFragment = (ref, kind, value) => {
+      const content = String(value || "").trim();
+      if (content) fragments.push({ ref, kind, text: content });
+    };
+
+    addFragment("event:title", "event-title", els.itemTitle.value);
+    addFragment("event:description", "event-description", els.itemDescription.value);
+
+    els.itemMediaRows.forEach((row, index) => {
+      const parts = mediaRowParts(row);
+      addFragment(`media:${index + 1}:alt`, "media-alt", parts.alt.value);
+    });
+
+    els.itemEvidenceRows.forEach((row) => {
+      const parts = evidenceRowParts(row);
+      const id = parts.id.value.trim();
+      const title = parts.title.value.trim();
+      if (!id || !title) return;
+      addFragment(`evidence:${id}:note`, "evidence-note", parts.note.value);
+      const existing = state.evidence.find((record) => record.id === id);
+      const extraction = evidenceExtractionDrafts.get(id) || existing?.extraction || null;
+      for (const segment of extraction?.segments || []) {
+        const locator =
+          segment.locator?.kind === "page"
+            ? `page:${segment.locator.page}`
+            : `image:${segment.locator?.index || 1}`;
+        addFragment(
+          `evidence:${id}:${locator}`,
+          segment.method === "pdf-text" ? "evidence-pdf-text" : "evidence-ocr",
+          segment.text,
+        );
+      }
+    });
+
+    const locationParts = [
+      els.itemLocationName.value.trim()
+        ? `Name: ${els.itemLocationName.value.trim()}`
+        : "",
+      els.itemLocationIdentifier.value.trim()
+        ? `Geographic identifier: ${els.itemLocationIdentifier.value.trim()}`
+        : "",
+      els.itemLocationAddress.value.trim()
+        ? `Address: ${els.itemLocationAddress.value.trim()}`
+        : "",
+    ];
+    const latitude = els.itemLocationLatitude.value.trim();
+    const longitude = els.itemLocationLongitude.value.trim();
+    if (latitude && longitude) locationParts.push(`Coordinates: ${latitude}, ${longitude}`);
+    addFragment("location:form", "explicit-location", locationParts.filter(Boolean).join("\n"));
+
+    const itemId = els.itemId.value.trim();
+    const time = inferenceEventTime();
+    return {
+      graphContractVersion:
+        graph.GRAPH_CONTRACT_VERSION || graph.getGraphContract?.().version || "unknown",
+      event: {
+        id: itemId,
+        start: time?.start?.value || els.itemStartDate.value || "",
+        end: time?.end?.value || els.itemEndDate.value || "",
+        time,
+        storyIds: inferenceStoryIds(itemId),
+      },
+      fragments,
+      existingEntities: state.entities,
+      existingPlaces: state.places,
+      existingRelationships: state.relationships,
+    };
+  }
+
+  function inferenceStatus(message, kind = "") {
+    if (!els.itemInferenceStatus) return;
+    els.itemInferenceStatus.textContent = message;
+    els.itemInferenceStatus.dataset.kind = kind;
+  }
+
+  function clearInferenceDraft({ keepAvailability = false } = {}) {
+    inferenceAbortController?.abort();
+    inferenceAbortController = null;
+    itemInferenceDraft = null;
+    els.itemInferenceResults?.replaceChildren();
+    if (els.itemInferenceClear) els.itemInferenceClear.hidden = true;
+    if (els.itemInferenceDetails) delete els.itemInferenceDetails.dataset.stale;
+    if (!keepAvailability) void syncInferenceAvailability();
+  }
+
+  function inferenceMeta(parts) {
+    const meta = document.createElement("span");
+    meta.className = "inference-candidate-meta";
+    meta.textContent = parts.filter(Boolean).join(" · ");
+    return meta;
+  }
+
+  function inferenceSources(sourceRefs) {
+    const refs = Array.isArray(sourceRefs) ? sourceRefs : [];
+    return refs.length ? `Sources: ${refs.join(", ")}` : "No source reference returned";
+  }
+
+  function renderInferenceDraft() {
+    const proposal = itemInferenceDraft?.proposal;
+    if (!proposal || !els.itemInferenceResults) return;
+    const elements = [];
+
+    const summary = document.createElement("p");
+    summary.className = "inference-summary";
+    summary.textContent =
+      `${proposal.entities.length} entities · ${proposal.places.length} places · ${proposal.relationships.length} actions`;
+    elements.push(summary);
+
+    if (proposal.entities.length) {
+      const heading = document.createElement("h4");
+      heading.textContent = "Entities";
+      elements.push(heading);
+      for (const candidate of proposal.entities) {
+        const row = document.createElement("div");
+        row.className = "inference-candidate";
+        const title = document.createElement("strong");
+        title.textContent = candidate.name;
+        row.append(
+          title,
+          inferenceMeta([
+            candidate.status === "existing" ? "Existing node" : "New node",
+            candidate.type,
+            `${Math.round(candidate.confidence * 100)}% confidence`,
+          ]),
+        );
+        const support = document.createElement("small");
+        support.textContent =
+          `${inferenceSources(candidate.sourceRefs)}${candidate.rationale ? ` · ${candidate.rationale}` : ""}`;
+        row.append(support);
+        elements.push(row);
+      }
+    }
+
+    if (proposal.places.length) {
+      const heading = document.createElement("h4");
+      heading.textContent = "Places";
+      elements.push(heading);
+      for (const candidate of proposal.places) {
+        const row = document.createElement("div");
+        row.className = "inference-candidate";
+        const title = document.createElement("strong");
+        title.textContent = candidate.name;
+        const status =
+          candidate.status === "existing"
+            ? "Existing place"
+            : candidate.status === "new"
+              ? "New place with explicit coordinates"
+              : "Needs coordinates before it can become a canonical place";
+        row.append(
+          title,
+          inferenceMeta([
+            status,
+            `${Math.round(candidate.confidence * 100)}% confidence`,
+          ]),
+        );
+        const support = document.createElement("small");
+        support.textContent =
+          `${[candidate.geographicIdentifier, candidate.address].filter(Boolean).join(" · ")}${candidate.rationale ? ` · ${candidate.rationale}` : ""}`;
+        row.append(support);
+        elements.push(row);
+      }
+    }
+
+    if (proposal.relationships.length) {
+      const heading = document.createElement("h4");
+      heading.textContent = "Actions to apply on save";
+      elements.push(heading);
+      const entityByKey = new Map(
+        proposal.entities.map((candidate) => [candidate.key, candidate]),
+      );
+      for (const candidate of proposal.relationships) {
+        const label = document.createElement("label");
+        label.className = "inference-action-candidate";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.dataset.inferenceRelationship = candidate.key;
+        checkbox.checked = Boolean(candidate.selectedByDefault);
+        checkbox.disabled = candidate.status === "mirrored";
+        const copy = document.createElement("span");
+        const title = document.createElement("strong");
+        const subject = entityByKey.get(candidate.subjectKey)?.name || candidate.subjectKey;
+        const object = entityByKey.get(candidate.objectKey)?.name || candidate.objectKey;
+        title.textContent = `${subject} —${candidate.predicate}→ ${object}`;
+        const status =
+          candidate.status === "merge"
+            ? "Merge context into existing action"
+            : candidate.status === "mirrored"
+              ? "Rejected mirrored action"
+              : "New action";
+        copy.append(
+          title,
+          inferenceMeta([
+            status,
+            `${Math.round(candidate.confidence * 100)}% confidence`,
+          ]),
+        );
+        const support = document.createElement("small");
+        support.textContent =
+          `${inferenceSources(candidate.sourceRefs)}${candidate.rationale ? ` · ${candidate.rationale}` : ""}`;
+        copy.append(support);
+        label.append(checkbox, copy);
+        elements.push(label);
+      }
+    }
+
+    if (proposal.unresolved.length) {
+      const heading = document.createElement("h4");
+      heading.textContent = "Needs review";
+      elements.push(heading);
+      const list = document.createElement("ul");
+      list.className = "inference-unresolved";
+      for (const entry of proposal.unresolved) {
+        const item = document.createElement("li");
+        item.textContent = `${entry.label || entry.kind}: ${entry.reason}`;
+        list.append(item);
+      }
+      elements.push(list);
+    }
+
+    els.itemInferenceResults.replaceChildren(...elements);
+    if (els.itemInferenceDetails) els.itemInferenceDetails.open = true;
+    if (els.itemInferenceClear) els.itemInferenceClear.hidden = false;
+  }
+
+  function selectedInferenceRelationshipKeys() {
+    return [
+      ...(els.itemInferenceResults?.querySelectorAll<HTMLInputElement>(
+        'input[data-inference-relationship]:checked',
+      ) || []),
+    ]
+      .map((input) => input.dataset.inferenceRelationship)
+      .filter(Boolean);
+  }
+
+  async function syncInferenceAvailability() {
+    if (!els.itemInferenceRun) return;
+    if (!graphInference?.availability) {
+      els.itemInferenceRun.disabled = true;
+      inferenceStatus("Built-in AI inference is unavailable in this build.", "unavailable");
+      return;
+    }
+    const result = await graphInference.availability();
+    els.itemInferenceRun.disabled = !result.available;
+    if (!result.available) {
+      inferenceStatus(
+        result.reason || "Built-in AI is unavailable in this browser.",
+        "unavailable",
+      );
+      return;
+    }
+    const message =
+      result.state === "available"
+        ? "Built-in AI is ready. Inference stays on-device."
+        : result.state === "downloading"
+          ? "Built-in AI model is downloading."
+          : "Built-in AI is available; the browser may download its local model on first use.";
+    inferenceStatus(message, result.state);
+  }
+
+  async function runItemInference() {
+    setError(els.itemFormError);
+    ensureInferenceEvidenceIds();
+    await ensureEvidenceExtractionForInference();
+    const input = inferenceInputFromForm({ ensureIds: true });
+    if (!input.fragments.length) {
+      setError(
+        els.itemFormError,
+        "Add a title, description, image description, evidence note/file, or explicit location before inference.",
+      );
+      return;
+    }
+    const availability = await graphInference.availability();
+    if (!availability.available) {
+      inferenceStatus(availability.reason || "Built-in AI is unavailable.", "unavailable");
+      return;
+    }
+
+    inferenceAbortController?.abort();
+    inferenceAbortController = new AbortController();
+    els.itemInferenceRun.disabled = true;
+    inferenceStatus(
+      availability.state === "available"
+        ? "Extracting graph candidates with the built-in model…"
+        : "Preparing the browser's built-in model…",
+      "running",
+    );
+
+    try {
+      const raw = await graphInference.infer(input, {
+        signal: inferenceAbortController.signal,
+        onDownloadProgress(progress) {
+          inferenceStatus(
+            `Downloading built-in model… ${Math.round(progress * 100)}%`,
+            "downloading",
+          );
+        },
+      });
+      const proposal = graphInference.reconcileProposal(raw, input, {
+        graph,
+        spatial,
+        idFactory: newId,
+      });
+      itemInferenceDraft = {
+        fingerprint: graphInference.fingerprint(input),
+        graphContractVersion: input.graphContractVersion,
+        proposal,
+      };
+      renderInferenceDraft();
+      inferenceStatus(
+        `Inference ready: ${proposal.relationships.length} action ${proposal.relationships.length === 1 ? "candidate" : "candidates"}. Review selections, then save the item.`,
+        "ready",
+      );
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      console.warn("Built-in graph inference failed:", error);
+      inferenceStatus(
+        error instanceof Error ? error.message : "Built-in graph inference failed.",
+        "error",
+      );
+    } finally {
+      inferenceAbortController = null;
+      await syncInferenceAvailability();
+    }
+  }
+
+  function markInferenceStale(event: Event | null = null) {
+    if (
+      event?.target instanceof HTMLInputElement &&
+      event.target.dataset.inferenceRelationship !== undefined
+    ) {
+      return;
+    }
+    if (!itemInferenceDraft || !els.itemInferenceDetails) return;
+    els.itemInferenceDetails.dataset.stale = "true";
+    inferenceStatus(
+      "Event context changed after inference. Rerun or clear inference before saving inferred graph facts.",
+      "stale",
+    );
   }
 
   function resetLocationForm() {
@@ -2229,6 +2849,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   }
 
   function resetItemForm() {
+    clearInferenceDraft();
     els.itemForm.reset();
     els.itemId.value = "";
     els.itemKind.value = "event";
@@ -2265,6 +2886,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   function beginItemEdit(id) {
     const item = getItem(id);
     if (!item) return;
+    clearInferenceDraft();
     setActivePanel("items");
     els.itemId.value = item.id;
     els.itemKind.value = item.kind;
@@ -2329,6 +2951,37 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   function renderStoryBuilder() {
     els.storyPickerCount.textContent = `${state.items.length}`;
     els.storySequenceCount.textContent = `${storyDraftIds.length}`;
+    if (els.storyPlacePickerCount) {
+      els.storyPlacePickerCount.textContent = `${storyDraftPlaceIds.length}/${state.places.length}`;
+    }
+
+    if (els.storyPlacePicker) {
+      const placeRows = state.places.map((place) => {
+        const label = document.createElement("label");
+        label.className = "picker-row";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = place.id;
+        checkbox.checked = storyDraftPlaceIds.includes(place.id);
+        const copy = document.createElement("span");
+        copy.className = "picker-copy";
+        const title = document.createElement("strong");
+        title.textContent = place.name;
+        const meta = document.createElement("span");
+        meta.textContent = `${place.icon || "place"} · ${place.markerShape || "pin"} · map marker`;
+        copy.append(title, meta);
+        label.append(checkbox, copy);
+        return label;
+      });
+      if (!placeRows.length) {
+        const empty = document.createElement("p");
+        empty.className = "privacy-note";
+        empty.textContent =
+          "Create reusable places in the graph editor, then add them to this story.";
+        placeRows.push(empty);
+      }
+      els.storyPlacePicker.replaceChildren(...placeRows);
+    }
 
     const pickerRows = sortItems().map((item) => {
       const label = document.createElement("label");
@@ -2386,6 +3039,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     els.storyForm.reset();
     els.storyId.value = "";
     storyDraftIds = [];
+    storyDraftPlaceIds = [];
     els.saveStory.textContent = "Create story";
     els.cancelStoryEdit.hidden = true;
     setError(els.storyFormError);
@@ -2400,6 +3054,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     els.storyTitle.value = story.title;
     els.storyDescription.value = story.description;
     storyDraftIds = [...story.itemIds];
+    storyDraftPlaceIds = [...(story.placeIds || [])];
     els.saveStory.textContent = "Save story";
     els.cancelStoryEdit.hidden = false;
     setError(els.storyFormError);
@@ -2456,7 +3111,9 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       top.append(copy, actions);
       const meta = document.createElement("div");
       meta.className = "story-meta";
-      meta.textContent = `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"} · ${storySpanLabel(story)}`;
+      const placeCount = story.placeIds?.length || 0;
+      meta.textContent =
+        `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"} · ${placeCount} ${placeCount === 1 ? "place" : "places"} · ${storySpanLabel(story)}`;
       card.append(top, meta);
       return card;
     });
@@ -3844,6 +4501,28 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     updateTagHuePreview(row);
   }
 
+  for (const row of els.itemEvidenceRows) {
+    const parts = evidenceRowParts(row);
+    parts.extractText?.addEventListener("click", () => {
+      void extractEvidenceRow(row);
+    });
+    parts.file?.addEventListener("change", () => {
+      const id = parts.id.value.trim();
+      if (id) evidenceExtractionDrafts.delete(id);
+      renderEvidenceExtraction(parts, null);
+      markInferenceStale();
+    });
+  }
+
+  els.itemInferenceRun?.addEventListener("click", () => {
+    void runItemInference();
+  });
+  els.itemInferenceClear?.addEventListener("click", () => {
+    clearInferenceDraft();
+  });
+  els.itemForm.addEventListener("input", markInferenceStale);
+  els.itemForm.addEventListener("change", markInferenceStale);
+
   els.itemForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     setError(els.itemFormError);
@@ -3929,16 +4608,62 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     };
     if (media.length) item.media = media;
     if (tags.length) item.tags = tags;
-    mergeEvidenceRecords(evidenceRecords);
+    const existingItem = state.items.find((candidate) => candidate.id === item.id);
+    if (existingItem?.extensions) item.extensions = clone(existingItem.extensions);
 
-    const index = state.items.findIndex((candidate) => candidate.id === item.id);
-    if (index >= 0) {
-      state.items[index] = item;
-      showStatus("Timeline item updated.");
-    } else {
-      state.items.push(item);
-      showStatus(`${kind === "range" ? "Range" : "Event"} added.`);
+    let draft = clone(state);
+    const evidenceMap = new Map(draft.evidence.map((record) => [record.id, record]));
+    for (const record of evidenceRecords) evidenceMap.set(record.id, record);
+    draft.evidence = [...evidenceMap.values()];
+
+    const draftItemIndex = draft.items.findIndex((candidate) => candidate.id === item.id);
+    if (draftItemIndex >= 0) draft.items[draftItemIndex] = item;
+    else draft.items.push(item);
+
+    let inferredRelationshipCount = 0;
+    try {
+      if (itemInferenceDraft) {
+        const currentInput = inferenceInputFromForm({ ensureIds: false });
+        const currentFingerprint = graphInference.fingerprint(currentInput);
+        if (
+          itemInferenceDraft.graphContractVersion !==
+          (graph.GRAPH_CONTRACT_VERSION || currentInput.graphContractVersion)
+        ) {
+          throw new Error(
+            "The graph contract changed after inference. Rerun inference before saving.",
+          );
+        }
+        if (itemInferenceDraft.fingerprint !== currentFingerprint) {
+          throw new Error(
+            "Event context changed after inference. Rerun or clear inference before saving inferred graph facts.",
+          );
+        }
+        const selected = selectedInferenceRelationshipKeys();
+        inferredRelationshipCount = selected.length;
+        draft = graphInference.applyProposal(
+          draft,
+          item,
+          itemInferenceDraft.proposal,
+          selected,
+          { graph, spatial },
+        );
+      }
+      state = normalizeTimeline(draft, { strictGraph: true });
+    } catch (error) {
+      setError(
+        els.itemFormError,
+        error instanceof Error
+          ? error.message
+          : "The event or inferred graph facts violate the graph contract.",
+      );
+      return;
     }
+
+    showStatus(
+      existingItem
+        ? `Timeline item updated${inferredRelationshipCount ? ` with ${inferredRelationshipCount} inferred action ${inferredRelationshipCount === 1 ? "fact" : "facts"}` : ""}.`
+        : `${kind === "range" ? "Range" : "Event"} added${inferredRelationshipCount ? ` with ${inferredRelationshipCount} inferred action ${inferredRelationshipCount === 1 ? "fact" : "facts"}` : ""}.`,
+    );
     persist();
     resetItemForm();
     renderAll();
@@ -3994,6 +4719,18 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     renderStoryBuilder();
   });
 
+  els.storyPlacePicker?.addEventListener("change", (event) => {
+    const checkbox = event.target.closest('input[type="checkbox"]');
+    if (!checkbox) return;
+    if (checkbox.checked && !storyDraftPlaceIds.includes(checkbox.value)) {
+      storyDraftPlaceIds.push(checkbox.value);
+    }
+    if (!checkbox.checked) {
+      storyDraftPlaceIds = storyDraftPlaceIds.filter((id) => id !== checkbox.value);
+    }
+    renderStoryBuilder();
+  });
+
   els.storySequence.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-action]");
     const row = event.target.closest(".sequence-row");
@@ -4034,6 +4771,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       title: title.slice(0, 160),
       description: els.storyDescription.value.trim().slice(0, 1500),
       itemIds: [...storyDraftIds],
+      placeIds: [...storyDraftPlaceIds],
     };
     const index = state.stories.findIndex((candidate) => candidate.id === story.id);
     if (index >= 0) {
@@ -4483,6 +5221,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   setActivePanel("items", { open: false });
   syncApplicationSurfaces();
   renderAll();
+  void syncInferenceAvailability();
 
   webMcp
     .register(agentApi)
