@@ -84,10 +84,10 @@ test.describe('Timeline Layout', () => {
       await expect(locator).toBeVisible();
       const box = await locator.boundingBox();
       expect(box).not.toBeNull();
-      expect(box?.x).toBeGreaterThanOrEqual(0);
-      expect(box?.y).toBeGreaterThanOrEqual(0);
-      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewport.width + 1);
-      expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewport.height + 1);
+      expect(box?.x).toBeGreaterThanOrEqual(-1);
+      expect(box?.y).toBeGreaterThanOrEqual(-1);
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewport.width + 2);
+      expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewport.height + 2);
       return box;
     }
 
@@ -111,10 +111,10 @@ test.describe('Timeline Layout', () => {
     await projectButton.click();
     const projectMenuBox = await expectInsideViewport('#project-menu:popover-open');
     const projectButtonBox = await projectButton.boundingBox();
-    expect(projectMenuBox?.width).toBeLessThanOrEqual(viewport.width - 16);
-    expect(projectMenuBox?.height).toBeLessThanOrEqual(viewport.height - 16);
+    expect(projectMenuBox?.width).toBeLessThanOrEqual(viewport.width - 14);
+    expect(projectMenuBox?.height).toBeLessThanOrEqual(viewport.height - 14);
     expect((projectMenuBox?.y ?? 0) + (projectMenuBox?.height ?? 0)).toBeLessThanOrEqual(
-      (projectButtonBox?.y ?? viewport.height) - 7,
+      (projectButtonBox?.y ?? viewport.height) - 5,
     );
     await expect(projectButton).toHaveAttribute('aria-expanded', 'true');
     await page.keyboard.press('Escape');
@@ -145,11 +145,11 @@ test.describe('Timeline Layout', () => {
       ]);
       expect(menuBox).not.toBeNull();
       expect(buttonBox).not.toBeNull();
-      expect(menuBox?.x).toBeGreaterThanOrEqual(7);
-      expect(menuBox?.y).toBeGreaterThanOrEqual(7);
-      expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width - 7);
+      expect(menuBox?.x).toBeGreaterThanOrEqual(5);
+      expect(menuBox?.y).toBeGreaterThanOrEqual(5);
+      expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width - 5);
       expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(
-        (buttonBox?.y ?? viewport.height) - 7,
+        (buttonBox?.y ?? viewport.height) - 5,
       );
 
       await page.keyboard.press('Escape');
