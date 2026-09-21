@@ -359,6 +359,13 @@
   width: 12px;
   height: 1px;
 }
+.timeline-tick.is-pending-hierarchy,
+.timeline-month-accent.is-pending-hierarchy,
+.timeline-axis-month-label.is-pending-hierarchy {
+  opacity: 0.28;
+  pointer-events: none;
+}
+
 .timeline-tick-label {
   position: absolute;
   color: var(--muted);
