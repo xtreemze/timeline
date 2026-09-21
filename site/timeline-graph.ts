@@ -146,6 +146,39 @@ interface OrbGraph {
   edges: OrbGraphEdge[];
 }
 
+interface TemporalViewport {
+  start: number;
+  end: number;
+}
+
+interface TemporalBounds {
+  locatable?: boolean;
+  start: number;
+  end: number;
+}
+
+interface TemporalAdapter {
+  sortKey(value: unknown): number;
+  extentBounds?(value: unknown): TemporalBounds | null | undefined;
+}
+
+interface NeighborhoodOptions {
+  depth?: number;
+  limit?: number;
+}
+
+interface TemporalRelationOccurrence {
+  id: string;
+  subjectId: string;
+  objectId: string;
+  predicate: string;
+  role?: string;
+  placeId: string;
+  itemIds: unknown;
+  start: number;
+  end: number;
+}
+
 function getGraphContract() {
   return cloneJson(GRAPH_CONTRACT);
 }
@@ -902,6 +935,24 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
   return errors;
 }
 
+export function relationshipWindowState(
+  relationship: Relationship | null | undefined,
+  viewport: TemporalViewport | null | undefined,
+  temporal?: TemporalAdapter | null,
+): "timeless" | "unknown" | "active" | "inactive" {
+  if (!relationship) return "inactive";
+  if (!relationship.time) return "timeless";
+  if (!temporal) return "unknown";
+
+  const bounds = temporal.extentBounds?.(relationship.time);
+  if (!bounds?.locatable) return "unknown";
+  if (!viewport || !Number.isFinite(viewport.start) || !Number.isFinite(viewport.end)) {
+    return "active";
+  }
+
+  return bounds.end >= viewport.start && bounds.start <= viewport.end ? "active" : "inactive";
+}
+
 export function graphForWindow(input: any, viewport: any, temporal: any = globalThis.TimelineTemporal): OrbGraph {
   const entities = Array.isArray(input?.entities) ? input.entities : [];
   const relationships = Array.isArray(input?.relationships) ? input.relationships : [];
@@ -929,8 +980,28 @@ export function graphForWindow(input: any, viewport: any, temporal: any = global
       const state = states.get(String(edge.id));
       if (!relationship || !state) return { ...edge, temporalState: "inactive" };
 
-      const active = state.active;
-      const temporalState = active ? "active" : "inactive";
+      const structurallyTimeless =
+        !relationship.time &&
+        state.changes.length === 0 &&
+        state.active;
+      const explicitWindowState = relationshipWindowState(
+        relationship,
+        viewport,
+        temporal as TemporalAdapter,
+      );
+      const temporalState = state.changedInWindow
+        ? "changed"
+        : structurallyTimeless
+          ? "timeless"
+          : relationship.time
+            ? explicitWindowState === "unknown" && state.active
+              ? "unknown"
+              : explicitWindowState === "active" && state.active
+                ? "active"
+                : "inactive"
+            : state.active
+              ? "active"
+              : "inactive";
 
       return {
         ...edge,
@@ -951,7 +1022,7 @@ export function graphForWindow(input: any, viewport: any, temporal: any = global
     viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end);
   if (!hasViewport) return { ...graphData, edges };
 
-  const visibleNodeIds = new Set();
+  const visibleNodeIds = new Set<string>();
   for (const edge of edges) {
     visibleNodeIds.add(String(edge.start));
     visibleNodeIds.add(String(edge.end));
@@ -961,6 +1032,119 @@ export function graphForWindow(input: any, viewport: any, temporal: any = global
     nodes: graphData.nodes.filter((node) => visibleNodeIds.has(String(node.id))),
     edges,
   };
+}
+
+export function neighborhoodGraph(
+  input: unknown,
+  rootId: unknown,
+  viewport: TemporalViewport | null | undefined,
+  options: NeighborhoodOptions = {},
+): OrbGraph {
+  const depth = Math.max(0, Math.trunc(options.depth ?? 1));
+  const limit = Math.max(1, Math.trunc(options.limit ?? 36));
+  const data = graphForWindow(input, viewport);
+  const nodeById = new Map(data.nodes.map((node) => [String(node.id), node]));
+  const root = String(rootId || "");
+  if (!root) return { nodes: [], edges: [] };
+
+  const inputRecord =
+    input && typeof input === "object" ? (input as Record<string, unknown>) : {};
+  const items = Array.isArray(inputRecord.items) ? inputRecord.items : [];
+  const rootItem = items.find((item) => {
+    if (!item || typeof item !== "object") return false;
+    return String((item as Record<string, unknown>).id || "") === root;
+  });
+  const rootItemRecord =
+    rootItem && typeof rootItem === "object" ? (rootItem as Record<string, unknown>) : null;
+  const rootChangeIds = new Set(
+    normalizeRelationChanges(rootItemRecord?.relationChanges).map((change) =>
+      String(change.relationshipId),
+    ),
+  );
+
+  const contextEdges = data.edges.filter((edge) => {
+    const itemIds = Array.isArray(edge.properties?.itemIds) ? edge.properties.itemIds : [];
+    return (
+      itemIds.some((id) => String(id) === root) ||
+      rootChangeIds.has(String(edge.id))
+    );
+  });
+
+  const selected = new Set<string>();
+  if (nodeById.has(root)) selected.add(root);
+  for (const edge of contextEdges) {
+    selected.add(String(edge.start));
+    selected.add(String(edge.end));
+  }
+  if (!selected.size) return { nodes: [], edges: [] };
+
+  const contextEdgeIds = new Set(contextEdges.map((edge) => String(edge.id)));
+  const relevantEdges = data.edges.filter(
+    (edge) => edge.temporalState !== "inactive" || contextEdgeIds.has(String(edge.id)),
+  );
+
+  let frontier = new Set(selected);
+  for (let level = 0; level < depth; level += 1) {
+    const next = new Set<string>();
+    for (const edge of relevantEdges) {
+      const edgeStart = String(edge.start);
+      const edgeEnd = String(edge.end);
+      if (frontier.has(edgeStart) && !selected.has(edgeEnd)) next.add(edgeEnd);
+      if (frontier.has(edgeEnd) && !selected.has(edgeStart)) next.add(edgeStart);
+    }
+
+    for (const id of next) {
+      if (selected.size >= limit) break;
+      selected.add(id);
+    }
+
+    frontier = next;
+    if (!frontier.size || selected.size >= limit) break;
+  }
+
+  return {
+    nodes: [...selected]
+      .map((id) => nodeById.get(id))
+      .filter((node): node is OrbGraphNode => Boolean(node)),
+    edges: relevantEdges.filter(
+      (edge) => selected.has(String(edge.start)) && selected.has(String(edge.end)),
+    ),
+  };
+}
+
+export function temporalRelationProjection(
+  relationships: unknown,
+  temporal?: TemporalAdapter | null,
+): TemporalRelationOccurrence[] {
+  const projected: TemporalRelationOccurrence[] = [];
+
+  for (const raw of Array.isArray(relationships) ? relationships : []) {
+    if (!raw || typeof raw !== "object") continue;
+    const relationship = raw as Record<string, unknown>;
+    const time =
+      relationship.time && typeof relationship.time === "object"
+        ? (relationship.time as Record<string, unknown>)
+        : null;
+    if (!time?.start || !temporal) continue;
+
+    const start = temporal.sortKey(time.start);
+    const end = time.end ? temporal.sortKey(time.end) : start;
+    if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+
+    projected.push({
+      id: String(relationship.id || ""),
+      subjectId: String(relationship.subjectId || ""),
+      objectId: String(relationship.objectId || ""),
+      predicate: String(relationship.predicate || ""),
+      role: relationship.role ? String(relationship.role) : undefined,
+      placeId: relationship.placeId ? String(relationship.placeId) : "",
+      itemIds: cloneJson(Array.isArray(relationship.itemIds) ? relationship.itemIds : []),
+      start,
+      end,
+    });
+  }
+
+  return projected;
 }
 
 export function toOrbGraph({ entities = [], relationships = [] } = {}): OrbGraph {
@@ -1100,6 +1284,9 @@ export const TimelineGraph = Object.freeze({
   validateEntityNode,
   contextPropertyKey,
   normalizeRelationChanges,
+  neighborhoodGraph,
   relationshipStateAt,
+  relationshipWindowState,
+  temporalRelationProjection,
   toOrbGraph,
 });
