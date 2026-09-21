@@ -323,11 +323,8 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     endInput: els.graphEdgeEndDate,
     mode: "range",
   });
-  // eslint-disable-next-line no-useless-assignment
   let presentationResizeObserver = null;
-  // eslint-disable-next-line no-useless-assignment
   let viewControlsResizeObserver = null;
-  // eslint-disable-next-line no-useless-assignment
   let workspaceToolDockResizeObserver = null;
   let presentationResizeFrame = 0;
   let timelineOrientationBeforeFullscreen = null;
@@ -402,9 +399,9 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       Math.max(1, maxBottom - minTop),
     );
 
-    let left;
-    let top;
-    let placement;
+    let left = 0;
+    let top = 0;
+    let placement = "";
 
     if (orientation === "portrait") {
       const preferredLeft = triggerRect.left - toolbarWidth - gap;
@@ -477,9 +474,9 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     const dockWidth = Math.max(1, dockRect.width || els.appToolDock.offsetWidth || 1);
     const dockHeight = Math.max(1, dockRect.height || els.appToolDock.offsetHeight || 1);
 
-    let left;
-    let top;
-    let placement;
+    let left = 0;
+    let top = 0;
+    let placement = "";
 
     if (orientation === "portrait") {
       const preferredLeft = triggerRect.left - dockWidth - gap;
@@ -764,8 +761,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
           });
           timelineOrientationBeforeFullscreen = null;
         }
-        // eslint-disable-next-line no-undef
-        console.warn("Could not enter full-screen presentation:", error);
+          console.warn("Could not enter full-screen presentation:", error);
         showStatus("Could not enter full-screen presentation.");
       }
     }
@@ -799,7 +795,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   function parseJsonObject(value, label = "Properties") {
     const source = String(value || "").trim();
     if (!source) return {};
-    let parsed;
+    let parsed: unknown;
     try {
       parsed = JSON.parse(source);
     } catch {
@@ -814,7 +810,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   function parseJsonArray(value, label = "Identifiers") {
     const source = String(value || "").trim();
     if (!source) return [];
-    let parsed;
+    let parsed: unknown;
     try {
       parsed = JSON.parse(source);
     } catch {
@@ -959,22 +955,19 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     const custodyActions = evidenceStore.normalizeCustodyActions(input.custodyActions);
     const reasoning = caseReasoning.normalizeReasoning(input.reasoning);
 
-    let sourceItems;
-    if (Array.isArray(input.items)) {
-      sourceItems = input.items;
-    } else if (Array.isArray(input.events)) {
-      sourceItems = input.events.map((legacy) => ({
-        id: legacy.id,
-        kind: "event",
-        start: legacy.date,
-        end: null,
-        title: legacy.title,
-        description: legacy.description,
-        categoryId: legacy.category,
-      }));
-    } else {
-      sourceItems = [];
-    }
+    const sourceItems = Array.isArray(input.items)
+      ? input.items
+      : Array.isArray(input.events)
+        ? input.events.map((legacy) => ({
+            id: legacy.id,
+            kind: "event",
+            start: legacy.date,
+            end: null,
+            title: legacy.title,
+            description: legacy.description,
+            categoryId: legacy.category,
+          }))
+        : [];
 
     const items = sourceItems.map((raw, index) => {
       if (!raw || typeof raw !== "object") throw new Error(`Item ${index + 1} is not an object.`);
@@ -1168,7 +1161,6 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
         return migrated;
       }
     } catch (error) {
-      // eslint-disable-next-line no-undef
       console.warn("Timeline state could not be restored:", error);
     }
     // A first launch should demonstrate the complete application rather than an empty shell.
@@ -1184,7 +1176,6 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (error) {
-      // eslint-disable-next-line no-undef
       console.warn("Timeline state could not be saved:", error);
       showStatus("Changes are visible, but browser storage is unavailable.");
     }
@@ -1251,13 +1242,10 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   }
 
   function getVisibleItems() {
-    let items;
     const activeStory = getStory(ui.activeStoryId);
-    if (activeStory) {
-      items = activeStory.itemIds.map(getItem).filter(Boolean);
-    } else {
-      items = sortItems();
-    }
+    let items = activeStory
+      ? activeStory.itemIds.map(getItem).filter(Boolean)
+      : sortItems();
 
     if (ui.categoryFilter !== "all") {
       items = items.filter((item) => item.categoryId === ui.categoryFilter);
@@ -3440,8 +3428,8 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       maxLength: 180,
     });
     const sourceIds = parseLineList(els.graphNodeSourceIds.value, { maxItems: 96, maxLength: 120 });
-    let identifiers;
-    let attributes;
+    let identifiers: ReturnType<typeof parseJsonArray>;
+    let attributes: ReturnType<typeof parseJsonObject>;
     try {
       identifiers = parseJsonArray(els.graphNodeIdentifiers.value, "Node identifiers");
       attributes = parseJsonObject(els.graphNodeProperties.value, "Node properties");
@@ -3587,8 +3575,8 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       els.graphEdgeConfidence.focus();
       return;
     }
-    let attributes;
-    let time;
+    let attributes: ReturnType<typeof parseJsonObject>;
+    let time: ReturnType<typeof buildGraphEdgeTime>;
     try {
       attributes = parseJsonObject(els.graphEdgeProperties.value, "Edge properties");
       const duplicateContextKey = Object.keys(attributes).find(graph.contextPropertyKey);
@@ -3736,16 +3724,12 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     const kind = els.itemKind.value === "range" ? "range" : "event";
     const title = els.itemTitle.value.trim();
 
-    let startEndpoint;
-    let endEndpoint = null;
-    // eslint-disable-next-line no-useless-assignment
-    let media = [];
-    // eslint-disable-next-line no-useless-assignment
-    let tags = [];
-    // eslint-disable-next-line no-useless-assignment
-    let relationChanges = [];
-    // eslint-disable-next-line no-useless-assignment
-    let evidenceRecords = [];
+    let startEndpoint: ReturnType<typeof endpointFromForm>;
+    let endEndpoint: ReturnType<typeof endpointFromForm> | null = null;
+    let media: ReturnType<typeof collectMediaForm>;
+    let tags: ReturnType<typeof collectTagForm>;
+    let relationChanges: ReturnType<typeof collectRelationChangeForm>;
+    let evidenceRecords: Awaited<ReturnType<typeof collectEvidenceForm>>;
     try {
       if (!els.itemStartDate.value) throw new Error("Choose a calendar date.");
       if (kind === "range" && !els.itemEndDate.value)
@@ -4029,19 +4013,6 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     temporalGraphView?.setWindow(event.detail?.viewport || null);
   });
 
-  // eslint-disable-next-line no-unused-vars
-  function _focusTimelineFromGraph(id) {
-    if (!id || !getItem(id)) return false;
-    ui.search = "";
-    ui.categoryFilter = "all";
-    ui.activeStoryId = null;
-    ui.storyCursor = 0;
-    els.search.value = "";
-    renderTimeline();
-    requestAnimationFrame(() => timelineView?.focusItem(id));
-    return true;
-  }
-
   els.timelineViewRoot.addEventListener("timelineorientationchange", (event) => {
     if (els.presentationStage) {
       els.presentationStage.dataset.timelineOrientation =
@@ -4097,7 +4068,6 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       window.open(url, "_blank", "noopener,noreferrer");
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (error) {
-      // eslint-disable-next-line no-undef
       console.warn("Could not open local evidence:", error);
       showStatus("Could not open the local evidence file.");
     }
@@ -4308,7 +4278,6 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
         return;
       timelineView?.closeFocus();
       applyImportedTimeline(converted.timeline, "Imported interchange", converted.warnings.length);
-      // eslint-disable-next-line no-undef
       if (converted.warnings.length)
         console.warn("Interchange import warnings:", converted.warnings);
     } catch (error) {
@@ -4389,12 +4358,10 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     .then((registration) => {
       webMcpRegistration = registration;
       if (!registration.registered) {
-        // eslint-disable-next-line no-console, no-undef
-        console.info("Timeline WebMCP tools are not registered:", registration.reason);
+          console.warn("Timeline WebMCP tools are not registered:", registration.reason);
       }
     })
     .catch((error) => {
-      // eslint-disable-next-line no-undef
       console.warn("Timeline WebMCP registration failed:", error);
     });
 

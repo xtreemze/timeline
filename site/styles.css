@@ -703,6 +703,7 @@ a:focus-visible {
   align-items: center;
   padding: 0 0.9rem 0.8rem;
 }
+/* biome-ignore lint/correctness/noUnknownTypeSelector: Chrome exposes geolocation as a browser-native element. */
 geolocation {
   font: inherit;
   border-radius: 0.58rem;

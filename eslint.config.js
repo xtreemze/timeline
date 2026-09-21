@@ -6,6 +6,10 @@ export default [
     ignores: ["site/orb-graph.bundle.js", "pnpm-lock.yaml", "node_modules/**"],
   },
   {
+    linterOptions: {
+      reportUnusedDisableDirectives: "error",
+      reportUnusedInlineConfigs: "error",
+    },
     files: ["src/**/*.js", "site/**/*.js", "tests/**/*.mjs", "benchmarks/**/*.mjs"],
     languageOptions: {
       ecmaVersion: 2024,
@@ -71,20 +75,20 @@ export default [
     rules: {
       ...js.configs.recommended.rules,
       // Strict error checking
-      "no-console": ["warn", { allow: ["warn", "error"] }],
+      "no-console": ["error", { allow: ["warn", "error"] }],
       "no-debugger": "error",
       "no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
       "no-undef": "error",
-      "no-undefined": "warn", // Allow undefined checks, but warn on suspicious uses
+      "no-undefined": "off", // Modern undefined checks are valid; type/domain lint handles unsafe uncertainty
       "no-implicit-globals": "error",
       "no-implicit-coercion": "error",
       // Type safety (JSDoc checked by TypeScript)
       "no-var": "error",
       "prefer-const": "error",
-      "prefer-arrow-callback": "warn", // Downgrade to warn for complex callbacks
+      "prefer-arrow-callback": ["error", { allowNamedFunctions: true }],
       // Logic safety
       eqeqeq: ["error", "always"],
       "no-case-declarations": "error",
@@ -103,12 +107,65 @@ export default [
       "no-sparse-arrays": "error",
       "no-prototype-builtins": "error",
       // Best practices
-      "no-param-reassign": "warn", // Downgrade to warn (common in event handlers)
+      "no-param-reassign": ["error", { props: false }],
       "no-return-await": "error",
       "require-await": "off", // Not all promises need await
       "no-unreachable": "error",
       "no-unreachable-loop": "error",
       "no-loss-of-precision": "error",
+      "array-callback-return": ["error", { checkForEach: true }],
+      "block-scoped-var": "error",
+      "default-case-last": "error",
+      "default-param-last": "error",
+      "dot-notation": "error",
+      "guard-for-in": "error",
+      "no-alert": "error",
+      "no-array-constructor": "error",
+      "no-caller": "error",
+      "no-constructor-return": "error",
+      "no-else-return": ["error", { allowElseIf: false }],
+      "no-extend-native": "error",
+      "no-extra-bind": "error",
+      "no-extra-label": "error",
+      "no-labels": "error",
+      "no-lone-blocks": "error",
+      "no-multi-assign": "error",
+      "no-new-func": "error",
+      "no-new-wrappers": "error",
+      "no-object-constructor": "error",
+      "no-octal-escape": "error",
+      "no-proto": "error",
+      "no-return-assign": ["error", "always"],
+      "no-script-url": "error",
+      "no-self-assign": "error",
+      "no-self-compare": "error",
+      "no-sequences": "error",
+      "no-template-curly-in-string": "error",
+      "no-throw-literal": "error",
+      "no-unmodified-loop-condition": "error",
+      "no-unused-expressions": "error",
+      "no-useless-call": "error",
+      "no-useless-computed-key": "error",
+      "no-useless-concat": "error",
+      "no-useless-rename": "error",
+      "no-useless-return": "error",
+      "no-void": "off", // void is the explicit marker for intentionally ignored async work
+      "object-shorthand": ["error", "always"],
+      "prefer-exponentiation-operator": "error",
+      "prefer-numeric-literals": "error",
+      "prefer-object-has-own": "error",
+      "prefer-object-spread": "error",
+      "prefer-regex-literals": ["error", { disallowRedundantWrapping: true }],
+      radix: "error",
+      "symbol-description": "error",
+      yoda: "error",
+    },
+  },
+  {
+    files: ["tests/**/*.mjs"],
+    rules: {
+      "no-script-url": "off", // security tests intentionally construct unsafe protocol fixtures
+      "no-template-curly-in-string": "off", // source-contract tests intentionally match literal template syntax
     },
   },
 ];
