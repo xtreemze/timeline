@@ -496,10 +496,13 @@ class TimelineViewController {
       .filter((distance) => distance > 0);
     const nearestDistance = distinctDistances.length ? Math.min(...distinctDistances) : DEFAULT_SPAN_MS;
     const ownSpan = Math.max(MIN_SPAN_MS, Math.abs(anchorEnd - anchor.start));
-    const isolatedSpan = Math.min(
-      Math.max(MIN_SPAN_MS, Math.min(nearestDistance * 0.45, context.end - context.start)),
-      Math.max(ownSpan * 1.4, MIN_SPAN_MS),
+    const contextSpan = Math.max(MIN_SPAN_MS, context.end - context.start);
+    const minimumRequired = Math.max(MIN_SPAN_MS, ownSpan * 1.4);
+    const preferred = Math.max(
+      MIN_SPAN_MS,
+      Math.min(nearestDistance * 0.45, contextSpan * 0.45),
     );
+    const isolatedSpan = Math.min(contextSpan, Math.max(minimumRequired, preferred));
     const isolated = {
       start: anchorCenter - isolatedSpan / 2,
       end: anchorCenter + isolatedSpan / 2,
