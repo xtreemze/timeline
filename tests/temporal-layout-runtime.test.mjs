@@ -63,6 +63,41 @@ test("committed layout planning is deterministic and capped at three lanes by de
   assert.ok(Object.values(first.lanes).every((lane) => lane >= 0 && lane <= 2));
 });
 
+test("three nearby occurrences use lanes before a fourth forces clustering", () => {
+  const common = {
+    viewport: { start: 0, end: 1_000 },
+    pixelLength: 1_000,
+    measurements: {
+      a: { inlineSize: 120, blockSize: 52 },
+      b: { inlineSize: 120, blockSize: 52 },
+      c: { inlineSize: 120, blockSize: 52 },
+      d: { inlineSize: 120, blockSize: 52 },
+    },
+  };
+  const three = planCommittedTemporalLayout({
+    ...common,
+    occurrences: [
+      { id: "a", start: 100 },
+      { id: "b", start: 130 },
+      { id: "c", start: 160 },
+    ],
+  });
+  assert.equal(three.clusters.length, 0);
+  assert.equal(new Set(Object.values(three.lanes)).size, 3);
+
+  const four = planCommittedTemporalLayout({
+    ...common,
+    occurrences: [
+      { id: "a", start: 100 },
+      { id: "b", start: 130 },
+      { id: "c", start: 160 },
+      { id: "d", start: 190 },
+    ],
+  });
+  assert.equal(four.clusters.length, 1);
+  assert.deepEqual(four.clusters[0].itemIds, ["a", "b", "c", "d"]);
+});
+
 test("previous cluster membership survives inside exit hysteresis and splits beyond it", () => {
   const base = {
     viewport: { start: 0, end: 1_000 },
