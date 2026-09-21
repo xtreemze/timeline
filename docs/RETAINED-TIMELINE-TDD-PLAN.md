@@ -145,9 +145,26 @@ New retained-timeline browser tests live under `tests/browser`.
 
 A separate cleanup should either migrate valuable older specs into the configured directory or explicitly expand `testMatch` after repairing stale assertions. Test files must never be counted as coverage merely because they exist in the repository.
 
+## Delivery topology
+
+#286 is a red specification branch, not a prerequisite branch that every implementation lane must stack on.
+
+Preferred parallel workflow:
+
+1. each #267-#271 implementation PR branches from current `main`;
+2. it copies/absorbs the test file(s) owned by that issue from #286;
+3. the PR makes those tests green without weakening them;
+4. the tests merge with the implementation that satisfies them;
+5. #286 is periodically rebased/reconciled only as a specification audit;
+6. once every gate has landed on `main`, #286 is closed or reduced to any still-unmerged contract.
+
+This avoids serializing independent agents behind an intentionally failing umbrella branch and keeps every merged test executable on the same commit as the behavior it protects.
+
+A child PR may target #286 only when it truly depends on another unmerged child lane; that should be the exception and the dependency must be stated explicitly.
+
 ## PR sequence
 
-1. **TDD contract PR** — this document plus intentionally red tests. Draft until implementation begins.
+1. **TDD contract PR** — this document plus intentionally red tests; keep as a draft specification branch while gates are red.
 2. **#267 scene identity/context PR** — make Gate A green without touching Gate B-D expectations.
 3. **#268 layout planner PR** — make Gate B green; keep DOM reconciliation thin.
 4. **#269 structural composition PR** — make Gate C green in normal and reduced-motion modes.
