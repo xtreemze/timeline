@@ -125,6 +125,54 @@ test.describe('Timeline Layout', () => {
     await expectInsideViewport('#timeline-view-toolbar:popover-open');
   });
 
+  test('Project stays in the footer app bar and reachable while editing', async ({ page }) => {
+    const viewport = { width: 390, height: 844 };
+    await page.setViewportSize(viewport);
+    await page.goto('/');
+
+    const toolDock = page.locator('.app-tool-dock');
+    const projectButton = toolDock.locator('#project-menu-toggle');
+    const editorButton = toolDock.locator('#editor-toggle');
+    const browseButton = toolDock.locator('#timeline-browser-toggle');
+    const viewButton = toolDock.locator('#timeline-view-controls-toggle');
+
+    await editorButton.click();
+    await expect(page.locator('#control-panel')).toBeVisible();
+    await expect(page.locator('#app-shell')).toHaveAttribute('data-mode', 'edit');
+    await expect(editorButton.locator('.app-tool-label')).toHaveText('Done');
+
+    // The app bar must not structurally collapse in Edit mode. Project is required here
+    // because project-destructive/import actions are deliberately enabled only while editing.
+    await expect(projectButton).toBeVisible();
+    await expect(browseButton).toBeVisible();
+    await expect(viewButton).toBeVisible();
+    await expect(browseButton).toBeDisabled();
+    await expect(viewButton).toBeDisabled();
+
+    await projectButton.click();
+    const menu = page.locator('#project-menu:popover-open');
+    await expect(menu).toBeVisible();
+    await expect(page.locator('#control-panel')).toBeVisible();
+    await expect(page.locator('#load-sample')).toBeEnabled();
+    await expect(page.locator('#import-json-trigger')).toBeEnabled();
+    await expect(page.locator('#clear-timeline')).toBeEnabled();
+
+    const [menuBox, buttonBox, dockBox] = await Promise.all([
+      menu.boundingBox(),
+      projectButton.boundingBox(),
+      toolDock.boundingBox(),
+    ]);
+    expect(menuBox).not.toBeNull();
+    expect(buttonBox).not.toBeNull();
+    expect(dockBox).not.toBeNull();
+    expect(menuBox?.x).toBeGreaterThanOrEqual(5);
+    expect(menuBox?.y).toBeGreaterThanOrEqual(5);
+    expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width - 5);
+    expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(
+      (buttonBox?.y ?? dockBox?.y ?? viewport.height) - 5,
+    );
+  });
+
   test('Project footer menu stays clamped on compact visual viewports', async ({ page }) => {
     for (const viewport of [
       { width: 320, height: 568 },
