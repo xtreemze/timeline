@@ -18,6 +18,7 @@ import {
   type TemporalRetentionState,
   type TemporalWindow,
 } from "../src/projection/temporal-scene.ts";
+import { TimelineMotion as motion } from "./timeline-motion.ts";
 
 const scale = globalThis.TimelineScale;
 const presentation = globalThis.TimelinePresentation;
@@ -79,9 +80,9 @@ interface SceneRecord {
 interface PointerDragState {
   pointerId: number;
   coordinate: number;
-  lastCoordinate: number;
   lastTime: number;
   viewport: TemporalWindow;
+  samples: Array<{ coordinate: number; time: number }>;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -149,6 +150,15 @@ function normalizedViewport(start: number, end: number): TemporalWindow {
   return { start: start - DEFAULT_SPAN_MS / 2, end: start + DEFAULT_SPAN_MS / 2 };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function recordString(record: Record<string, unknown> | null, key: string): string {
+  const value = record?.[key];
+  return typeof value === "string" ? value : "";
+}
+
 function formatElapsedDuration(durationMs: number): string {
   if (!Number.isFinite(durationMs) || durationMs < 0) return "";
   const units: Array<readonly [string, number]> = [
@@ -193,6 +203,7 @@ class TimelineViewController {
   scene = new Map<string, SceneRecord>();
   pointerDrag: PointerDragState | null = null;
   interactionVelocity = 0;
+  inertiaAnimationFrame = 0;
   renderFrame = 0;
   wheelCommitTimer = 0;
   viewportInitialized = false;
@@ -246,6 +257,7 @@ class TimelineViewController {
           end: anchor + span * (1 - ratio),
         };
 
+        this.cancelInertia();
         this.beginInteraction();
         this.viewport = next;
         this.interactionVelocity = 0;
@@ -269,14 +281,16 @@ class TimelineViewController {
       const rect = this.surface.getBoundingClientRect();
       const coordinate =
         this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
+      this.cancelInertia();
       this.beginInteraction();
       this.pointerDrag = {
         pointerId: event.pointerId,
         coordinate,
-        lastCoordinate: coordinate,
         lastTime: Number(event.timeStamp) || performance.now(),
         viewport: { ...this.viewport },
+        samples: [],
       };
+      motion.appendPointerSamples(this.pointerDrag.samples, event, this.orientation);
       this.surface.setPointerCapture(event.pointerId);
       this.root.dataset.sceneState = "interacting";
     });
@@ -288,26 +302,37 @@ class TimelineViewController {
       const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
       const coordinate =
         this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
+      motion.appendPointerSamples(drag.samples, event, this.orientation);
       const delta = coordinate - drag.coordinate;
       const span = drag.viewport.end - drag.viewport.start;
-      const temporalDelta = -(delta / length) * span;
-      this.viewport = {
+      const usable = Math.max(1, length - this.axisPadding(length) * 2);
+      const temporalDelta = -(delta / usable) * span;
+      const target = {
         start: drag.viewport.start + temporalDelta,
         end: drag.viewport.end + temporalDelta,
       };
 
       const now = Number(event.timeStamp) || performance.now();
-      const elapsed = Math.max(1, now - drag.lastTime);
-      const incrementalPixels = coordinate - drag.lastCoordinate;
-      this.interactionVelocity = -((incrementalPixels / length) * span) / elapsed;
-      drag.lastCoordinate = coordinate;
+      const response = motion.responseForElapsed(now - drag.lastTime);
       drag.lastTime = now;
+      this.viewport = {
+        start: this.viewport.start + (target.start - this.viewport.start) * response,
+        end: this.viewport.end + (target.end - this.viewport.end) * response,
+      };
+      const pointerVelocity = motion.estimatePointerVelocity(drag.samples);
+      this.interactionVelocity = -((pointerVelocity / usable) * span);
       this.scheduleRender();
       this.emitViewport(false);
     });
 
     const finishPointer = (event: PointerEvent): void => {
-      if (!this.pointerDrag || this.pointerDrag.pointerId !== event.pointerId) return;
+      const drag = this.pointerDrag;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      motion.appendPointerSamples(drag.samples, event, this.orientation);
+      const releaseVelocity =
+        event.type === "pointercancel" ? 0 : motion.estimatePointerVelocity(drag.samples);
+      const rect = this.surface.getBoundingClientRect();
+      const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
       this.pointerDrag = null;
       try {
         if (this.surface.hasPointerCapture(event.pointerId)) {
@@ -316,7 +341,12 @@ class TimelineViewController {
       } catch {
         // Cancellation can release capture before this handler runs.
       }
-      this.commitInteraction();
+      if (Math.abs(releaseVelocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
+        this.startInertia(releaseVelocity, length);
+        void motion.pulseHaptic("release");
+      } else {
+        this.commitInteraction();
+      }
     };
 
     this.surface.addEventListener("pointerup", finishPointer);
@@ -331,6 +361,7 @@ class TimelineViewController {
       if (!this.items.length) return;
       if (event.key === "Home") {
         event.preventDefault();
+        this.cancelInertia();
         this.fitAll();
         return;
       }
@@ -419,6 +450,60 @@ class TimelineViewController {
     this.commitInteraction();
   }
 
+  axisPadding(length: number): number {
+    return clamp(length * 0.075, 48, 80);
+  }
+
+  cancelInertia(): void {
+    if (this.inertiaAnimationFrame) cancelAnimationFrame(this.inertiaAnimationFrame);
+    this.inertiaAnimationFrame = 0;
+    this.interactionVelocity = 0;
+  }
+
+  startInertia(initialVelocityPxPerMs: number, pixelLength: number): void {
+    if (this.reducedMotionQuery?.matches) {
+      this.commitInteraction();
+      return;
+    }
+    this.cancelInertia();
+    this.beginInteraction();
+    let velocity = Number(initialVelocityPxPerMs) || 0;
+    let lastFrame = 0;
+
+    const step = (now: number): void => {
+      this.inertiaAnimationFrame = 0;
+      if (Math.abs(velocity) < motion.STOP_VELOCITY_PX_PER_MS) {
+        this.interactionVelocity = 0;
+        this.commitInteraction();
+        return;
+      }
+
+      const elapsed = lastFrame ? clamp(now - lastFrame, 1, 48) : 16;
+      lastFrame = now;
+      velocity = motion.decayVelocity(velocity, elapsed);
+      const usable = Math.max(1, pixelLength - this.axisPadding(pixelLength) * 2);
+      const span = this.viewport.end - this.viewport.start;
+      const deltaPixels = velocity * elapsed;
+      const deltaTemporal = -(deltaPixels / usable) * span;
+      this.interactionVelocity = deltaTemporal / elapsed;
+      this.viewport = {
+        start: this.viewport.start + deltaTemporal,
+        end: this.viewport.end + deltaTemporal,
+      };
+      this.scheduleRender();
+      this.emitViewport(false);
+
+      if (Math.abs(velocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
+        this.inertiaAnimationFrame = requestAnimationFrame(step);
+      } else {
+        this.interactionVelocity = 0;
+        this.commitInteraction();
+      }
+    };
+
+    this.inertiaAnimationFrame = requestAnimationFrame(step);
+  }
+
   beginInteraction(): void {
     if (this.retention.active) return;
     this.clearHoverStates();
@@ -432,7 +517,7 @@ class TimelineViewController {
   }
 
   commitInteraction(): void {
-    this.interactionVelocity = 0;
+    this.cancelInertia();
     this.renderWindow = createRenderWindow(this.viewport, { overscanRatio: OVERSCAN_RATIO });
     this.retention = commitRetention(this.renderWindow);
     this.root.dataset.sceneState = this.focusedId ? "focused" : this.items.length ? "populated" : "empty";
@@ -861,29 +946,257 @@ class TimelineViewController {
   }
 
   renderFocus(item: TimelineItem): void {
+    this.focusView.tabIndex = -1;
     this.focusView.style.setProperty("--event-color", item.color || "var(--accent)");
     this.focusView.dataset.layout = item.layoutVariant || "hero-split";
+    this.focusView.dataset.activeTab = "overview";
     this.focusView.setAttribute("aria-labelledby", "timeline-focus-heading");
 
     const hero = this.createFocusHero(item);
+
     const summary = document.createElement("section");
+    summary.id = "timeline-focus-context-panel";
     summary.className = "timeline-focus-section timeline-focus-summary";
+    summary.setAttribute("aria-label", "Context");
+    const description = document.createElement("p");
+    description.className = "timeline-focus-description";
+    description.textContent =
+      item.description || "No narrative description has been recorded for this event.";
+    summary.append(description);
 
-    if (item.description) {
-      const description = document.createElement("p");
-      description.className = "timeline-focus-description";
-      description.textContent = item.description;
-      summary.append(description);
+    const ordered = [...this.items].sort(
+      (left, right) => left.start - right.start || left.id.localeCompare(right.id),
+    );
+    const currentIndex = ordered.findIndex((candidate) => candidate.id === item.id);
+    const actions = document.createElement("div");
+    actions.className = "timeline-focus-actions";
+    const previous = document.createElement("button");
+    previous.type = "button";
+    previous.className = "button secondary";
+    previous.textContent = "Previous event";
+    previous.disabled = currentIndex <= 0;
+    previous.addEventListener("click", () => this.focusAdjacent(-1));
+    const next = document.createElement("button");
+    next.type = "button";
+    next.className = "button secondary";
+    next.textContent = "Next event";
+    next.disabled = currentIndex < 0 || currentIndex >= ordered.length - 1;
+    next.addEventListener("click", () => this.focusAdjacent(1));
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "button secondary";
+    edit.textContent = "Edit event";
+    edit.addEventListener("click", () => {
+      this.root.dispatchEvent(
+        new CustomEvent("timelinefocusedit", { bubbles: true, detail: { id: item.id } }),
+      );
+      this.closeFocus();
+    });
+    actions.append(previous, next, edit);
+    summary.append(actions);
+
+    const place = document.createElement("section");
+    place.id = "timeline-focus-place-panel";
+    place.className = "timeline-focus-section timeline-focus-place";
+    place.setAttribute("aria-label", "Place");
+    const placeBackdrop = document.createElement("div");
+    placeBackdrop.className = "timeline-focus-section-backdrop timeline-focus-place-backdrop";
+    placeBackdrop.dataset.focusMapSlot = "";
+    const placeContent = document.createElement("div");
+    placeContent.className = "timeline-focus-section-content";
+    const location = isRecord(item.location) ? item.location : null;
+    const placeName =
+      item.locationName ||
+      recordString(location, "name") ||
+      recordString(location, "geographicIdentifier") ||
+      recordString(location, "address");
+    if (placeName) {
+      const name = document.createElement("p");
+      name.className = "timeline-focus-place-name";
+      name.textContent = placeName;
+      placeContent.append(name);
+    } else {
+      const missing = document.createElement("p");
+      missing.className = "timeline-focus-muted";
+      missing.textContent = "No location assigned.";
+      placeContent.append(missing);
+    }
+    const geometry = location && isRecord(location.geometry) ? location.geometry : null;
+    const coordinates = geometry?.coordinates;
+    if (
+      Array.isArray(coordinates) &&
+      coordinates.length >= 2 &&
+      typeof coordinates[0] === "number" &&
+      typeof coordinates[1] === "number"
+    ) {
+      const coordinateText = document.createElement("p");
+      coordinateText.className = "timeline-focus-place-coordinates";
+      coordinateText.textContent = `${coordinates[1]}, ${coordinates[0]}`;
+      placeContent.append(coordinateText);
+    }
+    place.append(placeBackdrop, placeContent);
+
+    const evidence = document.createElement("section");
+    evidence.id = "timeline-focus-evidence-panel";
+    evidence.className = "timeline-focus-section timeline-focus-evidence";
+    evidence.setAttribute("aria-label", "Evidence");
+    evidence.setAttribute("role", "tabpanel");
+    evidence.hidden = true;
+    const evidenceRecords = (item.evidence || []).filter(isRecord).slice(0, 6);
+    if (evidenceRecords.length) {
+      const grid = document.createElement("div");
+      grid.className = "timeline-focus-evidence-grid";
+      for (const record of evidenceRecords) {
+        const card = document.createElement("article");
+        card.className = "timeline-focus-evidence-card";
+        const type = recordString(record, "type") || "source";
+        card.dataset.type = type;
+
+        const header = document.createElement("div");
+        header.className = "timeline-focus-evidence-header";
+        const icon =
+          presentation && typeof presentation.createIcon === "function"
+            ? presentation.createIcon("evidence", { size: 20 })
+            : null;
+        if (icon) header.append(icon);
+        const typeLabel = document.createElement("span");
+        typeLabel.className = "timeline-focus-evidence-type";
+        typeLabel.textContent = type;
+        header.append(typeLabel);
+
+        const title = document.createElement("h4");
+        title.className = "timeline-focus-evidence-title";
+        title.textContent = recordString(record, "title") || "Untitled evidence";
+        card.append(header, title);
+
+        const meta = [recordString(record, "sourceName"), recordString(record, "publishedAt")]
+          .filter(Boolean)
+          .join(" · ");
+        if (meta) {
+          const metadata = document.createElement("p");
+          metadata.className = "timeline-focus-evidence-meta";
+          metadata.textContent = meta;
+          card.append(metadata);
+        }
+        const note = recordString(record, "note");
+        if (note) {
+          const noteElement = document.createElement("p");
+          noteElement.className = "timeline-focus-evidence-note";
+          noteElement.textContent = note;
+          card.append(noteElement);
+        }
+        const url = recordString(record, "url");
+        const file = isRecord(record.file) ? record.file : null;
+        if (url || recordString(file, "blobKey")) {
+          const evidenceActions = document.createElement("div");
+          evidenceActions.className = "timeline-focus-evidence-actions";
+          if (url) {
+            const link = document.createElement("a");
+            link.className = "button secondary";
+            link.href = url;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = type === "article" ? "Open source" : "Open document";
+            evidenceActions.append(link);
+          }
+          const blobKey = recordString(file, "blobKey");
+          if (blobKey) {
+            const open = document.createElement("button");
+            open.type = "button";
+            open.className = "button secondary";
+            open.textContent = "Open local PDF";
+            open.addEventListener("click", () => {
+              this.root.dispatchEvent(
+                new CustomEvent("timelineevidenceopen", {
+                  bubbles: true,
+                  detail: { id: recordString(record, "id") },
+                }),
+              );
+            });
+            evidenceActions.append(open);
+          }
+          card.append(evidenceActions);
+        }
+        grid.append(card);
+      }
+      evidence.append(grid);
+      const hiddenCount = Math.max(0, (item.evidence?.length || 0) - evidenceRecords.length);
+      if (hiddenCount) {
+        const more = document.createElement("p");
+        more.className = "timeline-focus-evidence-more";
+        more.textContent = `${hiddenCount} more evidence record${hiddenCount === 1 ? "" : "s"} available`;
+        evidence.append(more);
+      }
+    } else {
+      const missing = document.createElement("p");
+      missing.className = "timeline-focus-muted";
+      missing.textContent = "No supporting evidence attached.";
+      evidence.append(missing);
     }
 
-    if (item.locationName) {
-      const place = document.createElement("p");
-      place.className = "timeline-focus-place-name";
-      place.textContent = item.locationName;
-      summary.append(place);
-    }
+    const tabs = document.createElement("div");
+    tabs.className = "timeline-focus-tabs";
+    tabs.setAttribute("role", "tablist");
+    tabs.setAttribute("aria-label", "Focused event views");
+    const overviewTab = document.createElement("button");
+    overviewTab.type = "button";
+    overviewTab.className = "timeline-focus-tab is-active";
+    overviewTab.textContent = "Overview";
+    overviewTab.setAttribute("role", "tab");
+    overviewTab.setAttribute("aria-selected", "true");
+    overviewTab.setAttribute("aria-controls", "timeline-focus-context-panel timeline-focus-place-panel");
+    const evidenceTab = document.createElement("button");
+    evidenceTab.type = "button";
+    evidenceTab.className = "timeline-focus-tab";
+    evidenceTab.textContent = "Evidence";
+    evidenceTab.setAttribute("role", "tab");
+    evidenceTab.setAttribute("aria-selected", "false");
+    evidenceTab.setAttribute("aria-controls", "timeline-focus-evidence-panel");
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "button primary timeline-focus-close";
+    close.textContent = "Close";
+    close.setAttribute("aria-label", "Return to timeline");
+    close.addEventListener("click", () => this.closeFocus());
 
-    this.focusView.replaceChildren(hero, summary);
+    const setFocusTab = (name: "overview" | "evidence"): void => {
+      const evidenceActive = name === "evidence";
+      const apply = () => {
+        this.focusView.dataset.activeTab = name;
+        summary.hidden = evidenceActive;
+        place.hidden = evidenceActive;
+        evidence.hidden = !evidenceActive;
+        overviewTab.classList.toggle("is-active", !evidenceActive);
+        evidenceTab.classList.toggle("is-active", evidenceActive);
+        overviewTab.setAttribute("aria-selected", String(!evidenceActive));
+        evidenceTab.setAttribute("aria-selected", String(evidenceActive));
+      };
+      if (
+        !this.reducedMotionQuery?.matches &&
+        typeof document.startViewTransition === "function" &&
+        !Boolean((document as Document & { activeViewTransition?: unknown }).activeViewTransition)
+      ) {
+        try {
+          document.startViewTransition(apply);
+        } catch {
+          apply();
+        }
+      } else {
+        apply();
+      }
+      if (!evidenceActive) {
+        requestAnimationFrame(() => {
+          this.root.dispatchEvent(
+            new CustomEvent("timelinefocusrender", { bubbles: true, detail: { id: item.id } }),
+          );
+        });
+      }
+    };
+    overviewTab.addEventListener("click", () => setFocusTab("overview"));
+    evidenceTab.addEventListener("click", () => setFocusTab("evidence"));
+    tabs.append(overviewTab, evidenceTab, close);
+
+    this.focusView.replaceChildren(tabs, hero, summary, place, evidence);
     this.root.dispatchEvent(
       new CustomEvent("timelinefocusrender", {
         bubbles: true,
@@ -1019,6 +1332,10 @@ class TimelineViewController {
       }
       this.focusView.hidden = true;
       this.focusView.replaceChildren();
+      this.focusView.style.removeProperty("--event-color");
+      this.focusView.removeAttribute("aria-labelledby");
+      delete this.focusView.dataset.layout;
+      delete this.focusView.dataset.activeTab;
       this.render();
       this.root.dispatchEvent(
         new CustomEvent("timelinefocuschange", {
