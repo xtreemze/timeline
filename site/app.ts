@@ -2300,12 +2300,6 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     els.itemEvidenceDetails.open = attached.length > 0;
   }
 
-  function mergeEvidenceRecords(records) {
-    const map = new Map(state.evidence.map((record) => [record.id, record]));
-    for (const record of records) map.set(record.id, record);
-    state.evidence = [...map.values()];
-  }
-
   function inferenceStoryIds(itemId) {
     if (!itemId) return [];
     return state.stories
@@ -4369,6 +4363,28 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     updateTagHuePreview(row);
   }
 
+  for (const row of els.itemEvidenceRows) {
+    const parts = evidenceRowParts(row);
+    parts.extractText?.addEventListener("click", () => {
+      void extractEvidenceRow(row);
+    });
+    parts.file?.addEventListener("change", () => {
+      const id = parts.id.value.trim();
+      if (id) evidenceExtractionDrafts.delete(id);
+      renderEvidenceExtraction(parts, null);
+      markInferenceStale();
+    });
+  }
+
+  els.itemInferenceRun?.addEventListener("click", () => {
+    void runItemInference();
+  });
+  els.itemInferenceClear?.addEventListener("click", () => {
+    clearInferenceDraft();
+  });
+  els.itemForm.addEventListener("input", markInferenceStale);
+  els.itemForm.addEventListener("change", markInferenceStale);
+
   els.itemForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     setError(els.itemFormError);
@@ -5067,6 +5083,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   setActivePanel("items", { open: false });
   syncApplicationSurfaces();
   renderAll();
+  void syncInferenceAvailability();
 
   webMcp
     .register(agentApi)
