@@ -5101,3 +5101,46 @@
     flex: 1 1 140px;
   }
 }
+
+
+/* Retained timeline scene: buffered occurrences stay mounted across interaction epochs.
+   The visible rail is not the scene boundary; overscanned objects remain non-interactive
+   until their temporal extent intersects the logical viewport. */
+.timeline-retained-scene {
+  overflow: visible;
+}
+
+.timeline-retained-scene .timeline-event,
+.timeline-retained-scene .timeline-range-segment {
+  will-change: transform;
+}
+
+.timeline-retained-scene .timeline-event.is-buffered .timeline-event-terminal,
+.timeline-retained-scene .timeline-range-segment.is-buffered {
+  pointer-events: none;
+}
+
+.timeline-event-terminal:is(:hover, :focus-visible) {
+  border-color: var(--event-color);
+  background: color-mix(in srgb, var(--paper) 90%, var(--event-color));
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--event-color) 13%, transparent),
+    0 5px 16px color-mix(in srgb, var(--event-color) 12%, transparent);
+}
+
+.timeline-view[data-scene-state="interacting"] .timeline-event-terminal,
+.timeline-view[data-scene-state="interacting"] .timeline-range-segment {
+  transition-duration: 80ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-retained-scene .timeline-event,
+  .timeline-retained-scene .timeline-range-segment {
+    will-change: auto;
+  }
+
+  .timeline-event-terminal,
+  .timeline-range-segment {
+    transition-duration: 0.01ms;
+  }
+}
