@@ -31,15 +31,17 @@ test("temporal ticks are retained by stable calendar identity instead of rebuilt
   assert.doesNotMatch(source, /renderTemporalContext[\s\S]{0,4000}replaceChildren/);
 });
 
-test("active interaction freezes semantic tick hierarchy and preserves temporal context", async () => {
+test("active interaction retains the committed hierarchy while pre-materializing the incoming hierarchy", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
   assert.match(source, /committedTickSpecKey/);
-  assert.match(
-    source,
-    /!this\.retention\.active \|\| !this\.committedTickSpecKey \|\| this\.committedTickSpecKey === specKey/,
-  );
-  assert.match(source, /if \(!canReconcileHierarchy\)/);
+  assert.match(source, /committedTickSpec: SemanticTickSpec \| null/);
+  assert.match(source, /incomingHierarchy =/);
+  assert.match(source, /this\.retention\.active/);
+  assert.match(source, /selectedKey !== committedKey/);
+  assert.match(source, /materializeTickHierarchy/);
+  assert.match(source, /generateTicksForSpec/);
+  assert.match(source, /dataset\.incomingTickHierarchy/);
   assert.match(source, /positionTemporalNode/);
 });
 
