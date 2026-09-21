@@ -669,7 +669,6 @@
             this.placePlaceholder.append(status);
           }
         }
-        // eslint-disable-next-line no-undef
         console.warn(error);
       }
     }
@@ -922,7 +921,6 @@
         this.container.textContent =
           "Map preview unavailable. Coordinates can still be entered manually.";
         this.container.dataset.error = "true";
-        // eslint-disable-next-line no-undef
         console.warn(error);
       }
     }
