@@ -5096,6 +5096,15 @@ const evidenceExtraction = Reflect.get(
     };
   }
 
+  type WebMcpRegistration = {
+    registered: boolean;
+    reason?: string;
+    toolNames?: string[];
+    dispose?: () => void;
+  };
+
+  let webMcpRegistration: WebMcpRegistration | null = null;
+
   const agentApi = Object.freeze({
     getProject: () => clone(state),
     getGraphContract: graphContract,
@@ -5241,14 +5250,21 @@ const evidenceExtraction = Reflect.get(
   webMcp
     .register(agentApi)
     .then((registration) => {
+      webMcpRegistration?.dispose?.();
       webMcpRegistration = registration;
       if (!registration.registered) {
-          console.warn("Timeline WebMCP tools are not registered:", registration.reason);
+        console.warn("Timeline WebMCP tools are not registered:", registration.reason);
       }
     })
     .catch((error) => {
       console.warn("Timeline WebMCP registration failed:", error);
     });
+
+  const disposeWebMcpRegistration = (): void => {
+    webMcpRegistration?.dispose?.();
+    webMcpRegistration = null;
+  };
+  window.addEventListener("pagehide", disposeWebMcpRegistration, { once: true });
 
 // Set global API for backward compatibility
 globalThis.TimelineAgentAPI = agentApi;
