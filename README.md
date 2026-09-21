@@ -1,6 +1,6 @@
 # Lūm
 
-**Explore the continuum. Follow the threads.**
+**Lūm is the loom that weaves loose threads into fabric.**
 
 [![GitHub Pages](https://img.shields.io/github/actions/workflow/status/xtreemze/timeline/pages.yml?branch=main&label=GitHub%20Pages)](https://xtreemze.github.io/timeline/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -8,7 +8,7 @@
 
 Lūm is a local-first relational knowledge environment for research, incident reconstruction, project histories, evidence review, biographies, historical analysis, and other work where time, place, relationship, and provenance matter.
 
-Its canonical information space is the **continuum**: entities, occurrences/relationships, places, evidence, analytical records, and stories. Timeline, graph, map, evidence trace, and story are coordinated **projections** over that shared model rather than independent data silos.
+Its metaphor is literal enough to guide the product: **loose threads** are facts, entities, occurrences, places, evidence, and narrative fragments; **Lūm is the loom** that brings them into relation; the resulting **fabric is the continuum**, the canonical information space. Timeline, graph, map, evidence trace, and story are coordinated **projections** for reading that same fabric rather than independent data silos.
 
 A timed relationship is an **occurrence**. A **thread** follows continuity through related occurrences; the **weave** is the relational structure formed where those threads intersect. Stories are authored traversals through the continuum, while evidence forms inspectable **traces** back to sources. One fact can therefore appear in several projections and stories without being duplicated.
 
@@ -22,11 +22,11 @@ The application is static and runs entirely in the browser. Lūm project data is
 
 ## Conceptual language
 
-- **Lūm** — the product and instrument for navigating the model.
-- **Continuum** — the canonical shared information space.
+- **Lūm** — the loom: the product and instrument that reconciles and relates loose threads.
+- **Fabric / continuum** — the coherent canonical information space produced by the weave.
 - **Occurrence** — a concrete situated fact; a timed relationship is an occurrence.
-- **Thread** — a traversable continuity through related occurrences.
-- **Weave** — the relational topology formed by intersecting threads.
+- **Thread** — a strand of meaning that may begin loose and becomes traversable through context.
+- **Weave** — both the act of relating threads and the topology created by their intersections.
 - **Locus** — conceptual UI language for a reusable place/spatial anchor.
 - **Trace** — the inspectable provenance path from a fact or claim back to evidence and source locators.
 - **Story** — an authored traversal through canonical occurrences, not a copy of them.
