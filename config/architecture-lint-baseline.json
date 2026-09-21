@@ -47,7 +47,7 @@
     },
     "src/layout/orb-graph-surface.ts": {
       "any": 5,
-      "asAny": 1,
+      "asAny": 0,
       "nonNull": 0
     },
     "site/temporal-standards.ts": {
@@ -371,8 +371,7 @@
       "site/timeline-graph-shim.ts": 1,
       "site/timeline-graph.ts": 8,
       "site/timeline-view-shim.ts": 1,
-      "site/timeline-view.ts": 2,
-      "src/layout/orb-graph-surface.ts": 1
+      "site/timeline-view.ts": 2
     },
     "directCanonicalMutations": {
       "site/app.ts": 18,
