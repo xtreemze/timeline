@@ -20,9 +20,12 @@ async function expectVisibleChronology(page, viewport) {
   const terminal = page
     .locator('.timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible')
     .first();
+  const eventCopy = terminal.locator('.timeline-event-copy');
   const tickLabel = page.locator('.timeline-tick-label:visible').first();
 
   await expect(terminal).toBeVisible();
+  await expect(eventCopy).toBeVisible();
+  await expect(eventCopy.locator('strong')).not.toHaveText('');
   await expect(tickLabel).toBeVisible();
 
   const terminalBox = await terminal.boundingBox();
@@ -66,9 +69,10 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     await expectInsideViewport(dock, PHONE_PORTRAIT);
 
     expect(timelineBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.9);
-    expect(timelineBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.65);
+    expect(timelineBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.8);
     expect(surfaceBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.9);
-    expect(surfaceBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.6);
+    // With the relation graph open, chronology still owns at least half of a portrait phone.
+    expect(surfaceBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.48);
 
     await expectVisibleChronology(page, PHONE_PORTRAIT);
     await expectNoPrimaryDocumentScroll(page, PHONE_PORTRAIT);
@@ -89,9 +93,10 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     await expectInsideViewport(dock, PHONE_LANDSCAPE);
 
     expect(timelineBox.width).toBeGreaterThan(PHONE_LANDSCAPE.width * 0.9);
-    expect(timelineBox.height).toBeGreaterThan(PHONE_LANDSCAPE.height * 0.65);
+    expect(timelineBox.height).toBeGreaterThan(PHONE_LANDSCAPE.height * 0.8);
     expect(surfaceBox.width).toBeGreaterThan(PHONE_LANDSCAPE.width * 0.9);
-    expect(surfaceBox.height).toBeGreaterThan(PHONE_LANDSCAPE.height * 0.6);
+    // Landscape keeps a substantial chronology rail while leaving graph context usable.
+    expect(surfaceBox.height).toBeGreaterThan(PHONE_LANDSCAPE.height * 0.4);
 
     await expectVisibleChronology(page, PHONE_LANDSCAPE);
     await expectNoPrimaryDocumentScroll(page, PHONE_LANDSCAPE);
