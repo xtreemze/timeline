@@ -159,6 +159,26 @@
       "any": 0,
       "asAny": 0,
       "nonNull": 0
+    },
+    "site/temporal-standards-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/time-scale-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/timeline-clustering-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/timeline-graph-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
     }
   },
   "css": {
@@ -255,7 +275,8 @@
       "site/location-map-shim.ts": 1,
       "site/location-map.ts": 5,
       "site/sample-case-shim.ts": 1,
-      "site/sample-case.ts": 1
+      "site/sample-case.ts": 1,
+      "site/timeline-graph-shim.ts": 1
     },
     "directCanonicalMutations": {
       "site/app.ts": 20
