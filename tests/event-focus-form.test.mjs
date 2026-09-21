@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+const { TimelineDateRangePicker: picker } = await import("../site/date-range-picker.ts");
+
 globalThis.document = { baseURI: "https://example.test/" };
-await import("../site/date-range-picker-shim.ts");
 await import("../site/event-presentation-shim.ts");
 
-const picker = globalThis.TimelineDateRangePicker;
 const presentation = globalThis.TimelinePresentation;
 await import("../site/presentation-layout-shim.ts");
 const presentationLayout = globalThis.TimelinePresentationLayout;
