@@ -95,6 +95,11 @@ test("WebMCP registers current document.modelContext tools with mutation annotat
   };
   const adapter = {
     getProject: () => projectFixture(),
+    getGraphContract: () => ({
+      version: "2026-09-21.1",
+      rules: { selfLoops: "forbidden", predicateSemantics: "one-action-verb-plus-optional-particle-no-entities" }
+    }),
+    auditGraph: () => ({ valid: true, graphContractVersion: "2026-09-21.1", errors: [] }),
     validateProject: () => ({ valid: true, errors: [] }),
     applyOperations: (operations) => ({ appliedOperations: operations.length }),
     replaceProject: () => ({ ok: true }),
@@ -106,6 +111,8 @@ test("WebMCP registers current document.modelContext tools with mutation annotat
   assert.equal(result.registered, true);
   assert.deepEqual(result.toolNames, [
     "timeline.get_project",
+    "timeline.get_graph_contract",
+    "timeline.audit_graph",
     "timeline.validate_project",
     "timeline.apply_transaction",
     "timeline.replace_project",
@@ -113,10 +120,27 @@ test("WebMCP registers current document.modelContext tools with mutation annotat
     "timeline.memgraph_import"
   ]);
   assert.equal(registered[0].tool.annotations.readOnlyHint, true);
-  assert.equal(registered[2].tool.annotations.consequentialHint, true);
-  assert.equal(registered[2].options.signal instanceof AbortSignal, true);
+  assert.equal(registered[0].tool.annotations.openWorldHint, false);
+  assert.equal(registered[4].tool.annotations.consequentialHint, true);
+  assert.equal(registered[4].tool.annotations.destructiveHint, true);
+  assert.equal(registered[4].tool.annotations.openWorldHint, false);
+  assert.equal(registered[4].options.signal instanceof AbortSignal, true);
+  assert.equal(
+    (await registered[1].tool.execute()).version,
+    "2026-09-21.1"
+  );
+  await assert.rejects(
+    () => registered[4].tool.execute({
+      graphContractVersion: "stale",
+      operations: [{ op: "set", field: "title", value: "x" }]
+    }),
+    /Graph contract version mismatch/
+  );
   assert.deepEqual(
-    await registered[2].tool.execute({ operations: [{ op: "set", field: "title", value: "x" }] }),
+    await registered[4].tool.execute({
+      graphContractVersion: "2026-09-21.1",
+      operations: [{ op: "set", field: "title", value: "x" }]
+    }),
     { appliedOperations: 1 }
   );
   result.dispose();
@@ -171,6 +195,9 @@ test("browser runtime loads WebMCP before app and wires tools to canonical persi
 
   assert.match(html, /memgraph-interchange\.js[\s\S]*webmcp\.js[\s\S]*app\.js/);
   assert.match(webmcpSource, /document\?\.modelContext|globalThis\.document\?\.modelContext/);
+  assert.match(webmcpSource, /timeline\.get_graph_contract/);
+  assert.match(webmcpSource, /timeline\.audit_graph/);
+  assert.match(webmcpSource, /graphContractVersion/);
   assert.match(webmcpSource, /timeline\.apply_transaction/);
   assert.match(webmcpSource, /timeline\.replace_project/);
   assert.match(webmcpSource, /timeline\.memgraph_export/);
