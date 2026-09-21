@@ -30,7 +30,6 @@ export default defineConfig({
       use: {
         ...devices['Pixel 5'],
         viewport: { width: 851, height: 393 },
-        screen: { width: 851, height: 393 },
       },
     },
     {
@@ -42,7 +41,6 @@ export default defineConfig({
       use: {
         ...devices['iPhone 12'],
         viewport: { width: 844, height: 390 },
-        screen: { width: 844, height: 390 },
       },
     },
     {
