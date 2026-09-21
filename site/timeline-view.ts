@@ -70,6 +70,7 @@ interface TimelineItem {
   relations?: unknown[];
   relationChanges?: unknown[];
   graphContext?: unknown;
+  editable?: boolean;
 }
 
 interface TimelineRelationshipBand {
@@ -1672,7 +1673,8 @@ class TimelineViewController {
       );
       this.closeFocus();
     });
-    actions.append(previous, next, edit);
+    actions.append(previous, next);
+    if (item.editable !== false) actions.append(edit);
     summary.append(actions);
 
     const place = document.createElement("section");
