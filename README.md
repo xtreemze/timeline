@@ -84,7 +84,9 @@ This is deliberately a reference model rather than a copy model: stories do not 
 
 ### AI / WebMCP control
 
-Timeline exposes its active local-first project to browser AI agents through the standards-track `document.modelContext` WebMCP API when that API is available. The tool surface supports complete project reads, validation, atomic CRUD transactions, full-project replacement, Memgraph export, and Memgraph import. Mutations reuse the same strict normalization, persistence, and rendering path as the human editor.
+Timeline exposes its active local-first project to browser AI agents through the standards-track `document.modelContext` WebMCP API when that API is available. The tool surface supports complete project reads, a versioned machine-readable graph contract, graph audit, full validation, atomic CRUD transactions, full-project replacement, Memgraph export, and Memgraph import. Mutations reuse the same strict normalization, persistence, and rendering path as the human editor.
+
+Graph-capable MCP writes require the current graph-contract version and are rejected if they violate entity-only nodes, distinct endpoints, action-only predicates, canonical time/place ownership, category/story separation, duplicate/orphan rules, or named narrative entity coverage. The repo-local `.agents/skills/timeline-graph-authoring/SKILL.md` gives Codex/ChatGPT a repeatable contract → extract/resolve entities → atomic mutation → audit → validation workflow.
 
 For Memgraph interoperability, Timeline emits namespace-scoped Cypher and lossless `recordJson` payloads that an MCP client connected to both Timeline and Memgraph MCP can relay without DOM scraping or storing Memgraph credentials in the page. See `docs/WEBMCP-MEMGRAPH.md`.
 
@@ -105,6 +107,8 @@ Timeline includes an authorable subject–action–object graph alongside the ch
 - Canonical graph data must not contain orphan navigation/container nodes. Groups belong in topology only when the collective itself acts or is acted upon.
 - `itemIds[]` can link an action edge to chronology/presentation records without turning those records into graph nodes.
 - Stories remain narrative groupings through `story.itemIds[]`; they are not graph nodes or edge endpoints.
+- Categories classify chronology items only; entities, relationships, and places reject category/group taxonomy.
+- A canonical entity named in an event title, description, descriptive media alt text, or attached evidence note must participate in a meaningful action edge linked to that event. Same-named entities are resolved in story scope when available; provenance metadata does not create story participants.
 - The graph lens is synchronized to the visible timeline window: timed edges inside the window are emphasized, out-of-window edges fade, and explicitly timeless action relations remain visible.
 
 See `docs/GRAPH-MODELING-RULES.md` for the normative property-graph profile and reviewed Memgraph/Neo4j/Neptune guidance.
