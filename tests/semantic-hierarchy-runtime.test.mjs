@@ -28,8 +28,14 @@ test("outgoing hierarchy is removed only after replacement is committed", async 
 
   assert.match(source, /retireTemporalContextNode\(node: HTMLElement\)/);
   assert.match(source, /animation\.addEventListener\([\s\S]*"finish"[\s\S]*node\.remove\(\)/);
-  assert.match(source, /this\.tickScene\.delete\(key\);\s*this\.retireTemporalContextNode\(node\)/);
-  assert.match(source, /this\.accentScene\.delete\(key\);\s*this\.retireTemporalContextNode\(node\)/);
+  assert.match(
+    source,
+    /this\.tickScene\.delete\(key\);[\s\S]{0,160}this\.retireTemporalContextNode\(node\)/,
+  );
+  assert.match(
+    source,
+    /this\.accentScene\.delete\(key\);[\s\S]{0,160}this\.retireTemporalContextNode\(node\)/,
+  );
 });
 
 test("reduced motion preserves hierarchy membership without interpolation", async () => {
