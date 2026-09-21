@@ -4206,6 +4206,14 @@ body {
   }
 }
 
+/* Sidebar panel scrolling */
+.timeline-browser-sheet,
+.control-panel {
+  overflow-y: auto !important;
+  max-height: calc(100vh - 140px) !important;
+  height: auto !important;
+}
+
 /* Fallback timeline visibility when dependencies not available */
 .timeline-panel {
   display: grid !important;
