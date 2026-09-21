@@ -4716,3 +4716,95 @@
   cursor: ew-resize;
   touch-action: pan-y;
 }
+
+
+/* Simplified View toolbar: display controls, semantic zoom, then slideshow.
+   Zoom endpoint meaning is icon-only; aria-valuetext retains the intermediate
+   semantic Focus state without adding a third visible label. */
+#app-shell .view-display-controls {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: .22rem;
+  width: auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.timeline-zoom-control {
+  grid-template-columns: 18px minmax(0, 1fr) 18px;
+  grid-template-rows: 22px;
+  align-items: center;
+  column-gap: .3rem;
+}
+
+.timeline-zoom-endpoint {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  color: var(--muted);
+  line-height: 0;
+}
+
+.timeline-zoom-endpoint .semantic-icon {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.9;
+}
+
+#app-shell .timeline-zoom-controls {
+  width: clamp(150px, 20vw, 220px);
+  min-width: 150px;
+  padding: .28rem .38rem;
+}
+
+.timeline-view[data-orientation="landscape"] > .app-view-controls.timeline-view-toolbar[popover]:popover-open
+  .view-display-controls {
+  flex-direction: row;
+}
+
+.timeline-view[data-orientation="portrait"] > .app-view-controls.timeline-view-toolbar[popover]:popover-open
+  .view-display-controls {
+  flex-direction: row;
+  width: 100%;
+}
+
+.timeline-view[data-orientation="portrait"] .timeline-zoom-controls {
+  width: 64px;
+  min-width: 64px;
+  height: clamp(140px, 24dvh, 196px);
+  padding: .35rem .25rem;
+}
+
+.timeline-view[data-orientation="portrait"] .timeline-zoom-control {
+  grid-template-columns: minmax(34px, 1fr);
+  grid-template-rows: 18px minmax(0, 1fr) 18px;
+  place-items: center;
+  row-gap: .24rem;
+  column-gap: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.timeline-view[data-orientation="portrait"] .timeline-zoom-endpoint {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 699px) {
+  #app-shell .view-display-controls .view-icon-button {
+    width: 42px;
+    min-width: 42px;
+    min-height: 42px;
+  }
+
+  #app-shell .timeline-zoom-controls {
+    min-width: 112px;
+    flex: 1 1 140px;
+  }
+}

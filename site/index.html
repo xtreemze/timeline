@@ -1142,20 +1142,20 @@
 
             </header>
           <div id="timeline-view-toolbar" class="timeline-view-toolbar app-view-controls" popover="manual" role="toolbar" aria-label="View controls">
-            <div class="timeline-orientation-control" role="group" aria-label="Timeline orientation">
+            <div class="view-display-controls" role="group" aria-label="Layout and display">
               <button id="timeline-orientation-toggle" class="view-icon-button" type="button" data-semantic-icon="portrait" aria-label="Switch to portrait timeline" title="Switch to portrait timeline">
                 <span class="sr-only">Switch to portrait timeline</span>
+              </button>
+              <button id="presentation-fullscreen-toggle" class="view-icon-button" type="button" data-semantic-icon="fullscreen" aria-pressed="false" aria-keyshortcuts="F" aria-label="Enter full screen" title="Enter full screen">
+                <span class="sr-only">Enter full screen</span>
               </button>
             </div>
             <div class="timeline-zoom-controls" aria-label="Timeline zoom">
               <label class="timeline-zoom-control" for="timeline-zoom-level">
                 <span class="sr-only">Timeline zoom level</span>
+                <span class="timeline-zoom-endpoint" data-semantic-icon="zoom-out" aria-hidden="true"></span>
                 <input id="timeline-zoom-level" type="range" min="0" max="100" step="1" value="100" aria-describedby="timeline-zoom-level-hint" aria-valuetext="Focused time window">
-                <span class="timeline-zoom-scale" aria-hidden="true">
-                  <span>Context</span>
-                  <span>Focus</span>
-                  <span>Isolate</span>
-                </span>
+                <span class="timeline-zoom-endpoint" data-semantic-icon="zoom-in" aria-hidden="true"></span>
               </label>
               <span id="timeline-zoom-level-hint" class="sr-only">Farthest shows the whole timeline context. The middle centers the focused event with two neighboring events. Closest isolates the focused time window while keeping every event or range that intersects it visible.</span>
             </div>
@@ -1169,11 +1169,6 @@
                 <span aria-hidden="true">s</span>
               </label>
               <span id="timeline-auto-status" class="timeline-auto-status sr-only" aria-live="polite">Slideshow stopped</span>
-            </div>
-            <div class="presentation-controls" role="group" aria-label="Presentation display">
-              <button id="presentation-fullscreen-toggle" class="view-icon-button" type="button" data-semantic-icon="fullscreen" aria-pressed="false" aria-keyshortcuts="F" aria-label="Enter full screen" title="Enter full screen">
-                <span class="sr-only">Enter full screen</span>
-              </button>
             </div>
             <span id="timeline-window-readout" class="timeline-window-readout toolbar-readout" aria-live="polite">No visible events</span>
           </div>
