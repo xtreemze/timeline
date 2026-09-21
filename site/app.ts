@@ -1639,10 +1639,17 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
               objectName: relationship ? entityOrItemName(relationship.objectId) : "",
             };
           }),
-          graphContext: graph.neighborhoodGraph(graphInput, item.id, eventViewport, {
-            depth: 1,
-            limit: 28,
-          }),
+          graphContext: (() => {
+            try {
+              return graph.neighborhoodGraph(graphInput, item.id, eventViewport, {
+                depth: 1,
+                limit: 28,
+              });
+            } catch (error) {
+              console.error("Failed to generate neighborhood graph:", error);
+              return { nodes: [], edges: [] };
+            }
+          })(),
         };
       }),
       {
