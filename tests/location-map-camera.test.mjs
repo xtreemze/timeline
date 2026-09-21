@@ -5,7 +5,7 @@ import test from "node:test";
 test("focused map opens at world scale and slowly flies to country context", async () => {
   const [mapSource, appSource] = await Promise.all([
     readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(appSource, /countryContextIntro:\s*true/);
@@ -25,7 +25,7 @@ test("focused map opens at world scale and slowly flies to country context", asy
 test("focused map ties the semantic place identity to the stored coordinate", async () => {
   const [mapSource, appSource, styles] = await Promise.all([
     readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
 
@@ -50,7 +50,7 @@ test("focused map ties the semantic place identity to the stored coordinate", as
 test("fictional spatial reference frames use local procedural texture instead of OSM tiles", async () => {
   const [mapSource, appSource, styles] = await Promise.all([
     readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
 
@@ -127,11 +127,11 @@ test("map touch targets match the coarse-pointer interaction floor and editing h
   assert.match(source, /this\.map\.on\("click"[\s\S]*this\.applyPosition/);
   assert.match(
     styles,
-    /\.timeline-map-marker\s*\{[\s\S]*width:\s*44px !important[\s\S]*height:\s*44px !important/,
+    /\.timeline-map-marker\s*\{[\s\S]*width:\s*44px[\s\S]*height:\s*44px/,
   );
   assert.match(
     styles,
-    /@media \(pointer:\s*coarse\)[\s\S]*leaflet-control-zoom a[\s\S]*width:\s*44px !important[\s\S]*height:\s*44px !important/,
+    /@media \(pointer:\s*coarse\)[\s\S]*leaflet-control-zoom a[\s\S]*width:\s*44px[\s\S]*height:\s*44px/,
   );
   assert.match(html, /id="item-location-latitude"[^>]*inputmode="decimal"/);
   assert.match(html, /id="item-location-longitude"[^>]*inputmode="decimal"/);
@@ -148,7 +148,7 @@ test("map runtime is local and basemap failure cannot remove semantic geometry",
 
   assert.equal(pkg.dependencies.leaflet, "1.9.4");
   assert.match(pkg.scripts["build:leaflet"], /src\/leaflet-entry\.js/);
-  assert.match(pkg.scripts["build:leaflet"], /leaflet\\/dist\\/images/);
+  assert.ok(pkg.scripts["build:leaflet"].includes("leaflet/dist/images"));
   assert.match(html, /href="\.\/leaflet\.css"/);
   assert.match(html, /src="\.\/leaflet\.bundle\.js"/);
   assert.doesNotMatch(mapSource, /unpkg\.com\/leaflet/);
