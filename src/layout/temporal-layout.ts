@@ -173,6 +173,7 @@ function clusterGroups(
   positions: ReadonlyMap<string, number>,
   previous: TemporalLayoutPrevious | undefined,
   thresholds: ClusterThresholds,
+  maxLanes: number,
 ): TemporalLayoutCluster[] {
   const previousPairs = previousClusterPairs(previous);
   const groups: TemporalLayoutOccurrence[][] = [];
@@ -203,7 +204,15 @@ function clusterGroups(
   if (current.length) groups.push(current);
 
   return groups
-    .filter((group) => group.length > 1)
+    .filter((group) => {
+      if (group.length <= 1) return false;
+      if (group.length > maxLanes) return true;
+      return group.some((occurrence, index) =>
+        group.slice(index + 1).some((candidate) =>
+          previousPairs.has(pairKey(occurrence.id, candidate.id)),
+        ),
+      );
+    })
     .map((group) => {
       const itemIds = group.map((occurrence) => occurrence.id).sort();
       const start = Math.min(...group.map((occurrence) => occurrence.start));
@@ -263,6 +272,7 @@ export function planCommittedTemporalLayout(
     positions,
     input.previous,
     thresholds,
+    maxLanes,
   );
   const clusteredIds = new Set(clusters.flatMap((cluster) => cluster.itemIds));
 
