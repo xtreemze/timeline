@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   root: 'site',
+  // Keep production assets relative so the same build works under GitHub Pages' /timeline/ subpath.
+  base: './',
   build: {
     outDir: '../dist',
     sourcemap: false,
