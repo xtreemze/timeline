@@ -3852,6 +3852,14 @@ body {
   container: utility-sidebar / inline-size;
 }
 
+#app-shell[data-editor-open="false"] > .app-editor-sheet {
+  display: none;
+}
+
+#app-shell[data-browser-open="false"] > .timeline-panel {
+  display: none;
+}
+
 #app-shell[data-browser-open="true"] > .timeline-panel {
   --utility-sidebar-width: min(300px, 68dvw);
   display: grid;
