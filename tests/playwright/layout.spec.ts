@@ -34,16 +34,31 @@ test.describe('Timeline Layout', () => {
     expect(tlBounds?.height).toBeGreaterThan(100);
   });
 
-  test('mobile tab layout keeps controls compact (max-width: 699px)', async ({ page }) => {
+  test('workspace actions share one bottom app bar on mobile and desktop', async ({ page }) => {
     await page.goto('/');
-    await page.setViewportSize({ width: 600, height: 800 });
 
-    // Tool dock should be positioned with max() for safe area
     const toolDock = page.locator('.app-tool-dock');
-    const toolDockBox = await toolDock.boundingBox();
+    const actions = toolDock.locator(':scope > .app-tool');
+    await expect(actions).toHaveCount(3);
+    await expect(toolDock.locator('#editor-toggle')).toBeVisible();
+    await expect(toolDock.locator('#timeline-browser-toggle')).toBeVisible();
+    await expect(toolDock.locator('#timeline-view-controls-toggle')).toBeVisible();
 
-    expect(toolDockBox?.height).toBeLessThan(400);
-    expect(toolDockBox?.width).toBeLessThan(100);
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 1024, height: 768 },
+    ]) {
+      await page.setViewportSize(viewport);
+
+      const dockBox = await toolDock.boundingBox();
+      expect(dockBox).not.toBeNull();
+      expect(dockBox?.width).toBeGreaterThan(180);
+      expect(dockBox?.height).toBeLessThan(90);
+      expect(dockBox?.x).toBeGreaterThanOrEqual(0);
+      expect((dockBox?.x ?? 0) + (dockBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width + 1);
+      expect((dockBox?.y ?? 0) + (dockBox?.height ?? 0)).toBeLessThanOrEqual(viewport.height + 1);
+      expect(dockBox?.y).toBeGreaterThan(viewport.height - 100);
+    }
   });
 
   test('fullscreen presentation fills viewport while keeping controls accessible', async ({
