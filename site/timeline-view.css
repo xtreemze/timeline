@@ -1389,7 +1389,7 @@
   }
   .timeline-surface.is-portrait {
     height: 100%;
-    min-height: 200px;
+    min-height: 0;
     max-height: none;
   }
   .is-portrait .timeline-tick-label {
