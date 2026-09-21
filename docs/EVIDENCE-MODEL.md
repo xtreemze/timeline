@@ -40,12 +40,13 @@ Current source types are:
 
 - `article` — news, reporting, web publication or comparable external source;
 - `pdf` — uploaded or externally linked PDF exhibit;
+- `image` — uploaded image evidence such as a photographed document, screenshot or scene image;
 - `note` — text note such as an interview, observation, analyst note or transcription;
 - `document` — generic record or documentary source.
 
-## PDF storage boundary
+## Binary attachment and derived-text boundary
 
-A PDF selected from the event editor is stored as a Blob in IndexedDB. JSON stores only:
+A PDF or image selected from the event editor is stored as a Blob in IndexedDB. JSON stores file metadata plus any derived text extraction metadata, but never the binary bytes themselves.
 
 ```json
 {
@@ -61,12 +62,24 @@ A PDF selected from the event editor is stored as a Blob in IndexedDB. JSON stor
 Consequences:
 
 - normal JSON and interchange exports remain compact and inspectable;
-- a JSON export alone does not carry the local uploaded PDF;
+- a JSON export alone does not carry the local uploaded PDF/image;
 - importing the metadata on another browser does not imply that the binary is present;
 - the focused view reports when a local blob is unavailable rather than pretending the exhibit exists;
 - externally hosted evidence can use a validated HTTP(S) URL instead.
 
 A future evidence package exporter can explicitly bundle JSON plus blobs in a signed archive; that should be a deliberate format rather than an implicit JSON behavior.
+
+### Derived text extraction
+
+Evidence may carry an `extraction` object containing derived text segments. PDF.js reads embedded PDF text first. Scanned PDF pages and image evidence use OCR when available. Each segment records:
+
+- page or image locator;
+- extraction method (`pdf-text`, `text-detector`, or `language-model-vision`);
+- extracted text;
+- optional confidence;
+- extraction tool/version and timestamp.
+
+Extraction text is derived evidence metadata, not a replacement for the human-authored `note`. It is portable in JSON/interchange so downstream inference can cite exact page/image segments, while the original attachment remains browser-local.
 
 ## Evidentiary semantics
 
