@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-await import("../site/temporal-standards.js");
-await import("../site/timeline-graph.js");
+await import("../site/temporal-standards-shim.ts");
+await import("../site/timeline-graph-shim.ts");
 
 const graph = globalThis.TimelineGraph;
 
@@ -273,7 +273,7 @@ test("timed relation visibility uses viewport intersection rather than midpoint 
 test("graph clicks only select nodes or edges without invoking an inspector or navigation", async () => {
   const { readFile } = await import("node:fs/promises");
   const [view, bridge] = await Promise.all([
-    readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8"),
   ]);
   assert.match(view, /graphselectionchange/);
@@ -291,7 +291,7 @@ test("graph clicks only select nodes or edges without invoking an inspector or n
 
 test("temporal graph stages topology deltas instead of resetting Orb after first render", async () => {
   const { readFile } = await import("node:fs/promises");
-  const source = await readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8");
 
   assert.match(source, /hasRenderedData\s*=\s*false/);
   assert.match(source, /this\.orb\.transitionData\(data\)/);
