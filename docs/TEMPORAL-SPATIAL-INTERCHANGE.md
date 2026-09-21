@@ -142,7 +142,7 @@ No location prompt runs automatically.
 
 Timeline currently uses Leaflet 1.9.4 as its map renderer. Leaflet JavaScript and CSS are built into Timeline's static site from the pinned package dependency, so opening a map does not depend on a runtime CDN such as unpkg.
 
-Canonical place geometry is independent from the basemap. Timeline-owned markers, labels, routes, polygons, radii, and fictional reference frames are rendered as overlays and remain meaningful when a basemap provider is unavailable.
+Canonical place geometry is independent from the basemap. Timeline-owned markers, labels, routes, polygons, radii, and fictional reference frames are rendered as overlays and remain meaningful when a basemap provider is unavailable. Basemap state is diagnostic presentation state only and is never persisted into project data.
 
 The compatibility/default provider remains the public OpenStreetMap raster endpoint:
 
