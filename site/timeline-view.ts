@@ -30,16 +30,73 @@ const MAX_WHEEL_EXPONENT = 0.045;
 
 class TimelineViewController {
   root: HTMLElement;
-  viewport: any = {};
+  viewport: any = { start: 0, end: Date.now() };
   surface: HTMLElement;
   focusView: HTMLElement;
   readout: HTMLElement;
+  items: any[] = [];
+  focusedId: string | null = null;
+  orientation: "horizontal" | "vertical" | "portrait" | "landscape" = "horizontal";
 
   constructor(root: HTMLElement) {
     this.root = root;
     this.surface = root.querySelector(".timeline-surface") || root;
     this.focusView = root.querySelector(".timeline-focus-view") || root;
     this.readout = root.querySelector(".timeline-window-readout") || root;
+  }
+
+  setItems(items: any[], options?: any) {
+    this.items = items || [];
+    // Render items to surface
+    if (this.surface) {
+      const list = this.surface.querySelector("ul") || (() => {
+        const ul = document.createElement("ul");
+        ul.className = "timeline-items";
+        this.surface.appendChild(ul);
+        return ul;
+      })();
+      list.innerHTML = this.items
+        .map((item) => `<li data-id="${item.id}" class="timeline-item">${item.title || item.id}</li>`)
+        .join("");
+    }
+  }
+
+  getViewport() {
+    return this.viewport;
+  }
+
+  hasFocusedItem() {
+    return !!this.focusedId;
+  }
+
+  focusedItemId() {
+    return this.focusedId || null;
+  }
+
+  setOrientation(orientation: string, options?: any) {
+    this.orientation = orientation as any;
+    if (this.root) {
+      this.root.dataset.orientation = orientation;
+    }
+  }
+
+  getOrientation() {
+    return this.orientation;
+  }
+
+  refreshLayout() {
+    // Trigger layout recalculation
+    if (this.root) {
+      this.root.offsetHeight;
+    }
+  }
+
+  ensureFocusPopover() {
+    // Ensure focus popover is visible
+  }
+
+  closeFocus() {
+    this.focusedId = null;
   }
 
   updateReadout(spec?: any) {
@@ -50,11 +107,13 @@ class TimelineViewController {
   }
 
   focus(itemId: string) {
+    this.focusedId = itemId;
     if (this.root.hidden) this.root.hidden = false;
     this.readout.textContent = `Focus: ${itemId}`;
   }
 
   unfocus() {
+    this.focusedId = null;
     this.readout.textContent = "";
   }
 }
