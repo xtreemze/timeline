@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-await import("../site/temporal-standards.js");
-await import("../site/timeline-migration.js");
-await import("../site/spatial.js");
+await import("../site/temporal-standards-shim.ts");
+await import("../site/timeline-migration-shim.ts");
+await import("../site/spatial-shim.ts");
 
 const temporal = globalThis.TimelineTemporal;
 const migration = globalThis.TimelineMigration;
@@ -191,8 +191,8 @@ test("canonical places deduplicate equivalent location records", () => {
 test("item form uses one range calendar while canonical place authoring is separated into the graph editor", async () => {
   const [html, mapSource, appSource] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
   ]);
   assert.match(html, /id="item-date-range" type="text" readonly/);
   assert.match(html, /id="item-calendar-popover"[^>]*popover="auto"/);
@@ -231,7 +231,7 @@ test("omits location accuracy when the form field is empty", () => {
 });
 
 test("presentation map is semantic and selects a reasonable zoom from canonical place radius", async () => {
-  const source = await readFile(new URL("../site/location-map.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/location-map.ts", import.meta.url), "utf8");
   assert.match(source, /class ReadOnlyLocationMap/);
   assert.match(source, /createReadOnly/);
   assert.match(source, /presentationZoom/);
