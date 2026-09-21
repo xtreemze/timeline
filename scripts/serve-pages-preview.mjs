@@ -1,10 +1,9 @@
 import { createReadStream, statSync } from 'node:fs';
 import { createServer } from 'node:http';
-import { extname, join, normalize, resolve, sep } from 'node:path';
+import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const repositoryRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const distRoot = resolve(repositoryRoot, 'dist');
+const distRoot = resolve(fileURLToPath(new URL('../dist/', import.meta.url)));
 const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || '127.0.0.1';
 const mountPath = '/timeline';
@@ -25,16 +24,18 @@ const mimeTypes = new Map([
 ]);
 
 function resolveRequestPath(url) {
-  const parsed = new URL(url, `http://${host}:${port}`);
-  let pathname = decodeURIComponent(parsed.pathname);
+  const pathname = decodeURIComponent(new URL(url, `http://${host}:${port}`).pathname);
+  let relativePath;
 
-  if (pathname === mountPath) pathname = `${mountPath}/`;
-  if (pathname.startsWith(`${mountPath}/`)) pathname = pathname.slice(mountPath.length);
+  if (pathname === mountPath || pathname === `${mountPath}/`) {
+    relativePath = 'index.html';
+  } else if (pathname.startsWith(`${mountPath}/`)) {
+    relativePath = pathname.slice(mountPath.length + 1);
+  } else {
+    return null;
+  }
 
-  if (pathname === '/') pathname = '/index.html';
-
-  const relativePath = normalize(pathname).replace(/^[/\\]+/, '');
-  const candidate = resolve(distRoot, relativePath);
+  const candidate = resolve(distRoot, relativePath || 'index.html');
   if (candidate !== distRoot && !candidate.startsWith(`${distRoot}${sep}`)) return null;
   return candidate;
 }
@@ -48,29 +49,33 @@ const server = createServer((request, response) => {
 
   const filePath = resolveRequestPath(request.url || '/');
   if (!filePath) {
-    response.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
-    response.end('Bad request');
+    response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+    response.end('Not found');
     return;
   }
 
-  let resolvedPath = filePath;
   try {
-    const stat = statSync(resolvedPath);
-    if (stat.isDirectory()) resolvedPath = join(resolvedPath, 'index.html');
-    if (!statSync(resolvedPath).isFile()) throw new Error('Not a file');
+    if (!statSync(filePath).isFile()) throw new Error('Not a file');
   } catch {
+    process.stderr.write(`Pages preview missing ${filePath} for ${request.url}\n`);
     response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
     response.end('Not found');
     return;
   }
 
   response.writeHead(200, {
-    'content-type': mimeTypes.get(extname(resolvedPath).toLowerCase()) || 'application/octet-stream',
+    'content-type': mimeTypes.get(extname(filePath).toLowerCase()) || 'application/octet-stream',
     'cache-control': 'no-store',
   });
-  createReadStream(resolvedPath).pipe(response);
+  createReadStream(filePath).pipe(response);
 });
 
 server.listen(port, host, () => {
-  process.stdout.write(`Pages preview serving ${distRoot} at http://${host}:${port}${mountPath}/\n`);
+  let indexStatus = 'missing';
+  try {
+    indexStatus = statSync(resolve(distRoot, 'index.html')).isFile() ? 'present' : 'not-file';
+  } catch {}
+  process.stderr.write(
+    `Pages preview root=${distRoot} index=${indexStatus} url=http://${host}:${port}${mountPath}/\n`,
+  );
 });
