@@ -165,6 +165,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      pdfjs-dist:
+        specifier: 6.3.289
+        version: 6.3.289
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.5.14
@@ -1194,7 +1198,13 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
+  pdfjs-dist@6.3.289:
+    resolution: {integrity: sha512-ZHjSVpDa3D6izMq8/04lvkhkATUmL9px6ChPaXc1k6nU2Mrhlg1/7F0bdUqCwUjw3NsPTfPZsMDUU6ZIcRaeQw==}
+    engines: {node: '>=22.13.0 || >=24'}
+
 snapshots:
+
+  pdfjs-dist@6.3.289: {}
 
   '@biomejs/biome@2.5.14':
     optionalDependencies:
