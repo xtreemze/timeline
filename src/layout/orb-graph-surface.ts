@@ -1,8 +1,8 @@
 /**
  * Orb adapter for Timeline's renderer-neutral GraphSurface contract.
  *
- * This adapter preserves the existing Orb data/event semantics while keeping
- * Orb objects out of application and domain code.
+ * This adapter preserves existing Orb data/event semantics while keeping
+ * renderer objects out of application and domain code.
  */
 import type {
   CanonicalSelection,
@@ -11,6 +11,7 @@ import type {
   GraphSelectionKind,
   GraphSurface,
   GraphSurfaceEventListener,
+  GraphSurfaceFactory,
 } from "./graph-surface.ts";
 import type { EntityId, RelationshipId } from "../domain/ids.ts";
 
@@ -63,6 +64,16 @@ export interface OrbFactory {
   create(container: HTMLElement, options: OrbFactoryOptions): OrbInstance;
 }
 
+function edgeToOrb(edge: GraphEdgeProjection): OrbEdge {
+  return {
+    id: edge.id,
+    start: edge.sourceId,
+    end: edge.targetId,
+    label: edge.label,
+    temporalState: edge.temporalState,
+  };
+}
+
 function projectionToOrb(projection: GraphProjection): OrbData {
   return {
     nodes: projection.nodes.map((node) => ({
@@ -73,16 +84,6 @@ function projectionToOrb(projection: GraphProjection): OrbData {
       },
     })),
     edges: projection.edges.map(edgeToOrb),
-  };
-}
-
-function edgeToOrb(edge: GraphEdgeProjection): OrbEdge {
-  return {
-    id: edge.id,
-    start: edge.sourceId,
-    end: edge.targetId,
-    label: edge.label,
-    temporalState: edge.temporalState,
   };
 }
 
@@ -152,8 +153,7 @@ export class OrbGraphSurface implements GraphSurface {
       this.orb.clearSelection?.();
       return;
     }
-    const kind = selection.kind === "entity" ? "node" : "edge";
-    this.orb.select?.(kind, selection.id);
+    this.orb.select?.(selection.kind === "entity" ? "node" : "edge", selection.id);
   }
 
   recenter(): void {
@@ -185,14 +185,10 @@ export class OrbGraphSurface implements GraphSurface {
   }
 }
 
-export function createOrbGraphSurfaceFactory(orbFactory: OrbFactory): GraphSurfaceFactoryLike {
+export function createOrbGraphSurfaceFactory(orbFactory: OrbFactory): GraphSurfaceFactory {
   return {
     create(container, eventListener) {
       return new OrbGraphSurface(container, orbFactory, eventListener);
     },
   };
-}
-
-interface GraphSurfaceFactoryLike {
-  create(container: HTMLElement, eventListener: GraphSurfaceEventListener): GraphSurface;
 }
