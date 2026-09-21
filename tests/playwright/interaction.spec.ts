@@ -322,17 +322,52 @@ test.describe('Timeline interaction contracts', () => {
       .toBeTruthy();
   });
 
-  test('graph drag does not mutate the timeline viewport', async ({ page }) => {
+  test('graph drag does not mutate the timeline viewport', async ({ page }, testInfo) => {
     const graphCanvas = page.locator('.temporal-graph-canvas');
     await expect(graphCanvas).toBeVisible();
     const box = await graphCanvas.boundingBox();
     if (!box) throw new Error('Graph canvas has no bounding box.');
 
+    const startX = box.x + box.width * 0.7;
+    const endX = box.x + box.width * 0.3;
+    const y = box.y + box.height * 0.5;
     await clearViewportEvents(page);
-    await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.5);
-    await page.mouse.down();
-    await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.5, { steps: 5 });
-    await page.mouse.up();
+
+    if (testInfo.project.use.hasTouch) {
+      const pointerId = 81;
+      await graphCanvas.dispatchEvent('pointerdown', {
+        pointerId,
+        pointerType: 'touch',
+        isPrimary: true,
+        button: 0,
+        buttons: 1,
+        clientX: startX,
+        clientY: y,
+      });
+      await graphCanvas.dispatchEvent('pointermove', {
+        pointerId,
+        pointerType: 'touch',
+        isPrimary: true,
+        button: 0,
+        buttons: 1,
+        clientX: endX,
+        clientY: y,
+      });
+      await graphCanvas.dispatchEvent('pointerup', {
+        pointerId,
+        pointerType: 'touch',
+        isPrimary: true,
+        button: 0,
+        buttons: 0,
+        clientX: endX,
+        clientY: y,
+      });
+    } else {
+      await page.mouse.move(startX, y);
+      await page.mouse.down();
+      await page.mouse.move(endX, y, { steps: 5 });
+      await page.mouse.up();
+    }
 
     expect(await viewportEvents(page)).toEqual([]);
   });
