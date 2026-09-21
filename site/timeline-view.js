@@ -47,6 +47,30 @@
     return Math.min(max, Math.max(min, value));
   }
 
+  function formatElapsedDuration(durationMs) {
+    if (!Number.isFinite(durationMs) || durationMs < 0) return "";
+    const units = [
+      ["year", 365.2425 * 86_400_000],
+      ["month", 30.4375 * 86_400_000],
+      ["day", 86_400_000],
+      ["hour", 3_600_000],
+      ["minute", 60_000],
+      ["second", 1_000]
+    ];
+    let remaining = durationMs;
+    const parts = [];
+    for (const [label, size] of units) {
+      const amount = label === "second"
+        ? Math.round(remaining / size)
+        : Math.floor(remaining / size);
+      if (amount <= 0) continue;
+      parts.push(`${amount} ${label}${amount === 1 ? "" : "s"}`);
+      remaining = Math.max(0, remaining - amount * size);
+      if (parts.length >= 2) break;
+    }
+    return parts.length ? parts.join(" ") : "0 seconds";
+  }
+
   function normalizeWheelDelta(event, pageLength) {
     let delta = Number(event.deltaY) || 0;
     if (event.deltaMode === 1) delta *= 16;
@@ -2200,10 +2224,15 @@
       const eyebrow = createElement("p", "timeline-focus-kicker", item.categoryName || item.kind);
       const heading = createElement("h2", "timeline-focus-title", item.title);
       heading.id = "timeline-focus-heading";
+      const duration = Number.isFinite(item.end)
+        ? formatElapsedDuration(Math.max(0, item.end - item.start))
+        : "";
       const time = createElement(
         "p",
         "timeline-focus-time",
-        Number.isFinite(item.end) ? item.startLabel + " → " + item.endLabel : item.startLabel
+        Number.isFinite(item.end)
+          ? `${item.startLabel} → ${item.endLabel}${duration ? ` · Duration ${duration}` : ""}`
+          : item.startLabel
       );
       const tags = createElement("div", "timeline-focus-tags");
       for (const tag of item.tags || []) {
@@ -2216,39 +2245,25 @@
 
       if (media.length > 1) {
         const controls = createElement("div", "timeline-focus-slideshow-controls");
-        const previous = createElement("button", "button secondary", "Previous image");
-        previous.type = "button";
-        previous.setAttribute("aria-label", "Previous event photograph");
-        previous.addEventListener("click", () => {
-          this.focusMediaIndex = (activeIndex - 1 + media.length) % media.length;
-          this.renderFocus(item);
-          this.root.dispatchEvent(new CustomEvent("timelinefocusrender", {
-            bubbles: true,
-            detail: { id: item.id }
-          }));
+        controls.setAttribute("role", "group");
+        controls.setAttribute("aria-label", "Event images");
+        media.forEach((_, index) => {
+          const dot = createElement("button", "timeline-focus-slide-dot");
+          dot.type = "button";
+          dot.setAttribute("aria-label", `Show image ${index + 1} of ${media.length}`);
+          dot.setAttribute("aria-current", index === activeIndex ? "true" : "false");
+          dot.classList.toggle("is-active", index === activeIndex);
+          dot.addEventListener("click", () => {
+            this.focusMediaIndex = index;
+            this.renderFocus(item);
+            this.root.dispatchEvent(new CustomEvent("timelinefocusrender", {
+              bubbles: true,
+              detail: { id: item.id }
+            }));
+          });
+          controls.append(dot);
         });
-        const count = createElement("span", "timeline-focus-slide-count", `${activeIndex + 1} / ${media.length}`);
-        const next = createElement("button", "button secondary", "Next image");
-        next.type = "button";
-        next.setAttribute("aria-label", "Next event photograph");
-        next.addEventListener("click", () => {
-          this.focusMediaIndex = (activeIndex + 1) % media.length;
-          this.renderFocus(item);
-          this.root.dispatchEvent(new CustomEvent("timelinefocusrender", {
-            bubbles: true,
-            detail: { id: item.id }
-          }));
-        });
-        controls.append(previous, count, next);
         hero.append(controls);
-      }
-
-      const mediaCaption = String(active?.caption || "").trim();
-      const isIllustrationDisclaimer =
-        mediaCaption.startsWith("Public-domain story illustration via Wikimedia Commons;");
-      if (mediaCaption && !isIllustrationDisclaimer) {
-        const caption = createElement("p", "timeline-focus-media-caption", mediaCaption);
-        hero.append(caption);
       }
       return hero;
     }
@@ -2298,7 +2313,7 @@
       place.append(placeBackdrop, placeContent);
 
       const evidence = createElement("section", "timeline-focus-section timeline-focus-evidence");
-      evidence.append(createElement("h3", "timeline-focus-section-heading", "Evidence"));
+      evidence.setAttribute("aria-label", "Evidence");
       if (item.evidence?.length) {
         const grid = createElement("div", "timeline-focus-evidence-grid");
         const visibleEvidence = item.evidence.slice(0, 6);
