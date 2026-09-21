@@ -74,6 +74,31 @@
       "any": 45,
       "asAny": 12,
       "nonNull": 0
+    },
+    "site/app.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/case-reasoning-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/date-range-picker-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/event-presentation-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/evidence-store-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
     }
   },
   "css": {
