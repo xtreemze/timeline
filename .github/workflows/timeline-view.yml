@@ -167,4 +167,8 @@ jobs:
           node-version: 24
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
+      - name: Verify retained browser test discovery
+        run: |
+          pnpm exec playwright test --list | tee /tmp/retained-playwright-list.txt
+          grep -F 'retained-timeline-tdd.spec.js' /tmp/retained-playwright-list.txt
       - run: pnpm test:tdd:retained-timeline:browser
