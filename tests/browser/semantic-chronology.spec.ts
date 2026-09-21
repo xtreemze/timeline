@@ -4,19 +4,23 @@ test("semantic chronology preserves canonical reading order and focus parity", a
   await page.goto("/");
   await expect(page.locator("#timeline-view")).toBeVisible();
 
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const host = document.createElement("section");
     host.id = "semantic-chronology-test-host";
-    host.innerHTML = [
-      '<div class="timeline-surface" tabindex="0"></div>',
-      '<div class="timeline-focus-view" hidden></div>',
-      '<output class="timeline-window-readout"></output>',
-    ].join("");
+
+    const surface = document.createElement("div");
+    surface.className = "timeline-surface";
+    surface.tabIndex = 0;
+    const focus = document.createElement("div");
+    focus.className = "timeline-focus-view";
+    focus.hidden = true;
+    const readout = document.createElement("output");
+    readout.className = "timeline-window-readout";
+    host.append(surface, focus, readout);
     document.body.append(host);
 
-    const api = globalThis.TimelineView;
-    if (!api) throw new Error("TimelineView global is unavailable.");
-    const controller = api.create(host);
+    const { TimelineView } = await import("/timeline-view.ts");
+    const controller = TimelineView.create(host);
     if (!controller) throw new Error("TimelineView controller was not created.");
 
     controller.setItems([
@@ -59,8 +63,9 @@ test("semantic chronology preserves canonical reading order and focus parity", a
   await expect(entries.nth(1)).toBeFocused();
   const revealed = await list.boundingBox();
   expect(revealed).not.toBeNull();
-  expect(revealed!.width).toBeGreaterThan(100);
-  expect(revealed!.height).toBeGreaterThan(40);
+  if (!revealed) throw new Error("Semantic chronology did not produce visible bounds.");
+  expect(revealed.width).toBeGreaterThan(100);
+  expect(revealed.height).toBeGreaterThan(40);
 
   await entries.nth(1).click();
   await expect(entries.nth(1)).toHaveAttribute("aria-current", "true");
