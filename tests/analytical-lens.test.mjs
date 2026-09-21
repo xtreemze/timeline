@@ -3,8 +3,12 @@ import test from "node:test";
 
 import {
   ANALYTICAL_LENS_SCHEMA_VERSION,
+  deleteAnalyticalLens,
+  duplicateAnalyticalLens,
   evaluateAnalyticalLens,
   parseAnalyticalLens,
+  replaceAnalyticalLens,
+  saveAnalyticalLens,
   serializeAnalyticalLens,
   validateAnalyticalLens,
 } from "../src/application/analytical-lens.ts";
@@ -218,4 +222,60 @@ test("untimed relationship visibility is explicit rather than accidental", () =>
 
   assert.deepEqual(includeUntimed.relationshipIds, ["r1", "r4"]);
   assert.deepEqual(excludeUntimed.relationshipIds, ["r1"]);
+});
+
+
+test("analytical lens catalog commands are immutable and reject duplicate IDs", () => {
+  const original = { lenses: [] };
+  const saved = saveAnalyticalLens(
+    original,
+    lens({
+      entityIds: ["alice"],
+      entityMatch: "either-endpoint",
+    }),
+  );
+
+  assert.equal(original.lenses.length, 0);
+  assert.equal(saved.lenses.length, 1);
+  assert.equal(saved.lenses[0].filters.entityMatch, "either-endpoint");
+  assert.throws(() => saveAnalyticalLens(saved, lens()), /already exists/i);
+});
+
+test("analytical lens edit, duplicate, and delete use explicit deterministic identity", () => {
+  const saved = saveAnalyticalLens({ lenses: [] }, lens({ placeIds: ["stockholm"] }));
+  const edited = replaceAnalyticalLens(saved, {
+    ...saved.lenses[0],
+    name: "Stockholm focus",
+    filters: { placeIds: ["stockholm"], relationshipPredicates: ["warned"] },
+  });
+  assert.equal(saved.lenses[0].name, "Test lens");
+  assert.equal(edited.lenses[0].name, "Stockholm focus");
+
+  const duplicated = duplicateAnalyticalLens(
+    edited,
+    "lens-a",
+    "lens-b",
+    "Stockholm copy",
+  );
+  assert.deepEqual(
+    duplicated.lenses.map((entry) => entry.id),
+    ["lens-a", "lens-b"],
+  );
+  assert.equal(duplicated.lenses[1].name, "Stockholm copy");
+
+  const removed = deleteAnalyticalLens(duplicated, "lens-a");
+  assert.deepEqual(removed.lenses.map((entry) => entry.id), ["lens-b"]);
+  assert.equal(duplicated.lenses.length, 2);
+  assert.throws(() => deleteAnalyticalLens(removed, "missing"), /does not exist/i);
+});
+
+test("persisted entity endpoint policy round-trips explicitly", () => {
+  const original = lens({
+    entityIds: ["alice"],
+    entityMatch: "either-endpoint",
+  });
+  const parsed = parseAnalyticalLens(JSON.parse(serializeAnalyticalLens(original)));
+
+  assert.ok(parsed.lens);
+  assert.equal(parsed.lens.filters.entityMatch, "either-endpoint");
 });
