@@ -11,7 +11,7 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 5_000 },
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: 'http://127.0.0.1:4173/timeline/',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -26,8 +26,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'python3 -m http.server 4173 --bind 127.0.0.1 --directory dist',
-    url: 'http://127.0.0.1:4173',
+    command: 'node scripts/serve-pages-preview.mjs',
+    url: 'http://127.0.0.1:4173/timeline/',
     reuseExistingServer: false,
     timeout: 120_000,
   },
