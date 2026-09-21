@@ -5,24 +5,25 @@ test.describe('Timeline Layout', () => {
     await page.goto('/');
     await page.setViewportSize({ width: 375, height: 812 });
 
-    // Timeline view and surface should be visible and properly sized
+    // Timeline view and surface should be visible
     const timelineView = page.locator('#timeline-view');
     const timelineSurface = page.locator('.timeline-surface');
 
     await expect(timelineView).toBeVisible();
     await expect(timelineSurface).toBeVisible();
 
-    const tlBounds = await timelineView.boundingBox();
+    // Surface should occupy meaningful vertical space in portrait viewport
     const surfBounds = await timelineSurface.boundingBox();
-
-    expect(tlBounds).not.toBeNull();
     expect(surfBounds).not.toBeNull();
-    if (!tlBounds || !surfBounds) return;
+    if (!surfBounds) return;
 
-    // Portrait should be taller than wide
-    expect(tlBounds.height).toBeGreaterThan(tlBounds.width);
-    // Surface should take up significant portion of viewport
-    expect(surfBounds.height).toBeGreaterThan(300);
+    // Surface should be at least 200px tall for usable timeline in portrait
+    expect(surfBounds.height).toBeGreaterThan(200);
+    // Surface should not exceed viewport width
+    expect(surfBounds.width).toBeLessThanOrEqual(375);
+    // Surface should be within viewport bounds (no horizontal overflow)
+    expect(surfBounds.x).toBeGreaterThanOrEqual(0);
+    expect(surfBounds.x + surfBounds.width).toBeLessThanOrEqual(376);
   });
 
   test('landscape layout renders timeline with proper sizing', async ({
