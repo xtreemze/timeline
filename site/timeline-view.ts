@@ -730,18 +730,21 @@ class TimelineViewController {
       const prevFocus = document.activeElement;
       if (prevFocus instanceof HTMLElement && prevFocus !== this.surface) {
         this.savedFocusElement = prevFocus;
-        // Make surface non-focusable during drag to preserve focus on the focused element
-        this.surface.tabIndex = -1;
+        // Redirect focus after browser's focus handling by deferring to the next task
+        setTimeout(() => {
+          if (this.savedFocusElement && document.activeElement === this.surface) {
+            this.savedFocusElement.focus({ preventScroll: true });
+          }
+        }, 0);
       }
     });
 
     this.surface.addEventListener("mouseup", () => {
-      // Restore focusability and restore focus if needed
-      this.surface.tabIndex = 0;
+      // Ensure focus is restored on mouseup as well
       if (this.savedFocusElement && document.activeElement === this.surface) {
         this.savedFocusElement.focus({ preventScroll: true });
-        this.savedFocusElement = null;
       }
+      this.savedFocusElement = null;
     });
 
     this.surface.addEventListener("keydown", (event) => {
