@@ -363,7 +363,9 @@ export function parseAnalyticalLens(input: unknown): AnalyticalLensParseResult {
     ...(entityIds.length ? { entityIds } : {}),
     ...(filterInput["entityMatch"] === "both-endpoints"
       ? { entityMatch: "both-endpoints" as const }
-      : {}),
+      : filterInput["entityMatch"] === "either-endpoint"
+        ? { entityMatch: "either-endpoint" as const }
+        : {}),
     ...(relationshipPredicates.length ? { relationshipPredicates } : {}),
     ...(categoryIds.length ? { categoryIds } : {}),
     ...(placeIds.length ? { placeIds } : {}),
@@ -497,5 +499,76 @@ export function evaluateAnalyticalLens(
       relationships: Math.max(0, dataset.relationships.length - relationshipIds.length),
       occurrences: Math.max(0, occurrences.length - occurrenceIds.length),
     }),
+  });
+}
+
+
+export interface AnalyticalLensCatalog {
+  readonly lenses: readonly AnalyticalLens[];
+}
+
+function canonicalLensCopy(lens: AnalyticalLens): AnalyticalLens {
+  const parsed = parseAnalyticalLens(JSON.parse(serializeAnalyticalLens(lens)));
+  if (!parsed.lens) throw new Error(parsed.errors.join(" "));
+  return Object.freeze(parsed.lens);
+}
+
+export function saveAnalyticalLens(
+  catalog: AnalyticalLensCatalog,
+  lens: AnalyticalLens,
+): AnalyticalLensCatalog {
+  if (catalog.lenses.some((existing) => existing.id === lens.id)) {
+    throw new Error("Analytical lens ID already exists.");
+  }
+
+  return Object.freeze({
+    lenses: Object.freeze([...catalog.lenses, canonicalLensCopy(lens)]),
+  });
+}
+
+export function replaceAnalyticalLens(
+  catalog: AnalyticalLensCatalog,
+  lens: AnalyticalLens,
+): AnalyticalLensCatalog {
+  const index = catalog.lenses.findIndex((existing) => existing.id === lens.id);
+  if (index < 0) throw new Error("Analytical lens does not exist.");
+
+  const replacement = canonicalLensCopy(lens);
+  return Object.freeze({
+    lenses: Object.freeze(
+      catalog.lenses.map((existing, current) =>
+        current === index ? replacement : existing,
+      ),
+    ),
+  });
+}
+
+export function duplicateAnalyticalLens(
+  catalog: AnalyticalLensCatalog,
+  sourceId: string,
+  newId: string,
+  newName: string,
+): AnalyticalLensCatalog {
+  const source = catalog.lenses.find((lens) => lens.id === sourceId);
+  if (!source) throw new Error("Source analytical lens does not exist.");
+
+  const copy: AnalyticalLens = {
+    ...source,
+    id: newId.trim(),
+    name: newName.trim(),
+  };
+  return saveAnalyticalLens(catalog, copy);
+}
+
+export function deleteAnalyticalLens(
+  catalog: AnalyticalLensCatalog,
+  lensId: string,
+): AnalyticalLensCatalog {
+  if (!catalog.lenses.some((lens) => lens.id === lensId)) {
+    throw new Error("Analytical lens does not exist.");
+  }
+
+  return Object.freeze({
+    lenses: Object.freeze(catalog.lenses.filter((lens) => lens.id !== lensId)),
   });
 }
