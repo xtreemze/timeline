@@ -29,8 +29,8 @@ body {
   --page-grid-gap: clamp(0.55rem, 1.15vw, 1.15rem);
   --page-grid-gutter: max(1rem, calc((100vw - 1540px) / 2));
   margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
+  min-inline-size: 0;
+  min-height: 100dvh;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   column-gap: var(--page-grid-gap);
@@ -73,7 +73,7 @@ a {
 
 .skip-link {
   position: fixed;
-  left: 1rem;
+  inset-inline-start: 1rem;
   top: 1rem;
   z-index: 100;
   transform: translateY(-200%);
@@ -221,7 +221,7 @@ main > * {
 }
 .project-stats span + span::before {
   content: "·";
-  margin-right: 0.8rem;
+  margin-inline-end: 0.8rem;
   color: var(--line-strong);
 }
 .project-actions {
@@ -245,7 +245,7 @@ main > * {
 .control-panel {
   grid-column: 1 / span 4;
   min-width: 0;
-  border-right: 1px solid var(--line);
+  border-inline-end: 1px solid var(--line);
   background: var(--panel);
 }
 .app-shell.is-event-focused {
@@ -299,7 +299,7 @@ main > * {
 }
 .tab {
   border: 0;
-  border-right: 1px solid var(--line);
+  border-inline-end: 1px solid var(--line);
   padding: 0.9rem 0.65rem;
   background: transparent;
   color: var(--muted);
@@ -309,9 +309,9 @@ main > * {
   letter-spacing: 0.02em;
 }
 .tab:last-child {
-  border-right: 0;
+  border-inline-end: 0;
 }
-.tab:hover {
+.tab:is(:hover, :focus-visible) {
   color: var(--ink);
   background: rgba(255, 255, 255, 0.28);
 }
@@ -397,7 +397,7 @@ main > * {
     border-color 0.12s ease,
     opacity 0.12s ease;
 }
-.button:hover:not(:disabled) {
+.button:is(:hover, :focus-visible):not(:disabled) {
   transform: translateY(-1px);
 }
 .button:active:not(:disabled) {
@@ -418,7 +418,7 @@ a:focus-visible {
   background: var(--ink);
   color: var(--paper);
 }
-.button.primary:hover {
+.button.primary:is(:hover, :focus-visible) {
   background: color-mix(in srgb, var(--ink) 82%, var(--paper));
 }
 .button.secondary {
@@ -426,14 +426,14 @@ a:focus-visible {
   border-color: var(--line-strong);
   color: var(--ink);
 }
-.button.secondary:hover {
+.button.secondary:is(:hover, :focus-visible) {
   background: rgba(255, 255, 255, 0.46);
 }
 .button.ghost {
   background: transparent;
   color: var(--muted);
 }
-.button.ghost:hover {
+.button.ghost:is(:hover, :focus-visible) {
   color: var(--ink);
   background: rgba(255, 255, 255, 0.32);
 }
@@ -465,7 +465,7 @@ a:focus-visible {
 .form-error {
   margin: -0.1rem 0 0.8rem;
   padding: 0.65rem 0.75rem;
-  border-left: 3px solid var(--danger);
+  border-inline-start: 3px solid var(--danger);
   background: color-mix(in srgb, var(--danger) 7%, transparent);
   color: var(--danger);
   font-size: 0.8rem;
@@ -493,7 +493,7 @@ a:focus-visible {
   font-weight: 800;
 }
 .temporal-editor legend small {
-  margin-left: 0.25rem;
+  margin-inline-start: 0.25rem;
   color: var(--muted);
   font-weight: 500;
 }
@@ -512,7 +512,7 @@ a:focus-visible {
   color: var(--muted);
 }
 .range-calendar {
-  width: min(420px, calc(100vw - 24px));
+  inline-size: min(420px, calc(100% - 24px));
   margin: 0.45rem;
   padding: 0.75rem;
   border: 1px solid var(--line-strong);
@@ -770,7 +770,7 @@ geolocation {
 .tag-editor-row {
   grid-template-columns: minmax(0, 1.4fr) minmax(110px, 0.8fr);
   position: relative;
-  border-left: 4px solid oklch(68% 0.16 var(--tag-hue, 30));
+  border-inline-start: 4px solid oklch(68% 0.16 var(--tag-hue, 30));
 }
 .tag-editor-row .hue-field {
   grid-column: 1 / -1;
@@ -872,7 +872,7 @@ geolocation {
   align-items: center;
   gap: 0.45rem;
   width: max-content;
-  max-width: min(24rem, 70vw);
+  max-inline-size: min(24rem, 100%);
 }
 .timeline-map-marker-shell,
 .timeline-map-place-icon {
@@ -942,7 +942,7 @@ geolocation {
 .timeline-map-place-placeholder {
   position: absolute;
   z-index: 800;
-  left: 50%;
+  inset-inline-start: 50%;
   top: 50%;
   display: flex;
   align-items: center;
@@ -964,7 +964,7 @@ geolocation {
 }
 .timeline-map-place-status {
   position: absolute;
-  left: 2.9rem;
+  inset-inline-start: 2.9rem;
   top: calc(100% + 0.25rem);
   color: var(--muted);
   font-size: 0.62rem;
@@ -977,7 +977,7 @@ geolocation {
 
 @media (max-width: 520px) {
   .timeline-map-marker-identity {
-    max-width: min(19rem, 72vw);
+    max-inline-size: min(19rem, 100%);
   }
   .timeline-map-place-icon {
     width: 2rem;
@@ -1047,7 +1047,7 @@ geolocation {
 .picker-row:last-child {
   border-bottom: 0;
 }
-.picker-row:hover {
+.picker-row:is(:hover, :focus-within) {
   background: var(--paper-2);
 }
 .picker-row input {
@@ -1284,11 +1284,11 @@ geolocation {
   font-size: 0.7rem;
   font-weight: 760;
 }
-.icon-button:hover {
+.icon-button:is(:hover, :focus-visible) {
   background: var(--paper-2);
   color: var(--ink);
 }
-.icon-button.delete:hover {
+.icon-button.delete:is(:hover, :focus-visible) {
   color: var(--danger);
 }
 
@@ -1335,8 +1335,8 @@ geolocation {
   align-items: center;
   min-width: 0;
   gap: 0.28rem;
-  padding-left: 0.34rem;
-  border-left: 1px solid color-mix(in srgb, var(--story) 42%, var(--line));
+  padding-inline-start: 0.34rem;
+  border-inline-start: 1px solid color-mix(in srgb, var(--story) 42%, var(--line));
 }
 .story-focus[hidden] {
   display: none;
@@ -1345,7 +1345,7 @@ geolocation {
   display: flex;
   align-items: baseline;
   min-width: 0;
-  max-width: min(16rem, 30vw);
+  max-inline-size: 16rem;
   gap: 0.28rem;
 }
 .story-focus-context {
@@ -1463,7 +1463,7 @@ geolocation {
 .timeline-list::before {
   content: "";
   position: absolute;
-  left: 172px;
+  inset-inline-start: 172px;
   top: 1.4rem;
   bottom: 2.7rem;
   width: 1px;
@@ -1501,7 +1501,7 @@ geolocation {
 .timeline-marker::before {
   content: "";
   position: absolute;
-  left: 22px;
+  inset-inline-start: 22px;
   top: 0.86rem;
   width: 13px;
   height: 13px;
@@ -1518,7 +1518,7 @@ geolocation {
 .timeline-item.is-range .timeline-marker::after {
   content: "";
   position: absolute;
-  left: 27px;
+  inset-inline-start: 27px;
   top: 1.4rem;
   bottom: 0.2rem;
   width: 3px;
@@ -1537,7 +1537,7 @@ geolocation {
   margin: 0 0 1.15rem;
   padding: 0.9rem 0.95rem 1rem;
   border: 1px solid var(--line);
-  border-left: 3px solid var(--category-color);
+  border-inline-start: 3px solid var(--category-color);
   border-radius: 0.75rem;
   background: var(--paper);
   transition:
@@ -1548,7 +1548,7 @@ geolocation {
 }
 .timeline-item.is-current .timeline-card {
   border-color: color-mix(in srgb, var(--story) 45%, var(--line));
-  border-left-color: var(--story);
+  border-inline-start-color: var(--story);
   box-shadow: 0 4px 16px color-mix(in srgb, var(--story) 6%, transparent);
   transform: translateX(3px);
 }
@@ -1607,7 +1607,7 @@ geolocation {
   content: "";
   width: 0.42rem;
   height: 0.42rem;
-  margin-right: 0.32rem;
+  margin-inline-end: 0.32rem;
   border-radius: 50%;
   background: var(--category-color);
 }
@@ -1627,11 +1627,11 @@ geolocation {
 }
 .location-badge::before {
   content: "⌖";
-  margin-right: 0.28rem;
+  margin-inline-end: 0.28rem;
 }
 .evidence-count-badge::before {
   content: "▣";
-  margin-right: 0.28rem;
+  margin-inline-end: 0.28rem;
 }
 .range-end {
   color: var(--muted);
@@ -1639,7 +1639,7 @@ geolocation {
 
 .status {
   position: fixed;
-  right: 1rem;
+  inset-inline-end: 1rem;
   bottom: 1rem;
   z-index: 50;
   max-width: min(390px, calc(100% - 2rem));
@@ -1706,7 +1706,7 @@ footer > :last-child {
     grid-column: 1 / -1;
   }
   .control-panel {
-    border-right: 0;
+    border-inline-end: 0;
     border-bottom: 1px solid var(--line);
   }
   .tabs {
@@ -1773,7 +1773,7 @@ footer > :last-child {
     justify-content: flex-start;
   }
   .timeline-list::before {
-    left: 10px;
+    inset-inline-start: 10px;
   }
   .timeline-item {
     grid-template-columns: 28px minmax(0, 1fr);
@@ -1798,11 +1798,11 @@ footer > :last-child {
     grid-row: 1 / 3;
   }
   .timeline-marker::before {
-    left: 4px;
+    inset-inline-start: 4px;
     top: 0.18rem;
   }
   .timeline-item.is-range .timeline-marker::after {
-    left: 9px;
+    inset-inline-start: 9px;
     top: 0.7rem;
     bottom: 0.1rem;
   }
@@ -1871,14 +1871,14 @@ footer > :last-child {
     color: #d6d0c7;
   }
   .hero-meta span,
-  .button.secondary:hover,
-  .button.ghost:hover {
+  .button.secondary:is(:hover, :focus-visible),
+  .button.ghost:is(:hover, :focus-visible) {
     background: rgba(255, 255, 255, 0.035);
   }
   .tabs {
     background: color-mix(in srgb, var(--panel) 95%, transparent);
   }
-  .tab:hover {
+  .tab:is(:hover, :focus-visible) {
     background: rgba(255, 255, 255, 0.025);
   }
 }
@@ -1913,7 +1913,7 @@ footer > :last-child {
     grid-column: 1;
   }
   .range-calendar {
-    width: calc(100vw - 12px);
+    inline-size: calc(100% - 12px);
     margin: 6px;
   }
 }
@@ -1985,7 +1985,7 @@ footer > :last-child {
   font-size: 0.8rem;
 }
 .timeline-category-summary-count {
-  margin-left: auto;
+  margin-inline-start: auto;
   color: var(--muted);
   font-size: 0.68rem;
 }
@@ -1999,7 +1999,7 @@ footer > :last-child {
 .timeline-category-items::before {
   content: "";
   position: absolute;
-  left: 179px;
+  inset-inline-start: 179px;
   top: 0.8rem;
   bottom: 1rem;
   width: 1px;
@@ -2018,7 +2018,7 @@ footer > :last-child {
     grid-template-columns: 1fr;
   }
   .timeline-category-items::before {
-    left: 19px;
+    inset-inline-start: 19px;
   }
 }
 
@@ -2161,7 +2161,7 @@ footer > :last-child {
   content: "";
   position: absolute;
   z-index: 4;
-  left: var(--graph-touch-hold-x, 50%);
+  inset-inline-start: var(--graph-touch-hold-x, 50%);
   top: var(--graph-touch-hold-y, 50%);
   width: 44px;
   height: 44px;
@@ -2331,7 +2331,7 @@ footer > :last-child {
 }
 .graph-lens [data-graph-status][data-simulation-running="true"]::before {
   content: "●";
-  margin-right: 0.34rem;
+  margin-inline-end: 0.34rem;
   font-size: 0.58em;
   vertical-align: 0.12em;
 }
@@ -2595,7 +2595,7 @@ footer > :last-child {
 .app-shell.is-event-focused #presentation-stage > .presentation-map-panel:not([hidden]) {
   grid-column: 10 / -1;
   min-width: 0;
-  max-height: 100vh;
+  max-height: 100dvh;
   margin: 0;
 }
 
@@ -2623,7 +2623,7 @@ footer > :last-child {
 }
 
 #presentation-stage:fullscreen {
-  inline-size: 100dvw;
+  inline-size: 100%;
   block-size: 100dvh;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -2770,7 +2770,7 @@ body {
 
 body {
   display: block;
-  min-width: 320px;
+  min-inline-size: 0;
   min-height: 100dvh;
   padding: 0;
   background: var(--paper-2);
@@ -2780,7 +2780,7 @@ body {
   position: fixed;
   inset: 0;
   display: block;
-  width: 100dvw;
+  inline-size: 100%;
   height: 100dvh;
   overflow: hidden;
 }
@@ -2859,12 +2859,12 @@ body {
 .project-menu[popover] {
   inset: auto;
   top: var(--project-menu-top, max(0.5rem, env(safe-area-inset-top)));
-  left: var(--project-menu-left, max(0.5rem, env(safe-area-inset-left)));
-  right: auto;
+  inset-inline-start: var(--project-menu-left, max(0.5rem, env(safe-area-inset-left)));
+  inset-inline-end: auto;
   bottom: auto;
   box-sizing: border-box;
-  width: min(340px, calc(100dvw - 0.8rem), var(--project-menu-max-width, 340px));
-  max-width: var(--project-menu-max-width, calc(100dvw - 0.8rem));
+  inline-size: min(340px, calc(100% - 0.8rem), var(--project-menu-max-width, 340px));
+  max-inline-size: var(--project-menu-max-width, calc(100% - 0.8rem));
   max-height: min(620px, var(--project-menu-max-height, calc(100dvh - 1rem)));
   margin: 0;
   padding: 0.45rem;
@@ -2972,7 +2972,7 @@ body {
     position-anchor: --project-menu-anchor;
     inset: auto;
     top: calc(anchor(bottom) + 0.4rem);
-    right: anchor(right);
+    inset-inline-end: anchor(right);
   }
 }
 
@@ -2981,7 +2981,7 @@ body {
   z-index: 1;
   inset: 0;
   display: block;
-  width: 100dvw;
+  inline-size: 100%;
   height: 100dvh;
   min-width: 0;
   min-height: 0;
@@ -3117,8 +3117,8 @@ body {
 .app-browser-sheet {
   position: fixed;
   z-index: 1050;
-  left: max(0.4rem, env(safe-area-inset-left));
-  right: max(0.4rem, env(safe-area-inset-right));
+  inset-inline-start: max(0.4rem, env(safe-area-inset-left));
+  inset-inline-end: max(0.4rem, env(safe-area-inset-right));
   bottom: max(4.45rem, calc(env(safe-area-inset-bottom) + 4.1rem));
   width: auto;
   max-width: none;
@@ -3255,16 +3255,16 @@ body {
 
 .status {
   z-index: 1600;
-  max-width: min(520px, calc(100dvw - 1rem));
+  max-inline-size: min(520px, calc(100% - 1rem));
 }
 
 @media (min-width: 700px) {
   .app-command-bar {
     grid-template-columns: auto minmax(180px, 1fr) auto;
-    max-width: min(720px, calc(100dvw - 1rem));
-    left: 50%;
-    right: auto;
-    width: calc(100dvw - 1rem);
+    max-inline-size: 720px;
+    inset-inline-start: 50%;
+    inset-inline-end: auto;
+    inline-size: calc(100% - 1rem);
     transform: translateX(-50%);
   }
   .app-brand {
@@ -3295,8 +3295,8 @@ body {
   .app-browser-sheet {
     top: max(4.4rem, calc(env(safe-area-inset-top) + 4rem));
     bottom: max(4.55rem, calc(env(safe-area-inset-bottom) + 4.2rem));
-    right: max(0.55rem, env(safe-area-inset-right));
-    left: auto;
+    inset-inline-end: max(0.55rem, env(safe-area-inset-right));
+    inset-inline-start: auto;
     inline-size: min(390px, calc(100% - 1.1rem));
     max-height: none;
     height: auto;
@@ -3310,10 +3310,10 @@ body {
 
 @media (min-width: 1280px) {
   .app-editor-sheet {
-    width: min(440px, 34dvw);
+    inline-size: min(440px, 34%);
   }
   .app-browser-sheet {
-    width: min(400px, 31dvw);
+    inline-size: min(400px, 31%);
   }
 }
 
@@ -3322,15 +3322,15 @@ body {
 #app-shell .timeline-panel > .story-focus {
   position: fixed;
   z-index: 1040;
-  left: max(0.45rem, env(safe-area-inset-left));
-  right: max(0.45rem, env(safe-area-inset-right));
+  inset-inline-start: max(0.45rem, env(safe-area-inset-left));
+  inset-inline-end: max(0.45rem, env(safe-area-inset-right));
   bottom: max(4.55rem, calc(env(safe-area-inset-bottom) + 4.2rem));
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.55rem;
   width: auto;
-  max-width: min(560px, calc(100dvw - 0.9rem));
+  max-inline-size: min(560px, calc(100% - 0.9rem));
   margin: 0 auto;
   padding: 0.5rem 0.55rem;
   border: 1px solid color-mix(in srgb, var(--story) 28%, var(--line));
@@ -3389,8 +3389,8 @@ body {
     height: 24px;
   }
   #app-shell .timeline-panel > .story-focus {
-    left: max(0.55rem, env(safe-area-inset-left));
-    right: auto;
+    inset-inline-start: max(0.55rem, env(safe-area-inset-left));
+    inset-inline-end: auto;
     bottom: max(4.55rem, calc(env(safe-area-inset-bottom) + 4.2rem));
     inline-size: min(520px, calc(100% - 1.1rem));
     margin: 0;
@@ -3642,8 +3642,8 @@ body {
 
   .app-editor-sheet,
   .app-browser-sheet {
-    left: max(0.35rem, env(safe-area-inset-left));
-    right: max(0.35rem, env(safe-area-inset-right));
+    inset-inline-start: max(0.35rem, env(safe-area-inset-left));
+    inset-inline-end: max(0.35rem, env(safe-area-inset-right));
     bottom: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
     max-height: min(58dvh, calc(100dvh - 8.1rem));
     border-radius: 0.82rem;
@@ -3828,7 +3828,7 @@ body {
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   border: 0;
-  border-left: 1px solid var(--line);
+  border-inline-start: 1px solid var(--line);
   border-radius: 0;
   background: var(--panel);
   box-shadow: none;
@@ -3900,7 +3900,7 @@ body {
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   border: 0;
-  border-left: 1px solid var(--line);
+  border-inline-start: 1px solid var(--line);
   border-radius: 0;
   background: var(--paper);
   box-shadow: none;
@@ -4064,7 +4064,7 @@ body {
 
 .app-browser-sheet .card-actions {
   flex: 0 1 auto;
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 
 @media (min-width: 760px) {
@@ -4150,8 +4150,8 @@ body {
 
 @media (pointer: coarse) and (max-width: 380px) {
   .range-calendar {
-    width: calc(100dvw - 4px);
-    max-width: calc(100dvw - 4px);
+    inline-size: calc(100% - 4px);
+    max-inline-size: calc(100% - 4px);
     margin: 2px;
     padding: 0.125rem;
   }
