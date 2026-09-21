@@ -132,7 +132,9 @@ export function fit(values: unknown, options?: FitOptions): Viewport {
     throw new TypeError("fit() requires at least one temporal coordinate.");
   const { paddingRatio = 0.08, minSpanMs = 1000 } = options || {};
   const numeric = values.map(Number);
-  numeric.forEach((value, index) => assertFinite(value, `values[${index}]`));
+  numeric.forEach((value, index) => {
+    assertFinite(value, `values[${index}]`);
+  });
   let start = Math.min(...numeric);
   let end = Math.max(...numeric);
   const rawSpan = Math.max(end - start, minSpanMs);
