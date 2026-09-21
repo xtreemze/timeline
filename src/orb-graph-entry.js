@@ -800,7 +800,7 @@ function create(container, handlers = {}) {
   }
 
   function onPointerDown(event) {
-    if (event.button !== 0) return;
+    if (event.pointerType !== "touch" && event.button !== 0) return;
     const target = touchTargetPayload(event);
     if (event.pointerType !== "touch") {
       if (target?.kind === "node") {
