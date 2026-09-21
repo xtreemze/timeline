@@ -146,7 +146,7 @@ function primarySurfaceOverflowMasking(source) {
     /(?:^|[\s,>+~])(?:html|body|#app-shell|\.app-shell|\.presentation-stage|\.timeline-view|\.timeline-surface|\.temporal-graph-canvas|\.presentation-map)(?![A-Za-z0-9_-])/;
   let match = rulePattern.exec(source);
   while (match) {
-    const selector = normalize(match[1]);
+    const selector = normalize(match[1].replace(/\/\*[\s\S]*?\*\//g, ""));
     if (primarySurface.test(selector)) {
       for (const declaration of match[2].matchAll(
         /\boverflow(?:-x|-inline)?\s*:\s*(?:hidden|clip)\s*;/gi,
@@ -387,20 +387,28 @@ function lintResponsiveScriptPolicy(file, source) {
   }
 }
 
+function legacyInputHandlers(source) {
+  const matches = [];
+  const registration =
+    /(?:addEventListener|removeEventListener)\s*\(\s*["'](?:mouse(?:down|up|move|enter|leave|over|out)|touch(?:start|move|end|cancel))["']/g;
+  for (const match of source.matchAll(registration)) matches.push(normalize(match[0]));
+
+  const property =
+    /\bon(?:mouse(?:down|up|move|enter|leave|over|out)|touch(?:start|move|end|cancel))\s*=/g;
+  for (const match of source.matchAll(property)) matches.push(normalize(match[0]));
+
+  return distribution(matches);
+}
+
 function lintInputEventPolicy(file, source) {
   if (file.startsWith("tests/")) return;
 
-  const legacyInputRegistration =
-    /(?:addEventListener|removeEventListener)\s*\(\s*["'](?:mouse(?:down|up|move|enter|leave|over|out)|touch(?:start|move|end|cancel))["']/;
-  const legacyInputProperty =
-    /\bon(?:mouse(?:down|up|move|enter|leave|over|out)|touch(?:start|move|end|cancel))\s*=/;
-  if (legacyInputRegistration.test(source) || legacyInputProperty.test(source)) {
-    report(
-      file,
-      "pointer-events-only",
-      "mouse/touch-specific DOM handlers are forbidden; use Pointer Events so mouse, pen, and touch share one interaction path",
-    );
-  }
+  compareExactDebt(
+    file,
+    "pointer-events-only",
+    legacyInputHandlers(source),
+    baseline.architecture?.legacyInputHandlers?.[file] || {},
+  );
 
   if (/\.setPointerCapture(?:\?\.)?\s*\(/.test(source)) {
     if (!/["']pointercancel["']/.test(source)) {
