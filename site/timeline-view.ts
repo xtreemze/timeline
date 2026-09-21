@@ -1,203 +1,874 @@
 /**
- * Timeline UI rendering and viewport management
- * Handles interactive timeline surface with zoom, pan, focus, and navigation
+ * Timeline retained-scene renderer.
+ *
+ * Canonical chronology stays outside this adapter. This controller consumes projected
+ * occurrences, owns only viewport/interaction state, and keeps keyed DOM identities
+ * alive across pan/zoom so rendering does not become a destructive per-frame rebuild.
  */
 
-type TimelineViewControllerType = any;
+import {
+  beginRetention,
+  commitRetention,
+  createRenderWindow,
+  extendRetention,
+  itemOverlapsWindow,
+  occurrenceSceneKey,
+  queryOccurrences,
+  visibleIntervalAnchor,
+  type TemporalRetentionState,
+  type TemporalWindow,
+} from "../src/projection/temporal-scene.ts";
 
 const scale = globalThis.TimelineScale;
-const clustering = globalThis.TimelineClustering;
-const motion = globalThis.TimelineMotion;
 const presentation = globalThis.TimelinePresentation;
 
-// Log warnings if dependencies aren't loaded yet, but don't fail
-// They may load asynchronously from shims
-if (!scale) console.warn("TimelineScale not yet loaded - timeline rendering may be limited");
-if (!clustering) console.warn("TimelineClustering not yet loaded - timeline rendering may be limited");
-if (!motion) console.warn("TimelineMotion not yet loaded - timeline rendering may be limited");
-if (!presentation) console.warn("TimelinePresentation not yet loaded - timeline rendering may be limited");
-
-const VIEW_STORAGE_KEY = "timeline:view:v1";
 const DEFAULT_SPAN_MS = 86_400_000;
 const MIN_SPAN_MS = 1;
-const MAX_TICKS = 240;
-const BUTTON_ZOOM_FACTOR = 0.82;
-const DOUBLE_TAP_ZOOM_FACTOR = 0.5;
-const TOUCH_DOUBLE_TAP_MS = 320;
-const TOUCH_DOUBLE_TAP_DISTANCE_PX = 28;
-const TOUCH_TAP_MOVE_TOLERANCE_PX = 12;
-const ZOOM_RESPONSE_MS = 170;
-const WHEEL_ZOOM_SENSITIVITY = 0.00065;
 const MAX_WHEEL_EXPONENT = 0.045;
+const WHEEL_ZOOM_SENSITIVITY = 0.00065;
+const OVERSCAN_RATIO = 0.6;
+const POINTER_PREDICTION_HORIZON_MS = 260;
+const WHEEL_COMMIT_DELAY_MS = 150;
+const CONNECTOR_ROUTE_OFFSET_PX = 22;
+const CONNECTOR_ROUTE_EDGE_INSET_PX = 32;
 
-class TimelineViewController {
-  root: HTMLElement;
-  viewport: any = { start: 0, end: Date.now() };
-  surface: HTMLElement;
-  focusView: HTMLElement;
-  readout: HTMLElement;
-  items: any[] = [];
-  focusedId: string | null = null;
-  orientation: "horizontal" | "vertical" | "portrait" | "landscape" = "horizontal";
+type Orientation = "horizontal" | "vertical";
 
-  constructor(root: HTMLElement) {
-    this.root = root;
-    this.surface = root.querySelector(".timeline-surface") || root;
-    this.focusView = root.querySelector(".timeline-focus-view") || root;
-    this.readout = root.querySelector(".timeline-window-readout") || root;
-  }
-
-  setItems(items: any[], options?: any) {
-    this.items = items || [];
-    // Render items to surface using DOM elements for proper styling
-    if (this.surface) {
-      // Clear existing content
-      this.surface.innerHTML = '';
-
-      // Create a list container
-      const ul = document.createElement("ul");
-      ul.className = "timeline-items";
-
-      // Render each item
-      for (const item of this.items) {
-        const li = document.createElement("li");
-        li.className = `timeline-item${item.kind === "range" ? " is-range" : ""}`;
-        li.dataset.id = item.id;
-        // Set explicit min-height to ensure visibility
-        li.style.minHeight = "120px";
-
-        // Add date
-        const dateWrap = document.createElement("div");
-        dateWrap.className = "timeline-date";
-        const dateText = document.createElement("strong");
-        dateText.textContent = item.start instanceof Date
-          ? item.start.toLocaleDateString()
-          : String(item.start || "Unknown date");
-        dateWrap.appendChild(dateText);
-
-        // Add marker
-        const marker = document.createElement("div");
-        marker.className = "timeline-marker";
-        marker.setAttribute("aria-hidden", "true");
-
-        // Add card with content
-        const card = document.createElement("article");
-        card.className = "timeline-card";
-
-        const heading = document.createElement("h3");
-        heading.textContent = item.title || item.id || "Untitled";
-        card.appendChild(heading);
-
-        if (item.description) {
-          const desc = document.createElement("p");
-          desc.textContent = item.description;
-          card.appendChild(desc);
-        }
-
-        // Add metadata
-        const meta = document.createElement("div");
-        meta.className = "card-meta";
-        if (item.categoryId) {
-          const category = document.createElement("span");
-          category.className = "category";
-          category.textContent = item.categoryId;
-          meta.appendChild(category);
-        }
-        card.appendChild(meta);
-
-        // Assemble the item
-        li.appendChild(dateWrap);
-        li.appendChild(marker);
-        li.appendChild(card);
-        ul.appendChild(li);
-      }
-
-      this.surface.appendChild(ul);
-    }
-  }
-
-  getViewport() {
-    return this.viewport;
-  }
-
-  hasFocusedItem() {
-    return !!this.focusedId;
-  }
-
-  focusedItemId() {
-    return this.focusedId || null;
-  }
-
-  setOrientation(orientation: string, options?: any) {
-    this.orientation = orientation as any;
-    if (this.root) {
-      this.root.dataset.orientation = orientation;
-    }
-  }
-
-  getOrientation() {
-    return this.orientation;
-  }
-
-  refreshLayout() {
-    // Trigger layout recalculation
-    if (this.root) {
-      this.root.offsetHeight;
-    }
-  }
-
-  ensureFocusPopover() {
-    // Ensure focus popover is visible
-  }
-
-  closeFocus() {
-    this.focusedId = null;
-  }
-
-  updateReadout(spec?: any) {
-    const start = new Date(this.viewport.start || 0);
-    const end = new Date(this.viewport.end || Date.now());
-    const unit = spec ? `${spec.step} ${spec.unit}s` : "adaptive";
-    this.readout.textContent = `${start.toDateString()} — ${end.toDateString()} · ${unit}`;
-  }
-
-  focus(itemId: string) {
-    this.focusedId = itemId;
-    if (this.root.hidden) this.root.hidden = false;
-    this.readout.textContent = `Focus: ${itemId}`;
-  }
-
-  unfocus() {
-    this.focusedId = null;
-    this.readout.textContent = "";
-  }
+interface TimelineItem {
+  id: string;
+  kind?: string;
+  title?: string;
+  description?: string;
+  categoryName?: string;
+  color?: string;
+  start: number;
+  end?: number | null;
+  startLabel?: string;
+  endLabel?: string;
+  terminalShape?: string;
+  connectorStyle?: string;
+  connectorRouting?: string;
+  connectorWeight?: string;
+  connectorEndpoint?: string;
+  lane?: number | null;
+  media?: Array<{ src?: string; alt?: string }>;
 }
 
-function connectorSegment(axisCoordinate: number, terminalCoordinate: number): any {
+interface SetItemsOptions {
+  focusId?: string | null;
+  allCoordinates?: number[];
+  relationships?: unknown[];
+}
+
+interface SceneRecord {
+  item: TimelineItem;
+  node: HTMLDivElement;
+  terminal: HTMLButtonElement;
+  range: HTMLButtonElement | null;
+  copy: HTMLSpanElement;
+}
+
+interface PointerDragState {
+  pointerId: number;
+  coordinate: number;
+  lastCoordinate: number;
+  lastTime: number;
+  viewport: TemporalWindow;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function connectorSegment(axisCoordinate: number, terminalCoordinate: number) {
   const delta = Number(axisCoordinate) - Number(terminalCoordinate);
   if (!Number.isFinite(delta)) throw new TypeError("Connector coordinates must be finite.");
   return {
     offset: Math.min(0, delta),
-    span: Math.abs(delta),
+    length: Math.abs(delta),
   };
 }
 
-function connectorRouteOffset(): number {
-  return 22;
+function connectorRouteOffset(
+  routing: string,
+  position: number,
+  extent: number,
+  index = 0,
+): number {
+  if (routing !== "orthogonal") return 0;
+  const anchor = Number(position);
+  const available = Number(extent);
+  if (!Number.isFinite(anchor) || !Number.isFinite(available) || available <= 0) return 0;
+  const inset = Math.min(CONNECTOR_ROUTE_EDGE_INSET_PX, available / 2);
+  const min = inset;
+  const max = Math.max(inset, available - inset);
+  const direction = index % 2 === 0 ? 1 : -1;
+  const preferred = clamp(anchor + direction * CONNECTOR_ROUTE_OFFSET_PX, min, max);
+  if (Math.abs(preferred - anchor) >= 1) return preferred - anchor;
+  return clamp(anchor - direction * CONNECTOR_ROUTE_OFFSET_PX, min, max) - anchor;
 }
 
 function wheelZoomFactor(deltaPixels: number): number {
-  const exponent = Math.min(MAX_WHEEL_EXPONENT, Math.max(-MAX_WHEEL_EXPONENT, Number(deltaPixels) * WHEEL_ZOOM_SENSITIVITY));
+  const exponent = clamp(
+    Number(deltaPixels) * WHEEL_ZOOM_SENSITIVITY,
+    -MAX_WHEEL_EXPONENT,
+    MAX_WHEEL_EXPONENT,
+  );
   return Math.exp(exponent);
 }
 
-function visibleIntervalAnchor(item: any, viewport: any): number | null {
-  if (!item || !viewport || !Number.isFinite(item.start)) return null;
-  if (!Number.isFinite(item.end)) return item.start;
-  const visibleStart = Math.max(item.start, viewport.start);
-  const visibleEnd = Math.min(item.end, viewport.end);
-  if (visibleEnd < visibleStart) return null;
-  return visibleStart + (visibleEnd - visibleStart) / 2;
+function itemOverlapsViewport(
+  item: Pick<TimelineItem, "start" | "end">,
+  viewport: TemporalWindow,
+): boolean {
+  return itemOverlapsWindow(item, viewport);
+}
+
+function stableLane(id: string, explicit: number | null | undefined): number {
+  if (Number.isInteger(explicit)) return Number(explicit);
+  let hash = 0;
+  for (let index = 0; index < id.length; index += 1) {
+    hash = (hash * 31 + id.charCodeAt(index)) | 0;
+  }
+  const magnitude = Math.abs(hash);
+  const distance = (magnitude % 3) + 1;
+  return magnitude % 2 === 0 ? distance : -distance;
+}
+
+function normalizedViewport(start: number, end: number): TemporalWindow {
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return { start: 0, end: DEFAULT_SPAN_MS };
+  if (end > start) return { start, end };
+  return { start: start - DEFAULT_SPAN_MS / 2, end: start + DEFAULT_SPAN_MS / 2 };
+}
+
+class TimelineViewController {
+  root: HTMLElement;
+  surface: HTMLElement;
+  focusView: HTMLElement;
+  readout: HTMLElement;
+  orientationToggle: HTMLButtonElement | null;
+  zoomSlider: HTMLInputElement | null;
+  stage: HTMLDivElement;
+  axis: HTMLDivElement;
+  items: TimelineItem[] = [];
+  relationships: unknown[] = [];
+  allCoordinates: number[] = [];
+  viewport: TemporalWindow = { start: 0, end: DEFAULT_SPAN_MS };
+  renderWindow: TemporalWindow = { start: 0, end: DEFAULT_SPAN_MS };
+  retention: TemporalRetentionState = commitRetention(this.renderWindow);
+  focusedId: string | null = null;
+  orientation: Orientation = "horizontal";
+  scene = new Map<string, SceneRecord>();
+  pointerDrag: PointerDragState | null = null;
+  interactionVelocity = 0;
+  renderFrame = 0;
+  wheelCommitTimer = 0;
+  viewportInitialized = false;
+  reducedMotionQuery: MediaQueryList | null =
+    typeof globalThis.matchMedia === "function"
+      ? globalThis.matchMedia("(prefers-reduced-motion: reduce)")
+      : null;
+
+  constructor(root: HTMLElement) {
+    this.root = root;
+    this.surface = root.querySelector("#timeline-surface") || root.querySelector(".timeline-surface") || root;
+    this.focusView =
+      root.querySelector("#timeline-focus-view") || root.querySelector(".timeline-focus-view") || root;
+    this.readout =
+      root.querySelector("#timeline-window-readout") || root.querySelector(".timeline-window-readout") || root;
+    this.orientationToggle = root.querySelector("#timeline-orientation-toggle");
+    this.zoomSlider = root.querySelector("#timeline-zoom-level");
+
+    this.stage = document.createElement("div");
+    this.stage.className = "timeline-stage timeline-retained-scene";
+    this.stage.dataset.sceneState = "empty";
+    this.axis = document.createElement("div");
+    this.axis.className = "timeline-axis";
+    this.stage.append(this.axis);
+    this.surface.replaceChildren(this.stage);
+
+    this.bind();
+    this.applyOrientation();
+  }
+
+  bind(): void {
+    this.orientationToggle?.addEventListener("click", () => {
+      this.setOrientation(this.orientation === "horizontal" ? "vertical" : "horizontal");
+    });
+
+    this.surface.addEventListener(
+      "wheel",
+      (event) => {
+        if (!this.items.length) return;
+        event.preventDefault();
+        const rect = this.surface.getBoundingClientRect();
+        const primary =
+          this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
+        const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
+        const ratio = clamp(primary / length, 0, 1);
+        const factor = wheelZoomFactor(event.deltaY);
+        const span = Math.max(MIN_SPAN_MS, (this.viewport.end - this.viewport.start) * factor);
+        const anchor = this.viewport.start + (this.viewport.end - this.viewport.start) * ratio;
+        const next = {
+          start: anchor - span * ratio,
+          end: anchor + span * (1 - ratio),
+        };
+
+        this.beginInteraction();
+        this.viewport = next;
+        this.interactionVelocity = 0;
+        this.scheduleRender();
+        this.emitViewport(false);
+
+        globalThis.clearTimeout(this.wheelCommitTimer);
+        this.wheelCommitTimer = globalThis.setTimeout(
+          () => this.commitInteraction(),
+          WHEEL_COMMIT_DELAY_MS,
+        );
+      },
+      { passive: false },
+    );
+
+    this.surface.addEventListener("pointerdown", (event) => {
+      if (!this.items.length || event.button !== 0) return;
+      if (event.target instanceof Element && event.target.closest("button, a, input, select, textarea")) {
+        return;
+      }
+      const rect = this.surface.getBoundingClientRect();
+      const coordinate =
+        this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
+      this.beginInteraction();
+      this.pointerDrag = {
+        pointerId: event.pointerId,
+        coordinate,
+        lastCoordinate: coordinate,
+        lastTime: Number(event.timeStamp) || performance.now(),
+        viewport: { ...this.viewport },
+      };
+      this.surface.setPointerCapture(event.pointerId);
+      this.root.dataset.sceneState = "interacting";
+    });
+
+    this.surface.addEventListener("pointermove", (event) => {
+      const drag = this.pointerDrag;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      const rect = this.surface.getBoundingClientRect();
+      const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
+      const coordinate =
+        this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
+      const delta = coordinate - drag.coordinate;
+      const span = drag.viewport.end - drag.viewport.start;
+      const temporalDelta = -(delta / length) * span;
+      this.viewport = {
+        start: drag.viewport.start + temporalDelta,
+        end: drag.viewport.end + temporalDelta,
+      };
+
+      const now = Number(event.timeStamp) || performance.now();
+      const elapsed = Math.max(1, now - drag.lastTime);
+      const incrementalPixels = coordinate - drag.lastCoordinate;
+      this.interactionVelocity = -((incrementalPixels / length) * span) / elapsed;
+      drag.lastCoordinate = coordinate;
+      drag.lastTime = now;
+      this.scheduleRender();
+      this.emitViewport(false);
+    });
+
+    const finishPointer = (event: PointerEvent): void => {
+      if (!this.pointerDrag || this.pointerDrag.pointerId !== event.pointerId) return;
+      this.pointerDrag = null;
+      try {
+        if (this.surface.hasPointerCapture(event.pointerId)) {
+          this.surface.releasePointerCapture(event.pointerId);
+        }
+      } catch {
+        // Cancellation can release capture before this handler runs.
+      }
+      this.commitInteraction();
+    };
+
+    this.surface.addEventListener("pointerup", finishPointer);
+    this.surface.addEventListener("pointercancel", finishPointer);
+    this.surface.addEventListener("lostpointercapture", (event) => {
+      if (this.pointerDrag?.pointerId !== event.pointerId) return;
+      this.pointerDrag = null;
+      this.commitInteraction();
+    });
+
+    this.surface.addEventListener("keydown", (event) => {
+      if (!this.items.length) return;
+      if (event.key === "Home") {
+        event.preventDefault();
+        this.fitAll();
+        return;
+      }
+      if (event.key === "+" || event.key === "=" || event.key === "-") {
+        event.preventDefault();
+        const factor = event.key === "-" ? 1.25 : 0.8;
+        const center = (this.viewport.start + this.viewport.end) / 2;
+        const span = Math.max(MIN_SPAN_MS, (this.viewport.end - this.viewport.start) * factor);
+        this.viewport = { start: center - span / 2, end: center + span / 2 };
+        this.commitInteraction();
+        return;
+      }
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "ArrowUp" || event.key === "ArrowDown") {
+        const alongAxis =
+          this.orientation === "horizontal"
+            ? event.key === "ArrowLeft" || event.key === "ArrowRight"
+            : event.key === "ArrowUp" || event.key === "ArrowDown";
+        if (!alongAxis) return;
+        event.preventDefault();
+        const sign = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
+        const delta = (this.viewport.end - this.viewport.start) * 0.12 * sign;
+        this.viewport = { start: this.viewport.start + delta, end: this.viewport.end + delta };
+        this.commitInteraction();
+      }
+    });
+  }
+
+  setItems(items: TimelineItem[], options: SetItemsOptions = {}): void {
+    this.items = (items || []).filter(
+      (item) => item && typeof item.id === "string" && Number.isFinite(item.start),
+    );
+    this.relationships = Array.isArray(options.relationships) ? options.relationships : [];
+    this.allCoordinates = Array.isArray(options.allCoordinates)
+      ? options.allCoordinates.filter(Number.isFinite)
+      : this.items.flatMap((item) =>
+          Number.isFinite(item.end) ? [item.start, Number(item.end)] : [item.start],
+        );
+
+    if (!this.viewportInitialized && this.items.length) {
+      this.viewport = this.initialViewport();
+      this.viewportInitialized = true;
+    }
+
+    this.focusedId =
+      options.focusId && this.items.some((item) => item.id === options.focusId)
+        ? options.focusId
+        : this.focusedId && this.items.some((item) => item.id === this.focusedId)
+          ? this.focusedId
+          : null;
+
+    this.renderWindow = createRenderWindow(this.viewport, { overscanRatio: OVERSCAN_RATIO });
+    this.retention = commitRetention(this.renderWindow);
+    this.render();
+    this.emitViewport(true);
+
+    if (options.focusId) this.focusItem(options.focusId, { moveViewport: false });
+  }
+
+  initialViewport(): TemporalWindow {
+    const sorted = [...this.items].sort((left, right) => left.start - right.start);
+    if (!sorted.length) return { start: 0, end: DEFAULT_SPAN_MS };
+    const local = sorted.slice(0, 3);
+    const start = local[0].start;
+    const end = Math.max(
+      ...local.map((item) => (Number.isFinite(item.end) ? Number(item.end) : item.start)),
+    );
+    const raw = normalizedViewport(start, end);
+    const span = Math.max(DEFAULT_SPAN_MS, raw.end - raw.start);
+    const center = (raw.start + raw.end) / 2;
+    return { start: center - span * 0.6, end: center + span * 0.6 };
+  }
+
+  fitAll(): void {
+    const coordinates = this.allCoordinates.length
+      ? this.allCoordinates
+      : this.items.flatMap((item) =>
+          Number.isFinite(item.end) ? [item.start, Number(item.end)] : [item.start],
+        );
+    if (!coordinates.length) return;
+    const min = Math.min(...coordinates);
+    const max = Math.max(...coordinates);
+    const raw = normalizedViewport(min, max);
+    const span = Math.max(DEFAULT_SPAN_MS, raw.end - raw.start);
+    const padding = span * 0.06;
+    this.viewport = { start: raw.start - padding, end: raw.end + padding };
+    this.commitInteraction();
+  }
+
+  beginInteraction(): void {
+    if (this.retention.active) return;
+    this.renderWindow = createRenderWindow(this.viewport, {
+      overscanRatio: OVERSCAN_RATIO,
+      velocityTemporalPerMs: this.interactionVelocity,
+      predictionHorizonMs: POINTER_PREDICTION_HORIZON_MS,
+    });
+    this.retention = beginRetention(this.renderWindow);
+    this.root.dataset.sceneState = "interacting";
+  }
+
+  commitInteraction(): void {
+    this.interactionVelocity = 0;
+    this.renderWindow = createRenderWindow(this.viewport, { overscanRatio: OVERSCAN_RATIO });
+    this.retention = commitRetention(this.renderWindow);
+    this.root.dataset.sceneState = this.focusedId ? "focused" : this.items.length ? "populated" : "empty";
+    this.render();
+    this.emitViewport(true);
+  }
+
+  scheduleRender(): void {
+    if (this.renderFrame) return;
+    this.renderFrame = requestAnimationFrame(() => {
+      this.renderFrame = 0;
+      this.render();
+    });
+  }
+
+  render(): void {
+    const empty = !this.items.length;
+    this.root.dataset.empty = empty ? "true" : "false";
+    if (empty) {
+      this.stage.dataset.sceneState = "empty";
+      this.readout.textContent = "No visible events";
+      for (const record of this.scene.values()) this.removeRecord(record);
+      this.scene.clear();
+      return;
+    }
+
+    const rect = this.surface.getBoundingClientRect();
+    const width = Math.max(1, rect.width || this.surface.clientWidth || 800);
+    const height = Math.max(1, rect.height || this.surface.clientHeight || 480);
+    const primaryLength = this.orientation === "horizontal" ? width : height;
+    const axisCross = this.orientation === "horizontal" ? height / 2 : width * 0.58;
+    this.surface.style.setProperty("--timeline-axis-cross", `${axisCross}px`);
+
+    this.renderWindow = createRenderWindow(this.viewport, {
+      overscanRatio: OVERSCAN_RATIO,
+      velocityTemporalPerMs: this.interactionVelocity,
+      predictionHorizonMs: POINTER_PREDICTION_HORIZON_MS,
+    });
+    if (this.retention.active) {
+      this.retention = extendRetention(this.retention, this.renderWindow, this.viewport, 8);
+    } else {
+      this.retention = commitRetention(this.renderWindow);
+    }
+
+    const membershipWindow = this.retention.extent;
+    const candidates = queryOccurrences(this.items, membershipWindow);
+    const focused = this.focusedId
+      ? this.items.find((item) => item.id === this.focusedId) || null
+      : null;
+    if (focused && !candidates.some((item) => item.id === focused.id)) candidates.push(focused);
+
+    const keep = new Set<string>();
+    for (const item of candidates) {
+      const key = occurrenceSceneKey(item.id);
+      keep.add(key);
+      let record = this.scene.get(key);
+      if (!record) {
+        record = this.createRecord(item);
+        this.scene.set(key, record);
+        this.animateEntry(record);
+      } else {
+        record.item = item;
+        this.updateRecordContent(record);
+      }
+      this.positionRecord(record, primaryLength, axisCross);
+    }
+
+    if (!this.retention.active) {
+      for (const [key, record] of this.scene) {
+        if (keep.has(key)) continue;
+        this.scene.delete(key);
+        this.removeRecord(record);
+      }
+    }
+
+    this.stage.dataset.sceneState = this.retention.active ? "interacting" : this.focusedId ? "focused" : "populated";
+    this.updateReadout();
+  }
+
+  createRecord(item: TimelineItem): SceneRecord {
+    const node = document.createElement("div");
+    node.className = "timeline-event";
+    node.dataset.id = item.id;
+
+    const terminal = document.createElement("button");
+    terminal.type = "button";
+    terminal.className = "timeline-event-terminal";
+    terminal.dataset.id = item.id;
+    terminal.addEventListener("click", () => this.focusItem(item.id));
+
+    const dot = document.createElement("span");
+    dot.className = "timeline-event-dot";
+    dot.setAttribute("aria-hidden", "true");
+    const icon =
+      presentation && typeof presentation.createIcon === "function"
+        ? presentation.createIcon("milestone", { size: 24 })
+        : null;
+    if (icon) dot.append(icon);
+    else dot.textContent = "•";
+
+    const copy = document.createElement("span");
+    copy.className = "timeline-event-copy";
+    terminal.append(dot, copy);
+
+    const connector = document.createElement("span");
+    connector.className = "timeline-event-connector";
+    const connectorTurn = document.createElement("span");
+    connectorTurn.className = "timeline-event-connector-turn";
+    node.append(connector, connectorTurn, terminal);
+
+    let range: HTMLButtonElement | null = null;
+    if (Number.isFinite(item.end)) {
+      range = document.createElement("button");
+      range.type = "button";
+      range.className = "timeline-range-segment";
+      range.dataset.id = item.id;
+      range.addEventListener("click", () => this.focusItem(item.id));
+      this.stage.append(range);
+    }
+
+    this.stage.append(node);
+    const record = { item, node, terminal, range, copy };
+    this.updateRecordContent(record);
+    return record;
+  }
+
+  updateRecordContent(record: SceneRecord): void {
+    const { item, node, terminal, range, copy } = record;
+    node.style.setProperty("--event-color", item.color || "var(--accent)");
+    node.dataset.terminalShape = item.terminalShape || "rounded";
+    node.dataset.connectorStyle = item.connectorStyle || "solid";
+    node.dataset.connectorRouting = item.connectorRouting || "straight";
+    node.dataset.connectorEndpoint = item.connectorEndpoint || "none";
+    node.classList.toggle("is-selected", item.id === this.focusedId);
+
+    const strong = copy.querySelector("strong") || document.createElement("strong");
+    strong.textContent = item.title || item.id;
+    const detail = copy.querySelector("span") || document.createElement("span");
+    detail.textContent =
+      Number.isFinite(item.end) && item.endLabel
+        ? `${item.startLabel || ""} → ${item.endLabel}`
+        : item.startLabel || "";
+    if (!strong.parentNode) copy.append(strong);
+    if (!detail.parentNode) copy.append(detail);
+
+    terminal.setAttribute(
+      "aria-label",
+      [item.title || item.id, detail.textContent].filter(Boolean).join(", "),
+    );
+
+    if (range) {
+      range.style.setProperty("--event-color", item.color || "var(--accent)");
+      const rangeLabel = `${item.title || item.id} · ${item.startLabel || item.start} → ${item.endLabel || item.end}`;
+      range.dataset.tooltip = rangeLabel;
+      range.title = rangeLabel;
+      range.setAttribute("aria-label", rangeLabel);
+    }
+  }
+
+  positionRecord(record: SceneRecord, primaryLength: number, axisCross: number): void {
+    const { item, node, terminal, range } = record;
+    const span = Math.max(MIN_SPAN_MS, this.viewport.end - this.viewport.start);
+    const coordinate = (time: number): number =>
+      ((time - this.viewport.start) / span) * primaryLength;
+
+    const anchor =
+      visibleIntervalAnchor(item, this.viewport) ??
+      visibleIntervalAnchor(item, this.renderWindow) ??
+      item.start;
+    const primary = coordinate(anchor);
+    const lane = stableLane(item.id, item.lane);
+    const laneDistance = 72 + Math.max(0, Math.abs(lane) - 1) * 62;
+    const terminalCross = axisCross + (lane < 0 ? -laneDistance : laneDistance);
+    const routeOffset = connectorRouteOffset(
+      item.connectorRouting || "straight",
+      terminalCross,
+      this.orientation === "horizontal"
+        ? Math.max(1, this.surface.getBoundingClientRect().height)
+        : Math.max(1, this.surface.getBoundingClientRect().width),
+      Math.abs(lane),
+    );
+    const shiftedCross = terminalCross + routeOffset;
+
+    node.dataset.side = lane < 0 ? "before" : "after";
+    node.classList.toggle("label-before", lane < 0);
+    node.classList.toggle("is-buffered", !itemOverlapsWindow(item, this.viewport));
+
+    if (this.orientation === "horizontal") {
+      node.style.transform = `translate3d(${primary}px, ${shiftedCross}px, 0)`;
+    } else {
+      node.style.transform = `translate3d(${shiftedCross}px, ${primary}px, 0)`;
+    }
+
+    terminal.tabIndex = itemOverlapsWindow(item, this.viewport) ? 0 : -1;
+
+    const connector = node.querySelector<HTMLElement>(".timeline-event-connector");
+    const connectorTurn = node.querySelector<HTMLElement>(".timeline-event-connector-turn");
+    if (connector && connectorTurn) {
+      const segment = connectorSegment(axisCross, shiftedCross);
+      if (this.orientation === "horizontal") {
+        connector.style.left = "0";
+        connector.style.top = `${segment.offset}px`;
+        connector.style.width = "2px";
+        connector.style.height = `${Math.max(1, segment.length)}px`;
+        connectorTurn.style.left = "0";
+        connectorTurn.style.top = `${Math.min(-routeOffset, 0)}px`;
+        connectorTurn.style.width = `${Math.max(1, Math.abs(routeOffset))}px`;
+        connectorTurn.style.height = "2px";
+      } else {
+        connector.style.left = `${segment.offset}px`;
+        connector.style.top = "0";
+        connector.style.width = `${Math.max(1, segment.length)}px`;
+        connector.style.height = "2px";
+        connectorTurn.style.left = `${Math.min(-routeOffset, 0)}px`;
+        connectorTurn.style.top = "0";
+        connectorTurn.style.width = "2px";
+        connectorTurn.style.height = `${Math.max(1, Math.abs(routeOffset))}px`;
+      }
+    }
+
+    if (range && Number.isFinite(item.end)) {
+      const clippedStart = Math.max(item.start, this.renderWindow.start);
+      const clippedEnd = Math.min(Number(item.end), this.renderWindow.end);
+      const startPosition = coordinate(clippedStart);
+      const endPosition = coordinate(clippedEnd);
+      const length = Math.max(2, endPosition - startPosition);
+      range.classList.toggle("is-buffered", !itemOverlapsWindow(item, this.viewport));
+      range.tabIndex = itemOverlapsWindow(item, this.viewport) ? 0 : -1;
+      if (this.orientation === "horizontal") {
+        range.style.transform = `translate3d(${startPosition}px, 0, 0)`;
+        range.style.width = `${length}px`;
+        range.style.height = "";
+      } else {
+        range.style.transform = `translate3d(0, ${startPosition}px, 0)`;
+        range.style.height = `${length}px`;
+        range.style.width = "";
+      }
+    }
+  }
+
+  animateEntry(record: SceneRecord): void {
+    if (this.reducedMotionQuery?.matches || typeof record.terminal.animate !== "function") return;
+    record.terminal.animate(
+      [{ opacity: 0, scale: "0.97" }, { opacity: 1, scale: "1" }],
+      { duration: 150, easing: "cubic-bezier(.2,.8,.2,1)" },
+    );
+    record.range?.animate([{ opacity: 0 }, { opacity: 1 }], {
+      duration: 150,
+      easing: "ease-out",
+    });
+  }
+
+  removeRecord(record: SceneRecord): void {
+    record.node.remove();
+    record.range?.remove();
+  }
+
+  emitViewport(committed: boolean): void {
+    this.root.dispatchEvent(
+      new CustomEvent("timelineviewportchange", {
+        bubbles: true,
+        detail: {
+          viewport: { ...this.viewport },
+          committed,
+          renderWindow: { ...this.renderWindow },
+        },
+      }),
+    );
+  }
+
+  getViewport(): TemporalWindow {
+    return { ...this.viewport };
+  }
+
+  hasFocusedItem(): boolean {
+    return Boolean(this.focusedId);
+  }
+
+  focusedItemId(): string | null {
+    return this.focusedId;
+  }
+
+  setOrientation(orientation: string, options = {}): void {
+    const normalized: Orientation =
+      orientation === "vertical" || orientation === "portrait" ? "vertical" : "horizontal";
+    if (normalized === this.orientation) return;
+    this.orientation = normalized;
+    this.applyOrientation();
+    this.render();
+    this.root.dispatchEvent(
+      new CustomEvent("timelineorientationchange", {
+        bubbles: true,
+        detail: { orientation: normalized, options },
+      }),
+    );
+  }
+
+  getOrientation(): Orientation {
+    return this.orientation;
+  }
+
+  applyOrientation(): void {
+    const portrait = this.orientation === "vertical";
+    this.root.dataset.orientation = portrait ? "portrait" : "landscape";
+    this.surface.classList.toggle("is-portrait", portrait);
+    this.surface.classList.toggle("is-landscape", !portrait);
+    if (this.orientationToggle) {
+      this.orientationToggle.setAttribute(
+        "aria-label",
+        portrait ? "Switch to landscape timeline" : "Switch to portrait timeline",
+      );
+    }
+  }
+
+  refreshLayout(): void {
+    this.scheduleRender();
+  }
+
+  createFocusHero(item: TimelineItem): HTMLElement {
+    const hero = document.createElement("article");
+    hero.className = "timeline-focus-layout";
+    const heading = document.createElement("h2");
+    heading.textContent = item.title || item.id;
+    const time = document.createElement("p");
+    time.className = "timeline-focus-time";
+    time.textContent =
+      Number.isFinite(item.end) && item.endLabel
+        ? `${item.startLabel || ""} → ${item.endLabel}`
+        : item.startLabel || "";
+    hero.append(heading, time);
+    if (item.description) {
+      const description = document.createElement("p");
+      description.textContent = item.description;
+      hero.append(description);
+    }
+    return hero;
+  }
+
+  // Keep this signature stable while callers migrate: focusItem(id, options = {})
+  focusItem(id: string, options: { moveViewport?: boolean } = {}) {
+    const item = this.items.find((candidate) => candidate.id === id);
+    if (!item) return false;
+    const moveViewport = options.moveViewport !== false;
+
+    const update = () => {
+      this.focusedId = id;
+      this.root.classList.add("is-event-focused");
+      this.root.dataset.sceneState = "focused";
+      this.focusView.hidden = false;
+      this.focusView.replaceChildren(this.createFocusHero(item));
+      if (typeof (this.focusView as HTMLElement & { showPopover?: () => void }).showPopover === "function") {
+        try {
+          (this.focusView as HTMLElement & { showPopover: () => void }).showPopover();
+        } catch {
+          // The popover may already be open.
+        }
+      }
+
+      if (moveViewport) {
+        const sorted = [...this.items].sort((left, right) => left.start - right.start);
+        const index = sorted.findIndex((candidate) => candidate.id === id);
+        const local = sorted.slice(Math.max(0, index - 1), Math.min(sorted.length, index + 2));
+        const localStart = Math.min(...local.map((candidate) => candidate.start));
+        const localEnd = Math.max(
+          ...local.map((candidate) =>
+            Number.isFinite(candidate.end) ? Number(candidate.end) : candidate.start,
+          ),
+        );
+        const raw = normalizedViewport(localStart, localEnd);
+        const span = Math.max(DEFAULT_SPAN_MS / 24, raw.end - raw.start);
+        const center = (raw.start + raw.end) / 2;
+        this.viewport = { start: center - span * 0.6, end: center + span * 0.6 };
+      }
+
+      this.commitInteraction();
+      this.root.dispatchEvent(
+        new CustomEvent("timelinefocuschange", {
+          bubbles: true,
+          detail: { focused: true, id },
+        }),
+      );
+      this.root.dispatchEvent(
+        new CustomEvent("timelinefocusrender", {
+          bubbles: true,
+          detail: { id },
+        }),
+      );
+    };
+
+    const canTransition =
+      !this.reducedMotionQuery?.matches &&
+      typeof document.startViewTransition === "function" &&
+      !Boolean((document as Document & { activeViewTransition?: unknown }).activeViewTransition);
+    if (canTransition) {
+      try {
+        document.startViewTransition(update);
+      } catch {
+        update();
+      }
+    } else {
+      update();
+    }
+    return true;
+  }
+
+  focus(itemId: string): void {
+    this.focusItem(itemId);
+  }
+
+  ensureFocusPopover(): void {
+    if (!this.focusedId || this.focusView.hidden) return;
+    const focus = this.focusView as HTMLElement & { matches: (selector: string) => boolean; showPopover?: () => void };
+    if (focus.matches(":popover-open") || typeof focus.showPopover !== "function") return;
+    try {
+      focus.showPopover();
+    } catch {
+      // A concurrent View Transition/top-layer update can temporarily reject this.
+    }
+  }
+
+  closeFocus(): void {
+    if (!this.focusedId) return;
+    const previous = this.focusedId;
+    const update = () => {
+      this.focusedId = null;
+      this.root.classList.remove("is-event-focused");
+      this.root.dataset.sceneState = this.items.length ? "populated" : "empty";
+      const focus = this.focusView as HTMLElement & { matches: (selector: string) => boolean; hidePopover?: () => void };
+      if (focus.matches(":popover-open") && typeof focus.hidePopover === "function") {
+        try {
+          focus.hidePopover();
+        } catch {
+          // Already closing.
+        }
+      }
+      this.focusView.hidden = true;
+      this.focusView.replaceChildren();
+      this.render();
+      this.root.dispatchEvent(
+        new CustomEvent("timelinefocuschange", {
+          bubbles: true,
+          detail: { focused: false, id: previous },
+        }),
+      );
+    };
+    if (
+      !this.reducedMotionQuery?.matches &&
+      typeof document.startViewTransition === "function" &&
+      !Boolean((document as Document & { activeViewTransition?: unknown }).activeViewTransition)
+    ) {
+      try {
+        document.startViewTransition(update);
+        return;
+      } catch {
+        // Fall through to synchronous state update.
+      }
+    }
+    update();
+  }
+
+  unfocus(): void {
+    this.closeFocus();
+  }
+
+  updateReadout(): void {
+    const start = new Date(this.viewport.start);
+    const end = new Date(this.viewport.end);
+    this.readout.textContent = `${start.toLocaleDateString()} — ${end.toLocaleDateString()}`;
+  }
 }
 
 export const TimelineView = Object.freeze({
@@ -209,6 +880,7 @@ export const TimelineView = Object.freeze({
     connectorSegment,
     connectorRouteOffset,
     visibleIntervalAnchor,
+    itemOverlapsViewport,
     wheelZoomFactor,
   }),
 });

@@ -206,7 +206,7 @@
       "nonNull": 0
     },
     "site/timeline-view.ts": {
-      "any": 6,
+      "any": 0,
       "asAny": 0,
       "nonNull": 0
     },
@@ -412,7 +412,7 @@
       "site/timeline-graph-shim.ts": 1,
       "site/timeline-graph.ts": 8,
       "site/timeline-view-shim.ts": 1,
-      "site/timeline-view.ts": 4
+      "site/timeline-view.ts": 2
     },
     "directCanonicalMutations": {
       "site/app.ts": 20,
