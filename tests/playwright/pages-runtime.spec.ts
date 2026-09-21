@@ -4,7 +4,7 @@ test('built Pages shell boots application runtime on mobile', async ({ page }) =
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
 
-  const response = await page.goto('/index.html', { waitUntil: 'domcontentloaded' });
+  const response = await page.goto('/timeline/', { waitUntil: 'domcontentloaded' });
   expect(response?.status()).toBe(200);
 
   const shell = page.locator('#app-shell');
