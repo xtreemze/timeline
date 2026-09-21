@@ -18,7 +18,7 @@ interface TickCandidate {
   approxMs: number;
 }
 
-const CANDIDATES: TickCandidate[] = [
+const CANDIDATE_STEPS: ReadonlyArray<readonly [string, number]> = [
   ["millisecond", 1],
   ["millisecond", 2],
   ["millisecond", 5],
@@ -61,7 +61,9 @@ const CANDIDATES: TickCandidate[] = [
   ["year", 100],
   ["year", 200],
   ["year", 500],
-] satisfies ReadonlyArray<readonly [string, number]>).map(([unit, step]) => ({
+];
+
+const CANDIDATES: TickCandidate[] = CANDIDATE_STEPS.map(([unit, step]) => ({
   unit,
   step,
   approxMs: approximateMilliseconds(unit, step),
