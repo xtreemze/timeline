@@ -988,7 +988,7 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(timelineCss, /\.timeline-auto-controls[\s\S]*display:\s*flex[\s\S]*flex-wrap:\s*nowrap/);
   assert.doesNotMatch(timelineCss, /\.timeline-auto-controls[\s\S]{0,180}grid-column:\s*1 \/ -1/);
   assert.match(timelineCss, /Mobile persistent relation composition/);
-  assert.match(timelineCss, /--mobile-relations-inline-rail:\s*clamp\(88px, 25dvw, 116px\)/);
+  assert.match(timelineCss, /--mobile-relations-inline-rail:\s*clamp\(136px, 38dvw, 168px\)/);
   assert.match(timelineCss, /--mobile-relations-block-rail:\s*clamp\(136px, 32dvh, 184px\)/);
   assert.match(timelineCss, /Mobile persistent relation composition[\s\S]*data-orientation="portrait"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*top:\s*0;[\s\S]*right:\s*calc\(var\(--mobile-relations-inline-rail\)[\s\S]*bottom:\s*0;[\s\S]*left:\s*0;/);
   assert.match(timelineCss, /Mobile persistent relation composition[\s\S]*data-orientation="landscape"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*top:\s*0;[\s\S]*right:\s*0;[\s\S]*bottom:\s*calc\(var\(--mobile-bottom-chrome\) \+ var\(--mobile-relations-block-rail\)\);[\s\S]*left:\s*0;/);
@@ -1234,4 +1234,18 @@ test("focused event popover keeps event semantics compact and image controls dot
   assert.match(cssSource, /\.timeline-focus-slide-dot\s*\{[\s\S]*width:\s*44px;[\s\S]*height:\s*44px;/);
   assert.match(fictionDocs, /Categories belong only to timeline events; places, graph entities, and relationships\/edges/);
   assert.match(architectureDocs, /explicit duration for ranged events/);
+});
+
+
+test("phone portrait keeps a usable chronology rail and opens View controls inward", async () => {
+  const [timelineCss, appSource] = await Promise.all([
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8")
+  ]);
+  assert.match(timelineCss, /--mobile-relations-inline-rail:\s*clamp\(136px, 38dvw, 168px\)/);
+  assert.match(timelineCss, /--mobile-focus-rail:\s*clamp\(136px, 38dvw, 168px\)/);
+  assert.match(timelineCss, /data-orientation="portrait"\] > \.timeline-surface[\s\S]*--timeline-axis-cross:\s*58%[\s\S]*overflow:\s*visible/);
+  assert.match(timelineCss, /data-orientation="portrait"\] \.timeline-tick-label[\s\S]*left:\s*auto[\s\S]*right:\s*16px[\s\S]*text-align:\s*right/);
+  assert.match(appSource, /orientation === "portrait"[\s\S]*preferredLeft = triggerRect\.left - toolbarWidth - gap[\s\S]*placement = "left"/);
+  assert.match(appSource, /orientation === "portrait"[\s\S]*top = triggerRect\.bottom - toolbarHeight/);
 });

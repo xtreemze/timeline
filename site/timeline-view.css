@@ -3481,6 +3481,16 @@
   }
 
   #app-shell[data-graph-open="true"]
+    #timeline-view[data-orientation="portrait"] .timeline-tick-label {
+    left: auto;
+    right: 16px;
+    max-width: min(104px, calc(var(--mobile-relations-inline-rail) - 48px));
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+  }
+
+  #app-shell[data-graph-open="true"]
     #presentation-stage:has(> #timeline-view[data-orientation="landscape"])
     > .graph-lens:not([hidden]) {
     top: 0;
@@ -3530,7 +3540,7 @@
    the complete complementary canvas; mobile chrome may cover graph edges without shrinking it. */
 @media (max-width: 699px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
-    --mobile-relations-inline-rail: clamp(88px, 25dvw, 116px);
+    --mobile-relations-inline-rail: clamp(136px, 38dvw, 168px);
     --mobile-relations-block-rail: clamp(136px, 32dvh, 184px);
     --mobile-bottom-chrome: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
   }
@@ -3551,11 +3561,12 @@
     right: max(.25rem, env(safe-area-inset-right));
     bottom: 0;
     left: auto;
-    --timeline-axis-cross: 42%;
+    --timeline-axis-cross: 58%;
     width: var(--mobile-relations-inline-rail);
     height: 100%;
     min-height: 0;
     max-height: none;
+    overflow: visible;
     border-left: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
     background: color-mix(in srgb, var(--paper) 84%, transparent);
     transition:
@@ -3626,7 +3637,7 @@
 
 @media (max-width: 380px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
-    --mobile-relations-rail: clamp(80px, 24dvw, 96px);
+    --mobile-relations-inline-rail: clamp(136px, 38dvw, 168px);
   }
 }
 
@@ -3642,7 +3653,7 @@
   #app-shell #presentation-stage {
     --mobile-focus-top: max(3.75rem, calc(env(safe-area-inset-top) + 3.45rem));
     --mobile-focus-bottom: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
-    --mobile-focus-rail: clamp(84px, 24dvw, 108px);
+    --mobile-focus-rail: clamp(136px, 38dvw, 168px);
   }
 
   #app-shell .timeline-view[data-orientation="landscape"] > .timeline-focus-view:popover-open {
@@ -3821,7 +3832,7 @@
 
 @media (max-width: 380px) {
   #app-shell #presentation-stage {
-    --mobile-focus-rail: clamp(76px, 23dvw, 92px);
+    --mobile-focus-rail: clamp(136px, 38dvw, 168px);
   }
 
   #app-shell .timeline-focus-tab,
