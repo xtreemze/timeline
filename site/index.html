@@ -22,6 +22,10 @@
   <main id="workspace">
     <section id="app-shell" class="app-shell" aria-label="Timeline application" data-mode="view" data-editor-open="false" data-browser-open="false" data-graph-open="true" data-view-controls-open="false">
       <nav class="app-tool-dock app-footer-bar" aria-label="Application actions">
+        <button id="project-menu-toggle" class="app-tool app-project-tool project-menu-toggle" type="button" popovertarget="project-menu" aria-haspopup="menu" aria-controls="project-menu" aria-expanded="false" aria-label="Project actions" title="Project actions">
+          <img src="./icon.svg" alt="" width="24" height="24">
+          <span class="app-tool-label">Project</span>
+        </button>
         <button id="editor-toggle" class="app-tool" type="button" data-semantic-icon="note" aria-controls="control-panel" aria-expanded="false" aria-pressed="false">
           <span class="app-tool-label">Edit</span>
         </button>
@@ -1062,9 +1066,6 @@
         <section id="presentation-stage" class="presentation-stage" data-stage-shape="stacked" data-timeline-orientation="horizontal" aria-label="Timeline presentation with contextual relation graph and place map">
           <section id="timeline-view" class="timeline-view" aria-label="Interactive timeline">
             <header class="timeline-project-heading" aria-label="Timeline project">
-              <button id="project-menu-toggle" class="timeline-project-menu-toggle project-menu-toggle" type="button" popovertarget="project-menu" aria-haspopup="menu" aria-controls="project-menu" aria-label="Project actions" title="Project actions">
-                <img src="./icon.svg" alt="" width="24" height="24">
-              </button>
               <label class="project-title-field timeline-project-title">
                 <span class="sr-only">Timeline title</span>
                 <input id="timeline-title" type="text" maxlength="120" autocomplete="off" placeholder="Untitled timeline" readonly aria-readonly="true" tabindex="-1">
