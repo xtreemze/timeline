@@ -1583,13 +1583,14 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       return coordinates.filter(Number.isFinite);
     });
 
-    timelineView?.setItems(
-      visible.map((item) => {
-        const category = getCategory(item.categoryId);
-        const itemTime = temporal.sortKey(item.time?.start || item.start);
-        const eventViewport = Number.isFinite(itemTime)
-          ? { start: itemTime, end: itemTime }
-          : timelineView?.getViewport?.();
+    try {
+      timelineView?.setItems(
+        visible.map((item) => {
+          const category = getCategory(item.categoryId);
+          const itemTime = temporal.sortKey(item.time?.start || item.start);
+          const eventViewport = Number.isFinite(itemTime)
+            ? { start: itemTime, end: itemTime }
+            : timelineView?.getViewport?.();
         return {
           id: item.id,
           kind: item.kind,
@@ -1655,9 +1656,19 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       {
         focusId: storyCurrentId,
         allCoordinates: allTimelineCoordinates,
-        relationships: graph.temporalRelationProjection(state.relationships, temporal),
+        relationships: (() => {
+          try {
+            return graph.temporalRelationProjection(state.relationships, temporal);
+          } catch (error) {
+            console.error("Failed to generate temporal relation projection:", error);
+            return [];
+          }
+        })(),
       },
-    );
+      );
+    } catch (error) {
+      console.error("Failed to set timeline items:", error);
+    }
   }
 
   function renderItem(item, activeStory) {
