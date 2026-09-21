@@ -208,7 +208,7 @@ test("item form uses one range calendar while canonical place authoring is separ
   const [html, mapSource, appSource] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
   ]);
   assert.match(html, /id="item-date-range" type="text" readonly/);
   assert.match(html, /id="item-calendar-popover"[^>]*popover="auto"/);

@@ -107,7 +107,7 @@ test("item editor exposes reusable PDF/image evidence with extraction controls",
 });
 
 test("extracted evidence text feeds inference with page/image source references", async () => {
-  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
   assert.match(app, /evidence-pdf-text/);
   assert.match(app, /evidence-ocr/);
   assert.match(app, /evidence:\$\{id\}:\$\{locator\}/);
@@ -116,7 +116,7 @@ test("extracted evidence text feeds inference with page/image source references"
 
 test("full chronology renders collapsible category groups while story order remains separate", async () => {
   const [source, css] = await Promise.all([
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
   assert.match(source, /document\.createElement\("details"\)/);
@@ -158,7 +158,7 @@ test("focused layouts reclaim the former duplicate graph columns for event conte
 test("presentation stage keeps timeline and graph together and supports fullscreen", async () => {
   const [html, app, css, timelineSource] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
@@ -194,7 +194,7 @@ test("fullscreen composition preserves both axes across wide and tall displays",
 });
 
 test("Escape exits fullscreen before focused-event back navigation", async () => {
-  const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
   assert.match(
     source,
     /presentationIsFullscreen\(\)[\s\S]*meta\.event\?\.key === "Escape"[\s\S]*return false/,
@@ -205,7 +205,7 @@ test("fullscreen keeps the timeline full-stage and moves focused detail into a r
   const [html, timelineCss, app, timelineSource] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
 
@@ -276,7 +276,7 @@ test("focused Place and Relations reuse the single map and graph surfaces as int
   const [html, timelineCss, app, view, mapSource, graphView] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8"),
@@ -336,7 +336,7 @@ test("focused event detail uses a shared View Transition with its timeline termi
 
 test("adjacent focused-event navigation finishes viewport motion before swapping shared detail", async () => {
   const [app, source] = await Promise.all([
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
 
@@ -590,7 +590,7 @@ test("focused timeline geometry keeps terminals on the interior side of the shif
 test("presentation map renders semantic GeoJSON features instead of an empty point preview", async () => {
   const [mapSource, app, styles] = await Promise.all([
     readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
 
@@ -659,7 +659,7 @@ test("desktop event detail is compact and placed opposite the active timeline ed
 test("viewing and editing are explicit mutually exclusive application modes", async () => {
   const [html, app, styles] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
   assert.match(html, /id="app-shell"[^>]*data-mode="view"/);
@@ -698,7 +698,7 @@ test("viewing and editing are explicit mutually exclusive application modes", as
 
 test("fullscreen restores the focused event popover after the browser changes top-layer state", async () => {
   const [app, view] = await Promise.all([
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
   assert.match(view, /ensureFocusPopover\(\)/);
@@ -706,7 +706,7 @@ test("fullscreen restores the focused event popover after the browser changes to
 });
 
 test("utility surfaces remain coordinated while the relation graph stays persistent", async () => {
-  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
   assert.match(app, /closeLargeUtilitySurfaces\(except = ""\)[\s\S]*closeViewControls\(\)/);
   assert.match(
     app,
@@ -844,7 +844,7 @@ test("fullscreen graph composition follows physical orientation and preserves di
 });
 
 test("fresh startup loads the storybook sample while persisted timelines retain precedence", async () => {
-  const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
   const loadState = source.slice(
     source.indexOf("function loadState()"),
     source.indexOf("function persist()", source.indexOf("function loadState()")),
@@ -865,7 +865,7 @@ test("fresh startup loads the storybook sample while persisted timelines retain 
 
 test("fullscreen presentation derives timeline axis from physical viewport without persisting it", async () => {
   const [app, view] = await Promise.all([
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
   assert.match(view, /setOrientation\(orientation, options = \{\}\)/);
@@ -1130,7 +1130,7 @@ test("focus View Transitions capture chronology movement on the active timeline 
 
 test("workspace sidebar and side sheets are named View Transition participants", async () => {
   const [app, styles] = await Promise.all([
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
   assert.match(
@@ -1155,7 +1155,7 @@ test("workspace sidebar and side sheets are named View Transition participants",
 });
 
 test("story previous and next navigation use the same directional focus travel", async () => {
-  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
   assert.match(app, /focusCurrentStoryItem\(openFocus = false, options = \{\}\)/);
   assert.match(
     app,
@@ -1332,7 +1332,7 @@ test("focus chrome remains outside tab animation and semantic panels stay bounde
 });
 
 test("focused map mount stays idempotent while the graph remains in its persistent surface", async () => {
-  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
 
   assert.doesNotMatch(app, /presentationGraphCanvas|mountGraphBackdrop|focusGraphSlot/);
   assert.match(app, /const moved = els\.presentationMap\.parentNode !== slot/);

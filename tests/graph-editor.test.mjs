@@ -62,7 +62,7 @@ test("timeline includes an interactive temporal node-edge graph lens", async () 
 });
 
 test("application provides CRUD handlers for entity nodes, places, and structured action edges", async () => {
-  const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
   assert.match(source, /beginGraphNodeEdit/);
   assert.match(source, /removeGraphNode/);
   assert.match(source, /beginGraphPlaceEdit/);
@@ -177,7 +177,7 @@ test("touch graph dragging requires a long press while preserving live force phy
 });
 
 test("graph exploration never opens editors while graph authoring stays inside explicit Edit mode", async () => {
-  const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
   assert.match(source, /mode:\s*"view"/);
   assert.match(source, /function presentationModeActive\(\)[\s\S]*ui\.mode !== "edit"/);
   assert.doesNotMatch(source, /graphentityfocus|graphedgefocus|graphnodefocus|graphstoryfocus/);
