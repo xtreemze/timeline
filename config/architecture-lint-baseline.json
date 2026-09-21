@@ -31,8 +31,8 @@
       "nonNull": 0
     },
     "site/spatial.ts": {
-      "any": 11,
-      "asAny": 11,
+      "any": 0,
+      "asAny": 0,
       "nonNull": 0
     },
     "site/temporal-graph-view.ts": {
@@ -56,13 +56,13 @@
       "nonNull": 5
     },
     "site/timeline-migration.ts": {
-      "any": 15,
-      "asAny": 14,
+      "any": 0,
+      "asAny": 0,
       "nonNull": 0
     },
     "site/timeline-motion.ts": {
-      "any": 10,
-      "asAny": 8,
+      "any": 0,
+      "asAny": 0,
       "nonNull": 0
     },
     "site/timeline-navigation.ts": {
@@ -231,49 +231,12 @@
         "@media (max-width: 460px)": 1,
         "@media (max-width: 360px)": 1
       },
-      "hoverOnlySelectors": {
-        ".tab:hover": 2,
-        ".button:hover:not(:disabled)": 1,
-        ".button.primary:hover": 1,
-        ".button.secondary:hover": 1,
-        ".button.ghost:hover": 1,
-        ".picker-row:hover": 1,
-        ".icon-button:hover": 1,
-        ".icon-button.delete:hover": 1,
-        ".hero-meta span, .button.secondary:hover, .button.ghost:hover": 1
-      },
-      "physicalInlineProperties": {
-        "left": 19,
-        "margin-right": 5,
-        "border-right": 4,
-        "border-left": 6,
-        "margin-left": 3,
-        "padding-left": 1,
-        "border-left-color": 1,
-        "right": 9
-      },
-      "viewportWidthSizing": {
-        "width: min(420px, calc(100vw - 24px));": 1,
-        "max-width: min(24rem, 70vw);": 1,
-        "max-width: min(19rem, 72vw);": 1,
-        "max-width: min(16rem, 30vw);": 1,
-        "width: calc(100vw - 12px);": 1,
-        "inline-size: 100dvw;": 1,
-        "width: 100dvw;": 2,
-        "width: min(340px, calc(100dvw - 0.8rem), var(--project-menu-max-width, 340px));": 1,
-        "max-width: min(520px, calc(100dvw - 1rem));": 1,
-        "max-width: min(720px, calc(100dvw - 1rem));": 1,
-        "width: calc(100dvw - 1rem);": 1,
-        "width: min(440px, 34dvw);": 1,
-        "width: min(400px, 31dvw);": 1,
-        "max-width: min(560px, calc(100dvw - 0.9rem));": 1,
-        "width: calc(100dvw - 4px);": 1
-      },
+      "hoverOnlySelectors": {},
+      "physicalInlineProperties": {},
+      "viewportWidthSizing": {},
       "overflowXHidden": {},
-      "rootMinWidth": {
-        "min-width: 320px;": 2
-      },
-      "legacy100vh": 2,
+      "rootMinWidth": {},
+      "legacy100vh": 0,
       "maxWidthContainer": {
         "@container utility-sidebar (max-width: 360px)": 1
       },
@@ -304,11 +267,7 @@
         "@media (max-width: 699px)": 5,
         "@media (max-width: 380px)": 4
       },
-      "hoverOnlySelectors": {
-        ".timeline-event-terminal:hover": 1,
-        ".timeline-focus-view[popover] .timeline-focus-close.button.primary:hover": 1,
-        ".timeline-focus-view[popover] .button.secondary:hover": 1
-      },
+      "hoverOnlySelectors": {},
       "physicalInlineProperties": {
         "left": 54,
         "right": 40,
