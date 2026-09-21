@@ -169,7 +169,12 @@ test("browser runtime loads and persists canonical case reasoning", async () => 
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /interchange-adapter-shim\\.ts[\\s\\S]*case-reasoning-shim\\.ts[\\s\\S]*app\\.ts/);
+  const interchangeIndex = html.indexOf("./interchange-adapter-shim.ts");
+  const reasoningIndex = html.indexOf("./case-reasoning-shim.ts");
+  const appIndex = html.indexOf("./app.ts");
+  assert.ok(interchangeIndex >= 0, "interchange adapter shim must be loaded");
+  assert.ok(reasoningIndex > interchangeIndex, "case reasoning must load after interchange");
+  assert.ok(appIndex > reasoningIndex, "app must load after case reasoning");
   assert.match(app, /const caseReasoning = globalThis\.TimelineCaseReasoning/);
   assert.match(app, /const reasoning = caseReasoning\.normalizeReasoning\(input\.reasoning\)/);
   assert.match(app, /custodyActions,\s*reasoning/);
