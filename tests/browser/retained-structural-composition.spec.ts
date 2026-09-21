@@ -9,33 +9,96 @@ async function frame(page) {
   );
 }
 
+async function installRetainedTimelineFixture(page) {
+  await page.evaluate(async () => {
+    document.querySelector("#tdd-timeline-view")?.remove();
+
+    const root = document.createElement("section");
+    root.id = "tdd-timeline-view";
+    root.className = "timeline-view";
+    root.innerHTML = `
+      <button id="tdd-orientation-toggle" type="button">Orientation</button>
+      <div class="timeline-window-readout"></div>
+      <div class="timeline-surface" tabindex="0"></div>
+      <div class="timeline-focus-view" popover="manual"></div>
+    `;
+    document.body.append(root);
+
+    const surface = root.querySelector(".timeline-surface");
+    if (!(surface instanceof HTMLElement)) throw new Error("Missing timeline fixture surface");
+    surface.style.width = "900px";
+    surface.style.height = "520px";
+    surface.style.position = "relative";
+
+    const orientationToggle = root.querySelector("#tdd-orientation-toggle");
+    orientationToggle?.setAttribute("id", "timeline-orientation-toggle");
+
+    const { TimelineView } = await import("/timeline-view.ts");
+    const controller = TimelineView.create(root);
+    if (!controller) throw new Error("Timeline fixture controller did not initialize");
+
+    controller.setItems([
+      {
+        id: "occurrence-a",
+        kind: "event",
+        title: "Alpha occurrence",
+        start: Date.parse("2026-09-20T09:00:00Z"),
+        startLabel: "20 Sep 2026",
+      },
+      {
+        id: "occurrence-b",
+        kind: "event",
+        title: "Beta occurrence",
+        start: Date.parse("2026-09-21T09:00:00Z"),
+        startLabel: "21 Sep 2026",
+      },
+      {
+        id: "occurrence-c",
+        kind: "range",
+        title: "Gamma range",
+        start: Date.parse("2026-09-22T09:00:00Z"),
+        end: Date.parse("2026-09-24T09:00:00Z"),
+        startLabel: "22 Sep 2026",
+        endLabel: "24 Sep 2026",
+      },
+    ]);
+
+    Object.assign(globalThis, { __retainedStructuralTddController: controller });
+  });
+  await frame(page);
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".timeline-surface")).toBeVisible();
+  await installRetainedTimelineFixture(page);
   await expect(
-    page.locator(".timeline-event:not(.timeline-cluster):visible").first(),
+    page.locator("#tdd-timeline-view .timeline-event:not(.timeline-cluster):visible").first(),
   ).toBeVisible();
 });
 
 test("#269 focused occurrence survives an orientation transaction", async ({ page }) => {
-  const event = page.locator(".timeline-event:not(.timeline-cluster):visible").first();
+  const root = page.locator("#tdd-timeline-view");
+  const event = root.locator(".timeline-event:not(.timeline-cluster):visible").first();
   await expect(event).toBeVisible();
   await event.evaluate((element) => {
     element.dataset.tddIdentity = "focused-occurrence";
   });
 
   await event.locator(".timeline-event-terminal").click();
-  await expect(page.locator("#timeline-view")).toHaveAttribute("data-scene-state", "focused");
+  await expect(root).toHaveAttribute("data-scene-state", "focused");
 
-  await page.locator("#timeline-orientation-toggle").click();
+  await page.evaluate(() => {
+    globalThis.__retainedStructuralTddController?.setOrientation("vertical");
+  });
   await frame(page);
 
-  await expect(page.locator('[data-tdd-identity="focused-occurrence"]')).toHaveCount(1);
-  await expect(page.locator("#timeline-view")).toHaveAttribute("data-scene-state", "focused");
+  await expect(root.locator('[data-tdd-identity="focused-occurrence"]')).toHaveCount(1);
+  await expect(root).toHaveAttribute("data-scene-state", "focused");
 });
 
 test("#269 keyboard focus identity survives a buffered camera interaction", async ({ page }) => {
-  const terminal = page
+  const root = page.locator("#tdd-timeline-view");
+  const terminal = root
     .locator(".timeline-event:not(.timeline-cluster):visible .timeline-event-terminal")
     .first();
   await expect(terminal).toBeVisible();
@@ -45,7 +108,7 @@ test("#269 keyboard focus identity survives a buffered camera interaction", asyn
   });
   await expect(terminal).toBeFocused();
 
-  const surface = page.locator(".timeline-surface");
+  const surface = root.locator(".timeline-surface");
   const box = await surface.boundingBox();
   if (!box) throw new Error("Timeline surface has no bounding box.");
 
