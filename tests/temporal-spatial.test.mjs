@@ -2,6 +2,18 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+import {
+  entityId,
+  sourceId,
+  recordGeotemporalState,
+  validateGeotemporalState,
+  validateSpatialGeometry,
+} from "../src/domain/index.ts";
+import {
+  interpolatePointStates,
+  projectGeotemporalStatesAt,
+} from "../src/projection/geotemporal-projection.ts";
+
 await import("../site/temporal-standards-shim.ts");
 await import("../site/timeline-migration-shim.ts");
 await import("../site/spatial-shim.ts");
@@ -527,4 +539,134 @@ test("keeps open-boundary flags invalid on instants", () => {
     ),
     null,
   );
+});
+
+
+const geotemporalAlice = {
+  id: entityId("geo-alice"),
+  type: "person",
+  name: "Alice",
+  alternateNames: [],
+  sourceIds: [],
+  attributes: {},
+};
+
+const geotemporalSource = sourceId("geo-source");
+
+function geoInstant(id, date, coordinates, basis = "observed") {
+  return {
+    id,
+    entityId: geotemporalAlice.id,
+    geometry: { type: "Point", coordinates },
+    validTime: {
+      type: "instant",
+      start: { value: date },
+    },
+    basis,
+    sourceIds: [geotemporalSource],
+    confidence: 0.9,
+    attributes: {},
+  };
+}
+
+test("geotemporal geometry validation enforces CRS84 coordinate bounds and closed polygons", () => {
+  assert.deepEqual(validateSpatialGeometry({ type: "Point", coordinates: [18.06, 59.33] }), []);
+  assert.match(
+    validateSpatialGeometry({ type: "Point", coordinates: [181, 59.33] }).join(" "),
+    /longitude/i,
+  );
+  assert.match(
+    validateSpatialGeometry({
+      type: "Polygon",
+      coordinates: [[[18, 59], [19, 59], [19, 60], [18, 60]]],
+    }).join(" "),
+    /closed/i,
+  );
+});
+
+test("geotemporal states remain immutable canonical records with explicit evidentiary basis", () => {
+  const observed = geoInstant("state-observed", "2026-09-20", [18.06, 59.33]);
+  assert.deepEqual(validateGeotemporalState(observed, [geotemporalAlice]), []);
+
+  const ledger = { states: [] };
+  const recorded = recordGeotemporalState(ledger, observed, [geotemporalAlice]);
+
+  assert.equal(ledger.states.length, 0);
+  assert.equal(recorded.states.length, 1);
+  assert.equal(recorded.states[0].basis, "observed");
+  assert.throws(() =>
+    recordGeotemporalState(recorded, observed, [geotemporalAlice]),
+  );
+});
+
+test("geotemporal projection preserves overlapping spatial claims instead of selecting truth", () => {
+  const observed = {
+    ...geoInstant("state-observed", "2026-09-20", [18.06, 59.33]),
+    validTime: {
+      type: "interval",
+      start: { value: "2026-09-20" },
+      end: { value: "2026-09-22" },
+    },
+  };
+  const asserted = {
+    ...geoInstant("state-asserted", "2026-09-21", [18.40, 59.20], "asserted"),
+    validTime: {
+      type: "interval",
+      start: { value: "2026-09-21" },
+      end: { value: "2026-09-23" },
+    },
+  };
+
+  const projected = projectGeotemporalStatesAt(
+    { states: [asserted, observed] },
+    Date.parse("2026-09-21T12:00:00Z"),
+  );
+
+  assert.deepEqual(
+    projected.map((state) => [state.stateId, state.basis]),
+    [
+      ["state-asserted", "asserted"],
+      ["state-observed", "observed"],
+    ],
+  );
+});
+
+test("interpolated point geometry is disposable projection state, never a canonical observation", () => {
+  const earlier = geoInstant("state-a", "2026-09-20", [18, 59]);
+  const later = geoInstant("state-b", "2026-09-22", [20, 61]);
+  const before = JSON.stringify([earlier, later]);
+
+  const projected = interpolatePointStates(
+    earlier,
+    later,
+    Date.parse("2026-09-21T00:00:00Z"),
+  );
+
+  assert.equal(projected.derivation, "interpolated");
+  assert.deepEqual(projected.geometry.coordinates, [19, 60]);
+  assert.deepEqual(projected.sourceStateIds, ["state-a", "state-b"]);
+  assert.equal(JSON.stringify([earlier, later]), before);
+});
+
+test("movement continuity metadata is restricted to path geometry", () => {
+  const invalid = {
+    ...geoInstant("state-point-path", "2026-09-20", [18, 59]),
+    movementContinuity: "continuous",
+  };
+  assert.match(
+    validateGeotemporalState(invalid, [geotemporalAlice]).join(" "),
+    /path geometries/i,
+  );
+
+  const valid = {
+    ...invalid,
+    geometry: {
+      type: "LineString",
+      coordinates: [
+        [18, 59],
+        [19, 60],
+      ],
+    },
+  };
+  assert.deepEqual(validateGeotemporalState(valid, [geotemporalAlice]), []);
 });
