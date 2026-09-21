@@ -14,7 +14,9 @@
   border: 1px solid var(--line);
   border-radius: .9rem;
   background: color-mix(in srgb, var(--paper) 94%, var(--panel));
-  overflow: clip;
+  /* Temporal edge labels may project beyond the chronology rail. The
+     presentation/browser edge remains the final visual boundary. */
+  overflow: visible;
 }
 .timeline-project-heading {
   view-transition-name: timeline-project-heading;
@@ -284,7 +286,7 @@
   position: relative;
   min-width: 0;
   outline: none;
-  overflow: hidden;
+  overflow: visible;
   overscroll-behavior: contain;
   touch-action: none;
   user-select: none;
@@ -408,6 +410,7 @@
 }
 
 .timeline-year-accent {
+  overflow: visible;
   font-size: clamp(1.45rem, 3.2vw, 3.2rem);
   font-weight: 820;
   letter-spacing: -.055em;
@@ -1364,7 +1367,7 @@
     grid-template-rows: auto minmax(0, 1fr) clamp(96px, 16dvh, 132px);
     min-width: 0;
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .presentation-stage:fullscreen .timeline-view-toolbar {
@@ -1811,7 +1814,7 @@
   height: 100%;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 #presentation-stage:fullscreen > .graph-lens {
