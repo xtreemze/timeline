@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 async function frame(page) {
   await page.evaluate(
@@ -7,6 +7,63 @@ async function frame(page) {
         requestAnimationFrame(() => requestAnimationFrame(resolve));
       }),
   );
+}
+
+async function beginCameraDrag(page: Page, surface: Locator) {
+  const box = await surface.boundingBox();
+  if (!box) throw new Error("Timeline surface has no bounding box.");
+
+  const start = { x: box.x + box.width * 0.68, y: box.y + box.height * 0.58 };
+  const end = { x: box.x + box.width * 0.58, y: box.y + box.height * 0.58 };
+  const hasTouch = await page.evaluate(() => navigator.maxTouchPoints > 0);
+
+  if (!hasTouch) {
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    for (let step = 1; step <= 4; step += 1) {
+      await page.mouse.move(
+        start.x + ((end.x - start.x) * step) / 4,
+        start.y + ((end.y - start.y) * step) / 4,
+      );
+      await frame(page);
+    }
+    return () => page.mouse.up();
+  }
+
+  const pointerId = 27;
+  await surface.dispatchEvent("pointerdown", {
+    pointerId,
+    pointerType: "touch",
+    isPrimary: true,
+    button: 0,
+    buttons: 1,
+    clientX: start.x,
+    clientY: start.y,
+  });
+
+  for (let step = 1; step <= 4; step += 1) {
+    await surface.dispatchEvent("pointermove", {
+      pointerId,
+      pointerType: "touch",
+      isPrimary: true,
+      button: 0,
+      buttons: 1,
+      clientX: start.x + ((end.x - start.x) * step) / 4,
+      clientY: start.y + ((end.y - start.y) * step) / 4,
+    });
+    await frame(page);
+  }
+
+  return () =>
+    surface.dispatchEvent("pointerup", {
+      pointerId,
+      pointerType: "touch",
+      isPrimary: true,
+      button: 0,
+      buttons: 0,
+      clientX: end.x,
+      clientY: end.y,
+    });
 }
 
 async function installRetainedTimelineFixture(page) {
@@ -105,13 +162,7 @@ test("#269 keyboard focus identity survives a buffered camera interaction", asyn
   await expect(terminal).toBeFocused();
 
   const surface = root.locator(".timeline-surface");
-  const box = await surface.boundingBox();
-  if (!box) throw new Error("Timeline surface has no bounding box.");
-
-  await page.mouse.move(box.x + box.width * 0.65, box.y + box.height * 0.6);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width * 0.58, box.y + box.height * 0.6, { steps: 3 });
-  await frame(page);
+  const releaseCameraDrag = await beginCameraDrag(page, surface);
 
   const focusedIdentity = await page.evaluate(
     () =>
@@ -121,7 +172,7 @@ test("#269 keyboard focus identity survives a buffered camera interaction", asyn
   );
   expect(focusedIdentity).toBe("keyboard-target");
 
-  await page.mouse.up();
+  await releaseCameraDrag();
 });
 
 
@@ -132,14 +183,8 @@ test("#271 live retained renderer reports interaction and commit metrics", async
   });
 
   const surface = root.locator(".timeline-surface");
-  const box = await surface.boundingBox();
-  if (!box) throw new Error("Timeline surface has no bounding box.");
-
-  await page.mouse.move(box.x + box.width * 0.68, box.y + box.height * 0.58);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width * 0.58, box.y + box.height * 0.58, { steps: 4 });
-  await frame(page);
-  await page.mouse.up();
+  const releaseCameraDrag = await beginCameraDrag(page, surface);
+  await releaseCameraDrag();
 
   await page.evaluate(() => {
     globalThis.__retainedStructuralTddController?.commitInteraction();
