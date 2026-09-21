@@ -2019,7 +2019,7 @@
       const compact = bounds.viewportWidth <= 760;
       const mobileFocusLayout = bounds.viewportWidth <= 699;
       const mobileFocusRail = mobileFocusLayout
-        ? clamp(bounds.viewportWidth * 0.24, 84, 108)
+        ? clamp(bounds.viewportWidth * 0.38, 136, 168)
         : 0;
       const mobileFocusGap = mobileFocusLayout ? 4 : 0;
       const compactAvailableWidth = mobileFocusLayout && this.orientation === "vertical"
