@@ -3464,7 +3464,6 @@
   ::view-transition-old(timeline-event-detail-shared),
   ::view-transition-new(timeline-event-detail-shared),
   ::view-transition-group(timeline-view-toolbar) {
-    animation-duration: 0s;
     animation: none;
   }
 }
