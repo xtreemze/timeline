@@ -148,6 +148,22 @@ interface LastTouchTap {
   y: number;
 }
 
+interface StructuralViewTransition {
+  readonly finished: Promise<unknown>;
+}
+
+interface StructuralViewTransitionDocument extends Document {
+  readonly activeViewTransition?: unknown;
+  startViewTransition?: (
+    update:
+      | (() => void)
+      | {
+          update: () => void;
+          types?: string[];
+        },
+  ) => StructuralViewTransition;
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -277,6 +293,9 @@ class TimelineViewController {
   clusterScene = new Map<string, ClusterSceneRecord>();
   expandedClusterItemIds = new Set<string>();
   geometryMeasurements = new Map<string, CachedGeometryMeasurement>();
+  protectedOccurrenceIds = new Set<string>();
+  structuralTransitionToken = 0;
+  structuralSettling = false;
   committedTickSpecKey = "";
   pointerDrag: PointerDragState | null = null;
   touchPointers = new Map<number, TouchPointerState>();
@@ -306,6 +325,7 @@ class TimelineViewController {
 
     this.stage = document.createElement("div");
     this.stage.className = "timeline-stage timeline-retained-scene";
+    this.root.dataset.sceneState = "empty";
     this.stage.dataset.sceneState = "empty";
     this.axis = document.createElement("div");
     this.axis.className = "timeline-axis";
@@ -1199,6 +1219,179 @@ class TimelineViewController {
     this.inertiaAnimationFrame = requestAnimationFrame(step);
   }
 
+  compositionState(): "empty" | "populated" | "focused" | "interacting" | "settling" {
+    if (this.structuralSettling) return "settling";
+    if (this.retention.active) return "interacting";
+    if (!this.items.length) return "empty";
+    return this.focusedId ? "focused" : "populated";
+  }
+
+  syncSceneState(): void {
+    const state = this.compositionState();
+    this.root.dataset.sceneState = state;
+    this.stage.dataset.sceneState = state;
+  }
+
+  keyboardOccurrenceId(): string | null {
+    const active = document.activeElement;
+    if (!(active instanceof Element)) return null;
+    const owner = active.closest<HTMLElement>("[data-id]");
+    const id = owner?.dataset.id || "";
+    return this.items.some((item) => item.id === id) ? id : null;
+  }
+
+  structuralNeighborhoodIds(id: string | null): string[] {
+    if (!id) return [];
+    const ordered = [...this.items].sort(
+      (left, right) => left.start - right.start || left.id.localeCompare(right.id),
+    );
+    const index = ordered.findIndex((item) => item.id === id);
+    if (index < 0) return [];
+    return ordered
+      .slice(Math.max(0, index - 1), Math.min(ordered.length, index + 2))
+      .map((item) => item.id);
+  }
+
+  beginStructuralTransaction(ids: readonly (string | null | undefined)[]): number {
+    const token = ++this.structuralTransitionToken;
+    this.cancelInertia();
+    this.protectedOccurrenceIds = new Set(
+      ids.filter((id): id is string => Boolean(id && this.items.some((item) => item.id === id))),
+    );
+    const keyboardId = this.keyboardOccurrenceId();
+    if (keyboardId) this.protectedOccurrenceIds.add(keyboardId);
+    if (!this.retention.active) this.beginInteraction();
+    this.structuralSettling = true;
+    this.syncSceneState();
+    this.render();
+    return token;
+  }
+
+  finishStructuralTransaction(token: number): void {
+    if (token !== this.structuralTransitionToken) return;
+    this.structuralSettling = false;
+    this.protectedOccurrenceIds.clear();
+    this.commitInteraction();
+  }
+
+  structuralTransitionTypes(
+    kind: "open" | "close" | "forward" | "backward" | "orientation",
+    direction = 0,
+  ): string[] {
+    const types = [
+      kind === "orientation" ? "timeline-orientation" : "timeline-focus",
+      this.orientation === "vertical" ? "timeline-portrait" : "timeline-landscape",
+    ];
+    if (kind !== "orientation") types.push(`timeline-focus-${kind}`);
+    if (direction) {
+      types.push(direction < 0 ? "timeline-focus-backward" : "timeline-focus-forward");
+    }
+    return types;
+  }
+
+  runStructuralFinalUpdate(
+    token: number,
+    update: () => void,
+    kind: "open" | "close" | "forward" | "backward" | "orientation",
+    direction = 0,
+  ): void {
+    if (token !== this.structuralTransitionToken) return;
+    const finalUpdate = () => {
+      if (token !== this.structuralTransitionToken) return;
+      update();
+      this.commitInteraction();
+    };
+    const transitionDocument = document as StructuralViewTransitionDocument;
+    const canTransition =
+      !this.reducedMotionQuery?.matches &&
+      typeof transitionDocument.startViewTransition === "function" &&
+      !Boolean(transitionDocument.activeViewTransition);
+
+    if (!canTransition) {
+      finalUpdate();
+      this.finishStructuralTransaction(token);
+      return;
+    }
+
+    try {
+      const transition = transitionDocument.startViewTransition?.({
+        update: finalUpdate,
+        types: this.structuralTransitionTypes(kind, direction),
+      });
+      if (!transition) {
+        this.finishStructuralTransaction(token);
+        return;
+      }
+      void transition.finished
+        .catch(() => undefined)
+        .then(() => this.finishStructuralTransaction(token));
+    } catch {
+      finalUpdate();
+      this.finishStructuralTransaction(token);
+    }
+  }
+
+  async animateStructuralCamera(target: TemporalWindow, token: number): Promise<boolean> {
+    if (token !== this.structuralTransitionToken) return false;
+    if (this.reducedMotionQuery?.matches) {
+      this.viewport = { ...target };
+      this.render();
+      return true;
+    }
+
+    const startedAt = performance.now();
+    let lastFrame = startedAt;
+    const maximumDuration = 360;
+    return new Promise((resolve) => {
+      const step = (now: number): void => {
+        if (token !== this.structuralTransitionToken) {
+          resolve(false);
+          return;
+        }
+        const elapsed = clamp(now - lastFrame, 1, 48);
+        lastFrame = now;
+        const response = motion.responseForElapsed(elapsed);
+        this.viewport = {
+          start: this.viewport.start + (target.start - this.viewport.start) * response,
+          end: this.viewport.end + (target.end - this.viewport.end) * response,
+        };
+        const targetSpan = Math.max(MIN_SPAN_MS, target.end - target.start);
+        const remaining =
+          Math.abs(this.viewport.start - target.start) +
+          Math.abs(this.viewport.end - target.end);
+        this.scheduleRender();
+        this.emitViewport(false);
+
+        if (remaining / targetSpan <= 0.001 || now - startedAt >= maximumDuration) {
+          this.viewport = { ...target };
+          this.render();
+          resolve(true);
+          return;
+        }
+        requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  focusedViewportForItem(item: TimelineItem): TemporalWindow {
+    const sorted = [...this.items].sort(
+      (left, right) => left.start - right.start || left.id.localeCompare(right.id),
+    );
+    const index = sorted.findIndex((candidate) => candidate.id === item.id);
+    const local = sorted.slice(Math.max(0, index - 1), Math.min(sorted.length, index + 2));
+    const localStart = Math.min(...local.map((candidate) => candidate.start));
+    const localEnd = Math.max(
+      ...local.map((candidate) =>
+        Number.isFinite(candidate.end) ? Number(candidate.end) : candidate.start,
+      ),
+    );
+    const raw = normalizedViewport(localStart, localEnd);
+    const span = Math.max(DEFAULT_SPAN_MS / 24, raw.end - raw.start);
+    const center = raw.start + (raw.end - raw.start) / 2;
+    return { start: center - span * 0.6, end: center + span * 0.6 };
+  }
+
   beginInteraction(): void {
     if (this.retention.active) return;
     this.clearHoverStates();
@@ -1208,14 +1401,14 @@ class TimelineViewController {
       predictionHorizonMs: POINTER_PREDICTION_HORIZON_MS,
     });
     this.retention = beginRetention(this.renderWindow);
-    this.root.dataset.sceneState = "interacting";
+    this.syncSceneState();
   }
 
   commitInteraction(): void {
     this.cancelInertia();
     this.renderWindow = createRenderWindow(this.viewport, { overscanRatio: OVERSCAN_RATIO });
     this.retention = commitRetention(this.renderWindow);
-    this.root.dataset.sceneState = this.focusedId ? "focused" : this.items.length ? "populated" : "empty";
+    this.syncSceneState();
     this.render();
     this.measureCommittedGeometry();
     this.reconcileCommittedLayout();
@@ -1296,6 +1489,12 @@ class TimelineViewController {
     if (focused && !occurrences.some((item) => item.id === focused.id)) {
       occurrences.push(focused);
     }
+    for (const id of this.protectedOccurrenceIds) {
+      const protectedItem = this.items.find((item) => item.id === id);
+      if (protectedItem && !occurrences.some((item) => item.id === id)) {
+        occurrences.push(protectedItem);
+      }
+    }
 
     const measurements: Record<string, TemporalLayoutMeasurement> = {};
     for (const item of occurrences) {
@@ -1321,6 +1520,7 @@ class TimelineViewController {
 
     const clusters = planned.clusters.filter((cluster) => {
       if (this.focusedId && cluster.itemIds.includes(this.focusedId)) return false;
+      if (cluster.itemIds.some((id) => this.protectedOccurrenceIds.has(id))) return false;
       return !cluster.itemIds.every((id) => this.expandedClusterItemIds.has(id));
     });
     const liveIds = new Set(occurrences.map((item) => item.id));
@@ -1522,7 +1722,7 @@ class TimelineViewController {
     const empty = !this.items.length;
     this.root.dataset.empty = empty ? "true" : "false";
     if (empty) {
-      this.stage.dataset.sceneState = "empty";
+      this.syncSceneState();
       this.readout.textContent = "No visible events";
       for (const record of this.scene.values()) this.removeRecord(record);
       this.scene.clear();
@@ -1576,6 +1776,14 @@ class TimelineViewController {
       ? this.items.find((item) => item.id === this.focusedId) || null
       : null;
     if (focused && !candidates.some((item) => item.id === focused.id)) candidates.push(focused);
+    const keyboardId = this.keyboardOccurrenceId();
+    if (keyboardId) this.protectedOccurrenceIds.add(keyboardId);
+    for (const id of this.protectedOccurrenceIds) {
+      const protectedItem = this.items.find((item) => item.id === id);
+      if (protectedItem && !candidates.some((item) => item.id === id)) {
+        candidates.push(protectedItem);
+      }
+    }
 
     const keep = new Set<string>();
     for (const item of candidates) {
@@ -1603,7 +1811,7 @@ class TimelineViewController {
       }
     }
 
-    this.stage.dataset.sceneState = this.retention.active ? "interacting" : this.focusedId ? "focused" : "populated";
+    this.syncSceneState();
     this.syncZoomSlider();
     this.updateReadout();
   }
@@ -1738,7 +1946,10 @@ class TimelineViewController {
     const primary = coordinate(anchor);
     const lane = this.visualLaneFor(item);
     const clusterId = this.committedClusterByItem.get(item.id);
-    const hiddenByCluster = Boolean(clusterId) && item.id !== this.focusedId;
+    const hiddenByCluster =
+      Boolean(clusterId) &&
+      item.id !== this.focusedId &&
+      !this.protectedOccurrenceIds.has(item.id);
     node.hidden = hiddenByCluster;
     if (range) range.hidden = hiddenByCluster;
     const laneDistance = 72 + Math.max(0, Math.abs(lane) - 1) * 62;
