@@ -1,21 +1,12 @@
 import { TimelineGraph } from "./timeline-graph.ts";
 
-// Temporary compatibility methods while the graph projection/renderer split is migrated.
-// Keep the shim typed and intentionally renderer-neutral; callers can continue to use
-// the stable TimelineGraph surface without importing Orb-specific runtime contracts.
-const GraphWithFallbacks = {
-  ...TimelineGraph,
-  neighborhoodGraph: (..._args: unknown[]) => {
-    console.warn("Graph renderer adapter not loaded - neighborhoodGraph returning empty graph");
-    return { nodes: [], edges: [] };
-  },
-  temporalRelationProjection: (..._args: unknown[]) => {
-    console.warn(
-      "Graph renderer adapter not loaded - temporalRelationProjection returning empty array",
-    );
-    return [];
-  },
-};
+/**
+ * Temporary global compatibility shim while callers migrate to ESM imports.
+ *
+ * TimelineGraph is renderer-neutral. Its neighborhood and temporal projection
+ * helpers are pure application/projection functions and must not be replaced
+ * with renderer-availability fallbacks.
+ */
+globalThis.TimelineGraph = TimelineGraph;
 
-globalThis.TimelineGraph = GraphWithFallbacks;
 export {};
