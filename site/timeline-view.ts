@@ -264,6 +264,7 @@ class TimelineViewController {
   zoomSlider: HTMLInputElement | null;
   stage: HTMLDivElement;
   axis: HTMLDivElement;
+  semanticList: HTMLOListElement;
   items: TimelineItem[] = [];
   relationships: TimelineRelationshipBand[] = [];
   allCoordinates: number[] = [];
@@ -329,6 +330,12 @@ class TimelineViewController {
     this.axis.className = "timeline-axis";
     this.stage.append(this.axis);
     this.surface.replaceChildren(this.stage);
+
+    this.semanticList = document.createElement("ol");
+    this.semanticList.className = "timeline-semantic-list";
+    this.semanticList.setAttribute("aria-label", "Chronological timeline navigation");
+    this.semanticList.dataset.semanticChronology = "";
+    this.surface.insertAdjacentElement("afterend", this.semanticList);
 
     this.bind();
     this.applyOrientation();
@@ -783,6 +790,7 @@ class TimelineViewController {
 
     this.renderWindow = createRenderWindow(this.viewport, { overscanRatio: OVERSCAN_RATIO });
     this.retention = commitRetention(this.renderWindow);
+    this.syncSemanticChronology();
     this.render();
     this.measureCommittedGeometry();
     this.reconcileCommittedLayout();
@@ -790,6 +798,54 @@ class TimelineViewController {
     this.emitViewport(true);
 
     if (options.focusId) this.focusItem(options.focusId, { moveViewport: false });
+  }
+
+  semanticChronologyLabel(item: TimelineItem): string {
+    const temporalLabel =
+      Number.isFinite(item.end) && item.endLabel
+        ? `${item.startLabel || item.start} to ${item.endLabel}`
+        : item.startLabel || String(item.start);
+    return [
+      temporalLabel,
+      item.title || item.id,
+      item.categoryName || "",
+      item.locationName ? `at ${item.locationName}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+
+  syncSemanticChronology(): void {
+    const ordered = [...this.items].sort(
+      (left, right) =>
+        left.start - right.start ||
+        (Number(left.end) || left.start) - (Number(right.end) || right.start) ||
+        left.id.localeCompare(right.id),
+    );
+    const rows = ordered.map((item) => {
+      const row = document.createElement("li");
+      row.dataset.occurrenceId = item.id;
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "timeline-semantic-occurrence";
+      button.dataset.id = item.id;
+      button.textContent = this.semanticChronologyLabel(item);
+      button.setAttribute("aria-current", String(item.id === this.focusedId));
+      button.addEventListener("click", () => this.focusItem(item.id));
+      row.append(button);
+      return row;
+    });
+    this.semanticList.replaceChildren(...rows);
+    this.semanticList.hidden = rows.length === 0;
+  }
+
+  syncSemanticChronologySelection(): void {
+    for (const button of this.semanticList.querySelectorAll<HTMLButtonElement>(
+      ".timeline-semantic-occurrence",
+    )) {
+      button.setAttribute("aria-current", String(button.dataset.id === this.focusedId));
+    }
   }
 
   initialViewport(): TemporalWindow {
@@ -2554,6 +2610,7 @@ class TimelineViewController {
 
     const update = () => {
       this.focusedId = id;
+      this.syncSemanticChronologySelection();
       this.root.classList.add("is-event-focused");
       this.root.dataset.sceneState = "focused";
       this.focusView.hidden = false;
@@ -2620,6 +2677,7 @@ class TimelineViewController {
     const previous = this.focusedId;
     const update = () => {
       this.focusedId = null;
+      this.syncSemanticChronologySelection();
       this.root.classList.remove("is-event-focused");
       this.root.dataset.sceneState = this.items.length ? "populated" : "empty";
       const focus = this.focusView as HTMLElement & { matches: (selector: string) => boolean; hidePopover?: () => void };
