@@ -204,6 +204,16 @@
       "any": 0,
       "asAny": 0,
       "nonNull": 0
+    },
+    "site/timeline-view.ts": {
+      "any": 6,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/webmcp-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
     }
   },
   "css": {
@@ -303,10 +313,12 @@
       "site/sample-case.ts": 1,
       "site/timeline-graph-shim.ts": 1,
       "site/timeline-graph.ts": 8,
-      "site/timeline-view-shim.ts": 1
+      "site/timeline-view-shim.ts": 1,
+      "site/timeline-view.ts": 4
     },
     "directCanonicalMutations": {
-      "site/app.ts": 20
+      "site/app.ts": 20,
+      "site/webmcp.ts": 2
     }
   }
 }
