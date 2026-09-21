@@ -4603,12 +4603,6 @@
   justify-content: center;
 }
 
-/* Application actions remain in the shared footer app bar.
-   Timeline orientation affects the presentation surface, not global application chrome. */
-#app-shell .app-tool-dock[data-project-anchored="true"] {
-  pointer-events: auto;
-}
-
 /* Touch ergonomics for small/coarse-pointer devices.
    Rendered icons can remain compact; the interactive box must not. */
 @media (pointer: coarse) {
