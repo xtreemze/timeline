@@ -51,6 +51,16 @@ const VERSION = 2;
 const STORAGE_KEY = "timeline:v2";
 const LEGACY_STORAGE_KEY = "timeline:v1";
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+const DEFAULT_CATEGORIES = Object.freeze([
+  { id: "incident", name: "Incident", color: "#b42318" },
+  { id: "witness", name: "Witness / Interview", color: "#7a5af8" },
+  { id: "communication", name: "Communication", color: "#2563eb" },
+  { id: "evidence", name: "Evidence", color: "#027a48" },
+  { id: "document", name: "Document / Record", color: "#667085" },
+  { id: "decision", name: "Decision / Action", color: "#b54708" },
+  { id: "transaction", name: "Transaction", color: "#0e7090" },
+  { id: "observation", name: "Observation", color: "#475467" },
+] as const);
 
 type EvidenceExtractionDraft = NonNullable<
   ReturnType<(typeof TimelineEvidence)["normalizeExtraction"]>
