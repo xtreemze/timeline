@@ -88,14 +88,26 @@ test("focused events expose three distinct grid composition variants and evidenc
   assert.match(css, /timeline-focus-evidence-grid/);
 });
 
-test("item editor exposes reusable evidence records including PDF uploads", async () => {
+test("item editor exposes reusable PDF/image evidence with extraction controls", async () => {
   const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
   assert.match(html, /id="item-evidence-details"/);
   assert.match(html, /value="article"/);
   assert.match(html, /value="pdf"/);
+  assert.match(html, /value="image"/);
   assert.match(html, /value="note"/);
-  assert.match(html, /accept="application\/pdf,.pdf"/);
+  assert.match(html, /accept="application\/pdf,.pdf,image\/png,image\/jpeg,image\/webp,image\/gif"/);
+  assert.match(html, /class="button secondary evidence-extract-text"/);
+  assert.match(html, /class="evidence-extraction-preview field-wide"/);
+  assert.match(html, /evidence-extraction\.bundle\.js/);
   assert.match(html, /id="item-layout-variant"/);
+});
+
+test("extracted evidence text feeds inference with page/image source references", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  assert.match(app, /evidence-pdf-text/);
+  assert.match(app, /evidence-ocr/);
+  assert.match(app, /evidence:\$\{id\}:\$\{locator\}/);
+  assert.match(app, /ensureEvidenceExtractionForInference/);
 });
 
 test("full chronology renders collapsible category groups while story order remains separate", async () => {
