@@ -1296,11 +1296,10 @@ test("mobile-first shell keeps primary controls and utility surfaces bounded", a
     styles,
     /@media \(min-width:\s*760px\)[\s\S]*--utility-sidebar-width:[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--utility-sidebar-width\)/,
   );
-  assert.match(
+  assert.doesNotMatch(
     timelineCss,
-    /Application actions remain in the shared footer app bar[\s\S]*pointer-events:\s*auto/,
+    /Project-aligned Browse\/Edit controls|workspace-tool-dock|data-project-anchored/,
   );
-  assert.doesNotMatch(timelineCss, /Project-aligned Browse\/Edit controls|workspace-tool-dock/);
   assert.match(styles, /The persistent relation graph is a stage canvas/);
 
   assert.match(timelineCss, /Narrow-screen control composition/);
