@@ -21,6 +21,13 @@ import {
   type TemporalRetentionState,
   type TemporalWindow,
 } from "../src/projection/temporal-scene.ts";
+import {
+  geometryMeasurementKey,
+  planCommittedTemporalLayout,
+  type TemporalCommittedLayoutPlan,
+  type TemporalLayoutCluster,
+  type TemporalLayoutMeasurement,
+} from "../src/layout/temporal-layout.ts";
 import { TimelineMotion as motion } from "./timeline-motion.ts";
 import { TimelineClustering as clustering } from "./timeline-clustering.ts";
 
@@ -41,6 +48,9 @@ const TOUCH_TAP_MOVE_TOLERANCE_PX = 12;
 const CLICK_SUPPRESSION_MS = 450;
 const CONNECTOR_ROUTE_OFFSET_PX = 22;
 const CONNECTOR_ROUTE_EDGE_INSET_PX = 32;
+const MAX_COMMITTED_LANES = 3;
+const CLUSTER_ENTER_PX = 80;
+const CLUSTER_EXIT_PX = 120;
 
 type Orientation = "horizontal" | "vertical";
 
@@ -92,6 +102,17 @@ interface SceneRecord {
   terminal: HTMLButtonElement;
   range: HTMLButtonElement | null;
   copy: HTMLSpanElement;
+}
+
+interface ClusterSceneRecord {
+  cluster: TemporalLayoutCluster;
+  node: HTMLDivElement;
+  terminal: HTMLButtonElement;
+}
+
+interface CachedGeometryMeasurement {
+  key: string;
+  measurement: TemporalLayoutMeasurement;
 }
 
 interface PointerDragState {
@@ -247,6 +268,15 @@ class TimelineViewController {
   accentScene = new Map<string, HTMLDivElement>();
   relationshipBandScene = new Map<string, HTMLDivElement>();
   relationshipBandZone: HTMLDivElement | null = null;
+  committedLayout: TemporalCommittedLayoutPlan = {
+    lanes: Object.freeze({}),
+    clusters: Object.freeze([]),
+    placements: Object.freeze([]),
+  };
+  committedClusterByItem = new Map<string, string>();
+  clusterScene = new Map<string, ClusterSceneRecord>();
+  expandedClusterItemIds = new Set<string>();
+  geometryMeasurements = new Map<string, CachedGeometryMeasurement>();
   committedTickSpecKey = "";
   pointerDrag: PointerDragState | null = null;
   touchPointers = new Map<number, TouchPointerState>();
@@ -725,6 +755,9 @@ class TimelineViewController {
     this.renderWindow = createRenderWindow(this.viewport, { overscanRatio: OVERSCAN_RATIO });
     this.retention = commitRetention(this.renderWindow);
     this.render();
+    this.measureCommittedGeometry();
+    this.reconcileCommittedLayout();
+    this.render();
     this.emitViewport(true);
 
     if (options.focusId) this.focusItem(options.focusId, { moveViewport: false });
@@ -1184,6 +1217,9 @@ class TimelineViewController {
     this.retention = commitRetention(this.renderWindow);
     this.root.dataset.sceneState = this.focusedId ? "focused" : this.items.length ? "populated" : "empty";
     this.render();
+    this.measureCommittedGeometry();
+    this.reconcileCommittedLayout();
+    this.render();
     this.emitViewport(true);
   }
 
@@ -1193,6 +1229,293 @@ class TimelineViewController {
       this.renderFrame = 0;
       this.render();
     });
+  }
+
+  itemContentRevision(item: TimelineItem): string {
+    const media = (item.media || [])
+      .map((entry) => [entry.src || "", entry.alt || "", entry.caption || ""].join("\u0001"))
+      .join("\u0002");
+    return [
+      item.title || "",
+      item.startLabel || "",
+      item.endLabel || "",
+      item.layoutVariant || "",
+      item.terminalShape || "",
+      media,
+    ].join("\u0003");
+  }
+
+  visualLaneFor(item: TimelineItem): number {
+    if (Number.isInteger(item.lane)) return Number(item.lane);
+    const laneIndex = this.committedLayout.lanes[item.id];
+    if (!Number.isInteger(laneIndex)) return stableLane(item.id, null);
+    const depth = Math.floor(Number(laneIndex) / 2) + 1;
+    return Number(laneIndex) % 2 === 0 ? -depth : depth;
+  }
+
+  measureCommittedGeometry(): void {
+    if (this.retention.active) return;
+    for (const [sceneKey, record] of this.scene) {
+      const key = geometryMeasurementKey(
+        sceneKey,
+        this.itemContentRevision(record.item),
+      );
+      const cached = this.geometryMeasurements.get(record.item.id);
+      if (cached?.key === key) continue;
+
+      const wasHidden = record.node.hidden;
+      if (wasHidden) record.node.hidden = false;
+      const rect = record.terminal.getBoundingClientRect();
+      if (wasHidden) record.node.hidden = true;
+      if (rect.width <= 0 || rect.height <= 0) continue;
+
+      this.geometryMeasurements.set(record.item.id, {
+        key,
+        measurement: {
+          inlineSize: this.orientation === "horizontal" ? rect.width : rect.height,
+          blockSize: this.orientation === "horizontal" ? rect.height : rect.width,
+        },
+      });
+    }
+  }
+
+  reconcileCommittedLayout(): void {
+    if (this.retention.active || !this.items.length) return;
+    const rect = this.surface.getBoundingClientRect();
+    const primaryLength = Math.max(
+      1,
+      this.orientation === "horizontal"
+        ? rect.width || this.surface.clientWidth
+        : rect.height || this.surface.clientHeight,
+    );
+    const usable = Math.max(1, primaryLength - this.axisPadding(primaryLength) * 2);
+    const occurrences = queryOccurrences(this.items, this.viewport);
+    const focused = this.focusedId
+      ? this.items.find((item) => item.id === this.focusedId) || null
+      : null;
+    if (focused && !occurrences.some((item) => item.id === focused.id)) {
+      occurrences.push(focused);
+    }
+
+    const measurements: Record<string, TemporalLayoutMeasurement> = {};
+    for (const item of occurrences) {
+      const cached = this.geometryMeasurements.get(item.id);
+      if (cached) measurements[item.id] = cached.measurement;
+    }
+
+    const planned = planCommittedTemporalLayout({
+      viewport: this.viewport,
+      occurrences,
+      pixelLength: usable,
+      maxLanes: MAX_COMMITTED_LANES,
+      clusterThresholds: {
+        enterPx: CLUSTER_ENTER_PX,
+        exitPx: CLUSTER_EXIT_PX,
+      },
+      measurements,
+      previous: {
+        lanes: this.committedLayout.lanes,
+        clusters: this.committedLayout.clusters,
+      },
+    });
+
+    const clusters = planned.clusters.filter((cluster) => {
+      if (this.focusedId && cluster.itemIds.includes(this.focusedId)) return false;
+      return !cluster.itemIds.every((id) => this.expandedClusterItemIds.has(id));
+    });
+    const liveIds = new Set(occurrences.map((item) => item.id));
+    for (const id of [...this.expandedClusterItemIds]) {
+      if (!liveIds.has(id)) this.expandedClusterItemIds.delete(id);
+    }
+
+    this.committedLayout = {
+      lanes: planned.lanes,
+      clusters,
+      placements: planned.placements,
+    };
+    this.committedClusterByItem.clear();
+    for (const cluster of clusters) {
+      for (const itemId of cluster.itemIds) {
+        this.committedClusterByItem.set(itemId, cluster.id);
+      }
+    }
+    this.reconcileClusterScene(clusters);
+  }
+
+  reconcileClusterScene(clusters: readonly TemporalLayoutCluster[]): void {
+    const keep = new Set<string>();
+    for (const cluster of clusters) {
+      keep.add(cluster.id);
+      let record = this.clusterScene.get(cluster.id);
+      if (!record) {
+        record = this.createClusterRecord(cluster);
+        this.clusterScene.set(cluster.id, record);
+      }
+      record.cluster = cluster;
+      this.updateClusterRecord(record);
+    }
+    for (const [id, record] of this.clusterScene) {
+      if (keep.has(id)) continue;
+      record.node.remove();
+      this.clusterScene.delete(id);
+    }
+  }
+
+  createClusterRecord(cluster: TemporalLayoutCluster): ClusterSceneRecord {
+    const node = document.createElement("div");
+    node.className = "timeline-event timeline-cluster";
+    node.dataset.id = cluster.id;
+    node.dataset.connectorRouting = "straight";
+
+    const connector = document.createElement("span");
+    connector.className = "timeline-event-connector";
+    const connectorTurn = document.createElement("span");
+    connectorTurn.className = "timeline-event-connector-turn";
+    const terminal = document.createElement("button");
+    terminal.type = "button";
+    terminal.className = "timeline-event-terminal timeline-cluster-terminal";
+    node.append(connector, connectorTurn, terminal);
+    this.stage.append(node);
+
+    const record: ClusterSceneRecord = { cluster, node, terminal };
+    terminal.addEventListener("click", (event) => {
+      const target = event.target instanceof Element
+        ? event.target.closest<HTMLElement>("[data-cluster-item-id]")
+        : null;
+      const selectedId = target?.dataset.clusterItemId || record.cluster.itemIds[0];
+      if (selectedId) this.activateCommittedCluster(record.cluster, selectedId);
+    });
+    this.updateClusterRecord(record);
+    return record;
+  }
+
+  updateClusterRecord(record: ClusterSceneRecord): void {
+    const items = record.cluster.itemIds
+      .map((id) => this.items.find((item) => item.id === id))
+      .filter((item): item is TimelineItem => Boolean(item));
+    if (!items.length) return;
+    const first = items[0];
+    record.node.style.setProperty("--event-color", first.color || "var(--accent)");
+    record.terminal.setAttribute(
+      "aria-label",
+      `Select and expand cluster of ${items.length} timeline occurrences`,
+    );
+
+    const tiles = document.createElement("span");
+    tiles.className = "timeline-cluster-tiles";
+    for (const item of items.slice(0, 3)) {
+      const tile = document.createElement("span");
+      tile.className = "timeline-cluster-tile";
+      tile.dataset.clusterItemId = item.id;
+      tile.title = item.title || item.startLabel || "Timeline occurrence";
+      tile.style.setProperty("--cluster-tile-color", item.color || "var(--accent)");
+      const media = item.media?.[0];
+      if (media?.src) {
+        const image = document.createElement("img");
+        image.className = "timeline-cluster-image";
+        image.src = media.src;
+        image.alt = "";
+        image.decoding = "async";
+        image.loading = "lazy";
+        tile.append(image);
+        const badge = document.createElement("span");
+        badge.className = "timeline-cluster-icon-badge";
+        const icon =
+          presentation && typeof presentation.createIcon === "function"
+            ? presentation.createIcon("milestone", { size: 16 })
+            : null;
+        if (icon) badge.append(icon);
+        tile.append(badge);
+      } else {
+        const icon =
+          presentation && typeof presentation.createIcon === "function"
+            ? presentation.createIcon("milestone", { size: 20 })
+            : null;
+        if (icon) tile.append(icon);
+      }
+      tiles.append(tile);
+    }
+
+    const copy = document.createElement("span");
+    copy.className = "timeline-event-copy";
+    const title = document.createElement("strong");
+    title.textContent = `${items.length} occurrences`;
+    const detail = document.createElement("span");
+    detail.textContent = "Nearby · select and expand";
+    copy.append(title, detail);
+    record.terminal.replaceChildren(tiles, copy);
+  }
+
+  positionCommittedClusters(padding: number, usable: number, axisCross: number): void {
+    for (const record of this.clusterScene.values()) {
+      const { cluster, node, terminal } = record;
+      const visible = itemOverlapsWindow(
+        { start: cluster.start, end: cluster.end },
+        this.viewport,
+      );
+      node.hidden = !visible;
+      terminal.tabIndex = visible ? 0 : -1;
+      if (!visible) continue;
+
+      const anchor = cluster.start + (cluster.end - cluster.start) / 2;
+      const primary = padding + scale.coordinateFor(anchor, this.viewport, usable);
+      const representative =
+        cluster.itemIds
+          .map((id) => this.items.find((item) => item.id === id))
+          .find(Boolean) || null;
+      const lane = representative ? this.visualLaneFor(representative) : -1;
+      const laneDistance = 72 + Math.max(0, Math.abs(lane) - 1) * 62;
+      const terminalCross = axisCross + (lane < 0 ? -laneDistance : laneDistance);
+      const segment = connectorSegment(axisCross, terminalCross);
+
+      node.dataset.side = lane < 0 ? "before" : "after";
+      node.classList.toggle("label-before", lane < 0);
+      if (this.orientation === "horizontal") {
+        node.style.transform = `translate3d(${primary}px, ${terminalCross}px, 0)`;
+      } else {
+        node.style.transform = `translate3d(${terminalCross}px, ${primary}px, 0)`;
+      }
+
+      const connector = node.querySelector<HTMLElement>(".timeline-event-connector");
+      if (connector) {
+        if (this.orientation === "horizontal") {
+          connector.style.left = "0";
+          connector.style.top = `${segment.offset}px`;
+          connector.style.width = "2px";
+          connector.style.height = `${Math.max(1, segment.length)}px`;
+        } else {
+          connector.style.left = `${segment.offset}px`;
+          connector.style.top = "0";
+          connector.style.width = `${Math.max(1, segment.length)}px`;
+          connector.style.height = "2px";
+        }
+      }
+    }
+  }
+
+  activateCommittedCluster(cluster: TemporalLayoutCluster, selectedId: string): void {
+    const items = cluster.itemIds
+      .map((id) => this.items.find((item) => item.id === id))
+      .filter((item): item is TimelineItem => Boolean(item));
+    if (!items.length) return;
+
+    this.expandedClusterItemIds = new Set(cluster.itemIds);
+    const rect = this.surface.getBoundingClientRect();
+    const primaryLength = Math.max(
+      1,
+      this.orientation === "horizontal" ? rect.width : rect.height,
+    );
+    const usable = Math.max(1, primaryLength - this.axisPadding(primaryLength) * 2);
+    const expansion = clustering.clusterExpansionViewport(
+      items,
+      this.viewport,
+      usable,
+      CLUSTER_ENTER_PX,
+      { paddingRatio: 0.12, minSpanMs: MIN_SPAN_MS },
+    );
+    if (expansion?.viewport) this.viewport = { ...expansion.viewport };
+    this.commitInteraction();
+    this.focusItem(selectedId, { moveViewport: false });
   }
 
   render(): void {
@@ -1211,6 +1534,14 @@ class TimelineViewController {
       this.relationshipBandScene.clear();
       this.relationshipBandZone?.remove();
       this.relationshipBandZone = null;
+      for (const record of this.clusterScene.values()) record.node.remove();
+      this.clusterScene.clear();
+      this.committedClusterByItem.clear();
+      this.committedLayout = {
+        lanes: Object.freeze({}),
+        clusters: Object.freeze([]),
+        placements: Object.freeze([]),
+      };
       this.committedTickSpecKey = "";
       this.syncZoomSlider();
       return;
@@ -1261,6 +1592,8 @@ class TimelineViewController {
       }
       this.positionRecord(record, primaryLength, axisCross);
     }
+
+    this.positionCommittedClusters(padding, usable, axisCross);
 
     if (!this.retention.active) {
       for (const [key, record] of this.scene) {
@@ -1403,7 +1736,11 @@ class TimelineViewController {
       visibleIntervalAnchor(item, this.renderWindow) ??
       item.start;
     const primary = coordinate(anchor);
-    const lane = stableLane(item.id, item.lane);
+    const lane = this.visualLaneFor(item);
+    const clusterId = this.committedClusterByItem.get(item.id);
+    const hiddenByCluster = Boolean(clusterId) && item.id !== this.focusedId;
+    node.hidden = hiddenByCluster;
+    if (range) range.hidden = hiddenByCluster;
     const laneDistance = 72 + Math.max(0, Math.abs(lane) - 1) * 62;
     const terminalCross = axisCross + (lane < 0 ? -laneDistance : laneDistance);
     const routeOffset = connectorRouteOffset(
@@ -1520,8 +1857,9 @@ class TimelineViewController {
       orientation === "vertical" || orientation === "portrait" ? "vertical" : "horizontal";
     if (normalized === this.orientation) return;
     this.orientation = normalized;
+    this.geometryMeasurements.clear();
     this.applyOrientation();
-    this.render();
+    this.commitInteraction();
     this.root.dispatchEvent(
       new CustomEvent("timelineorientationchange", {
         bubbles: true,
