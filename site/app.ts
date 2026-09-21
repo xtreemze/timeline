@@ -46,12 +46,133 @@ function getSample() {
   return globalThis.TimelineSampleCase || null;
 }
 
+type TemporalExtent = NonNullable<ReturnType<typeof TimelineTemporal.normalizeExtent>>;
+type EvidenceRecord = ReturnType<typeof TimelineEvidence.normalizeRecords>[number];
+type CustodyAction = ReturnType<typeof TimelineEvidence.normalizeCustodyActions>[number];
+
+interface CategoryRecord {
+  id: string;
+  name: string;
+  color: string;
+  extensions?: Record<string, unknown>;
+}
+
+interface MediaRecord {
+  src: string;
+  alt?: string;
+  caption?: string;
+}
+
+interface TagRecord {
+  label: string;
+  icon?: string;
+  hue?: number;
+}
+
+interface ItemPresentationRecord {
+  variant: string;
+  terminalShape: string;
+  connectorStyle: string;
+  connectorRouting: string;
+  connectorWeight: string;
+  connectorEndpoint: string;
+  lane: number | null;
+}
+
+interface RelationChangeRecord {
+  relationshipId: string;
+  operation: string;
+  predicate?: string;
+  role?: string;
+  properties?: Record<string, unknown>;
+}
+
+interface TimelineItemRecord {
+  id: string;
+  kind: "event" | "range";
+  start: string;
+  end: string | null;
+  time: TemporalExtent;
+  title: string;
+  description: string;
+  categoryId: string;
+  media?: MediaRecord[];
+  tags?: TagRecord[];
+  presentation: ItemPresentationRecord;
+  relationChanges: RelationChangeRecord[];
+  evidenceIds: string[];
+  extensions?: Record<string, unknown>;
+  location?: Record<string, unknown>;
+}
+
+interface StoryRecord {
+  id: string;
+  title: string;
+  description: string;
+  itemIds: string[];
+  placeIds: string[];
+  extensions?: Record<string, unknown>;
+}
+
+interface EntityRecord {
+  id: string;
+  name: string;
+  type?: string;
+  alternateNames?: string[];
+  identifiers?: unknown[];
+  sourceIds?: string[];
+  attributes?: Record<string, unknown>;
+}
+
+interface PlaceRecord {
+  id: string;
+  name: string;
+  geographicIdentifier?: string;
+  address?: string;
+  geometry?: { type?: string; coordinates?: unknown } | null;
+  radiusMeters?: number;
+  icon?: string;
+  markerShape?: string;
+  style?: Record<string, unknown>;
+  attributes?: Record<string, unknown>;
+}
+
+interface RelationshipRecord {
+  id: string;
+  subjectId: string;
+  objectId: string;
+  predicate: string;
+  role?: string;
+  placeId?: string;
+  itemIds?: string[];
+  initialState?: "active" | "inactive";
+  time?: unknown;
+  sourceIds?: string[];
+  confidence?: number | null;
+  attributes?: Record<string, unknown>;
+}
+
+interface TimelineState {
+  version: number;
+  title: string;
+  categories: CategoryRecord[];
+  items: TimelineItemRecord[];
+  stories: StoryRecord[];
+  entities: EntityRecord[];
+  places: PlaceRecord[];
+  relationships: RelationshipRecord[];
+  evidence: EvidenceRecord[];
+  custodyActions: CustodyAction[];
+  reasoning: unknown;
+  extensions?: Record<string, unknown>;
+}
+
 // Application version constant
 const VERSION = 2;
 const STORAGE_KEY = "timeline:v2";
 const LEGACY_STORAGE_KEY = "timeline:v1";
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
-const DEFAULT_CATEGORIES = Object.freeze([
+const DEFAULT_CATEGORIES: ReadonlyArray<CategoryRecord> = Object.freeze([
   { id: "incident", name: "Incident", color: "#b42318" },
   { id: "witness", name: "Witness / Interview", color: "#7a5af8" },
   { id: "communication", name: "Communication", color: "#2563eb" },
@@ -60,7 +181,7 @@ const DEFAULT_CATEGORIES = Object.freeze([
   { id: "decision", name: "Decision / Action", color: "#b54708" },
   { id: "transaction", name: "Transaction", color: "#0e7090" },
   { id: "observation", name: "Observation", color: "#475467" },
-] as const);
+]);
 
 type EvidenceExtractionDraft = NonNullable<
   ReturnType<(typeof TimelineEvidence)["normalizeExtraction"]>
@@ -827,8 +948,8 @@ function requiredElements<T extends Element>(selector: string): T[] {
     return `${prefix}-${random}`;
   }
 
-  function clone(value) {
-    return JSON.parse(JSON.stringify(value));
+  function clone<T>(value: T): T {
+    return JSON.parse(JSON.stringify(value)) as T;
   }
 
   function parseJsonObject(value, label = "Properties") {
@@ -870,7 +991,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
     ].slice(0, maxItems);
   }
 
-  function normalizeExtensions(value) {
+  function normalizeExtensions(value: unknown): Record<string, unknown> | undefined {
     if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
     try {
       return clone(value);
@@ -939,13 +1060,13 @@ function requiredElements<T extends Element>(selector: string): T[] {
       .slice(0, 60);
   }
 
-  function normalizeTimeline(input, { strictGraph = false } = {}) {
+  function normalizeTimeline(input: any, { strictGraph = false }: { strictGraph?: boolean } = {}): TimelineState {
     if (!input || typeof input !== "object") throw new Error("Expected a timeline object.");
     const retainedMigrationExtensions = migration.extensionsWithRetainedV2(input);
     input = graph.migrateLegacySpatialModel(input, spatial);
 
-    const categories = [];
-    const categoryIds = new Set();
+    const categories: CategoryRecord[] = [];
+    const categoryIds = new Set<string>();
     const sourceCategories =
       Array.isArray(input.categories) && input.categories.length
         ? input.categories
@@ -963,7 +1084,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
         String(raw.name || categoryLabelFromId(id))
           .trim()
           .slice(0, 60) || categoryLabelFromId(id);
-      const category = { id, name, color: normalizeColor(raw.color) };
+      const category: CategoryRecord = { id, name, color: normalizeColor(raw.color) };
       const extensions = normalizeExtensions(raw.extensions);
       if (extensions) category.extensions = extensions;
       categories.push(category);
@@ -972,16 +1093,16 @@ function requiredElements<T extends Element>(selector: string): T[] {
 
     if (!categories.length) {
       for (const category of DEFAULT_CATEGORIES) {
-        categories.push(clone(category));
+        categories.push({ ...category });
         categoryIds.add(category.id);
       }
     }
 
-    const ensureCategory = (rawId) => {
+    const ensureCategory = (rawId: unknown): string => {
       const candidate =
-        String(rawId || categories[0].id)
+        String(rawId || categories[0]!.id)
           .trim()
-          .slice(0, 80) || categories[0].id;
+          .slice(0, 80) || categories[0]!.id;
       if (!categoryIds.has(candidate)) {
         categories.push({ id: candidate, name: categoryLabelFromId(candidate), color: "#667085" });
         categoryIds.add(candidate);
@@ -1008,7 +1129,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
           }))
         : [];
 
-    const items = sourceItems.map((raw, index) => {
+    const items: TimelineItemRecord[] = sourceItems.map((raw: any, index: number): TimelineItemRecord => {
       if (!raw || typeof raw !== "object") throw new Error(`Item ${index + 1} is not an object.`);
       const kind = raw.kind === "range" ? "range" : "event";
       const rawStart = raw.time?.start?.value ?? raw.start;
@@ -1034,7 +1155,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
         }
       }
 
-      const item = {
+      const item: TimelineItemRecord = {
         id:
           typeof raw.id === "string" && raw.id.trim() ? raw.id.trim().slice(0, 120) : newId("item"),
         kind,
@@ -1044,6 +1165,17 @@ function requiredElements<T extends Element>(selector: string): T[] {
         title,
         description: typeof raw.description === "string" ? raw.description.slice(0, 2000) : "",
         categoryId: ensureCategory(raw.categoryId || raw.category),
+        presentation: {
+          variant: "hero-split",
+          terminalShape: "rounded",
+          connectorStyle: "solid",
+          connectorRouting: "straight",
+          connectorWeight: "normal",
+          connectorEndpoint: "none",
+          lane: null,
+        },
+        relationChanges: [],
+        evidenceIds: [],
       };
       const media = presentation.normalizeMedia(raw.media);
       const tags = presentation.normalizeTags(raw.tags);
@@ -1106,8 +1238,8 @@ function requiredElements<T extends Element>(selector: string): T[] {
       return item;
     });
 
-    const itemIds = new Set(items.map((item) => item.id));
-    const seenStoryIds = new Set();
+    const itemIds = new Set<string>(items.map((item) => item.id));
+    const seenStoryIds = new Set<string>();
     const storyIdsNeedingPlaceInference = new Set<string>();
     const stories = (Array.isArray(input.stories) ? input.stories : []).map((raw, index) => {
       if (!raw || typeof raw !== "object") throw new Error(`Story ${index + 1} is not an object.`);
@@ -1117,8 +1249,8 @@ function requiredElements<T extends Element>(selector: string): T[] {
       seenStoryIds.add(id);
       const title = typeof raw.title === "string" ? raw.title.trim().slice(0, 160) : "";
       if (!title) throw new Error(`Story ${index + 1} is missing a title.`);
-      const uniqueIds = [];
-      const seenItems = new Set();
+      const uniqueIds: string[] = [];
+      const seenItems = new Set<string>();
       for (const itemId of Array.isArray(raw.itemIds) ? raw.itemIds : []) {
         if (typeof itemId === "string" && itemIds.has(itemId) && !seenItems.has(itemId)) {
           uniqueIds.push(itemId);
@@ -1127,7 +1259,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
       }
       const hasExplicitPlaceIds = Array.isArray(raw.placeIds);
       if (!hasExplicitPlaceIds) storyIdsNeedingPlaceInference.add(id);
-      const story = {
+      const story: StoryRecord = {
         id,
         title,
         description: typeof raw.description === "string" ? raw.description.slice(0, 1500) : "",
@@ -1175,7 +1307,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
         relationshipIds.has(change.relationshipId),
       );
     }
-    const normalized = {
+    const normalized: TimelineState = {
       version: VERSION,
       title: typeof input.title === "string" ? input.title.slice(0, 120) : "",
       categories,
@@ -1193,11 +1325,11 @@ function requiredElements<T extends Element>(selector: string): T[] {
     return normalized;
   }
 
-  function blankTimeline() {
+  function blankTimeline(): TimelineState {
     return {
       version: VERSION,
       title: "",
-      categories: clone(DEFAULT_CATEGORIES),
+      categories: DEFAULT_CATEGORIES.map((category) => ({ ...category })),
       items: [],
       stories: [],
       entities: [],
@@ -1209,7 +1341,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
     };
   }
 
-  function loadState() {
+  function loadState(): TimelineState {
     try {
       const current = localStorage.getItem(STORAGE_KEY);
       if (current) return normalizeTimeline(JSON.parse(current));
@@ -1227,7 +1359,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
     // Persisted current/legacy timelines still take precedence above this sample fallback.
     const sample = getSample();
     if (sample && sample.items && sample.items.length > 0) {
-      return sample;
+      return normalizeTimeline(clone(sample));
     }
     return blankTimeline();
   }
@@ -1241,7 +1373,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
     }
   }
 
-  function sortItems(items = state.items) {
+  function sortItems(items: TimelineItemRecord[] = state.items): TimelineItemRecord[] {
     return [...items].sort((a, b) => {
       const startDelta = parseDate(a.start).sortKey - parseDate(b.start).sortKey;
       if (startDelta) return startDelta;
@@ -1251,19 +1383,19 @@ function requiredElements<T extends Element>(selector: string): T[] {
     });
   }
 
-  function getCategory(id) {
+  function getCategory(id: string): CategoryRecord | undefined {
     return state.categories.find((category) => category.id === id) || state.categories[0];
   }
 
-  function getStory(id) {
+  function getStory(id: string | null): StoryRecord | null {
     return state.stories.find((story) => story.id === id) || null;
   }
 
-  function getItem(id) {
+  function getItem(id: string): TimelineItemRecord | null {
     return state.items.find((item) => item.id === id) || null;
   }
 
-  function entityOrItemName(id) {
+  function entityOrItemName(id: string): string {
     const entity = state.entities.find((candidate) => candidate.id === id);
     if (entity) return entity.name || entity.id;
     const item = getItem(id);
@@ -1272,7 +1404,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
     return story?.title || id;
   }
 
-  function storySpanLabel(story) {
+  function storySpanLabel(story: StoryRecord): string {
     const items = story.itemIds.map(getItem).filter(Boolean);
     if (!items.length) return "empty";
     const starts = items
@@ -1294,7 +1426,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
     return `${(spanMs / (day * 365.2425)).toFixed(1)} years`;
   }
 
-  function storyMembershipCount(itemId) {
+  function storyMembershipCount(itemId: string): number {
     return state.stories.reduce(
       (count, story) => count + (story.itemIds.includes(itemId) ? 1 : 0),
       0,
@@ -4623,7 +4755,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
       description: els.itemDescription.value.trim().slice(0, 2000),
       categoryId: state.categories.some((category) => category.id === els.itemCategory.value)
         ? els.itemCategory.value
-        : state.categories[0].id,
+        : state.categories[0]!.id,
       presentation: {
         variant: els.itemLayoutVariant.value,
         terminalShape: els.itemTerminalShape.value,
