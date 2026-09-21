@@ -204,7 +204,7 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - name: Verify structural browser test discovery
         run: |
-          pnpm exec playwright test --config=playwright.config.mjs --list | tee /tmp/structural-playwright-list.txt
+          pnpm exec playwright test --config=playwright.config.ts --list | tee /tmp/structural-playwright-list.txt
           grep -F 'retained-structural-composition.spec.ts' /tmp/structural-playwright-list.txt
           grep -F 'semantic-chronology.spec.ts' /tmp/structural-playwright-list.txt
       - run: pnpm test:structural-composition-browser
