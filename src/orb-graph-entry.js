@@ -1,4 +1,5 @@
 import { EdgeLineStyleType, GraphObjectState, NodeShapeType, OrbEventType, OrbView } from "@memgraph/orb";
+import { connectedGraphComponents, graphComponentTopologySignature, packComponentRects } from "./graph-component-packing.js";
 
 const LARGE_GRAPH_NODE_THRESHOLD = 1200;
 const GPU_LAYOUT_NODE_THRESHOLD = 3000;
@@ -17,6 +18,7 @@ const TOPOLOGY_ALPHA_TARGET = 0.085;
 const TOPOLOGY_EDGE_RELEASE_MS = 280;
 const TOPOLOGY_SETTLE_MS = 820;
 const TOPOLOGY_ENTRY_OFFSET = 36;
+const COMPONENT_PACKING_GAP = 112;
 const motion = globalThis.TimelineMotion;
 
 function resolvedColor(container, name, fallback) {
@@ -104,6 +106,9 @@ function create(container, handlers = {}) {
   let selectedGraphObject = null;
   let cameraGesture = null;
   let cameraInertiaAnimationFrame = 0;
+  let userOwnsCamera = false;
+  let pendingAutoFit = false;
+  let lastPackedTopologySignature = "";
   let interactionSettleTimer = 0;
   let forceNodeCount = 0;
   let hasGraphData = false;
@@ -349,6 +354,27 @@ function create(container, handlers = {}) {
     cameraInertiaAnimationFrame = 0;
   }
 
+  function markCameraOwnedByUser() {
+    userOwnsCamera = true;
+    pendingAutoFit = false;
+  }
+
+  function releaseCameraToAutoFit() {
+    userOwnsCamera = false;
+    pendingAutoFit = false;
+  }
+
+  function requestAutoFit() {
+    if (!userOwnsCamera) pendingAutoFit = true;
+  }
+
+  function applyPendingAutoFit() {
+    if (userOwnsCamera || !pendingAutoFit) return false;
+    pendingAutoFit = false;
+    orb.recenter();
+    return true;
+  }
+
   function applyCameraPan(deltaX, deltaY) {
     const canvas = orb.canvas;
     const transform = canvas?.__zoom || orb?._renderer?.transform;
@@ -361,6 +387,7 @@ function create(container, handlers = {}) {
     ) {
       return false;
     }
+    markCameraOwnedByUser();
     const next = transform.translate(deltaX / transform.k, deltaY / transform.k);
     canvas.__zoom = next;
     if (orb._renderer) orb._renderer.transform = next;
@@ -476,6 +503,7 @@ function create(container, handlers = {}) {
     cameraGesture = null;
     releaseTouchPointerCapture(event.pointerId);
     if (event.type === "pointercancel" || !gesture.moved) return;
+    markCameraOwnedByUser();
     motion.appendPointerVectorSamples(gesture.samples, event);
     const velocity = motion.estimatePointerVectorVelocity(gesture.samples);
     suppressGraphClickUntil = performance.now() + 300;
@@ -588,6 +616,7 @@ function create(container, handlers = {}) {
 
   function cancelPendingTouchHold() {
     if (!touchHold || touchHold.activated) return;
+    markCameraOwnedByUser();
     clearTouchHoldTimer();
     touchHold = null;
     touchDragBlockedUntilRelease = true;
@@ -751,6 +780,7 @@ function create(container, handlers = {}) {
         setZoomEnabled(false);
         return;
       }
+      markCameraOwnedByUser();
     } else {
       beginCameraGesture(event, target);
     }
@@ -922,7 +952,10 @@ function create(container, handlers = {}) {
     event.stopImmediatePropagation();
   };
 
-  const onWheelCapture = () => cancelCameraInertia();
+  const onWheelCapture = () => {
+    markCameraOwnedByUser();
+    cancelCameraInertia();
+  };
   const onGraphKeyDown = (event) => {
     if (event.target !== container || event.altKey || event.ctrlKey || event.metaKey) return;
     let handled = true;
@@ -942,14 +975,17 @@ function create(container, handlers = {}) {
         break;
       case "+":
       case "=":
+        markCameraOwnedByUser();
         orb.zoomIn();
         break;
       case "-":
       case "_":
+        markCameraOwnedByUser();
         orb.zoomOut();
         break;
       case "Home":
       case "0":
+        releaseCameraToAutoFit();
         orb.recenter();
         break;
       default:
@@ -1091,8 +1127,10 @@ function create(container, handlers = {}) {
     handlers.onSimulationState?.({ running: false, mode: currentMode, durationMs });
     if (firstRender) {
       firstRender = false;
-      orb.recenter();
+      requestAutoFit();
     }
+    if (packDisconnectedComponents()) requestAutoFit();
+    applyPendingAutoFit();
   };
 
   orb.events.on(OrbEventType.NODE_CLICK, onNodeClick);
@@ -1159,6 +1197,84 @@ function create(container, handlers = {}) {
 
   function currentEdgeRecords() {
     return orb.data.getEdges().map((edge) => edge.getData());
+  }
+
+  function packDisconnectedComponents() {
+    const nodeRecords = currentNodeRecords();
+    const edgeRecords = currentEdgeRecords();
+    const signature = graphComponentTopologySignature(nodeRecords, edgeRecords);
+    if (signature === lastPackedTopologySignature) return false;
+    lastPackedTopologySignature = signature;
+
+    const components = connectedGraphComponents(nodeRecords, edgeRecords);
+    if (components.length <= 1) return false;
+
+    const nodeObjects = new Map(
+      orb.data.getNodes()
+        .map((node) => [String(node.getData()?.id ?? ""), node])
+        .filter(([id]) => id)
+    );
+    const componentRects = [];
+
+    for (const component of components) {
+      let minX = Number.POSITIVE_INFINITY;
+      let maxX = Number.NEGATIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      let maxY = Number.NEGATIVE_INFINITY;
+
+      for (const id of component) {
+        const node = nodeObjects.get(String(id));
+        const position = node?.getPosition?.() || node?.getCenter?.();
+        if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) continue;
+        const radius = Math.max(18, Number(node?.getBorderedRadius?.()) || 0);
+        minX = Math.min(minX, position.x - radius);
+        maxX = Math.max(maxX, position.x + radius);
+        minY = Math.min(minY, position.y - radius);
+        maxY = Math.max(maxY, position.y + radius);
+      }
+
+      if (![minX, maxX, minY, maxY].every(Number.isFinite)) continue;
+      componentRects.push({
+        key: component[0],
+        nodeIds: component,
+        minX,
+        maxX,
+        minY,
+        maxY
+      });
+    }
+
+    if (componentRects.length <= 1) return false;
+
+    const width = Math.max(1, Number(container.clientWidth) || 1);
+    const height = Math.max(1, Number(container.clientHeight) || 1);
+    const aspectRatio = Math.max(0.35, Math.min(3, width / height));
+    const plan = packComponentRects(componentRects, {
+      aspectRatio,
+      gap: COMPONENT_PACKING_GAP
+    });
+    const offsets = new Map(plan.placements.map((placement) => [placement.key, placement]));
+    let moved = false;
+
+    for (const component of componentRects) {
+      const offset = offsets.get(component.key);
+      if (!offset || (!Number.isFinite(offset.dx) || !Number.isFinite(offset.dy))) continue;
+      if (Math.abs(offset.dx) < 1 && Math.abs(offset.dy) < 1) continue;
+
+      for (const id of component.nodeIds) {
+        const node = nodeObjects.get(String(id));
+        const position = node?.getPosition?.() || node?.getCenter?.();
+        if (!node || !position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) continue;
+        node.setPosition({
+          x: position.x + offset.dx,
+          y: position.y + offset.dy
+        });
+      }
+      moved = true;
+    }
+
+    if (moved) orb.render();
+    return moved;
   }
 
   function markNodeTransition(id, state) {
@@ -1234,6 +1350,8 @@ function create(container, handlers = {}) {
     cancelCameraInertia();
     cameraGesture = null;
     finishTouchGesture();
+    releaseCameraToAutoFit();
+    lastPackedTopologySignature = "";
     selectedGraphObject = null;
     const nodes = Array.isArray(data?.nodes) ? data.nodes : [];
     const edges = Array.isArray(data?.edges) ? data.edges : [];
@@ -1277,6 +1395,14 @@ function create(container, handlers = {}) {
     const rewiredIds = new Set(rewiredEdges.map((edge) => String(edge.id)));
     const enteringEdges = edges.filter((edge) => !currentEdgeById.has(String(edge.id)));
     const stableEdges = edges.filter((edge) => currentEdgeById.has(String(edge.id)) && !rewiredIds.has(String(edge.id)));
+    const topologyChanged = Boolean(
+      outgoingNodes.length ||
+      outgoingEdges.length ||
+      incomingNodes.length ||
+      enteringEdges.length ||
+      rewiredEdges.length
+    );
+    if (topologyChanged) requestAutoFit();
 
     if (prefersReducedMotion()) {
       const breakIds = [
@@ -1364,18 +1490,23 @@ function create(container, handlers = {}) {
     recenter() {
       cancelCameraInertia();
       cameraGesture = null;
+      releaseCameraToAutoFit();
       orb.recenter();
     },
     refreshLayout() {
       if (!hasGraphData) return;
-      orb.render(() => orb.recenter());
+      orb.render(() => {
+        if (!userOwnsCamera) orb.recenter();
+      });
     },
     zoomIn() {
       cancelCameraInertia();
+      markCameraOwnedByUser();
       orb.zoomIn();
     },
     zoomOut() {
       cancelCameraInertia();
+      markCameraOwnedByUser();
       orb.zoomOut();
     },
     getMode() {

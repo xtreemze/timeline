@@ -236,7 +236,7 @@ test("graph refresh rerenders Orb after reparenting or container resize", async 
     readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8")
   ]);
 
-  assert.match(bridge, /refreshLayout\(\) \{[\s\S]*orb\.render\(\(\) => orb\.recenter\(\)\)/);
+  assert.match(bridge, /refreshLayout\(\) \{[\s\S]*orb\.render\(\(\) => \{[\s\S]*if \(!userOwnsCamera\) orb\.recenter\(\)/);
   assert.match(view, /new ResizeObserver\(\(entries\) => \{/);
   assert.match(view, /entries\.find\(\(candidate\) => candidate\.target === this\.canvas\)/);
   assert.match(view, /this\.lastCanvasSize/);

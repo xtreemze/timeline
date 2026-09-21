@@ -6,7 +6,7 @@
   "scripts": {
     "build": "pnpm build:graph",
     "build:graph": "esbuild src/orb-graph-entry.js --bundle --format=iife --platform=browser --target=chrome155 --outfile=site/orb-graph.bundle.js --legal-comments=eof",
-    "test": "node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/timeline-interaction.test.mjs tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/event-focus-form.test.mjs tests/evidence-store.test.mjs tests/sample-case.test.mjs tests/timeline-navigation.test.mjs tests/temporal-graph-view.test.mjs tests/graph-editor.test.mjs tests/case-reasoning.test.mjs tests/location-map-camera.test.mjs tests/webmcp.test.mjs",
+    "test": "node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/timeline-interaction.test.mjs tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/event-focus-form.test.mjs tests/evidence-store.test.mjs tests/sample-case.test.mjs tests/timeline-navigation.test.mjs tests/temporal-graph-view.test.mjs tests/graph-camera-fit.test.mjs tests/graph-component-packing.test.mjs tests/graph-editor.test.mjs tests/case-reasoning.test.mjs tests/location-map-camera.test.mjs tests/webmcp.test.mjs",
     "benchmark:graph-data": "node benchmarks/graph-data.mjs"
   },
   "dependencies": {
