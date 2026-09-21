@@ -531,6 +531,17 @@ class TimelineViewController {
         return;
       }
 
+      const keyboardTarget =
+        document.activeElement instanceof HTMLElement &&
+        this.surface.contains(document.activeElement) &&
+        document.activeElement.matches(
+          ".timeline-event-terminal, .timeline-range-segment, .timeline-cluster-terminal",
+        );
+      if (keyboardTarget) {
+        // Background camera gestures must not steal the user's keyboard position.
+        event.preventDefault();
+      }
+
       if (!this.pinch) {
         beginSurfaceDrag(event.pointerId, { x: event.clientX, y: event.clientY });
         if (this.pointerDrag) {
