@@ -58,12 +58,13 @@ export function estimatePointerVelocity(samples: unknown, windowMs: number = 90)
   const source = Array.isArray(samples) ? samples.filter(isPointerSample) : [];
   if (source.length < 2) return 0;
 
-  const last = source[source.length - 1];
+  const last = source[source.length - 1]!;
   const minimumTime = last.time - Math.max(16, Number(windowMs) || 90);
-  let first = source[0];
+  let first = source[0]!;
   for (let index = source.length - 2; index >= 0; index -= 1) {
-    if (source[index].time < minimumTime) break;
-    first = source[index];
+    const candidate = source[index]!;
+    if (candidate.time < minimumTime) break;
+    first = candidate;
   }
 
   const elapsed = Math.max(1, last.time - first.time);
@@ -141,8 +142,9 @@ export function estimatePointerVectorVelocity(samples: unknown, windowMs: number
   const minimumTime = last.time - Math.max(16, Number(windowMs) || 90);
   let first = source[0];
   for (let index = source.length - 2; index >= 0; index -= 1) {
-    if (source[index].time < minimumTime) break;
-    first = source[index];
+    const candidate = source[index]!;
+    if (candidate.time < minimumTime) break;
+    first = candidate;
   }
 
   const elapsed = Math.max(1, last.time - first.time);
