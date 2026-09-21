@@ -726,29 +726,22 @@ class TimelineViewController {
       if (this.pointerDrag || this.pinch || this.touchPointers.size) abortSurfaceGesture();
     });
 
-    const preventFocus = (e: Event) => {
-      if (this.savedFocusElement) {
-        e.preventDefault();
-        this.savedFocusElement.focus({ preventScroll: true });
-      }
-    };
-
     this.surface.addEventListener("mousedown", (event) => {
       const prevFocus = document.activeElement;
       if (prevFocus instanceof HTMLElement && prevFocus !== this.surface) {
         this.savedFocusElement = prevFocus;
-        // Prevent the surface from stealing focus during drag
-        this.surface.addEventListener("focus", preventFocus, { once: true, capture: true });
+        // Make surface non-focusable during drag to preserve focus on the focused element
+        this.surface.tabIndex = -1;
       }
     });
 
     this.surface.addEventListener("mouseup", () => {
+      // Restore focusability and restore focus if needed
+      this.surface.tabIndex = 0;
       if (this.savedFocusElement && document.activeElement === this.surface) {
         this.savedFocusElement.focus({ preventScroll: true });
         this.savedFocusElement = null;
       }
-      // Clean up the focus prevention listener if drag didn't complete
-      this.surface.removeEventListener("focus", preventFocus, true);
     });
 
     this.surface.addEventListener("keydown", (event) => {
