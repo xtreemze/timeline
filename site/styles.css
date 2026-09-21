@@ -3441,11 +3441,9 @@ body {
   grid-template-rows: none;
 }
 
-/* Edit is an explicit application mode. Keep the mode switch visible and remove viewing tools
-   until editing is complete rather than mixing presentation/navigation controls with authoring. */
-#app-shell[data-mode="edit"] .app-tool-dock .app-tool:not(#editor-toggle) {
-  display: none;
-}
+/* Keep the footer application bar structurally stable in Edit mode.
+   Browse and View are disabled by application state while editing, but Project must remain
+   reachable because load/import/clear project actions are intentionally edit-only. */
 
 .project-title-field input[readonly] {
   cursor: default;
