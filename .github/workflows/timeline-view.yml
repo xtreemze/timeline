@@ -201,7 +201,7 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright install --with-deps chromium webkit
       - name: Verify structural browser test discovery
         run: |
           pnpm exec playwright test --config=playwright.config.ts --list | tee /tmp/structural-playwright-list.txt
