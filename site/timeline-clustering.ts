@@ -106,9 +106,9 @@ export function clusterProjectedItems(
       continue;
     }
 
-    const previousPosition = current.entries[current.entries.length - 1].position;
+    const previousPosition = current.entries[current.entries.length - 1]!.position;
     const adjacentDistance = Math.abs(entry.position - previousPosition);
-    const envelopeStart = current.entries[0].position;
+    const envelopeStart = current.entries[0]!.position;
     const envelopeEnd = entry.position;
     const envelopeWidth = envelopeEnd - envelopeStart;
 
@@ -126,7 +126,7 @@ export function clusterProjectedItems(
 
   return groups.map((group): Cluster => {
     if (group.entries.length === 1) {
-      const only = group.entries[0];
+      const only = group.entries[0]!;
       return {
         kind: "item",
         id: String(only.item.id),
@@ -316,7 +316,7 @@ export function yearLabelForTime(timeMs: number): string {
 export function monthLabelForTime(timeMs: number): string {
   const date = new Date(Number(timeMs));
   if (!Number.isFinite(date.getTime())) return "";
-  return MONTH_NAMES[date.getUTCMonth()];
+  return MONTH_NAMES[date.getUTCMonth()] ?? "";
 }
 
 interface Viewport {
@@ -397,6 +397,8 @@ interface TemporalSpec {
 }
 
 interface TemporalAccentsOptions extends NonOverlappingOptions {
+  viewport?: Viewport | null;
+  pixelLength?: number;
   padding?: number;
   orientation?: string;
   spec?: TemporalSpec | null;
@@ -627,11 +629,14 @@ export function clusterExpansionViewport(
   const padding = Math.min(0.4, Math.max(0, Number(paddingRatio) || 0));
   let minimumDelta = Number.POSITIVE_INFINITY;
   for (let index = 1; index < uniqueStarts.length; index += 1) {
-    minimumDelta = Math.min(minimumDelta, uniqueStarts[index] - uniqueStarts[index - 1]);
+    minimumDelta = Math.min(
+      minimumDelta,
+      uniqueStarts[index]! - uniqueStarts[index - 1]!,
+    );
   }
 
-  const minimum = uniqueStarts[0];
-  const maximum = uniqueStarts[uniqueStarts.length - 1];
+  const minimum = uniqueStarts[0]!;
+  const maximum = uniqueStarts[uniqueStarts.length - 1]!;
   const range = Math.max(minSpanMs, maximum - minimum);
   const positionFor = (item: any) => ((item.start - start) / span) * length;
   const representations = clusterProjectedItems(
