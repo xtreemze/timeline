@@ -19,7 +19,8 @@ test("semantic chronology preserves canonical reading order and focus parity", a
     host.append(surface, focus, readout);
     document.body.append(host);
 
-    const { TimelineView } = await import("/timeline-view.ts");
+    const timelineViewModulePath = "/timeline-view.ts";
+    const { TimelineView } = await import(timelineViewModulePath);
     const controller = TimelineView.create(host);
     if (!controller) throw new Error("TimelineView controller was not created.");
 
