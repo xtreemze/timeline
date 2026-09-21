@@ -57,6 +57,7 @@ on:
       - 'tests/timeline-runtime-contracts.test.mjs'
       - 'tests/timeline-navigation.test.mjs'
       - 'tests/temporal-graph-view.test.mjs'
+      - 'tests/temporal-graph-runtime-contracts.test.mjs'
       - 'tests/graph-editor.test.mjs'
       - '.github/workflows/timeline-view.yml'
   push:
@@ -113,6 +114,7 @@ on:
       - 'tests/timeline-runtime-contracts.test.mjs'
       - 'tests/timeline-navigation.test.mjs'
       - 'tests/temporal-graph-view.test.mjs'
+      - 'tests/temporal-graph-runtime-contracts.test.mjs'
       - 'tests/graph-editor.test.mjs'
       - '.github/workflows/timeline-view.yml'
 
@@ -137,6 +139,7 @@ jobs:
       - run: node --check src/orb-graph-entry.js
       - run: node --check site/orb-graph.bundle.js
       - run: pnpm test:architecture
+      - run: pnpm test:graph-runtime-contracts
       - run: pnpm test:runtime-contracts
       - run: |
           pnpm test || echo "⚠ Legacy ESM/TypeScript test migration debt tracked in issue 258"
