@@ -4,6 +4,12 @@
  * Supports GeoJSON Point, Polygon, and MultiPolygon geometries
  */
 
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 function text(value: unknown, max: number = 300): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
@@ -29,33 +35,32 @@ interface Location {
 }
 
 export function normalize(raw: unknown): Location | null {
-  if (!raw || typeof raw !== "object") return null;
+  if (!isRecord(raw)) return null;
 
-  const rawObj = raw as any;
-  const geometry =
-    rawObj.geometry && typeof rawObj.geometry === "object" ? rawObj.geometry : null;
+  const geometry = isRecord(raw.geometry) ? raw.geometry : null;
   const coords =
     geometry?.type === "Point" && Array.isArray(geometry.coordinates)
       ? geometry.coordinates
       : null;
 
-  const longitude = coordinate(rawObj.longitude ?? coords?.[0], -180, 180);
-  const latitude = coordinate(rawObj.latitude ?? coords?.[1], -90, 90);
-  const name = text(rawObj.name, 160);
-  const geographicIdentifier = text(rawObj.geographicIdentifier, 300);
-  const address = text(rawObj.address, 500);
-  const source = ["manual", "device", "imported"].includes(rawObj.source)
-    ? rawObj.source
-    : "manual";
+  const longitude = coordinate(raw.longitude ?? coords?.[0], -180, 180);
+  const latitude = coordinate(raw.latitude ?? coords?.[1], -90, 90);
+  const name = text(raw.name, 160);
+  const geographicIdentifier = text(raw.geographicIdentifier, 300);
+  const address = text(raw.address, 500);
+  const source: Location["source"] =
+    raw.source === "device" || raw.source === "imported" || raw.source === "manual"
+      ? raw.source
+      : "manual";
   const hasAccuracy =
-    rawObj.accuracyMeters !== "" &&
-    rawObj.accuracyMeters !== null &&
-    rawObj.accuracyMeters !== undefined;
+    raw.accuracyMeters !== "" &&
+    raw.accuracyMeters !== null &&
+    raw.accuracyMeters !== undefined;
   const accuracyMeters =
     hasAccuracy &&
-    Number.isFinite(Number(rawObj.accuracyMeters)) &&
-    Number(rawObj.accuracyMeters) >= 0
-      ? Number(rawObj.accuracyMeters)
+    Number.isFinite(Number(raw.accuracyMeters)) &&
+    Number(raw.accuracyMeters) >= 0
+      ? Number(raw.accuracyMeters)
       : null;
 
   if (!name && !geographicIdentifier && !address && latitude === null && longitude === null)
@@ -64,19 +69,21 @@ export function normalize(raw: unknown): Location | null {
     throw new Error("Location coordinates require both latitude and longitude.");
   }
 
+  const normalizedGeometry =
+    latitude === null || longitude === null
+      ? null
+      : {
+          type: "Point" as const,
+          coordinates: [longitude, latitude] as [number, number],
+        };
+
   const result: Location = {
     name,
     geographicIdentifier,
     address,
-    geometry:
-      latitude === null
-        ? null
-        : {
-            type: "Point",
-            coordinates: [longitude as number, latitude as number],
-          },
+    geometry: normalizedGeometry,
     crs: "OGC:CRS84",
-    source: source as "manual" | "device" | "imported",
+    source,
   };
   if (accuracyMeters !== null) result.accuracyMeters = accuracyMeters;
   return result;
@@ -123,9 +130,9 @@ export function formParts(location: unknown): {
   };
 }
 
-const PLACE_GEOMETRY_TYPES = new Set(["Point", "Polygon", "MultiPolygon"] as const);
-const PLACE_MARKER_SHAPES = new Set(["pin", "circle", "square", "diamond"] as const);
-const PLACE_ICON_NAMES = new Set([
+const PLACE_GEOMETRY_TYPES = new Set<string>(["Point", "Polygon", "MultiPolygon"]);
+const PLACE_MARKER_SHAPES = new Set<string>(["pin", "circle", "square", "diamond"]);
+const PLACE_ICON_NAMES = new Set<string>([
   "milestone",
   "decision",
   "evidence",
@@ -140,7 +147,7 @@ const PLACE_ICON_NAMES = new Set([
   "search",
   "crown",
   "object",
-] as const);
+]);
 
 function clone(value: unknown): unknown {
   try {
@@ -150,10 +157,15 @@ function clone(value: unknown): unknown {
   }
 }
 
-interface PlaceGeometry {
-  type: "Point" | "Polygon" | "MultiPolygon";
-  coordinates: unknown;
-}
+type PlaceGeometry =
+  | {
+      type: "Point";
+      coordinates: [number, number];
+    }
+  | {
+      type: "Polygon" | "MultiPolygon";
+      coordinates: unknown[];
+    };
 
 interface Place {
   id: string;
@@ -169,10 +181,12 @@ interface Place {
 }
 
 function normalizePlaceGeometry(raw: unknown): PlaceGeometry | null {
-  if (!raw || typeof raw !== "object" || !PLACE_GEOMETRY_TYPES.has((raw as any).type))
+  if (!isRecord(raw) || typeof raw.type !== "string" || !PLACE_GEOMETRY_TYPES.has(raw.type)) {
     return null;
-  if ((raw as any).type === "Point") {
-    const coordinates = Array.isArray((raw as any).coordinates) ? (raw as any).coordinates : [];
+  }
+
+  if (raw.type === "Point") {
+    const coordinates = Array.isArray(raw.coordinates) ? raw.coordinates : [];
     const longitude = coordinate(coordinates[0], -180, 180);
     const latitude = coordinate(coordinates[1], -90, 90);
     if (longitude === null || latitude === null) {
@@ -180,23 +194,35 @@ function normalizePlaceGeometry(raw: unknown): PlaceGeometry | null {
     }
     return { type: "Point", coordinates: [longitude, latitude] };
   }
-  if (!Array.isArray((raw as any).coordinates) || !(raw as any).coordinates.length) {
+
+  if (
+    (raw.type !== "Polygon" && raw.type !== "MultiPolygon") ||
+    !Array.isArray(raw.coordinates) ||
+    raw.coordinates.length === 0
+  ) {
     throw new Error("Place area geometry requires GeoJSON coordinates.");
   }
-  return clone(raw) as PlaceGeometry;
+
+  const coordinates = clone(raw.coordinates);
+  if (!Array.isArray(coordinates)) {
+    throw new Error("Place area geometry requires cloneable GeoJSON coordinates.");
+  }
+  return { type: raw.type, coordinates };
 }
 
 export function normalizePlace(raw: unknown, index: number = 0): Place | null {
-  if (!raw || typeof raw !== "object") return null;
-  const rawObj = raw as any;
-  const id = text(rawObj.id, 120) || `place-${index + 1}`;
-  const name = text(rawObj.name, 180);
+  if (!isRecord(raw)) return null;
+
+  const attributes = isRecord(raw.attributes) ? raw.attributes : {};
+  const marker = isRecord(raw.marker) ? raw.marker : {};
+  const id = text(raw.id, 120) || `place-${index + 1}`;
+  const name = text(raw.name, 180);
   if (!name) return null;
 
-  const sourceGeometry = rawObj.geometry || rawObj.attributes?.geometry || null;
+  const sourceGeometry = raw.geometry || attributes.geometry || null;
   const geometry = normalizePlaceGeometry(sourceGeometry);
   const rawRadius =
-    rawObj.radiusMeters ?? rawObj.radius ?? rawObj.attributes?.radiusMeters ?? rawObj.attributes?.accuracyMeters;
+    raw.radiusMeters ?? raw.radius ?? attributes.radiusMeters ?? attributes.accuracyMeters;
   const radiusMeters =
     rawRadius !== "" &&
     rawRadius !== null &&
@@ -209,28 +235,29 @@ export function normalizePlace(raw: unknown, index: number = 0): Place | null {
     throw new Error("Place radius can only be used with Point geometry.");
   }
 
-  const iconCandidate = text(rawObj.icon || rawObj.marker?.icon || rawObj.attributes?.icon, 48);
-  const icon = PLACE_ICON_NAMES.has(iconCandidate as any) ? iconCandidate : "place";
+  const iconCandidate = text(raw.icon || marker.icon || attributes.icon, 48);
+  const icon = PLACE_ICON_NAMES.has(iconCandidate) ? iconCandidate : "place";
   const markerShapeCandidate = text(
-    rawObj.markerShape || rawObj.marker?.shape || rawObj.attributes?.markerShape,
-    24
+    raw.markerShape || marker.shape || attributes.markerShape,
+    24,
   );
-  const markerShape = PLACE_MARKER_SHAPES.has(markerShapeCandidate as any)
+  const markerShape = PLACE_MARKER_SHAPES.has(markerShapeCandidate)
     ? markerShapeCandidate
     : "pin";
 
+  const clonedAttributes = clone(attributes);
+  const normalizedAttributes = isRecord(clonedAttributes) ? clonedAttributes : {};
   const result: Place = {
     id,
     name,
-    geographicIdentifier: text(rawObj.geographicIdentifier || rawObj.attributes?.geographicIdentifier, 300),
-    address: text(rawObj.address || rawObj.attributes?.address, 500),
+    geographicIdentifier: text(raw.geographicIdentifier || attributes.geographicIdentifier, 300),
+    address: text(raw.address || attributes.address, 500),
     geometry,
-    crs: text(rawObj.crs || rawObj.attributes?.crs, 40) || "OGC:CRS84",
+    crs: text(raw.crs || attributes.crs, 40) || "OGC:CRS84",
     radiusMeters,
     icon,
     markerShape,
-    attributes:
-      rawObj.attributes && typeof rawObj.attributes === "object" ? (clone(rawObj.attributes) as Record<string, unknown>) : {},
+    attributes: normalizedAttributes,
   };
   delete result.attributes.geometry;
   delete result.attributes.geographicIdentifier;
@@ -244,11 +271,10 @@ export function normalizePlace(raw: unknown, index: number = 0): Place | null {
 }
 
 export function placeIdentity(place: unknown): string {
-  if (!place) return "";
-  const placeObj = place as any;
-  return `${String(placeObj.name || "")
+  if (!isRecord(place)) return "";
+  return `${String(place.name || "")
     .trim()
-    .toLocaleLowerCase()}|${JSON.stringify(placeObj.geometry || null)}|${placeObj.radiusMeters ?? ""}`;
+    .toLocaleLowerCase()}|${JSON.stringify(place.geometry || null)}|${place.radiusMeters ?? ""}`;
 }
 
 export function normalizePlaces(value: unknown): Place[] {
@@ -324,14 +350,8 @@ export function placeFormParts(place: unknown): {
     name: normalized?.name || "",
     geographicIdentifier: normalized?.geographicIdentifier || "",
     address: normalized?.address || "",
-    longitude:
-      normalized?.geometry && "type" in normalized.geometry && normalized.geometry.type === "Point"
-        ? (normalized.geometry.coordinates as [number, number])[0]
-        : "",
-    latitude:
-      normalized?.geometry && "type" in normalized.geometry && normalized.geometry.type === "Point"
-        ? (normalized.geometry.coordinates as [number, number])[1]
-        : "",
+    longitude: normalized?.geometry?.type === "Point" ? normalized.geometry.coordinates[0] : "",
+    latitude: normalized?.geometry?.type === "Point" ? normalized.geometry.coordinates[1] : "",
     radiusMeters: normalized?.radiusMeters ?? "",
     icon: normalized?.icon || "place",
     markerShape: normalized?.markerShape || "pin",
