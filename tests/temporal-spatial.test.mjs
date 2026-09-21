@@ -132,6 +132,22 @@ test("canonical places support point radius, area geometry, semantic icon and ma
   });
   assert.equal(area.geometry.type, "Polygon");
   assert.equal(area.radiusMeters, null);
+
+  const areaWithForeignMembers = spatial.normalizePlace({
+    id: "place-area-bbox",
+    name: "Search Area with bbox",
+    geometry: {
+      type: "Polygon",
+      coordinates: area.geometry.coordinates,
+      bbox: [18, 59, 18.1, 59.1],
+    },
+  });
+  assert.deepEqual(areaWithForeignMembers.geometry.bbox, [18, 59, 18.1, 59.1]);
+  assert.notEqual(
+    areaWithForeignMembers.geometry.coordinates,
+    area.geometry.coordinates,
+    "normalized area geometry must be structurally cloned at the untrusted boundary",
+  );
   assert.throws(
     () =>
       spatial.normalizePlace({
