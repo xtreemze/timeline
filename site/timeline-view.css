@@ -3930,9 +3930,9 @@
 #app-shell .timeline-zoom-controls {
   display: flex;
   align-items: center;
-  width: clamp(180px, 24vw, 250px);
-  min-width: 180px;
-  padding: .28rem .42rem .2rem;
+  width: clamp(150px, 20vw, 220px);
+  min-width: 150px;
+  padding: .28rem .38rem;
   border: 1px solid var(--line);
   border-radius: .68rem;
   background: var(--paper-2);
@@ -3940,8 +3940,10 @@
 
 .timeline-zoom-control {
   display: grid;
-  grid-template-rows: 22px auto;
-  gap: .04rem;
+  grid-template-columns: 18px minmax(0, 1fr) 18px;
+  grid-template-rows: 22px;
+  align-items: center;
+  column-gap: .3rem;
   width: 100%;
   min-width: 0;
 }
@@ -3958,16 +3960,18 @@
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
-.timeline-zoom-scale {
+.timeline-zoom-endpoint {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: .25rem;
+  place-items: center;
+  min-width: 0;
   color: var(--muted);
-  font: 720 .54rem/1.1 "Monaspace Krypton Timeline", ui-monospace, monospace;
-  letter-spacing: .02em;
+  line-height: 0;
 }
-.timeline-zoom-scale span:nth-child(2) { text-align: center; }
-.timeline-zoom-scale span:last-child { text-align: right; }
+.timeline-zoom-endpoint .semantic-icon {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.9;
+}
 
 #app-shell .timeline-auto-controls {
   display: flex;
@@ -4096,9 +4100,6 @@
     grid-template-rows: 22px;
   }
 
-  .timeline-zoom-scale {
-    display: none;
-  }
 
   #app-shell .timeline-auto-timer input {
     width: 2.65rem;
@@ -4406,253 +4407,12 @@
   }
 
   .timeline-view[data-orientation="portrait"] .timeline-zoom-control {
-    grid-template-columns: 30px minmax(44px, 1fr);
-    column-gap: .2rem;
-  }
-}
-
-@media (pointer: coarse) and (max-width: 699px) {
-  .timeline-view[data-orientation="portrait"] .timeline-project-heading {
-    max-width: 52px;
-  }
-
-  .timeline-view[data-orientation="portrait"] .story-focus-controls > span {
-    min-width: 44px;
-  }
-
-  #app-shell .timeline-focus-tab,
-  #app-shell .timeline-focus-close {
-    min-height: 44px;
-  }
-}
-
-
-/* Focused popover tab contract:
-   - Overview owns Context + Place.
-   - Evidence owns only Evidence; Context/Place are removed from that tab.
-   - Hero is outside the tab-swapped region and keeps identical responsive dimensions.
-   - Tabs/Close own layout space and never overlap either tab's content. */
-@media (min-width: 761px) {
-  .timeline-focus-view[popover][data-active-tab="overview"],
-  .timeline-focus-view[popover][data-active-tab="evidence"] {
-    --focus-hero-block-size: clamp(320px, 44dvh, 400px);
-    grid-template-columns: minmax(0, 1.08fr) minmax(16rem, .92fr) !important;
-    grid-template-rows: auto minmax(0, 1fr) 104px !important;
-  }
-
-  .timeline-focus-view[popover] > .timeline-focus-tabs {
-    position: relative;
-    z-index: 5;
-    top: auto;
-    right: auto;
-    bottom: auto;
-    left: auto;
-    grid-column: 2 !important;
-    grid-row: 1 !important;
-    align-self: start;
-    justify-self: stretch;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: auto;
-    max-width: none;
-    margin: .52rem .52rem 0;
-    box-sizing: border-box;
-  }
-
-  .timeline-focus-view[popover] > .timeline-focus-tabs > * {
-    min-width: 0;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-hero,
-  #presentation-stage:fullscreen .timeline-focus-view .timeline-focus-hero {
-    grid-column: 1 !important;
-    grid-row: 1 / span 3 !important;
-    min-height: var(--focus-hero-block-size) !important;
-    height: var(--focus-hero-block-size) !important;
-    max-height: var(--focus-hero-block-size) !important;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary,
-  #presentation-stage:fullscreen .timeline-focus-view[data-active-tab="overview"] .timeline-focus-summary {
-    grid-column: 2 !important;
-    grid-row: 2 !important;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    max-height: none;
-    padding: .72rem 1rem .8rem;
-    overflow: hidden;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-description {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-summary .timeline-focus-actions {
-    flex: 0 0 auto;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: 100%;
-    margin-top: .62rem;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-summary .timeline-focus-actions .button {
-    min-width: 0;
-    min-height: 38px;
-    white-space: normal;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place,
-  #presentation-stage:fullscreen .timeline-focus-view[data-active-tab="overview"] .timeline-focus-place {
-    grid-column: 2 !important;
-    grid-row: 3 !important;
-    min-height: 104px;
-    max-height: 104px;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-summary,
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-place {
-    display: none !important;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence,
-  #presentation-stage:fullscreen .timeline-focus-view[data-active-tab="evidence"] .timeline-focus-evidence {
-    grid-column: 2 !important;
-    grid-row: 2 / span 2 !important;
-    min-height: 0;
-    max-height: none;
-    padding: .72rem 1rem;
-    overflow: auto;
-    overscroll-behavior: contain;
-  }
-}
-
-@media (max-width: 760px) {
-  .timeline-focus-view[popover][data-active-tab="overview"] {
-    --focus-hero-block-size: clamp(190px, 30dvh, 250px);
-    grid-template-columns: minmax(0, 1fr) !important;
-    grid-template-rows: auto auto var(--focus-hero-block-size) auto !important;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="evidence"] {
-    --focus-hero-block-size: clamp(190px, 30dvh, 250px);
-    grid-template-columns: minmax(0, 1fr) !important;
-    grid-template-rows: auto var(--focus-hero-block-size) minmax(120px, auto) !important;
-  }
-
-  #app-shell .timeline-focus-view[popover] > .timeline-focus-tabs,
-  .timeline-focus-view[popover] > .timeline-focus-tabs {
-    position: relative;
-    z-index: 5;
-    top: auto;
-    right: auto;
-    bottom: auto;
-    left: auto;
-    grid-column: 1 !important;
-    grid-row: 1 !important;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: auto;
-    max-width: none;
-    margin: .4rem .4rem 0;
-    box-sizing: border-box;
-  }
-
-  .timeline-focus-view[popover] > .timeline-focus-tabs > * {
-    min-width: 0;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-hero,
-  #app-shell .timeline-focus-view[popover] .timeline-focus-hero {
-    grid-column: 1 !important;
-    min-height: var(--focus-hero-block-size) !important;
-    height: var(--focus-hero-block-size) !important;
-    max-height: var(--focus-hero-block-size) !important;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary,
-  #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary {
-    grid-column: 1 !important;
-    grid-row: 2 !important;
-    display: flex;
-    flex-direction: column;
-    min-height: 150px;
-    max-height: min(32dvh, 240px);
-    padding: .7rem;
-    overflow: hidden;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero,
-  #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero {
-    grid-row: 3 !important;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place,
-  #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place {
-    grid-column: 1 !important;
-    grid-row: 4 !important;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-summary,
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-place {
-    display: none !important;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero,
-  #app-shell .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero {
-    grid-row: 2 !important;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence,
-  #app-shell .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
-    grid-column: 1 !important;
-    grid-row: 3 !important;
-    min-height: 120px;
-    max-height: min(38dvh, 300px);
-    overflow: auto;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-description {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: auto;
-    overscroll-behavior: contain;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-summary .timeline-focus-actions,
-  #app-shell .timeline-focus-summary .timeline-focus-actions {
-    flex: 0 0 auto;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: 100%;
-    margin-top: .5rem;
-  }
-}
-
-/* The semantic zoom slider follows the timeline axis itself.
-   Portrait is a true vertical range control; landscape keeps the horizontal baseline. */
-.timeline-view[data-orientation="portrait"] .timeline-zoom-controls {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: stretch;
-  justify-content: center;
-  width: 74px;
-  min-width: 74px;
-  height: clamp(156px, 28dvh, 228px);
-  padding: .4rem .3rem;
-}
-
-.timeline-view[data-orientation="portrait"] .timeline-zoom-control {
   display: grid;
-  grid-template-columns: 24px minmax(34px, auto);
-  grid-template-rows: minmax(0, 1fr);
-  align-items: stretch;
-  column-gap: .24rem;
-  width: auto;
+  grid-template-columns: minmax(34px, 1fr);
+  grid-template-rows: 18px minmax(0, 1fr) 18px;
+  place-items: center;
+  row-gap: .24rem;
+  width: 100%;
   height: 100%;
   min-height: 0;
 }
@@ -4669,45 +4429,6 @@
   touch-action: pan-x;
 }
 
-.timeline-view[data-orientation="portrait"] .timeline-zoom-scale {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: repeat(3, minmax(0, 1fr));
-  align-items: center;
-  gap: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.timeline-view[data-orientation="portrait"] .timeline-zoom-scale span {
-  min-width: 0;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  white-space: nowrap;
-  justify-self: center;
-  text-align: start;
-}
-
-.timeline-view[data-orientation="portrait"] .timeline-zoom-scale span:first-child {
-  align-self: start;
-}
-
-.timeline-view[data-orientation="portrait"] .timeline-zoom-scale span:nth-child(2) {
-  align-self: center;
-  text-align: left;
-}
-
-.timeline-view[data-orientation="portrait"] .timeline-zoom-scale span:last-child {
-  align-self: end;
-  text-align: left;
-}
-
-.timeline-view[data-orientation="landscape"] .timeline-zoom-scale span {
-  writing-mode: horizontal-tb;
-  text-orientation: mixed;
-  white-space: nowrap;
-}
-
 .timeline-view[data-orientation="landscape"] .timeline-zoom-control input[type="range"] {
   writing-mode: horizontal-tb;
   direction: ltr;
@@ -4715,4 +4436,58 @@
   height: 22px;
   cursor: ew-resize;
   touch-action: pan-y;
+}
+
+
+/* Simplified View toolbar: display controls, semantic zoom, then slideshow.
+   Zoom endpoint meaning is icon-only; the slider's aria-valuetext retains the
+   intermediate Focus state without adding a third visible label. */
+#app-shell .view-display-controls {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: .22rem;
+  width: auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.timeline-view[data-orientation="landscape"] > .app-view-controls.timeline-view-toolbar[popover]:popover-open
+  .view-display-controls {
+  flex-direction: row;
+}
+
+.timeline-view[data-orientation="portrait"] > .app-view-controls.timeline-view-toolbar[popover]:popover-open
+  .view-display-controls {
+  flex-direction: row;
+  width: 100%;
+}
+
+.timeline-view[data-orientation="portrait"] .timeline-zoom-controls {
+  width: 64px;
+  min-width: 64px;
+  height: clamp(140px, 24dvh, 196px);
+  padding: .35rem .25rem;
+}
+
+.timeline-view[data-orientation="portrait"] .timeline-zoom-endpoint {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 699px) {
+  #app-shell .view-display-controls .view-icon-button {
+    width: 42px;
+    min-width: 42px;
+    min-height: 42px;
+  }
+
+  #app-shell .timeline-zoom-controls {
+    min-width: 112px;
+    flex: 1 1 140px;
+  }
 }
