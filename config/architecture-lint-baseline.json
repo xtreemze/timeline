@@ -36,8 +36,18 @@
       "nonNull": 0
     },
     "site/temporal-graph-view.ts": {
-      "any": 12,
-      "asAny": 2,
+      "any": 13,
+      "asAny": 5,
+      "nonNull": 0
+    },
+    "src/layout/graph-surface.ts": {
+      "any": 2,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "src/layout/orb-graph-surface.ts": {
+      "any": 5,
+      "asAny": 1,
       "nonNull": 0
     },
     "site/temporal-standards.ts": {
@@ -361,7 +371,8 @@
       "site/timeline-graph-shim.ts": 1,
       "site/timeline-graph.ts": 8,
       "site/timeline-view-shim.ts": 1,
-      "site/timeline-view.ts": 2
+      "site/timeline-view.ts": 2,
+      "src/layout/orb-graph-surface.ts": 1
     },
     "directCanonicalMutations": {
       "site/app.ts": 18,
@@ -375,6 +386,10 @@
         "removeEventListener(\"touchmove\"": 1,
         "removeEventListener(\"touchend\"": 1,
         "removeEventListener(\"touchcancel\"": 1
+      },
+      "site/timeline-view.ts": {
+        "addEventListener(\"mousedown\"": 1,
+        "addEventListener(\"mouseup\"": 1
       }
     }
   }
