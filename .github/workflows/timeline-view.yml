@@ -159,6 +159,10 @@ on:
       - 'tests/graph-editor.test.mjs'
       - '.github/workflows/timeline-view.yml'
 
+concurrency:
+  group: timeline-view-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
