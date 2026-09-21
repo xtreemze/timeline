@@ -1179,7 +1179,8 @@
         const shiftRight = headingRect.right + gap - labelRect.left;
         let nextLeft = currentLeft + Math.max(0, shiftRight);
 
-        if (stageRect?.width > 0) {
+        const canOverflowPrimaryEdge = /year/.test(label.dataset.temporalAccent || "");
+        if (stageRect?.width > 0 && !canOverflowPrimaryEdge) {
           const halfWidth = labelRect.width / 2;
           const minCenter = halfWidth + gap;
           const maxCenter = Math.max(minCenter, stageRect.width - halfWidth - gap);
@@ -1194,6 +1195,51 @@
       const clearance = headingRect.width + gap;
       label.style.setProperty("--timeline-project-heading-clearance", `${Math.ceil(clearance)}px`);
       label.dataset.projectHeadingCollisionAxis = "cross";
+    }
+
+    resolveTemporalLabelCollisions(stage) {
+      const yearAccents = [...stage.querySelectorAll('[data-temporal-accent*="year"]')];
+      if (!yearAccents.length) return;
+
+      const axisContextLabels = [...stage.querySelectorAll(".timeline-axis-month-label")];
+      const overlaps = (first, second, gap = 3) =>
+        first.left < second.right + gap &&
+        first.right > second.left - gap &&
+        first.top < second.bottom + gap &&
+        first.bottom > second.top - gap;
+
+      for (const label of stage.querySelectorAll(".timeline-tick-label")) {
+        const labelRect = label.getBoundingClientRect();
+        const collidesWithYear = yearAccents.some((accent) =>
+          overlaps(labelRect, accent.getBoundingClientRect())
+        );
+        if (!collidesWithYear) continue;
+
+        // Years are the higher-level temporal context. Keep them fixed and move
+        // the lower-level time label across the axis instead of stacking text.
+        label.dataset.yearCollision = "moved";
+        if (this.orientation === "horizontal") {
+          label.style.top = "auto";
+          label.style.bottom = "16px";
+        } else {
+          label.style.left = "auto";
+          label.style.right = "16px";
+        }
+
+        const movedRect = label.getBoundingClientRect();
+        const stillCollidesWithYear = yearAccents.some((accent) =>
+          overlaps(movedRect, accent.getBoundingClientRect())
+        );
+        const collidesWithAxisContext = axisContextLabels.some((contextLabel) =>
+          overlaps(movedRect, contextLabel.getBoundingClientRect())
+        );
+        if (stillCollidesWithYear || collidesWithAxisContext) {
+          // Keep the tick mark as scale evidence; only the redundant lower-level
+          // text yields when neither side of the axis has a collision-free lane.
+          label.hidden = true;
+          label.dataset.yearCollision = "suppressed";
+        }
+      }
     }
 
     renderTemporalAccents(stage, plan) {
@@ -1457,6 +1503,8 @@
         else mark.style.top = position + "px";
         stage.append(mark);
       }
+
+      this.resolveTemporalLabelCollisions(stage);
 
       if (!this.soloZoomActive) this.renderRelationships(stage, padding, usable);
 

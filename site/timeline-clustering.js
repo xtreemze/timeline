@@ -238,17 +238,27 @@
     return padding + ((Number(timeMs) - start) / (end - start)) * length;
   }
 
-  function nonOverlapping(candidates, extentFor, { min = 0, max = Number.POSITIVE_INFINITY, gap = 10 } = {}) {
+  function nonOverlapping(
+    candidates,
+    extentFor,
+    { min = 0, max = Number.POSITIVE_INFINITY, gap = 10, allowExtentOverflow = false } = {}
+  ) {
     const selected = [];
     let lastEnd = Number.NEGATIVE_INFINITY;
     for (const candidate of candidates) {
       const extent = Math.max(1, Number(extentFor(candidate)) || 1);
-      if (Number.isFinite(max) && max - min < extent) continue;
+      const rawPosition = Number(candidate.position);
+      if (!Number.isFinite(rawPosition)) continue;
+      if (!allowExtentOverflow && Number.isFinite(max) && max - min < extent) continue;
       const lower = min + extent / 2;
-      const upper = Number.isFinite(max) ? max - extent / 2 : candidate.position;
-      const position = Number.isFinite(max)
-        ? Math.min(upper, Math.max(lower, candidate.position))
-        : Math.max(lower, candidate.position);
+      const upper = Number.isFinite(max) ? max - extent / 2 : rawPosition;
+      const position = allowExtentOverflow
+        ? (Number.isFinite(max)
+            ? Math.min(max, Math.max(min, rawPosition))
+            : Math.max(min, rawPosition))
+        : (Number.isFinite(max)
+            ? Math.min(upper, Math.max(lower, rawPosition))
+            : Math.max(lower, rawPosition));
       const start = position - extent / 2;
       const end = position + extent / 2;
       if (start < lastEnd + gap) continue;
@@ -284,7 +294,7 @@
           .filter((accent) => Number.isFinite(accent.position))
           .sort((a, b) => a.position - b.position),
         () => yearExtent,
-        { min: padding, max: padding + usable, gap: 16 }
+        { min: padding, max: padding + usable, gap: 16, allowExtentOverflow: true }
       );
       return {
         mode: edgeAccents.length ? "year-edge" : "axis-only",
@@ -316,7 +326,7 @@
     const full = nonOverlapping(
       accents.map((accent) => ({ ...accent, kind: fullKind, label: accent.label })),
       () => fullExtent,
-      { min: padding, max: padding + usable, gap: 14 }
+      { min: padding, max: padding + usable, gap: 14, allowExtentOverflow: true }
     );
 
     if (FINE_UNITS.has(unit) && full.length === accents.length) {
@@ -348,7 +358,7 @@
       const edgeAccents = nonOverlapping(
         monthCandidates,
         () => monthExtent,
-        { min: padding, max: padding + usable, gap: 14 }
+        { min: padding, max: padding + usable, gap: 14, allowExtentOverflow: true }
       );
 
       const dayExtent = orientation === "vertical" ? 34 : 38;
@@ -392,7 +402,7 @@
     const edgeAccents = nonOverlapping(
       yearCandidates,
       () => yearExtent,
-      { min: padding, max: padding + usable, gap: 16 }
+      { min: padding, max: padding + usable, gap: 16, allowExtentOverflow: true }
     );
 
     const monthExtent = orientation === "vertical" ? 44 : 48;
