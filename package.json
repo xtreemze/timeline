@@ -31,6 +31,7 @@
     "lint:architecture": "node scripts/lint-architecture.mjs",
     "test:runtime-contracts": "node --test tests/timeline-runtime-contracts.test.mjs tests/timeline-motion-popover-regression.test.mjs",
     "test:graph-runtime-contracts": "node --test tests/temporal-graph-runtime-contracts.test.mjs",
+    "test:graph-surface-contracts": "node --test tests/graph-surface-contracts.test.mjs",
     "test:temporal-context-runtime": "node --test tests/timeline-temporal-context-runtime.test.mjs",
     "test:touch-runtime-contracts": "node --test tests/timeline-touch-runtime-contracts.test.mjs",
     "test:retained-context-runtime": "node --test tests/retained-temporal-context-runtime.test.mjs",
