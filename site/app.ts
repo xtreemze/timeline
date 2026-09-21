@@ -379,7 +379,6 @@ const evidenceExtraction = Reflect.get(
   });
   let presentationResizeObserver = null;
   let viewControlsResizeObserver = null;
-  let workspaceToolDockResizeObserver = null;
   let presentationResizeFrame = 0;
   let timelineOrientationBeforeFullscreen = null;
   let presentationMap = null;
@@ -507,51 +506,6 @@ const evidenceExtraction = Reflect.get(
     els.viewControls.style.setProperty("--view-controls-top", `${Math.round(top)}px`);
     els.viewControls.style.setProperty("--view-controls-right", "auto");
     els.viewControls.style.setProperty("--view-controls-bottom", "auto");
-  }
-
-  function positionWorkspaceToolDock() {
-    if (!els.appToolDock || !els.projectMenuToggle || !els.timelineViewRoot) return;
-    const orientation =
-      els.timelineViewRoot.dataset.orientation === "portrait" ? "portrait" : "landscape";
-    els.appToolDock.dataset.projectAnchored = "true";
-    els.appToolDock.dataset.timelineOrientation = orientation;
-
-    const triggerRect = els.projectMenuToggle.getBoundingClientRect();
-    const viewport = workspaceToolViewport();
-    const gap = 6;
-    const edge = 8;
-    const minLeft = viewport.left + edge;
-    const minTop = viewport.top + edge;
-    const maxRight = viewport.left + viewport.width - edge;
-    const maxBottom = viewport.top + viewport.height - edge;
-    const dockRect = els.appToolDock.getBoundingClientRect();
-    const dockWidth = Math.max(1, dockRect.width || els.appToolDock.offsetWidth || 1);
-    const dockHeight = Math.max(1, dockRect.height || els.appToolDock.offsetHeight || 1);
-
-    let left = 0;
-    let top = 0;
-    let placement = "";
-
-    if (orientation === "portrait") {
-      const preferredLeft = triggerRect.left - dockWidth - gap;
-      const fallbackLeft = triggerRect.right + gap;
-      left = preferredLeft >= minLeft ? preferredLeft : fallbackLeft;
-      top = triggerRect.top + (triggerRect.height - dockHeight) / 2;
-      placement = preferredLeft >= minLeft ? "left" : "right";
-    } else {
-      const preferredTop = triggerRect.bottom + gap;
-      const fallbackTop = triggerRect.top - dockHeight - gap;
-      left = triggerRect.left + (triggerRect.width - dockWidth) / 2;
-      top = preferredTop + dockHeight <= maxBottom ? preferredTop : fallbackTop;
-      placement = preferredTop + dockHeight <= maxBottom ? "below" : "inward";
-    }
-
-    left = Math.min(Math.max(minLeft, left), Math.max(minLeft, maxRight - dockWidth));
-    top = Math.min(Math.max(minTop, top), Math.max(minTop, maxBottom - dockHeight));
-
-    els.appToolDock.dataset.projectAnchorPlacement = placement;
-    els.appToolDock.style.setProperty("--workspace-tool-dock-left", `${Math.round(left)}px`);
-    els.appToolDock.style.setProperty("--workspace-tool-dock-top", `${Math.round(top)}px`);
   }
 
   function mountFullscreenToolDock() {
@@ -727,7 +681,6 @@ const evidenceExtraction = Reflect.get(
     updatePresentationStageLayout();
     timelineView?.refreshLayout?.();
     presentationMap?.refresh?.();
-    positionWorkspaceToolDock();
     positionViewControls();
     if (recenterGraph) temporalGraphView?.refreshLayout?.();
   }
@@ -3730,28 +3683,12 @@ const evidenceExtraction = Reflect.get(
     viewControlsResizeObserver.observe(els.viewControlsToggle);
   }
 
-  if ("ResizeObserver" in globalThis && els.appToolDock && els.projectMenuToggle) {
-    workspaceToolDockResizeObserver = new ResizeObserver(() => {
-      positionWorkspaceToolDock();
-    });
-    workspaceToolDockResizeObserver.observe(els.appToolDock);
-    workspaceToolDockResizeObserver.observe(els.projectMenuToggle);
-  }
-
-  document.fonts?.ready?.then(() => {
-    positionWorkspaceToolDock();
-  });
-
   updatePresentationStageLayout();
   requestAnimationFrame(() => {
-    positionWorkspaceToolDock();
     positionViewControls();
   });
-  window.addEventListener("resize", positionWorkspaceToolDock);
   window.addEventListener("resize", positionViewControls);
-  window.visualViewport?.addEventListener("resize", positionWorkspaceToolDock);
   window.visualViewport?.addEventListener("resize", positionViewControls);
-  window.visualViewport?.addEventListener("scroll", positionWorkspaceToolDock);
   window.visualViewport?.addEventListener("scroll", positionViewControls);
 
   function collapseAllCategories() {
