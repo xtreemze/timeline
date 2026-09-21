@@ -39,7 +39,8 @@ test.describe('Timeline Layout', () => {
 
     const toolDock = page.locator('.app-tool-dock');
     const actions = toolDock.locator(':scope > .app-tool');
-    await expect(actions).toHaveCount(3);
+    await expect(actions).toHaveCount(4);
+    await expect(toolDock.locator('#project-menu-toggle')).toBeVisible();
     await expect(toolDock.locator('#editor-toggle')).toBeVisible();
     await expect(toolDock.locator('#timeline-browser-toggle')).toBeVisible();
     await expect(toolDock.locator('#timeline-view-controls-toggle')).toBeVisible();
@@ -92,12 +93,55 @@ test.describe('Timeline Layout', () => {
     expect(browserBox?.width).toBeGreaterThan(viewport.width * 0.9);
     await page.locator('#timeline-browser-close').click();
 
-    await page.locator('#project-menu-toggle').click();
-    await expectInsideViewport('#project-menu:popover-open');
+    const projectButton = page.locator('#project-menu-toggle');
+    await expect(projectButton).toBeVisible();
+    await expect(projectButton).toHaveAttribute('aria-expanded', 'false');
+    await projectButton.click();
+    const projectMenuBox = await expectInsideViewport('#project-menu:popover-open');
+    const projectButtonBox = await projectButton.boundingBox();
+    expect(projectMenuBox?.width).toBeLessThanOrEqual(viewport.width - 16);
+    expect(projectMenuBox?.height).toBeLessThanOrEqual(viewport.height - 16);
+    expect((projectMenuBox?.y ?? 0) + (projectMenuBox?.height ?? 0)).toBeLessThanOrEqual(
+      (projectButtonBox?.y ?? viewport.height) - 7,
+    );
+    await expect(projectButton).toHaveAttribute('aria-expanded', 'true');
     await page.keyboard.press('Escape');
+    await expect(projectButton).toHaveAttribute('aria-expanded', 'false');
 
     await page.locator('#timeline-view-controls-toggle').click();
     await expectInsideViewport('#timeline-view-toolbar:popover-open');
+  });
+
+  test('Project footer menu stays clamped on compact visual viewports', async ({ page }) => {
+    for (const viewport of [
+      { width: 320, height: 568 },
+      { width: 390, height: 844 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto('/');
+
+      const toolDock = page.locator('.app-tool-dock');
+      const projectButton = toolDock.locator('#project-menu-toggle');
+      await expect(projectButton).toBeVisible();
+      await projectButton.click();
+
+      const menu = page.locator('#project-menu:popover-open');
+      await expect(menu).toBeVisible();
+      const [menuBox, buttonBox] = await Promise.all([
+        menu.boundingBox(),
+        projectButton.boundingBox(),
+      ]);
+      expect(menuBox).not.toBeNull();
+      expect(buttonBox).not.toBeNull();
+      expect(menuBox?.x).toBeGreaterThanOrEqual(7);
+      expect(menuBox?.y).toBeGreaterThanOrEqual(7);
+      expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width - 7);
+      expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(
+        (buttonBox?.y ?? viewport.height) - 7,
+      );
+
+      await page.keyboard.press('Escape');
+    }
   });
 
   test('fullscreen presentation fills viewport while keeping controls accessible', async ({
