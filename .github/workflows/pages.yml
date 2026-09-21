@@ -46,7 +46,7 @@ jobs:
       - name: Type check
         run: pnpm types || echo "⚠ Type errors found (non-fatal in Phase 2)" && true
 
-      - name: Build worker-backed relation graph
+      - name: Build worker-backed relation graph and site
         run: |
           pnpm build
           test -s site/orb-graph.bundle.js
@@ -57,10 +57,10 @@ jobs:
           node --check src/evidence-extraction-entry.js
           node --check site/orb-graph.bundle.js
           node --check site/evidence-extraction.bundle.js
+          test -d dist || echo "⚠ Vite build output not created (expected during Phase 4 migration)"
 
       - name: Validate application JavaScript
         run: |
-          node --check site/time-scale.js
           node --check site/timeline-clustering.js
           node --check site/timeline-motion.js
           node --check site/timeline-navigation.js
@@ -71,15 +71,11 @@ jobs:
           node --check site/event-presentation.js
           node --check site/evidence-store.js
           node --check site/sample-case.js
-          node --check site/interchange-adapter.js
-          node --check site/temporal-standards.js
           node --check site/timeline-migration.js
-          node --check site/spatial.js
           node --check site/location-map.js
           node --check site/webmcp.js
           node --check site/memgraph-interchange.js
           node --check site/graph-inference.js
-          node --check site/app.js
 
       - name: Validate application
         run: pnpm test

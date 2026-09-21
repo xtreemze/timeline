@@ -8,7 +8,9 @@
     "pnpm": ">=12.0.0"
   },
   "scripts": {
-    "build": "pnpm build:graph",
+    "dev": "vite",
+    "preview": "vite preview",
+    "build": "pnpm build:graph && vite build",
     "build:graph": "esbuild src/orb-graph-entry.js --bundle --format=iife --platform=browser --target=chrome155 --outfile=site/orb-graph.bundle.js --legal-comments=eof",
     "test": "node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/timeline-interaction.test.mjs tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/event-focus-form.test.mjs tests/evidence-store.test.mjs tests/sample-case.test.mjs tests/timeline-navigation.test.mjs tests/temporal-graph-view.test.mjs tests/graph-camera-fit.test.mjs tests/graph-component-packing.test.mjs tests/graph-editor.test.mjs tests/case-reasoning.test.mjs tests/location-map-camera.test.mjs tests/webmcp.test.mjs",
     "test:e2e": "playwright test",
@@ -31,6 +33,7 @@
     "@types/node": "^26.6.2",
     "esbuild": "0.28.2",
     "eslint": "^10.11.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0"
   }
 }
