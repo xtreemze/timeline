@@ -116,7 +116,7 @@ export function chooseStableLane(
   if (Number.isInteger(previousLane) && legal.includes(Number(previousLane))) {
     return Number(previousLane);
   }
-  return legal[0]!;
+  return legal[0] ?? 0;
 }
 
 export function geometryMeasurementKey(
@@ -184,7 +184,11 @@ function clusterGroups(
       current = [occurrence];
       continue;
     }
-    const previousOccurrence = current[current.length - 1]!;
+    const previousOccurrence = current.at(-1);
+    if (!previousOccurrence) {
+      current = [occurrence];
+      continue;
+    }
     const previousPosition = positions.get(previousOccurrence.id) ?? 0;
     const position = positions.get(occurrence.id) ?? 0;
     const wasClustered = previousPairs.has(pairKey(previousOccurrence.id, occurrence.id));
