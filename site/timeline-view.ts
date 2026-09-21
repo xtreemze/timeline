@@ -267,7 +267,6 @@ class TimelineViewController {
   semanticList: HTMLOListElement;
   items: TimelineItem[] = [];
   relationships: TimelineRelationshipBand[] = [];
-  savedFocusElement: HTMLElement | null = null;
   allCoordinates: number[] = [];
   viewport: TemporalWindow = { start: 0, end: DEFAULT_SPAN_MS };
   renderWindow: TemporalWindow = { start: 0, end: DEFAULT_SPAN_MS };
@@ -726,18 +725,6 @@ class TimelineViewController {
       if (this.pointerDrag || this.pinch || this.touchPointers.size) abortSurfaceGesture();
     });
 
-    this.surface.addEventListener("mousedown", (event) => {
-      if (document.activeElement instanceof HTMLElement && document.activeElement !== this.surface) {
-        this.savedFocusElement = document.activeElement;
-      }
-    });
-
-    this.surface.addEventListener("mouseup", () => {
-      if (this.savedFocusElement && document.activeElement === this.surface) {
-        this.savedFocusElement.focus({ preventScroll: true });
-        this.savedFocusElement = null;
-      }
-    });
 
     this.surface.addEventListener("keydown", (event) => {
       if (!this.items.length) return;
