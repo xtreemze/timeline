@@ -938,7 +938,7 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
 export function relationshipWindowState(
   relationship: Relationship | null | undefined,
   viewport: TemporalViewport | null | undefined,
-  temporal?: TemporalAdapter | null,
+  temporal: TemporalAdapter | null = globalThis.TimelineTemporal,
 ): "timeless" | "unknown" | "active" | "inactive" {
   if (!relationship) return "inactive";
   if (!relationship.time) return "timeless";
