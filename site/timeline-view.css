@@ -5120,12 +5120,40 @@
   pointer-events: none;
 }
 
-.timeline-event-terminal:is(:hover, :focus-visible) {
+.timeline-event-connector,
+.timeline-event-connector-turn,
+.timeline-event-dot,
+.timeline-event-terminal,
+.timeline-range-segment {
+  transition:
+    opacity 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.timeline-event:is(.is-hovered, .is-focused, .is-selected) .timeline-event-terminal,
+.timeline-range-segment:is(.is-hovered, .is-focused, .is-selected) {
   border-color: var(--event-color);
   background: color-mix(in srgb, var(--paper) 90%, var(--event-color));
   box-shadow:
     0 0 0 2px color-mix(in srgb, var(--event-color) 13%, transparent),
     0 5px 16px color-mix(in srgb, var(--event-color) 12%, transparent);
+}
+
+.timeline-event:is(.is-hovered, .is-focused, .is-selected) .timeline-event-dot {
+  transform: scale(1.08);
+}
+
+.timeline-event:is(.is-hovered, .is-focused, .is-selected) .timeline-event-connector,
+.timeline-event:is(.is-hovered, .is-focused, .is-selected) .timeline-event-connector-turn {
+  opacity: 1;
+}
+
+.timeline-view[data-scene-state="interacting"] .timeline-event.is-hovered,
+.timeline-view[data-scene-state="interacting"] .timeline-range-segment.is-hovered {
+  pointer-events: none;
 }
 
 .timeline-view[data-scene-state="interacting"] .timeline-event-terminal,

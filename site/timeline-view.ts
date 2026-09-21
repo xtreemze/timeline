@@ -389,6 +389,7 @@ class TimelineViewController {
 
   beginInteraction(): void {
     if (this.retention.active) return;
+    this.clearHoverStates();
     this.renderWindow = createRenderWindow(this.viewport, {
       overscanRatio: OVERSCAN_RATIO,
       velocityTemporalPerMs: this.interactionVelocity,
@@ -522,8 +523,43 @@ class TimelineViewController {
 
     this.stage.append(node);
     const record = { item, node, terminal, range, copy };
+    this.bindRecordInteractionTarget(record, terminal);
+    if (range) this.bindRecordInteractionTarget(record, range);
     this.updateRecordContent(record);
     return record;
+  }
+
+  bindRecordInteractionTarget(record: SceneRecord, target: HTMLButtonElement): void {
+    target.addEventListener("pointerenter", () => {
+      if (this.retention.active) return;
+      this.setRecordInteractionState(record, "hovered", true);
+    });
+    target.addEventListener("pointerleave", () => {
+      this.setRecordInteractionState(record, "hovered", false);
+    });
+    target.addEventListener("focus", () => {
+      this.setRecordInteractionState(record, "focused", true);
+    });
+    target.addEventListener("blur", () => {
+      this.setRecordInteractionState(record, "focused", false);
+    });
+  }
+
+  setRecordInteractionState(
+    record: SceneRecord,
+    state: "hovered" | "focused",
+    active: boolean,
+  ): void {
+    const className = `is-${state}`;
+    record.node.classList.toggle(className, active);
+    record.range?.classList.toggle(className, active);
+  }
+
+  clearHoverStates(): void {
+    for (const record of this.scene.values()) {
+      record.node.classList.remove("is-hovered");
+      record.range?.classList.remove("is-hovered");
+    }
   }
 
   updateRecordContent(record: SceneRecord): void {
@@ -533,7 +569,9 @@ class TimelineViewController {
     node.dataset.connectorStyle = item.connectorStyle || "solid";
     node.dataset.connectorRouting = item.connectorRouting || "straight";
     node.dataset.connectorEndpoint = item.connectorEndpoint || "none";
-    node.classList.toggle("is-selected", item.id === this.focusedId);
+    const selected = item.id === this.focusedId;
+    node.classList.toggle("is-selected", selected);
+    range?.classList.toggle("is-selected", selected);
 
     const strong = copy.querySelector("strong") || document.createElement("strong");
     strong.textContent = item.title || item.id;
