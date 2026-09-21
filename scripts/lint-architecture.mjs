@@ -98,6 +98,30 @@ function maxWidthMedia(source) {
   return distribution(matches);
 }
 
+
+function viewportWidthSizing(source) {
+  const matches = [];
+  const pattern = /\b(?:width|inline-size|min-width|min-inline-size|max-width|max-inline-size)\s*:\s*[^;{}]*\b100vw\b[^;{}]*;/gi;
+  for (const match of source.matchAll(pattern)) matches.push(match[0]);
+  return distribution(matches);
+}
+
+function overflowXHidden(source) {
+  const matches = [];
+  const pattern = /\boverflow-x\s*:\s*hidden\s*;/gi;
+  for (const match of source.matchAll(pattern)) matches.push(match[0]);
+  return distribution(matches);
+}
+
+function rootMinWidth(source) {
+  const matches = [];
+  for (const block of source.matchAll(/body\s*\{([^{}]*)\}/gi)) {
+    const declaration = block[1].match(/\bmin-width\s*:\s*[^;{}]+;/i);
+    if (declaration) matches.push(declaration[0]);
+  }
+  return distribution(matches);
+}
+
 function physicalInlineProperties(source) {
   const matches = [];
   const pattern = /\b(?:margin|padding)-(?:left|right)\s*:/g;
@@ -112,6 +136,9 @@ function lintCss(file, source) {
     maxWidthMedia: {},
     hoverOnlySelectors: {},
     physicalInlineProperties: {},
+    viewportWidthSizing: {},
+    overflowXHidden: {},
+    rootMinWidth: {},
     legacy100vh: 0,
   };
 
@@ -127,6 +154,25 @@ function lintCss(file, source) {
     "prefer-logical-properties",
     physicalInlineProperties(source),
     debt.physicalInlineProperties || {},
+  );
+
+  compareExactDebt(
+    file,
+    "no-viewport-width-sizing",
+    viewportWidthSizing(source),
+    debt.viewportWidthSizing || {},
+  );
+  compareExactDebt(
+    file,
+    "no-horizontal-overflow-masking",
+    overflowXHidden(source),
+    debt.overflowXHidden || {},
+  );
+  compareExactDebt(
+    file,
+    "no-root-min-width",
+    rootMinWidth(source),
+    debt.rootMinWidth || {},
   );
 
   const vh = countMatches(source, /\b100vh\b/g);
@@ -197,8 +243,11 @@ function lintTypeScript(file, source) {
     baseline.architecture?.directCanonicalMutations?.[file] || 0,
   );
 
-  if (/@ts-(?:ignore|nocheck)\b/.test(source)) {
-    report(file, "no-ts-suppression", "@ts-ignore and @ts-nocheck are forbidden");
+  if (/@ts-(?:ignore|nocheck|expect-error)\b/.test(source)) {
+    report(file, "no-ts-suppression", "@ts-ignore, @ts-nocheck, and @ts-expect-error are forbidden; model the uncertainty explicitly");
+  }
+  if (/\bas\s+unknown\s+as\s+[A-Za-z_$<{[(]/.test(source)) {
+    report(file, "no-double-assertion", "double assertions through unknown are forbidden; validate or narrow at the boundary");
   }
   if (/matchMedia\s*\(\s*["'`][^"'`]*(?:max-width|width\s*(?:<=|<))/.test(source)) {
     report(
@@ -275,6 +324,27 @@ function lintArchitectureBoundaries(file, source) {
   }
 }
 
+function lintResponsiveScriptPolicy(file, source) {
+  if (/\bnavigator\.(?:userAgent|platform|vendor|userAgentData)\b/.test(source)) {
+    report(file, "no-device-sniffing", "user-agent/platform sniffing is forbidden; use capability detection and progressive enhancement");
+  }
+  if (
+    /matchMedia\s*\(\s*["'`][^"'`]*(?:max-width|width\s*(?:<=|<))/.test(source) ||
+    /\b(?:window\.|globalThis\.)?innerWidth\s*(?:<=|<|>=|>)\s*\d/.test(source) ||
+    /\bdocument\.documentElement\.clientWidth\s*(?:<=|<|>=|>)\s*\d/.test(source) ||
+    /\bscreen\.(?:width|availWidth)\s*(?:<=|<|>=|>)\s*\d/.test(source)
+  ) {
+    report(
+      file,
+      "no-js-layout-breakpoints",
+      "layout breakpoints belong in CSS/container queries; JavaScript may measure geometry but must not branch on viewport-size thresholds",
+    );
+  }
+  if (/["']ontouchstart["']\s+in\s+(?:window|globalThis)/.test(source)) {
+    report(file, "no-touch-presence-sniffing", "do not infer interaction mode from ontouchstart; use Pointer Events/capability queries");
+  }
+}
+
 function lintScriptSafety(file, source) {
   if (/\.innerHTML\s*=|\.outerHTML\s*=|\.insertAdjacentHTML\s*\(|document\.write\s*\(/.test(source)) {
     report(file, "no-unsafe-dom-html", "HTML string injection APIs are forbidden");
@@ -310,6 +380,7 @@ for (const file of files) {
     lintArchitectureBoundaries(file, source);
   }
   if (/\.(?:js|mjs|ts)$/.test(file)) {
+    lintResponsiveScriptPolicy(file, source);
     lintScriptSafety(file, source);
     lintDisableComments(file, source);
   }
