@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 globalThis.document = { baseURI: "https://example.test/" };
-await import("../site/date-range-picker.js");
+await import("../site/date-range-picker-shim.ts");
 await import("../site/event-presentation-shim.ts");
 
 const picker = globalThis.TimelineDateRangePicker;
