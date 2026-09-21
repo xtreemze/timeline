@@ -82,6 +82,24 @@ test("inference remains reviewable and stale proposals cannot mutate canonical s
   );
 });
 
+
+test("app migration preserves the established default category fallback", async () => {
+  const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
+  for (const id of [
+    "incident",
+    "witness",
+    "communication",
+    "evidence",
+    "document",
+    "decision",
+    "transaction",
+    "observation",
+  ]) {
+    assert.match(app, new RegExp(`id: ["']${id}["']`));
+  }
+  assert.match(app, /categories:\s*clone\(DEFAULT_CATEGORIES\)/);
+});
+
 test("story place selections are normalized, edited, and saved", async () => {
   const [html, app] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
