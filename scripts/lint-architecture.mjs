@@ -63,8 +63,8 @@ function compareExactDebt(file, rule, actual, allowed) {
 function hoverOnlySelectors(source) {
   const selectors = [];
   const rulePattern = /([^{}]+)\{[^{}]*\}/g;
-  let match;
-  while ((match = rulePattern.exec(source))) {
+  let match = rulePattern.exec(source);
+  while (match) {
     const selector = normalize(match[1]);
     if (
       selector.includes(":hover") &&
@@ -74,6 +74,7 @@ function hoverOnlySelectors(source) {
     ) {
       selectors.push(selector);
     }
+    match = rulePattern.exec(source);
   }
   return distribution(selectors);
 }
@@ -141,7 +142,7 @@ function lintTypeScript(file, source) {
   const metrics = {
     any: countMatches(source, /\bany\b/g),
     asAny: countMatches(source, /\bas\s+any\b/g),
-    nonNull: countMatches(source, /[A-Za-z0-9_\]\)]!([.;,\)\]\?:]|$)/g),
+    nonNull: countMatches(source, /[A-Za-z0-9_\]\)]!([.;,)\]?:]|$)/g),
   };
 
   for (const [metric, current] of Object.entries(metrics)) {
@@ -193,8 +194,8 @@ function lintTypeScript(file, source) {
 
 function lintDisableComments(file, source) {
   const pattern = /\/\/\s*eslint-disable(?:-next-line|-line)?\s+([^\n]+)/g;
-  let match;
-  while ((match = pattern.exec(source))) {
+  let match = pattern.exec(source);
+  while (match) {
     if (!match[1].includes("--")) {
       report(
         file,
@@ -202,6 +203,7 @@ function lintDisableComments(file, source) {
         "eslint-disable comments must include a '-- reason' explanation",
       );
     }
+    match = pattern.exec(source);
   }
 }
 
