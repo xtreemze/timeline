@@ -17,6 +17,7 @@ import type { EntityId, RelationshipId } from "../domain/ids.ts";
 /**
  * Represents what Orb expects internally.
  * We keep this separate from GraphProjection to translate between domains.
+ * Critical: start/end are NODE IDs (topology), not temporal values.
  */
 interface OrbNode {
   id: string | number;
@@ -25,9 +26,9 @@ interface OrbNode {
 
 interface OrbEdge {
   id: string | number;
-  start: number;
-  end: number;
-  temporalState?: string;
+  start: string | number; // source node ID
+  end: string | number; // target node ID
+  properties?: Record<string, any>; // temporal/metadata info
 }
 
 interface OrbData {
@@ -79,7 +80,8 @@ export class OrbGraphSurface implements GraphSurface {
   }
 
   private translateProjectionToOrb(projection: GraphProjection): OrbData {
-    // Convert Timeline's canonical projection to Orb's internal format
+    // Convert Timeline's canonical projection to Orb's internal format.
+    // Critical: preserve graph topology (sourceId → start, targetId → end).
     const nodes: OrbNode[] = projection.nodes.map((node) => ({
       id: node.id,
       properties: {
@@ -90,9 +92,14 @@ export class OrbGraphSurface implements GraphSurface {
 
     const edges: OrbEdge[] = projection.edges.map((edge) => ({
       id: edge.id,
-      start: edge.startTime ?? 0,
-      end: edge.endTime ?? 0,
-      temporalState: edge.temporalState,
+      start: edge.sourceId, // node ID, not temporal value
+      end: edge.targetId, // node ID, not temporal value
+      properties: {
+        label: edge.label,
+        temporalState: edge.temporalState,
+        startTime: edge.startTime,
+        endTime: edge.endTime,
+      },
     }));
 
     return { nodes, edges };
@@ -148,9 +155,14 @@ export class OrbGraphSurface implements GraphSurface {
   updateTemporalEdges(edges: readonly GraphEdgeProjection[]): void {
     const orbEdges: OrbEdge[] = edges.map((edge) => ({
       id: edge.id,
-      start: edge.startTime ?? 0,
-      end: edge.endTime ?? 0,
-      temporalState: edge.temporalState,
+      start: edge.sourceId, // preserve topology
+      end: edge.targetId, // preserve topology
+      properties: {
+        label: edge.label,
+        temporalState: edge.temporalState,
+        startTime: edge.startTime,
+        endTime: edge.endTime,
+      },
     }));
     this.orb.updateTemporalEdges(orbEdges);
   }
@@ -169,12 +181,14 @@ export class OrbGraphSurface implements GraphSurface {
 
   setCamera(camera: CameraState): void {
     this.camera = { ...camera };
-    // TODO: Implement camera positioning in Orb when that capability is available
+    // Note: Orb manages camera internally. This stores state for potential restoration.
+    // To reposition, use recenter() or Orb's zoom/pan gestures.
   }
 
   fit(): void {
     this.camera = { x: 0, y: 0, z: 1 };
-    // TODO: Implement fit-to-bounds in Orb when available
+    // Note: Orb manages camera internally. Reset to default zoom.
+    // To auto-fit all nodes, Orb provides auto-centering on setData/transitionData.
   }
 
   recenter(): void {
@@ -204,20 +218,21 @@ export class OrbGraphSurface implements GraphSurface {
   }
 }
 
-export function createOrbGraphSurfaceFactory(): {
+/**
+ * Factory for creating GraphSurface implementations backed by Orb.
+ * Requires the OrbFactory to be provided (not looked up from global scope).
+ */
+export function createOrbGraphSurfaceFactory(orbFactory: OrbFactory): {
   create: (
     container: HTMLElement,
     eventListener: GraphSurfaceEventListener,
   ) => GraphSurface;
 } {
-  // This factory will be wired in the application layer to get the actual Orb factory
+  if (!orbFactory) {
+    throw new Error("OrbFactory must be provided to createOrbGraphSurfaceFactory.");
+  }
   return {
     create: (container: HTMLElement, eventListener: GraphSurfaceEventListener) => {
-      // Get the bundled Orb factory from global scope (loaded via <script>)
-      const orbFactory = (globalThis as any).TimelineOrbGraph as OrbFactory;
-      if (!orbFactory) {
-        throw new Error("Orb factory must be loaded before creating OrbGraphSurface.");
-      }
       return new OrbGraphSurface(container, orbFactory, eventListener);
     },
   };

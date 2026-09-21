@@ -14,6 +14,7 @@ import type {
   GraphSurfaceEventListener,
   GraphSurfaceFactory,
 } from "../src/layout/graph-surface.ts";
+import { createOrbGraphSurfaceFactory } from "../src/layout/orb-graph-surface.ts";
 import { entityId, relationshipId } from "../src/domain/ids.ts";
 import type { EntityId, RelationshipId } from "../src/domain/ids.ts";
 
@@ -324,12 +325,13 @@ class TemporalGraphViewController {
 
     const edges: GraphEdgeProjection[] = data.edges.map((edge) => ({
       id: relationshipId(String(edge.id)),
-      sourceId: entityId(String((edge as any).sourceId || "unknown")),
-      targetId: entityId(String((edge as any).targetId || "unknown")),
+      // Graph topology uses edge.start/end as node IDs (not temporal values)
+      sourceId: entityId(String(edge.start || "unknown")),
+      targetId: entityId(String(edge.end || "unknown")),
       label: (edge as any).label || String(edge.id),
       temporalState: edge.temporalState as "timeless" | "temporal" | undefined,
-      startTime: edge.start,
-      endTime: edge.end,
+      startTime: (edge as any).startTime,
+      endTime: (edge as any).endTime,
     }));
 
     return {
@@ -344,13 +346,8 @@ export function create(root: HTMLElement | null): TemporalGraphViewController | 
   if (!root) return null;
 
   // Create a factory using the existing Orb renderer
-  const surfaceFactory: GraphSurfaceFactory = {
-    create: (container: HTMLElement, eventListener: GraphSurfaceEventListener) => {
-      const orbFactory = getOrbFactory();
-      const { OrbGraphSurface } = require("../src/layout/orb-graph-surface.ts");
-      return new OrbGraphSurface(container, orbFactory, eventListener);
-    },
-  };
+  const orbFactory = getOrbFactory();
+  const surfaceFactory = createOrbGraphSurfaceFactory(orbFactory);
 
   return new TemporalGraphViewController(root, surfaceFactory);
 }
