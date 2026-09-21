@@ -17,6 +17,7 @@ import type { EntityId, RelationshipId } from "../domain/ids.ts";
 
 interface OrbNode {
   id: string | number;
+  label?: string;
   properties?: Readonly<Record<string, unknown>>;
 }
 
@@ -78,8 +79,8 @@ function projectionToOrb(projection: GraphProjection): OrbData {
   return {
     nodes: projection.nodes.map((node) => ({
       id: node.id,
+      label: node.label,
       properties: {
-        label: node.label,
         timelineType: node.kind ?? "entity",
       },
     })),
