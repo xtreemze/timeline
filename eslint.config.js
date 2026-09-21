@@ -149,7 +149,7 @@ export default [
       "no-useless-concat": "error",
       "no-useless-rename": "error",
       "no-useless-return": "error",
-      "no-void": "error",
+      "no-void": "off", // void is the explicit marker for intentionally ignored async work
       "object-shorthand": ["error", "always"],
       "prefer-exponentiation-operator": "error",
       "prefer-numeric-literals": "error",
@@ -159,6 +159,13 @@ export default [
       radix: "error",
       "symbol-description": "error",
       yoda: "error",
+    },
+  },
+  {
+    files: ["tests/**/*.mjs"],
+    rules: {
+      "no-script-url": "off", // security tests intentionally construct unsafe protocol fixtures
+      "no-template-curly-in-string": "off", // source-contract tests intentionally match literal template syntax
     },
   },
 ];
