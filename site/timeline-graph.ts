@@ -1065,6 +1065,7 @@ export function neighborhoodGraph(
   const contextEdges = data.edges.filter((edge) => {
     const itemIds = Array.isArray(edge.properties?.itemIds) ? edge.properties.itemIds : [];
     return (
+      String(edge.id) === root ||
       itemIds.some((id) => String(id) === root) ||
       rootChangeIds.has(String(edge.id))
     );
