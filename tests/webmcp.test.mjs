@@ -221,12 +221,12 @@ test("Memgraph MCP query rows import back into the matching Timeline collections
 test("browser runtime loads WebMCP before app and wires tools to canonical persistence/rendering", async () => {
   const [html, app, webmcpSource, memgraphSource] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/webmcp.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/memgraph-interchange.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(html, /memgraph-interchange\.js[\s\S]*webmcp\.js[\s\S]*app\.js/);
+  assert.match(html, /memgraph-interchange-shim\\.ts[\\s\\S]*webmcp-shim\\.ts[\\s\\S]*app\\.ts/);
   assert.match(webmcpSource, /document\?\.modelContext|globalThis\.document\?\.modelContext/);
   assert.match(webmcpSource, /timeline\.get_graph_contract/);
   assert.match(webmcpSource, /timeline\.audit_graph/);
