@@ -10,6 +10,8 @@ const TOUCH_EDGE_TARGET_RADIUS_PX = 22;
 const TOUCH_DOUBLE_TAP_MS = 320;
 const TOUCH_DOUBLE_TAP_DISTANCE_PX = 28;
 const GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX = -500;
+const GRAPH_MIN_ZOOM = 0.002;
+const GRAPH_MAX_ZOOM = 4;
 const GRAPH_KEYBOARD_PAN_PX = 72;
 const INTERACTION_SETTLE_MS = 2400;
 const DRAG_ALPHA_TARGET = 0.12;
@@ -120,8 +122,8 @@ function create(container, handlers = {}) {
       type: "canvas",
       backgroundColor: null,
       fitZoomMargin: 0.14,
-      minZoom: 0.002,
-      maxZoom: 12,
+      minZoom: GRAPH_MIN_ZOOM,
+      maxZoom: GRAPH_MAX_ZOOM,
       labelsIsEnabled: true,
       labelsOnEventIsEnabled: true,
       shadowIsEnabled: false,
@@ -333,15 +335,36 @@ function create(container, handlers = {}) {
     orb.setSettings({ interaction: { isDragEnabled: enabled } });
   }
 
+  function clampCameraTransform(transform) {
+    if (
+      !transform ||
+      typeof transform.scale !== "function" ||
+      !Number.isFinite(transform.k) ||
+      transform.k <= 0
+    ) {
+      return null;
+    }
+    const boundedScale = Math.min(GRAPH_MAX_ZOOM, Math.max(GRAPH_MIN_ZOOM, transform.k));
+    if (Math.abs(boundedScale - transform.k) < 1e-9) return transform;
+    return transform.scale(boundedScale / transform.k);
+  }
+
   function syncCameraZoomState() {
     const canvas = orb.canvas;
-    const transform = orb?._renderer?.transform;
-    if (!canvas || !transform) return;
+    const renderer = orb?._renderer;
+    const transform = clampCameraTransform(renderer?.transform);
+    if (!canvas || !transform) {
+      if (canvas && renderer?.transform && (!Number.isFinite(renderer.transform.k) || renderer.transform.k <= 0)) {
+        orb.recenter();
+      }
+      return;
+    }
     // D3 zoom updates canvas.__zoom before Orb's zoom callback runs. When
     // camera ownership is disabled, Orb intentionally ignores that callback,
     // so reset D3's private state to the renderer's authoritative transform
     // before changing ownership to avoid a jump on the next touch gesture.
     canvas.__zoom = transform;
+    if (renderer && renderer.transform !== transform) renderer.transform = transform;
   }
 
   function setZoomEnabled(enabled) {
@@ -377,16 +400,8 @@ function create(container, handlers = {}) {
 
   function applyCameraPan(deltaX, deltaY) {
     const canvas = orb.canvas;
-    const transform = canvas?.__zoom || orb?._renderer?.transform;
-    if (
-      !canvas ||
-      !transform ||
-      typeof transform.translate !== "function" ||
-      !Number.isFinite(transform.k) ||
-      transform.k <= 0
-    ) {
-      return false;
-    }
+    const transform = clampCameraTransform(canvas?.__zoom || orb?._renderer?.transform);
+    if (!canvas || !transform || typeof transform.translate !== "function") return false;
     markCameraOwnedByUser();
     const next = transform.translate(deltaX / transform.k, deltaY / transform.k);
     canvas.__zoom = next;
