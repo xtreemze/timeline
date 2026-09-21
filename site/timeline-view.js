@@ -96,6 +96,21 @@
     return visibleStart + (visibleEnd - visibleStart) / 2;
   }
 
+  function itemOverlapsViewport(item, viewport) {
+    if (
+      !item ||
+      !viewport ||
+      !Number.isFinite(item.start) ||
+      !Number.isFinite(viewport.start) ||
+      !Number.isFinite(viewport.end) ||
+      viewport.end < viewport.start
+    ) {
+      return false;
+    }
+    const end = Number.isFinite(item.end) ? item.end : item.start;
+    return end >= viewport.start && item.start <= viewport.end;
+  }
+
   function connectorSegment(axisCoordinate, terminalCoordinate) {
     const delta = Number(axisCoordinate) - Number(terminalCoordinate);
     if (!Number.isFinite(delta)) throw new TypeError("Connector coordinates must be finite.");
@@ -776,9 +791,9 @@
       const normalized = clamp(Number(value), 0, 100);
       if (normalized <= 2) return "Whole context";
       if (Math.abs(normalized - 50) <= 2) return "Focused event plus two neighboring events";
-      if (normalized >= 98) return "Focused event only";
+      if (normalized >= 98) return "Focused time window";
       if (normalized < 50) return `Context to focus, ${Math.round(normalized)} percent`;
-      return `Focus to solo, ${Math.round(normalized)} percent`;
+      return `Focus to isolate, ${Math.round(normalized)} percent`;
     }
 
     setSemanticZoom(value) {
@@ -1450,13 +1465,8 @@
       const axis = createElement("div", "timeline-axis");
       stage.append(axis);
 
-      const soloItemId = this.soloZoomActive ? String(this.semanticZoomAnchorItem()?.id || "") : "";
       const visibleItems = this.items
-        .filter((item) => {
-          const end = Number.isFinite(item.end) ? item.end : item.start;
-          const overlaps = end >= this.viewport.start && item.start <= this.viewport.end;
-          return overlaps && (!soloItemId || String(item.id) === soloItemId);
-        })
+        .filter((item) => itemOverlapsViewport(item, this.viewport))
         .sort((a, b) => a.start - b.start || a.title.localeCompare(b.title));
 
       let tickSpec = scale.selectTickSpec(this.viewport, usable, 94);
@@ -2635,6 +2645,7 @@
       connectorSegment,
       connectorRouteOffset,
       visibleIntervalAnchor,
+      itemOverlapsViewport,
       wheelZoomFactor
     })
   });
