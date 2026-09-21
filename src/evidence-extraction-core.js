@@ -5,21 +5,14 @@ const MAX_SEGMENT_TEXT = 20000;
 const MAX_PDF_PAGES = 120;
 const MAX_RENDER_PIXELS = 4_000_000;
 
-function clone(value) {
-  try {
-    return JSON.parse(JSON.stringify(value));
-  } catch {
-    return null;
-  }
-}
-
 function text(value, max = MAX_SEGMENT_TEXT) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
 function abortIfNeeded(signal) {
   if (!signal?.aborted) return;
-  if (typeof DOMException === "function") throw new DOMException("The operation was aborted.", "AbortError");
+  if (typeof globalThis.DOMException === "function")
+    throw new globalThis.DOMException("The operation was aborted.", "AbortError");
   const error = new Error("The operation was aborted.");
   error.name = "AbortError";
   throw error;

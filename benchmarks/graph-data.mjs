@@ -1,7 +1,7 @@
 import { performance } from "node:perf_hooks";
 
-await import("../site/temporal-standards.js");
-await import("../site/timeline-graph.js");
+await import("../site/temporal-standards-shim.ts");
+await import("../site/timeline-graph-shim.ts");
 
 const graph = globalThis.TimelineGraph;
 if (!graph) throw new Error("TimelineGraph failed to initialize.");
