@@ -178,6 +178,7 @@ jobs:
       - run: pnpm test:temporal-layout-runtime
       - run: pnpm test:structural-composition-runtime
       - run: pnpm test:retained-timeline-metrics
+      - run: pnpm benchmark:retained-timeline
       - run: pnpm test:touch-runtime-contracts
       - run: pnpm test:temporal-context-runtime
       - run: pnpm test:semantic-hierarchy-runtime

@@ -123,3 +123,39 @@ test("#269 keyboard focus identity survives a buffered camera interaction", asyn
 
   await page.mouse.up();
 });
+
+
+test("#271 live retained renderer reports interaction and commit metrics", async ({ page }) => {
+  const root = page.locator("#tdd-timeline-view");
+  await page.evaluate(() => {
+    globalThis.__retainedStructuralTddController?.resetPerformanceMetrics();
+  });
+
+  const surface = root.locator(".timeline-surface");
+  const box = await surface.boundingBox();
+  if (!box) throw new Error("Timeline surface has no bounding box.");
+
+  await page.mouse.move(box.x + box.width * 0.68, box.y + box.height * 0.58);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.58, box.y + box.height * 0.58, { steps: 4 });
+  await frame(page);
+  await page.mouse.up();
+
+  await page.evaluate(() => {
+    globalThis.__retainedStructuralTddController?.commitInteraction();
+  });
+  await frame(page);
+
+  const summary = await page.evaluate(() =>
+    globalThis.__retainedStructuralTddController?.getPerformanceMetrics(),
+  );
+
+  expect(summary).toBeTruthy();
+  expect(summary.interaction.frameCount).toBeGreaterThan(0);
+  expect(summary.commit.frameCount).toBeGreaterThan(0);
+  expect(summary.interaction.destroyedNodes).toBe(0);
+  expect(summary.retainedPeak).toBeGreaterThan(0);
+  expect(summary.interaction.queryDurationMs).toBeGreaterThanOrEqual(0);
+  expect(summary.commit.plannerDurationMs).toBeGreaterThanOrEqual(0);
+  expect(summary.violations).toEqual([]);
+});
