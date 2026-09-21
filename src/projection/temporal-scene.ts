@@ -9,6 +9,56 @@ export interface TemporalOccurrence {
   readonly end?: number | null;
 }
 
+
+export interface TemporalSceneTickIdentity {
+  readonly unit: string;
+  readonly value: number;
+  readonly label?: string;
+  readonly step?: number;
+}
+
+export interface TemporalSceneAccentIdentity {
+  readonly kind: string;
+  readonly time: number;
+  readonly label?: string;
+}
+
+function canonicalSceneToken(value: string, message: string): string {
+  const token = value.trim();
+  if (!token) throw new Error(message);
+  return token;
+}
+
+export function tickSceneKey(tick: TemporalSceneTickIdentity): string {
+  const unit = canonicalSceneToken(
+    String(tick?.unit || ""),
+    "Tick scene keys require a semantic temporal unit.",
+  );
+  if (!Number.isFinite(tick?.value)) {
+    throw new Error("Tick scene keys require a finite canonical temporal value.");
+  }
+  return `tick:${unit}:${Number(tick.value)}`;
+}
+
+export function temporalAccentSceneKey(accent: TemporalSceneAccentIdentity): string {
+  const kind = canonicalSceneToken(
+    String(accent?.kind || ""),
+    "Temporal accent scene keys require a semantic accent kind.",
+  );
+  if (!Number.isFinite(accent?.time)) {
+    throw new Error("Temporal accent scene keys require a finite canonical temporal value.");
+  }
+  return `accent:${kind}:${Number(accent.time)}`;
+}
+
+export function relationshipBandSceneKey(id: string): string {
+  const canonicalId = canonicalSceneToken(
+    String(id || ""),
+    "Relationship-band scene keys require a stable canonical relationship id.",
+  );
+  return `relationship-band:${canonicalId}`;
+}
+
 export interface RenderWindowOptions {
   readonly overscanRatio?: number;
   readonly velocityTemporalPerMs?: number;
