@@ -2490,7 +2490,7 @@
   height: 1.35rem;
   stroke-width: 2.1;
 }
-.timeline-event-terminal:hover {
+.timeline-event-terminal:is(:hover, :focus-visible) {
   border-color: color-mix(in srgb, var(--event-color, var(--ink)) 62%, var(--line));
   box-shadow: 0 2px 9px rgba(38, 31, 23, 0.06);
 }
@@ -3610,7 +3610,7 @@
   color: var(--focus-chrome-contrast);
 }
 
-.timeline-focus-view[popover] .timeline-focus-close.button.primary:hover {
+.timeline-focus-view[popover] .timeline-focus-close.button.primary:is(:hover, :focus-visible) {
   background: color-mix(in srgb, var(--focus-chrome-color) 84%, var(--paper));
 }
 
@@ -3618,7 +3618,7 @@
   border-color: color-mix(in srgb, var(--focus-chrome-color) 38%, var(--line-strong));
 }
 
-.timeline-focus-view[popover] .button.secondary:hover {
+.timeline-focus-view[popover] .button.secondary:is(:hover, :focus-visible) {
   background: color-mix(in srgb, var(--focus-chrome-color) 9%, var(--paper));
 }
 
