@@ -61,7 +61,7 @@ const CANDIDATES: TickCandidate[] = [
   ["year", 100],
   ["year", 200],
   ["year", 500],
-].map(([unit, step]: [string, number]) => ({
+] satisfies ReadonlyArray<readonly [string, number]>).map(([unit, step]) => ({
   unit,
   step,
   approxMs: approximateMilliseconds(unit, step),
