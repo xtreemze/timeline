@@ -3728,7 +3728,8 @@ body {
     font-size: 0.6rem;
   }
 
-  .app-tool .semantic-icon {
+  .app-tool .semantic-icon,
+  .app-project-tool img {
     width: 20px;
     height: 20px;
   }
