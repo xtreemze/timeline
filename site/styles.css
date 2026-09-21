@@ -537,6 +537,85 @@ geolocation {
   text-align: center;
 }
 .optional-editor > .field-hint { padding: 0 .9rem .9rem; }
+
+.inference-editor[data-stale="true"] {
+  border-style: dashed;
+}
+.inference-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+  padding: .9rem .9rem 0;
+}
+.inference-actions .button {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+}
+.inference-results {
+  display: grid;
+  gap: .55rem;
+  padding: .75rem .9rem .9rem;
+}
+.inference-results:empty {
+  display: none;
+}
+.inference-results h4 {
+  margin: .4rem 0 0;
+  font-size: .72rem;
+  letter-spacing: .02em;
+}
+.inference-summary {
+  margin: 0;
+  color: var(--muted);
+  font: 700 .68rem/1.4 "Monaspace Krypton Timeline", ui-monospace, monospace;
+}
+.inference-candidate,
+.inference-action-candidate {
+  display: grid;
+  gap: .22rem;
+  padding: .62rem .68rem;
+  border: 1px solid var(--line);
+  border-radius: .62rem;
+  background: var(--paper);
+}
+.inference-candidate strong,
+.inference-action-candidate strong {
+  overflow-wrap: anywhere;
+  font-size: .76rem;
+}
+.inference-candidate small,
+.inference-action-candidate small,
+.inference-candidate-meta {
+  color: var(--muted);
+  font-size: .64rem;
+  line-height: 1.45;
+}
+.inference-action-candidate {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  cursor: pointer;
+}
+.inference-action-candidate > input {
+  margin-top: .18rem;
+}
+.inference-action-candidate > span {
+  display: grid;
+  gap: .22rem;
+}
+.inference-unresolved {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+  font-size: .68rem;
+  line-height: 1.5;
+}
+#item-inference-status[data-kind="error"],
+#item-inference-status[data-kind="stale"],
+#item-inference-status[data-kind="unavailable"] {
+  font-weight: 700;
+}
+
 .media-editor,
 .tag-editor,
 .evidence-editor {
@@ -554,6 +633,40 @@ geolocation {
   border: 1px solid var(--line);
   border-radius: .62rem;
   background: var(--paper);
+}
+.evidence-extraction-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+.evidence-extraction-status {
+  color: var(--muted);
+  font-size: .66rem;
+  line-height: 1.4;
+}
+.evidence-extraction-preview {
+  border-top: 1px solid var(--line);
+  padding-top: .55rem;
+}
+.evidence-extraction-preview > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 750;
+}
+.evidence-extraction-preview pre {
+  max-height: 260px;
+  margin: .55rem 0 0;
+  padding: .65rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--line);
+  border-radius: .52rem;
+  background: color-mix(in srgb, var(--paper-2) 82%, transparent);
+  color: var(--ink);
+  font: 500 .66rem/1.5 "Monaspace Krypton Timeline", ui-monospace, monospace;
 }
 .media-editor-row > p {
   grid-column: 1 / -1;
