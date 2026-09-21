@@ -42,7 +42,7 @@ test("#269 keyboard focus identity survives a buffered camera interaction", asyn
 
   const surface = page.locator(".timeline-surface");
   const box = await surface.boundingBox();
-  expect(box).not.toBeNull();
+  if (!box) throw new Error("Timeline surface has no bounding box.");
 
   await page.mouse.move(box.x + box.width * 0.65, box.y + box.height * 0.6);
   await page.mouse.down();
@@ -50,7 +50,10 @@ test("#269 keyboard focus identity survives a buffered camera interaction", asyn
   await frame(page);
 
   const focusedIdentity = await page.evaluate(
-    () => document.activeElement?.dataset?.tddFocusIdentity ?? null,
+    () =>
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement.dataset.tddFocusIdentity ?? null
+        : null,
   );
   expect(focusedIdentity).toBe("keyboard-target");
 
