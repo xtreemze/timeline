@@ -297,6 +297,7 @@ class TimelineViewController {
   pendingQueryDurationMs = 0;
   pendingDirtyMeasurements = 0;
   pendingBufferExpanded = false;
+  pendingInputStartedAt: number | null = null;
   pointerDrag: PointerDragState | null = null;
   touchPointers = new Map<number, TouchPointerState>();
   pinch: PinchState | null = null;
@@ -375,6 +376,7 @@ class TimelineViewController {
         this.beginInteraction();
         this.viewport = next;
         this.interactionVelocity = 0;
+        this.markInputForNextRender();
         this.scheduleRender();
         this.emitViewport(false);
 
@@ -491,6 +493,7 @@ class TimelineViewController {
         };
         this.lastTouchTap = null;
         this.suppressClickUntil = now + CLICK_SUPPRESSION_MS;
+        this.markInputForNextRender();
         this.commitInteraction();
         return true;
       }
@@ -608,6 +611,7 @@ class TimelineViewController {
         const start = this.pinch.anchorTime - nextSpan * geometry.ratio;
         this.viewport = { start, end: start + nextSpan };
         this.interactionVelocity = 0;
+        this.markInputForNextRender();
         this.scheduleRender();
         this.emitViewport(false);
         return;
@@ -638,6 +642,7 @@ class TimelineViewController {
       };
       const pointerVelocity = motion.estimatePointerVelocity(drag.samples);
       this.interactionVelocity = -((pointerVelocity / usable) * span);
+      this.markInputForNextRender();
       this.scheduleRender();
       this.emitViewport(false);
     });
@@ -731,6 +736,7 @@ class TimelineViewController {
       if (event.key === "Home") {
         event.preventDefault();
         this.cancelInertia();
+        this.markInputForNextRender();
         this.fitAll();
         return;
       }
@@ -740,6 +746,7 @@ class TimelineViewController {
         const center = (this.viewport.start + this.viewport.end) / 2;
         const span = Math.max(MIN_SPAN_MS, (this.viewport.end - this.viewport.start) * factor);
         this.viewport = { start: center - span / 2, end: center + span / 2 };
+        this.markInputForNextRender();
         this.commitInteraction();
         return;
       }
@@ -753,6 +760,7 @@ class TimelineViewController {
         const sign = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
         const delta = (this.viewport.end - this.viewport.start) * 0.12 * sign;
         this.viewport = { start: this.viewport.start + delta, end: this.viewport.end + delta };
+        this.markInputForNextRender();
         this.commitInteraction();
       }
     });
@@ -1062,6 +1070,11 @@ class TimelineViewController {
     this.pendingQueryDurationMs = 0;
     this.pendingDirtyMeasurements = 0;
     this.pendingBufferExpanded = false;
+    this.pendingInputStartedAt = null;
+  }
+
+  markInputForNextRender(): void {
+    if (this.pendingInputStartedAt === null) this.pendingInputStartedAt = performance.now();
   }
 
   tickSpecKey(spec: SemanticTickSpec): string {
@@ -1792,10 +1805,15 @@ class TimelineViewController {
   render(): void {
     const phase = this.retention.active ? "interaction" : "commit";
     const started = performance.now();
+    const inputStartedAt = this.pendingInputStartedAt;
     this.renderScene();
+    const finished = performance.now();
+    this.pendingInputStartedAt = null;
     this.performanceMetrics.recordFrame({
       phase,
-      durationMs: performance.now() - started,
+      durationMs: finished - started,
+      inputLatencyMs:
+        inputStartedAt === null ? undefined : Math.max(0, finished - inputStartedAt),
       createdNodes: this.frameCreatedObjects,
       destroyedNodes: this.frameDestroyedObjects,
       retainedNodes: this.retainedObjectCount(),
