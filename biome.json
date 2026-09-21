@@ -18,13 +18,41 @@
     "enabled": true,
     "includes": [
       "site/**/*.ts",
+      "site/**/*.css",
+      "src/**/*.ts",
+      "src/**/*.js",
       "scripts/**/*.mjs"
     ],
     "rules": {
       "preset": "recommended",
+      "suspicious": {
+        "noExplicitAny": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "off"
+      },
       "nursery": {
         "noReturnInFinally": "error"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "site/ui/**",
+        "site/components/**",
+        "src/domain/**",
+        "src/application/**",
+        "src/projection/**"
+      ],
+      "linter": {
+        "rules": {
+          "preset": "all",
+          "nursery": {
+            "recommended": true
+          }
+        }
+      }
+    }
+  ]
 }
