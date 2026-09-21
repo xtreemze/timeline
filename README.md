@@ -344,7 +344,7 @@ Open `http://localhost:8080`.
 For a fast JavaScript syntax check:
 
 ```bash
-node --check site/app.js
+pnpm types:architecture
 ```
 
 ## Backward compatibility
