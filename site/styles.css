@@ -3715,42 +3715,8 @@ body {
   }
 }
 
-@media (max-width: 380px) {
-  .project-menu-toggle {
-    min-width: 44px;
-    width: 44px;
-    padding-inline: 0.35rem;
-  }
-
-  .project-menu-toggle > span:not(.semantic-icon) {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-}
-
 /* Phone command bar refinement: reserve the center for the project title. */
 @media (max-width: 460px) {
-  .project-menu-toggle {
-    position: relative;
-    min-width: 42px;
-    width: 42px;
-    min-height: 38px;
-    padding-inline: 0.3rem;
-  }
-
-  .project-menu-toggle > span:not(.semantic-icon) {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
   .app-command-bar .project-title-field input {
     padding-inline: 0.28rem;
     font-size: clamp(0.78rem, 4vw, 0.9rem);
@@ -4125,10 +4091,6 @@ body {
     min-width: 44px;
     min-height: 44px;
   }
-
-  .project-menu-toggle {
-    min-height: 44px;
-  }
 }
 
 @media (pointer: coarse) and (max-width: 380px) {
@@ -4144,14 +4106,6 @@ body {
   }
 
   .range-calendar-day {
-    min-width: 44px;
-    min-height: 44px;
-  }
-}
-
-@media (pointer: coarse) and (max-width: 460px) {
-  .project-menu-toggle {
-    width: 44px;
     min-width: 44px;
     min-height: 44px;
   }
