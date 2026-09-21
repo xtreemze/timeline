@@ -58,7 +58,7 @@ test("timeline exposes semantic zoom while retaining keyboard fit commands", asy
   const [viewSource, htmlSource, appSource] = await Promise.all([
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(
@@ -143,7 +143,7 @@ test("time labels yield to year context while year overflow stays visible", asyn
 test("browse exposes focusable stories before collapsed focusable categories", async () => {
   const [html, app, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
 
@@ -1065,7 +1065,7 @@ test("timeline CSS uses Monaspace texture healing and metric-aware text trimming
 });
 
 test("app delegates temporal parsing to TimelineTemporal rather than removed legacy parser constants", async () => {
-  const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
   assert.match(source, /temporal\.parse\(value\)/);
   assert.doesNotMatch(source, /DATE_PATTERN/);
   assert.match(source, /temporalRelationProjection\(state\.relationships/);
@@ -1115,7 +1115,7 @@ test("timeline terminals use media thumbnails, semantic badges, and earlier clus
 test("event editor persists configurable terminal and connector presentation into timeline rendering", async () => {
   const [html, app, view, styles] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
@@ -1214,7 +1214,7 @@ test("timeline view assigns automatic lanes and honors a persisted manual lane i
 test("keeps chronological event order available as a semantic keyboard-accessible fallback", async () => {
   const [html, app] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(
@@ -1324,7 +1324,7 @@ test("mobile-first shell keeps primary controls and utility surfaces bounded", a
 test("View toolbar keeps native toggle state while measured coordinates attach it to the trigger", async () => {
   const [htmlSource, appSource, styles, timelineCss] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
@@ -1450,7 +1450,7 @@ test("persistent relation graph fills the stage outside chronology and stays beh
   const [styles, timelineCss, appSource, indexSource, viewSource] = await Promise.all([
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
@@ -1665,7 +1665,7 @@ test("focused event popover keeps event semantics compact and image controls dot
 test("phone portrait keeps a usable chronology rail and opens View controls inward", async () => {
   const [timelineCss, appSource] = await Promise.all([
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
   ]);
   assert.match(timelineCss, /--mobile-relations-inline-rail:\s*clamp\(136px, 38dvw, 168px\)/);
   assert.match(timelineCss, /--mobile-focus-rail:\s*clamp\(136px, 38dvw, 168px\)/);
@@ -1691,7 +1691,7 @@ test("empty phone portrait keeps chronology readable and project tools attached"
   const [timelineCss, viewSource, appSource] = await Promise.all([
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(viewSource, /const isEmpty = !this\.items\.length \|\| !this\.viewport/);
