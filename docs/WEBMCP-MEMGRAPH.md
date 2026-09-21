@@ -27,7 +27,7 @@ WebMCP is an in-page tool registry, not a backend MCP server. It does not itself
 
 ## Registered Timeline tools
 
-Timeline registers six tools.
+Timeline registers eight tools.
 
 ### `timeline.get_project`
 
@@ -44,9 +44,26 @@ Read-only. Returns the complete canonical project:
 - reasoning
 - project extensions
 
+### `timeline.get_graph_contract`
+
+Read-only. Returns the authoritative versioned graph contract used by runtime validation and MCP mutation gates, including:
+
+- one durable entity per node;
+- two different entity endpoints per relationship;
+- action-only predicates with no embedded entity/place/time/context;
+- one directed action fact per edge;
+- canonical time/place placement;
+- chronology-only categories and non-topological stories;
+- event narrative named-entity coverage;
+- the required authoring/audit workflow and valid/invalid examples.
+
+### `timeline.audit_graph`
+
+Read-only. Audits the supplied project, or active project when omitted, without mutation. It returns all graph validation errors plus duplicate/orphan/mirrored structural diagnostics. Agents should use it before and after non-trivial graph authoring.
+
 ### `timeline.validate_project`
 
-Read-only. Runs the same normalization and strict graph validation used by the application. If no project is supplied, validates the active project.
+Read-only. Runs the same normalization and strict graph validation used by the application. If no project is supplied, validates the active project. Validation includes narrative entity coverage: known canonical entities named in event title/description, descriptive image alt text, or attached evidence notes must participate in a meaningful action edge linked to that event.
 
 ### `timeline.apply_transaction`
 
@@ -74,6 +91,7 @@ Example:
 
 ```json
 {
+  "graphContractVersion": "2026-09-21.1",
   "operations": [
     {
       "op": "upsert",
@@ -113,6 +131,10 @@ Example:
 
 Related operations belong in one transaction. This is particularly important for the canonical graph: creating an entity and the meaningful edge that connects it can happen in one validated commit rather than leaving an orphan entity between tool calls.
 
+Every graph-capable mutation (`timeline.apply_transaction`, `timeline.replace_project`, and `timeline.memgraph_import`) requires the exact `graphContractVersion` currently returned by `timeline.get_graph_contract`. A stale/missing version is rejected before mutation. This is a compatibility gate, not a substitute for validation.
+
+For narrative changes, agents must extract newly named durable entities before mutation. Runtime validation can match canonical names/aliases already in the project, including story-scoped duplicate names, but it cannot safely infer arbitrary previously unknown proper nouns without risking invented topology. The repository skill `.agents/skills/timeline-graph-authoring/SKILL.md` standardizes that semantic extraction workflow.
+
 Deletion cleanup follows application semantics before strict validation:
 
 - deleting an item removes story and edge context references;
@@ -148,9 +170,11 @@ Supplied collections replace the corresponding Timeline collections. Collections
 
 ## Human-control annotations
 
-Read-only tools use `readOnlyHint: true`.
+Read-only tools use `readOnlyHint: true` and `openWorldHint: false`.
 
-Tools that mutate the locally persisted Timeline project use `consequentialHint: true`. This preserves full AI editing while allowing a WebMCP-aware browser or agent host to surface confirmation/approval UI.
+Mutation tools use `readOnlyHint: false`, `destructiveHint: true`, `openWorldHint: false`, and `consequentialHint: true`. Whole-project replacement and Memgraph import additionally advertise `idempotentHint: true`; general transactions remain non-idempotent because the operation batch may include deletes or context-sensitive patches.
+
+These annotations describe tool behavior for hosts and approval UX. They are hints, not the enforcement boundary. Timeline's deterministic graph contract version check and strict runtime validation remain authoritative.
 
 Timeline does not opt tools into cross-origin exposure. Standard same-document/same-origin and browser-agent visibility applies unless the embedding environment deliberately delegates WebMCP tool access.
 
