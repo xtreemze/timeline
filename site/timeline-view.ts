@@ -477,7 +477,13 @@ class TimelineViewController {
         return;
       }
 
-      if (!this.pinch) beginSurfaceDrag(event.pointerId, { x: event.clientX, y: event.clientY }, event);
+      if (!this.pinch) {
+        beginSurfaceDrag(event.pointerId, { x: event.clientX, y: event.clientY });
+        if (this.pointerDrag) {
+          this.pointerDrag.lastTime = Number(event.timeStamp) || performance.now();
+          motion.appendPointerSamples(this.pointerDrag.samples, event, this.orientation);
+        }
+      }
     });
 
     this.surface.addEventListener("pointermove", (event) => {
