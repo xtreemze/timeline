@@ -562,10 +562,9 @@ test("focused overview omits redundant Context, Place, Relations headings and th
   assert.match(renderFocus, /this\.focusView\.append\(tabs, hero, summary, place, evidence\)/);
 });
 
-test("focused hero suppresses repeated Wikimedia illustration disclaimers while preserving media metadata", async () => {
+test("focused hero keeps image captions and provenance out of the visual overlay", async () => {
   const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
-  assert.match(source, /mediaCaption\.startsWith\("Public-domain story illustration via Wikimedia Commons;"\)/);
-  assert.match(source, /if \(mediaCaption && !isIllustrationDisclaimer\)/);
+  assert.doesNotMatch(source, /timeline-focus-media-caption|isIllustrationDisclaimer|mediaCaption\.startsWith/);
 });
 
 test("focused Context belongs to Overview and interaction chrome cannot overlap either tab", async () => {
