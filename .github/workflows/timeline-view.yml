@@ -61,6 +61,7 @@ on:
       - 'tests/retained-structural-composition-runtime.test.mjs'
       - 'tests/browser/retained-structural-composition.spec.ts'
       - 'tests/browser/semantic-chronology.spec.ts'
+      - 'tests/playwright/graph-touch.spec.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'benchmarks/retained-timeline.mjs'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
@@ -134,6 +135,7 @@ on:
       - 'tests/retained-structural-composition-runtime.test.mjs'
       - 'tests/browser/retained-structural-composition.spec.ts'
       - 'tests/browser/semantic-chronology.spec.ts'
+      - 'tests/playwright/graph-touch.spec.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'benchmarks/retained-timeline.mjs'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
@@ -158,9 +160,9 @@ jobs:
   syntax:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
@@ -193,17 +195,29 @@ jobs:
   structural-composition-browser:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright install --with-deps chromium webkit
       - name: Verify structural browser test discovery
         run: |
-          pnpm exec playwright test --config=playwright.config.mjs --list | tee /tmp/structural-playwright-list.txt
+          pnpm exec playwright test --config=playwright.config.ts --list | tee /tmp/structural-playwright-list.txt
           grep -F 'retained-structural-composition.spec.ts' /tmp/structural-playwright-list.txt
           grep -F 'semantic-chronology.spec.ts' /tmp/structural-playwright-list.txt
       - run: pnpm test:structural-composition-browser
       - run: pnpm test:semantic-chronology-browser
+
+  graph-touch-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm test:graph-touch-browser

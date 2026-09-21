@@ -23,15 +23,15 @@ export default defineConfig({
     },
     {
       name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
+      use: { ...devices['Pixel 5'], hasTouch: true },
     },
     {
       name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'] },
+      use: { ...devices['iPhone 12'], hasTouch: true },
     },
     {
       name: 'Tablet Touch',
-      use: { ...devices['iPad Pro'] },
+      use: { ...devices['iPad Pro'], hasTouch: true },
     },
     {
       name: 'Reduced Motion',

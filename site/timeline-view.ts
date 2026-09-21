@@ -529,7 +529,8 @@ class TimelineViewController {
     );
 
     this.surface.addEventListener("pointerdown", (event) => {
-      if (!this.items.length || event.button !== 0) return;
+      const isPrimaryPointer = event.pointerType === "touch" || event.button === 0;
+      if (!this.items.length || !isPrimaryPointer) return;
       const interactiveTarget =
         event.target instanceof Element
           ? event.target.closest("button, a, input, select, textarea")

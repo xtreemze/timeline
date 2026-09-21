@@ -445,7 +445,7 @@ test("activated touch long press directly drives the Orb simulator instead of de
   assert.match(bridge, /container\.setPointerCapture\?\.\(touchHold\.pointerId\)/);
   assert.match(
     bridge,
-    /if \(touchHold\.activated\)[\s\S]*touchGeometry\(event\)[\s\S]*simulator\.dragNode\(touchHold\.node\.getId\(\), geometry\.localPoint\)/,
+    /touchHold\?\.activated[\s\S]*touchHold\.pointerId === event\.pointerId[\s\S]*touchGeometry\(event\)[\s\S]*simulator\.dragNode\(touchHold\.node\.getId\(\), geometry\.localPoint\)/,
   );
   assert.match(
     bridge,
@@ -568,7 +568,7 @@ test("active touch node drag blocks Orb camera movement at the event boundary", 
 
   assert.match(
     bridge,
-    /if \(touchHold\.activated\)[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*simulator\.dragNode\(touchHold\.node\.getId\(\), geometry\.localPoint\)/,
+    /function onPointerMove\(event\)[\s\S]*touchHold\?\.activated[\s\S]*touchHold\.pointerId === event\.pointerId[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*simulator\.dragNode\(touchHold\.node\.getId\(\), geometry\.localPoint\)[\s\S]*return;[\s\S]*updateCameraGesture\(event\)/,
   );
   assert.match(
     bridge,
