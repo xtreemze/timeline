@@ -171,7 +171,9 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     });
 
     const before = await root.getAttribute('data-orientation');
-    expect(['portrait', 'landscape']).toContain(before);
+    if (before !== 'portrait' && before !== 'landscape') {
+      throw new Error(`Unexpected timeline orientation: ${String(before)}`);
+    }
 
     await page.locator('#timeline-orientation-toggle').click();
     const after = before === 'portrait' ? 'landscape' : 'portrait';
