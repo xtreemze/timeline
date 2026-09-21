@@ -1,6 +1,6 @@
 /**
- * Timeline WebMCP tool definitions and graph contract management
- * Integrates Timeline with Model Context Protocol for agent-driven mutations
+ * Lūm WebMCP tool definitions and graph contract management
+ * Integrates Lūm with Model Context Protocol for agent-driven mutations
  */
 
 const MANAGED_COLLECTIONS = Object.freeze([
@@ -154,7 +154,7 @@ function applyOperation(project: any, operation: Operation): void {
 
 export function applyOperations(project: any, operations: Operation[]): any {
   if (!project || typeof project !== "object" || Array.isArray(project)) {
-    throw new Error("Timeline project must be an object.");
+    throw new Error("Lūm project must be an object.");
   }
   if (!Array.isArray(operations) || !operations.length) {
     throw new Error("A non-empty operations array is required.");
@@ -210,17 +210,17 @@ interface TimelineAdapter {
 
 export function toolDefinitions(adapter: TimelineAdapter): Record<string, unknown>[] {
   if (!adapter || typeof adapter !== "object")
-    throw new Error("Timeline WebMCP adapter is required.");
+    throw new Error("Lūm WebMCP adapter is required.");
   if (
     typeof adapter.getGraphContract !== "function" ||
     typeof adapter.auditGraph !== "function"
   ) {
-    throw new Error("Timeline WebMCP adapter must expose getGraphContract() and auditGraph().");
+    throw new Error("Lūm WebMCP adapter must expose getGraphContract() and auditGraph().");
   }
 
   const graphContract = adapter.getGraphContract();
   const graphContractVersion = String(graphContract?.version || "").trim();
-  if (!graphContractVersion) throw new Error("Timeline graph contract must expose a version.");
+  if (!graphContractVersion) throw new Error("Lūm graph contract must expose a version.");
 
   const emptySchema = { type: "object", additionalProperties: false, properties: {} };
   const readOnlyAnnotations = {
@@ -239,27 +239,27 @@ export function toolDefinitions(adapter: TimelineAdapter): Record<string, unknow
   return [
     {
       name: "timeline.get_project",
-      title: "Read Timeline project",
+      title: "Read Lūm project",
       description:
-        "Return the complete current Timeline project as canonical JSON, including chronology, stories, categories, entity graph, places, evidence, and reasoning.",
+        "Return the complete current Lūm continuum as canonical JSON, including temporal records, stories, categories, entity relationships, places, evidence, and reasoning.",
       inputSchema: emptySchema,
       annotations: readOnlyAnnotations,
       execute: async () => adapter.getProject(),
     },
     {
       name: "timeline.get_graph_contract",
-      title: "Read Timeline graph contract",
+      title: "Read Lūm graph contract",
       description:
-        "Return the authoritative, versioned Timeline graph-authoring contract. Agents must follow this contract before creating or editing entities, relationships, places, or event narrative context. It defines entity-only nodes, distinct endpoints, action-only predicates, category/story separation, named-context entity coverage, and required validation workflow.",
+        "Return the authoritative, versioned Lūm relational-authoring contract. Agents must follow this contract before creating or editing entities, occurrences/relationships, places, or narrative context. It defines entity-only nodes, distinct endpoints, action-only predicates, category/story separation, named-context entity coverage, and required validation workflow.",
       inputSchema: emptySchema,
       annotations: readOnlyAnnotations,
       execute: async () => adapter.getGraphContract(),
     },
     {
       name: "timeline.audit_graph",
-      title: "Audit Timeline graph",
+      title: "Audit Lūm relational model",
       description:
-        "Audit a supplied Timeline project, or the active project when omitted, against the complete graph contract without mutating state. Returns all graph errors plus structural duplicate/orphan diagnostics. Use this before and after graph-authoring transactions.",
+        "Audit a supplied Lūm project, or the active project when omitted, against the complete relational contract without mutating state. Returns all graph errors plus structural duplicate/orphan diagnostics. Use this before and after relational-authoring transactions.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -270,7 +270,7 @@ export function toolDefinitions(adapter: TimelineAdapter): Record<string, unknow
     },
     {
       name: "timeline.validate_project",
-      title: "Validate Timeline project",
+      title: "Validate Lūm project",
       description:
         "Validate a supplied Timeline project, or the active project when omitted, using canonical normalization and the strict graph contract. Known canonical entities named in event title/description/image alt/evidence note must be endpoints of event-linked action edges; graph categories, self-loops, generic/compound predicates, duplicate facts, mirrored copies, orphan entities, and invalid place/time modeling are rejected.",
       inputSchema: {
@@ -283,7 +283,7 @@ export function toolDefinitions(adapter: TimelineAdapter): Record<string, unknow
     },
     {
       name: "timeline.apply_transaction",
-      title: "Edit Timeline project",
+      title: "Edit Lūm project",
       description:
         "Atomically create, update, patch, delete, and manage Timeline records under the current graph contract. For narrative edits, extract every durable named entity first, create/reuse its entity node, and include meaningful action edges in the same transaction. Edges must connect two different entities and use an action-only predicate; time/place are structured properties; categories stay on chronology items only. Batch related entity + edge + item changes together because validation runs after the complete transaction.",
       inputSchema: {
@@ -308,7 +308,7 @@ export function toolDefinitions(adapter: TimelineAdapter): Record<string, unknow
     },
     {
       name: "timeline.replace_project",
-      title: "Replace Timeline project",
+      title: "Replace Lūm project",
       description:
         "Replace the complete active Timeline project only after strict graph-contract validation. The replacement must obey entity-only topology, action-only directed edges, named-context coverage, category/story separation, and canonical time/place rules.",
       inputSchema: {
@@ -331,7 +331,7 @@ export function toolDefinitions(adapter: TimelineAdapter): Record<string, unknow
     },
     {
       name: "timeline.memgraph_export",
-      title: "Export Timeline for Memgraph MCP",
+      title: "Export Lūm for Memgraph MCP",
       description:
         "Return a Memgraph interoperability bundle containing canonical records, deterministic Cypher statements, schema setup suggestions, and read-back queries suitable for a Memgraph MCP client. Export is read-only and preserves Timeline graph semantics.",
       inputSchema: {
@@ -342,7 +342,7 @@ export function toolDefinitions(adapter: TimelineAdapter): Record<string, unknow
             type: "string",
             minLength: 1,
             maxLength: 120,
-            description: "Logical Memgraph namespace used to isolate this Timeline project.",
+            description: "Logical Memgraph namespace used to isolate this Lūm project.",
           },
         },
       },
