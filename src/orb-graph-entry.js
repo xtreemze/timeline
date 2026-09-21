@@ -777,7 +777,17 @@ function create(container, handlers = {}) {
     if (event.button !== 0) return;
     const target = touchTargetPayload(event);
     if (event.pointerType !== "touch") {
-      beginCameraGesture(event, target);
+      if (target?.kind === "node") {
+        // Orb/D3 starts native mouse dragging from its later compatibility
+        // mousedown handler. Apply force settings now, while capture-phase
+        // pointerdown still precedes that drag start, so a settings-driven
+        // simulation restart cannot disturb the active drag state.
+        cancelCameraInertia();
+        cameraGesture = null;
+        setInteractionHeat(DRAG_ALPHA_TARGET);
+      } else {
+        beginCameraGesture(event, target);
+      }
       return;
     }
 
@@ -1128,7 +1138,11 @@ function create(container, handlers = {}) {
     handlers.onEdgeClick?.(edge.getData());
   };
   const onNodeDragStart = () => {
-    setInteractionHeat(DRAG_ALPHA_TARGET);
+    // Do not re-apply force settings here. Orb has already entered native
+    // mouse drag state by the time this event fires; restarting settings now
+    // can make the dragged node fight the pointer and visibly jitter.
+    clearInteractionSettleTimer();
+    forceSimulator()?.activateSimulation();
   };
   const onNodeDrag = () => {
     clearInteractionSettleTimer();

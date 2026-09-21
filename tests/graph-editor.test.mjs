@@ -192,7 +192,12 @@ test("node interaction reheats force and preserves wider spacing after release",
   assert.match(source, /INTERACTION_SETTLE_MS\s*=\s*2400/);
   assert.match(source, /DRAG_ALPHA_TARGET\s*=\s*0\.12/);
   assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.065/);
-  assert.match(source, /onNodeDragStart[\s\S]*setInteractionHeat\(DRAG_ALPHA_TARGET\)/);
+  assert.match(
+    source,
+    /function onPointerDown\(event\)[\s\S]*target\?\.kind === "node"[\s\S]*setInteractionHeat\(DRAG_ALPHA_TARGET\)[\s\S]*beginCameraGesture\(event, target\)/
+  );
+  assert.match(source, /onNodeDragStart[\s\S]{0,320}forceSimulator\(\)\?\.activateSimulation\(\)/);
+  assert.doesNotMatch(source, /onNodeDragStart[\s\S]{0,320}setInteractionHeat\(DRAG_ALPHA_TARGET\)/);
   assert.match(source, /onNodeDragEnd[\s\S]*keepForceActiveAfterInteraction\(\)/);
   assert.match(source, /simulator\.setSettings\(layout\)/);
   assert.match(source, /simulator\.activateSimulation\(\)/);
@@ -205,6 +210,32 @@ test("node interaction reheats force and preserves wider spacing after release",
   assert.match(source, /alphaMin:\s*dense \? 0\.018 : 0\.012/);
   assert.match(source, /alphaDecay:\s*dense \? 0\.024 : 0\.021/);
   assert.match(source, /clearInteractionSettleTimer\(\)/);
+});
+
+
+test("mouse node drag preheats force before Orb enters native drag state", async () => {
+  const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(
+    source,
+    /container\.addEventListener\("pointerdown", onPointerDown, \{ capture: true \}\)/
+  );
+  assert.match(
+    source,
+    /function onPointerDown\(event\)[\s\S]*const target = touchTargetPayload\(event\)[\s\S]*event\.pointerType !== "touch"[\s\S]*target\?\.kind === "node"[\s\S]*setInteractionHeat\(DRAG_ALPHA_TARGET\)/
+  );
+  assert.match(
+    source,
+    /target\?\.kind === "node"[\s\S]{0,520}else \{[\s\S]*beginCameraGesture\(event, target\)/
+  );
+  assert.match(
+    source,
+    /const onNodeDragStart = \(\) => \{[\s\S]{0,320}clearInteractionSettleTimer\(\)[\s\S]{0,320}forceSimulator\(\)\?\.activateSimulation\(\)/
+  );
+  assert.doesNotMatch(
+    source,
+    /const onNodeDragStart = \(\) => \{[\s\S]{0,320}setInteractionHeat\(DRAG_ALPHA_TARGET\)/
+  );
 });
 
 
