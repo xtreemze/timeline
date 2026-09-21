@@ -142,7 +142,7 @@ function lintTypeScript(file, source) {
   const metrics = {
     any: countMatches(source, /\bany\b/g),
     asAny: countMatches(source, /\bas\s+any\b/g),
-    nonNull: countMatches(source, /[A-Za-z0-9_\]\)]!([.;,)\]?:]|$)/g),
+    nonNull: countMatches(source, /[A-Za-z0-9_\])]!([.;,)\]?:]|$)/g),
   };
 
   for (const [metric, current] of Object.entries(metrics)) {
