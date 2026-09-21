@@ -54,6 +54,7 @@ on:
       - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
+      - 'tests/timeline-touch-runtime-contracts.test.mjs'
       - 'tests/timeline-temporal-context-runtime.test.mjs'
       - 'tests/timeline-runtime-contracts.test.mjs'
       - 'tests/timeline-motion-popover-regression.test.mjs'
@@ -113,6 +114,7 @@ on:
       - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
+      - 'tests/timeline-touch-runtime-contracts.test.mjs'
       - 'tests/timeline-temporal-context-runtime.test.mjs'
       - 'tests/timeline-runtime-contracts.test.mjs'
       - 'tests/timeline-motion-popover-regression.test.mjs'
@@ -144,6 +146,7 @@ jobs:
       - run: node --check site/orb-graph.bundle.js
       - run: pnpm test:architecture
       - run: pnpm test:runtime-contracts
+      - run: pnpm test:touch-runtime-contracts
       - run: pnpm test:temporal-context-runtime
       - run: pnpm test:graph-runtime-contracts
       - run: |
