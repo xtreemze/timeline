@@ -133,6 +133,39 @@ test("#269 focused occurrence survives an orientation transaction", async ({
   );
 });
 
+
+test("#269 keyboard focus identity survives a buffered camera interaction", async ({
+  page,
+}) => {
+  const terminal = page.locator(".timeline-event-terminal").first();
+  await expect(terminal).toBeVisible();
+  await terminal.evaluate((element) => {
+    element.dataset.tddFocusIdentity = "keyboard-target";
+    element.focus();
+  });
+  await expect(terminal).toBeFocused();
+
+  const surface = page.locator(".timeline-surface");
+  const box = await surface.boundingBox();
+  expect(box).not.toBeNull();
+
+  await page.mouse.move(box.x + box.width * 0.65, box.y + box.height * 0.6);
+  await page.mouse.down();
+  await page.mouse.move(
+    box.x + box.width * 0.58,
+    box.y + box.height * 0.6,
+    { steps: 3 },
+  );
+  await frame(page);
+
+  const focusedIdentity = await page.evaluate(
+    () => document.activeElement?.dataset?.tddFocusIdentity ?? null,
+  );
+  expect(focusedIdentity).toBe("keyboard-target");
+
+  await page.mouse.up();
+});
+
 test("#271 pointer cancellation always settles the retained interaction epoch", async ({
   page,
 }) => {
