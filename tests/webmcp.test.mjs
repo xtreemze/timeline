@@ -226,7 +226,12 @@ test("browser runtime loads WebMCP before app and wires tools to canonical persi
     readFile(new URL("../site/memgraph-interchange.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(html, /memgraph-interchange-shim\\.ts[\\s\\S]*webmcp-shim\\.ts[\\s\\S]*app\\.ts/);
+  const memgraphIndex = html.indexOf("./memgraph-interchange-shim.ts");
+  const webmcpIndex = html.indexOf("./webmcp-shim.ts");
+  const appIndex = html.indexOf("./app.ts");
+  assert.ok(memgraphIndex >= 0, "Memgraph interchange shim must be loaded");
+  assert.ok(webmcpIndex > memgraphIndex, "WebMCP must load after Memgraph interchange");
+  assert.ok(appIndex > webmcpIndex, "app must load after WebMCP");
   assert.match(webmcpSource, /document\?\.modelContext|globalThis\.document\?\.modelContext/);
   assert.match(webmcpSource, /timeline\.get_graph_contract/);
   assert.match(webmcpSource, /timeline\.audit_graph/);
