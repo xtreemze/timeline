@@ -323,11 +323,8 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     endInput: els.graphEdgeEndDate,
     mode: "range",
   });
-  // eslint-disable-next-line no-useless-assignment
   let presentationResizeObserver = null;
-  // eslint-disable-next-line no-useless-assignment
   let viewControlsResizeObserver = null;
-  // eslint-disable-next-line no-useless-assignment
   let workspaceToolDockResizeObserver = null;
   let presentationResizeFrame = 0;
   let timelineOrientationBeforeFullscreen = null;
@@ -764,8 +761,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
           });
           timelineOrientationBeforeFullscreen = null;
         }
-        // eslint-disable-next-line no-undef
-        console.warn("Could not enter full-screen presentation:", error);
+          console.warn("Could not enter full-screen presentation:", error);
         showStatus("Could not enter full-screen presentation.");
       }
     }
@@ -1165,7 +1161,6 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
         return migrated;
       }
     } catch (error) {
-      // eslint-disable-next-line no-undef
       console.warn("Timeline state could not be restored:", error);
     }
     // A first launch should demonstrate the complete application rather than an empty shell.
@@ -1181,7 +1176,6 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (error) {
-      // eslint-disable-next-line no-undef
       console.warn("Timeline state could not be saved:", error);
       showStatus("Changes are visible, but browser storage is unavailable.");
     }
@@ -4019,19 +4013,6 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     temporalGraphView?.setWindow(event.detail?.viewport || null);
   });
 
-  // eslint-disable-next-line no-unused-vars
-  function _focusTimelineFromGraph(id) {
-    if (!id || !getItem(id)) return false;
-    ui.search = "";
-    ui.categoryFilter = "all";
-    ui.activeStoryId = null;
-    ui.storyCursor = 0;
-    els.search.value = "";
-    renderTimeline();
-    requestAnimationFrame(() => timelineView?.focusItem(id));
-    return true;
-  }
-
   els.timelineViewRoot.addEventListener("timelineorientationchange", (event) => {
     if (els.presentationStage) {
       els.presentationStage.dataset.timelineOrientation =
@@ -4087,7 +4068,6 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       window.open(url, "_blank", "noopener,noreferrer");
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (error) {
-      // eslint-disable-next-line no-undef
       console.warn("Could not open local evidence:", error);
       showStatus("Could not open the local evidence file.");
     }
@@ -4298,7 +4278,6 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
         return;
       timelineView?.closeFocus();
       applyImportedTimeline(converted.timeline, "Imported interchange", converted.warnings.length);
-      // eslint-disable-next-line no-undef
       if (converted.warnings.length)
         console.warn("Interchange import warnings:", converted.warnings);
     } catch (error) {
@@ -4379,12 +4358,10 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     .then((registration) => {
       webMcpRegistration = registration;
       if (!registration.registered) {
-        // eslint-disable-next-line no-console, no-undef
-        console.info("Timeline WebMCP tools are not registered:", registration.reason);
+          console.warn("Timeline WebMCP tools are not registered:", registration.reason);
       }
     })
     .catch((error) => {
-      // eslint-disable-next-line no-undef
       console.warn("Timeline WebMCP registration failed:", error);
     });
 
