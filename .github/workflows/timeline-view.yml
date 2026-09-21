@@ -3,6 +3,10 @@ name: Timeline view
 on:
   pull_request:
     paths:
+      - 'pnpm-lock.yaml'
+      - 'site/date-range-picker.ts'
+      - 'docs/FRONTEND-UI-MOTION.md'
+      - 'tests/responsive-architecture.test.mjs'
       - 'site/index.html'
       - 'package.json'
       - 'src/orb-graph-entry.js'
@@ -45,6 +49,10 @@ on:
   push:
     branches: [main]
     paths:
+      - 'pnpm-lock.yaml'
+      - 'site/date-range-picker.ts'
+      - 'docs/FRONTEND-UI-MOTION.md'
+      - 'tests/responsive-architecture.test.mjs'
       - 'site/index.html'
       - 'package.json'
       - 'src/orb-graph-entry.js'
