@@ -46,7 +46,7 @@ test("graph editor separates entity nodes, reusable places, and action-edge cont
 test("timeline includes an interactive temporal node-edge graph lens", async () => {
   const [html, source, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
   assert.match(html, /id="temporal-graph-view"/);
@@ -62,7 +62,7 @@ test("timeline includes an interactive temporal node-edge graph lens", async () 
 });
 
 test("application provides CRUD handlers for entity nodes, places, and structured action edges", async () => {
-  const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
   assert.match(source, /beginGraphNodeEdit/);
   assert.match(source, /removeGraphNode/);
   assert.match(source, /beginGraphPlaceEdit/);
@@ -128,13 +128,13 @@ test("event editor can change relations at the event timestamp", async () => {
 });
 
 test("temporal graph exposes a layout refresh for presentation resizing", async () => {
-  const source = await readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8");
   assert.match(source, /refreshLayout\(\)/);
   assert.match(source, /this\.orb\.recenter\(\)/);
 });
 
 test("focused presentation graph limits itself to the event neighborhood", async () => {
-  const source = await readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8");
   assert.match(source, /setFocus\(id\)/);
   assert.match(source, /neighborhoodGraph\(this\.model, this\.focusedId/);
   assert.match(source, /relevant nodes/);
@@ -157,7 +157,7 @@ test("Orb styling uses semantic iconography, weighted physics, and worker CPU fa
 test("touch graph dragging requires a long press while preserving live force physics", async () => {
   const [bridge, view] = await Promise.all([
     readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(bridge, /TOUCH_NODE_HOLD_MS\s*=\s*420/);
@@ -177,7 +177,7 @@ test("touch graph dragging requires a long press while preserving live force phy
 });
 
 test("graph exploration never opens editors while graph authoring stays inside explicit Edit mode", async () => {
-  const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
   assert.match(source, /mode:\s*"view"/);
   assert.match(source, /function presentationModeActive\(\)[\s\S]*ui\.mode !== "edit"/);
   assert.doesNotMatch(source, /graphentityfocus|graphedgefocus|graphnodefocus|graphstoryfocus/);
@@ -265,7 +265,7 @@ test("timeline topology changes visibly release, break, and bind graph relations
 test("graph refresh rerenders Orb after reparenting or container resize", async () => {
   const [bridge, view] = await Promise.all([
     readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(
