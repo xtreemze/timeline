@@ -3,13 +3,15 @@ name: Time scale kernel
 on:
   pull_request:
     paths:
-      - 'site/time-scale.js'
+      - 'site/time-scale.ts'
+      - 'site/time-scale-shim.ts'
       - 'tests/time-scale.test.mjs'
       - '.github/workflows/time-scale.yml'
   push:
     branches: [main]
     paths:
-      - 'site/time-scale.js'
+      - 'site/time-scale.ts'
+      - 'site/time-scale-shim.ts'
       - 'tests/time-scale.test.mjs'
       - '.github/workflows/time-scale.yml'
 
@@ -24,5 +26,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: node --check site/time-scale.js
       - run: node --test tests/time-scale.test.mjs
