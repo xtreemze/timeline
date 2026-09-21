@@ -208,6 +208,7 @@ jobs:
           node-version: 24
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:browser-certification-config
+      - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium webkit
       - name: Verify unified browser test discovery and project matrix
         run: |
