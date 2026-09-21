@@ -2,7 +2,7 @@ import { test, expect, devices } from '@playwright/test';
 
 test.describe('Timeline Interaction', () => {
   test('pan gesture on timeline surface moves chronology with inertia', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.setViewportSize({ width: 1024, height: 600 });
 
     const timelineSurface = page.locator('.timeline-surface');
@@ -24,31 +24,69 @@ test.describe('Timeline Interaction', () => {
     }
   });
 
-  test('pinch gesture on graph zooms canvas', async ({ page }) => {
-    await page.goto('/');
+  test('pinch gesture on graph zooms canvas', async ({ page }, testInfo) => {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.setViewportSize({ width: 1024, height: 600 });
 
-    // On desktop, the graph might not be visible. This test mainly verifies no crash.
-    const graphCanvas = page.locator('[class*="graph"], [class*="temporal"]');
-
-    // Graph might not exist on desktop - just verify page is stable
     const timelineView = page.locator('#timeline-view');
+    const graphCanvas = page.locator('.temporal-graph-canvas');
     await expect(timelineView).toBeVisible();
+    await expect(graphCanvas).toBeVisible();
 
-    // Simulate scroll zoom on a visible element
-    const box = await timelineView.boundingBox();
-    if (box) {
+    const box = await graphCanvas.boundingBox();
+    if (!box) throw new Error('Graph canvas has no layout box');
+
+    if (testInfo.project.use.hasTouch) {
+      const center = {
+        x: box.x + box.width / 2,
+        y: box.y + box.height / 2,
+      };
+      await graphCanvas.evaluate(
+        (canvas, point) => {
+          const dispatch = (
+            type: 'pointerdown' | 'pointermove' | 'pointerup',
+            pointerId: number,
+            x: number,
+            y: number,
+          ) => {
+            canvas.dispatchEvent(
+              new PointerEvent(type, {
+                pointerId,
+                pointerType: 'touch',
+                isPrimary: pointerId === 1,
+                button: 0,
+                buttons: type === 'pointerup' ? 0 : 1,
+                clientX: x,
+                clientY: y,
+                bubbles: true,
+                cancelable: true,
+                composed: true,
+              }),
+            );
+          };
+
+          dispatch('pointerdown', 1, point.x - 24, point.y);
+          dispatch('pointerdown', 2, point.x + 24, point.y);
+          dispatch('pointermove', 1, point.x - 54, point.y);
+          dispatch('pointermove', 2, point.x + 54, point.y);
+          dispatch('pointerup', 1, point.x - 54, point.y);
+          dispatch('pointerup', 2, point.x + 54, point.y);
+        },
+        center,
+      );
+    } else {
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-      await page.mouse.wheel(0, 10); // Scroll to zoom
-
-      await expect(timelineView).toBeVisible();
+      await page.mouse.wheel(0, 10);
     }
+
+    await expect(timelineView).toBeVisible();
+    await expect(graphCanvas).toBeVisible();
   });
 
   test('touch node long-press on mobile initiates drag', async ({
     page,
   }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.setViewportSize({ width: 375, height: 812 });
 
     // Timeline should be responsive to touch events
@@ -69,7 +107,7 @@ test.describe('Timeline Interaction', () => {
   });
 
   test('double-tap on timeline zooms in (landscape)', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.setViewportSize({ width: 1024, height: 600 });
 
     const timelineSurface = page.locator('.timeline-surface');
@@ -89,7 +127,7 @@ test.describe('Timeline Interaction', () => {
   });
 
   test('keyboard navigation: arrow keys pan timeline', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.setViewportSize({ width: 1024, height: 600 });
 
     const timelineSurface = page.locator('.timeline-surface');
@@ -106,7 +144,7 @@ test.describe('Timeline Interaction', () => {
   });
 
   test('keyboard zoom: + and - adjust scale', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.setViewportSize({ width: 1024, height: 600 });
 
     const timelineSurface = page.locator('.timeline-surface');
@@ -123,7 +161,7 @@ test.describe('Timeline Interaction', () => {
   });
 
   test('Home key centers graph', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.setViewportSize({ width: 1024, height: 600 });
 
     // Focus on timeline surface - Home key navigation
@@ -137,7 +175,7 @@ test.describe('Timeline Interaction', () => {
   });
 
   test('touch routing: gesture on graph does not pan timeline', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.setViewportSize({ width: 375, height: 812 });
 
     // Issue #125: touch routing between surfaces
@@ -166,7 +204,7 @@ test.describe('Timeline Interaction', () => {
   });
 
   test('popover opens and closes without breaking interaction', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.setViewportSize({ width: 1024, height: 600 });
 
     // Click to open a popover (e.g., date range picker)
@@ -193,7 +231,7 @@ test.describe('Timeline Interaction', () => {
   test('focus popover follows orientation (portrait rail, landscape stack)', async ({
     page,
   }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     // Test portrait
     await page.setViewportSize({ width: 375, height: 812 });
