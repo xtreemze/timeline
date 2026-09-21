@@ -2865,7 +2865,7 @@ body {
   box-sizing: border-box;
   inline-size: min(340px, calc(100% - 0.8rem), var(--project-menu-max-width, 340px));
   max-inline-size: var(--project-menu-max-width, calc(100% - 0.8rem));
-  max-height: min(620px, var(--project-menu-max-height, calc(100dvh - 1rem)));
+  max-block-size: min(620px, var(--project-menu-max-height, calc(100dvh - 1rem)));
   margin: 0;
   padding: 0.45rem;
   overflow: auto;
@@ -3787,125 +3787,63 @@ body {
   }
 }
 
-/* Browse and Edit are true layout-reserving sidebars.
-   They are vertical in-flow workspace columns at every viewport size; only their own
-   vertical content scrolls, never the workspace beneath them or a horizontal sheet axis. */
-#app-shell[data-editor-open="true"] {
-  --utility-sidebar-width: min(320px, 72dvw);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--utility-sidebar-width);
-  grid-template-rows: minmax(0, 1fr);
+/* Browse and Edit are viewport-contained utility surfaces by default.
+   Narrow screens keep the complete surface on-screen above the footer bar; wider screens
+   progressively reserve a right-side workspace column without changing editor state. */
+#app-shell[data-editor-open="true"],
+#app-shell[data-browser-open="true"] > .timeline-panel {
+  display: block;
 }
 
-#app-shell[data-editor-open="true"] > .timeline-panel {
-  position: relative;
-  inset: auto;
-  grid-column: 1;
-  grid-row: 1;
+#app-shell[data-editor-open="true"] > .timeline-panel,
+#app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen),
+#app-shell[data-browser-open="false"] #presentation-stage:not(:fullscreen) {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
+}
+
+#app-shell[data-editor-open="true"] > .app-editor-sheet,
+#app-shell[data-browser-open="true"] > .timeline-panel > .app-browser-sheet {
+  position: fixed;
+  z-index: 1300;
+  inset-block-start: max(0.4rem, env(safe-area-inset-top));
+  inset-block-end: max(4.45rem, calc(env(safe-area-inset-bottom) + 4.1rem));
+  inset-inline-start: max(0.4rem, env(safe-area-inset-left));
+  inset-inline-end: max(0.4rem, env(safe-area-inset-right));
+  box-sizing: border-box;
+  inline-size: auto;
+  min-inline-size: 0;
+  max-inline-size: none;
+  block-size: auto;
+  min-block-size: 0;
+  max-block-size: none;
+  margin: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border: 1px solid var(--line);
+  border-radius: 0.82rem;
+  box-shadow: 0 5px 18px color-mix(in srgb, var(--ink) 7%, transparent);
+  backdrop-filter: blur(16px);
+  container: utility-sidebar / inline-size;
 }
 
 #app-shell[data-editor-open="true"] > .app-editor-sheet {
-  position: relative;
-  z-index: 2;
-  inset: auto;
-  grid-column: 2;
-  grid-row: 1;
-  align-self: stretch;
-  box-sizing: border-box;
-  width: auto;
-  min-width: 0;
-  max-width: none;
-  height: 100%;
-  min-height: 0;
-  max-height: none;
-  margin: 0;
-  overflow-x: clip;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  border: 0;
-  border-inline-start: 1px solid var(--line);
-  border-radius: 0;
   background: var(--panel);
-  box-shadow: none;
-  backdrop-filter: none;
-  container: utility-sidebar / inline-size;
-}
-
-#app-shell[data-editor-open="false"] > .app-editor-sheet {
-  display: none;
-}
-
-#app-shell[data-browser-open="false"] > .timeline-panel {
-  --utility-sidebar-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr);
-}
-
-#app-shell[data-browser-open="true"] > .timeline-panel {
-  --utility-sidebar-width: min(300px, 68dvw);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--utility-sidebar-width);
-  grid-template-rows: minmax(0, 1fr);
-}
-
-#app-shell[data-browser-open="false"] #presentation-stage:not(:fullscreen) {
-  position: relative;
-  inset: auto;
-  grid-column: 1;
-  grid-row: 1;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-}
-
-#app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen) {
-  position: relative;
-  inset: auto;
-  grid-column: 1;
-  grid-row: 1;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-}
-
-#app-shell[data-browser-open="false"] > .timeline-panel > .app-browser-sheet {
-  display: none;
 }
 
 #app-shell[data-browser-open="true"] > .timeline-panel > .app-browser-sheet {
-  position: relative;
-  z-index: 2;
-  inset: auto;
-  grid-column: 2;
-  grid-row: 1;
-  align-self: stretch;
-  box-sizing: border-box;
-  width: auto;
-  min-width: 0;
-  max-width: none;
-  height: 100%;
-  min-height: 0;
-  max-height: none;
-  margin: 0;
-  overflow-x: clip;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  border: 0;
-  border-inline-start: 1px solid var(--line);
-  border-radius: 0;
   background: var(--paper);
-  box-shadow: none;
-  backdrop-filter: none;
-  container: utility-sidebar / inline-size;
+}
+
+#app-shell[data-editor-open="false"] > .app-editor-sheet,
+#app-shell[data-browser-open="false"] > .timeline-panel > .app-browser-sheet {
+  display: none;
 }
 
 #app-shell:is([data-editor-open="true"], [data-browser-open="true"])
@@ -4035,7 +3973,7 @@ body {
   grid-column: 1;
   grid-row: auto;
   padding: 0.15rem 0.1rem 0;
-  text-align: left;
+  text-align: start;
 }
 
 .app-browser-sheet .timeline-date :is(strong, span) {
@@ -4069,11 +4007,73 @@ body {
 
 @media (min-width: 760px) {
   #app-shell[data-editor-open="true"] {
-    --utility-sidebar-width: clamp(320px, 34dvw, 440px);
+    --utility-sidebar-width: clamp(320px, 34%, 440px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--utility-sidebar-width);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  #app-shell[data-editor-open="true"] > .timeline-panel {
+    position: relative;
+    inset: auto;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  #app-shell[data-editor-open="true"] > .app-editor-sheet {
+    position: relative;
+    z-index: 2;
+    inset: auto;
+    grid-column: 2;
+    grid-row: 1;
+    align-self: stretch;
+    inline-size: auto;
+    block-size: 100%;
+    max-block-size: none;
+    border-block: 0;
+    border-inline-end: 0;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  #app-shell[data-browser-open="false"] > .timeline-panel {
+    --utility-sidebar-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
   }
 
   #app-shell[data-browser-open="true"] > .timeline-panel {
-    --utility-sidebar-width: clamp(300px, 31dvw, 400px);
+    --utility-sidebar-width: clamp(300px, 31%, 400px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--utility-sidebar-width);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  #app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen),
+  #app-shell[data-browser-open="false"] #presentation-stage:not(:fullscreen) {
+    position: relative;
+    inset: auto;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  #app-shell[data-browser-open="true"] > .timeline-panel > .app-browser-sheet {
+    position: relative;
+    z-index: 2;
+    inset: auto;
+    grid-column: 2;
+    grid-row: 1;
+    align-self: stretch;
+    inline-size: auto;
+    block-size: 100%;
+    max-block-size: none;
+    border-block: 0;
+    border-inline-end: 0;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
   }
 }
 
