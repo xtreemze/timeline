@@ -82,7 +82,7 @@ function topologySignature(data: GraphData): string {
   });
 }
 
-class TemporalGraphView {
+class TemporalGraphViewController {
   private root: HTMLElement;
   private canvas: HTMLElement | null;
   private status: HTMLElement | null;
@@ -309,9 +309,9 @@ class TemporalGraphView {
   }
 }
 
-export function create(root: HTMLElement | null): TemporalGraphView | null {
+export function create(root: HTMLElement | null): TemporalGraphViewController | null {
   if (!root) return null;
-  return new TemporalGraphView(root);
+  return new TemporalGraphViewController(root);
 }
 
 const TemporalGraphViewObj = { create } as const;
