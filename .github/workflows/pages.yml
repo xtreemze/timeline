@@ -84,6 +84,16 @@ jobs:
       - name: Validate application
         run: pnpm test
 
+      - name: Run E2E tests
+        run: pnpm test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+
       - name: Validate static entry point
         run: test -f site/index.html && test -f site/styles.css && test -f site/icon.svg && test -s site/orb-graph.bundle.js && test -s site/evidence-extraction.bundle.js && test -s site/pdf.worker.mjs
 
