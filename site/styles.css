@@ -1753,7 +1753,7 @@ footer > :last-child { grid-column: 9 / -1; justify-self: end; }
 .presentation-stage:fullscreen .timeline-auto-timer {
   display: none;
 }
-.presentation-stage:fullscreen .presentation-controls .button {
+.presentation-stage:fullscreen .view-display-controls .view-icon-button {
   min-height: 34px;
 }
 .graph-lens [data-graph-status][data-simulation-running="true"]::before {
