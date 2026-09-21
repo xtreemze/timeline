@@ -343,6 +343,41 @@ test("detailed stories add graph and place depth without conflating categories w
 });
 
 
+test("example stories declare map-ready place sets and every demo edge has time and place", () => {
+  const placeById = new Map(sample.places.map((place) => [place.id, place]));
+  const storyByItemId = new Map(
+    sample.stories.flatMap((story) => story.itemIds.map((itemId) => [itemId, story]))
+  );
+
+  for (const story of sample.stories) {
+    assert.ok(Array.isArray(story.placeIds) && story.placeIds.length >= 5, `${story.id}: explicit story place set`);
+    assert.equal(new Set(story.placeIds).size, story.placeIds.length, `${story.id}: unique story places`);
+    for (const placeId of story.placeIds) {
+      const place = placeById.get(placeId);
+      assert.ok(place, `${story.id}: known place ${placeId}`);
+      assert.equal(place.attributes?.storyId, story.id, `${placeId}: scoped to story`);
+      assert.ok(place.geometry, `${placeId}: map geometry`);
+      assert.ok(presentation.ICON_NAMES.includes(place.icon), `${placeId}: semantic marker icon`);
+      assert.ok(spatial.PLACE_MARKER_SHAPES.includes(place.markerShape), `${placeId}: marker shape`);
+    }
+  }
+
+  for (const relationship of sample.relationships) {
+    assert.ok(relationship.time?.start?.value, `${relationship.id}: temporal edge`);
+    assert.ok(relationship.placeId, `${relationship.id}: spatial edge`);
+    assert.ok(placeById.has(relationship.placeId), `${relationship.id}: canonical place reference`);
+
+    const contextualStories = new Set(
+      (relationship.itemIds || [])
+        .map((itemId) => storyByItemId.get(itemId))
+        .filter(Boolean)
+    );
+    for (const story of contextualStories) {
+      assert.ok(story.placeIds.includes(relationship.placeId), `${relationship.id}: place belongs to contextual story`);
+    }
+  }
+});
+
 test("main-action chronology is spread across realistic multi-day spans without duplicate timestamps", () => {
   for (const story of sample.stories) {
     const items = storyItems(story).filter((item) => item.start.startsWith("1000-"));
