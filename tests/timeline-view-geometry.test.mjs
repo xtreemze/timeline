@@ -83,42 +83,34 @@ test("long visible ranges trace from the midpoint of their visible portion", () 
   );
 });
 
-test("Browse and Edit are vertical sidebars without horizontal scrolling", async () => {
+test("Browse and Edit stay viewport-contained on narrow screens and become sidebars progressively", async () => {
   const [css, architecture] = await Promise.all([
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../docs/TIMELINE-V3-ARCHITECTURE.md", import.meta.url), "utf8"),
   ]);
 
+  assert.match(css, /Browse and Edit are viewport-contained utility surfaces by default/);
   assert.match(
     css,
-    /#app-shell\[data-editor-open="true"\]\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--utility-sidebar-width\)[\s\S]*grid-template-rows:\s*minmax\(0, 1fr\)/,
+    /#app-shell\[data-editor-open="true"\]\s*>\s*\.app-editor-sheet,[\s\S]*position:\s*fixed[\s\S]*inset-block-start:[\s\S]*inset-block-end:[\s\S]*inset-inline-start:[\s\S]*inset-inline-end:/,
   );
   assert.match(
     css,
-    /#app-shell\[data-editor-open="true"\]\s*>\s*\.app-editor-sheet\s*\{[\s\S]*grid-column:\s*2[\s\S]*height:\s*100%[\s\S]*overflow-x:\s*clip[\s\S]*overflow-y:\s*auto/,
+    /#app-shell\[data-browser-open="true"\]\s*>\s*\.timeline-panel\s*>\s*\.app-browser-sheet[\s\S]*overflow-x:\s*clip[\s\S]*overflow-y:\s*auto/,
   );
   assert.match(
     css,
-    /#app-shell\[data-browser-open="true"\]\s*>\s*\.timeline-panel\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--utility-sidebar-width\)[\s\S]*grid-template-rows:\s*minmax\(0, 1fr\)/,
+    /@media \(min-width:\s*760px\)[\s\S]*#app-shell\[data-editor-open="true"\][\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--utility-sidebar-width\)/,
   );
   assert.match(
     css,
-    /#app-shell\[data-browser-open="true"\]\s*>\s*\.timeline-panel\s*>\s*\.app-browser-sheet\s*\{[\s\S]*grid-column:\s*2[\s\S]*height:\s*100%[\s\S]*overflow-x:\s*clip[\s\S]*overflow-y:\s*auto/,
+    /@media \(min-width:\s*760px\)[\s\S]*#app-shell\[data-browser-open="true"\]\s*>\s*\.timeline-panel[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--utility-sidebar-width\)/,
   );
-  assert.doesNotMatch(css, /grid-template-rows:\s*clamp\(180px,\s*42dvh,\s*420px\)/);
-  assert.match(
-    css,
-    /\.app-browser-sheet \.timeline-item\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/,
-  );
-  assert.match(css, /\.app-browser-sheet \.timeline-marker\s*\{\s*display:\s*none/);
   assert.match(
     css,
     /@container utility-sidebar \(max-width:\s*360px\)[\s\S]*\.app-editor-sheet \.temporal-fields[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/,
   );
-  assert.match(
-    css,
-    /#app-shell:is\([\s\S]*data-editor-open="true"[\s\S]*data-browser-open="true"[\s\S]*#presentation-stage:not\(:fullscreen\) > \.graph-lens:not\(\[hidden\]\)[\s\S]*position:\s*absolute/,
-  );
-  assert.match(architecture, /vertical right-side workspace columns at every viewport size/);
+  assert.match(architecture, /viewport-contained utility surfaces/);
+  assert.match(architecture, /vertical right-side workspace columns/);
   assert.match(architecture, /Horizontal overflow is a layout defect/);
 });
