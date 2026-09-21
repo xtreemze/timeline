@@ -215,6 +215,11 @@ jobs:
           pnpm exec playwright test --list | tee /tmp/playwright-list.txt
           grep -F 'retained-structural-composition.spec.ts' /tmp/playwright-list.txt
           grep -F 'semantic-chronology.spec.ts' /tmp/playwright-list.txt
+          grep -F 'retained-performance.spec.ts' /tmp/playwright-list.txt
+          grep -F 'playwright/layout.spec.ts' /tmp/playwright-list.txt
+          grep -F 'playwright/interaction.spec.ts' /tmp/playwright-list.txt
+          grep -F 'map-resilience.spec.mjs' /tmp/playwright-list.txt
+          grep -F '[Desktop Chrome]' /tmp/playwright-list.txt
           grep -F '[Mobile Chrome]' /tmp/playwright-list.txt
           grep -F '[Mobile Chrome Landscape]' /tmp/playwright-list.txt
           grep -F '[Mobile Safari]' /tmp/playwright-list.txt
