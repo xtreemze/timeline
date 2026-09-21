@@ -3,6 +3,7 @@ name: Timeline view
 on:
   pull_request:
     paths:
+      - 'site/**/*.ts'
       - 'pnpm-lock.yaml'
       - 'site/date-range-picker.ts'
       - 'docs/FRONTEND-UI-MOTION.md'
@@ -49,6 +50,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'site/**/*.ts'
       - 'pnpm-lock.yaml'
       - 'site/date-range-picker.ts'
       - 'docs/FRONTEND-UI-MOTION.md'
