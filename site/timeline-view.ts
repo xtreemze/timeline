@@ -278,6 +278,8 @@ class TimelineViewController {
   expandedClusterItemIds = new Set<string>();
   geometryMeasurements = new Map<string, CachedGeometryMeasurement>();
   committedTickSpecKey = "";
+  pendingTickSpecKey = "";
+  contextAnimations = new Map<HTMLElement, Animation>();
   pointerDrag: PointerDragState | null = null;
   touchPointers = new Map<number, TouchPointerState>();
   pinch: PinchState | null = null;
@@ -950,24 +952,88 @@ class TimelineViewController {
     }
   }
 
+  cancelContextAnimation(node: HTMLElement): void {
+    const animation = this.contextAnimations.get(node);
+    if (animation) {
+      animation.cancel();
+      this.contextAnimations.delete(node);
+    }
+    delete node.dataset.retiringHierarchy;
+  }
+
+  promoteContextNode(node: HTMLElement): void {
+    this.cancelContextAnimation(node);
+    const pending = node.classList.contains("is-pending-hierarchy");
+    node.classList.remove("is-pending-hierarchy");
+    delete node.dataset.pendingHierarchy;
+    if (!pending || this.reducedMotionQuery?.matches || typeof node.animate !== "function") {
+      node.style.opacity = "";
+      return;
+    }
+
+    const animation = node.animate(
+      [{ opacity: 0.28 }, { opacity: 1 }],
+      { duration: 150, easing: "ease-out" },
+    );
+    this.contextAnimations.set(node, animation);
+    void animation.finished
+      .catch(() => undefined)
+      .finally(() => {
+        if (this.contextAnimations.get(node) === animation) {
+          this.contextAnimations.delete(node);
+        }
+        node.style.opacity = "";
+      });
+  }
+
+  retireContextNode(
+    scene: Map<string, HTMLDivElement>,
+    key: string,
+    node: HTMLDivElement,
+  ): void {
+    this.cancelContextAnimation(node);
+    if (this.reducedMotionQuery?.matches || typeof node.animate !== "function") {
+      node.remove();
+      scene.delete(key);
+      return;
+    }
+
+    node.dataset.retiringHierarchy = "true";
+    const animation = node.animate(
+      [{ opacity: Number.parseFloat(getComputedStyle(node).opacity) || 1 }, { opacity: 0 }],
+      { duration: 150, easing: "ease-out" },
+    );
+    this.contextAnimations.set(node, animation);
+    void animation.finished
+      .then(() => {
+        if (
+          node.dataset.retiringHierarchy === "true" &&
+          scene.get(key) === node
+        ) {
+          node.remove();
+          scene.delete(key);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (this.contextAnimations.get(node) === animation) {
+          this.contextAnimations.delete(node);
+        }
+      });
+  }
+
   renderTemporalContext(padding: number, usable: number): void {
     const spec = scale.selectTickSpec(this.viewport, usable, 94);
     const specKey = `${spec.unit}:${spec.step}`;
-    const canReconcileHierarchy =
-      !this.retention.active || !this.committedTickSpecKey || this.committedTickSpecKey === specKey;
+    const hierarchyChanged =
+      Boolean(this.committedTickSpecKey) && this.committedTickSpecKey !== specKey;
+    const pendingHierarchy = this.retention.active && hierarchyChanged;
 
-    if (!this.retention.active) this.committedTickSpecKey = specKey;
-
-    if (!canReconcileHierarchy) {
-      for (const node of this.tickScene.values()) {
-        const time = Number(node.dataset.time);
-        if (Number.isFinite(time)) this.positionTemporalNode(node, time, padding, usable);
-      }
-      for (const node of this.accentScene.values()) {
-        const time = Number(node.dataset.time);
-        if (Number.isFinite(time)) this.positionTemporalNode(node, time, padding, usable);
-      }
-      return;
+    if (!this.retention.active) {
+      this.committedTickSpecKey = specKey;
+      this.pendingTickSpecKey = "";
+    } else if (pendingHierarchy) {
+      this.pendingTickSpecKey = specKey;
     }
 
     const contextItems = queryOccurrences(this.items, this.retention.extent);
@@ -981,16 +1047,22 @@ class TimelineViewController {
       limit: 18,
     });
 
-    const windowSpan = Math.max(MIN_SPAN_MS, this.retention.extent.end - this.retention.extent.start);
+    const windowSpan = Math.max(
+      MIN_SPAN_MS,
+      this.retention.extent.end - this.retention.extent.start,
+    );
     const viewportSpan = Math.max(MIN_SPAN_MS, this.viewport.end - this.viewport.start);
     const virtualLength = usable * (windowSpan / viewportSpan);
-    const ticks = scale.generateTicks(this.retention.extent, virtualLength, 94, 240);
+    const ticks = pendingHierarchy
+      ? scale.generateTicksForSpec(this.retention.extent, spec, 240)
+      : scale.generateTicks(this.retention.extent, virtualLength, 94, 240);
     const keepTicks = new Set<string>();
 
     for (const tick of ticks) {
       const key = tickSceneKey({ unit: tick.spec.unit, value: tick.value });
       keepTicks.add(key);
       let node = this.tickScene.get(key);
+      const created = !node;
       if (!node) {
         node = document.createElement("div");
         node.className = "timeline-tick";
@@ -1001,6 +1073,11 @@ class TimelineViewController {
         this.tickScene.set(key, node);
         this.stage.append(node);
       }
+      if (pendingHierarchy && created) {
+        node.classList.add("is-pending-hierarchy");
+        node.dataset.pendingHierarchy = specKey;
+      }
+      if (!pendingHierarchy) this.promoteContextNode(node);
       const label = node.querySelector(".timeline-tick-label");
       if (label) {
         label.textContent =
@@ -1011,58 +1088,72 @@ class TimelineViewController {
     }
 
     const keepAccents = new Set<string>();
-    for (const accent of accentPlan.edgeAccents) {
+    const materializeAccent = (
+      accent: { kind?: unknown; time?: unknown; label?: unknown; count?: unknown },
+      className: string,
+    ): void => {
+      const time = Number(accent.time);
+      if (!Number.isFinite(time)) return;
       const key = temporalAccentSceneKey({
-        kind: String(accent.kind || "edge"),
-        time: Number(accent.time),
+        kind: String(accent.kind || "ambient"),
+        time,
       });
       keepAccents.add(key);
       let node = this.accentScene.get(key);
+      const created = !node;
       if (!node) {
         node = document.createElement("div");
-        node.className =
-          accent.kind === "year"
-            ? "timeline-month-accent timeline-year-accent"
-            : "timeline-month-accent";
-        node.dataset.time = String(accent.time);
+        node.className = className;
+        node.dataset.time = String(time);
         node.dataset.temporalAccent = String(accent.kind || "");
         this.accentScene.set(key, node);
         this.stage.append(node);
       }
+      if (pendingHierarchy && created) {
+        node.classList.add("is-pending-hierarchy");
+        node.dataset.pendingHierarchy = specKey;
+      }
+      if (!pendingHierarchy) this.promoteContextNode(node);
       node.textContent = String(accent.label || "");
       node.dataset.count = String(accent.count || 0);
-      this.positionTemporalNode(node, Number(accent.time), padding, usable);
+      this.positionTemporalNode(node, time, padding, usable);
+    };
+
+    for (const accent of accentPlan.edgeAccents) {
+      materializeAccent(
+        accent,
+        accent.kind === "year"
+          ? "timeline-month-accent timeline-year-accent"
+          : "timeline-month-accent",
+      );
     }
 
     for (const accent of accentPlan.axisMonths) {
-      const key = temporalAccentSceneKey({
-        kind: String(accent.kind || "axis"),
-        time: Number(accent.time),
-      });
-      keepAccents.add(key);
-      let node = this.accentScene.get(key);
-      if (!node) {
-        node = document.createElement("div");
-        node.className = "timeline-axis-month-label";
-        node.dataset.time = String(accent.time);
-        this.accentScene.set(key, node);
-        this.stage.append(node);
+      materializeAccent(accent, "timeline-axis-month-label");
+    }
+
+    if (pendingHierarchy) {
+      // Keep the committed hierarchy alive while the neighboring hierarchy is
+      // already materialized. Shared canonical keys remain one DOM object.
+      for (const node of this.tickScene.values()) {
+        const time = Number(node.dataset.time);
+        if (Number.isFinite(time)) this.positionTemporalNode(node, time, padding, usable);
       }
-      node.textContent = String(accent.label || "");
-      node.dataset.count = String(accent.count || 0);
-      this.positionTemporalNode(node, Number(accent.time), padding, usable);
+      for (const node of this.accentScene.values()) {
+        const time = Number(node.dataset.time);
+        if (Number.isFinite(time)) this.positionTemporalNode(node, time, padding, usable);
+      }
+      return;
     }
 
     if (!this.retention.active) {
       for (const [key, node] of this.tickScene) {
         if (keepTicks.has(key)) continue;
-        node.remove();
-        this.tickScene.delete(key);
+        this.retireContextNode(this.tickScene, key, node);
       }
       for (const [key, node] of this.accentScene) {
         if (keepAccents.has(key)) continue;
-        node.remove();
-        this.accentScene.delete(key);
+        this.retireContextNode(this.accentScene, key, node);
       }
     }
   }
