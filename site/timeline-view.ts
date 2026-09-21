@@ -19,6 +19,7 @@ import {
   type TemporalWindow,
 } from "../src/projection/temporal-scene.ts";
 import { TimelineMotion as motion } from "./timeline-motion.ts";
+import { TimelineClustering as clustering } from "./timeline-clustering.ts";
 
 const scale = globalThis.TimelineScale;
 const presentation = globalThis.TimelinePresentation;
@@ -201,6 +202,9 @@ class TimelineViewController {
   focusMediaIndex = 0;
   orientation: Orientation = "horizontal";
   scene = new Map<string, SceneRecord>();
+  tickScene = new Map<string, HTMLDivElement>();
+  accentScene = new Map<string, HTMLDivElement>();
+  committedTickSpecKey = "";
   pointerDrag: PointerDragState | null = null;
   interactionVelocity = 0;
   inertiaAnimationFrame = 0;
@@ -237,6 +241,13 @@ class TimelineViewController {
   bind(): void {
     this.orientationToggle?.addEventListener("click", () => {
       this.setOrientation(this.orientation === "horizontal" ? "vertical" : "horizontal");
+    });
+    this.zoomSlider?.addEventListener("input", () => {
+      this.setSemanticZoom(Number(this.zoomSlider?.value || 0), false);
+    });
+    this.zoomSlider?.addEventListener("change", () => {
+      this.setSemanticZoom(Number(this.zoomSlider?.value || 0), true);
+      this.surface.focus({ preventScroll: true });
     });
 
     this.surface.addEventListener(
@@ -434,6 +445,279 @@ class TimelineViewController {
     return { start: center - span * 0.6, end: center + span * 0.6 };
   }
 
+  itemCoordinates(items: readonly TimelineItem[] = this.items): number[] {
+    return items.flatMap((item) =>
+      Number.isFinite(item.end) ? [item.start, Number(item.end)] : [item.start],
+    );
+  }
+
+  semanticZoomAnchorItem(): TimelineItem | null {
+    if (!this.items.length) return null;
+    if (this.focusedId) {
+      const focused = this.items.find((item) => item.id === this.focusedId);
+      if (focused) return focused;
+    }
+    const center = this.viewport.start + (this.viewport.end - this.viewport.start) / 2;
+    return (
+      [...this.items].sort(
+        (left, right) =>
+          Math.abs(left.start - center) - Math.abs(right.start - center) ||
+          left.id.localeCompare(right.id),
+      )[0] || null
+    );
+  }
+
+  semanticZoomTargets(): {
+    all: TemporalWindow;
+    context: TemporalWindow;
+    isolated: TemporalWindow;
+  } | null {
+    const coordinates = this.allCoordinates.length ? this.allCoordinates : this.itemCoordinates();
+    if (!coordinates.length) return null;
+    const all = scale.fit(coordinates, { paddingRatio: 0.1, minSpanMs: DEFAULT_SPAN_MS });
+    const anchor = this.semanticZoomAnchorItem();
+    if (!anchor) return { all, context: all, isolated: all };
+
+    const ordered = [...this.items].sort(
+      (left, right) => left.start - right.start || left.id.localeCompare(right.id),
+    );
+    const index = ordered.findIndex((item) => item.id === anchor.id);
+    const contextItems = ordered.slice(Math.max(0, index - 1), Math.min(ordered.length, index + 2));
+    const contextCoordinates = this.itemCoordinates(contextItems);
+    const context = contextCoordinates.length
+      ? scale.fit(contextCoordinates, { paddingRatio: 0.14, minSpanMs: MIN_SPAN_MS })
+      : all;
+
+    const anchorEnd = Number.isFinite(anchor.end) ? Number(anchor.end) : anchor.start;
+    const anchorCenter = anchor.start + (anchorEnd - anchor.start) / 2;
+    const distinctDistances = ordered
+      .filter((item) => item.id !== anchor.id && item.start !== anchor.start)
+      .map((item) => Math.abs(item.start - anchor.start))
+      .filter((distance) => distance > 0);
+    const nearestDistance = distinctDistances.length ? Math.min(...distinctDistances) : DEFAULT_SPAN_MS;
+    const ownSpan = Math.max(MIN_SPAN_MS, Math.abs(anchorEnd - anchor.start));
+    const contextSpan = Math.max(MIN_SPAN_MS, context.end - context.start);
+    const minimumRequired = Math.max(MIN_SPAN_MS, ownSpan * 1.4);
+    const preferred = Math.max(
+      MIN_SPAN_MS,
+      Math.min(nearestDistance * 0.45, contextSpan * 0.45),
+    );
+    const isolatedSpan = Math.min(contextSpan, Math.max(minimumRequired, preferred));
+    const isolated = {
+      start: anchorCenter - isolatedSpan / 2,
+      end: anchorCenter + isolatedSpan / 2,
+    };
+
+    return { all, context, isolated };
+  }
+
+  interpolateSemanticViewport(from: TemporalWindow, to: TemporalWindow, ratio: number): TemporalWindow {
+    const t = clamp(ratio, 0, 1);
+    const fromSpan = Math.max(MIN_SPAN_MS, from.end - from.start);
+    const toSpan = Math.max(MIN_SPAN_MS, to.end - to.start);
+    const fromCenter = from.start + fromSpan / 2;
+    const toCenter = to.start + toSpan / 2;
+    const center = fromCenter + (toCenter - fromCenter) * t;
+    const span = Math.exp(Math.log(fromSpan) + (Math.log(toSpan) - Math.log(fromSpan)) * t);
+    return { start: center - span / 2, end: center + span / 2 };
+  }
+
+  semanticZoomValueText(value: number): string {
+    const normalized = clamp(value, 0, 100);
+    if (normalized <= 2) return "Whole context";
+    if (Math.abs(normalized - 50) <= 2) return "Focused occurrence plus neighboring context";
+    if (normalized >= 98) return "Focused time window";
+    return normalized < 50
+      ? `Context to focus, ${Math.round(normalized)} percent`
+      : `Focus to isolate, ${Math.round(normalized)} percent`;
+  }
+
+  setSemanticZoom(value: number, commit: boolean): void {
+    if (!this.items.length) return;
+    const targets = this.semanticZoomTargets();
+    if (!targets) return;
+    const normalized = clamp(value, 0, 100);
+    const next =
+      normalized <= 50
+        ? this.interpolateSemanticViewport(targets.all, targets.context, normalized / 50)
+        : this.interpolateSemanticViewport(targets.context, targets.isolated, (normalized - 50) / 50);
+
+    this.cancelInertia();
+    this.beginInteraction();
+    this.viewport = next;
+    this.interactionVelocity = 0;
+    if (this.zoomSlider) {
+      const label = this.semanticZoomValueText(normalized);
+      this.zoomSlider.value = String(Math.round(normalized));
+      this.zoomSlider.setAttribute("aria-valuetext", label);
+      this.zoomSlider.title = label;
+    }
+    if (commit) {
+      this.commitInteraction();
+    } else {
+      this.scheduleRender();
+      this.emitViewport(false);
+    }
+  }
+
+  semanticZoomValueForSpan(span: number, targets: {
+    all: TemporalWindow;
+    context: TemporalWindow;
+    isolated: TemporalWindow;
+  }): number {
+    const currentSpan = Math.max(MIN_SPAN_MS, span);
+    const allSpan = Math.max(MIN_SPAN_MS, targets.all.end - targets.all.start);
+    const contextSpan = Math.max(MIN_SPAN_MS, targets.context.end - targets.context.start);
+    const isolatedSpan = Math.max(MIN_SPAN_MS, targets.isolated.end - targets.isolated.start);
+    if (currentSpan >= contextSpan) {
+      const denominator = Math.log(allSpan / contextSpan);
+      if (Math.abs(denominator) < 1e-9) return currentSpan >= allSpan * 0.999 ? 0 : 50;
+      return clamp(50 * (Math.log(allSpan / currentSpan) / denominator), 0, 50);
+    }
+    const denominator = Math.log(contextSpan / isolatedSpan);
+    if (Math.abs(denominator) < 1e-9) return 100;
+    return clamp(50 + 50 * (Math.log(contextSpan / currentSpan) / denominator), 50, 100);
+  }
+
+  syncZoomSlider(): void {
+    if (!this.zoomSlider) return;
+    this.zoomSlider.disabled = !this.items.length;
+    this.zoomSlider.setAttribute(
+      "aria-orientation",
+      this.orientation === "vertical" ? "vertical" : "horizontal",
+    );
+    if (this.zoomSlider.disabled || this.retention.active) return;
+    const targets = this.semanticZoomTargets();
+    if (!targets) return;
+    const value = Math.round(this.semanticZoomValueForSpan(this.viewport.end - this.viewport.start, targets));
+    this.zoomSlider.value = String(value);
+    const label = this.semanticZoomValueText(value);
+    this.zoomSlider.setAttribute("aria-valuetext", label);
+    this.zoomSlider.title = label;
+  }
+
+  positionTemporalNode(node: HTMLElement, time: number, padding: number, usable: number): void {
+    const position = padding + scale.coordinateFor(time, this.viewport, usable);
+    if (this.orientation === "horizontal") {
+      node.style.left = `${position}px`;
+      node.style.top = "";
+    } else {
+      node.style.top = `${position}px`;
+      node.style.left = "";
+    }
+  }
+
+  renderTemporalContext(padding: number, usable: number): void {
+    const spec = scale.selectTickSpec(this.viewport, usable, 94);
+    const specKey = `${spec.unit}:${spec.step}`;
+    const canReconcileHierarchy =
+      !this.retention.active || !this.committedTickSpecKey || this.committedTickSpecKey === specKey;
+
+    if (!this.retention.active) this.committedTickSpecKey = specKey;
+
+    if (!canReconcileHierarchy) {
+      for (const node of this.tickScene.values()) {
+        const time = Number(node.dataset.time);
+        if (Number.isFinite(time)) this.positionTemporalNode(node, time, padding, usable);
+      }
+      for (const node of this.accentScene.values()) {
+        const time = Number(node.dataset.time);
+        if (Number.isFinite(time)) this.positionTemporalNode(node, time, padding, usable);
+      }
+      return;
+    }
+
+    const contextItems = queryOccurrences(this.items, this.retention.extent);
+    const accentPlan = clustering.planTemporalAccents(contextItems, {
+      viewport: this.viewport,
+      pixelLength: usable,
+      padding,
+      orientation: this.orientation,
+      spec,
+      maxItemsPerMonth: 3,
+      limit: 18,
+    });
+
+    const windowSpan = Math.max(MIN_SPAN_MS, this.retention.extent.end - this.retention.extent.start);
+    const viewportSpan = Math.max(MIN_SPAN_MS, this.viewport.end - this.viewport.start);
+    const virtualLength = usable * (windowSpan / viewportSpan);
+    const ticks = scale.generateTicks(this.retention.extent, virtualLength, 94, 240);
+    const keepTicks = new Set<string>();
+
+    for (const tick of ticks) {
+      const key = `tick:${tick.spec.unit}:${tick.spec.step}:${tick.value}`;
+      keepTicks.add(key);
+      let node = this.tickScene.get(key);
+      if (!node) {
+        node = document.createElement("div");
+        node.className = "timeline-tick";
+        node.dataset.time = String(tick.value);
+        const label = document.createElement("span");
+        label.className = "timeline-tick-label";
+        node.append(label);
+        this.tickScene.set(key, node);
+        this.stage.append(node);
+      }
+      const label = node.querySelector(".timeline-tick-label");
+      if (label) {
+        label.textContent =
+          clustering.compactTickLabel(tick.value, tick.spec, accentPlan.hasAmbientContext) ??
+          tick.label;
+      }
+      this.positionTemporalNode(node, tick.value, padding, usable);
+    }
+
+    const keepAccents = new Set<string>();
+    for (const accent of accentPlan.edgeAccents) {
+      const key = `accent:${accent.kind}:${accent.time}:${accent.label}`;
+      keepAccents.add(key);
+      let node = this.accentScene.get(key);
+      if (!node) {
+        node = document.createElement("div");
+        node.className =
+          accent.kind === "year"
+            ? "timeline-month-accent timeline-year-accent"
+            : "timeline-month-accent";
+        node.dataset.time = String(accent.time);
+        node.dataset.temporalAccent = String(accent.kind || "");
+        this.accentScene.set(key, node);
+        this.stage.append(node);
+      }
+      node.textContent = String(accent.label || "");
+      node.dataset.count = String(accent.count || 0);
+      this.positionTemporalNode(node, Number(accent.time), padding, usable);
+    }
+
+    for (const accent of accentPlan.axisMonths) {
+      const key = `axis-accent:${accent.kind}:${accent.time}:${accent.label}`;
+      keepAccents.add(key);
+      let node = this.accentScene.get(key);
+      if (!node) {
+        node = document.createElement("div");
+        node.className = "timeline-axis-month-label";
+        node.dataset.time = String(accent.time);
+        this.accentScene.set(key, node);
+        this.stage.append(node);
+      }
+      node.textContent = String(accent.label || "");
+      node.dataset.count = String(accent.count || 0);
+      this.positionTemporalNode(node, Number(accent.time), padding, usable);
+    }
+
+    if (!this.retention.active) {
+      for (const [key, node] of this.tickScene) {
+        if (keepTicks.has(key)) continue;
+        node.remove();
+        this.tickScene.delete(key);
+      }
+      for (const [key, node] of this.accentScene) {
+        if (keepAccents.has(key)) continue;
+        node.remove();
+        this.accentScene.delete(key);
+      }
+    }
+  }
+
   fitAll(): void {
     const coordinates = this.allCoordinates.length
       ? this.allCoordinates
@@ -541,6 +825,12 @@ class TimelineViewController {
       this.readout.textContent = "No visible events";
       for (const record of this.scene.values()) this.removeRecord(record);
       this.scene.clear();
+      for (const node of this.tickScene.values()) node.remove();
+      for (const node of this.accentScene.values()) node.remove();
+      this.tickScene.clear();
+      this.accentScene.clear();
+      this.committedTickSpecKey = "";
+      this.syncZoomSlider();
       return;
     }
 
@@ -549,6 +839,8 @@ class TimelineViewController {
     const height = Math.max(1, rect.height || this.surface.clientHeight || 480);
     const primaryLength = this.orientation === "horizontal" ? width : height;
     const axisCross = this.orientation === "horizontal" ? height / 2 : width * 0.58;
+    const padding = this.axisPadding(primaryLength);
+    const usable = Math.max(1, primaryLength - padding * 2);
     this.surface.style.setProperty("--timeline-axis-cross", `${axisCross}px`);
 
     this.renderWindow = createRenderWindow(this.viewport, {
@@ -561,6 +853,8 @@ class TimelineViewController {
     } else {
       this.retention = commitRetention(this.renderWindow);
     }
+
+    this.renderTemporalContext(padding, usable);
 
     const membershipWindow = this.retention.extent;
     const candidates = queryOccurrences(this.items, membershipWindow);
@@ -594,6 +888,7 @@ class TimelineViewController {
     }
 
     this.stage.dataset.sceneState = this.retention.active ? "interacting" : this.focusedId ? "focused" : "populated";
+    this.syncZoomSlider();
     this.updateReadout();
   }
 
@@ -861,6 +1156,9 @@ class TimelineViewController {
     this.root.dataset.orientation = portrait ? "portrait" : "landscape";
     this.surface.classList.toggle("is-portrait", portrait);
     this.surface.classList.toggle("is-landscape", !portrait);
+    if (this.zoomSlider) {
+      this.zoomSlider.setAttribute("aria-orientation", portrait ? "vertical" : "horizontal");
+    }
     if (this.orientationToggle) {
       this.orientationToggle.setAttribute(
         "aria-label",
