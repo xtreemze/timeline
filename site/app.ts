@@ -296,7 +296,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   decorateSemanticControls();
 
   const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
-  let temporalGraphView: any = null;
+  let temporalGraphView: ReturnType<typeof temporalGraphFactory.create> | null = null;
   try {
     temporalGraphView = temporalGraphFactory.create(els.graphViewRoot);
   } catch (error) {
