@@ -806,12 +806,12 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
     return id;
   };
 
-  rawItems.forEach((item, index) =>
-    registerId(item?.id, `chronology item ${index + 1}`, `Chronology item ${index + 1}`),
-  );
-  rawStories.forEach((story, index) =>
-    registerId(story?.id, `story ${index + 1}`, `Story ${index + 1}`),
-  );
+  rawItems.forEach((item, index) => {
+    registerId(item?.id, `chronology item ${index + 1}`, `Chronology item ${index + 1}`);
+  });
+  rawStories.forEach((story, index) => {
+    registerId(story?.id, `story ${index + 1}`, `Story ${index + 1}`);
+  });
 
   rawPlaces.forEach((raw, index) => {
     const label = `Place ${text(raw?.id, 120) || index + 1}`;
