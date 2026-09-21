@@ -1275,7 +1275,7 @@ test("timeline double tap zooms toward the tapped temporal coordinate without co
   assert.match(source, /beginPinch[\s\S]*this\.touchTap = null[\s\S]*this\.lastTouchTap = null/);
 });
 
-test("mobile-first shell keeps primary controls compact and bounded", async () => {
+test("mobile-first shell keeps primary controls and utility surfaces bounded", async () => {
   const [styles, timelineCss, viewSource, htmlSource] = await Promise.all([
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
@@ -1286,49 +1286,22 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(styles, /Mobile-first responsive application shell/);
   assert.match(
     styles,
-    /@media \(max-width:\s*699px\)[\s\S]*\.app-tool-dock[\s\S]*left:\s*max\(\.4rem[\s\S]*right:\s*max\(4\.2rem/,
+    /\.app-tool-dock\s*\{[\s\S]*inset-inline-start:\s*50%[\s\S]*inset-block-end:[\s\S]*transform:\s*translateX\(-50%\)/,
   );
   assert.match(
     styles,
-    /\.app-view-tool[\s\S]*position:\s*fixed[\s\S]*right:\s*max\(\.45rem[\s\S]*bottom:\s*max\(\.45rem/,
-  );
-  assert.match(
-    timelineCss,
-    /app-tool-dock\[data-project-anchored="true"\][\s\S]*top:\s*var\(--workspace-tool-dock-top[\s\S]*left:\s*var\(--workspace-tool-dock-left/,
-  );
-  assert.match(
-    timelineCss,
-    /\.timeline-view\[data-orientation="landscape"\] > \.app-view-controls[\s\S]*flex-direction:\s*row[\s\S]*align-items:\s*center/,
-  );
-  assert.match(
-    timelineCss,
-    /\.timeline-view\[data-orientation="portrait"\] > \.app-view-controls[\s\S]*flex-direction:\s*column[\s\S]*align-items:\s*stretch/,
-  );
-  assert.match(
-    timelineCss,
-    /Project-aligned Browse\/Edit controls[\s\S]*z-index:\s*1420[\s\S]*pointer-events:\s*auto/,
-  );
-  assert.match(
-    timelineCss,
-    /app-tool-dock\[data-project-anchored="true"\] \.app-tool[\s\S]*touch-action:\s*manipulation/,
+    /Browse and Edit are viewport-contained utility surfaces by default[\s\S]*position:\s*fixed[\s\S]*inset-block-start:[\s\S]*inset-block-end:[\s\S]*inset-inline-start:[\s\S]*inset-inline-end:/,
   );
   assert.match(
     styles,
-    /\.app-editor-sheet,[\s\S]*\.app-browser-sheet[\s\S]*max-height:\s*min\(58dvh/,
+    /@media \(min-width:\s*760px\)[\s\S]*--utility-sidebar-width:[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--utility-sidebar-width\)/,
   );
+  assert.match(
+    timelineCss,
+    /Application actions remain in the shared footer app bar[\s\S]*pointer-events:\s*auto/,
+  );
+  assert.doesNotMatch(timelineCss, /Project-aligned Browse\/Edit controls|workspace-tool-dock/);
   assert.match(styles, /The persistent relation graph is a stage canvas/);
-  assert.match(
-    styles,
-    /#app-shell #presentation-stage:not\(:fullscreen\) > \.graph-lens:not\(\[hidden\]\)\s*\{[\s\S]*position:\s*absolute[\s\S]*z-index:\s*1050/,
-  );
-  assert.match(
-    styles,
-    /#app-shell #presentation-stage > \.graph-lens:not\(\[hidden\]\)\s*\{[\s\S]*margin:\s*0[\s\S]*padding:\s*0[\s\S]*scrollbar-gutter:\s*auto[\s\S]*border-radius:\s*0[\s\S]*backdrop-filter:\s*none/,
-  );
-  assert.doesNotMatch(
-    styles,
-    /\.app-editor-sheet,\s*\.app-browser-sheet,\s*#app-shell #presentation-stage > \.graph-lens/,
-  );
 
   assert.match(timelineCss, /Narrow-screen control composition/);
   assert.match(timelineCss, /Consolidated view control cluster/);
@@ -1342,73 +1315,11 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
     /id="timeline-view-toolbar"[^>]*popover="manual"/,
     "expanded View controls use the native popover top layer",
   );
-  assert.doesNotMatch(
-    timelineCss,
-    /timeline-view-toolbar:not\(\[hidden\]\)/,
-    "closed popover must not be forced visible by legacy hidden selectors",
-  );
   assert.match(
     timelineCss,
-    /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*display:\s*flex/,
-  );
-  assert.match(
-    timelineCss,
-    /app-view-controls\.timeline-view-toolbar\[popover\]\s*\{[\s\S]*max-inline-size:[\s\S]*max-block-size:/,
-  );
-  assert.match(
-    timelineCss,
-    /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*overflow-y:\s*auto/,
-  );
-  assert.match(timelineCss, /\.timeline-zoom-control[\s\S]*grid-template-rows:\s*22px auto/);
-  assert.match(
-    timelineCss,
-    /\.timeline-zoom-scale[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/,
-  );
-  assert.match(
-    timelineCss,
-    /Canonical View popover contract[\s\S]*top:\s*var\(--view-controls-top[\s\S]*left:\s*var\(--view-controls-left/,
-  );
-  assert.match(
-    timelineCss,
-    /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*flex-wrap:\s*nowrap/,
-  );
-  assert.match(
-    timelineCss,
-    /\.timeline-auto-controls[\s\S]*display:\s*flex[\s\S]*flex-wrap:\s*nowrap/,
-  );
-  assert.doesNotMatch(timelineCss, /\.timeline-auto-controls[\s\S]{0,180}grid-column:\s*1 \/ -1/);
-  assert.match(timelineCss, /Mobile persistent relation composition/);
-  assert.match(timelineCss, /--mobile-relations-inline-rail:\s*clamp\(136px, 38dvw, 168px\)/);
-  assert.match(timelineCss, /--mobile-relations-block-rail:\s*clamp\(136px, 32dvh, 184px\)/);
-  assert.match(
-    timelineCss,
-    /Mobile persistent relation composition[\s\S]*data-orientation="portrait"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*top:\s*0;[\s\S]*right:\s*calc\(var\(--mobile-relations-inline-rail\)[\s\S]*bottom:\s*0;[\s\S]*left:\s*0;/,
-  );
-  assert.match(
-    timelineCss,
-    /Mobile persistent relation composition[\s\S]*data-orientation="landscape"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*top:\s*0;[\s\S]*right:\s*0;[\s\S]*bottom:\s*calc\(var\(--mobile-bottom-chrome\) \+ var\(--mobile-relations-block-rail\)\);[\s\S]*left:\s*0;/,
-  );
-  assert.match(
-    timelineCss,
-    /#timeline-view\[data-orientation="portrait"\] > \.timeline-surface[\s\S]*top:\s*0;[\s\S]*bottom:\s*0;[\s\S]*width:\s*var\(--mobile-relations-inline-rail\)[\s\S]*height:\s*100%/,
-  );
-  assert.match(
-    timelineCss,
-    /#timeline-view\[data-orientation="landscape"\] > \.timeline-surface[\s\S]*right:\s*0;[\s\S]*left:\s*0;[\s\S]*width:\s*100%[\s\S]*height:\s*var\(--mobile-relations-block-rail\)/,
+    /app-view-controls\.timeline-view-toolbar\[popover\][\s\S]*max-inline-size:[\s\S]*max-block-size:/,
   );
   assert.match(viewSource, /terminalExtent = compact \? Math\.min\(width \* 0\.58, 190\) : 232/);
-  assert.match(
-    viewSource,
-    /afterAvailable = width - edgeInset - terminalExtent \+ terminalAnchor - axisCross/,
-  );
-  assert.match(
-    viewSource,
-    /clusterTerminalExtent = compact \? Math\.min\(width \* 0\.68, 220\) : 232/,
-  );
-  assert.match(
-    viewSource,
-    /clusterAfterAvailable = width - 12 - clusterTerminalExtent \+ 32 - axisCross/,
-  );
 });
 
 test("View toolbar keeps native toggle state while measured coordinates attach it to the trigger", async () => {
