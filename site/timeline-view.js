@@ -1366,11 +1366,14 @@
       this.renderFrame = 0;
       this.surface.replaceChildren();
 
+      const isEmpty = !this.items.length || !this.viewport;
+      this.root.dataset.empty = isEmpty ? "true" : "false";
+
       const rect = this.surface.getBoundingClientRect();
       const width = Math.max(1, rect.width);
       const height = Math.max(1, rect.height);
 
-      if (!this.items.length || !this.viewport) {
+      if (isEmpty) {
         const axisCross = this.orientation === "horizontal" ? height / 2 : this.portraitAxisCoordinate(width);
         this.surface.style.setProperty("--timeline-axis-cross", axisCross + "px");
         const stage = createElement("div", "timeline-stage timeline-stage-empty");
