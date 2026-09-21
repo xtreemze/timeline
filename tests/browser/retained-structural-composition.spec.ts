@@ -16,22 +16,28 @@ async function installRetainedTimelineFixture(page) {
     const root = document.createElement("section");
     root.id = "tdd-timeline-view";
     root.className = "timeline-view";
-    root.innerHTML = `
-      <button id="tdd-orientation-toggle" type="button">Orientation</button>
-      <div class="timeline-window-readout"></div>
-      <div class="timeline-surface" tabindex="0"></div>
-      <div class="timeline-focus-view" popover="manual"></div>
-    `;
-    document.body.append(root);
 
-    const surface = root.querySelector(".timeline-surface");
-    if (!(surface instanceof HTMLElement)) throw new Error("Missing timeline fixture surface");
+    const orientationToggle = document.createElement("button");
+    orientationToggle.id = "timeline-orientation-toggle";
+    orientationToggle.type = "button";
+    orientationToggle.textContent = "Orientation";
+
+    const readout = document.createElement("div");
+    readout.className = "timeline-window-readout";
+
+    const surface = document.createElement("div");
+    surface.className = "timeline-surface";
+    surface.tabIndex = 0;
+
+    const focusView = document.createElement("div");
+    focusView.className = "timeline-focus-view";
+    focusView.setAttribute("popover", "manual");
+
+    root.append(orientationToggle, readout, surface, focusView);
+    document.body.append(root);
     surface.style.width = "900px";
     surface.style.height = "520px";
     surface.style.position = "relative";
-
-    const orientationToggle = root.querySelector("#tdd-orientation-toggle");
-    orientationToggle?.setAttribute("id", "timeline-orientation-toggle");
 
     const { TimelineView } = await import("/timeline-view.ts");
     const controller = TimelineView.create(root);
@@ -42,24 +48,24 @@ async function installRetainedTimelineFixture(page) {
         id: "occurrence-a",
         kind: "event",
         title: "Alpha occurrence",
-        start: Date.parse("2026-09-20T09:00:00Z"),
-        startLabel: "20 Sep 2026",
+        start: Date.parse("2026-01-01T09:00:00Z"),
+        startLabel: "1 Jan 2026",
       },
       {
         id: "occurrence-b",
         kind: "event",
         title: "Beta occurrence",
-        start: Date.parse("2026-09-21T09:00:00Z"),
-        startLabel: "21 Sep 2026",
+        start: Date.parse("2026-07-01T09:00:00Z"),
+        startLabel: "1 Jul 2026",
       },
       {
         id: "occurrence-c",
         kind: "range",
         title: "Gamma range",
-        start: Date.parse("2026-09-22T09:00:00Z"),
-        end: Date.parse("2026-09-24T09:00:00Z"),
-        startLabel: "22 Sep 2026",
-        endLabel: "24 Sep 2026",
+        start: Date.parse("2026-12-01T09:00:00Z"),
+        end: Date.parse("2027-01-15T09:00:00Z"),
+        startLabel: "1 Dec 2026",
+        endLabel: "15 Jan 2027",
       },
     ]);
 
