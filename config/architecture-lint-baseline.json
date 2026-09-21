@@ -269,8 +269,8 @@
       },
       "hoverOnlySelectors": {},
       "physicalInlineProperties": {
-        "left": 54,
-        "right": 40,
+        "left": 53,
+        "right": 39,
         "border-left": 9,
         "border-right": 3,
         "margin-left": 1
@@ -299,7 +299,6 @@
         "max-inline-size: calc( 100dvw - max(0.8rem, env(safe-area-inset-left)) - max(0.8rem, env(safe-area-inset-right)) );": 1,
         "max-inline-size: calc( 100dvw - max(0.9rem, env(safe-area-inset-left)) - max(0.9rem, env(safe-area-inset-right)) );": 1,
         "width: clamp(82px, 22dvw, 96px);": 1,
-        "max-width: calc(100dvw - 1rem);": 1,
         "width: clamp(150px, 20vw, 220px);": 1
       },
       "overflowXHidden": {
