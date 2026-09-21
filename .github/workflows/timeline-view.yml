@@ -5,6 +5,7 @@ on:
     paths:
       - 'site/index.html'
       - 'package.json'
+      - 'playwright.config.mjs'
       - 'src/orb-graph-entry.js'
       - 'src/evidence-extraction-core.js'
       - 'src/evidence-extraction-entry.js'
@@ -12,8 +13,6 @@ on:
       - 'site/webmcp.js'
       - 'site/graph-inference.js'
       - 'site/memgraph-interchange.js'
-      - 'tests/webmcp.test.mjs'
-      - 'tests/graph-inference.test.mjs'
       - 'site/timeline-view.js'
       - 'site/presentation-layout.js'
       - 'site/timeline-clustering.js'
@@ -34,6 +33,7 @@ on:
       - 'site/timeline-migration.js'
       - 'site/spatial.js'
       - 'site/location-map.js'
+      - 'tests/browser/**'
       - 'tests/temporal-spatial.test.mjs'
       - 'tests/interchange-adapter.test.mjs'
       - 'tests/event-focus-form.test.mjs'
@@ -53,6 +53,7 @@ on:
     paths:
       - 'site/index.html'
       - 'package.json'
+      - 'playwright.config.mjs'
       - 'src/orb-graph-entry.js'
       - 'src/evidence-extraction-core.js'
       - 'src/evidence-extraction-entry.js'
@@ -77,6 +78,7 @@ on:
       - 'site/timeline-migration.js'
       - 'site/spatial.js'
       - 'site/location-map.js'
+      - 'tests/browser/**'
       - 'tests/temporal-spatial.test.mjs'
       - 'tests/interchange-adapter.test.mjs'
       - 'tests/event-focus-form.test.mjs'
@@ -135,3 +137,15 @@ jobs:
       - run: node --check site/graph-inference.js
       - run: node --check site/app.js
       - run: pnpm test
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:browser
