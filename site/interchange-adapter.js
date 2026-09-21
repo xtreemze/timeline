@@ -502,7 +502,7 @@
         relationships: cloneJson(Array.isArray(timeline.relationships) ? timeline.relationships : []),
         evidence: cloneJson(Array.isArray(timeline.evidence) ? timeline.evidence : []),
         reasoning: cloneJson(timeline.reasoning && typeof timeline.reasoning === "object" ? timeline.reasoning : {}),
-        note: "Timeline interchange keeps external event, period, group, story, entity, reusable place, relationship, evidence, and analytical reasoning metadata behind a vendor-neutral adapter and preserves imported extension records when available. PDF blobs remain browser-local and are not embedded in interchange JSON."
+        note: "Timeline interchange keeps external event, period, group, story, entity, reusable place, relationship, evidence, and analytical reasoning metadata behind a vendor-neutral adapter and preserves imported extension records when available. PDF/image blobs remain browser-local and are not embedded in interchange JSON; derived text-extraction/OCR segments remain evidence metadata and are exported with page/image provenance."
       }
     };
   }

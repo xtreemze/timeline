@@ -42,8 +42,13 @@ jobs:
           pnpm install --no-frozen-lockfile
           pnpm build
           test -s site/orb-graph.bundle.js
+          test -s site/evidence-extraction.bundle.js
+          test -s site/pdf.worker.mjs
           node --check src/orb-graph-entry.js
+          node --check src/evidence-extraction-core.js
+          node --check src/evidence-extraction-entry.js
           node --check site/orb-graph.bundle.js
+          node --check site/evidence-extraction.bundle.js
 
       - name: Validate application JavaScript
         run: |
@@ -65,13 +70,14 @@ jobs:
           node --check site/location-map.js
           node --check site/webmcp.js
           node --check site/memgraph-interchange.js
+          node --check site/graph-inference.js
           node --check site/app.js
 
       - name: Validate application
         run: pnpm test
 
       - name: Validate static entry point
-        run: test -f site/index.html && test -f site/styles.css && test -f site/icon.svg && test -s site/orb-graph.bundle.js
+        run: test -f site/index.html && test -f site/styles.css && test -f site/icon.svg && test -s site/orb-graph.bundle.js && test -s site/evidence-extraction.bundle.js && test -s site/pdf.worker.mjs
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

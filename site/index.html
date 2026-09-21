@@ -492,6 +492,7 @@
                       <select id="item-evidence-1-type">
                         <option value="article">News / article</option>
                         <option value="pdf">PDF upload</option>
+                        <option value="image">Image upload</option>
                         <option value="note">Text note</option>
                         <option value="document">Document / source</option>
                       </select>
@@ -517,9 +518,17 @@
                       <textarea id="item-evidence-1-note" rows="3" maxlength="5000" placeholder="Explain what this source supports and any relevant caveats."></textarea>
                     </label>
                     <label class="field field-wide evidence-file-field">
-                      <span>PDF file <small>stored locally in IndexedDB, not embedded in JSON</small></span>
-                      <input id="item-evidence-1-file" type="file" accept="application/pdf,.pdf">
+                      <span>Evidence file <small>PDF or image · stored locally in IndexedDB</small></span>
+                      <input id="item-evidence-1-file" type="file" accept="application/pdf,.pdf,image/png,image/jpeg,image/webp,image/gif">
                     </label>
+                    <div class="evidence-extraction-controls field-wide">
+                      <button class="button secondary evidence-extract-text" type="button">Extract text</button>
+                      <span class="evidence-extraction-status" role="status"></span>
+                    </div>
+                    <details class="evidence-extraction-preview field-wide" hidden>
+                      <summary>Extracted text</summary>
+                      <pre></pre>
+                    </details>
                     <p id="item-evidence-1-file-status" class="evidence-file-status"></p>
                   </section>
                   <section class="evidence-editor-row" data-evidence-slot="2">
@@ -529,6 +538,7 @@
                       <select id="item-evidence-2-type">
                         <option value="article">News / article</option>
                         <option value="pdf">PDF upload</option>
+                        <option value="image">Image upload</option>
                         <option value="note">Text note</option>
                         <option value="document">Document / source</option>
                       </select>
@@ -554,9 +564,17 @@
                       <textarea id="item-evidence-2-note" rows="3" maxlength="5000" placeholder="Explain what this source supports and any relevant caveats."></textarea>
                     </label>
                     <label class="field field-wide evidence-file-field">
-                      <span>PDF file <small>stored locally in IndexedDB, not embedded in JSON</small></span>
-                      <input id="item-evidence-2-file" type="file" accept="application/pdf,.pdf">
+                      <span>Evidence file <small>PDF or image · stored locally in IndexedDB</small></span>
+                      <input id="item-evidence-2-file" type="file" accept="application/pdf,.pdf,image/png,image/jpeg,image/webp,image/gif">
                     </label>
+                    <div class="evidence-extraction-controls field-wide">
+                      <button class="button secondary evidence-extract-text" type="button">Extract text</button>
+                      <span class="evidence-extraction-status" role="status"></span>
+                    </div>
+                    <details class="evidence-extraction-preview field-wide" hidden>
+                      <summary>Extracted text</summary>
+                      <pre></pre>
+                    </details>
                     <p id="item-evidence-2-file-status" class="evidence-file-status"></p>
                   </section>
                   <section class="evidence-editor-row" data-evidence-slot="3">
@@ -566,6 +584,7 @@
                       <select id="item-evidence-3-type">
                         <option value="article">News / article</option>
                         <option value="pdf">PDF upload</option>
+                        <option value="image">Image upload</option>
                         <option value="note">Text note</option>
                         <option value="document">Document / source</option>
                       </select>
@@ -591,13 +610,21 @@
                       <textarea id="item-evidence-3-note" rows="3" maxlength="5000" placeholder="Explain what this source supports and any relevant caveats."></textarea>
                     </label>
                     <label class="field field-wide evidence-file-field">
-                      <span>PDF file <small>stored locally in IndexedDB, not embedded in JSON</small></span>
-                      <input id="item-evidence-3-file" type="file" accept="application/pdf,.pdf">
+                      <span>Evidence file <small>PDF or image · stored locally in IndexedDB</small></span>
+                      <input id="item-evidence-3-file" type="file" accept="application/pdf,.pdf,image/png,image/jpeg,image/webp,image/gif">
                     </label>
+                    <div class="evidence-extraction-controls field-wide">
+                      <button class="button secondary evidence-extract-text" type="button">Extract text</button>
+                      <span class="evidence-extraction-status" role="status"></span>
+                    </div>
+                    <details class="evidence-extraction-preview field-wide" hidden>
+                      <summary>Extracted text</summary>
+                      <pre></pre>
+                    </details>
                     <p id="item-evidence-3-file-status" class="evidence-file-status"></p>
                   </section>
                 </div>
-                <p class="field-hint">Evidence records can be reused by export/import as metadata. Uploaded PDF bytes remain local to this browser; the JSON stores only the evidence ID and file metadata.</p>
+                <p class="field-hint">Evidence records can be reused by export/import as metadata. Uploaded PDF/image bytes remain local to this browser. Embedded PDF text is extracted first; scanned pages and images use OCR when available. Extracted text is stored as derived page/image segments with method provenance and can feed AI graph inference.</p>
               </details>
 
               <details id="item-location-details" class="optional-editor field-wide" hidden>
@@ -634,6 +661,19 @@
                 </div>
                 <div id="item-location-map" class="location-map" role="region" aria-label="OpenStreetMap location picker"></div>
                 <p class="field-hint">Click the map or drag its marker to set coordinates. Map tiles load only while this section is open; location records remain local. © OpenStreetMap contributors.</p>
+              </details>
+
+              <details id="item-inference-details" class="optional-editor field-wide inference-editor">
+                <summary>AI extraction <small>optional · local built-in model</small></summary>
+                <div class="inference-actions">
+                  <button id="item-inference-run" class="button secondary" type="button" data-semantic-icon="relation">
+                    Infer entities, places & actions
+                  </button>
+                  <button id="item-inference-clear" class="button ghost" type="button" hidden>Clear inference</button>
+                </div>
+                <p id="item-inference-status" class="field-hint" role="status">Checking built-in AI availability…</p>
+                <div id="item-inference-results" class="inference-results" aria-live="polite"></div>
+                <p class="field-hint">Inference uses the event title/description, image descriptions, explicit location input, and attached evidence notes. It proposes graph facts only; selected actions and their required nodes/usable places are committed atomically when you save this item, after normal graph validation.</p>
               </details>
             </div>
             <p id="item-form-error" class="form-error" role="alert" hidden></p>
@@ -1167,6 +1207,7 @@
   <script src="./date-range-picker.js" defer></script>
   <script src="./event-presentation.js" defer></script>
   <script src="./evidence-store.js" defer></script>
+  <script src="./evidence-extraction.bundle.js" defer></script>
   <script src="./sample-case.js" defer></script>
   <script src="./timeline-clustering.js" defer></script>
   <script src="./timeline-motion.js" defer></script>
@@ -1181,6 +1222,7 @@
   <script src="./case-reasoning.js" defer></script>
   <script src="./interchange-adapter.js" defer></script>
   <script src="./memgraph-interchange.js" defer></script>
+  <script src="./graph-inference.js" defer></script>
   <script src="./webmcp.js" defer></script>
   <script src="./app.js" defer></script>
 </body>

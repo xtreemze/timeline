@@ -18,6 +18,40 @@ test("normalizes article, PDF metadata and notes without embedding binary data",
   assert.equal(records[2].note, "Observed at 09:30.");
 });
 
+test("preserves image evidence and derived OCR/PDF extraction metadata", () => {
+  const record = evidence.normalizeRecord({
+    id: "image-a",
+    type: "image",
+    title: "Photographed note",
+    file: {
+      blobKey: "evidence:image-a",
+      name: "note.jpg",
+      mimeType: "image/jpeg",
+      size: 2048
+    },
+    extraction: {
+      schemaVersion: "timeline-evidence-extraction-v1",
+      status: "complete",
+      mimeType: "image/jpeg",
+      generatedAt: "2026-09-21T00:00:00Z",
+      tool: { name: "Timeline Evidence Extraction", version: "1" },
+      segments: [{
+        id: "image-1",
+        locator: { kind: "image", index: 1 },
+        method: "text-detector",
+        text: "Call Bob at 09:30",
+        confidence: null
+      }],
+      unresolved: []
+    }
+  });
+
+  assert.equal(record.type, "image");
+  assert.equal(record.file.mimeType, "image/jpeg");
+  assert.equal(record.extraction.segments[0].locator.kind, "image");
+  assert.equal(record.extraction.segments[0].text, "Call Bob at 09:30");
+});
+
 test("preserves explicit forensic identity, integrity, acquisition and lineage metadata", () => {
   const record = evidence.normalizeRecord({
     id: "disk-copy",

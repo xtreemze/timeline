@@ -88,6 +88,8 @@ Timeline exposes its active local-first project to browser AI agents through the
 
 Graph-capable MCP writes require the current graph-contract version and are rejected if they violate entity-only nodes, distinct endpoints, action-only predicates, canonical time/place ownership, category/story separation, duplicate/orphan rules, or named narrative entity coverage. The repo-local `.agents/skills/timeline-graph-authoring/SKILL.md` gives Codex/ChatGPT a repeatable contract → extract/resolve entities → atomic mutation → audit → validation workflow.
 
+The event editor can also use Chrome's built-in `LanguageModel` Prompt API to infer candidate entities, places, and directed action edges from event title/description, media alt text, explicit location input, evidence notes, and extracted attachment text. PDF.js reads embedded PDF text first; scanned PDF pages and image attachments then use OCR, preferring platform `TextDetector` and falling back to the built-in multimodal language model. Extracted text is stored as derived evidence segments with page/image locators and extraction-method provenance, while original binary files remain browser-local. Model output is JSON-schema constrained, reconciled against canonical records, reviewed by the user, and applied only through the same strict graph validator. New coordinates are accepted only when the cited source contains them; the model is never used as a geocoder. There is no hidden application-owned cloud/API-key fallback when the browser model is unavailable. See `docs/BUILTIN-AI-INFERENCE.md`.
+
 For Memgraph interoperability, Timeline emits namespace-scoped Cypher and lossless `recordJson` payloads that an MCP client connected to both Timeline and Memgraph MCP can relay without DOM scraping or storing Memgraph credentials in the page. See `docs/WEBMCP-MEMGRAPH.md`.
 
 ### Relation graph
@@ -123,9 +125,9 @@ Focused events render a one-hop entity neighborhood seeded by relationships whos
 
 ### Evidence and claims
 
-Events can reference reusable evidence records through `evidenceIds[]`. Supported source types include news/articles, PDF exhibits, text notes, and generic documents/records.
+Events can reference reusable evidence records through `evidenceIds[]`. Supported source types include news/articles, PDF exhibits, image evidence, text notes, and generic documents/records.
 
-Evidence metadata—title, source, URL, date, explanatory note, file metadata—is part of the portable timeline document. Uploaded PDF bytes are stored separately in IndexedDB under the evidence ID and are intentionally **not** embedded in JSON or interchange exports. This avoids turning local chronology files into large binary containers.
+Evidence metadata—title, source, URL, date, explanatory note, file metadata, and derived text-extraction/OCR segments—is part of the portable timeline document. Uploaded PDF/image bytes are stored separately in IndexedDB under the evidence ID and are intentionally **not** embedded in JSON or interchange exports. Derived text remains portable metadata with page/image locators and extraction-method provenance, so it can be audited and reused without transporting the original binary.
 
 Evidence records can optionally preserve forensic identity and integrity metadata: source/original filename and locator, exhibit/root-exhibit identifiers, source/acquired-copy/derived-artifact class, explicit digest values, acquisition time/person/method/place/tool, source-item identity, and derived-artifact lineage. The canonical document also preserves separate timestamped `custodyActions[]`; custody history is not represented by overwriting a single current-custodian field.
 

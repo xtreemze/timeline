@@ -129,6 +129,21 @@ test("exports event/period/group structures and round-trips source extensions", 
       name: "exhibit-a.pdf",
       mimeType: "application/pdf",
       size: 4096
+    },
+    extraction: {
+      schemaVersion: "timeline-evidence-extraction-v1",
+      status: "complete",
+      mimeType: "application/pdf",
+      generatedAt: "2026-09-21T00:00:00Z",
+      tool: { name: "Timeline Evidence Extraction", version: "1" },
+      segments: [{
+        id: "page-1",
+        locator: { kind: "page", page: 1 },
+        method: "pdf-text",
+        text: "Alice called Bob.",
+        confidence: 1
+      }],
+      unresolved: []
     }
   }];
   const exported = adapter.exportData(imported.timeline);
@@ -144,6 +159,7 @@ test("exports event/period/group structures and round-trips source extensions", 
   assert.equal(exported._timeline.places.length, 1);
   assert.equal(exported._timeline.relationships.length, 1);
   assert.equal(exported._timeline.evidence.length, 1);
+  assert.equal(exported._timeline.evidence[0].extraction.segments[0].locator.page, 1);
   assert.equal(exported._timeline.reasoning.theses[0].id, "thesis-1");
   assert.equal(exported.events[0].media[0].url, "https://example.test/photo.jpg");
   assert.equal(exported.events[0].tags[0].icon, "evidence");
@@ -160,6 +176,7 @@ test("exports event/period/group structures and round-trips source extensions", 
   assert.equal(reimported.timeline.places.length, 1);
   assert.equal(reimported.timeline.relationships.length, 1);
   assert.equal(reimported.timeline.evidence.length, 1);
+  assert.equal(reimported.timeline.evidence[0].extraction.segments[0].text, "Alice called Bob.");
   assert.equal(reimported.timeline.reasoning.claims[0].id, "claim-1");
   assert.equal(reimported.timeline.items[0].media[0].url, "https://example.test/photo.jpg");
   assert.equal(reimported.timeline.items[0].tags[0].hue, 145);
