@@ -157,38 +157,96 @@
     };
   }
 
+  function requireGraphContractVersion(provided, expected) {
+    if (provided !== expected) {
+      throw new Error(
+        `Graph contract version mismatch. Expected “${expected}”; read timeline.get_graph_contract and retry the complete atomic mutation.`
+      );
+    }
+  }
+
+  function graphContractVersionSchema(version) {
+    return {
+      type: "string",
+      const: version,
+      description: "Exact version returned by timeline.get_graph_contract. Required on every graph-capable mutation so stale agents cannot silently write against an older modeling contract."
+    };
+  }
+
   function toolDefinitions(adapter) {
     if (!adapter || typeof adapter !== "object") throw new Error("Timeline WebMCP adapter is required.");
+    if (typeof adapter.getGraphContract !== "function" || typeof adapter.auditGraph !== "function") {
+      throw new Error("Timeline WebMCP adapter must expose getGraphContract() and auditGraph().");
+    }
+
+    const graphContract = adapter.getGraphContract();
+    const graphContractVersion = String(graphContract?.version || "").trim();
+    if (!graphContractVersion) throw new Error("Timeline graph contract must expose a version.");
+
     const emptySchema = { type: "object", additionalProperties: false, properties: {} };
+    const readOnlyAnnotations = {
+      readOnlyHint: true,
+      openWorldHint: false,
+      consequentialHint: false
+    };
+    const destructiveWriteAnnotations = {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: false,
+      consequentialHint: true
+    };
+
     return [
       {
         name: "timeline.get_project",
         title: "Read Timeline project",
         description: "Return the complete current Timeline project as canonical JSON, including chronology, stories, categories, entity graph, places, evidence, and reasoning.",
         inputSchema: emptySchema,
-        annotations: { readOnlyHint: true, consequentialHint: false },
+        annotations: readOnlyAnnotations,
         execute: async () => adapter.getProject()
       },
       {
-        name: "timeline.validate_project",
-        title: "Validate Timeline project",
-        description: "Validate a supplied Timeline project, or the active project when omitted, using the same normalization and strict graph rules as the application.",
+        name: "timeline.get_graph_contract",
+        title: "Read Timeline graph contract",
+        description: "Return the authoritative, versioned Timeline graph-authoring contract. Agents must follow this contract before creating or editing entities, relationships, places, or event narrative context. It defines entity-only nodes, distinct endpoints, action-only predicates, category/story separation, named-context entity coverage, and required validation workflow.",
+        inputSchema: emptySchema,
+        annotations: readOnlyAnnotations,
+        execute: async () => adapter.getGraphContract()
+      },
+      {
+        name: "timeline.audit_graph",
+        title: "Audit Timeline graph",
+        description: "Audit a supplied Timeline project, or the active project when omitted, against the complete graph contract without mutating state. Returns all graph errors plus structural duplicate/orphan diagnostics. Use this before and after graph-authoring transactions.",
         inputSchema: {
           type: "object",
           additionalProperties: false,
           properties: { project: { type: "object" } }
         },
-        annotations: { readOnlyHint: true, consequentialHint: false },
+        annotations: readOnlyAnnotations,
+        execute: async ({ project } = {}) => adapter.auditGraph(project)
+      },
+      {
+        name: "timeline.validate_project",
+        title: "Validate Timeline project",
+        description: "Validate a supplied Timeline project, or the active project when omitted, using canonical normalization and the strict graph contract. Known canonical entities named in event title/description/image alt/evidence note must be endpoints of event-linked action edges; graph categories, self-loops, generic/compound predicates, duplicate facts, mirrored copies, orphan entities, and invalid place/time modeling are rejected.",
+        inputSchema: {
+          type: "object",
+          additionalProperties: false,
+          properties: { project: { type: "object" } }
+        },
+        annotations: readOnlyAnnotations,
         execute: async ({ project } = {}) => adapter.validateProject(project)
       },
       {
         name: "timeline.apply_transaction",
         title: "Edit Timeline project",
-        description: "Atomically create, update, patch, delete, and manage Timeline records. Batch related edits together so graph invariants are validated only after the complete transaction. Supported collections: categories, items, stories, entities, places, relationships, evidence, custodyActions. Top-level title, extensions, and reasoning use op=set.",
+        description: "Atomically create, update, patch, delete, and manage Timeline records under the current graph contract. For narrative edits, extract every durable named entity first, create/reuse its entity node, and include meaningful action edges in the same transaction. Edges must connect two different entities and use an action-only predicate; time/place are structured properties; categories stay on chronology items only. Batch related entity + edge + item changes together because validation runs after the complete transaction.",
         inputSchema: {
           type: "object",
           additionalProperties: false,
           properties: {
+            graphContractVersion: graphContractVersionSchema(graphContractVersion),
             operations: {
               type: "array",
               minItems: 1,
@@ -196,28 +254,40 @@
               items: operationSchema()
             }
           },
-          required: ["operations"]
+          required: ["graphContractVersion", "operations"]
         },
-        annotations: { readOnlyHint: false, consequentialHint: true },
-        execute: async ({ operations }) => adapter.applyOperations(operations)
+        annotations: destructiveWriteAnnotations,
+        execute: async ({ graphContractVersion: version, operations }) => {
+          requireGraphContractVersion(version, graphContractVersion);
+          return adapter.applyOperations(operations);
+        }
       },
       {
         name: "timeline.replace_project",
         title: "Replace Timeline project",
-        description: "Replace the complete active Timeline project with supplied canonical JSON after strict application validation. This persists locally and rerenders the app.",
+        description: "Replace the complete active Timeline project only after strict graph-contract validation. The replacement must obey entity-only topology, action-only directed edges, named-context coverage, category/story separation, and canonical time/place rules.",
         inputSchema: {
           type: "object",
           additionalProperties: false,
-          properties: { project: { type: "object" } },
-          required: ["project"]
+          properties: {
+            graphContractVersion: graphContractVersionSchema(graphContractVersion),
+            project: { type: "object" }
+          },
+          required: ["graphContractVersion", "project"]
         },
-        annotations: { readOnlyHint: false, consequentialHint: true },
-        execute: async ({ project }) => adapter.replaceProject(project)
+        annotations: {
+          ...destructiveWriteAnnotations,
+          idempotentHint: true
+        },
+        execute: async ({ graphContractVersion: version, project }) => {
+          requireGraphContractVersion(version, graphContractVersion);
+          return adapter.replaceProject(project);
+        }
       },
       {
         name: "timeline.memgraph_export",
         title: "Export Timeline for Memgraph MCP",
-        description: "Return a Memgraph interoperability bundle containing canonical records, deterministic Cypher statements, schema setup suggestions, and read-back queries suitable for a Memgraph MCP client.",
+        description: "Return a Memgraph interoperability bundle containing canonical records, deterministic Cypher statements, schema setup suggestions, and read-back queries suitable for a Memgraph MCP client. Export is read-only and preserves Timeline graph semantics.",
         inputSchema: {
           type: "object",
           additionalProperties: false,
@@ -230,23 +300,30 @@
             }
           }
         },
-        annotations: { readOnlyHint: true, consequentialHint: false },
+        annotations: readOnlyAnnotations,
         execute: async (options = {}) => adapter.exportMemgraph(options)
       },
       {
         name: "timeline.memgraph_import",
         title: "Import Memgraph MCP records",
-        description: "Import Memgraph MCP query rows or a Timeline Memgraph export bundle into the active project. Supplied collections replace the corresponding Timeline collections; omitted collections remain unchanged. The merged result is strictly validated before commit.",
+        description: "Import Memgraph MCP query rows or a Timeline Memgraph export bundle into the active project. The merged result must satisfy the current Timeline graph contract before commit; Memgraph labels/storage envelopes never relax Timeline node/edge semantics.",
         inputSchema: {
           type: "object",
           additionalProperties: false,
           properties: {
+            graphContractVersion: graphContractVersionSchema(graphContractVersion),
             snapshot: { type: "object" }
           },
-          required: ["snapshot"]
+          required: ["graphContractVersion", "snapshot"]
         },
-        annotations: { readOnlyHint: false, consequentialHint: true },
-        execute: async ({ snapshot }) => adapter.importMemgraph(snapshot)
+        annotations: {
+          ...destructiveWriteAnnotations,
+          idempotentHint: true
+        },
+        execute: async ({ graphContractVersion: version, snapshot }) => {
+          requireGraphContractVersion(version, graphContractVersion);
+          return adapter.importMemgraph(snapshot);
+        }
       }
     ];
   }
@@ -276,6 +353,7 @@
     MANAGED_COLLECTIONS,
     TOP_LEVEL_FIELDS,
     applyOperations,
+    requireGraphContractVersion,
     toolDefinitions,
     register
   });
