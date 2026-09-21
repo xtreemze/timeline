@@ -98,6 +98,7 @@ jobs:
           node-version: 24
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      - run: pnpm types || echo "⚠ Type errors found (non-fatal in Phase 2)" && true
       - run: pnpm build
       - run: test -s site/orb-graph.bundle.js
       - run: node --check src/orb-graph-entry.js

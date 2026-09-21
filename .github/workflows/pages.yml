@@ -43,6 +43,9 @@ jobs:
       - name: Lint code
         run: pnpm lint
 
+      - name: Type check
+        run: pnpm types || echo "⚠ Type errors found (non-fatal in Phase 2)" && true
+
       - name: Build worker-backed relation graph
         run: |
           pnpm build

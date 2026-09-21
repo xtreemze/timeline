@@ -14,6 +14,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "echo 'Biome formatter configured but disabled until tests are updated for new formatting'",
+    "types": "tsc --noEmit --pretty",
     "check": "pnpm lint",
     "fix": "pnpm lint:fix",
     "benchmark:graph-data": "node benchmarks/graph-data.mjs"
@@ -23,7 +24,9 @@
     "@biomejs/biome": "^2.5.14",
     "@eslint/js": "^10.0.1",
     "@memgraph/orb": "1.1.0",
+    "@types/node": "^26.6.2",
     "esbuild": "0.28.2",
-    "eslint": "^10.11.0"
+    "eslint": "^10.11.0",
+    "typescript": "^7.0.2"
   }
 }

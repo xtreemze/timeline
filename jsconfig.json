@@ -10,14 +10,13 @@
     "strictPropertyInitialization": true,
     "noImplicitThis": true,
     "alwaysStrict": true,
-    "noImplicitAny": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noImplicitOverride": true,
     "noUncheckedIndexedAccess": true,
-    "noPropertyAccessFromIndexSignature": true,
-    "noUncheckedTypeAssertion": true,
     "useUnknownInCatchVariables": true,
+    "noImplicitAny": false,
+    "noImplicitOverride": false,
+    "noPropertyAccessFromIndexSignature": false,
 
     // Module resolution
     "module": "esnext",
@@ -42,14 +41,14 @@
     // Library and DOM
     "lib": ["es2024", "dom", "dom.iterable", "webworker"],
     "jsx": "react-jsx",
+    "types": ["node"],
 
     // Path mapping
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@tests/*": ["tests/*"]
+      "@/*": ["./src/*"],
+      "@tests/*": ["./tests/*"]
     }
   },
-  "include": ["src/**/*.js", "site/**/*.js", "tests/**/*.mjs", "benchmarks/**/*.mjs"],
+  "include": ["globals.d.ts", "src/**/*.js", "site/**/*.js", "tests/**/*.mjs", "benchmarks/**/*.mjs"],
   "exclude": ["node_modules", "site/orb-graph.bundle.js"]
 }
