@@ -246,7 +246,7 @@ function lintTypeScript(file, source) {
   if (/@ts-(?:ignore|nocheck|expect-error)\b/.test(source)) {
     report(file, "no-ts-suppression", "@ts-ignore, @ts-nocheck, and @ts-expect-error are forbidden; model the uncertainty explicitly");
   }
-  if (/\bas\s+unknown\s+as\s+[A-Za-z_$<{[(]/.test(source)) {
+  if (/\bas\s+unknown\s+as\s+(?:[A-Za-z_$]|[<{(\[])/.test(source)) {
     report(file, "no-double-assertion", "double assertions through unknown are forbidden; validate or narrow at the boundary");
   }
   if (/matchMedia\s*\(\s*["'`][^"'`]*(?:max-width|width\s*(?:<=|<))/.test(source)) {
