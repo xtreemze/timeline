@@ -23,8 +23,6 @@ const MAP_DRAG_MOVE_TOLERANCE_PX = 8;
 const MAP_CLICK_SUPPRESSION_MS = 350;
 const motion = globalThis.TimelineMotion;
 
-let loadPromise: Promise<any> | null = null;
-
 interface PointCoord {
   lat: number;
   lng: number;
@@ -184,7 +182,12 @@ function attachBasemap(
 ): () => void {
   let providerIndex = 0;
   let tileErrors = 0;
-  let layer: any = null;
+  let layer: {
+    on: (event: string, listener: () => void) => void;
+    off: () => void;
+    remove: () => void;
+    addTo: (target: unknown) => void;
+  } | null = null;
   let destroyed = false;
   const failureThreshold = 3;
   const setState = (state: "loading" | "ready" | "unavailable", provider?: MapProvider) => {
