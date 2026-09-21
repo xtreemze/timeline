@@ -39,8 +39,10 @@ const spatial = TimelineSpatial;
 const interchangeAdapter = TimelineInterchangeAdapter;
 const timeScale = TimelineScale;
 
-const SAMPLE = globalThis.TimelineSampleCase;
-if (!SAMPLE) throw new Error("TimelineSampleCase must load before app.ts.");
+// Get sample data from globalThis, or fallback to blankTimeline if not available
+function getSample() {
+  return globalThis.TimelineSampleCase || null;
+}
 
 // Application version constant
 const VERSION = 2;
@@ -1171,7 +1173,11 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     }
     // A first launch should demonstrate the complete application rather than an empty shell.
     // Persisted current/legacy timelines still take precedence above this sample fallback.
-    return normalizeTimeline(clone(SAMPLE), { strictGraph: true });
+    const sample = getSample();
+    if (sample && sample.items && sample.items.length > 0) {
+      return sample;
+    }
+    return blankTimeline();
   }
 
   function persist() {
