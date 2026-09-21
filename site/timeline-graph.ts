@@ -1212,7 +1212,15 @@ export function migrateLegacySpatialModel(input: any, spatial: any = globalThis.
       {
         id: preferredId || raw?.id,
         name: raw?.name || raw?.label || "Place",
-        geometry: raw?.geometry,
+        geographicIdentifier: raw?.geographicIdentifier || raw?.attributes?.geographicIdentifier,
+        address: raw?.address || raw?.attributes?.address,
+        geometry: raw?.geometry || raw?.attributes?.geometry,
+        radiusMeters:
+          raw?.radiusMeters ?? raw?.attributes?.radiusMeters ?? raw?.attributes?.accuracyMeters,
+        icon: raw?.icon || raw?.attributes?.icon || "place",
+        markerShape: raw?.markerShape || raw?.attributes?.markerShape || "pin",
+        style: raw?.style || raw?.mapStyle || raw?.attributes?.style || {},
+        attributes: raw?.attributes || {},
       },
       places.length,
     );
