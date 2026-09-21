@@ -14,6 +14,9 @@ import {
   itemOverlapsWindow,
   occurrenceSceneKey,
   queryOccurrences,
+  relationshipBandSceneKey,
+  temporalAccentSceneKey,
+  tickSceneKey,
   visibleIntervalAnchor,
   type TemporalRetentionState,
   type TemporalWindow,
@@ -69,10 +72,17 @@ interface TimelineItem {
   graphContext?: unknown;
 }
 
+interface TimelineRelationshipBand {
+  id: string;
+  predicate?: string;
+  start: number;
+  end: number;
+}
+
 interface SetItemsOptions {
   focusId?: string | null;
   allCoordinates?: number[];
-  relationships?: unknown[];
+  relationships?: TimelineRelationshipBand[];
 }
 
 interface SceneRecord {
@@ -223,7 +233,7 @@ class TimelineViewController {
   stage: HTMLDivElement;
   axis: HTMLDivElement;
   items: TimelineItem[] = [];
-  relationships: unknown[] = [];
+  relationships: TimelineRelationshipBand[] = [];
   allCoordinates: number[] = [];
   viewport: TemporalWindow = { start: 0, end: DEFAULT_SPAN_MS };
   renderWindow: TemporalWindow = { start: 0, end: DEFAULT_SPAN_MS };
@@ -234,6 +244,8 @@ class TimelineViewController {
   scene = new Map<string, SceneRecord>();
   tickScene = new Map<string, HTMLDivElement>();
   accentScene = new Map<string, HTMLDivElement>();
+  relationshipBandScene = new Map<string, HTMLDivElement>();
+  relationshipBandZone: HTMLDivElement | null = null;
   committedTickSpecKey = "";
   pointerDrag: PointerDragState | null = null;
   touchPointers = new Map<number, TouchPointerState>();
@@ -682,7 +694,15 @@ class TimelineViewController {
     this.items = (items || []).filter(
       (item) => item && typeof item.id === "string" && Number.isFinite(item.start),
     );
-    this.relationships = Array.isArray(options.relationships) ? options.relationships : [];
+    this.relationships = Array.isArray(options.relationships)
+      ? options.relationships.filter(
+          (relationship): relationship is TimelineRelationshipBand =>
+            Boolean(relationship) &&
+            typeof relationship.id === "string" &&
+            Number.isFinite(relationship.start) &&
+            Number.isFinite(relationship.end),
+        )
+      : [];
     this.allCoordinates = Array.isArray(options.allCoordinates)
       ? options.allCoordinates.filter(Number.isFinite)
       : this.items.flatMap((item) =>
@@ -923,7 +943,7 @@ class TimelineViewController {
     const keepTicks = new Set<string>();
 
     for (const tick of ticks) {
-      const key = `tick:${tick.spec.unit}:${tick.spec.step}:${tick.value}`;
+      const key = tickSceneKey({ unit: tick.spec.unit, value: tick.value });
       keepTicks.add(key);
       let node = this.tickScene.get(key);
       if (!node) {
@@ -947,7 +967,10 @@ class TimelineViewController {
 
     const keepAccents = new Set<string>();
     for (const accent of accentPlan.edgeAccents) {
-      const key = `accent:${accent.kind}:${accent.time}:${accent.label}`;
+      const key = temporalAccentSceneKey({
+        kind: String(accent.kind || "edge"),
+        time: Number(accent.time),
+      });
       keepAccents.add(key);
       let node = this.accentScene.get(key);
       if (!node) {
@@ -967,7 +990,10 @@ class TimelineViewController {
     }
 
     for (const accent of accentPlan.axisMonths) {
-      const key = `axis-accent:${accent.kind}:${accent.time}:${accent.label}`;
+      const key = temporalAccentSceneKey({
+        kind: String(accent.kind || "axis"),
+        time: Number(accent.time),
+      });
       keepAccents.add(key);
       let node = this.accentScene.get(key);
       if (!node) {
@@ -992,6 +1018,79 @@ class TimelineViewController {
         if (keepAccents.has(key)) continue;
         node.remove();
         this.accentScene.delete(key);
+      }
+    }
+  }
+
+  relationshipBandLane(id: string): number {
+    let hash = 0;
+    for (let index = 0; index < id.length; index += 1) {
+      hash = (hash * 31 + id.charCodeAt(index)) | 0;
+    }
+    return Math.abs(hash) % 4;
+  }
+
+  renderRelationshipBands(padding: number, usable: number): void {
+    if (!this.relationshipBandZone) {
+      this.relationshipBandZone = document.createElement("div");
+      this.relationshipBandZone.className = "timeline-relation-zone";
+      this.stage.append(this.relationshipBandZone);
+    }
+
+    const retained = this.relationships
+      .filter((relationship) => itemOverlapsWindow(relationship, this.retention.extent))
+      .sort((left, right) => left.start - right.start || left.id.localeCompare(right.id));
+    const keep = new Set<string>();
+
+    for (const relationship of retained) {
+      const key = relationshipBandSceneKey(relationship.id);
+      keep.add(key);
+      let segment = this.relationshipBandScene.get(key);
+      if (!segment) {
+        segment = document.createElement("div");
+        segment.className = "timeline-relation-segment";
+        segment.dataset.relationshipId = relationship.id;
+        this.relationshipBandScene.set(key, segment);
+        this.relationshipBandZone.append(segment);
+      }
+
+      segment.title = relationship.predicate || "Temporal relationship";
+      segment.style.setProperty(
+        "--relation-lane-offset",
+        `${this.relationshipBandLane(relationship.id) * 8}px`,
+      );
+
+      const visible = itemOverlapsWindow(relationship, this.viewport);
+      segment.hidden = !visible;
+      segment.classList.toggle("is-buffered", !visible);
+      segment.setAttribute("aria-hidden", String(!visible));
+      if (!visible) continue;
+
+      const clippedStart = Math.max(this.viewport.start, Math.min(relationship.start, relationship.end));
+      const clippedEnd = Math.min(this.viewport.end, Math.max(relationship.start, relationship.end));
+      const startPosition = padding + scale.coordinateFor(clippedStart, this.viewport, usable);
+      const endPosition = padding + scale.coordinateFor(clippedEnd, this.viewport, usable);
+      const low = Math.min(startPosition, endPosition);
+      const high = Math.max(startPosition, endPosition);
+
+      if (this.orientation === "horizontal") {
+        segment.style.left = `${low}px`;
+        segment.style.width = `${Math.max(6, high - low)}px`;
+        segment.style.top = "";
+        segment.style.height = "";
+      } else {
+        segment.style.top = `${low}px`;
+        segment.style.height = `${Math.max(6, high - low)}px`;
+        segment.style.left = "";
+        segment.style.width = "";
+      }
+    }
+
+    if (!this.retention.active) {
+      for (const [key, segment] of this.relationshipBandScene) {
+        if (keep.has(key)) continue;
+        segment.remove();
+        this.relationshipBandScene.delete(key);
       }
     }
   }
@@ -1107,6 +1206,10 @@ class TimelineViewController {
       for (const node of this.accentScene.values()) node.remove();
       this.tickScene.clear();
       this.accentScene.clear();
+      for (const node of this.relationshipBandScene.values()) node.remove();
+      this.relationshipBandScene.clear();
+      this.relationshipBandZone?.remove();
+      this.relationshipBandZone = null;
       this.committedTickSpecKey = "";
       this.syncZoomSlider();
       return;
@@ -1133,6 +1236,7 @@ class TimelineViewController {
     }
 
     this.renderTemporalContext(padding, usable);
+    this.renderRelationshipBands(padding, usable);
 
     const membershipWindow = this.retention.extent;
     const candidates = queryOccurrences(this.items, membershipWindow);
