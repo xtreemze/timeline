@@ -203,11 +203,11 @@ function normalizePlaceGeometry(raw: unknown): PlaceGeometry | null {
     throw new Error("Place area geometry requires GeoJSON coordinates.");
   }
 
-  const coordinates = clone(raw.coordinates);
-  if (!Array.isArray(coordinates)) {
+  const cloned = clone(raw);
+  if (!isRecord(cloned) || !Array.isArray(cloned.coordinates)) {
     throw new Error("Place area geometry requires cloneable GeoJSON coordinates.");
   }
-  return { type: raw.type, coordinates };
+  return { ...cloned, type: raw.type, coordinates: cloned.coordinates };
 }
 
 export function normalizePlace(raw: unknown, index: number = 0): Place | null {
