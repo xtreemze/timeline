@@ -60,6 +60,18 @@ function compareExactDebt(file, rule, actual, allowed) {
   }
 }
 
+function compareScalarDebt(file, rule, current, allowed) {
+  if (current > allowed) {
+    report(file, rule, `${current} occurrence(s), baseline allows ${allowed}`);
+  } else if (current < allowed) {
+    report(
+      file,
+      rule,
+      `debt fell from ${allowed} to ${current}; lower the baseline in the same change`,
+    );
+  }
+}
+
 function hoverOnlySelectors(source) {
   const selectors = [];
   const rulePattern = /([^{}]+)\{[^{}]*\}/g;
@@ -158,14 +170,35 @@ function lintTypeScript(file, source) {
     }
   }
 
+  const ambientGlobals = countMatches(
+    source,
+    /globalThis(?:\s+as\s+any)?\)?\.Timeline[A-Za-z0-9_]*/g,
+  );
+  compareScalarDebt(
+    file,
+    "ambient-timeline-global",
+    ambientGlobals,
+    baseline.architecture?.ambientTimelineGlobals?.[file] || 0,
+  );
+
+  const directCanonicalMutations =
+    countMatches(
+      source,
+      /\b(?:state|project)\.(?:items|entities|relationships|places|stories|categories|evidence|custodyActions)\.(?:push|pop|shift|unshift|splice|sort|reverse)\s*\(/g,
+    ) +
+    countMatches(
+      source,
+      /\b(?:state|project)\.(?:items|entities|relationships|places|stories|categories|evidence|custodyActions)\s*=(?!=)/g,
+    );
+  compareScalarDebt(
+    file,
+    "direct-canonical-mutation",
+    directCanonicalMutations,
+    baseline.architecture?.directCanonicalMutations?.[file] || 0,
+  );
+
   if (/@ts-(?:ignore|nocheck)\b/.test(source)) {
     report(file, "no-ts-suppression", "@ts-ignore and @ts-nocheck are forbidden");
-  }
-  if (/\.innerHTML\s*=|\.outerHTML\s*=|\.insertAdjacentHTML\s*\(|document\.write\s*\(/.test(source)) {
-    report(file, "no-unsafe-dom-html", "HTML string injection APIs are forbidden");
-  }
-  if (/\b(?:eval|Function)\s*\(/.test(source)) {
-    report(file, "no-dynamic-code", "eval() and Function() construction are forbidden");
   }
   if (/matchMedia\s*\(\s*["'`][^"'`]*(?:max-width|width\s*(?:<=|<))/.test(source)) {
     report(
@@ -192,6 +225,65 @@ function lintTypeScript(file, source) {
   }
 }
 
+function lintArchitectureBoundaries(file, source) {
+  const isDomain = file.startsWith("src/domain/");
+  const isApplication = file.startsWith("src/application/");
+  const isProjection = file.startsWith("src/projection/");
+  if (!isDomain && !isApplication && !isProjection) return;
+
+  const imports = [...source.matchAll(/(?:from\s+|import\s*\(\s*)["']([^"']+)["']/g)].map(
+    (match) => match[1],
+  );
+  for (const specifier of imports) {
+    if (
+      specifier === "lit" ||
+      specifier.startsWith("lit/") ||
+      specifier === "leaflet" ||
+      specifier === "@memgraph/orb" ||
+      /(?:^|\/)site(?:\/|$)/.test(specifier)
+    ) {
+      report(
+        file,
+        "inward-dependency-only",
+        `core architecture layer must not import renderer/framework/provider dependency "${specifier}"`,
+      );
+    }
+    if (isDomain && /(?:^|\/)(?:application|projection)(?:\/|$)/.test(specifier)) {
+      report(file, "domain-dependency-direction", `domain must not import "${specifier}"`);
+    }
+    if (isApplication && /(?:^|\/)projection(?:\/|$)/.test(specifier)) {
+      report(file, "application-dependency-direction", `application must not import "${specifier}"`);
+    }
+  }
+
+  if (/\b(?:document|window|HTMLElement|HTML[A-Za-z]+Element|Element|CSS|requestAnimationFrame|localStorage|sessionStorage|navigator)\b/.test(source)) {
+    report(
+      file,
+      "renderer-neutral-core",
+      "domain/application/projection layers must not depend on DOM, CSS, storage, or renderer globals",
+    );
+  }
+  if (/globalThis(?:\s+as\s+any)?\)?\.Timeline[A-Za-z0-9_]*/.test(source)) {
+    report(file, "no-ambient-timeline-global-in-core", "core architecture layers must use imports/contracts, never ambient Timeline globals");
+  }
+  if ((isDomain || isProjection) && /\b(?:Math\.random|Date\.now|performance\.now|crypto\.randomUUID)\s*\(/.test(source)) {
+    report(
+      file,
+      "deterministic-core",
+      "domain and projection layers must be deterministic; inject identity/time/randomness through explicit inputs",
+    );
+  }
+}
+
+function lintScriptSafety(file, source) {
+  if (/\.innerHTML\s*=|\.outerHTML\s*=|\.insertAdjacentHTML\s*\(|document\.write\s*\(/.test(source)) {
+    report(file, "no-unsafe-dom-html", "HTML string injection APIs are forbidden");
+  }
+  if (/\b(?:eval|Function)\s*\(/.test(source)) {
+    report(file, "no-dynamic-code", "eval() and Function() construction are forbidden");
+  }
+}
+
 function lintDisableComments(file, source) {
   const pattern = /\/\/\s*eslint-disable(?:-next-line|-line)?\s+([^\n]+)/g;
   let match = pattern.exec(source);
@@ -213,8 +305,14 @@ for (const file of files) {
   if (file.endsWith(".bundle.js")) continue;
   const source = await readFile(path.join(ROOT, file), "utf8");
   if (file.endsWith(".css")) lintCss(file, source);
-  if (file.endsWith(".ts")) lintTypeScript(file, source);
-  if (/\.(?:js|mjs|ts)$/.test(file)) lintDisableComments(file, source);
+  if (file.endsWith(".ts")) {
+    lintTypeScript(file, source);
+    lintArchitectureBoundaries(file, source);
+  }
+  if (/\.(?:js|mjs|ts)$/.test(file)) {
+    lintScriptSafety(file, source);
+    lintDisableComments(file, source);
+  }
 }
 
 if (errors.length > 0) {
