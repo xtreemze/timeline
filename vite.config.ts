@@ -1,9 +1,6 @@
 import { copyFileSync, mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 
-const repositoryRoot = dirname(fileURLToPath(import.meta.url));
 const runtimeFiles = [
   'orb-graph.bundle.js',
   'leaflet.bundle.js',
