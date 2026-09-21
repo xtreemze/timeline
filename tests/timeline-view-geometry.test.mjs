@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-await import("../site/time-scale.js");
-await import("../site/timeline-clustering.js");
-await import("../site/timeline-motion.js");
-await import("../site/event-presentation.js");
-await import("../site/timeline-view.js");
+await import("../site/time-scale-shim.ts");
+await import("../site/timeline-clustering-shim.ts");
+await import("../site/timeline-motion-shim.ts");
+await import("../site/event-presentation-shim.ts");
+await import("../site/timeline-view-shim.ts");
 
 const geometry = globalThis.TimelineView.geometry;
 
@@ -40,7 +40,7 @@ test("wheel zoom is deliberately capped and symmetric enough for fine control", 
 test("selected events use a compact six-column focus popover over the persistent timeline", async () => {
   const [html, js, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
   assert.match(html, /id="timeline-focus-view"/);
