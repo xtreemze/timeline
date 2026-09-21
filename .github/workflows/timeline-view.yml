@@ -62,6 +62,7 @@ on:
       - 'tests/browser/retained-structural-composition.spec.ts'
       - 'tests/browser/semantic-chronology.spec.ts'
       - 'tests/playwright/graph-touch.spec.ts'
+      - 'tests/playwright/interaction.spec.ts'
       - 'tests/playwright/layout.spec.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'benchmarks/retained-timeline.mjs'
@@ -137,6 +138,7 @@ on:
       - 'tests/browser/retained-structural-composition.spec.ts'
       - 'tests/browser/semantic-chronology.spec.ts'
       - 'tests/playwright/graph-touch.spec.ts'
+      - 'tests/playwright/interaction.spec.ts'
       - 'tests/playwright/layout.spec.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'benchmarks/retained-timeline.mjs'
@@ -228,6 +230,19 @@ jobs:
           grep -F 'layout.spec.ts' /tmp/application-shell-playwright-list.txt
       - name: Run application shell browser tests
         run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --project="Mobile Chrome" --project="Mobile Safari" --project="Tablet Touch"
+
+  interaction-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - name: Run interaction browser tests
+        run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/interaction.spec.ts
 
   graph-touch-browser:
     runs-on: ubuntu-latest
