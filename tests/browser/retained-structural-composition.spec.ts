@@ -62,19 +62,25 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await installRetainedTimelineFixture(page);
   await expect(
-    page.locator("#tdd-timeline-view .timeline-event:not(.timeline-cluster):visible").first(),
+    page
+      .locator(
+        "#tdd-timeline-view .timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible",
+      )
+      .first(),
   ).toBeVisible();
 });
 
 test("#269 focused occurrence survives an orientation transaction", async ({ page }) => {
   const root = page.locator("#tdd-timeline-view");
-  const event = root.locator(".timeline-event:not(.timeline-cluster):visible").first();
-  await expect(event).toBeVisible();
-  await event.evaluate((element) => {
-    element.dataset.tddIdentity = "focused-occurrence";
+  const terminal = root
+    .locator(".timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible")
+    .first();
+  await expect(terminal).toBeVisible();
+  await terminal.evaluate((element) => {
+    element.closest(".timeline-event")?.setAttribute("data-tdd-identity", "focused-occurrence");
   });
 
-  await event.locator(".timeline-event-terminal").click();
+  await terminal.click();
   await expect(root).toHaveAttribute("data-scene-state", "focused");
 
   await page.evaluate(() => {
@@ -89,7 +95,7 @@ test("#269 focused occurrence survives an orientation transaction", async ({ pag
 test("#269 keyboard focus identity survives a buffered camera interaction", async ({ page }) => {
   const root = page.locator("#tdd-timeline-view");
   const terminal = root
-    .locator(".timeline-event:not(.timeline-cluster):visible .timeline-event-terminal")
+    .locator(".timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible")
     .first();
   await expect(terminal).toBeVisible();
   await terminal.evaluate((element) => {
