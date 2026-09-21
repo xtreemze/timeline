@@ -76,6 +76,10 @@ on:
       - 'tests/temporal-graph-runtime-contracts.test.mjs'
       - 'tests/timeline-projection-runtime.test.mjs'
       - 'tests/graph-editor.test.mjs'
+      - 'playwright.config.ts'
+      - 'tests/playwright/**/*.spec.ts'
+      - 'tests/browser/**/*.spec.ts'
+      - 'tests/playwright-certification-config.test.mjs'
       - '.github/workflows/timeline-view.yml'
   push:
     branches: [main]
@@ -149,6 +153,10 @@ on:
       - 'tests/temporal-graph-runtime-contracts.test.mjs'
       - 'tests/timeline-projection-runtime.test.mjs'
       - 'tests/graph-editor.test.mjs'
+      - 'playwright.config.ts'
+      - 'tests/playwright/**/*.spec.ts'
+      - 'tests/browser/**/*.spec.ts'
+      - 'tests/playwright-certification-config.test.mjs'
       - '.github/workflows/timeline-view.yml'
 
 permissions:
@@ -190,7 +198,7 @@ jobs:
       - run: |
           pnpm test || echo "⚠ Legacy ESM/TypeScript test migration debt tracked in issue 258"
 
-  structural-composition-browser:
+  browser-certification:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -199,11 +207,17 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
-      - name: Verify structural browser test discovery
+      - run: pnpm test:browser-certification-config
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - name: Verify unified browser test discovery and project matrix
         run: |
-          pnpm exec playwright test --config=playwright.config.mjs --list | tee /tmp/structural-playwright-list.txt
-          grep -F 'retained-structural-composition.spec.ts' /tmp/structural-playwright-list.txt
-          grep -F 'semantic-chronology.spec.ts' /tmp/structural-playwright-list.txt
-      - run: pnpm test:structural-composition-browser
-      - run: pnpm test:semantic-chronology-browser
+          pnpm exec playwright test --list | tee /tmp/playwright-list.txt
+          grep -F 'retained-structural-composition.spec.ts' /tmp/playwright-list.txt
+          grep -F 'semantic-chronology.spec.ts' /tmp/playwright-list.txt
+          grep -F '[Mobile Chrome]' /tmp/playwright-list.txt
+          grep -F '[Mobile Chrome Landscape]' /tmp/playwright-list.txt
+          grep -F '[Mobile Safari]' /tmp/playwright-list.txt
+          grep -F '[Mobile Safari Landscape]' /tmp/playwright-list.txt
+          grep -F '[Tablet Touch]' /tmp/playwright-list.txt
+          grep -F '[Reduced Motion]' /tmp/playwright-list.txt
+      - run: pnpm test:e2e
