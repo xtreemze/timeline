@@ -4,10 +4,6 @@ lockfileVersion: '9.0'
 importers:
 
   .:
-    dependencies:
-      leaflet:
-        specifier: 1.9.4
-        version: 1.9.4
     configDependencies: {}
     packageManagerDependencies:
       pnpm:
@@ -170,6 +166,9 @@ importers:
 
   .:
     dependencies:
+      leaflet:
+        specifier: 1.9.4
+        version: 1.9.4
       pdfjs-dist:
         specifier: 6.3.289
         version: 6.3.289
