@@ -76,6 +76,7 @@ on:
       - 'tests/temporal-graph-runtime-contracts.test.mjs'
       - 'tests/timeline-projection-runtime.test.mjs'
       - 'tests/graph-editor.test.mjs'
+      - 'tests/graph-surface-contracts.test.mjs'
       - 'playwright.config.ts'
       - 'tests/playwright/**/*.spec.ts'
       - 'tests/browser/**/*.spec.ts'
@@ -153,6 +154,7 @@ on:
       - 'tests/temporal-graph-runtime-contracts.test.mjs'
       - 'tests/timeline-projection-runtime.test.mjs'
       - 'tests/graph-editor.test.mjs'
+      - 'tests/graph-surface-contracts.test.mjs'
       - 'playwright.config.ts'
       - 'tests/playwright/**/*.spec.ts'
       - 'tests/browser/**/*.spec.ts'
@@ -193,6 +195,7 @@ jobs:
       - run: pnpm test:semantic-hierarchy-runtime
       - run: pnpm test:retained-context-runtime
       - run: pnpm test:graph-runtime-contracts
+      - run: pnpm test:graph-surface-contracts
       - run: pnpm test:webmcp-lifecycle-runtime
       - run: pnpm test:timeline-projection-runtime
       - run: |
