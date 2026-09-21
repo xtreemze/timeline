@@ -61,6 +61,45 @@ test.describe('Timeline Layout', () => {
     }
   });
 
+  test('mobile panels and menus remain inside the reachable viewport', async ({ page }) => {
+    const viewport = { width: 390, height: 844 };
+    await page.setViewportSize(viewport);
+    await page.goto('/');
+
+    async function expectInsideViewport(selector: string) {
+      const locator = page.locator(selector);
+      await expect(locator).toBeVisible();
+      const box = await locator.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box?.x).toBeGreaterThanOrEqual(0);
+      expect(box?.y).toBeGreaterThanOrEqual(0);
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewport.width + 1);
+      expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewport.height + 1);
+      return box;
+    }
+
+    const toolDock = page.locator('.app-tool-dock');
+
+    await page.locator('#editor-toggle').click();
+    const editorBox = await expectInsideViewport('#control-panel');
+    const dockBox = await toolDock.boundingBox();
+    expect(editorBox?.width).toBeGreaterThan(viewport.width * 0.9);
+    expect((editorBox?.y ?? 0) + (editorBox?.height ?? 0)).toBeLessThanOrEqual((dockBox?.y ?? viewport.height) + 1);
+    await page.locator('#control-panel-close').click();
+
+    await page.locator('#timeline-browser-toggle').click();
+    const browserBox = await expectInsideViewport('#timeline-browser-sheet');
+    expect(browserBox?.width).toBeGreaterThan(viewport.width * 0.9);
+    await page.locator('#timeline-browser-close').click();
+
+    await page.locator('#project-menu-toggle').click();
+    await expectInsideViewport('#project-menu:popover-open');
+    await page.keyboard.press('Escape');
+
+    await page.locator('#timeline-view-controls-toggle').click();
+    await expectInsideViewport('#timeline-view-toolbar:popover-open');
+  });
+
   test('fullscreen presentation fills viewport while keeping controls accessible', async ({
     page,
   }) => {
