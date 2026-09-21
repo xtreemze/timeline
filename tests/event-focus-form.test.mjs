@@ -791,45 +791,25 @@ test("focused popover keeps one hero composition while Overview and Evidence own
   );
 });
 
-test("fullscreen preserves the left workspace tool dock inside the fullscreen subtree", async () => {
+test("fullscreen preserves the common footer app bar inside the fullscreen subtree", async () => {
   const [app, styles, timelineCss] = await Promise.all([
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
   assert.match(app, /appToolDock:\s*document\.querySelector\("\.app-tool-dock"\)/);
   assert.match(app, /timeline-tool-dock-home/);
-  assert.match(app, /function workspaceToolViewport\(\)[\s\S]*visualViewport/);
-  assert.match(
-    app,
-    /function positionWorkspaceToolDock\(\)[\s\S]*projectMenuToggle\.getBoundingClientRect\(\)[\s\S]*dataset\.timelineOrientation = orientation/,
-  );
-  assert.match(
-    app,
-    /orientation === "portrait"[\s\S]*triggerRect\.left - dockWidth - gap[\s\S]*triggerRect\.top \+ \(triggerRect\.height - dockHeight\) \/ 2/,
-  );
-  assert.match(
-    app,
-    /preferredTop = triggerRect\.bottom \+ gap[\s\S]*triggerRect\.left \+ \(triggerRect\.width - dockWidth\) \/ 2/,
-  );
-  assert.match(
-    timelineCss,
-    /app-tool-dock\[data-project-anchored="true"\]\[data-timeline-orientation="landscape"\][\s\S]*flex-direction:\s*column/,
-  );
-  assert.match(
-    timelineCss,
-    /app-tool-dock\[data-project-anchored="true"\]\[data-timeline-orientation="portrait"\][\s\S]*flex-direction:\s*row/,
-  );
-  assert.match(
-    timelineCss,
-    /Project-aligned Browse\/Edit controls[\s\S]*z-index:\s*1420[\s\S]*pointer-events:\s*auto[\s\S]*app-tool[\s\S]*pointer-events:\s*auto/,
-  );
   assert.match(app, /mountFullscreenToolDock/);
   assert.match(app, /restoreToolDock/);
   assert.match(app, /if \(active\)[\s\S]*mountFullscreenToolDock\(\)/);
+  assert.doesNotMatch(app, /positionWorkspaceToolDock|workspaceToolDockResizeObserver/);
   assert.match(
     styles,
-    /#presentation-stage:fullscreen \.app-tool-dock[\s\S]*pointer-events:\s*auto !important[\s\S]*left:/,
+    /#presentation-stage:fullscreen \.app-tool-dock[\s\S]*inset-block-end:[\s\S]*inset-inline-start:\s*50%[\s\S]*flex-direction:\s*row/,
+  );
+  assert.match(
+    timelineCss,
+    /Application actions remain in the shared footer app bar[\s\S]*pointer-events:\s*auto/,
   );
 });
 
