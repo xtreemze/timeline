@@ -25,7 +25,7 @@
     "benchmark:graph-data": "node benchmarks/graph-data.mjs",
     "types:migrated": "tsc -p tsconfig.migrated.json --pretty",
     "types:architecture": "tsc -p tsconfig.architecture.json --pretty",
-    "test:architecture": "node --test tests/domain-kernel.test.mjs tests/claim-pipeline.test.mjs",
+    "test:architecture": "node --test tests/domain-kernel.test.mjs tests/claim-pipeline.test.mjs tests/architecture-lint-policy.test.mjs",
     "lint:eslint": "eslint . --max-warnings 0",
     "lint:biome": "biome lint --diagnostic-level=error --max-diagnostics=200",
     "lint:architecture": "node scripts/lint-architecture.mjs"
