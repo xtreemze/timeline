@@ -179,6 +179,31 @@
       "any": 0,
       "asAny": 0,
       "nonNull": 0
+    },
+    "site/timeline-graph.ts": {
+      "any": 62,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/timeline-migration-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/timeline-motion-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/timeline-navigation-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/timeline-view-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
     }
   },
   "css": {
@@ -276,7 +301,9 @@
       "site/location-map.ts": 5,
       "site/sample-case-shim.ts": 1,
       "site/sample-case.ts": 1,
-      "site/timeline-graph-shim.ts": 1
+      "site/timeline-graph-shim.ts": 1,
+      "site/timeline-graph.ts": 8,
+      "site/timeline-view-shim.ts": 1
     },
     "directCanonicalMutations": {
       "site/app.ts": 20
