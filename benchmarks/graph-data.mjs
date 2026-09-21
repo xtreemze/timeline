@@ -94,7 +94,6 @@ for (const nodeCount of sizes) {
   });
 }
 
-// eslint-disable-next-line no-console, no-undef
 console.log(
   JSON.stringify(
     {
