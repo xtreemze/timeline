@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-await import("../site/time-scale.js");
+await import("../site/time-scale-shim.ts");
 const scale = globalThis.TimelineScale;
 
 test("zoom preserves the temporal coordinate under the anchor", () => {
