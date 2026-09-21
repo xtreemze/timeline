@@ -481,3 +481,25 @@ test("active touch node drag blocks Orb camera movement at the event boundary", 
     /removeEventListener\("touchmove", onTouchMoveCapture, true\)/
   );
 });
+
+
+test("Relations camera has a hard zoom bound and sanitizes shared transforms", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(bridge, /GRAPH_MIN_ZOOM\s*=\s*0\.002/);
+  assert.match(bridge, /GRAPH_MAX_ZOOM\s*=\s*4/);
+  assert.match(bridge, /minZoom:\s*GRAPH_MIN_ZOOM/);
+  assert.match(bridge, /maxZoom:\s*GRAPH_MAX_ZOOM/);
+  assert.match(
+    bridge,
+    /function clampCameraTransform\(transform\)[\s\S]*Number\.isFinite\(transform\.k\)[\s\S]*Math\.min\(GRAPH_MAX_ZOOM, Math\.max\(GRAPH_MIN_ZOOM, transform\.k\)\)/
+  );
+  assert.match(
+    bridge,
+    /function syncCameraZoomState\(\)[\s\S]*clampCameraTransform\(renderer\?\.transform\)[\s\S]*canvas\.__zoom = transform/
+  );
+  assert.match(
+    bridge,
+    /function applyCameraPan\(deltaX, deltaY\)[\s\S]*clampCameraTransform\(canvas\?\.__zoom \|\| orb\?\._renderer\?\.transform\)/
+  );
+});
