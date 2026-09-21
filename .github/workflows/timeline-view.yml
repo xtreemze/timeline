@@ -60,6 +60,7 @@ on:
       - 'tests/timeline-interaction.test.mjs'
       - 'tests/retained-structural-composition-runtime.test.mjs'
       - 'tests/browser/retained-structural-composition.spec.ts'
+      - 'tests/browser/semantic-chronology.spec.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'benchmarks/retained-timeline.mjs'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
@@ -132,6 +133,7 @@ on:
       - 'tests/timeline-interaction.test.mjs'
       - 'tests/retained-structural-composition-runtime.test.mjs'
       - 'tests/browser/retained-structural-composition.spec.ts'
+      - 'tests/browser/semantic-chronology.spec.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'benchmarks/retained-timeline.mjs'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
@@ -202,4 +204,6 @@ jobs:
         run: |
           pnpm exec playwright test --config=playwright.config.mjs --list | tee /tmp/structural-playwright-list.txt
           grep -F 'retained-structural-composition.spec.ts' /tmp/structural-playwright-list.txt
+          grep -F 'semantic-chronology.spec.ts' /tmp/structural-playwright-list.txt
       - run: pnpm test:structural-composition-browser
+      - run: pnpm test:semantic-chronology-browser
