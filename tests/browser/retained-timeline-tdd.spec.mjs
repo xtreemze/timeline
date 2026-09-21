@@ -140,6 +140,16 @@ test("#271 pointer cancellation always settles the retained interaction epoch", 
   const box = await surface.boundingBox();
   expect(box).not.toBeNull();
 
+  await surface.evaluate((element) => {
+    element.addEventListener(
+      "pointerdown",
+      (event) => {
+        globalThis.__retainedTimelinePointerId = event.pointerId;
+      },
+      { once: true },
+    );
+  });
+
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width * 0.45, box.y + box.height / 2, {
@@ -150,8 +160,13 @@ test("#271 pointer cancellation always settles the retained interaction epoch", 
     "interacting",
   );
 
+  const pointerId = await page.evaluate(
+    () => globalThis.__retainedTimelinePointerId,
+  );
+  expect(pointerId).toBeDefined();
+
   await surface.dispatchEvent("pointercancel", {
-    pointerId: 1,
+    pointerId,
     pointerType: "mouse",
     clientX: box.x + box.width * 0.45,
     clientY: box.y + box.height / 2,
