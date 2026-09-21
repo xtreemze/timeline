@@ -21,12 +21,12 @@
       "nonNull": 0
     },
     "site/interchange-adapter.ts": {
-      "any": 38,
+      "any": 39,
       "asAny": 18,
       "nonNull": 1
     },
     "site/memgraph-interchange.ts": {
-      "any": 37,
+      "any": 35,
       "asAny": 23,
       "nonNull": 0
     },
@@ -36,7 +36,7 @@
       "nonNull": 0
     },
     "site/temporal-graph-view.ts": {
-      "any": 12,
+      "any": 11,
       "asAny": 2,
       "nonNull": 0
     },
@@ -53,7 +53,7 @@
     "site/timeline-clustering.ts": {
       "any": 55,
       "asAny": 7,
-      "nonNull": 5
+      "nonNull": 11
     },
     "site/timeline-migration.ts": {
       "any": 0,
@@ -63,7 +63,7 @@
     "site/timeline-motion.ts": {
       "any": 0,
       "asAny": 0,
-      "nonNull": 0
+      "nonNull": 4
     },
     "site/timeline-navigation.ts": {
       "any": 8,
@@ -76,9 +76,9 @@
       "nonNull": 0
     },
     "site/app.ts": {
-      "any": 0,
+      "any": 2,
       "asAny": 0,
-      "nonNull": 0
+      "nonNull": 3
     },
     "site/case-reasoning-shim.ts": {
       "any": 0,
@@ -106,7 +106,7 @@
       "nonNull": 0
     },
     "site/graph-inference.ts": {
-      "any": 59,
+      "any": 69,
       "asAny": 6,
       "nonNull": 0
     },
@@ -183,7 +183,7 @@
     "site/timeline-graph.ts": {
       "any": 62,
       "asAny": 0,
-      "nonNull": 0
+      "nonNull": 1
     },
     "site/timeline-migration-shim.ts": {
       "any": 0,
@@ -208,7 +208,7 @@
     "site/timeline-view.ts": {
       "any": 0,
       "asAny": 0,
-      "nonNull": 0
+      "nonNull": 3
     },
     "site/webmcp-shim.ts": {
       "any": 0,
