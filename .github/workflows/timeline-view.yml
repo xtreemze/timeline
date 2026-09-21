@@ -56,6 +56,9 @@ on:
       - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
+      - 'tests/retained-timeline-metrics-runtime.test.mjs'
+      - 'benchmarks/retained-timeline.mjs'
+      - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
       - 'tests/temporal-layout-runtime.test.mjs'
       - 'tests/timeline-touch-runtime-contracts.test.mjs'
       - 'tests/timeline-temporal-context-runtime.test.mjs'
@@ -121,6 +124,9 @@ on:
       - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
+      - 'tests/retained-timeline-metrics-runtime.test.mjs'
+      - 'benchmarks/retained-timeline.mjs'
+      - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
       - 'tests/temporal-layout-runtime.test.mjs'
       - 'tests/timeline-touch-runtime-contracts.test.mjs'
       - 'tests/timeline-temporal-context-runtime.test.mjs'
@@ -158,6 +164,7 @@ jobs:
       - run: pnpm test:runtime-contracts
       - run: pnpm test:evidence-inference-runtime
       - run: pnpm test:temporal-layout-runtime
+      - run: pnpm test:retained-timeline-metrics
       - run: pnpm test:touch-runtime-contracts
       - run: pnpm test:temporal-context-runtime
       - run: pnpm test:retained-context-runtime
