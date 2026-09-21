@@ -1,38 +1,32 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 type GraphPosition = { x: number; y: number };
+type GraphData = {
+  nodes: Array<{ id: number; label: string; properties: { timelineType: string } }>;
+  edges: never[];
+};
+
+interface TouchGraphController {
+  setData(data: GraphData): void;
+  recenter(): void;
+  getNodePosition(id: number): GraphPosition | null;
+  getNodeCanvasPosition(id: number): GraphPosition | null;
+  destroy(): void;
+}
 
 declare global {
   interface Window {
     TimelineOrbGraph?: {
-      create(container: HTMLElement): {
-        setData(data: {
-          nodes: Array<{ id: number; label: string; properties: { timelineType: string } }>;
-          edges: Array<never>;
-        }): void;
-        recenter(): void;
-        getNodePosition(id: number): GraphPosition | null;
-        getNodeCanvasPosition(id: number): GraphPosition | null;
-        destroy(): void;
-      };
+      create(container: HTMLElement): TouchGraphController;
     };
-    __touchNodeGraph?: {
-      setData(data: {
-        nodes: Array<{ id: number; label: string; properties: { timelineType: string } }>;
-        edges: Array<never>;
-      }): void;
-      recenter(): void;
-      getNodePosition(id: number): GraphPosition | null;
-      getNodeCanvasPosition(id: number): GraphPosition | null;
-      destroy(): void;
-    };
+    __touchNodeGraph?: TouchGraphController;
   }
 }
 
 function dispatchTouchPointer(
-  page: import("@playwright/test").Page,
+  page: Page,
   type: "pointerdown" | "pointermove" | "pointerup",
-  point: { x: number; y: number },
+  point: GraphPosition,
 ) {
   return page.evaluate(
     ({ eventType, x, y }) => {
@@ -57,9 +51,12 @@ function dispatchTouchPointer(
   );
 }
 
-test("long-press touch moves an Orb node without moving the graph camera", async ({ page }) => {
+test("long-press touch moves an Orb node", async ({ page }) => {
   await page.goto("/");
   await page.setViewportSize({ width: 375, height: 812 });
+  await expect
+    .poll(() => page.evaluate(() => navigator.maxTouchPoints))
+    .toBeGreaterThan(0);
   await page.waitForFunction(() => Boolean(window.TimelineOrbGraph?.create));
 
   await page.evaluate(() => {
@@ -91,27 +88,37 @@ test("long-press touch moves an Orb node without moving the graph camera", async
 
   await page.waitForFunction(() => Boolean(window.__touchNodeGraph?.getNodePosition(1)));
   await page.evaluate(() => window.__touchNodeGraph?.recenter());
-  await page.waitForTimeout(300);
+  await page.waitForFunction(() => {
+    const graph = window.__touchNodeGraph;
+    const canvas = document.querySelector<HTMLCanvasElement>("#touch-node-drag-fixture canvas");
+    const point = graph?.getNodeCanvasPosition(1);
+    return Boolean(
+      canvas &&
+        point &&
+        point.x >= 0 &&
+        point.x <= canvas.clientWidth &&
+        point.y >= 0 &&
+        point.y <= canvas.clientHeight,
+    );
+  });
 
   const box = await canvas.boundingBox();
-  expect(box).not.toBeNull();
+  if (!box) throw new Error("Graph canvas has no layout box");
 
   const nodeCanvas = await page.evaluate(() => window.__touchNodeGraph?.getNodeCanvasPosition(1));
-  expect(nodeCanvas).not.toBeNull();
+  if (!nodeCanvas) throw new Error("Graph node has no canvas position");
 
   const startClient = {
-    x: box!.x + nodeCanvas!.x,
-    y: box!.y + nodeCanvas!.y,
+    x: box.x + nodeCanvas.x,
+    y: box.y + nodeCanvas.y,
   };
 
   await dispatchTouchPointer(page, "pointerdown", startClient);
   await expect(fixture).toHaveAttribute("data-touch-drag", "holding");
-
-  await page.waitForTimeout(460);
   await expect(fixture).toHaveAttribute("data-touch-drag", "active");
 
   const beforeMove = await page.evaluate(() => window.__touchNodeGraph?.getNodePosition(1));
-  expect(beforeMove).not.toBeNull();
+  if (!beforeMove) throw new Error("Graph node has no simulation position before drag");
 
   const dragClient = { x: startClient.x + 72, y: startClient.y + 24 };
   await dispatchTouchPointer(page, "pointermove", dragClient);
@@ -121,12 +128,12 @@ test("long-press touch moves an Orb node without moving the graph camera", async
       const next = window.__touchNodeGraph?.getNodePosition(1);
       return Boolean(next && Math.hypot(next.x - x, next.y - y) > 5);
     },
-    beforeMove!,
+    beforeMove,
   );
 
   const moved = await page.evaluate(() => window.__touchNodeGraph?.getNodePosition(1));
-  expect(moved).not.toBeNull();
-  expect(Math.hypot(moved!.x - beforeMove!.x, moved!.y - beforeMove!.y)).toBeGreaterThan(5);
+  if (!moved) throw new Error("Graph node has no simulation position after drag");
+  expect(Math.hypot(moved.x - beforeMove.x, moved.y - beforeMove.y)).toBeGreaterThan(5);
 
   await dispatchTouchPointer(page, "pointerup", dragClient);
   await expect(fixture).not.toHaveAttribute("data-touch-drag");
