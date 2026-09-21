@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "checkJs": false,
+    "noImplicitAny": true
+  },
+  "include": [
+    "globals.d.ts",
+    "src/domain/**/*.ts",
+    "src/application/**/*.ts",
+    "src/projection/**/*.ts",
+    "src/layout/**/*.ts",
+    "src/interaction/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist", "site/orb-graph.bundle.js"]
+}
