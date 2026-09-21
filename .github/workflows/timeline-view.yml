@@ -14,6 +14,7 @@ on:
       - 'tests/architecture-lint-policy.test.mjs'
       - 'site/index.html'
       - 'package.json'
+      - 'pnpm-lock.yaml'
       - 'src/orb-graph-entry.js'
       - 'src/domain/**'
       - 'src/application/**'
@@ -49,6 +50,7 @@ on:
       - 'tests/interchange-adapter.test.mjs'
       - 'tests/event-focus-form.test.mjs'
       - 'tests/evidence-store.test.mjs'
+      - 'tests/evidence-inference-runtime.test.mjs'
       - 'tests/case-reasoning.test.mjs'
       - 'tests/sample-case.test.mjs'
       - 'schemas/interchange-v1.schema.json'
@@ -80,6 +82,7 @@ on:
       - 'tests/architecture-lint-policy.test.mjs'
       - 'site/index.html'
       - 'package.json'
+      - 'pnpm-lock.yaml'
       - 'src/orb-graph-entry.js'
       - 'src/domain/**'
       - 'src/application/**'
@@ -112,6 +115,7 @@ on:
       - 'tests/interchange-adapter.test.mjs'
       - 'tests/event-focus-form.test.mjs'
       - 'tests/evidence-store.test.mjs'
+      - 'tests/evidence-inference-runtime.test.mjs'
       - 'tests/case-reasoning.test.mjs'
       - 'tests/sample-case.test.mjs'
       - 'schemas/interchange-v1.schema.json'
@@ -152,6 +156,7 @@ jobs:
       - run: node --check site/orb-graph.bundle.js
       - run: pnpm test:architecture
       - run: pnpm test:runtime-contracts
+      - run: pnpm test:evidence-inference-runtime
       - run: pnpm test:temporal-layout-runtime
       - run: pnpm test:touch-runtime-contracts
       - run: pnpm test:temporal-context-runtime
