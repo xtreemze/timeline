@@ -243,14 +243,14 @@
         ".hero-meta span, .button.secondary:hover, .button.ghost:hover": 1
       },
       "physicalInlineProperties": {
-        "left": 25,
+        "left": 19,
         "margin-right": 5,
         "border-right": 4,
         "border-left": 6,
         "margin-left": 3,
         "padding-left": 1,
         "border-left-color": 1,
-        "right": 15
+        "right": 9
       },
       "viewportWidthSizing": {
         "width: min(420px, calc(100vw - 24px));": 1,
@@ -261,22 +261,15 @@
         "inline-size: 100dvw;": 1,
         "width: 100dvw;": 2,
         "width: min(340px, calc(100dvw - 0.8rem), var(--project-menu-max-width, 340px));": 1,
-        "max-width: calc(100dvw - 1rem);": 1,
         "max-width: min(520px, calc(100dvw - 1rem));": 1,
         "max-width: min(720px, calc(100dvw - 1rem));": 1,
         "width: calc(100dvw - 1rem);": 1,
-        "width: min(390px, calc(100dvw - 6.5rem));": 1,
-        "width: min(430px, calc(100dvw - 6.5rem));": 1,
         "width: min(440px, 34dvw);": 1,
         "width: min(400px, 31dvw);": 1,
         "max-width: min(560px, calc(100dvw - 0.9rem));": 1,
-        "width: min(520px, calc(100dvw - 6.5rem));": 1,
-        "max-width: calc( 100dvw - max(5rem, calc(env(safe-area-inset-left) + env(safe-area-inset-right) + 4rem)) );": 1,
         "width: calc(100dvw - 4px);": 1
       },
-      "overflowXHidden": {
-        "overflow-x: hidden;": 2
-      },
+      "overflowXHidden": {},
       "rootMinWidth": {
         "min-width: 320px;": 2
       },
@@ -297,8 +290,7 @@
         "#app-shell .timeline-panel > .story-focus h3 => overflow: hidden;": 1,
         "#app-shell #presentation-stage > .graph-lens:not([hidden]) => overflow: hidden;": 1,
         "#app-shell[data-editor-open=\"true\"] > .app-editor-sheet => overflow-x: clip;": 1,
-        "#app-shell[data-browser-open=\"true\"] > .timeline-panel > .app-browser-sheet => overflow-x: clip;": 1,
-        "#app-shell:has(#timeline-view[data-orientation=\"landscape\"]) .app-tool-dock => overflow-x: hidden;": 1
+        "#app-shell[data-browser-open=\"true\"] > .timeline-panel > .app-browser-sheet => overflow-x: clip;": 1
       }
     },
     "site/timeline-view.css": {
