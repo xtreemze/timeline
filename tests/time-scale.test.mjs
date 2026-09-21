@@ -51,3 +51,28 @@ test("fit adds useful span around a single instant", () => {
   assert.equal(viewport.end - viewport.start, 1000);
   assert.equal((viewport.start + viewport.end) / 2, 1000);
 });
+
+test("explicit hierarchy generation preserves the requested semantic unit and step", () => {
+  const start = scale.createUtcDate(2024, 0, 15).getTime();
+  const end = scale.createUtcDate(2024, 5, 15).getTime();
+  const ticks = scale.generateTicksForSpec(
+    { start, end },
+    { unit: "month", step: 2, approxMs: 60 * 86_400_000 },
+  );
+
+  assert.ok(ticks.length >= 2);
+  assert.ok(ticks.every((tick) => tick.spec.unit === "month" && tick.spec.step === 2));
+  assert.ok(ticks.every((tick) => new Date(tick.value).getUTCDate() === 1));
+});
+
+test("explicit hierarchy generation does not reselect a different viewport-dependent hierarchy", () => {
+  const start = scale.createUtcDate(1800, 0, 1).getTime();
+  const end = scale.createUtcDate(2200, 0, 1).getTime();
+  const ticks = scale.generateTicksForSpec(
+    { start, end },
+    { unit: "year", step: 25, approxMs: 25 * 365.2425 * 86_400_000 },
+  );
+
+  assert.ok(ticks.length > 0);
+  assert.ok(ticks.every((tick) => tick.spec.unit === "year" && tick.spec.step === 25));
+});
