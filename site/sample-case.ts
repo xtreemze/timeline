@@ -4,8 +4,7 @@
  */
 
 const SAMPLE = {
-  const SAMPLE = {
-    version: 2,
+  version: 2,
     title: "Three classic tales — parallel fictional casebook",
     categories: [
       {
