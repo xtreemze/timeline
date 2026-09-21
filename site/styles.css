@@ -3822,8 +3822,6 @@ body {
   min-block-size: 0;
   max-block-size: none;
   margin: 0;
-  overflow-x: clip;
-  overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   border: 1px solid var(--line);
@@ -3834,10 +3832,14 @@ body {
 }
 
 #app-shell[data-editor-open="true"] > .app-editor-sheet {
+  overflow-x: clip;
+  overflow-y: auto;
   background: var(--panel);
 }
 
 #app-shell[data-browser-open="true"] > .timeline-panel > .app-browser-sheet {
+  overflow-x: clip;
+  overflow-y: auto;
   background: var(--paper);
 }
 
