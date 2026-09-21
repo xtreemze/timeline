@@ -30,7 +30,15 @@ test("CI discovers and executes the unified multi-engine browser suite", () => {
   assert.match(workflow, /- run: pnpm build/);
   assert.match(workflow, /playwright install --with-deps chromium webkit/);
   assert.match(workflow, /playwright test --list/);
-  assert.match(workflow, /retained-structural-composition\.spec\.ts/);
-  assert.match(workflow, /semantic-chronology\.spec\.ts/);
+  for (const requiredSpec of [
+    "retained-structural-composition.spec.ts",
+    "semantic-chronology.spec.ts",
+    "retained-performance.spec.ts",
+    "playwright/layout.spec.ts",
+    "playwright/interaction.spec.ts",
+    "map-resilience.spec.mjs",
+  ]) {
+    assert.ok(workflow.includes(requiredSpec), `workflow discovery gate is missing ${requiredSpec}`);
+  }
   assert.match(workflow, /pnpm test:e2e/);
 });
