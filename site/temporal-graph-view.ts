@@ -45,25 +45,63 @@ interface GraphData {
 }
 
 interface Model {
-  entities: any[];
-  relationships: any[];
-  items: any[];
-  stories: any[];
+  readonly entities: readonly unknown[];
+  readonly relationships: readonly unknown[];
+  readonly items: readonly unknown[];
+  readonly stories: readonly unknown[];
 }
 
+interface NeighborhoodOptions {
+  readonly depth: number;
+  readonly limit: number;
+}
 
-function getGraph(): any {
-  const graph = (globalThis as any).TimelineGraph;
-  if (!graph) throw new Error("TimelineGraph must load before TemporalGraphView.");
+interface TimelineGraphRuntime {
+  neighborhoodGraph(
+    model: Model,
+    focusedId: string,
+    viewport: Viewport | null,
+    options: NeighborhoodOptions,
+  ): GraphData;
+  graphForWindow(model: Model, viewport: Viewport | null): GraphData;
+}
+
+function hasFunction(value: unknown, key: string): boolean {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof Reflect.get(value, key) === "function"
+  );
+}
+
+function isTimelineGraphRuntime(value: unknown): value is TimelineGraphRuntime {
+  return hasFunction(value, "neighborhoodGraph") && hasFunction(value, "graphForWindow");
+}
+
+function isOrbFactory(value: unknown): value is OrbFactory {
+  return hasFunction(value, "create");
+}
+
+function getGraph(): TimelineGraphRuntime {
+  const graph = Reflect.get(globalThis, "TimelineGraph");
+  if (!isTimelineGraphRuntime(graph)) {
+    throw new Error("TimelineGraph must load before TemporalGraphView.");
+  }
   return graph;
 }
 
 function getOrbFactory(): OrbFactory {
-  const orbFactory = (
-    globalThis as typeof globalThis & { TimelineOrbGraph?: OrbFactory }
-  ).TimelineOrbGraph;
-  if (!orbFactory) throw new Error("Build the bundled Orb graph before loading TemporalGraphView.");
+  const orbFactory = Reflect.get(globalThis, "TimelineOrbGraph");
+  if (!isOrbFactory(orbFactory)) {
+    throw new Error("Build the bundled Orb graph before loading TemporalGraphView.");
+  }
   return orbFactory;
+}
+
+function modelArray(model: unknown, key: keyof Model): readonly unknown[] {
+  if (typeof model !== "object" || model === null) return [];
+  const value = Reflect.get(model, key);
+  return Array.isArray(value) ? value : [];
 }
 
 function formatWindow(viewport: Viewport | null): string {
@@ -233,12 +271,12 @@ class TemporalGraphViewController {
     this.status.textContent = `${countText} · ${event.mode || "worker-cpu"}${suffix}`;
   }
 
-  setModel(model: any): void {
+  setModel(model: unknown): void {
     this.model = {
-      entities: Array.isArray(model?.entities) ? model.entities : [],
-      relationships: Array.isArray(model?.relationships) ? model.relationships : [],
-      items: Array.isArray(model?.items) ? model.items : [],
-      stories: Array.isArray(model?.stories) ? model.stories : [],
+      entities: modelArray(model, "entities"),
+      relationships: modelArray(model, "relationships"),
+      items: modelArray(model, "items"),
+      stories: modelArray(model, "stories"),
     };
     this.render();
   }
