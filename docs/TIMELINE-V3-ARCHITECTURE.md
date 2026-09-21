@@ -8,9 +8,9 @@ It is deliberately conservative about standards claims: the product can implemen
 
 ## Product invariants
 
-1. **Chronology remains canonical.** Stories, views, reports, and exports reference canonical records.
-2. **Time is modeled before it is rendered.** Horizontal and vertical layouts are projections of the same temporal coordinate system.
-3. **The timeline is continuous.** The primary axis is linear and zoomable from century-scale overview to millisecond-scale inspection.
+1. **The continuum is canonical.** Entities, occurrences/relationships, places, evidence, analytical records, stories, views, reports, and exports resolve through canonical identities rather than a view-owned chronology.
+2. **Occurrences are modeled before they are projected.** Time, place, relationship, evidence, and narrative context belong to the canonical continuum; horizontal and vertical timelines are temporal projections of it.
+3. **The temporal projection is continuous.** Its primary axis is linear and zoomable from century-scale overview to millisecond-scale inspection.
 4. **Precision is not certainty.** A value can be precise to a millisecond and still be uncertain; a year-only value can be exact at year precision.
 5. **Evidence is never silently rewritten.** Source facts, derived observations, analyst interpretations, and presentation annotations are distinct.
 6. **Graph nodes are entity-only records.** People, organizations, software, devices and other domain entities may be nodes; places are reusable spatial records referenced by edges, never nodes.
