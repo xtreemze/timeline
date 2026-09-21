@@ -27,6 +27,7 @@ test("Playwright matrix includes desktop, phone portrait and landscape, tablet t
 
 test("CI discovers and executes the unified multi-engine browser suite", () => {
   assert.doesNotMatch(workflow, /playwright\.config\.mjs/);
+  assert.match(workflow, /- run: pnpm build/);
   assert.match(workflow, /playwright install --with-deps chromium webkit/);
   assert.match(workflow, /playwright test --list/);
   assert.match(workflow, /retained-structural-composition\.spec\.ts/);
