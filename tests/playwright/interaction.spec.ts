@@ -40,6 +40,57 @@ async function settleTimeline(page) {
     .not.toBe('interacting');
 }
 
+async function performPan(page, surface, testInfo) {
+  const box = await surface.boundingBox();
+  if (!box) throw new Error('Timeline surface has no bounding box.');
+
+  const startX = box.x + box.width * 0.72;
+  const middleX = box.x + box.width * 0.52;
+  const endX = box.x + box.width * 0.32;
+  const y = box.y + box.height * 0.5;
+
+  if (testInfo.project.use.hasTouch) {
+    const pointerId = 31;
+    await surface.dispatchEvent('pointerdown', {
+      pointerId,
+      pointerType: 'touch',
+      isPrimary: true,
+      button: 0,
+      buttons: 1,
+      clientX: startX,
+      clientY: y,
+    });
+    for (const clientX of [middleX, endX]) {
+      await surface.dispatchEvent('pointermove', {
+        pointerId,
+        pointerType: 'touch',
+        isPrimary: true,
+        button: 0,
+        buttons: 1,
+        clientX,
+        clientY: y,
+      });
+    }
+    return async () => {
+      await surface.dispatchEvent('pointerup', {
+        pointerId,
+        pointerType: 'touch',
+        isPrimary: true,
+        button: 0,
+        buttons: 0,
+        clientX: endX,
+        clientY: y,
+      });
+    };
+  }
+
+  await page.mouse.move(startX, y);
+  await page.mouse.down();
+  await page.mouse.move(middleX, y, { steps: 4 });
+  await page.mouse.move(endX, y, { steps: 4 });
+  return async () => page.mouse.up();
+}
+
 test.describe('Timeline interaction contracts', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
@@ -48,22 +99,16 @@ test.describe('Timeline interaction contracts', () => {
     await installViewportRecorder(page);
   });
 
-  test('pointer pan changes the logical viewport and settles to a committed state', async ({ page }) => {
+  test('pointer pan changes the logical viewport and settles to a committed state', async ({ page }, testInfo) => {
     const surface = page.locator('.timeline-surface');
-    const box = await surface.boundingBox();
-    if (!box) throw new Error('Timeline surface has no bounding box.');
-
-    await page.mouse.move(box.x + box.width * 0.72, box.y + box.height * 0.5);
-    await page.mouse.down();
-    await page.mouse.move(box.x + box.width * 0.52, box.y + box.height * 0.5, { steps: 4 });
-    await page.mouse.move(box.x + box.width * 0.32, box.y + box.height * 0.5, { steps: 4 });
+    const finish = await performPan(page, surface, testInfo);
 
     await waitForViewportEvents(page, 2);
     const liveEvents = await viewportEvents(page);
     expect(liveEvents.some((event) => event.committed === false)).toBeTruthy();
     expect(new Set(liveEvents.map((event) => event.viewport.start)).size).toBeGreaterThan(1);
 
-    await page.mouse.up();
+    await finish();
     await settleTimeline(page);
     await expect
       .poll(async () => (await viewportEvents(page)).some((event) => event.committed))
