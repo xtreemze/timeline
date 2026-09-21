@@ -243,13 +243,42 @@
         ".hero-meta span, .button.secondary:hover, .button.ghost:hover": 1
       },
       "physicalInlineProperties": {
+        "left": 25,
         "margin-right": 5,
+        "border-right": 4,
+        "border-left": 6,
         "margin-left": 3,
-        "padding-left": 1
+        "padding-left": 1,
+        "border-left-color": 1,
+        "right": 15
       },
       "viewportWidthSizing": {
         "width: min(420px, calc(100vw - 24px));": 1,
-        "width: calc(100vw - 12px);": 1
+        "max-width: min(24rem, 70vw);": 1,
+        "max-width: min(19rem, 72vw);": 1,
+        "max-width: min(16rem, 30vw);": 1,
+        "width: calc(100vw - 12px);": 1,
+        "inline-size: 100dvw;": 1,
+        "width: 100dvw;": 2,
+        "width: min(340px, calc(100dvw - 0.8rem), var(--project-menu-max-width, 340px));": 1,
+        "max-width: var(--project-menu-max-width, calc(100dvw - 0.8rem));": 1,
+        "max-width: calc(100dvw - 1rem);": 1,
+        "max-width: min(520px, calc(100dvw - 1rem));": 1,
+        "max-width: min(720px, calc(100dvw - 1rem));": 1,
+        "width: calc(100dvw - 1rem);": 1,
+        "width: min(390px, calc(100dvw - 6.5rem));": 1,
+        "width: min(430px, calc(100dvw - 6.5rem));": 1,
+        "width: min(440px, 34dvw);": 1,
+        "width: min(400px, 31dvw);": 1,
+        "max-width: min(560px, calc(100dvw - 0.9rem));": 1,
+        "width: min(520px, calc(100dvw - 6.5rem));": 1,
+        "width: min(320px, 72dvw);": 1,
+        "width: min(300px, 68dvw);": 1,
+        "width: clamp(320px, 34dvw, 440px);": 1,
+        "width: clamp(300px, 31dvw, 400px);": 1,
+        "max-width: calc( 100dvw - max(5rem, calc(env(safe-area-inset-left) + env(safe-area-inset-right) + 4rem)) );": 1,
+        "width: calc(100dvw - 4px);": 1,
+        "max-width: calc(100dvw - 4px);": 1
       },
       "overflowXHidden": {
         "overflow-x: hidden;": 2
@@ -257,7 +286,26 @@
       "rootMinWidth": {
         "min-width: 320px;": 2
       },
-      "legacy100vh": 2
+      "legacy100vh": 2,
+      "maxWidthContainer": {
+        "@container utility-sidebar (max-width: 360px)": 1
+      },
+      "primarySurfaceOverflow": {
+        ".app-shell => overflow: clip;": 1,
+        ".temporal-graph-canvas => overflow: hidden;": 1,
+        ".presentation-stage:fullscreen => overflow: hidden;": 1,
+        ".presentation-stage:fullscreen > .timeline-view, .presentation-stage:fullscreen > .graph-lens => overflow: hidden;": 1,
+        ".presentation-stage:fullscreen .temporal-graph-view => overflow: hidden;": 1,
+        "/* Application-shell redesign. The timeline owns the viewport. Editing, browsing, graph exploration and project management are transient application surfaces layered over that canvas. */ html, body => overflow: hidden;": 1,
+        "#app-shell => overflow: hidden;": 1,
+        "#app-shell > .timeline-panel => overflow: hidden;": 1,
+        "#app-shell #presentation-stage, #app-shell.is-event-focused #presentation-stage => overflow: hidden;": 1,
+        "#app-shell .timeline-panel > .story-focus h3 => overflow: hidden;": 1,
+        "#app-shell #presentation-stage > .graph-lens:not([hidden]) => overflow: hidden;": 1,
+        "#app-shell[data-editor-open=\"true\"] > .app-editor-sheet => overflow-x: clip;": 1,
+        "#app-shell[data-browser-open=\"true\"] > .timeline-panel > .app-browser-sheet => overflow-x: clip;": 1,
+        "/* Workspace chrome follows the selected timeline orientation, not viewport width. Landscape timelines use edge-aligned vertical controls; portrait timelines use bottom rows. */ #app-shell:has(#timeline-view[data-orientation=\"landscape\"]) .app-tool-dock => overflow-x: hidden;": 1
+      }
     },
     "site/timeline-view.css": {
       "maxWidthMedia": {
@@ -276,14 +324,58 @@
         ".timeline-focus-view[popover] .button.secondary:hover": 1
       },
       "physicalInlineProperties": {
+        "left": 54,
+        "right": 40,
+        "border-left": 9,
+        "border-right": 3,
         "margin-left": 1
       },
-      "viewportWidthSizing": {},
+      "viewportWidthSizing": {
+        "width: clamp(10rem, 28vw, 26rem);": 1,
+        "width: clamp(9rem, 20vw, 18rem);": 2,
+        "max-width: min(24rem, 46vw);": 1,
+        "width: min(30rem, calc(100dvw - 5.5rem));": 1,
+        "max-width: min(280px, 72vw);": 1,
+        "inline-size: 100dvw;": 1,
+        "inline-size: min(640px, calc(100dvw - 6.5rem));": 1,
+        "inline-size: min(520px, calc(100dvw - 7.2rem));": 1,
+        "inline-size: min(640px, calc(100dvw - 5rem));": 1,
+        "inline-size: min(900px, calc(100dvw - 8rem));": 1,
+        "inline-size: min(720px, calc(100dvw - 10rem));": 1,
+        "inline-size: min(840px, calc(100dvw - 7.5rem));": 1,
+        "inline-size: min(58dvw, 620px);": 1,
+        "max-inline-size: calc(100dvw - 1.5rem);": 1,
+        "max-inline-size: calc(100dvw - 0.7rem);": 1,
+        "max-width: min(62vw, 200px);": 1,
+        "max-width: min(68vw, 220px);": 1,
+        "max-width: min(58vw, 190px);": 1,
+        "max-width: min(60vw, 174px);": 1,
+        "width: clamp(180px, 24vw, 250px);": 1,
+        "max-inline-size: calc( 100dvw - max(0.8rem, env(safe-area-inset-left)) - max(0.8rem, env(safe-area-inset-right)) );": 1,
+        "max-inline-size: calc( 100dvw - max(0.9rem, env(safe-area-inset-left)) - max(0.9rem, env(safe-area-inset-right)) );": 1,
+        "width: clamp(82px, 22dvw, 96px);": 1,
+        "max-width: calc( 100dvw - max(0.9rem, env(safe-area-inset-left)) - max(0.9rem, env(safe-area-inset-right)) );": 1,
+        "max-width: calc(100dvw - 1rem);": 1,
+        "width: clamp(150px, 20vw, 220px);": 1
+      },
       "overflowXHidden": {
         "overflow-x: hidden;": 1
       },
       "rootMinWidth": {},
-      "legacy100vh": 1
+      "legacy100vh": 1,
+      "maxWidthContainer": {},
+      "primarySurfaceOverflow": {
+        ".presentation-stage:fullscreen .timeline-focus-view, .presentation-stage:fullscreen .timeline-focus-view[data-layout] => overflow: hidden;": 1,
+        ".presentation-stage:fullscreen .timeline-focus-description => overflow: hidden;": 1,
+        "/* Persistent application canvas. Outside fullscreen, the same timeline surface owns the viewport and all utility UI floats above it. Fullscreen retains the focused-presentation contract above. */ #app-shell #timeline-view, #app-shell #timeline-view.is-event-focused, #app-shell #timeline-view.is-event-focused[data-orientation=\"portrait\"], #app-shell #timeline-view.is-event-focused[data-orientation=\"landscape\"] => overflow: hidden;": 1,
+        ".timeline-view[data-orientation=\"landscape\"] > .timeline-focus-view:popover-open => overflow: hidden;": 1,
+        ".timeline-view[data-orientation=\"portrait\"] > .timeline-focus-view:popover-open => overflow: hidden;": 1,
+        ".timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-relations, .timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-relations-backdrop, .timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-relations-backdrop .temporal-graph-canvas, .timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-relations-backdrop .temporal-graph-canvas canvas => overflow: hidden;": 1,
+        "#app-shell[data-graph-open=\"true\"] #timeline-view[data-orientation=\"portrait\"] .timeline-tick-label => overflow: hidden;": 1,
+        "#app-shell .timeline-view-toolbar > .toolbar-readout => overflow: hidden;": 1,
+        ".timeline-view[data-orientation=\"portrait\"] > .app-view-controls.timeline-view-toolbar[popover]:popover-open => overflow-x: hidden;": 1,
+        ".timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-summary, #app-shell .timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-summary => overflow: hidden;": 1
+      }
     },
     "site/print.css": {
       "maxWidthMedia": {},
@@ -294,7 +386,9 @@
       "rootMinWidth": {
         "min-width: 0;": 1
       },
-      "legacy100vh": 0
+      "legacy100vh": 0,
+      "maxWidthContainer": {},
+      "primarySurfaceOverflow": {}
     }
   },
   "architecture": {
