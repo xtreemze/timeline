@@ -942,9 +942,12 @@ export function relationshipWindowState(
 ): "timeless" | "unknown" | "active" | "inactive" {
   if (!relationship) return "inactive";
   if (!relationship.time) return "timeless";
-  if (!temporal) return "unknown";
+  const temporalAdapter =
+    temporal ??
+    (Reflect.get(globalThis, "TimelineTemporal") as TemporalAdapter | undefined);
+  if (!temporalAdapter) return "unknown";
 
-  const bounds = temporal.extentBounds?.(relationship.time);
+  const bounds = temporalAdapter.extentBounds?.(relationship.time);
   if (!bounds?.locatable) return "unknown";
   if (!viewport || !Number.isFinite(viewport.start) || !Number.isFinite(viewport.end)) {
     return "active";
