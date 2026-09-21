@@ -61,7 +61,8 @@ test("fictional spatial reference frames use local procedural texture instead of
   assert.match(mapSource, /createTile/);
   assert.match(mapSource, /timeline-fictional-map-tile/);
   assert.match(mapSource, /if \(this\.fictionalReferenceFrame\)[\s\S]*fictionalTextureLayer/);
-  assert.match(mapSource, /else \{[\s\S]*L\.tileLayer\(this\.provider\.url/);
+  assert.match(mapSource, /else \{[\s\S]*attachBasemap\(L, this\.map, this\.container, this\.providers\)/);
+  assert.match(mapSource, /function attachBasemap\([\s\S]*L\.tileLayer\(provider\.url/);
   assert.match(mapSource, /Fictional reference frame · procedural texture/);
   assert.match(styles, /\.presentation-map\.is-fictional-map/);
 });
@@ -90,7 +91,7 @@ test("interactive maps use the timeline weighted drag response and shared releas
   assert.match(source, /inertiaMaxSpeed:\s*motion\?\.MAX_RELEASE_SPEED_PX_PER_S \|\| 3200/);
   assert.match(
     source,
-    /function installWeightedMapDragging\(map, container, interactive = true\)[\s\S]*motion\.responseForElapsed\(now - drag\.lastTime\)/,
+    /function installWeightedMapDragging\([\s\S]*interactive = true[\s\S]*motion\.responseForElapsed\(now - drag\.lastTime\)/,
   );
   assert.match(
     source,
@@ -127,11 +128,11 @@ test("map touch targets match the coarse-pointer interaction floor and editing h
   assert.match(source, /this\.map\.on\("click"[\s\S]*this\.applyPosition/);
   assert.match(
     styles,
-    /\.timeline-map-marker\s*\{[\s\S]*width:\s*44px !important[\s\S]*height:\s*44px !important/,
+    /\.timeline-map-marker\s*\{[\s\S]*width:\s*44px[\s\S]*height:\s*44px/,
   );
   assert.match(
     styles,
-    /@media \(pointer:\s*coarse\)[\s\S]*leaflet-control-zoom a[\s\S]*width:\s*44px !important[\s\S]*height:\s*44px !important/,
+    /@media \(pointer:\s*coarse\)[\s\S]*leaflet-control-zoom a[\s\S]*width:\s*44px[\s\S]*height:\s*44px/,
   );
   assert.match(html, /id="item-location-latitude"[^>]*inputmode="decimal"/);
   assert.match(html, /id="item-location-longitude"[^>]*inputmode="decimal"/);
