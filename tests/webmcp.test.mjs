@@ -238,7 +238,7 @@ test("browser runtime loads WebMCP before app and wires tools to canonical persi
   assert.match(memgraphSource, /TimelineEntity/);
   assert.match(memgraphSource, /recordJson/);
   assert.match(app, /globalThis\.TimelineAgentAPI = agentApi/);
-  assert.match(app, /webMcp\.register\(agentApi\)/);
+  assert.match(app, /webMcp\s*\.register\s*\(agentApi\)/);
   assert.match(app, /applyImportedTimeline\(normalized, "AI updated"\)/);
   assert.match(app, /persist\(\)[\s\S]*renderAll\(\)/);
 });
