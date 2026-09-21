@@ -4555,6 +4555,8 @@
 
 .timeline-view[data-orientation="portrait"]
   > .app-view-controls.timeline-view-toolbar[popover]:popover-open {
+  max-inline-size: calc(100% - 1rem);
+  max-block-size: calc(100dvh - 1rem);
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-end;
@@ -4601,40 +4603,9 @@
   justify-content: center;
 }
 
-/* Project-aligned Browse/Edit controls follow the logical end of the title bar.
-   They stay above the timeline interaction plane so the chronology remains visually
-   underneath without intercepting button input. */
+/* Application actions remain in the shared footer app bar.
+   Timeline orientation affects the presentation surface, not global application chrome. */
 #app-shell .app-tool-dock[data-project-anchored="true"] {
-  position: fixed;
-  z-index: 1420;
-  top: var(--workspace-tool-dock-top, max(0.5rem, env(safe-area-inset-top)));
-  right: auto;
-  bottom: auto;
-  left: var(--workspace-tool-dock-left, max(0.5rem, env(safe-area-inset-left)));
-  width: max-content;
-  max-width: calc(100dvw - 1rem);
-  max-height: calc(100dvh - 1rem);
-  margin: 0;
-  transform: none;
-  overflow: visible;
-  pointer-events: auto;
-  isolation: isolate;
-}
-#app-shell .app-tool-dock[data-project-anchored="true"][data-timeline-orientation="landscape"] {
-  flex-direction: column;
-  align-items: stretch;
-}
-#app-shell .app-tool-dock[data-project-anchored="true"][data-timeline-orientation="portrait"] {
-  flex-direction: row;
-  align-items: center;
-}
-#app-shell .app-tool-dock[data-project-anchored="true"] .app-tool {
-  position: relative;
-  z-index: 1;
-  pointer-events: auto;
-  touch-action: manipulation;
-}
-#presentation-stage:fullscreen .app-tool-dock[data-project-anchored="true"] {
   pointer-events: auto;
 }
 
