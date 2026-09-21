@@ -3042,7 +3042,9 @@ body {
   left: 50%;
   bottom: max(0.45rem, env(safe-area-inset-bottom));
   display: flex;
-  width: max-content;
+  align-items: stretch;
+  justify-content: stretch;
+  width: min(22rem, calc(100dvw - 1rem));
   max-width: calc(100dvw - 1rem);
   padding: 0.3rem;
   gap: 0.2rem;
@@ -3064,6 +3066,7 @@ body {
   grid-template-rows: auto auto;
   place-items: center;
   gap: 0.16rem;
+  flex: 1 1 0;
   min-width: 62px;
   min-height: 52px;
   padding: 0.38rem 0.55rem;
@@ -3084,15 +3087,6 @@ body {
 
 .app-view-tool {
   view-transition-name: timeline-view-button;
-  position: fixed;
-  z-index: 1210;
-  right: max(0.45rem, env(safe-area-inset-right));
-  bottom: max(0.45rem, env(safe-area-inset-bottom));
-  min-width: 62px;
-  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
-  background: color-mix(in srgb, var(--paper) 90%, transparent);
-  box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 6%, transparent);
-  backdrop-filter: blur(14px);
 }
 .app-tool:disabled {
   opacity: 0.35;
@@ -3290,31 +3284,27 @@ body {
 
 @media (min-width: 900px) {
   .app-tool-dock {
-    left: max(0.55rem, env(safe-area-inset-left));
-    bottom: 50%;
-    flex-direction: column;
-    max-width: 78px;
-    transform: translateY(50%);
+    width: min(26rem, calc(100dvw - 1.1rem));
   }
   .app-tool {
-    min-width: 62px;
+    min-width: 72px;
     min-height: 54px;
   }
 
   .app-editor-sheet,
   .app-browser-sheet {
     top: max(4.4rem, calc(env(safe-area-inset-top) + 4rem));
-    bottom: max(0.55rem, env(safe-area-inset-bottom));
+    bottom: max(4.55rem, calc(env(safe-area-inset-bottom) + 4.2rem));
     right: max(0.55rem, env(safe-area-inset-right));
     left: auto;
-    width: min(390px, calc(100dvw - 6.5rem));
+    width: min(390px, calc(100dvw - 1.1rem));
     max-height: none;
     height: auto;
     border-radius: 1rem;
   }
 
   .app-editor-sheet {
-    width: min(430px, calc(100dvw - 6.5rem));
+    width: min(430px, calc(100dvw - 1.1rem));
   }
 }
 
@@ -3399,10 +3389,10 @@ body {
     height: 24px;
   }
   #app-shell .timeline-panel > .story-focus {
-    left: max(5.4rem, calc(env(safe-area-inset-left) + 5rem));
+    left: max(0.55rem, env(safe-area-inset-left));
     right: auto;
-    bottom: max(0.55rem, env(safe-area-inset-bottom));
-    width: min(520px, calc(100dvw - 6.5rem));
+    bottom: max(4.55rem, calc(env(safe-area-inset-bottom) + 4.2rem));
+    width: min(520px, calc(100dvw - 1.1rem));
     margin: 0;
   }
 }
@@ -3482,20 +3472,21 @@ body {
   touch-action: none;
 }
 
-/* Fullscreen keeps the workspace tool dock in the fullscreen subtree and on the left edge. */
+/* Fullscreen preserves the same bottom app bar so controls do not jump between edges. */
 #presentation-stage:fullscreen .app-tool-dock {
   pointer-events: auto;
   z-index: 2200;
-  top: 50%;
+  top: auto;
   right: auto;
-  bottom: auto;
-  left: max(0.5rem, env(safe-area-inset-left));
-  flex-direction: column;
-  max-width: 78px;
-  max-height: calc(100dvh - 2rem);
-  overflow-x: hidden;
-  overflow-y: auto;
-  transform: translateY(-50%);
+  bottom: max(0.5rem, env(safe-area-inset-bottom));
+  left: 50%;
+  flex-direction: row;
+  width: min(26rem, calc(100dvw - 1rem));
+  max-width: calc(100dvw - 1rem);
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  transform: translateX(-50%);
   box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 6%, transparent);
   backdrop-filter: blur(14px);
 }
