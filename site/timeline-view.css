@@ -3757,7 +3757,7 @@
 @media (max-width: 699px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
     --mobile-relations-inline-rail: clamp(136px, 38dvw, 168px);
-    --mobile-relations-block-rail: clamp(136px, 32dvh, 184px);
+    --mobile-relations-block-rail: clamp(204px, 28dvh, 228px);
     --mobile-bottom-chrome: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
   }
 
