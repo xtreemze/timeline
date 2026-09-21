@@ -4519,6 +4519,18 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     renderStoryBuilder();
   });
 
+  els.storyPlacePicker?.addEventListener("change", (event) => {
+    const checkbox = event.target.closest('input[type="checkbox"]');
+    if (!checkbox) return;
+    if (checkbox.checked && !storyDraftPlaceIds.includes(checkbox.value)) {
+      storyDraftPlaceIds.push(checkbox.value);
+    }
+    if (!checkbox.checked) {
+      storyDraftPlaceIds = storyDraftPlaceIds.filter((id) => id !== checkbox.value);
+    }
+    renderStoryBuilder();
+  });
+
   els.storySequence.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-action]");
     const row = event.target.closest(".sequence-row");
@@ -4559,6 +4571,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       title: title.slice(0, 160),
       description: els.storyDescription.value.trim().slice(0, 1500),
       itemIds: [...storyDraftIds],
+      placeIds: [...storyDraftPlaceIds],
     };
     const index = state.stories.findIndex((candidate) => candidate.id === story.id);
     if (index >= 0) {
