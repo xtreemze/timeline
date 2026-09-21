@@ -1589,20 +1589,7 @@
   }
 
   .presentation-stage:fullscreen .timeline-focus-slideshow-controls {
-    top: .4rem;
-    right: .4rem;
-    gap: .2rem;
-    padding: .2rem;
-  }
-
-  .presentation-stage:fullscreen .timeline-focus-slideshow-controls .button {
-    min-width: 40px;
-    min-height: 40px;
-    padding: .35rem;
-  }
-
-  .presentation-stage:fullscreen .timeline-focus-media-caption {
-    display: none;
+    bottom: .25rem;
   }
 }
 
