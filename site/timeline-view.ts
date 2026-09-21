@@ -726,9 +726,19 @@ class TimelineViewController {
       if (this.pointerDrag || this.pinch || this.touchPointers.size) abortSurfaceGesture();
     });
 
+    const preventFocus = (e: Event) => {
+      if (this.savedFocusElement) {
+        e.preventDefault();
+        this.savedFocusElement.focus({ preventScroll: true });
+      }
+    };
+
     this.surface.addEventListener("mousedown", (event) => {
-      if (document.activeElement instanceof HTMLElement && document.activeElement !== this.surface) {
-        this.savedFocusElement = document.activeElement;
+      const prevFocus = document.activeElement;
+      if (prevFocus instanceof HTMLElement && prevFocus !== this.surface) {
+        this.savedFocusElement = prevFocus;
+        // Prevent the surface from stealing focus during drag
+        this.surface.addEventListener("focus", preventFocus, { once: true, capture: true });
       }
     });
 
@@ -737,6 +747,8 @@ class TimelineViewController {
         this.savedFocusElement.focus({ preventScroll: true });
         this.savedFocusElement = null;
       }
+      // Clean up the focus prevention listener if drag didn't complete
+      this.surface.removeEventListener("focus", preventFocus, true);
     });
 
     this.surface.addEventListener("keydown", (event) => {
