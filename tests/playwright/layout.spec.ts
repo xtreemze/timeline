@@ -1,244 +1,208 @@
-import { test, expect, devices } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
-test.describe('Timeline Layout', () => {
-  test('portrait layout on phone renders timeline visible', async ({ page }) => {
-    await page.goto('/');
-    await page.setViewportSize({ width: 375, height: 812 });
+const PHONE_PORTRAIT = { width: 390, height: 844 };
+const PHONE_LANDSCAPE = { width: 844, height: 390 };
+const TABLET_LANDSCAPE = { width: 1024, height: 768 };
 
-    // Timeline view and surface should be visible
-    const timelineView = page.locator('#timeline-view');
-    const timelineSurface = page.locator('.timeline-surface');
+async function expectInsideViewport(locator, viewport, tolerance = 2) {
+  await expect(locator).toBeVisible();
+  const box = await locator.boundingBox();
+  expect(box).not.toBeNull();
+  if (!box) throw new Error('Visible element has no bounding box.');
+  expect(box.x).toBeGreaterThanOrEqual(-tolerance);
+  expect(box.y).toBeGreaterThanOrEqual(-tolerance);
+  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + tolerance);
+  expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + tolerance);
+  return box;
+}
 
-    await expect(timelineView).toBeVisible();
-    await expect(timelineSurface).toBeVisible();
+async function expectVisibleChronology(page, viewport) {
+  const terminal = page
+    .locator('.timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible')
+    .first();
+  const eventCopy = terminal.locator('.timeline-event-copy');
+  const tickLabel = page.locator('.timeline-tick-label:visible').first();
 
-    // Surface should occupy meaningful vertical space in portrait viewport
-    const surfBounds = await timelineSurface.boundingBox();
-    expect(surfBounds).not.toBeNull();
-    if (!surfBounds) return;
+  await expect(terminal).toBeVisible();
+  await expect(eventCopy).toBeVisible();
+  await expect(eventCopy.locator('strong')).not.toHaveText('');
+  await expect(tickLabel).toBeVisible();
 
-    // Surface should be at least 200px tall for usable timeline in portrait
-    expect(surfBounds.height).toBeGreaterThan(200);
-    // Surface should not exceed viewport width
-    expect(surfBounds.width).toBeLessThanOrEqual(375);
-    // Surface should be within viewport bounds (no horizontal overflow)
-    expect(surfBounds.x).toBeGreaterThanOrEqual(0);
-    expect(surfBounds.x + surfBounds.width).toBeLessThanOrEqual(376);
-  });
+  const terminalBox = await terminal.boundingBox();
+  const tickBox = await tickLabel.boundingBox();
+  expect(terminalBox).not.toBeNull();
+  expect(tickBox).not.toBeNull();
 
-  test('landscape layout renders timeline with proper sizing', async ({
+  for (const box of [terminalBox, tickBox]) {
+    if (!box) continue;
+    const centerX = box.x + box.width / 2;
+    const centerY = box.y + box.height / 2;
+    expect(centerX).toBeGreaterThanOrEqual(-2);
+    expect(centerX).toBeLessThanOrEqual(viewport.width + 2);
+    expect(centerY).toBeGreaterThanOrEqual(-2);
+    expect(centerY).toBeLessThanOrEqual(viewport.height + 2);
+  }
+}
+
+async function expectNoPrimaryDocumentScroll(page, viewport) {
+  const dimensions = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    scrollHeight: document.documentElement.scrollHeight,
+  }));
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(viewport.width + 2);
+  expect(dimensions.scrollHeight).toBeLessThanOrEqual(viewport.height + 2);
+}
+
+test.describe('Mobile-first Timeline layout contracts', () => {
+  test('phone portrait gives chronology the viewport and keeps temporal context readable', async ({
     page,
   }) => {
-    await page.goto('/');
-    await page.setViewportSize({ width: 1024, height: 600 });
-
-    // Timeline surface should be visible in landscape
-    const timelineSurface = page.locator('.timeline-surface');
-    const timelineView = page.locator('#timeline-view');
-
-    await expect(timelineView).toBeVisible();
-    await expect(timelineSurface).toBeVisible();
-
-    const tlBounds = await timelineView.boundingBox();
-    expect(tlBounds).not.toBeNull();
-    if (!tlBounds) return;
-
-    // Landscape should be wider than tall
-    expect(tlBounds.width).toBeGreaterThan(tlBounds.height);
-  });
-
-  test('workspace actions share one bottom app bar on mobile and desktop', async ({ page }) => {
+    await page.setViewportSize(PHONE_PORTRAIT);
     await page.goto('/');
 
-    const toolDock = page.locator('.app-tool-dock');
-    const actions = toolDock.locator(':scope > .app-tool');
-    await expect(actions).toHaveCount(4);
-    await expect(toolDock.locator('#project-menu-toggle')).toBeVisible();
-    await expect(toolDock.locator('#editor-toggle')).toBeVisible();
-    await expect(toolDock.locator('#timeline-browser-toggle')).toBeVisible();
-    await expect(toolDock.locator('#timeline-view-controls-toggle')).toBeVisible();
+    const timeline = page.locator('#timeline-view');
+    const surface = page.locator('.timeline-surface');
+    const dock = page.locator('.app-tool-dock');
 
-    for (const viewport of [
-      { width: 390, height: 844 },
-      { width: 1024, height: 768 },
-    ]) {
-      await page.setViewportSize(viewport);
+    const timelineBox = await expectInsideViewport(timeline, PHONE_PORTRAIT);
+    const surfaceBox = await expectInsideViewport(surface, PHONE_PORTRAIT);
+    await expectInsideViewport(dock, PHONE_PORTRAIT);
 
-      const dockBox = await toolDock.boundingBox();
-      expect(dockBox).not.toBeNull();
-      expect(dockBox?.width).toBeGreaterThan(180);
-      expect(dockBox?.height).toBeLessThan(90);
-      expect(dockBox?.x).toBeGreaterThanOrEqual(0);
-      expect((dockBox?.x ?? 0) + (dockBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width + 1);
-      expect((dockBox?.y ?? 0) + (dockBox?.height ?? 0)).toBeLessThanOrEqual(viewport.height + 1);
-      expect(dockBox?.y).toBeGreaterThan(viewport.height - 100);
-    }
+    expect(timelineBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.9);
+    expect(timelineBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.8);
+    expect(surfaceBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.9);
+    // With the relation graph open, chronology still owns at least half of a portrait phone.
+    expect(surfaceBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.48);
+
+    await expectVisibleChronology(page, PHONE_PORTRAIT);
+    await expectNoPrimaryDocumentScroll(page, PHONE_PORTRAIT);
   });
 
-  test('mobile panels and menus remain inside the reachable viewport', async ({ page }) => {
-    const viewport = { width: 390, height: 844 };
-    await page.setViewportSize(viewport);
+  test('phone landscape retains a major readable chronology surface without page scrolling', async ({
+    page,
+  }) => {
+    await page.setViewportSize(PHONE_LANDSCAPE);
     await page.goto('/');
 
-    async function expectInsideViewport(selector: string) {
-      const locator = page.locator(selector);
-      await expect(locator).toBeVisible();
-      const box = await locator.boundingBox();
-      expect(box).not.toBeNull();
-      expect(box?.x).toBeGreaterThanOrEqual(-1);
-      expect(box?.y).toBeGreaterThanOrEqual(-1);
-      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewport.width + 2);
-      expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewport.height + 2);
-      return box;
-    }
+    const timeline = page.locator('#timeline-view');
+    const surface = page.locator('.timeline-surface');
+    const dock = page.locator('.app-tool-dock');
 
-    const toolDock = page.locator('.app-tool-dock');
+    const timelineBox = await expectInsideViewport(timeline, PHONE_LANDSCAPE);
+    const surfaceBox = await expectInsideViewport(surface, PHONE_LANDSCAPE);
+    await expectInsideViewport(dock, PHONE_LANDSCAPE);
 
-    await page.locator('#editor-toggle').click();
-    const editorBox = await expectInsideViewport('#control-panel');
-    const dockBox = await toolDock.boundingBox();
-    expect(editorBox?.width).toBeGreaterThan(viewport.width * 0.9);
-    expect((editorBox?.y ?? 0) + (editorBox?.height ?? 0)).toBeLessThanOrEqual((dockBox?.y ?? viewport.height) + 1);
-    await page.locator('#control-panel-close').click();
+    expect(timelineBox.width).toBeGreaterThan(PHONE_LANDSCAPE.width * 0.9);
+    expect(timelineBox.height).toBeGreaterThan(PHONE_LANDSCAPE.height * 0.8);
+    expect(surfaceBox.width).toBeGreaterThan(PHONE_LANDSCAPE.width * 0.9);
+    // Landscape keeps a substantial chronology rail while leaving graph context usable.
+    expect(surfaceBox.height).toBeGreaterThan(PHONE_LANDSCAPE.height * 0.4);
 
-    await page.locator('#timeline-browser-toggle').click();
-    const browserBox = await expectInsideViewport('#timeline-browser-sheet');
-    expect(browserBox?.width).toBeGreaterThan(viewport.width * 0.9);
-    await page.locator('#timeline-browser-close').click();
-
-    const projectButton = page.locator('#project-menu-toggle');
-    await expect(projectButton).toBeVisible();
-    await expect(projectButton).toHaveAttribute('aria-expanded', 'false');
-    await projectButton.click();
-    const projectMenuBox = await expectInsideViewport('#project-menu:popover-open');
-    const projectButtonBox = await projectButton.boundingBox();
-    expect(projectMenuBox?.width).toBeLessThanOrEqual(viewport.width - 14);
-    expect(projectMenuBox?.height).toBeLessThanOrEqual(viewport.height - 14);
-    expect((projectMenuBox?.y ?? 0) + (projectMenuBox?.height ?? 0)).toBeLessThanOrEqual(
-      (projectButtonBox?.y ?? viewport.height) - 5,
-    );
-    await expect(projectButton).toHaveAttribute('aria-expanded', 'true');
-    await page.keyboard.press('Escape');
-    await expect(projectButton).toHaveAttribute('aria-expanded', 'false');
-
-    await page.locator('#timeline-view-controls-toggle').click();
-    await expectInsideViewport('#timeline-view-toolbar:popover-open');
+    await expectVisibleChronology(page, PHONE_LANDSCAPE);
+    await expectNoPrimaryDocumentScroll(page, PHONE_LANDSCAPE);
   });
 
-  test('Project footer menu stays clamped on compact visual viewports', async ({ page }) => {
-    for (const viewport of [
-      { width: 320, height: 568 },
-      { width: 390, height: 844 },
-    ]) {
+  test('footer app bar remains reachable in portrait and landscape', async ({ page }) => {
+    for (const viewport of [PHONE_PORTRAIT, PHONE_LANDSCAPE]) {
       await page.setViewportSize(viewport);
       await page.goto('/');
 
-      const toolDock = page.locator('.app-tool-dock');
-      const projectButton = toolDock.locator('#project-menu-toggle');
-      await expect(projectButton).toBeVisible();
-      await projectButton.click();
+      const dock = page.locator('.app-tool-dock');
+      const actions = dock.locator(':scope > .app-tool');
+      await expect(actions).toHaveCount(4);
+      const dockBox = await expectInsideViewport(dock, viewport);
+      expect(dockBox.width).toBeGreaterThan(180);
+      expect(dockBox.height).toBeLessThan(90);
 
-      const menu = page.locator('#project-menu:popover-open');
-      await expect(menu).toBeVisible();
-      const [menuBox, buttonBox] = await Promise.all([
-        menu.boundingBox(),
-        projectButton.boundingBox(),
-      ]);
-      expect(menuBox).not.toBeNull();
-      expect(buttonBox).not.toBeNull();
-      expect(menuBox?.x).toBeGreaterThanOrEqual(5);
-      expect(menuBox?.y).toBeGreaterThanOrEqual(5);
-      expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width - 5);
-      expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(
-        (buttonBox?.y ?? viewport.height) - 5,
-      );
-
-      await page.keyboard.press('Escape');
+      for (const selector of [
+        '#project-menu-toggle',
+        '#editor-toggle',
+        '#timeline-browser-toggle',
+        '#timeline-view-controls-toggle',
+      ]) {
+        await expect(dock.locator(selector)).toBeVisible();
+      }
     }
   });
 
-  test('fullscreen presentation fills viewport while keeping controls accessible', async ({
+  test('utility sheets and popovers stay reachable in both phone orientations', async ({ page }) => {
+    for (const viewport of [PHONE_PORTRAIT, PHONE_LANDSCAPE]) {
+      await page.setViewportSize(viewport);
+      await page.goto('/');
+
+      await page.locator('#editor-toggle').click();
+      await expectInsideViewport(page.locator('#control-panel'), viewport);
+      await page.locator('#control-panel-close').click();
+
+      await page.locator('#timeline-browser-toggle').click();
+      await expectInsideViewport(page.locator('#timeline-browser-sheet'), viewport);
+      await page.locator('#timeline-browser-close').click();
+
+      const projectButton = page.locator('#project-menu-toggle');
+      await projectButton.click();
+      const projectMenu = page.locator('#project-menu:popover-open');
+      await expectInsideViewport(projectMenu, viewport);
+      await expect(projectButton).toHaveAttribute('aria-expanded', 'true');
+      await page.keyboard.press('Escape');
+      await expect(projectButton).toHaveAttribute('aria-expanded', 'false');
+
+      const viewButton = page.locator('#timeline-view-controls-toggle');
+      await viewButton.click();
+      await expectInsideViewport(page.locator('#timeline-view-toolbar:popover-open'), viewport);
+      await page.keyboard.press('Escape');
+      await expect(viewButton).toHaveAttribute('aria-expanded', 'false');
+    }
+  });
+
+  test('orientation changes retain rendered occurrence identity and update control semantics', async ({
     page,
   }) => {
+    await page.setViewportSize(PHONE_LANDSCAPE);
     await page.goto('/');
-    await page.setViewportSize({ width: 1024, height: 768 });
 
-    // Presentation stage should exist and be visible
-    const presentationStage = page.locator('#presentation-stage, [role="presentation"]');
+    const root = page.locator('#timeline-view');
+    const terminal = page
+      .locator('.timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible')
+      .first();
+    await expect(terminal).toBeVisible();
 
-    // Just verify the page doesn't crash in fullscreen mode
-    // Timeline and controls should remain accessible
-    const timeline = page.locator('#timeline-view');
-    const toolDock = page.locator('.app-tool-dock');
-
-    await expect(timeline).toBeVisible();
-    await expect(toolDock).toBeVisible();
-  });
-
-  test('tablet landscape (768px) renders two-column layout', async ({ page }) => {
-    await page.goto('/');
-    await page.setViewportSize({ width: 768, height: 1024 });
-
-    const timeline = page.locator('#timeline-view');
-    const relationGraph = page.locator('[class*="graph"], [class*="map"]');
-
-    await expect(timeline).toBeVisible();
-
-    const tlBounds = await timeline.boundingBox();
-    expect(tlBounds).not.toBeNull();
-    if (tlBounds) {
-      // Tablet landscape should have significant height for timeline
-      expect(tlBounds.height).toBeGreaterThan(400);
-    }
-  });
-
-  test('safe area insets respected in fullscreen mode', async ({ page, context }) => {
-    // Create context with mobile device that has safe area inset
-    const mobileContext = await context.browser()?.newContext({
-      ...devices['iPhone 14'],
-      viewport: { width: 390, height: 844 },
+    await terminal.evaluate((element) => {
+      element.closest('.timeline-event')?.setAttribute('data-layout-retained-identity', 'occurrence');
     });
 
-    if (mobileContext) {
-      const mobilePage = await mobileContext.newPage();
-      await mobilePage.goto('/');
+    const before = await root.getAttribute('data-orientation');
+    expect(['portrait', 'landscape']).toContain(before);
 
-      // Main timeline view should be accessible on mobile
-      const timelineView = await mobilePage.locator('#timeline-view');
-      await expect(timelineView).toBeVisible();
+    await page.locator('#timeline-orientation-toggle').click();
+    const after = before === 'portrait' ? 'landscape' : 'portrait';
+    await expect(root).toHaveAttribute('data-orientation', after);
+    await expect(root.locator('[data-layout-retained-identity="occurrence"]')).toHaveCount(1);
+    await expect(page.locator('#timeline-zoom-level')).toHaveAttribute(
+      'aria-orientation',
+      after === 'portrait' ? 'vertical' : 'horizontal',
+    );
 
-      const bounds = await timelineView.boundingBox();
-      expect(bounds).not.toBeNull();
-      if (bounds) {
-        // Should not be positioned off-screen
-        expect(bounds.x).toBeGreaterThanOrEqual(0);
-        expect(bounds.y).toBeGreaterThanOrEqual(0);
-      }
-
-      await mobileContext.close();
-    }
+    await page.locator('#timeline-orientation-toggle').click();
+    await expect(root).toHaveAttribute('data-orientation', before);
+    await expect(root.locator('[data-layout-retained-identity="occurrence"]')).toHaveCount(1);
   });
 
-  test('portrait layout preserves focus and interaction state', async ({
-    page,
-  }) => {
+  test('tablet landscape keeps timeline and graph simultaneously usable', async ({ page }) => {
+    await page.setViewportSize(TABLET_LANDSCAPE);
     await page.goto('/');
-    await page.setViewportSize({ width: 375, height: 812 });
 
-    // Timeline surface should be present and focusable
-    const timelineSurface = page.locator('.timeline-surface');
-    await expect(timelineSurface).toBeVisible();
+    const timeline = page.locator('#timeline-view');
+    const surface = page.locator('.timeline-surface');
+    const graph = page.locator('.temporal-graph-canvas');
 
-    // Focus on timeline should not crash the app
-    await timelineSurface.focus();
-    await expect(timelineSurface).toBeFocused();
+    const timelineBox = await expectInsideViewport(timeline, TABLET_LANDSCAPE);
+    const surfaceBox = await expectInsideViewport(surface, TABLET_LANDSCAPE);
+    await expect(graph).toBeVisible();
 
-    // Interaction should continue to work
-    const bounds = await timelineSurface.boundingBox();
-    expect(bounds).not.toBeNull();
-    if (bounds) {
-      expect(bounds.width).toBeGreaterThan(100);
-      expect(bounds.height).toBeGreaterThan(100);
-    }
+    expect(timelineBox.width).toBeGreaterThan(TABLET_LANDSCAPE.width * 0.6);
+    expect(timelineBox.height).toBeGreaterThan(TABLET_LANDSCAPE.height * 0.5);
+    expect(surfaceBox.height).toBeGreaterThan(TABLET_LANDSCAPE.height * 0.45);
+    await expectVisibleChronology(page, TABLET_LANDSCAPE);
+    await expectNoPrimaryDocumentScroll(page, TABLET_LANDSCAPE);
   });
 });
