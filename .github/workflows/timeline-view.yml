@@ -3,6 +3,14 @@ name: Timeline view
 on:
   pull_request:
     paths:
+      - 'site/**/*.ts'
+      - 'site/**/*.css'
+      - 'src/**/*.ts'
+      - 'biome.json'
+      - 'eslint.config.js'
+      - 'jsconfig.json'
+      - 'config/architecture-lint-baseline.json'
+      - 'scripts/lint-architecture.mjs'
       - 'site/index.html'
       - 'package.json'
       - 'src/orb-graph-entry.js'
@@ -45,6 +53,14 @@ on:
   push:
     branches: [main]
     paths:
+      - 'site/**/*.ts'
+      - 'site/**/*.css'
+      - 'src/**/*.ts'
+      - 'biome.json'
+      - 'eslint.config.js'
+      - 'jsconfig.json'
+      - 'config/architecture-lint-baseline.json'
+      - 'scripts/lint-architecture.mjs'
       - 'site/index.html'
       - 'package.json'
       - 'src/orb-graph-entry.js'
@@ -91,8 +107,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 12
       - uses: actions/setup-node@v4
         with:
           node-version: 24
