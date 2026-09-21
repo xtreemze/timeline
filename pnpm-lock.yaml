@@ -4,6 +4,10 @@ lockfileVersion: '9.0'
 importers:
 
   .:
+    dependencies:
+      leaflet:
+        specifier: 1.9.4
+        version: 1.9.4
     configDependencies: {}
     packageManagerDependencies:
       pnpm:
