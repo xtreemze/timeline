@@ -40,6 +40,12 @@ function resolveRequestPath(url) {
 }
 
 const server = createServer((request, response) => {
+  if (request.url === '/__ready') {
+    response.writeHead(204);
+    response.end();
+    return;
+  }
+
   const filePath = resolveRequestPath(request.url || '/');
   if (!filePath) {
     response.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
