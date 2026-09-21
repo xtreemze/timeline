@@ -28,6 +28,7 @@ import {
   type TemporalLayoutCluster,
   type TemporalLayoutMeasurement,
 } from "../src/layout/temporal-layout.ts";
+import { createRetainedTimelineMetrics } from "../src/performance/retained-timeline-metrics.ts";
 import { TimelineMotion as motion } from "./timeline-motion.ts";
 import { TimelineClustering as clustering } from "./timeline-clustering.ts";
 
@@ -289,10 +290,47 @@ class TimelineViewController {
   renderFrame = 0;
   wheelCommitTimer = 0;
   viewportInitialized = false;
+  metrics = createRetainedTimelineMetrics();
+  frameCreatedNodes = 0;
+  frameDestroyedNodes = 0;
+  framePlannerDurationMs = 0;
+  frameQueryDurationMs = 0;
+  frameDirtyMeasurements = 0;
   reducedMotionQuery: MediaQueryList | null =
     typeof globalThis.matchMedia === "function"
       ? globalThis.matchMedia("(prefers-reduced-motion: reduce)")
       : null;
+
+  noteSceneCreated(count = 1): void {
+    this.frameCreatedNodes += Math.max(0, Math.trunc(count));
+  }
+
+  noteSceneDestroyed(count = 1): void {
+    this.frameDestroyedNodes += Math.max(0, Math.trunc(count));
+  }
+
+  retainedSceneNodeCount(): number {
+    let rangeCount = 0;
+    for (const record of this.scene.values()) {
+      if (record.range) rangeCount += 1;
+    }
+    return (
+      this.scene.size +
+      rangeCount +
+      this.tickScene.size +
+      this.accentScene.size +
+      this.relationshipBandScene.size +
+      this.clusterScene.size
+    );
+  }
+
+  getPerformanceSummary() {
+    return this.metrics.summary();
+  }
+
+  resetPerformanceSummary(): void {
+    this.metrics.reset();
+  }
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -989,6 +1027,7 @@ class TimelineViewController {
         node.append(label);
         this.tickScene.set(key, node);
         this.stage.append(node);
+        this.noteSceneCreated();
       }
       const label = node.querySelector(".timeline-tick-label");
       if (label) {
@@ -1017,6 +1056,7 @@ class TimelineViewController {
         node.dataset.temporalAccent = String(accent.kind || "");
         this.accentScene.set(key, node);
         this.stage.append(node);
+        this.noteSceneCreated();
       }
       node.textContent = String(accent.label || "");
       node.dataset.count = String(accent.count || 0);
@@ -1046,11 +1086,13 @@ class TimelineViewController {
       for (const [key, node] of this.tickScene) {
         if (keepTicks.has(key)) continue;
         node.remove();
+        this.noteSceneDestroyed();
         this.tickScene.delete(key);
       }
       for (const [key, node] of this.accentScene) {
         if (keepAccents.has(key)) continue;
         node.remove();
+        this.noteSceneDestroyed();
         this.accentScene.delete(key);
       }
     }
@@ -1086,6 +1128,7 @@ class TimelineViewController {
         segment.dataset.relationshipId = relationship.id;
         this.relationshipBandScene.set(key, segment);
         this.relationshipBandZone.append(segment);
+        this.noteSceneCreated();
       }
 
       segment.title = relationship.predicate || "Temporal relationship";
@@ -1124,6 +1167,7 @@ class TimelineViewController {
       for (const [key, segment] of this.relationshipBandScene) {
         if (keep.has(key)) continue;
         segment.remove();
+        this.noteSceneDestroyed();
         this.relationshipBandScene.delete(key);
       }
     }
@@ -1269,6 +1313,7 @@ class TimelineViewController {
       if (wasHidden) record.node.hidden = true;
       if (rect.width <= 0 || rect.height <= 0) continue;
 
+      this.frameDirtyMeasurements += 1;
       this.geometryMeasurements.set(record.item.id, {
         key,
         measurement: {
@@ -1303,6 +1348,7 @@ class TimelineViewController {
       if (cached) measurements[item.id] = cached.measurement;
     }
 
+    const plannerStartedAt = performance.now();
     const planned = planCommittedTemporalLayout({
       viewport: this.viewport,
       occurrences,
@@ -1318,6 +1364,8 @@ class TimelineViewController {
         clusters: this.committedLayout.clusters,
       },
     });
+
+    this.framePlannerDurationMs += performance.now() - plannerStartedAt;
 
     const clusters = planned.clusters.filter((cluster) => {
       if (this.focusedId && cluster.itemIds.includes(this.focusedId)) return false;
@@ -1350,6 +1398,7 @@ class TimelineViewController {
       if (!record) {
         record = this.createClusterRecord(cluster);
         this.clusterScene.set(cluster.id, record);
+        this.noteSceneCreated();
       }
       record.cluster = cluster;
       this.updateClusterRecord(record);
@@ -1357,6 +1406,7 @@ class TimelineViewController {
     for (const [id, record] of this.clusterScene) {
       if (keep.has(id)) continue;
       record.node.remove();
+      this.noteSceneDestroyed();
       this.clusterScene.delete(id);
     }
   }
@@ -1519,6 +1569,31 @@ class TimelineViewController {
   }
 
   render(): void {
+    const frameStartedAt = performance.now();
+    const phase = this.retention.active ? "interaction" : "commit";
+    const retainedSpanBefore = this.retention.extent.end - this.retention.extent.start;
+    this.frameCreatedNodes = 0;
+    this.frameDestroyedNodes = 0;
+    this.framePlannerDurationMs = 0;
+    this.frameQueryDurationMs = 0;
+    this.frameDirtyMeasurements = 0;
+
+    const recordFrameMetrics = (): void => {
+      const retainedSpanAfter = this.retention.extent.end - this.retention.extent.start;
+      this.metrics.recordFrame({
+        phase,
+        durationMs: performance.now() - frameStartedAt,
+        createdNodes: this.frameCreatedNodes,
+        destroyedNodes: this.frameDestroyedNodes,
+        retainedNodes: this.retainedSceneNodeCount(),
+        bufferExpanded:
+          phase === "interaction" && retainedSpanAfter > retainedSpanBefore + 0.5,
+        plannerDurationMs: this.framePlannerDurationMs,
+        queryDurationMs: this.frameQueryDurationMs,
+        dirtyMeasurements: this.frameDirtyMeasurements,
+      });
+    };
+
     const empty = !this.items.length;
     this.root.dataset.empty = empty ? "true" : "false";
     if (empty) {
@@ -1544,6 +1619,7 @@ class TimelineViewController {
       };
       this.committedTickSpecKey = "";
       this.syncZoomSlider();
+      recordFrameMetrics();
       return;
     }
 
@@ -1571,7 +1647,9 @@ class TimelineViewController {
     this.renderRelationshipBands(padding, usable);
 
     const membershipWindow = this.retention.extent;
+    const queryStartedAt = performance.now();
     const candidates = queryOccurrences(this.items, membershipWindow);
+    this.frameQueryDurationMs += performance.now() - queryStartedAt;
     const focused = this.focusedId
       ? this.items.find((item) => item.id === this.focusedId) || null
       : null;
@@ -1606,6 +1684,7 @@ class TimelineViewController {
     this.stage.dataset.sceneState = this.retention.active ? "interacting" : this.focusedId ? "focused" : "populated";
     this.syncZoomSlider();
     this.updateReadout();
+    recordFrameMetrics();
   }
 
   createRecord(item: TimelineItem): SceneRecord {
@@ -1647,9 +1726,11 @@ class TimelineViewController {
       range.dataset.id = item.id;
       range.addEventListener("click", () => this.focusItem(item.id));
       this.stage.append(range);
+      this.noteSceneCreated();
     }
 
     this.stage.append(node);
+    this.noteSceneCreated();
     const record = { item, node, terminal, range, copy };
     this.bindRecordInteractionTarget(record, terminal);
     if (range) this.bindRecordInteractionTarget(record, range);
@@ -1824,7 +1905,11 @@ class TimelineViewController {
 
   removeRecord(record: SceneRecord): void {
     record.node.remove();
-    record.range?.remove();
+    this.noteSceneDestroyed();
+    if (record.range) {
+      record.range.remove();
+      this.noteSceneDestroyed();
+    }
   }
 
   emitViewport(committed: boolean): void {
