@@ -61,6 +61,7 @@ on:
       - 'tests/timeline-navigation.test.mjs'
       - 'tests/temporal-graph-view.test.mjs'
       - 'tests/temporal-graph-runtime-contracts.test.mjs'
+      - 'tests/timeline-projection-runtime.test.mjs'
       - 'tests/graph-editor.test.mjs'
       - '.github/workflows/timeline-view.yml'
   push:
@@ -121,6 +122,7 @@ on:
       - 'tests/timeline-navigation.test.mjs'
       - 'tests/temporal-graph-view.test.mjs'
       - 'tests/temporal-graph-runtime-contracts.test.mjs'
+      - 'tests/timeline-projection-runtime.test.mjs'
       - 'tests/graph-editor.test.mjs'
       - '.github/workflows/timeline-view.yml'
 
@@ -149,5 +151,6 @@ jobs:
       - run: pnpm test:touch-runtime-contracts
       - run: pnpm test:temporal-context-runtime
       - run: pnpm test:graph-runtime-contracts
+      - run: pnpm test:timeline-projection-runtime
       - run: |
           pnpm test || echo "⚠ Legacy ESM/TypeScript test migration debt tracked in issue 258"
