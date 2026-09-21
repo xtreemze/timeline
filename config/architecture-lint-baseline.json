@@ -1,0 +1,173 @@
+{
+  "typescript": {
+    "site/case-reasoning.ts": {
+      "any": 41,
+      "asAny": 0,
+      "nonNull": 7
+    },
+    "site/date-range-picker.ts": {
+      "any": 9,
+      "asAny": 8,
+      "nonNull": 0
+    },
+    "site/event-presentation.ts": {
+      "any": 11,
+      "asAny": 11,
+      "nonNull": 1
+    },
+    "site/evidence-store.ts": {
+      "any": 46,
+      "asAny": 46,
+      "nonNull": 0
+    },
+    "site/interchange-adapter.ts": {
+      "any": 38,
+      "asAny": 18,
+      "nonNull": 1
+    },
+    "site/memgraph-interchange.ts": {
+      "any": 37,
+      "asAny": 23,
+      "nonNull": 0
+    },
+    "site/spatial.ts": {
+      "any": 11,
+      "asAny": 11,
+      "nonNull": 0
+    },
+    "site/temporal-graph-view.ts": {
+      "any": 12,
+      "asAny": 2,
+      "nonNull": 0
+    },
+    "site/temporal-standards.ts": {
+      "any": 54,
+      "asAny": 54,
+      "nonNull": 0
+    },
+    "site/time-scale.ts": {
+      "any": 2,
+      "asAny": 2,
+      "nonNull": 0
+    },
+    "site/timeline-clustering.ts": {
+      "any": 55,
+      "asAny": 7,
+      "nonNull": 5
+    },
+    "site/timeline-migration.ts": {
+      "any": 15,
+      "asAny": 14,
+      "nonNull": 0
+    },
+    "site/timeline-motion.ts": {
+      "any": 10,
+      "asAny": 8,
+      "nonNull": 0
+    },
+    "site/timeline-navigation.ts": {
+      "any": 8,
+      "asAny": 4,
+      "nonNull": 0
+    },
+    "site/webmcp.ts": {
+      "any": 45,
+      "asAny": 12,
+      "nonNull": 0
+    }
+  },
+  "css": {
+    "site/styles.css": {
+      "maxWidthMedia": {
+        "@media (max-width: 520px)": 1,
+        "@media (max-width: 1120px)": 1,
+        "@media (max-width: 920px)": 1,
+        "@media (max-width: 680px)": 3,
+        "@media (max-width: 430px)": 2,
+        "@media (max-width: 720px)": 1,
+        "@media (max-width: 760px)": 3,
+        "@media (max-width: 699px)": 1,
+        "@media (max-width: 380px)": 1,
+        "@media (max-width: 460px)": 1,
+        "@media (max-width: 360px)": 1
+      },
+      "hoverOnlySelectors": {
+        ".tab:hover": 2,
+        ".button:hover:not(:disabled)": 1,
+        ".button.primary:hover": 1,
+        ".button.secondary:hover": 1,
+        ".button.ghost:hover": 1,
+        ".picker-row:hover": 1,
+        ".icon-button:hover": 1,
+        ".icon-button.delete:hover": 1,
+        ".hero-meta span, .button.secondary:hover, .button.ghost:hover": 1
+      },
+      "physicalInlineProperties": {
+        "margin-right": 5,
+        "margin-left": 3,
+        "padding-left": 1
+      },
+      "legacy100vh": 2,
+      "viewportWidthSizing": {
+        "width: min(420px, calc(100vw - 24px));": 1,
+        "width: calc(100vw - 12px);": 1
+      },
+      "overflowXHidden": {
+        "overflow-x: hidden;": 2
+      },
+      "rootMinWidth": {
+        "min-width: 320px;": 2
+      }
+    },
+    "site/timeline-view.css": {
+      "maxWidthMedia": {
+        "@media (max-width: 700px)": 1,
+        "@media (max-width: 430px)": 2,
+        "@media (max-width: 760px)": 7,
+        "@media (max-width: 900px)": 6,
+        "@media (max-width: 560px)": 1,
+        "@media (max-width: 500px)": 2,
+        "@media (max-width: 699px)": 5,
+        "@media (max-width: 380px)": 4
+      },
+      "hoverOnlySelectors": {
+        ".timeline-event-terminal:hover": 1,
+        ".timeline-focus-view[popover] .timeline-focus-close.button.primary:hover": 1,
+        ".timeline-focus-view[popover] .button.secondary:hover": 1
+      },
+      "physicalInlineProperties": {
+        "margin-left": 1
+      },
+      "legacy100vh": 1,
+      "viewportWidthSizing": {},
+      "overflowXHidden": {
+        "overflow-x: hidden;": 1
+      },
+      "rootMinWidth": {}
+    }
+  },
+  "architecture": {
+    "ambientTimelineGlobals": {
+      "site/app.ts": 16,
+      "site/temporal-graph-view.ts": 2,
+      "site/case-reasoning-shim.ts": 1,
+      "site/date-range-picker-shim.ts": 1,
+      "site/event-presentation-shim.ts": 1,
+      "site/evidence-store-shim.ts": 1,
+      "site/interchange-adapter-shim.ts": 1,
+      "site/memgraph-interchange-shim.ts": 1,
+      "site/presentation-layout-shim.ts": 1,
+      "site/spatial-shim.ts": 1,
+      "site/temporal-standards-shim.ts": 1,
+      "site/time-scale-shim.ts": 1,
+      "site/timeline-clustering-shim.ts": 1,
+      "site/timeline-migration-shim.ts": 1,
+      "site/timeline-motion-shim.ts": 1,
+      "site/timeline-navigation-shim.ts": 1,
+      "site/webmcp-shim.ts": 1
+    },
+    "directCanonicalMutations": {
+      "site/app.ts": 20
+    }
+  }
+}
