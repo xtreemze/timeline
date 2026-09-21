@@ -2717,6 +2717,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   }
 
   function resetItemForm() {
+    clearInferenceDraft();
     els.itemForm.reset();
     els.itemId.value = "";
     els.itemKind.value = "event";
@@ -2753,6 +2754,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   function beginItemEdit(id) {
     const item = getItem(id);
     if (!item) return;
+    clearInferenceDraft();
     setActivePanel("items");
     els.itemId.value = item.id;
     els.itemKind.value = item.kind;
@@ -2817,6 +2819,37 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   function renderStoryBuilder() {
     els.storyPickerCount.textContent = `${state.items.length}`;
     els.storySequenceCount.textContent = `${storyDraftIds.length}`;
+    if (els.storyPlacePickerCount) {
+      els.storyPlacePickerCount.textContent = `${storyDraftPlaceIds.length}/${state.places.length}`;
+    }
+
+    if (els.storyPlacePicker) {
+      const placeRows = state.places.map((place) => {
+        const label = document.createElement("label");
+        label.className = "picker-row";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = place.id;
+        checkbox.checked = storyDraftPlaceIds.includes(place.id);
+        const copy = document.createElement("span");
+        copy.className = "picker-copy";
+        const title = document.createElement("strong");
+        title.textContent = place.name;
+        const meta = document.createElement("span");
+        meta.textContent = `${place.icon || "place"} · ${place.markerShape || "pin"} · map marker`;
+        copy.append(title, meta);
+        label.append(checkbox, copy);
+        return label;
+      });
+      if (!placeRows.length) {
+        const empty = document.createElement("p");
+        empty.className = "privacy-note";
+        empty.textContent =
+          "Create reusable places in the graph editor, then add them to this story.";
+        placeRows.push(empty);
+      }
+      els.storyPlacePicker.replaceChildren(...placeRows);
+    }
 
     const pickerRows = sortItems().map((item) => {
       const label = document.createElement("label");
@@ -2874,6 +2907,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     els.storyForm.reset();
     els.storyId.value = "";
     storyDraftIds = [];
+    storyDraftPlaceIds = [];
     els.saveStory.textContent = "Create story";
     els.cancelStoryEdit.hidden = true;
     setError(els.storyFormError);
@@ -2888,6 +2922,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     els.storyTitle.value = story.title;
     els.storyDescription.value = story.description;
     storyDraftIds = [...story.itemIds];
+    storyDraftPlaceIds = [...(story.placeIds || [])];
     els.saveStory.textContent = "Save story";
     els.cancelStoryEdit.hidden = false;
     setError(els.storyFormError);
@@ -2944,7 +2979,9 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       top.append(copy, actions);
       const meta = document.createElement("div");
       meta.className = "story-meta";
-      meta.textContent = `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"} · ${storySpanLabel(story)}`;
+      const placeCount = story.placeIds?.length || 0;
+      meta.textContent =
+        `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"} · ${placeCount} ${placeCount === 1 ? "place" : "places"} · ${storySpanLabel(story)}`;
       card.append(top, meta);
       return card;
     });
