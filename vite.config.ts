@@ -36,9 +36,6 @@ export default defineConfig({
       input: {
         main: new URL('./site/index.html', import.meta.url).pathname,
       },
-      output: {
-        dir: '../dist',
-      },
     },
   },
   server: {
