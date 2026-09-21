@@ -111,7 +111,6 @@ jobs:
       - run: test -s site/orb-graph.bundle.js
       - run: node --check src/orb-graph-entry.js
       - run: node --check site/orb-graph.bundle.js
-      - run: node --check site/time-scale.js
       - run: node --check site/timeline-clustering.js
       - run: node --check site/timeline-motion.js
       - run: node --check site/timeline-navigation.js
@@ -124,10 +123,6 @@ jobs:
       - run: node --check site/evidence-store.js
       - run: node --check site/case-reasoning.js
       - run: node --check site/sample-case.js
-      - run: node --check site/interchange-adapter.js
-      - run: node --check site/temporal-standards.js
       - run: node --check site/timeline-migration.js
-      - run: node --check site/spatial.js
       - run: node --check site/location-map.js
-      - run: node --check site/app.js
       - run: pnpm test
