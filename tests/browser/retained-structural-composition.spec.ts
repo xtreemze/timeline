@@ -9,6 +9,15 @@ async function frame(page) {
   );
 }
 
+async function activateOccurrence(page: Page, terminal: Locator) {
+  const hasTouch = await page.evaluate(() => navigator.maxTouchPoints > 0);
+  if (hasTouch) {
+    await terminal.tap();
+    return;
+  }
+  await terminal.click();
+}
+
 async function beginCameraDrag(page: Page, surface: Locator) {
   const box = await surface.boundingBox();
   if (!box) throw new Error("Timeline surface has no bounding box.");
@@ -137,7 +146,7 @@ test("#269 focused occurrence survives an orientation transaction", async ({ pag
     element.closest(".timeline-event")?.setAttribute("data-tdd-identity", "focused-occurrence");
   });
 
-  await terminal.click();
+  await activateOccurrence(page, terminal);
   await expect(root).toHaveAttribute("data-scene-state", "focused");
 
   await page.evaluate(() => {
