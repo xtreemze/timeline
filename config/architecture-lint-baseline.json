@@ -1,19 +1,80 @@
 {
   "typescript": {
-    "site/date-range-picker.ts": { "any": 9, "asAny": 8, "nonNull": 0 },
-    "site/event-presentation.ts": { "any": 11, "asAny": 11, "nonNull": 1 },
-    "site/evidence-store.ts": { "any": 46, "asAny": 46, "nonNull": 0 },
-    "site/interchange-adapter.ts": { "any": 38, "asAny": 18, "nonNull": 1 },
-    "site/memgraph-interchange.ts": { "any": 37, "asAny": 23, "nonNull": 0 },
-    "site/spatial.ts": { "any": 11, "asAny": 11, "nonNull": 0 },
-    "site/temporal-graph-view.ts": { "any": 12, "asAny": 2, "nonNull": 0 },
-    "site/temporal-standards.ts": { "any": 54, "asAny": 54, "nonNull": 0 },
-    "site/time-scale.ts": { "any": 2, "asAny": 2, "nonNull": 0 },
-    "site/timeline-clustering.ts": { "any": 55, "asAny": 7, "nonNull": 5 },
-    "site/timeline-migration.ts": { "any": 15, "asAny": 14, "nonNull": 0 },
-    "site/timeline-motion.ts": { "any": 10, "asAny": 8, "nonNull": 0 },
-    "site/timeline-navigation.ts": { "any": 8, "asAny": 4, "nonNull": 0 },
-    "site/webmcp.ts": { "any": 45, "asAny": 12, "nonNull": 0 }
+    "site/case-reasoning.ts": {
+      "any": 41,
+      "asAny": 0,
+      "nonNull": 7
+    },
+    "site/date-range-picker.ts": {
+      "any": 9,
+      "asAny": 8,
+      "nonNull": 0
+    },
+    "site/event-presentation.ts": {
+      "any": 11,
+      "asAny": 11,
+      "nonNull": 1
+    },
+    "site/evidence-store.ts": {
+      "any": 46,
+      "asAny": 46,
+      "nonNull": 0
+    },
+    "site/interchange-adapter.ts": {
+      "any": 38,
+      "asAny": 18,
+      "nonNull": 1
+    },
+    "site/memgraph-interchange.ts": {
+      "any": 37,
+      "asAny": 23,
+      "nonNull": 0
+    },
+    "site/spatial.ts": {
+      "any": 11,
+      "asAny": 11,
+      "nonNull": 0
+    },
+    "site/temporal-graph-view.ts": {
+      "any": 12,
+      "asAny": 2,
+      "nonNull": 0
+    },
+    "site/temporal-standards.ts": {
+      "any": 54,
+      "asAny": 54,
+      "nonNull": 0
+    },
+    "site/time-scale.ts": {
+      "any": 2,
+      "asAny": 2,
+      "nonNull": 0
+    },
+    "site/timeline-clustering.ts": {
+      "any": 55,
+      "asAny": 7,
+      "nonNull": 5
+    },
+    "site/timeline-migration.ts": {
+      "any": 15,
+      "asAny": 14,
+      "nonNull": 0
+    },
+    "site/timeline-motion.ts": {
+      "any": 10,
+      "asAny": 8,
+      "nonNull": 0
+    },
+    "site/timeline-navigation.ts": {
+      "any": 8,
+      "asAny": 4,
+      "nonNull": 0
+    },
+    "site/webmcp.ts": {
+      "any": 45,
+      "asAny": 12,
+      "nonNull": 0
+    }
   },
   "css": {
     "site/styles.css": {
