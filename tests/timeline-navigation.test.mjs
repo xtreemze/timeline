@@ -7,7 +7,7 @@ class FakeElement {
   }
 }
 globalThis.Element = FakeElement;
-await import("../site/timeline-navigation.js");
+await import("../site/timeline-navigation-shim.ts");
 
 const navigation = globalThis.TimelineNavigation;
 

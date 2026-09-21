@@ -32,8 +32,8 @@ export function decayVelocity(
 }
 
 function coalescedPointerEvents(event: PointerEvent | null): PointerEvent[] {
-  if (event && typeof (event as any).getCoalescedEvents === "function") {
-    const events = (event as any).getCoalescedEvents();
+  if (event && typeof event.getCoalescedEvents === "function") {
+    const events = event.getCoalescedEvents();
     if (Array.isArray(events) && events.length) return events;
   }
   return event ? [event] : [];
@@ -48,13 +48,14 @@ interface PointerSample {
   time: number;
 }
 
+function isPointerSample(value: unknown): value is PointerSample {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return Number.isFinite(record.coordinate) && Number.isFinite(record.time);
+}
+
 export function estimatePointerVelocity(samples: unknown, windowMs: number = 90): number {
-  const source = Array.isArray(samples)
-    ? samples.filter(
-        (sample: any) =>
-          sample && Number.isFinite(sample.coordinate) && Number.isFinite(sample.time),
-      )
-    : [];
+  const source = Array.isArray(samples) ? samples.filter(isPointerSample) : [];
   if (source.length < 2) return 0;
 
   const last = source[source.length - 1];
@@ -96,6 +97,16 @@ interface VectorSample {
   time: number;
 }
 
+function isVectorSample(value: unknown): value is VectorSample {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return (
+    Number.isFinite(record.x) &&
+    Number.isFinite(record.y) &&
+    Number.isFinite(record.time)
+  );
+}
+
 export function appendPointerVectorSamples(
   samples: unknown,
   event: PointerEvent | null,
@@ -123,15 +134,7 @@ interface Velocity {
 }
 
 export function estimatePointerVectorVelocity(samples: unknown, windowMs: number = 90): Velocity {
-  const source = Array.isArray(samples)
-    ? samples.filter(
-        (sample: any) =>
-          sample &&
-          Number.isFinite(sample.x) &&
-          Number.isFinite(sample.y) &&
-          Number.isFinite(sample.time),
-      )
-    : [];
+  const source = Array.isArray(samples) ? samples.filter(isVectorSample) : [];
   if (source.length < 2) return { x: 0, y: 0, magnitude: 0 };
 
   const last = source[source.length - 1];
@@ -155,16 +158,37 @@ export function estimatePointerVectorVelocity(samples: unknown, windowMs: number
   return { x, y, magnitude };
 }
 
+interface HapticActuator {
+  playEffect?: (
+    effect: string,
+    params: {
+      startDelay: number;
+      duration: number;
+      weakMagnitude: number;
+      strongMagnitude: number;
+    },
+  ) => unknown;
+  pulse?: (magnitude: number, duration: number) => unknown;
+}
+
+type HapticGamepad = Gamepad & {
+  vibrationActuator?: HapticActuator;
+  hapticActuators?: HapticActuator[];
+};
+
 async function gamepadPulse(duration: number, magnitude: number): Promise<boolean> {
   if (typeof navigator === "undefined" || typeof navigator.getGamepads !== "function")
     return false;
-  const gamepads = Array.from(navigator.getGamepads?.() || []).filter(Boolean);
+  const gamepads = Array.from(navigator.getGamepads?.() || []).filter(
+    (gamepad): gamepad is Gamepad => Boolean(gamepad),
+  );
   for (const gamepad of gamepads) {
-    const actuator = (gamepad as any).vibrationActuator || (gamepad as any).hapticActuators?.[0];
+    const hapticGamepad = gamepad as HapticGamepad;
+    const actuator = hapticGamepad.vibrationActuator || hapticGamepad.hapticActuators?.[0];
     if (!actuator) continue;
     try {
-      if (typeof (actuator as any).playEffect === "function") {
-        await (actuator as any).playEffect("dual-rumble", {
+      if (typeof actuator.playEffect === "function") {
+        await actuator.playEffect("dual-rumble", {
           startDelay: 0,
           duration,
           weakMagnitude: magnitude,
@@ -172,8 +196,8 @@ async function gamepadPulse(duration: number, magnitude: number): Promise<boolea
         });
         return true;
       }
-      if (typeof (actuator as any).pulse === "function") {
-        await (actuator as any).pulse(magnitude, duration);
+      if (typeof actuator.pulse === "function") {
+        await actuator.pulse(magnitude, duration);
         return true;
       }
     } catch {

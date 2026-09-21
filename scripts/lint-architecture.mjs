@@ -77,7 +77,7 @@ function hoverOnlySelectors(source) {
   const rulePattern = /([^{}]+)\{[^{}]*\}/g;
   let match = rulePattern.exec(source);
   while (match) {
-    const selector = normalize(match[1]);
+    const selector = normalize(match[1].replace(/\/\*[\s\S]*?\*\//g, ""));
     if (
       selector.includes(":hover") &&
       !selector.startsWith("@") &&
@@ -98,11 +98,18 @@ function maxWidthMedia(source) {
   return distribution(matches);
 }
 
+function maxWidthContainerQueries(source) {
+  const matches = [];
+  const pattern = /@container\s+[^({]*\([^)]*(?:max-width\s*:|width\s*(?:<=|<))[^)]*\)/g;
+  for (const match of source.matchAll(pattern)) matches.push(normalize(match[0]));
+  return distribution(matches);
+}
 
 function viewportWidthSizing(source) {
   const matches = [];
-  const pattern = /\b(?:width|inline-size|min-width|min-inline-size|max-width|max-inline-size)\s*:\s*[^;{}]*\b100vw\b[^;{}]*;/gi;
-  for (const match of source.matchAll(pattern)) matches.push(match[0]);
+  const pattern =
+    /(?:^|[;{]\s*)((?:width|inline-size|min-width|min-inline-size|max-width|max-inline-size)\s*:\s*[^;{}]*\b(?:\d*\.?\d+)?(?:dvw|svw|lvw|vw)\b[^;{}]*;)/gim;
+  for (const match of source.matchAll(pattern)) matches.push(match[1]);
   return distribution(matches);
 }
 
@@ -124,9 +131,30 @@ function rootMinWidth(source) {
 
 function physicalInlineProperties(source) {
   const matches = [];
-  const pattern = /\b(?:margin|padding)-(?:left|right)\s*:/g;
+  const pattern =
+    /(?:^|[;{]\s*)((?:(?:margin|padding|border)-(?:left|right)(?:-(?:color|style|width))?|left|right))\s*:/gim;
   for (const match of source.matchAll(pattern)) {
-    matches.push(match[0].replace(/\s*:\s*$/, ""));
+    matches.push(match[1]);
+  }
+  return distribution(matches);
+}
+
+function primarySurfaceOverflowMasking(source) {
+  const matches = [];
+  const rulePattern = /([^{}]+)\{([^{}]*)\}/g;
+  const primarySurface =
+    /(?:^|[\s,>+~])(?:html|body|#app-shell|\.app-shell|\.presentation-stage|\.timeline-view|\.timeline-surface|\.temporal-graph-canvas|\.presentation-map)(?![A-Za-z0-9_-])/;
+  let match = rulePattern.exec(source);
+  while (match) {
+    const selector = normalize(match[1].replace(/\/\*[\s\S]*?\*\//g, ""));
+    if (primarySurface.test(selector)) {
+      for (const declaration of match[2].matchAll(
+        /\boverflow(?:-x|-inline)?\s*:\s*(?:hidden|clip)\s*;/gi,
+      )) {
+        matches.push(`${selector} => ${normalize(declaration[0])}`);
+      }
+    }
+    match = rulePattern.exec(source);
   }
   return distribution(matches);
 }
@@ -134,15 +162,23 @@ function physicalInlineProperties(source) {
 function lintCss(file, source) {
   const debt = baseline.css[file] || {
     maxWidthMedia: {},
+    maxWidthContainer: {},
     hoverOnlySelectors: {},
     physicalInlineProperties: {},
     viewportWidthSizing: {},
     overflowXHidden: {},
+    primarySurfaceOverflow: {},
     rootMinWidth: {},
     legacy100vh: 0,
   };
 
   compareExactDebt(file, "mobile-first-media", maxWidthMedia(source), debt.maxWidthMedia || {});
+  compareExactDebt(
+    file,
+    "mobile-first-container-query",
+    maxWidthContainerQueries(source),
+    debt.maxWidthContainer || {},
+  );
   compareExactDebt(
     file,
     "hover-needs-keyboard-equivalent",
@@ -167,6 +203,12 @@ function lintCss(file, source) {
     "no-horizontal-overflow-masking",
     overflowXHidden(source),
     debt.overflowXHidden || {},
+  );
+  compareExactDebt(
+    file,
+    "no-primary-surface-overflow-masking",
+    primarySurfaceOverflowMasking(source),
+    debt.primarySurfaceOverflow || {},
   );
   compareExactDebt(
     file,
@@ -345,6 +387,74 @@ function lintResponsiveScriptPolicy(file, source) {
   }
 }
 
+function legacyInputHandlers(source) {
+  const matches = [];
+  const registration =
+    /(?:addEventListener|removeEventListener)\s*\(\s*["'](?:mouse(?:down|up|move|enter|leave|over|out)|touch(?:start|move|end|cancel))["']/g;
+  for (const match of source.matchAll(registration)) matches.push(normalize(match[0]));
+
+  const property =
+    /\bon(?:mouse(?:down|up|move|enter|leave|over|out)|touch(?:start|move|end|cancel))\s*=/g;
+  for (const match of source.matchAll(property)) matches.push(normalize(match[0]));
+
+  return distribution(matches);
+}
+
+function lintInputEventPolicy(file, source) {
+  if (file.startsWith("tests/")) return;
+
+  compareExactDebt(
+    file,
+    "pointer-events-only",
+    legacyInputHandlers(source),
+    baseline.architecture?.legacyInputHandlers?.[file] || {},
+  );
+
+  if (/\.setPointerCapture(?:\?\.)?\s*\(/.test(source)) {
+    if (!/["']pointercancel["']/.test(source)) {
+      report(
+        file,
+        "pointer-capture-needs-cancel",
+        "code that captures pointers must handle pointercancel",
+      );
+    }
+    if (!/["']lostpointercapture["']/.test(source)) {
+      report(
+        file,
+        "pointer-capture-needs-lost-capture",
+        "code that captures pointers must handle lostpointercapture",
+      );
+    }
+  }
+}
+
+function lintHtml(file, source) {
+  const viewport = source.match(/<meta\b[^>]*\bname=["']viewport["'][^>]*>/i);
+  if (!viewport) {
+    report(file, "viewport-meta-required", "HTML entry points must declare a responsive viewport");
+  } else {
+    const content = viewport[0].match(/\bcontent=["']([^"']*)["']/i)?.[1] || "";
+    if (!/\bwidth\s*=\s*device-width\b/i.test(content) || !/\binitial-scale\s*=\s*1(?:\.0+)?\b/i.test(content)) {
+      report(
+        file,
+        "viewport-meta-responsive",
+        "viewport metadata must include width=device-width and initial-scale=1",
+      );
+    }
+    if (/\buser-scalable\s*=\s*no\b|\bmaximum-scale\s*=|\bminimum-scale\s*=/i.test(content)) {
+      report(
+        file,
+        "viewport-meta-no-zoom-restrictions",
+        "do not restrict browser zoom; responsive layout must remain usable under user scaling",
+      );
+    }
+  }
+
+  if (/<[^>]+\son[a-z]+\s*=/i.test(source)) {
+    report(file, "no-inline-event-handlers", "inline HTML event handlers are forbidden");
+  }
+}
+
 function lintScriptSafety(file, source) {
   if (/\.innerHTML\s*=|\.outerHTML\s*=|\.insertAdjacentHTML\s*\(|document\.write\s*\(/.test(source)) {
     report(file, "no-unsafe-dom-html", "HTML string injection APIs are forbidden");
@@ -355,17 +465,42 @@ function lintScriptSafety(file, source) {
 }
 
 function lintDisableComments(file, source) {
-  const pattern = /\/\/\s*eslint-disable(?:-next-line|-line)?\s+([^\n]+)/g;
-  let match = pattern.exec(source);
+  if (/eslint-disable(?!-next-line|-line)/.test(source)) {
+    report(
+      file,
+      "no-broad-eslint-disable",
+      "file/block-wide eslint-disable is forbidden; suppress one line only and explain why",
+    );
+  }
+
+  const eslintPattern = /\/\/\s*eslint-disable(?:-next-line|-line)\s+([^\n]+)/g;
+  let match = eslintPattern.exec(source);
   while (match) {
-    if (!match[1].includes("--")) {
+    if (!match[1].includes("--") || !/--\s*\S/.test(match[1])) {
       report(
         file,
         "eslint-disable-needs-rationale",
         "eslint-disable comments must include a '-- reason' explanation",
       );
     }
-    match = pattern.exec(source);
+    match = eslintPattern.exec(source);
+  }
+
+  if (/biome-ignore-all\b/.test(source)) {
+    report(file, "no-broad-biome-ignore", "biome-ignore-all is forbidden");
+  }
+
+  const biomePattern = /biome-ignore\s+[^\n*]+/g;
+  match = biomePattern.exec(source);
+  while (match) {
+    if (!/:\s*\S/.test(match[0])) {
+      report(
+        file,
+        "biome-ignore-needs-rationale",
+        "biome-ignore comments must be narrowly scoped and include a ': reason' explanation",
+      );
+    }
+    match = biomePattern.exec(source);
   }
 }
 
@@ -375,13 +510,17 @@ for (const file of files) {
   if (file.endsWith(".bundle.js")) continue;
   const source = await readFile(path.join(ROOT, file), "utf8");
   if (file.endsWith(".css")) lintCss(file, source);
+  if (file.endsWith(".html")) lintHtml(file, source);
   if (file.endsWith(".ts")) {
     lintTypeScript(file, source);
     lintArchitectureBoundaries(file, source);
   }
   if (/\.(?:js|mjs|ts)$/.test(file)) {
     lintResponsiveScriptPolicy(file, source);
+    lintInputEventPolicy(file, source);
     lintScriptSafety(file, source);
+  }
+  if (/\.(?:css|js|mjs|ts)$/.test(file)) {
     lintDisableComments(file, source);
   }
 }
@@ -394,5 +533,5 @@ if (errors.length > 0) {
   );
   process.exitCode = 1;
 } else {
-  console.log("Architecture lint passed: no new responsive, typing, DOM, or framework-boundary debt.");
+  console.log("Architecture lint passed: no new responsive, input-model, typing, DOM, or framework-boundary debt.");
 }

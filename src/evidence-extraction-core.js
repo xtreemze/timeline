@@ -11,7 +11,8 @@ function text(value, max = MAX_SEGMENT_TEXT) {
 
 function abortIfNeeded(signal) {
   if (!signal?.aborted) return;
-  if (typeof globalThis.DOMException === "function") throw new globalThis.DOMException("The operation was aborted.", "AbortError");
+  if (typeof globalThis.DOMException === "function")
+    throw new globalThis.DOMException("The operation was aborted.", "AbortError");
   const error = new Error("The operation was aborted.");
   error.name = "AbortError";
   throw error;

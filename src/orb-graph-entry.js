@@ -723,6 +723,7 @@ function create(container, handlers = {}) {
       ? { ...geometry, kind: "edge", object: edge }
       : { ...geometry, kind: null, object: null };
   }
+
   function _touchNodePayload(event) {
     const payload = touchTargetPayload(event);
     return payload?.kind === "node"
@@ -899,6 +900,7 @@ function create(container, handlers = {}) {
       beginCameraGesture(event, null);
     }
   }
+
   function _scheduleTouchReleaseFallback() {
     clearTouchReleaseFallback();
     touchReleaseFallback = globalThis.setTimeout(() => {

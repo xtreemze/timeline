@@ -64,6 +64,7 @@
   input,
   select,
   textarea,
+  /* biome-ignore lint/correctness/noUnknownTypeSelector: Chrome exposes geolocation as a browser-native element. */
   geolocation {
     display: none;
   }

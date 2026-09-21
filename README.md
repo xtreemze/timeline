@@ -320,11 +320,11 @@ GitHub Pages
 └── site/
     ├── index.html       semantic application shell
     ├── styles.css       responsive visual system
-    ├── app.ts           model, migration, validation, state, rendering
+    ├── app.js           model, migration, validation, state, rendering
     └── icon.svg         application mark
 ```
 
-The application remains browser-first and backend-free. Vite + TypeScript provide module/build infrastructure, and Lit is used selectively for bounded declarative UI where it removes meaningful imperative DOM/lifecycle complexity; Lit does not own the chronology, graph, map, interaction-physics, canonical-model, or WebMCP layers. The relation graph remains separately bundled with the pinned `@memgraph/orb` dependency so its Worker/WebGL implementation can be used without a runtime CDN dependency. See `docs/FRONTEND-UI-MOTION.md` for the framework, mobile-first responsiveness, and motion boundaries.
+The application remains framework-free and backend-free. The relation graph is the one compiled subsystem: esbuild bundles the pinned `@memgraph/orb` package into `site/orb-graph.bundle.js` during CI/Pages deployment so its Worker/WebGL implementation can be used without a runtime CDN dependency. The generated bundle is not canonical source.
 
 ## Run locally
 

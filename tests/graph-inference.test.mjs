@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-await import("../site/temporal-standards.js");
-await import("../site/spatial.js");
-await import("../site/timeline-graph.js");
-await import("../site/graph-inference.js");
+await import("../site/temporal-standards-shim.ts");
+await import("../site/spatial-shim.ts");
+await import("../site/timeline-graph-shim.ts");
+await import("../site/graph-inference-shim.ts");
 
 const graph = globalThis.TimelineGraph;
 const spatial = globalThis.TimelineSpatial;

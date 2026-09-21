@@ -1,6 +1,10 @@
-(() => {
-  const SAMPLE = {
-    version: 2,
+/**
+ * Sample timeline case: Three classic tales — parallel fictional casebook
+ * Provides example data for timeline demonstration
+ */
+
+const SAMPLE = {
+  version: 2,
     title: "Three classic tales — parallel fictional casebook",
     categories: [
       {
@@ -6315,5 +6319,6 @@
     ],
   };
 
-  globalThis.TimelineSampleCase = Object.freeze(SAMPLE);
-})();
+globalThis.TimelineSampleCase = Object.freeze(SAMPLE);
+
+export const TimelineSampleCase = SAMPLE;

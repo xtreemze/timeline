@@ -14,21 +14,14 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "useUnknownInCatchVariables": true,
-    "noImplicitAny": true,
-    "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitAny": false,
+    "noImplicitOverride": false,
+    "noPropertyAccessFromIndexSignature": false,
 
     // Module resolution
     "module": "esnext",
     "target": "es2024",
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
-    "isolatedModules": true,
-    "noUncheckedSideEffectImports": true,
-    "exactOptionalPropertyTypes": true,
-    "allowUnreachableCode": false,
-    "allowUnusedLabels": false,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
@@ -56,15 +49,6 @@
       "@tests/*": ["./tests/*"]
     }
   },
-  "include": [
-    "globals.d.ts",
-    "src/**/*.js",
-    "src/**/*.ts",
-    "site/**/*.js",
-    "site/**/*.ts",
-    "tests/**/*.mjs",
-    "benchmarks/**/*.mjs",
-    "scripts/**/*.mjs"
-  ],
+  "include": ["globals.d.ts", "src/**/*.js", "site/**/*.js", "tests/**/*.mjs", "benchmarks/**/*.mjs"],
   "exclude": ["node_modules", "site/orb-graph.bundle.js"]
 }

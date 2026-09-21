@@ -31,8 +31,8 @@
       "nonNull": 0
     },
     "site/spatial.ts": {
-      "any": 11,
-      "asAny": 11,
+      "any": 0,
+      "asAny": 0,
       "nonNull": 0
     },
     "site/temporal-graph-view.ts": {
@@ -56,13 +56,13 @@
       "nonNull": 5
     },
     "site/timeline-migration.ts": {
-      "any": 15,
-      "asAny": 14,
+      "any": 0,
+      "asAny": 0,
       "nonNull": 0
     },
     "site/timeline-motion.ts": {
-      "any": 10,
-      "asAny": 8,
+      "any": 0,
+      "asAny": 0,
       "nonNull": 0
     },
     "site/timeline-navigation.ts": {
@@ -73,6 +73,146 @@
     "site/webmcp.ts": {
       "any": 45,
       "asAny": 12,
+      "nonNull": 0
+    },
+    "site/app.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/case-reasoning-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/date-range-picker-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/event-presentation-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/evidence-store-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/graph-inference-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/graph-inference.ts": {
+      "any": 59,
+      "asAny": 6,
+      "nonNull": 0
+    },
+    "site/interchange-adapter-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/location-map-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/location-map.ts": {
+      "any": 25,
+      "asAny": 2,
+      "nonNull": 0
+    },
+    "site/memgraph-interchange-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/presentation-layout-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/presentation-layout.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/sample-case-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/sample-case.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/spatial-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/temporal-graph-view-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/temporal-standards-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/time-scale-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/timeline-clustering-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/timeline-graph-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/timeline-graph.ts": {
+      "any": 62,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/timeline-migration-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/timeline-motion-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/timeline-navigation-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/timeline-view-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/timeline-view.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/webmcp-shim.ts": {
+      "any": 0,
+      "asAny": 0,
       "nonNull": 0
     }
   },
@@ -87,36 +227,32 @@
         "@media (max-width: 720px)": 1,
         "@media (max-width: 760px)": 3,
         "@media (max-width: 699px)": 1,
-        "@media (max-width: 380px)": 1,
         "@media (max-width: 460px)": 1,
         "@media (max-width: 360px)": 1
       },
-      "hoverOnlySelectors": {
-        ".tab:hover": 2,
-        ".button:hover:not(:disabled)": 1,
-        ".button.primary:hover": 1,
-        ".button.secondary:hover": 1,
-        ".button.ghost:hover": 1,
-        ".picker-row:hover": 1,
-        ".icon-button:hover": 1,
-        ".icon-button.delete:hover": 1,
-        ".hero-meta span, .button.secondary:hover, .button.ghost:hover": 1
+      "hoverOnlySelectors": {},
+      "physicalInlineProperties": {},
+      "viewportWidthSizing": {},
+      "overflowXHidden": {},
+      "rootMinWidth": {},
+      "legacy100vh": 0,
+      "maxWidthContainer": {
+        "@container utility-sidebar (max-width: 360px)": 1
       },
-      "physicalInlineProperties": {
-        "margin-right": 5,
-        "margin-left": 3,
-        "padding-left": 1
-      },
-      "legacy100vh": 2,
-      "viewportWidthSizing": {
-        "width: min(420px, calc(100vw - 24px));": 1,
-        "width: calc(100vw - 12px);": 1
-      },
-      "overflowXHidden": {
-        "overflow-x: hidden;": 2
-      },
-      "rootMinWidth": {
-        "min-width: 320px;": 2
+      "primarySurfaceOverflow": {
+        ".app-shell => overflow: clip;": 1,
+        ".temporal-graph-canvas => overflow: hidden;": 1,
+        ".presentation-stage:fullscreen => overflow: hidden;": 1,
+        ".presentation-stage:fullscreen > .timeline-view, .presentation-stage:fullscreen > .graph-lens => overflow: hidden;": 1,
+        ".presentation-stage:fullscreen .temporal-graph-view => overflow: hidden;": 1,
+        "html, body => overflow: hidden;": 1,
+        "#app-shell => overflow: hidden;": 1,
+        "#app-shell > .timeline-panel => overflow: hidden;": 1,
+        "#app-shell #presentation-stage, #app-shell.is-event-focused #presentation-stage => overflow: hidden;": 1,
+        "#app-shell .timeline-panel > .story-focus h3 => overflow: hidden;": 1,
+        "#app-shell #presentation-stage > .graph-lens:not([hidden]) => overflow: hidden;": 1,
+        "#app-shell[data-editor-open=\"true\"] > .app-editor-sheet => overflow-x: clip;": 1,
+        "#app-shell[data-browser-open=\"true\"] > .timeline-panel > .app-browser-sheet => overflow-x: clip;": 1
       }
     },
     "site/timeline-view.css": {
@@ -130,25 +266,76 @@
         "@media (max-width: 699px)": 5,
         "@media (max-width: 380px)": 4
       },
-      "hoverOnlySelectors": {
-        ".timeline-event-terminal:hover": 1,
-        ".timeline-focus-view[popover] .timeline-focus-close.button.primary:hover": 1,
-        ".timeline-focus-view[popover] .button.secondary:hover": 1
-      },
+      "hoverOnlySelectors": {},
       "physicalInlineProperties": {
+        "left": 53,
+        "right": 39,
+        "border-left": 9,
+        "border-right": 3,
         "margin-left": 1
       },
-      "legacy100vh": 1,
-      "viewportWidthSizing": {},
+      "viewportWidthSizing": {
+        "width: clamp(10rem, 28vw, 26rem);": 1,
+        "width: clamp(9rem, 20vw, 18rem);": 2,
+        "max-width: min(24rem, 46vw);": 1,
+        "width: min(30rem, calc(100dvw - 5.5rem));": 1,
+        "max-width: min(280px, 72vw);": 1,
+        "inline-size: 100dvw;": 1,
+        "inline-size: min(640px, calc(100dvw - 6.5rem));": 1,
+        "inline-size: min(520px, calc(100dvw - 7.2rem));": 1,
+        "inline-size: min(640px, calc(100dvw - 5rem));": 1,
+        "inline-size: min(900px, calc(100dvw - 8rem));": 1,
+        "inline-size: min(720px, calc(100dvw - 10rem));": 1,
+        "inline-size: min(840px, calc(100dvw - 7.5rem));": 1,
+        "inline-size: min(58dvw, 620px);": 1,
+        "max-inline-size: calc(100dvw - 1.5rem);": 1,
+        "max-inline-size: calc(100dvw - 0.7rem);": 1,
+        "max-width: min(62vw, 200px);": 1,
+        "max-width: min(68vw, 220px);": 1,
+        "max-width: min(58vw, 190px);": 1,
+        "max-width: min(60vw, 174px);": 1,
+        "width: clamp(180px, 24vw, 250px);": 1,
+        "max-inline-size: calc( 100dvw - max(0.8rem, env(safe-area-inset-left)) - max(0.8rem, env(safe-area-inset-right)) );": 1,
+        "max-inline-size: calc( 100dvw - max(0.9rem, env(safe-area-inset-left)) - max(0.9rem, env(safe-area-inset-right)) );": 1,
+        "width: clamp(82px, 22dvw, 96px);": 1,
+        "width: clamp(150px, 20vw, 220px);": 1
+      },
       "overflowXHidden": {
         "overflow-x: hidden;": 1
       },
-      "rootMinWidth": {}
+      "rootMinWidth": {},
+      "legacy100vh": 1,
+      "maxWidthContainer": {},
+      "primarySurfaceOverflow": {
+        ".presentation-stage:fullscreen .timeline-focus-view, .presentation-stage:fullscreen .timeline-focus-view[data-layout] => overflow: hidden;": 1,
+        ".presentation-stage:fullscreen .timeline-focus-description => overflow: hidden;": 1,
+        "#app-shell #timeline-view, #app-shell #timeline-view.is-event-focused, #app-shell #timeline-view.is-event-focused[data-orientation=\"portrait\"], #app-shell #timeline-view.is-event-focused[data-orientation=\"landscape\"] => overflow: hidden;": 1,
+        ".timeline-view[data-orientation=\"landscape\"] > .timeline-focus-view:popover-open => overflow: hidden;": 1,
+        ".timeline-view[data-orientation=\"portrait\"] > .timeline-focus-view:popover-open => overflow: hidden;": 1,
+        ".timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-relations, .timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-relations-backdrop, .timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-relations-backdrop .temporal-graph-canvas, .timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-relations-backdrop .temporal-graph-canvas canvas => overflow: hidden;": 1,
+        "#app-shell[data-graph-open=\"true\"] #timeline-view[data-orientation=\"portrait\"] .timeline-tick-label => overflow: hidden;": 1,
+        "#app-shell .timeline-view-toolbar > .toolbar-readout => overflow: hidden;": 1,
+        ".timeline-view[data-orientation=\"portrait\"] > .app-view-controls.timeline-view-toolbar[popover]:popover-open => overflow-x: hidden;": 1,
+        ".timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-summary, #app-shell .timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-summary => overflow: hidden;": 1
+      }
+    },
+    "site/print.css": {
+      "maxWidthMedia": {},
+      "hoverOnlySelectors": {},
+      "physicalInlineProperties": {},
+      "viewportWidthSizing": {},
+      "overflowXHidden": {},
+      "rootMinWidth": {
+        "min-width: 0;": 1
+      },
+      "legacy100vh": 0,
+      "maxWidthContainer": {},
+      "primarySurfaceOverflow": {}
     }
   },
   "architecture": {
     "ambientTimelineGlobals": {
-      "site/app.ts": 16,
+      "site/app.ts": 15,
       "site/temporal-graph-view.ts": 2,
       "site/case-reasoning-shim.ts": 1,
       "site/date-range-picker-shim.ts": 1,
@@ -164,10 +351,31 @@
       "site/timeline-migration-shim.ts": 1,
       "site/timeline-motion-shim.ts": 1,
       "site/timeline-navigation-shim.ts": 1,
-      "site/webmcp-shim.ts": 1
+      "site/webmcp-shim.ts": 1,
+      "site/graph-inference-shim.ts": 1,
+      "site/graph-inference.ts": 3,
+      "site/location-map-shim.ts": 1,
+      "site/location-map.ts": 3,
+      "site/sample-case-shim.ts": 1,
+      "site/sample-case.ts": 1,
+      "site/timeline-graph-shim.ts": 1,
+      "site/timeline-graph.ts": 8,
+      "site/timeline-view-shim.ts": 1,
+      "site/timeline-view.ts": 2
     },
     "directCanonicalMutations": {
-      "site/app.ts": 20
+      "site/app.ts": 18,
+      "site/webmcp.ts": 2
+    },
+    "legacyInputHandlers": {
+      "src/orb-graph-entry.js": {
+        "addEventListener(\"touchmove\"": 1,
+        "addEventListener(\"touchend\"": 1,
+        "addEventListener(\"touchcancel\"": 1,
+        "removeEventListener(\"touchmove\"": 1,
+        "removeEventListener(\"touchend\"": 1,
+        "removeEventListener(\"touchcancel\"": 1
+      }
     }
   }
 }

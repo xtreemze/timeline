@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-await import("../site/memgraph-interchange.js");
-await import("../site/webmcp.js");
+await import("../site/memgraph-interchange-shim.ts");
+await import("../site/webmcp-shim.ts");
 
 const memgraph = globalThis.TimelineMemgraphInterchange;
 const webmcp = globalThis.TimelineWebMCP;
@@ -222,8 +222,8 @@ test("browser runtime loads WebMCP before app and wires tools to canonical persi
   const [html, app, webmcpSource, memgraphSource] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/webmcp.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/memgraph-interchange.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/webmcp.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/memgraph-interchange.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(html, /memgraph-interchange\.js[\s\S]*webmcp\.js[\s\S]*app\.js/);

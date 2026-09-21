@@ -4,8 +4,8 @@ import test from "node:test";
 
 test("focused map opens at world scale and slowly flies to country context", async () => {
   const [mapSource, appSource] = await Promise.all([
-    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(appSource, /countryContextIntro:\s*true/);
@@ -24,8 +24,8 @@ test("focused map opens at world scale and slowly flies to country context", asy
 
 test("focused map ties the semantic place identity to the stored coordinate", async () => {
   const [mapSource, appSource, styles] = await Promise.all([
-    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
 
@@ -49,8 +49,8 @@ test("focused map ties the semantic place identity to the stored coordinate", as
 
 test("fictional spatial reference frames use local procedural texture instead of OSM tiles", async () => {
   const [mapSource, appSource, styles] = await Promise.all([
-    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
 
@@ -67,7 +67,7 @@ test("fictional spatial reference frames use local procedural texture instead of
 });
 
 test("secondary GeoJSON points render as labeled semantic route markers", async () => {
-  const mapSource = await readFile(new URL("../site/location-map.js", import.meta.url), "utf8");
+  const mapSource = await readFile(new URL("../site/location-map.ts", import.meta.url), "utf8");
   assert.match(mapSource, /feature\?\.properties/);
   assert.match(mapSource, /properties\.name \|\| properties\.label/);
   assert.match(mapSource, /properties\.icon \|\| this\.iconName/);
@@ -75,7 +75,7 @@ test("secondary GeoJSON points render as labeled semantic route markers", async 
 });
 
 test("interactive maps use the timeline weighted drag response and shared release decay", async () => {
-  const source = await readFile(new URL("../site/location-map.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/location-map.ts", import.meta.url), "utf8");
   assert.match(source, /const motion = globalThis\.TimelineMotion/);
   assert.match(source, /function weightedMapDragAvailable\(\)/);
   assert.match(source, /motion\?\.appendPointerVectorSamples/);
@@ -114,7 +114,7 @@ test("interactive maps use the timeline weighted drag response and shared releas
 
 test("map touch targets match the coarse-pointer interaction floor and editing has non-drag alternatives", async () => {
   const [source, styles, html] = await Promise.all([
-    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
   ]);
@@ -135,4 +135,60 @@ test("map touch targets match the coarse-pointer interaction floor and editing h
   );
   assert.match(html, /id="item-location-latitude"[^>]*inputmode="decimal"/);
   assert.match(html, /id="item-location-longitude"[^>]*inputmode="decimal"/);
+});
+
+
+test("map runtime is local and basemap failure cannot remove semantic geometry", async () => {
+  const [mapSource, html, packageSource, styles] = await Promise.all([
+    readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+  ]);
+  const pkg = JSON.parse(packageSource);
+  assert.equal(pkg.dependencies.leaflet, "1.9.4");
+  assert.match(pkg.scripts["build:leaflet"], /src\/leaflet-entry\.js/);
+  assert.match(html, /href="\.\/leaflet\.css"/);
+  assert.match(html, /src="\.\/leaflet\.bundle\.js"/);
+  assert.doesNotMatch(mapSource, /unpkg\.com\/leaflet/);
+  assert.match(mapSource, /function attachBasemap\(/);
+  assert.match(mapSource, /layer\.on\("tileerror"/);
+  assert.match(mapSource, /function observeMapSize\(/);
+  assert.match(mapSource, /ResizeObserver/);
+  assert.match(mapSource, /geometry-unavailable/);
+  assert.match(mapSource, /No mapped coordinates/);
+  assert.match(styles, /data-basemap-state="unavailable"/);
+});
+
+test("place editor exposes renderer-neutral marker path and area styling", async () => {
+  const [html, spatialSource, appSource, mapSource, styles] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/spatial.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+  ]);
+  for (const id of [
+    "graph-place-marker-color", "graph-place-marker-fill-color",
+    "graph-place-marker-opacity", "graph-place-marker-size",
+    "graph-place-marker-weight", "graph-place-path-stroke",
+    "graph-place-path-color", "graph-place-path-weight",
+    "graph-place-path-opacity", "graph-place-path-dash-array",
+    "graph-place-path-dash-offset", "graph-place-path-line-cap",
+    "graph-place-path-line-join", "graph-place-area-fill",
+    "graph-place-area-fill-color", "graph-place-area-fill-opacity",
+    "graph-place-area-fill-rule",
+  ]) assert.match(html, new RegExp(`id="${id}"`));
+
+  assert.match(html, /LineString\/MultiLineString\/Polygon\/MultiPolygon/);
+  assert.match(spatialSource, /interface PlaceStyle/);
+  assert.match(spatialSource, /dashArray\?: string/);
+  assert.match(appSource, /markerColor:\s*els\.graphPlaceMarkerColor\.value/);
+  assert.match(appSource, /pathDashArray:\s*els\.graphPlacePathDashArray\.value/);
+  assert.match(appSource, /areaFillOpacity:\s*els\.graphPlaceAreaFillOpacity\.value/);
+  assert.match(mapSource, /function markerAppearance\(/);
+  assert.match(mapSource, /function leafletPathStyle\(/);
+  assert.match(styles, /--map-marker-size/);
+  assert.match(styles, /--map-marker-weight/);
+  assert.match(styles, /--map-marker-fill/);
 });

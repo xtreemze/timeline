@@ -8,13 +8,17 @@ import { TimelineTemporal } from './temporal-standards.ts';
 import { TimelineSpatial } from './spatial.ts';
 import { TimelineInterchangeAdapter } from './interchange-adapter.ts';
 import { TimelineScale } from './time-scale.ts';
+import { projectTimelineOccurrences } from '../src/projection/timeline-projection.ts';
+import { TimelineEvidence } from './evidence-store.ts';
+import { TimelineGraphInference } from './graph-inference.ts';
 
 // Import globals that still use globalThis (not yet converted)
 const graph = globalThis.TimelineGraph;
 const presentation = globalThis.TimelinePresentation;
 const dateRangeFactory = globalThis.TimelineDateRangePicker;
 const navigationFactory = globalThis.TimelineNavigation;
-const evidenceStore = globalThis.TimelineEvidence;
+const evidenceStore = TimelineEvidence;
+const graphInference = TimelineGraphInference;
 const temporalGraphFactory = globalThis.TemporalGraphView;
 const presentationLayout = globalThis.TimelinePresentationLayout;
 const caseReasoning = globalThis.TimelineCaseReasoning;
@@ -39,14 +43,50 @@ const spatial = TimelineSpatial;
 const interchangeAdapter = TimelineInterchangeAdapter;
 const timeScale = TimelineScale;
 
-const SAMPLE = globalThis.TimelineSampleCase;
-if (!SAMPLE) throw new Error("TimelineSampleCase must load before app.ts.");
+// Get sample data from globalThis, or fallback to blankTimeline if not available
+function getSample() {
+  return globalThis.TimelineSampleCase || null;
+}
 
 // Application version constant
 const VERSION = 2;
 const STORAGE_KEY = "timeline:v2";
 const LEGACY_STORAGE_KEY = "timeline:v1";
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
+type EvidenceExtractionDraft = NonNullable<
+  ReturnType<(typeof TimelineEvidence)["normalizeExtraction"]>
+>;
+
+interface EvidenceExtractionProgress {
+  phase?: string;
+  page?: number;
+  total?: number;
+  loaded?: number;
+  method?: string;
+}
+
+interface EvidenceExtractionApi {
+  extract(
+    blob: Blob,
+    options?: {
+      mimeType?: string;
+      fileName?: string;
+      onProgress?: (progress: EvidenceExtractionProgress) => void;
+    },
+  ): Promise<EvidenceExtractionDraft | null>;
+}
+
+interface ItemInferenceDraft {
+  fingerprint: string;
+  graphContractVersion: string;
+  proposal: ReturnType<(typeof TimelineGraphInference)["reconcileProposal"]>;
+}
+
+const evidenceExtraction = Reflect.get(
+  globalThis,
+  "TimelineEvidenceExtraction",
+) as EvidenceExtractionApi | undefined;
 
   const els = {
     title: document.querySelector("#timeline-title"),
@@ -129,6 +169,11 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     itemRelationChangeRows: [...document.querySelectorAll("[data-relation-change-slot]")],
     itemEvidenceDetails: document.querySelector("#item-evidence-details"),
     itemEvidenceRows: [...document.querySelectorAll("[data-evidence-slot]")],
+    itemInferenceDetails: document.querySelector("#item-inference-details"),
+    itemInferenceRun: document.querySelector("#item-inference-run"),
+    itemInferenceClear: document.querySelector("#item-inference-clear"),
+    itemInferenceStatus: document.querySelector("#item-inference-status"),
+    itemInferenceResults: document.querySelector("#item-inference-results"),
     itemLocationDetails: document.querySelector("#item-location-details"),
     itemLocationName: document.querySelector("#item-location-name"),
     itemLocationIdentifier: document.querySelector("#item-location-identifier"),
@@ -153,6 +198,8 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     storyPickerCount: document.querySelector("#story-picker-count"),
     storySequence: document.querySelector("#story-sequence"),
     storySequenceCount: document.querySelector("#story-sequence-count"),
+    storyPlacePicker: document.querySelector("#story-place-picker"),
+    storyPlacePickerCount: document.querySelector("#story-place-picker-count"),
     storyFormError: document.querySelector("#story-form-error"),
     saveStory: document.querySelector("#save-story"),
     cancelStoryEdit: document.querySelector("#cancel-story-edit"),
@@ -191,6 +238,23 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     graphPlaceRadius: document.querySelector("#graph-place-radius"),
     graphPlaceIcon: document.querySelector("#graph-place-icon"),
     graphPlaceMarkerShape: document.querySelector("#graph-place-marker-shape"),
+    graphPlaceMarkerColor: document.querySelector("#graph-place-marker-color"),
+    graphPlaceMarkerFillColor: document.querySelector("#graph-place-marker-fill-color"),
+    graphPlaceMarkerOpacity: document.querySelector("#graph-place-marker-opacity"),
+    graphPlaceMarkerSize: document.querySelector("#graph-place-marker-size"),
+    graphPlaceMarkerWeight: document.querySelector("#graph-place-marker-weight"),
+    graphPlacePathStroke: document.querySelector("#graph-place-path-stroke"),
+    graphPlacePathColor: document.querySelector("#graph-place-path-color"),
+    graphPlacePathWeight: document.querySelector("#graph-place-path-weight"),
+    graphPlacePathOpacity: document.querySelector("#graph-place-path-opacity"),
+    graphPlacePathDashArray: document.querySelector("#graph-place-path-dash-array"),
+    graphPlacePathDashOffset: document.querySelector("#graph-place-path-dash-offset"),
+    graphPlacePathLineCap: document.querySelector("#graph-place-path-line-cap"),
+    graphPlacePathLineJoin: document.querySelector("#graph-place-path-line-join"),
+    graphPlaceAreaFill: document.querySelector("#graph-place-area-fill"),
+    graphPlaceAreaFillColor: document.querySelector("#graph-place-area-fill-color"),
+    graphPlaceAreaFillOpacity: document.querySelector("#graph-place-area-fill-opacity"),
+    graphPlaceAreaFillRule: document.querySelector("#graph-place-area-fill-rule"),
     graphPlaceArea: document.querySelector("#graph-place-area"),
     graphPlaceError: document.querySelector("#graph-place-error"),
     saveGraphPlace: document.querySelector("#save-graph-place"),
@@ -256,6 +320,10 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
   let state = loadState();
   let storyDraftIds = [];
+  let storyDraftPlaceIds = [];
+  const evidenceExtractionDrafts = new Map<string, EvidenceExtractionDraft>();
+  let itemInferenceDraft: ItemInferenceDraft | null = null;
+  let inferenceAbortController: AbortController | null = null;
   let statusTimer = 0;
   let navigationController = null;
   const ui = {
@@ -294,7 +362,12 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   decorateSemanticControls();
 
   const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
-  const temporalGraphView = temporalGraphFactory.create(els.graphViewRoot);
+  let temporalGraphView: ReturnType<typeof temporalGraphFactory.create> | null = null;
+  try {
+    temporalGraphView = temporalGraphFactory.create(els.graphViewRoot);
+  } catch (error) {
+    console.error("Failed to initialize TemporalGraphView:", error);
+  }
   const dateRangePicker = dateRangeFactory.create({
     input: els.itemDateRange,
     popover: els.itemCalendarPopover,
@@ -323,7 +396,6 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   });
   let presentationResizeObserver = null;
   let viewControlsResizeObserver = null;
-  let workspaceToolDockResizeObserver = null;
   let presentationResizeFrame = 0;
   let timelineOrientationBeforeFullscreen = null;
   let presentationMap = null;
@@ -451,51 +523,6 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     els.viewControls.style.setProperty("--view-controls-top", `${Math.round(top)}px`);
     els.viewControls.style.setProperty("--view-controls-right", "auto");
     els.viewControls.style.setProperty("--view-controls-bottom", "auto");
-  }
-
-  function positionWorkspaceToolDock() {
-    if (!els.appToolDock || !els.projectMenuToggle || !els.timelineViewRoot) return;
-    const orientation =
-      els.timelineViewRoot.dataset.orientation === "portrait" ? "portrait" : "landscape";
-    els.appToolDock.dataset.projectAnchored = "true";
-    els.appToolDock.dataset.timelineOrientation = orientation;
-
-    const triggerRect = els.projectMenuToggle.getBoundingClientRect();
-    const viewport = workspaceToolViewport();
-    const gap = 6;
-    const edge = 8;
-    const minLeft = viewport.left + edge;
-    const minTop = viewport.top + edge;
-    const maxRight = viewport.left + viewport.width - edge;
-    const maxBottom = viewport.top + viewport.height - edge;
-    const dockRect = els.appToolDock.getBoundingClientRect();
-    const dockWidth = Math.max(1, dockRect.width || els.appToolDock.offsetWidth || 1);
-    const dockHeight = Math.max(1, dockRect.height || els.appToolDock.offsetHeight || 1);
-
-    let left = 0;
-    let top = 0;
-    let placement = "";
-
-    if (orientation === "portrait") {
-      const preferredLeft = triggerRect.left - dockWidth - gap;
-      const fallbackLeft = triggerRect.right + gap;
-      left = preferredLeft >= minLeft ? preferredLeft : fallbackLeft;
-      top = triggerRect.top + (triggerRect.height - dockHeight) / 2;
-      placement = preferredLeft >= minLeft ? "left" : "right";
-    } else {
-      const preferredTop = triggerRect.bottom + gap;
-      const fallbackTop = triggerRect.top - dockHeight - gap;
-      left = triggerRect.left + (triggerRect.width - dockWidth) / 2;
-      top = preferredTop + dockHeight <= maxBottom ? preferredTop : fallbackTop;
-      placement = preferredTop + dockHeight <= maxBottom ? "below" : "inward";
-    }
-
-    left = Math.min(Math.max(minLeft, left), Math.max(minLeft, maxRight - dockWidth));
-    top = Math.min(Math.max(minTop, top), Math.max(minTop, maxBottom - dockHeight));
-
-    els.appToolDock.dataset.projectAnchorPlacement = placement;
-    els.appToolDock.style.setProperty("--workspace-tool-dock-left", `${Math.round(left)}px`);
-    els.appToolDock.style.setProperty("--workspace-tool-dock-top", `${Math.round(top)}px`);
   }
 
   function mountFullscreenToolDock() {
@@ -671,7 +698,6 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     updatePresentationStageLayout();
     timelineView?.refreshLayout?.();
     presentationMap?.refresh?.();
-    positionWorkspaceToolDock();
     positionViewControls();
     if (recenterGraph) temporalGraphView?.refreshLayout?.();
   }
@@ -759,7 +785,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
           });
           timelineOrientationBeforeFullscreen = null;
         }
-        console.warn("Could not enter full-screen presentation:", error);
+          console.warn("Could not enter full-screen presentation:", error);
         showStatus("Could not enter full-screen presentation.");
       }
     }
@@ -953,18 +979,19 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     const custodyActions = evidenceStore.normalizeCustodyActions(input.custodyActions);
     const reasoning = caseReasoning.normalizeReasoning(input.reasoning);
 
-    let sourceItems = Array.isArray(input.items) ? input.items : [];
-    if (!Array.isArray(input.items) && Array.isArray(input.events)) {
-      sourceItems = input.events.map((legacy) => ({
-        id: legacy.id,
-        kind: "event",
-        start: legacy.date,
-        end: null,
-        title: legacy.title,
-        description: legacy.description,
-        categoryId: legacy.category,
-      }));
-    }
+    const sourceItems = Array.isArray(input.items)
+      ? input.items
+      : Array.isArray(input.events)
+        ? input.events.map((legacy) => ({
+            id: legacy.id,
+            kind: "event",
+            start: legacy.date,
+            end: null,
+            title: legacy.title,
+            description: legacy.description,
+            categoryId: legacy.category,
+          }))
+        : [];
 
     const items = sourceItems.map((raw, index) => {
       if (!raw || typeof raw !== "object") throw new Error(`Item ${index + 1} is not an object.`);
@@ -1066,6 +1093,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
     const itemIds = new Set(items.map((item) => item.id));
     const seenStoryIds = new Set();
+    const storyIdsNeedingPlaceInference = new Set<string>();
     const stories = (Array.isArray(input.stories) ? input.stories : []).map((raw, index) => {
       if (!raw || typeof raw !== "object") throw new Error(`Story ${index + 1} is not an object.`);
       let id =
@@ -1082,11 +1110,20 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
           seenItems.add(itemId);
         }
       }
+      const hasExplicitPlaceIds = Array.isArray(raw.placeIds);
+      if (!hasExplicitPlaceIds) storyIdsNeedingPlaceInference.add(id);
       const story = {
         id,
         title,
         description: typeof raw.description === "string" ? raw.description.slice(0, 1500) : "",
         itemIds: uniqueIds,
+        placeIds: [
+          ...new Set(
+            (hasExplicitPlaceIds ? raw.placeIds : [])
+              .filter((placeId) => typeof placeId === "string" && placeId.trim())
+              .map((placeId) => placeId.trim().slice(0, 120)),
+          ),
+        ],
       };
       const extensions = normalizeExtensions(raw.extensions);
       if (extensions) story.extensions = extensions;
@@ -1098,6 +1135,17 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       throw new Error(`Graph semantics are invalid: ${graphErrors[0]}`);
     }
     const graphData = graph.normalizeGraphData(input, temporal);
+    const normalizedPlaceIds = new Set(graphData.places.map((place) => String(place.id)));
+    for (const story of stories) {
+      const inferredPlaceIds = storyIdsNeedingPlaceInference.has(story.id)
+        ? graphData.places
+            .filter((place) => String(place.attributes?.storyId || "") === story.id)
+            .map((place) => String(place.id))
+        : [];
+      story.placeIds = [...new Set([...(story.placeIds || []), ...inferredPlaceIds])].filter(
+        (placeId) => normalizedPlaceIds.has(String(placeId)),
+      );
+    }
     for (const relationship of graphData.relationships) {
       relationship.itemIds = (relationship.itemIds || []).filter((id) => itemIds.has(String(id)));
     }
@@ -1162,7 +1210,11 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     }
     // A first launch should demonstrate the complete application rather than an empty shell.
     // Persisted current/legacy timelines still take precedence above this sample fallback.
-    return normalizeTimeline(clone(SAMPLE), { strictGraph: true });
+    const sample = getSample();
+    if (sample && sample.items && sample.items.length > 0) {
+      return sample;
+    }
+    return blankTimeline();
   }
 
   function persist() {
@@ -1563,21 +1615,60 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     const relationshipById = new Map(
       state.relationships.map((relationship) => [relationship.id, relationship]),
     );
+    const representedRelationshipIds = new Set(
+      state.relationships
+        .filter((relationship) =>
+          (relationship.itemIds || []).some((itemId) =>
+            state.items.some((item) => String(item.id) === String(itemId)),
+          ),
+        )
+        .map((relationship) => String(relationship.id)),
+    );
+    const relationshipOccurrences = projectTimelineOccurrences({
+      entities: state.entities,
+      relationships: state.relationships,
+    });
+    const searchNeedle = ui.search.trim().toLocaleLowerCase();
+    const derivedTimelineOccurrences =
+      activeStory || ui.categoryFilter !== "all"
+        ? []
+        : relationshipOccurrences.filter((occurrence) => {
+            if (representedRelationshipIds.has(occurrence.relationshipId)) return false;
+            if (!searchNeedle) return true;
+            return [
+              occurrence.title,
+              occurrence.predicate,
+              occurrence.subjectName,
+              occurrence.objectName,
+            ]
+              .join(" ")
+              .toLocaleLowerCase()
+              .includes(searchNeedle);
+          });
 
-    const allTimelineCoordinates = state.items.flatMap((item) => {
+    const allTimelineCoordinates = [
+      ...state.items.flatMap((item) => {
       const coordinates = [temporal.sortKey(item.time?.start || item.start)];
       if (item.end || item.time?.end)
         coordinates.push(temporal.sortKey(item.time?.end || item.end));
       return coordinates.filter(Number.isFinite);
-    });
+    }),
+      ...relationshipOccurrences.flatMap((occurrence) =>
+        occurrence.end === null
+          ? [occurrence.start]
+          : [occurrence.start, occurrence.end],
+      ),
+    ].filter(Number.isFinite);
 
-    timelineView?.setItems(
-      visible.map((item) => {
-        const category = getCategory(item.categoryId);
-        const itemTime = temporal.sortKey(item.time?.start || item.start);
-        const eventViewport = Number.isFinite(itemTime)
-          ? { start: itemTime, end: itemTime }
-          : timelineView?.getViewport?.();
+    try {
+      timelineView?.setItems(
+        [
+          ...visible.map((item) => {
+          const category = getCategory(item.categoryId);
+          const itemTime = temporal.sortKey(item.time?.start || item.start);
+          const eventViewport = Number.isFinite(itemTime)
+            ? { start: itemTime, end: itemTime }
+            : timelineView?.getViewport?.();
         return {
           id: item.id,
           kind: item.kind,
@@ -1627,18 +1718,99 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
               objectName: relationship ? entityOrItemName(relationship.objectId) : "",
             };
           }),
-          graphContext: graph.neighborhoodGraph(graphInput, item.id, eventViewport, {
-            depth: 1,
-            limit: 28,
-          }),
+          graphContext: (() => {
+            try {
+              return graph.neighborhoodGraph(graphInput, item.id, eventViewport, {
+                depth: 1,
+                limit: 28,
+              });
+            } catch (error) {
+              console.error("Failed to generate neighborhood graph:", error);
+              return { nodes: [], edges: [] };
+            }
+          })(),
         };
       }),
+          ...derivedTimelineOccurrences.map((occurrence) => {
+            const relationship = relationshipById.get(occurrence.relationshipId);
+            const place = occurrence.placeId
+              ? state.places.find((candidate) => String(candidate.id) === occurrence.placeId) || null
+              : null;
+            const eventViewport = {
+              start: occurrence.start,
+              end: occurrence.end ?? occurrence.start,
+            };
+            return {
+              id: occurrence.occurrenceId,
+              kind: occurrence.end === null ? "event" : "range",
+              title: occurrence.title,
+              description: relationship?.role
+                ? `${occurrence.subjectName} ${occurrence.predicate} ${occurrence.objectName} · ${relationship.role}`
+                : `${occurrence.subjectName} ${occurrence.predicate} ${occurrence.objectName}`,
+              categoryName: "Relation",
+              color: "var(--accent)",
+              start: occurrence.start,
+              end: occurrence.end,
+              startLabel: occurrence.startLabel,
+              endLabel: occurrence.endLabel,
+              locationName: place?.name || place?.geographicIdentifier || "",
+              location: place,
+              media: [],
+              tags: [],
+              layoutVariant: "hero-split",
+              terminalShape: "rounded",
+              connectorStyle: "solid",
+              connectorRouting: "straight",
+              connectorWeight: "normal",
+              connectorEndpoint: "none",
+              lane: null,
+              editable: false,
+              evidence: [],
+              relations: relationship
+                ? [{
+                    id: relationship.id,
+                    predicate: relationship.predicate,
+                    role: relationship.role || "",
+                    subjectId: relationship.subjectId,
+                    objectId: relationship.objectId,
+                    subjectName: occurrence.subjectName,
+                    objectName: occurrence.objectName,
+                    time: relationship.time || null,
+                  }]
+                : [],
+              relationChanges: [],
+              graphContext: (() => {
+                try {
+                  return graph.neighborhoodGraph(
+                    graphInput,
+                    occurrence.relationshipId,
+                    eventViewport,
+                    { depth: 1, limit: 28 },
+                  );
+                } catch (error) {
+                  console.error("Failed to generate relationship occurrence graph:", error);
+                  return { nodes: [], edges: [] };
+                }
+              })(),
+            };
+          }),
+        ],
       {
         focusId: storyCurrentId,
         allCoordinates: allTimelineCoordinates,
-        relationships: graph.temporalRelationProjection(state.relationships, temporal),
+        relationships: (() => {
+          try {
+            return graph.temporalRelationProjection(state.relationships, temporal);
+          } catch (error) {
+            console.error("Failed to generate temporal relation projection:", error);
+            return [];
+          }
+        })(),
       },
-    );
+      );
+    } catch (error) {
+      console.error("Failed to set timeline items:", error);
+    }
   }
 
   function renderItem(item, activeStory) {
@@ -1997,7 +2169,165 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       note: row.querySelector("textarea"),
       file: row.querySelector('input[type="file"]'),
       fileStatus: row.querySelector(".evidence-file-status"),
+      extractText: row.querySelector(".evidence-extract-text"),
+      extractionStatus: row.querySelector(".evidence-extraction-status"),
+      extractionPreview: row.querySelector(".evidence-extraction-preview"),
+      extractionText: row.querySelector(".evidence-extraction-preview pre"),
     };
+  }
+
+  function supportedEvidenceFile(file) {
+    if (!file) return false;
+    const mime = String(file.type || "").toLowerCase();
+    const name = "name" in file ? String(file.name || "") : "";
+    return (
+      mime === "application/pdf" ||
+      mime.startsWith("image/") ||
+      /\.(?:pdf|png|jpe?g|webp|gif)$/i.test(name)
+    );
+  }
+
+  function evidenceExtractionLabel(extraction) {
+    if (!extraction) return "No extracted text";
+    const segments = extraction.segments || [];
+    const native = segments.filter((segment) => segment.method === "pdf-text").length;
+    const ocr = segments.length - native;
+    const parts = [
+      `${segments.length} ${segments.length === 1 ? "segment" : "segments"}`,
+      native ? `${native} embedded-text` : "",
+      ocr ? `${ocr} OCR` : "",
+    ].filter(Boolean);
+    if (extraction.unresolved?.length) {
+      parts.push(`${extraction.unresolved.length} unresolved`);
+    }
+    return parts.join(" · ");
+  }
+
+  function renderEvidenceExtraction(parts, extraction) {
+    if (!parts.extractionStatus || !parts.extractionPreview || !parts.extractionText) return;
+    parts.extractionStatus.textContent = extraction ? evidenceExtractionLabel(extraction) : "";
+    const lines = [];
+    for (const segment of extraction?.segments || []) {
+      const locator =
+        segment.locator?.kind === "page"
+          ? `Page ${segment.locator.page}`
+          : `Image ${segment.locator?.index || 1}`;
+      lines.push(`[${locator} · ${segment.method}]\n${segment.text}`);
+    }
+    for (const unresolved of extraction?.unresolved || []) {
+      const locator =
+        unresolved.locator?.kind === "page"
+          ? `Page ${unresolved.locator.page}`
+          : `Image ${unresolved.locator?.index || 1}`;
+      lines.push(`[${locator} · unresolved]\n${unresolved.reason}`);
+    }
+    parts.extractionText.textContent = lines.join("\n\n");
+    parts.extractionPreview.hidden = !lines.length;
+  }
+
+  async function evidenceBlobForRow(row) {
+    const parts = evidenceRowParts(row);
+    const selected = parts.file.files?.[0] || null;
+    if (selected) {
+      return { blob: selected, fileName: selected.name, mimeType: selected.type };
+    }
+    const id = parts.id.value.trim();
+    const existing = state.evidence.find((record) => record.id === id);
+    if (!existing?.file?.blobKey) return null;
+    const blob = await evidenceStore.getBlob(existing.file.blobKey);
+    return blob
+      ? {
+          blob,
+          fileName: existing.file.name || "",
+          mimeType: existing.file.mimeType || blob.type || "",
+        }
+      : null;
+  }
+
+  async function extractEvidenceRow(row, { quiet = false } = {}) {
+    const parts = evidenceRowParts(row);
+    const title = parts.title.value.trim();
+    if (!title) {
+      if (!quiet) setError(els.itemFormError, "Add an evidence title before extracting text.");
+      return null;
+    }
+    if (!parts.id.value) parts.id.value = newId("evidence");
+    const id = parts.id.value;
+    const source = await evidenceBlobForRow(row);
+    if (!source) {
+      if (!quiet) setError(els.itemFormError, "Attach a PDF or image before extracting text.");
+      return null;
+    }
+    if (!supportedEvidenceFile(source.blob)) {
+      if (!quiet) setError(els.itemFormError, "Text extraction supports PDF and image evidence.");
+      return null;
+    }
+    if (!evidenceExtraction?.extract) {
+      const message = "Evidence extraction is unavailable in this build.";
+      if (parts.extractionStatus) parts.extractionStatus.textContent = message;
+      if (!quiet) setError(els.itemFormError, message);
+      return null;
+    }
+
+    if (parts.extractText) parts.extractText.disabled = true;
+    if (parts.extractionStatus) parts.extractionStatus.textContent = "Preparing extraction…";
+    try {
+      const extraction = await evidenceExtraction.extract(source.blob, {
+        mimeType: source.mimeType || source.blob.type,
+        fileName: source.fileName,
+        onProgress(progress) {
+          if (!parts.extractionStatus) return;
+          if (progress.phase === "pdf-page") {
+            parts.extractionStatus.textContent =
+              `Reading page ${progress.page} of ${progress.total}…`;
+          } else if (progress.phase === "model-download") {
+            parts.extractionStatus.textContent =
+              `Preparing local vision model… ${Math.round((progress.loaded || 0) * 100)}%`;
+          } else if (progress.phase === "ocr") {
+            parts.extractionStatus.textContent =
+              progress.method === "text-detector"
+                ? "Running native OCR…"
+                : "Running built-in AI OCR…";
+          } else {
+            parts.extractionStatus.textContent = "Extracting text…";
+          }
+        },
+      });
+      if (extraction) {
+        evidenceExtractionDrafts.set(id, extraction);
+        renderEvidenceExtraction(parts, extraction);
+        markInferenceStale();
+      } else {
+        evidenceExtractionDrafts.delete(id);
+        renderEvidenceExtraction(parts, null);
+      }
+      return extraction;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Evidence text extraction failed.";
+      if (parts.extractionStatus) parts.extractionStatus.textContent = message;
+      if (!quiet) setError(els.itemFormError, message);
+      return null;
+    } finally {
+      if (parts.extractText) parts.extractText.disabled = false;
+    }
+  }
+
+  async function ensureEvidenceExtractionForInference() {
+    for (const row of els.itemEvidenceRows) {
+      const parts = evidenceRowParts(row);
+      if (!parts.title.value.trim()) continue;
+      if (!parts.id.value && parts.file.files?.[0]) parts.id.value = newId("evidence");
+      const id = parts.id.value.trim();
+      if (!id) continue;
+      const existing = state.evidence.find((record) => record.id === id);
+      const hasNewFile = Boolean(parts.file.files?.[0]);
+      const extraction = hasNewFile
+        ? evidenceExtractionDrafts.get(id)
+        : evidenceExtractionDrafts.get(id) || existing?.extraction || null;
+      const hasFile = hasNewFile || Boolean(existing?.file?.blobKey);
+      if (hasFile && !extraction) await extractEvidenceRow(row, { quiet: true });
+    }
   }
 
   async function collectEvidenceForm() {
@@ -2007,24 +2337,34 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       const title = parts.title.value.trim();
       if (!title) continue;
       const id = parts.id.value || newId("evidence");
+      parts.id.value = id;
       const existing = state.evidence.find((record) => record.id === id);
       const file = parts.file.files?.[0] || null;
       let fileMetadata = existing?.file || null;
       if (file) {
-        if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-          throw new Error("Evidence uploads must be PDF files.");
+        if (!supportedEvidenceFile(file)) {
+          throw new Error("Evidence uploads must be PDF or image files.");
         }
-        if (file.size > 25_000_000)
-          throw new Error("PDF evidence uploads are limited to 25 MB each.");
+        const isPdf =
+          file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
+        const sizeLimit = isPdf ? 25_000_000 : 15_000_000;
+        if (file.size > sizeLimit) {
+          throw new Error(
+            `Evidence files are limited to ${Math.round(sizeLimit / 1_000_000)} MB for this format.`,
+          );
+        }
         const blobKey = `evidence:${id}`;
         await evidenceStore.putBlob(blobKey, file);
         fileMetadata = {
           blobKey,
           name: file.name.slice(0, 260),
-          mimeType: file.type || "application/pdf",
+          mimeType:
+            file.type || (parts.type.value === "image" ? "image/*" : "application/pdf"),
           size: file.size,
         };
       }
+      const extraction =
+        evidenceExtractionDrafts.get(id) || (file ? null : existing?.extraction || null);
       const record = evidenceStore.normalizeRecord({
         id,
         type: parts.type.value,
@@ -2035,6 +2375,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
         note: parts.note.value,
         file: fileMetadata,
         forensic: existing?.forensic || null,
+        extraction,
       });
       if (record) records.push(record);
     }
@@ -2042,6 +2383,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   }
 
   function fillEvidenceForm(item) {
+    evidenceExtractionDrafts.clear();
     const attached = (item?.evidenceIds || [])
       .map((id) => state.evidence.find((record) => record.id === id))
       .filter(Boolean)
@@ -2060,14 +2402,395 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       parts.fileStatus.textContent = record?.file?.name
         ? `Stored locally: ${record.file.name}`
         : "";
+      if (record?.extraction) evidenceExtractionDrafts.set(record.id, record.extraction);
+      renderEvidenceExtraction(parts, record?.extraction || null);
     });
     els.itemEvidenceDetails.open = attached.length > 0;
   }
 
-  function mergeEvidenceRecords(records) {
-    const map = new Map(state.evidence.map((record) => [record.id, record]));
-    for (const record of records) map.set(record.id, record);
-    state.evidence = [...map.values()];
+  function inferenceStoryIds(itemId) {
+    if (!itemId) return [];
+    return state.stories
+      .filter((story) => (story.itemIds || []).some((id) => String(id) === String(itemId)))
+      .map((story) => story.id);
+  }
+
+  function inferenceEventTime() {
+    if (!els.itemStartDate.value) return null;
+    try {
+      const start = endpointFromForm("Start");
+      const isRange = els.itemKind.value === "range" && Boolean(els.itemEndDate.value);
+      const end = isRange ? endpointFromForm("End") : null;
+      return {
+        type: isRange ? "interval" : "instant",
+        start,
+        end,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  function ensureInferenceEvidenceIds() {
+    for (const row of els.itemEvidenceRows) {
+      const parts = evidenceRowParts(row);
+      const title = parts.title.value.trim();
+      const existing = parts.id.value
+        ? state.evidence.find((record) => record.id === parts.id.value)
+        : null;
+      const hasSemanticContent =
+        Boolean(parts.note.value.trim()) ||
+        Boolean(parts.file.files?.[0]) ||
+        Boolean(existing?.file?.blobKey) ||
+        Boolean(parts.id.value && evidenceExtractionDrafts.get(parts.id.value));
+      if (!title || !hasSemanticContent) continue;
+      if (!parts.id.value) parts.id.value = newId("evidence");
+    }
+  }
+
+  function inferenceInputFromForm({ ensureIds = true } = {}) {
+    if (ensureIds && !els.itemId.value) els.itemId.value = newId("item");
+    if (ensureIds) ensureInferenceEvidenceIds();
+
+    const fragments = [];
+    const addFragment = (ref, kind, value) => {
+      const content = String(value || "").trim();
+      if (content) fragments.push({ ref, kind, text: content });
+    };
+
+    addFragment("event:title", "event-title", els.itemTitle.value);
+    addFragment("event:description", "event-description", els.itemDescription.value);
+
+    els.itemMediaRows.forEach((row, index) => {
+      const parts = mediaRowParts(row);
+      addFragment(`media:${index + 1}:alt`, "media-alt", parts.alt.value);
+    });
+
+    els.itemEvidenceRows.forEach((row) => {
+      const parts = evidenceRowParts(row);
+      const id = parts.id.value.trim();
+      const title = parts.title.value.trim();
+      if (!id || !title) return;
+      addFragment(`evidence:${id}:note`, "evidence-note", parts.note.value);
+      const existing = state.evidence.find((record) => record.id === id);
+      const extraction = evidenceExtractionDrafts.get(id) || existing?.extraction || null;
+      for (const segment of extraction?.segments || []) {
+        const locator =
+          segment.locator?.kind === "page"
+            ? `page:${segment.locator.page}`
+            : `image:${segment.locator?.index || 1}`;
+        addFragment(
+          `evidence:${id}:${locator}`,
+          segment.method === "pdf-text" ? "evidence-pdf-text" : "evidence-ocr",
+          segment.text,
+        );
+      }
+    });
+
+    const locationParts = [
+      els.itemLocationName.value.trim()
+        ? `Name: ${els.itemLocationName.value.trim()}`
+        : "",
+      els.itemLocationIdentifier.value.trim()
+        ? `Geographic identifier: ${els.itemLocationIdentifier.value.trim()}`
+        : "",
+      els.itemLocationAddress.value.trim()
+        ? `Address: ${els.itemLocationAddress.value.trim()}`
+        : "",
+    ];
+    const latitude = els.itemLocationLatitude.value.trim();
+    const longitude = els.itemLocationLongitude.value.trim();
+    if (latitude && longitude) locationParts.push(`Coordinates: ${latitude}, ${longitude}`);
+    addFragment("location:form", "explicit-location", locationParts.filter(Boolean).join("\n"));
+
+    const itemId = els.itemId.value.trim();
+    const time = inferenceEventTime();
+    return {
+      graphContractVersion:
+        graph.GRAPH_CONTRACT_VERSION || graph.getGraphContract?.().version || "unknown",
+      event: {
+        id: itemId,
+        start: time?.start?.value || els.itemStartDate.value || "",
+        end: time?.end?.value || els.itemEndDate.value || "",
+        time,
+        storyIds: inferenceStoryIds(itemId),
+      },
+      fragments,
+      existingEntities: state.entities,
+      existingPlaces: state.places,
+      existingRelationships: state.relationships,
+    };
+  }
+
+  function inferenceStatus(message, kind = "") {
+    if (!els.itemInferenceStatus) return;
+    els.itemInferenceStatus.textContent = message;
+    els.itemInferenceStatus.dataset.kind = kind;
+  }
+
+  function clearInferenceDraft({ keepAvailability = false } = {}) {
+    inferenceAbortController?.abort();
+    inferenceAbortController = null;
+    itemInferenceDraft = null;
+    els.itemInferenceResults?.replaceChildren();
+    if (els.itemInferenceClear) els.itemInferenceClear.hidden = true;
+    if (els.itemInferenceDetails) delete els.itemInferenceDetails.dataset.stale;
+    if (!keepAvailability) void syncInferenceAvailability();
+  }
+
+  function inferenceMeta(parts) {
+    const meta = document.createElement("span");
+    meta.className = "inference-candidate-meta";
+    meta.textContent = parts.filter(Boolean).join(" · ");
+    return meta;
+  }
+
+  function inferenceSources(sourceRefs) {
+    const refs = Array.isArray(sourceRefs) ? sourceRefs : [];
+    return refs.length ? `Sources: ${refs.join(", ")}` : "No source reference returned";
+  }
+
+  function renderInferenceDraft() {
+    const proposal = itemInferenceDraft?.proposal;
+    if (!proposal || !els.itemInferenceResults) return;
+    const elements = [];
+
+    const summary = document.createElement("p");
+    summary.className = "inference-summary";
+    summary.textContent =
+      `${proposal.entities.length} entities · ${proposal.places.length} places · ${proposal.relationships.length} actions`;
+    elements.push(summary);
+
+    if (proposal.entities.length) {
+      const heading = document.createElement("h4");
+      heading.textContent = "Entities";
+      elements.push(heading);
+      for (const candidate of proposal.entities) {
+        const row = document.createElement("div");
+        row.className = "inference-candidate";
+        const title = document.createElement("strong");
+        title.textContent = candidate.name;
+        row.append(
+          title,
+          inferenceMeta([
+            candidate.status === "existing" ? "Existing node" : "New node",
+            candidate.type,
+            `${Math.round(candidate.confidence * 100)}% confidence`,
+          ]),
+        );
+        const support = document.createElement("small");
+        support.textContent =
+          `${inferenceSources(candidate.sourceRefs)}${candidate.rationale ? ` · ${candidate.rationale}` : ""}`;
+        row.append(support);
+        elements.push(row);
+      }
+    }
+
+    if (proposal.places.length) {
+      const heading = document.createElement("h4");
+      heading.textContent = "Places";
+      elements.push(heading);
+      for (const candidate of proposal.places) {
+        const row = document.createElement("div");
+        row.className = "inference-candidate";
+        const title = document.createElement("strong");
+        title.textContent = candidate.name;
+        const status =
+          candidate.status === "existing"
+            ? "Existing place"
+            : candidate.status === "new"
+              ? "New place with explicit coordinates"
+              : "Needs coordinates before it can become a canonical place";
+        row.append(
+          title,
+          inferenceMeta([
+            status,
+            `${Math.round(candidate.confidence * 100)}% confidence`,
+          ]),
+        );
+        const support = document.createElement("small");
+        support.textContent =
+          `${[candidate.geographicIdentifier, candidate.address].filter(Boolean).join(" · ")}${candidate.rationale ? ` · ${candidate.rationale}` : ""}`;
+        row.append(support);
+        elements.push(row);
+      }
+    }
+
+    if (proposal.relationships.length) {
+      const heading = document.createElement("h4");
+      heading.textContent = "Actions to apply on save";
+      elements.push(heading);
+      const entityByKey = new Map(
+        proposal.entities.map((candidate) => [candidate.key, candidate]),
+      );
+      for (const candidate of proposal.relationships) {
+        const label = document.createElement("label");
+        label.className = "inference-action-candidate";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.dataset.inferenceRelationship = candidate.key;
+        checkbox.checked = Boolean(candidate.selectedByDefault);
+        checkbox.disabled = candidate.status === "mirrored";
+        const copy = document.createElement("span");
+        const title = document.createElement("strong");
+        const subject = entityByKey.get(candidate.subjectKey)?.name || candidate.subjectKey;
+        const object = entityByKey.get(candidate.objectKey)?.name || candidate.objectKey;
+        title.textContent = `${subject} —${candidate.predicate}→ ${object}`;
+        const status =
+          candidate.status === "merge"
+            ? "Merge context into existing action"
+            : candidate.status === "mirrored"
+              ? "Rejected mirrored action"
+              : "New action";
+        copy.append(
+          title,
+          inferenceMeta([
+            status,
+            `${Math.round(candidate.confidence * 100)}% confidence`,
+          ]),
+        );
+        const support = document.createElement("small");
+        support.textContent =
+          `${inferenceSources(candidate.sourceRefs)}${candidate.rationale ? ` · ${candidate.rationale}` : ""}`;
+        copy.append(support);
+        label.append(checkbox, copy);
+        elements.push(label);
+      }
+    }
+
+    if (proposal.unresolved.length) {
+      const heading = document.createElement("h4");
+      heading.textContent = "Needs review";
+      elements.push(heading);
+      const list = document.createElement("ul");
+      list.className = "inference-unresolved";
+      for (const entry of proposal.unresolved) {
+        const item = document.createElement("li");
+        item.textContent = `${entry.label || entry.kind}: ${entry.reason}`;
+        list.append(item);
+      }
+      elements.push(list);
+    }
+
+    els.itemInferenceResults.replaceChildren(...elements);
+    if (els.itemInferenceDetails) els.itemInferenceDetails.open = true;
+    if (els.itemInferenceClear) els.itemInferenceClear.hidden = false;
+  }
+
+  function selectedInferenceRelationshipKeys() {
+    return [
+      ...(els.itemInferenceResults?.querySelectorAll<HTMLInputElement>(
+        'input[data-inference-relationship]:checked',
+      ) || []),
+    ]
+      .map((input) => input.dataset.inferenceRelationship)
+      .filter(Boolean);
+  }
+
+  async function syncInferenceAvailability() {
+    if (!els.itemInferenceRun) return;
+    if (!graphInference?.availability) {
+      els.itemInferenceRun.disabled = true;
+      inferenceStatus("Built-in AI inference is unavailable in this build.", "unavailable");
+      return;
+    }
+    const result = await graphInference.availability();
+    els.itemInferenceRun.disabled = !result.available;
+    if (!result.available) {
+      inferenceStatus(
+        result.reason || "Built-in AI is unavailable in this browser.",
+        "unavailable",
+      );
+      return;
+    }
+    const message =
+      result.state === "available"
+        ? "Built-in AI is ready. Inference stays on-device."
+        : result.state === "downloading"
+          ? "Built-in AI model is downloading."
+          : "Built-in AI is available; the browser may download its local model on first use.";
+    inferenceStatus(message, result.state);
+  }
+
+  async function runItemInference() {
+    setError(els.itemFormError);
+    ensureInferenceEvidenceIds();
+    await ensureEvidenceExtractionForInference();
+    const input = inferenceInputFromForm({ ensureIds: true });
+    if (!input.fragments.length) {
+      setError(
+        els.itemFormError,
+        "Add a title, description, image description, evidence note/file, or explicit location before inference.",
+      );
+      return;
+    }
+    const availability = await graphInference.availability();
+    if (!availability.available) {
+      inferenceStatus(availability.reason || "Built-in AI is unavailable.", "unavailable");
+      return;
+    }
+
+    inferenceAbortController?.abort();
+    inferenceAbortController = new AbortController();
+    els.itemInferenceRun.disabled = true;
+    inferenceStatus(
+      availability.state === "available"
+        ? "Extracting graph candidates with the built-in model…"
+        : "Preparing the browser's built-in model…",
+      "running",
+    );
+
+    try {
+      const raw = await graphInference.infer(input, {
+        signal: inferenceAbortController.signal,
+        onDownloadProgress(progress) {
+          inferenceStatus(
+            `Downloading built-in model… ${Math.round(progress * 100)}%`,
+            "downloading",
+          );
+        },
+      });
+      const proposal = graphInference.reconcileProposal(raw, input, {
+        graph,
+        spatial,
+        idFactory: newId,
+      });
+      itemInferenceDraft = {
+        fingerprint: graphInference.fingerprint(input),
+        graphContractVersion: input.graphContractVersion,
+        proposal,
+      };
+      renderInferenceDraft();
+      inferenceStatus(
+        `Inference ready: ${proposal.relationships.length} action ${proposal.relationships.length === 1 ? "candidate" : "candidates"}. Review selections, then save the item.`,
+        "ready",
+      );
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      console.warn("Built-in graph inference failed:", error);
+      inferenceStatus(
+        error instanceof Error ? error.message : "Built-in graph inference failed.",
+        "error",
+      );
+    } finally {
+      inferenceAbortController = null;
+      await syncInferenceAvailability();
+    }
+  }
+
+  function markInferenceStale(event: Event | null = null) {
+    if (
+      event?.target instanceof HTMLInputElement &&
+      event.target.dataset.inferenceRelationship !== undefined
+    ) {
+      return;
+    }
+    if (!itemInferenceDraft || !els.itemInferenceDetails) return;
+    els.itemInferenceDetails.dataset.stale = "true";
+    inferenceStatus(
+      "Event context changed after inference. Rerun or clear inference before saving inferred graph facts.",
+      "stale",
+    );
   }
 
   function resetLocationForm() {
@@ -2096,6 +2819,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   }
 
   function resetItemForm() {
+    clearInferenceDraft();
     els.itemForm.reset();
     els.itemId.value = "";
     els.itemKind.value = "event";
@@ -2132,6 +2856,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   function beginItemEdit(id) {
     const item = getItem(id);
     if (!item) return;
+    clearInferenceDraft();
     setActivePanel("items");
     els.itemId.value = item.id;
     els.itemKind.value = item.kind;
@@ -2196,6 +2921,37 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   function renderStoryBuilder() {
     els.storyPickerCount.textContent = `${state.items.length}`;
     els.storySequenceCount.textContent = `${storyDraftIds.length}`;
+    if (els.storyPlacePickerCount) {
+      els.storyPlacePickerCount.textContent = `${storyDraftPlaceIds.length}/${state.places.length}`;
+    }
+
+    if (els.storyPlacePicker) {
+      const placeRows = state.places.map((place) => {
+        const label = document.createElement("label");
+        label.className = "picker-row";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = place.id;
+        checkbox.checked = storyDraftPlaceIds.includes(place.id);
+        const copy = document.createElement("span");
+        copy.className = "picker-copy";
+        const title = document.createElement("strong");
+        title.textContent = place.name;
+        const meta = document.createElement("span");
+        meta.textContent = `${place.icon || "place"} · ${place.markerShape || "pin"} · map marker`;
+        copy.append(title, meta);
+        label.append(checkbox, copy);
+        return label;
+      });
+      if (!placeRows.length) {
+        const empty = document.createElement("p");
+        empty.className = "privacy-note";
+        empty.textContent =
+          "Create reusable places in the graph editor, then add them to this story.";
+        placeRows.push(empty);
+      }
+      els.storyPlacePicker.replaceChildren(...placeRows);
+    }
 
     const pickerRows = sortItems().map((item) => {
       const label = document.createElement("label");
@@ -2253,6 +3009,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     els.storyForm.reset();
     els.storyId.value = "";
     storyDraftIds = [];
+    storyDraftPlaceIds = [];
     els.saveStory.textContent = "Create story";
     els.cancelStoryEdit.hidden = true;
     setError(els.storyFormError);
@@ -2267,6 +3024,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     els.storyTitle.value = story.title;
     els.storyDescription.value = story.description;
     storyDraftIds = [...story.itemIds];
+    storyDraftPlaceIds = [...(story.placeIds || [])];
     els.saveStory.textContent = "Save story";
     els.cancelStoryEdit.hidden = false;
     setError(els.storyFormError);
@@ -2323,7 +3081,9 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       top.append(copy, actions);
       const meta = document.createElement("div");
       meta.className = "story-meta";
-      meta.textContent = `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"} · ${storySpanLabel(story)}`;
+      const placeCount = story.placeIds?.length || 0;
+      meta.textContent =
+        `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"} · ${placeCount} ${placeCount === 1 ? "place" : "places"} · ${storySpanLabel(story)}`;
       card.append(top, meta);
       return card;
     });
@@ -2666,6 +3426,23 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     els.graphPlaceId.value = "";
     els.graphPlaceIcon.value = "place";
     els.graphPlaceMarkerShape.value = "pin";
+    els.graphPlaceMarkerColor.value = "";
+    els.graphPlaceMarkerFillColor.value = "";
+    els.graphPlaceMarkerOpacity.value = "";
+    els.graphPlaceMarkerSize.value = "";
+    els.graphPlaceMarkerWeight.value = "";
+    els.graphPlacePathStroke.value = "";
+    els.graphPlacePathColor.value = "";
+    els.graphPlacePathWeight.value = "";
+    els.graphPlacePathOpacity.value = "";
+    els.graphPlacePathDashArray.value = "";
+    els.graphPlacePathDashOffset.value = "";
+    els.graphPlacePathLineCap.value = "";
+    els.graphPlacePathLineJoin.value = "";
+    els.graphPlaceAreaFill.value = "";
+    els.graphPlaceAreaFillColor.value = "";
+    els.graphPlaceAreaFillOpacity.value = "";
+    els.graphPlaceAreaFillRule.value = "";
     els.graphPlaceArea.value = "";
     els.saveGraphPlace.textContent = "Add place";
     els.cancelGraphPlaceEdit.hidden = true;
@@ -2686,6 +3463,23 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     els.graphPlaceRadius.value = parts.radiusMeters;
     els.graphPlaceIcon.value = presentation.ICON_NAMES.includes(parts.icon) ? parts.icon : "place";
     els.graphPlaceMarkerShape.value = parts.markerShape;
+    els.graphPlaceMarkerColor.value = parts.markerColor;
+    els.graphPlaceMarkerFillColor.value = parts.markerFillColor;
+    els.graphPlaceMarkerOpacity.value = parts.markerOpacity;
+    els.graphPlaceMarkerSize.value = parts.markerSize;
+    els.graphPlaceMarkerWeight.value = parts.markerWeight;
+    els.graphPlacePathStroke.value = parts.pathStroke;
+    els.graphPlacePathColor.value = parts.pathColor;
+    els.graphPlacePathWeight.value = parts.pathWeight;
+    els.graphPlacePathOpacity.value = parts.pathOpacity;
+    els.graphPlacePathDashArray.value = parts.pathDashArray;
+    els.graphPlacePathDashOffset.value = parts.pathDashOffset;
+    els.graphPlacePathLineCap.value = parts.pathLineCap;
+    els.graphPlacePathLineJoin.value = parts.pathLineJoin;
+    els.graphPlaceAreaFill.value = parts.areaFill;
+    els.graphPlaceAreaFillColor.value = parts.areaFillColor;
+    els.graphPlaceAreaFillOpacity.value = parts.areaFillOpacity;
+    els.graphPlaceAreaFillRule.value = parts.areaFillRule;
     els.graphPlaceArea.value = parts.areaGeometry;
     els.saveGraphPlace.textContent = "Save place";
     els.cancelGraphPlaceEdit.hidden = false;
@@ -2723,7 +3517,8 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       const meta = document.createElement("span");
       const geometry = place.geometry?.type || "no geometry";
       const radius = Number.isFinite(place.radiusMeters) ? ` · ${place.radiusMeters} m radius` : "";
-      meta.textContent = `${geometry}${radius} · ${place.icon || "place"} · ${place.markerShape || "pin"}`;
+      const customStyle = place.style && Object.keys(place.style).length ? " · custom map style" : "";
+      meta.textContent = `${geometry}${radius} · ${place.icon || "place"} · ${place.markerShape || "pin"}${customStyle}`;
       copy.append(title, meta);
       const actions = document.createElement("div");
       actions.className = "graph-record-actions";
@@ -2940,28 +3735,12 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     viewControlsResizeObserver.observe(els.viewControlsToggle);
   }
 
-  if ("ResizeObserver" in globalThis && els.appToolDock && els.projectMenuToggle) {
-    workspaceToolDockResizeObserver = new ResizeObserver(() => {
-      positionWorkspaceToolDock();
-    });
-    workspaceToolDockResizeObserver.observe(els.appToolDock);
-    workspaceToolDockResizeObserver.observe(els.projectMenuToggle);
-  }
-
-  document.fonts?.ready?.then(() => {
-    positionWorkspaceToolDock();
-  });
-
   updatePresentationStageLayout();
   requestAnimationFrame(() => {
-    positionWorkspaceToolDock();
     positionViewControls();
   });
-  window.addEventListener("resize", positionWorkspaceToolDock);
   window.addEventListener("resize", positionViewControls);
-  window.visualViewport?.addEventListener("resize", positionWorkspaceToolDock);
   window.visualViewport?.addEventListener("resize", positionViewControls);
-  window.visualViewport?.addEventListener("scroll", positionWorkspaceToolDock);
   window.visualViewport?.addEventListener("scroll", positionViewControls);
 
   function collapseAllCategories() {
@@ -3274,24 +4053,26 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     const availableWidth = Math.max(1, maxRight - minLeft);
     const availableHeight = Math.max(1, maxBottom - minTop);
     const menuWidth = Math.min(340, availableWidth);
-    const menuHeight = Math.min(
+    const requestedHeight = Math.min(
       620,
       Math.max(1, els.projectMenu.scrollHeight || 340),
       availableHeight,
     );
-    const portrait = els.timelineViewRoot?.dataset.orientation === "portrait";
-    const preferredLeft = portrait ? rect.left - menuWidth - gap : rect.left;
+    const roomAbove = Math.max(0, rect.top - gap - minTop);
+    const roomBelow = Math.max(0, maxBottom - rect.bottom - gap);
+    const opensUpward = roomAbove >= roomBelow;
+    const verticalRoom = Math.max(1, opensUpward ? roomAbove : roomBelow);
+    const menuHeight = Math.min(requestedHeight, verticalRoom);
+    const preferredLeft = rect.left + rect.width / 2 - menuWidth / 2;
     const left = Math.min(
       Math.max(minLeft, preferredLeft),
       Math.max(minLeft, maxRight - menuWidth),
     );
-    const opensUpward = !portrait && rect.top > viewport.top + viewport.height / 2;
-    const preferredTop = opensUpward
-      ? rect.top - menuHeight - gap
-      : portrait
-        ? rect.top
-        : rect.bottom + gap;
-    const top = Math.min(Math.max(minTop, preferredTop), Math.max(minTop, maxBottom - menuHeight));
+    const preferredTop = opensUpward ? rect.top - gap - menuHeight : rect.bottom + gap;
+    const top = Math.min(
+      Math.max(minTop, preferredTop),
+      Math.max(minTop, maxBottom - menuHeight),
+    );
 
     els.projectMenu.style.setProperty("--project-menu-left", `${Math.round(left)}px`);
     els.projectMenu.style.setProperty("--project-menu-top", `${Math.round(top)}px`);
@@ -3301,8 +4082,9 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     );
     els.projectMenu.style.setProperty(
       "--project-menu-max-height",
-      `${Math.floor(availableHeight)}px`,
+      `${Math.floor(verticalRoom)}px`,
     );
+    els.projectMenu.dataset.anchorPlacement = opensUpward ? "above" : "below";
 
     if (els.projectMenu.matches(":popover-open")) {
       const menuRect = els.projectMenu.getBoundingClientRect();
@@ -3328,7 +4110,9 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     if (event.newState === "open") positionProjectMenu();
   });
   els.projectMenu?.addEventListener("toggle", (event) => {
-    if (event.newState !== "open") return;
+    const open = event.newState === "open";
+    els.projectMenuToggle?.setAttribute("aria-expanded", String(open));
+    if (!open) return;
     requestAnimationFrame(positionProjectMenu);
   });
   window.addEventListener("resize", repositionOpenProjectMenu);
@@ -3473,6 +4257,10 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   els.graphPlaceForm.addEventListener("submit", (event) => {
     event.preventDefault();
     setError(els.graphPlaceError);
+    if (!els.graphPlaceForm.checkValidity()) {
+      els.graphPlaceForm.reportValidity();
+      return;
+    }
     try {
       const place = spatial.placeFromForm({
         id: els.graphPlaceId.value || newId("place"),
@@ -3484,6 +4272,23 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
         radiusMeters: els.graphPlaceRadius.value,
         icon: els.graphPlaceIcon.value,
         markerShape: els.graphPlaceMarkerShape.value,
+        markerColor: els.graphPlaceMarkerColor.value,
+        markerFillColor: els.graphPlaceMarkerFillColor.value,
+        markerOpacity: els.graphPlaceMarkerOpacity.value,
+        markerSize: els.graphPlaceMarkerSize.value,
+        markerWeight: els.graphPlaceMarkerWeight.value,
+        pathStroke: els.graphPlacePathStroke.value,
+        pathColor: els.graphPlacePathColor.value,
+        pathWeight: els.graphPlacePathWeight.value,
+        pathOpacity: els.graphPlacePathOpacity.value,
+        pathDashArray: els.graphPlacePathDashArray.value,
+        pathDashOffset: els.graphPlacePathDashOffset.value,
+        pathLineCap: els.graphPlacePathLineCap.value,
+        pathLineJoin: els.graphPlacePathLineJoin.value,
+        areaFill: els.graphPlaceAreaFill.value,
+        areaFillColor: els.graphPlaceAreaFillColor.value,
+        areaFillOpacity: els.graphPlaceAreaFillOpacity.value,
+        areaFillRule: els.graphPlaceAreaFillRule.value,
         areaGeometry: els.graphPlaceArea.value.trim(),
       });
       if (!place) throw new Error("A place name is required.");
@@ -3711,6 +4516,28 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     updateTagHuePreview(row);
   }
 
+  for (const row of els.itemEvidenceRows) {
+    const parts = evidenceRowParts(row);
+    parts.extractText?.addEventListener("click", () => {
+      void extractEvidenceRow(row);
+    });
+    parts.file?.addEventListener("change", () => {
+      const id = parts.id.value.trim();
+      if (id) evidenceExtractionDrafts.delete(id);
+      renderEvidenceExtraction(parts, null);
+      markInferenceStale();
+    });
+  }
+
+  els.itemInferenceRun?.addEventListener("click", () => {
+    void runItemInference();
+  });
+  els.itemInferenceClear?.addEventListener("click", () => {
+    clearInferenceDraft();
+  });
+  els.itemForm.addEventListener("input", markInferenceStale);
+  els.itemForm.addEventListener("change", markInferenceStale);
+
   els.itemForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     setError(els.itemFormError);
@@ -3719,10 +4546,10 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
     let startEndpoint: ReturnType<typeof endpointFromForm>;
     let endEndpoint: ReturnType<typeof endpointFromForm> | null = null;
-    let media = [];
-    let tags = [];
-    let relationChanges = [];
-    let evidenceRecords = [];
+    let media: ReturnType<typeof collectMediaForm>;
+    let tags: ReturnType<typeof collectTagForm>;
+    let relationChanges: ReturnType<typeof collectRelationChangeForm>;
+    let evidenceRecords: Awaited<ReturnType<typeof collectEvidenceForm>>;
     try {
       if (!els.itemStartDate.value) throw new Error("Choose a calendar date.");
       if (kind === "range" && !els.itemEndDate.value)
@@ -3796,16 +4623,62 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     };
     if (media.length) item.media = media;
     if (tags.length) item.tags = tags;
-    mergeEvidenceRecords(evidenceRecords);
+    const existingItem = state.items.find((candidate) => candidate.id === item.id);
+    if (existingItem?.extensions) item.extensions = clone(existingItem.extensions);
 
-    const index = state.items.findIndex((candidate) => candidate.id === item.id);
-    if (index >= 0) {
-      state.items[index] = item;
-      showStatus("Timeline item updated.");
-    } else {
-      state.items.push(item);
-      showStatus(`${kind === "range" ? "Range" : "Event"} added.`);
+    let draft = clone(state);
+    const evidenceMap = new Map(draft.evidence.map((record) => [record.id, record]));
+    for (const record of evidenceRecords) evidenceMap.set(record.id, record);
+    draft.evidence = [...evidenceMap.values()];
+
+    const draftItemIndex = draft.items.findIndex((candidate) => candidate.id === item.id);
+    if (draftItemIndex >= 0) draft.items[draftItemIndex] = item;
+    else draft.items.push(item);
+
+    let inferredRelationshipCount = 0;
+    try {
+      if (itemInferenceDraft) {
+        const currentInput = inferenceInputFromForm({ ensureIds: false });
+        const currentFingerprint = graphInference.fingerprint(currentInput);
+        if (
+          itemInferenceDraft.graphContractVersion !==
+          (graph.GRAPH_CONTRACT_VERSION || currentInput.graphContractVersion)
+        ) {
+          throw new Error(
+            "The graph contract changed after inference. Rerun inference before saving.",
+          );
+        }
+        if (itemInferenceDraft.fingerprint !== currentFingerprint) {
+          throw new Error(
+            "Event context changed after inference. Rerun or clear inference before saving inferred graph facts.",
+          );
+        }
+        const selected = selectedInferenceRelationshipKeys();
+        inferredRelationshipCount = selected.length;
+        draft = graphInference.applyProposal(
+          draft,
+          item,
+          itemInferenceDraft.proposal,
+          selected,
+          { graph, spatial },
+        );
+      }
+      state = normalizeTimeline(draft, { strictGraph: true });
+    } catch (error) {
+      setError(
+        els.itemFormError,
+        error instanceof Error
+          ? error.message
+          : "The event or inferred graph facts violate the graph contract.",
+      );
+      return;
     }
+
+    showStatus(
+      existingItem
+        ? `Timeline item updated${inferredRelationshipCount ? ` with ${inferredRelationshipCount} inferred action ${inferredRelationshipCount === 1 ? "fact" : "facts"}` : ""}.`
+        : `${kind === "range" ? "Range" : "Event"} added${inferredRelationshipCount ? ` with ${inferredRelationshipCount} inferred action ${inferredRelationshipCount === 1 ? "fact" : "facts"}` : ""}.`,
+    );
     persist();
     resetItemForm();
     renderAll();
@@ -3861,6 +4734,18 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     renderStoryBuilder();
   });
 
+  els.storyPlacePicker?.addEventListener("change", (event) => {
+    const checkbox = event.target.closest('input[type="checkbox"]');
+    if (!checkbox) return;
+    if (checkbox.checked && !storyDraftPlaceIds.includes(checkbox.value)) {
+      storyDraftPlaceIds.push(checkbox.value);
+    }
+    if (!checkbox.checked) {
+      storyDraftPlaceIds = storyDraftPlaceIds.filter((id) => id !== checkbox.value);
+    }
+    renderStoryBuilder();
+  });
+
   els.storySequence.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-action]");
     const row = event.target.closest(".sequence-row");
@@ -3901,6 +4786,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       title: title.slice(0, 160),
       description: els.storyDescription.value.trim().slice(0, 1500),
       itemIds: [...storyDraftIds],
+      placeIds: [...storyDraftPlaceIds],
     };
     const index = state.stories.findIndex((candidate) => candidate.id === story.id);
     if (index >= 0) {
@@ -4006,18 +4892,6 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     temporalGraphView?.setWindow(event.detail?.viewport || null);
   });
 
-  function _focusTimelineFromGraph(id) {
-    if (!id || !getItem(id)) return false;
-    ui.search = "";
-    ui.categoryFilter = "all";
-    ui.activeStoryId = null;
-    ui.storyCursor = 0;
-    els.search.value = "";
-    renderTimeline();
-    requestAnimationFrame(() => timelineView?.focusItem(id));
-    return true;
-  }
-
   els.timelineViewRoot.addEventListener("timelineorientationchange", (event) => {
     if (els.presentationStage) {
       els.presentationStage.dataset.timelineOrientation =
@@ -4093,7 +4967,12 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     )
       return;
     timelineView?.closeFocus();
-    state = normalizeTimeline(clone(SAMPLE), { strictGraph: true });
+    const sample = getSample();
+    if (!sample) {
+      alert("Sample data is not available");
+      return;
+    }
+    state = normalizeTimeline(clone(sample), { strictGraph: true });
     collapseAllCategories();
     ui.search = "";
     ui.categoryFilter = "all";
@@ -4357,13 +5236,14 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   setActivePanel("items", { open: false });
   syncApplicationSurfaces();
   renderAll();
+  void syncInferenceAvailability();
 
   webMcp
     .register(agentApi)
     .then((registration) => {
       webMcpRegistration = registration;
       if (!registration.registered) {
-        console.info("Timeline WebMCP tools are not registered:", registration.reason);
+          console.warn("Timeline WebMCP tools are not registered:", registration.reason);
       }
     })
     .catch((error) => {

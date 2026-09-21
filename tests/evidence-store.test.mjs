@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 globalThis.document = { baseURI: "https://example.test/" };
-await import("../site/evidence-store.js");
+await import("../site/evidence-store-shim.ts");
 
 const evidence = globalThis.TimelineEvidence;
 
