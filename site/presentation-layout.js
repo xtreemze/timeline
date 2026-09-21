@@ -1,6 +1,4 @@
 (() => {
-  "use strict";
-
   const FULLSCREEN_WIDE_RATIO = 1.15;
   const FULLSCREEN_TALL_RATIO = 0.85;
   const WORKSPACE_WIDE_MIN_PX = 1100;
@@ -8,7 +6,7 @@
   function finiteDimension(value, name) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric) || numeric <= 0) {
-      throw new RangeError(name + " must be a positive finite number.");
+      throw new RangeError(`${name} must be a positive finite number.`);
     }
     return numeric;
   }
@@ -42,6 +40,6 @@
     FULLSCREEN_TALL_RATIO,
     WORKSPACE_WIDE_MIN_PX,
     classifyStageShape,
-    physicalOrientation
+    physicalOrientation,
   });
 })();

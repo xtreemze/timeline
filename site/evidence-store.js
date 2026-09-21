@@ -1,10 +1,8 @@
 (() => {
-  "use strict";
-
   const DB_NAME = "timeline-evidence";
   const DB_VERSION = 1;
   const STORE = "blobs";
-  const TYPES = Object.freeze(["article", "pdf", "image", "note", "document"]);
+  const TYPES = Object.freeze(["article", "pdf", "note", "document"]);
   const RECORD_CLASSES = Object.freeze(["source", "acquired-copy", "derived-artifact"]);
   const DIGEST_ALGORITHMS = Object.freeze(["sha-256", "sha-384", "sha-512"]);
   const CUSTODY_ACTION_TYPES = Object.freeze([
@@ -18,7 +16,7 @@
     "returned",
     "released",
     "disposed",
-    "other"
+    "other",
   ]);
 
   function text(value, max) {
@@ -126,60 +124,7 @@
       sourceItemId,
       tool,
       digests,
-      derivedFromIds
-    };
-  }
-
-  function normalizeExtraction(raw) {
-    if (!raw || typeof raw !== "object") return null;
-    const external = globalThis.TimelineEvidenceExtraction?.normalizeExtraction?.(raw);
-    if (external) return external;
-    const segments = (Array.isArray(raw.segments) ? raw.segments : [])
-      .map((segment, index) => {
-        const content = text(segment?.text, 20000);
-        const locator = segment?.locator && typeof segment.locator === "object"
-          ? {
-              kind: segment.locator.kind === "page" ? "page" : "image",
-              ...(segment.locator.kind === "page"
-                ? { page: Math.max(1, Number(segment.locator.page) || 1) }
-                : { index: Math.max(1, Number(segment.locator.index) || 1) })
-            }
-          : null;
-        if (!content || !locator) return null;
-        return {
-          id: text(segment?.id, 120) || `segment-${index + 1}`,
-          locator,
-          method: text(segment?.method, 80) || "pdf-text",
-          text: content,
-          confidence:
-            segment?.confidence === null || segment?.confidence === undefined
-              ? null
-              : Number.isFinite(Number(segment.confidence))
-                ? Math.max(0, Math.min(1, Number(segment.confidence)))
-                : null
-        };
-      })
-      .filter(Boolean)
-      .slice(0, 120);
-    const unresolved = (Array.isArray(raw.unresolved) ? raw.unresolved : [])
-      .map((entry) => ({
-        locator: entry?.locator && typeof entry.locator === "object" ? { ...entry.locator } : null,
-        reason: text(entry?.reason, 500)
-      }))
-      .filter((entry) => entry.locator && entry.reason)
-      .slice(0, 120);
-    if (!segments.length && !unresolved.length) return null;
-    return {
-      schemaVersion: text(raw.schemaVersion, 80) || "timeline-evidence-extraction-v1",
-      status: text(raw.status, 40) || (unresolved.length ? "partial" : "complete"),
-      mimeType: text(raw.mimeType, 120),
-      generatedAt: text(raw.generatedAt, 80),
-      tool: {
-        name: text(raw.tool?.name, 120) || "Timeline Evidence Extraction",
-        version: text(raw.tool?.version, 80) || "1"
-      },
-      segments,
-      unresolved
+      derivedFromIds,
     };
   }
 
@@ -197,20 +142,18 @@
       url: safeUrl(raw.url),
       note: text(raw.note, 5000),
       publishedAt: text(raw.publishedAt, 40),
-      file: null
+      file: null,
     };
     if (raw.file && typeof raw.file === "object") {
       record.file = {
         blobKey: text(raw.file.blobKey, 160) || id,
         name: text(raw.file.name, 260),
-        mimeType: text(raw.file.mimeType, 120) || (type === "image" ? "image/*" : "application/pdf"),
-        size: Number.isFinite(Number(raw.file.size)) ? Math.max(0, Number(raw.file.size)) : 0
+        mimeType: text(raw.file.mimeType, 120) || "application/pdf",
+        size: Number.isFinite(Number(raw.file.size)) ? Math.max(0, Number(raw.file.size)) : 0,
       };
     }
     const forensic = normalizeForensic(raw.forensic);
     if (forensic) record.forensic = forensic;
-    const extraction = normalizeExtraction(raw.extraction);
-    if (extraction) record.extraction = extraction;
     return record;
   }
 
@@ -246,7 +189,7 @@
       recorderEntityId: text(raw.recorderEntityId, 120),
       reason: text(raw.reason, 1000),
       note: text(raw.note, 5000),
-      sourceEvidenceIds: textList(raw.sourceEvidenceIds, 120, 32)
+      sourceEvidenceIds: textList(raw.sourceEvidenceIds, 120, 32),
     };
   }
 
@@ -274,7 +217,8 @@
         if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
       };
       request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error || new Error("Could not open evidence storage."));
+      request.onerror = () =>
+        reject(request.error || new Error("Could not open evidence storage."));
     });
   }
 
@@ -292,8 +236,10 @@
           return;
         }
         transaction.oncomplete = () => resolve(result);
-        transaction.onerror = () => reject(transaction.error || new Error("Evidence storage transaction failed."));
-        transaction.onabort = () => reject(transaction.error || new Error("Evidence storage transaction aborted."));
+        transaction.onerror = () =>
+          reject(transaction.error || new Error("Evidence storage transaction failed."));
+        transaction.onabort = () =>
+          reject(transaction.error || new Error("Evidence storage transaction aborted."));
       });
     } finally {
       db.close();
@@ -332,7 +278,6 @@
     normalizeDigest,
     normalizeDigests,
     normalizeForensic,
-    normalizeExtraction,
     normalizeRecord,
     normalizeRecords,
     normalizeCustodyAction,
@@ -340,6 +285,6 @@
     putBlob,
     getBlob,
     deleteBlob,
-    safeUrl
+    safeUrl,
   });
 })();

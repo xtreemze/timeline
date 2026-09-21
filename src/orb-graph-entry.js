@@ -1,5 +1,15 @@
-import { EdgeLineStyleType, GraphObjectState, NodeShapeType, OrbEventType, OrbView } from "@memgraph/orb";
-import { connectedGraphComponents, graphComponentTopologySignature, packComponentRects } from "./graph-component-packing.js";
+import {
+  EdgeLineStyleType,
+  GraphObjectState,
+  NodeShapeType,
+  OrbEventType,
+  OrbView,
+} from "@memgraph/orb";
+import {
+  connectedGraphComponents,
+  graphComponentTopologySignature,
+  packComponentRects,
+} from "./graph-component-packing.js";
 
 const LARGE_GRAPH_NODE_THRESHOLD = 1200;
 const GPU_LAYOUT_NODE_THRESHOLD = 3000;
@@ -43,12 +53,20 @@ const ICON_PATHS = Object.freeze({
   event: ["M6 4h12v16H6z", "M8 2v4", "M16 2v4", "M6 8h12", "M9 12h2", "M13 12h2", "M9 16h2"],
   story: ["M4 18V6", "M4 7h7l2 2h7v8h-7l-2-2H4"],
   person: ["M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z", "M4 21a8 8 0 0 1 16 0"],
-  place: ["M12 22s7-6.1 7-13a7 7 0 1 0-14 0c0 6.9 7 13 7 13z", "M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"],
+  place: [
+    "M12 22s7-6.1 7-13a7 7 0 1 0-14 0c0 6.9 7 13 7 13z",
+    "M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
+  ],
   evidence: ["M5 3h10l4 4v14H5z", "M15 3v5h5", "M8 13h8", "M8 17h6"],
   organization: ["M4 21h16", "M6 21V8l6-5 6 5v13", "M9 11h1", "M14 11h1", "M9 15h1", "M14 15h1"],
   device: ["M5 4h14v12H5z", "M9 20h6", "M12 16v4"],
   account: ["M4 7h16v12H4z", "M4 10h16", "M8 15h4"],
-  relation: ["M7 7h10", "M7 17h10", "M7 7a2 2 0 1 1-4 0 2 2 0 0 1 4 0z", "M21 17a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"]
+  relation: [
+    "M7 7h10",
+    "M7 17h10",
+    "M7 7a2 2 0 1 1-4 0 2 2 0 0 1 4 0z",
+    "M21 17a2 2 0 1 1-4 0 2 2 0 0 1 4 0z",
+  ],
 });
 
 const iconCache = new Map();
@@ -59,8 +77,10 @@ function semanticType(data) {
   if (type === "story") return "story";
   if (type.includes("person") || type.includes("group")) return "person";
   if (type.includes("place") || type.includes("location")) return "place";
-  if (type.includes("evidence") || type.includes("document") || type.includes("record")) return "evidence";
-  if (type.includes("organization") || type.includes("company") || type.includes("agency")) return "organization";
+  if (type.includes("evidence") || type.includes("document") || type.includes("record"))
+    return "evidence";
+  if (type.includes("organization") || type.includes("company") || type.includes("agency"))
+    return "organization";
   if (type.includes("device") || type.includes("software")) return "device";
   if (type.includes("account")) return "account";
   return "relation";
@@ -93,7 +113,7 @@ function create(container, handlers = {}) {
     muted: resolvedColor(container, "--muted", "#79736b"),
     paper: resolvedColor(container, "--paper", "#f8f6f2"),
     focus: resolvedColor(container, "--focus", "#315fbd"),
-    story: resolvedColor(container, "--story", "#7256b5")
+    story: resolvedColor(container, "--story", "#7256b5"),
   };
 
   let currentMode = "worker-cpu";
@@ -128,7 +148,7 @@ function create(container, handlers = {}) {
       labelsOnEventIsEnabled: true,
       shadowIsEnabled: false,
       contextAlphaOnEvent: 0.18,
-      contextAlphaOnEventIsEnabled: true
+      contextAlphaOnEventIsEnabled: true,
     },
     layout: {
       type: "force",
@@ -144,23 +164,23 @@ function create(container, handlers = {}) {
         centering: { x: 0, y: 0, strength: 0.06 },
         positioning: {
           forceX: { x: 0, strength: 0.035 },
-          forceY: { y: 0, strength: 0.035 }
+          forceY: { y: 0, strength: 0.035 },
         },
-        useGPU: false
-      }
+        useGPU: false,
+      },
     },
     interaction: {
       isDragEnabled: true,
-      isZoomEnabled: true
+      isZoomEnabled: true,
     },
-    zoomFitTransitionMs: 240
+    zoomFitTransitionMs: 240,
   });
 
   const ORB_TOUCH_DRAG_EVENT_TYPES = new Set([
     "touchstart",
     "touchmove",
     "touchend",
-    "touchcancel"
+    "touchcancel",
   ]);
   const ORB_NATIVE_CAMERA_DRAG_EVENT_TYPES = new Set(["mousedown"]);
 
@@ -172,8 +192,7 @@ function create(container, handlers = {}) {
     const retained = [];
     for (const listener of listeners) {
       const isTouchDragListener =
-        listener?.name === "drag" &&
-        ORB_TOUCH_DRAG_EVENT_TYPES.has(listener.type);
+        listener?.name === "drag" && ORB_TOUCH_DRAG_EVENT_TYPES.has(listener.type);
       if (!isTouchDragListener) {
         retained.push(listener);
         continue;
@@ -199,8 +218,7 @@ function create(container, handlers = {}) {
     const retained = [];
     for (const listener of listeners) {
       const isNativeCameraDrag =
-        listener?.name === "zoom" &&
-        ORB_NATIVE_CAMERA_DRAG_EVENT_TYPES.has(listener.type);
+        listener?.name === "zoom" && ORB_NATIVE_CAMERA_DRAG_EVENT_TYPES.has(listener.type);
       if (!isNativeCameraDrag) {
         retained.push(listener);
         continue;
@@ -223,7 +241,7 @@ function create(container, handlers = {}) {
       alpha: 1,
       alphaMin: dense ? 0.018 : 0.012,
       alphaDecay: dense ? 0.024 : 0.021,
-      alphaTarget
+      alphaTarget,
     };
   }
 
@@ -236,12 +254,12 @@ function create(container, handlers = {}) {
         strength: dense ? -300 : -460,
         theta: 0.84,
         distanceMin: 24,
-        distanceMax: dense ? 1800 : 3200
+        distanceMax: dense ? 1800 : 3200,
       },
       collision: {
         radius: dense ? 30 : 42,
         strength: 1,
-        iterations: 4
+        iterations: 4,
       },
       alpha: forceAlphaProfile(nodeCount, alphaTarget),
       isSimulatingOnDataUpdate: true,
@@ -251,9 +269,9 @@ function create(container, handlers = {}) {
       centering: { x: 0, y: 0, strength: dense ? 0.02 : 0.035 },
       positioning: {
         forceX: { x: 0, strength: dense ? 0.012 : 0.02 },
-        forceY: { y: 0, strength: dense ? 0.012 : 0.02 }
+        forceY: { y: 0, strength: dense ? 0.012 : 0.02 },
       },
-      useGPU
+      useGPU,
     };
   }
 
@@ -285,7 +303,7 @@ function create(container, handlers = {}) {
   function applyInteractionForce(alphaTarget) {
     const layout = {
       type: "force",
-      options: forceLayoutOptions(forceNodeCount, alphaTarget)
+      options: forceLayoutOptions(forceNodeCount, alphaTarget),
     };
     const simulator = forceSimulator();
     if (simulator) {
@@ -354,7 +372,11 @@ function create(container, handlers = {}) {
     const renderer = orb?._renderer;
     const transform = clampCameraTransform(renderer?.transform);
     if (!canvas || !transform) {
-      if (canvas && renderer?.transform && (!Number.isFinite(renderer.transform.k) || renderer.transform.k <= 0)) {
+      if (
+        canvas &&
+        renderer?.transform &&
+        (!Number.isFinite(renderer.transform.k) || renderer.transform.k <= 0)
+      ) {
         orb.recenter();
       }
       return;
@@ -470,7 +492,7 @@ function create(container, handlers = {}) {
       weightedTransform: transform,
       lastTime: Number(event.timeStamp) || performance.now(),
       samples: [],
-      moved: false
+      moved: false,
     };
     motion.appendPointerVectorSamples(cameraGesture.samples, event);
     try {
@@ -495,7 +517,7 @@ function create(container, handlers = {}) {
 
     const target = gesture.startTransform.translate(
       deltaX / gesture.startTransform.k,
-      deltaY / gesture.startTransform.k
+      deltaY / gesture.startTransform.k,
     );
     const now = Number(event.timeStamp) || performance.now();
     const response = motion.responseForElapsed(now - gesture.lastTime);
@@ -503,7 +525,7 @@ function create(container, handlers = {}) {
     const current = gesture.weightedTransform;
     const next = current.translate(
       ((target.x - current.x) * response) / current.k,
-      ((target.y - current.y) * response) / current.k
+      ((target.y - current.y) * response) / current.k,
     );
     gesture.weightedTransform = next;
     if (orb.canvas) orb.canvas.__zoom = next;
@@ -534,7 +556,7 @@ function create(container, handlers = {}) {
       deltaY: GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX,
       deltaMode: 0,
       bubbles: true,
-      cancelable: true
+      cancelable: true,
     });
     orb.canvas.dispatchEvent(event);
   }
@@ -647,7 +669,7 @@ function create(container, handlers = {}) {
     const rect = orb.canvas.getBoundingClientRect();
     const globalPoint = {
       x: Math.max(0, Math.min(rect.width, point.x - rect.left)),
-      y: Math.max(0, Math.min(rect.height, point.y - rect.top))
+      y: Math.max(0, Math.min(rect.height, point.y - rect.top)),
     };
     const localPoint = orb.getSimulationPosition(globalPoint);
     return { event, globalPoint, localPoint };
@@ -659,7 +681,7 @@ function create(container, handlers = {}) {
     const direction = globalPoint.x + radiusPx <= rect.width ? 1 : -1;
     const offsetPoint = {
       x: Math.max(0, Math.min(rect.width, globalPoint.x + radiusPx * direction)),
-      y: globalPoint.y
+      y: globalPoint.y,
     };
     const localStart = orb.getSimulationPosition(globalPoint);
     const localEnd = orb.getSimulationPosition(offsetPoint);
@@ -669,10 +691,7 @@ function create(container, handlers = {}) {
   function expandedTouchNode(localPoint, globalPoint) {
     const exact = orb.data.getNearestNode(localPoint);
     if (exact) return exact;
-    const minimumRadius = simulationRadiusForPixels(
-      globalPoint,
-      TOUCH_NODE_TARGET_DIAMETER_PX / 2
-    );
+    const minimumRadius = simulationRadiusForPixels(globalPoint, TOUCH_NODE_TARGET_DIAMETER_PX / 2);
     let best = null;
     let bestDistance = Number.POSITIVE_INFINITY;
     const nodes = orb.data.getNodes();
@@ -697,17 +716,24 @@ function create(container, handlers = {}) {
     if (node) return { ...geometry, kind: "node", object: node };
     const edgeTolerance = simulationRadiusForPixels(
       geometry.globalPoint,
-      TOUCH_EDGE_TARGET_RADIUS_PX
+      TOUCH_EDGE_TARGET_RADIUS_PX,
     );
     const edge = orb.data.getNearestEdge(geometry.localPoint, edgeTolerance);
-    return edge ? { ...geometry, kind: "edge", object: edge } : { ...geometry, kind: null, object: null };
+    return edge
+      ? { ...geometry, kind: "edge", object: edge }
+      : { ...geometry, kind: null, object: null };
   }
 
   // eslint-disable-next-line no-unused-vars
-  function touchNodePayload(event) {
+  function _touchNodePayload(event) {
     const payload = touchTargetPayload(event);
     return payload?.kind === "node"
-      ? { node: payload.object, event, globalPoint: payload.globalPoint, localPoint: payload.localPoint }
+      ? {
+          node: payload.object,
+          event,
+          globalPoint: payload.globalPoint,
+          localPoint: payload.localPoint,
+        }
       : null;
   }
 
@@ -734,10 +760,10 @@ function create(container, handlers = {}) {
       startGlobalPoint: globalPoint,
       startLocalPoint: localPoint,
       activated: false,
-      timer: 0
+      timer: 0,
     };
-    container.style.setProperty("--graph-touch-hold-x", globalPoint.x + "px");
-    container.style.setProperty("--graph-touch-hold-y", globalPoint.y + "px");
+    container.style.setProperty("--graph-touch-hold-x", `${globalPoint.x}px`);
+    container.style.setProperty("--graph-touch-hold-y", `${globalPoint.y}px`);
     container.dataset.touchDrag = "holding";
 
     touchHold.timer = globalThis.setTimeout(() => {
@@ -794,7 +820,8 @@ function create(container, handlers = {}) {
 
     activeTouchPointers.add(event.pointerId);
     if (activeTouchPointers.size > 1) {
-      if (cameraGesture?.pointerId !== null && cameraGesture?.pointerId !== undefined) releaseTouchPointerCapture(cameraGesture.pointerId);
+      if (cameraGesture?.pointerId !== null && cameraGesture?.pointerId !== undefined)
+        releaseTouchPointerCapture(cameraGesture.pointerId);
       cameraGesture = null;
       cancelCameraInertia();
       if (touchHold?.activated) {
@@ -814,7 +841,7 @@ function create(container, handlers = {}) {
       pointerId: event.pointerId,
       startClientPoint: eventClientPoint(event),
       target,
-      cancelled: false
+      cancelled: false,
     };
     if (activeTouchPointers.size > 1) {
       touchTap = null;
@@ -826,9 +853,15 @@ function create(container, handlers = {}) {
       return;
     }
 
-    const payload = target?.kind === "node"
-      ? { node: target.object, event, globalPoint: target.globalPoint, localPoint: target.localPoint }
-      : null;
+    const payload =
+      target?.kind === "node"
+        ? {
+            node: target.object,
+            event,
+            globalPoint: target.globalPoint,
+            localPoint: target.localPoint,
+          }
+        : null;
     if (payload) beginTouchHold(payload);
   }
 
@@ -870,7 +903,7 @@ function create(container, handlers = {}) {
   }
 
   // eslint-disable-next-line no-unused-vars
-  function scheduleTouchReleaseFallback() {
+  function _scheduleTouchReleaseFallback() {
     clearTouchReleaseFallback();
     touchReleaseFallback = globalThis.setTimeout(() => {
       if (touchHold?.activated || touchDragBlockedUntilRelease) finishTouchGesture();
@@ -882,7 +915,7 @@ function create(container, handlers = {}) {
     if (event.pointerType !== "touch") return;
     const tap = touchTap?.pointerId === event.pointerId ? touchTap : null;
     const ownsActiveNodeDrag = Boolean(
-      touchHold?.activated && touchHold.pointerId === event.pointerId
+      touchHold?.activated && touchHold.pointerId === event.pointerId,
     );
     activeTouchPointers.delete(event.pointerId);
 
@@ -934,9 +967,7 @@ function create(container, handlers = {}) {
 
   function onTouchMoveCapture(event) {
     const nodeDragOwnsGesture = Boolean(touchHold?.activated);
-    const weightedCameraOwnsGesture = Boolean(
-      cameraGesture && activeTouchPointers.size === 1
-    );
+    const weightedCameraOwnsGesture = Boolean(cameraGesture && activeTouchPointers.size === 1);
     if (!nodeDragOwnsGesture && !weightedCameraOwnsGesture) return;
     // Orb 1.0.2's camera uses D3 touch listeners on the canvas. Once Timeline
     // owns either an active node drag or a one-finger weighted camera pan,
@@ -1046,13 +1077,19 @@ function create(container, handlers = {}) {
     const exiting = transition === "exiting";
     const entering = transition === "entering";
     const baseColor =
-      type === "event" ? palette.focus :
-      type === "story" ? palette.story :
-      type === "evidence" ? "#8a4f2b" :
-      type === "place" ? "#3e6d5b" :
-      type === "person" ? "#4b5f86" :
-      type === "organization" ? "#6b526f" :
-      palette.ink;
+      type === "event"
+        ? palette.focus
+        : type === "story"
+          ? palette.story
+          : type === "evidence"
+            ? "#8a4f2b"
+            : type === "place"
+              ? "#3e6d5b"
+              : type === "person"
+                ? "#4b5f86"
+                : type === "organization"
+                  ? "#6b526f"
+                  : palette.ink;
     const color = exiting ? palette.muted : baseColor;
     const size = type === "event" ? 12 : type === "story" ? 13 : 10;
     return {
@@ -1073,18 +1110,22 @@ function create(container, handlers = {}) {
       fontSize: exiting ? 10 : 12,
       fontColor: exiting ? palette.muted : palette.ink,
       fontBackgroundColor: palette.paper,
-      zIndex: type === "event" ? 4 : type === "story" ? 3 : 2
+      zIndex: type === "event" ? 4 : type === "story" ? 3 : 2,
     };
   }
 
   function edgeSemantic(data) {
     const label = String(data?.label || "").toLowerCase();
-    if (/call|message|email|contact|communicat/.test(label)) return { glyph: "☎", color: "#496f8c" };
-    if (/transfer|own|pay|send|receive|deliver/.test(label)) return { glyph: "⇢", color: "#8a5b2d" };
+    if (/call|message|email|contact|communicat/.test(label))
+      return { glyph: "☎", color: "#496f8c" };
+    if (/transfer|own|pay|send|receive|deliver/.test(label))
+      return { glyph: "⇢", color: "#8a5b2d" };
     if (/authoriz|approv|decid|permit/.test(label)) return { glyph: "✓", color: palette.story };
-    if (/investigat|review|audit|inspect|verify/.test(label)) return { glyph: "⌕", color: "#596b86" };
+    if (/investigat|review|audit|inspect|verify/.test(label))
+      return { glyph: "⌕", color: "#596b86" };
     if (/occur|locat|visit|travel|arriv/.test(label)) return { glyph: "⌖", color: "#3e6d5b" };
-    if (/interview|witness|particip|meet|corroborat/.test(label)) return { glyph: "↔", color: "#6b526f" };
+    if (/interview|witness|particip|meet|corroborat/.test(label))
+      return { glyph: "↔", color: "#6b526f" };
     return { glyph: "→", color: palette.focus };
   }
 
@@ -1108,7 +1149,17 @@ function create(container, handlers = {}) {
       color,
       colorHover: palette.focus,
       colorSelected: palette.focus,
-      width: releasing ? 0.42 : entering ? 1.45 : inactive ? 0.35 : timeless ? 0.6 : changed ? 1.5 : 0.9,
+      width: releasing
+        ? 0.42
+        : entering
+          ? 1.45
+          : inactive
+            ? 0.35
+            : timeless
+              ? 0.6
+              : changed
+                ? 1.5
+                : 0.9,
       widthHover: 1.8,
       widthSelected: 2.2,
       arrowSize: releasing ? 0.65 : entering ? 1.45 : inactive ? 0.8 : 1.25,
@@ -1116,9 +1167,10 @@ function create(container, handlers = {}) {
       fontSize: 11,
       fontColor: color,
       fontBackgroundColor: palette.paper,
-      lineStyle: releasing || inactive
-        ? { type: EdgeLineStyleType.DASHED }
-        : { type: EdgeLineStyleType.SOLID }
+      lineStyle:
+        releasing || inactive
+          ? { type: EdgeLineStyleType.DASHED }
+          : { type: EdgeLineStyleType.SOLID },
     };
   }
 
@@ -1128,7 +1180,7 @@ function create(container, handlers = {}) {
     },
     getEdgeStyle(edge) {
       return edgeStyle(edge.getData());
-    }
+    },
   });
 
   const onNodeClick = ({ node }) => {
@@ -1153,7 +1205,8 @@ function create(container, handlers = {}) {
     keepForceActiveAfterInteraction();
     if (isTouchInput(payload.event) && touchHold?.activated) finishTouchGesture();
   };
-  const onSimulationStart = () => handlers.onSimulationState?.({ running: true, mode: currentMode });
+  const onSimulationStart = () =>
+    handlers.onSimulationState?.({ running: true, mode: currentMode });
   const onSimulationEnd = ({ durationMs }) => {
     handlers.onSimulationState?.({ running: false, mode: currentMode, durationMs });
     if (firstRender) {
@@ -1189,15 +1242,15 @@ function create(container, handlers = {}) {
         labelsIsEnabled: nodeCount < 1800,
         labelsOnEventIsEnabled: true,
         shadowIsEnabled: false,
-        minZoom: nodeCount >= 3000 ? 0.0005 : 0.002
+        minZoom: nodeCount >= 3000 ? 0.0005 : 0.002,
       },
       layout: {
         type: "force",
         options: {
           ...forceLayoutOptions(nodeCount, 0),
-          useGPU: wantsGPU
-        }
-      }
+          useGPU: wantsGPU,
+        },
+      },
     });
   }
 
@@ -1241,9 +1294,10 @@ function create(container, handlers = {}) {
     if (components.length <= 1) return false;
 
     const nodeObjects = new Map(
-      orb.data.getNodes()
+      orb.data
+        .getNodes()
         .map((node) => [String(node.getData()?.id ?? ""), node])
-        .filter(([id]) => id)
+        .filter(([id]) => id),
     );
     const componentRects = [];
 
@@ -1271,7 +1325,7 @@ function create(container, handlers = {}) {
         minX,
         maxX,
         minY,
-        maxY
+        maxY,
       });
     }
 
@@ -1282,23 +1336,24 @@ function create(container, handlers = {}) {
     const aspectRatio = Math.max(0.35, Math.min(3, width / height));
     const plan = packComponentRects(componentRects, {
       aspectRatio,
-      gap: COMPONENT_PACKING_GAP
+      gap: COMPONENT_PACKING_GAP,
     });
     const offsets = new Map(plan.placements.map((placement) => [placement.key, placement]));
     let moved = false;
 
     for (const component of componentRects) {
       const offset = offsets.get(component.key);
-      if (!offset || (!Number.isFinite(offset.dx) || !Number.isFinite(offset.dy))) continue;
+      if (!offset || !Number.isFinite(offset.dx) || !Number.isFinite(offset.dy)) continue;
       if (Math.abs(offset.dx) < 1 && Math.abs(offset.dy) < 1) continue;
 
       for (const id of component.nodeIds) {
         const node = nodeObjects.get(String(id));
         const position = node?.getPosition?.() || node?.getCenter?.();
-        if (!node || !position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) continue;
+        if (!node || !position || !Number.isFinite(position.x) || !Number.isFinite(position.y))
+          continue;
         node.setPosition({
           x: position.x + offset.dx,
-          y: position.y + offset.dy
+          y: position.y + offset.dy,
         });
       }
       moved = true;
@@ -1339,8 +1394,11 @@ function create(container, handlers = {}) {
       const node = orb.data.getNodeById(record.id);
       if (!node) continue;
       const adjacent = desiredEdges
-        .filter((edge) => String(edge.start) === String(record.id) || String(edge.end) === String(record.id))
-        .map((edge) => String(edge.start) === String(record.id) ? edge.end : edge.start);
+        .filter(
+          (edge) =>
+            String(edge.start) === String(record.id) || String(edge.end) === String(record.id),
+        )
+        .map((edge) => (String(edge.start) === String(record.id) ? edge.end : edge.start));
       const anchorId = adjacent.find((id) => !incomingIds.has(String(id))) ?? adjacent[0];
       if (anchorId === null || anchorId === undefined) continue;
       const anchor = orb.data.getNodeById(anchorId);
@@ -1349,7 +1407,7 @@ function create(container, handlers = {}) {
       const angle = deterministicAngle(record.id);
       node.setPosition({
         x: position.x + Math.cos(angle) * TOPOLOGY_ENTRY_OFFSET,
-        y: position.y + Math.sin(angle) * TOPOLOGY_ENTRY_OFFSET
+        y: position.y + Math.sin(angle) * TOPOLOGY_ENTRY_OFFSET,
       });
     }
   }
@@ -1370,7 +1428,7 @@ function create(container, handlers = {}) {
     }
     orb.data.merge({
       nodes: nodes.map((node) => transitionRecord(node, "active")),
-      edges: edges.map((edge) => transitionRecord(edge, "active"))
+      edges: edges.map((edge) => transitionRecord(edge, "active")),
     });
     setPerformanceMode(nodes.length);
     orb.render();
@@ -1390,7 +1448,7 @@ function create(container, handlers = {}) {
     firstRender = true;
     orb.data.setup({
       nodes: nodes.map((node) => transitionRecord(node, "active")),
-      edges: edges.map((edge) => transitionRecord(edge, "active"))
+      edges: edges.map((edge) => transitionRecord(edge, "active")),
     });
     hasGraphData = true;
     orb.render();
@@ -1418,34 +1476,39 @@ function create(container, handlers = {}) {
     const incomingNodes = nodes.filter((node) => !currentNodeIds.has(String(node.id)));
     const rewiredEdges = edges.filter((edge) => {
       const current = currentEdgeById.get(String(edge.id));
-      return current && (
-        String(current.start) !== String(edge.start) ||
-        String(current.end) !== String(edge.end)
+      return (
+        current &&
+        (String(current.start) !== String(edge.start) || String(current.end) !== String(edge.end))
       );
     });
     const rewiredIds = new Set(rewiredEdges.map((edge) => String(edge.id)));
     const enteringEdges = edges.filter((edge) => !currentEdgeById.has(String(edge.id)));
-    const stableEdges = edges.filter((edge) => currentEdgeById.has(String(edge.id)) && !rewiredIds.has(String(edge.id)));
+    const stableEdges = edges.filter(
+      (edge) => currentEdgeById.has(String(edge.id)) && !rewiredIds.has(String(edge.id)),
+    );
     const topologyChanged = Boolean(
       outgoingNodes.length ||
-      outgoingEdges.length ||
-      incomingNodes.length ||
-      enteringEdges.length ||
-      rewiredEdges.length
+        outgoingEdges.length ||
+        incomingNodes.length ||
+        enteringEdges.length ||
+        rewiredEdges.length,
     );
     if (topologyChanged) requestAutoFit();
 
     if (prefersReducedMotion()) {
       const breakIds = [
         ...outgoingEdges.map((edge) => edge.id),
-        ...rewiredEdges.map((edge) => currentEdgeById.get(String(edge.id))?.id)
+        ...rewiredEdges.map((edge) => currentEdgeById.get(String(edge.id))?.id),
       ].filter((id) => id !== null && id !== undefined);
       if (breakIds.length || outgoingNodes.length) {
-        orb.data.remove({ edgeIds: [...new Set(breakIds)], nodeIds: outgoingNodes.map((node) => node.id) });
+        orb.data.remove({
+          edgeIds: [...new Set(breakIds)],
+          nodeIds: outgoingNodes.map((node) => node.id),
+        });
       }
       orb.data.merge({
         nodes: nodes.map((node) => transitionRecord(node, "active")),
-        edges: edges.map((edge) => transitionRecord(edge, "active"))
+        edges: edges.map((edge) => transitionRecord(edge, "active")),
       });
       setPerformanceMode(nodes.length);
       orb.render();
@@ -1455,19 +1518,22 @@ function create(container, handlers = {}) {
 
     setPerformanceMode(Math.max(currentNodes.length, nodes.length));
     orb.data.merge({
-      nodes: nodes.map((node) => transitionRecord(node, currentNodeIds.has(String(node.id)) ? "active" : "entering"))
+      nodes: nodes.map((node) =>
+        transitionRecord(node, currentNodeIds.has(String(node.id)) ? "active" : "entering"),
+      ),
     });
     positionIncomingNodes(incomingNodes, edges);
     orb.data.merge({
       edges: [
         ...stableEdges.map((edge) => transitionRecord(edge, "active")),
-        ...enteringEdges.map((edge) => transitionRecord(edge, "entering"))
-      ]
+        ...enteringEdges.map((edge) => transitionRecord(edge, "entering")),
+      ],
     });
 
     for (const node of outgoingNodes) markNodeTransition(node.id, "exiting");
     for (const edge of outgoingEdges) markEdgeTransition(edge.id, "releasing");
-    for (const edge of rewiredEdges) markEdgeTransition(currentEdgeById.get(String(edge.id))?.id, "releasing");
+    for (const edge of rewiredEdges)
+      markEdgeTransition(currentEdgeById.get(String(edge.id))?.id, "releasing");
 
     orb.render();
     setInteractionHeat(TOPOLOGY_ALPHA_TARGET);
@@ -1475,12 +1541,12 @@ function create(container, handlers = {}) {
     scheduleTopologyStep(() => {
       const breakIds = [
         ...outgoingEdges.map((edge) => edge.id),
-        ...rewiredEdges.map((edge) => currentEdgeById.get(String(edge.id))?.id)
+        ...rewiredEdges.map((edge) => currentEdgeById.get(String(edge.id))?.id),
       ].filter((id) => id !== null && id !== undefined);
       if (breakIds.length) orb.data.remove({ edgeIds: [...new Set(breakIds)] });
       if (rewiredEdges.length) {
         orb.data.merge({
-          edges: rewiredEdges.map((edge) => transitionRecord(edge, "entering"))
+          edges: rewiredEdges.map((edge) => transitionRecord(edge, "entering")),
         });
       }
       orb.render();
@@ -1511,9 +1577,7 @@ function create(container, handlers = {}) {
     transitionData,
     updateTemporalEdges,
     select(kind, id) {
-      const object = kind === "edge"
-        ? orb.data.getEdgeById(id)
-        : orb.data.getNodeById(id);
+      const object = kind === "edge" ? orb.data.getEdgeById(id) : orb.data.getNodeById(id);
       if (!object) return false;
       selectGraphObject(object);
       return true;
@@ -1570,11 +1634,11 @@ function create(container, handlers = {}) {
       orb.events.off(OrbEventType.SIMULATION_START, onSimulationStart);
       orb.events.off(OrbEventType.SIMULATION_END, onSimulationEnd);
       orb.destroy();
-    }
+    },
   });
 }
 
 globalThis.TimelineOrbGraph = Object.freeze({
   create,
-  version: "1.0.2"
+  version: "1.0.2",
 });

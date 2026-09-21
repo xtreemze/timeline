@@ -1,6 +1,4 @@
 (() => {
-  "use strict";
-
   const STAGE_ORDER = Object.freeze([
     "observation",
     "citation",
@@ -11,7 +9,7 @@
     "legalIssue",
     "claim",
     "thesis",
-    "review"
+    "review",
   ]);
 
   const COLLECTION_TYPES = Object.freeze({
@@ -24,7 +22,7 @@
     legalIssues: "legalIssue",
     claims: "claim",
     theses: "thesis",
-    reviews: "review"
+    reviews: "review",
   });
 
   const EDGE_PREDICATES = Object.freeze([
@@ -41,26 +39,105 @@
     "definesRule",
     "governs",
     "opposes",
-    "supersedes"
+    "supersedes",
   ]);
 
-  const SUPPORT_PREDICATES = new Set(["supports", "reliesOn", "explains", "evaluates", "appliesRule", "definesRule", "governs", "producedObservation"]);
+  const SUPPORT_PREDICATES = new Set([
+    "supports",
+    "reliesOn",
+    "explains",
+    "evaluates",
+    "appliesRule",
+    "definesRule",
+    "governs",
+    "producedObservation",
+  ]);
   const CONTRADICTION_PREDICATES = new Set(["contradicts", "impeaches", "opposes"]);
-  const CITATION_RELATIONS = Object.freeze(["supports", "contradicts", "contextualizes", "impeaches", "mentions"]);
-  const CITATION_LOCATOR_TYPES = Object.freeze(["page", "bates", "paragraph", "line", "time", "json-pointer", "record-key", "uri-fragment"]);
+  const CITATION_RELATIONS = Object.freeze([
+    "supports",
+    "contradicts",
+    "contextualizes",
+    "impeaches",
+    "mentions",
+  ]);
+  const CITATION_LOCATOR_TYPES = Object.freeze([
+    "page",
+    "bates",
+    "paragraph",
+    "line",
+    "time",
+    "json-pointer",
+    "record-key",
+    "uri-fragment",
+  ]);
 
   const STANDARDS_BASELINE = Object.freeze([
-    Object.freeze({ id: "iso-21043-1", edition: "2025", status: "published", scope: "forensic vocabulary" }),
-    Object.freeze({ id: "iso-21043-2", edition: "2018", status: "published-revision-in-progress", scope: "recognition, recording, collection, transport and storage of items" }),
-    Object.freeze({ id: "iso-21043-3", edition: "2025", status: "published", scope: "forensic analysis" }),
-    Object.freeze({ id: "iso-21043-4", edition: "2025", status: "published", scope: "forensic interpretation" }),
-    Object.freeze({ id: "iso-21043-5", edition: "2025", status: "published", scope: "forensic reporting" }),
-    Object.freeze({ id: "iso-iec-27037", edition: "2012", status: "published", scope: "digital evidence identification, collection, acquisition and preservation" }),
-    Object.freeze({ id: "iso-iec-27041", edition: "2015", status: "published", scope: "suitability and adequacy of incident investigative methods" }),
-    Object.freeze({ id: "iso-iec-27042", edition: "2015", status: "published", scope: "digital evidence analysis and interpretation" }),
-    Object.freeze({ id: "iso-iec-27043", edition: "2015", status: "published-under-review", scope: "incident investigation principles and processes" }),
-    Object.freeze({ id: "case-uco", edition: "1.x", status: "community-standard", scope: "cyber-investigation representation and provenance" }),
-    Object.freeze({ id: "w3c-prov-o", edition: "2013", status: "recommendation", scope: "generic provenance" })
+    Object.freeze({
+      id: "iso-21043-1",
+      edition: "2025",
+      status: "published",
+      scope: "forensic vocabulary",
+    }),
+    Object.freeze({
+      id: "iso-21043-2",
+      edition: "2018",
+      status: "published-revision-in-progress",
+      scope: "recognition, recording, collection, transport and storage of items",
+    }),
+    Object.freeze({
+      id: "iso-21043-3",
+      edition: "2025",
+      status: "published",
+      scope: "forensic analysis",
+    }),
+    Object.freeze({
+      id: "iso-21043-4",
+      edition: "2025",
+      status: "published",
+      scope: "forensic interpretation",
+    }),
+    Object.freeze({
+      id: "iso-21043-5",
+      edition: "2025",
+      status: "published",
+      scope: "forensic reporting",
+    }),
+    Object.freeze({
+      id: "iso-iec-27037",
+      edition: "2012",
+      status: "published",
+      scope: "digital evidence identification, collection, acquisition and preservation",
+    }),
+    Object.freeze({
+      id: "iso-iec-27041",
+      edition: "2015",
+      status: "published",
+      scope: "suitability and adequacy of incident investigative methods",
+    }),
+    Object.freeze({
+      id: "iso-iec-27042",
+      edition: "2015",
+      status: "published",
+      scope: "digital evidence analysis and interpretation",
+    }),
+    Object.freeze({
+      id: "iso-iec-27043",
+      edition: "2015",
+      status: "published-under-review",
+      scope: "incident investigation principles and processes",
+    }),
+    Object.freeze({
+      id: "case-uco",
+      edition: "1.x",
+      status: "community-standard",
+      scope: "cyber-investigation representation and provenance",
+    }),
+    Object.freeze({
+      id: "w3c-prov-o",
+      edition: "2013",
+      status: "recommendation",
+      scope: "generic provenance",
+    }),
   ]);
 
   function text(value, max = 5000) {
@@ -153,7 +230,7 @@
       supersedesIds: idList(raw.supersedesIds ?? raw.supersedes),
       supersededByIds: idList(raw.supersededByIds ?? raw.supersededBy),
       questionIds: idList(raw.questionIds),
-      assumptionIds: idList(raw.assumptionIds)
+      assumptionIds: idList(raw.assumptionIds),
     };
 
     if (type === "citation") {
@@ -168,7 +245,10 @@
     } else if (type === "observation") {
       record.evidenceIds = idList(raw.evidenceIds);
       record.methodId = text(raw.methodId, 160);
-      record.temporalScope = raw.temporalScope && typeof raw.temporalScope === "object" ? structuredClone(raw.temporalScope) : null;
+      record.temporalScope =
+        raw.temporalScope && typeof raw.temporalScope === "object"
+          ? structuredClone(raw.temporalScope)
+          : null;
     } else if (type === "assertion") {
       record.citationIds = idList(raw.citationIds);
       record.itemIds = idList(raw.itemIds ?? (raw.itemId ? [raw.itemId] : []));
@@ -241,7 +321,10 @@
       rationale: text(raw.rationale, 12000),
       authorEntityId: text(raw.authorEntityId, 160),
       createdAt: text(raw.createdAt, 80),
-      temporalScope: raw.temporalScope && typeof raw.temporalScope === "object" ? structuredClone(raw.temporalScope) : null
+      temporalScope:
+        raw.temporalScope && typeof raw.temporalScope === "object"
+          ? structuredClone(raw.temporalScope)
+          : null,
     };
   }
 
@@ -271,10 +354,24 @@
 
   function dependencyIds(record) {
     const fields = [
-      "sourceIds", "inputIds", "supersedesIds", "questionIds", "assumptionIds",
-      "evidenceIds", "citationIds", "itemIds", "issueIds", "observationIds",
-      "assertionIds", "hypothesisIds", "propositionIds", "authorityIds", "ruleIds",
-      "analysisIds", "claimIds", "targetIds"
+      "sourceIds",
+      "inputIds",
+      "supersedesIds",
+      "questionIds",
+      "assumptionIds",
+      "evidenceIds",
+      "citationIds",
+      "itemIds",
+      "issueIds",
+      "observationIds",
+      "assertionIds",
+      "hypothesisIds",
+      "propositionIds",
+      "authorityIds",
+      "ruleIds",
+      "analysisIds",
+      "claimIds",
+      "targetIds",
     ];
     const result = [];
     const seen = new Set();
@@ -302,7 +399,8 @@
 
   function traceDependencies(id, reasoning, options = {}) {
     const { normalized, recordById, knownIds } = indexReasoning(reasoning, options.externalIds);
-    if (!knownIds.has(id)) return { rootId: id, records: [], externalIds: [], edges: [], missingIds: [id] };
+    if (!knownIds.has(id))
+      return { rootId: id, records: [], externalIds: [], edges: [], missingIds: [id] };
 
     const visited = new Set();
     const tracedRecords = [];
@@ -335,7 +433,7 @@
       records: tracedRecords,
       externalIds: [...tracedExternalIds].sort(),
       edges: tracedEdges.sort((a, b) => a.id.localeCompare(b.id)),
-      missingIds: [...missingIds].sort()
+      missingIds: [...missingIds].sort(),
     };
   }
 
@@ -345,7 +443,10 @@
     return {
       supports: relevant.filter((edge) => SUPPORT_PREDICATES.has(edge.predicate)),
       contradicts: relevant.filter((edge) => CONTRADICTION_PREDICATES.has(edge.predicate)),
-      contextual: relevant.filter((edge) => !SUPPORT_PREDICATES.has(edge.predicate) && !CONTRADICTION_PREDICATES.has(edge.predicate))
+      contextual: relevant.filter(
+        (edge) =>
+          !SUPPORT_PREDICATES.has(edge.predicate) && !CONTRADICTION_PREDICATES.has(edge.predicate),
+      ),
     };
   }
 
@@ -353,11 +454,17 @@
     const normalized = normalizeReasoning(reasoning);
     const assertion = normalized.assertions.find((record) => record.id === id);
     const linkedIds = new Set(assertion?.citationIds || []);
-    const citations = normalized.citations.filter((citation) => citation.assertionId === id || linkedIds.has(citation.id));
+    const citations = normalized.citations.filter(
+      (citation) => citation.assertionId === id || linkedIds.has(citation.id),
+    );
     return {
       supports: citations.filter((citation) => citation.relation === "supports"),
-      contradicts: citations.filter((citation) => ["contradicts", "impeaches"].includes(citation.relation)),
-      contextual: citations.filter((citation) => ["contextualizes", "mentions"].includes(citation.relation))
+      contradicts: citations.filter((citation) =>
+        ["contradicts", "impeaches"].includes(citation.relation),
+      ),
+      contextual: citations.filter((citation) =>
+        ["contextualizes", "mentions"].includes(citation.relation),
+      ),
     };
   }
 
@@ -369,7 +476,8 @@
     }
     for (const edge of normalized.edges) {
       if (edge.predicate === "opposes") continue;
-      if (internal.has(edge.fromId) && internal.has(edge.toId)) graph.get(edge.toId).push(edge.fromId);
+      if (internal.has(edge.fromId) && internal.has(edge.toId))
+        graph.get(edge.toId).push(edge.fromId);
     }
 
     const active = new Set();
@@ -396,72 +504,152 @@
   }
 
   function validateReasoning(reasoning, options = {}) {
-    const { normalized, records, recordById, knownIds } = indexReasoning(reasoning, options.externalIds);
+    const { normalized, records, recordById, knownIds } = indexReasoning(
+      reasoning,
+      options.externalIds,
+    );
     const findings = [];
 
-    const add = (severity, code, recordId, message) => findings.push({ severity, code, recordId: recordId || "", message });
+    const add = (severity, code, recordId, message) =>
+      findings.push({ severity, code, recordId: recordId || "", message });
 
     for (const record of records) {
       for (const depId of dependencyIds(record)) {
-        if (!knownIds.has(depId)) add("error", "broken-reference", record.id, `Reference ${depId} does not resolve.`);
+        if (!knownIds.has(depId))
+          add("error", "broken-reference", record.id, `Reference ${depId} does not resolve.`);
       }
 
       if (record.type === "citation") {
         const assertion = recordById.get(record.assertionId);
         if (!record.assertionId) {
-          add("error", "citation-assertion-missing", record.id, "Citation does not identify an assertion.");
+          add(
+            "error",
+            "citation-assertion-missing",
+            record.id,
+            "Citation does not identify an assertion.",
+          );
         } else if (!assertion) {
-          add("error", "citation-assertion-broken", record.id, `Citation assertion ${record.assertionId} does not resolve.`);
+          add(
+            "error",
+            "citation-assertion-broken",
+            record.id,
+            `Citation assertion ${record.assertionId} does not resolve.`,
+          );
         } else if (assertion.type !== "assertion") {
-          add("error", "citation-assertion-type", record.id, "Citation target is not a factual assertion.");
+          add(
+            "error",
+            "citation-assertion-type",
+            record.id,
+            "Citation target is not a factual assertion.",
+          );
         } else if (!assertion.citationIds.includes(record.id)) {
-          add("warning", "citation-backlink-missing", record.id, "Assertion does not include this citation in citationIds.");
+          add(
+            "warning",
+            "citation-backlink-missing",
+            record.id,
+            "Assertion does not include this citation in citationIds.",
+          );
         }
-        if (!record.evidenceId) add("error", "citation-evidence-missing", record.id, "Citation does not identify evidence.");
-        if (!record.locator) add("warning", "citation-locator-missing", record.id, "Citation has no valid pinpoint locator.");
+        if (!record.evidenceId)
+          add(
+            "error",
+            "citation-evidence-missing",
+            record.id,
+            "Citation does not identify evidence.",
+          );
+        if (!record.locator)
+          add(
+            "warning",
+            "citation-locator-missing",
+            record.id,
+            "Citation has no valid pinpoint locator.",
+          );
       }
       if (record.type === "assertion") {
         for (const citationId of record.citationIds) {
           const citation = recordById.get(citationId);
           if (citation && citation.type !== "citation") {
-            add("error", "assertion-citation-type", record.id, `Reference ${citationId} is not a citation.`);
+            add(
+              "error",
+              "assertion-citation-type",
+              record.id,
+              `Reference ${citationId} is not a citation.`,
+            );
           } else if (citation?.assertionId && citation.assertionId !== record.id) {
-            add("error", "citation-assertion-mismatch", record.id, `Citation ${citationId} points to assertion ${citation.assertionId}.`);
+            add(
+              "error",
+              "citation-assertion-mismatch",
+              record.id,
+              `Citation ${citationId} points to assertion ${citation.assertionId}.`,
+            );
           }
         }
       }
 
       if (record.type === "hypothesis" && dependencyIds(record).length === 0) {
-        add("warning", "unsupported-hypothesis", record.id, "Hypothesis has no linked observations, assertions, sources, or inputs.");
+        add(
+          "warning",
+          "unsupported-hypothesis",
+          record.id,
+          "Hypothesis has no linked observations, assertions, sources, or inputs.",
+        );
       }
-      if (record.type === "analysis" && record.mode === "evaluative" && record.propositionIds.length < 2) {
-        add("warning", "evaluative-alternatives-required", record.id, "Evaluative analysis should identify at least two alternative propositions.");
+      if (
+        record.type === "analysis" &&
+        record.mode === "evaluative" &&
+        record.propositionIds.length < 2
+      ) {
+        add(
+          "warning",
+          "evaluative-alternatives-required",
+          record.id,
+          "Evaluative analysis should identify at least two alternative propositions.",
+        );
       }
       if (record.type === "claim" && dependencyIds(record).length === 0) {
-        add("warning", "unsupported-claim", record.id, "Claim has no linked factual, analytical, rule, or source support.");
+        add(
+          "warning",
+          "unsupported-claim",
+          record.id,
+          "Claim has no linked factual, analytical, rule, or source support.",
+        );
       }
       if (record.type === "thesis" && record.claimIds.length === 0) {
         add("warning", "unsupported-thesis", record.id, "Thesis has no linked claims.");
       }
       if (record.type === "legalIssue" && record.ruleIds.length === 0) {
-        add("warning", "legal-rule-gap", record.id, "Legal issue has no linked rule or authority-derived rule.");
+        add(
+          "warning",
+          "legal-rule-gap",
+          record.id,
+          "Legal issue has no linked rule or authority-derived rule.",
+        );
       }
     }
 
     for (const edge of normalized.edges) {
-      if (!knownIds.has(edge.fromId)) add("error", "broken-edge-source", edge.id, `Edge source ${edge.fromId} does not resolve.`);
-      if (!knownIds.has(edge.toId)) add("error", "broken-edge-target", edge.id, `Edge target ${edge.toId} does not resolve.`);
-      if (edge.fromId === edge.toId) add("error", "self-edge", edge.id, "Analytical edge cannot point to itself.");
+      if (!knownIds.has(edge.fromId))
+        add("error", "broken-edge-source", edge.id, `Edge source ${edge.fromId} does not resolve.`);
+      if (!knownIds.has(edge.toId))
+        add("error", "broken-edge-target", edge.id, `Edge target ${edge.toId} does not resolve.`);
+      if (edge.fromId === edge.toId)
+        add("error", "self-edge", edge.id, "Analytical edge cannot point to itself.");
     }
 
     for (const cycle of detectCycles(records, normalized)) {
-      add("error", "provenance-cycle", cycle[0], `Analytical dependency cycle detected: ${cycle.join(" -> ")}`);
+      add(
+        "error",
+        "provenance-cycle",
+        cycle[0],
+        `Analytical dependency cycle detected: ${cycle.join(" -> ")}`,
+      );
     }
 
-    return findings.sort((a, b) =>
-      a.severity.localeCompare(b.severity) ||
-      a.recordId.localeCompare(b.recordId) ||
-      a.code.localeCompare(b.code)
+    return findings.sort(
+      (a, b) =>
+        a.severity.localeCompare(b.severity) ||
+        a.recordId.localeCompare(b.recordId) ||
+        a.code.localeCompare(b.code),
     );
   }
 
@@ -474,15 +662,15 @@
     const indegree = new Map(records.map((record) => [record.id, 0]));
 
     const compare = (a, b) =>
-      (rank.get(a.type) ?? 999) - (rank.get(b.type) ?? 999) ||
-      a.id.localeCompare(b.id);
+      (rank.get(a.type) ?? 999) - (rank.get(b.type) ?? 999) || a.id.localeCompare(b.id);
 
     function link(prerequisiteId, dependentId) {
       if (
         prerequisiteId === dependentId ||
         !recordById.has(prerequisiteId) ||
         !recordById.has(dependentId)
-      ) return;
+      )
+        return;
       const dependents = outgoing.get(prerequisiteId);
       if (dependents.has(dependentId)) return;
       dependents.add(dependentId);
@@ -508,9 +696,7 @@
     while (ready.length) {
       const record = ready.shift();
       ordered.push(record);
-      const dependents = [...outgoing.get(record.id)]
-        .map((id) => recordById.get(id))
-        .sort(compare);
+      const dependents = [...outgoing.get(record.id)].map((id) => recordById.get(id)).sort(compare);
       for (const dependent of dependents) {
         const next = indegree.get(dependent.id) - 1;
         indegree.set(dependent.id, next);
@@ -546,6 +732,6 @@
     summarizeSupport,
     collectAssertionCitations,
     validateReasoning,
-    orderedRecords
+    orderedRecords,
   });
 })();

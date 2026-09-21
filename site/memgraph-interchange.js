@@ -1,6 +1,4 @@
 (() => {
-  "use strict";
-
   const FORMAT = "timeline-memgraph-v1";
   const DEFAULT_NAMESPACE = "timeline-local";
   const COLLECTION_LABELS = Object.freeze({
@@ -10,7 +8,7 @@
     entities: "TimelineEntity",
     places: "TimelinePlace",
     evidence: "TimelineEvidence",
-    custodyActions: "TimelineCustodyAction"
+    custodyActions: "TimelineCustodyAction",
   });
 
   function clone(value) {
@@ -30,11 +28,11 @@
   }
 
   // eslint-disable-next-line no-unused-vars
-  function cypherValue(value) {
+  function _cypherValue(value) {
     if (value === null || value === undefined) return "null";
     if (typeof value === "boolean") return value ? "true" : "false";
     if (typeof value === "number" && Number.isFinite(value)) return String(value);
-    if (Array.isArray(value)) return `[${value.map(cypherValue).join(", ")}]`;
+    if (Array.isArray(value)) return `[${value.map(_cypherValue).join(", ")}]`;
     return cypherString(value);
   }
 
@@ -57,7 +55,7 @@
       version: project?.version ?? 2,
       title: text(project?.title, 120),
       extensions: clone(project?.extensions || null),
-      reasoning: clone(project?.reasoning || null)
+      reasoning: clone(project?.reasoning || null),
     };
     return record;
   }
@@ -70,7 +68,7 @@
       `n.timelineId = ${cypherString(id)}`,
       `n.timelineProjectId = ${cypherString(namespace)}`,
       `n.recordKind = ${cypherString(label)}`,
-      `n.recordJson = ${cypherString(recordJson(record))}`
+      `n.recordJson = ${cypherString(recordJson(record))}`,
     ];
     if (record.name) properties.push(`n.name = ${cypherString(record.name)}`);
     if (record.title) properties.push(`n.title = ${cypherString(record.title)}`);
@@ -85,7 +83,9 @@
     const objectId = text(relationship?.objectId, 120);
     const predicate = text(relationship?.predicate, 120);
     if (!id || !subjectId || !objectId || !predicate) {
-      throw new Error("Memgraph export requires relationship id, subjectId, objectId, and predicate.");
+      throw new Error(
+        "Memgraph export requires relationship id, subjectId, objectId, and predicate.",
+      );
     }
     const type = relationshipType(predicate);
     const relationshipKey = `${namespace}:${id}`;
@@ -97,7 +97,7 @@
       `MATCH (o:TimelineEntity {timelineKey: ${cypherString(objectKey)}})`,
       `CREATE (s)-[r:${type}]->(o)`,
       `SET r.timelineKey = ${cypherString(relationshipKey)}, r.timelineId = ${cypherString(id)}, r.timelineProjectId = ${cypherString(namespace)}, r.predicate = ${cypherString(predicate)}, r.recordJson = ${cypherString(recordJson(relationship))}`,
-      "RETURN r.timelineId AS timelineId"
+      "RETURN r.timelineId AS timelineId",
     ].join(" ");
     return [deleteExisting, create];
   }
@@ -110,11 +110,9 @@
         `MATCH (n:${label}) WHERE n.timelineProjectId = ${ns} RETURN n.recordJson AS recordJson ORDER BY n.timelineId`;
     }
     return {
-      project:
-        `MATCH (n:TimelineProject) WHERE n.timelineProjectId = ${ns} RETURN n.recordJson AS recordJson LIMIT 1`,
+      project: `MATCH (n:TimelineProject) WHERE n.timelineProjectId = ${ns} RETURN n.recordJson AS recordJson LIMIT 1`,
       ...collectionQueries,
-      relationships:
-        `MATCH ()-[r]->() WHERE r.timelineProjectId = ${ns} AND r.recordJson IS NOT NULL RETURN r.recordJson AS recordJson ORDER BY r.timelineId`
+      relationships: `MATCH ()-[r]->() WHERE r.timelineProjectId = ${ns} AND r.recordJson IS NOT NULL RETURN r.recordJson AS recordJson ORDER BY r.timelineId`,
     };
   }
 
@@ -124,7 +122,7 @@
       "CREATE INDEX ON :TimelineEntity(timelineProjectId);",
       "CREATE INDEX ON :TimelinePlace(timelineProjectId);",
       "CREATE INDEX ON :TimelineItem(timelineProjectId);",
-      "CREATE INDEX ON :TimelineStory(timelineProjectId);"
+      "CREATE INDEX ON :TimelineStory(timelineProjectId);",
     ];
   }
 
@@ -133,7 +131,7 @@
     const statements = [];
     const projectMeta = projectRecord(project);
     statements.push(
-      `MERGE (n:TimelineProject {timelineKey: ${cypherString(`${namespace}:project`)}}) SET n.timelineId = ${cypherString("project")}, n.timelineProjectId = ${cypherString(namespace)}, n.recordJson = ${cypherString(recordJson(projectMeta))}, n.title = ${cypherString(projectMeta.title)} RETURN n.timelineId AS timelineId`
+      `MERGE (n:TimelineProject {timelineKey: ${cypherString(`${namespace}:project`)}}) SET n.timelineId = ${cypherString("project")}, n.timelineProjectId = ${cypherString(namespace)}, n.recordJson = ${cypherString(recordJson(projectMeta))}, n.title = ${cypherString(projectMeta.title)} RETURN n.timelineId AS timelineId`,
     );
 
     for (const [collection, label] of Object.entries(COLLECTION_LABELS)) {
@@ -155,7 +153,7 @@
       places: clone(project?.places || []),
       relationships: clone(project?.relationships || []),
       evidence: clone(project?.evidence || []),
-      custodyActions: clone(project?.custodyActions || [])
+      custodyActions: clone(project?.custodyActions || []),
     };
 
     return {
@@ -167,29 +165,36 @@
         idProperty: "timelineId",
         namespaceProperty: "timelineProjectId",
         payloadProperty: "recordJson",
-        collectionLabels: clone(COLLECTION_LABELS)
+        collectionLabels: clone(COLLECTION_LABELS),
       },
       setupCypher: setupCypher(),
       replacePrelude: [
         `MATCH ()-[r]->() WHERE r.timelineProjectId = ${cypherString(namespace)} DELETE r`,
-        `MATCH (n) WHERE n.timelineProjectId = ${cypherString(namespace)} DETACH DELETE n`
+        `MATCH (n) WHERE n.timelineProjectId = ${cypherString(namespace)} DETACH DELETE n`,
       ],
       statements,
       queries: queryRecipes(namespace),
       records,
       mcp: {
         server: "memgraph/mcp-memgraph",
-        writeRequirement: "Set MCP_READ_ONLY=false before asking Memgraph MCP to execute write Cypher.",
-        writeWorkflow: "For a full mirror, execute replacePrelude first, then statements in order with the Memgraph MCP query tool. For non-destructive upsert-only sync, skip replacePrelude. setupCypher is optional and should be reviewed before first use.",
-        readWorkflow: "Execute the generated queries with Memgraph MCP and pass their returned rows to timeline.memgraph_import."
-      }
+        writeRequirement:
+          "Set MCP_READ_ONLY=false before asking Memgraph MCP to execute write Cypher.",
+        writeWorkflow:
+          "For a full mirror, execute replacePrelude first, then statements in order with the Memgraph MCP query tool. For non-destructive upsert-only sync, skip replacePrelude. setupCypher is optional and should be reviewed before first use.",
+        readWorkflow:
+          "Execute the generated queries with Memgraph MCP and pass their returned rows to timeline.memgraph_import.",
+      },
     };
   }
 
   function rowRecord(row) {
     if (row === null || row === undefined) return null;
     if (typeof row === "string") {
-      try { return JSON.parse(row); } catch { return null; }
+      try {
+        return JSON.parse(row);
+      } catch {
+        return null;
+      }
     }
     if (typeof row !== "object" || Array.isArray(row)) return null;
     const raw =
@@ -200,7 +205,11 @@
       row.properties?.recordJson ??
       null;
     if (typeof raw === "string") {
-      try { return JSON.parse(raw); } catch { return null; }
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
     }
     if (raw && typeof raw === "object") return clone(raw);
     if (row.id || row.title || row.name || row.subjectId || row.objectId) return clone(row);
@@ -213,11 +222,11 @@
   }
 
   function importSnapshot(snapshot, baseProject = {}) {
-    if (!snapshot || typeof snapshot !== "object") throw new Error("Memgraph snapshot must be an object.");
+    if (!snapshot || typeof snapshot !== "object")
+      throw new Error("Memgraph snapshot must be an object.");
     const next = clone(baseProject || {});
-    const source = snapshot.records && typeof snapshot.records === "object"
-      ? snapshot.records
-      : snapshot;
+    const source =
+      snapshot.records && typeof snapshot.records === "object" ? snapshot.records : snapshot;
 
     const wrappedProject =
       source.project &&
@@ -230,7 +239,11 @@
       !("properties" in source.project)
         ? clone(source.project)
         : null;
-    const projectRows = Array.isArray(source.project) ? source.project : source.project ? [source.project] : [];
+    const projectRows = Array.isArray(source.project)
+      ? source.project
+      : source.project
+        ? [source.project]
+        : [];
     const project = wrappedProject || projectRows.map(rowRecord).find(Boolean);
     if (project) {
       if ("version" in project) next.version = project.version;
@@ -258,6 +271,6 @@
     setupCypher,
     exportBundle,
     importSnapshot,
-    recordsFromRows
+    recordsFromRows,
   });
 })();

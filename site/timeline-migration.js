@@ -1,6 +1,4 @@
 (() => {
-  "use strict";
-
   const MIGRATION_NAMESPACE = "timelineMigration";
   const ORIGINAL_V2_KEY = "originalV2";
 
@@ -46,7 +44,7 @@
         ...(object(extensions[MIGRATION_NAMESPACE]) || {}),
         sourceVersion: 2,
         temporalSchema: "v3",
-        [ORIGINAL_V2_KEY]: existing
+        [ORIGINAL_V2_KEY]: existing,
       };
       return extensions;
     }
@@ -58,7 +56,7 @@
     extensions[MIGRATION_NAMESPACE] = {
       sourceVersion: 2,
       temporalSchema: "v3",
-      [ORIGINAL_V2_KEY]: withoutMigrationEnvelope(input)
+      [ORIGINAL_V2_KEY]: withoutMigrationEnvelope(input),
     };
     return extensions;
   }
@@ -72,6 +70,6 @@
     ORIGINAL_V2_KEY,
     extensionsWithRetainedV2,
     isLegacyV2Timeline,
-    originalV2Payload
+    originalV2Payload,
   });
 })();

@@ -1,6 +1,4 @@
 (() => {
-  "use strict";
-
   const graph = globalThis.TimelineGraph;
   const orbFactory = globalThis.TimelineOrbGraph;
   if (!graph) throw new Error("TimelineGraph must load before TemporalGraphView.");
@@ -12,7 +10,7 @@
       year: "numeric",
       month: "short",
       day: "numeric",
-      timeZone: "UTC"
+      timeZone: "UTC",
     });
     return `${formatter.format(new Date(viewport.start))} – ${formatter.format(new Date(viewport.end))}`;
   }
@@ -22,7 +20,7 @@
       nodes: data.nodes.map((node) => String(node.id)).sort(),
       edges: data.edges
         .map((edge) => [String(edge.id), String(edge.start), String(edge.end)])
-        .sort((a, b) => a[0].localeCompare(b[0]))
+        .sort((a, b) => a[0].localeCompare(b[0])),
     });
   }
 
@@ -50,7 +48,7 @@
         onNodeClick: (node) => this.activateNode(node),
         onNodeLongPress: (node) => this.selectNodeForDrag(node),
         onEdgeClick: (edge) => this.activateEdge(edge),
-        onSimulationState: (state) => this.renderSimulationState(state)
+        onSimulationState: (state) => this.renderSimulationState(state),
       });
 
       if ("ResizeObserver" in globalThis && this.canvas) {
@@ -93,15 +91,16 @@
         entities: Array.isArray(model?.entities) ? model.entities : [],
         relationships: Array.isArray(model?.relationships) ? model.relationships : [],
         items: Array.isArray(model?.items) ? model.items : [],
-        stories: Array.isArray(model?.stories) ? model.stories : []
+        stories: Array.isArray(model?.stories) ? model.stories : [],
       };
       this.render();
     }
 
     setWindow(viewport) {
-      this.viewport = viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end)
-        ? { start: viewport.start, end: viewport.end }
-        : null;
+      this.viewport =
+        viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end)
+          ? { start: viewport.start, end: viewport.end }
+          : null;
       this.render();
     }
 
@@ -137,40 +136,49 @@
 
     selectNodeForDrag(node) {
       this.selection = { kind: "node", id: String(node.id) };
-      this.root.dispatchEvent(new CustomEvent("graphnodeselect", {
-        bubbles: true,
-        detail: { id: node.id, interaction: "long-press-drag" }
-      }));
+      this.root.dispatchEvent(
+        new CustomEvent("graphnodeselect", {
+          bubbles: true,
+          detail: { id: node.id, interaction: "long-press-drag" },
+        }),
+      );
     }
 
     activateNode(node) {
       this.selection = { kind: "node", id: String(node.id) };
-      this.root.dispatchEvent(new CustomEvent("graphselectionchange", {
-        bubbles: true,
-        detail: {
-          kind: "node",
-          id: node.id,
-          timelineType: node.properties?.timelineType || "entity"
-        }
-      }));
+      this.root.dispatchEvent(
+        new CustomEvent("graphselectionchange", {
+          bubbles: true,
+          detail: {
+            kind: "node",
+            id: node.id,
+            timelineType: node.properties?.timelineType || "entity",
+          },
+        }),
+      );
     }
 
     activateEdge(edge) {
       this.selection = { kind: "edge", id: String(edge.id) };
-      this.root.dispatchEvent(new CustomEvent("graphselectionchange", {
-        bubbles: true,
-        detail: {
-          kind: "edge",
-          id: edge.id,
-          start: edge.start,
-          end: edge.end
-        }
-      }));
+      this.root.dispatchEvent(
+        new CustomEvent("graphselectionchange", {
+          bubbles: true,
+          detail: {
+            kind: "edge",
+            id: edge.id,
+            start: edge.start,
+            end: edge.end,
+          },
+        }),
+      );
     }
 
     render() {
       const data = this.focusedId
-        ? graph.neighborhoodGraph(this.model, this.focusedId, this.viewport, { depth: 1, limit: 36 })
+        ? graph.neighborhoodGraph(this.model, this.focusedId, this.viewport, {
+            depth: 1,
+            limit: 36,
+          })
         : graph.graphForWindow(this.model, this.viewport);
       this.currentData = data;
       if (this.selection) {
@@ -179,18 +187,22 @@
           this.selection = null;
         }
       }
-      const nextHasFocusedContext = Boolean(this.focusedId && data.nodes.length > 1 && data.edges.length > 0);
+      const nextHasFocusedContext = Boolean(
+        this.focusedId && data.nodes.length > 1 && data.edges.length > 0,
+      );
       if (nextHasFocusedContext !== this.hasFocusedContext) {
         this.hasFocusedContext = nextHasFocusedContext;
-        this.root.dispatchEvent(new CustomEvent("graphcontextchange", {
-          bubbles: true,
-          detail: {
-            focusedId: this.focusedId,
-            hasContext: this.hasFocusedContext,
-            nodeCount: data.nodes.length,
-            edgeCount: data.edges.length
-          }
-        }));
+        this.root.dispatchEvent(
+          new CustomEvent("graphcontextchange", {
+            bubbles: true,
+            detail: {
+              focusedId: this.focusedId,
+              hasContext: this.hasFocusedContext,
+              nodeCount: data.nodes.length,
+              edgeCount: data.edges.length,
+            },
+          }),
+        );
       }
       const scopeText = this.focusedId ? `${data.nodes.length} relevant nodes · ` : "";
       const timelessCount = data.edges.filter((edge) => edge.temporalState === "timeless").length;

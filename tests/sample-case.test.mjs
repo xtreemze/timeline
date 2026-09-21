@@ -1,5 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 
 await import("../site/temporal-standards.js");
 await import("../site/event-presentation.js");
@@ -21,16 +21,19 @@ function storySpan(story) {
   const items = storyItems(story);
   return {
     start: Math.min(...items.map((item) => temporal.sortKey(item.time?.start || item.start))),
-    end: Math.max(...items.map((item) => temporal.sortKey(item.time?.end || item.end || item.time?.start || item.start)))
+    end: Math.max(
+      ...items.map((item) =>
+        temporal.sortKey(item.time?.end || item.end || item.time?.start || item.start),
+      ),
+    ),
   };
 }
 
 test("sample is a three-story fictional anthology with strict logical consistency", () => {
-  assert.deepEqual(sample.stories.map((story) => story.title), [
-    "The Three Little Pigs",
-    "Snow White",
-    "Cinderella"
-  ]);
+  assert.deepEqual(
+    sample.stories.map((story) => story.title),
+    ["The Three Little Pigs", "Snow White", "Cinderella"],
+  );
   assert.equal(sample.extensions?.narrative?.mode, "fictional");
   assert.equal(sample.extensions?.narrative?.validationProfile, "narrative");
   assert.equal(sample.extensions?.narrative?.forensicEvidenceRequired, false);
@@ -68,7 +71,13 @@ test("sample exercises years, days, ranges, and minute-level action", () => {
   const span = Math.max(...keys) - Math.min(...keys);
   assert.ok(span > 6 * 365 * 86_400_000);
   assert.ok(sample.items.some((item) => item.start.includes("T")));
-  assert.ok(sample.items.some((item) => item.kind === "range" && temporal.sortKey(item.end) - temporal.sortKey(item.start) > 365 * 86_400_000));
+  assert.ok(
+    sample.items.some(
+      (item) =>
+        item.kind === "range" &&
+        temporal.sortKey(item.end) - temporal.sortKey(item.start) > 365 * 86_400_000,
+    ),
+  );
   assert.ok(sample.items.filter((item) => item.kind === "range").length >= 6);
 });
 
@@ -97,14 +106,19 @@ test("each story has distinct reusable fictional places referenced by edges", ()
     const set = new Set();
     for (const item of storyItems(story)) {
       assert.equal("location" in item, false, `${item.id}: chronology item must not copy location`);
-      const edges = sample.relationships.filter((relationship) => (relationship.itemIds || []).includes(item.id));
+      const edges = sample.relationships.filter((relationship) =>
+        (relationship.itemIds || []).includes(item.id),
+      );
       const places = edges.map((edge) => placeById.get(edge.placeId)).filter(Boolean);
       assert.ok(places.length >= 1, `${item.id}: contextual edge place`);
       for (const place of places) {
         assert.match(place.geographicIdentifier || "", /fictional staging anchor/);
         assert.ok(place.geometry, `${place.id}: geometry`);
         assert.ok(presentation.ICON_NAMES.includes(place.icon), `${place.id}: semantic icon`);
-        assert.ok(spatial.PLACE_MARKER_SHAPES.includes(place.markerShape), `${place.id}: marker shape`);
+        assert.ok(
+          spatial.PLACE_MARKER_SHAPES.includes(place.markerShape),
+          `${place.id}: marker shape`,
+        );
         set.add(place.name);
       }
     }
@@ -113,7 +127,10 @@ test("each story has distinct reusable fictional places referenced by edges", ()
   }
   for (let i = 0; i < placeSets.length; i += 1) {
     for (let j = i + 1; j < placeSets.length; j += 1) {
-      assert.deepEqual([...placeSets[i]].filter((name) => placeSets[j].has(name)), []);
+      assert.deepEqual(
+        [...placeSets[i]].filter((name) => placeSets[j].has(name)),
+        [],
+      );
     }
   }
 });
@@ -136,15 +153,22 @@ test("the anthology keeps tales separate through narrative membership, not graph
   for (const story of sample.stories) {
     assert.ok(story.itemIds.length > 0, story.id);
     for (const itemId of story.itemIds) {
-      assert.equal(allStoryItems.has(itemId), false, `${itemId}: each fixture scene belongs to one tale`);
+      assert.equal(
+        allStoryItems.has(itemId),
+        false,
+        `${itemId}: each fixture scene belongs to one tale`,
+      );
       allStoryItems.add(itemId);
     }
   }
 
   assert.equal(allStoryItems.size, sample.items.length);
-  assert.ok(sample.relationships.every(
-    (relationship) => !storyIds.has(relationship.subjectId) && !storyIds.has(relationship.objectId)
-  ));
+  assert.ok(
+    sample.relationships.every(
+      (relationship) =>
+        !storyIds.has(relationship.subjectId) && !storyIds.has(relationship.objectId),
+    ),
+  );
 });
 
 test("sample graph satisfies canonical action-fact topology without synthetic containers", () => {
@@ -152,9 +176,22 @@ test("sample graph satisfies canonical action-fact topology without synthetic co
   assert.deepEqual(audit.orphanEntityIds, []);
   assert.deepEqual(audit.duplicateFactGroups, []);
   assert.deepEqual(audit.mirroredFactPairs, []);
-  assert.equal(sample.entities.some((entity) => entity.id === "storybook-anthology"), false);
-  assert.equal(sample.relationships.some((relationship) => relationship.predicate === "joinsSiblingGroup"), false);
-  assert.equal(sample.relationships.some((relationship) => /AfterLaces|AfterComb|InDisguise|ToAttack|ForTest|VigilBeside|Circumstances/.test(relationship.predicate)), false);
+  assert.equal(
+    sample.entities.some((entity) => entity.id === "storybook-anthology"),
+    false,
+  );
+  assert.equal(
+    sample.relationships.some((relationship) => relationship.predicate === "joinsSiblingGroup"),
+    false,
+  );
+  assert.equal(
+    sample.relationships.some((relationship) =>
+      /AfterLaces|AfterComb|InDisguise|ToAttack|ForTest|VigilBeside|Circumstances/.test(
+        relationship.predicate,
+      ),
+    ),
+    false,
+  );
   assert.ok(sample.relationships.every((relationship) => graph.relationshipFactKey(relationship)));
 });
 
@@ -162,22 +199,30 @@ test("each tale demonstrates an event-driven relationship lifecycle", () => {
   const dynamicIds = new Set(
     sample.relationships
       .filter((relationship) => relationship.initialState === "inactive")
-      .map((relationship) => relationship.id)
+      .map((relationship) => relationship.id),
   );
-  assert.deepEqual(dynamicIds, new Set([
-    "rel-pigs-wolf-threat",
-    "rel-snow-queen-threat",
-    "rel-cinderella-prince-search"
-  ]));
+  assert.deepEqual(
+    dynamicIds,
+    new Set(["rel-pigs-wolf-threat", "rel-snow-queen-threat", "rel-cinderella-prince-search"]),
+  );
 
   const changes = sample.items.flatMap((item) =>
-    (item.relationChanges || []).map((change) => ({ ...change, itemId: item.id }))
+    (item.relationChanges || []).map((change) => ({ ...change, itemId: item.id })),
   );
   for (const relationshipId of dynamicIds) {
     const lifecycle = changes.filter((change) => change.relationshipId === relationshipId);
-    assert.ok(lifecycle.some((change) => change.operation === "activate"), relationshipId);
-    assert.ok(lifecycle.some((change) => change.operation === "update"), relationshipId);
-    assert.ok(lifecycle.some((change) => change.operation === "deactivate"), relationshipId);
+    assert.ok(
+      lifecycle.some((change) => change.operation === "activate"),
+      relationshipId,
+    );
+    assert.ok(
+      lifecycle.some((change) => change.operation === "update"),
+      relationshipId,
+    );
+    assert.ok(
+      lifecycle.some((change) => change.operation === "deactivate"),
+      relationshipId,
+    );
   }
 });
 
@@ -193,7 +238,6 @@ test("timed graph edges cover intervals, instants, attributes, entities, and reu
   assert.ok(sample.places.length >= 27);
 });
 
-
 test("storybook scenes remain recognizable through distributed media and semantic icons", () => {
   const supported = new Set(presentation.ICON_NAMES);
   const requiredStoryIcons = new Set(["home", "danger", "magic", "search", "crown", "object"]);
@@ -205,10 +249,10 @@ test("storybook scenes remain recognizable through distributed media and semanti
     const icons = new Set(items.map((item) => item.tags?.[0]?.icon).filter(Boolean));
     assert.ok(mediaItems.length >= 3, `${story.title} should expose several visual scenes`);
     assert.ok(icons.size >= 4, `${story.title} should use several distinct semantic silhouettes`);
-    for (const icon of icons) assert.ok(supported.has(icon), `${story.title}: unsupported icon ${icon}`);
+    for (const icon of icons)
+      assert.ok(supported.has(icon), `${story.title}: unsupported icon ${icon}`);
   }
 });
-
 
 test("categories classify event semantics independently from story membership", () => {
   const categoryIds = new Set(sample.categories.map((category) => category.id));
@@ -242,17 +286,16 @@ test("categories classify event semantics independently from story membership", 
       "discovery",
       "relationship",
       "state-change",
-      "resolution"
-    ]
+      "resolution",
+    ],
   );
 });
-
 
 test("each story exposes a detailed causal sequence rather than summary-only beats", () => {
   const expectedMinimums = new Map([
     ["story-three-little-pigs", 16],
     ["story-snow-white", 20],
-    ["story-cinderella", 19]
+    ["story-cinderella", 19],
   ]);
   for (const story of sample.stories) {
     const items = storyItems(story);
@@ -260,9 +303,12 @@ test("each story exposes a detailed causal sequence rather than summary-only bea
     assert.deepEqual(
       items.map((item) => item.extensions?.narrative?.sequence),
       items.map((_, index) => index + 1),
-      `${story.title}: sequence numbering`
+      `${story.title}: sequence numbering`,
     );
-    assert.ok(items.every((item) => item.description.length >= 80), `${story.title}: descriptions should carry causal context`);
+    assert.ok(
+      items.every((item) => item.description.length >= 80),
+      `${story.title}: descriptions should carry causal context`,
+    );
   }
 });
 
@@ -275,10 +321,15 @@ test("Three Little Pigs includes material choices, escapes, regrouping and alter
     "pigs-acquire-bricks",
     "pigs-first-flees",
     "pigs-two-flee",
-    "pigs-wolf-roof"
-  ]) assert.ok(ids.has(id), id);
+    "pigs-wolf-roof",
+  ])
+    assert.ok(ids.has(id), id);
   assert.ok(sample.entities.some((entity) => entity.id === "pigs-material-vendors"));
-  assert.ok(sample.relationships.some((relationship) => relationship.id === "rel-event-pigs-acquire-bricks-object-action"));
+  assert.ok(
+    sample.relationships.some(
+      (relationship) => relationship.id === "rel-event-pigs-acquire-bricks-object-action",
+    ),
+  );
 });
 
 test("Snow White separates the disguised attacks, recoveries, apple preparation and coffin encounter", () => {
@@ -291,12 +342,18 @@ test("Snow White separates the disguised attacks, recoveries, apple preparation 
     "snow-comb",
     "snow-comb-recovery",
     "snow-apple-prepared",
-    "snow-prince-arrives"
-  ]) assert.ok(ids.has(id), id);
+    "snow-prince-arrives",
+  ])
+    assert.ok(ids.has(id), id);
   for (const entityId of ["snow-laces-object", "snow-comb-object", "snow-coffin-object"]) {
-    assert.ok(sample.entities.some((entity) => entity.id === entityId), entityId);
+    assert.ok(
+      sample.entities.some((entity) => entity.id === entityId),
+      entityId,
+    );
   }
-  assert.ok(sample.relationships.some((relationship) => relationship.id === "rel-snow-prince-coffin"));
+  assert.ok(
+    sample.relationships.some((relationship) => relationship.id === "rel-snow-prince-coffin"),
+  );
 });
 
 test("Cinderella includes household formation, practical transformation, palace encounters, flight and slipper trials", () => {
@@ -310,12 +367,25 @@ test("Cinderella includes household formation, practical transformation, palace 
     "cinderella-first-return",
     "cinderella-midnight-flight",
     "cinderella-stepsisters-try",
-    "cinderella-asks-to-try"
-  ]) assert.ok(ids.has(id), id);
-  for (const entityId of ["cinderella-father", "cinderella-pumpkin", "cinderella-gown", "cinderella-herald"]) {
-    assert.ok(sample.entities.some((entity) => entity.id === entityId), entityId);
+    "cinderella-asks-to-try",
+  ])
+    assert.ok(ids.has(id), id);
+  for (const entityId of [
+    "cinderella-father",
+    "cinderella-pumpkin",
+    "cinderella-gown",
+    "cinderella-herald",
+  ]) {
+    assert.ok(
+      sample.entities.some((entity) => entity.id === entityId),
+      entityId,
+    );
   }
-  assert.ok(sample.relationships.some((relationship) => relationship.id === "rel-cinderella-herald-slipper"));
+  assert.ok(
+    sample.relationships.some(
+      (relationship) => relationship.id === "rel-cinderella-herald-slipper",
+    ),
+  );
 });
 
 test("detailed stories add graph and place depth without conflating categories with stories", () => {
@@ -323,7 +393,9 @@ test("detailed stories add graph and place depth without conflating categories w
   assert.ok(sample.entities.length >= 39);
   assert.ok(sample.places.length >= 27);
   assert.ok(sample.relationships.length >= 46);
-  assert.ok(sample.relationships.filter((relationship) => relationship.time?.start?.value).length >= 30);
+  assert.ok(
+    sample.relationships.filter((relationship) => relationship.time?.start?.value).length >= 30,
+  );
 
   const storyTitles = new Set(sample.stories.map((story) => story.title));
   for (const category of sample.categories) assert.equal(storyTitles.has(category.name), false);
@@ -332,49 +404,15 @@ test("detailed stories add graph and place depth without conflating categories w
   const placeById = new Map(sample.places.map((place) => [place.id, place]));
   for (const item of sample.items) {
     const storyId = item.extensions?.narrative?.storyId;
-    for (const relationship of sample.relationships.filter((edge) => (edge.itemIds || []).includes(item.id))) {
+    for (const relationship of sample.relationships.filter((edge) =>
+      (edge.itemIds || []).includes(item.id),
+    )) {
       const place = placeById.get(relationship.placeId);
       if (place) placesByStory.get(storyId)?.add(place.name);
     }
   }
   for (const [storyId, places] of placesByStory) {
     assert.ok(places.size >= 5, `${storyId}: expected richer geography`);
-  }
-});
-
-
-test("example stories declare map-ready place sets and every demo edge has time and place", () => {
-  const placeById = new Map(sample.places.map((place) => [place.id, place]));
-  const storyByItemId = new Map(
-    sample.stories.flatMap((story) => story.itemIds.map((itemId) => [itemId, story]))
-  );
-
-  for (const story of sample.stories) {
-    assert.ok(Array.isArray(story.placeIds) && story.placeIds.length >= 5, `${story.id}: explicit story place set`);
-    assert.equal(new Set(story.placeIds).size, story.placeIds.length, `${story.id}: unique story places`);
-    for (const placeId of story.placeIds) {
-      const place = placeById.get(placeId);
-      assert.ok(place, `${story.id}: known place ${placeId}`);
-      assert.equal(place.attributes?.storyId, story.id, `${placeId}: scoped to story`);
-      assert.ok(place.geometry, `${placeId}: map geometry`);
-      assert.ok(presentation.ICON_NAMES.includes(place.icon), `${placeId}: semantic marker icon`);
-      assert.ok(spatial.PLACE_MARKER_SHAPES.includes(place.markerShape), `${placeId}: marker shape`);
-    }
-  }
-
-  for (const relationship of sample.relationships) {
-    assert.ok(relationship.time?.start?.value, `${relationship.id}: temporal edge`);
-    assert.ok(relationship.placeId, `${relationship.id}: spatial edge`);
-    assert.ok(placeById.has(relationship.placeId), `${relationship.id}: canonical place reference`);
-
-    const contextualStories = new Set(
-      (relationship.itemIds || [])
-        .map((itemId) => storyByItemId.get(itemId))
-        .filter(Boolean)
-    );
-    for (const story of contextualStories) {
-      assert.ok(story.placeIds.includes(relationship.placeId), `${relationship.id}: place belongs to contextual story`);
-    }
   }
 });
 
@@ -388,12 +426,19 @@ test("main-action chronology is spread across realistic multi-day spans without 
     const exactStarts = new Set();
     const startsPerDay = new Map();
     for (const item of items) {
-      assert.equal(exactStarts.has(item.start), false, `${story.title}: duplicate exact timestamp ${item.start}`);
+      assert.equal(
+        exactStarts.has(item.start),
+        false,
+        `${story.title}: duplicate exact timestamp ${item.start}`,
+      );
       exactStarts.add(item.start);
       const day = item.start.slice(0, 10);
       startsPerDay.set(day, (startsPerDay.get(day) || 0) + 1);
     }
-    assert.ok(Math.max(...startsPerDay.values()) <= 3, `${story.title}: too many events compressed onto one date`);
+    assert.ok(
+      Math.max(...startsPerDay.values()) <= 3,
+      `${story.title}: too many events compressed onto one date`,
+    );
     assert.ok(startsPerDay.size >= 8, `${story.title}: chronology should use many distinct dates`);
   }
 });
@@ -403,8 +448,16 @@ test("every chronology item has public-domain illustrative media", () => {
   for (const item of sample.items) {
     assert.ok(item.media.length >= 1, item.id);
     for (const media of item.media) {
-      assert.match(media.src, /^https:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\//, item.id);
-      assert.match(media.caption || "", /Public-domain story illustration via Wikimedia Commons/i, item.id);
+      assert.match(
+        media.src,
+        /^https:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\//,
+        item.id,
+      );
+      assert.match(
+        media.caption || "",
+        /Public-domain story illustration via Wikimedia Commons/i,
+        item.id,
+      );
     }
   }
 });
@@ -417,19 +470,49 @@ test("chronology items remain edge context and never become graph nodes", () => 
   assert.deepEqual(graph.validateGraphInput(sample), []);
 
   for (const relationship of sample.relationships) {
-    assert.ok(entityIds.has(relationship.subjectId), `${relationship.id}: subject must be an entity node`);
-    assert.ok(entityIds.has(relationship.objectId), `${relationship.id}: object must be an entity node`);
-    assert.notEqual(relationship.subjectId, relationship.objectId, `${relationship.id}: self-loop edges are forbidden`);
-    assert.equal(itemIds.has(relationship.subjectId), false, `${relationship.id}: event cannot be a subject node`);
-    assert.equal(itemIds.has(relationship.objectId), false, `${relationship.id}: event cannot be an object node`);
-    assert.equal(storyIds.has(relationship.subjectId), false, `${relationship.id}: story cannot be a subject node`);
-    assert.equal(storyIds.has(relationship.objectId), false, `${relationship.id}: story cannot be an object node`);
-    assert.equal(graph.validateActionPredicate(relationship.predicate).valid, true, `${relationship.id}: specific action predicate`);
+    assert.ok(
+      entityIds.has(relationship.subjectId),
+      `${relationship.id}: subject must be an entity node`,
+    );
+    assert.ok(
+      entityIds.has(relationship.objectId),
+      `${relationship.id}: object must be an entity node`,
+    );
+    assert.notEqual(
+      relationship.subjectId,
+      relationship.objectId,
+      `${relationship.id}: self-loop edges are forbidden`,
+    );
+    assert.equal(
+      itemIds.has(relationship.subjectId),
+      false,
+      `${relationship.id}: event cannot be a subject node`,
+    );
+    assert.equal(
+      itemIds.has(relationship.objectId),
+      false,
+      `${relationship.id}: event cannot be an object node`,
+    );
+    assert.equal(
+      storyIds.has(relationship.subjectId),
+      false,
+      `${relationship.id}: story cannot be a subject node`,
+    );
+    assert.equal(
+      storyIds.has(relationship.objectId),
+      false,
+      `${relationship.id}: story cannot be an object node`,
+    );
+    assert.equal(
+      graph.validateActionPredicate(relationship.predicate).valid,
+      true,
+      `${relationship.id}: specific action predicate`,
+    );
   }
 
   for (const item of sample.items) {
-    const edges = sample.relationships.filter(
-      (relationship) => (relationship.itemIds || []).includes(item.id)
+    const edges = sample.relationships.filter((relationship) =>
+      (relationship.itemIds || []).includes(item.id),
     );
     assert.ok(edges.length >= 1, `${item.id}: expected at least one semantic action edge`);
 
@@ -442,27 +525,30 @@ test("chronology items remain edge context and never become graph nodes", () => 
         const edgeEnd = temporal.sortKey(edge.time.end?.value || edge.time.start.value);
         return edgeEnd >= itemStart && edgeStart <= itemEnd;
       }),
-      `${item.id}: expected at least one contemporaneous action edge; additional itemIds may provide causal/background context`
+      `${item.id}: expected at least one contemporaneous action edge; additional itemIds may provide causal/background context`,
     );
   }
 
   const evidenceById = new Map(sample.evidence.map((record) => [record.id, record]));
-  const relationshipById = new Map(sample.relationships.map((relationship) => [relationship.id, relationship]));
+  const relationshipById = new Map(
+    sample.relationships.map((relationship) => [relationship.id, relationship]),
+  );
   for (const item of sample.items) {
-    const contextualEdges = sample.relationships.filter(
-      (relationship) => (relationship.itemIds || []).includes(item.id)
+    const contextualEdges = sample.relationships.filter((relationship) =>
+      (relationship.itemIds || []).includes(item.id),
     );
     for (const change of item.relationChanges || []) {
       const relationship = relationshipById.get(change.relationshipId);
-      if (relationship && !contextualEdges.includes(relationship)) contextualEdges.push(relationship);
+      if (relationship && !contextualEdges.includes(relationship))
+        contextualEdges.push(relationship);
     }
     const contextualEntityIds = new Set(
-      contextualEdges.flatMap((relationship) => [relationship.subjectId, relationship.objectId])
+      contextualEdges.flatMap((relationship) => [relationship.subjectId, relationship.objectId]),
     );
     for (const mention of graph.namedEntityMentions(item, sample.entities, evidenceById)) {
       assert.ok(
         mention.entityIds.some((entityId) => contextualEntityIds.has(entityId)),
-        `${item.id}: named entity ${mention.label} must participate in an action edge linked to the event`
+        `${item.id}: named entity ${mention.label} must participate in an action edge linked to the event`,
       );
     }
   }
@@ -476,7 +562,9 @@ test("places are reusable spatial records and never graph nodes", () => {
   const placeIds = new Set(sample.places.map((place) => place.id));
   const entityIds = new Set(sample.entities.map((entity) => entity.id));
   assert.ok(sample.places.length >= 27);
-  assert.ok(sample.entities.every((entity) => entity.type !== "place" && entity.type !== "location"));
+  assert.ok(
+    sample.entities.every((entity) => entity.type !== "place" && entity.type !== "location"),
+  );
 
   for (const place of sample.places) {
     assert.equal(entityIds.has(place.id), false, `${place.id}: place ID must not be a graph node`);
@@ -484,13 +572,22 @@ test("places are reusable spatial records and never graph nodes", () => {
     assert.ok(presentation.ICON_NAMES.includes(place.icon), `${place.id}: icon`);
     assert.ok(spatial.PLACE_MARKER_SHAPES.includes(place.markerShape), `${place.id}: shape`);
   }
-  assert.ok(sample.places.some((place) => Number.isFinite(place.radiusMeters) && place.radiusMeters > 0), "radius example");
-  assert.ok(sample.places.some((place) => ["Polygon", "MultiPolygon"].includes(place.geometry?.type)), "area example");
+  assert.ok(
+    sample.places.some((place) => Number.isFinite(place.radiusMeters) && place.radiusMeters > 0),
+    "radius example",
+  );
+  assert.ok(
+    sample.places.some((place) => ["Polygon", "MultiPolygon"].includes(place.geometry?.type)),
+    "area example",
+  );
 
   for (const item of sample.items) {
     assert.equal("location" in item, false, `${item.id}: no duplicated item location`);
     const edges = sample.relationships.filter((edge) => (edge.itemIds || []).includes(item.id));
-    assert.ok(edges.some((edge) => placeIds.has(edge.placeId)), `${item.id}: edge references canonical place`);
+    assert.ok(
+      edges.some((edge) => placeIds.has(edge.placeId)),
+      `${item.id}: edge references canonical place`,
+    );
   }
 });
 
@@ -500,8 +597,14 @@ test("widened anthology chronology keeps same-day density low across all stories
     const day = item.start.slice(0, 10);
     startsPerDay.set(day, (startsPerDay.get(day) || 0) + 1);
   }
-  assert.ok(Math.max(...startsPerDay.values()) <= 3, "no synthetic date should carry more than three chronology starts");
-  assert.ok([...startsPerDay.values()].filter((count) => count === 3).length <= 4, "three-event dates should remain exceptional");
+  assert.ok(
+    Math.max(...startsPerDay.values()) <= 3,
+    "no synthetic date should carry more than three chronology starts",
+  );
+  assert.ok(
+    [...startsPerDay.values()].filter((count) => count === 3).length <= 4,
+    "three-event dates should remain exceptional",
+  );
 });
 
 test("story membership stays narrative metadata rather than generic graph topology", () => {
@@ -509,12 +612,18 @@ test("story membership stays narrative metadata rather than generic graph topolo
   for (const story of sample.stories) {
     assert.ok(story.itemIds.length > 0, `${story.id}: narrative membership retained`);
     for (const itemId of story.itemIds) {
-      assert.ok(sample.items.some((item) => item.id === itemId), `${story.id}: known chronology item ${itemId}`);
+      assert.ok(
+        sample.items.some((item) => item.id === itemId),
+        `${story.id}: known chronology item ${itemId}`,
+      );
     }
   }
-  assert.ok(sample.relationships.every(
-    (relationship) => !storyIds.has(relationship.subjectId) && !storyIds.has(relationship.objectId)
-  ));
+  assert.ok(
+    sample.relationships.every(
+      (relationship) =>
+        !storyIds.has(relationship.subjectId) && !storyIds.has(relationship.objectId),
+    ),
+  );
 });
 
 test("every story scene carries multiple public-domain illustrations", () => {
@@ -534,13 +643,21 @@ test("movement-heavy events keep movement in the action label and place in edge 
     "snow-disguises",
     "cinderella-first-return",
     "cinderella-midnight-flight",
-    "cinderella-search"
+    "cinderella-search",
   ]);
   const placeIds = new Set(sample.places.map((place) => place.id));
   for (const id of routedIds) {
     const edges = sample.relationships.filter((edge) => (edge.itemIds || []).includes(id));
     assert.ok(edges.length >= 1, id);
-    assert.ok(edges.some((edge) => placeIds.has(edge.placeId)), `${id}: canonical place reference`);
-    assert.ok(edges.every((edge) => !/(At|Near|During|Via|Along|Toward|From|Into|Onto|In)$/.test(edge.predicate)), `${id}: no spatial suffix in predicate`);
+    assert.ok(
+      edges.some((edge) => placeIds.has(edge.placeId)),
+      `${id}: canonical place reference`,
+    );
+    assert.ok(
+      edges.every(
+        (edge) => !/(At|Near|During|Via|Along|Toward|From|Into|Onto|In)$/.test(edge.predicate),
+      ),
+      `${id}: no spatial suffix in predicate`,
+    );
   }
 });

@@ -5,14 +5,11 @@ on:
     paths:
       - 'site/index.html'
       - 'package.json'
-      - 'playwright.config.mjs'
       - 'src/orb-graph-entry.js'
-      - 'src/evidence-extraction-core.js'
-      - 'src/evidence-extraction-entry.js'
       - 'site/app.js'
       - 'site/webmcp.js'
-      - 'site/graph-inference.js'
       - 'site/memgraph-interchange.js'
+      - 'tests/webmcp.test.mjs'
       - 'site/timeline-view.js'
       - 'site/presentation-layout.js'
       - 'site/timeline-clustering.js'
@@ -21,7 +18,6 @@ on:
       - 'site/timeline-graph.js'
       - 'site/temporal-graph-view.js'
       - 'site/timeline-view.css'
-      - 'site/styles.css'
       - 'site/time-scale.js'
       - 'site/interchange-adapter.js'
       - 'site/date-range-picker.js'
@@ -33,12 +29,10 @@ on:
       - 'site/timeline-migration.js'
       - 'site/spatial.js'
       - 'site/location-map.js'
-      - 'tests/browser/**'
       - 'tests/temporal-spatial.test.mjs'
       - 'tests/interchange-adapter.test.mjs'
       - 'tests/event-focus-form.test.mjs'
       - 'tests/evidence-store.test.mjs'
-      - 'tests/evidence-extraction.test.mjs'
       - 'tests/case-reasoning.test.mjs'
       - 'tests/sample-case.test.mjs'
       - 'schemas/interchange-v1.schema.json'
@@ -53,10 +47,7 @@ on:
     paths:
       - 'site/index.html'
       - 'package.json'
-      - 'playwright.config.mjs'
       - 'src/orb-graph-entry.js'
-      - 'src/evidence-extraction-core.js'
-      - 'src/evidence-extraction-entry.js'
       - 'site/app.js'
       - 'site/timeline-view.js'
       - 'site/presentation-layout.js'
@@ -66,7 +57,6 @@ on:
       - 'site/timeline-graph.js'
       - 'site/temporal-graph-view.js'
       - 'site/timeline-view.css'
-      - 'site/styles.css'
       - 'site/time-scale.js'
       - 'site/interchange-adapter.js'
       - 'site/date-range-picker.js'
@@ -78,12 +68,10 @@ on:
       - 'site/timeline-migration.js'
       - 'site/spatial.js'
       - 'site/location-map.js'
-      - 'tests/browser/**'
       - 'tests/temporal-spatial.test.mjs'
       - 'tests/interchange-adapter.test.mjs'
       - 'tests/event-focus-form.test.mjs'
       - 'tests/evidence-store.test.mjs'
-      - 'tests/evidence-extraction.test.mjs'
       - 'tests/case-reasoning.test.mjs'
       - 'tests/sample-case.test.mjs'
       - 'schemas/interchange-v1.schema.json'
@@ -103,19 +91,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+        with:
+          version: 12
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
       - run: pnpm build
       - run: test -s site/orb-graph.bundle.js
-      - run: test -s site/evidence-extraction.bundle.js
-      - run: test -s site/pdf.worker.mjs
       - run: node --check src/orb-graph-entry.js
-      - run: node --check src/evidence-extraction-core.js
-      - run: node --check src/evidence-extraction-entry.js
       - run: node --check site/orb-graph.bundle.js
-      - run: node --check site/evidence-extraction.bundle.js
       - run: node --check site/time-scale.js
       - run: node --check site/timeline-clustering.js
       - run: node --check site/timeline-motion.js
@@ -134,18 +120,5 @@ jobs:
       - run: node --check site/timeline-migration.js
       - run: node --check site/spatial.js
       - run: node --check site/location-map.js
-      - run: node --check site/graph-inference.js
       - run: node --check site/app.js
       - run: pnpm test
-
-  browser:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - run: pnpm install --no-frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm test:browser

@@ -1,10 +1,17 @@
 (() => {
-  "use strict";
-
-  const ISO_PATTERN = /^([+-]?\d{4,6})(?:-(\d{2})(?:-(\d{2})(?:T(\d{2})(?::(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?)?(Z|[+-]\d{2}:\d{2})?)?)?)?$/;
+  const ISO_PATTERN =
+    /^([+-]?\d{4,6})(?:-(\d{2})(?:-(\d{2})(?:T(\d{2})(?::(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?)?(Z|[+-]\d{2}:\d{2})?)?)?)?$/;
   const PRECISIONS = new Set([
-    "millennium", "century", "decade", "year", "month",
-    "day", "hour", "minute", "second", "millisecond"
+    "millennium",
+    "century",
+    "decade",
+    "year",
+    "month",
+    "day",
+    "hour",
+    "minute",
+    "second",
+    "millisecond",
   ]);
   const CERTAINTIES = new Set(["exact", "approximate", "uncertain", "inferred", "unknown"]);
 
@@ -33,7 +40,7 @@
 
   function fractionalMilliseconds(fraction) {
     if (!fraction) return 0;
-    return Number((fraction + "000").slice(0, 3));
+    return Number(`${fraction}000`.slice(0, 3));
   }
 
   function parse(value) {
@@ -60,13 +67,19 @@
     if (fraction && second === null) return null;
 
     const precision =
-      month === null ? "year" :
-      day === null ? "month" :
-      hour === null ? "day" :
-      minute === null ? "hour" :
-      second === null ? "minute" :
-      fraction ? "millisecond" :
-      "second";
+      month === null
+        ? "year"
+        : day === null
+          ? "month"
+          : hour === null
+            ? "day"
+            : minute === null
+              ? "hour"
+              : second === null
+                ? "minute"
+                : fraction
+                  ? "millisecond"
+                  : "second";
 
     return {
       source,
@@ -80,7 +93,7 @@
       millisecond: fractionalMilliseconds(fraction),
       offset,
       hasTime: hour !== null,
-      precision
+      precision,
     };
   }
 
@@ -110,7 +123,9 @@
 
   function normalizeTimeInput(time, precision) {
     if (["millennium", "century", "decade", "year", "month", "day"].includes(precision)) return "";
-    const match = /^(\d{2})(?::(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?$/.exec(String(time || "").trim());
+    const match = /^(\d{2})(?::(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?$/.exec(
+      String(time || "").trim(),
+    );
     if (!match) throw new Error("Choose a valid clock time.");
     const hour = Number(match[1]);
     const minute = match[2] === undefined ? null : Number(match[2]);
@@ -142,7 +157,17 @@
     return endpoint;
   }
 
-  function buildEndpoint({ date, time, precision, certainty, timeZone, sourceText = null, earliest = null, latest = null, referenceSystem = null }) {
+  function buildEndpoint({
+    date,
+    time,
+    precision,
+    certainty,
+    timeZone,
+    sourceText = null,
+    earliest = null,
+    latest = null,
+    referenceSystem = null,
+  }) {
     const normalizedPrecision = precisionFromForm(precision);
     const normalizedCertainty = certaintyFromForm(certainty);
     const dateValue = String(date || "").trim();
@@ -150,15 +175,18 @@
     if (!dateParts || dateParts.hasTime) throw new Error("Choose a valid calendar date.");
 
     if (["millennium", "century", "decade", "year", "month", "day"].includes(normalizedPrecision)) {
-      return withEndpointMetadata({
-        value: localValue(dateParts, normalizedPrecision),
-        precision: normalizedPrecision,
-        certainty: normalizedCertainty,
-        calendar: "gregorian",
-        timeZone: null,
-        utcOffset: null,
-        sourceText: sourceText || null
-      }, { earliest, latest, referenceSystem });
+      return withEndpointMetadata(
+        {
+          value: localValue(dateParts, normalizedPrecision),
+          precision: normalizedPrecision,
+          certainty: normalizedCertainty,
+          calendar: "gregorian",
+          timeZone: null,
+          utcOffset: null,
+          sourceText: sourceText || null,
+        },
+        { earliest, latest, referenceSystem },
+      );
     }
 
     const normalizedTime = normalizeTimeInput(time, normalizedPrecision);
@@ -168,19 +196,24 @@
 
     const zone = String(timeZone || "").trim();
     if (!zone) {
-      return withEndpointMetadata({
-        value: local,
-        precision: normalizedPrecision,
-        certainty: normalizedCertainty,
-        calendar: "gregorian",
-        timeZone: null,
-        utcOffset: null,
-        sourceText: sourceText || null
-      }, { earliest, latest, referenceSystem });
+      return withEndpointMetadata(
+        {
+          value: local,
+          precision: normalizedPrecision,
+          certainty: normalizedCertainty,
+          calendar: "gregorian",
+          timeZone: null,
+          utcOffset: null,
+          sourceText: sourceText || null,
+        },
+        { earliest, latest, referenceSystem },
+      );
     }
 
     if (!globalThis.Temporal?.ZonedDateTime) {
-      throw new Error("This browser does not provide the Temporal API required for time-zone-aware dates.");
+      throw new Error(
+        "This browser does not provide the Temporal API required for time-zone-aware dates.",
+      );
     }
 
     let zoned;
@@ -194,23 +227,26 @@
           hour: parsedLocal.hour,
           minute: parsedLocal.minute,
           second: parsedLocal.second || 0,
-          millisecond: parsedLocal.millisecond || 0
+          millisecond: parsedLocal.millisecond || 0,
         },
-        { disambiguation: "reject" }
+        { disambiguation: "reject" },
       );
     } catch {
       throw new Error("That local date/time does not exist uniquely in the selected time zone.");
     }
 
-    return withEndpointMetadata({
-      value: `${local}${zoned.offset}`,
-      precision: normalizedPrecision,
-      certainty: normalizedCertainty,
-      calendar: "gregorian",
-      timeZone: zone,
-      utcOffset: zoned.offset,
-      sourceText: sourceText || null
-    }, { earliest, latest, referenceSystem });
+    return withEndpointMetadata(
+      {
+        value: `${local}${zoned.offset}`,
+        precision: normalizedPrecision,
+        certainty: normalizedCertainty,
+        calendar: "gregorian",
+        timeZone: zone,
+        utcOffset: zoned.offset,
+        sourceText: sourceText || null,
+      },
+      { earliest, latest, referenceSystem },
+    );
   }
 
   function endpointFrom(value, metadata = {}) {
@@ -221,26 +257,32 @@
       precision: PRECISIONS.has(metadata.precision) ? metadata.precision : parsed.precision,
       certainty: certaintyFromForm(metadata.certainty),
       calendar: metadata.calendar === "gregorian" ? "gregorian" : "gregorian",
-      timeZone: typeof metadata.timeZone === "string" && metadata.timeZone ? metadata.timeZone : null,
-      utcOffset: typeof metadata.utcOffset === "string" && metadata.utcOffset
-        ? metadata.utcOffset
-        : parsed.offset,
-      sourceText: typeof metadata.sourceText === "string" && metadata.sourceText ? metadata.sourceText : null
+      timeZone:
+        typeof metadata.timeZone === "string" && metadata.timeZone ? metadata.timeZone : null,
+      utcOffset:
+        typeof metadata.utcOffset === "string" && metadata.utcOffset
+          ? metadata.utcOffset
+          : parsed.offset,
+      sourceText:
+        typeof metadata.sourceText === "string" && metadata.sourceText ? metadata.sourceText : null,
     };
     return withEndpointMetadata(endpoint, metadata);
   }
 
   function unknownEndpoint(metadata = {}) {
     if (!metadata || typeof metadata !== "object" || metadata.certainty !== "unknown") return null;
-    const endpoint = withEndpointMetadata({
-      value: null,
-      precision: PRECISIONS.has(metadata.precision) ? metadata.precision : null,
-      certainty: "unknown",
-      calendar: metadata.calendar === "gregorian" ? "gregorian" : "gregorian",
-      timeZone: null,
-      utcOffset: null,
-      sourceText: text(metadata.sourceText, 4000) || null
-    }, metadata);
+    const endpoint = withEndpointMetadata(
+      {
+        value: null,
+        precision: PRECISIONS.has(metadata.precision) ? metadata.precision : null,
+        certainty: "unknown",
+        calendar: metadata.calendar === "gregorian" ? "gregorian" : "gregorian",
+        timeZone: null,
+        utcOffset: null,
+        sourceText: text(metadata.sourceText, 4000) || null,
+      },
+      metadata,
+    );
     const earliest = endpoint.earliest ? sortKey(endpoint.earliest) : Number.NaN;
     const latest = endpoint.latest ? sortKey(endpoint.latest) : Number.NaN;
     if (Number.isFinite(earliest) && Number.isFinite(latest) && earliest > latest) return null;
@@ -250,7 +292,10 @@
   function normalizeEndpointInput(raw, fallback) {
     if (raw && typeof raw === "object") {
       if (typeof raw.value === "string" && raw.value.trim()) return endpointFrom(raw.value, raw);
-      if ((raw.value === null || raw.value === undefined || raw.value === "") && raw.certainty === "unknown") {
+      if (
+        (raw.value === null || raw.value === undefined || raw.value === "") &&
+        raw.certainty === "unknown"
+      ) {
         return unknownEndpoint(raw);
       }
       return null;
@@ -292,7 +337,7 @@
       start: normalizedStart,
       end: normalizedEnd,
       ...(openStart ? { openStart: true } : {}),
-      ...(openEnd ? { openEnd: true } : {})
+      ...(openEnd ? { openEnd: true } : {}),
     };
   }
 
@@ -306,7 +351,7 @@
       parsed.hour ?? 0,
       parsed.minute ?? 0,
       parsed.second ?? 0,
-      parsed.millisecond ?? 0
+      parsed.millisecond ?? 0,
     );
     let timestamp = probe.getTime();
     if (!Number.isFinite(timestamp)) return Number.NaN;
@@ -320,9 +365,8 @@
   }
 
   function endpointBounds(endpointOrValue) {
-    const endpoint = typeof endpointOrValue === "string"
-      ? endpointFrom(endpointOrValue)
-      : endpointOrValue;
+    const endpoint =
+      typeof endpointOrValue === "string" ? endpointFrom(endpointOrValue) : endpointOrValue;
     if (!endpoint || typeof endpoint !== "object") {
       return { start: Number.NaN, end: Number.NaN, locatable: false };
     }
@@ -336,7 +380,7 @@
     return {
       start,
       end,
-      locatable: Number.isFinite(start) && Number.isFinite(end) && start <= end
+      locatable: Number.isFinite(start) && Number.isFinite(end) && start <= end,
     };
   }
 
@@ -356,14 +400,13 @@
     return {
       start,
       end,
-      locatable: startKnown && endKnown && start <= end
+      locatable: startKnown && endKnown && start <= end,
     };
   }
 
   function sortKey(endpointOrValue) {
-    const endpoint = typeof endpointOrValue === "string"
-      ? endpointFrom(endpointOrValue)
-      : endpointOrValue;
+    const endpoint =
+      typeof endpointOrValue === "string" ? endpointFrom(endpointOrValue) : endpointOrValue;
     if (!endpoint) return Number.NaN;
     if (typeof endpoint.value === "string" && endpoint.value) return knownSortKey(endpoint.value);
     const bounds = endpointBounds(endpoint);
@@ -372,9 +415,8 @@
   }
 
   function formParts(endpointOrValue) {
-    const endpoint = typeof endpointOrValue === "string"
-      ? endpointFrom(endpointOrValue)
-      : endpointOrValue;
+    const endpoint =
+      typeof endpointOrValue === "string" ? endpointFrom(endpointOrValue) : endpointOrValue;
     if (!endpoint) {
       return { date: "", time: "", precision: "day", certainty: "exact", timeZone: "" };
     }
@@ -385,31 +427,35 @@
         time: "",
         precision: PRECISIONS.has(endpoint.precision) ? endpoint.precision : "day",
         certainty: certaintyFromForm(endpoint.certainty),
-        timeZone: ""
+        timeZone: "",
       };
     }
     const precision = PRECISIONS.has(endpoint.precision) ? endpoint.precision : parsed.precision;
-    const date = parsed.day !== null
-      ? localValue(parsed, "day")
-      : parsed.month !== null
-        ? `${localValue(parsed, "month")}-01`
-        : `${localValue(parsed, "year")}-01-01`;
+    const date =
+      parsed.day !== null
+        ? localValue(parsed, "day")
+        : parsed.month !== null
+          ? `${localValue(parsed, "month")}-01`
+          : `${localValue(parsed, "year")}-01-01`;
     let time = "";
     if (!["millennium", "century", "decade", "year", "month", "day"].includes(precision)) {
       const hour = pad(parsed.hour ?? 0);
       const hhmm = `${hour}:${pad(parsed.minute ?? 0)}`;
       time =
-        precision === "hour" ? hour :
-        precision === "minute" ? hhmm :
-        precision === "second" ? `${hhmm}:${pad(parsed.second ?? 0)}` :
-        `${hhmm}:${pad(parsed.second ?? 0)}.${pad(parsed.millisecond ?? 0, 3)}`;
+        precision === "hour"
+          ? hour
+          : precision === "minute"
+            ? hhmm
+            : precision === "second"
+              ? `${hhmm}:${pad(parsed.second ?? 0)}`
+              : `${hhmm}:${pad(parsed.second ?? 0)}.${pad(parsed.millisecond ?? 0, 3)}`;
     }
     return {
       date,
       time,
       precision,
       certainty: certaintyFromForm(endpoint.certainty),
-      timeZone: endpoint.timeZone || ""
+      timeZone: endpoint.timeZone || "",
     };
   }
 
@@ -449,6 +495,6 @@
     parse,
     sortKey,
     supportedTimeZones,
-    unknownEndpoint
+    unknownEndpoint,
   });
 })();

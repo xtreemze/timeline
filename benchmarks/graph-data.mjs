@@ -19,7 +19,7 @@ function createFixture(nodeCount, edgeFactor = 2) {
     id: `entity-${index}`,
     type: index % 11 === 0 ? "organization" : index % 7 === 0 ? "device" : "person",
     name: `Entity ${index}`,
-    properties: { fixture: true, index }
+    properties: { fixture: true, index },
   }));
 
   const edgeCount = nodeCount * edgeFactor;
@@ -33,7 +33,7 @@ function createFixture(nodeCount, edgeFactor = 2) {
       objectId: `entity-${endIndex}`,
       predicate: ["called", "authorized", "supplied", "transferredTo", "reportedTo"][index % 5],
       time: null,
-      properties: { fixture: true, index }
+      properties: { fixture: true, index },
     };
   });
 
@@ -56,15 +56,13 @@ function measure(fn, iterations) {
   }
   const sorted = [...samples].sort((a, b) => a - b);
   const middle = Math.floor(sorted.length / 2);
-  const median = sorted.length % 2
-    ? sorted[middle]
-    : (sorted[middle - 1] + sorted[middle]) / 2;
+  const median = sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
   return {
     iterations,
     medianMs: Number(median.toFixed(3)),
     p95Ms: Number(percentile(sorted, 0.95).toFixed(3)),
     minMs: Number(sorted[0].toFixed(3)),
-    maxMs: Number(sorted.at(-1).toFixed(3))
+    maxMs: Number(sorted.at(-1).toFixed(3)),
   };
 }
 
@@ -82,12 +80,7 @@ for (const nodeCount of sizes) {
   }, iterations);
 
   const focusedNeighborhood = measure(() => {
-    const result = graph.neighborhoodGraph(
-      fixture,
-      "entity-0",
-      null,
-      { depth: 2, limit: 36 }
-    );
+    const result = graph.neighborhoodGraph(fixture, "entity-0", null, { depth: 2, limit: 36 });
     if (!result.nodes.some((node) => node.id === "entity-0") || result.nodes.length > 36) {
       throw new Error(`Unexpected neighborhood projection for ${nodeCount} nodes.`);
     }
@@ -97,15 +90,21 @@ for (const nodeCount of sizes) {
     nodes: nodeCount,
     edges: edgeCount,
     fullProjection,
-    focusedNeighborhood
+    focusedNeighborhood,
   });
 }
 
 // eslint-disable-next-line no-console, no-undef
-console.log(JSON.stringify({
-  benchmark: "timeline-graph-data-projection",
-  runtime: process.version,
-  platform: process.platform,
-  architecture: process.arch,
-  cases
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      benchmark: "timeline-graph-data-projection",
+      runtime: process.version,
+      platform: process.platform,
+      architecture: process.arch,
+      cases,
+    },
+    null,
+    2,
+  ),
+);

@@ -1,8 +1,10 @@
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 
 class FakeElement {
-  closest() { return null; }
+  closest() {
+    return null;
+  }
 }
 globalThis.Element = FakeElement;
 await import("../site/timeline-navigation.js");
@@ -24,11 +26,15 @@ test("standard gamepad buttons and axes map to the same commands", () => {
   const buttons = Array.from({ length: 16 }, () => ({ pressed: false, value: 0 }));
   buttons[0] = { pressed: true, value: 1 };
   buttons[15] = { pressed: true, value: 1 };
-  const commands = [...navigation.gamepadControls({
-    connected: true,
-    buttons,
-    axes: [-0.8, 0.9]
-  }).values()];
+  const commands = [
+    ...navigation
+      .gamepadControls({
+        connected: true,
+        buttons,
+        axes: [-0.8, 0.9],
+      })
+      .values(),
+  ];
   assert.ok(commands.includes("activate"));
   assert.ok(commands.includes("next"));
   assert.ok(commands.includes("previous"));

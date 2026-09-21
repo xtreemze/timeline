@@ -1,6 +1,4 @@
 (() => {
-  "use strict";
-
   const MANAGED_COLLECTIONS = Object.freeze([
     "categories",
     "items",
@@ -9,7 +7,7 @@
     "places",
     "relationships",
     "evidence",
-    "custodyActions"
+    "custodyActions",
   ]);
   const TOP_LEVEL_FIELDS = Object.freeze(["title", "extensions", "reasoning"]);
 
@@ -23,7 +21,8 @@
 
   function deepMerge(target, patch) {
     if (!patch || typeof patch !== "object" || Array.isArray(patch)) return clone(patch);
-    const result = target && typeof target === "object" && !Array.isArray(target) ? clone(target) : {};
+    const result =
+      target && typeof target === "object" && !Array.isArray(target) ? clone(target) : {};
     for (const [key, value] of Object.entries(patch)) {
       if (value && typeof value === "object" && !Array.isArray(value)) {
         result[key] = deepMerge(result[key], value);
@@ -35,7 +34,8 @@
   }
 
   function ensureCollection(project, collection) {
-    if (!MANAGED_COLLECTIONS.includes(collection)) throw new Error(`Unsupported collection “${collection}”.`);
+    if (!MANAGED_COLLECTIONS.includes(collection))
+      throw new Error(`Unsupported collection “${collection}”.`);
     if (!Array.isArray(project[collection])) project[collection] = [];
     return project[collection];
   }
@@ -53,12 +53,15 @@
         story.itemIds = (story.itemIds || []).filter((itemId) => String(itemId) !== id);
       }
       for (const relationship of project.relationships || []) {
-        relationship.itemIds = (relationship.itemIds || []).filter((itemId) => String(itemId) !== id);
+        relationship.itemIds = (relationship.itemIds || []).filter(
+          (itemId) => String(itemId) !== id,
+        );
       }
     }
     if (collection === "entities") {
       project.relationships = (project.relationships || []).filter(
-        (relationship) => String(relationship.subjectId) !== id && String(relationship.objectId) !== id
+        (relationship) =>
+          String(relationship.subjectId) !== id && String(relationship.objectId) !== id,
       );
     }
     if (collection === "places") {
@@ -69,28 +72,34 @@
     if (collection === "relationships") {
       for (const item of project.items || []) {
         item.relationChanges = (item.relationChanges || []).filter(
-          (change) => String(change.relationshipId) !== id
+          (change) => String(change.relationshipId) !== id,
         );
       }
     }
     if (collection === "evidence") {
       for (const item of project.items || []) {
-        item.evidenceIds = (item.evidenceIds || []).filter((evidenceId) => String(evidenceId) !== id);
+        item.evidenceIds = (item.evidenceIds || []).filter(
+          (evidenceId) => String(evidenceId) !== id,
+        );
       }
-      project.custodyActions = (project.custodyActions || []).filter((action) =>
-        String(action.evidenceId || action.recordId || action.evidenceRecordId || "") !== id
+      project.custodyActions = (project.custodyActions || []).filter(
+        (action) =>
+          String(action.evidenceId || action.recordId || action.evidenceRecordId || "") !== id,
       );
     }
   }
 
   function applyOperation(project, operation) {
-    if (!operation || typeof operation !== "object") throw new Error("Each operation must be an object.");
+    if (!operation || typeof operation !== "object")
+      throw new Error("Each operation must be an object.");
     const op = text(operation.op, 32);
 
     if (op === "set") {
       const field = text(operation.field, 60);
       if (!TOP_LEVEL_FIELDS.includes(field)) {
-        throw new Error(`Unsupported top-level field “${field}”. Use replace_project for a complete replacement.`);
+        throw new Error(
+          `Unsupported top-level field “${field}”. Use replace_project for a complete replacement.`,
+        );
       }
       project[field] = clone(operation.value);
       return;
@@ -101,7 +110,8 @@
     const suppliedId = text(operation.id, 120);
     const valueId = text(operation.value?.id, 120);
     const id = suppliedId || valueId;
-    if (!id) throw new Error(`${op || "collection"} operation on ${collection} requires a stable id.`);
+    if (!id)
+      throw new Error(`${op || "collection"} operation on ${collection} requires a stable id.`);
 
     const index = records.findIndex((record) => String(record?.id || "") === id);
     if (op === "delete") {
@@ -151,16 +161,16 @@
         collection: { type: "string", enum: MANAGED_COLLECTIONS },
         id: { type: "string", minLength: 1, maxLength: 120 },
         field: { type: "string", enum: TOP_LEVEL_FIELDS },
-        value: {}
+        value: {},
       },
-      required: ["op"]
+      required: ["op"],
     };
   }
 
   function requireGraphContractVersion(provided, expected) {
     if (provided !== expected) {
       throw new Error(
-        `Graph contract version mismatch. Expected “${expected}”; read timeline.get_graph_contract and retry the complete atomic mutation.`
+        `Graph contract version mismatch. Expected “${expected}”; read timeline.get_graph_contract and retry the complete atomic mutation.`,
       );
     }
   }
@@ -169,13 +179,18 @@
     return {
       type: "string",
       const: version,
-      description: "Exact version returned by timeline.get_graph_contract. Required on every graph-capable mutation so stale agents cannot silently write against an older modeling contract."
+      description:
+        "Exact version returned by timeline.get_graph_contract. Required on every graph-capable mutation so stale agents cannot silently write against an older modeling contract.",
     };
   }
 
   function toolDefinitions(adapter) {
-    if (!adapter || typeof adapter !== "object") throw new Error("Timeline WebMCP adapter is required.");
-    if (typeof adapter.getGraphContract !== "function" || typeof adapter.auditGraph !== "function") {
+    if (!adapter || typeof adapter !== "object")
+      throw new Error("Timeline WebMCP adapter is required.");
+    if (
+      typeof adapter.getGraphContract !== "function" ||
+      typeof adapter.auditGraph !== "function"
+    ) {
       throw new Error("Timeline WebMCP adapter must expose getGraphContract() and auditGraph().");
     }
 
@@ -187,61 +202,66 @@
     const readOnlyAnnotations = {
       readOnlyHint: true,
       openWorldHint: false,
-      consequentialHint: false
+      consequentialHint: false,
     };
     const destructiveWriteAnnotations = {
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: false,
       openWorldHint: false,
-      consequentialHint: true
+      consequentialHint: true,
     };
 
     return [
       {
         name: "timeline.get_project",
         title: "Read Timeline project",
-        description: "Return the complete current Timeline project as canonical JSON, including chronology, stories, categories, entity graph, places, evidence, and reasoning.",
+        description:
+          "Return the complete current Timeline project as canonical JSON, including chronology, stories, categories, entity graph, places, evidence, and reasoning.",
         inputSchema: emptySchema,
         annotations: readOnlyAnnotations,
-        execute: async () => adapter.getProject()
+        execute: async () => adapter.getProject(),
       },
       {
         name: "timeline.get_graph_contract",
         title: "Read Timeline graph contract",
-        description: "Return the authoritative, versioned Timeline graph-authoring contract. Agents must follow this contract before creating or editing entities, relationships, places, or event narrative context. It defines entity-only nodes, distinct endpoints, action-only predicates, category/story separation, named-context entity coverage, and required validation workflow.",
+        description:
+          "Return the authoritative, versioned Timeline graph-authoring contract. Agents must follow this contract before creating or editing entities, relationships, places, or event narrative context. It defines entity-only nodes, distinct endpoints, action-only predicates, category/story separation, named-context entity coverage, and required validation workflow.",
         inputSchema: emptySchema,
         annotations: readOnlyAnnotations,
-        execute: async () => adapter.getGraphContract()
+        execute: async () => adapter.getGraphContract(),
       },
       {
         name: "timeline.audit_graph",
         title: "Audit Timeline graph",
-        description: "Audit a supplied Timeline project, or the active project when omitted, against the complete graph contract without mutating state. Returns all graph errors plus structural duplicate/orphan diagnostics. Use this before and after graph-authoring transactions.",
+        description:
+          "Audit a supplied Timeline project, or the active project when omitted, against the complete graph contract without mutating state. Returns all graph errors plus structural duplicate/orphan diagnostics. Use this before and after graph-authoring transactions.",
         inputSchema: {
           type: "object",
           additionalProperties: false,
-          properties: { project: { type: "object" } }
+          properties: { project: { type: "object" } },
         },
         annotations: readOnlyAnnotations,
-        execute: async ({ project } = {}) => adapter.auditGraph(project)
+        execute: async ({ project } = {}) => adapter.auditGraph(project),
       },
       {
         name: "timeline.validate_project",
         title: "Validate Timeline project",
-        description: "Validate a supplied Timeline project, or the active project when omitted, using canonical normalization and the strict graph contract. Known canonical entities named in event title/description/image alt/evidence note must be endpoints of event-linked action edges; graph categories, self-loops, generic/compound predicates, duplicate facts, mirrored copies, orphan entities, and invalid place/time modeling are rejected.",
+        description:
+          "Validate a supplied Timeline project, or the active project when omitted, using canonical normalization and the strict graph contract. Known canonical entities named in event title/description/image alt/evidence note must be endpoints of event-linked action edges; graph categories, self-loops, generic/compound predicates, duplicate facts, mirrored copies, orphan entities, and invalid place/time modeling are rejected.",
         inputSchema: {
           type: "object",
           additionalProperties: false,
-          properties: { project: { type: "object" } }
+          properties: { project: { type: "object" } },
         },
         annotations: readOnlyAnnotations,
-        execute: async ({ project } = {}) => adapter.validateProject(project)
+        execute: async ({ project } = {}) => adapter.validateProject(project),
       },
       {
         name: "timeline.apply_transaction",
         title: "Edit Timeline project",
-        description: "Atomically create, update, patch, delete, and manage Timeline records under the current graph contract. For narrative edits, extract every durable named entity first, create/reuse its entity node, and include meaningful action edges in the same transaction. Edges must connect two different entities and use an action-only predicate; time/place are structured properties; categories stay on chronology items only. Batch related entity + edge + item changes together because validation runs after the complete transaction.",
+        description:
+          "Atomically create, update, patch, delete, and manage Timeline records under the current graph contract. For narrative edits, extract every durable named entity first, create/reuse its entity node, and include meaningful action edges in the same transaction. Edges must connect two different entities and use an action-only predicate; time/place are structured properties; categories stay on chronology items only. Batch related entity + edge + item changes together because validation runs after the complete transaction.",
         inputSchema: {
           type: "object",
           additionalProperties: false,
@@ -251,43 +271,45 @@
               type: "array",
               minItems: 1,
               maxItems: 500,
-              items: operationSchema()
-            }
+              items: operationSchema(),
+            },
           },
-          required: ["graphContractVersion", "operations"]
+          required: ["graphContractVersion", "operations"],
         },
         annotations: destructiveWriteAnnotations,
         execute: async ({ graphContractVersion: version, operations }) => {
           requireGraphContractVersion(version, graphContractVersion);
           return adapter.applyOperations(operations);
-        }
+        },
       },
       {
         name: "timeline.replace_project",
         title: "Replace Timeline project",
-        description: "Replace the complete active Timeline project only after strict graph-contract validation. The replacement must obey entity-only topology, action-only directed edges, named-context coverage, category/story separation, and canonical time/place rules.",
+        description:
+          "Replace the complete active Timeline project only after strict graph-contract validation. The replacement must obey entity-only topology, action-only directed edges, named-context coverage, category/story separation, and canonical time/place rules.",
         inputSchema: {
           type: "object",
           additionalProperties: false,
           properties: {
             graphContractVersion: graphContractVersionSchema(graphContractVersion),
-            project: { type: "object" }
+            project: { type: "object" },
           },
-          required: ["graphContractVersion", "project"]
+          required: ["graphContractVersion", "project"],
         },
         annotations: {
           ...destructiveWriteAnnotations,
-          idempotentHint: true
+          idempotentHint: true,
         },
         execute: async ({ graphContractVersion: version, project }) => {
           requireGraphContractVersion(version, graphContractVersion);
           return adapter.replaceProject(project);
-        }
+        },
       },
       {
         name: "timeline.memgraph_export",
         title: "Export Timeline for Memgraph MCP",
-        description: "Return a Memgraph interoperability bundle containing canonical records, deterministic Cypher statements, schema setup suggestions, and read-back queries suitable for a Memgraph MCP client. Export is read-only and preserves Timeline graph semantics.",
+        description:
+          "Return a Memgraph interoperability bundle containing canonical records, deterministic Cypher statements, schema setup suggestions, and read-back queries suitable for a Memgraph MCP client. Export is read-only and preserves Timeline graph semantics.",
         inputSchema: {
           type: "object",
           additionalProperties: false,
@@ -296,35 +318,36 @@
               type: "string",
               minLength: 1,
               maxLength: 120,
-              description: "Logical Memgraph namespace used to isolate this Timeline project."
-            }
-          }
+              description: "Logical Memgraph namespace used to isolate this Timeline project.",
+            },
+          },
         },
         annotations: readOnlyAnnotations,
-        execute: async (options = {}) => adapter.exportMemgraph(options)
+        execute: async (options = {}) => adapter.exportMemgraph(options),
       },
       {
         name: "timeline.memgraph_import",
         title: "Import Memgraph MCP records",
-        description: "Import Memgraph MCP query rows or a Timeline Memgraph export bundle into the active project. The merged result must satisfy the current Timeline graph contract before commit; Memgraph labels/storage envelopes never relax Timeline node/edge semantics.",
+        description:
+          "Import Memgraph MCP query rows or a Timeline Memgraph export bundle into the active project. The merged result must satisfy the current Timeline graph contract before commit; Memgraph labels/storage envelopes never relax Timeline node/edge semantics.",
         inputSchema: {
           type: "object",
           additionalProperties: false,
           properties: {
             graphContractVersion: graphContractVersionSchema(graphContractVersion),
-            snapshot: { type: "object" }
+            snapshot: { type: "object" },
           },
-          required: ["graphContractVersion", "snapshot"]
+          required: ["graphContractVersion", "snapshot"],
         },
         annotations: {
           ...destructiveWriteAnnotations,
-          idempotentHint: true
+          idempotentHint: true,
         },
         execute: async ({ graphContractVersion: version, snapshot }) => {
           requireGraphContractVersion(version, graphContractVersion);
           return adapter.importMemgraph(snapshot);
-        }
-      }
+        },
+      },
     ];
   }
 
@@ -333,7 +356,8 @@
     if (!modelContext || typeof modelContext.registerTool !== "function") {
       return {
         registered: false,
-        reason: "document.modelContext is unavailable. Enable a WebMCP-capable browser or MCP-B compatible polyfill/bridge."
+        reason:
+          "document.modelContext is unavailable. Enable a WebMCP-capable browser or MCP-B compatible polyfill/bridge.",
       };
     }
 
@@ -345,7 +369,9 @@
     return {
       registered: true,
       toolNames: tools.map((tool) => tool.name),
-      dispose() { controller.abort(); }
+      dispose() {
+        controller.abort();
+      },
     };
   }
 
@@ -355,6 +381,6 @@
     applyOperations,
     requireGraphContractVersion,
     toolDefinitions,
-    register
+    register,
   });
 })();

@@ -1,6 +1,6 @@
-import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import test from "node:test";
 
 await import("../site/case-reasoning.js");
 
@@ -9,15 +9,32 @@ const reasoning = globalThis.TimelineCaseReasoning;
 test("normalizes staged analytical records without inferring truth", () => {
   const normalized = reasoning.normalizeReasoning({
     observations: [{ id: "obs-1", text: "A timestamp was observed.", evidenceIds: ["ev-1"] }],
-    assertions: [{ id: "fact-1", text: "The message existed by 09:20.", citationIds: ["cite-1"], status: "disputed" }],
-    hypotheses: [{ id: "hyp-1", text: "The message was created locally.", observationIds: ["obs-1"] }],
+    assertions: [
+      {
+        id: "fact-1",
+        text: "The message existed by 09:20.",
+        citationIds: ["cite-1"],
+        status: "disputed",
+      },
+    ],
+    hypotheses: [
+      { id: "hyp-1", text: "The message was created locally.", observationIds: ["obs-1"] },
+    ],
     propositions: [
       { id: "p-1", text: "P1", alternativeGroupId: "pair-1" },
-      { id: "p-2", text: "P2", alternativeGroupId: "pair-1" }
+      { id: "p-2", text: "P2", alternativeGroupId: "pair-1" },
     ],
-    analyses: [{ id: "a-1", text: "Evaluation", mode: "evaluative", propositionIds: ["p-1", "p-2"], assertionIds: ["fact-1"] }],
+    analyses: [
+      {
+        id: "a-1",
+        text: "Evaluation",
+        mode: "evaluative",
+        propositionIds: ["p-1", "p-2"],
+        assertionIds: ["fact-1"],
+      },
+    ],
     claims: [{ id: "c-1", text: "Claim", assertionIds: ["fact-1"], analysisIds: ["a-1"] }],
-    theses: [{ id: "t-1", text: "Thesis", claimIds: ["c-1"] }]
+    theses: [{ id: "t-1", text: "Thesis", claimIds: ["c-1"] }],
   });
 
   assert.equal(normalized.assertions[0].status, "disputed");
@@ -31,10 +48,13 @@ test("traces a thesis back through claims, analysis and external evidence", () =
     assertions: [{ id: "fact-1", inputIds: ["obs-1"] }],
     analyses: [{ id: "a-1", assertionIds: ["fact-1"] }],
     claims: [{ id: "c-1", analysisIds: ["a-1"] }],
-    theses: [{ id: "t-1", claimIds: ["c-1"] }]
+    theses: [{ id: "t-1", claimIds: ["c-1"] }],
   };
   const trace = reasoning.traceDependencies("t-1", model, { externalIds: ["ev-1"] });
-  assert.deepEqual(trace.records.map((record) => record.id), ["t-1", "c-1", "a-1", "fact-1", "obs-1"]);
+  assert.deepEqual(
+    trace.records.map((record) => record.id),
+    ["t-1", "c-1", "a-1", "fact-1", "obs-1"],
+  );
   assert.deepEqual(trace.externalIds, ["ev-1"]);
   assert.deepEqual(trace.missingIds, []);
 });
@@ -44,8 +64,8 @@ test("keeps support and contradiction explicit rather than aggregating a score",
     assertions: [{ id: "fact-1" }],
     edges: [
       { id: "e-1", fromId: "cite-support", toId: "fact-1", predicate: "supports" },
-      { id: "e-2", fromId: "cite-against", toId: "fact-1", predicate: "contradicts" }
-    ]
+      { id: "e-2", fromId: "cite-against", toId: "fact-1", predicate: "contradicts" },
+    ],
   };
   const summary = reasoning.summarizeSupport("fact-1", model);
   assert.equal(summary.supports.length, 1);
@@ -58,7 +78,7 @@ test("flags broken references, unsupported stages and evaluative analysis withou
     hypotheses: [{ id: "hyp-1", text: "Unsupported" }],
     analyses: [{ id: "a-1", mode: "evaluative", propositionIds: ["p-missing"] }],
     claims: [{ id: "c-1" }],
-    theses: [{ id: "t-1" }]
+    theses: [{ id: "t-1" }],
   });
 
   const codes = findings.map((finding) => finding.code);
@@ -73,34 +93,42 @@ test("detects analytical dependency cycles while allowing opposing claims", () =
   const cycleFindings = reasoning.validateReasoning({
     assertions: [
       { id: "a", inputIds: ["b"] },
-      { id: "b", inputIds: ["a"] }
-    ]
+      { id: "b", inputIds: ["a"] },
+    ],
   });
   assert.ok(cycleFindings.some((finding) => finding.code === "provenance-cycle"));
 
   const opposingFindings = reasoning.validateReasoning({
     claims: [
       { id: "claim-a", assertionIds: ["fact-a"] },
-      { id: "claim-b", assertionIds: ["fact-b"] }
+      { id: "claim-b", assertionIds: ["fact-b"] },
     ],
     assertions: [{ id: "fact-a" }, { id: "fact-b" }],
     edges: [
       { id: "oppose-a", fromId: "claim-a", toId: "claim-b", predicate: "opposes" },
-      { id: "oppose-b", fromId: "claim-b", toId: "claim-a", predicate: "opposes" }
-    ]
+      { id: "oppose-b", fromId: "claim-b", toId: "claim-a", predicate: "opposes" },
+    ],
   });
-  assert.equal(opposingFindings.some((finding) => finding.code === "provenance-cycle"), false);
+  assert.equal(
+    opposingFindings.some((finding) => finding.code === "provenance-cycle"),
+    false,
+  );
 });
 
 test("ordered report records respect dependencies and preserve superseded hypotheses", () => {
   const model = {
     observations: [{ id: "obs-1", text: "Observed artifact." }],
     hypotheses: [
-      { id: "hyp-a-new", text: "Revised hypothesis.", observationIds: ["obs-1"], supersedesIds: ["hyp-z-old"] },
-      { id: "hyp-z-old", text: "Earlier hypothesis.", assessment: "rejected" }
+      {
+        id: "hyp-a-new",
+        text: "Revised hypothesis.",
+        observationIds: ["obs-1"],
+        supersedesIds: ["hyp-z-old"],
+      },
+      { id: "hyp-z-old", text: "Earlier hypothesis.", assessment: "rejected" },
     ],
     claims: [{ id: "claim-1", text: "Claim", inputIds: ["hyp-a-new"] }],
-    theses: [{ id: "thesis-1", text: "Thesis", claimIds: ["claim-1"] }]
+    theses: [{ id: "thesis-1", text: "Thesis", claimIds: ["claim-1"] }],
   };
 
   const normalized = reasoning.normalizeReasoning(model);
@@ -120,12 +148,12 @@ test("ordered report records remain deterministic when provenance contains a cyc
   const model = {
     assertions: [
       { id: "b", inputIds: ["a"] },
-      { id: "a", inputIds: ["b"] }
-    ]
+      { id: "a", inputIds: ["b"] },
+    ],
   };
   assert.deepEqual(
     reasoning.orderedRecords(model).map((record) => record.id),
-    ["a", "b"]
+    ["a", "b"],
   );
 });
 
@@ -139,7 +167,7 @@ test("exposes the September 2026 standards baseline with explicit editions", () 
 test("browser runtime loads and persists canonical case reasoning", async () => {
   const [html, app] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8")
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
   ]);
   assert.match(html, /case-reasoning\.js[\s\S]*interchange-adapter\.js[\s\S]*app\.js/);
   assert.match(app, /const caseReasoning = globalThis\.TimelineCaseReasoning/);
@@ -147,7 +175,6 @@ test("browser runtime loads and persists canonical case reasoning", async () => 
   assert.match(app, /custodyActions,\s*reasoning/);
   assert.match(app, /reasoning: caseReasoning\.normalizeReasoning\(\{\}\)/);
 });
-
 
 test("normalizes pinpoint citations and traces analytical claims to source evidence", () => {
   const model = reasoning.normalizeReasoning({
@@ -159,19 +186,26 @@ test("normalizes pinpoint citations and traces analytical claims to source evide
         relation: "supports",
         locator: { type: "page", page: 12, pageEnd: 13 },
         excerpt: "Relevant source passage.",
-        linkageConfidence: "high"
+        linkageConfidence: "high",
       },
       {
         id: "cite-2",
         assertionId: "fact-1",
         evidenceId: "evidence-2",
         relation: "contradicts",
-        locator: { type: "time", startMs: 4200, endMs: 6700 }
-      }
+        locator: { type: "time", startMs: 4200, endMs: 6700 },
+      },
     ],
-    assertions: [{ id: "fact-1", text: "The event occurred.", citationIds: ["cite-1", "cite-2"], status: "disputed" }],
+    assertions: [
+      {
+        id: "fact-1",
+        text: "The event occurred.",
+        citationIds: ["cite-1", "cite-2"],
+        status: "disputed",
+      },
+    ],
     claims: [{ id: "claim-1", assertionIds: ["fact-1"] }],
-    theses: [{ id: "thesis-1", claimIds: ["claim-1"] }]
+    theses: [{ id: "thesis-1", claimIds: ["claim-1"] }],
   });
 
   assert.equal(model.citations[0].locator.type, "page");
@@ -179,20 +213,42 @@ test("normalizes pinpoint citations and traces analytical claims to source evide
   assert.equal(model.citations[1].locator.startMs, 4200);
 
   const grouped = reasoning.collectAssertionCitations("fact-1", model);
-  assert.deepEqual(grouped.supports.map((citation) => citation.id), ["cite-1"]);
-  assert.deepEqual(grouped.contradicts.map((citation) => citation.id), ["cite-2"]);
+  assert.deepEqual(
+    grouped.supports.map((citation) => citation.id),
+    ["cite-1"],
+  );
+  assert.deepEqual(
+    grouped.contradicts.map((citation) => citation.id),
+    ["cite-2"],
+  );
 
-  const trace = reasoning.traceDependencies("thesis-1", model, { externalIds: ["evidence-1", "evidence-2"] });
-  assert.deepEqual(trace.records.map((record) => record.id), ["thesis-1", "claim-1", "fact-1", "cite-1", "cite-2"]);
+  const trace = reasoning.traceDependencies("thesis-1", model, {
+    externalIds: ["evidence-1", "evidence-2"],
+  });
+  assert.deepEqual(
+    trace.records.map((record) => record.id),
+    ["thesis-1", "claim-1", "fact-1", "cite-1", "cite-2"],
+  );
   assert.deepEqual(trace.externalIds, ["evidence-1", "evidence-2"]);
   assert.deepEqual(trace.missingIds, []);
-  assert.deepEqual(reasoning.validateReasoning(model, { externalIds: ["evidence-1", "evidence-2"] }), []);
+  assert.deepEqual(
+    reasoning.validateReasoning(model, { externalIds: ["evidence-1", "evidence-2"] }),
+    [],
+  );
 });
 
 test("reports broken or imprecise citation links without inferring truth", () => {
   const model = reasoning.normalizeReasoning({
-    citations: [{ id: "cite-bad", assertionId: "other", evidenceId: "", relation: "supports", locator: { type: "page", page: 0 } }],
-    assertions: [{ id: "fact-1", citationIds: ["cite-bad"] }]
+    citations: [
+      {
+        id: "cite-bad",
+        assertionId: "other",
+        evidenceId: "",
+        relation: "supports",
+        locator: { type: "page", page: 0 },
+      },
+    ],
+    assertions: [{ id: "fact-1", citationIds: ["cite-bad"] }],
   });
   const findings = reasoning.validateReasoning(model);
   assert.ok(findings.some((finding) => finding.code === "citation-assertion-broken"));

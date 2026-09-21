@@ -1,13 +1,11 @@
 (() => {
-  "use strict";
-
   const INERTIA_TAU_MS = 420;
   const PAN_RESPONSE_MS = 78;
   const STOP_VELOCITY_PX_PER_MS = 0.012;
   const MAX_RELEASE_VELOCITY_PX_PER_MS = 3.2;
   const MAX_RELEASE_SPEED_PX_PER_S = MAX_RELEASE_VELOCITY_PX_PER_MS * 1000;
   const CAMERA_INERTIA_DECELERATION_PX_PER_S2 = Math.round(
-    MAX_RELEASE_SPEED_PX_PER_S / (2 * (INERTIA_TAU_MS / 1000))
+    MAX_RELEASE_SPEED_PX_PER_S / (2 * (INERTIA_TAU_MS / 1000)),
   );
 
   function clamp(value, min, max) {
@@ -22,7 +20,7 @@
 
   function decayVelocity(velocity, elapsedMs, tauMs = INERTIA_TAU_MS) {
     const tau = Math.max(1, Number(tauMs) || INERTIA_TAU_MS);
-    return Number(velocity) * Math.exp(-(Math.max(0, Number(elapsedMs) || 0)) / tau);
+    return Number(velocity) * Math.exp(-Math.max(0, Number(elapsedMs) || 0) / tau);
   }
 
   function coalescedPointerEvents(event) {
@@ -39,7 +37,9 @@
 
   function estimatePointerVelocity(samples, windowMs = 90) {
     const source = Array.isArray(samples)
-      ? samples.filter((sample) => sample && Number.isFinite(sample.coordinate) && Number.isFinite(sample.time))
+      ? samples.filter(
+          (sample) => sample && Number.isFinite(sample.coordinate) && Number.isFinite(sample.time),
+        )
       : [];
     if (source.length < 2) return 0;
 
@@ -55,7 +55,7 @@
     return clamp(
       (last.coordinate - first.coordinate) / elapsed,
       -MAX_RELEASE_VELOCITY_PX_PER_MS,
-      MAX_RELEASE_VELOCITY_PX_PER_MS
+      MAX_RELEASE_VELOCITY_PX_PER_MS,
     );
   }
 
@@ -64,7 +64,7 @@
     for (const pointerEvent of coalescedPointerEvents(event)) {
       target.push({
         coordinate: coordinateForEvent(pointerEvent, orientation),
-        time: Number(pointerEvent.timeStamp) || performance.now()
+        time: Number(pointerEvent.timeStamp) || performance.now(),
       });
     }
     if (target.length > maxSamples) target.splice(0, target.length - maxSamples);
@@ -80,7 +80,7 @@
       target.push({
         x,
         y,
-        time: Number(pointerEvent.timeStamp) || performance.now()
+        time: Number(pointerEvent.timeStamp) || performance.now(),
       });
     }
     if (target.length > maxSamples) target.splice(0, target.length - maxSamples);
@@ -89,11 +89,12 @@
 
   function estimatePointerVectorVelocity(samples, windowMs = 90) {
     const source = Array.isArray(samples)
-      ? samples.filter((sample) =>
-          sample &&
-          Number.isFinite(sample.x) &&
-          Number.isFinite(sample.y) &&
-          Number.isFinite(sample.time)
+      ? samples.filter(
+          (sample) =>
+            sample &&
+            Number.isFinite(sample.x) &&
+            Number.isFinite(sample.y) &&
+            Number.isFinite(sample.time),
         )
       : [];
     if (source.length < 2) return { x: 0, y: 0, magnitude: 0 };
@@ -120,7 +121,8 @@
   }
 
   async function gamepadPulse(duration, magnitude) {
-    if (typeof navigator === "undefined" || typeof navigator.getGamepads !== "function") return false;
+    if (typeof navigator === "undefined" || typeof navigator.getGamepads !== "function")
+      return false;
     const gamepads = Array.from(navigator.getGamepads() || []).filter(Boolean);
     for (const gamepad of gamepads) {
       const actuator = gamepad.vibrationActuator || gamepad.hapticActuators?.[0];
@@ -131,7 +133,7 @@
             startDelay: 0,
             duration,
             weakMagnitude: magnitude,
-            strongMagnitude: Math.min(1, magnitude * 0.55)
+            strongMagnitude: Math.min(1, magnitude * 0.55),
           });
           return true;
         }
@@ -180,6 +182,6 @@
     estimatePointerVelocity,
     estimatePointerVectorVelocity,
     pulseHaptic,
-    responseForElapsed
+    responseForElapsed,
   });
 })();

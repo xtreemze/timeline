@@ -8,29 +8,22 @@
     "pnpm": ">=12.0.0"
   },
   "scripts": {
-    "build": "pnpm build:graph && pnpm build:evidence",
+    "build": "pnpm build:graph",
     "build:graph": "esbuild src/orb-graph-entry.js --bundle --format=iife --platform=browser --target=chrome155 --outfile=site/orb-graph.bundle.js --legal-comments=eof",
-    "test": "node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/timeline-interaction.test.mjs tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/event-focus-form.test.mjs tests/evidence-store.test.mjs tests/sample-case.test.mjs tests/timeline-navigation.test.mjs tests/temporal-graph-view.test.mjs tests/graph-camera-fit.test.mjs tests/graph-component-packing.test.mjs tests/graph-editor.test.mjs tests/case-reasoning.test.mjs tests/location-map-camera.test.mjs tests/webmcp.test.mjs tests/evidence-extraction.test.mjs tests/graph-inference.test.mjs",
-    "test:browser": "playwright test",
+    "test": "node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/timeline-interaction.test.mjs tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/event-focus-form.test.mjs tests/evidence-store.test.mjs tests/sample-case.test.mjs tests/timeline-navigation.test.mjs tests/temporal-graph-view.test.mjs tests/graph-camera-fit.test.mjs tests/graph-component-packing.test.mjs tests/graph-editor.test.mjs tests/case-reasoning.test.mjs tests/location-map-camera.test.mjs tests/webmcp.test.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "biome format .",
-    "format:check": "biome format --check .",
-    "check": "pnpm format:check && pnpm lint",
-    "fix": "biome format --write . && pnpm lint:fix",
-    "benchmark:graph-data": "node benchmarks/graph-data.mjs",
-    "build:evidence": "esbuild src/evidence-extraction-entry.js --bundle --format=iife --platform=browser --target=chrome155 --outfile=site/evidence-extraction.bundle.js --legal-comments=eof && cp node_modules/pdfjs-dist/build/pdf.worker.mjs site/pdf.worker.mjs"
+    "check": "pnpm lint",
+    "fix": "pnpm format && pnpm lint:fix",
+    "benchmark:graph-data": "node benchmarks/graph-data.mjs"
   },
   "packageManager": "pnpm@12.5.1+sha512.e3f305bc784a2bc89f5ad3b6138889470fae8d2af5f36b61216ec91c2c3d64089775f9de38aac331044ea40f245cb0d5666392dfdf65824e1907ef6a2c62de5f",
   "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
     "@eslint/js": "^10.0.1",
     "@memgraph/orb": "1.1.0",
-    "@playwright/test": "^1.55.0",
-    "biome": "^0.3.3",
     "esbuild": "0.28.2",
     "eslint": "^10.11.0"
-  },
-  "dependencies": {
-    "pdfjs-dist": "6.3.289"
   }
 }

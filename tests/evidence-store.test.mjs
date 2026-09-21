@@ -1,5 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 
 globalThis.document = { baseURI: "https://example.test/" };
 await import("../site/evidence-store.js");
@@ -9,8 +9,13 @@ const evidence = globalThis.TimelineEvidence;
 test("normalizes article, PDF metadata and notes without embedding binary data", () => {
   const records = evidence.normalizeRecords([
     { id: "a", type: "article", title: "News report", url: "https://example.org/story" },
-    { id: "b", type: "pdf", title: "Exhibit", file: { blobKey: "blob-b", name: "exhibit.pdf", size: 1234 } },
-    { id: "c", type: "note", title: "Interview note", note: "Observed at 09:30." }
+    {
+      id: "b",
+      type: "pdf",
+      title: "Exhibit",
+      file: { blobKey: "blob-b", name: "exhibit.pdf", size: 1234 },
+    },
+    { id: "c", type: "note", title: "Interview note", note: "Observed at 09:30." },
   ]);
   assert.equal(records.length, 3);
   assert.equal(records[1].file.blobKey, "blob-b");
@@ -71,17 +76,17 @@ test("preserves explicit forensic identity, integrity, acquisition and lineage m
       tool: { name: "Acquisition Tool", version: "5.4.1" },
       digests: [
         { algorithm: "SHA-256", value: "abc123", encoding: "hex" },
-        { algorithm: "sha-256", value: "abc123", encoding: "hex" }
+        { algorithm: "sha-256", value: "abc123", encoding: "hex" },
       ],
-      derivedFromIds: ["device-2", "device-2"]
-    }
+      derivedFromIds: ["device-2", "device-2"],
+    },
   });
 
   assert.equal(record.forensic.recordClass, "acquired-copy");
   assert.equal(record.forensic.exhibitNumber, "C001-HD1");
   assert.equal(record.forensic.tool.version, "5.4.1");
   assert.deepEqual(record.forensic.digests, [
-    { algorithm: "sha-256", value: "abc123", encoding: "hex" }
+    { algorithm: "sha-256", value: "abc123", encoding: "hex" },
   ]);
   assert.deepEqual(record.forensic.derivedFromIds, ["device-2"]);
 });
@@ -103,8 +108,8 @@ test("normalizes append-only custody actions as separate records", () => {
       placeEntityId: "place-vault",
       recorderEntityId: "person-recorder",
       reason: "Secure storage",
-      sourceEvidenceIds: ["custody-form-1"]
-    }
+      sourceEvidenceIds: ["custody-form-1"],
+    },
   ]);
 
   assert.equal(actions.length, 1);
@@ -124,7 +129,7 @@ test("rejects unsafe evidence URLs", () => {
     id: "a",
     type: "article",
     title: "Unsafe",
-    url: "javascript:alert(1)"
+    url: "javascript:alert(1)",
   });
   assert.equal(record.url, "");
 });

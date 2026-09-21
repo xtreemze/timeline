@@ -1,6 +1,4 @@
 (() => {
-  "use strict";
-
   const DEFAULT_INTERVAL_MS = 10_000;
   const MIN_INTERVAL_MS = 2_000;
   const MAX_INTERVAL_MS = 3_600_000;
@@ -13,8 +11,11 @@
   }
 
   function isEditableTarget(target) {
-    return target instanceof Element && Boolean(
-      target.closest("input, textarea, select, [contenteditable='true'], [contenteditable='']")
+    return (
+      target instanceof Element &&
+      Boolean(
+        target.closest("input, textarea, select, [contenteditable='true'], [contenteditable='']"),
+      )
     );
   }
 
@@ -81,7 +82,7 @@
         paused: this.paused,
         intervalMs: this.intervalMs,
         pauseReason: this.pauseReason,
-        deadline: this.deadline
+        deadline: this.deadline,
       };
     }
 
@@ -178,27 +179,37 @@
     }
 
     bind() {
-      document.addEventListener("keydown", (event) => {
-        const command = commandFromKeyboard(event, this.isNavigationActive());
-        if (!command) {
-          if (!isEditableTarget(event.target) && !event.target.closest?.("[data-auto-control]")) {
-            this.auto?.noteInteraction();
+      document.addEventListener(
+        "keydown",
+        (event) => {
+          const command = commandFromKeyboard(event, this.isNavigationActive());
+          if (!command) {
+            if (!isEditableTarget(event.target) && !event.target.closest?.("[data-auto-control]")) {
+              this.auto?.noteInteraction();
+            }
+            return;
           }
-          return;
-        }
-        const autoCommand = command === "toggle-auto" || command === "resume-auto" || command === "pause-auto";
-        const activatesAutoControl = command === "activate" && event.target.closest?.("[data-auto-control]");
-        if (!autoCommand && !activatesAutoControl) this.auto?.noteInteraction();
-        if (this.onCommand(command, { source: "keyboard", event }) !== false) {
-          event.preventDefault();
-        }
-      }, true);
+          const autoCommand =
+            command === "toggle-auto" || command === "resume-auto" || command === "pause-auto";
+          const activatesAutoControl =
+            command === "activate" && event.target.closest?.("[data-auto-control]");
+          if (!autoCommand && !activatesAutoControl) this.auto?.noteInteraction();
+          if (this.onCommand(command, { source: "keyboard", event }) !== false) {
+            event.preventDefault();
+          }
+        },
+        true,
+      );
 
       for (const type of ["pointerdown", "wheel"]) {
-        this.root.addEventListener(type, (event) => {
-          if (event.target.closest?.("[data-auto-control]")) return;
-          this.auto?.noteInteraction();
-        }, { capture: true, passive: true });
+        this.root.addEventListener(
+          type,
+          (event) => {
+            if (event.target.closest?.("[data-auto-control]")) return;
+            this.auto?.noteInteraction();
+          },
+          { capture: true, passive: true },
+        );
       }
 
       window.addEventListener("gamepadconnected", () => this.startGamepadPolling());
@@ -248,6 +259,6 @@
     clampInterval,
     commandFromKeyboard,
     gamepadControls,
-    create
+    create,
   });
 })();

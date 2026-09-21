@@ -1,23 +1,56 @@
 (() => {
-  "use strict";
-
   const FIXED_UNITS = {
     millisecond: 1,
     second: 1000,
     minute: 60_000,
     hour: 3_600_000,
     day: 86_400_000,
-    week: 604_800_000
+    week: 604_800_000,
   };
 
   const CANDIDATES = [
-    ["millisecond", 1], ["millisecond", 2], ["millisecond", 5], ["millisecond", 10], ["millisecond", 20], ["millisecond", 50], ["millisecond", 100], ["millisecond", 200], ["millisecond", 500],
-    ["second", 1], ["second", 2], ["second", 5], ["second", 10], ["second", 15], ["second", 30],
-    ["minute", 1], ["minute", 2], ["minute", 5], ["minute", 10], ["minute", 15], ["minute", 30],
-    ["hour", 1], ["hour", 2], ["hour", 3], ["hour", 6], ["hour", 12],
-    ["day", 1], ["day", 2], ["week", 1], ["week", 2],
-    ["month", 1], ["month", 3], ["month", 6],
-    ["year", 1], ["year", 2], ["year", 5], ["year", 10], ["year", 20], ["year", 50], ["year", 100], ["year", 200], ["year", 500]
+    ["millisecond", 1],
+    ["millisecond", 2],
+    ["millisecond", 5],
+    ["millisecond", 10],
+    ["millisecond", 20],
+    ["millisecond", 50],
+    ["millisecond", 100],
+    ["millisecond", 200],
+    ["millisecond", 500],
+    ["second", 1],
+    ["second", 2],
+    ["second", 5],
+    ["second", 10],
+    ["second", 15],
+    ["second", 30],
+    ["minute", 1],
+    ["minute", 2],
+    ["minute", 5],
+    ["minute", 10],
+    ["minute", 15],
+    ["minute", 30],
+    ["hour", 1],
+    ["hour", 2],
+    ["hour", 3],
+    ["hour", 6],
+    ["hour", 12],
+    ["day", 1],
+    ["day", 2],
+    ["week", 1],
+    ["week", 2],
+    ["month", 1],
+    ["month", 3],
+    ["month", 6],
+    ["year", 1],
+    ["year", 2],
+    ["year", 5],
+    ["year", 10],
+    ["year", 20],
+    ["year", 50],
+    ["year", 100],
+    ["year", 200],
+    ["year", 500],
   ].map(([unit, step]) => ({ unit, step, approxMs: approximateMilliseconds(unit, step) }));
 
   function approximateMilliseconds(unit, step) {
@@ -32,7 +65,8 @@
   }
 
   function normalizeViewport(viewport) {
-    if (!viewport || typeof viewport !== "object") throw new TypeError("Expected a viewport object.");
+    if (!viewport || typeof viewport !== "object")
+      throw new TypeError("Expected a viewport object.");
     const start = Number(viewport.start);
     const end = Number(viewport.end);
     assertFinite(start, "viewport.start");
@@ -65,7 +99,8 @@
   }
 
   function fit(values, { paddingRatio = 0.08, minSpanMs = 1000 } = {}) {
-    if (!Array.isArray(values) || values.length === 0) throw new TypeError("fit() requires at least one temporal coordinate.");
+    if (!Array.isArray(values) || values.length === 0)
+      throw new TypeError("fit() requires at least one temporal coordinate.");
     const numeric = values.map(Number);
     numeric.forEach((value, index) => assertFinite(value, `values[${index}]`));
     let start = Math.min(...numeric);
@@ -90,7 +125,8 @@
     const value = normalizeViewport(viewport);
     assertFinite(pixelLength, "pixelLength");
     assertFinite(targetPixelSpacing, "targetPixelSpacing");
-    if (pixelLength <= 0 || targetPixelSpacing <= 0) throw new RangeError("Pixel lengths must be greater than zero.");
+    if (pixelLength <= 0 || targetPixelSpacing <= 0)
+      throw new RangeError("Pixel lengths must be greater than zero.");
 
     const desired = (value.end - value.start) / Math.max(1, pixelLength / targetPixelSpacing);
     const builtIn = CANDIDATES.find((candidate) => candidate.approxMs >= desired);
@@ -104,7 +140,15 @@
     return { unit: "year", step, approxMs: approximateMilliseconds("year", step) };
   }
 
-  function createUtcDate(year, monthIndex = 0, day = 1, hour = 0, minute = 0, second = 0, millisecond = 0) {
+  function createUtcDate(
+    year,
+    monthIndex = 0,
+    day = 1,
+    hour = 0,
+    minute = 0,
+    second = 0,
+    millisecond = 0,
+  ) {
     const date = new Date(0);
     date.setUTCFullYear(year, monthIndex, day);
     date.setUTCHours(hour, minute, second, millisecond);
@@ -193,13 +237,28 @@
     const minute = date.getUTCMinutes();
     const second = date.getUTCSeconds();
     const millisecond = date.getUTCMilliseconds();
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
 
-    if (spec.unit === "millisecond") return `${pad(hour)}:${pad(minute)}:${pad(second)}.${pad(millisecond, 3)}`;
+    if (spec.unit === "millisecond")
+      return `${pad(hour)}:${pad(minute)}:${pad(second)}.${pad(millisecond, 3)}`;
     if (spec.unit === "second") return `${pad(hour)}:${pad(minute)}:${pad(second)}`;
     if (spec.unit === "minute") return `${pad(hour)}:${pad(minute)}`;
     if (spec.unit === "hour") return `${pad(day)} ${monthNames[month]} ${pad(hour)}:00`;
-    if (spec.unit === "day" || spec.unit === "week") return `${pad(day)} ${monthNames[month]} ${formatYear(year)}`;
+    if (spec.unit === "day" || spec.unit === "week")
+      return `${pad(day)} ${monthNames[month]} ${formatYear(year)}`;
     if (spec.unit === "month") return `${monthNames[month]} ${formatYear(year)}`;
     return formatYear(year);
   }
@@ -215,6 +274,6 @@
     normalizeViewport,
     pan,
     selectTickSpec,
-    zoom
+    zoom,
   });
 })();

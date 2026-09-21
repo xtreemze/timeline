@@ -1,6 +1,6 @@
-import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import test from "node:test";
 
 await import("../site/time-scale.js");
 await import("../site/timeline-clustering.js");
@@ -41,7 +41,7 @@ test("selected events use a compact six-column focus popover over the persistent
   const [html, js, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8")
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
   assert.match(html, /id="timeline-focus-view"/);
   assert.doesNotMatch(html, /id="timeline-detail"/);
@@ -70,43 +70,55 @@ test("close zoom keeps every timeline item whose temporal extent intersects the 
 
 test("long visible ranges trace from the midpoint of their visible portion", () => {
   assert.equal(
-    geometry.visibleIntervalAnchor(
-      { start: 0, end: 1000 },
-      { start: 400, end: 700 }
-    ),
-    550
+    geometry.visibleIntervalAnchor({ start: 0, end: 1000 }, { start: 400, end: 700 }),
+    550,
   );
   assert.equal(
-    geometry.visibleIntervalAnchor(
-      { start: 500, end: 900 },
-      { start: 400, end: 700 }
-    ),
-    600
+    geometry.visibleIntervalAnchor({ start: 500, end: 900 }, { start: 400, end: 700 }),
+    600,
   );
   assert.equal(
-    geometry.visibleIntervalAnchor(
-      { start: 500, end: null },
-      { start: 400, end: 700 }
-    ),
-    500
+    geometry.visibleIntervalAnchor({ start: 500, end: null }, { start: 400, end: 700 }),
+    500,
   );
 });
 
 test("Browse and Edit are vertical sidebars without horizontal scrolling", async () => {
   const [css, architecture] = await Promise.all([
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
-    readFile(new URL("../docs/TIMELINE-V3-ARCHITECTURE.md", import.meta.url), "utf8")
+    readFile(new URL("../docs/TIMELINE-V3-ARCHITECTURE.md", import.meta.url), "utf8"),
   ]);
 
-  assert.match(css, /#app-shell\[data-editor-open="true"\]\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--utility-sidebar-width\)[\s\S]*grid-template-rows:\s*minmax\(0, 1fr\)/);
-  assert.match(css, /#app-shell\[data-editor-open="true"\]\s*>\s*\.app-editor-sheet\s*\{[\s\S]*grid-column:\s*2[\s\S]*height:\s*100%[\s\S]*overflow-x:\s*clip[\s\S]*overflow-y:\s*auto/);
-  assert.match(css, /#app-shell\[data-browser-open="true"\]\s*>\s*\.timeline-panel\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--utility-sidebar-width\)[\s\S]*grid-template-rows:\s*minmax\(0, 1fr\)/);
-  assert.match(css, /#app-shell\[data-browser-open="true"\]\s*>\s*\.timeline-panel\s*>\s*\.app-browser-sheet\s*\{[\s\S]*grid-column:\s*2[\s\S]*height:\s*100%[\s\S]*overflow-x:\s*clip[\s\S]*overflow-y:\s*auto/);
+  assert.match(
+    css,
+    /#app-shell\[data-editor-open="true"\]\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--utility-sidebar-width\)[\s\S]*grid-template-rows:\s*minmax\(0, 1fr\)/,
+  );
+  assert.match(
+    css,
+    /#app-shell\[data-editor-open="true"\]\s*>\s*\.app-editor-sheet\s*\{[\s\S]*grid-column:\s*2[\s\S]*height:\s*100%[\s\S]*overflow-x:\s*clip[\s\S]*overflow-y:\s*auto/,
+  );
+  assert.match(
+    css,
+    /#app-shell\[data-browser-open="true"\]\s*>\s*\.timeline-panel\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--utility-sidebar-width\)[\s\S]*grid-template-rows:\s*minmax\(0, 1fr\)/,
+  );
+  assert.match(
+    css,
+    /#app-shell\[data-browser-open="true"\]\s*>\s*\.timeline-panel\s*>\s*\.app-browser-sheet\s*\{[\s\S]*grid-column:\s*2[\s\S]*height:\s*100%[\s\S]*overflow-x:\s*clip[\s\S]*overflow-y:\s*auto/,
+  );
   assert.doesNotMatch(css, /grid-template-rows:\s*clamp\(180px,\s*42dvh,\s*420px\)/);
-  assert.match(css, /\.app-browser-sheet \.timeline-item\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+  assert.match(
+    css,
+    /\.app-browser-sheet \.timeline-item\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/,
+  );
   assert.match(css, /\.app-browser-sheet \.timeline-marker\s*\{\s*display:\s*none/);
-  assert.match(css, /@container utility-sidebar \(max-width:\s*360px\)[\s\S]*\.app-editor-sheet \.temporal-fields[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
-  assert.match(css, /#app-shell:is\([\s\S]*data-editor-open="true"[\s\S]*data-browser-open="true"[\s\S]*#presentation-stage:not\(:fullscreen\) > \.graph-lens:not\(\[hidden\]\)[\s\S]*position:\s*absolute/);
+  assert.match(
+    css,
+    /@container utility-sidebar \(max-width:\s*360px\)[\s\S]*\.app-editor-sheet \.temporal-fields[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/,
+  );
+  assert.match(
+    css,
+    /#app-shell:is\([\s\S]*data-editor-open="true"[\s\S]*data-browser-open="true"[\s\S]*#presentation-stage:not\(:fullscreen\) > \.graph-lens:not\(\[hidden\]\)[\s\S]*position:\s*absolute/,
+  );
   assert.match(architecture, /vertical right-side workspace columns at every viewport size/);
   assert.match(architecture, /Horizontal overflow is a layout defect/);
 });

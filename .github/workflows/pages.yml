@@ -37,9 +37,14 @@ jobs:
         with:
           node-version: 24
 
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint code
+        run: pnpm lint
+
       - name: Build worker-backed relation graph
         run: |
-          pnpm install --no-frozen-lockfile
           pnpm build
           test -s site/orb-graph.bundle.js
           test -s site/evidence-extraction.bundle.js

@@ -1,7 +1,18 @@
 (() => {
-  "use strict";
-
-  const MONTH_NAMES = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const MONTH_NAMES = [
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC",
+  ];
 
   function finite(value, fallback = 0) {
     const number = Number(value);
@@ -23,10 +34,12 @@
       .map((item) => ({
         item,
         position: finite(positionFor(item), Number.NaN),
-        coincident: Number.isFinite(item?.start) && (startCounts.get(String(item.start)) || 0) > 1
+        coincident: Number.isFinite(item?.start) && (startCounts.get(String(item.start)) || 0) > 1,
       }))
       .filter((entry) => Number.isFinite(entry.position))
-      .sort((a, b) => a.position - b.position || String(a.item.id).localeCompare(String(b.item.id)));
+      .sort(
+        (a, b) => a.position - b.position || String(a.item.id).localeCompare(String(b.item.id)),
+      );
 
     const groups = [];
     let current = null;
@@ -74,7 +87,7 @@
           items: [only.item],
           position: only.position,
           start: only.item.start,
-          end: Number.isFinite(only.item.end) ? only.item.end : only.item.start
+          end: Number.isFinite(only.item.end) ? only.item.end : only.item.start,
         };
       }
 
@@ -82,7 +95,7 @@
       const ids = groupedItems.map((item) => String(item.id)).sort();
       const start = Math.min(...groupedItems.map((item) => item.start));
       const end = Math.max(
-        ...groupedItems.map((item) => Number.isFinite(item.end) ? item.end : item.start)
+        ...groupedItems.map((item) => (Number.isFinite(item.end) ? item.end : item.start)),
       );
       return {
         kind: "cluster",
@@ -90,7 +103,7 @@
         items: groupedItems,
         position: group.centroid,
         start,
-        end
+        end,
       };
     });
   }
@@ -147,7 +160,7 @@
         count: bucket.length,
         time: center,
         label: formatMonthYear(center),
-        itemIds: bucket.map((item) => String(item.id))
+        itemIds: bucket.map((item) => String(item.id)),
       });
     }
 
@@ -177,7 +190,7 @@
         count: bucket.length,
         time: center,
         label: formatDayMonthYear(center),
-        itemIds: bucket.map((item) => String(item.id))
+        itemIds: bucket.map((item) => String(item.id)),
       });
     }
 
@@ -198,14 +211,16 @@
       buckets.get(label).push(item);
     }
 
-    const accents = [...buckets.entries()].map(([label, bucket]) => ({
-      key: label,
-      kind: "year",
-      label,
-      count: bucket.length,
-      time: bucket.reduce((sum, item) => sum + item.start, 0) / bucket.length,
-      itemIds: bucket.map((item) => String(item.id))
-    })).sort((a, b) => a.time - b.time);
+    const accents = [...buckets.entries()]
+      .map(([label, bucket]) => ({
+        key: label,
+        kind: "year",
+        label,
+        count: bucket.length,
+        time: bucket.reduce((sum, item) => sum + item.start, 0) / bucket.length,
+        itemIds: bucket.map((item) => String(item.id)),
+      }))
+      .sort((a, b) => a.time - b.time);
 
     if (accents.length <= limit) return accents;
     const stride = Math.ceil(accents.length / limit);
@@ -232,7 +247,12 @@
     const start = Number(viewport?.start);
     const end = Number(viewport?.end);
     const length = Number(pixelLength);
-    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || !Number.isFinite(length)) {
+    if (
+      !Number.isFinite(start) ||
+      !Number.isFinite(end) ||
+      end <= start ||
+      !Number.isFinite(length)
+    ) {
       return Number.NaN;
     }
     return padding + ((Number(timeMs) - start) / (end - start)) * length;
@@ -241,7 +261,7 @@
   function nonOverlapping(
     candidates,
     extentFor,
-    { min = 0, max = Number.POSITIVE_INFINITY, gap = 10, allowExtentOverflow = false } = {}
+    { min = 0, max = Number.POSITIVE_INFINITY, gap = 10, allowExtentOverflow = false } = {},
   ) {
     const selected = [];
     let lastEnd = Number.NEGATIVE_INFINITY;
@@ -253,12 +273,12 @@
       const lower = min + extent / 2;
       const upper = Number.isFinite(max) ? max - extent / 2 : rawPosition;
       const position = allowExtentOverflow
-        ? (Number.isFinite(max)
-            ? Math.min(max, Math.max(min, rawPosition))
-            : Math.max(min, rawPosition))
-        : (Number.isFinite(max)
-            ? Math.min(upper, Math.max(lower, rawPosition))
-            : Math.max(lower, rawPosition));
+        ? Number.isFinite(max)
+          ? Math.min(max, Math.max(min, rawPosition))
+          : Math.max(min, rawPosition)
+        : Number.isFinite(max)
+          ? Math.min(upper, Math.max(lower, rawPosition))
+          : Math.max(lower, rawPosition);
       const start = position - extent / 2;
       const end = position + extent / 2;
       if (start < lastEnd + gap) continue;
@@ -277,8 +297,8 @@
       orientation = "horizontal",
       spec = null,
       maxItemsPerMonth = 3,
-      limit = 18
-    } = {}
+      limit = 18,
+    } = {},
   ) {
     const usable = Math.max(1, Number(pixelLength) || 1);
     const unit = spec?.unit || null;
@@ -289,18 +309,18 @@
         yearAccents(items, { limit })
           .map((accent) => ({
             ...accent,
-            position: projectedPosition(accent.time, viewport, usable, padding)
+            position: projectedPosition(accent.time, viewport, usable, padding),
           }))
           .filter((accent) => Number.isFinite(accent.position))
           .sort((a, b) => a.position - b.position),
         () => yearExtent,
-        { min: padding, max: padding + usable, gap: 16, allowExtentOverflow: true }
+        { min: padding, max: padding + usable, gap: 16, allowExtentOverflow: true },
       );
       return {
         mode: edgeAccents.length ? "year-edge" : "axis-only",
         edgeAccents,
         axisMonths: [],
-        hasAmbientContext: edgeAccents.length > 0
+        hasAmbientContext: edgeAccents.length > 0,
       };
     }
 
@@ -310,7 +330,7 @@
     const accents = sourceAccents
       .map((accent) => ({
         ...accent,
-        position: projectedPosition(accent.time, viewport, usable, padding)
+        position: projectedPosition(accent.time, viewport, usable, padding),
       }))
       .filter((accent) => Number.isFinite(accent.position))
       .sort((a, b) => a.position - b.position);
@@ -320,13 +340,17 @@
     }
 
     const fullExtent = dayContext
-      ? (orientation === "vertical" ? 260 : 300)
-      : (orientation === "vertical" ? 220 : 240);
+      ? orientation === "vertical"
+        ? 260
+        : 300
+      : orientation === "vertical"
+        ? 220
+        : 240;
     const fullKind = dayContext ? "day-month-year" : "month-year";
     const full = nonOverlapping(
       accents.map((accent) => ({ ...accent, kind: fullKind, label: accent.label })),
       () => fullExtent,
-      { min: padding, max: padding + usable, gap: 14, allowExtentOverflow: true }
+      { min: padding, max: padding + usable, gap: 14, allowExtentOverflow: true },
     );
 
     if (FINE_UNITS.has(unit) && full.length === accents.length) {
@@ -334,7 +358,7 @@
         mode: dayContext ? "day-month-year-edge" : "month-year-edge",
         edgeAccents: full,
         axisMonths: [],
-        hasAmbientContext: true
+        hasAmbientContext: true,
       };
     }
 
@@ -346,20 +370,23 @@
         monthBuckets.get(label).push(accent);
       }
 
-      const monthCandidates = [...monthBuckets.entries()].map(([label, entries]) => ({
-        kind: "month-year",
-        label,
-        time: entries.reduce((sum, entry) => sum + entry.time, 0) / entries.length,
-        position: entries.reduce((sum, entry) => sum + entry.position, 0) / entries.length,
-        count: entries.reduce((sum, entry) => sum + entry.count, 0)
-      })).sort((a, b) => a.position - b.position);
+      const monthCandidates = [...monthBuckets.entries()]
+        .map(([label, entries]) => ({
+          kind: "month-year",
+          label,
+          time: entries.reduce((sum, entry) => sum + entry.time, 0) / entries.length,
+          position: entries.reduce((sum, entry) => sum + entry.position, 0) / entries.length,
+          count: entries.reduce((sum, entry) => sum + entry.count, 0),
+        }))
+        .sort((a, b) => a.position - b.position);
 
       const monthExtent = orientation === "vertical" ? 220 : 240;
-      const edgeAccents = nonOverlapping(
-        monthCandidates,
-        () => monthExtent,
-        { min: padding, max: padding + usable, gap: 14, allowExtentOverflow: true }
-      );
+      const edgeAccents = nonOverlapping(monthCandidates, () => monthExtent, {
+        min: padding,
+        max: padding + usable,
+        gap: 14,
+        allowExtentOverflow: true,
+      });
 
       const dayExtent = orientation === "vertical" ? 34 : 38;
       const axisMonths = nonOverlapping(
@@ -369,17 +396,17 @@
           label: String(new Date(accent.time).getUTCDate()).padStart(2, "0"),
           time: accent.time,
           position: accent.position,
-          count: accent.count
+          count: accent.count,
         })),
         () => dayExtent,
-        { min: padding, max: padding + usable, gap: 8 }
+        { min: padding, max: padding + usable, gap: 8 },
       );
 
       return {
         mode: "month-year-edge-day-axis",
         edgeAccents,
         axisMonths,
-        hasAmbientContext: edgeAccents.length > 0 || axisMonths.length > 0
+        hasAmbientContext: edgeAccents.length > 0 || axisMonths.length > 0,
       };
     }
 
@@ -390,20 +417,23 @@
       yearBuckets.get(label).push(accent);
     }
 
-    const yearCandidates = [...yearBuckets.entries()].map(([label, entries]) => ({
-      kind: "year",
-      label,
-      time: entries.reduce((sum, entry) => sum + entry.time, 0) / entries.length,
-      position: entries.reduce((sum, entry) => sum + entry.position, 0) / entries.length,
-      count: entries.reduce((sum, entry) => sum + entry.count, 0)
-    })).sort((a, b) => a.position - b.position);
+    const yearCandidates = [...yearBuckets.entries()]
+      .map(([label, entries]) => ({
+        kind: "year",
+        label,
+        time: entries.reduce((sum, entry) => sum + entry.time, 0) / entries.length,
+        position: entries.reduce((sum, entry) => sum + entry.position, 0) / entries.length,
+        count: entries.reduce((sum, entry) => sum + entry.count, 0),
+      }))
+      .sort((a, b) => a.position - b.position);
 
     const yearExtent = orientation === "vertical" ? 110 : 132;
-    const edgeAccents = nonOverlapping(
-      yearCandidates,
-      () => yearExtent,
-      { min: padding, max: padding + usable, gap: 16, allowExtentOverflow: true }
-    );
+    const edgeAccents = nonOverlapping(yearCandidates, () => yearExtent, {
+      min: padding,
+      max: padding + usable,
+      gap: 16,
+      allowExtentOverflow: true,
+    });
 
     const monthExtent = orientation === "vertical" ? 44 : 48;
     const axisMonths = nonOverlapping(
@@ -413,17 +443,17 @@
         label: monthLabelForTime(accent.time),
         time: accent.time,
         position: accent.position,
-        count: accent.count
+        count: accent.count,
       })),
       () => monthExtent,
-      { min: padding, max: padding + usable, gap: 8 }
+      { min: padding, max: padding + usable, gap: 8 },
     );
 
     return {
       mode: "year-edge-month-axis",
       edgeAccents,
       axisMonths,
-      hasAmbientContext: edgeAccents.length > 0 || axisMonths.length > 0
+      hasAmbientContext: edgeAccents.length > 0 || axisMonths.length > 0,
     };
   }
 
@@ -432,7 +462,7 @@
     viewport,
     pixelLength,
     thresholdPx,
-    { paddingRatio = 0.12, minSpanMs = 1 } = {}
+    { paddingRatio = 0.12, minSpanMs = 1 } = {},
   ) {
     const starts = (Array.isArray(items) ? items : [])
       .map((item) => Number(item?.start))
@@ -444,12 +474,14 @@
       return null;
     }
 
-    const uniqueStarts = starts.filter((value, index) => index === 0 || value !== starts[index - 1]);
+    const uniqueStarts = starts.filter(
+      (value, index) => index === 0 || value !== starts[index - 1],
+    );
     if (uniqueStarts.length < 2) {
       return {
         viewport: { start, end },
         forceExpanded: true,
-        itemCount: starts.length
+        itemCount: starts.length,
       };
     }
 
@@ -468,19 +500,19 @@
     const availableRatio = Math.max(0.2, 1 - padding * 2);
     const containingSpan = Math.max(minSpanMs, range / availableRatio);
     const desiredDistance = threshold * 1.12;
-    const separatingSpan = Math.max(minSpanMs, minimumDelta * length / desiredDistance);
+    const separatingSpan = Math.max(minSpanMs, (minimumDelta * length) / desiredDistance);
     const preferredSpan = Math.max(containingSpan, separatingSpan);
     const targetSpan = Math.max(containingSpan, Math.min(span * 0.96, preferredSpan));
     const center = minimum + (maximum - minimum) / 2;
-    const achievedDistance = minimumDelta / targetSpan * length;
+    const achievedDistance = (minimumDelta / targetSpan) * length;
 
     return {
       viewport: {
         start: center - targetSpan / 2,
-        end: center + targetSpan / 2
+        end: center + targetSpan / 2,
       },
       forceExpanded: achievedDistance <= threshold,
-      itemCount: starts.length
+      itemCount: starts.length,
     };
   }
 
@@ -490,14 +522,19 @@
     viewport,
     pixelLength,
     thresholdPx,
-    { desiredContext = 2, paddingRatio = 0.14, minSpanMs = 1, preserveScale = false } = {}
+    { desiredContext = 2, paddingRatio = 0.14, minSpanMs = 1, preserveScale = false } = {},
   ) {
     const source = (Array.isArray(items) ? items : [])
       .filter((item) => item && Number.isFinite(item.start))
       .slice()
       .sort((a, b) => a.start - b.start || String(a.id).localeCompare(String(b.id)));
     const focused = source.find((item) => String(item.id) === String(focusedId));
-    if (!focused || !viewport || !Number.isFinite(viewport.start) || !Number.isFinite(viewport.end)) {
+    if (
+      !focused ||
+      !viewport ||
+      !Number.isFinite(viewport.start) ||
+      !Number.isFinite(viewport.end)
+    ) {
       return null;
     }
 
@@ -510,7 +547,7 @@
     const focusedCenter = focused.start + (focusedEnd - focused.start) / 2;
     const focusedContainingSpan = Math.max(
       minSpanMs,
-      Math.abs(focusedEnd - focused.start) / availableRatio
+      Math.abs(focusedEnd - focused.start) / availableRatio,
     );
     const overlapsViewport = (item) => {
       const end = Number.isFinite(item.end) ? item.end : item.start;
@@ -520,14 +557,11 @@
     const positionFor = (item) => ((item.start - viewport.start) / span) * length;
     const representations = clusterProjectedItems(visibleSource, positionFor, threshold);
     const representation = representations.find((entry) =>
-      entry.items.some((item) => String(item.id) === String(focused.id))
+      entry.items.some((item) => String(item.id) === String(focused.id)),
     );
 
     const coincidentIds = source
-      .filter((item) =>
-        String(item.id) !== String(focused.id) &&
-        item.start === focused.start
-      )
+      .filter((item) => String(item.id) !== String(focused.id) && item.start === focused.start)
       .map((item) => String(item.id));
 
     if (representation?.kind === "cluster") {
@@ -540,26 +574,23 @@
           mode: "pin",
           viewport: { ...viewport },
           forceUnique: true,
-          contextIds: coincidentIds
+          contextIds: coincidentIds,
         };
       }
       const nearest = Math.min(...deltas);
       const targetDistance = threshold * 1.18;
-      const separatingSpan = Math.max(minSpanMs, nearest * length / targetDistance);
+      const separatingSpan = Math.max(minSpanMs, (nearest * length) / targetDistance);
       const minimumSpan = Math.min(span, focusedContainingSpan);
-      const targetSpan = Math.max(
-        minimumSpan,
-        Math.min(span * 0.6, separatingSpan)
-      );
-      const achievedDistance = nearest / targetSpan * length;
+      const targetSpan = Math.max(minimumSpan, Math.min(span * 0.6, separatingSpan));
+      const achievedDistance = (nearest / targetSpan) * length;
       return {
         mode: "separate",
         viewport: {
           start: focusedCenter - targetSpan / 2,
-          end: focusedCenter + targetSpan / 2
+          end: focusedCenter + targetSpan / 2,
         },
         forceUnique: achievedDistance <= threshold,
-        contextIds: coincidentIds
+        contextIds: coincidentIds,
       };
     }
 
@@ -570,19 +601,14 @@
         mode: coincidentIds.length ? "coincident" : "keep",
         viewport: { ...viewport },
         forceUnique: false,
-        contextIds: coincidentIds
+        contextIds: coincidentIds,
       };
     }
 
     const distinctOthers = source.filter(
-      (item) =>
-        String(item.id) !== String(focused.id) &&
-        item.start !== focused.start
+      (item) => String(item.id) !== String(focused.id) && item.start !== focused.start,
     );
-    const targetContextCount = Math.min(
-      Math.max(0, desiredContext),
-      distinctOthers.length
-    );
+    const targetContextCount = Math.min(Math.max(0, desiredContext), distinctOthers.length);
     const before = distinctOthers
       .filter((item) => item.start < focused.start)
       .sort((a, b) => b.start - a.start);
@@ -594,11 +620,10 @@
     if (after[0] && selected.length < targetContextCount) selected.push(after[0]);
 
     const remaining = distinctOthers
-      .filter((item) =>
-        !selected.some((candidate) => String(candidate.id) === String(item.id))
-      )
+      .filter((item) => !selected.some((candidate) => String(candidate.id) === String(item.id)))
       .sort((a, b) => Math.abs(a.start - focused.start) - Math.abs(b.start - focused.start));
-    while (selected.length < targetContextCount && remaining.length) selected.push(remaining.shift());
+    while (selected.length < targetContextCount && remaining.length)
+      selected.push(remaining.shift());
 
     const values = [focused.start, focusedEnd];
     for (const item of selected) {
@@ -616,23 +641,21 @@
     // the viewport to expand.
     const minimumFocusSpan = Math.min(
       span,
-      Math.max(minSpanMs, span * 0.18, focusedContainingSpan)
+      Math.max(minSpanMs, span * 0.18, focusedContainingSpan),
     );
     const maximumFocusSpan = Math.max(minimumFocusSpan, span * 0.6);
     const targetSpan = Math.min(
       span,
       Math.max(
         minimumFocusSpan,
-        localSpan > 0 ? Math.min(maximumFocusSpan, localSpan) : maximumFocusSpan
-      )
+        localSpan > 0 ? Math.min(maximumFocusSpan, localSpan) : maximumFocusSpan,
+      ),
     );
     const localCenter = min + (max - min) / 2;
-    const center = localSpan > 0 && localSpan <= targetSpan
-      ? localCenter
-      : focusedCenter;
+    const center = localSpan > 0 && localSpan <= targetSpan ? localCenter : focusedCenter;
     const targetViewport = {
       start: center - targetSpan / 2,
-      end: center + targetSpan / 2
+      end: center + targetSpan / 2,
     };
     const contextualIds = selected
       .filter((item) => {
@@ -645,7 +668,7 @@
       mode: coincidentIds.length ? "coincident" : "context",
       viewport: targetViewport,
       forceUnique: false,
-      contextIds: [...coincidentIds, ...contextualIds]
+      contextIds: [...coincidentIds, ...contextualIds],
     };
   }
 
@@ -683,6 +706,6 @@
     yearAccents,
     projectedPosition,
     yearLabelForTime,
-    monthLabelForTime
+    monthLabelForTime,
   });
 })();

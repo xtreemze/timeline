@@ -1,9 +1,17 @@
 (() => {
-  "use strict";
-
   const MONTHS = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
   ];
   const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -25,8 +33,14 @@
       date.getUTCFullYear() !== year ||
       date.getUTCMonth() !== month - 1 ||
       date.getUTCDate() !== day
-    ) return null;
-    return { year, month, day, value: `${String(year).padStart(4, "0")}-${pad(month)}-${pad(day)}` };
+    )
+      return null;
+    return {
+      year,
+      month,
+      day,
+      value: `${String(year).padStart(4, "0")}-${pad(month)}-${pad(day)}`,
+    };
   }
 
   function compareDates(left, right) {
@@ -37,7 +51,7 @@
     const absolute = year * 12 + (month - 1) + delta;
     return {
       year: Math.floor(absolute / 12),
-      month: ((absolute % 12) + 12) % 12 + 1
+      month: (((absolute % 12) + 12) % 12) + 1,
     };
   }
 
@@ -76,7 +90,7 @@
       year: "numeric",
       month: "short",
       day: "numeric",
-      timeZone: "UTC"
+      timeZone: "UTC",
     });
     if (mode !== "range" || !end || end === start) return format.format(date);
 
@@ -89,7 +103,7 @@
       const monthYear = new Intl.DateTimeFormat(undefined, {
         year: "numeric",
         month: "short",
-        timeZone: "UTC"
+        timeZone: "UTC",
       }).format(date);
       return `${parsedStart.day}–${parsedEnd.day} ${monthYear}`;
     }
@@ -154,7 +168,7 @@
           ArrowLeft: -1,
           ArrowRight: 1,
           ArrowUp: -7,
-          ArrowDown: 7
+          ArrowDown: 7,
         };
         if (keyDeltas[event.key] !== undefined) {
           event.preventDefault();
@@ -168,7 +182,9 @@
           if (!parsed) return;
           const shifted = monthShift(parsed.year, parsed.month, direction);
           const day = Math.min(parsed.day, daysInMonth(shifted.year, shifted.month));
-          this.focusDate(`${String(shifted.year).padStart(4, "0")}-${pad(shifted.month)}-${pad(day)}`);
+          this.focusDate(
+            `${String(shifted.year).padStart(4, "0")}-${pad(shifted.month)}-${pad(day)}`,
+          );
         }
       });
 
@@ -288,15 +304,19 @@
         "aria-label",
         this.input.value
           ? `${this.mode === "range" ? "Date range" : "Date"}: ${this.input.value}`
-          : this.mode === "range" ? "Choose date range" : "Choose date"
+          : this.mode === "range"
+            ? "Choose date range"
+            : "Choose date",
       );
       if (dispatch) {
         this.startInput.dispatchEvent(new Event("change", { bubbles: true }));
         this.endInput.dispatchEvent(new Event("change", { bubbles: true }));
-        this.input.dispatchEvent(new CustomEvent("daterangechange", {
-          bubbles: true,
-          detail: { start: this.start, end: this.end, mode: this.mode }
-        }));
+        this.input.dispatchEvent(
+          new CustomEvent("daterangechange", {
+            bubbles: true,
+            detail: { start: this.start, end: this.end, mode: this.mode },
+          }),
+        );
       }
     }
 
@@ -350,7 +370,8 @@
         const end = this.end;
         const isStart = value === start;
         const isEnd = value === end;
-        const inRange = start && end && compareDates(value, start) >= 0 && compareDates(value, end) <= 0;
+        const inRange =
+          start && end && compareDates(value, start) >= 0 && compareDates(value, end) <= 0;
         button.classList.toggle("is-start", isStart);
         button.classList.toggle("is-end", isEnd);
         button.classList.toggle("is-in-range", Boolean(inRange));
@@ -359,20 +380,25 @@
         if (parsed) {
           const date = new Date(0);
           date.setUTCFullYear(parsed.year, parsed.month - 1, parsed.day);
-          button.setAttribute("aria-label", new Intl.DateTimeFormat(undefined, {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            weekday: "long",
-            timeZone: "UTC"
-          }).format(date));
+          button.setAttribute(
+            "aria-label",
+            new Intl.DateTimeFormat(undefined, {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              weekday: "long",
+              timeZone: "UTC",
+            }).format(date),
+          );
         }
 
         this.grid.append(button);
       }
 
       const preferred =
-        this.grid.querySelector(`button[data-date="${CSS.escape(this.pendingStart || this.start || "")}"]`) ||
+        this.grid.querySelector(
+          `button[data-date="${CSS.escape(this.pendingStart || this.start || "")}"]`,
+        ) ||
         this.grid.querySelector("button:not(.is-outside)") ||
         this.grid.querySelector("button");
       if (preferred) preferred.tabIndex = 0;
@@ -386,6 +412,6 @@
   globalThis.TimelineDateRangePicker = Object.freeze({
     create,
     formatDisplay,
-    parseDate
+    parseDate,
   });
 })();

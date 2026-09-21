@@ -10,10 +10,9 @@ function edgeEndpoints(edge) {
 }
 
 export function connectedGraphComponents(nodes = [], edges = []) {
-  const ids = [...new Set((Array.isArray(nodes) ? nodes : [])
-    .map(nodeId)
-    .filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b));
+  const ids = [...new Set((Array.isArray(nodes) ? nodes : []).map(nodeId).filter(Boolean))].sort(
+    (a, b) => a.localeCompare(b),
+  );
 
   const adjacency = new Map(ids.map((id) => [id, new Set()]));
   for (const edge of Array.isArray(edges) ? edges : []) {
@@ -49,10 +48,9 @@ export function connectedGraphComponents(nodes = [], edges = []) {
 }
 
 export function graphComponentTopologySignature(nodes = [], edges = []) {
-  const ids = [...new Set((Array.isArray(nodes) ? nodes : [])
-    .map(nodeId)
-    .filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b));
+  const ids = [...new Set((Array.isArray(nodes) ? nodes : []).map(nodeId).filter(Boolean))].sort(
+    (a, b) => a.localeCompare(b),
+  );
   const allowed = new Set(ids);
   const links = new Set();
 
@@ -86,7 +84,7 @@ function normalizedRect(rect, index) {
     width: Math.max(1, right - left),
     height: Math.max(1, bottom - top),
     centerX: (left + right) / 2,
-    centerY: (top + bottom) / 2
+    centerY: (top + bottom) / 2,
   };
 }
 
@@ -102,7 +100,8 @@ function layoutForColumns(rects, columns, gap) {
     rowHeights[row] = Math.max(rowHeights[row], rect.height);
   });
 
-  const width = columnWidths.reduce((sum, value) => sum + value, 0) + Math.max(0, columns - 1) * gap;
+  const width =
+    columnWidths.reduce((sum, value) => sum + value, 0) + Math.max(0, columns - 1) * gap;
   const height = rowHeights.reduce((sum, value) => sum + value, 0) + Math.max(0, rows - 1) * gap;
   return { columns, rows, columnWidths, rowHeights, width, height };
 }
@@ -126,7 +125,11 @@ export function packComponentRects(rectangles = [], options = {}) {
     const shapePenalty = Math.abs(Math.log(layoutAspect / aspectRatio));
     const area = candidate.width * candidate.height;
     const score = shapePenalty + area * 1e-9;
-    if (!best || score < best.score - 1e-9 || (Math.abs(score - best.score) <= 1e-9 && columns < best.columns)) {
+    if (
+      !best ||
+      score < best.score - 1e-9 ||
+      (Math.abs(score - best.score) <= 1e-9 && columns < best.columns)
+    ) {
       best = { ...candidate, score };
     }
   }
@@ -155,7 +158,7 @@ export function packComponentRects(rectangles = [], options = {}) {
       dx: targetX - rect.centerX,
       dy: targetY - rect.centerY,
       targetX,
-      targetY
+      targetY,
     };
   });
 
@@ -164,6 +167,6 @@ export function packComponentRects(rectangles = [], options = {}) {
     rows: best.rows,
     width: best.width,
     height: best.height,
-    placements
+    placements,
   };
 }

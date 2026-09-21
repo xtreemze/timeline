@@ -1,6 +1,4 @@
 (() => {
-  "use strict";
-
   function text(value, max = 300) {
     return typeof value === "string" ? value.trim().slice(0, max) : "";
   }
@@ -16,9 +14,10 @@
     if (!raw || typeof raw !== "object") return null;
 
     const geometry = raw.geometry && typeof raw.geometry === "object" ? raw.geometry : null;
-    const coords = geometry?.type === "Point" && Array.isArray(geometry.coordinates)
-      ? geometry.coordinates
-      : null;
+    const coords =
+      geometry?.type === "Point" && Array.isArray(geometry.coordinates)
+        ? geometry.coordinates
+        : null;
 
     const longitude = coordinate(raw.longitude ?? coords?.[0], -180, 180);
     const latitude = coordinate(raw.latitude ?? coords?.[1], -90, 90);
@@ -27,16 +26,14 @@
     const address = text(raw.address, 500);
     const source = ["manual", "device", "imported"].includes(raw.source) ? raw.source : "manual";
     const hasAccuracy =
-      raw.accuracyMeters !== "" &&
-      raw.accuracyMeters !== null &&
-      raw.accuracyMeters !== undefined;
-    const accuracyMeters = hasAccuracy &&
-      Number.isFinite(Number(raw.accuracyMeters)) &&
-      Number(raw.accuracyMeters) >= 0
-      ? Number(raw.accuracyMeters)
-      : null;
+      raw.accuracyMeters !== "" && raw.accuracyMeters !== null && raw.accuracyMeters !== undefined;
+    const accuracyMeters =
+      hasAccuracy && Number.isFinite(Number(raw.accuracyMeters)) && Number(raw.accuracyMeters) >= 0
+        ? Number(raw.accuracyMeters)
+        : null;
 
-    if (!name && !geographicIdentifier && !address && latitude === null && longitude === null) return null;
+    if (!name && !geographicIdentifier && !address && latitude === null && longitude === null)
+      return null;
     if ((latitude === null) !== (longitude === null)) {
       throw new Error("Location coordinates require both latitude and longitude.");
     }
@@ -45,18 +42,29 @@
       name,
       geographicIdentifier,
       address,
-      geometry: latitude === null ? null : {
-        type: "Point",
-        coordinates: [longitude, latitude]
-      },
+      geometry:
+        latitude === null
+          ? null
+          : {
+              type: "Point",
+              coordinates: [longitude, latitude],
+            },
       crs: "OGC:CRS84",
-      source
+      source,
     };
     if (accuracyMeters !== null) result.accuracyMeters = accuracyMeters;
     return result;
   }
 
-  function fromForm({ name, geographicIdentifier, address, latitude, longitude, source, accuracyMeters }) {
+  function fromForm({
+    name,
+    geographicIdentifier,
+    address,
+    latitude,
+    longitude,
+    source,
+    accuracyMeters,
+  }) {
     return normalize({
       name,
       geographicIdentifier,
@@ -64,7 +72,7 @@
       latitude,
       longitude,
       source,
-      accuracyMeters
+      accuracyMeters,
     });
   }
 
@@ -77,16 +85,27 @@
       longitude: normalized?.geometry?.coordinates?.[0] ?? "",
       latitude: normalized?.geometry?.coordinates?.[1] ?? "",
       source: normalized?.source || "manual",
-      accuracyMeters: normalized?.accuracyMeters ?? ""
+      accuracyMeters: normalized?.accuracyMeters ?? "",
     };
   }
-
 
   const PLACE_GEOMETRY_TYPES = new Set(["Point", "Polygon", "MultiPolygon"]);
   const PLACE_MARKER_SHAPES = new Set(["pin", "circle", "square", "diamond"]);
   const PLACE_ICON_NAMES = new Set([
-    "milestone", "decision", "evidence", "person", "place", "media", "relation",
-    "note", "home", "danger", "magic", "search", "crown", "object"
+    "milestone",
+    "decision",
+    "evidence",
+    "person",
+    "place",
+    "media",
+    "relation",
+    "note",
+    "home",
+    "danger",
+    "magic",
+    "search",
+    "crown",
+    "object",
   ]);
 
   function clone(value) {
@@ -122,9 +141,17 @@
 
     const sourceGeometry = raw.geometry || raw.attributes?.geometry || null;
     const geometry = normalizePlaceGeometry(sourceGeometry);
-    const rawRadius = raw.radiusMeters ?? raw.radius ?? raw.attributes?.radiusMeters ?? raw.attributes?.accuracyMeters;
+    const rawRadius =
+      raw.radiusMeters ??
+      raw.radius ??
+      raw.attributes?.radiusMeters ??
+      raw.attributes?.accuracyMeters;
     const radiusMeters =
-      rawRadius !== "" && rawRadius !== null && rawRadius !== undefined && Number.isFinite(Number(rawRadius)) && Number(rawRadius) >= 0
+      rawRadius !== "" &&
+      rawRadius !== null &&
+      rawRadius !== undefined &&
+      Number.isFinite(Number(rawRadius)) &&
+      Number(rawRadius) >= 0
         ? Number(rawRadius)
         : null;
     if (radiusMeters !== null && geometry?.type !== "Point") {
@@ -133,22 +160,28 @@
 
     const iconCandidate = text(raw.icon || raw.marker?.icon || raw.attributes?.icon, 48);
     const icon = PLACE_ICON_NAMES.has(iconCandidate) ? iconCandidate : "place";
-    const markerShapeCandidate = text(raw.markerShape || raw.marker?.shape || raw.attributes?.markerShape, 24);
-    const markerShape = PLACE_MARKER_SHAPES.has(markerShapeCandidate) ? markerShapeCandidate : "pin";
+    const markerShapeCandidate = text(
+      raw.markerShape || raw.marker?.shape || raw.attributes?.markerShape,
+      24,
+    );
+    const markerShape = PLACE_MARKER_SHAPES.has(markerShapeCandidate)
+      ? markerShapeCandidate
+      : "pin";
 
     const result = {
       id,
       name,
-      geographicIdentifier: text(raw.geographicIdentifier || raw.attributes?.geographicIdentifier, 300),
+      geographicIdentifier: text(
+        raw.geographicIdentifier || raw.attributes?.geographicIdentifier,
+        300,
+      ),
       address: text(raw.address || raw.attributes?.address, 500),
       geometry,
       crs: text(raw.crs || raw.attributes?.crs, 40) || "OGC:CRS84",
       radiusMeters,
       icon,
       markerShape,
-      attributes: raw.attributes && typeof raw.attributes === "object"
-        ? clone(raw.attributes)
-        : {}
+      attributes: raw.attributes && typeof raw.attributes === "object" ? clone(raw.attributes) : {},
     };
     delete result.attributes.geometry;
     delete result.attributes.geographicIdentifier;
@@ -163,7 +196,9 @@
 
   function placeIdentity(place) {
     if (!place) return "";
-    return `${String(place.name || "").trim().toLocaleLowerCase()}|${JSON.stringify(place.geometry || null)}|${place.radiusMeters ?? ""}`;
+    return `${String(place.name || "")
+      .trim()
+      .toLocaleLowerCase()}|${JSON.stringify(place.geometry || null)}|${place.radiusMeters ?? ""}`;
   }
 
   function normalizePlaces(value) {
@@ -173,7 +208,7 @@
     const seenIdentities = new Set();
     value.forEach((raw, index) => {
       const place = normalizePlace(raw, index);
-      if (!place || !place.geometry || seenIds.has(place.id)) return;
+      if (!place?.geometry || seenIds.has(place.id)) return;
       const identity = placeIdentity(place);
       if (identity && seenIdentities.has(identity)) return;
       seenIds.add(place.id);
@@ -183,7 +218,18 @@
     return places;
   }
 
-  function placeFromForm({ id, name, geographicIdentifier, address, latitude, longitude, radiusMeters, icon, markerShape, areaGeometry }) {
+  function placeFromForm({
+    id,
+    name,
+    geographicIdentifier,
+    address,
+    latitude,
+    longitude,
+    radiusMeters,
+    icon,
+    markerShape,
+    areaGeometry,
+  }) {
     let geometry = null;
     if (areaGeometry) {
       const parsed = typeof areaGeometry === "string" ? JSON.parse(areaGeometry) : areaGeometry;
@@ -191,7 +237,8 @@
     } else {
       const lng = coordinate(longitude, -180, 180);
       const lat = coordinate(latitude, -90, 90);
-      if ((lng === null) !== (lat === null)) throw new Error("Place coordinates require both latitude and longitude.");
+      if ((lng === null) !== (lat === null))
+        throw new Error("Place coordinates require both latitude and longitude.");
       if (lng !== null) geometry = { type: "Point", coordinates: [lng, lat] };
     }
     return normalizePlace({
@@ -202,7 +249,7 @@
       geometry,
       radiusMeters,
       icon,
-      markerShape
+      markerShape,
     });
   }
 
@@ -218,9 +265,10 @@
       radiusMeters: normalized?.radiusMeters ?? "",
       icon: normalized?.icon || "place",
       markerShape: normalized?.markerShape || "pin",
-      areaGeometry: normalized?.geometry && normalized.geometry.type !== "Point"
-        ? JSON.stringify(normalized.geometry, null, 2)
-        : ""
+      areaGeometry:
+        normalized?.geometry && normalized.geometry.type !== "Point"
+          ? JSON.stringify(normalized.geometry, null, 2)
+          : "",
     };
   }
 
@@ -234,6 +282,6 @@
     normalizePlaces,
     placeIdentity,
     placeFormParts,
-    placeFromForm
+    placeFromForm,
   });
 })();

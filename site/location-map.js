@@ -1,6 +1,4 @@
 (() => {
-  "use strict";
-
   const LEAFLET_VERSION = "1.9.4";
   const LEAFLET_CSS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
   const LEAFLET_JS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
@@ -9,13 +7,14 @@
 
   const DEFAULT_PROVIDER = Object.freeze({
     url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
   });
 
   const PRESENTATION_WORLD_VIEW = Object.freeze({
     center: Object.freeze([18, 0]),
-    zoom: 1
+    zoom: 1,
   });
   const PRESENTATION_COUNTRY_ZOOM = 5;
   const PRESENTATION_FLY_DURATION_SECONDS = 7;
@@ -31,7 +30,7 @@
     if (loadPromise) return loadPromise;
 
     loadPromise = new Promise((resolve, reject) => {
-      if (!document.querySelector('link[data-timeline-leaflet]')) {
+      if (!document.querySelector("link[data-timeline-leaflet]")) {
         const stylesheet = document.createElement("link");
         stylesheet.rel = "stylesheet";
         stylesheet.href = LEAFLET_CSS;
@@ -41,7 +40,7 @@
         document.head.append(stylesheet);
       }
 
-      const existing = document.querySelector('script[data-timeline-leaflet]');
+      const existing = document.querySelector("script[data-timeline-leaflet]");
       const script = existing || document.createElement("script");
       if (!existing) {
         script.src = LEAFLET_JS;
@@ -51,7 +50,9 @@
         document.head.append(script);
       }
       script.addEventListener("load", () => resolve(globalThis.L), { once: true });
-      script.addEventListener("error", () => reject(new Error("Leaflet could not be loaded.")), { once: true });
+      script.addEventListener("error", () => reject(new Error("Leaflet could not be loaded.")), {
+        once: true,
+      });
       if (globalThis.L) resolve(globalThis.L);
     });
 
@@ -70,9 +71,9 @@
   function weightedMapDragAvailable() {
     return Boolean(
       motion?.appendPointerVectorSamples &&
-      motion?.estimatePointerVectorVelocity &&
-      motion?.responseForElapsed &&
-      motion?.decayVelocity
+        motion?.estimatePointerVectorVelocity &&
+        motion?.responseForElapsed &&
+        motion?.decayVelocity,
     );
   }
 
@@ -89,7 +90,7 @@
       easeLinearity: 0.2,
       zoomAnimation: !reducedMotion,
       fadeAnimation: !reducedMotion,
-      markerZoomAnimation: !reducedMotion
+      markerZoomAnimation: !reducedMotion,
     };
   }
 
@@ -115,10 +116,13 @@
       inertiaAnimationFrame = 0;
     };
 
-    const targetBlocksCameraDrag = (target) => Boolean(
-      target instanceof Element &&
-      target.closest(".leaflet-control, .leaflet-marker-icon, button, a, input, select, textarea")
-    );
+    const targetBlocksCameraDrag = (target) =>
+      Boolean(
+        target instanceof Element &&
+          target.closest(
+            ".leaflet-control, .leaflet-marker-icon, button, a, input, select, textarea",
+          ),
+      );
 
     const beginDrag = (pointerId, point, sourceEvent = null) => {
       if (!point || pointers.size > 1) return;
@@ -131,9 +135,11 @@
         startPoint: { x: point.x, y: point.y },
         startCenter: { x: center.x, y: center.y },
         zoom,
-        lastTime: sourceEvent ? (Number(sourceEvent.timeStamp) || performance.now()) : performance.now(),
+        lastTime: sourceEvent
+          ? Number(sourceEvent.timeStamp) || performance.now()
+          : performance.now(),
         samples: [],
-        moved: false
+        moved: false,
       };
       if (sourceEvent) motion.appendPointerVectorSamples(drag.samples, sourceEvent);
       try {
@@ -158,7 +164,7 @@
 
       const target = {
         x: drag.startCenter.x - deltaX,
-        y: drag.startCenter.y - deltaY
+        y: drag.startCenter.y - deltaY,
       };
       const current = map.project(map.getCenter(), drag.zoom);
       const now = Number(event.timeStamp) || performance.now();
@@ -166,7 +172,7 @@
       drag.lastTime = now;
       const next = {
         x: current.x + (target.x - current.x) * response,
-        y: current.y + (target.y - current.y) * response
+        y: current.y + (target.y - current.y) * response,
       };
       map.setView(map.unproject([next.x, next.y], drag.zoom), drag.zoom, { animate: false });
       if (drag.moved) event.preventDefault();
@@ -214,7 +220,7 @@
         pointerType: event.pointerType,
         x: event.clientX,
         y: event.clientY,
-        blocked
+        blocked,
       });
 
       if (pointers.size > 1) {
@@ -254,11 +260,7 @@
         }
       }
 
-      if (
-        event.type !== "pointercancel" &&
-        event.pointerType === "touch" &&
-        pointers.size === 1
-      ) {
+      if (event.type !== "pointercancel" && event.pointerType === "touch" && pointers.size === 1) {
         const remaining = Array.from(pointers.values())[0];
         if (!remaining.blocked) {
           requestAnimationFrame(() => {
@@ -321,7 +323,9 @@
   }
 
   function presentationZoom(location) {
-    const accuracy = Number(location?.radiusMeters ?? location?.accuracyMeters ?? location?.accuracy);
+    const accuracy = Number(
+      location?.radiusMeters ?? location?.accuracyMeters ?? location?.accuracy,
+    );
     if (Number.isFinite(accuracy)) {
       if (accuracy <= 50) return 15;
       if (accuracy <= 250) return 14;
@@ -340,7 +344,7 @@
     "MultiPolygon",
     "GeometryCollection",
     "Feature",
-    "FeatureCollection"
+    "FeatureCollection",
   ]);
 
   function isGeoJsonObject(value) {
@@ -363,7 +367,11 @@
 
   function pointCoordinates(location) {
     const geometry = location?.geometry;
-    if (geometry?.type !== "Point" || !Array.isArray(geometry.coordinates) || geometry.coordinates.length < 2) {
+    if (
+      geometry?.type !== "Point" ||
+      !Array.isArray(geometry.coordinates) ||
+      geometry.coordinates.length < 2
+    ) {
       return null;
     }
     const lng = Number(geometry.coordinates[0]);
@@ -379,7 +387,7 @@
       minZoom: 0,
       maxZoom: 12,
       noWrap: true,
-      attribution: "Fictional reference frame · procedural texture"
+      attribution: "Fictional reference frame · procedural texture",
     });
 
     layer.createTile = (coords) => {
@@ -416,7 +424,7 @@
         const baseline = 20 + contour * 34 + (unit(contour + 21) - 0.5) * 18;
         context.beginPath();
         for (let x = -8; x <= 264; x += 8) {
-          const y = baseline + Math.sin((x / 38) + phase) * amplitude;
+          const y = baseline + Math.sin(x / 38 + phase) * amplitude;
           if (x === -8) context.moveTo(x, y);
           else context.lineTo(x, y);
         }
@@ -477,7 +485,7 @@
       // Keep the visible semantic marker compact while giving touch users a
       // 44 CSS px hit target consistent with the rest of the application.
       iconSize: [44, 44],
-      iconAnchor: [22, 22]
+      iconAnchor: [22, 22],
     });
   }
 
@@ -520,7 +528,9 @@
 
       const iconShell = document.createElement("span");
       iconShell.className = "timeline-map-place-icon";
-      const icon = globalThis.TimelinePresentation?.createIcon?.(this.iconName || "place", { size: 22 });
+      const icon = globalThis.TimelinePresentation?.createIcon?.(this.iconName || "place", {
+        size: 22,
+      });
       if (icon) iconShell.append(icon);
       else iconShell.textContent = "•";
 
@@ -558,20 +568,18 @@
           boxZoom: this.interactive,
           keyboard: this.interactive,
           touchZoom: this.interactive,
-          ...mapMotionOptions(this.interactive)
+          ...mapMotionOptions(this.interactive),
         });
         this.weightedDragCleanup = installWeightedMapDragging(
           this.map,
           this.container,
-          this.interactive
+          this.interactive,
         );
 
         if (this.countryContextIntro) {
-          this.map.setView(
-            PRESENTATION_WORLD_VIEW.center,
-            PRESENTATION_WORLD_VIEW.zoom,
-            { animate: false }
-          );
+          this.map.setView(PRESENTATION_WORLD_VIEW.center, PRESENTATION_WORLD_VIEW.zoom, {
+            animate: false,
+          });
         }
 
         if (this.fictionalReferenceFrame) {
@@ -581,7 +589,7 @@
         } else {
           L.tileLayer(this.provider.url, {
             maxZoom: this.provider.maxZoom || 19,
-            attribution: this.provider.attribution || DEFAULT_PROVIDER.attribution
+            attribution: this.provider.attribution || DEFAULT_PROVIDER.attribution,
           }).addTo(this.map);
         }
 
@@ -591,14 +599,12 @@
             weight: 3,
             opacity: 0.9,
             fillColor: this.color,
-            fillOpacity: 0.12
-          })
+            fillOpacity: 0.12,
+          }),
         };
 
         for (const [index, object] of objects.entries()) {
-          const isPrimaryPlacePoint =
-            index === 0 &&
-            this.location?.geometry?.type === "Point";
+          const isPrimaryPlacePoint = index === 0 && this.location?.geometry?.type === "Point";
           const layer = L.geoJSON(object, {
             ...baseGeoJsonOptions,
             pointToLayer: (feature, latlng) => {
@@ -611,15 +617,15 @@
                 String(properties.icon || this.iconName || "place"),
                 String(properties.color || this.color),
                 markerLabel,
-                String(properties.markerShape || this.markerShape || "pin")
+                String(properties.markerShape || this.markerShape || "pin"),
               );
               return L.marker(latlng, {
                 icon: markerIcon,
                 interactive: this.interactive,
                 keyboard: this.interactive,
-                title: markerLabel || "Map feature"
+                title: markerLabel || "Map feature",
               });
-            }
+            },
           }).addTo(this.map);
           this.layers.push(layer);
         }
@@ -627,17 +633,21 @@
         this.clearPlacePlaceholder();
 
         const point = pointCoordinates(this.location);
-        const radius = Number(this.location?.radiusMeters ?? this.location?.accuracyMeters ?? this.location?.accuracy);
+        const radius = Number(
+          this.location?.radiusMeters ?? this.location?.accuracyMeters ?? this.location?.accuracy,
+        );
         if (point && Number.isFinite(radius) && radius > 0) {
-          this.layers.push(L.circle([point.lat, point.lng], {
-            radius,
-            color: this.color,
-            weight: 1.5,
-            opacity: 0.55,
-            fillColor: this.color,
-            fillOpacity: 0.06,
-            interactive: false
-          }).addTo(this.map));
+          this.layers.push(
+            L.circle([point.lat, point.lng], {
+              radius,
+              color: this.color,
+              weight: 1.5,
+              opacity: 0.55,
+              fillColor: this.color,
+              fillOpacity: 0.06,
+              interactive: false,
+            }).addTo(this.map),
+          );
         }
 
         if (!this.countryContextIntro) this.fitGeometry({ animate: false });
@@ -649,14 +659,17 @@
         if (!this.destroyed && this.container) {
           this.container.dataset.error = "true";
           this.placePlaceholder?.classList.add("is-error");
-          if (this.placePlaceholder && !this.placePlaceholder.querySelector(".timeline-map-place-status")) {
+          if (
+            this.placePlaceholder &&
+            !this.placePlaceholder.querySelector(".timeline-map-place-status")
+          ) {
             const status = document.createElement("small");
             status.className = "timeline-map-place-status";
             status.textContent = "Map preview unavailable";
             this.placePlaceholder.append(status);
           }
         }
-        // eslint-disable-next-line no-console, no-undef
+        // eslint-disable-next-line no-undef
         console.warn(error);
       }
     }
@@ -664,9 +677,7 @@
     geometryBounds() {
       if (!globalThis.L) return null;
       const drawableLayers = this.layers.filter((layer) => typeof layer?.getBounds === "function");
-      return drawableLayers.length
-        ? globalThis.L.featureGroup(drawableLayers).getBounds()
-        : null;
+      return drawableLayers.length ? globalThis.L.featureGroup(drawableLayers).getBounds() : null;
     }
 
     clearCountryContextInteractionGuard() {
@@ -693,8 +704,14 @@
       const controller = new AbortController();
       const cancel = () => this.cancelCountryContextIntro();
       this.introInteractionAbort = controller;
-      this.container.addEventListener("pointerdown", cancel, { passive: true, signal: controller.signal });
-      this.container.addEventListener("wheel", cancel, { passive: true, signal: controller.signal });
+      this.container.addEventListener("pointerdown", cancel, {
+        passive: true,
+        signal: controller.signal,
+      });
+      this.container.addEventListener("wheel", cancel, {
+        passive: true,
+        signal: controller.signal,
+      });
       this.container.addEventListener("keydown", cancel, { signal: controller.signal });
     }
 
@@ -709,7 +726,7 @@
 
       this.map.fitWorld({
         animate: false,
-        padding: [8, 8]
+        padding: [8, 8],
       });
       this.bindCountryContextInteractionGuard();
       this.introTimer = globalThis.setTimeout(() => {
@@ -739,7 +756,7 @@
           duration: PRESENTATION_FLY_DURATION_SECONDS,
           easeLinearity: 0.16,
           padding: [18, 18],
-          maxZoom: PRESENTATION_COUNTRY_ZOOM
+          maxZoom: PRESENTATION_COUNTRY_ZOOM,
         });
         return;
       }
@@ -748,7 +765,7 @@
         this.map.flyTo([point.lat, point.lng], PRESENTATION_COUNTRY_ZOOM, {
           animate: true,
           duration: PRESENTATION_FLY_DURATION_SECONDS,
-          easeLinearity: 0.16
+          easeLinearity: 0.16,
         });
         return;
       }
@@ -759,7 +776,7 @@
           duration: PRESENTATION_FLY_DURATION_SECONDS,
           easeLinearity: 0.16,
           padding: [18, 18],
-          maxZoom: PRESENTATION_COUNTRY_ZOOM
+          maxZoom: PRESENTATION_COUNTRY_ZOOM,
         });
         return;
       }
@@ -776,7 +793,7 @@
         this.map.fitBounds(bounds, {
           animate,
           padding: [18, 18],
-          maxZoom
+          maxZoom,
         });
         return;
       }
@@ -790,7 +807,7 @@
         this.map.fitBounds(bounds, {
           animate,
           padding: [18, 18],
-          maxZoom
+          maxZoom,
         });
       }
     }
@@ -856,7 +873,7 @@
         if (!position) return;
         this.applyPosition(position.coords.latitude, position.coords.longitude, {
           source: "device",
-          accuracy: position.coords.accuracy
+          accuracy: position.coords.accuracy,
         });
       });
 
@@ -865,12 +882,13 @@
         if ("HTMLGeolocationElement" in globalThis) return;
         if (!navigator.geolocation) return;
         navigator.geolocation.getCurrentPosition(
-          (position) => this.applyPosition(position.coords.latitude, position.coords.longitude, {
-            source: "device",
-            accuracy: position.coords.accuracy
-          }),
+          (position) =>
+            this.applyPosition(position.coords.latitude, position.coords.longitude, {
+              source: "device",
+              accuracy: position.coords.accuracy,
+            }),
           () => {},
-          { enableHighAccuracy: true, maximumAge: 30_000, timeout: 15_000 }
+          { enableHighAccuracy: true, maximumAge: 30_000, timeout: 15_000 },
         );
       });
     }
@@ -885,13 +903,13 @@
           zoomControl: true,
           attributionControl: true,
           dragging: !weightedDrag,
-          ...mapMotionOptions(true)
+          ...mapMotionOptions(true),
         }).setView([20, 0], 2);
         this.weightedDragCleanup = installWeightedMapDragging(this.map, this.container, true);
 
         L.tileLayer(this.provider.url, {
           maxZoom: this.provider.maxZoom || 19,
-          attribution: this.provider.attribution || DEFAULT_PROVIDER.attribution
+          attribution: this.provider.attribution || DEFAULT_PROVIDER.attribution,
         }).addTo(this.map);
 
         this.map.on("click", (event) => {
@@ -901,9 +919,10 @@
         this.updateFromInputs(true);
         requestAnimationFrame(() => this.map.invalidateSize());
       } catch (error) {
-        this.container.textContent = "Map preview unavailable. Coordinates can still be entered manually.";
+        this.container.textContent =
+          "Map preview unavailable. Coordinates can still be entered manually.";
         this.container.dataset.error = "true";
-        // eslint-disable-next-line no-console, no-undef
+        // eslint-disable-next-line no-undef
         console.warn(error);
       }
     }
@@ -912,9 +931,10 @@
       this.latitude.value = Number(latitude).toFixed(6);
       this.longitude.value = Number(longitude).toFixed(6);
       if (this.source) this.source.value = options.source || "manual";
-      if (this.accuracy) this.accuracy.value = Number.isFinite(options.accuracy)
-        ? String(Math.round(options.accuracy))
-        : "";
+      if (this.accuracy)
+        this.accuracy.value = Number.isFinite(options.accuracy)
+          ? String(Math.round(options.accuracy))
+          : "";
       this.updateFromInputs();
       this.latitude.dispatchEvent(new Event("change", { bubbles: true }));
     }
@@ -938,7 +958,7 @@
           draggable: true,
           keyboard: true,
           title: "Selected location",
-          icon: semanticMarkerIcon(L, "place", markerColor, "", "pin")
+          icon: semanticMarkerIcon(L, "place", markerColor, "", "pin"),
         }).addTo(this.map);
         this.marker.on("dragend", () => {
           const point = this.marker.getLatLng();
@@ -963,10 +983,11 @@
     }
 
     refresh() {
-      if (this.details?.open) this.ensureMap().then(() => {
-        this.updateFromInputs(true);
-        this.map?.invalidateSize();
-      });
+      if (this.details?.open)
+        this.ensureMap().then(() => {
+          this.updateFromInputs(true);
+          this.map?.invalidateSize();
+        });
     }
 
     destroy() {
@@ -994,6 +1015,6 @@
     hasRenderableGeometry,
     loadLeaflet,
     presentationZoom,
-    provider: DEFAULT_PROVIDER
+    provider: DEFAULT_PROVIDER,
   });
 })();

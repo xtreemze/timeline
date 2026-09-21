@@ -1,6 +1,6 @@
-import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import test from "node:test";
 
 await import("../site/temporal-standards.js");
 await import("../site/timeline-migration.js");
@@ -24,7 +24,7 @@ test("builds date-only and floating date-time endpoints", () => {
     time: "",
     precision: "day",
     certainty: "exact",
-    timeZone: ""
+    timeZone: "",
   });
   assert.equal(day.value, "2026-09-19");
   assert.equal(day.timeZone, null);
@@ -34,7 +34,7 @@ test("builds date-only and floating date-time endpoints", () => {
     time: "12:06:31",
     precision: "second",
     certainty: "approximate",
-    timeZone: ""
+    timeZone: "",
   });
   assert.equal(second.value, "2026-09-19T12:06:31");
   assert.equal(second.certainty, "approximate");
@@ -46,21 +46,21 @@ test("builds coarse-precision endpoints without requiring clock fields", () => {
     time: "",
     precision: "millennium",
     certainty: "exact",
-    timeZone: ""
+    timeZone: "",
   });
   const year = temporal.buildEndpoint({
     date: "2026-09-19",
     time: "",
     precision: "year",
     certainty: "approximate",
-    timeZone: ""
+    timeZone: "",
   });
   const month = temporal.buildEndpoint({
     date: "2026-09-19",
     time: "",
     precision: "month",
     certainty: "uncertain",
-    timeZone: ""
+    timeZone: "",
   });
   assert.equal(millennium.value, "2026");
   assert.equal(millennium.precision, "millennium");
@@ -85,14 +85,17 @@ test("location uses RFC 7946 coordinate order longitude, latitude", () => {
     address: "",
     latitude: "59.3293",
     longitude: "18.0686",
-    source: "manual"
+    source: "manual",
   });
   assert.deepEqual(location.geometry, { type: "Point", coordinates: [18.0686, 59.3293] });
   assert.equal(location.crs, "OGC:CRS84");
 });
 
 test("rejects incomplete coordinate pairs", () => {
-  assert.throws(() => spatial.fromForm({ latitude: "59.3", longitude: "" }), /both latitude and longitude/i);
+  assert.throws(
+    () => spatial.fromForm({ latitude: "59.3", longitude: "" }),
+    /both latitude and longitude/i,
+  );
 });
 
 test("canonical places support point radius, area geometry, semantic icon and marker shape", () => {
@@ -103,7 +106,7 @@ test("canonical places support point radius, area geometry, semantic icon and ma
     longitude: "18.0686",
     radiusMeters: "250",
     icon: "place",
-    markerShape: "diamond"
+    markerShape: "diamond",
   });
   assert.deepEqual(point.geometry, { type: "Point", coordinates: [18.0686, 59.3293] });
   assert.equal(point.radiusMeters, 250);
@@ -115,28 +118,42 @@ test("canonical places support point radius, area geometry, semantic icon and ma
     name: "Search Area",
     areaGeometry: JSON.stringify({
       type: "Polygon",
-      coordinates: [[[18, 59], [18.1, 59], [18.1, 59.1], [18, 59]]]
+      coordinates: [
+        [
+          [18, 59],
+          [18.1, 59],
+          [18.1, 59.1],
+          [18, 59],
+        ],
+      ],
     }),
     icon: "search",
-    markerShape: "square"
+    markerShape: "square",
   });
   assert.equal(area.geometry.type, "Polygon");
   assert.equal(area.radiusMeters, null);
   assert.throws(
-    () => spatial.normalizePlace({
-      id: "bad-area",
-      name: "Bad area",
-      geometry: area.geometry,
-      radiusMeters: 10
-    }),
-    /radius can only be used with Point/i
+    () =>
+      spatial.normalizePlace({
+        id: "bad-area",
+        name: "Bad area",
+        geometry: area.geometry,
+        radiusMeters: 10,
+      }),
+    /radius can only be used with Point/i,
   );
 });
 
 test("canonical place normalization requires geometry and clamps imported marker semantics", () => {
   const places = spatial.normalizePlaces([
     { id: "missing-geometry", name: "Name only", icon: "unknown-icon", markerShape: "hexagon" },
-    { id: "valid", name: "Valid", geometry: { type: "Point", coordinates: [18, 59] }, icon: "unknown-icon", markerShape: "hexagon" }
+    {
+      id: "valid",
+      name: "Valid",
+      geometry: { type: "Point", coordinates: [18, 59] },
+      icon: "unknown-icon",
+      markerShape: "hexagon",
+    },
   ]);
   assert.equal(places.length, 1);
   assert.equal(places[0].id, "valid");
@@ -147,22 +164,35 @@ test("canonical place normalization requires geometry and clamps imported marker
 
 test("canonical places deduplicate equivalent location records", () => {
   const places = spatial.normalizePlaces([
-    { id: "one", name: "Same place", geometry: { type: "Point", coordinates: [18, 59] }, radiusMeters: 100 },
-    { id: "two", name: "Same place", geometry: { type: "Point", coordinates: [18, 59] }, radiusMeters: 100 }
+    {
+      id: "one",
+      name: "Same place",
+      geometry: { type: "Point", coordinates: [18, 59] },
+      radiusMeters: 100,
+    },
+    {
+      id: "two",
+      name: "Same place",
+      geometry: { type: "Point", coordinates: [18, 59] },
+      radiusMeters: 100,
+    },
   ]);
   assert.equal(places.length, 1);
-  assert.equal(spatial.placeIdentity(places[0]), spatial.placeIdentity({
-    name: "Same place",
-    geometry: { type: "Point", coordinates: [18, 59] },
-    radiusMeters: 100
-  }));
+  assert.equal(
+    spatial.placeIdentity(places[0]),
+    spatial.placeIdentity({
+      name: "Same place",
+      geometry: { type: "Point", coordinates: [18, 59] },
+      radiusMeters: 100,
+    }),
+  );
 });
 
 test("item form uses one range calendar while canonical place authoring is separated into the graph editor", async () => {
   const [html, mapSource, appSource] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8")
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
   ]);
   assert.match(html, /id="item-date-range" type="text" readonly/);
   assert.match(html, /id="item-calendar-popover"[^>]*popover="auto"/);
@@ -177,7 +207,11 @@ test("item form uses one range calendar while canonical place authoring is separ
   assert.ok(html.includes('<option value="year">Year</option>'));
   assert.ok(html.includes('<option value="month">Month</option>'));
   assert.equal(html.split('<option value="millennium">Millennium</option>').length - 1, 2);
-  assert.ok(appSource.includes('const hasClock = !["millennium", "century", "decade", "year", "month", "day"].includes(precision);'));
+  assert.ok(
+    appSource.includes(
+      'const hasClock = !["millennium", "century", "decade", "year", "month", "day"].includes(precision);',
+    ),
+  );
   assert.match(html, /id="item-location-details"[^>]*hidden/);
   assert.match(html, /id="graph-place-form"/);
   assert.match(html, /id="graph-edge-place"/);
@@ -191,7 +225,7 @@ test("omits location accuracy when the form field is empty", () => {
     name: "Point",
     latitude: "59.3293",
     longitude: "18.0686",
-    accuracyMeters: ""
+    accuracyMeters: "",
   });
   assert.equal("accuracyMeters" in location, false);
 });
@@ -216,7 +250,6 @@ test("presentation map is semantic and selects a reasonable zoom from canonical 
   assert.match(source, /return 12/);
 });
 
-
 test("round-trips reduced year/month precision and exact milliseconds", () => {
   const year = temporal.endpointFrom("2026");
   const month = temporal.endpointFrom("2026-09");
@@ -235,7 +268,7 @@ test("preserves bounded uncertainty separately from source wording", () => {
     earliest: "2026-09-17",
     latest: "2026-09-21",
     sourceText: "around 19 September 2026",
-    referenceSystem: "http://www.opengis.net/def/uom/ISO-8601/0/Gregorian"
+    referenceSystem: "http://www.opengis.net/def/uom/ISO-8601/0/Gregorian",
   });
   assert.equal(endpoint.certainty, "uncertain");
   assert.equal(endpoint.earliest, "2026-09-17");
@@ -257,14 +290,16 @@ test("represents astronomical year zero and BCE without Date 1900 remapping", ()
 });
 
 test("rejects inverted exact intervals but preserves uncertain bounds", () => {
-  assert.equal(
-    temporal.normalizeExtent(null, "2026-09-20", "2026-09-19", "range"),
-    null
+  assert.equal(temporal.normalizeExtent(null, "2026-09-20", "2026-09-19", "range"), null);
+  const uncertain = temporal.normalizeExtent(
+    {
+      start: { value: "2026-09-20", certainty: "uncertain" },
+      end: { value: "2026-09-19", certainty: "uncertain" },
+    },
+    null,
+    null,
+    "range",
   );
-  const uncertain = temporal.normalizeExtent({
-    start: { value: "2026-09-20", certainty: "uncertain" },
-    end: { value: "2026-09-19", certainty: "uncertain" }
-  }, null, null, "range");
   assert.equal(uncertain.type, "interval");
 });
 
@@ -284,30 +319,31 @@ test("treats malformed external temporal values as untrusted", () => {
   assert.equal(temporal.normalizeExtent(null, "<script>", null, "event"), null);
 });
 
-
 test("retains the complete original v2 payload exactly once during temporal migration", () => {
   const source = {
     version: 2,
     title: "Legacy",
     categories: [{ id: "incident", name: "Incident", color: "#b42318" }],
-    items: [{
-      id: "legacy-event",
-      kind: "event",
-      start: "2026-09-19T12:06",
-      end: null,
-      title: "Legacy event",
-      description: "Original v2 record",
-      categoryId: "incident"
-    }],
+    items: [
+      {
+        id: "legacy-event",
+        kind: "event",
+        start: "2026-09-19T12:06",
+        end: null,
+        title: "Legacy event",
+        description: "Original v2 record",
+        categoryId: "incident",
+      },
+    ],
     stories: [{ id: "story-a", title: "Story", itemIds: ["legacy-event"] }],
-    extensions: { vendorExample: { keep: true } }
+    extensions: { vendorExample: { keep: true } },
   };
 
   const extensions = migration.extensionsWithRetainedV2(source);
   assert.deepEqual(
     extensions.timelineMigration.originalV2,
     source,
-    "the retained payload is a verbatim structural clone of the imported v2 source"
+    "the retained payload is a verbatim structural clone of the imported v2 source",
   );
   assert.equal(extensions.timelineMigration.sourceVersion, 2);
   assert.equal(extensions.timelineMigration.temporalSchema, "v3");
@@ -317,7 +353,7 @@ test("retains the complete original v2 payload exactly once during temporal migr
   assert.equal(
     extensions.timelineMigration.originalV2.items[0].title,
     "Legacy event",
-    "retained migration provenance does not share mutable references with source state"
+    "retained migration provenance does not share mutable references with source state",
   );
 });
 
@@ -325,11 +361,11 @@ test("re-normalizing a migrated payload preserves the original v2 source without
   const original = {
     version: 2,
     title: "Legacy",
-    items: [{ id: "a", kind: "event", start: "2026-09-19", title: "A", categoryId: "incident" }]
+    items: [{ id: "a", kind: "event", start: "2026-09-19", title: "A", categoryId: "incident" }],
   };
   const first = {
     ...original,
-    extensions: migration.extensionsWithRetainedV2(original)
+    extensions: migration.extensionsWithRetainedV2(original),
   };
   const secondExtensions = migration.extensionsWithRetainedV2(first);
 
@@ -337,7 +373,7 @@ test("re-normalizing a migrated payload preserves the original v2 source without
   assert.equal(
     secondExtensions.timelineMigration.originalV2.extensions?.timelineMigration,
     undefined,
-    "the original payload never contains a nested copy of its own migration envelope"
+    "the original payload never contains a nested copy of its own migration envelope",
   );
   assert.deepEqual(migration.originalV2Payload({ extensions: secondExtensions }), original);
 });
@@ -345,23 +381,28 @@ test("re-normalizing a migrated payload preserves the original v2 source without
 test("current structured-temporal projects are not mislabeled as legacy v2 migrations", () => {
   const current = {
     version: 2,
-    items: [{
-      id: "current",
-      kind: "event",
-      start: "2026-09-20",
-      time: { type: "instant", start: { value: "2026-09-20", precision: "day", certainty: "exact" }, end: null },
-      title: "Current"
-    }]
+    items: [
+      {
+        id: "current",
+        kind: "event",
+        start: "2026-09-20",
+        time: {
+          type: "instant",
+          start: { value: "2026-09-20", precision: "day", certainty: "exact" },
+          end: null,
+        },
+        title: "Current",
+      },
+    ],
   };
   assert.equal(migration.isLegacyV2Timeline(current), false);
   assert.equal(migration.extensionsWithRetainedV2(current), undefined);
 });
 
-
 test("models unknown endpoint values without fabricating a persisted date", () => {
   const endpoint = temporal.unknownEndpoint({
     certainty: "unknown",
-    sourceText: "date not established"
+    sourceText: "date not established",
   });
   assert.deepEqual(endpoint, {
     value: null,
@@ -370,11 +411,14 @@ test("models unknown endpoint values without fabricating a persisted date", () =
     calendar: "gregorian",
     timeZone: null,
     utcOffset: null,
-    sourceText: "date not established"
+    sourceText: "date not established",
   });
   assert.equal(Number.isNaN(temporal.sortKey(endpoint)), true);
   assert.equal(JSON.stringify(endpoint).includes("0000-01-01"), false);
-  assert.equal(temporal.intervalRepresentation({ type: "instant", start: endpoint, end: null }), "date not established");
+  assert.equal(
+    temporal.intervalRepresentation({ type: "instant", start: endpoint, end: null }),
+    "date not established",
+  );
 });
 
 test("derives coordinates only from explicit uncertainty bounds", () => {
@@ -382,7 +426,7 @@ test("derives coordinates only from explicit uncertainty bounds", () => {
     certainty: "unknown",
     earliest: "2026-09-10",
     latest: "2026-09-20",
-    sourceText: "sometime in mid-September"
+    sourceText: "sometime in mid-September",
   });
   const bounds = temporal.endpointBounds(endpoint);
   assert.equal(bounds.locatable, true);
@@ -390,18 +434,27 @@ test("derives coordinates only from explicit uncertainty bounds", () => {
   assert.equal(bounds.end, Date.UTC(2026, 8, 20));
   assert.equal(temporal.sortKey(endpoint), Date.UTC(2026, 8, 15));
   assert.equal(
-    temporal.unknownEndpoint({ certainty: "unknown", earliest: "2026-09-20", latest: "2026-09-10" }),
-    null
+    temporal.unknownEndpoint({
+      certainty: "unknown",
+      earliest: "2026-09-20",
+      latest: "2026-09-10",
+    }),
+    null,
   );
 });
 
 test("represents explicitly open interval boundaries without sentinel dates", () => {
-  const openEnd = temporal.normalizeExtent({
-    type: "interval",
-    start: { value: "2026-09-20", certainty: "exact" },
-    end: null,
-    openEnd: true
-  }, null, null, "range");
+  const openEnd = temporal.normalizeExtent(
+    {
+      type: "interval",
+      start: { value: "2026-09-20", certainty: "exact" },
+      end: null,
+      openEnd: true,
+    },
+    null,
+    null,
+    "range",
+  );
   assert.equal(openEnd.type, "interval");
   assert.equal(openEnd.end, null);
   assert.equal(openEnd.openEnd, true);
@@ -409,38 +462,53 @@ test("represents explicitly open interval boundaries without sentinel dates", ()
   assert.deepEqual(temporal.extentBounds(openEnd), {
     start: Date.UTC(2026, 8, 20),
     end: Number.POSITIVE_INFINITY,
-    locatable: true
+    locatable: true,
   });
 
-  const openStart = temporal.normalizeExtent({
-    type: "interval",
-    start: null,
-    openStart: true,
-    end: { value: "2026-09-20", certainty: "exact" }
-  }, null, null, "range");
+  const openStart = temporal.normalizeExtent(
+    {
+      type: "interval",
+      start: null,
+      openStart: true,
+      end: { value: "2026-09-20", certainty: "exact" },
+    },
+    null,
+    null,
+    "range",
+  );
   assert.equal(openStart.start, null);
   assert.equal(openStart.openStart, true);
   assert.equal(temporal.intervalRepresentation(openStart), "/2026-09-20");
   assert.deepEqual(temporal.extentBounds(openStart), {
     start: Number.NEGATIVE_INFINITY,
     end: Date.UTC(2026, 8, 20),
-    locatable: true
+    locatable: true,
   });
 
   assert.equal(
-    temporal.normalizeExtent({ type: "interval", start: { value: "2026-09-20" }, end: null }, null, null, "range"),
+    temporal.normalizeExtent(
+      { type: "interval", start: { value: "2026-09-20" }, end: null },
+      null,
+      null,
+      "range",
+    ),
     null,
-    "a missing boundary is not open unless the explicit open flag is present"
+    "a missing boundary is not open unless the explicit open flag is present",
   );
 });
 
 test("keeps open-boundary flags invalid on instants", () => {
   assert.equal(
-    temporal.normalizeExtent({
-      type: "instant",
-      start: { value: "2026-09-20" },
-      openEnd: true
-    }, null, null, "event"),
-    null
+    temporal.normalizeExtent(
+      {
+        type: "instant",
+        start: { value: "2026-09-20" },
+        openEnd: true,
+      },
+      null,
+      null,
+      "event",
+    ),
+    null,
   );
 });
