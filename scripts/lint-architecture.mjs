@@ -77,7 +77,7 @@ function hoverOnlySelectors(source) {
   const rulePattern = /([^{}]+)\{[^{}]*\}/g;
   let match = rulePattern.exec(source);
   while (match) {
-    const selector = normalize(match[1]);
+    const selector = normalize(match[1].replace(/\/\*[\s\S]*?\*\//g, ""));
     if (
       selector.includes(":hover") &&
       !selector.startsWith("@") &&
@@ -108,8 +108,8 @@ function maxWidthContainerQueries(source) {
 function viewportWidthSizing(source) {
   const matches = [];
   const pattern =
-    /\b(?:width|inline-size|min-width|min-inline-size|max-width|max-inline-size)\s*:\s*[^;{}]*\b(?:\d*\.?\d+)?(?:dvw|svw|lvw|vw)\b[^;{}]*;/gi;
-  for (const match of source.matchAll(pattern)) matches.push(match[0]);
+    /(?:^|[;{]\s*)((?:width|inline-size|min-width|min-inline-size|max-width|max-inline-size)\s*:\s*[^;{}]*\b(?:\d*\.?\d+)?(?:dvw|svw|lvw|vw)\b[^;{}]*;)/gim;
+  for (const match of source.matchAll(pattern)) matches.push(match[1]);
   return distribution(matches);
 }
 
@@ -132,9 +132,9 @@ function rootMinWidth(source) {
 function physicalInlineProperties(source) {
   const matches = [];
   const pattern =
-    /\b(?:(?:margin|padding|border)-(?:left|right)(?:-(?:color|style|width))?|left|right)\s*:/gi;
+    /(?:^|[;{]\s*)((?:(?:margin|padding|border)-(?:left|right)(?:-(?:color|style|width))?|left|right))\s*:/gim;
   for (const match of source.matchAll(pattern)) {
-    matches.push(match[0].replace(/\s*:\s*$/, ""));
+    matches.push(match[1]);
   }
   return distribution(matches);
 }
@@ -402,7 +402,7 @@ function lintInputEventPolicy(file, source) {
     );
   }
 
-  if (/\.setPointerCapture\??\.??\s*\(/.test(source)) {
+  if (/\.setPointerCapture(?:\?\.)?\s*\(/.test(source)) {
     if (!/["']pointercancel["']/.test(source)) {
       report(
         file,
@@ -421,13 +421,11 @@ function lintInputEventPolicy(file, source) {
 }
 
 function lintHtml(file, source) {
-  const viewport = source.match(
-    /<meta\s+[^>]*name=["']viewport["'][^>]*content=["']([^"']*)["'][^>]*>/i,
-  );
+  const viewport = source.match(/<meta\b[^>]*\bname=["']viewport["'][^>]*>/i);
   if (!viewport) {
     report(file, "viewport-meta-required", "HTML entry points must declare a responsive viewport");
   } else {
-    const content = viewport[1];
+    const content = viewport[0].match(/\bcontent=["']([^"']*)["']/i)?.[1] || "";
     if (!/\bwidth\s*=\s*device-width\b/i.test(content) || !/\binitial-scale\s*=\s*1(?:\.0+)?\b/i.test(content)) {
       report(
         file,
