@@ -89,8 +89,8 @@ test("story place selections are normalized, edited, and saved", async () => {
   ]);
 
   assert.match(html, /id="story-place-picker"/);
-  assert.match(app, /storyPlacePicker:\s*document\.querySelector\("#story-place-picker"\)/);
-  assert.match(app, /let storyDraftPlaceIds = \[\]/);
+  assert.match(app, /storyPlacePicker:\s*requiredElement<HTMLElement>\("#story-place-picker"\)/);
+  assert.match(app, /let storyDraftPlaceIds:\s*string\[\]\s*=\s*\[\]/);
   assert.match(app, /placeIds:\s*\[\.\.\.storyDraftPlaceIds\]/);
   assert.match(app, /storyDraftPlaceIds = \[\.\.\.\(story\.placeIds \|\| \[\]\)\]/);
   assert.match(app, /normalizedPlaceIds/);
