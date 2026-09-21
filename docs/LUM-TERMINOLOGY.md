@@ -6,9 +6,11 @@ The name is written **Lūm** in human-facing product copy. Use **Lum** only wher
 
 ## Core metaphor
 
-**Lūm is the instrument. The continuum is the world it reveals.**
+**Lūm is the loom that weaves loose threads into fabric.**
 
-Lūm does not treat timeline, graph, map, evidence, and story as independent applications that must be synchronized. They are coordinated projections of one canonical continuum of entities, occurrences, places, sources, and authored narrative paths.
+The **loose threads** are facts, entities, occurrences, places, evidence, claims, and narrative fragments that may begin disconnected or only partially understood. **Lūm is the loom**: the instrument that brings those threads into relation without erasing their individual identity or provenance. The resulting **fabric is the continuum**—the coherent canonical information space from which temporal, topological, spatial, evidentiary, analytical, and narrative projections are derived.
+
+Lūm does not treat timeline, graph, map, evidence, and story as independent applications that must be synchronized. They are different ways of reading the same fabric.
 
 The vocabulary is intended to clarify ownership and meaning. It must never force metaphor into code where a precise domain or standards term is clearer.
 
@@ -22,11 +24,11 @@ Use “Lūm” when referring to the application, user experience, project, or p
 
 Do not rename stable compatibility APIs merely to match the brand.
 
-### Continuum
+### Fabric / continuum
 
-The canonical information space.
+The coherent canonical information space produced by weaving related threads together.
 
-The continuum contains the durable records from which views are derived: entities, relationships/occurrences, places, evidence/provenance, analytical records, stories, and presentation metadata where appropriate.
+**Fabric** is the product metaphor; **continuum** is the precise architectural term. The continuum contains the durable records from which views are derived: entities, relationships/occurrences, places, evidence/provenance, analytical records, stories, and presentation metadata where appropriate.
 
 A timeline is not the continuum. A graph is not the continuum. A map is not the continuum. Each is a projection over it.
 
@@ -40,15 +42,15 @@ Explicit unary occurrences or named durable events remain valid where the domain
 
 ### Thread
 
-A traversable continuity through the continuum.
+A strand of meaning that can begin loose and become traversable once woven into the continuum.
 
-A thread may follow one entity, relationship family, place, evidentiary trail, theme, or authored narrative through multiple occurrences. “Thread” is primarily a navigation and explanatory concept, not necessarily a persisted record type.
+A thread may originate as one fact, entity, relationship, place, evidentiary trail, theme, or narrative fragment. Once contextualized, it can be followed through multiple occurrences and intersections without losing its source identity. “Thread” is primarily a navigation and explanatory concept, not necessarily a persisted record type.
 
 ### Weave
 
-The relational structure formed by intersecting threads.
+Both the act of bringing threads into relation and the relational structure that results.
 
-The weave is the topology exposed by relationships between entities and occurrences. The graph projection reveals the weave, but the weave is not owned by a graph renderer.
+The weave exposes how entities and occurrences intersect. Lūm performs the weaving through reconciliation, canonical identity, context, and projection; the graph projection can reveal the resulting topology, but no renderer owns the weave.
 
 ### Locus
 
@@ -99,15 +101,15 @@ A stratum may refer to a temporal period, evidence layer, geographic layer, or a
 
 Preferred short description:
 
-> **Lūm explores the continuum of people, places, actions, evidence, and stories across time.**
+> **Lūm is the loom that weaves loose threads of people, places, actions, evidence, and stories into a navigable continuum.**
 
 Preferred conceptual description:
 
-> Lūm is a local-first relational knowledge environment. It models a shared continuum of entities, occurrences, places, evidence, and stories, then lets people move between temporal, topological, spatial, evidentiary, and narrative projections without losing identity or context.
+> Lūm is a local-first relational knowledge environment: a loom for weaving loose facts, entities, occurrences, places, evidence, and stories into one coherent fabric. That fabric is the continuum. People can move between its temporal, topological, spatial, evidentiary, analytical, and narrative projections without losing identity, provenance, or context.
 
 Preferred compact tagline:
 
-> **Explore the continuum. Follow the threads.**
+> **Weave the threads. Explore the continuum.**
 
 Alternative expressive line:
 
@@ -115,10 +117,14 @@ Alternative expressive line:
 
 ## Architectural language
 
-Use the following ownership model in new architecture documents:
+Use the following ownership model in new architecture documents. The textile language is explanatory; the architectural ownership remains precise:
 
 ```text
-Continuum
+Loose threads / source material
+       ↓
+Lūm: reconcile + weave
+       ↓
+Fabric = Continuum
   ├─ entities
   ├─ occurrences / relationships
   ├─ loci / places
