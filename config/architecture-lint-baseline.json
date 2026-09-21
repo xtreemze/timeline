@@ -417,6 +417,16 @@
     "directCanonicalMutations": {
       "site/app.ts": 20,
       "site/webmcp.ts": 2
+    },
+    "legacyInputHandlers": {
+      "src/orb-graph-entry.js": {
+        "addEventListener(\"touchmove\"": 1,
+        "addEventListener(\"touchend\"": 1,
+        "addEventListener(\"touchcancel\"": 1,
+        "removeEventListener(\"touchmove\"": 1,
+        "removeEventListener(\"touchend\"": 1,
+        "removeEventListener(\"touchcancel\"": 1
+      }
     }
   }
 }
