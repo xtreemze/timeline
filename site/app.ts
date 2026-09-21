@@ -4001,24 +4001,26 @@ const evidenceExtraction = Reflect.get(
     const availableWidth = Math.max(1, maxRight - minLeft);
     const availableHeight = Math.max(1, maxBottom - minTop);
     const menuWidth = Math.min(340, availableWidth);
-    const menuHeight = Math.min(
+    const requestedHeight = Math.min(
       620,
       Math.max(1, els.projectMenu.scrollHeight || 340),
       availableHeight,
     );
-    const portrait = els.timelineViewRoot?.dataset.orientation === "portrait";
-    const preferredLeft = portrait ? rect.left - menuWidth - gap : rect.left;
+    const roomAbove = Math.max(0, rect.top - gap - minTop);
+    const roomBelow = Math.max(0, maxBottom - rect.bottom - gap);
+    const opensUpward = roomAbove >= roomBelow;
+    const verticalRoom = Math.max(1, opensUpward ? roomAbove : roomBelow);
+    const menuHeight = Math.min(requestedHeight, verticalRoom);
+    const preferredLeft = rect.left + rect.width / 2 - menuWidth / 2;
     const left = Math.min(
       Math.max(minLeft, preferredLeft),
       Math.max(minLeft, maxRight - menuWidth),
     );
-    const opensUpward = !portrait && rect.top > viewport.top + viewport.height / 2;
-    const preferredTop = opensUpward
-      ? rect.top - menuHeight - gap
-      : portrait
-        ? rect.top
-        : rect.bottom + gap;
-    const top = Math.min(Math.max(minTop, preferredTop), Math.max(minTop, maxBottom - menuHeight));
+    const preferredTop = opensUpward ? rect.top - gap - menuHeight : rect.bottom + gap;
+    const top = Math.min(
+      Math.max(minTop, preferredTop),
+      Math.max(minTop, maxBottom - menuHeight),
+    );
 
     els.projectMenu.style.setProperty("--project-menu-left", `${Math.round(left)}px`);
     els.projectMenu.style.setProperty("--project-menu-top", `${Math.round(top)}px`);
@@ -4028,8 +4030,9 @@ const evidenceExtraction = Reflect.get(
     );
     els.projectMenu.style.setProperty(
       "--project-menu-max-height",
-      `${Math.floor(availableHeight)}px`,
+      `${Math.floor(verticalRoom)}px`,
     );
+    els.projectMenu.dataset.anchorPlacement = opensUpward ? "above" : "below";
 
     if (els.projectMenu.matches(":popover-open")) {
       const menuRect = els.projectMenu.getBoundingClientRect();
@@ -4055,7 +4058,9 @@ const evidenceExtraction = Reflect.get(
     if (event.newState === "open") positionProjectMenu();
   });
   els.projectMenu?.addEventListener("toggle", (event) => {
-    if (event.newState !== "open") return;
+    const open = event.newState === "open";
+    els.projectMenuToggle?.setAttribute("aria-expanded", String(open));
+    if (!open) return;
     requestAnimationFrame(positionProjectMenu);
   });
   window.addEventListener("resize", repositionOpenProjectMenu);
