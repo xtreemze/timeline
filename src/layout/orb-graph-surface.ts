@@ -8,10 +8,8 @@ import type {
   CanonicalSelection,
   CameraState,
   GraphEdgeProjection,
-  GraphNodeProjection,
   GraphProjection,
   GraphSurface,
-  GraphSurfaceEvent,
   GraphSurfaceEventListener,
 } from "./graph-surface.ts";
 import type { EntityId, RelationshipId } from "../domain/ids.ts";
@@ -61,7 +59,6 @@ interface OrbFactory {
 export class OrbGraphSurface implements GraphSurface {
   private orb: OrbInstance;
   private eventListener: GraphSurfaceEventListener;
-  private currentProjection: GraphProjection = { nodes: [], edges: [] };
   private currentSelection: CanonicalSelection | null = null;
   private camera: CameraState = { x: 0, y: 0, z: 1 };
 
@@ -139,13 +136,11 @@ export class OrbGraphSurface implements GraphSurface {
   }
 
   setProjection(projection: GraphProjection): void {
-    this.currentProjection = projection;
     const orbData = this.translateProjectionToOrb(projection);
     this.orb.setData(orbData);
   }
 
   transitionProjection(projection: GraphProjection): void {
-    this.currentProjection = projection;
     const orbData = this.translateProjectionToOrb(projection);
     this.orb.transitionData(orbData);
   }

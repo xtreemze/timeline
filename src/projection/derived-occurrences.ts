@@ -44,11 +44,11 @@ function formatTemporalEndpoint(value: unknown): string {
   }
   if (value && typeof value === "object") {
     const obj = value as Record<string, unknown>;
-    if (typeof obj.value === "string") {
-      return obj.value.trim().slice(0, 120);
+    if (typeof obj["value"] === "string") {
+      return (obj["value"] as string).trim().slice(0, 120);
     }
-    if (typeof obj.sourceText === "string") {
-      return obj.sourceText.trim().slice(0, 120);
+    if (typeof obj["sourceText"] === "string") {
+      return (obj["sourceText"] as string).trim().slice(0, 120);
     }
   }
   return "";
