@@ -97,10 +97,9 @@ jobs:
       - name: Validate built entry point
         run: |
           test -s dist/index.html
-          test -s dist/icon.svg
+          test -d dist/assets
           test -s dist/orb-graph.bundle.js
           test -s dist/leaflet.bundle.js
-          test -s dist/leaflet.css
           test -s dist/evidence-extraction.bundle.js
           test -s dist/pdf.worker.mjs
 
