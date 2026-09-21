@@ -321,9 +321,9 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     endInput: els.graphEdgeEndDate,
     mode: "range",
   });
-  // eslint-disable-next-line no-useless-assignment
+  // eslint-disable-next-line no-useless-assignment -- observer handle is assigned by optional resize setup
   let presentationResizeObserver = null;
-  // eslint-disable-next-line no-useless-assignment
+  // eslint-disable-next-line no-useless-assignment -- observer handle is assigned by optional resize setup
   let viewControlsResizeObserver = null;
   // eslint-disable-next-line no-useless-assignment
   let workspaceToolDockResizeObserver = null;
