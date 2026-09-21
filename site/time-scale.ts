@@ -153,7 +153,7 @@ export function coordinateFor(timeMs: number, viewport: unknown, pixelLength: nu
   return ((timeMs - value.start) / (value.end - value.start)) * pixelLength;
 }
 
-interface TickSpec {
+export interface TickSpec {
   unit: string;
   step: number;
   approxMs: number;
@@ -244,6 +244,52 @@ interface Tick {
   spec: TickSpec;
 }
 
+export function generateTicksForSpec(
+  viewport: unknown,
+  spec: TickSpec,
+  limit: number = 2000,
+): Tick[] {
+  const value = normalizeViewport(viewport);
+  if (!spec || typeof spec.unit !== "string" || !spec.unit.trim()) {
+    throw new TypeError("generateTicksForSpec() requires a semantic tick unit.");
+  }
+  assertFinite(spec.step, "spec.step");
+  if (spec.step <= 0) throw new RangeError("Tick steps must be greater than zero.");
+  const normalizedSpec: TickSpec = {
+    unit: spec.unit,
+    step: spec.step,
+    approxMs: Number.isFinite(spec.approxMs)
+      ? spec.approxMs
+      : approximateMilliseconds(spec.unit, spec.step),
+  };
+  const ticks: Tick[] = [];
+
+  if (FIXED_UNITS[normalizedSpec.unit]) {
+    const stepMs = FIXED_UNITS[normalizedSpec.unit]! * normalizedSpec.step;
+    let tick = ceilFixedTick(value.start, stepMs);
+    while (tick <= value.end && ticks.length < limit) {
+      ticks.push({
+        value: tick,
+        label: formatTick(tick, normalizedSpec),
+        spec: normalizedSpec,
+      });
+      tick += stepMs;
+    }
+    return ticks;
+  }
+
+  let tick = firstCalendarTick(value.start, normalizedSpec);
+  while (tick <= value.end && ticks.length < limit) {
+    ticks.push({
+      value: tick,
+      label: formatTick(tick, normalizedSpec),
+      spec: normalizedSpec,
+    });
+    tick = nextCalendarTick(tick, normalizedSpec);
+  }
+  return ticks;
+}
+
 export function generateTicks(
   viewport: unknown,
   pixelLength: number,
@@ -252,24 +298,7 @@ export function generateTicks(
 ): Tick[] {
   const value = normalizeViewport(viewport);
   const spec = selectTickSpec(value, pixelLength, targetPixelSpacing);
-  const ticks: Tick[] = [];
-
-  if (FIXED_UNITS[spec.unit]) {
-    const stepMs = FIXED_UNITS[spec.unit]! * spec.step;
-    let tick = ceilFixedTick(value.start, stepMs);
-    while (tick <= value.end && ticks.length < limit) {
-      ticks.push({ value: tick, label: formatTick(tick, spec), spec });
-      tick += stepMs;
-    }
-    return ticks;
-  }
-
-  let tick = firstCalendarTick(value.start, spec);
-  while (tick <= value.end && ticks.length < limit) {
-    ticks.push({ value: tick, label: formatTick(tick, spec), spec });
-    tick = nextCalendarTick(tick, spec);
-  }
-  return ticks;
+  return generateTicksForSpec(value, spec, limit);
 }
 
 function pad(value: number, width: number = 2): string {
@@ -325,6 +354,7 @@ const TimelineScaleObj = {
   fit,
   formatTick,
   generateTicks,
+  generateTicksForSpec,
   normalizeViewport,
   pan,
   selectTickSpec,
