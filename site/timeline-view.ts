@@ -1265,6 +1265,12 @@ class TimelineViewController {
     this.reconcileCommittedLayout();
     this.render();
     this.emitViewport(true);
+    this.root.dispatchEvent(
+      new CustomEvent("timelineperformancemetrics", {
+        bubbles: true,
+        detail: this.getPerformanceSummary(),
+      }),
+    );
   }
 
   scheduleRender(): void {
@@ -1572,12 +1578,6 @@ class TimelineViewController {
     const frameStartedAt = performance.now();
     const phase = this.retention.active ? "interaction" : "commit";
     const retainedSpanBefore = this.retention.extent.end - this.retention.extent.start;
-    this.frameCreatedNodes = 0;
-    this.frameDestroyedNodes = 0;
-    this.framePlannerDurationMs = 0;
-    this.frameQueryDurationMs = 0;
-    this.frameDirtyMeasurements = 0;
-
     const recordFrameMetrics = (): void => {
       const retainedSpanAfter = this.retention.extent.end - this.retention.extent.start;
       this.metrics.recordFrame({
@@ -1592,6 +1592,11 @@ class TimelineViewController {
         queryDurationMs: this.frameQueryDurationMs,
         dirtyMeasurements: this.frameDirtyMeasurements,
       });
+      this.frameCreatedNodes = 0;
+      this.frameDestroyedNodes = 0;
+      this.framePlannerDurationMs = 0;
+      this.frameQueryDurationMs = 0;
+      this.frameDirtyMeasurements = 0;
     };
 
     const empty = !this.items.length;
