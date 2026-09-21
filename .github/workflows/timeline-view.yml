@@ -12,6 +12,8 @@ on:
       - 'config/architecture-lint-baseline.json'
       - 'scripts/lint-architecture.mjs'
       - 'tests/architecture-lint-policy.test.mjs'
+      - 'tests/*-tdd.test.mjs'
+      - 'tests/browser/retained-timeline-tdd.spec.mjs'
       - 'site/index.html'
       - 'package.json'
       - 'src/orb-graph-entry.js'
@@ -75,6 +77,8 @@ on:
       - 'config/architecture-lint-baseline.json'
       - 'scripts/lint-architecture.mjs'
       - 'tests/architecture-lint-policy.test.mjs'
+      - 'tests/*-tdd.test.mjs'
+      - 'tests/browser/retained-timeline-tdd.spec.mjs'
       - 'site/index.html'
       - 'package.json'
       - 'src/orb-graph-entry.js'
@@ -149,5 +153,18 @@ jobs:
       - run: pnpm test:touch-runtime-contracts
       - run: pnpm test:temporal-context-runtime
       - run: pnpm test:graph-runtime-contracts
+      - run: pnpm test:tdd:retained-timeline
       - run: |
           pnpm test || echo "⚠ Legacy ESM/TypeScript test migration debt tracked in issue 258"
+
+  retained-timeline-browser-tdd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:tdd:retained-timeline:browser
