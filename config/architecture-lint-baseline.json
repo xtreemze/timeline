@@ -130,5 +130,29 @@
       },
       "legacy100vh": 1
     }
+  },
+  "architecture": {
+    "ambientTimelineGlobals": {
+      "site/app.ts": 16,
+      "site/temporal-graph-view.ts": 2,
+      "site/case-reasoning-shim.ts": 1,
+      "site/date-range-picker-shim.ts": 1,
+      "site/event-presentation-shim.ts": 1,
+      "site/evidence-store-shim.ts": 1,
+      "site/interchange-adapter-shim.ts": 1,
+      "site/memgraph-interchange-shim.ts": 1,
+      "site/presentation-layout-shim.ts": 1,
+      "site/spatial-shim.ts": 1,
+      "site/temporal-standards-shim.ts": 1,
+      "site/time-scale-shim.ts": 1,
+      "site/timeline-clustering-shim.ts": 1,
+      "site/timeline-migration-shim.ts": 1,
+      "site/timeline-motion-shim.ts": 1,
+      "site/timeline-navigation-shim.ts": 1,
+      "site/webmcp-shim.ts": 1
+    },
+    "directCanonicalMutations": {
+      "site/app.ts": 20
+    }
   }
 }
