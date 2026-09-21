@@ -18,6 +18,7 @@ import {
   type TemporalRetentionState,
   type TemporalWindow,
 } from "../src/projection/temporal-scene.ts";
+import { TimelineMotion as motion } from "./timeline-motion.ts";
 
 const scale = globalThis.TimelineScale;
 const presentation = globalThis.TimelinePresentation;
@@ -29,6 +30,11 @@ const WHEEL_ZOOM_SENSITIVITY = 0.00065;
 const OVERSCAN_RATIO = 0.6;
 const POINTER_PREDICTION_HORIZON_MS = 260;
 const WHEEL_COMMIT_DELAY_MS = 150;
+const DOUBLE_TAP_ZOOM_FACTOR = 0.5;
+const TOUCH_DOUBLE_TAP_MS = 320;
+const TOUCH_DOUBLE_TAP_DISTANCE_PX = 28;
+const TOUCH_TAP_MOVE_TOLERANCE_PX = 12;
+const CLICK_SUPPRESSION_MS = 450;
 const CONNECTOR_ROUTE_OFFSET_PX = 22;
 const CONNECTOR_ROUTE_EDGE_INSET_PX = 32;
 
@@ -76,12 +82,44 @@ interface SceneRecord {
   copy: HTMLSpanElement;
 }
 
+interface PointerSample {
+  coordinate: number;
+  time: number;
+}
+
 interface PointerDragState {
   pointerId: number;
   coordinate: number;
   lastCoordinate: number;
   lastTime: number;
   viewport: TemporalWindow;
+  length: number;
+  samples: PointerSample[];
+}
+
+interface TouchPointerState {
+  pointerId: number;
+  x: number;
+  y: number;
+}
+
+interface PinchState {
+  distance: number;
+  viewport: TemporalWindow;
+  anchorTime: number;
+}
+
+interface TouchTapState {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  cancelled: boolean;
+}
+
+interface LastTouchTap {
+  time: number;
+  x: number;
+  y: number;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -192,8 +230,14 @@ class TimelineViewController {
   orientation: Orientation = "horizontal";
   scene = new Map<string, SceneRecord>();
   pointerDrag: PointerDragState | null = null;
+  touchPointers = new Map<number, TouchPointerState>();
+  pinch: PinchState | null = null;
+  touchTap: TouchTapState | null = null;
+  lastTouchTap: LastTouchTap | null = null;
+  suppressClickUntil = 0;
   interactionVelocity = 0;
   renderFrame = 0;
+  inertiaAnimationFrame = 0;
   wheelCommitTimer = 0;
   viewportInitialized = false;
   reducedMotionQuery: MediaQueryList | null =
@@ -261,45 +305,237 @@ class TimelineViewController {
       { passive: false },
     );
 
-    this.surface.addEventListener("pointerdown", (event) => {
-      if (!this.items.length || event.button !== 0) return;
-      if (event.target instanceof Element && event.target.closest("button, a, input, select, textarea")) {
-        return;
+    const releasePointerCapture = (pointerId: number): void => {
+      try {
+        if (this.surface.hasPointerCapture(pointerId)) this.surface.releasePointerCapture(pointerId);
+      } catch {
+        // Browser cancellation or lifecycle changes may have already released capture.
       }
+    };
+
+    const beginSurfaceDrag = (
+      pointerId: number,
+      point: { x: number; y: number },
+      sourceEvent: PointerEvent | null = null,
+    ): void => {
       const rect = this.surface.getBoundingClientRect();
-      const coordinate =
-        this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
+      const coordinate = this.orientation === "horizontal" ? point.x : point.y;
+      const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
+      this.cancelInertia();
       this.beginInteraction();
       this.pointerDrag = {
-        pointerId: event.pointerId,
+        pointerId,
         coordinate,
         lastCoordinate: coordinate,
-        lastTime: Number(event.timeStamp) || performance.now(),
+        lastTime: sourceEvent ? Number(sourceEvent.timeStamp) || performance.now() : performance.now(),
         viewport: { ...this.viewport },
+        length,
+        samples: [],
       };
-      this.surface.setPointerCapture(event.pointerId);
+      if (sourceEvent) motion.appendPointerSamples(this.pointerDrag.samples, sourceEvent, this.orientation);
+      try {
+        if (!this.surface.hasPointerCapture(pointerId)) this.surface.setPointerCapture(pointerId);
+      } catch {
+        // Pointer capture is opportunistic; browser gesture cancellation may prevent it.
+      }
       this.root.dataset.sceneState = "interacting";
+    };
+
+    const pinchGeometry = (): { distance: number; ratio: number } | null => {
+      if (this.touchPointers.size < 2) return null;
+      const [first, second] = Array.from(this.touchPointers.values()).slice(0, 2);
+      if (!first || !second) return null;
+      const rect = this.surface.getBoundingClientRect();
+      const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
+      const midpointX = (first.x + second.x) / 2;
+      const midpointY = (first.y + second.y) / 2;
+      const primary =
+        this.orientation === "horizontal" ? midpointX - rect.left : midpointY - rect.top;
+      return {
+        distance: Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)),
+        ratio: clamp(primary / length, 0, 1),
+      };
+    };
+
+    const beginPinch = (): boolean => {
+      const geometry = pinchGeometry();
+      if (!geometry) return false;
+      this.cancelInertia();
+      this.beginInteraction();
+      this.touchTap = null;
+      this.lastTouchTap = null;
+      this.pointerDrag = null;
+      const span = this.viewport.end - this.viewport.start;
+      this.pinch = {
+        distance: geometry.distance,
+        viewport: { ...this.viewport },
+        anchorTime: this.viewport.start + span * geometry.ratio,
+      };
+      for (const pointerId of this.touchPointers.keys()) {
+        try {
+          if (!this.surface.hasPointerCapture(pointerId)) this.surface.setPointerCapture(pointerId);
+        } catch {
+          // A cancelled browser gesture may no longer be capturable.
+        }
+      }
+      return true;
+    };
+
+    const registerTouchTap = (event: PointerEvent, tap: TouchTapState | null): boolean => {
+      if (!tap || tap.cancelled) return false;
+      const now = performance.now();
+      const point = { x: event.clientX, y: event.clientY };
+      const previous = this.lastTouchTap;
+      this.touchTap = null;
+
+      if (
+        previous &&
+        now - previous.time <= TOUCH_DOUBLE_TAP_MS &&
+        Math.hypot(point.x - previous.x, point.y - previous.y) <= TOUCH_DOUBLE_TAP_DISTANCE_PX
+      ) {
+        const rect = this.surface.getBoundingClientRect();
+        const primary =
+          this.orientation === "horizontal" ? point.x - rect.left : point.y - rect.top;
+        const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
+        const ratio = clamp(primary / length, 0, 1);
+        const currentSpan = Math.max(MIN_SPAN_MS, this.viewport.end - this.viewport.start);
+        const nextSpan = Math.max(MIN_SPAN_MS, currentSpan * DOUBLE_TAP_ZOOM_FACTOR);
+        const anchor = this.viewport.start + currentSpan * ratio;
+        this.viewport = {
+          start: anchor - nextSpan * ratio,
+          end: anchor + nextSpan * (1 - ratio),
+        };
+        this.lastTouchTap = null;
+        this.suppressClickUntil = now + CLICK_SUPPRESSION_MS;
+        this.commitInteraction();
+        return true;
+      }
+
+      this.lastTouchTap = { time: now, x: point.x, y: point.y };
+      return false;
+    };
+
+    const abortSurfaceGesture = (): void => {
+      const pointerIds = new Set(this.touchPointers.keys());
+      if (this.pointerDrag) pointerIds.add(this.pointerDrag.pointerId);
+      const interrupted = Boolean(
+        this.pointerDrag || this.pinch || this.touchPointers.size || this.inertiaAnimationFrame,
+      );
+
+      this.cancelInertia();
+      this.touchPointers.clear();
+      this.pinch = null;
+      this.touchTap = null;
+      this.lastTouchTap = null;
+      this.pointerDrag = null;
+      for (const pointerId of pointerIds) releasePointerCapture(pointerId);
+
+      if (interrupted) {
+        this.suppressClickUntil = performance.now() + CLICK_SUPPRESSION_MS;
+        this.commitInteraction();
+      }
+    };
+
+    this.surface.addEventListener(
+      "click",
+      (event) => {
+        if (performance.now() >= this.suppressClickUntil) return;
+        event.preventDefault();
+        event.stopPropagation();
+      },
+      true,
+    );
+
+    this.surface.addEventListener("pointerdown", (event) => {
+      if (!this.items.length || event.button !== 0) return;
+      const interactiveTarget =
+        event.target instanceof Element
+          ? event.target.closest("button, a, input, select, textarea")
+          : null;
+
+      if (event.pointerType === "touch") {
+        this.touchPointers.set(event.pointerId, {
+          pointerId: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+        });
+        this.touchTap = {
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          cancelled: false,
+        };
+        if (this.touchPointers.size >= 2) {
+          beginPinch();
+          return;
+        }
+        if (interactiveTarget) return;
+      } else if (interactiveTarget) {
+        return;
+      }
+
+      if (this.pinch) return;
+      beginSurfaceDrag(event.pointerId, { x: event.clientX, y: event.clientY }, event);
     });
 
     this.surface.addEventListener("pointermove", (event) => {
+      if (event.pointerType === "touch" && this.touchPointers.has(event.pointerId)) {
+        this.touchPointers.set(event.pointerId, {
+          pointerId: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+        });
+        if (this.touchTap?.pointerId === event.pointerId && !this.touchTap.cancelled) {
+          const distance = Math.hypot(
+            event.clientX - this.touchTap.startX,
+            event.clientY - this.touchTap.startY,
+          );
+          if (distance > TOUCH_TAP_MOVE_TOLERANCE_PX) {
+            this.touchTap.cancelled = true;
+            this.lastTouchTap = null;
+          }
+        }
+      }
+
+      if (this.pinch && this.touchPointers.size >= 2) {
+        const geometry = pinchGeometry();
+        if (!geometry) return;
+        event.preventDefault();
+        const factor = clamp(this.pinch.distance / geometry.distance, 0.05, 20);
+        const originalSpan = Math.max(
+          MIN_SPAN_MS,
+          this.pinch.viewport.end - this.pinch.viewport.start,
+        );
+        const nextSpan = Math.max(MIN_SPAN_MS, originalSpan * factor);
+        const nextStart = this.pinch.anchorTime - nextSpan * geometry.ratio;
+        this.viewport = { start: nextStart, end: nextStart + nextSpan };
+        this.interactionVelocity = 0;
+        this.scheduleRender();
+        this.emitViewport(false);
+        return;
+      }
+
       const drag = this.pointerDrag;
       if (!drag || drag.pointerId !== event.pointerId) return;
-      const rect = this.surface.getBoundingClientRect();
-      const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
-      const coordinate =
-        this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
-      const delta = coordinate - drag.coordinate;
+      motion.appendPointerSamples(drag.samples, event, this.orientation);
+      const coordinate = this.orientation === "horizontal" ? event.clientX : event.clientY;
+      const deltaPixels = coordinate - drag.coordinate;
       const span = drag.viewport.end - drag.viewport.start;
-      const temporalDelta = -(delta / length) * span;
-      this.viewport = {
+      const temporalDelta = -(deltaPixels / drag.length) * span;
+      const target = {
         start: drag.viewport.start + temporalDelta,
         end: drag.viewport.end + temporalDelta,
       };
-
       const now = Number(event.timeStamp) || performance.now();
       const elapsed = Math.max(1, now - drag.lastTime);
+      const response = motion.responseForElapsed(elapsed);
+      this.viewport = {
+        start: this.viewport.start + (target.start - this.viewport.start) * response,
+        end: this.viewport.end + (target.end - this.viewport.end) * response,
+      };
+
       const incrementalPixels = coordinate - drag.lastCoordinate;
-      this.interactionVelocity = -((incrementalPixels / length) * span) / elapsed;
+      this.interactionVelocity = -((incrementalPixels / drag.length) * span) / elapsed;
       drag.lastCoordinate = coordinate;
       drag.lastTime = now;
       this.scheduleRender();
@@ -307,24 +543,89 @@ class TimelineViewController {
     });
 
     const finishPointer = (event: PointerEvent): void => {
-      if (!this.pointerDrag || this.pointerDrag.pointerId !== event.pointerId) return;
-      this.pointerDrag = null;
-      try {
-        if (this.surface.hasPointerCapture(event.pointerId)) {
-          this.surface.releasePointerCapture(event.pointerId);
+      const wasPinching = Boolean(this.pinch);
+      const tap =
+        event.pointerType === "touch" && this.touchTap?.pointerId === event.pointerId
+          ? this.touchTap
+          : null;
+      if (event.pointerType === "touch") this.touchPointers.delete(event.pointerId);
+
+      if (wasPinching) {
+        this.touchTap = null;
+        this.lastTouchTap = null;
+        this.suppressClickUntil = performance.now() + CLICK_SUPPRESSION_MS;
+        this.pointerDrag = null;
+
+        if (this.touchPointers.size >= 2) {
+          beginPinch();
+          releasePointerCapture(event.pointerId);
+          return;
         }
-      } catch {
-        // Cancellation can release capture before this handler runs.
+
+        this.pinch = null;
+        const remaining = Array.from(this.touchPointers.values())[0];
+        if (remaining) {
+          beginSurfaceDrag(remaining.pointerId, remaining);
+          releasePointerCapture(event.pointerId);
+          return;
+        }
+
+        releasePointerCapture(event.pointerId);
+        this.commitInteraction();
+        return;
       }
-      this.commitInteraction();
+
+      let startedInertia = false;
+      if (this.pointerDrag?.pointerId === event.pointerId) {
+        motion.appendPointerSamples(this.pointerDrag.samples, event, this.orientation);
+        const velocity =
+          event.type === "pointercancel"
+            ? 0
+            : motion.estimatePointerVelocity(this.pointerDrag.samples);
+        const length = this.pointerDrag.length;
+        this.pointerDrag = null;
+
+        if (Math.abs(velocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
+          this.startInertia(velocity, length);
+          startedInertia = true;
+          void motion.pulseHaptic("release");
+        }
+      }
+
+      if (event.type === "pointercancel") {
+        this.touchTap = null;
+        this.lastTouchTap = null;
+        releasePointerCapture(event.pointerId);
+        if (!startedInertia) this.commitInteraction();
+        return;
+      }
+
+      const doubleTapped = tap ? registerTouchTap(event, tap) : false;
+      if (event.pointerType === "touch" && !tap) this.touchTap = null;
+
+      releasePointerCapture(event.pointerId);
+      if (!startedInertia && !doubleTapped) this.commitInteraction();
     };
 
     this.surface.addEventListener("pointerup", finishPointer);
     this.surface.addEventListener("pointercancel", finishPointer);
     this.surface.addEventListener("lostpointercapture", (event) => {
-      if (this.pointerDrag?.pointerId !== event.pointerId) return;
-      this.pointerDrag = null;
-      this.commitInteraction();
+      if (
+        this.pointerDrag?.pointerId === event.pointerId ||
+        this.touchPointers.has(event.pointerId)
+      ) {
+        abortSurfaceGesture();
+      }
+    });
+
+    window.addEventListener("blur", abortSurfaceGesture);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) abortSurfaceGesture();
+    });
+    window.addEventListener("orientationchange", abortSurfaceGesture);
+    globalThis.screen?.orientation?.addEventListener?.("change", abortSurfaceGesture);
+    window.visualViewport?.addEventListener("resize", () => {
+      if (this.pointerDrag || this.pinch || this.touchPointers.size) abortSurfaceGesture();
     });
 
     this.surface.addEventListener("keydown", (event) => {
@@ -417,6 +718,56 @@ class TimelineViewController {
     const padding = span * 0.06;
     this.viewport = { start: raw.start - padding, end: raw.end + padding };
     this.commitInteraction();
+  }
+
+  cancelInertia(): void {
+    if (this.inertiaAnimationFrame) cancelAnimationFrame(this.inertiaAnimationFrame);
+    this.inertiaAnimationFrame = 0;
+  }
+
+  startInertia(velocityPxPerMs: number, length: number): void {
+    if (
+      this.reducedMotionQuery?.matches ||
+      !Number.isFinite(velocityPxPerMs) ||
+      Math.abs(velocityPxPerMs) < motion.STOP_VELOCITY_PX_PER_MS
+    ) {
+      this.commitInteraction();
+      return;
+    }
+
+    this.cancelInertia();
+    this.beginInteraction();
+    let velocity = velocityPxPerMs;
+    let lastFrame = 0;
+
+    const step = (now: number): void => {
+      this.inertiaAnimationFrame = 0;
+      if (Math.abs(velocity) < motion.STOP_VELOCITY_PX_PER_MS) {
+        this.commitInteraction();
+        return;
+      }
+
+      const elapsed = lastFrame ? Math.min(48, Math.max(1, now - lastFrame)) : 16;
+      lastFrame = now;
+      const span = Math.max(MIN_SPAN_MS, this.viewport.end - this.viewport.start);
+      const temporalDelta = -((velocity * elapsed) / Math.max(1, length)) * span;
+      this.viewport = {
+        start: this.viewport.start + temporalDelta,
+        end: this.viewport.end + temporalDelta,
+      };
+      this.interactionVelocity = temporalDelta / elapsed;
+      this.scheduleRender();
+      this.emitViewport(false);
+
+      velocity = motion.decayVelocity(velocity, elapsed);
+      if (Math.abs(velocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
+        this.inertiaAnimationFrame = requestAnimationFrame(step);
+      } else {
+        this.commitInteraction();
+      }
+    };
+
+    this.inertiaAnimationFrame = requestAnimationFrame(step);
   }
 
   beginInteraction(): void {
