@@ -247,7 +247,6 @@
         "margin-left": 3,
         "padding-left": 1
       },
-      "legacy100vh": 2,
       "viewportWidthSizing": {
         "width: min(420px, calc(100vw - 24px));": 1,
         "width: calc(100vw - 12px);": 1
@@ -257,7 +256,8 @@
       },
       "rootMinWidth": {
         "min-width: 320px;": 2
-      }
+      },
+      "legacy100vh": 2
     },
     "site/timeline-view.css": {
       "maxWidthMedia": {
@@ -278,12 +278,23 @@
       "physicalInlineProperties": {
         "margin-left": 1
       },
-      "legacy100vh": 1,
       "viewportWidthSizing": {},
       "overflowXHidden": {
         "overflow-x: hidden;": 1
       },
-      "rootMinWidth": {}
+      "rootMinWidth": {},
+      "legacy100vh": 1
+    },
+    "site/print.css": {
+      "maxWidthMedia": {},
+      "hoverOnlySelectors": {},
+      "physicalInlineProperties": {},
+      "viewportWidthSizing": {},
+      "overflowXHidden": {},
+      "rootMinWidth": {
+        "min-width: 0;": 1
+      },
+      "legacy100vh": 0
     }
   },
   "architecture": {
