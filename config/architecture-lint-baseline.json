@@ -56,13 +56,13 @@
       "nonNull": 5
     },
     "site/timeline-migration.ts": {
-      "any": 15,
-      "asAny": 14,
+      "any": 0,
+      "asAny": 0,
       "nonNull": 0
     },
     "site/timeline-motion.ts": {
-      "any": 10,
-      "asAny": 8,
+      "any": 0,
+      "asAny": 0,
       "nonNull": 0
     },
     "site/timeline-navigation.ts": {
