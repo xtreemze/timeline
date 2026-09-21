@@ -106,7 +106,7 @@ test("bundled graph bridge uses Memgraph Orb worker-backed force simulation with
     readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8")
   ]);
   const pkg = JSON.parse(pkgText);
-  assert.equal(pkg.dependencies["@memgraph/orb"], "1.0.2");
+  assert.equal(pkg.devDependencies["@memgraph/orb"], "1.1.0");
   assert.match(source, /new OrbView/);
   assert.match(source, /SIMULATION_START/);
   assert.match(source, /type:\s*"force"/);
