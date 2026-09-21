@@ -1628,10 +1628,13 @@ class TimelineViewController {
       this.readout.textContent = "No visible events";
       for (const record of this.scene.values()) this.removeRecord(record);
       this.scene.clear();
+      for (const animation of this.contextAnimations.values()) animation.cancel();
+      this.contextAnimations.clear();
       for (const node of this.tickScene.values()) node.remove();
       for (const node of this.accentScene.values()) node.remove();
       this.tickScene.clear();
       this.accentScene.clear();
+      this.pendingTickSpecKey = "";
       for (const node of this.relationshipBandScene.values()) node.remove();
       this.relationshipBandScene.clear();
       this.relationshipBandZone?.remove();
