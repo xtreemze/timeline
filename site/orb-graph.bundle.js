@@ -1,3 +1,4 @@
+"use strict";
 (() => {
   var __create = Object.create;
   var __defProp = Object.defineProperty;
@@ -22286,7 +22287,7 @@ void main() {
   // src/graph-component-packing.js
   function nodeId(value) {
     if (value && typeof value === "object") return String(value.id ?? "");
-    return value == null ? "" : String(value);
+    return value === null || value === void 0 ? "" : String(value);
   }
   function edgeEndpoints(edge) {
     const start2 = nodeId(edge?.start ?? edge?.source ?? edge?.subjectId);
@@ -23074,7 +23075,7 @@ void main() {
       }
       activeTouchPointers.add(event.pointerId);
       if (activeTouchPointers.size > 1) {
-        if (cameraGesture?.pointerId != null) releaseTouchPointerCapture(cameraGesture.pointerId);
+        if (cameraGesture?.pointerId !== null && cameraGesture?.pointerId !== void 0) releaseTouchPointerCapture(cameraGesture.pointerId);
         cameraGesture = null;
         cancelCameraInertia();
         if (touchHold?.activated) {
@@ -23544,7 +23545,7 @@ void main() {
         if (!node) continue;
         const adjacent = desiredEdges.filter((edge) => String(edge.start) === String(record.id) || String(edge.end) === String(record.id)).map((edge) => String(edge.start) === String(record.id) ? edge.end : edge.start);
         const anchorId = adjacent.find((id2) => !incomingIds.has(String(id2))) ?? adjacent[0];
-        if (anchorId == null) continue;
+        if (anchorId === null || anchorId === void 0) continue;
         const anchor = orb.data.getNodeById(anchorId);
         const position = anchor?.getPosition?.();
         if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) continue;
@@ -23624,7 +23625,7 @@ void main() {
         const breakIds = [
           ...outgoingEdges.map((edge) => edge.id),
           ...rewiredEdges.map((edge) => currentEdgeById.get(String(edge.id))?.id)
-        ].filter((id2) => id2 != null);
+        ].filter((id2) => id2 !== null && id2 !== void 0);
         if (breakIds.length || outgoingNodes.length) {
           orb.data.remove({ edgeIds: [...new Set(breakIds)], nodeIds: outgoingNodes.map((node) => node.id) });
         }
@@ -23657,7 +23658,7 @@ void main() {
         const breakIds = [
           ...outgoingEdges.map((edge) => edge.id),
           ...rewiredEdges.map((edge) => currentEdgeById.get(String(edge.id))?.id)
-        ].filter((id2) => id2 != null);
+        ].filter((id2) => id2 !== null && id2 !== void 0);
         if (breakIds.length) orb.data.remove({ edgeIds: [...new Set(breakIds)] });
         if (rewiredEdges.length) {
           orb.data.merge({

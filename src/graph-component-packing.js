@@ -1,6 +1,6 @@
 function nodeId(value) {
   if (value && typeof value === "object") return String(value.id ?? "");
-  return value == null ? "" : String(value);
+  return value === null || value === undefined ? "" : String(value);
 }
 
 function edgeEndpoints(edge) {

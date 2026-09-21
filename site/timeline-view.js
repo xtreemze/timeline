@@ -253,7 +253,7 @@
 
       const abortSurfaceGesture = () => {
         const pointerIds = new Set(this.touchPointers.keys());
-        if (this.drag?.pointerId != null) pointerIds.add(this.drag.pointerId);
+        if (this.drag?.pointerId !== null && this.drag?.pointerId !== undefined) pointerIds.add(this.drag.pointerId);
         const interrupted = Boolean(this.drag || this.pinch || this.touchPointers.size);
 
         this.touchPointers.clear();

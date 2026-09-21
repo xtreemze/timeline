@@ -703,6 +703,7 @@ function create(container, handlers = {}) {
     return edge ? { ...geometry, kind: "edge", object: edge } : { ...geometry, kind: null, object: null };
   }
 
+  // eslint-disable-next-line no-unused-vars
   function touchNodePayload(event) {
     const payload = touchTargetPayload(event);
     return payload?.kind === "node"
@@ -793,7 +794,7 @@ function create(container, handlers = {}) {
 
     activeTouchPointers.add(event.pointerId);
     if (activeTouchPointers.size > 1) {
-      if (cameraGesture?.pointerId != null) releaseTouchPointerCapture(cameraGesture.pointerId);
+      if (cameraGesture?.pointerId !== null && cameraGesture?.pointerId !== undefined) releaseTouchPointerCapture(cameraGesture.pointerId);
       cameraGesture = null;
       cancelCameraInertia();
       if (touchHold?.activated) {
@@ -868,6 +869,7 @@ function create(container, handlers = {}) {
     }
   }
 
+  // eslint-disable-next-line no-unused-vars
   function scheduleTouchReleaseFallback() {
     clearTouchReleaseFallback();
     touchReleaseFallback = globalThis.setTimeout(() => {
@@ -1340,7 +1342,7 @@ function create(container, handlers = {}) {
         .filter((edge) => String(edge.start) === String(record.id) || String(edge.end) === String(record.id))
         .map((edge) => String(edge.start) === String(record.id) ? edge.end : edge.start);
       const anchorId = adjacent.find((id) => !incomingIds.has(String(id))) ?? adjacent[0];
-      if (anchorId == null) continue;
+      if (anchorId === null || anchorId === undefined) continue;
       const anchor = orb.data.getNodeById(anchorId);
       const position = anchor?.getPosition?.();
       if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) continue;
@@ -1437,7 +1439,7 @@ function create(container, handlers = {}) {
       const breakIds = [
         ...outgoingEdges.map((edge) => edge.id),
         ...rewiredEdges.map((edge) => currentEdgeById.get(String(edge.id))?.id)
-      ].filter((id) => id != null);
+      ].filter((id) => id !== null && id !== undefined);
       if (breakIds.length || outgoingNodes.length) {
         orb.data.remove({ edgeIds: [...new Set(breakIds)], nodeIds: outgoingNodes.map((node) => node.id) });
       }
@@ -1474,7 +1476,7 @@ function create(container, handlers = {}) {
       const breakIds = [
         ...outgoingEdges.map((edge) => edge.id),
         ...rewiredEdges.map((edge) => currentEdgeById.get(String(edge.id))?.id)
-      ].filter((id) => id != null);
+      ].filter((id) => id !== null && id !== undefined);
       if (breakIds.length) orb.data.remove({ edgeIds: [...new Set(breakIds)] });
       if (rewiredEdges.length) {
         orb.data.merge({
