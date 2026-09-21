@@ -94,7 +94,7 @@ for (const nodeCount of sizes) {
   });
 }
 
-// eslint-disable-next-line no-console, no-undef
+// eslint-disable-next-line no-console -- benchmark intentionally emits machine-readable JSON to stdout
 console.log(
   JSON.stringify(
     {
