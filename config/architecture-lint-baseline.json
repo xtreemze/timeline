@@ -122,7 +122,7 @@
     },
     "site/location-map.ts": {
       "any": 25,
-      "asAny": 5,
+      "asAny": 2,
       "nonNull": 0
     },
     "site/memgraph-interchange-shim.ts": {
@@ -356,7 +356,7 @@
       "site/graph-inference-shim.ts": 1,
       "site/graph-inference.ts": 3,
       "site/location-map-shim.ts": 1,
-      "site/location-map.ts": 5,
+      "site/location-map.ts": 3,
       "site/sample-case-shim.ts": 1,
       "site/sample-case.ts": 1,
       "site/timeline-graph-shim.ts": 1,
