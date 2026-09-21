@@ -118,3 +118,48 @@ test("focused chronology item recovers its contextual canonical relationship nei
   assert.deepEqual(graph.edges.map((edge) => edge.id), ["r1"]);
   assert.equal(graph.edges[0].temporalState, "timeless");
 });
+
+
+test("global compatibility API keeps pure graph projections and default temporal semantics", async () => {
+  const previous = globalThis.TimelineTemporal;
+  globalThis.TimelineTemporal = temporal;
+  try {
+    const relationship = {
+      id: "default-temporal",
+      subjectId: "a",
+      objectId: "b",
+      predicate: "meets",
+      time: { start: 12, end: 18 },
+    };
+    assert.equal(
+      TimelineGraph.relationshipWindowState(relationship, { start: 10, end: 20 }),
+      "active",
+    );
+
+    const graph = TimelineGraph.neighborhoodGraph(
+      {
+        entities: [
+          { id: "a", type: "person", name: "A" },
+          { id: "b", type: "person", name: "B" },
+        ],
+        relationships: [
+          {
+            id: "r-global",
+            subjectId: "a",
+            objectId: "b",
+            predicate: "meets",
+            itemIds: ["item-global"],
+          },
+        ],
+        items: [{ id: "item-global", relationChanges: [] }],
+      },
+      "item-global",
+      { start: 0, end: 100 },
+      { depth: 1, limit: 12 },
+    );
+    assert.deepEqual(graph.nodes.map((node) => node.id).sort(), ["a", "b"]);
+    assert.deepEqual(graph.edges.map((edge) => edge.id), ["r-global"]);
+  } finally {
+    globalThis.TimelineTemporal = previous;
+  }
+});
