@@ -204,7 +204,7 @@ function create(container, handlers = {}) {
     else delete canvas.__on;
   }
 
-  // Orb 1.0.2 wires d3-drag before d3-zoom. d3-drag consumes touchstart and
+  // Orb 1.1.0 wires d3-drag before d3-zoom. d3-drag consumes touchstart and
   // touchmove when a node is its subject, which prevents camera navigation
   // from taking over when Timeline cancels a pending long press. Timeline owns
   // touch node dragging directly, so keep Orb drag for mouse input only.
@@ -865,6 +865,25 @@ function create(container, handlers = {}) {
   }
 
   function onPointerMove(event) {
+    // An activated touch node drag has exclusive ownership. Handle it before
+    // camera motion so stale or interrupted camera state can never translate
+    // the graph under the dragged node.
+    if (
+      event.pointerType === "touch" &&
+      touchHold?.activated &&
+      touchHold.pointerId === event.pointerId
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      const geometry = touchGeometry(event);
+      const simulator = touchDragSimulator();
+      if (geometry && simulator) {
+        simulator.dragNode(touchHold.node.getId(), geometry.localPoint);
+        clearInteractionSettleTimer();
+      }
+      return;
+    }
+
     updateCameraGesture(event);
     if (event.pointerType !== "touch") return;
     if (touchTap?.pointerId === event.pointerId && !touchTap.cancelled) {
@@ -878,20 +897,6 @@ function create(container, handlers = {}) {
       }
     }
     if (!touchHold) return;
-    if (touchHold.activated) {
-      if (touchHold.pointerId !== event.pointerId) return;
-      event.preventDefault();
-      // The active node drag owns this pointer. Stop the event before it
-      // reaches Orb/D3 camera listeners on the canvas.
-      event.stopPropagation();
-      const geometry = touchGeometry(event);
-      const simulator = touchDragSimulator();
-      if (geometry && simulator) {
-        simulator.dragNode(touchHold.node.getId(), geometry.localPoint);
-        clearInteractionSettleTimer();
-      }
-      return;
-    }
     const origin = touchHold.startClientPoint;
     if (!origin) return;
     const distance = Math.hypot(event.clientX - origin.x, event.clientY - origin.y);
@@ -967,7 +972,7 @@ function create(container, handlers = {}) {
     const nodeDragOwnsGesture = Boolean(touchHold?.activated);
     const weightedCameraOwnsGesture = Boolean(cameraGesture && activeTouchPointers.size === 1);
     if (!nodeDragOwnsGesture && !weightedCameraOwnsGesture) return;
-    // Orb 1.0.2's camera uses D3 touch listeners on the canvas. Once Timeline
+    // Orb 1.1.0's camera uses D3 touch listeners on the canvas. Once Timeline
     // owns either an active node drag or a one-finger weighted camera pan,
     // block D3's direct touchmove path. Multi-touch remains available to D3
     // for pinch zoom because cameraGesture is cleared when a second touch lands.
@@ -1602,6 +1607,24 @@ function create(container, handlers = {}) {
       markCameraOwnedByUser();
       orb.zoomOut();
     },
+    getNodePosition(id) {
+      const position = orb.data.getNodeById(id)?.getPosition?.();
+      if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return null;
+      return { x: position.x, y: position.y };
+    },
+    getNodeCanvasPosition(id) {
+      const position = orb.data.getNodeById(id)?.getPosition?.();
+      if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return null;
+      const canvasPoint = orb.getCanvasPosition(position);
+      if (
+        !canvasPoint ||
+        !Number.isFinite(canvasPoint.x) ||
+        !Number.isFinite(canvasPoint.y)
+      ) {
+        return null;
+      }
+      return { x: canvasPoint.x, y: canvasPoint.y };
+    },
     getMode() {
       return currentMode;
     },
@@ -1638,5 +1661,5 @@ function create(container, handlers = {}) {
 
 globalThis.TimelineOrbGraph = Object.freeze({
   create,
-  version: "1.0.2",
+  version: "1.1.0",
 });
