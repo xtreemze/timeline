@@ -156,6 +156,8 @@
     storyId: document.querySelector("#story-id"),
     storyTitle: document.querySelector("#story-title"),
     storyDescription: document.querySelector("#story-description"),
+    storyPlacePicker: document.querySelector("#story-place-picker"),
+    storyPlacePickerCount: document.querySelector("#story-place-picker-count"),
     storyPicker: document.querySelector("#story-picker"),
     storyPickerCount: document.querySelector("#story-picker-count"),
     storySequence: document.querySelector("#story-sequence"),
@@ -263,6 +265,7 @@
 
   let state = loadState();
   let storyDraftIds = [];
+  let storyDraftPlaceIds = [];
   const evidenceExtractionDrafts = new Map();
   let itemInferenceDraft = null;
   let inferenceAbortController = null;
@@ -1037,6 +1040,7 @@
 
     const itemIds = new Set(items.map((item) => item.id));
     const seenStoryIds = new Set();
+    const storyIdsNeedingPlaceInference = new Set();
     const stories = (Array.isArray(input.stories) ? input.stories : []).map((raw, index) => {
       if (!raw || typeof raw !== "object") throw new Error(`Story ${index + 1} is not an object.`);
       let id = typeof raw.id === "string" && raw.id.trim() ? raw.id.trim().slice(0, 120) : newId("story");
@@ -1052,11 +1056,18 @@
           seenItems.add(itemId);
         }
       }
+      const hasExplicitPlaceIds = Array.isArray(raw.placeIds);
+      if (!hasExplicitPlaceIds) storyIdsNeedingPlaceInference.add(id);
       const story = {
         id,
         title,
         description: typeof raw.description === "string" ? raw.description.slice(0, 1500) : "",
-        itemIds: uniqueIds
+        itemIds: uniqueIds,
+        placeIds: [...new Set(
+          (hasExplicitPlaceIds ? raw.placeIds : [])
+            .filter((placeId) => typeof placeId === "string" && placeId.trim())
+            .map((placeId) => placeId.trim().slice(0, 120))
+        )]
       };
       const extensions = normalizeExtensions(raw.extensions);
       if (extensions) story.extensions = extensions;
@@ -1068,6 +1079,16 @@
       throw new Error(`Graph semantics are invalid: ${graphErrors[0]}`);
     }
     const graphData = graph.normalizeGraphData(input, temporal);
+    const normalizedPlaceIds = new Set(graphData.places.map((place) => String(place.id)));
+    for (const story of stories) {
+      const inferredPlaceIds = storyIdsNeedingPlaceInference.has(story.id)
+        ? graphData.places
+            .filter((place) => String(place.attributes?.storyId || "") === story.id)
+            .map((place) => String(place.id))
+        : [];
+      story.placeIds = [...new Set([...(story.placeIds || []), ...inferredPlaceIds])]
+        .filter((placeId) => normalizedPlaceIds.has(String(placeId)));
+    }
     for (const relationship of graphData.relationships) {
       relationship.itemIds = (relationship.itemIds || []).filter((id) => itemIds.has(String(id)));
     }
@@ -2618,6 +2639,36 @@
   function renderStoryBuilder() {
     els.storyPickerCount.textContent = `${state.items.length}`;
     els.storySequenceCount.textContent = `${storyDraftIds.length}`;
+    if (els.storyPlacePickerCount) {
+      els.storyPlacePickerCount.textContent = `${storyDraftPlaceIds.length}/${state.places.length}`;
+    }
+
+    if (els.storyPlacePicker) {
+      const placeRows = state.places.map((place) => {
+        const label = document.createElement("label");
+        label.className = "picker-row";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = place.id;
+        checkbox.checked = storyDraftPlaceIds.includes(place.id);
+        const copy = document.createElement("span");
+        copy.className = "picker-copy";
+        const title = document.createElement("strong");
+        title.textContent = place.name;
+        const meta = document.createElement("span");
+        meta.textContent = `${place.icon || "place"} · ${place.markerShape || "pin"} · map marker`;
+        copy.append(title, meta);
+        label.append(checkbox, copy);
+        return label;
+      });
+      if (!placeRows.length) {
+        const empty = document.createElement("p");
+        empty.className = "privacy-note";
+        empty.textContent = "Create reusable places in the graph editor, then add them to this story.";
+        placeRows.push(empty);
+      }
+      els.storyPlacePicker.replaceChildren(...placeRows);
+    }
 
     const pickerRows = sortItems().map((item) => {
       const label = document.createElement("label");
@@ -2668,6 +2719,7 @@
     els.storyForm.reset();
     els.storyId.value = "";
     storyDraftIds = [];
+    storyDraftPlaceIds = [];
     els.saveStory.textContent = "Create story";
     els.cancelStoryEdit.hidden = true;
     setError(els.storyFormError);
@@ -2682,6 +2734,7 @@
     els.storyTitle.value = story.title;
     els.storyDescription.value = story.description;
     storyDraftIds = [...story.itemIds];
+    storyDraftPlaceIds = [...(story.placeIds || [])];
     els.saveStory.textContent = "Save story";
     els.cancelStoryEdit.hidden = false;
     setError(els.storyFormError);
@@ -2734,7 +2787,8 @@
       top.append(copy, actions);
       const meta = document.createElement("div");
       meta.className = "story-meta";
-      meta.textContent = `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"} · ${storySpanLabel(story)}`;
+      const placeCount = story.placeIds?.length || 0;
+      meta.textContent = `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"} · ${placeCount} ${placeCount === 1 ? "place" : "places"} · ${storySpanLabel(story)}`;
       card.append(top, meta);
       return card;
     });
@@ -3102,6 +3156,10 @@
     const suffix = usage ? ` ${usage} ${usage === 1 ? "edge" : "edges"} will lose this spatial reference.` : "";
     if (!window.confirm(`Delete place “${place.name}”?${suffix}`)) return;
     state.places = state.places.filter((candidate) => candidate.id !== id);
+    state.stories = state.stories.map((story) => ({
+      ...story,
+      placeIds: (story.placeIds || []).filter((placeId) => placeId !== id)
+    }));
     state.relationships = state.relationships.map((relationship) =>
       relationship.placeId === id ? { ...relationship, placeId: "" } : relationship
     );
@@ -4251,6 +4309,14 @@
     renderStoryBuilder();
   });
 
+  els.storyPlacePicker?.addEventListener("change", (event) => {
+    const checkbox = event.target.closest('input[type="checkbox"]');
+    if (!checkbox) return;
+    if (checkbox.checked && !storyDraftPlaceIds.includes(checkbox.value)) storyDraftPlaceIds.push(checkbox.value);
+    if (!checkbox.checked) storyDraftPlaceIds = storyDraftPlaceIds.filter((id) => id !== checkbox.value);
+    renderStoryBuilder();
+  });
+
   els.storySequence.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-action]");
     const row = event.target.closest(".sequence-row");
@@ -4284,7 +4350,8 @@
       id: els.storyId.value || newId("story"),
       title: title.slice(0, 160),
       description: els.storyDescription.value.trim().slice(0, 1500),
-      itemIds: [...storyDraftIds]
+      itemIds: [...storyDraftIds],
+      placeIds: [...storyDraftPlaceIds]
     };
     const index = state.stories.findIndex((candidate) => candidate.id === story.id);
     if (index >= 0) {

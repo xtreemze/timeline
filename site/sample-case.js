@@ -3541,7 +3541,19 @@
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm"
         }
-      }
+      },
+      "placeIds": [
+        "pigs-brick-place",
+        "pigs-market-place",
+        "place-three-little-pigs-mother-pig-s-cottage",
+        "place-three-little-pigs-straw-seller-s-field",
+        "place-three-little-pigs-timber-track",
+        "place-three-little-pigs-pigwood-mason-s-yard",
+        "place-three-little-pigs-straw-house-meadow",
+        "place-three-little-pigs-stick-house-grove",
+        "place-three-little-pigs-pigwood-escape-path",
+        "place-three-little-pigs-brick-house-approach"
+      ]
     },
     {
       "id": "story-snow-white",
@@ -3576,7 +3588,18 @@
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm"
         }
-      }
+      },
+      "placeIds": [
+        "snow-cottage-place",
+        "snow-clearing-place",
+        "snow-forest-ridge-place",
+        "place-snow-white-queen-s-castle",
+        "place-snow-white-queen-s-mirror-chamber",
+        "place-snow-white-castle-great-hall",
+        "place-snow-white-deep-forest",
+        "place-snow-white-cottage-approach",
+        "place-snow-white-queen-s-workshop"
+      ]
     },
     {
       "id": "story-cinderella",
@@ -3610,7 +3633,17 @@
           "temporalReferenceFrame": "Storybook Cycle 1000",
           "spatialReferenceFrame": "Storybook Realm"
         }
-      }
+      },
+      "placeIds": [
+        "cinderella-palace-place",
+        "cinderella-palace-steps-place",
+        "place-cinderella-cinderella-s-house",
+        "place-cinderella-garden-and-pumpkin-patch",
+        "place-cinderella-royal-ballroom",
+        "place-cinderella-moonlit-carriage-road",
+        "place-cinderella-royal-carriage-road",
+        "place-cinderella-ashenvale-village-search-route"
+      ]
     }
   ],
   "entities": [
@@ -4015,7 +4048,28 @@
       "attributes": {
         "storyId": "story-three-little-pigs"
       },
-      "placeId": ""
+      "placeId": "place-three-little-pigs-pigwood-escape-path",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-20T08:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-04-30T08:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      }
     },
     {
       "id": "rel-snow-huntsman-order",
@@ -4137,10 +4191,31 @@
       "objectId": "snow-white",
       "predicate": "threatens",
       "initialState": "inactive",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-04-05T09:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-05-22T12:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
       "attributes": {
         "storyId": "story-snow-white"
       },
-      "placeId": "",
+      "placeId": "place-snow-white-queen-s-castle",
       "itemIds": [
         "snow-birth",
         "snow-childhood",
@@ -4178,7 +4253,7 @@
       "attributes": {
         "domain": "household labor"
       },
-      "placeId": "",
+      "placeId": "place-cinderella-cinderella-s-house",
       "itemIds": [
         "cinderella-mother",
         "cinderella-hardship"
@@ -4225,12 +4300,33 @@
       "objectId": "cinderella",
       "predicate": "searchesFor",
       "initialState": "inactive",
+      "time": {
+        "type": "interval",
+        "start": {
+          "value": "1000-05-07T00:02Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        },
+        "end": {
+          "value": "1000-06-02T14:00Z",
+          "precision": "minute",
+          "certainty": "inferred",
+          "calendar": "gregorian",
+          "timeZone": "UTC",
+          "utcOffset": "+00:00",
+          "sourceText": "Fictional narrative ordering coordinate; not a real-world date."
+        }
+      },
       "attributes": {
         "storyId": "story-cinderella",
         "clue": "glass slipper",
         "agent": "Royal Herald"
       },
-      "placeId": "",
+      "placeId": "place-cinderella-ashenvale-village-search-route",
       "itemIds": [
         "cinderella-search"
       ]
@@ -4264,7 +4360,7 @@
       "attributes": {
         "storyId": "story-cinderella"
       },
-      "placeId": "",
+      "placeId": "place-cinderella-cinderella-s-house",
       "itemIds": [
         "cinderella-mother",
         "cinderella-stepfamily-arrives"
@@ -4446,7 +4542,7 @@
       "attributes": {
         "result": "Enchanted Coach"
       },
-      "placeId": "",
+      "placeId": "place-cinderella-garden-and-pumpkin-patch",
       "itemIds": [
         "cinderella-coach-created"
       ]
@@ -4506,7 +4602,7 @@
       "attributes": {
         "purpose": "identify owner"
       },
-      "placeId": "",
+      "placeId": "place-cinderella-ashenvale-village-search-route",
       "itemIds": [
         "cinderella-search"
       ]

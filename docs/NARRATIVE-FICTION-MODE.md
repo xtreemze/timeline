@@ -48,6 +48,8 @@ Categories and stories serve different axes and should not be used interchangeab
 
 - A **category** classifies what a timeline event is, such as a conflict, discovery, decision, relationship change, or resolution. Category filtering is taxonomy. Categories belong only to timeline events; places, graph entities, and relationships/edges have their own domains and must never carry category membership.
 - A **story** is the navigable collection and ordering of its associated timeline events. Story focus is narrative membership and traversal.
+- `story.placeIds[]` declares the reusable canonical places available to that story. These are references into the project-wide `places[]` registry, not copied geometry.
+- Story places retain their canonical geometry, semantic `icon`, and `markerShape` so referenced edges can project the same place directly onto the map.
 - Events in one story should normally span several categories.
 - The same category should be reusable by unrelated stories when their events have the same semantic type.
 - A story title or story identifier should not be copied into `categoryId` merely to color or group that story. Story identity belongs in `story.itemIds` and, where useful, narrative extension metadata.
@@ -59,8 +61,10 @@ The default anthology therefore keeps **The Three Little Pigs**, **Snow White**,
 Multiple stories may coexist in one timeline. The recommended pattern is:
 
 - every chronology item belongs to exactly one story unless a deliberate crossover is represented;
-- each story has its own characters, places, and story relationships;
-- an optional anthology/container entity connects the story nodes without creating false character-to-character relationships;
+- each story explicitly declares its reusable place set through `story.placeIds[]`;
+- every edge in the bundled example stories has a canonical `time` and `placeId`, and its place comes from that story's reusable place set;
+- story places carry map-ready geometry plus a semantic icon and marker shape; edges reference the place ID rather than copying marker or geometry data;
+- stories remain narrative metadata rather than graph nodes or synthetic container topology;
 - with story focus off, the timeline shows all items together; selecting a story uses the existing focus path to inspect only that narrative sequence.
 
 The default sample uses **The Three Little Pigs**, **Snow White**, and **Cinderella** to exercise this model across year-scale prologues, minute-scale action, ranges, media, locations, graph relationships, relation lifecycle changes, and all three focused-event compositions.
