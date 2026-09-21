@@ -28,6 +28,7 @@ on:
       - 'site/webmcp.js'
       - 'site/memgraph-interchange.js'
       - 'tests/webmcp.test.mjs'
+      - 'tests/webmcp-lifecycle-runtime.test.mjs'
       - 'site/timeline-view.js'
       - 'site/presentation-layout.js'
       - 'site/timeline-clustering.js'
@@ -184,6 +185,7 @@ jobs:
       - run: pnpm test:semantic-hierarchy-runtime
       - run: pnpm test:retained-context-runtime
       - run: pnpm test:graph-runtime-contracts
+      - run: pnpm test:webmcp-lifecycle-runtime
       - run: pnpm test:timeline-projection-runtime
       - run: |
           pnpm test || echo "⚠ Legacy ESM/TypeScript test migration debt tracked in issue 258"
