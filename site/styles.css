@@ -3893,7 +3893,7 @@ body {
 }
 
 #app-shell[data-browser-open="false"] > .timeline-panel > .app-browser-sheet {
-  display: none !important;
+  display: none;
 }
 
 #app-shell[data-browser-open="true"] > .timeline-panel > .app-browser-sheet {

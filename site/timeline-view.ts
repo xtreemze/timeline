@@ -51,7 +51,15 @@ interface TimelineItem {
   connectorWeight?: string;
   connectorEndpoint?: string;
   lane?: number | null;
-  media?: Array<{ src?: string; alt?: string }>;
+  media?: Array<{ src?: string; alt?: string; caption?: string }>;
+  tags?: string[];
+  layoutVariant?: string;
+  locationName?: string;
+  location?: unknown;
+  evidence?: unknown[];
+  relations?: unknown[];
+  relationChanges?: unknown[];
+  graphContext?: unknown;
 }
 
 interface SetItemsOptions {
@@ -141,6 +149,29 @@ function normalizedViewport(start: number, end: number): TemporalWindow {
   return { start: start - DEFAULT_SPAN_MS / 2, end: start + DEFAULT_SPAN_MS / 2 };
 }
 
+function formatElapsedDuration(durationMs: number): string {
+  if (!Number.isFinite(durationMs) || durationMs < 0) return "";
+  const units: Array<readonly [string, number]> = [
+    ["year", 365.2425 * 86_400_000],
+    ["month", 30.4375 * 86_400_000],
+    ["day", 86_400_000],
+    ["hour", 3_600_000],
+    ["minute", 60_000],
+    ["second", 1_000],
+  ];
+  let remaining = durationMs;
+  const parts: string[] = [];
+  for (const [label, size] of units) {
+    const amount =
+      label === "second" ? Math.round(remaining / size) : Math.floor(remaining / size);
+    if (amount <= 0) continue;
+    parts.push(`${amount} ${label}${amount === 1 ? "" : "s"}`);
+    remaining = Math.max(0, remaining - amount * size);
+    if (parts.length >= 2) break;
+  }
+  return parts.length ? parts.join(" ") : "0 seconds";
+}
+
 class TimelineViewController {
   root: HTMLElement;
   surface: HTMLElement;
@@ -157,6 +188,7 @@ class TimelineViewController {
   renderWindow: TemporalWindow = { start: 0, end: DEFAULT_SPAN_MS };
   retention: TemporalRetentionState = commitRetention(this.renderWindow);
   focusedId: string | null = null;
+  focusMediaIndex = 0;
   orientation: Orientation = "horizontal";
   scene = new Map<string, SceneRecord>();
   pointerDrag: PointerDragState | null = null;
@@ -757,23 +789,134 @@ class TimelineViewController {
   }
 
   createFocusHero(item: TimelineItem): HTMLElement {
-    const hero = document.createElement("article");
-    hero.className = "timeline-focus-layout";
+    const hero = document.createElement("section");
+    hero.className = "timeline-focus-hero";
+    const media = Array.isArray(item.media) ? item.media.slice(0, 3) : [];
+    const activeIndex = media.length ? this.focusMediaIndex % media.length : 0;
+    const active = media[activeIndex];
+
+    if (active?.src) {
+      const image = document.createElement("img");
+      image.className = "timeline-focus-hero-image";
+      image.src = active.src;
+      image.alt = active.alt || "";
+      image.decoding = "async";
+      hero.append(image);
+    } else {
+      hero.classList.add("has-no-media");
+      const fallback = document.createElement("div");
+      fallback.className = "timeline-focus-hero-fallback";
+      fallback.setAttribute("aria-hidden", "true");
+      hero.append(fallback);
+    }
+
+    const veil = document.createElement("div");
+    veil.className = "timeline-focus-hero-veil";
+
+    const kicker = document.createElement("p");
+    kicker.className = "timeline-focus-kicker";
+    kicker.textContent = item.categoryName || item.kind || "Occurrence";
+
     const heading = document.createElement("h2");
+    heading.id = "timeline-focus-heading";
+    heading.className = "timeline-focus-title";
     heading.textContent = item.title || item.id;
+
     const time = document.createElement("p");
     time.className = "timeline-focus-time";
+    const duration = Number.isFinite(item.end)
+      ? formatElapsedDuration(Math.max(0, Number(item.end) - item.start))
+      : "";
     time.textContent =
       Number.isFinite(item.end) && item.endLabel
-        ? `${item.startLabel || ""} → ${item.endLabel}`
+        ? `${item.startLabel || ""} → ${item.endLabel}${duration ? ` · Duration ${duration}` : ""}`
         : item.startLabel || "";
-    hero.append(heading, time);
+
+    veil.append(kicker, heading, time);
+    hero.append(veil);
+
+    if (media.length > 1) {
+      const controls = document.createElement("div");
+      controls.className = "timeline-focus-slideshow-controls";
+      controls.setAttribute("role", "group");
+      controls.setAttribute("aria-label", "Event images");
+
+      media.forEach((_, index) => {
+        const dot = document.createElement("button");
+        dot.type = "button";
+        dot.className = "timeline-focus-slide-dot";
+        dot.setAttribute("aria-label", `Show image ${index + 1} of ${media.length}`);
+        dot.setAttribute("aria-current", index === activeIndex ? "true" : "false");
+        dot.classList.toggle("is-active", index === activeIndex);
+        dot.addEventListener("click", () => {
+          this.focusMediaIndex = index;
+          this.renderFocus(item);
+        });
+        controls.append(dot);
+      });
+      hero.append(controls);
+    }
+
+    return hero;
+  }
+
+  renderFocus(item: TimelineItem): void {
+    this.focusView.style.setProperty("--event-color", item.color || "var(--accent)");
+    this.focusView.dataset.layout = item.layoutVariant || "hero-split";
+    this.focusView.setAttribute("aria-labelledby", "timeline-focus-heading");
+
+    const hero = this.createFocusHero(item);
+    const summary = document.createElement("section");
+    summary.className = "timeline-focus-section timeline-focus-summary";
+
     if (item.description) {
       const description = document.createElement("p");
+      description.className = "timeline-focus-description";
       description.textContent = item.description;
-      hero.append(description);
+      summary.append(description);
     }
-    return hero;
+
+    if (item.locationName) {
+      const place = document.createElement("p");
+      place.className = "timeline-focus-place-name";
+      place.textContent = item.locationName;
+      summary.append(place);
+    }
+
+    this.focusView.replaceChildren(hero, summary);
+    this.root.dispatchEvent(
+      new CustomEvent("timelinefocusrender", {
+        bubbles: true,
+        detail: { id: item.id },
+      }),
+    );
+  }
+
+  focusAdjacent(delta: number, options: { wrap?: boolean } = {}): boolean {
+    if (!this.items.length) return false;
+    const ordered = [...this.items].sort(
+      (left, right) => left.start - right.start || left.id.localeCompare(right.id),
+    );
+    const currentIndex = ordered.findIndex((item) => item.id === this.focusedId);
+    let nextIndex =
+      currentIndex < 0 ? (delta < 0 ? ordered.length - 1 : 0) : currentIndex + (delta < 0 ? -1 : 1);
+
+    if (options.wrap) nextIndex = (nextIndex + ordered.length) % ordered.length;
+    if (nextIndex < 0 || nextIndex >= ordered.length) return false;
+
+    this.focusMediaIndex = 0;
+    return this.focusItem(ordered[nextIndex].id);
+  }
+
+  stepFocusMedia(delta: number): boolean {
+    const item = this.items.find((candidate) => candidate.id === this.focusedId);
+    const media = item?.media || [];
+    if (!item || media.length < 2) return false;
+
+    const direction = delta < 0 ? -1 : 1;
+    this.focusMediaIndex = (this.focusMediaIndex + direction + media.length) % media.length;
+    this.renderFocus(item);
+    return true;
   }
 
   // Keep this signature stable while callers migrate: focusItem(id, options = {})
@@ -781,13 +924,14 @@ class TimelineViewController {
     const item = this.items.find((candidate) => candidate.id === id);
     if (!item) return false;
     const moveViewport = options.moveViewport !== false;
+    if (this.focusedId !== id) this.focusMediaIndex = 0;
 
     const update = () => {
       this.focusedId = id;
       this.root.classList.add("is-event-focused");
       this.root.dataset.sceneState = "focused";
       this.focusView.hidden = false;
-      this.focusView.replaceChildren(this.createFocusHero(item));
+      this.renderFocus(item);
       if (typeof (this.focusView as HTMLElement & { showPopover?: () => void }).showPopover === "function") {
         try {
           (this.focusView as HTMLElement & { showPopover: () => void }).showPopover();
