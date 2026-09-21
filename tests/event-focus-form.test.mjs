@@ -390,7 +390,7 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
   ]);
 
   assert.doesNotMatch(html, /class="hero"|class="site-header"|<footer>/);
@@ -398,9 +398,12 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(html, /id="timeline-view"[\s\S]*class="timeline-project-heading"/);
   assert.match(
     html,
-    /id="project-menu-toggle"[^>]*popovertarget="project-menu"[\s\S]*<img src="\.\/icon\.svg"/,
+    /class="app-tool-dock app-footer-bar"[\s\S]*id="project-menu-toggle"[^>]*class="app-tool app-project-tool project-menu-toggle"[^>]*popovertarget="project-menu"[\s\S]*<span class="app-tool-label">Project<\/span>[\s\S]*<\/nav>/,
   );
-  assert.match(html, /class="app-tool-dock"/);
+  assert.doesNotMatch(
+    html,
+    /class="timeline-project-heading"[\s\S]{0,400}id="project-menu-toggle"/,
+  );
   assert.match(html, /id="editor-toggle"[^>]*data-semantic-icon="note"/);
   assert.doesNotMatch(html, /data-open-panel="items"|data-open-panel="stories"/);
   assert.match(html, /id="timeline-browser-toggle"[^>]*data-semantic-icon="search"/);
@@ -502,7 +505,12 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
     /const availableWidth = Math\.max\(1, maxRight - minLeft\)[\s\S]*const availableHeight = Math\.max\(1, maxBottom - minTop\)/,
   );
   assert.match(app, /const menuWidth = Math\.min\(340, availableWidth\)/);
-  assert.match(app, /const menuHeight = Math\.min\([\s\S]*availableHeight/);
+  assert.match(app, /const requestedHeight = Math\.min\([\s\S]*availableHeight/);
+  assert.match(
+    app,
+    /const roomAbove =[\s\S]*const roomBelow =[\s\S]*const opensUpward = roomAbove >= roomBelow[\s\S]*const verticalRoom =/,
+  );
+  assert.match(app, /projectMenu\.dataset\.anchorPlacement = opensUpward \? "above" : "below"/);
   assert.match(app, /requestAnimationFrame\(positionProjectMenu\)/);
   assert.match(app, /visualViewport\?\.addEventListener\("resize", repositionOpenProjectMenu\)/);
   assert.match(app, /visualViewport\?\.addEventListener\("scroll", repositionOpenProjectMenu\)/);
@@ -512,7 +520,7 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
   assert.match(timelineCss, /max-block-size:\s*66dvh/);
   assert.match(
     styles,
-    /\.project-menu\[popover\][\s\S]*max-width:\s*var\(--project-menu-max-width[\s\S]*max-height:\s*min\([\s\S]*--project-menu-max-height[\s\S]*overflow:\s*auto/,
+    /\.project-menu\[popover\][\s\S]*max-inline-size:\s*var\(--project-menu-max-width[\s\S]*max-block-size:\s*min\([\s\S]*--project-menu-max-height[\s\S]*overflow:\s*auto/,
   );
   assert.match(html, /id="timeline-focus-view"[^>]*popover="manual"/);
   assert.match(app, /function decorateSemanticControls/);
@@ -1412,11 +1420,14 @@ test("mobile focused-event composition stays opposite chronology and keeps compa
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
 
-  assert.match(html, /id="project-menu-toggle"[^>]*aria-label="Project actions"/);
-  assert.match(styles, /Phone command bar refinement/);
   assert.match(
+    html,
+    /class="app-tool-dock app-footer-bar"[\s\S]*id="project-menu-toggle"[^>]*aria-label="Project actions"/,
+  );
+  assert.match(styles, /\.app-project-tool img[\s\S]*width:\s*22px[\s\S]*height:\s*22px/);
+  assert.doesNotMatch(
     styles,
-    /@media \(max-width: 460px\)[\s\S]*\.project-menu-toggle[\s\S]*width:\s*42px/,
+    /@media \(max-width: 460px\)[\s\S]{0,900}\.project-menu-toggle\s*\{/,
   );
 
   assert.match(css, /Mobile focused-event composition/);
@@ -1472,13 +1483,15 @@ test("coarse-pointer phone controls preserve a 44 CSS px interaction target", as
   );
   assert.match(
     styles,
-    /@media \(pointer: coarse\) and \(max-width: 460px\)[\s\S]*\.project-menu-toggle[\s\S]*width:\s*44px[\s\S]*min-height:\s*44px/,
+    /@media \(max-width: 699px\)[\s\S]*\.app-tool\s*\{[\s\S]*min-height:\s*50px/,
   );
+  assert.doesNotMatch(styles, /pointer: coarse[\s\S]{0,1200}\.project-menu-toggle\s*\{/);
 
   assert.match(
     timelineCss,
-    /@media \(pointer: coarse\)[\s\S]*\.timeline-project-menu-toggle,[\s\S]*\.story-nav-button[\s\S]*width:\s*44px[\s\S]*min-height:\s*44px/,
+    /@media \(pointer: coarse\)[\s\S]*\.story-nav-button,[\s\S]*\.view-icon-button[\s\S]*width:\s*44px[\s\S]*min-height:\s*44px/,
   );
+  assert.doesNotMatch(timelineCss, /timeline-project-menu-toggle/);
   assert.match(
     timelineCss,
     /@media \(pointer: coarse\)[\s\S]*\.timeline-focus-tab,[\s\S]*\.timeline-focus-close[\s\S]*min-height:\s*44px/,
