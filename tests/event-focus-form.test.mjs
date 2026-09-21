@@ -807,10 +807,7 @@ test("fullscreen preserves the common footer app bar inside the fullscreen subtr
     styles,
     /#presentation-stage:fullscreen \.app-tool-dock[\s\S]*inset-block-end:[\s\S]*inset-inline-start:\s*50%[\s\S]*flex-direction:\s*row/,
   );
-  assert.match(
-    timelineCss,
-    /Application actions remain in the shared footer app bar[\s\S]*pointer-events:\s*auto/,
-  );
+  assert.doesNotMatch(timelineCss, /data-project-anchored|workspace-tool-dock/);
 });
 
 test("fullscreen graph composition follows physical orientation and preserves direct manipulation", async () => {
