@@ -1,3 +1,6 @@
+import { html, render as renderLit } from "lit";
+import { repeat } from "lit/directives/repeat.js";
+
 /**
  * Date range picker calendar UI component
  * Provides date selection and range mode support with keyboard navigation
@@ -375,22 +378,20 @@ class DateRangePicker {
   private render(): void {
     this.heading.textContent = MONTHS[this.viewMonth - 1];
     this.yearInput.value = String(this.viewYear);
-    this.grid.replaceChildren();
-
-    for (const weekday of WEEKDAYS) {
-      const label = document.createElement("span");
-      label.className = "range-calendar-weekday";
-      label.textContent = weekday;
-      this.grid.append(label);
-    }
 
     const leading = mondayIndex(this.viewYear, this.viewMonth);
     const previous = monthShift(this.viewYear, this.viewMonth, -1);
     const previousDays = daysInMonth(previous.year, previous.month);
     const currentDays = daysInMonth(this.viewYear, this.viewMonth);
+    const cells: Array<{
+      year: number;
+      month: number;
+      day: number;
+      value: string;
+      outside: boolean;
+    }> = [];
 
-    const totalCells = 42;
-    for (let index = 0; index < totalCells; index += 1) {
+    for (let index = 0; index < 42; index += 1) {
       let year = this.viewYear;
       let month = this.viewMonth;
       let day = index - leading + 1;
@@ -409,43 +410,66 @@ class DateRangePicker {
         outside = true;
       }
 
-      const value = `${String(year).padStart(4, "0")}-${pad(month)}-${pad(day)}`;
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "range-calendar-day";
-      button.dataset.date = value;
-      button.textContent = String(day);
-      button.tabIndex = -1;
-      button.classList.toggle("is-outside", outside);
-
-      const start = this.pendingStart || this.start;
-      const end = this.end;
-      const isStart = value === start;
-      const isEnd = value === end;
-      const inRange =
-        start && end && compareDates(value, start) >= 0 && compareDates(value, end) <= 0;
-      button.classList.toggle("is-start", isStart);
-      button.classList.toggle("is-end", isEnd);
-      button.classList.toggle("is-in-range", Boolean(inRange));
-
-      const parsed = parseDate(value);
-      if (parsed) {
-        const date = new Date(0);
-        date.setUTCFullYear(parsed.year, parsed.month - 1, parsed.day);
-        button.setAttribute(
-          "aria-label",
-          new Intl.DateTimeFormat(undefined, {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            weekday: "long",
-            timeZone: "UTC",
-          }).format(date),
-        );
-      }
-
-      this.grid.append(button);
+      cells.push({
+        year,
+        month,
+        day,
+        outside,
+        value: `${String(year).padStart(4, "0")}-${pad(month)}-${pad(day)}`,
+      });
     }
+
+    const start = this.pendingStart || this.start;
+    const end = this.end;
+
+    renderLit(
+      html`
+        ${WEEKDAYS.map(
+          (weekday) => html`<span class="range-calendar-weekday">${weekday}</span>`,
+        )}
+        ${repeat(
+          cells,
+          (cell) => cell.value,
+          (cell) => {
+            const classes = ["range-calendar-day"];
+            if (cell.outside) classes.push("is-outside");
+            if (cell.value === start) classes.push("is-start");
+            if (cell.value === end) classes.push("is-end");
+            if (
+              start &&
+              end &&
+              compareDates(cell.value, start) >= 0 &&
+              compareDates(cell.value, end) <= 0
+            ) {
+              classes.push("is-in-range");
+            }
+
+            const date = new Date(0);
+            date.setUTCFullYear(cell.year, cell.month - 1, cell.day);
+            const ariaLabel = new Intl.DateTimeFormat(undefined, {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              weekday: "long",
+              timeZone: "UTC",
+            }).format(date);
+
+            return html`
+              <button
+                type="button"
+                class=${classes.join(" ")}
+                data-date=${cell.value}
+                tabindex="-1"
+                aria-label=${ariaLabel}
+              >
+                ${cell.day}
+              </button>
+            `;
+          },
+        )}
+      `,
+      this.grid,
+    );
 
     const preferred =
       this.grid.querySelector(

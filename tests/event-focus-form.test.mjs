@@ -59,9 +59,9 @@ test("tag theming exposes hue only and lets the browser choose a contrast foregr
   assert.match(css, /\.event-tag[\s\S]*font-weight:/);
 });
 
-test("the custom calendar exposes keyboard-navigation code and a direct year control", async () => {
+test("the custom calendar keeps keyboard navigation while Lit owns declarative cell rendering", async () => {
   const [source, html] = await Promise.all([
-    readFile(new URL("../site/date-range-picker.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/date-range-picker.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
   ]);
   assert.match(source, /ArrowLeft/);
@@ -70,6 +70,10 @@ test("the custom calendar exposes keyboard-navigation code and a direct year con
   assert.match(source, /ArrowDown/);
   assert.match(source, /PageUp/);
   assert.match(source, /PageDown/);
+  assert.match(source, /from "lit"/);
+  assert.match(source, /lit\/directives\/repeat\.js/);
+  assert.match(source, /renderLit\(/);
+  assert.doesNotMatch(source, /document\.createElement\("button"\)/);
   assert.match(html, /id="item-calendar-year"/);
 });
 
