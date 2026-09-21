@@ -9,6 +9,9 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - "playwright.config.ts"
+      - "playwright.pages.config.ts"
+      - "vite.config.ts"
+      - "scripts/serve-pages-preview.mjs"
       - "tests/playwright/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
