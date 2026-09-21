@@ -6,6 +6,13 @@ on:
       - 'site/index.html'
       - 'package.json'
       - 'src/orb-graph-entry.js'
+      - 'src/domain/**'
+      - 'src/application/**'
+      - 'src/projection/**'
+      - 'src/layout/**'
+      - 'src/interaction/**'
+      - 'tsconfig.architecture.json'
+      - 'tsconfig.migrated.json'
       - 'site/app.js'
       - 'site/webmcp.js'
       - 'site/memgraph-interchange.js'
@@ -48,6 +55,13 @@ on:
       - 'site/index.html'
       - 'package.json'
       - 'src/orb-graph-entry.js'
+      - 'src/domain/**'
+      - 'src/application/**'
+      - 'src/projection/**'
+      - 'src/layout/**'
+      - 'src/interaction/**'
+      - 'tsconfig.architecture.json'
+      - 'tsconfig.migrated.json'
       - 'site/app.js'
       - 'site/timeline-view.js'
       - 'site/presentation-layout.js'
@@ -98,7 +112,8 @@ jobs:
           node-version: 24
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
-      - run: pnpm types || echo "⚠ Type errors found (non-fatal in Phase 2)" && true
+      - run: pnpm types:migrated || echo "⚠ Existing TypeScript migration errors remain (ratcheted follow-up)" && true
+      - run: pnpm types:architecture
       - run: pnpm build
       - run: test -s site/orb-graph.bundle.js
       - run: node --check src/orb-graph-entry.js
