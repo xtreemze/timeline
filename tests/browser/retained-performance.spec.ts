@@ -55,22 +55,48 @@ async function installPerformanceFixture(page) {
 
     const longTasks = [];
     let longTaskObserver = null;
-    const supported =
+    const longTaskSupported =
       typeof PerformanceObserver !== 'undefined' &&
       PerformanceObserver.supportedEntryTypes?.includes('longtask');
 
-    if (supported) {
+    if (longTaskSupported) {
       longTaskObserver = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) longTasks.push(entry.duration);
       });
       longTaskObserver.observe({ type: 'longtask', buffered: false });
     }
 
+    const longAnimationFrames = [];
+    let longAnimationFrameObserver = null;
+    const longAnimationFrameSupported =
+      typeof PerformanceObserver !== 'undefined' &&
+      PerformanceObserver.supportedEntryTypes?.includes('long-animation-frame');
+    if (longAnimationFrameSupported) {
+      longAnimationFrameObserver = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          longAnimationFrames.push({
+            duration: entry.duration,
+            blockingDuration: Number(entry.blockingDuration || 0),
+            renderStart: Number(entry.renderStart || 0),
+            styleAndLayoutStart: Number(entry.styleAndLayoutStart || 0),
+          });
+        }
+      });
+      longAnimationFrameObserver.observe({ type: 'long-animation-frame', buffered: false });
+    }
+
+    const heapBefore =
+      Number(globalThis.performance?.memory?.usedJSHeapSize) || null;
+
     Object.assign(globalThis, {
       __retainedPerformanceController: controller,
       __retainedPerformanceLongTasks: longTasks,
       __retainedPerformanceLongTaskObserver: longTaskObserver,
-      __retainedPerformanceLongTaskSupported: Boolean(supported),
+      __retainedPerformanceLongTaskSupported: Boolean(longTaskSupported),
+      __retainedPerformanceLongAnimationFrames: longAnimationFrames,
+      __retainedPerformanceLongAnimationFrameObserver: longAnimationFrameObserver,
+      __retainedPerformanceLongAnimationFrameSupported: Boolean(longAnimationFrameSupported),
+      __retainedPerformanceHeapBefore: heapBefore,
     });
   });
   await twoFrames(page);
@@ -132,10 +158,25 @@ test('retained renderer reports bounded mobile-safe interaction metrics', async 
 
   const evidence = await page.evaluate(() => {
     globalThis.__retainedPerformanceLongTaskObserver?.disconnect();
+    globalThis.__retainedPerformanceLongAnimationFrameObserver?.disconnect();
+    const heapAfter = Number(globalThis.performance?.memory?.usedJSHeapSize) || null;
+    const heapBefore = globalThis.__retainedPerformanceHeapBefore ?? null;
     return {
       metrics: globalThis.__retainedPerformanceController?.getPerformanceMetrics(),
       longTaskSupported: Boolean(globalThis.__retainedPerformanceLongTaskSupported),
       longTasks: [...(globalThis.__retainedPerformanceLongTasks ?? [])],
+      longAnimationFrameSupported: Boolean(
+        globalThis.__retainedPerformanceLongAnimationFrameSupported,
+      ),
+      longAnimationFrames: [
+        ...(globalThis.__retainedPerformanceLongAnimationFrames ?? []),
+      ],
+      heapBefore,
+      heapAfter,
+      heapDelta:
+        heapBefore !== null && heapAfter !== null
+          ? heapAfter - heapBefore
+          : null,
       eventNodes: document.querySelectorAll(
         '#retained-performance-host .timeline-event, #retained-performance-host .timeline-range-segment',
       ).length,
@@ -153,28 +194,32 @@ test('retained renderer reports bounded mobile-safe interaction metrics', async 
   expect(evidence.eventNodes).toBeLessThanOrEqual(metrics.retainedPeak);
   expect(Number.isFinite(metrics.interaction.p95DurationMs)).toBeTruthy();
   expect(Number.isFinite(metrics.commit.p95DurationMs)).toBeTruthy();
+  expect(metrics.interaction.inputLatencySampleCount).toBeGreaterThan(0);
+  expect(Number.isFinite(metrics.interaction.p95InputLatencyMs)).toBeTruthy();
 
-  // Timing evidence is recorded but not fatal until #271 captures a documented
-  // reference baseline. Structural invariants above remain fatal immediately.
+  const report = {
+    project: testInfo.project.name,
+    interactionP95Ms: metrics.interaction.p95DurationMs,
+    commitP95Ms: metrics.commit.p95DurationMs,
+    inputToVisualP95Ms: metrics.interaction.p95InputLatencyMs,
+    retainedPeak: metrics.retainedPeak,
+    bufferExpansions: metrics.bufferExpansions,
+    renderedEventNodes: evidence.eventNodes,
+    heapBeforeBytes: evidence.heapBefore,
+    heapAfterBytes: evidence.heapAfter,
+    heapDeltaBytes: evidence.heapDelta,
+    longTaskSupported: evidence.longTaskSupported,
+    longTasksMs: evidence.longTasks,
+    longTasksOver50Ms: evidence.longTasks.filter((duration) => duration > 50),
+    longAnimationFrameSupported: evidence.longAnimationFrameSupported,
+    longAnimationFrames: evidence.longAnimationFrames,
+  };
+
+  // Emit machine-readable evidence into CI logs as well as the Playwright report.
+  console.log('RETAINED_TIMELINE_PERF ' + JSON.stringify(report));
 
   await testInfo.attach('retained-timeline-performance.json', {
-    body: Buffer.from(
-      JSON.stringify(
-        {
-          project: testInfo.project.name,
-          interactionP95Ms: metrics.interaction.p95DurationMs,
-          commitP95Ms: metrics.commit.p95DurationMs,
-          retainedPeak: metrics.retainedPeak,
-          bufferExpansions: metrics.bufferExpansions,
-          renderedEventNodes: evidence.eventNodes,
-          longTaskSupported: evidence.longTaskSupported,
-          longTasksMs: evidence.longTasks,
-          longTasksOver50Ms: evidence.longTasks.filter((duration) => duration > 50),
-        },
-        null,
-        2,
-      ),
-    ),
+    body: Buffer.from(JSON.stringify(report, null, 2)),
     contentType: 'application/json',
   });
 });
