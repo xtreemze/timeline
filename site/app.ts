@@ -7,7 +7,6 @@
 import { TimelineTemporal } from './temporal-standards.ts';
 import { TimelineSpatial } from './spatial.ts';
 import { TimelineInterchangeAdapter } from './interchange-adapter.ts';
-import { TimelineScale } from './time-scale.ts';
 import { projectTimelineOccurrences } from '../src/projection/timeline-projection.ts';
 import { TimelineEvidence } from './evidence-store.ts';
 import { TimelineGraphInference } from './graph-inference.ts';
@@ -329,8 +328,8 @@ function requiredElements<T extends Element>(selector: string): T[] {
   };
 
   let state = loadState();
-  let storyDraftIds = [];
-  let storyDraftPlaceIds = [];
+  let storyDraftIds: string[] = [];
+  let storyDraftPlaceIds: string[] = [];
   const evidenceExtractionDrafts = new Map<string, EvidenceExtractionDraft>();
   let itemInferenceDraft: ItemInferenceDraft | null = null;
   let inferenceAbortController: AbortController | null = null;
@@ -404,23 +403,19 @@ function requiredElements<T extends Element>(selector: string): T[] {
     endInput: els.graphEdgeEndDate,
     mode: "range",
   });
-  let presentationResizeObserver = null;
-  let viewControlsResizeObserver = null;
+  let presentationResizeObserver: ResizeObserver | null = null;
+  let viewControlsResizeObserver: ResizeObserver | null = null;
   let presentationResizeFrame = 0;
   let timelineOrientationBeforeFullscreen = null;
   let presentationMap = null;
   let presentationMapKey = "";
   let focusedGraphContextAvailable = false;
 
-  const presentationMapAnchor = els.presentationMap
-    ? document.createComment("timeline-map-home")
-    : null;
-  els.presentationMap?.after(presentationMapAnchor);
+  const presentationMapAnchor = document.createComment("timeline-map-home");
+  els.presentationMap.after(presentationMapAnchor);
 
-  const appToolDockAnchor = els.appToolDock
-    ? document.createComment("timeline-tool-dock-home")
-    : null;
-  els.appToolDock?.after(appToolDockAnchor);
+  const appToolDockAnchor = document.createComment("timeline-tool-dock-home");
+  els.appToolDock.after(appToolDockAnchor);
 
   function workspaceToolViewport() {
     const visualViewport = window.visualViewport;
