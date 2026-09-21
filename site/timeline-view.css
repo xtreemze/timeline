@@ -715,25 +715,30 @@
   stroke-width: 2.25;
 }
 .timeline-event-copy { min-width: 0; }
-.timeline-event-copy strong,
-.timeline-event-copy span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .timeline-event-copy strong {
+  display: -webkit-box;
+  overflow: hidden;
   color: var(--event-color);
   font-size: .9rem;
   font-weight: 820;
+  line-height: 1.14;
   letter-spacing: -.018em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 .timeline-event-copy span {
+  display: block;
+  overflow: hidden;
   margin-top: .18rem;
   color: color-mix(in srgb, var(--event-color) 68%, var(--muted));
   font-size: .7rem;
   font-weight: 680;
   font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .timeline-event-connector,
 .timeline-event-connector-turn {
