@@ -1078,6 +1078,7 @@
             raw?.radiusMeters ?? raw?.attributes?.radiusMeters ?? raw?.attributes?.accuracyMeters,
           icon: raw?.icon || raw?.attributes?.icon || "place",
           markerShape: raw?.markerShape || raw?.attributes?.markerShape || "pin",
+          style: raw?.style || raw?.mapStyle || raw?.attributes?.style || {},
           attributes: raw?.attributes || {},
         },
         places.length,
