@@ -4,8 +4,8 @@ import test from "node:test";
 
 test("focused map opens at world scale and slowly flies to country context", async () => {
   const [mapSource, appSource] = await Promise.all([
-    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(appSource, /countryContextIntro:\s*true/);
@@ -24,8 +24,8 @@ test("focused map opens at world scale and slowly flies to country context", asy
 
 test("focused map ties the semantic place identity to the stored coordinate", async () => {
   const [mapSource, appSource, styles] = await Promise.all([
-    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
 
@@ -49,8 +49,8 @@ test("focused map ties the semantic place identity to the stored coordinate", as
 
 test("fictional spatial reference frames use local procedural texture instead of OSM tiles", async () => {
   const [mapSource, appSource, styles] = await Promise.all([
-    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
 
@@ -67,7 +67,7 @@ test("fictional spatial reference frames use local procedural texture instead of
 });
 
 test("secondary GeoJSON points render as labeled semantic route markers", async () => {
-  const mapSource = await readFile(new URL("../site/location-map.js", import.meta.url), "utf8");
+  const mapSource = await readFile(new URL("../site/location-map.ts", import.meta.url), "utf8");
   assert.match(mapSource, /feature\?\.properties/);
   assert.match(mapSource, /properties\.name \|\| properties\.label/);
   assert.match(mapSource, /properties\.icon \|\| this\.iconName/);
@@ -75,7 +75,7 @@ test("secondary GeoJSON points render as labeled semantic route markers", async 
 });
 
 test("interactive maps use the timeline weighted drag response and shared release decay", async () => {
-  const source = await readFile(new URL("../site/location-map.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/location-map.ts", import.meta.url), "utf8");
   assert.match(source, /const motion = globalThis\.TimelineMotion/);
   assert.match(source, /function weightedMapDragAvailable\(\)/);
   assert.match(source, /motion\?\.appendPointerVectorSamples/);
@@ -114,7 +114,7 @@ test("interactive maps use the timeline weighted drag response and shared releas
 
 test("map touch targets match the coarse-pointer interaction floor and editing has non-drag alternatives", async () => {
   const [source, styles, html] = await Promise.all([
-    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
   ]);
