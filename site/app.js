@@ -321,6 +321,7 @@
   });
   let presentationResizeObserver = null;
   let viewControlsResizeObserver = null;
+  let workspaceToolDockResizeObserver = null;
   let presentationResizeFrame = 0;
   let timelineOrientationBeforeFullscreen = null;
   let presentationMap = null;
@@ -2820,6 +2821,18 @@
     viewControlsResizeObserver.observe(els.viewControls);
     viewControlsResizeObserver.observe(els.viewControlsToggle);
   }
+
+  if ("ResizeObserver" in globalThis && els.appToolDock && els.projectMenuToggle) {
+    workspaceToolDockResizeObserver = new ResizeObserver(() => {
+      positionWorkspaceToolDock();
+    });
+    workspaceToolDockResizeObserver.observe(els.appToolDock);
+    workspaceToolDockResizeObserver.observe(els.projectMenuToggle);
+  }
+
+  document.fonts?.ready?.then(() => {
+    positionWorkspaceToolDock();
+  });
 
   updatePresentationStageLayout();
   requestAnimationFrame(() => {

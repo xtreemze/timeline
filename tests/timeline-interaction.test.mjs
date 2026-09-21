@@ -1249,3 +1249,21 @@ test("phone portrait keeps a usable chronology rail and opens View controls inwa
   assert.match(appSource, /orientation === "portrait"[\s\S]*preferredLeft = triggerRect\.left - toolbarWidth - gap[\s\S]*placement = "left"/);
   assert.match(appSource, /orientation === "portrait"[\s\S]*top = triggerRect\.bottom - toolbarHeight/);
 });
+
+
+test("empty phone portrait keeps chronology readable and project tools attached", async () => {
+  const [timelineCss, viewSource, appSource] = await Promise.all([
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.js", import.meta.url), "utf8")
+  ]);
+
+  assert.match(viewSource, /const isEmpty = !this\.items\.length \|\| !this\.viewport/);
+  assert.match(viewSource, /this\.root\.dataset\.empty = isEmpty \? "true" : "false"/);
+  assert.match(timelineCss, /data-orientation="portrait"\]\[data-empty="true"\][\s\S]*--mobile-relations-inline-rail:\s*clamp\(152px, 44dvw, 188px\)/);
+  assert.match(timelineCss, /timeline-surface\.is-portrait \.timeline-empty-hint[\s\S]*right:\s*calc\(100% - var\(--timeline-axis-cross\) \+ \.65rem\)[\s\S]*writing-mode:\s*vertical-rl/);
+  assert.match(timelineCss, /data-orientation="portrait"\]\[data-empty="true"\] > \.timeline-surface[\s\S]*--timeline-axis-cross:\s*62%[\s\S]*overflow:\s*visible/);
+  assert.match(timelineCss, /data-orientation="portrait"\]\[data-empty="true"\] \.timeline-project-title input[\s\S]*height:\s*clamp\(96px, 16dvh, 144px\)/);
+  assert.match(appSource, /workspaceToolDockResizeObserver = new ResizeObserver[\s\S]*observe\(els\.appToolDock\)[\s\S]*observe\(els\.projectMenuToggle\)/);
+  assert.match(appSource, /document\.fonts\?\.ready\?\.then\(\(\) => \{[\s\S]*positionWorkspaceToolDock\(\)/);
+});

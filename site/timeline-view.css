@@ -2397,9 +2397,14 @@
 }
 
 #app-shell .timeline-surface.is-portrait .timeline-empty-hint {
-  left: calc(var(--timeline-axis-cross) + 1rem);
   top: 50%;
+  right: calc(100% - var(--timeline-axis-cross) + .65rem);
+  left: auto;
+  max-height: min(46dvh, 18rem);
   transform: translateY(-50%);
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  white-space: nowrap;
 }
 
 /* Compact application presentation contract.
@@ -3543,6 +3548,22 @@
     --mobile-relations-inline-rail: clamp(136px, 38dvw, 168px);
     --mobile-relations-block-rail: clamp(136px, 32dvh, 184px);
     --mobile-bottom-chrome: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
+  }
+
+  #app-shell[data-graph-open="true"]
+    #presentation-stage:has(> #timeline-view[data-orientation="portrait"][data-empty="true"]) {
+    --mobile-relations-inline-rail: clamp(152px, 44dvw, 188px);
+  }
+
+  #app-shell[data-graph-open="true"]
+    #timeline-view[data-orientation="portrait"][data-empty="true"] > .timeline-surface {
+    --timeline-axis-cross: 62%;
+    overflow: visible;
+  }
+
+  #app-shell
+    #timeline-view[data-orientation="portrait"][data-empty="true"] .timeline-project-title input {
+    height: clamp(96px, 16dvh, 144px);
   }
 
   #app-shell[data-graph-open="true"]
