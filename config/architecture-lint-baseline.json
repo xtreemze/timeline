@@ -99,6 +99,36 @@
       "any": 0,
       "asAny": 0,
       "nonNull": 0
+    },
+    "site/graph-inference-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/graph-inference.ts": {
+      "any": 59,
+      "asAny": 6,
+      "nonNull": 0
+    },
+    "site/interchange-adapter-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/location-map-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/location-map.ts": {
+      "any": 25,
+      "asAny": 5,
+      "nonNull": 0
+    },
+    "site/memgraph-interchange-shim.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 0
     }
   },
   "css": {
@@ -189,7 +219,11 @@
       "site/timeline-migration-shim.ts": 1,
       "site/timeline-motion-shim.ts": 1,
       "site/timeline-navigation-shim.ts": 1,
-      "site/webmcp-shim.ts": 1
+      "site/webmcp-shim.ts": 1,
+      "site/graph-inference-shim.ts": 1,
+      "site/graph-inference.ts": 3,
+      "site/location-map-shim.ts": 1,
+      "site/location-map.ts": 5
     },
     "directCanonicalMutations": {
       "site/app.ts": 20
