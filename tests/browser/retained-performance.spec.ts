@@ -34,7 +34,8 @@ async function installPerformanceFixture(page) {
     root.append(surface, readout, focus);
     document.body.append(root);
 
-    const { TimelineView } = await import('/timeline-view.ts');
+    const timelineViewModulePath = "/timeline-view.ts";
+    const { TimelineView } = await import(timelineViewModulePath);
     const controller = TimelineView.create(root);
     if (!controller) throw new Error('Timeline performance fixture did not initialize.');
 
@@ -53,8 +54,8 @@ async function installPerformanceFixture(page) {
 
     controller.resetPerformanceMetrics();
 
-    const longTasks = [];
-    let longTaskObserver = null;
+    const longTasks: number[] = [];
+    let longTaskObserver: PerformanceObserver | null = null;
     const supported =
       typeof PerformanceObserver !== 'undefined' &&
       PerformanceObserver.supportedEntryTypes?.includes('longtask');
