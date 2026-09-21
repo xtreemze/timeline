@@ -54,7 +54,8 @@ test("timeline exposes semantic zoom while retaining keyboard fit commands", asy
   ]);
 
   assert.match(htmlSource, /id="timeline-zoom-level"[^>]*type="range"[^>]*min="0"[^>]*max="100"[^>]*value="100"[^>]*aria-valuetext="Focused time window"/);
-  assert.match(htmlSource, /Context[\s\S]*Focus[\s\S]*Isolate/);
+  assert.match(htmlSource, /data-semantic-icon="zoom-out"[\s\S]*id="timeline-zoom-level"[\s\S]*data-semantic-icon="zoom-in"/);
+  assert.doesNotMatch(htmlSource, /timeline-zoom-scale/);
   assert.match(
     viewSource,
     /ensureUsefulViewport\(\)[\s\S]*if \(!this\.viewport\)[\s\S]*semanticZoomTargets\(\)[\s\S]*targets\?\.isolated[\s\S]*zoomAnchorId = targets\.item[\s\S]*soloZoomActive = Boolean\(targets\.item\)/
@@ -1045,8 +1046,12 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
   assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*display:\s*flex/);
   assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar\[popover\]\s*\{[\s\S]*max-inline-size:[\s\S]*max-block-size:/);
   assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*overflow-y:\s*auto/);
-  assert.match(timelineCss, /\.timeline-zoom-control[\s\S]*grid-template-rows:\s*22px auto/);
-  assert.match(timelineCss, /\.timeline-zoom-scale[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(timelineCss, /\.timeline-zoom-control[\s\S]*grid-template-columns:\s*18px minmax\(0, 1fr\) 18px[\s\S]*grid-template-rows:\s*22px/);
+  assert.match(timelineCss, /\.timeline-zoom-endpoint[\s\S]*place-items:\s*center/);
+  assert.match(
+    htmlSource,
+    /class="view-display-controls"[\s\S]*id="timeline-orientation-toggle"[\s\S]*id="presentation-fullscreen-toggle"[\s\S]*class="timeline-zoom-controls"[\s\S]*class="timeline-auto-controls"/
+  );
   assert.match(timelineCss, /Canonical View popover contract[\s\S]*top:\s*var\(--view-controls-top[\s\S]*left:\s*var\(--view-controls-left/);
   assert.match(timelineCss, /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*flex-wrap:\s*nowrap/);
   assert.match(timelineCss, /\.timeline-auto-controls[\s\S]*display:\s*flex[\s\S]*flex-wrap:\s*nowrap/);
@@ -1137,15 +1142,11 @@ test("portrait mode gives the semantic zoom slider a vertical axis", async () =>
   );
   assert.match(
     timelineCss,
-    /\.timeline-view\[data-orientation="portrait"\] \.timeline-zoom-scale\s*\{[\s\S]*grid-template-rows:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/
+    /\.timeline-view\[data-orientation="portrait"\] \.timeline-zoom-control\s*\{[\s\S]*grid-template-rows:\s*18px minmax\(0, 1fr\) 18px/
   );
   assert.match(
     timelineCss,
-    /\.timeline-view\[data-orientation="portrait"\] \.timeline-zoom-scale span\s*\{[\s\S]*writing-mode:\s*vertical-rl[\s\S]*text-orientation:\s*mixed[\s\S]*white-space:\s*nowrap/
-  );
-  assert.match(
-    timelineCss,
-    /\.timeline-view\[data-orientation="landscape"\] \.timeline-zoom-scale span\s*\{[\s\S]*writing-mode:\s*horizontal-tb[\s\S]*white-space:\s*nowrap/
+    /\.timeline-view\[data-orientation="portrait"\] \.timeline-zoom-endpoint\s*\{[\s\S]*width:\s*18px[\s\S]*height:\s*18px/
   );
   assert.match(
     timelineCss,
