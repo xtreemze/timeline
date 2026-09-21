@@ -29,8 +29,8 @@ body {
   --page-grid-gap: clamp(0.55rem, 1.15vw, 1.15rem);
   --page-grid-gutter: max(1rem, calc((100vw - 1540px) / 2));
   margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
+  min-inline-size: 0;
+  min-height: 100dvh;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   column-gap: var(--page-grid-gap);
@@ -73,7 +73,7 @@ a {
 
 .skip-link {
   position: fixed;
-  left: 1rem;
+  inset-inline-start: 1rem;
   top: 1rem;
   z-index: 100;
   transform: translateY(-200%);
@@ -221,7 +221,7 @@ main > * {
 }
 .project-stats span + span::before {
   content: "·";
-  margin-right: 0.8rem;
+  margin-inline-end: 0.8rem;
   color: var(--line-strong);
 }
 .project-actions {
@@ -245,7 +245,7 @@ main > * {
 .control-panel {
   grid-column: 1 / span 4;
   min-width: 0;
-  border-right: 1px solid var(--line);
+  border-inline-end: 1px solid var(--line);
   background: var(--panel);
 }
 .app-shell.is-event-focused {
@@ -299,7 +299,7 @@ main > * {
 }
 .tab {
   border: 0;
-  border-right: 1px solid var(--line);
+  border-inline-end: 1px solid var(--line);
   padding: 0.9rem 0.65rem;
   background: transparent;
   color: var(--muted);
@@ -309,9 +309,9 @@ main > * {
   letter-spacing: 0.02em;
 }
 .tab:last-child {
-  border-right: 0;
+  border-inline-end: 0;
 }
-.tab:hover {
+.tab:is(:hover, :focus-visible) {
   color: var(--ink);
   background: rgba(255, 255, 255, 0.28);
 }
@@ -397,7 +397,7 @@ main > * {
     border-color 0.12s ease,
     opacity 0.12s ease;
 }
-.button:hover:not(:disabled) {
+.button:is(:hover, :focus-visible):not(:disabled) {
   transform: translateY(-1px);
 }
 .button:active:not(:disabled) {
@@ -418,7 +418,7 @@ a:focus-visible {
   background: var(--ink);
   color: var(--paper);
 }
-.button.primary:hover {
+.button.primary:is(:hover, :focus-visible) {
   background: color-mix(in srgb, var(--ink) 82%, var(--paper));
 }
 .button.secondary {
@@ -426,14 +426,14 @@ a:focus-visible {
   border-color: var(--line-strong);
   color: var(--ink);
 }
-.button.secondary:hover {
+.button.secondary:is(:hover, :focus-visible) {
   background: rgba(255, 255, 255, 0.46);
 }
 .button.ghost {
   background: transparent;
   color: var(--muted);
 }
-.button.ghost:hover {
+.button.ghost:is(:hover, :focus-visible) {
   color: var(--ink);
   background: rgba(255, 255, 255, 0.32);
 }
@@ -465,7 +465,7 @@ a:focus-visible {
 .form-error {
   margin: -0.1rem 0 0.8rem;
   padding: 0.65rem 0.75rem;
-  border-left: 3px solid var(--danger);
+  border-inline-start: 3px solid var(--danger);
   background: color-mix(in srgb, var(--danger) 7%, transparent);
   color: var(--danger);
   font-size: 0.8rem;
@@ -493,7 +493,7 @@ a:focus-visible {
   font-weight: 800;
 }
 .temporal-editor legend small {
-  margin-left: 0.25rem;
+  margin-inline-start: 0.25rem;
   color: var(--muted);
   font-weight: 500;
 }
@@ -512,7 +512,7 @@ a:focus-visible {
   color: var(--muted);
 }
 .range-calendar {
-  width: min(420px, calc(100vw - 24px));
+  inline-size: min(420px, calc(100% - 24px));
   margin: 0.45rem;
   padding: 0.75rem;
   border: 1px solid var(--line-strong);
@@ -687,35 +687,6 @@ a:focus-visible {
   color: var(--muted);
   font-weight: 500;
 }
-.map-style-editor {
-  margin-top: 0.15rem;
-}
-.map-style-editor[open] {
-  padding-bottom: 0.85rem;
-}
-.map-style-group {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 0.65rem;
-  margin: 0 0.9rem 0.75rem;
-  padding: 0.75rem;
-  border: 1px solid var(--line);
-  border-radius: 0.62rem;
-  background: var(--paper);
-}
-.map-style-group legend {
-  padding: 0 0.3rem;
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-.map-style-editor > .field-hint {
-  margin-inline: 0.9rem;
-}
-@media (max-width: 699px) {
-  .map-style-group {
-    grid-template-columns: 1fr;
-  }
-}
 .optional-editor[open] > summary {
   border-bottom: 1px solid var(--line);
 }
@@ -732,6 +703,7 @@ a:focus-visible {
   align-items: center;
   padding: 0 0.9rem 0.8rem;
 }
+/* biome-ignore lint/correctness/noUnknownTypeSelector: Chrome exposes geolocation as a browser-native element. */
 geolocation {
   font: inherit;
   border-radius: 0.58rem;
@@ -749,29 +721,12 @@ geolocation {
   );
 }
 .location-map:empty::before {
-  content: "Map preview";
+  content: "OpenStreetMap preview";
   display: grid;
   place-items: center;
   min-height: 250px;
   color: var(--muted);
   font-size: 0.74rem;
-}
-.location-map[data-basemap-state="unavailable"]::after,
-.presentation-map[data-basemap-state="unavailable"]::after {
-  position: absolute;
-  z-index: 850;
-  top: 0.45rem;
-  left: 0.45rem;
-  content: "Basemap unavailable";
-  padding: 0.28rem 0.42rem;
-  border: 1px solid color-mix(in srgb, var(--line-strong) 70%, transparent);
-  border-radius: 0.4rem;
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
-  color: var(--muted);
-  font-size: 0.64rem;
-  font-weight: 700;
-  pointer-events: none;
-  backdrop-filter: blur(6px);
 }
 .location-map[data-error="true"] {
   display: grid;
@@ -815,7 +770,7 @@ geolocation {
 .tag-editor-row {
   grid-template-columns: minmax(0, 1.4fr) minmax(110px, 0.8fr);
   position: relative;
-  border-left: 4px solid oklch(68% 0.16 var(--tag-hue, 30));
+  border-inline-start: 4px solid oklch(68% 0.16 var(--tag-hue, 30));
 }
 .tag-editor-row .hue-field {
   grid-column: 1 / -1;
@@ -917,21 +872,18 @@ geolocation {
   align-items: center;
   gap: 0.45rem;
   width: max-content;
-  max-width: min(24rem, 70vw);
+  max-inline-size: min(24rem, 100%);
 }
 .timeline-map-marker-shell,
 .timeline-map-place-icon {
   display: grid;
   place-items: center;
-  width: var(--map-marker-size, 2rem);
-  height: var(--map-marker-size, 2rem);
-  flex: 0 0 var(--map-marker-size, 2rem);
-  border: var(--map-marker-weight, 2px) solid var(--map-marker-color, var(--focus));
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+  border: 2px solid var(--map-marker-color, var(--focus));
   border-radius: 50%;
-  background: var(
-    --map-marker-fill,
-    color-mix(in srgb, var(--paper) 92%, transparent)
-  );
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
   color: var(--map-marker-color, var(--focus));
   box-shadow: 0 2px 10px color-mix(in srgb, var(--ink) 18%, transparent);
 }
@@ -990,7 +942,7 @@ geolocation {
 .timeline-map-place-placeholder {
   position: absolute;
   z-index: 800;
-  left: 50%;
+  inset-inline-start: 50%;
   top: 50%;
   display: flex;
   align-items: center;
@@ -1012,7 +964,7 @@ geolocation {
 }
 .timeline-map-place-status {
   position: absolute;
-  left: 2.9rem;
+  inset-inline-start: 2.9rem;
   top: calc(100% + 0.25rem);
   color: var(--muted);
   font-size: 0.62rem;
@@ -1025,7 +977,7 @@ geolocation {
 
 @media (max-width: 520px) {
   .timeline-map-marker-identity {
-    max-width: min(19rem, 72vw);
+    max-inline-size: min(19rem, 100%);
   }
   .timeline-map-place-icon {
     width: 2rem;
@@ -1095,7 +1047,7 @@ geolocation {
 .picker-row:last-child {
   border-bottom: 0;
 }
-.picker-row:hover {
+.picker-row:is(:hover, :focus-within) {
   background: var(--paper-2);
 }
 .picker-row input {
@@ -1332,11 +1284,11 @@ geolocation {
   font-size: 0.7rem;
   font-weight: 760;
 }
-.icon-button:hover {
+.icon-button:is(:hover, :focus-visible) {
   background: var(--paper-2);
   color: var(--ink);
 }
-.icon-button.delete:hover {
+.icon-button.delete:is(:hover, :focus-visible) {
   color: var(--danger);
 }
 
@@ -1383,8 +1335,8 @@ geolocation {
   align-items: center;
   min-width: 0;
   gap: 0.28rem;
-  padding-left: 0.34rem;
-  border-left: 1px solid color-mix(in srgb, var(--story) 42%, var(--line));
+  padding-inline-start: 0.34rem;
+  border-inline-start: 1px solid color-mix(in srgb, var(--story) 42%, var(--line));
 }
 .story-focus[hidden] {
   display: none;
@@ -1393,7 +1345,7 @@ geolocation {
   display: flex;
   align-items: baseline;
   min-width: 0;
-  max-width: min(16rem, 30vw);
+  max-inline-size: 16rem;
   gap: 0.28rem;
 }
 .story-focus-context {
@@ -1511,7 +1463,7 @@ geolocation {
 .timeline-list::before {
   content: "";
   position: absolute;
-  left: 172px;
+  inset-inline-start: 172px;
   top: 1.4rem;
   bottom: 2.7rem;
   width: 1px;
@@ -1549,7 +1501,7 @@ geolocation {
 .timeline-marker::before {
   content: "";
   position: absolute;
-  left: 22px;
+  inset-inline-start: 22px;
   top: 0.86rem;
   width: 13px;
   height: 13px;
@@ -1566,7 +1518,7 @@ geolocation {
 .timeline-item.is-range .timeline-marker::after {
   content: "";
   position: absolute;
-  left: 27px;
+  inset-inline-start: 27px;
   top: 1.4rem;
   bottom: 0.2rem;
   width: 3px;
@@ -1585,7 +1537,7 @@ geolocation {
   margin: 0 0 1.15rem;
   padding: 0.9rem 0.95rem 1rem;
   border: 1px solid var(--line);
-  border-left: 3px solid var(--category-color);
+  border-inline-start: 3px solid var(--category-color);
   border-radius: 0.75rem;
   background: var(--paper);
   transition:
@@ -1596,7 +1548,7 @@ geolocation {
 }
 .timeline-item.is-current .timeline-card {
   border-color: color-mix(in srgb, var(--story) 45%, var(--line));
-  border-left-color: var(--story);
+  border-inline-start-color: var(--story);
   box-shadow: 0 4px 16px color-mix(in srgb, var(--story) 6%, transparent);
   transform: translateX(3px);
 }
@@ -1655,7 +1607,7 @@ geolocation {
   content: "";
   width: 0.42rem;
   height: 0.42rem;
-  margin-right: 0.32rem;
+  margin-inline-end: 0.32rem;
   border-radius: 50%;
   background: var(--category-color);
 }
@@ -1675,11 +1627,11 @@ geolocation {
 }
 .location-badge::before {
   content: "⌖";
-  margin-right: 0.28rem;
+  margin-inline-end: 0.28rem;
 }
 .evidence-count-badge::before {
   content: "▣";
-  margin-right: 0.28rem;
+  margin-inline-end: 0.28rem;
 }
 .range-end {
   color: var(--muted);
@@ -1687,7 +1639,7 @@ geolocation {
 
 .status {
   position: fixed;
-  right: 1rem;
+  inset-inline-end: 1rem;
   bottom: 1rem;
   z-index: 50;
   max-width: min(390px, calc(100% - 2rem));
@@ -1754,7 +1706,7 @@ footer > :last-child {
     grid-column: 1 / -1;
   }
   .control-panel {
-    border-right: 0;
+    border-inline-end: 0;
     border-bottom: 1px solid var(--line);
   }
   .tabs {
@@ -1821,7 +1773,7 @@ footer > :last-child {
     justify-content: flex-start;
   }
   .timeline-list::before {
-    left: 10px;
+    inset-inline-start: 10px;
   }
   .timeline-item {
     grid-template-columns: 28px minmax(0, 1fr);
@@ -1846,11 +1798,11 @@ footer > :last-child {
     grid-row: 1 / 3;
   }
   .timeline-marker::before {
-    left: 4px;
+    inset-inline-start: 4px;
     top: 0.18rem;
   }
   .timeline-item.is-range .timeline-marker::after {
-    left: 9px;
+    inset-inline-start: 9px;
     top: 0.7rem;
     bottom: 0.1rem;
   }
@@ -1919,14 +1871,14 @@ footer > :last-child {
     color: #d6d0c7;
   }
   .hero-meta span,
-  .button.secondary:hover,
-  .button.ghost:hover {
+  .button.secondary:is(:hover, :focus-visible),
+  .button.ghost:is(:hover, :focus-visible) {
     background: rgba(255, 255, 255, 0.035);
   }
   .tabs {
     background: color-mix(in srgb, var(--panel) 95%, transparent);
   }
-  .tab:hover {
+  .tab:is(:hover, :focus-visible) {
     background: rgba(255, 255, 255, 0.025);
   }
 }
@@ -1961,7 +1913,7 @@ footer > :last-child {
     grid-column: 1;
   }
   .range-calendar {
-    width: calc(100vw - 12px);
+    inline-size: calc(100% - 12px);
     margin: 6px;
   }
 }
@@ -2033,7 +1985,7 @@ footer > :last-child {
   font-size: 0.8rem;
 }
 .timeline-category-summary-count {
-  margin-left: auto;
+  margin-inline-start: auto;
   color: var(--muted);
   font-size: 0.68rem;
 }
@@ -2047,7 +1999,7 @@ footer > :last-child {
 .timeline-category-items::before {
   content: "";
   position: absolute;
-  left: 179px;
+  inset-inline-start: 179px;
   top: 0.8rem;
   bottom: 1rem;
   width: 1px;
@@ -2066,7 +2018,7 @@ footer > :last-child {
     grid-template-columns: 1fr;
   }
   .timeline-category-items::before {
-    left: 19px;
+    inset-inline-start: 19px;
   }
 }
 
@@ -2209,7 +2161,7 @@ footer > :last-child {
   content: "";
   position: absolute;
   z-index: 4;
-  left: var(--graph-touch-hold-x, 50%);
+  inset-inline-start: var(--graph-touch-hold-x, 50%);
   top: var(--graph-touch-hold-y, 50%);
   width: 44px;
   height: 44px;
@@ -2379,7 +2331,7 @@ footer > :last-child {
 }
 .graph-lens [data-graph-status][data-simulation-running="true"]::before {
   content: "●";
-  margin-right: 0.34rem;
+  margin-inline-end: 0.34rem;
   font-size: 0.58em;
   vertical-align: 0.12em;
 }
@@ -2643,7 +2595,7 @@ footer > :last-child {
 .app-shell.is-event-focused #presentation-stage > .presentation-map-panel:not([hidden]) {
   grid-column: 10 / -1;
   min-width: 0;
-  max-height: 100vh;
+  max-height: 100dvh;
   margin: 0;
 }
 
@@ -2671,7 +2623,7 @@ footer > :last-child {
 }
 
 #presentation-stage:fullscreen {
-  inline-size: 100dvw;
+  inline-size: 100%;
   block-size: 100dvh;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -2818,7 +2770,7 @@ body {
 
 body {
   display: block;
-  min-width: 320px;
+  min-inline-size: 0;
   min-height: 100dvh;
   padding: 0;
   background: var(--paper-2);
@@ -2828,7 +2780,7 @@ body {
   position: fixed;
   inset: 0;
   display: block;
-  width: 100dvw;
+  inline-size: 100%;
   height: 100dvh;
   overflow: hidden;
 }
@@ -2907,13 +2859,13 @@ body {
 .project-menu[popover] {
   inset: auto;
   top: var(--project-menu-top, max(0.5rem, env(safe-area-inset-top)));
-  left: var(--project-menu-left, max(0.5rem, env(safe-area-inset-left)));
-  right: auto;
+  inset-inline-start: var(--project-menu-left, max(0.5rem, env(safe-area-inset-left)));
+  inset-inline-end: auto;
   bottom: auto;
   box-sizing: border-box;
-  width: min(340px, calc(100dvw - 0.8rem), var(--project-menu-max-width, 340px));
-  max-width: var(--project-menu-max-width, calc(100dvw - 0.8rem));
-  max-height: min(620px, var(--project-menu-max-height, calc(100dvh - 1rem)));
+  inline-size: min(340px, calc(100% - 0.8rem), var(--project-menu-max-width, 340px));
+  max-inline-size: var(--project-menu-max-width, calc(100% - 0.8rem));
+  max-block-size: min(620px, var(--project-menu-max-height, calc(100dvh - 1rem)));
   margin: 0;
   padding: 0.45rem;
   overflow: auto;
@@ -3020,7 +2972,7 @@ body {
     position-anchor: --project-menu-anchor;
     inset: auto;
     top: calc(anchor(bottom) + 0.4rem);
-    right: anchor(right);
+    inset-inline-end: anchor(right);
   }
 }
 
@@ -3029,7 +2981,7 @@ body {
   z-index: 1;
   inset: 0;
   display: block;
-  width: 100dvw;
+  inline-size: 100%;
   height: 100dvh;
   min-width: 0;
   min-height: 0;
@@ -3087,11 +3039,13 @@ body {
   view-transition-name: timeline-workspace-sidebar;
   position: fixed;
   z-index: 1200;
-  left: 50%;
-  bottom: max(0.45rem, env(safe-area-inset-bottom));
+  inset-inline-start: 50%;
+  inset-block-end: max(0.45rem, env(safe-area-inset-bottom));
   display: flex;
-  width: max-content;
-  max-width: calc(100dvw - 1rem);
+  align-items: stretch;
+  justify-content: stretch;
+  inline-size: min(22rem, calc(100% - 1rem));
+  max-inline-size: calc(100% - 1rem);
   padding: 0.3rem;
   gap: 0.2rem;
   overflow-x: auto;
@@ -3112,6 +3066,7 @@ body {
   grid-template-rows: auto auto;
   place-items: center;
   gap: 0.16rem;
+  flex: 1 1 0;
   min-width: 62px;
   min-height: 52px;
   padding: 0.38rem 0.55rem;
@@ -3132,15 +3087,6 @@ body {
 
 .app-view-tool {
   view-transition-name: timeline-view-button;
-  position: fixed;
-  z-index: 1210;
-  right: max(0.45rem, env(safe-area-inset-right));
-  bottom: max(0.45rem, env(safe-area-inset-bottom));
-  min-width: 62px;
-  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
-  background: color-mix(in srgb, var(--paper) 90%, transparent);
-  box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 6%, transparent);
-  backdrop-filter: blur(14px);
 }
 .app-tool:disabled {
   opacity: 0.35;
@@ -3171,8 +3117,8 @@ body {
 .app-browser-sheet {
   position: fixed;
   z-index: 1050;
-  left: max(0.4rem, env(safe-area-inset-left));
-  right: max(0.4rem, env(safe-area-inset-right));
+  inset-inline-start: max(0.4rem, env(safe-area-inset-left));
+  inset-inline-end: max(0.4rem, env(safe-area-inset-right));
   bottom: max(4.45rem, calc(env(safe-area-inset-bottom) + 4.1rem));
   width: auto;
   max-width: none;
@@ -3309,16 +3255,16 @@ body {
 
 .status {
   z-index: 1600;
-  max-width: min(520px, calc(100dvw - 1rem));
+  max-inline-size: min(520px, calc(100% - 1rem));
 }
 
 @media (min-width: 700px) {
   .app-command-bar {
     grid-template-columns: auto minmax(180px, 1fr) auto;
-    max-width: min(720px, calc(100dvw - 1rem));
-    left: 50%;
-    right: auto;
-    width: calc(100dvw - 1rem);
+    max-inline-size: 720px;
+    inset-inline-start: 50%;
+    inset-inline-end: auto;
+    inline-size: calc(100% - 1rem);
     transform: translateX(-50%);
   }
   .app-brand {
@@ -3338,40 +3284,36 @@ body {
 
 @media (min-width: 900px) {
   .app-tool-dock {
-    left: max(0.55rem, env(safe-area-inset-left));
-    bottom: 50%;
-    flex-direction: column;
-    max-width: 78px;
-    transform: translateY(50%);
+    inline-size: min(26rem, calc(100% - 1.1rem));
   }
   .app-tool {
-    min-width: 62px;
+    min-width: 72px;
     min-height: 54px;
   }
 
   .app-editor-sheet,
   .app-browser-sheet {
     top: max(4.4rem, calc(env(safe-area-inset-top) + 4rem));
-    bottom: max(0.55rem, env(safe-area-inset-bottom));
-    right: max(0.55rem, env(safe-area-inset-right));
-    left: auto;
-    width: min(390px, calc(100dvw - 6.5rem));
+    bottom: max(4.55rem, calc(env(safe-area-inset-bottom) + 4.2rem));
+    inset-inline-end: max(0.55rem, env(safe-area-inset-right));
+    inset-inline-start: auto;
+    inline-size: min(390px, calc(100% - 1.1rem));
     max-height: none;
     height: auto;
     border-radius: 1rem;
   }
 
   .app-editor-sheet {
-    width: min(430px, calc(100dvw - 6.5rem));
+    inline-size: min(430px, calc(100% - 1.1rem));
   }
 }
 
 @media (min-width: 1280px) {
   .app-editor-sheet {
-    width: min(440px, 34dvw);
+    inline-size: min(440px, 34%);
   }
   .app-browser-sheet {
-    width: min(400px, 31dvw);
+    inline-size: min(400px, 31%);
   }
 }
 
@@ -3380,15 +3322,15 @@ body {
 #app-shell .timeline-panel > .story-focus {
   position: fixed;
   z-index: 1040;
-  left: max(0.45rem, env(safe-area-inset-left));
-  right: max(0.45rem, env(safe-area-inset-right));
+  inset-inline-start: max(0.45rem, env(safe-area-inset-left));
+  inset-inline-end: max(0.45rem, env(safe-area-inset-right));
   bottom: max(4.55rem, calc(env(safe-area-inset-bottom) + 4.2rem));
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.55rem;
   width: auto;
-  max-width: min(560px, calc(100dvw - 0.9rem));
+  max-inline-size: min(560px, calc(100% - 0.9rem));
   margin: 0 auto;
   padding: 0.5rem 0.55rem;
   border: 1px solid color-mix(in srgb, var(--story) 28%, var(--line));
@@ -3447,10 +3389,10 @@ body {
     height: 24px;
   }
   #app-shell .timeline-panel > .story-focus {
-    left: max(5.4rem, calc(env(safe-area-inset-left) + 5rem));
-    right: auto;
-    bottom: max(0.55rem, env(safe-area-inset-bottom));
-    width: min(520px, calc(100dvw - 6.5rem));
+    inset-inline-start: max(0.55rem, env(safe-area-inset-left));
+    inset-inline-end: auto;
+    bottom: max(4.55rem, calc(env(safe-area-inset-bottom) + 4.2rem));
+    inline-size: min(520px, calc(100% - 1.1rem));
     margin: 0;
   }
 }
@@ -3530,20 +3472,21 @@ body {
   touch-action: none;
 }
 
-/* Fullscreen keeps the workspace tool dock in the fullscreen subtree and on the left edge. */
+/* Fullscreen preserves the same bottom app bar so controls do not jump between edges. */
 #presentation-stage:fullscreen .app-tool-dock {
   pointer-events: auto;
   z-index: 2200;
-  top: 50%;
-  right: auto;
-  bottom: auto;
-  left: max(0.5rem, env(safe-area-inset-left));
-  flex-direction: column;
-  max-width: 78px;
-  max-height: calc(100dvh - 2rem);
-  overflow-x: hidden;
-  overflow-y: auto;
-  transform: translateY(-50%);
+  inset-block-start: auto;
+  inset-inline-end: auto;
+  inset-block-end: max(0.5rem, env(safe-area-inset-bottom));
+  inset-inline-start: 50%;
+  flex-direction: row;
+  inline-size: min(26rem, calc(100% - 1rem));
+  max-inline-size: calc(100% - 1rem);
+  max-block-size: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  transform: translateX(-50%);
   box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 6%, transparent);
   backdrop-filter: blur(14px);
 }
@@ -3669,15 +3612,16 @@ body {
   }
 
   .app-tool-dock {
-    left: max(0.4rem, env(safe-area-inset-left));
-    right: max(4.2rem, calc(env(safe-area-inset-right) + 3.9rem));
-    bottom: max(0.38rem, env(safe-area-inset-bottom));
-    width: auto;
-    max-width: none;
+    inset-inline-start: 50%;
+    inset-inline-end: auto;
+    inset-block-end: max(0.38rem, env(safe-area-inset-bottom));
+    inline-size: min(22rem, calc(100% - 0.8rem));
+    max-inline-size: calc(100% - 0.8rem);
     padding: 0.22rem;
     gap: 0.12rem;
-    overflow: hidden;
-    transform: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    transform: translateX(-50%);
     border-radius: 0.78rem;
   }
 
@@ -3691,14 +3635,6 @@ body {
     font-size: 0.64rem;
   }
 
-  .app-view-tool {
-    right: max(0.4rem, env(safe-area-inset-right));
-    bottom: max(0.38rem, env(safe-area-inset-bottom));
-    width: 58px;
-    min-width: 58px;
-    flex: none;
-  }
-
   .app-tool .semantic-icon {
     width: 21px;
     height: 21px;
@@ -3706,8 +3642,8 @@ body {
 
   .app-editor-sheet,
   .app-browser-sheet {
-    left: max(0.35rem, env(safe-area-inset-left));
-    right: max(0.35rem, env(safe-area-inset-right));
+    inset-inline-start: max(0.35rem, env(safe-area-inset-left));
+    inset-inline-end: max(0.35rem, env(safe-area-inset-right));
     bottom: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
     max-height: min(58dvh, calc(100dvh - 8.1rem));
     border-radius: 0.82rem;
@@ -3851,99 +3787,65 @@ body {
   }
 }
 
-/* Browse and Edit are true layout-reserving sidebars.
-   They are vertical in-flow workspace columns at every viewport size; only their own
-   vertical content scrolls, never the workspace beneath them or a horizontal sheet axis. */
-#app-shell[data-editor-open="true"] {
-  --utility-sidebar-width: min(320px, 72dvw);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--utility-sidebar-width);
-  grid-template-rows: minmax(0, 1fr);
+/* Browse and Edit are viewport-contained utility surfaces by default.
+   Narrow screens keep the complete surface on-screen above the footer bar; wider screens
+   progressively reserve a right-side workspace column without changing editor state. */
+#app-shell[data-editor-open="true"],
+#app-shell[data-browser-open="true"] > .timeline-panel {
+  display: block;
 }
 
-#app-shell[data-editor-open="true"] > .timeline-panel {
-  position: relative;
-  inset: auto;
-  grid-column: 1;
-  grid-row: 1;
+#app-shell[data-editor-open="true"] > .timeline-panel,
+#app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen),
+#app-shell[data-browser-open="false"] #presentation-stage:not(:fullscreen) {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
+}
+
+#app-shell[data-editor-open="true"] > .app-editor-sheet,
+#app-shell[data-browser-open="true"] > .timeline-panel > .app-browser-sheet {
+  position: fixed;
+  z-index: 1300;
+  inset-block-start: max(0.4rem, env(safe-area-inset-top));
+  inset-block-end: max(4.45rem, calc(env(safe-area-inset-bottom) + 4.1rem));
+  inset-inline-start: max(0.4rem, env(safe-area-inset-left));
+  inset-inline-end: max(0.4rem, env(safe-area-inset-right));
+  box-sizing: border-box;
+  inline-size: auto;
+  min-inline-size: 0;
+  max-inline-size: none;
+  block-size: auto;
+  min-block-size: 0;
+  max-block-size: none;
+  margin: 0;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border: 1px solid var(--line);
+  border-radius: 0.82rem;
+  box-shadow: 0 5px 18px color-mix(in srgb, var(--ink) 7%, transparent);
+  backdrop-filter: blur(16px);
+  container: utility-sidebar / inline-size;
 }
 
 #app-shell[data-editor-open="true"] > .app-editor-sheet {
-  position: relative;
-  z-index: 2;
-  inset: auto;
-  grid-column: 2;
-  grid-row: 1;
-  align-self: stretch;
-  box-sizing: border-box;
-  width: auto;
-  min-width: 0;
-  max-width: none;
-  height: 100%;
-  min-height: 0;
-  max-height: none;
-  margin: 0;
   overflow-x: clip;
   overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  border: 0;
-  border-left: 1px solid var(--line);
-  border-radius: 0;
   background: var(--panel);
-  box-shadow: none;
-  backdrop-filter: none;
-  container: utility-sidebar / inline-size;
-}
-
-#app-shell[data-browser-open="true"] > .timeline-panel {
-  --utility-sidebar-width: min(300px, 68dvw);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--utility-sidebar-width);
-  grid-template-rows: minmax(0, 1fr);
-}
-
-#app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen) {
-  position: relative;
-  inset: auto;
-  grid-column: 1;
-  grid-row: 1;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
 }
 
 #app-shell[data-browser-open="true"] > .timeline-panel > .app-browser-sheet {
-  position: relative;
-  z-index: 2;
-  inset: auto;
-  grid-column: 2;
-  grid-row: 1;
-  align-self: stretch;
-  box-sizing: border-box;
-  width: auto;
-  min-width: 0;
-  max-width: none;
-  height: 100%;
-  min-height: 0;
-  max-height: none;
-  margin: 0;
   overflow-x: clip;
   overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  border: 0;
-  border-left: 1px solid var(--line);
-  border-radius: 0;
   background: var(--paper);
-  box-shadow: none;
-  backdrop-filter: none;
-  container: utility-sidebar / inline-size;
+}
+
+#app-shell[data-editor-open="false"] > .app-editor-sheet,
+#app-shell[data-browser-open="false"] > .timeline-panel > .app-browser-sheet {
+  display: none;
 }
 
 #app-shell:is([data-editor-open="true"], [data-browser-open="true"])
@@ -4073,7 +3975,7 @@ body {
   grid-column: 1;
   grid-row: auto;
   padding: 0.15rem 0.1rem 0;
-  text-align: left;
+  text-align: start;
 }
 
 .app-browser-sheet .timeline-date :is(strong, span) {
@@ -4102,16 +4004,78 @@ body {
 
 .app-browser-sheet .card-actions {
   flex: 0 1 auto;
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 
 @media (min-width: 760px) {
   #app-shell[data-editor-open="true"] {
-    --utility-sidebar-width: clamp(320px, 34dvw, 440px);
+    --utility-sidebar-width: clamp(320px, 34%, 440px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--utility-sidebar-width);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  #app-shell[data-editor-open="true"] > .timeline-panel {
+    position: relative;
+    inset: auto;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  #app-shell[data-editor-open="true"] > .app-editor-sheet {
+    position: relative;
+    z-index: 2;
+    inset: auto;
+    grid-column: 2;
+    grid-row: 1;
+    align-self: stretch;
+    inline-size: auto;
+    block-size: 100%;
+    max-block-size: none;
+    border-block: 0;
+    border-inline-end: 0;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  #app-shell[data-browser-open="false"] > .timeline-panel {
+    --utility-sidebar-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
   }
 
   #app-shell[data-browser-open="true"] > .timeline-panel {
-    --utility-sidebar-width: clamp(300px, 31dvw, 400px);
+    --utility-sidebar-width: clamp(300px, 31%, 400px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--utility-sidebar-width);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  #app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen),
+  #app-shell[data-browser-open="false"] #presentation-stage:not(:fullscreen) {
+    position: relative;
+    inset: auto;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  #app-shell[data-browser-open="true"] > .timeline-panel > .app-browser-sheet {
+    position: relative;
+    z-index: 2;
+    inset: auto;
+    grid-column: 2;
+    grid-row: 1;
+    align-self: stretch;
+    inline-size: auto;
+    block-size: 100%;
+    max-block-size: none;
+    border-block: 0;
+    border-inline-end: 0;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
   }
 }
 
@@ -4145,42 +4109,8 @@ body {
   }
 }
 
-/* Workspace chrome follows the selected timeline orientation, not viewport width.
-   Landscape timelines use edge-aligned vertical controls; portrait timelines use bottom rows. */
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock {
-  top: 50%;
-  right: auto;
-  bottom: auto;
-  left: max(0.45rem, env(safe-area-inset-left));
-  flex-direction: column;
-  width: auto;
-  max-width: 78px;
-  max-height: calc(
-    100dvh -
-    max(0.9rem, env(safe-area-inset-top)) -
-    max(0.9rem, env(safe-area-inset-bottom))
-  );
-  overflow-x: hidden;
-  overflow-y: auto;
-  transform: translateY(-50%);
-}
-
-#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
-  top: auto;
-  right: auto;
-  bottom: max(0.45rem, env(safe-area-inset-bottom));
-  left: 50%;
-  flex-direction: row;
-  width: max-content;
-  max-width: calc(
-    100dvw -
-    max(5rem, calc(env(safe-area-inset-left) + env(safe-area-inset-right) + 4rem))
-  );
-  max-height: none;
-  overflow-x: auto;
-  overflow-y: hidden;
-  transform: translateX(-50%);
-}
+/* Workspace actions stay in one bottom app bar regardless of timeline orientation.
+   Orientation changes affect the presentation canvas, not the application chrome. */
 
 /* Coarse-pointer target floor.
    Keep desktop density unchanged while making primary phone controls consistent with
@@ -4222,8 +4152,8 @@ body {
 
 @media (pointer: coarse) and (max-width: 380px) {
   .range-calendar {
-    width: calc(100dvw - 4px);
-    max-width: calc(100dvw - 4px);
+    inline-size: calc(100% - 4px);
+    max-inline-size: calc(100% - 4px);
     margin: 2px;
     padding: 0.125rem;
   }
@@ -4244,4 +4174,9 @@ body {
     min-width: 44px;
     min-height: 44px;
   }
+}
+
+/* Native hidden state remains authoritative without bypassing the cascade. */
+[hidden] {
+  display: none;
 }

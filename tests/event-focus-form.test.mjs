@@ -4,11 +4,11 @@ import test from "node:test";
 
 globalThis.document = { baseURI: "https://example.test/" };
 await import("../site/date-range-picker.js");
-await import("../site/event-presentation.js");
+await import("../site/event-presentation-shim.ts");
 
 const picker = globalThis.TimelineDateRangePicker;
 const presentation = globalThis.TimelinePresentation;
-await import("../site/presentation-layout.js");
+await import("../site/presentation-layout-shim.ts");
 const presentationLayout = globalThis.TimelinePresentationLayout;
 
 test("range display condenses dates in the same month and keeps the year visible", () => {
@@ -75,7 +75,7 @@ test("the custom calendar exposes keyboard-navigation code and a direct year con
 
 test("focused events expose three distinct grid composition variants and evidence sections", async () => {
   const [source, css] = await Promise.all([
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
   assert.match(source, /layoutVariant/);
@@ -124,7 +124,7 @@ test("full chronology renders collapsible category groups while story order rema
 
 test("focused event composition does not instantiate duplicate graph or map surfaces", async () => {
   const [source, css] = await Promise.all([
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
 
@@ -156,7 +156,7 @@ test("presentation stage keeps timeline and graph together and supports fullscre
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(html, /id="presentation-stage"[\s\S]*id="timeline-view"[\s\S]*id="graph-lens"/);
@@ -202,7 +202,7 @@ test("fullscreen keeps the timeline full-stage and moves focused detail into a r
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(html, /id="timeline-focus-view"[^>]*popover="manual"/);
@@ -273,9 +273,9 @@ test("focused Place and Relations reuse the single map and graph surfaces as int
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8"),
   ]);
 
   assert.equal((html.match(/class="temporal-graph-canvas"/g) || []).length, 1);
@@ -313,7 +313,7 @@ test("focused Place and Relations reuse the single map and graph surfaces as int
 
 test("focused event detail uses a shared View Transition with its timeline terminal", async () => {
   const [source, css] = await Promise.all([
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
 
@@ -333,7 +333,7 @@ test("focused event detail uses a shared View Transition with its timeline termi
 test("adjacent focused-event navigation finishes viewport motion before swapping shared detail", async () => {
   const [app, source] = await Promise.all([
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(
@@ -366,7 +366,7 @@ test("adjacent focused-event navigation finishes viewport motion before swapping
 
 test("timeline range bars are identifiable and labels share event color semantics", async () => {
   const [source, css] = await Promise.all([
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
   assert.match(source, /createElement\("button", "timeline-range-segment"\)/);
@@ -566,7 +566,7 @@ test("application shell keeps the timeline viewport-owned while utility surfaces
 });
 
 test("focused timeline geometry keeps terminals on the interior side of the shifted axis", async () => {
-  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.match(source, /axisPadding\(length\)[\s\S]*clamp\(length \* 0\.075, 48, 80\)/);
   assert.match(source, /const focused = Boolean\(this\.selectedId\)/);
   assert.match(source, /const side = focused \? -1/);
@@ -577,7 +577,7 @@ test("focused timeline geometry keeps terminals on the interior side of the shif
 
 test("presentation map renders semantic GeoJSON features instead of an empty point preview", async () => {
   const [mapSource, app, styles] = await Promise.all([
-    readFile(new URL("../site/location-map.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
@@ -600,7 +600,7 @@ test("graph exploration is chrome-free and selection-only", async () => {
   const [html, styles, graphView] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/temporal-graph-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8"),
   ]);
   const graphMarkup = html.slice(
     html.indexOf('id="graph-lens"'),
@@ -620,7 +620,7 @@ test("graph exploration is chrome-free and selection-only", async () => {
 });
 
 test("timeline background click exits focused event without stealing event-terminal clicks", async () => {
-  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.match(
     source,
     /surface\.addEventListener\("click",[\s\S]*this\.selectedId[\s\S]*event\.target\.closest\("button, a, input, select, textarea"\)[\s\S]*this\.closeFocus\(\)/,
@@ -630,7 +630,7 @@ test("timeline background click exits focused event without stealing event-termi
 test("desktop event detail is compact and placed opposite the active timeline edge", async () => {
   const [css, source] = await Promise.all([
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
   assert.match(css, /@media \(min-width: 900px\) and \(min-height: 700px\)/);
   assert.match(
@@ -687,7 +687,7 @@ test("viewing and editing are explicit mutually exclusive application modes", as
 test("fullscreen restores the focused event popover after the browser changes top-layer state", async () => {
   const [app, view] = await Promise.all([
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
   assert.match(view, /ensureFocusPopover\(\)/);
   assert.match(app, /active && timelineView\?\.hasFocusedItem\?\.\(\)[\s\S]*ensureFocusPopover/);
@@ -710,7 +710,7 @@ test("utility surfaces remain coordinated while the relation graph stays persist
 });
 
 test("focused overview omits redundant Context, Place, Relations headings and the Relations panel", async () => {
-  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   const renderStart = source.indexOf("renderFocus(item)");
   const renderEnd = source.indexOf("\n    closeFocus() {", renderStart);
   const renderFocus = source.slice(renderStart, renderEnd);
@@ -722,7 +722,7 @@ test("focused overview omits redundant Context, Place, Relations headings and th
 });
 
 test("focused hero keeps image captions and provenance out of the visual overlay", async () => {
-  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.doesNotMatch(
     source,
     /timeline-focus-media-caption|isIllustrationDisclaimer|mediaCaption\.startsWith/,
@@ -731,7 +731,7 @@ test("focused hero keeps image captions and provenance out of the visual overlay
 
 test("focused Context belongs to Overview and interaction chrome cannot overlap either tab", async () => {
   const [source, css] = await Promise.all([
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
   const renderStart = source.indexOf("renderFocus(item)");
@@ -762,7 +762,7 @@ test("focused Context belongs to Overview and interaction chrome cannot overlap 
 test("focused popover keeps one hero composition while Overview and Evidence own distinct content", async () => {
   const [css, source] = await Promise.all([
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
   assert.match(source, /summary\.hidden = evidenceActive/);
   assert.match(source, /place\.hidden = evidenceActive/);
@@ -791,46 +791,23 @@ test("focused popover keeps one hero composition while Overview and Evidence own
   );
 });
 
-test("fullscreen preserves the left workspace tool dock inside the fullscreen subtree", async () => {
+test("fullscreen preserves the common footer app bar inside the fullscreen subtree", async () => {
   const [app, styles, timelineCss] = await Promise.all([
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
   assert.match(app, /appToolDock:\s*document\.querySelector\("\.app-tool-dock"\)/);
   assert.match(app, /timeline-tool-dock-home/);
-  assert.match(app, /function workspaceToolViewport\(\)[\s\S]*visualViewport/);
-  assert.match(
-    app,
-    /function positionWorkspaceToolDock\(\)[\s\S]*projectMenuToggle\.getBoundingClientRect\(\)[\s\S]*dataset\.timelineOrientation = orientation/,
-  );
-  assert.match(
-    app,
-    /orientation === "portrait"[\s\S]*triggerRect\.left - dockWidth - gap[\s\S]*triggerRect\.top \+ \(triggerRect\.height - dockHeight\) \/ 2/,
-  );
-  assert.match(
-    app,
-    /preferredTop = triggerRect\.bottom \+ gap[\s\S]*triggerRect\.left \+ \(triggerRect\.width - dockWidth\) \/ 2/,
-  );
-  assert.match(
-    timelineCss,
-    /app-tool-dock\[data-project-anchored="true"\]\[data-timeline-orientation="landscape"\][\s\S]*flex-direction:\s*column/,
-  );
-  assert.match(
-    timelineCss,
-    /app-tool-dock\[data-project-anchored="true"\]\[data-timeline-orientation="portrait"\][\s\S]*flex-direction:\s*row/,
-  );
-  assert.match(
-    timelineCss,
-    /Project-aligned Browse\/Edit controls[\s\S]*z-index:\s*1420[\s\S]*pointer-events:\s*auto[\s\S]*app-tool[\s\S]*pointer-events:\s*auto/,
-  );
   assert.match(app, /mountFullscreenToolDock/);
   assert.match(app, /restoreToolDock/);
   assert.match(app, /if \(active\)[\s\S]*mountFullscreenToolDock\(\)/);
+  assert.doesNotMatch(app, /positionWorkspaceToolDock|workspaceToolDockResizeObserver/);
   assert.match(
     styles,
-    /#presentation-stage:fullscreen \.app-tool-dock[\s\S]*pointer-events:\s*auto !important[\s\S]*left:/,
+    /#presentation-stage:fullscreen \.app-tool-dock[\s\S]*inset-block-end:[\s\S]*inset-inline-start:\s*50%[\s\S]*flex-direction:\s*row/,
   );
+  assert.doesNotMatch(timelineCss, /data-project-anchored|workspace-tool-dock/);
 });
 
 test("fullscreen graph composition follows physical orientation and preserves direct manipulation", async () => {
@@ -877,7 +854,7 @@ test("fresh startup loads the storybook sample while persisted timelines retain 
 test("fullscreen presentation derives timeline axis from physical viewport without persisting it", async () => {
   const [app, view] = await Promise.all([
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
   assert.match(view, /setOrientation\(orientation, options = \{\}\)/);
   assert.match(view, /const persist = options\.persist !== false/);
@@ -895,7 +872,7 @@ test("fullscreen presentation derives timeline axis from physical viewport witho
 });
 
 test("focused chronology hugs the right or bottom edge in presentation", async () => {
-  const view = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const view = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.match(view, /clamp\(height \* 0\.08, 48, 88\)/);
   assert.match(view, /clamp\(width \* 0\.07, 44, 76\)/);
   assert.match(
@@ -961,7 +938,7 @@ test("docked timeline terminals can overhang the narrow rail without leaving the
 
 test("focused popover runtime owns its final width and height budget", async () => {
   const [source, css] = await Promise.all([
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
   assert.match(
@@ -993,7 +970,7 @@ test("focused popover runtime owns its final width and height budget", async () 
 });
 
 test("popover inset measurement ignores an undocked full-viewport timeline surface", async () => {
-  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.match(source, /const timelineRect = this\.surface\.getBoundingClientRect\(\)/);
   assert.match(
     source,
@@ -1046,7 +1023,7 @@ test("desktop focus card preserves a stable hero while Overview gets Context and
 });
 
 test("adjacent event navigation preserves temporal context before swapping focused detail", async () => {
-  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.match(source, /FOCUS_SWAP_TRANSITION_NAME = "timeline-event-detail-swap"/);
   assert.match(source, /async transitionFocusTo\(item, direction = 1\)/);
   assert.match(
@@ -1069,7 +1046,7 @@ test("adjacent event navigation preserves temporal context before swapping focus
 });
 
 test("timeline viewport travel is awaitable and cancellable instead of snapping", async () => {
-  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.match(source, /this\.zoomAnimationResolve = null/);
   assert.match(source, /animateViewportTo\(target\)[\s\S]*return new Promise\(\(resolve\) =>/);
   assert.match(source, /this\.resolveViewportAnimation\(true\)/);
@@ -1082,7 +1059,7 @@ test("timeline viewport travel is awaitable and cancellable instead of snapping"
 
 test("opening and adjacent focused events use distinct shared View Transition identities", async () => {
   const [source, css] = await Promise.all([
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
   assert.match(source, /transitionOrigin\.style\.viewTransitionName = FOCUS_VIEW_TRANSITION_NAME/);
@@ -1106,7 +1083,7 @@ test("opening and adjacent focused events use distinct shared View Transition id
 
 test("focus View Transitions capture chronology movement on the active timeline axis", async () => {
   const [source, css] = await Promise.all([
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
 
@@ -1180,7 +1157,7 @@ test("story previous and next navigation use the same directional focus travel",
 
 test("Evidence tab keeps Hero but contains no Context or Place", async () => {
   const [source, css] = await Promise.all([
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
   assert.match(source, /summary\.hidden = evidenceActive/);
@@ -1203,7 +1180,7 @@ test("Evidence tab keeps Hero but contains no Context or Place", async () => {
 
 test("focused popover stays opposite chronology and reserves persistent application chrome", async () => {
   const [source, css] = await Promise.all([
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
   assert.match(source, /FOCUS_POPOVER_MARGIN = 12/);
@@ -1287,7 +1264,7 @@ test("focused popover content remains bounded while Relations halo can stay visu
 });
 
 test("focused popover re-clamps after late content resize", async () => {
-  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.match(source, /this\.focusResizeFrame = 0/);
   assert.match(source, /new ResizeObserver\(\(entries\) => \{/);
   assert.match(source, /entries\.some\(\(entry\) => entry\.target === this\.focusView\)/);
@@ -1304,7 +1281,7 @@ test("focused popover re-clamps after late content resize", async () => {
 
 test("tab transitions swap Context and Place against Evidence while Hero persists", async () => {
   const [source, css] = await Promise.all([
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
   assert.match(source, /FOCUS_TAB_CONTEXT_TRANSITION_NAME = "timeline-focus-tab-context"/);
@@ -1383,7 +1360,7 @@ test("focused popover keeps deterministic tab bands and View Transition snapshot
 
 test("focused popover chrome derives from the focused timeline event color", async () => {
   const [source, css] = await Promise.all([
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
 
@@ -1431,7 +1408,7 @@ test("mobile focused-event composition stays opposite chronology and keeps compa
   const [html, css, source, styles] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
 

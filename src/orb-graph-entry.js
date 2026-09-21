@@ -724,7 +724,6 @@ function create(container, handlers = {}) {
       : { ...geometry, kind: null, object: null };
   }
 
-  // eslint-disable-next-line no-unused-vars
   function _touchNodePayload(event) {
     const payload = touchTargetPayload(event);
     return payload?.kind === "node"
@@ -902,7 +901,6 @@ function create(container, handlers = {}) {
     }
   }
 
-  // eslint-disable-next-line no-unused-vars
   function _scheduleTouchReleaseFallback() {
     clearTouchReleaseFallback();
     touchReleaseFallback = globalThis.setTimeout(() => {

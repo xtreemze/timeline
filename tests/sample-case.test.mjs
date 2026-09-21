@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-await import("../site/temporal-standards.js");
-await import("../site/event-presentation.js");
-await import("../site/spatial.js");
-await import("../site/timeline-graph.js");
-await import("../site/sample-case.js");
+await import("../site/temporal-standards-shim.ts");
+await import("../site/event-presentation-shim.ts");
+await import("../site/spatial-shim.ts");
+await import("../site/timeline-graph-shim.ts");
+await import("../site/sample-case-shim.ts");
 
 const sample = globalThis.TimelineSampleCase;
 const temporal = globalThis.TimelineTemporal;

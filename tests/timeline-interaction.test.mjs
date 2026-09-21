@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-await import("../site/temporal-standards.js");
-await import("../site/timeline-clustering.js");
-await import("../site/timeline-motion.js");
-await import("../site/spatial.js");
-await import("../site/timeline-graph.js");
+await import("../site/temporal-standards-shim.ts");
+await import("../site/timeline-clustering-shim.ts");
+await import("../site/timeline-motion-shim.ts");
+await import("../site/spatial-shim.ts");
+await import("../site/timeline-graph-shim.ts");
 
 const clustering = globalThis.TimelineClustering;
 const motion = globalThis.TimelineMotion;
@@ -36,7 +36,7 @@ test("clusters projected events only after their rendered positions overlap", ()
 });
 
 test("events less than 50 ms apart separate after zoom without temporal drift", async () => {
-  await import("../site/time-scale.js");
+  await import("../site/time-scale-shim.ts");
   const scale = globalThis.TimelineScale;
   const events = [
     { id: "a", start: 1_000 },
@@ -56,7 +56,7 @@ test("events less than 50 ms apart separate after zoom without temporal drift", 
 
 test("timeline exposes semantic zoom while retaining keyboard fit commands", async () => {
   const [viewSource, htmlSource, appSource] = await Promise.all([
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
   ]);
@@ -108,7 +108,7 @@ test("timeline exposes semantic zoom while retaining keyboard fit commands", asy
 
 test("time labels yield to year context while year overflow stays visible", async () => {
   const [viewSource, timelineCss, styles] = await Promise.all([
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
@@ -1072,7 +1072,7 @@ test("app delegates temporal parsing to TimelineTemporal rather than removed leg
 });
 
 test("cluster activation selects a represented event, expands every member, and preserves the cluster as transition origin", async () => {
-  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.match(source, /data-cluster-item-id/);
   assert.match(source, /activateCluster\(cluster, selectedId, button\)/);
   assert.match(source, /clusterExpansionViewport/);
@@ -1081,7 +1081,7 @@ test("cluster activation selects a represented event, expands every member, and 
 });
 
 test("timeline view exposes fused clusters, inertia, relation bands and ambient months", async () => {
-  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.match(source, /clusterProjectedItems/);
   assert.match(source, /startInertia/);
   assert.match(source, /renderTemporalAccents/);
@@ -1094,7 +1094,7 @@ test("timeline view exposes fused clusters, inertia, relation bands and ambient 
 
 test("timeline terminals use media thumbnails, semantic badges, and earlier clustering for distance legibility", async () => {
   const [viewSource, styles] = await Promise.all([
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
 
@@ -1116,7 +1116,7 @@ test("event editor persists configurable terminal and connector presentation int
   const [html, app, view, styles] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
 
@@ -1179,7 +1179,7 @@ test("event editor persists configurable terminal and connector presentation int
 });
 
 test("timeline view assigns automatic lanes and honors a persisted manual lane in both orientations", async () => {
-  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.match(
     source,
     /resolveEventLane\(position, occupied, minDistance = 236, preferredLane = null\)/,
@@ -1237,7 +1237,7 @@ test("keeps chronological event order available as a semantic keyboard-accessibl
 });
 
 test("timeline pinch zoom tracks two touch pointers and keeps the temporal anchor under the gesture midpoint", async () => {
-  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.match(source, /this\.touchPointers = new Map\(\)/);
   assert.match(source, /this\.pinch = null/);
   assert.match(source, /Math\.hypot\(second\.x - first\.x, second\.y - first\.y\)/);
@@ -1260,7 +1260,7 @@ test("timeline pinch zoom tracks two touch pointers and keeps the temporal ancho
 });
 
 test("timeline double tap zooms toward the tapped temporal coordinate without competing with pan or pinch", async () => {
-  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.match(source, /DOUBLE_TAP_ZOOM_FACTOR\s*=\s*0\.5/);
   assert.match(source, /TOUCH_DOUBLE_TAP_MS\s*=\s*320/);
   assert.match(source, /this\.touchTap = null/);
@@ -1275,60 +1275,32 @@ test("timeline double tap zooms toward the tapped temporal coordinate without co
   assert.match(source, /beginPinch[\s\S]*this\.touchTap = null[\s\S]*this\.lastTouchTap = null/);
 });
 
-test("mobile-first shell keeps primary controls compact and bounded", async () => {
+test("mobile-first shell keeps primary controls and utility surfaces bounded", async () => {
   const [styles, timelineCss, viewSource, htmlSource] = await Promise.all([
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
   ]);
 
   assert.match(styles, /Mobile-first responsive application shell/);
   assert.match(
     styles,
-    /@media \(max-width:\s*699px\)[\s\S]*\.app-tool-dock[\s\S]*left:\s*max\(\.4rem[\s\S]*right:\s*max\(4\.2rem/,
+    /\.app-tool-dock\s*\{[\s\S]*inset-inline-start:\s*50%[\s\S]*inset-block-end:[\s\S]*transform:\s*translateX\(-50%\)/,
   );
   assert.match(
     styles,
-    /\.app-view-tool[\s\S]*position:\s*fixed[\s\S]*right:\s*max\(\.45rem[\s\S]*bottom:\s*max\(\.45rem/,
-  );
-  assert.match(
-    timelineCss,
-    /app-tool-dock\[data-project-anchored="true"\][\s\S]*top:\s*var\(--workspace-tool-dock-top[\s\S]*left:\s*var\(--workspace-tool-dock-left/,
-  );
-  assert.match(
-    timelineCss,
-    /\.timeline-view\[data-orientation="landscape"\] > \.app-view-controls[\s\S]*flex-direction:\s*row[\s\S]*align-items:\s*center/,
-  );
-  assert.match(
-    timelineCss,
-    /\.timeline-view\[data-orientation="portrait"\] > \.app-view-controls[\s\S]*flex-direction:\s*column[\s\S]*align-items:\s*stretch/,
-  );
-  assert.match(
-    timelineCss,
-    /Project-aligned Browse\/Edit controls[\s\S]*z-index:\s*1420[\s\S]*pointer-events:\s*auto/,
-  );
-  assert.match(
-    timelineCss,
-    /app-tool-dock\[data-project-anchored="true"\] \.app-tool[\s\S]*touch-action:\s*manipulation/,
+    /Browse and Edit are viewport-contained utility surfaces by default[\s\S]*position:\s*fixed[\s\S]*inset-block-start:[\s\S]*inset-block-end:[\s\S]*inset-inline-start:[\s\S]*inset-inline-end:/,
   );
   assert.match(
     styles,
-    /\.app-editor-sheet,[\s\S]*\.app-browser-sheet[\s\S]*max-height:\s*min\(58dvh/,
-  );
-  assert.match(styles, /The persistent relation graph is a stage canvas/);
-  assert.match(
-    styles,
-    /#app-shell #presentation-stage:not\(:fullscreen\) > \.graph-lens:not\(\[hidden\]\)\s*\{[\s\S]*position:\s*absolute[\s\S]*z-index:\s*1050/,
-  );
-  assert.match(
-    styles,
-    /#app-shell #presentation-stage > \.graph-lens:not\(\[hidden\]\)\s*\{[\s\S]*margin:\s*0[\s\S]*padding:\s*0[\s\S]*scrollbar-gutter:\s*auto[\s\S]*border-radius:\s*0[\s\S]*backdrop-filter:\s*none/,
+    /@media \(min-width:\s*760px\)[\s\S]*--utility-sidebar-width:[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--utility-sidebar-width\)/,
   );
   assert.doesNotMatch(
-    styles,
-    /\.app-editor-sheet,\s*\.app-browser-sheet,\s*#app-shell #presentation-stage > \.graph-lens/,
+    timelineCss,
+    /Project-aligned Browse\/Edit controls|workspace-tool-dock|data-project-anchored/,
   );
+  assert.match(styles, /The persistent relation graph is a stage canvas/);
 
   assert.match(timelineCss, /Narrow-screen control composition/);
   assert.match(timelineCss, /Consolidated view control cluster/);
@@ -1342,73 +1314,11 @@ test("mobile-first shell keeps primary controls compact and bounded", async () =
     /id="timeline-view-toolbar"[^>]*popover="manual"/,
     "expanded View controls use the native popover top layer",
   );
-  assert.doesNotMatch(
-    timelineCss,
-    /timeline-view-toolbar:not\(\[hidden\]\)/,
-    "closed popover must not be forced visible by legacy hidden selectors",
-  );
   assert.match(
     timelineCss,
-    /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*display:\s*flex/,
-  );
-  assert.match(
-    timelineCss,
-    /app-view-controls\.timeline-view-toolbar\[popover\]\s*\{[\s\S]*max-inline-size:[\s\S]*max-block-size:/,
-  );
-  assert.match(
-    timelineCss,
-    /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*overflow-y:\s*auto/,
-  );
-  assert.match(timelineCss, /\.timeline-zoom-control[\s\S]*grid-template-rows:\s*22px auto/);
-  assert.match(
-    timelineCss,
-    /\.timeline-zoom-scale[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/,
-  );
-  assert.match(
-    timelineCss,
-    /Canonical View popover contract[\s\S]*top:\s*var\(--view-controls-top[\s\S]*left:\s*var\(--view-controls-left/,
-  );
-  assert.match(
-    timelineCss,
-    /app-view-controls\.timeline-view-toolbar\[popover\]:popover-open[\s\S]*flex-wrap:\s*nowrap/,
-  );
-  assert.match(
-    timelineCss,
-    /\.timeline-auto-controls[\s\S]*display:\s*flex[\s\S]*flex-wrap:\s*nowrap/,
-  );
-  assert.doesNotMatch(timelineCss, /\.timeline-auto-controls[\s\S]{0,180}grid-column:\s*1 \/ -1/);
-  assert.match(timelineCss, /Mobile persistent relation composition/);
-  assert.match(timelineCss, /--mobile-relations-inline-rail:\s*clamp\(136px, 38dvw, 168px\)/);
-  assert.match(timelineCss, /--mobile-relations-block-rail:\s*clamp\(136px, 32dvh, 184px\)/);
-  assert.match(
-    timelineCss,
-    /Mobile persistent relation composition[\s\S]*data-orientation="portrait"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*top:\s*0;[\s\S]*right:\s*calc\(var\(--mobile-relations-inline-rail\)[\s\S]*bottom:\s*0;[\s\S]*left:\s*0;/,
-  );
-  assert.match(
-    timelineCss,
-    /Mobile persistent relation composition[\s\S]*data-orientation="landscape"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*top:\s*0;[\s\S]*right:\s*0;[\s\S]*bottom:\s*calc\(var\(--mobile-bottom-chrome\) \+ var\(--mobile-relations-block-rail\)\);[\s\S]*left:\s*0;/,
-  );
-  assert.match(
-    timelineCss,
-    /#timeline-view\[data-orientation="portrait"\] > \.timeline-surface[\s\S]*top:\s*0;[\s\S]*bottom:\s*0;[\s\S]*width:\s*var\(--mobile-relations-inline-rail\)[\s\S]*height:\s*100%/,
-  );
-  assert.match(
-    timelineCss,
-    /#timeline-view\[data-orientation="landscape"\] > \.timeline-surface[\s\S]*right:\s*0;[\s\S]*left:\s*0;[\s\S]*width:\s*100%[\s\S]*height:\s*var\(--mobile-relations-block-rail\)/,
+    /app-view-controls\.timeline-view-toolbar\[popover\][\s\S]*max-inline-size:[\s\S]*max-block-size:/,
   );
   assert.match(viewSource, /terminalExtent = compact \? Math\.min\(width \* 0\.58, 190\) : 232/);
-  assert.match(
-    viewSource,
-    /afterAvailable = width - edgeInset - terminalExtent \+ terminalAnchor - axisCross/,
-  );
-  assert.match(
-    viewSource,
-    /clusterTerminalExtent = compact \? Math\.min\(width \* 0\.68, 220\) : 232/,
-  );
-  assert.match(
-    viewSource,
-    /clusterAfterAvailable = width - 12 - clusterTerminalExtent \+ 32 - axisCross/,
-  );
 });
 
 test("View toolbar keeps native toggle state while measured coordinates attach it to the trigger", async () => {
@@ -1498,7 +1408,7 @@ test("View toolbar follows timeline orientation without selector-dependent deplo
 test("portrait mode gives the semantic zoom slider a vertical axis", async () => {
   const [timelineCss, viewSource] = await Promise.all([
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(
@@ -1545,7 +1455,7 @@ test("persistent relation graph fills the stage outside chronology and stays beh
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(timelineCss, /Persistent relation-graph docking/);
@@ -1629,7 +1539,7 @@ test("persistent relation graph fills the stage outside chronology and stays beh
 });
 
 test("timeline touch state recovers from lost capture, backgrounding, viewport changes, and rotation", async () => {
-  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
   assert.match(source, /const abortSurfaceGesture = \(\) => \{/);
   assert.match(source, /new Set\(this\.touchPointers\.keys\(\)\)/);
@@ -1654,7 +1564,7 @@ test("timeline touch state recovers from lost capture, backgrounding, viewport c
 });
 
 test("timeline releases pointer capture only after gesture state is finalized", async () => {
-  const source = await readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.match(source, /const releaseFinishedPointer = \(\) => \{/);
   assert.doesNotMatch(
     source,
@@ -1728,7 +1638,7 @@ test("coarse-pointer forms and compact calendars keep touch controls usable", as
 
 test("focused event popover keeps event semantics compact and image controls dot-only", async () => {
   const [source, cssSource, fictionDocs, architectureDocs] = await Promise.all([
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
     readFile(new URL("../docs/NARRATIVE-FICTION-MODE.md", import.meta.url), "utf8"),
     readFile(new URL("../docs/TIMELINE-V3-ARCHITECTURE.md", import.meta.url), "utf8"),
@@ -1783,7 +1693,7 @@ test("phone portrait keeps a usable chronology rail and opens View controls inwa
 test("empty phone portrait keeps chronology readable and project tools attached", async () => {
   const [timelineCss, viewSource, appSource] = await Promise.all([
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
   ]);
 

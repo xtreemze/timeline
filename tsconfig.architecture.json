@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.migrated.json",
+  "compilerOptions": {
+    "noImplicitAny": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true
+  },
+  "include": [
+    "src/domain/**/*.ts",
+    "src/application/**/*.ts",
+    "src/projection/**/*.ts",
+    "src/layout/**/*.ts",
+    "src/interaction/**/*.ts"
+  ]
+}
