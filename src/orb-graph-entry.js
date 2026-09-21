@@ -1580,6 +1580,9 @@ function create(container, handlers = {}) {
       selectGraphObject(object);
       return true;
     },
+    clearSelection() {
+      selectGraphObject(null);
+    },
     recenter() {
       cancelCameraInertia();
       cameraGesture = null;
