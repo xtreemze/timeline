@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-await import("../site/case-reasoning.js");
+await import("../site/case-reasoning-shim.ts");
 
 const reasoning = globalThis.TimelineCaseReasoning;
 
@@ -167,7 +167,7 @@ test("exposes the September 2026 standards baseline with explicit editions", () 
 test("browser runtime loads and persists canonical case reasoning", async () => {
   const [html, app] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
   ]);
   assert.match(html, /case-reasoning\.js[\s\S]*interchange-adapter\.js[\s\S]*app\.js/);
   assert.match(app, /const caseReasoning = globalThis\.TimelineCaseReasoning/);
