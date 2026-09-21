@@ -1856,16 +1856,17 @@ class TimelineViewController {
     const normalized: Orientation =
       orientation === "vertical" || orientation === "portrait" ? "vertical" : "horizontal";
     if (normalized === this.orientation) return;
-    this.orientation = normalized;
-    this.geometryMeasurements.clear();
-    this.applyOrientation();
-    this.commitInteraction();
-    this.root.dispatchEvent(
-      new CustomEvent("timelineorientationchange", {
-        bubbles: true,
-        detail: { orientation: normalized, options },
-      }),
-    );
+    this.runStructuralTransaction(() => {
+      this.orientation = normalized;
+      this.geometryMeasurements.clear();
+      this.applyOrientation();
+      this.root.dispatchEvent(
+        new CustomEvent("timelineorientationchange", {
+          bubbles: true,
+          detail: { orientation: normalized, options },
+        }),
+      );
+    });
   }
 
   getOrientation(): Orientation {
@@ -1890,6 +1891,45 @@ class TimelineViewController {
 
   refreshLayout(): void {
     this.scheduleRender();
+  }
+
+  runStructuralTransaction(update: () => void): void {
+    this.cancelInertia();
+    this.beginInteraction();
+    this.root.dataset.sceneState = "settling";
+    this.stage.dataset.sceneState = "settling";
+
+    const activeElement =
+      document.activeElement instanceof HTMLElement && this.surface.contains(document.activeElement)
+        ? document.activeElement
+        : null;
+
+    const commit = (): void => {
+      update();
+      this.commitInteraction();
+      if (activeElement?.isConnected) {
+        try {
+          activeElement.focus({ preventScroll: true });
+        } catch {
+          // Structural composition should not fail if focus restoration is rejected.
+        }
+      }
+    };
+
+    const canTransition =
+      !this.reducedMotionQuery?.matches &&
+      typeof document.startViewTransition === "function" &&
+      !Boolean((document as Document & { activeViewTransition?: unknown }).activeViewTransition);
+
+    if (canTransition) {
+      try {
+        document.startViewTransition(commit);
+        return;
+      } catch {
+        // Fall through to synchronous retained transaction.
+      }
+    }
+    commit();
   }
 
   createFocusHero(item: TimelineItem): HTMLElement {
@@ -2289,7 +2329,6 @@ class TimelineViewController {
         this.viewport = { start: center - span * 0.6, end: center + span * 0.6 };
       }
 
-      this.commitInteraction();
       this.root.dispatchEvent(
         new CustomEvent("timelinefocuschange", {
           bubbles: true,
@@ -2304,19 +2343,7 @@ class TimelineViewController {
       );
     };
 
-    const canTransition =
-      !this.reducedMotionQuery?.matches &&
-      typeof document.startViewTransition === "function" &&
-      !Boolean((document as Document & { activeViewTransition?: unknown }).activeViewTransition);
-    if (canTransition) {
-      try {
-        document.startViewTransition(update);
-      } catch {
-        update();
-      }
-    } else {
-      update();
-    }
+    this.runStructuralTransaction(update);
     return true;
   }
 
@@ -2364,19 +2391,7 @@ class TimelineViewController {
         }),
       );
     };
-    if (
-      !this.reducedMotionQuery?.matches &&
-      typeof document.startViewTransition === "function" &&
-      !Boolean((document as Document & { activeViewTransition?: unknown }).activeViewTransition)
-    ) {
-      try {
-        document.startViewTransition(update);
-        return;
-      } catch {
-        // Fall through to synchronous state update.
-      }
-    }
-    update();
+    this.runStructuralTransaction(update);
   }
 
   unfocus(): void {
