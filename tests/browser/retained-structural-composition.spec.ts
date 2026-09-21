@@ -9,8 +9,7 @@ async function frame(page) {
   );
 }
 
-async function activateOccurrence(page: Page, terminal: Locator) {
-  const hasTouch = await page.evaluate(() => navigator.maxTouchPoints > 0);
+async function activateOccurrence(terminal: Locator, hasTouch: boolean) {
   if (hasTouch) {
     await terminal.tap();
     return;
@@ -18,13 +17,12 @@ async function activateOccurrence(page: Page, terminal: Locator) {
   await terminal.click();
 }
 
-async function beginCameraDrag(page: Page, surface: Locator) {
+async function beginCameraDrag(page: Page, surface: Locator, hasTouch: boolean) {
   const box = await surface.boundingBox();
   if (!box) throw new Error("Timeline surface has no bounding box.");
 
   const start = { x: box.x + box.width * 0.68, y: box.y + box.height * 0.58 };
   const end = { x: box.x + box.width * 0.58, y: box.y + box.height * 0.58 };
-  const hasTouch = await page.evaluate(() => navigator.maxTouchPoints > 0);
 
   if (!hasTouch) {
     await page.mouse.move(start.x, start.y);
@@ -136,7 +134,7 @@ test.beforeEach(async ({ page }) => {
   ).toBeVisible();
 });
 
-test("#269 focused occurrence survives an orientation transaction", async ({ page }) => {
+test("#269 focused occurrence survives an orientation transaction", async ({ page }, testInfo) => {
   const root = page.locator("#tdd-timeline-view");
   const terminal = root
     .locator(".timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible")
@@ -146,7 +144,7 @@ test("#269 focused occurrence survives an orientation transaction", async ({ pag
     element.closest(".timeline-event")?.setAttribute("data-tdd-identity", "focused-occurrence");
   });
 
-  await activateOccurrence(page, terminal);
+  await activateOccurrence(terminal, Boolean(testInfo.project.use.hasTouch));
   await expect(root).toHaveAttribute("data-scene-state", "focused");
 
   await page.evaluate(() => {
@@ -158,7 +156,7 @@ test("#269 focused occurrence survives an orientation transaction", async ({ pag
   await expect(root).toHaveAttribute("data-scene-state", "focused");
 });
 
-test("#269 keyboard focus identity survives a buffered camera interaction", async ({ page }) => {
+test("#269 keyboard focus identity survives a buffered camera interaction", async ({ page }, testInfo) => {
   const root = page.locator("#tdd-timeline-view");
   const terminal = root
     .locator(".timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible")
@@ -171,7 +169,11 @@ test("#269 keyboard focus identity survives a buffered camera interaction", asyn
   await expect(terminal).toBeFocused();
 
   const surface = root.locator(".timeline-surface");
-  const releaseCameraDrag = await beginCameraDrag(page, surface);
+  const releaseCameraDrag = await beginCameraDrag(
+    page,
+    surface,
+    Boolean(testInfo.project.use.hasTouch),
+  );
 
   const focusedIdentity = await page.evaluate(
     () =>
@@ -185,14 +187,18 @@ test("#269 keyboard focus identity survives a buffered camera interaction", asyn
 });
 
 
-test("#271 live retained renderer reports interaction and commit metrics", async ({ page }) => {
+test("#271 live retained renderer reports interaction and commit metrics", async ({ page }, testInfo) => {
   const root = page.locator("#tdd-timeline-view");
   await page.evaluate(() => {
     globalThis.__retainedStructuralTddController?.resetPerformanceMetrics();
   });
 
   const surface = root.locator(".timeline-surface");
-  const releaseCameraDrag = await beginCameraDrag(page, surface);
+  const releaseCameraDrag = await beginCameraDrag(
+    page,
+    surface,
+    Boolean(testInfo.project.use.hasTouch),
+  );
   await releaseCameraDrag();
 
   await page.evaluate(() => {
