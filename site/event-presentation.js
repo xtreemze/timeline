@@ -58,8 +58,6 @@
     "chevron-right": ["m9 18 6-6-6-6"],
     close: ["M6 6l12 12", "M18 6 6 18"],
   });
-
-  // eslint-disable-next-line no-unused-vars
   function _clone(value) {
     return JSON.parse(JSON.stringify(value));
   }
