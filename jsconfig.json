@@ -22,6 +22,7 @@
     "module": "esnext",
     "target": "es2024",
     "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
@@ -49,6 +50,16 @@
       "@tests/*": ["./tests/*"]
     }
   },
-  "include": ["globals.d.ts", "src/**/*.js", "site/**/*.js", "tests/**/*.mjs", "benchmarks/**/*.mjs"],
+  "include": [
+    "globals.d.ts",
+    "src/**/*.js",
+    "src/**/*.ts",
+    "site/**/*.js",
+    "site/**/*.ts",
+    "tests/**/*.mjs",
+    "tests/**/*.ts",
+    "benchmarks/**/*.mjs",
+    "*.ts"
+  ],
   "exclude": ["node_modules", "site/orb-graph.bundle.js"]
 }
