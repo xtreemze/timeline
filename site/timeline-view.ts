@@ -49,17 +49,70 @@ class TimelineViewController {
 
   setItems(items: any[], options?: any) {
     this.items = items || [];
-    // Render items to surface
+    // Render items to surface using DOM elements for proper styling
     if (this.surface) {
-      const list = this.surface.querySelector("ul") || (() => {
-        const ul = document.createElement("ul");
-        ul.className = "timeline-items";
-        this.surface.appendChild(ul);
-        return ul;
-      })();
-      list.innerHTML = this.items
-        .map((item) => `<li data-id="${item.id}" class="timeline-item">${item.title || item.id}</li>`)
-        .join("");
+      // Clear existing content
+      this.surface.innerHTML = '';
+
+      // Create a list container
+      const ul = document.createElement("ul");
+      ul.className = "timeline-items";
+
+      // Render each item
+      for (const item of this.items) {
+        const li = document.createElement("li");
+        li.className = `timeline-item${item.kind === "range" ? " is-range" : ""}`;
+        li.dataset.id = item.id;
+        // Set explicit min-height to ensure visibility
+        li.style.minHeight = "120px";
+
+        // Add date
+        const dateWrap = document.createElement("div");
+        dateWrap.className = "timeline-date";
+        const dateText = document.createElement("strong");
+        dateText.textContent = item.start instanceof Date
+          ? item.start.toLocaleDateString()
+          : String(item.start || "Unknown date");
+        dateWrap.appendChild(dateText);
+
+        // Add marker
+        const marker = document.createElement("div");
+        marker.className = "timeline-marker";
+        marker.setAttribute("aria-hidden", "true");
+
+        // Add card with content
+        const card = document.createElement("article");
+        card.className = "timeline-card";
+
+        const heading = document.createElement("h3");
+        heading.textContent = item.title || item.id || "Untitled";
+        card.appendChild(heading);
+
+        if (item.description) {
+          const desc = document.createElement("p");
+          desc.textContent = item.description;
+          card.appendChild(desc);
+        }
+
+        // Add metadata
+        const meta = document.createElement("div");
+        meta.className = "card-meta";
+        if (item.categoryId) {
+          const category = document.createElement("span");
+          category.className = "category";
+          category.textContent = item.categoryId;
+          meta.appendChild(category);
+        }
+        card.appendChild(meta);
+
+        // Assemble the item
+        li.appendChild(dateWrap);
+        li.appendChild(marker);
+        li.appendChild(card);
+        ul.appendChild(li);
+      }
+
+      this.surface.appendChild(ul);
     }
   }
 
