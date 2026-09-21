@@ -337,7 +337,7 @@
   },
   "architecture": {
     "ambientTimelineGlobals": {
-      "site/app.ts": 16,
+      "site/app.ts": 15,
       "site/temporal-graph-view.ts": 2,
       "site/case-reasoning-shim.ts": 1,
       "site/date-range-picker-shim.ts": 1,
@@ -366,7 +366,7 @@
       "site/timeline-view.ts": 2
     },
     "directCanonicalMutations": {
-      "site/app.ts": 20,
+      "site/app.ts": 18,
       "site/webmcp.ts": 2
     },
     "legacyInputHandlers": {
