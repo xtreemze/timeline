@@ -4454,16 +4454,62 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     };
     if (media.length) item.media = media;
     if (tags.length) item.tags = tags;
-    mergeEvidenceRecords(evidenceRecords);
+    const existingItem = state.items.find((candidate) => candidate.id === item.id);
+    if (existingItem?.extensions) item.extensions = clone(existingItem.extensions);
 
-    const index = state.items.findIndex((candidate) => candidate.id === item.id);
-    if (index >= 0) {
-      state.items[index] = item;
-      showStatus("Timeline item updated.");
-    } else {
-      state.items.push(item);
-      showStatus(`${kind === "range" ? "Range" : "Event"} added.`);
+    let draft = clone(state);
+    const evidenceMap = new Map(draft.evidence.map((record) => [record.id, record]));
+    for (const record of evidenceRecords) evidenceMap.set(record.id, record);
+    draft.evidence = [...evidenceMap.values()];
+
+    const draftItemIndex = draft.items.findIndex((candidate) => candidate.id === item.id);
+    if (draftItemIndex >= 0) draft.items[draftItemIndex] = item;
+    else draft.items.push(item);
+
+    let inferredRelationshipCount = 0;
+    try {
+      if (itemInferenceDraft) {
+        const currentInput = inferenceInputFromForm({ ensureIds: false });
+        const currentFingerprint = graphInference.fingerprint(currentInput);
+        if (
+          itemInferenceDraft.graphContractVersion !==
+          (graph.GRAPH_CONTRACT_VERSION || currentInput.graphContractVersion)
+        ) {
+          throw new Error(
+            "The graph contract changed after inference. Rerun inference before saving.",
+          );
+        }
+        if (itemInferenceDraft.fingerprint !== currentFingerprint) {
+          throw new Error(
+            "Event context changed after inference. Rerun or clear inference before saving inferred graph facts.",
+          );
+        }
+        const selected = selectedInferenceRelationshipKeys();
+        inferredRelationshipCount = selected.length;
+        draft = graphInference.applyProposal(
+          draft,
+          item,
+          itemInferenceDraft.proposal,
+          selected,
+          { graph, spatial },
+        );
+      }
+      state = normalizeTimeline(draft, { strictGraph: true });
+    } catch (error) {
+      setError(
+        els.itemFormError,
+        error instanceof Error
+          ? error.message
+          : "The event or inferred graph facts violate the graph contract.",
+      );
+      return;
     }
+
+    showStatus(
+      existingItem
+        ? `Timeline item updated${inferredRelationshipCount ? ` with ${inferredRelationshipCount} inferred action ${inferredRelationshipCount === 1 ? "fact" : "facts"}` : ""}.`
+        : `${kind === "range" ? "Range" : "Event"} added${inferredRelationshipCount ? ` with ${inferredRelationshipCount} inferred action ${inferredRelationshipCount === 1 ? "fact" : "facts"}` : ""}.`,
+    );
     persist();
     resetItemForm();
     renderAll();
