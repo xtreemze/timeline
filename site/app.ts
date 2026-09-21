@@ -296,7 +296,12 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   decorateSemanticControls();
 
   const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
-  const temporalGraphView = temporalGraphFactory.create(els.graphViewRoot);
+  let temporalGraphView: any = null;
+  try {
+    temporalGraphView = temporalGraphFactory.create(els.graphViewRoot);
+  } catch (error) {
+    console.error("Failed to initialize TemporalGraphView:", error);
+  }
   const dateRangePicker = dateRangeFactory.create({
     input: els.itemDateRange,
     popover: els.itemCalendarPopover,
@@ -4088,7 +4093,12 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     )
       return;
     timelineView?.closeFocus();
-    state = normalizeTimeline(clone(SAMPLE), { strictGraph: true });
+    const sample = getSample();
+    if (!sample) {
+      alert("Sample data is not available");
+      return;
+    }
+    state = normalizeTimeline(clone(sample), { strictGraph: true });
     collapseAllCategories();
     ui.search = "";
     ui.categoryFilter = "all";
