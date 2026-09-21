@@ -400,9 +400,9 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       Math.max(1, maxBottom - minTop),
     );
 
-    let left;
-    let top;
-    let placement;
+    let left = 0;
+    let top = 0;
+    let placement = "";
 
     if (orientation === "portrait") {
       const preferredLeft = triggerRect.left - toolbarWidth - gap;
@@ -475,9 +475,9 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     const dockWidth = Math.max(1, dockRect.width || els.appToolDock.offsetWidth || 1);
     const dockHeight = Math.max(1, dockRect.height || els.appToolDock.offsetHeight || 1);
 
-    let left;
-    let top;
-    let placement;
+    let left = 0;
+    let top = 0;
+    let placement = "";
 
     if (orientation === "portrait") {
       const preferredLeft = triggerRect.left - dockWidth - gap;
@@ -797,7 +797,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   function parseJsonObject(value, label = "Properties") {
     const source = String(value || "").trim();
     if (!source) return {};
-    let parsed;
+    let parsed: unknown;
     try {
       parsed = JSON.parse(source);
     } catch {
@@ -812,7 +812,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   function parseJsonArray(value, label = "Identifiers") {
     const source = String(value || "").trim();
     if (!source) return [];
-    let parsed;
+    let parsed: unknown;
     try {
       parsed = JSON.parse(source);
     } catch {
@@ -957,10 +957,8 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     const custodyActions = evidenceStore.normalizeCustodyActions(input.custodyActions);
     const reasoning = caseReasoning.normalizeReasoning(input.reasoning);
 
-    let sourceItems;
-    if (Array.isArray(input.items)) {
-      sourceItems = input.items;
-    } else if (Array.isArray(input.events)) {
+    let sourceItems = Array.isArray(input.items) ? input.items : [];
+    if (!Array.isArray(input.items) && Array.isArray(input.events)) {
       sourceItems = input.events.map((legacy) => ({
         id: legacy.id,
         kind: "event",
@@ -970,8 +968,6 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
         description: legacy.description,
         categoryId: legacy.category,
       }));
-    } else {
-      sourceItems = [];
     }
 
     const items = sourceItems.map((raw, index) => {
@@ -1245,13 +1241,10 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   }
 
   function getVisibleItems() {
-    let items;
     const activeStory = getStory(ui.activeStoryId);
-    if (activeStory) {
-      items = activeStory.itemIds.map(getItem).filter(Boolean);
-    } else {
-      items = sortItems();
-    }
+    let items = activeStory
+      ? activeStory.itemIds.map(getItem).filter(Boolean)
+      : sortItems();
 
     if (ui.categoryFilter !== "all") {
       items = items.filter((item) => item.categoryId === ui.categoryFilter);
@@ -3434,8 +3427,8 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       maxLength: 180,
     });
     const sourceIds = parseLineList(els.graphNodeSourceIds.value, { maxItems: 96, maxLength: 120 });
-    let identifiers;
-    let attributes;
+    let identifiers: ReturnType<typeof parseJsonArray>;
+    let attributes: ReturnType<typeof parseJsonObject>;
     try {
       identifiers = parseJsonArray(els.graphNodeIdentifiers.value, "Node identifiers");
       attributes = parseJsonObject(els.graphNodeProperties.value, "Node properties");
@@ -3581,8 +3574,8 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       els.graphEdgeConfidence.focus();
       return;
     }
-    let attributes;
-    let time;
+    let attributes: ReturnType<typeof parseJsonObject>;
+    let time: ReturnType<typeof buildGraphEdgeTime>;
     try {
       attributes = parseJsonObject(els.graphEdgeProperties.value, "Edge properties");
       const duplicateContextKey = Object.keys(attributes).find(graph.contextPropertyKey);
@@ -3730,8 +3723,8 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     const kind = els.itemKind.value === "range" ? "range" : "event";
     const title = els.itemTitle.value.trim();
 
-    let startEndpoint;
-    let endEndpoint = null;
+    let startEndpoint: ReturnType<typeof endpointFromForm>;
+    let endEndpoint: ReturnType<typeof endpointFromForm> | null = null;
     // eslint-disable-next-line no-useless-assignment
     let media = [];
     // eslint-disable-next-line no-useless-assignment
