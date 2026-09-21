@@ -83,6 +83,12 @@ interface TimelineItem {
   editable?: boolean;
 }
 
+interface SemanticTickSpec {
+  unit: string;
+  step: number;
+  approxMs: number;
+}
+
 interface TimelineRelationshipBand {
   id: string;
   predicate?: string;
@@ -278,6 +284,7 @@ class TimelineViewController {
   expandedClusterItemIds = new Set<string>();
   geometryMeasurements = new Map<string, CachedGeometryMeasurement>();
   committedTickSpecKey = "";
+  committedTickSpec: SemanticTickSpec | null = null;
   pointerDrag: PointerDragState | null = null;
   touchPointers = new Map<number, TouchPointerState>();
   pinch: PinchState | null = null;
@@ -950,47 +957,58 @@ class TimelineViewController {
     }
   }
 
-  renderTemporalContext(padding: number, usable: number): void {
-    const spec = scale.selectTickSpec(this.viewport, usable, 94);
-    const specKey = `${spec.unit}:${spec.step}`;
-    const canReconcileHierarchy =
-      !this.retention.active || !this.committedTickSpecKey || this.committedTickSpecKey === specKey;
+  tickSpecKey(spec: SemanticTickSpec): string {
+    return `${spec.unit}:${spec.step}`;
+  }
 
-    if (!this.retention.active) this.committedTickSpecKey = specKey;
+  animateTemporalContextEntry(node: HTMLElement): void {
+    if (this.reducedMotionQuery?.matches || typeof node.animate !== "function") return;
+    const animation = node.animate(
+      [
+        { opacity: 0.18, transform: "scale(0.98)" },
+        { opacity: 1, transform: "scale(1)" },
+      ],
+      { duration: 140, easing: "ease-out" },
+    );
+    animation.addEventListener("finish", () => animation.cancel(), { once: true });
+  }
 
-    if (!canReconcileHierarchy) {
-      for (const node of this.tickScene.values()) {
-        const time = Number(node.dataset.time);
-        if (Number.isFinite(time)) this.positionTemporalNode(node, time, padding, usable);
-      }
-      for (const node of this.accentScene.values()) {
-        const time = Number(node.dataset.time);
-        if (Number.isFinite(time)) this.positionTemporalNode(node, time, padding, usable);
-      }
+  retireTemporalContextNode(node: HTMLElement): void {
+    if (this.reducedMotionQuery?.matches || typeof node.animate !== "function") {
+      node.remove();
       return;
     }
+    const animation = node.animate(
+      [{ opacity: 1 }, { opacity: 0 }],
+      { duration: 120, easing: "ease-out" },
+    );
+    animation.addEventListener(
+      "finish",
+      () => {
+        node.remove();
+        animation.cancel();
+      },
+      { once: true },
+    );
+  }
 
-    const contextItems = queryOccurrences(this.items, this.retention.extent);
-    const accentPlan = clustering.planTemporalAccents(contextItems, {
-      viewport: this.viewport,
-      pixelLength: usable,
-      padding,
-      orientation: this.orientation,
-      spec,
-      maxItemsPerMonth: 3,
-      limit: 18,
-    });
-
-    const windowSpan = Math.max(MIN_SPAN_MS, this.retention.extent.end - this.retention.extent.start);
-    const viewportSpan = Math.max(MIN_SPAN_MS, this.viewport.end - this.viewport.start);
-    const virtualLength = usable * (windowSpan / viewportSpan);
-    const ticks = scale.generateTicks(this.retention.extent, virtualLength, 94, 240);
-    const keepTicks = new Set<string>();
+  materializeTickHierarchy(
+    spec: SemanticTickSpec,
+    extent: TemporalWindow,
+    accentPlan: ReturnType<typeof clustering.planTemporalAccents>,
+    padding: number,
+    usable: number,
+    incoming: boolean,
+  ): Set<string> {
+    const ticks = scale.generateTicksForSpec(extent, spec, 240);
+    const keep = new Set<string>();
+    const hierarchyKey = this.tickSpecKey(spec);
 
     for (const tick of ticks) {
       const key = tickSceneKey({ unit: tick.spec.unit, value: tick.value });
-      keepTicks.add(key);
+      keep.add(key);
       let node = this.tickScene.get(key);
+      const created = !node;
       if (!node) {
         node = document.createElement("div");
         node.className = "timeline-tick";
@@ -1001,6 +1019,21 @@ class TimelineViewController {
         this.tickScene.set(key, node);
         this.stage.append(node);
       }
+
+      const hierarchyKeys = new Set(
+        String(node.dataset.tickHierarchies || "")
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean),
+      );
+      hierarchyKeys.add(hierarchyKey);
+      node.dataset.tickHierarchies = [...hierarchyKeys].join(",");
+      node.classList.toggle("is-incoming-hierarchy", incoming && created);
+      if (incoming && created) {
+        node.dataset.pendingHierarchy = hierarchyKey;
+        node.style.opacity = "0.35";
+      }
+
       const label = node.querySelector(".timeline-tick-label");
       if (label) {
         label.textContent =
@@ -1010,18 +1043,32 @@ class TimelineViewController {
       this.positionTemporalNode(node, tick.value, padding, usable);
     }
 
-    const keepAccents = new Set<string>();
-    for (const accent of accentPlan.edgeAccents) {
+    return keep;
+  }
+
+  materializeTemporalAccents(
+    accentPlan: ReturnType<typeof clustering.planTemporalAccents>,
+    padding: number,
+    usable: number,
+    incoming: boolean,
+  ): Set<string> {
+    const keep = new Set<string>();
+    const materialize = (
+      accent: (typeof accentPlan.edgeAccents)[number] | (typeof accentPlan.axisMonths)[number],
+      axis: boolean,
+    ): void => {
       const key = temporalAccentSceneKey({
-        kind: String(accent.kind || "edge"),
+        kind: String(accent.kind || (axis ? "axis" : "edge")),
         time: Number(accent.time),
       });
-      keepAccents.add(key);
+      keep.add(key);
       let node = this.accentScene.get(key);
+      const created = !node;
       if (!node) {
         node = document.createElement("div");
-        node.className =
-          accent.kind === "year"
+        node.className = axis
+          ? "timeline-axis-month-label"
+          : accent.kind === "year"
             ? "timeline-month-accent timeline-year-accent"
             : "timeline-month-accent";
         node.dataset.time = String(accent.time);
@@ -1029,42 +1076,137 @@ class TimelineViewController {
         this.accentScene.set(key, node);
         this.stage.append(node);
       }
-      node.textContent = String(accent.label || "");
-      node.dataset.count = String(accent.count || 0);
-      this.positionTemporalNode(node, Number(accent.time), padding, usable);
-    }
-
-    for (const accent of accentPlan.axisMonths) {
-      const key = temporalAccentSceneKey({
-        kind: String(accent.kind || "axis"),
-        time: Number(accent.time),
-      });
-      keepAccents.add(key);
-      let node = this.accentScene.get(key);
-      if (!node) {
-        node = document.createElement("div");
-        node.className = "timeline-axis-month-label";
-        node.dataset.time = String(accent.time);
-        this.accentScene.set(key, node);
-        this.stage.append(node);
+      node.classList.toggle("is-incoming-hierarchy", incoming && created);
+      if (incoming && created) {
+        node.dataset.pendingHierarchy = "true";
+        node.style.opacity = "0.35";
       }
       node.textContent = String(accent.label || "");
       node.dataset.count = String(accent.count || 0);
       this.positionTemporalNode(node, Number(accent.time), padding, usable);
+    };
+
+    for (const accent of accentPlan.edgeAccents) materialize(accent, false);
+    for (const accent of accentPlan.axisMonths) materialize(accent, true);
+    return keep;
+  }
+
+  renderTemporalContext(padding: number, usable: number): void {
+    const selectedSpec = scale.selectTickSpec(this.viewport, usable, 94) as SemanticTickSpec;
+    const selectedKey = this.tickSpecKey(selectedSpec);
+    const committedSpec = this.committedTickSpec || selectedSpec;
+    const committedKey = this.tickSpecKey(committedSpec);
+    const incomingHierarchy =
+      this.retention.active && this.committedTickSpec !== null && selectedKey !== committedKey;
+
+    if (!this.retention.active) {
+      this.committedTickSpec = selectedSpec;
+      this.committedTickSpecKey = selectedKey;
+    } else if (!this.committedTickSpec) {
+      this.committedTickSpec = selectedSpec;
+      this.committedTickSpecKey = selectedKey;
+    }
+
+    const contextItems = queryOccurrences(this.items, this.retention.extent);
+    const windowSpan = Math.max(
+      MIN_SPAN_MS,
+      this.retention.extent.end - this.retention.extent.start,
+    );
+    const viewportSpan = Math.max(MIN_SPAN_MS, this.viewport.end - this.viewport.start);
+    const virtualLength = usable * (windowSpan / viewportSpan);
+
+    const authoritativeSpec = this.retention.active
+      ? this.committedTickSpec || selectedSpec
+      : selectedSpec;
+    const authoritativeAccentPlan = clustering.planTemporalAccents(contextItems, {
+      viewport: this.viewport,
+      pixelLength: usable,
+      padding,
+      orientation: this.orientation,
+      spec: authoritativeSpec,
+      maxItemsPerMonth: 3,
+      limit: 18,
+    });
+    const keepTicks = this.materializeTickHierarchy(
+      authoritativeSpec,
+      this.retention.extent,
+      authoritativeAccentPlan,
+      padding,
+      usable,
+      false,
+    );
+    const keepAccents = this.materializeTemporalAccents(
+      authoritativeAccentPlan,
+      padding,
+      usable,
+      false,
+    );
+
+    if (incomingHierarchy) {
+      const incomingAccentPlan = clustering.planTemporalAccents(contextItems, {
+        viewport: this.viewport,
+        pixelLength: usable,
+        padding,
+        orientation: this.orientation,
+        spec: selectedSpec,
+        maxItemsPerMonth: 3,
+        limit: 18,
+      });
+      for (const key of this.materializeTickHierarchy(
+        selectedSpec,
+        this.retention.extent,
+        incomingAccentPlan,
+        padding,
+        usable,
+        true,
+      )) {
+        keepTicks.add(key);
+      }
+      for (const key of this.materializeTemporalAccents(
+        incomingAccentPlan,
+        padding,
+        usable,
+        true,
+      )) {
+        keepAccents.add(key);
+      }
+      this.stage.dataset.incomingTickHierarchy = selectedKey;
+      this.stage.dataset.committedTickHierarchy = committedKey;
+    } else {
+      delete this.stage.dataset.incomingTickHierarchy;
+      this.stage.dataset.committedTickHierarchy = this.tickSpecKey(authoritativeSpec);
     }
 
     if (!this.retention.active) {
       for (const [key, node] of this.tickScene) {
-        if (keepTicks.has(key)) continue;
-        node.remove();
+        if (keepTicks.has(key)) {
+          if (node.dataset.pendingHierarchy) {
+            delete node.dataset.pendingHierarchy;
+            node.classList.remove("is-incoming-hierarchy");
+            node.style.opacity = "";
+            this.animateTemporalContextEntry(node);
+          }
+          continue;
+        }
         this.tickScene.delete(key);
+        this.retireTemporalContextNode(node);
       }
       for (const [key, node] of this.accentScene) {
-        if (keepAccents.has(key)) continue;
-        node.remove();
+        if (keepAccents.has(key)) {
+          if (node.dataset.pendingHierarchy) {
+            delete node.dataset.pendingHierarchy;
+            node.classList.remove("is-incoming-hierarchy");
+            node.style.opacity = "";
+            this.animateTemporalContextEntry(node);
+          }
+          continue;
+        }
         this.accentScene.delete(key);
+        this.retireTemporalContextNode(node);
       }
     }
+
+    if (virtualLength <= 0) return;
   }
 
   relationshipBandLane(id: string): number {
@@ -1554,6 +1696,7 @@ class TimelineViewController {
         placements: Object.freeze([]),
       };
       this.committedTickSpecKey = "";
+      this.committedTickSpec = null;
       this.syncZoomSlider();
       return;
     }

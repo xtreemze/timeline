@@ -66,6 +66,7 @@ on:
       - 'tests/temporal-layout-runtime.test.mjs'
       - 'tests/timeline-touch-runtime-contracts.test.mjs'
       - 'tests/timeline-temporal-context-runtime.test.mjs'
+      - 'tests/semantic-hierarchy-runtime.test.mjs'
       - 'tests/retained-temporal-context-runtime.test.mjs'
       - 'tests/timeline-runtime-contracts.test.mjs'
       - 'tests/timeline-motion-popover-regression.test.mjs'
@@ -138,6 +139,7 @@ on:
       - 'tests/temporal-layout-runtime.test.mjs'
       - 'tests/timeline-touch-runtime-contracts.test.mjs'
       - 'tests/timeline-temporal-context-runtime.test.mjs'
+      - 'tests/semantic-hierarchy-runtime.test.mjs'
       - 'tests/retained-temporal-context-runtime.test.mjs'
       - 'tests/timeline-runtime-contracts.test.mjs'
       - 'tests/timeline-motion-popover-regression.test.mjs'
@@ -178,6 +180,7 @@ jobs:
       - run: pnpm test:retained-timeline-metrics
       - run: pnpm test:touch-runtime-contracts
       - run: pnpm test:temporal-context-runtime
+      - run: pnpm test:semantic-hierarchy-runtime
       - run: pnpm test:retained-context-runtime
       - run: pnpm test:graph-runtime-contracts
       - run: pnpm test:timeline-projection-runtime
