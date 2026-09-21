@@ -261,7 +261,7 @@ The generated queries return `recordJson`, allowing exact reconstruction of Time
 
 ## Source files
 
-- `site/webmcp.js` — WebMCP tool definitions, transaction engine, registration.
-- `site/memgraph-interchange.js` — Memgraph record/Cypher round trip.
-- `site/app.js` — live state adapter, validation, persistence, rerendering.
+- `site/webmcp.ts` — WebMCP tool definitions, transaction engine, registration.
+- `site/memgraph-interchange.ts` — Memgraph record/Cypher round trip.
+- `site/app.ts` — live state adapter, validation, persistence, rerendering.
 - `tests/webmcp.test.mjs` — tool registration, transaction cleanup, Memgraph round trip, runtime wiring.
