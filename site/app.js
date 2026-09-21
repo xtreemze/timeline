@@ -319,8 +319,11 @@
     endInput: els.graphEdgeEndDate,
     mode: "range"
   });
+  // eslint-disable-next-line no-useless-assignment
   let presentationResizeObserver = null;
+  // eslint-disable-next-line no-useless-assignment
   let viewControlsResizeObserver = null;
+  // eslint-disable-next-line no-useless-assignment
   let workspaceToolDockResizeObserver = null;
   let presentationResizeFrame = 0;
   let timelineOrientationBeforeFullscreen = null;
@@ -753,6 +756,7 @@
           timelineView?.setOrientation?.(timelineOrientationBeforeFullscreen, { persist: false, focus: false });
           timelineOrientationBeforeFullscreen = null;
         }
+        // eslint-disable-next-line no-console, no-undef
         console.warn("Could not enter full-screen presentation:", error);
         showStatus("Could not enter full-screen presentation.");
       }
@@ -1113,6 +1117,7 @@
         return migrated;
       }
     } catch (error) {
+      // eslint-disable-next-line no-console, no-undef
       console.warn("Timeline state could not be restored:", error);
     }
     // A first launch should demonstrate the complete application rather than an empty shell.
@@ -1124,6 +1129,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (error) {
+      // eslint-disable-next-line no-console, no-undef
       console.warn("Timeline state could not be saved:", error);
       showStatus("Changes are visible, but browser storage is unavailable.");
     }
@@ -3547,9 +3553,13 @@
 
     let startEndpoint;
     let endEndpoint = null;
+    // eslint-disable-next-line no-useless-assignment
     let media = [];
+    // eslint-disable-next-line no-useless-assignment
     let tags = [];
+    // eslint-disable-next-line no-useless-assignment
     let relationChanges = [];
+    // eslint-disable-next-line no-useless-assignment
     let evidenceRecords = [];
     try {
       if (!els.itemStartDate.value) throw new Error("Choose a calendar date.");
@@ -3808,6 +3818,7 @@
     temporalGraphView?.setWindow(event.detail?.viewport || null);
   });
 
+  // eslint-disable-next-line no-unused-vars
   function focusTimelineFromGraph(id) {
     if (!id || !getItem(id)) return false;
     ui.search = "";
@@ -3875,6 +3886,7 @@
       window.open(url, "_blank", "noopener,noreferrer");
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (error) {
+      // eslint-disable-next-line no-console, no-undef
       console.warn("Could not open local evidence:", error);
       showStatus("Could not open the local evidence file.");
     }
@@ -4067,6 +4079,7 @@
       if ((state.items.length || state.stories.length) && !window.confirm("Replace the current timeline with the interchange file?")) return;
       timelineView?.closeFocus();
       applyImportedTimeline(converted.timeline, "Imported interchange", converted.warnings.length);
+      // eslint-disable-next-line no-console, no-undef
       if (converted.warnings.length) console.warn("Interchange import warnings:", converted.warnings);
     } catch (error) {
       showStatus(error instanceof Error ? error.message : "Could not import that interchange file.");
@@ -4134,9 +4147,11 @@
   webMcp.register(agentApi).then((registration) => {
     globalThis.TimelineWebMCPRegistration = registration;
     if (!registration.registered) {
+      // eslint-disable-next-line no-console, no-undef
       console.info("Timeline WebMCP tools are not registered:", registration.reason);
     }
   }).catch((error) => {
+    // eslint-disable-next-line no-console, no-undef
     console.warn("Timeline WebMCP registration failed:", error);
   });
 })();

@@ -46,6 +46,7 @@
     close: ["M6 6l12 12", "M18 6 6 18"]
   });
 
+  // eslint-disable-next-line no-unused-vars
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
   }

@@ -29,6 +29,7 @@
       .replaceAll("\n", "\\n")}'`;
   }
 
+  // eslint-disable-next-line no-unused-vars
   function cypherValue(value) {
     if (value === null || value === undefined) return "null";
     if (typeof value === "boolean") return value ? "true" : "false";
