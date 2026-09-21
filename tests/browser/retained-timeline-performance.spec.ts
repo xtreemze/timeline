@@ -12,6 +12,15 @@ async function frame(page) {
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".timeline-surface")).toBeVisible();
+
+  await page.locator("#editor-toggle").click();
+  await page.locator("#project-menu-toggle").click();
+  await expect(page.locator("#load-sample")).toBeEnabled();
+  await page.locator("#load-sample").click();
+  await page.locator("#editor-toggle").click();
+  await expect(
+    page.locator(".timeline-event:not(.timeline-cluster):visible").first(),
+  ).toBeVisible();
 });
 
 test("#271 pointer cancellation settles the retained epoch and publishes metrics", async ({ page }) => {
