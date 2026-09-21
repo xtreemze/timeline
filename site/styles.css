@@ -2845,15 +2845,11 @@ body {
 
 .project-menu-toggle {
   anchor-name: --project-menu-anchor;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.38rem;
-  min-width: 76px;
-  min-height: 40px;
 }
-.project-menu-toggle .semantic-icon {
-  flex: 0 0 auto;
+.app-project-tool img {
+  display: block;
+  width: 22px;
+  height: 22px;
 }
 
 .project-menu[popover] {
@@ -2967,15 +2963,6 @@ body {
 .project-menu-action.is-danger .semantic-icon {
   color: var(--danger);
 }
-@supports (position-anchor: --project-menu-anchor) {
-  .project-menu[popover] {
-    position-anchor: --project-menu-anchor;
-    inset: auto;
-    top: calc(anchor(bottom) + 0.4rem);
-    inset-inline-end: anchor(right);
-  }
-}
-
 #app-shell {
   position: fixed;
   z-index: 1;
@@ -3099,7 +3086,8 @@ body {
 .app-tool:focus-visible,
 #app-shell[data-editor-open="true"] #editor-toggle,
 #app-shell[data-browser-open="true"] #timeline-browser-toggle,
-#app-shell[data-view-controls-open="true"] #timeline-view-controls-toggle {
+#app-shell[data-view-controls-open="true"] #timeline-view-controls-toggle,
+#project-menu-toggle[aria-expanded="true"] {
   background: var(--paper-2);
   color: var(--ink);
   outline: none;
@@ -3603,14 +3591,6 @@ body {
     font-size: clamp(0.78rem, 3.8vw, 0.92rem);
   }
 
-  .project-menu-toggle {
-    min-width: 68px;
-    min-height: 38px;
-    padding: 0.34rem 0.48rem;
-    gap: 0.28rem;
-    font-size: 0.72rem;
-  }
-
   .app-tool-dock {
     inset-inline-start: 50%;
     inset-inline-end: auto;
@@ -3635,7 +3615,8 @@ body {
     font-size: 0.64rem;
   }
 
-  .app-tool .semantic-icon {
+  .app-tool .semantic-icon,
+  .app-project-tool img {
     width: 21px;
     height: 21px;
   }
@@ -3734,42 +3715,8 @@ body {
   }
 }
 
-@media (max-width: 380px) {
-  .project-menu-toggle {
-    min-width: 44px;
-    width: 44px;
-    padding-inline: 0.35rem;
-  }
-
-  .project-menu-toggle > span:not(.semantic-icon) {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-}
-
 /* Phone command bar refinement: reserve the center for the project title. */
 @media (max-width: 460px) {
-  .project-menu-toggle {
-    position: relative;
-    min-width: 42px;
-    width: 42px;
-    min-height: 38px;
-    padding-inline: 0.3rem;
-  }
-
-  .project-menu-toggle > span:not(.semantic-icon) {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
   .app-command-bar .project-title-field input {
     padding-inline: 0.28rem;
     font-size: clamp(0.78rem, 4vw, 0.9rem);
@@ -3781,7 +3728,8 @@ body {
     font-size: 0.6rem;
   }
 
-  .app-tool .semantic-icon {
+  .app-tool .semantic-icon,
+  .app-project-tool img {
     width: 20px;
     height: 20px;
   }
@@ -4144,10 +4092,6 @@ body {
     min-width: 44px;
     min-height: 44px;
   }
-
-  .project-menu-toggle {
-    min-height: 44px;
-  }
 }
 
 @media (pointer: coarse) and (max-width: 380px) {
@@ -4163,14 +4107,6 @@ body {
   }
 
   .range-calendar-day {
-    min-width: 44px;
-    min-height: 44px;
-  }
-}
-
-@media (pointer: coarse) and (max-width: 460px) {
-  .project-menu-toggle {
-    width: 44px;
     min-width: 44px;
     min-height: 44px;
   }

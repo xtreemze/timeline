@@ -227,7 +227,6 @@
         "@media (max-width: 720px)": 1,
         "@media (max-width: 760px)": 3,
         "@media (max-width: 699px)": 1,
-        "@media (max-width: 380px)": 1,
         "@media (max-width: 460px)": 1,
         "@media (max-width: 360px)": 1
       },
