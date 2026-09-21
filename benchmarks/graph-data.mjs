@@ -94,6 +94,7 @@ for (const nodeCount of sizes) {
   });
 }
 
+// eslint-disable-next-line no-console -- benchmark emits its machine-readable JSON report to stdout
 console.log(
   JSON.stringify(
     {
