@@ -265,7 +265,7 @@ export async function infer(input: any, options: any = {}): Promise<Record<strin
 }
 
 function entityLookup(entities: any, storyIds: any) {
-  const byName = new Map();
+  const byName = new Map<string, any[]>();
   for (const entity of Array.isArray(entities) ? entities : []) {
     const labels = [entity?.name, ...(entity?.alternateNames || entity?.aliases || [])]
       .map(semanticKey)
@@ -276,7 +276,7 @@ function entityLookup(entities: any, storyIds: any) {
     }
   }
   return (name: string, alternateNames: any = []) => {
-    const candidates = [];
+    const candidates: any[] = [];
     for (const label of [name, ...alternateNames].map(semanticKey).filter(Boolean)) {
       for (const entity of byName.get(label) || []) {
         if (!candidates.includes(entity)) candidates.push(entity);
@@ -380,7 +380,7 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
   const findEntity = entityLookup(context.existingEntities, storyIds);
   const findPlace = placeLookup(context.existingPlaces);
   const rejected: any[] = [];
-  const entityByKey = new Map();
+  const entityByKey = new Map<string, any>();
   const entities: any[] = [];
 
   for (const candidate of Array.isArray(raw?.entities) ? raw.entities : []) {
@@ -421,14 +421,14 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
     entityByKey.set(key, normalized);
   }
 
-  const placeByKey = new Map();
+  const placeByKey = new Map<string, any>();
   const places: any[] = [];
   for (const candidate of Array.isArray(raw?.places) ? raw.places : []) {
     const key = text(candidate?.key, 80);
     const name = text(candidate?.name, 180);
     if (!key || !name || placeByKey.has(key)) continue;
     const existing = findPlace(candidate);
-    let record = null;
+    let record: Record<string, any> | null = null;
     let status = "needs-geometry";
     if (existing) {
       status = "existing";
@@ -573,9 +573,19 @@ export function applyProposal(project: any, item: any, proposal: any, selectedRe
   const draft = clone(project) as any;
   if (!draft || !item?.id) throw new Error("A draft project and stable item ID are required.");
 
-  const selected = new Set(Array.from(selectedRelationshipKeys || [], String));
-  const entityByKey = new Map((proposal?.entities || []).map((candidate: any) => [candidate.key, candidate]));
-  const placeByKey = new Map((proposal?.places || []).map((candidate: any) => [candidate.key, candidate]));
+  const selected = new Set<string>(Array.from(selectedRelationshipKeys || [], String));
+  const entityByKey = new Map<string, any>(
+    (proposal?.entities || []).map((candidate: any): [string, any] => [
+      String(candidate.key),
+      candidate,
+    ]),
+  );
+  const placeByKey = new Map<string, any>(
+    (proposal?.places || []).map((candidate: any): [string, any] => [
+      String(candidate.key),
+      candidate,
+    ]),
+  );
   const requiredEntityKeys = new Set<string>();
   const requiredPlaceKeys = new Set<string>();
 
@@ -628,8 +638,11 @@ export function applyProposal(project: any, item: any, proposal: any, selectedRe
       continue;
     }
 
+    const clonedRelationship = clone(candidate.relationship);
     const relationship = {
-      ...clone(candidate.relationship),
+      ...(clonedRelationship && typeof clonedRelationship === "object"
+        ? (clonedRelationship as Record<string, any>)
+        : {}),
       itemIds: [item.id],
       sourceIds
     };
