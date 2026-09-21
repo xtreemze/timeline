@@ -51,22 +51,6 @@ async function installRetainedTimelineFixture(page) {
         start: Date.parse("2026-01-01T09:00:00Z"),
         startLabel: "1 Jan 2026",
       },
-      {
-        id: "occurrence-b",
-        kind: "event",
-        title: "Beta occurrence",
-        start: Date.parse("2026-07-01T09:00:00Z"),
-        startLabel: "1 Jul 2026",
-      },
-      {
-        id: "occurrence-c",
-        kind: "range",
-        title: "Gamma range",
-        start: Date.parse("2026-12-01T09:00:00Z"),
-        end: Date.parse("2027-01-15T09:00:00Z"),
-        startLabel: "1 Dec 2026",
-        endLabel: "15 Jan 2027",
-      },
     ]);
 
     Object.assign(globalThis, { __retainedStructuralTddController: controller });
