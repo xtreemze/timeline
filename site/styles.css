@@ -657,7 +657,7 @@ a:focus-visible {
 }
 .temporal-fields {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 0 0.65rem;
 }
 .temporal-fields .field {
@@ -711,9 +711,9 @@ a:focus-visible {
 .map-style-editor > .field-hint {
   margin-inline: 0.9rem;
 }
-@media (max-width: 699px) {
+@media (min-width: 700px) {
   .map-style-group {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 .optional-editor[open] > summary {
@@ -762,7 +762,7 @@ geolocation {
   position: absolute;
   z-index: 850;
   top: 0.45rem;
-  left: 0.45rem;
+  inset-inline-start: 0.45rem;
   content: "Basemap unavailable";
   padding: 0.28rem 0.42rem;
   border: 1px solid color-mix(in srgb, var(--line-strong) 70%, transparent);
