@@ -8,6 +8,8 @@ on:
       - "src/**"
       - "package.json"
       - "pnpm-lock.yaml"
+      - "playwright.config.ts"
+      - "tests/playwright/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
