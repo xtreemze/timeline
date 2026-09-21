@@ -3875,7 +3875,7 @@
   }
 }
 
-@media (max-width: 699px) and (orientation: landscape) {
+@media (orientation: landscape) {
   #app-shell[data-graph-open="true"] #presentation-stage {
     /* A short landscape viewport still gives chronology a substantial rail
        without starving graph context. */
