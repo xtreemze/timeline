@@ -81,6 +81,7 @@ on:
       - 'tests/timeline-projection-runtime.test.mjs'
       - 'tests/graph-editor.test.mjs'
       - '.github/workflows/timeline-view.yml'
+      - '.github/workflows/pages.yml'
   push:
     branches: [main]
     paths:
