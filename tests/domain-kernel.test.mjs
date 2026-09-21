@@ -9,6 +9,7 @@ import {
   validateActionPredicate,
   validateEntity,
 } from "../src/domain/index.ts";
+import { projectRelationshipMatrix } from "../src/projection/relationship-matrix.ts";
 
 const alice = {
   id: entityId("alice"),
@@ -107,4 +108,93 @@ test("recordRelationship rejects self loops, missing endpoints, and mirrored dup
       objectId: alice.id,
     }),
   );
+});
+
+
+test("relationship matrix preserves directed topology and deterministic entity ordering", () => {
+  const project = {
+    schemaVersion: 3,
+    entities: [bob, alice],
+    relationships: [
+      baseRelationship,
+      {
+        ...baseRelationship,
+        id: relationshipId("rel-reply"),
+        subjectId: bob.id,
+        objectId: alice.id,
+        predicate: "repliedTo",
+      },
+    ],
+  };
+
+  const matrix = projectRelationshipMatrix(project);
+  assert.deepEqual(
+    matrix.entities.map((entity) => entity.id),
+    ["alice", "bob"],
+  );
+
+  const aliceToBob = matrix.cells.find(
+    (cell) => cell.rowEntityId === "alice" && cell.columnEntityId === "bob",
+  );
+  const bobToAlice = matrix.cells.find(
+    (cell) => cell.rowEntityId === "bob" && cell.columnEntityId === "alice",
+  );
+
+  assert.equal(aliceToBob.state, "visible");
+  assert.deepEqual(aliceToBob.relationships.map((relationship) => relationship.id), ["rel-1"]);
+  assert.equal(bobToAlice.state, "visible");
+  assert.deepEqual(bobToAlice.relationships.map((relationship) => relationship.id), ["rel-reply"]);
+});
+
+test("relationship matrix distinguishes filtered relationships from absent relationships", () => {
+  const project = {
+    schemaVersion: 3,
+    entities: [alice, bob],
+    relationships: [baseRelationship],
+  };
+
+  const matrix = projectRelationshipMatrix(project, {
+    filter: { predicates: ["called"] },
+  });
+
+  const aliceToBob = matrix.cells.find(
+    (cell) => cell.rowEntityId === "alice" && cell.columnEntityId === "bob",
+  );
+  const bobToAlice = matrix.cells.find(
+    (cell) => cell.rowEntityId === "bob" && cell.columnEntityId === "alice",
+  );
+
+  assert.equal(aliceToBob.state, "filtered");
+  assert.equal(aliceToBob.hiddenRelationshipCount, 1);
+  assert.deepEqual(aliceToBob.relationships, []);
+  assert.equal(bobToAlice.state, "empty");
+});
+
+test("relationship matrix filters source coverage without mutating canonical relationships", () => {
+  const withoutSource = {
+    ...baseRelationship,
+    id: relationshipId("rel-no-source"),
+    predicate: "called",
+    sourceIds: [],
+  };
+  const project = {
+    schemaVersion: 3,
+    entities: [alice, bob],
+    relationships: [baseRelationship, withoutSource],
+  };
+  const before = JSON.stringify(project);
+
+  const matrix = projectRelationshipMatrix(project, {
+    filter: { sourceCoverage: "without-source" },
+  });
+  const aliceToBob = matrix.cells.find(
+    (cell) => cell.rowEntityId === "alice" && cell.columnEntityId === "bob",
+  );
+
+  assert.equal(aliceToBob.state, "visible");
+  assert.deepEqual(aliceToBob.relationships.map((relationship) => relationship.id), [
+    "rel-no-source",
+  ]);
+  assert.equal(aliceToBob.hiddenRelationshipCount, 1);
+  assert.equal(JSON.stringify(project), before);
 });
