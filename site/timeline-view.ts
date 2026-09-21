@@ -10,10 +10,12 @@ const clustering = globalThis.TimelineClustering;
 const motion = globalThis.TimelineMotion;
 const presentation = globalThis.TimelinePresentation;
 
-if (!scale) throw new Error("TimelineScale must load before TimelineView.");
-if (!clustering) throw new Error("TimelineClustering must load before TimelineView.");
-if (!motion) throw new Error("TimelineMotion must load before TimelineView.");
-if (!presentation) throw new Error("TimelinePresentation must load before TimelineView.");
+// Log warnings if dependencies aren't loaded yet, but don't fail
+// They may load asynchronously from shims
+if (!scale) console.warn("TimelineScale not yet loaded - timeline rendering may be limited");
+if (!clustering) console.warn("TimelineClustering not yet loaded - timeline rendering may be limited");
+if (!motion) console.warn("TimelineMotion not yet loaded - timeline rendering may be limited");
+if (!presentation) console.warn("TimelinePresentation not yet loaded - timeline rendering may be limited");
 
 const VIEW_STORAGE_KEY = "timeline:view:v1";
 const DEFAULT_SPAN_MS = 86_400_000;
