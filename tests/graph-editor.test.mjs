@@ -135,8 +135,8 @@ test("temporal graph exposes a layout refresh for presentation resizing", async 
 
 test("focused presentation graph limits itself to the event neighborhood", async () => {
   const source = await readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8");
-  assert.match(source, /setFocus\(id\)/);
-  assert.match(source, /neighborhoodGraph\(this\.model, this\.focusedId/);
+  assert.match(source, /setFocus\(id:\s*string \| number \| null\)/);
+  assert.match(source, /graph\.neighborhoodGraph\(this\.model, this\.focusedId/);
   assert.match(source, /relevant nodes/);
 });
 
@@ -272,7 +272,7 @@ test("graph refresh rerenders Orb after reparenting or container resize", async 
     bridge,
     /refreshLayout\(\) \{[\s\S]*orb\.render\(\(\) => \{[\s\S]*if \(!userOwnsCamera\) orb\.recenter\(\)/,
   );
-  assert.match(view, /new ResizeObserver\(\(entries\) => \{/);
+  assert.match(view, /new ResizeObserver\(\(entries:\s*ResizeObserverEntry\[\]\) => \{/);
   assert.match(view, /entries\.find\(\(candidate\) => candidate\.target === this\.canvas\)/);
   assert.match(view, /this\.lastCanvasSize/);
   assert.match(view, /this\.resizeObserver\.observe\(this\.canvas\)/);
@@ -281,18 +281,18 @@ test("graph refresh rerenders Orb after reparenting or container resize", async 
 
 test("touch node long press is armed from capture-phase hit testing before Orb drag starts", async () => {
   const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
-  assert.match(bridge, /function touchNodePayload\(event\)/);
+  assert.match(bridge, /function touchTargetPayload\(event\)/);
   assert.match(bridge, /orb\.getSimulationPosition\(globalPoint\)/);
-  assert.match(bridge, /orb\.data\.getNearestNode\(localPoint\)/);
+  assert.match(bridge, /expandedTouchNode\(geometry\.localPoint, geometry\.globalPoint\)/);
   assert.match(
     bridge,
-    /const target = touchTargetPayload\(event\)[\s\S]*target\?\.kind === "node"[\s\S]*beginTouchHold\(payload\)/,
+    /const target = touchTargetPayload\(event\)[\s\S]*target\?\.kind === "node"[\s\S]*if \(payload\) beginTouchHold\(payload\)/,
   );
   assert.match(bridge, /pointerdown", onPointerDown, \{ capture: true \}/);
   assert.match(bridge, /beginTouchHold\([\s\S]*setDragEnabled\(false\)[\s\S]*TOUCH_NODE_HOLD_MS/);
   assert.match(
     bridge,
-    /touchHold\.activated = true[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)[\s\S]*simulator\?\.startDragNode\(\)[\s\S]*setInteractionHeat\(DRAG_ALPHA_TARGET\)/,
+    /touchHold\.activated = true[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)[\s\S]*setInteractionHeat\(DRAG_ALPHA_TARGET\)[\s\S]*simulator\?\.startDragNode\(\)/,
   );
   assert.doesNotMatch(bridge, /onNodeDragStart[\s\S]{0,180}beginTouchHold/);
 });
