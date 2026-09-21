@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -135,4 +136,35 @@ test("measured two-line height is preserved in placement geometry", () => {
     },
   });
   assert.equal(plan.placements[0].blockSize, 76);
+});
+
+test("renderer performs global layout planning only through commit reconciliation", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+  const renderStart = source.indexOf("  render(): void {");
+  const renderEnd = source.indexOf("  createRecord(", renderStart);
+  const renderBody = source.slice(renderStart, renderEnd);
+  assert.doesNotMatch(renderBody, /planCommittedTemporalLayout/);
+
+  const reconcileStart = source.indexOf("  reconcileCommittedLayout(): void {");
+  const reconcileEnd = source.indexOf("  reconcileClusterScene(", reconcileStart);
+  const reconcileBody = source.slice(reconcileStart, reconcileEnd);
+  assert.match(reconcileBody, /planCommittedTemporalLayout/);
+
+  const commitStart = source.indexOf("  commitInteraction(): void {");
+  const commitEnd = source.indexOf("  scheduleRender(", commitStart);
+  const commitBody = source.slice(commitStart, commitEnd);
+  assert.match(commitBody, /measureCommittedGeometry\(\)/);
+  assert.match(commitBody, /reconcileCommittedLayout\(\)/);
+});
+
+test("committed clusters keep occurrence DOM alive and restore mature tile affordance", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+  assert.match(source, /clusterScene = new Map<string, ClusterSceneRecord>/);
+  assert.match(source, /timeline-cluster-tiles/);
+  assert.match(source, /timeline-cluster-tile/);
+  assert.match(source, /timeline-cluster-image/);
+  assert.match(source, /expandedClusterItemIds/);
+  assert.match(source, /clustering\.clusterExpansionViewport/);
+  assert.match(source, /node\.hidden = hiddenByCluster/);
+  assert.doesNotMatch(source, /hiddenByCluster[\s\S]{0,300}removeRecord/);
 });
