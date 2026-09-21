@@ -53,8 +53,8 @@ test("timeline exposes semantic zoom while retaining keyboard fit commands", asy
     readFile(new URL("../site/app.js", import.meta.url), "utf8")
   ]);
 
-  assert.match(htmlSource, /id="timeline-zoom-level"[^>]*type="range"[^>]*min="0"[^>]*max="100"[^>]*value="100"[^>]*aria-valuetext="Focused event only"/);
-  assert.match(htmlSource, /Context[\s\S]*Focus[\s\S]*Solo/);
+  assert.match(htmlSource, /id="timeline-zoom-level"[^>]*type="range"[^>]*min="0"[^>]*max="100"[^>]*value="100"[^>]*aria-valuetext="Focused time window"/);
+  assert.match(htmlSource, /Context[\s\S]*Focus[\s\S]*Isolate/);
   assert.match(
     viewSource,
     /ensureUsefulViewport\(\)[\s\S]*if \(!this\.viewport\)[\s\S]*semanticZoomTargets\(\)[\s\S]*targets\?\.isolated[\s\S]*zoomAnchorId = targets\.item[\s\S]*soloZoomActive = Boolean\(targets\.item\)/
@@ -71,6 +71,8 @@ test("timeline exposes semantic zoom while retaining keyboard fit commands", asy
   assert.match(viewSource, /resizeObserver\.observe\(this\.projectHeading\)/);
   assert.match(viewSource, /while \(selected\.length < 2/);
   assert.match(viewSource, /this\.soloZoomActive = normalized >= 99/);
+  assert.match(viewSource, /\.filter\(\(item\) => itemOverlapsViewport\(item, this\.viewport\)\)/);
+  assert.doesNotMatch(viewSource, /const soloItemId/);
   assert.match(viewSource, /fitVisible\(\)/);
   assert.match(viewSource, /fitAll\(\)/);
   assert.match(viewSource, /event\.shiftKey\) this\.fitAll\(\)/);

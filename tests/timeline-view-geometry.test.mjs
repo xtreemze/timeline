@@ -57,6 +57,17 @@ test("selected events use a compact six-column focus popover over the persistent
   assert.doesNotMatch(css, /position-anchor:\s*--timeline-detail-anchor/);
 });
 
+test("close zoom keeps every timeline item whose temporal extent intersects the viewport", () => {
+  const viewport = { start: 400, end: 700 };
+
+  assert.equal(geometry.itemOverlapsViewport({ start: 500, end: null }, viewport), true);
+  assert.equal(geometry.itemOverlapsViewport({ start: 200, end: null }, viewport), false);
+  assert.equal(geometry.itemOverlapsViewport({ start: 100, end: 450 }, viewport), true);
+  assert.equal(geometry.itemOverlapsViewport({ start: 650, end: 900 }, viewport), true);
+  assert.equal(geometry.itemOverlapsViewport({ start: 0, end: 1000 }, viewport), true);
+  assert.equal(geometry.itemOverlapsViewport({ start: 0, end: 399 }, viewport), false);
+});
+
 test("long visible ranges trace from the midpoint of their visible portion", () => {
   assert.equal(
     geometry.visibleIntervalAnchor(
