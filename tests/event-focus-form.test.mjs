@@ -332,6 +332,8 @@ test("timeline range bars are identifiable and labels share event color semantic
   assert.match(source, /this\.visiblePositionFor\(item/);
   assert.match(css, /\.timeline-range-segment::after/);
   assert.match(css, /\.timeline-event-copy strong[\s\S]*color:\s*var\(--event-color\)/);
+  assert.match(css, /\.timeline-event-copy strong[\s\S]*display:\s*-webkit-box[\s\S]*-webkit-line-clamp:\s*2[\s\S]*white-space:\s*normal/);
+  assert.match(css, /\.timeline-event-copy span[\s\S]*text-overflow:\s*ellipsis[\s\S]*white-space:\s*nowrap/);
   assert.match(css, /\.timeline-event-dot[\s\S]*width:\s*2\.75rem/);
 });
 
