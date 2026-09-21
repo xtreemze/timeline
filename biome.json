@@ -1,5 +1,13 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+  "files": {
+    "includes": [
+      "**",
+      "!!node_modules",
+      "!!dist",
+      "!!site/orb-graph.bundle.js"
+    ]
+  },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
@@ -7,6 +15,16 @@
     "lineWidth": 100
   },
   "linter": {
-    "enabled": false
+    "enabled": true,
+    "includes": [
+      "site/**/*.ts",
+      "scripts/**/*.mjs"
+    ],
+    "rules": {
+      "preset": "recommended",
+      "nursery": {
+        "noReturnInFinally": "error"
+      }
+    }
   }
 }
