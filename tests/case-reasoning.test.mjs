@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-await import("../site/case-reasoning.js");
+await import("../site/case-reasoning-shim.ts");
 
 const reasoning = globalThis.TimelineCaseReasoning;
 
