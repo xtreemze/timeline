@@ -15,6 +15,8 @@ const presentation = globalThis.TimelinePresentation;
 const dateRangeFactory = globalThis.TimelineDateRangePicker;
 const navigationFactory = globalThis.TimelineNavigation;
 const evidenceStore = globalThis.TimelineEvidence;
+const evidenceExtraction = (globalThis as any).TimelineEvidenceExtraction;
+const graphInference = (globalThis as any).TimelineGraphInference;
 const temporalGraphFactory = globalThis.TemporalGraphView;
 const presentationLayout = globalThis.TimelinePresentationLayout;
 const caseReasoning = globalThis.TimelineCaseReasoning;
@@ -131,6 +133,11 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     itemRelationChangeRows: [...document.querySelectorAll("[data-relation-change-slot]")],
     itemEvidenceDetails: document.querySelector("#item-evidence-details"),
     itemEvidenceRows: [...document.querySelectorAll("[data-evidence-slot]")],
+    itemInferenceDetails: document.querySelector("#item-inference-details"),
+    itemInferenceRun: document.querySelector("#item-inference-run"),
+    itemInferenceClear: document.querySelector("#item-inference-clear"),
+    itemInferenceStatus: document.querySelector("#item-inference-status"),
+    itemInferenceResults: document.querySelector("#item-inference-results"),
     itemLocationDetails: document.querySelector("#item-location-details"),
     itemLocationName: document.querySelector("#item-location-name"),
     itemLocationIdentifier: document.querySelector("#item-location-identifier"),
@@ -155,6 +162,8 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     storyPickerCount: document.querySelector("#story-picker-count"),
     storySequence: document.querySelector("#story-sequence"),
     storySequenceCount: document.querySelector("#story-sequence-count"),
+    storyPlacePicker: document.querySelector("#story-place-picker"),
+    storyPlacePickerCount: document.querySelector("#story-place-picker-count"),
     storyFormError: document.querySelector("#story-form-error"),
     saveStory: document.querySelector("#save-story"),
     cancelStoryEdit: document.querySelector("#cancel-story-edit"),
@@ -258,6 +267,10 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
   let state = loadState();
   let storyDraftIds = [];
+  let storyDraftPlaceIds = [];
+  const evidenceExtractionDrafts = new Map<string, any>();
+  let itemInferenceDraft: any = null;
+  let inferenceAbortController: AbortController | null = null;
   let statusTimer = 0;
   let navigationController = null;
   const ui = {
@@ -1074,6 +1087,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
     const itemIds = new Set(items.map((item) => item.id));
     const seenStoryIds = new Set();
+    const storyIdsNeedingPlaceInference = new Set<string>();
     const stories = (Array.isArray(input.stories) ? input.stories : []).map((raw, index) => {
       if (!raw || typeof raw !== "object") throw new Error(`Story ${index + 1} is not an object.`);
       let id =
@@ -1090,11 +1104,20 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
           seenItems.add(itemId);
         }
       }
+      const hasExplicitPlaceIds = Array.isArray(raw.placeIds);
+      if (!hasExplicitPlaceIds) storyIdsNeedingPlaceInference.add(id);
       const story = {
         id,
         title,
         description: typeof raw.description === "string" ? raw.description.slice(0, 1500) : "",
         itemIds: uniqueIds,
+        placeIds: [
+          ...new Set(
+            (hasExplicitPlaceIds ? raw.placeIds : [])
+              .filter((placeId) => typeof placeId === "string" && placeId.trim())
+              .map((placeId) => placeId.trim().slice(0, 120)),
+          ),
+        ],
       };
       const extensions = normalizeExtensions(raw.extensions);
       if (extensions) story.extensions = extensions;
@@ -1106,6 +1129,17 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       throw new Error(`Graph semantics are invalid: ${graphErrors[0]}`);
     }
     const graphData = graph.normalizeGraphData(input, temporal);
+    const normalizedPlaceIds = new Set(graphData.places.map((place) => String(place.id)));
+    for (const story of stories) {
+      const inferredPlaceIds = storyIdsNeedingPlaceInference.has(story.id)
+        ? graphData.places
+            .filter((place) => String(place.attributes?.storyId || "") === story.id)
+            .map((place) => String(place.id))
+        : [];
+      story.placeIds = [...new Set([...(story.placeIds || []), ...inferredPlaceIds])].filter(
+        (placeId) => normalizedPlaceIds.has(String(placeId)),
+      );
+    }
     for (const relationship of graphData.relationships) {
       relationship.itemIds = (relationship.itemIds || []).filter((id) => itemIds.has(String(id)));
     }
