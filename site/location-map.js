@@ -1,15 +1,11 @@
 (() => {
-  const LEAFLET_VERSION = "1.9.4";
-  const LEAFLET_CSS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-  const LEAFLET_JS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-  const LEAFLET_CSS_INTEGRITY = "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=";
-  const LEAFLET_JS_INTEGRITY = "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=";
-
   const DEFAULT_PROVIDER = Object.freeze({
+    id: "osm-public-compatibility",
     url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
+    bestEffort: true,
   });
 
   const PRESENTATION_WORLD_VIEW = Object.freeze({
@@ -23,40 +19,113 @@
   const MAP_CLICK_SUPPRESSION_MS = 350;
   const motion = globalThis.TimelineMotion;
 
-  let loadPromise = null;
-
   function loadLeaflet() {
+    if (globalThis.TimelineLeafletReady?.then) return globalThis.TimelineLeafletReady;
     if (globalThis.L) return Promise.resolve(globalThis.L);
-    if (loadPromise) return loadPromise;
+    return Promise.reject(new Error("Leaflet local bundle is unavailable."));
+  }
 
-    loadPromise = new Promise((resolve, reject) => {
-      if (!document.querySelector("link[data-timeline-leaflet]")) {
-        const stylesheet = document.createElement("link");
-        stylesheet.rel = "stylesheet";
-        stylesheet.href = LEAFLET_CSS;
-        stylesheet.integrity = LEAFLET_CSS_INTEGRITY;
-        stylesheet.crossOrigin = "";
-        stylesheet.dataset.timelineLeaflet = LEAFLET_VERSION;
-        document.head.append(stylesheet);
-      }
+  function tileProviders() {
+    const configured = globalThis.TimelineMapTileProviders;
+    const candidates =
+      Array.isArray(configured) && configured.length
+        ? configured
+        : globalThis.TimelineMapTileProvider
+          ? [globalThis.TimelineMapTileProvider]
+          : [DEFAULT_PROVIDER];
 
-      const existing = document.querySelector("script[data-timeline-leaflet]");
-      const script = existing || document.createElement("script");
-      if (!existing) {
-        script.src = LEAFLET_JS;
-        script.integrity = LEAFLET_JS_INTEGRITY;
-        script.crossOrigin = "";
-        script.dataset.timelineLeaflet = LEAFLET_VERSION;
-        document.head.append(script);
-      }
-      script.addEventListener("load", () => resolve(globalThis.L), { once: true });
-      script.addEventListener("error", () => reject(new Error("Leaflet could not be loaded.")), {
-        once: true,
+    return candidates.filter(
+      (provider) => provider && typeof provider.url === "string" && provider.url.length > 0,
+    );
+  }
+
+  function observeMapSize(map, container, afterResize = null) {
+    let animationFrame = 0;
+    const invalidate = () => {
+      const bounds = container?.getBoundingClientRect?.();
+      if (!bounds || bounds.width <= 0 || bounds.height <= 0) return;
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      animationFrame = requestAnimationFrame(() => {
+        animationFrame = 0;
+        map?.invalidateSize({ pan: false });
+        afterResize?.();
       });
-      if (globalThis.L) resolve(globalThis.L);
-    });
+    };
 
-    return loadPromise;
+    const observer =
+      typeof globalThis.ResizeObserver === "function" ? new ResizeObserver(invalidate) : null;
+    observer?.observe(container);
+    invalidate();
+
+    return () => {
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      animationFrame = 0;
+      observer?.disconnect();
+    };
+  }
+
+  function attachBasemap(L, map, container, providers = tileProviders()) {
+    let providerIndex = 0;
+    let tileErrors = 0;
+    let layer = null;
+    let destroyed = false;
+    const failureThreshold = 3;
+
+    const setState = (state, provider = null) => {
+      if (!container) return;
+      container.dataset.basemapState = state;
+      if (provider?.id) container.dataset.basemapProvider = String(provider.id);
+      else delete container.dataset.basemapProvider;
+    };
+
+    const activate = () => {
+      if (destroyed) return;
+      layer?.off();
+      layer?.remove();
+      layer = null;
+
+      const provider = providers[providerIndex];
+      if (!provider) {
+        setState("unavailable");
+        return;
+      }
+
+      tileErrors = 0;
+      setState("loading", provider);
+      layer = L.tileLayer(provider.url, {
+        ...(provider.options || {}),
+        maxZoom: provider.maxZoom || provider.options?.maxZoom || 19,
+        attribution: provider.attribution || DEFAULT_PROVIDER.attribution,
+      });
+
+      layer.on("load", () => {
+        tileErrors = 0;
+        setState("ready", provider);
+      });
+      layer.on("tileerror", () => {
+        tileErrors += 1;
+        if (tileErrors < failureThreshold) return;
+        if (providerIndex + 1 < providers.length) {
+          providerIndex += 1;
+          activate();
+          return;
+        }
+        layer?.off();
+        layer?.remove();
+        layer = null;
+        setState("unavailable", provider);
+      });
+      layer.addTo(map);
+    };
+
+    activate();
+
+    return () => {
+      destroyed = true;
+      layer?.off();
+      layer?.remove();
+      layer = null;
+    };
   }
 
   function numeric(input, min, max) {
@@ -460,14 +529,71 @@
     return layer;
   }
 
-  function semanticMarkerIcon(L, iconName, color, label = "", markerShape = "pin") {
+  function mergeMapStyle(base = {}, override = {}) {
+    return {
+      marker: { ...(base?.marker || {}), ...(override?.marker || {}) },
+      path: { ...(base?.path || {}), ...(override?.path || {}) },
+      area: { ...(base?.area || {}), ...(override?.area || {}) },
+    };
+  }
+
+  function styleNumber(value, fallback, min, max) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && numeric >= min && numeric <= max ? numeric : fallback;
+  }
+
+  function markerAppearance(style = {}, fallbackColor = "#315fbd") {
+    const marker = style?.marker || {};
+    return {
+      color: String(marker.color || fallbackColor),
+      fillColor: String(marker.fillColor || ""),
+      opacity: styleNumber(marker.opacity, 1, 0, 1),
+      size: styleNumber(marker.size, 32, 16, 40),
+      weight: styleNumber(marker.weight, 2, 0, 8),
+    };
+  }
+
+  function leafletPathStyle(style = {}, fallbackColor = "#315fbd", defaults = {}) {
+    const path = style?.path || {};
+    const area = style?.area || {};
+    return {
+      stroke: typeof path.stroke === "boolean" ? path.stroke : (defaults.stroke ?? true),
+      color: String(path.color || defaults.color || fallbackColor),
+      weight: styleNumber(path.weight, defaults.weight ?? 3, 0, 24),
+      opacity: styleNumber(path.opacity, defaults.opacity ?? 0.9, 0, 1),
+      lineCap: path.lineCap || defaults.lineCap,
+      lineJoin: path.lineJoin || defaults.lineJoin,
+      dashArray: path.dashArray || defaults.dashArray,
+      dashOffset: path.dashOffset || defaults.dashOffset,
+      fill: typeof area.fill === "boolean" ? area.fill : (defaults.fill ?? true),
+      fillColor: String(area.fillColor || defaults.fillColor || fallbackColor),
+      fillOpacity: styleNumber(area.fillOpacity, defaults.fillOpacity ?? 0.12, 0, 1),
+      fillRule: area.fillRule || defaults.fillRule,
+    };
+  }
+
+  function semanticMarkerIcon(
+    L,
+    iconName,
+    color,
+    label = "",
+    markerShape = "pin",
+    style = {},
+  ) {
+    const appearance = markerAppearance(style, color);
     const identity = document.createElement("span");
     identity.className = `timeline-map-marker-identity timeline-map-marker-shape-${markerShape}`;
-    identity.style.setProperty("--map-marker-color", String(color));
+    identity.style.setProperty("--map-marker-color", appearance.color);
+    if (appearance.fillColor)
+      identity.style.setProperty("--map-marker-fill", appearance.fillColor);
+    identity.style.setProperty("--map-marker-size", `${appearance.size}px`);
+    identity.style.setProperty("--map-marker-weight", `${appearance.weight}px`);
 
     const shell = document.createElement("span");
     shell.className = "timeline-map-marker-shell";
-    const icon = globalThis.TimelinePresentation?.createIcon?.(iconName || "place", { size: 18 });
+    const icon = globalThis.TimelinePresentation?.createIcon?.(iconName || "place", {
+      size: Math.max(14, Math.round(appearance.size * 0.56)),
+    });
     if (icon) shell.append(icon);
     else shell.textContent = "•";
     identity.append(shell);
@@ -482,8 +608,8 @@
     return L.divIcon({
       className: "timeline-map-marker",
       html: identity.outerHTML,
-      // Keep the visible semantic marker compact while giving touch users a
-      // 44 CSS px hit target consistent with the rest of the application.
+      // Visual size is configurable, while the Leaflet hit target remains at
+      // least 44 CSS px for coarse-pointer accessibility.
       iconSize: [44, 44],
       iconAnchor: [22, 22],
     });
@@ -493,10 +619,11 @@
     constructor(options) {
       this.container = options.container;
       this.location = options.location || null;
-      this.provider = globalThis.TimelineMapTileProvider || DEFAULT_PROVIDER;
+      this.providers = tileProviders();
       this.color = options.color || "#315fbd";
       this.iconName = options.iconName || this.location?.icon || "place";
       this.markerShape = options.markerShape || this.location?.markerShape || "pin";
+      this.style = mergeMapStyle(this.location?.style, options.style);
       this.label =
         options.label ||
         this.location?.name ||
@@ -516,6 +643,8 @@
       this.introInteractionAbort = null;
       this.introTimer = 0;
       this.weightedDragCleanup = null;
+      this.resizeCleanup = null;
+      this.basemapCleanup = null;
       this.ready = this.render();
     }
 
@@ -523,7 +652,13 @@
       if (!this.container || this.placePlaceholder) return;
       const placeholder = document.createElement("div");
       placeholder.className = `timeline-map-place-placeholder timeline-map-marker-shape-${this.markerShape}`;
-      placeholder.style.setProperty("--map-marker-color", this.color);
+      const appearance = markerAppearance(this.style, this.color);
+      placeholder.style.setProperty("--map-marker-color", appearance.color);
+      if (appearance.fillColor)
+        placeholder.style.setProperty("--map-marker-fill", appearance.fillColor);
+      placeholder.style.setProperty("--map-marker-size", `${appearance.size}px`);
+      placeholder.style.setProperty("--map-marker-weight", `${appearance.weight}px`);
+      placeholder.style.opacity = String(appearance.opacity);
       placeholder.setAttribute("aria-hidden", "true");
 
       const iconShell = document.createElement("span");
@@ -548,11 +683,40 @@
       this.placePlaceholder = null;
     }
 
+    setPlaceStatus(message) {
+      if (!this.placePlaceholder || !message) return;
+      let status = this.placePlaceholder.querySelector(".timeline-map-place-status");
+      if (!status) {
+        status = document.createElement("small");
+        status.className = "timeline-map-place-status";
+        this.placePlaceholder.append(status);
+      }
+      status.textContent = message;
+    }
+
+    confirmGeometryVisible() {
+      if (!this.container) return false;
+      const visibleGeometry = this.container.querySelector(
+        ".leaflet-marker-icon, .leaflet-overlay-pane svg path",
+      );
+      if (!visibleGeometry) return false;
+      this.container.dataset.mapState = "ready";
+      this.clearPlacePlaceholder();
+      return true;
+    }
+
     async render() {
       const objects = geoJsonObjects(this.location);
-      if (!this.container || objects.length === 0) return;
+      if (!this.container) return;
       this.container.setAttribute("aria-label", this.label);
       this.renderPlacePlaceholder();
+      if (objects.length === 0) {
+        this.container.dataset.mapState = "geometry-unavailable";
+        this.container.setAttribute("aria-label", `${this.label}. No mapped coordinates.`);
+        this.setPlaceStatus("No mapped coordinates");
+        return;
+      }
+      this.container.dataset.mapState = "loading";
 
       try {
         const L = await loadLeaflet();
@@ -575,6 +739,9 @@
           this.container,
           this.interactive,
         );
+        this.resizeCleanup = observeMapSize(this.map, this.container, () => {
+          this.confirmGeometryVisible();
+        });
 
         if (this.countryContextIntro) {
           this.map.setView(PRESENTATION_WORLD_VIEW.center, PRESENTATION_WORLD_VIEW.zoom, {
@@ -587,20 +754,18 @@
           this.container.dataset.referenceFrame = "fictional";
           fictionalTextureLayer(L, this.container).addTo(this.map);
         } else {
-          L.tileLayer(this.provider.url, {
-            maxZoom: this.provider.maxZoom || 19,
-            attribution: this.provider.attribution || DEFAULT_PROVIDER.attribution,
-          }).addTo(this.map);
+          this.basemapCleanup = attachBasemap(L, this.map, this.container, this.providers);
         }
 
         const baseGeoJsonOptions = {
-          style: () => ({
-            color: this.color,
-            weight: 3,
-            opacity: 0.9,
-            fillColor: this.color,
-            fillOpacity: 0.12,
-          }),
+          style: (feature) => {
+            const properties = feature?.properties || {};
+            const featureStyle = mergeMapStyle(this.style, properties.style);
+            return leafletPathStyle(
+              featureStyle,
+              String(properties.color || this.color),
+            );
+          },
         };
 
         for (const [index, object] of objects.entries()) {
@@ -612,15 +777,22 @@
               const markerLabel = isPrimaryPlacePoint
                 ? this.label
                 : String(properties.name || properties.label || "");
+              const featureStyle = mergeMapStyle(this.style, properties.style);
+              const appearance = markerAppearance(
+                featureStyle,
+                String(properties.color || this.color),
+              );
               const markerIcon = semanticMarkerIcon(
                 L,
                 String(properties.icon || this.iconName || "place"),
-                String(properties.color || this.color),
+                appearance.color,
                 markerLabel,
                 String(properties.markerShape || this.markerShape || "pin"),
+                featureStyle,
               );
               return L.marker(latlng, {
                 icon: markerIcon,
+                opacity: appearance.opacity,
                 interactive: this.interactive,
                 keyboard: this.interactive,
                 title: markerLabel || "Map feature",
@@ -630,7 +802,7 @@
           this.layers.push(layer);
         }
 
-        this.clearPlacePlaceholder();
+        requestAnimationFrame(() => this.confirmGeometryVisible());
 
         const point = pointCoordinates(this.location);
         const radius = Number(
@@ -640,11 +812,11 @@
           this.layers.push(
             L.circle([point.lat, point.lng], {
               radius,
-              color: this.color,
-              weight: 1.5,
-              opacity: 0.55,
-              fillColor: this.color,
-              fillOpacity: 0.06,
+              ...leafletPathStyle(this.style, this.color, {
+                weight: 1.5,
+                opacity: 0.55,
+                fillOpacity: 0.06,
+              }),
               interactive: false,
             }).addTo(this.map),
           );
@@ -653,21 +825,16 @@
         if (!this.countryContextIntro) this.fitGeometry({ animate: false });
         requestAnimationFrame(() => {
           this.map?.invalidateSize({ pan: false });
+          this.confirmGeometryVisible();
           if (this.countryContextIntro) this.prepareCountryContextIntro();
         });
       } catch (error) {
         if (!this.destroyed && this.container) {
           this.container.dataset.error = "true";
+          this.container.dataset.mapState = "renderer-unavailable";
+          this.container.setAttribute("aria-label", `${this.label}. Map renderer unavailable.`);
           this.placePlaceholder?.classList.add("is-error");
-          if (
-            this.placePlaceholder &&
-            !this.placePlaceholder.querySelector(".timeline-map-place-status")
-          ) {
-            const status = document.createElement("small");
-            status.className = "timeline-map-place-status";
-            status.textContent = "Map preview unavailable";
-            this.placePlaceholder.append(status);
-          }
+          this.setPlaceStatus("Map renderer unavailable");
         }
         // eslint-disable-next-line no-undef
         console.warn(error);
@@ -830,6 +997,10 @@
       this.clearCountryContextInteractionGuard();
       this.weightedDragCleanup?.();
       this.weightedDragCleanup = null;
+      this.resizeCleanup?.();
+      this.resizeCleanup = null;
+      this.basemapCleanup?.();
+      this.basemapCleanup = null;
       this.clearPlacePlaceholder();
       this.container?.classList.remove("is-fictional-map");
       if (this.container) delete this.container.dataset.referenceFrame;
@@ -853,7 +1024,9 @@
       this.map = null;
       this.marker = null;
       this.weightedDragCleanup = null;
-      this.provider = globalThis.TimelineMapTileProvider || DEFAULT_PROVIDER;
+      this.resizeCleanup = null;
+      this.basemapCleanup = null;
+      this.providers = tileProviders();
       this.bind();
     }
 
@@ -906,11 +1079,10 @@
           ...mapMotionOptions(true),
         }).setView([20, 0], 2);
         this.weightedDragCleanup = installWeightedMapDragging(this.map, this.container, true);
-
-        L.tileLayer(this.provider.url, {
-          maxZoom: this.provider.maxZoom || 19,
-          attribution: this.provider.attribution || DEFAULT_PROVIDER.attribution,
-        }).addTo(this.map);
+        this.resizeCleanup = observeMapSize(this.map, this.container, () => {
+          this.updateFromInputs(false);
+        });
+        this.basemapCleanup = attachBasemap(L, this.map, this.container, this.providers);
 
         this.map.on("click", (event) => {
           this.applyPosition(event.latlng.lat, event.latlng.lng, { source: "manual" });
@@ -993,6 +1165,10 @@
     destroy() {
       this.weightedDragCleanup?.();
       this.weightedDragCleanup = null;
+      this.resizeCleanup?.();
+      this.resizeCleanup = null;
+      this.basemapCleanup?.();
+      this.basemapCleanup = null;
       this.marker?.remove();
       this.marker = null;
       this.map?.remove();
@@ -1016,5 +1192,6 @@
     loadLeaflet,
     presentationZoom,
     provider: DEFAULT_PROVIDER,
+    providers: tileProviders,
   });
 })();

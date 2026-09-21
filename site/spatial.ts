@@ -1,7 +1,7 @@
 /**
  * Timeline spatial/location module
  * Utilities for normalizing and validating geographic coordinates, places, and geometries
- * Supports GeoJSON Point, Polygon, and MultiPolygon geometries
+ * Supports GeoJSON Point, LineString, MultiLineString, Polygon, and MultiPolygon geometries
  */
 
 function text(value: unknown, max: number = 300): string {
@@ -123,8 +123,17 @@ export function formParts(location: unknown): {
   };
 }
 
-const PLACE_GEOMETRY_TYPES = new Set(["Point", "Polygon", "MultiPolygon"] as const);
+const PLACE_GEOMETRY_TYPES = new Set([
+  "Point",
+  "LineString",
+  "MultiLineString",
+  "Polygon",
+  "MultiPolygon",
+] as const);
 const PLACE_MARKER_SHAPES = new Set(["pin", "circle", "square", "diamond"] as const);
+const PLACE_PATH_LINE_CAPS = new Set(["butt", "round", "square"] as const);
+const PLACE_PATH_LINE_JOINS = new Set(["miter", "round", "bevel"] as const);
+const PLACE_AREA_FILL_RULES = new Set(["nonzero", "evenodd"] as const);
 const PLACE_ICON_NAMES = new Set([
   "milestone",
   "decision",
@@ -151,8 +160,34 @@ function clone(value: unknown): unknown {
 }
 
 interface PlaceGeometry {
-  type: "Point" | "Polygon" | "MultiPolygon";
+  type: "Point" | "LineString" | "MultiLineString" | "Polygon" | "MultiPolygon";
   coordinates: unknown;
+}
+
+interface PlaceStyle {
+  marker?: {
+    color?: string;
+    fillColor?: string;
+    opacity?: number;
+    size?: number;
+    weight?: number;
+  };
+  path?: {
+    stroke?: boolean;
+    color?: string;
+    weight?: number;
+    opacity?: number;
+    dashArray?: string;
+    dashOffset?: string;
+    lineCap?: "butt" | "round" | "square";
+    lineJoin?: "miter" | "round" | "bevel";
+  };
+  area?: {
+    fill?: boolean;
+    fillColor?: string;
+    fillOpacity?: number;
+    fillRule?: "nonzero" | "evenodd";
+  };
 }
 
 interface Place {
@@ -165,7 +200,88 @@ interface Place {
   radiusMeters: number | null;
   icon: string;
   markerShape: string;
+  style: PlaceStyle;
   attributes: Record<string, unknown>;
+}
+
+function optionalStyleNumber(value: unknown, min: number, max: number): number | undefined {
+  if (value === "" || value === null || value === undefined) return undefined;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= min && number <= max ? number : undefined;
+}
+
+function optionalStyleBoolean(value: unknown): boolean | undefined {
+  if (value === "" || value === null || value === undefined) return undefined;
+  if (value === true || value === "true" || value === "on") return true;
+  if (value === false || value === "false" || value === "off") return false;
+  return undefined;
+}
+
+function optionalStyleColor(value: unknown): string | undefined {
+  const candidate = text(value, 16);
+  return /^#[0-9a-f]{6}$/i.test(candidate) ? candidate.toLowerCase() : undefined;
+}
+
+function optionalDashValue(value: unknown): string | undefined {
+  const candidate = text(value, 80);
+  return candidate && /^[0-9.,\s-]+$/.test(candidate) ? candidate : undefined;
+}
+
+function normalizePlaceStyle(raw: unknown): PlaceStyle {
+  if (!raw || typeof raw !== "object") return {};
+  const source = raw as any;
+  const markerSource = source.marker && typeof source.marker === "object" ? source.marker : {};
+  const pathSource = source.path && typeof source.path === "object" ? source.path : {};
+  const areaSource = source.area && typeof source.area === "object" ? source.area : {};
+  const style: PlaceStyle = {};
+
+  const marker = {
+    color: optionalStyleColor(markerSource.color),
+    fillColor: optionalStyleColor(markerSource.fillColor),
+    opacity: optionalStyleNumber(markerSource.opacity, 0, 1),
+    size: optionalStyleNumber(markerSource.size, 16, 40),
+    weight: optionalStyleNumber(markerSource.weight, 0, 8),
+  };
+  if (Object.values(marker).some((value) => value !== undefined)) {
+    style.marker = Object.fromEntries(
+      Object.entries(marker).filter(([, value]) => value !== undefined),
+    ) as PlaceStyle["marker"];
+  }
+
+  const lineCapCandidate = text(pathSource.lineCap, 16);
+  const lineJoinCandidate = text(pathSource.lineJoin, 16);
+  const path = {
+    stroke: optionalStyleBoolean(pathSource.stroke),
+    color: optionalStyleColor(pathSource.color),
+    weight: optionalStyleNumber(pathSource.weight, 0, 24),
+    opacity: optionalStyleNumber(pathSource.opacity, 0, 1),
+    dashArray: optionalDashValue(pathSource.dashArray),
+    dashOffset: optionalDashValue(pathSource.dashOffset),
+    lineCap: PLACE_PATH_LINE_CAPS.has(lineCapCandidate as any) ? lineCapCandidate : undefined,
+    lineJoin: PLACE_PATH_LINE_JOINS.has(lineJoinCandidate as any) ? lineJoinCandidate : undefined,
+  };
+  if (Object.values(path).some((value) => value !== undefined)) {
+    style.path = Object.fromEntries(
+      Object.entries(path).filter(([, value]) => value !== undefined),
+    ) as PlaceStyle["path"];
+  }
+
+  const fillRuleCandidate = text(areaSource.fillRule, 16);
+  const area = {
+    fill: optionalStyleBoolean(areaSource.fill),
+    fillColor: optionalStyleColor(areaSource.fillColor),
+    fillOpacity: optionalStyleNumber(areaSource.fillOpacity, 0, 1),
+    fillRule: PLACE_AREA_FILL_RULES.has(fillRuleCandidate as any)
+      ? fillRuleCandidate
+      : undefined,
+  };
+  if (Object.values(area).some((value) => value !== undefined)) {
+    style.area = Object.fromEntries(
+      Object.entries(area).filter(([, value]) => value !== undefined),
+    ) as PlaceStyle["area"];
+  }
+
+  return style;
 }
 
 function normalizePlaceGeometry(raw: unknown): PlaceGeometry | null {
@@ -181,7 +297,7 @@ function normalizePlaceGeometry(raw: unknown): PlaceGeometry | null {
     return { type: "Point", coordinates: [longitude, latitude] };
   }
   if (!Array.isArray((raw as any).coordinates) || !(raw as any).coordinates.length) {
-    throw new Error("Place area geometry requires GeoJSON coordinates.");
+    throw new Error("Place path/area geometry requires GeoJSON coordinates.");
   }
   return clone(raw) as PlaceGeometry;
 }
@@ -219,6 +335,8 @@ export function normalizePlace(raw: unknown, index: number = 0): Place | null {
     ? markerShapeCandidate
     : "pin";
 
+  const style = normalizePlaceStyle(rawObj.style || rawObj.mapStyle || rawObj.attributes?.style);
+
   const result: Place = {
     id,
     name,
@@ -229,6 +347,7 @@ export function normalizePlace(raw: unknown, index: number = 0): Place | null {
     radiusMeters,
     icon,
     markerShape,
+    style,
     attributes:
       rawObj.attributes && typeof rawObj.attributes === "object" ? (clone(rawObj.attributes) as Record<string, unknown>) : {},
   };
@@ -240,6 +359,8 @@ export function normalizePlace(raw: unknown, index: number = 0): Place | null {
   delete result.attributes.accuracyMeters;
   delete result.attributes.icon;
   delete result.attributes.markerShape;
+  delete result.attributes.style;
+  delete result.attributes.mapStyle;
   return result;
 }
 
@@ -279,6 +400,23 @@ export function placeFromForm(options: {
   icon?: unknown;
   markerShape?: unknown;
   areaGeometry?: unknown;
+  markerColor?: unknown;
+  markerFillColor?: unknown;
+  markerOpacity?: unknown;
+  markerSize?: unknown;
+  markerWeight?: unknown;
+  pathStroke?: unknown;
+  pathColor?: unknown;
+  pathWeight?: unknown;
+  pathOpacity?: unknown;
+  pathDashArray?: unknown;
+  pathDashOffset?: unknown;
+  pathLineCap?: unknown;
+  pathLineJoin?: unknown;
+  areaFill?: unknown;
+  areaFillColor?: unknown;
+  areaFillOpacity?: unknown;
+  areaFillRule?: unknown;
 }): Place | null {
   let geometry: PlaceGeometry | null = null;
   if (options.areaGeometry) {
@@ -303,6 +441,31 @@ export function placeFromForm(options: {
     radiusMeters: options.radiusMeters,
     icon: options.icon,
     markerShape: options.markerShape,
+    style: {
+      marker: {
+        color: options.markerColor,
+        fillColor: options.markerFillColor,
+        opacity: options.markerOpacity,
+        size: options.markerSize,
+        weight: options.markerWeight,
+      },
+      path: {
+        stroke: options.pathStroke,
+        color: options.pathColor,
+        weight: options.pathWeight,
+        opacity: options.pathOpacity,
+        dashArray: options.pathDashArray,
+        dashOffset: options.pathDashOffset,
+        lineCap: options.pathLineCap,
+        lineJoin: options.pathLineJoin,
+      },
+      area: {
+        fill: options.areaFill,
+        fillColor: options.areaFillColor,
+        fillOpacity: options.areaFillOpacity,
+        fillRule: options.areaFillRule,
+      },
+    },
   });
 }
 
@@ -317,6 +480,23 @@ export function placeFormParts(place: unknown): {
   icon: string;
   markerShape: string;
   areaGeometry: string;
+  markerColor: string;
+  markerFillColor: string;
+  markerOpacity: string | number;
+  markerSize: string | number;
+  markerWeight: string | number;
+  pathStroke: string;
+  pathColor: string;
+  pathWeight: string | number;
+  pathOpacity: string | number;
+  pathDashArray: string;
+  pathDashOffset: string;
+  pathLineCap: string;
+  pathLineJoin: string;
+  areaFill: string;
+  areaFillColor: string;
+  areaFillOpacity: string | number;
+  areaFillRule: string;
 } {
   const normalized = normalizePlace(place);
   return {
@@ -335,6 +515,25 @@ export function placeFormParts(place: unknown): {
     radiusMeters: normalized?.radiusMeters ?? "",
     icon: normalized?.icon || "place",
     markerShape: normalized?.markerShape || "pin",
+    markerColor: normalized?.style?.marker?.color || "",
+    markerFillColor: normalized?.style?.marker?.fillColor || "",
+    markerOpacity: normalized?.style?.marker?.opacity ?? "",
+    markerSize: normalized?.style?.marker?.size ?? "",
+    markerWeight: normalized?.style?.marker?.weight ?? "",
+    pathStroke:
+      normalized?.style?.path?.stroke === undefined ? "" : String(normalized.style.path.stroke),
+    pathColor: normalized?.style?.path?.color || "",
+    pathWeight: normalized?.style?.path?.weight ?? "",
+    pathOpacity: normalized?.style?.path?.opacity ?? "",
+    pathDashArray: normalized?.style?.path?.dashArray || "",
+    pathDashOffset: normalized?.style?.path?.dashOffset || "",
+    pathLineCap: normalized?.style?.path?.lineCap || "",
+    pathLineJoin: normalized?.style?.path?.lineJoin || "",
+    areaFill:
+      normalized?.style?.area?.fill === undefined ? "" : String(normalized.style.area.fill),
+    areaFillColor: normalized?.style?.area?.fillColor || "",
+    areaFillOpacity: normalized?.style?.area?.fillOpacity ?? "",
+    areaFillRule: normalized?.style?.area?.fillRule || "",
     areaGeometry:
       normalized?.geometry &&
       "type" in normalized.geometry &&
@@ -348,6 +547,9 @@ export function placeFormParts(place: unknown): {
 const TimelineSpatialObj = {
   PLACE_ICON_NAMES: Object.freeze([...PLACE_ICON_NAMES]),
   PLACE_MARKER_SHAPES: Object.freeze([...PLACE_MARKER_SHAPES]),
+  PLACE_PATH_LINE_CAPS: Object.freeze([...PLACE_PATH_LINE_CAPS]),
+  PLACE_PATH_LINE_JOINS: Object.freeze([...PLACE_PATH_LINE_JOINS]),
+  PLACE_AREA_FILL_RULES: Object.freeze([...PLACE_AREA_FILL_RULES]),
   formParts,
   fromForm,
   normalize,

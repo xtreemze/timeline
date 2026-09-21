@@ -191,6 +191,23 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     graphPlaceRadius: document.querySelector("#graph-place-radius"),
     graphPlaceIcon: document.querySelector("#graph-place-icon"),
     graphPlaceMarkerShape: document.querySelector("#graph-place-marker-shape"),
+    graphPlaceMarkerColor: document.querySelector("#graph-place-marker-color"),
+    graphPlaceMarkerFillColor: document.querySelector("#graph-place-marker-fill-color"),
+    graphPlaceMarkerOpacity: document.querySelector("#graph-place-marker-opacity"),
+    graphPlaceMarkerSize: document.querySelector("#graph-place-marker-size"),
+    graphPlaceMarkerWeight: document.querySelector("#graph-place-marker-weight"),
+    graphPlacePathStroke: document.querySelector("#graph-place-path-stroke"),
+    graphPlacePathColor: document.querySelector("#graph-place-path-color"),
+    graphPlacePathWeight: document.querySelector("#graph-place-path-weight"),
+    graphPlacePathOpacity: document.querySelector("#graph-place-path-opacity"),
+    graphPlacePathDashArray: document.querySelector("#graph-place-path-dash-array"),
+    graphPlacePathDashOffset: document.querySelector("#graph-place-path-dash-offset"),
+    graphPlacePathLineCap: document.querySelector("#graph-place-path-line-cap"),
+    graphPlacePathLineJoin: document.querySelector("#graph-place-path-line-join"),
+    graphPlaceAreaFill: document.querySelector("#graph-place-area-fill"),
+    graphPlaceAreaFillColor: document.querySelector("#graph-place-area-fill-color"),
+    graphPlaceAreaFillOpacity: document.querySelector("#graph-place-area-fill-opacity"),
+    graphPlaceAreaFillRule: document.querySelector("#graph-place-area-fill-rule"),
     graphPlaceArea: document.querySelector("#graph-place-area"),
     graphPlaceError: document.querySelector("#graph-place-error"),
     saveGraphPlace: document.querySelector("#save-graph-place"),
@@ -2679,6 +2696,23 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     els.graphPlaceId.value = "";
     els.graphPlaceIcon.value = "place";
     els.graphPlaceMarkerShape.value = "pin";
+    els.graphPlaceMarkerColor.value = "";
+    els.graphPlaceMarkerFillColor.value = "";
+    els.graphPlaceMarkerOpacity.value = "";
+    els.graphPlaceMarkerSize.value = "";
+    els.graphPlaceMarkerWeight.value = "";
+    els.graphPlacePathStroke.value = "";
+    els.graphPlacePathColor.value = "";
+    els.graphPlacePathWeight.value = "";
+    els.graphPlacePathOpacity.value = "";
+    els.graphPlacePathDashArray.value = "";
+    els.graphPlacePathDashOffset.value = "";
+    els.graphPlacePathLineCap.value = "";
+    els.graphPlacePathLineJoin.value = "";
+    els.graphPlaceAreaFill.value = "";
+    els.graphPlaceAreaFillColor.value = "";
+    els.graphPlaceAreaFillOpacity.value = "";
+    els.graphPlaceAreaFillRule.value = "";
     els.graphPlaceArea.value = "";
     els.saveGraphPlace.textContent = "Add place";
     els.cancelGraphPlaceEdit.hidden = true;
@@ -2699,6 +2733,23 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     els.graphPlaceRadius.value = parts.radiusMeters;
     els.graphPlaceIcon.value = presentation.ICON_NAMES.includes(parts.icon) ? parts.icon : "place";
     els.graphPlaceMarkerShape.value = parts.markerShape;
+    els.graphPlaceMarkerColor.value = parts.markerColor;
+    els.graphPlaceMarkerFillColor.value = parts.markerFillColor;
+    els.graphPlaceMarkerOpacity.value = parts.markerOpacity;
+    els.graphPlaceMarkerSize.value = parts.markerSize;
+    els.graphPlaceMarkerWeight.value = parts.markerWeight;
+    els.graphPlacePathStroke.value = parts.pathStroke;
+    els.graphPlacePathColor.value = parts.pathColor;
+    els.graphPlacePathWeight.value = parts.pathWeight;
+    els.graphPlacePathOpacity.value = parts.pathOpacity;
+    els.graphPlacePathDashArray.value = parts.pathDashArray;
+    els.graphPlacePathDashOffset.value = parts.pathDashOffset;
+    els.graphPlacePathLineCap.value = parts.pathLineCap;
+    els.graphPlacePathLineJoin.value = parts.pathLineJoin;
+    els.graphPlaceAreaFill.value = parts.areaFill;
+    els.graphPlaceAreaFillColor.value = parts.areaFillColor;
+    els.graphPlaceAreaFillOpacity.value = parts.areaFillOpacity;
+    els.graphPlaceAreaFillRule.value = parts.areaFillRule;
     els.graphPlaceArea.value = parts.areaGeometry;
     els.saveGraphPlace.textContent = "Save place";
     els.cancelGraphPlaceEdit.hidden = false;
@@ -2736,7 +2787,8 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
       const meta = document.createElement("span");
       const geometry = place.geometry?.type || "no geometry";
       const radius = Number.isFinite(place.radiusMeters) ? ` · ${place.radiusMeters} m radius` : "";
-      meta.textContent = `${geometry}${radius} · ${place.icon || "place"} · ${place.markerShape || "pin"}`;
+      const customStyle = place.style && Object.keys(place.style).length ? " · custom map style" : "";
+      meta.textContent = `${geometry}${radius} · ${place.icon || "place"} · ${place.markerShape || "pin"}${customStyle}`;
       copy.append(title, meta);
       const actions = document.createElement("div");
       actions.className = "graph-record-actions";
@@ -3486,6 +3538,10 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   els.graphPlaceForm.addEventListener("submit", (event) => {
     event.preventDefault();
     setError(els.graphPlaceError);
+    if (!els.graphPlaceForm.checkValidity()) {
+      els.graphPlaceForm.reportValidity();
+      return;
+    }
     try {
       const place = spatial.placeFromForm({
         id: els.graphPlaceId.value || newId("place"),
@@ -3497,6 +3553,23 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
         radiusMeters: els.graphPlaceRadius.value,
         icon: els.graphPlaceIcon.value,
         markerShape: els.graphPlaceMarkerShape.value,
+        markerColor: els.graphPlaceMarkerColor.value,
+        markerFillColor: els.graphPlaceMarkerFillColor.value,
+        markerOpacity: els.graphPlaceMarkerOpacity.value,
+        markerSize: els.graphPlaceMarkerSize.value,
+        markerWeight: els.graphPlaceMarkerWeight.value,
+        pathStroke: els.graphPlacePathStroke.value,
+        pathColor: els.graphPlacePathColor.value,
+        pathWeight: els.graphPlacePathWeight.value,
+        pathOpacity: els.graphPlacePathOpacity.value,
+        pathDashArray: els.graphPlacePathDashArray.value,
+        pathDashOffset: els.graphPlacePathDashOffset.value,
+        pathLineCap: els.graphPlacePathLineCap.value,
+        pathLineJoin: els.graphPlacePathLineJoin.value,
+        areaFill: els.graphPlaceAreaFill.value,
+        areaFillColor: els.graphPlaceAreaFillColor.value,
+        areaFillOpacity: els.graphPlaceAreaFillOpacity.value,
+        areaFillRule: els.graphPlaceAreaFillRule.value,
         areaGeometry: els.graphPlaceArea.value.trim(),
       });
       if (!place) throw new Error("A place name is required.");

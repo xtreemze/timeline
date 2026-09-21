@@ -165,6 +165,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      leaflet:
+        specifier: 1.9.4
+        version: 1.9.4
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.5.14
