@@ -371,6 +371,7 @@
     const triggerRect = els.viewControlsToggle.getBoundingClientRect();
     const toolbarRect = els.viewControls.getBoundingClientRect();
     const viewport = workspaceToolViewport();
+    const orientation = els.timelineViewRoot?.dataset.orientation === "portrait" ? "portrait" : "landscape";
     const gap = 8;
     const edge = 8;
     const minLeft = viewport.left + edge;
@@ -386,28 +387,52 @@
       Math.max(1, maxBottom - minTop)
     );
 
-    const preferredTop = triggerRect.top - toolbarHeight - gap;
-    const fallbackTop = triggerRect.bottom + gap;
-    const roomAbove = Math.max(0, triggerRect.top - gap - minTop);
-    const roomBelow = Math.max(0, maxBottom - triggerRect.bottom - gap);
-
+    let left;
     let top;
     let placement;
-    if (preferredTop >= minTop) {
-      top = preferredTop;
-      placement = "above";
-    } else if (fallbackTop + toolbarHeight <= maxBottom) {
-      top = fallbackTop;
-      placement = "below";
-    } else if (roomAbove >= roomBelow) {
-      top = Math.max(minTop, triggerRect.top - gap - toolbarHeight);
-      placement = "clamped-above";
+
+    if (orientation === "portrait") {
+      const preferredLeft = triggerRect.left - toolbarWidth - gap;
+      const fallbackLeft = triggerRect.right + gap;
+      const roomLeft = Math.max(0, triggerRect.left - gap - minLeft);
+      const roomRight = Math.max(0, maxRight - triggerRect.right - gap);
+
+      if (preferredLeft >= minLeft) {
+        left = preferredLeft;
+        placement = "left";
+      } else if (fallbackLeft + toolbarWidth <= maxRight) {
+        left = fallbackLeft;
+        placement = "right";
+      } else if (roomLeft >= roomRight) {
+        left = Math.max(minLeft, triggerRect.left - gap - toolbarWidth);
+        placement = "clamped-left";
+      } else {
+        left = Math.min(maxRight - toolbarWidth, fallbackLeft);
+        placement = "clamped-right";
+      }
+      top = triggerRect.bottom - toolbarHeight;
     } else {
-      top = Math.min(maxBottom - toolbarHeight, fallbackTop);
-      placement = "clamped-below";
+      const preferredTop = triggerRect.top - toolbarHeight - gap;
+      const fallbackTop = triggerRect.bottom + gap;
+      const roomAbove = Math.max(0, triggerRect.top - gap - minTop);
+      const roomBelow = Math.max(0, maxBottom - triggerRect.bottom - gap);
+
+      if (preferredTop >= minTop) {
+        top = preferredTop;
+        placement = "above";
+      } else if (fallbackTop + toolbarHeight <= maxBottom) {
+        top = fallbackTop;
+        placement = "below";
+      } else if (roomAbove >= roomBelow) {
+        top = Math.max(minTop, triggerRect.top - gap - toolbarHeight);
+        placement = "clamped-above";
+      } else {
+        top = Math.min(maxBottom - toolbarHeight, fallbackTop);
+        placement = "clamped-below";
+      }
+      left = triggerRect.right - toolbarWidth;
     }
 
-    let left = triggerRect.right - toolbarWidth;
     left = Math.min(
       Math.max(minLeft, left),
       Math.max(minLeft, maxRight - toolbarWidth)
