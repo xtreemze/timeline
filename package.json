@@ -23,7 +23,7 @@
     "check": "pnpm lint",
     "fix": "pnpm lint:fix",
     "benchmark:graph-data": "node benchmarks/graph-data.mjs",
-    "build:leaflet": "esbuild src/leaflet-entry.js --bundle --format=iife --platform=browser --target=chrome155 --outfile=site/leaflet.bundle.js --legal-comments=eof && cp node_modules/leaflet/dist/leaflet.css site/leaflet.css"
+    "build:leaflet": "esbuild src/leaflet-entry.js --bundle --format=iife --platform=browser --target=chrome155 --outfile=site/leaflet.bundle.js --legal-comments=eof && cp node_modules/leaflet/dist/leaflet.css site/leaflet.css && mkdir -p site/images && cp node_modules/leaflet/dist/images/* site/images/"
   },
   "packageManager": "pnpm@12.5.1+sha512.e3f305bc784a2bc89f5ad3b6138889470fae8d2af5f36b61216ec91c2c3d64089775f9de38aac331044ea40f245cb0d5666392dfdf65824e1907ef6a2c62de5f",
   "devDependencies": {
