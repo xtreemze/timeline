@@ -4206,9 +4206,14 @@ body {
   }
 }
 
+/* Respect hidden attribute */
+[hidden] {
+  display: none !important;
+}
+
 /* Sidebar panel scrolling */
-.timeline-browser-sheet,
-.control-panel {
+.timeline-browser-sheet:not([hidden]),
+.control-panel:not([hidden]) {
   overflow-y: auto !important;
   max-height: calc(100vh - 140px) !important;
   height: auto !important;
