@@ -77,6 +77,47 @@ test("timeline exposes semantic zoom while retaining keyboard fit commands", asy
   assert.match(appSource, /allCoordinates:\s*allTimelineCoordinates/);
 });
 
+test("time labels yield to year context while year overflow stays visible", async () => {
+  const [viewSource, timelineCss, styles] = await Promise.all([
+    readFile(new URL("../site/timeline-view.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(
+    viewSource,
+    /resolveTemporalLabelCollisions\(stage\)[\s\S]*data-temporal-accent\*="year"[\s\S]*timeline-tick-label/
+  );
+  assert.match(
+    viewSource,
+    /yearCollision = "moved"[\s\S]*style\.bottom = "16px"[\s\S]*style\.right = "16px"/
+  );
+  assert.match(
+    viewSource,
+    /stillCollidesWithYear[\s\S]*collidesWithAxisContext[\s\S]*label\.hidden = true[\s\S]*yearCollision = "suppressed"/
+  );
+  assert.match(
+    viewSource,
+    /this\.resolveTemporalLabelCollisions\(stage\)[\s\S]*renderRelationships/
+  );
+  assert.match(
+    viewSource,
+    /canOverflowPrimaryEdge = \/year\/[\s\S]*!canOverflowPrimaryEdge/
+  );
+  assert.match(timelineCss, /\.timeline-view\s*\{[\s\S]{0,320}overflow:\s*visible/);
+  assert.match(timelineCss, /\.timeline-surface\s*\{[\s\S]{0,240}overflow:\s*visible/);
+  assert.match(timelineCss, /\.timeline-year-accent\s*\{[\s\S]{0,120}overflow:\s*visible/);
+  assert.match(
+    timelineCss,
+    /#presentation-stage:fullscreen > \.timeline-view\s*\{[\s\S]{0,320}overflow:\s*visible/
+  );
+  assert.match(
+    styles,
+    /#app-shell #presentation-stage,[\s\S]*overflow:\s*hidden/
+  );
+});
+
+
 test("browse exposes focusable stories before collapsed focusable categories", async () => {
   const [html, app, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
@@ -233,6 +274,27 @@ test("year-scale views retain an ambient year context in addition to axis ticks"
   assert.equal(plan.axisMonths.length, 0);
   assert.equal(plan.hasAmbientContext, true);
 });
+
+test("year edge accents keep their projected edge positions instead of clamping inward", () => {
+  const viewport = {
+    start: Date.UTC(2010, 0, 1),
+    end: Date.UTC(2020, 0, 1)
+  };
+  const plan = clustering.planTemporalAccents([
+    { id: "start", start: viewport.start },
+    { id: "end", start: viewport.end }
+  ], {
+    viewport,
+    pixelLength: 600,
+    padding: 40,
+    orientation: "horizontal",
+    spec: { unit: "year", step: 1 }
+  });
+
+  assert.equal(plan.mode, "year-edge");
+  assert.deepEqual(plan.edgeAccents.map((accent) => accent.position), [40, 640]);
+});
+
 
 test("dense same-year clusters still emit one ambient year label on narrow mobile timelines", () => {
   const items = Array.from({ length: 55 }, (_, index) => ({
