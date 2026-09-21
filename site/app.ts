@@ -8,15 +8,16 @@ import { TimelineTemporal } from './temporal-standards.ts';
 import { TimelineSpatial } from './spatial.ts';
 import { TimelineInterchangeAdapter } from './interchange-adapter.ts';
 import { TimelineScale } from './time-scale.ts';
+import { TimelineEvidence } from './evidence-store.ts';
+import { TimelineGraphInference } from './graph-inference.ts';
 
 // Import globals that still use globalThis (not yet converted)
 const graph = globalThis.TimelineGraph;
 const presentation = globalThis.TimelinePresentation;
 const dateRangeFactory = globalThis.TimelineDateRangePicker;
 const navigationFactory = globalThis.TimelineNavigation;
-const evidenceStore = globalThis.TimelineEvidence;
-const evidenceExtraction = (globalThis as any).TimelineEvidenceExtraction;
-const graphInference = (globalThis as any).TimelineGraphInference;
+const evidenceStore = TimelineEvidence;
+const graphInference = TimelineGraphInference;
 const temporalGraphFactory = globalThis.TemporalGraphView;
 const presentationLayout = globalThis.TimelinePresentationLayout;
 const caseReasoning = globalThis.TimelineCaseReasoning;
@@ -51,6 +52,40 @@ const VERSION = 2;
 const STORAGE_KEY = "timeline:v2";
 const LEGACY_STORAGE_KEY = "timeline:v1";
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
+type EvidenceExtractionDraft = NonNullable<
+  ReturnType<(typeof TimelineEvidence)["normalizeExtraction"]>
+>;
+
+interface EvidenceExtractionProgress {
+  phase?: string;
+  page?: number;
+  total?: number;
+  loaded?: number;
+  method?: string;
+}
+
+interface EvidenceExtractionApi {
+  extract(
+    blob: Blob,
+    options?: {
+      mimeType?: string;
+      fileName?: string;
+      onProgress?: (progress: EvidenceExtractionProgress) => void;
+    },
+  ): Promise<EvidenceExtractionDraft | null>;
+}
+
+interface ItemInferenceDraft {
+  fingerprint: string;
+  graphContractVersion: string;
+  proposal: ReturnType<(typeof TimelineGraphInference)["reconcileProposal"]>;
+}
+
+const evidenceExtraction = Reflect.get(
+  globalThis,
+  "TimelineEvidenceExtraction",
+) as EvidenceExtractionApi | undefined;
 
   const els = {
     title: document.querySelector("#timeline-title"),
@@ -268,8 +303,8 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
   let state = loadState();
   let storyDraftIds = [];
   let storyDraftPlaceIds = [];
-  const evidenceExtractionDrafts = new Map<string, any>();
-  let itemInferenceDraft: any = null;
+  const evidenceExtractionDrafts = new Map<string, EvidenceExtractionDraft>();
+  let itemInferenceDraft: ItemInferenceDraft | null = null;
   let inferenceAbortController: AbortController | null = null;
   let statusTimer = 0;
   let navigationController = null;
@@ -2571,7 +2606,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
   function selectedInferenceRelationshipKeys() {
     return [
-      ...(els.itemInferenceResults?.querySelectorAll(
+      ...(els.itemInferenceResults?.querySelectorAll<HTMLInputElement>(
         'input[data-inference-relationship]:checked',
       ) || []),
     ]
@@ -2670,7 +2705,7 @@ const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
     }
   }
 
-  function markInferenceStale(event = null) {
+  function markInferenceStale(event: Event | null = null) {
     if (
       event?.target instanceof HTMLInputElement &&
       event.target.dataset.inferenceRelationship !== undefined
