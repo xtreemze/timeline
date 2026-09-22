@@ -2672,7 +2672,7 @@
     right: auto;
     bottom: auto;
     left: 50%;
-    inline-size: min(640px, calc(100dvw - 8rem));
+    inline-size: min(640px, calc(100% - 8rem));
     max-block-size: calc(100dvh - 9rem);
     block-size: auto;
     overflow: hidden;
@@ -2684,7 +2684,7 @@
     right: auto;
     bottom: auto;
     left: max(4.5rem, calc(env(safe-area-inset-left) + 4rem));
-    inline-size: min(560px, calc(100dvw - 10rem));
+    inline-size: min(560px, calc(100% - 10rem));
     max-block-size: calc(100dvh - 3rem);
     block-size: auto;
     overflow: hidden;
