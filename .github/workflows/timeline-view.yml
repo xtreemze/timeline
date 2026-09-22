@@ -15,6 +15,10 @@ on:
       - 'site/index.html'
       - 'package.json'
       - 'pnpm-lock.yaml'
+      - 'vite.config.ts'
+      - 'playwright.config.ts'
+      - 'scripts/copy-pages-runtime.mjs'
+      - 'scripts/validate-pages-artifact.mjs'
       - 'src/orb-graph-entry.js'
       - 'src/leaflet-entry.js'
       - 'src/domain/**'
@@ -95,6 +99,10 @@ on:
       - 'site/index.html'
       - 'package.json'
       - 'pnpm-lock.yaml'
+      - 'vite.config.ts'
+      - 'playwright.config.ts'
+      - 'scripts/copy-pages-runtime.mjs'
+      - 'scripts/validate-pages-artifact.mjs'
       - 'src/orb-graph-entry.js'
       - 'src/leaflet-entry.js'
       - 'src/domain/**'
@@ -174,6 +182,7 @@ jobs:
       - run: pnpm types:migrated || echo "⚠ Existing TypeScript migration errors remain (ratcheted follow-up)" && true
       - run: pnpm types:architecture
       - run: pnpm build
+      - run: pnpm test:pages-artifact
       - run: test -s site/orb-graph.bundle.js
       - run: test -s site/leaflet.bundle.js && test -s site/leaflet.css
       - run: node --check site/leaflet.bundle.js
@@ -195,6 +204,23 @@ jobs:
       - run: pnpm test:timeline-projection-runtime
       - run: |
           pnpm test || echo "⚠ Legacy ESM/TypeScript test migration debt tracked in issue 258"
+
+  deployment-preview-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm build
+      - run: pnpm test:pages-artifact
+      - name: Certify production artifact application shell
+        env:
+          PLAYWRIGHT_PREVIEW: "1"
+        run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --project="Mobile Chrome" --project="Mobile Safari"
 
   structural-composition-browser:
     runs-on: ubuntu-latest
