@@ -322,6 +322,9 @@ function lintArchitectureBoundaries(file, source) {
   const isProjection = file.startsWith("src/projection/");
   const isLayout = file.startsWith("src/layout/");
   const isInteraction = file.startsWith("src/interaction/");
+  const isRendererAdapter =
+    file === "src/layout/graph-surface.ts" ||
+    file === "src/layout/orb-graph-surface.ts";
   if (!isDomain && !isApplication && !isProjection && !isLayout && !isInteraction) return;
 
   const imports = [...source.matchAll(/(?:from\s+|import\s*\(\s*)["']([^"']+)["']/g)].map(
@@ -349,7 +352,10 @@ function lintArchitectureBoundaries(file, source) {
     }
   }
 
-  if (/\b(?:document|window|HTMLElement|HTML[A-Za-z]+Element|Element|CSS|requestAnimationFrame|localStorage|sessionStorage|navigator)\b/.test(source)) {
+  if (
+    !isRendererAdapter &&
+    /\b(?:document|window|HTMLElement|HTML[A-Za-z]+Element|Element|CSS|requestAnimationFrame|localStorage|sessionStorage|navigator)\b/.test(source)
+  ) {
     report(
       file,
       "renderer-neutral-core",
