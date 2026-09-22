@@ -784,6 +784,21 @@ class TimelineViewController {
           Number.isFinite(item.end) ? [item.start, Number(item.end)] : [item.start],
         );
 
+    if (!this.items.length) {
+      this.cancelInertia();
+      this.pointerDrag = null;
+      this.touchPointers.clear();
+      this.pinch = null;
+      this.touchTap = null;
+      this.lastTouchTap = null;
+      this.suppressClickUntil = 0;
+      this.viewportInitialized = false;
+      this.viewport = { start: 0, end: DEFAULT_SPAN_MS };
+      this.expandedClusterItemIds.clear();
+      this.geometryMeasurements.clear();
+      this.focusedId = null;
+    }
+
     if (!this.viewportInitialized && this.items.length) {
       this.viewport = this.initialViewport();
       this.viewportInitialized = true;
