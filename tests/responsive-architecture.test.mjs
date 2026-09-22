@@ -36,7 +36,7 @@ test("responsive architecture documents mobile-first and container-responsive ru
 
 
 function cssTransitionDeclarationCount(source) {
-  return (source.match(/\btransition\s*:/g) || []).length;
+  return (source.match(/^[ \\t]*transition\\s*:/gm) || []).length;
 }
 
 function cssKeyframeCount(source) {
@@ -64,6 +64,8 @@ test("presentation CSS does not reintroduce decorative transition or keyframe de
     0,
     "timeline focus/navigation should use named View Transition participants without hand-authored CSS keyframes.",
   );
+  assert.doesNotMatch(styles, /scroll-behavior:\\s*smooth/);
+  assert.doesNotMatch(timeline, /scroll-behavior:\\s*smooth/);
 });
 
 test("application shell has no legacy fixed minimum page height", async () => {
