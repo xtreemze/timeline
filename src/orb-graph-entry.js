@@ -19,14 +19,14 @@ const TOUCH_NODE_TARGET_DIAMETER_PX = 44;
 const TOUCH_EDGE_TARGET_RADIUS_PX = 22;
 const TOUCH_DOUBLE_TAP_MS = 320;
 const TOUCH_DOUBLE_TAP_DISTANCE_PX = 28;
-const GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX = -500;
+const GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX = -280;
 const GRAPH_MIN_ZOOM = 0.002;
-const GRAPH_MAX_ZOOM = 4;
+const GRAPH_MAX_ZOOM = 2.5;
 const GRAPH_KEYBOARD_PAN_PX = 72;
 const INTERACTION_SETTLE_MS = 2400;
-const DRAG_ALPHA_TARGET = 0.12;
-const RELEASE_ALPHA_TARGET = 0.065;
-const TOPOLOGY_ALPHA_TARGET = 0.085;
+const DRAG_ALPHA_TARGET = 0.075;
+const RELEASE_ALPHA_TARGET = 0.035;
+const TOPOLOGY_ALPHA_TARGET = 0.05;
 const TOPOLOGY_EDGE_RELEASE_MS = 280;
 const TOPOLOGY_SETTLE_MS = 820;
 const TOPOLOGY_ENTRY_OFFSET = 36;
@@ -173,7 +173,7 @@ function create(container, handlers = {}) {
       isDragEnabled: true,
       isZoomEnabled: true,
     },
-    zoomFitTransitionMs: 240,
+    zoomFitTransitionMs: 360,
   });
 
   const ORB_TOUCH_DRAG_EVENT_TYPES = new Set([
@@ -235,41 +235,41 @@ function create(container, handlers = {}) {
   // double-click, and multi-touch zoom listeners intact.
   removeOrbNativeCameraDragListeners();
 
-  function forceAlphaProfile(nodeCount = forceNodeCount, alphaTarget = 0) {
+  function forceAlphaProfile(nodeCount = forceNodeCount, alphaTarget = 0, reheat = true) {
     const dense = nodeCount >= 1000;
     return {
-      alpha: 1,
-      alphaMin: dense ? 0.018 : 0.012,
-      alphaDecay: dense ? 0.024 : 0.021,
+      alpha: reheat ? (dense ? 0.42 : 0.5) : dense ? 0.12 : 0.16,
+      alphaMin: dense ? 0.012 : 0.008,
+      alphaDecay: dense ? 0.018 : 0.016,
       alphaTarget,
     };
   }
 
-  function forceLayoutOptions(nodeCount = forceNodeCount, alphaTarget = 0) {
+  function forceLayoutOptions(nodeCount = forceNodeCount, alphaTarget = 0, reheat = true) {
     const dense = nodeCount >= 1000;
     const useGPU = currentMode === "gpu-main-force";
     return {
-      links: { distance: dense ? 128 : 168, strength: 0.78, iterations: 3 },
+      links: { distance: dense ? 128 : 168, strength: 0.62, iterations: 2 },
       manyBody: {
-        strength: dense ? -300 : -460,
+        strength: dense ? -220 : -340,
         theta: 0.84,
         distanceMin: 24,
         distanceMax: dense ? 1800 : 3200,
       },
       collision: {
         radius: dense ? 30 : 42,
-        strength: 1,
-        iterations: 4,
+        strength: 0.86,
+        iterations: 3,
       },
-      alpha: forceAlphaProfile(nodeCount, alphaTarget),
+      alpha: forceAlphaProfile(nodeCount, alphaTarget, reheat),
       isSimulatingOnDataUpdate: true,
       isSimulatingOnSettingsUpdate: true,
       isSimulatingOnUnstick: true,
       isPhysicsEnabled: true,
-      centering: { x: 0, y: 0, strength: dense ? 0.02 : 0.035 },
+      centering: { x: 0, y: 0, strength: dense ? 0.012 : 0.02 },
       positioning: {
-        forceX: { x: 0, strength: dense ? 0.012 : 0.02 },
-        forceY: { y: 0, strength: dense ? 0.012 : 0.02 },
+        forceX: { x: 0, strength: dense ? 0.008 : 0.012 },
+        forceY: { y: 0, strength: dense ? 0.008 : 0.012 },
       },
       useGPU,
     };
@@ -300,10 +300,10 @@ function create(container, handlers = {}) {
     return null;
   }
 
-  function applyInteractionForce(alphaTarget) {
+  function applyInteractionForce(alphaTarget, { reheat = true } = {}) {
     const layout = {
       type: "force",
-      options: forceLayoutOptions(forceNodeCount, alphaTarget),
+      options: forceLayoutOptions(forceNodeCount, alphaTarget, reheat),
     };
     const simulator = forceSimulator();
     if (simulator) {
@@ -331,7 +331,7 @@ function create(container, handlers = {}) {
     setInteractionHeat(RELEASE_ALPHA_TARGET);
     interactionSettleTimer = globalThis.setTimeout(() => {
       interactionSettleTimer = 0;
-      applyInteractionForce(0);
+      applyInteractionForce(0, { reheat: false });
     }, INTERACTION_SETTLE_MS);
   }
 
@@ -1097,7 +1097,7 @@ function create(container, handlers = {}) {
     const size = type === "event" ? 12 : type === "story" ? 13 : 10;
     return {
       size: exiting ? Math.max(6, size * 0.72) : entering ? size * 0.88 : size,
-      mass: type === "event" ? 2.6 : type === "story" ? 2.2 : 1.35,
+      mass: type === "event" ? 3.4 : type === "story" ? 3 : 1.8,
       shape: nodeShape(type),
       imageUrl: semanticIconUrl(type),
       imageUrlSelected: semanticIconUrl(type),
@@ -1245,7 +1245,8 @@ function create(container, handlers = {}) {
         labelsIsEnabled: nodeCount < 1800,
         labelsOnEventIsEnabled: true,
         shadowIsEnabled: false,
-        minZoom: nodeCount >= 3000 ? 0.0005 : 0.002,
+        minZoom: GRAPH_MIN_ZOOM,
+        maxZoom: GRAPH_MAX_ZOOM,
       },
       layout: {
         type: "force",
@@ -1454,6 +1455,7 @@ function create(container, handlers = {}) {
       edges: edges.map((edge) => transitionRecord(edge, "active")),
     });
     hasGraphData = true;
+    applyInteractionForce(0);
     orb.render();
     handlers.onSimulationState?.({ running: true, mode: currentMode });
   }
@@ -1593,6 +1595,7 @@ function create(container, handlers = {}) {
     },
     refreshLayout() {
       if (!hasGraphData) return;
+      applyInteractionForce(0, { reheat: false });
       orb.render(() => {
         if (!userOwnsCamera) orb.recenter();
       });
