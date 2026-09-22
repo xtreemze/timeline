@@ -4236,14 +4236,27 @@ body {
 
 #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-editor-sheet,
 #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-browser-sheet {
+  position: fixed;
+  inset-block-start: max(0.4rem, env(safe-area-inset-top));
   inset-block-end: calc(var(--workspace-landscape-chrome-block) + 0.35rem);
+  inset-inline-start: max(0.4rem, env(safe-area-inset-left));
+  inset-inline-end: max(0.4rem, env(safe-area-inset-right));
+  inline-size: auto;
+  block-size: auto;
+  max-block-size: none;
 }
 
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-editor-sheet,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-browser-sheet {
-  inset-inline-end: calc(var(--workspace-portrait-chrome-inline) + 0.35rem);
+  position: fixed;
+  inset-block-start: max(0.4rem, env(safe-area-inset-top));
   inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
+  inset-inline-start: max(0.4rem, env(safe-area-inset-left));
+  inset-inline-end: calc(var(--workspace-portrait-chrome-inline) + 0.35rem);
+  inline-size: auto;
+  block-size: auto;
   max-inline-size: calc(100% - var(--workspace-portrait-chrome-inline) - 0.75rem);
+  max-block-size: none;
 }
 
 #app-shell:has(#timeline-view[data-orientation="landscape"]) .timeline-panel > .story-focus {
