@@ -76,7 +76,7 @@ interface TimelineItem {
   connectorEndpoint?: string;
   lane?: number | null;
   media?: Array<{ src?: string; alt?: string; caption?: string }>;
-  tags?: string[];
+  tags?: Array<string | { label?: string; icon?: string; hue?: number }>;
   layoutVariant?: string;
   locationName?: string;
   location?: unknown;
@@ -111,6 +111,7 @@ interface SceneRecord {
   node: HTMLDivElement;
   terminal: HTMLButtonElement;
   range: HTMLButtonElement | null;
+  visual: HTMLSpanElement;
   copy: HTMLSpanElement;
 }
 
@@ -1928,19 +1929,13 @@ class TimelineViewController {
     terminal.dataset.id = item.id;
     terminal.addEventListener("click", () => this.focusItem(item.id));
 
-    const dot = document.createElement("span");
-    dot.className = "timeline-event-dot";
-    dot.setAttribute("aria-hidden", "true");
-    const icon =
-      presentation && typeof presentation.createIcon === "function"
-        ? presentation.createIcon("milestone", { size: 24 })
-        : null;
-    if (icon) dot.append(icon);
-    else dot.textContent = "•";
+    const visual = document.createElement("span");
+    visual.className = "timeline-event-dot";
+    visual.setAttribute("aria-hidden", "true");
 
     const copy = document.createElement("span");
     copy.className = "timeline-event-copy";
-    terminal.append(dot, copy);
+    terminal.append(visual, copy);
 
     const connector = document.createElement("span");
     connector.className = "timeline-event-connector";
@@ -1960,7 +1955,7 @@ class TimelineViewController {
 
     this.stage.append(node);
     this.frameCreatedObjects += range ? 2 : 1;
-    const record = { item, node, terminal, range, copy };
+    const record = { item, node, terminal, range, visual, copy };
     this.bindRecordInteractionTarget(record, terminal);
     if (range) this.bindRecordInteractionTarget(record, range);
     this.updateRecordContent(record);
@@ -2001,7 +1996,7 @@ class TimelineViewController {
   }
 
   updateRecordContent(record: SceneRecord): void {
-    const { item, node, terminal, range, copy } = record;
+    const { item, node, terminal, range, visual, copy } = record;
     node.style.setProperty("--event-color", item.color || "var(--accent)");
     node.dataset.terminalShape = item.terminalShape || "rounded";
     node.dataset.connectorStyle = item.connectorStyle || "solid";
@@ -2010,6 +2005,46 @@ class TimelineViewController {
     const selected = item.id === this.focusedId;
     node.classList.toggle("is-selected", selected);
     range?.classList.toggle("is-selected", selected);
+
+    const primaryTag = item.tags?.[0];
+    const iconName =
+      typeof primaryTag === "object" && primaryTag?.icon
+        ? primaryTag.icon
+        : "milestone";
+    const media = item.media?.[0];
+    const mediaSignature = [media?.src || "", iconName].join("\u0001");
+    if (visual.dataset.signature !== mediaSignature) {
+      visual.dataset.signature = mediaSignature;
+      visual.className = media?.src ? "timeline-event-art" : "timeline-event-dot";
+      visual.replaceChildren();
+      if (media?.src) {
+        const image = document.createElement("img");
+        image.className = "timeline-event-art-image";
+        image.src = media.src;
+        image.alt = "";
+        image.decoding = "async";
+        image.loading = "lazy";
+        visual.append(image);
+
+        const badge = document.createElement("span");
+        badge.className = "timeline-event-icon-badge";
+        const badgeIcon =
+          presentation && typeof presentation.createIcon === "function"
+            ? presentation.createIcon(iconName, { size: 18 })
+            : null;
+        if (badgeIcon) badge.append(badgeIcon);
+        visual.append(badge);
+      } else {
+        const icon =
+          presentation && typeof presentation.createIcon === "function"
+            ? presentation.createIcon(iconName, { size: 24 })
+            : null;
+        if (icon) visual.append(icon);
+        else visual.textContent = "•";
+      }
+    }
+
+    node.dataset.connectorWeight = item.connectorWeight || "normal";
 
     const strong = copy.querySelector("strong") || document.createElement("strong");
     strong.textContent = item.title || item.id;
@@ -2079,23 +2114,25 @@ class TimelineViewController {
     const connectorTurn = node.querySelector<HTMLElement>(".timeline-event-connector-turn");
     if (connector && connectorTurn) {
       const segment = connectorSegment(axisCross, shiftedCross);
+      const connectorThickness =
+        item.connectorWeight === "fine" ? 1 : item.connectorWeight === "strong" ? 4 : 2;
       if (this.orientation === "horizontal") {
         connector.style.left = "0";
         connector.style.top = `${segment.offset}px`;
-        connector.style.width = "2px";
+        connector.style.width = `${connectorThickness}px`;
         connector.style.height = `${Math.max(1, segment.length)}px`;
         connectorTurn.style.left = "0";
         connectorTurn.style.top = `${Math.min(-routeOffset, 0)}px`;
         connectorTurn.style.width = `${Math.max(1, Math.abs(routeOffset))}px`;
-        connectorTurn.style.height = "2px";
+        connectorTurn.style.height = `${connectorThickness}px`;
       } else {
         connector.style.left = `${segment.offset}px`;
         connector.style.top = "0";
         connector.style.width = `${Math.max(1, segment.length)}px`;
-        connector.style.height = "2px";
+        connector.style.height = `${connectorThickness}px`;
         connectorTurn.style.left = `${Math.min(-routeOffset, 0)}px`;
         connectorTurn.style.top = "0";
-        connectorTurn.style.width = "2px";
+        connectorTurn.style.width = `${connectorThickness}px`;
         connectorTurn.style.height = `${Math.max(1, Math.abs(routeOffset))}px`;
       }
     }
