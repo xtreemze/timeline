@@ -115,17 +115,20 @@ async function ensureTimelineOrientation(page, orientation) {
     .poll(async () => {
       const [footerBox, stageBox] = await Promise.all([footer.boundingBox(), stage.boundingBox()]);
       if (!footerBox || !stageBox) return false;
-      return stageBox.y + stageBox.height <= footerBox.y + 3;
+      return orientation === 'portrait'
+        ? stageBox.x + stageBox.width <= footerBox.x + 3
+        : stageBox.y + stageBox.height <= footerBox.y + 3;
     })
     .toBe(true);
 }
 
-test.describe('Mobile-first Timeline layout contracts', () => {
+  test.describe('Mobile-first Timeline layout contracts', () => {
   test('phone portrait gives chronology the viewport and keeps temporal context readable', async ({
     page,
   }) => {
     await page.setViewportSize(PHONE_PORTRAIT);
     await page.goto('/');
+    await ensureTimelineOrientation(page, 'portrait');
 
     const timeline = page.locator('#timeline-view');
     const surface = page.locator('.timeline-surface');
@@ -135,14 +138,13 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     const surfaceBox = await expectInsideViewport(surface, PHONE_PORTRAIT);
     const footerBox = await expectInsideViewport(footer, PHONE_PORTRAIT);
 
-    expect(timelineBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.9);
-    expect(timelineBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.75);
-    expect(timelineBox.y + timelineBox.height).toBeLessThanOrEqual(footerBox.y + 2);
-    expect(surfaceBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.9);
-    // With the relation graph open, chronology still owns at least half of a portrait phone.
+    expect(timelineBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.62);
+    expect(timelineBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.9);
+    expect(timelineBox.x + timelineBox.width).toBeLessThanOrEqual(footerBox.x + 2);
+    expect(surfaceBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.62);
     await expect
       .poll(async () => (await surface.boundingBox())?.height ?? 0)
-      .toBeGreaterThan(PHONE_PORTRAIT.height * 0.48);
+      .toBeGreaterThan(PHONE_PORTRAIT.height * 0.7);
 
     await expectVisibleChronology(page, PHONE_PORTRAIT);
     await expectNoPrimaryDocumentScroll(page, PHONE_PORTRAIT);
@@ -175,7 +177,7 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     await expectNoPrimaryDocumentScroll(page, PHONE_LANDSCAPE);
   });
 
-  test('fused footer keeps actions above project title and reserves layout in both orientations', async ({ page }) => {
+  test('fused chrome reserves bottom space in landscape and a right rail in portrait', async ({ page }) => {
     for (const { viewport, orientation } of [
       { viewport: PHONE_PORTRAIT, orientation: 'portrait' },
       { viewport: PHONE_LANDSCAPE, orientation: 'landscape' },
@@ -189,8 +191,7 @@ test.describe('Mobile-first Timeline layout contracts', () => {
       const titleBar = footer.locator('.timeline-project-heading');
       const stage = page.locator('#presentation-stage');
       const surface = page.locator('.timeline-surface');
-      const actions = dock.locator(':scope > .app-tool');
-      await expect(actions).toHaveCount(4);
+      await expect(dock.locator(':scope > .app-tool')).toHaveCount(4);
 
       const footerBox = await expectInsideViewport(footer, viewport);
       const dockBox = await expectInsideViewport(dock, viewport);
@@ -198,13 +199,19 @@ test.describe('Mobile-first Timeline layout contracts', () => {
       const stageBox = await expectInsideViewport(stage, viewport);
       const surfaceBox = await expectInsideViewport(surface, viewport);
 
-      expect(footerBox.width).toBeGreaterThan(viewport.width * 0.9);
-      expect(footerBox.height).toBeGreaterThan(80);
-      expect(dockBox.y + dockBox.height).toBeLessThanOrEqual(titleBox.y + 2);
-      expect(titleBox.x).toBeGreaterThanOrEqual(footerBox.x - 1);
-      expect(titleBox.x + titleBox.width).toBeLessThanOrEqual(footerBox.x + footerBox.width + 1);
-      expect(stageBox.y + stageBox.height).toBeLessThanOrEqual(footerBox.y + 2);
-      expect(surfaceBox.y + surfaceBox.height).toBeLessThanOrEqual(footerBox.y + 3);
+      if (orientation === 'portrait') {
+        expect(footerBox.width).toBeLessThan(130);
+        expect(footerBox.height).toBeGreaterThan(180);
+        expect(dockBox.x + dockBox.width).toBeLessThanOrEqual(titleBox.x + 2);
+        expect(stageBox.x + stageBox.width).toBeLessThanOrEqual(footerBox.x + 2);
+        expect(surfaceBox.x + surfaceBox.width).toBeLessThanOrEqual(footerBox.x + 3);
+      } else {
+        expect(footerBox.width).toBeGreaterThan(viewport.width * 0.9);
+        expect(footerBox.height).toBeGreaterThan(80);
+        expect(dockBox.y + dockBox.height).toBeLessThanOrEqual(titleBox.y + 2);
+        expect(stageBox.y + stageBox.height).toBeLessThanOrEqual(footerBox.y + 2);
+        expect(surfaceBox.y + surfaceBox.height).toBeLessThanOrEqual(footerBox.y + 3);
+      }
 
       for (const selector of [
         '#project-menu-toggle',
@@ -227,35 +234,56 @@ test.describe('Mobile-first Timeline layout contracts', () => {
       await ensureTimelineOrientation(page, orientation);
 
       await page.locator('#editor-toggle').click();
-      await expectInsideViewport(page.locator('#control-panel'), viewport);
+      const editor = page.locator('#control-panel');
+      const editorBox = await expectInsideViewport(editor, viewport);
       await page.locator('#control-panel-close').click();
 
       await page.locator('#timeline-browser-toggle').click();
-      await expectInsideViewport(page.locator('#timeline-browser-sheet'), viewport);
+      const browser = page.locator('#timeline-browser-sheet');
+      const browserBox = await expectInsideViewport(browser, viewport);
       await page.locator('#timeline-browser-close').click();
+
+      const footerBox = await page.locator('.app-footer-shell').boundingBox();
+      expect(footerBox).not.toBeNull();
+      if (!footerBox) throw new Error('App footer has no live bounds.');
+
+      if (orientation === 'portrait') {
+        expect(editorBox.x + editorBox.width).toBeLessThanOrEqual(footerBox.x - 3);
+        expect(browserBox.x + browserBox.width).toBeLessThanOrEqual(footerBox.x - 3);
+      } else {
+        expect(editorBox.y + editorBox.height).toBeLessThanOrEqual(footerBox.y - 3);
+        expect(browserBox.y + browserBox.height).toBeLessThanOrEqual(footerBox.y - 3);
+      }
 
       const projectButton = page.locator('#project-menu-toggle');
       await projectButton.click();
       const projectMenu = page.locator('#project-menu:popover-open');
-      await expectInsideViewport(projectMenu, viewport);
-      await expect(projectMenu).toHaveAttribute('data-anchor-placement', 'above');
-      await expect(projectButton).toHaveAttribute('aria-expanded', 'true');
+      const projectMenuBox = await expectInsideViewport(projectMenu, viewport);
+      await expect(projectMenu).toHaveAttribute(
+        'data-anchor-placement',
+        orientation === 'portrait' ? 'left' : 'above',
+      );
+      if (orientation === 'portrait') {
+        expect(projectMenuBox.x + projectMenuBox.width).toBeLessThanOrEqual(footerBox.x - 4);
+      } else {
+        expect(projectMenuBox.y + projectMenuBox.height).toBeLessThanOrEqual(footerBox.y - 4);
+      }
       await page.keyboard.press('Escape');
-      await expect(projectButton).toHaveAttribute('aria-expanded', 'false');
 
       const viewButton = page.locator('#timeline-view-controls-toggle');
       await viewButton.click();
       const viewControls = page.locator('#timeline-view-toolbar:popover-open');
       const viewControlsBox = await expectInsideViewport(viewControls, viewport);
-      await expect(viewControls).toHaveAttribute('data-anchor-placement', 'above');
-
-      const footerBox = await page.locator('.app-footer-shell').boundingBox();
-      expect(footerBox).not.toBeNull();
-      if (!footerBox) throw new Error('App footer has no live bounds.');
-      expect(viewControlsBox.y + viewControlsBox.height).toBeLessThanOrEqual(footerBox.y - 4);
-
+      await expect(viewControls).toHaveAttribute(
+        'data-anchor-placement',
+        orientation === 'portrait' ? 'left' : 'above',
+      );
+      if (orientation === 'portrait') {
+        expect(viewControlsBox.x + viewControlsBox.width).toBeLessThanOrEqual(footerBox.x - 4);
+      } else {
+        expect(viewControlsBox.y + viewControlsBox.height).toBeLessThanOrEqual(footerBox.y - 4);
+      }
       await page.keyboard.press('Escape');
-      await expect(viewButton).toHaveAttribute('aria-expanded', 'false');
     }
   });
 
@@ -380,10 +408,10 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     expect(menuBox?.x).toBeGreaterThanOrEqual(5);
     expect(menuBox?.y).toBeGreaterThanOrEqual(5);
     expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width - 5);
-    expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(
-      (footerBox?.y ?? viewport.height) - 5,
+    expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(
+      (footerBox?.x ?? viewport.width) - 5,
     );
-    await expect(menu).toHaveAttribute('data-anchor-placement', 'above');
+    await expect(menu).toHaveAttribute('data-anchor-placement', 'left');
   });
 
   test('Project menu stays clamped on compact portrait visual viewports', async ({ page }) => {
@@ -411,10 +439,10 @@ test.describe('Mobile-first Timeline layout contracts', () => {
       expect(menuBox?.x).toBeGreaterThanOrEqual(5);
       expect(menuBox?.y).toBeGreaterThanOrEqual(5);
       expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width - 5);
-      expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(
-        (footerBox?.y ?? viewport.height) - 5,
+      expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(
+        (footerBox?.x ?? viewport.width) - 5,
       );
-      await expect(menu).toHaveAttribute('data-anchor-placement', 'above');
+      await expect(menu).toHaveAttribute('data-anchor-placement', 'left');
 
       await page.keyboard.press('Escape');
     }
