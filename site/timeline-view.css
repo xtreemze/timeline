@@ -2021,17 +2021,6 @@
   min-height: 0;
 }
 
-::view-transition-group(timeline-primary-surface),
-::view-transition-group(timeline-relation-surface),
-::view-transition-group(timeline-map-surface) {
-}
-
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(timeline-primary-surface),
-  ::view-transition-group(timeline-relation-surface),
-  ::view-transition-group(timeline-map-surface) {
-  }
-}
 
 /* Overlay-first presentation contract.
    The timeline and relation graph remain mounted in fullscreen. Focused event detail enters
@@ -2195,9 +2184,6 @@
   font-size: 8px;
 }
 
-::view-transition-group(timeline-event-detail-shared),
-::view-transition-group(timeline-focus-chronology) {
-}
 
 ::view-transition-old(timeline-event-detail-shared),
 ::view-transition-new(timeline-event-detail-shared),
@@ -2206,96 +2192,12 @@
   mix-blend-mode: normal;
 }
 
-::view-transition-group(timeline-event-detail-swap) {
-}
 
 ::view-transition-old(timeline-event-detail-swap),
 ::view-transition-new(timeline-event-detail-swap) {
   mix-blend-mode: normal;
 }
 
-/* Focus opening/closing is one spatial transition: chronology yields toward its edge
-   while the shared event/detail element expands into the opposite reading region. */
-:root:active-view-transition-type(timeline-focus-open):active-view-transition-type(
-  timeline-landscape
-)::view-transition-old(timeline-focus-chronology) {
-}
-
-:root:active-view-transition-type(timeline-focus-open):active-view-transition-type(
-  timeline-landscape
-)::view-transition-new(timeline-focus-chronology) {
-}
-
-:root:active-view-transition-type(timeline-focus-close):active-view-transition-type(
-  timeline-landscape
-)::view-transition-old(timeline-focus-chronology) {
-}
-
-:root:active-view-transition-type(timeline-focus-close):active-view-transition-type(
-  timeline-landscape
-)::view-transition-new(timeline-focus-chronology) {
-}
-
-:root:active-view-transition-type(timeline-focus-open):active-view-transition-type(
-  timeline-portrait
-)::view-transition-old(timeline-focus-chronology) {
-}
-
-:root:active-view-transition-type(timeline-focus-open):active-view-transition-type(
-  timeline-portrait
-)::view-transition-new(timeline-focus-chronology) {
-}
-
-:root:active-view-transition-type(timeline-focus-close):active-view-transition-type(
-  timeline-portrait
-)::view-transition-old(timeline-focus-chronology) {
-}
-
-:root:active-view-transition-type(timeline-focus-close):active-view-transition-type(
-  timeline-portrait
-)::view-transition-new(timeline-focus-chronology) {
-}
-
-/* Adjacent focus follows the time axis: X for landscape, Y for portrait. */
-:root:active-view-transition-type(timeline-focus-forward):active-view-transition-type(
-  timeline-landscape
-)::view-transition-old(timeline-event-detail-swap) {
-}
-
-:root:active-view-transition-type(timeline-focus-forward):active-view-transition-type(
-  timeline-landscape
-)::view-transition-new(timeline-event-detail-swap) {
-}
-
-:root:active-view-transition-type(timeline-focus-backward):active-view-transition-type(
-  timeline-landscape
-)::view-transition-old(timeline-event-detail-swap) {
-}
-
-:root:active-view-transition-type(timeline-focus-backward):active-view-transition-type(
-  timeline-landscape
-)::view-transition-new(timeline-event-detail-swap) {
-}
-
-:root:active-view-transition-type(timeline-focus-forward):active-view-transition-type(
-  timeline-portrait
-)::view-transition-old(timeline-event-detail-swap) {
-}
-
-:root:active-view-transition-type(timeline-focus-forward):active-view-transition-type(
-  timeline-portrait
-)::view-transition-new(timeline-event-detail-swap) {
-}
-
-:root:active-view-transition-type(timeline-focus-backward):active-view-transition-type(
-  timeline-portrait
-)::view-transition-old(timeline-event-detail-swap) {
-}
-
-:root:active-view-transition-type(timeline-focus-backward):active-view-transition-type(
-  timeline-portrait
-)::view-transition-new(timeline-event-detail-swap) {
-}
 
 @media (max-width: 900px), (max-height: 650px) {
   .timeline-focus-view[popover] {
@@ -2407,10 +2309,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(timeline-detail-overlay) {
-  }
-}
 
 /* Distance-legible story presentation. */
 .timeline-focus-tags .event-tag {
@@ -3128,12 +3026,7 @@
 }
 
 /* The docked surface is only the chronology rail. Event terminals remain spatial callouts
-   and may project inward beyond that rail; the full-viewport .timeline-view is the clip boundary. */
-#app-shell
-  #presentation-stage[data-event-focused="true"][data-has-context-graph="true"]
-  > .timeline-view
-  > .timeline-surface {
-}
+   and may project inward beyond that rail; 
 
 #app-shell
   #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(
@@ -3198,24 +3091,6 @@
   transform: translateY(-50%);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  #app-shell
-    #presentation-stage[data-event-focused="true"][data-has-context-graph="true"]
-    > .timeline-view
-    > .timeline-surface {
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(timeline-event-detail-shared),
-  ::view-transition-group(timeline-focus-chronology),
-  ::view-transition-old(timeline-focus-chronology),
-  ::view-transition-new(timeline-focus-chronology),
-  ::view-transition-group(timeline-event-detail-swap),
-  ::view-transition-old(timeline-event-detail-swap),
-  ::view-transition-new(timeline-event-detail-swap) {
-  }
-}
 
 /* Focus popovers occupy the edge opposite chronology: top/center for a bottom timeline
    and left/center for a right timeline. JS reserves persistent application chrome and the
@@ -3384,13 +3259,6 @@
   ::view-transition-group(timeline-view-toolbar) {
     animation: none;
   }
-}
-
-/* Tabs keep Hero, Context, and application chrome stationary. Only the lower contextual
-   region participates in the tab transition, avoiding a whole-popover/root cross-fade. */
-::view-transition-group(timeline-focus-tab-context),
-::view-transition-group(timeline-focus-tab-place),
-::view-transition-group(timeline-focus-tab-evidence) {
 }
 
 
@@ -3806,10 +3674,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  #app-shell[data-graph-open="true"] #timeline-view > .timeline-surface {
-  }
-}
 
 /* Mobile focused-event composition: detail stays opposite the chronology edge. */
 @media (max-width: 699px) {
@@ -4293,12 +4157,6 @@
   overflow-y: auto;
 }
 
-::view-transition-group(timeline-project-heading) {
-}
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(timeline-project-heading) {
-  }
-}
 
 /* Compact focused-event detail: one visual column and one information column.
    Context stays beside the hero; Place occupies a small footer in that information column.
@@ -4990,12 +4848,6 @@
   pointer-events: none;
 }
 
-.timeline-event-connector,
-.timeline-event-connector-turn,
-.timeline-event-dot,
-.timeline-event-terminal,
-.timeline-range-segment {
-}
 
 .timeline-event:is(.is-hovered, .is-focused, .is-selected) .timeline-event-terminal,
 .timeline-range-segment:is(.is-hovered, .is-focused, .is-selected) {
@@ -5020,9 +4872,6 @@
   pointer-events: none;
 }
 
-.timeline-view[data-scene-state="interacting"] .timeline-event-terminal,
-.timeline-view[data-scene-state="interacting"] .timeline-range-segment {
-}
 
 @media (prefers-reduced-motion: reduce) {
   .timeline-retained-scene .timeline-event,
@@ -5030,9 +4879,7 @@
     will-change: auto;
   }
 
-  .timeline-event-terminal,
-  .timeline-range-segment {
-  }
+  
 }
 
 
