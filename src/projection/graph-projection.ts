@@ -104,9 +104,9 @@ function endpointBounds(endpoint: unknown): EndpointBounds {
   }
 
   const record = endpoint as Readonly<Record<string, unknown>>;
-  const exact = parseCanonicalTime(record.value);
-  const earliest = parseCanonicalTime(record.earliest);
-  const latest = parseCanonicalTime(record.latest);
+  const exact = parseCanonicalTime(record["value"]);
+  const earliest = parseCanonicalTime(record["earliest"]);
+  const latest = parseCanonicalTime(record["latest"]);
   const start = Number.isFinite(earliest) ? earliest : exact;
   const end = Number.isFinite(latest) ? latest : exact;
   return {
