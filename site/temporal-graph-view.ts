@@ -291,6 +291,7 @@ class TemporalGraphViewController {
     this.focusedId = next;
     this.signature = "";
     this.selection = null;
+    this.surface.setSelection(null);
     this.render();
   }
 
@@ -417,23 +418,23 @@ class TemporalGraphViewController {
     if (nextSignature !== this.signature) {
       this.signature = nextSignature;
       if (this.hasRenderedData) {
-        if (graphIsEmpty) this.orb.setData(data);
-        else this.orb.transitionData(data);
+        if (graphIsEmpty) this.surface.setProjection(projection);
+        else this.surface.transitionProjection(projection);
       } else {
-        this.orb.setData(data);
+        this.surface.setProjection(projection);
         this.hasRenderedData = true;
       }
-      if (this.selection) this.orb.select?.(this.selection.kind, this.selection.id);
+      if (this.selection) this.surface.setSelection(this.selection);
     } else {
       // When pointer is held, cache the current edge states and don't update them
       if (this.isPointerHeld()) {
         if (!this.cachedEdgesWhileHeld) {
-          this.cachedEdgesWhileHeld = data.edges;
+          this.cachedEdgesWhileHeld = projection.edges.slice();
         }
-        this.orb.updateTemporalEdges(this.cachedEdgesWhileHeld);
+        this.surface.updateTemporalEdges(this.cachedEdgesWhileHeld);
       } else {
         this.cachedEdgesWhileHeld = null;
-        this.orb.updateTemporalEdges(data.edges);
+        this.surface.updateTemporalEdges(projection.edges);
       }
     }
   }
@@ -441,7 +442,7 @@ class TemporalGraphViewController {
 
 export function create(root: HTMLElement | null): TemporalGraphViewController | null {
   if (!root) return null;
-  return new TemporalGraphViewController(root);
+  return new TemporalGraphViewController(root, createOrbGraphSurfaceFactory(getOrbFactory()));
 }
 
 const TemporalGraphViewObj = { create } as const;
