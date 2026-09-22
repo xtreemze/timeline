@@ -96,3 +96,80 @@ test("strict architecture lint rejects viewport zoom restrictions and inline eve
   assert.match(result.stderr, /viewport-meta-no-zoom-restrictions/);
   assert.match(result.stderr, /no-inline-event-handlers/);
 });
+
+
+test("strict architecture lint rejects ambient Timeline globals in core layers", async () => {
+  const root = await fixture();
+  await mkdir(path.join(root, "src", "projection"), { recursive: true });
+  await writeFile(
+    path.join(root, "src", "projection", "bad.ts"),
+    "export const graph = globalThis.TimelineGraph;\n",
+  );
+
+  const result = run(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /no-ambient-timeline-global-in-core/);
+});
+
+test("strict architecture lint rejects direct canonical collection mutation from UI", async () => {
+  const root = await fixture();
+  await writeFile(
+    path.join(root, "site", "mutation.ts"),
+    "export function bad(state) { state.relationships.push({}); }\n",
+  );
+
+  const result = run(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /direct-canonical-mutation/);
+});
+
+test("strict architecture lint enforces inward application dependency direction", async () => {
+  const root = await fixture();
+  await mkdir(path.join(root, "src", "application"), { recursive: true });
+  await mkdir(path.join(root, "src", "projection"), { recursive: true });
+  await writeFile(
+    path.join(root, "src", "projection", "view.ts"),
+    "export const view = true;\n",
+  );
+  await writeFile(
+    path.join(root, "src", "application", "bad.ts"),
+    'import { view } from "../projection/view.ts"; export const bad = view;\n',
+  );
+
+  const result = run(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /application-dependency-direction/);
+});
+
+test("strict architecture lint keeps layout and interaction cores renderer-neutral", async () => {
+  const root = await fixture();
+  await mkdir(path.join(root, "src", "layout"), { recursive: true });
+  await mkdir(path.join(root, "src", "interaction"), { recursive: true });
+  await writeFile(
+    path.join(root, "src", "layout", "bad.ts"),
+    'export const width = document.documentElement.clientWidth;\n',
+  );
+  await writeFile(
+    path.join(root, "src", "interaction", "bad.ts"),
+    'export const frame = requestAnimationFrame(() => {});\n',
+  );
+
+  const result = run(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /renderer-neutral-core/);
+});
+
+test("strict architecture lint prevents projections from importing layout or interaction", async () => {
+  const root = await fixture();
+  await mkdir(path.join(root, "src", "projection"), { recursive: true });
+  await mkdir(path.join(root, "src", "layout"), { recursive: true });
+  await writeFile(path.join(root, "src", "layout", "layout.ts"), "export const layout = true;\n");
+  await writeFile(
+    path.join(root, "src", "projection", "bad.ts"),
+    'import { layout } from "../layout/layout.ts"; export const bad = layout;\n',
+  );
+
+  const result = run(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /projection-dependency-direction/);
+});
