@@ -51,7 +51,9 @@ test("timeline includes an interactive temporal node-edge graph lens", async () 
   ]);
   assert.match(html, /id="temporal-graph-view"/);
   assert.match(html, /class="temporal-graph-canvas"/);
-  assert.match(source, /graphForWindow/);
+  assert.match(source, /projectGraphWindow/);
+  assert.match(source, /projectFocusedGraph/);
+  assert.match(source, /createSemanticGraphIndex/);
   assert.match(source, /temporalState/);
   assert.match(source, /TimelineOrbGraph/);
   assert.match(source, /graphselectionchange/);
@@ -138,7 +140,10 @@ test("temporal graph exposes renderer-neutral recenter and layout refresh for pr
 test("focused presentation graph limits itself to the event neighborhood", async () => {
   const source = await readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8");
   assert.match(source, /setFocus\(id:\s*string \| number \| null\)/);
-  assert.match(source, /graph\.neighborhoodGraph\(this\.model, this\.focusedId/);
+  assert.match(
+    source,
+    /projectFocusedGraph\(project, this\.semanticIndex, this\.focusedId, this\.viewport/,
+  );
   assert.match(source, /relevant nodes/);
 });
 
