@@ -425,12 +425,13 @@ test("bounded unknown relationship time uses only its declared bounds for window
 });
 
 
-test("clearing all graph records bypasses topology transitions and clears Orb immediately", async () => {
+test("clearing all graph records bypasses topology transitions through GraphSurface", async () => {
   const source = await readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8");
 
   assert.match(source, /const graphIsEmpty = data\.nodes\.length === 0 && data\.edges\.length === 0/);
   assert.match(
     source,
-    /if \(this\.hasRenderedData\) \{[\s\S]{0,500}if \(graphIsEmpty\) this\.orb\.setData\(data\)[\s\S]{0,300}else this\.orb\.transitionData\(data\)/,
+    /if \(this\.hasRenderedData\) \{[\s\S]{0,500}if \(graphIsEmpty\) this\.surface\.setProjection\(projection\)[\s\S]{0,300}else this\.surface\.transitionProjection\(projection\)/,
   );
+  assert.doesNotMatch(source, /this\.orb\./);
 });
