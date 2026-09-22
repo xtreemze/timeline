@@ -365,7 +365,7 @@ Focused composition should be asymmetric and may include:
 - an explicit Edit action that is the only transition from focused viewing into mutation mode;
 - return-to-timeline navigation.
 
-The focused item must not mutate its temporal coordinate or chronology order. Escape, an explicit return control, or clicking the exposed timeline background outside the detail composition restores the chronology. Entering browser fullscreen can reorder the browser top layer, so a focused event's popover is explicitly restored after the fullscreen transition; fullscreen must never silently discard focused detail.
+The focused item must not mutate its temporal coordinate or chronology order. Escape or an explicit return control restores the chronology. Focused detail remains ordinary presentation-stage geometry rather than entering the browser top layer, so fullscreen transitions preserve it without a popover restoration lifecycle.
 
 ## Stories and analytical layers
 
@@ -477,12 +477,12 @@ Physical screen orientation never rewrites the timeline orientation.
 
 ### Composition rules
 
-- The timeline owns the entire fullscreen stage at all times; selecting an event never gives a sibling surface layout ownership.
-- With no focused event, the timeline axis remains centered.
-- With a focused event, the timeline surface still fills the viewport while its axis shifts toward the lower edge for a horizontal timeline or the right edge for a vertical timeline.
-- Event detail is promoted to the browser top layer as one responsive overlay. Desktop placement is chosen opposite the active timeline edge: upper/centered for a horizontal timeline and left/centered for a vertical timeline. Constrained mobile layouts progressively become a sheet while leaving timeline context visible.
-- Place and relation sections remain part of the event-detail six-column composition. Their existing map and Orb graph renderers are moved behind their respective text as subdued interactive backdrops instead of consuming timeline geometry.
-- The detail overlay is intentionally bounded and density-aware: desktop uses a wider but shallower compact composition (up to roughly 900 px for horizontal time or 720 px for vertical time) with clipped/condensed secondary copy so normal desktop cases do not require an internal scroll. Mobile remains a scrollable sheet capped to preserve visible timeline context.
+- With no focused event, the timeline owns the available presentation stage and its axis remains centered.
+- Focused detail, the relation graph, and the timeline become sibling grid surfaces. Focused detail never covers the graph and never requires browser top-layer positioning.
+- In landscape, the timeline retains the complete lower width. Focused detail occupies the upper-left region and the relation graph consumes the remaining upper workspace.
+- In portrait, the timeline retains the complete height on the right. The left workspace is divided vertically: focused detail uses the upper half and the relation graph uses the lower half.
+- Place context remains inside focused detail. The separate presentation map is omitted while an event is focused so the layout does not create a fourth competing surface.
+- Focused detail stacks its internal document sections for the narrower sidebar geometry and scrolls internally when necessary.
 - All visual surfaces use `min-width: 0` / `min-height: 0` contracts so maps, canvases and media can shrink without causing overflow.
 
 ### Application-shell ownership
@@ -505,7 +505,7 @@ Normal application mode distinguishes presentation overlays from workspace utili
 - Initial presentation starts at the semantic isolated zoom target anchored to the first timeline item, keeping chronology legible while leaving the relation graph as much visual room as the docked layout permits. User-driven pan and zoom are preserved after initialization rather than being reapplied on rerender.
 - The semantic zoom slider follows the timeline axis: horizontal in landscape mode and vertically oriented in portrait mode, including matching pointer/touch direction and `aria-orientation`.
 - Project identity remains visible on the timeline rail as the title heading, while the Project action itself lives with Edit, Browse and View in the common footer app bar. Its native grouped Project popover opens inward from the footer action, remains in the top layer above any open editor surface, is constrained to the current Visual Viewport, and scrolls internally when vertical room is limited. Every Project menu command—load example, import, export, source navigation and clear project—remains available in both view and edit modes; destructive replacement/clear flows retain their explicit confirmation safeguards. Project-title mutation remains an editor concern. Import actions remain explicit buttons wired to hidden file inputs so every visible enabled menu command is keyboard-operable.
-- Edit, Browse, View controls, and focused event detail are mutually coordinated utility/overlay surfaces, but none owns relation-graph visibility. Browse and Edit overlay on constrained screens and reflow the workspace on wider screens; focused detail may still layer above the persistent graph.
+- Edit, Browse, View controls, and focused event detail remain mutually coordinated surfaces, but none owns relation-graph visibility. Browse and Edit may overlay on constrained screens and reflow the workspace on wider screens; focused detail always reserves presentation-stage geometry beside the persistent graph.
 - With no events the timeline still renders its neutral axis; guidance for the empty project lives in Browse rather than replacing the workspace.
 
 Fullscreen targets `#presentation-stage`, not editor/browser/project surfaces. Browser fullscreen therefore naturally excludes application chrome and preserves the timeline-plus-focused-event presentation.
@@ -514,7 +514,7 @@ Focus/unfocus changes use named Web View Transitions for both chronology and det
 
 ### Focused event presentation
 
-Focused event mode does not duplicate chronology in the detail overlay: the fullscreen timeline is the chronology, and the enlarged hero heading is the selected event's identity. It reuses the existing Place and Relations sections rather than creating independent fullscreen lenses. The canonical temporal graph remains one renderer and stays mounted in its persistent graph surface while focused detail layers above it. The presentation map may move into the Place section while retaining pan/zoom/touch interaction.
+Focused event mode does not duplicate chronology in the detail panel: the fullscreen timeline is the chronology, and the enlarged hero heading is the selected event's identity. It reuses the existing Place and Evidence sections rather than creating an independent chronology lens. The canonical temporal graph remains one renderer and stays mounted in its persistent graph surface beside the detail panel. The presentation map may move into the Place section while retaining pan/zoom/touch interaction.
 
 Text remains the foreground information layer. Map and graph backdrops use reduced opacity/saturation plus a directional paper scrim, keeping labels readable while leaving exposed portions of each visualization directly interactive. The relation graph is a direct-manipulation surface: selecting a node or edge only changes graph selection styling and never opens an inspector, JSON panel, navigation target, or editor.
 
