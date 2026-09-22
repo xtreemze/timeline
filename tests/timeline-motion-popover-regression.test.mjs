@@ -24,7 +24,7 @@ test("retained timeline preserves weighted drag response and decaying release in
   );
 });
 
-test("focused popover emits the surviving rich presentation contract", async () => {
+test("focused sidebar emits the surviving rich presentation contract", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
   assert.doesNotMatch(source, /timeline-focus-layout/);
@@ -58,28 +58,36 @@ test("empty timeline resets retained camera authority before later content loads
   );
 });
 
-test("persistent graph owns the complementary canvas while focused place uses interactive map space", async () => {
-  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+test("focused detail and graph partition presentation space without overlay geometry", async () => {
+  const [html, css] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+  ]);
 
   assert.match(
+    html,
+    /id="timeline-view"[\s\S]*id="timeline-focus-view"[\s\S]*id="graph-lens"/,
+  );
+  assert.doesNotMatch(html, /id="timeline-focus-view"[^>]*popover=/);
+  assert.match(
     css,
-    /#presentation-stage\s*>\s*\.graph-lens:not\(\[hidden\]\)[\s\S]{0,140}\{[\s\S]{0,500}position:\s*absolute/,
+    /data-viewport-orientation="landscape"[\s\S]*> \.timeline-focus-panel[\s\S]*grid-column:\s*1;[\s\S]*grid-row:\s*1;/,
   );
   assert.match(
     css,
-    /\.timeline-view\[data-orientation="landscape"\]\s*>\s*\.timeline-focus-view:popover-open\s*\{[\s\S]{0,500}inline-size:\s*min\(640px,/,
+    /data-viewport-orientation="landscape"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*grid-column:\s*2;[\s\S]*grid-row:\s*1;/,
   );
   assert.match(
     css,
-    /\.timeline-focus-place\s+\.timeline-focus-section-content\s*\{[\s\S]{0,300}width:\s*min\(48%,\s*18rem\)/,
+    /data-viewport-orientation="portrait"[\s\S]*> \.timeline-focus-panel[\s\S]*grid-column:\s*1;[\s\S]*grid-row:\s*1;/,
   );
   assert.match(
     css,
-    /\.timeline-view\[data-orientation="landscape"\]\s*>\s*\.timeline-focus-view:popover-open\s*\{[\s\S]{0,500}inline-size:\s*min\(640px,\s*calc\(100% - 8rem\)\)/,
+    /data-viewport-orientation="portrait"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*grid-column:\s*1;[\s\S]*grid-row:\s*2;/,
   );
   assert.match(
     css,
-    /\.timeline-view\[data-orientation="portrait"\]\s*>\s*\.timeline-focus-view:popover-open\s*\{[\s\S]{0,500}inline-size:\s*min\(560px,\s*calc\(100% - 10rem\)\)/,
+    /#presentation-stage\[data-event-focused="true"\]\s*>\s*\.presentation-map-panel\s*\{[\s\S]*display:\s*none/,
   );
   assert.match(
     css,
