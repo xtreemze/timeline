@@ -104,5 +104,5 @@ test("focused canonical relationship identity resolves directly to its graph edg
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
   assert.match(graph, /String\(edge\.id\) === root/);
-  assert.match(view, /if \(item\.editable !== false\) actions\.append\(edit\)/);
+  assert.match(view, /if \(item\.editable !== false\) \{[\s\S]*actions\.append\(edit\);[\s\S]*\}/);
 });
