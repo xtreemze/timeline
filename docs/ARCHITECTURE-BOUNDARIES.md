@@ -6,15 +6,15 @@ Related: #236, #243, #245–#251
 
 ## Purpose
 
-Timeline is an evidence-to-structured-temporal-knowledge system. The timeline, graph, map, focused detail, analysis, reports, and future surfaces are synchronized projections over one canonical project model.
+Lūm is an evidence-to-structured-relational-knowledge system. Its canonical project model is the continuum. Temporal, topological, spatial, narrative, evidentiary, analytical, reporting, and future surfaces are synchronized projections over that shared continuum.
 
-This document defines dependency direction and ownership boundaries so new features do not re-couple canonical knowledge to rendering, framework, provider, or layout implementation details.
+This document defines dependency direction and ownership boundaries so new features do not re-couple canonical knowledge to rendering, framework, provider, or layout implementation details. Product/domain terminology follows [LUM-TERMINOLOGY.md](LUM-TERMINOLOGY.md); legacy `Timeline*` identifiers remain compatibility names.
 
 ## Architectural laws
 
 1. Canonical knowledge never depends on its visualization.
 2. Visualization never independently invents canonical knowledge.
-3. AI, OCR, importers, and external adapters propose data; deterministic Timeline validation governs canonical commit.
+3. AI, OCR, importers, and external adapters propose data; deterministic Lūm validation governs canonical commit.
 4. Canonical IDs are the only identities allowed to cross view boundaries.
 5. Renderer/framework/provider-private state is never canonical domain meaning.
 6. Derived layout, clustering, camera state, graph metrics, force positions, and label placement are disposable.
@@ -190,7 +190,7 @@ Renderer-specific enums or objects must not leak back into projection inputs or 
 
 ## 6. Spatial layout is two systems
 
-Timeline uses two related but separate spatial systems.
+Lūm uses two related but separate spatial systems.
 
 ### Semantic geography
 
@@ -236,7 +236,7 @@ CSS remains authoritative for ordinary intrinsic layout. Prefer Grid/Flexbox, lo
 
 ## 7. Interaction ownership
 
-Timeline owns gesture semantics across timeline, graph, and map.
+Lūm owns gesture semantics across timeline, graph, and map.
 
 Required state model:
 
@@ -265,7 +265,7 @@ WAAPI is appropriate for cancelable local/discrete animation. View Transitions a
 
 ## 8. Adapter boundaries
 
-External technology must sit behind Timeline-owned interfaces.
+External technology must sit behind Lūm-owned interfaces.
 
 Examples:
 

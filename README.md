@@ -1,27 +1,38 @@
-# Timeline
+# Lūm
 
-**Build a chronology, then tell the story inside it.**
+**Lūm is the loom that weaves loose threads into fabric.**
 
 [![GitHub Pages](https://img.shields.io/github/actions/workflow/status/xtreemze/timeline/pages.yml?branch=main&label=GitHub%20Pages)](https://xtreemze.github.io/timeline/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![No backend](https://img.shields.io/badge/backend-none-2ea44f)](#architecture)
 
-Timeline is a local-first visual chronology workspace for research, incident reconstruction, project histories, evidence review, biographies, historical analysis, and other work where sequence and context matter.
+Lūm is a local-first relational knowledge environment for research, incident reconstruction, project histories, evidence review, biographies, historical analysis, and other work where time, place, relationship, and provenance matter.
 
-It models two different questions separately:
+Its metaphor is literal enough to guide the product: **loose threads** are facts, entities, occurrences, places, evidence, and narrative fragments; **Lūm is the loom** that brings them into relation; the resulting **fabric is the continuum**, the canonical information space. Timeline, graph, map, evidence trace, and story are coordinated **projections** for reading that same fabric rather than independent data silos.
 
-1. **What happened, and when?** — the canonical chronology contains point events and date ranges.
-2. **Which moments matter to this explanation?** — stories reference selected chronology items in an intentional narrative order.
-
-That distinction lets one event participate in several stories without duplicating or rewriting the underlying timeline.
+A timed relationship is an **occurrence**. A **thread** follows continuity through related occurrences; the **weave** is the relational structure formed where those threads intersect. Stories are authored traversals through the continuum, while evidence forms inspectable **traces** back to sources. One fact can therefore appear in several projections and stories without being duplicated.
 
 ## Live application
 
 **https://xtreemze.github.io/timeline/**
 
-The application is static and runs entirely in the browser. Timeline data is stored locally unless you explicitly export it.
+The application is static and runs entirely in the browser. Lūm project data is stored locally unless you explicitly export it.
 
 > GitHub Pages must be enabled for the repository with **Settings → Pages → Source → GitHub Actions** before the deployment workflow can publish the site.
+
+## Conceptual language
+
+- **Lūm** — the loom: the product and instrument that reconciles and relates loose threads.
+- **Fabric / continuum** — the coherent canonical information space produced by the weave.
+- **Occurrence** — a concrete situated fact; a timed relationship is an occurrence.
+- **Thread** — a strand of meaning that may begin loose and becomes traversable through context.
+- **Weave** — both the act of relating threads and the topology created by their intersections.
+- **Locus** — conceptual UI language for a reusable place/spatial anchor.
+- **Trace** — the inspectable provenance path from a fact or claim back to evidence and source locators.
+- **Story** — an authored traversal through canonical occurrences, not a copy of them.
+- **Projection** — a derived temporal, topological, spatial, narrative, evidentiary, or analytical view of the same continuum.
+
+The normative vocabulary, writing rules, architectural mapping, and compatibility policy are defined in [`docs/LUM-TERMINOLOGY.md`](docs/LUM-TERMINOLOGY.md).
 
 ## Current capabilities
 
@@ -94,7 +105,7 @@ For Memgraph interoperability, Timeline emits namespace-scoped Cypher and lossle
 
 ### Relation graph
 
-Timeline includes an authorable subject–action–object graph alongside the chronology:
+Lūm exposes a topological projection of the continuum as an authorable subject–action–object graph:
 
 - **One node = one entity.** Nodes represent durable entity records such as people, organizations, groups, devices, accounts, documents, or domain objects. Actions, events, meetings, transactions, decisions, processes, places, dates, times, coordinates, and geometry are never graph nodes.
 - Node properties must describe the entity itself. Spatiotemporal fields such as `time`, `date`, `location`, `place`, `geometry`, `coordinates`, latitude/longitude, or radius are rejected on nodes.
@@ -115,7 +126,7 @@ Timeline includes an authorable subject–action–object graph alongside the ch
 
 See `docs/GRAPH-MODELING-RULES.md` for the normative property-graph profile and reviewed Memgraph/Neo4j/Neptune guidance.
 
-The canonical model is `entities[] + places[] + relationships[]`: entity topology is separate from reusable spatial records. `TimelineGraph.toOrbGraph()` emits the node/edge contract expected by Orb-like visualization layers without making a force-layout view the source of truth.
+The canonical relational/spatial core is `entities[] + places[] + relationships[]`: entity topology is separate from reusable spatial records. `TimelineGraph.toOrbGraph()` emits the node/edge contract expected by Orb-like visualization layers without making a force-layout view the source of truth.
 
 The graph lens is rendered with bundled `@memgraph/orb`. Focused presentation scopes the global graph to the selected event's relevant one-hop neighborhood, including relation changes. Nodes use semantic shapes and embedded SVG glyphs; directed edges combine action labels, semantic glyphs, state-aware line styling and arrows.
 
@@ -306,7 +317,7 @@ This permits future extensions such as:
 
 ## Architecture
 
-Timeline deliberately uses the browser platform directly. The browser target is the **latest Chrome Beta**; as of September 19, 2026 that is Chrome 155 Beta. When a required capability is available in that target, Timeline uses the native platform API instead of shipping a JavaScript substitute. Native `time` controls, the Temporal API, the `<geolocation>` element, Pointer Events, ResizeObserver, and the Popover API are examples. HTML does not expose a two-date range input, so Timeline's small range-calendar component uses a single readonly field plus a native top-layer popover while keeping ISO date values separate from clock/time-zone semantics.
+Lūm deliberately uses the browser platform directly. The browser target is the **latest Chrome Beta**; as of September 19, 2026 that is Chrome 155 Beta. When a required capability is available in that target, Timeline uses the native platform API instead of shipping a JavaScript substitute. Native `time` controls, the Temporal API, the `<geolocation>` element, Pointer Events, ResizeObserver, and the Popover API are examples. HTML does not expose a two-date range input, so Timeline's small range-calendar component uses a single readonly field plus a native top-layer popover while keeping ISO date values separate from clock/time-zone semantics.
 
 Leaflet is loaded lazily only for the optional interactive map because the browser platform has no native slippy-map control. Standard OpenStreetMap raster tiles are used with visible attribution and no offline/prefetch behavior; the tile provider is replaceable through `globalThis.TimelineMapTileProvider`.
 
@@ -365,13 +376,14 @@ The migration leaves the old browser-storage key untouched as a conservative fal
 
 ## Development principles
 
-1. **Chronology is canonical.** Stories and presentation layers reference it rather than owning copies.
-2. **Temporal invariants are validated.** Invalid calendar dates and inverted ranges are rejected at boundaries.
-3. **Imported data is untrusted.** Normalize before state entry; never render imported HTML.
-4. **Deletion preserves referential integrity.** Removing an item removes its story references; removing a category reassigns its items.
-5. **Local-first is a product property.** Static hosting must not imply custody of user timeline content.
-6. **Mobile is not a reduced product.** Responsive layout changes presentation, not capability.
-7. **Complexity must earn its place.** Add dependencies only when the web platform stops being the simpler reliable solution.
+1. **The continuum is canonical.** Entities, occurrences/relationships, places, evidence, analytical records, and stories own meaning; projections do not.
+2. **An occurrence is modeled before it is rendered.** Temporal, topological, spatial, evidentiary, and narrative views derive from the same canonical identity.
+3. **Projection is not persistence.** Timeline lanes, graph positions, map cameras, clustering, layout, and renderer state are disposable.
+4. **Temporal and referential invariants are validated.** Invalid dates, inverted ranges, broken references, and invalid relationship semantics are rejected at boundaries.
+5. **Imported data is untrusted.** Normalize before state entry; never render imported HTML.
+6. **Local-first is a product property.** Static hosting must not imply custody of user continuum data.
+7. **Mobile is not a reduced product.** Responsive layout changes presentation, not capability.
+8. **Complexity must earn its place.** Add dependencies only when the web platform stops being the simpler reliable solution.
 
 ## Next directions
 
