@@ -639,38 +639,22 @@ test("graph camera and force policy stays bounded, weighted, and explicitly acti
 });
 
 
-test("graph presentation force clears visible popovers and returns gradually to center", async () => {
+test("graph centering is independent of focused detail geometry", async () => {
   const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
-  assert.match(source, /POPOVER_REJECTION_STRENGTH\s*=\s*-0\.009/);
-  assert.match(source, /POPOVER_REJECTION_DENSE_STRENGTH\s*=\s*-0\.006/);
   assert.match(source, /CENTER_ATTRACTION_STRENGTH\s*=\s*0\.007/);
   assert.match(source, /CENTER_ATTRACTION_DENSE_STRENGTH\s*=\s*0\.005/);
-  assert.match(source, /querySelectorAll\("\[popover\]:popover-open"\)/);
-  assert.match(source, /popover\.contains\(container\)/);
-  assert.match(source, /orb\.getSimulationPosition\(canvasPoint\)/);
+  assert.doesNotMatch(source, /POPOVER_REJECTION/);
+  assert.doesNotMatch(source, /presentationForcePoint/);
+  assert.doesNotMatch(source, /querySelectorAll\("\[popover\]:popover-open"\)/);
+  assert.doesNotMatch(source, /onPopoverToggle/);
+  assert.doesNotMatch(source, /"popover-exclusion"/);
   assert.match(
     source,
-    /presentationForcePoint[\s\S]*POPOVER_REJECTION_DENSE_STRENGTH[\s\S]*POPOVER_REJECTION_STRENGTH[\s\S]*CENTER_ATTRACTION_DENSE_STRENGTH[\s\S]*CENTER_ATTRACTION_STRENGTH/,
+    /const positioningStrength = dense[\s\S]*CENTER_ATTRACTION_DENSE_STRENGTH[\s\S]*CENTER_ATTRACTION_STRENGTH/,
   );
-  assert.match(source, /document\.addEventListener\("toggle", onPopoverToggle, true\)/);
-  assert.match(source, /globalThis\.addEventListener\?\.\("resize", onPresentationGeometryChange\)/);
-  assert.match(source, /document\.removeEventListener\("toggle", onPopoverToggle, true\)/);
-  assert.match(source, /globalThis\.removeEventListener\?\.\("resize", onPresentationGeometryChange\)/);
-  assert.match(source, /function settlePresentationForceUpdate\(delay = 160\)/);
-  assert.match(
-    source,
-    /function applyCameraPan\([\s\S]*settlePresentationForceUpdate\(\)[\s\S]*return true/,
-  );
-  assert.match(source, /const onPopoverToggle = \(\) => queuePresentationForceUpdate\(\)/);
-  assert.match(
-    source,
-    /const onWheelCapture = \(\) => \{[\s\S]*settlePresentationForceUpdate\(\)/,
-  );
-  assert.match(
-    source,
-    /if \(presentationForceSettleTimer\) globalThis\.clearTimeout\(presentationForceSettleTimer\)/,
-  );
+  assert.match(source, /forceX:\s*\{ x: 0, strength: positioningStrength \}/);
+  assert.match(source, /forceY:\s*\{ y: 0, strength: positioningStrength \}/);
 
   assert.match(source, /DRAG_ALPHA_TARGET\s*=\s*0\.05/);
   assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.018/);
