@@ -231,9 +231,6 @@ test.describe('Timeline Layout', () => {
     await page.goto('/');
     await page.setViewportSize({ width: 1024, height: 768 });
 
-    // Presentation stage should exist and be visible
-    const presentationStage = page.locator('#presentation-stage, [role="presentation"]');
-
     // Just verify the page doesn't crash in fullscreen mode
     // Timeline and controls should remain accessible
     const timeline = page.locator('#timeline-view');
@@ -248,8 +245,6 @@ test.describe('Timeline Layout', () => {
     await page.setViewportSize({ width: 768, height: 1024 });
 
     const timeline = page.locator('#timeline-view');
-    const relationGraph = page.locator('[class*="graph"], [class*="map"]');
-
     await expect(timeline).toBeVisible();
 
     const tlBounds = await timeline.boundingBox();
@@ -260,7 +255,7 @@ test.describe('Timeline Layout', () => {
     }
   });
 
-  test('safe area insets respected in fullscreen mode', async ({ page, context }) => {
+  test('safe area insets respected in fullscreen mode', async ({ context }) => {
     // Create context with mobile device that has safe area inset
     const mobileContext = await context.browser()?.newContext({
       ...devices['iPhone 14'],
