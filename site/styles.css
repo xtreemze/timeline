@@ -3507,28 +3507,25 @@ body {
   touch-action: none;
 }
 
-/* Fullscreen preserves the same bottom app bar so controls do not jump between edges. */
-#presentation-stage:fullscreen .app-tool-dock {
+/* Fullscreen preserves the same fused footer inside the fullscreen subtree. */
+#presentation-stage:fullscreen .app-footer-shell {
   pointer-events: auto;
   z-index: 2200;
-  inset-block-start: auto;
-  inset-inline-end: auto;
-  inset-block-end: max(0.5rem, env(safe-area-inset-bottom));
   inset-inline-start: 50%;
-  flex-direction: row;
-  inline-size: min(26rem, calc(100% - 1rem));
-  max-inline-size: calc(100% - 1rem);
-  max-block-size: none;
-  overflow-x: auto;
-  overflow-y: hidden;
-  transform: translateX(-50%);
-  box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 6%, transparent);
-  backdrop-filter: blur(14px);
+  inset-block-end: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+#presentation-stage:fullscreen .app-footer-shell > .app-tool-dock {
+  position: relative;
+  inset: auto;
+  inline-size: 100%;
+  max-inline-size: none;
+  transform: none;
 }
 
 #presentation-stage:fullscreen .app-tool {
-  min-width: 60px;
-  min-height: 50px;
+  min-inline-size: 60px;
+  min-block-size: 50px;
 }
 
 @media (max-width: 430px) {
@@ -3638,18 +3635,18 @@ body {
     font-size: clamp(0.78rem, 3.8vw, 0.92rem);
   }
 
-  .app-tool-dock {
-    inset-inline-start: 50%;
-    inset-inline-end: auto;
-    inset-block-end: max(0.38rem, env(safe-area-inset-bottom));
-    inline-size: min(22rem, calc(100% - 0.8rem));
-    max-inline-size: calc(100% - 0.8rem);
+  .app-footer-shell {
+    inline-size: min(22rem, calc(100% - 0.7rem));
+    max-inline-size: calc(100% - 0.7rem);
     padding: 0.22rem;
     gap: 0.12rem;
-    overflow-x: auto;
-    overflow-y: hidden;
-    transform: translateX(-50%);
     border-radius: 0.78rem;
+  }
+
+  .app-footer-shell > .app-tool-dock {
+    gap: 0.12rem;
+    overflow-inline: auto;
+    overflow-block: clip;
   }
 
   .app-tool {
@@ -3672,7 +3669,7 @@ body {
   .app-browser-sheet {
     inset-inline-start: max(0.35rem, env(safe-area-inset-left));
     inset-inline-end: max(0.35rem, env(safe-area-inset-right));
-    bottom: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
+    inset-block-end: calc(var(--workspace-footer-reserved-block) + 0.25rem);
     max-height: min(58dvh, calc(100dvh - 8.1rem));
     border-radius: 0.82rem;
   }
@@ -4164,126 +4161,155 @@ body {
   display: none;
 }
 
-/* Responsive reserved workspace chrome: title and controls share one anchored zone. */
+/* Permanently anchored fused footer: application actions above project identity.
+   The measured footer block is reserved from the presentation stage, so chronology,
+   graph, map, utility sheets, and contextual controls never render underneath it. */
 #app-shell {
-  --workspace-chrome-gap: 0.35rem;
-  --workspace-title-block-size: 38px;
-  --workspace-tool-block-size: 52px;
-  --workspace-title-inline-size: 42px;
-  --workspace-tool-inline-size: 62px;
-  --workspace-landscape-chrome-block: calc(
+  --workspace-footer-actions-block-size: 52px;
+  --workspace-footer-title-block-size: 38px;
+  --workspace-footer-gap: 0.2rem;
+  --workspace-footer-fallback-block: calc(
     max(0.4rem, env(safe-area-inset-bottom)) +
-    var(--workspace-title-block-size) +
-    var(--workspace-tool-block-size) +
-    (var(--workspace-chrome-gap) * 2)
+    var(--workspace-footer-actions-block-size) +
+    var(--workspace-footer-title-block-size) +
+    var(--workspace-footer-gap) +
+    0.8rem
   );
-  --workspace-portrait-chrome-inline: calc(
-    max(0.4rem, env(safe-area-inset-right)) +
-    var(--workspace-title-inline-size) +
-    var(--workspace-tool-inline-size) +
-    (var(--workspace-chrome-gap) * 2)
-  );
+  --workspace-footer-reserved-block: var(--workspace-footer-fallback-block);
 }
 
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock {
-  inset-block-start: auto;
-  inset-inline-end: auto;
-  inset-block-end: calc(
-    max(0.4rem, env(safe-area-inset-bottom)) +
-    var(--workspace-title-block-size) +
-    var(--workspace-chrome-gap)
-  );
+.app-footer-shell {
+  view-transition-name: timeline-workspace-sidebar;
+  position: fixed;
+  z-index: 1200;
   inset-inline-start: 50%;
+  inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-rows: auto auto;
+  inline-size: min(26rem, calc(100% - 0.8rem));
+  max-inline-size: calc(100% - 0.8rem);
+  min-inline-size: 0;
+  gap: var(--workspace-footer-gap);
+  padding: 0.28rem;
+  transform: translateX(-50%);
+  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 7%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.app-footer-shell > .app-tool-dock {
+  position: relative;
+  z-index: 1;
+  inset: auto;
+  display: flex;
   flex-direction: row;
-  inline-size: min(22rem, calc(100% - 1rem));
-  max-inline-size: calc(100% - 1rem);
-  max-block-size: var(--workspace-tool-block-size);
+  align-items: stretch;
+  justify-content: stretch;
+  inline-size: 100%;
+  max-inline-size: none;
+  min-block-size: var(--workspace-footer-actions-block-size);
+  max-block-size: none;
+  gap: 0.18rem;
+  padding: 0;
   overflow-inline: auto;
   overflow-block: clip;
-  transform: translateX(-50%);
+  transform: none;
+  border: 0;
+  border-radius: 0.66rem;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
-#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
-  inset-block-start: 50%;
-  inset-inline-end: calc(
-    max(0.4rem, env(safe-area-inset-right)) +
-    var(--workspace-title-inline-size) +
-    var(--workspace-chrome-gap)
-  );
-  inset-block-end: auto;
-  inset-inline-start: auto;
-  flex-direction: column;
-  inline-size: var(--workspace-tool-inline-size);
-  max-inline-size: var(--workspace-tool-inline-size);
-  max-block-size: calc(
-    100dvh -
-    max(0.8rem, env(safe-area-inset-top)) -
-    max(0.8rem, env(safe-area-inset-bottom))
-  );
-  overflow-inline: auto;
-  overflow-block: auto;
-  transform: translateY(-50%);
-}
-
-#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool {
-  flex: 0 0 auto;
+.app-footer-shell > .app-project-title-bar {
+  position: relative;
+  z-index: 1;
+  inset: auto;
+  display: flex;
+  align-items: center;
   inline-size: 100%;
+  max-inline-size: none;
+  min-block-size: var(--workspace-footer-title-block-size);
+  max-block-size: none;
+  gap: 0.35rem;
+  padding: 0.18rem 0.3rem;
+  transform: none;
+  border: 0;
+  border-block-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.app-footer-shell .timeline-project-title {
+  display: block;
+  flex: 1 1 auto;
   min-inline-size: 0;
-  min-block-size: 50px;
-  padding: 0.34rem 0.25rem;
 }
 
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-editor-sheet,
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-browser-sheet {
-  position: fixed;
-  inset-block-start: max(0.4rem, env(safe-area-inset-top));
-  inset-block-end: calc(var(--workspace-landscape-chrome-block) + 0.35rem);
-  inset-inline-start: max(0.4rem, env(safe-area-inset-left));
-  inset-inline-end: max(0.4rem, env(safe-area-inset-right));
+.app-footer-shell .timeline-project-title input {
+  inline-size: 100%;
+  max-inline-size: 100%;
+  block-size: auto;
+  min-block-size: calc(var(--workspace-footer-title-block-size) - 0.35rem);
+  margin: 0;
+  padding: 0.24rem 0.3rem;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  text-align: start;
+}
+
+.app-footer-shell .timeline-project-stats {
+  display: none;
+}
+
+#app-shell #presentation-stage:not(:fullscreen),
+#app-shell.is-event-focused #presentation-stage:not(:fullscreen) {
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  inset-block-end: var(--workspace-footer-reserved-block);
   inline-size: auto;
   block-size: auto;
-  max-block-size: none;
+  height: auto;
 }
 
-#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-editor-sheet,
-#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-browser-sheet {
-  position: fixed;
-  inset-block-start: max(0.4rem, env(safe-area-inset-top));
-  inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
-  inset-inline-start: max(0.4rem, env(safe-area-inset-left));
-  inset-inline-end: calc(var(--workspace-portrait-chrome-inline) + 0.35rem);
-  inline-size: auto;
-  block-size: auto;
-  max-inline-size: calc(100% - var(--workspace-portrait-chrome-inline) - 0.75rem);
-  max-block-size: none;
+#app-shell .app-editor-sheet,
+#app-shell .app-browser-sheet {
+  inset-block-end: calc(var(--workspace-footer-reserved-block) + 0.35rem);
 }
 
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .timeline-panel > .story-focus {
-  inset-block-end: calc(var(--workspace-landscape-chrome-block) + 0.35rem);
-}
-
-#app-shell:has(#timeline-view[data-orientation="portrait"]) .timeline-panel > .story-focus {
-  inset-inline-end: calc(var(--workspace-portrait-chrome-inline) + 0.35rem);
+#app-shell .timeline-panel > .story-focus {
+  inset-block-end: calc(var(--workspace-footer-reserved-block) + 0.35rem);
 }
 
 @media (min-width: 700px) {
   #app-shell {
-    --workspace-title-block-size: 42px;
-    --workspace-tool-block-size: 58px;
+    --workspace-footer-actions-block-size: 58px;
+    --workspace-footer-title-block-size: 42px;
   }
 }
 
 @media (max-height: 520px) {
-  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
-    gap: 0.1rem;
+  #app-shell {
+    --workspace-footer-actions-block-size: 46px;
+    --workspace-footer-title-block-size: 34px;
+  }
+
+  .app-footer-shell {
+    gap: 0.12rem;
     padding: 0.2rem;
   }
 
-  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool {
+  .app-footer-shell .app-tool {
     min-block-size: 44px;
+    padding-block: 0.28rem;
   }
 
-  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-label {
+  .app-footer-shell .app-tool-label {
     font-size: 0.6rem;
   }
 }
