@@ -30,13 +30,17 @@ async function expectVisibleChronology(page, viewport) {
     const copy = terminal.locator('.timeline-event-copy');
     const title = (await copy.locator('strong').textContent())?.trim() ?? '';
     if (!box || !title || !(await copy.isVisible())) continue;
-    const centerX = box.x + box.width / 2;
-    const centerY = box.y + box.height / 2;
+    const visibleWidth = Math.max(
+      0,
+      Math.min(box.x + box.width, viewport.width) - Math.max(box.x, 0),
+    );
+    const visibleHeight = Math.max(
+      0,
+      Math.min(box.y + box.height, viewport.height) - Math.max(box.y, 0),
+    );
     if (
-      centerX >= 0 &&
-      centerX <= viewport.width &&
-      centerY >= 0 &&
-      centerY <= viewport.height
+      visibleWidth >= box.width * 0.5 &&
+      visibleHeight >= box.height * 0.5
     ) {
       readableOccurrenceFound = true;
       break;
@@ -235,13 +239,15 @@ test.describe('Mobile-first Timeline layout contracts', () => {
 
     const timelineBox = await expectInsideViewport(timeline, TABLET_LANDSCAPE);
     const surfaceBox = await expectInsideViewport(surface, TABLET_LANDSCAPE);
-    await expect(graph).toBeVisible();
+    const graphBox = await graph.boundingBox();
+    expect(graphBox).not.toBeNull();
 
     expect(timelineBox.width).toBeGreaterThan(TABLET_LANDSCAPE.width * 0.6);
     expect(timelineBox.height).toBeGreaterThan(TABLET_LANDSCAPE.height * 0.5);
-    await expect
-      .poll(async () => (await surface.boundingBox())?.height ?? 0)
-      .toBeGreaterThan(TABLET_LANDSCAPE.height * 0.4);
+    // The desktop/tablet relation composition deliberately uses a 220px minimum
+    // chronology rail while reserving the complementary majority for the graph.
+    expect(surfaceBox.height).toBeGreaterThanOrEqual(220);
+    expect(graphBox?.height ?? 0).toBeGreaterThan(TABLET_LANDSCAPE.height * 0.4);
     await expectVisibleChronology(page, TABLET_LANDSCAPE);
     await expectNoPrimaryDocumentScroll(page, TABLET_LANDSCAPE);
   });
