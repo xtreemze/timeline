@@ -1483,16 +1483,28 @@ function requiredElements<T extends Element>(selector: string): T[] {
 
   function sortItems(items: TimelineItemRecord[] = state.items): TimelineItemRecord[] {
     return [...items].sort((a, b) => {
-      const startDelta = parseDate(a.start).sortKey - parseDate(b.start).sortKey;
+      const aStart = parseDate(a.start)?.sortKey ?? Number.POSITIVE_INFINITY;
+      const bStart = parseDate(b.start)?.sortKey ?? Number.POSITIVE_INFINITY;
+      const startDelta = aStart - bStart;
       if (startDelta) return startDelta;
-      const aEnd = a.end ? parseDate(a.end).sortKey : parseDate(a.start).sortKey;
-      const bEnd = b.end ? parseDate(b.end).sortKey : parseDate(b.start).sortKey;
+      const aEnd = a.end ? (parseDate(a.end)?.sortKey ?? aStart) : aStart;
+      const bEnd = b.end ? (parseDate(b.end)?.sortKey ?? bStart) : bStart;
       return aEnd - bEnd || a.title.localeCompare(b.title);
     });
   }
 
-  function getCategory(id: string): CategoryRecord | undefined {
-    return state.categories.find((category) => category.id === id) || state.categories[0];
+  function isTimelineItem(item: TimelineItemRecord | null): item is TimelineItemRecord {
+    return item !== null;
+  }
+
+  function isEvidenceRecord(record: EvidenceRecord | undefined): record is EvidenceRecord {
+    return record !== undefined;
+  }
+
+  function getCategory(id: string): CategoryRecord {
+    const category = state.categories.find((candidate) => candidate.id === id) || state.categories[0];
+    if (!category) throw new Error("Timeline state has no category.");
+    return category;
   }
 
   function getStory(id: string | null): StoryRecord | null {
@@ -1513,7 +1525,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
   }
 
   function storySpanLabel(story: StoryRecord): string {
-    const items = story.itemIds.map(getItem).filter(Boolean);
+    const items = story.itemIds.map(getItem).filter(isTimelineItem);
     if (!items.length) return "empty";
     const starts = items
       .map((item) => temporal.sortKey(item.time?.start || item.start))
@@ -1544,7 +1556,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
   function getVisibleItems() {
     const activeStory = getStory(ui.activeStoryId);
     let items = activeStory
-      ? activeStory.itemIds.map(getItem).filter(Boolean)
+      ? activeStory.itemIds.map(getItem).filter(isTimelineItem)
       : sortItems();
 
     if (ui.categoryFilter !== "all") {
@@ -1560,7 +1572,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
           : "";
         const evidenceText = (item.evidenceIds || [])
           .map((id) => state.evidence.find((record) => record.id === id))
-          .filter(Boolean)
+          .filter(isEvidenceRecord)
           .map((record) => [record.title, record.sourceName, record.note].filter(Boolean).join(" "))
           .join(" ");
         return `${item.title}\n${item.description}\n${tagText}\n${locationText}\n${evidenceText}`
@@ -1683,8 +1695,8 @@ function requiredElements<T extends Element>(selector: string): T[] {
     syncApplicationSurfaces();
     if (ui.browserOpen) {
       requestAnimationFrame(() => {
-        const firstStory = els.browserStoryList?.querySelector(".browser-story-card");
-        const firstCategory = els.list?.querySelector(".timeline-category-summary");
+        const firstStory = els.browserStoryList?.querySelector<HTMLElement>(".browser-story-card");
+        const firstCategory = els.list?.querySelector<HTMLElement>(".timeline-category-summary");
         (firstStory || firstCategory || els.search)?.focus({ preventScroll: true });
       });
     }
@@ -1717,8 +1729,12 @@ function requiredElements<T extends Element>(selector: string): T[] {
     els.categoryCount.textContent = `${state.categories.length} ${state.categories.length === 1 ? "category" : "categories"}`;
   }
 
-  function fillCategorySelect(select, includeAll, selected) {
-    const options = [];
+  function fillCategorySelect(
+    select: HTMLSelectElement,
+    includeAll: boolean,
+    selected: string,
+  ): void {
+    const options: HTMLOptionElement[] = [];
     if (includeAll) {
       const option = document.createElement("option");
       option.value = "all";
@@ -1746,7 +1762,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
     if (!els.browserStoryList) return;
     if (els.browserStoryCount) els.browserStoryCount.textContent = String(state.stories.length);
 
-    const cards = state.stories.map((story) => {
+    const cards: HTMLElement[] = state.stories.map((story): HTMLElement => {
       const card = document.createElement("button");
       card.type = "button";
       card.className = "browser-story-card";
@@ -1780,7 +1796,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
     els.browserStoryList.replaceChildren(...cards);
   }
 
-  function renderTimelineList(visible, activeStory) {
+  function renderTimelineList(visible: TimelineItemRecord[], activeStory: StoryRecord | null): void {
     if (activeStory) {
       const ordered = document.createElement("ol");
       ordered.className = "timeline-category-items story-order";
@@ -1789,7 +1805,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
       return;
     }
 
-    const groups = [];
+    const groups: HTMLElement[] = [];
     for (const category of state.categories) {
       const items = visible.filter((item) => item.categoryId === category.id);
       if (!items.length) continue;
