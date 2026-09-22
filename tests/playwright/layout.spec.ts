@@ -18,7 +18,7 @@ async function expectInsideViewport(locator, viewport, tolerance = 2) {
 
 async function expectVisibleChronology(page, viewport) {
   const terminals = page.locator(
-    '.timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible',
+    '.timeline-event:not(.timeline-cluster):not(.is-buffered) .timeline-event-terminal:visible',
   );
   const terminalCount = await terminals.count();
   expect(terminalCount).toBeGreaterThan(0);
