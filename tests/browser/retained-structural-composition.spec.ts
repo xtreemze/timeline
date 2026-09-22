@@ -103,7 +103,8 @@ async function installRetainedTimelineFixture(page) {
     surface.style.height = "520px";
     surface.style.position = "relative";
 
-    const { TimelineView } = await import("/timeline-view.ts");
+    const timelineViewModulePath = "/timeline-view.ts";
+    const { TimelineView } = await import(/* @vite-ignore */ timelineViewModulePath);
     const controller = TimelineView.create(root);
     if (!controller) throw new Error("Timeline fixture controller did not initialize");
 
