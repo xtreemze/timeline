@@ -849,7 +849,7 @@ function closestEventTarget<T extends HTMLElement>(
   }
 
   function mountMapBackdrop() {
-    const slot = els.timelineViewRoot?.querySelector("[data-focus-map-slot]");
+    const slot = els.presentationStage?.querySelector("[data-focus-map-slot]");
     if (!slot || !els.presentationMap) {
       restoreMapSurface();
       return false;
