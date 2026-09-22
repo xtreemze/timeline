@@ -152,7 +152,7 @@ export function createGraphSimulationCoordinator(adapter: GraphSimulationAdapter
   function getState(): GraphSimulationState {
     const highest = highestRequest();
     return Object.freeze({
-      running: Boolean(highest) && suspended.size === 0,
+      running: Boolean(applied && applied.reason !== "idle") && suspended.size === 0,
       reason: highest?.reason ?? null,
       suspendedReasons: Object.freeze([...suspended].sort()),
       pendingReasons: Object.freeze(
