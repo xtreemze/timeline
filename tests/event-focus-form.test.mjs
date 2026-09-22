@@ -431,6 +431,7 @@ test("focused map mount stays idempotent while the graph remains in its persiste
   const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
 
   assert.doesNotMatch(app, /presentationGraphCanvas|mountGraphBackdrop|focusGraphSlot/);
+  assert.match(app, /const slot = els\.presentationStage\?\.querySelector\("\[data-focus-map-slot\]"\)/);
   assert.match(app, /const moved = els\.presentationMap\.parentNode !== slot/);
   assert.match(app, /if \(moved\) slot\.replaceChildren\(els\.presentationMap\)/);
   assert.match(app, /presentationMapKey/);
