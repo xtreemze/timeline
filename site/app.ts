@@ -1390,6 +1390,7 @@ function closestEventTarget<T extends HTMLElement>(
           seenItems.add(itemId);
         }
       }
+      const rawPlaceIds = Array.isArray(raw.placeIds) ? raw.placeIds : [];
       const hasExplicitPlaceIds = Array.isArray(raw.placeIds);
       if (!hasExplicitPlaceIds) storyIdsNeedingPlaceInference.add(id);
       const story: StoryRecord = {
