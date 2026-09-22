@@ -586,7 +586,20 @@ interface ExportItem {
   date?: string;
 }
 
-function exportItem(item: any, categoriesById: Map<string, any>): ExportItem {
+interface ExportCategory {
+  id: string;
+  name?: string;
+  color?: string;
+  extensions?: {
+    externalInterchange?: {
+      sourceId?: unknown;
+      [key: string]: unknown;
+    };
+    [key: string]: unknown;
+  };
+}
+
+function exportItem(item: any, categoriesById: Map<string, ExportCategory>): ExportItem {
   const extension = sourceExtension(item);
   const raw =
     extension.raw && typeof extension.raw === "object" && !Array.isArray(extension.raw)
@@ -655,13 +668,18 @@ interface ExportResult {
 
 export function exportData(timeline: any): ExportResult {
   if (!timeline || typeof timeline !== "object") throw new Error("Expected a Timeline document.");
-  const categories = Array.isArray(timeline.categories) ? timeline.categories : [];
+  const categories: ExportCategory[] = Array.isArray(timeline.categories)
+    ? timeline.categories
+    : [];
   const items = Array.isArray(timeline.items) ? timeline.items : [];
-  const categoriesById = new Map<string, any>(
-    categories.map((category: any): [string, any] => [String(category.id), category]),
+  const categoriesById = new Map<string, ExportCategory>(
+    categories.map((category): [string, ExportCategory] => [
+      String(category.id),
+      category,
+    ]),
   );
 
-  const groups = categories.map((category: any) => {
+  const groups = categories.map((category) => {
     const extension = sourceExtension(category);
     const raw =
       extension.raw && typeof extension.raw === "object" && !Array.isArray(extension.raw)
