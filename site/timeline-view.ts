@@ -763,6 +763,17 @@ class TimelineViewController {
         this.commitInteraction();
       }
     });
+
+    this.root.addEventListener("graphselectionchange", (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (!detail || detail.kind !== "node") return;
+      const nodeId = String(detail.id);
+      if (!nodeId.startsWith("cluster:")) return;
+      const eventIds = nodeId.split(":")[1]?.split("|") || [];
+      if (eventIds.length > 0) {
+        this.focusItem(eventIds[0]);
+      }
+    });
   }
 
   setItems(items: TimelineItem[], options: SetItemsOptions = {}): void {
