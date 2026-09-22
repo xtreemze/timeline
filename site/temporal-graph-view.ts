@@ -177,7 +177,7 @@ class TemporalGraphViewController {
 
     const onPointerDown = () => {
       this.pointerHeldUntil = performance.now() + 2000; // Hold edge states for at least 2 seconds
-      // Clear any pending edge update delay
+      // Clear the pending edge update delay
       if (this.edgeUpdateDelayTimer) globalThis.clearTimeout(this.edgeUpdateDelayTimer);
       this.edgeUpdateDelayTimer = 0;
     };
