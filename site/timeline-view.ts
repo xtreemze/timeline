@@ -885,7 +885,13 @@ class TimelineViewController {
       button.dataset.id = item.id;
       button.textContent = this.semanticChronologyLabel(item);
       button.setAttribute("aria-current", String(item.id === this.focusedId));
-      button.addEventListener("click", () => this.focusItem(item.id));
+      button.addEventListener("click", () => {
+        if (this.focusedId === item.id) {
+          this.closeFocus();
+        } else {
+          this.focusItem(item.id);
+        }
+      });
       row.append(button);
       return row;
     });
@@ -2009,7 +2015,13 @@ class TimelineViewController {
     terminal.type = "button";
     terminal.className = "timeline-event-terminal";
     terminal.dataset.id = item.id;
-    terminal.addEventListener("click", () => this.focusItem(item.id));
+    terminal.addEventListener("click", () => {
+      if (this.focusedId === item.id) {
+        this.closeFocus();
+      } else {
+        this.focusItem(item.id);
+      }
+    });
 
     const visual = document.createElement("span");
     visual.className = "timeline-event-dot";
@@ -2031,7 +2043,13 @@ class TimelineViewController {
       range.type = "button";
       range.className = "timeline-range-segment";
       range.dataset.id = item.id;
-      range.addEventListener("click", () => this.focusItem(item.id));
+      range.addEventListener("click", () => {
+        if (this.focusedId === item.id) {
+          this.closeFocus();
+        } else {
+          this.focusItem(item.id);
+        }
+      });
       this.stage.append(range);
     }
 
