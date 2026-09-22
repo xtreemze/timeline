@@ -5506,6 +5506,11 @@
 }
 
 /* Sidebar navigation buttons */
+.timeline-focus-sidebar .timeline-focus-summary {
+  padding-top: 2.2rem !important;
+  position: relative;
+}
+
 .timeline-focus-sidebar .timeline-focus-actions {
   position: absolute;
   top: 0;
