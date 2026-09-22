@@ -439,8 +439,9 @@ function auditGraphStructure(input: any): GraphAudit {
 
     const key = relationshipFactKey(relationship);
     if (key) {
-      if (!factGroups.has(key)) factGroups.set(key, []);
-      factGroups.get(key).push(String(relationship.id || ""));
+      const ids = factGroups.get(key);
+      if (ids) ids.push(String(relationship.id || ""));
+      else factGroups.set(key, [String(relationship.id || "")]);
     }
 
     const mirrored = findMirroredRelationship(relationship, relationships, relationship.id);
@@ -455,12 +456,14 @@ function auditGraphStructure(input: any): GraphAudit {
 
     const [first, second] = [subjectId, objectId].sort();
     const endpointKey = `${first} ${second}`;
-    if (!endpointPairs.has(endpointKey)) endpointPairs.set(endpointKey, []);
-    endpointPairs.get(endpointKey).push({
+    const endpointRecords = endpointPairs.get(endpointKey);
+    const endpointRecord = {
       id: String(relationship.id || ""),
       subjectId,
       objectId,
-    });
+    };
+    if (endpointRecords) endpointRecords.push(endpointRecord);
+    else endpointPairs.set(endpointKey, [endpointRecord]);
   }
 
   const reciprocalActionPairs: Array<{ entityIds: [string, string]; relationshipIds: string[] }> = [];
@@ -803,7 +806,6 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
   const entityIds = new Set<string>();
   const placeIds = new Set<string>();
   const canonicalIds = new Map<string, string>();
-  const relationshipById = new Map<string, Relationship>();
 
   const registerId = (rawId: any, kind: string, label: string): string => {
     const id = text(rawId, 120);
@@ -893,13 +895,6 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
     if (!entityIds.has(objectId))
       errors.push(`${label}: object/target must reference an entity node.`);
 
-    const validEndpoints =
-      Boolean(id) &&
-      entityIds.has(subjectId) &&
-      entityIds.has(objectId) &&
-      subjectId !== objectId &&
-      predicateResult.valid;
-    if (validEndpoints) relationshipById.set(id, { subjectId, objectId });
   });
 
   const audit = auditGraphStructure(input);
