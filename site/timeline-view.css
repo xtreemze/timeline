@@ -4342,18 +4342,9 @@
 
 @media (max-width: 699px) {
   #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
-    inline-size: calc(
-      100dvw -
-      max(0.8rem, env(safe-area-inset-left)) -
-      max(0.8rem, env(safe-area-inset-right))
-    );
-    max-inline-size: calc(
-      100dvw -
-      max(0.8rem, env(safe-area-inset-left)) -
-      max(0.8rem, env(safe-area-inset-right))
-    );
+    width: 100%;
+    flex-wrap: wrap;
     justify-content: flex-start;
-    overflow-x: hidden;
   }
 
   #app-shell .timeline-orientation-control,
