@@ -10,7 +10,7 @@ interface Viewport {
 
 interface Node {
   id: string | number;
-  properties?: Record<string, any>;
+  properties?: Record<string, unknown>;
 }
 
 interface Edge {
