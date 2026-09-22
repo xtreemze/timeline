@@ -83,6 +83,7 @@ on:
       - 'tests/temporal-graph-runtime-contracts.test.mjs'
       - 'tests/timeline-projection-runtime.test.mjs'
       - 'tests/graph-editor.test.mjs'
+      - 'tests/graph-surface-contracts.test.mjs'
       - '.github/workflows/timeline-view.yml'
       - '.github/workflows/pages.yml'
   push:
@@ -162,6 +163,7 @@ on:
       - 'tests/temporal-graph-runtime-contracts.test.mjs'
       - 'tests/timeline-projection-runtime.test.mjs'
       - 'tests/graph-editor.test.mjs'
+      - 'tests/graph-surface-contracts.test.mjs'
       - '.github/workflows/timeline-view.yml'
 
 concurrency:
@@ -203,6 +205,7 @@ jobs:
       - run: pnpm test:semantic-hierarchy-runtime
       - run: pnpm test:retained-context-runtime
       - run: pnpm test:graph-runtime-contracts
+      - run: pnpm test:graph-surface-contracts
       - run: pnpm test
       - run: pnpm test:webmcp-lifecycle-runtime
       - run: pnpm test:timeline-projection-runtime
