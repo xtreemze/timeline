@@ -295,7 +295,7 @@ test("temporal graph stages topology deltas instead of resetting Orb after first
   const source = await readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8");
 
   assert.match(source, /hasRenderedData\s*=\s*false/);
-  assert.match(source, /this\.orb\.transitionData\(data\)/);
+  assert.match(source, /this\.surface\.transitionProjection\(projection\)/);
   assert.match(source, /this\.orb\.setData\(data\)[\s\S]*this\.hasRenderedData\s*=\s*true/);
 });
 
