@@ -3690,7 +3690,7 @@
 /* Persistent relation-graph docking: chronology owns its edge rail and the graph fills every
    remaining stage pixel. Application chrome may overlay the graph instead of creating gutters. */
 @media (min-width: 700px) {
-  #app-shell[data-graph-open="true"] #presentation-stage {
+  #app-shell #presentation-stage {
     --relations-inline-rail: clamp(280px, 28dvw, 400px);
     --relations-block-rail: clamp(220px, 31dvh, 320px);
     --relations-right-safe: max(0.55rem, env(safe-area-inset-right));
@@ -5310,7 +5310,7 @@
   block-size: min(28dvh, 240px);
 }
 
-#app-shell #presentation-stage {
+#app-shell[data-graph-open="true"] #presentation-stage {
   --relations-right-safe: var(--workspace-portrait-chrome-inline, 7rem);
   --relations-bottom-safe: var(--workspace-landscape-chrome-block, 6rem);
   --mobile-bottom-chrome: var(--workspace-landscape-chrome-block, 6rem);
@@ -5382,6 +5382,7 @@
   margin: 0;
   overflow: auto;
   overscroll-behavior: contain;
+  align-self: start;
   border-radius: 0;
   box-shadow: none;
 }
@@ -5414,6 +5415,8 @@
   grid-column: 2;
   grid-row: 1;
   margin: 0;
+  align-self: start;
+  overflow: auto;
   border-width: 0 0 1px;
   border-radius: 0;
 }
@@ -5429,6 +5432,7 @@
   min-width: 0;
   min-height: 0;
   margin: 0;
+  overflow: hidden;
 }
 
 #app-shell.is-event-focused
