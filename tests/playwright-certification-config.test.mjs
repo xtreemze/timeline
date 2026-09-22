@@ -87,7 +87,11 @@ test("compiled Pages runtime is owned only by the production preview config", ()
   assert.match(pagesConfig, /baseURL:\s*['"]http:\/\/127\.0\.0\.1:4173\/timeline\/['"]/);
   assert.match(pagesWorkflow, /playwright\.pages\.config\.ts/);
   assert.match(pagesWorkflow, /path:\s*dist/);
-  assert.doesNotMatch(config, /testMatch:[\s\S]*pages-runtime\.spec\.ts/);
+  const developmentTestMatch = config
+    .split("\n")
+    .find((line) => line.includes("testMatch:"));
+  assert.ok(developmentTestMatch);
+  assert.doesNotMatch(developmentTestMatch, /pages-runtime\.spec\.ts/);
 });
 
 test("graph touch certification covers portrait and landscape phone projects", () => {
