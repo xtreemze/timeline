@@ -96,6 +96,26 @@ function formatWindow(viewport: Viewport | null): string {
   return `${formatter.format(new Date(viewport.start))} – ${formatter.format(new Date(viewport.end))}`;
 }
 
+function graphProjection(data: GraphData): GraphProjection {
+  return {
+    nodes: data.nodes.map((node) => ({
+      id: entityId(String(node.id)),
+      label: node.label || String(node.id),
+      kind:
+        typeof node.properties?.timelineType === "string"
+          ? node.properties.timelineType
+          : "entity",
+    })),
+    edges: data.edges.map((edge) => ({
+      id: relationshipId(String(edge.id)),
+      sourceId: entityId(String(edge.start)),
+      targetId: entityId(String(edge.end)),
+      label: edge.label || String(edge.id),
+      temporalState: edge.temporalState,
+    })),
+  };
+}
+
 function topologySignature(data: GraphData): string {
   return JSON.stringify({
     nodes: data.nodes.map((node) => String(node.id)).sort(),
@@ -123,16 +143,16 @@ class TemporalGraphViewController {
   private presentationMode: boolean;
   private hasFocusedContext: boolean;
   private hasRenderedData: boolean;
-  private selection: Selection | null;
+  private selection: CanonicalSelection | null;
   private layoutFrame: number;
   private lastCanvasSize: string;
-  private orb: any;
+  private surface: GraphSurface;
   private resizeObserver: ResizeObserver | null;
   private pointerHeldUntil: number;
-  private cachedEdgesWhileHeld: Edge[] | null;
-  private edgeUpdateDelayTimer: number;
+  private cachedEdgesWhileHeld: GraphEdgeProjection[] | null;
+  private edgeUpdateDelayTimer: ReturnType<typeof globalThis.setTimeout> | 0;
 
-  constructor(root: HTMLElement) {
+  constructor(root: HTMLElement, surfaceFactory: GraphSurfaceFactory) {
     this.root = root;
     this.canvas = root.querySelector(".temporal-graph-canvas");
     this.status =
@@ -154,13 +174,8 @@ class TemporalGraphViewController {
     this.cachedEdgesWhileHeld = null;
     this.edgeUpdateDelayTimer = 0;
 
-    const orbFactory = getOrbFactory();
-    this.orb = orbFactory.create(this.canvas, {
-      onNodeClick: (node: Node) => this.activateNode(node),
-      onNodeLongPress: (node: Node) => this.selectNodeForDrag(node),
-      onEdgeClick: (edge: Edge) => this.activateEdge(edge),
-      onSimulationState: (state: SimulationState) => this.renderSimulationState(state),
-    });
+    if (!this.canvas) throw new Error("Temporal graph canvas is required.");
+    this.surface = surfaceFactory.create(this.canvas, (event) => this.handleSurfaceEvent(event));
 
     // Listen for pointer events on the timeline surface to coordinate edge connection delays
     this.setupPointerEventTracking();
@@ -178,7 +193,7 @@ class TemporalGraphViewController {
         cancelAnimationFrame(this.layoutFrame);
         this.layoutFrame = requestAnimationFrame(() => {
           this.layoutFrame = 0;
-          this.orb.refreshLayout?.();
+          this.surface.refreshLayout();
         });
       });
       this.resizeObserver.observe(this.canvas);
@@ -268,14 +283,14 @@ class TemporalGraphViewController {
   }
 
   resetView(): void {
-    this.orb.recenter();
+    this.surface.recenter();
   }
 
   refreshLayout(): void {
     cancelAnimationFrame(this.layoutFrame);
     this.layoutFrame = requestAnimationFrame(() => {
       this.layoutFrame = 0;
-      this.orb.refreshLayout?.();
+      this.surface.refreshLayout();
     });
   }
 
@@ -365,7 +380,7 @@ class TemporalGraphViewController {
     const countText = `${scopeText}${data.edges.length} relations in window${persistentText}`;
     if (this.status) {
       this.status.dataset.edgeCount = countText;
-      this.status.textContent = `${countText} · ${this.orb.getMode()}`;
+      this.status.textContent = `${countText} · ${this.surface.getMode()}`;
     }
     if (this.windowLabel) this.windowLabel.textContent = formatWindow(this.viewport);
 
