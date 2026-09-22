@@ -200,14 +200,16 @@ test("node interaction reheats force and preserves wider spacing after release",
   assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.018/);
   assert.match(
     source,
-    /function onPointerDown\(event\)[\s\S]*target\?\.kind === "node"[\s\S]*setInteractionHeat\(DRAG_ALPHA_TARGET\)[\s\S]*beginCameraGesture\(event, target\)/,
+    /function onPointerDown\(event\)[\s\S]*target\?\.kind === "node"[\s\S]*requestSimulation\("drag", DRAG_ALPHA_TARGET\)[\s\S]*beginCameraGesture\(event, target\)/,
   );
-  assert.match(source, /onNodeDragStart[\s\S]{0,320}forceSimulator\(\)\?\.activateSimulation\(\)/);
   assert.doesNotMatch(
     source,
-    /onNodeDragStart[\s\S]{0,320}setInteractionHeat\(DRAG_ALPHA_TARGET\)/,
+    /onNodeDragStart[\s\S]{0,320}(?:activateSimulation|requestSimulation)/,
   );
-  assert.match(source, /onNodeDragEnd[\s\S]*keepForceActiveAfterInteraction\(\)/);
+  assert.match(
+    source,
+    /onNodeDragEnd[\s\S]*releaseSimulation\("drag"\)[\s\S]*keepForceActiveAfterInteraction\(\)/,
+  );
   assert.match(source, /simulator\.setSettings\(layout\)/);
   assert.match(source, /simulator\.activateSimulation\(\)/);
   assert.match(source, /distance:\s*dense \? 128 : 168/);
@@ -230,7 +232,7 @@ test("mouse node drag preheats force before Orb enters native drag state", async
   );
   assert.match(
     source,
-    /function onPointerDown\(event\)[\s\S]*const target = touchTargetPayload\(event\)[\s\S]*event\.pointerType !== "touch"[\s\S]*target\?\.kind === "node"[\s\S]*setInteractionHeat\(DRAG_ALPHA_TARGET\)/,
+    /function onPointerDown\(event\)[\s\S]*const target = touchTargetPayload\(event\)[\s\S]*event\.pointerType !== "touch"[\s\S]*target\?\.kind === "node"[\s\S]*requestSimulation\("drag", DRAG_ALPHA_TARGET\)/,
   );
   assert.match(
     source,
@@ -238,11 +240,11 @@ test("mouse node drag preheats force before Orb enters native drag state", async
   );
   assert.match(
     source,
-    /const onNodeDragStart = \(\) => \{[\s\S]{0,320}clearInteractionSettleTimer\(\)[\s\S]{0,320}forceSimulator\(\)\?\.activateSimulation\(\)/,
+    /const onNodeDragStart = \(\) => \{[\s\S]{0,320}clearInteractionSettleTimer\(\)/,
   );
   assert.doesNotMatch(
     source,
-    /const onNodeDragStart = \(\) => \{[\s\S]{0,320}setInteractionHeat\(DRAG_ALPHA_TARGET\)/,
+    /const onNodeDragStart = \(\) => \{[\s\S]{0,320}requestSimulation\("drag"/,
   );
 });
 
@@ -297,7 +299,7 @@ test("touch node long press is armed from capture-phase hit testing before Orb d
   assert.match(bridge, /beginTouchHold\([\s\S]*setDragEnabled\(false\)[\s\S]*TOUCH_NODE_HOLD_MS/);
   assert.match(
     bridge,
-    /touchHold\.activated = true[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)[\s\S]*setInteractionHeat\(DRAG_ALPHA_TARGET\)[\s\S]*simulator\?\.startDragNode\(\)/,
+    /touchHold\.activated = true[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)[\s\S]*requestSimulation\("drag", DRAG_ALPHA_TARGET\)[\s\S]*simulator\?\.startDragNode\(\)/,
   );
   assert.doesNotMatch(bridge, /onNodeDragStart[\s\S]{0,180}beginTouchHold/);
 });
@@ -494,7 +496,7 @@ test("touch node hold freezes the graph camera until drag or navigation intent i
   );
   assert.match(
     bridge,
-    /setInteractionHeat\(DRAG_ALPHA_TARGET\)[\s\S]*simulator\?\.startDragNode\(\)/,
+    /requestSimulation\("drag", DRAG_ALPHA_TARGET\)[\s\S]*simulator\?\.startDragNode\(\)/,
   );
 });
 
@@ -619,17 +621,21 @@ test("graph camera and force policy stays bounded, weighted, and explicitly acti
   assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.028/);
   assert.match(
     source,
-    /function setData\(data\)[\s\S]{0,1800}applyInteractionForce\(0\)[\s\S]{0,500}orb\.render/,
+    /function setData\(data\)[\s\S]{0,1800}orb\.render\(\)[\s\S]{0,500}requestSimulation\("topology", 0\)/,
   );
-  assert.match(
+  assert.match(source, /refreshLayout\(\)\s*\{[\s\S]{0,900}orb\.render/);
+  assert.doesNotMatch(
     source,
-    /refreshLayout\(\)\s*\{[\s\S]{0,900}applyInteractionForce\(0,\s*\{\s*reheat:\s*false\s*\}\)[\s\S]{0,600}orb\.render/,
+    /refreshLayout\(\)\s*\{[\s\S]{0,500}requestSimulation\(/,
   );
   assert.match(source, /alpha:\s*reheat\s*\?\s*\(dense \? 0\.11 : 0\.14\)\s*:\s*dense \? 0\.025 : 0\.032/);
   assert.match(source, /simulator\.stopSimulation\(\)/);
+  assert.match(source, /isSimulatingOnDataUpdate:\s*false/);
+  assert.match(source, /isSimulatingOnSettingsUpdate:\s*false/);
   assert.match(source, /\.timeline-surface, \.presentation-map, \.leaflet-container/);
   assert.match(source, /document\.addEventListener\("pointerdown", onCompetingPointerDown, true\)/);
-  assert.match(source, /applyInteractionForce\(0, \{ reheat: false \}\)/);
+  assert.match(source, /simulationCoordinator\.suspend\("competing-surface"\)/);
+  assert.match(source, /simulationCoordinator\.resume\("competing-surface"\)/);
 });
 
 
