@@ -764,7 +764,7 @@ class TimelineViewController {
       }
     });
 
-    this.root.addEventListener("graphselectionchange", (event: Event) => {
+    document.addEventListener("graphselectionchange", (event: Event) => {
       const detail = (event as CustomEvent).detail;
       if (!detail || detail.kind !== "node") return;
       const nodeId = String(detail.id);
