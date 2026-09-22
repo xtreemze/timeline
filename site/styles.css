@@ -4225,6 +4225,7 @@ body {
 }
 
 .app-footer-shell > .app-project-title-bar {
+  view-transition-name: none;
   position: relative;
   z-index: 1;
   inset: auto;
