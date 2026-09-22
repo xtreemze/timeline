@@ -4381,7 +4381,7 @@ body {
   block-size: 100%;
   min-block-size: 0;
   max-block-size: none;
-  overflow-inline: clip;
+  overflow-inline: auto;
   overflow-block: auto;
 }
 
@@ -4442,7 +4442,7 @@ body {
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-browser-sheet {
   inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
   inset-inline-end: calc(var(--workspace-footer-reserved-inline) + 0.35rem);
-  max-inline-size: calc(100dvw - var(--workspace-footer-reserved-inline) - 0.7rem);
+  max-inline-size: calc(100% - var(--workspace-footer-reserved-inline) - 0.7rem);
   max-block-size: calc(100dvh - 0.8rem);
 }
 
