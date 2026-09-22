@@ -681,6 +681,8 @@ function closestEventTarget<T extends HTMLElement>(
       "--view-controls-top",
       "--view-controls-right",
       "--view-controls-bottom",
+      "--view-controls-inline-size",
+      "--view-controls-block-size",
     ]) {
       els.viewControls.style.removeProperty(property);
     }
@@ -697,6 +699,7 @@ function closestEventTarget<T extends HTMLElement>(
 
     const triggerRect = els.viewControlsToggle.getBoundingClientRect();
     const toolbarRect = els.viewControls.getBoundingClientRect();
+    const dockRect = els.appToolDock.getBoundingClientRect();
     const viewport = workspaceToolViewport();
     const orientation =
       els.timelineViewRoot?.dataset.orientation === "portrait" ? "portrait" : "landscape";
@@ -706,59 +709,49 @@ function closestEventTarget<T extends HTMLElement>(
     const minTop = viewport.top + edge;
     const maxRight = viewport.left + viewport.width - edge;
     const maxBottom = viewport.top + viewport.height - edge;
-    const toolbarWidth = Math.min(
+    const measuredWidth = Math.min(
       Math.max(1, toolbarRect.width || els.viewControls.offsetWidth || 1),
       Math.max(1, maxRight - minLeft),
     );
-    const toolbarHeight = Math.min(
+    const measuredHeight = Math.min(
       Math.max(1, toolbarRect.height || els.viewControls.offsetHeight || 1),
       Math.max(1, maxBottom - minTop),
     );
 
+    let toolbarWidth = measuredWidth;
+    let toolbarHeight = measuredHeight;
     let left = 0;
     let top = 0;
     let placement = "";
 
     if (orientation === "portrait") {
-      const preferredLeft = triggerRect.left - toolbarWidth - gap;
-      const fallbackLeft = triggerRect.right + gap;
-      const roomLeft = Math.max(0, triggerRect.left - gap - minLeft);
-      const roomRight = Math.max(0, maxRight - triggerRect.right - gap);
-
-      if (preferredLeft >= minLeft) {
-        left = preferredLeft;
-        placement = "left";
-      } else if (fallbackLeft + toolbarWidth <= maxRight) {
-        left = fallbackLeft;
-        placement = "right";
-      } else if (roomLeft >= roomRight) {
-        left = Math.max(minLeft, triggerRect.left - gap - toolbarWidth);
-        placement = "clamped-left";
-      } else {
-        left = Math.min(maxRight - toolbarWidth, fallbackLeft);
-        placement = "clamped-right";
-      }
-      top = triggerRect.bottom - toolbarHeight;
+      const roomLeft = Math.max(1, dockRect.left - gap - minLeft);
+      const roomRight = Math.max(1, maxRight - dockRect.right - gap);
+      const opensLeft = roomLeft >= roomRight;
+      const availableRoom = opensLeft ? roomLeft : roomRight;
+      toolbarWidth = Math.min(measuredWidth, availableRoom);
+      left = opensLeft ? dockRect.left - gap - toolbarWidth : dockRect.right + gap;
+      top = triggerRect.top + triggerRect.height / 2 - toolbarHeight / 2;
+      placement = opensLeft ? "left" : "right";
+      els.viewControls.style.setProperty(
+        "--view-controls-inline-size",
+        `${Math.floor(toolbarWidth)}px`,
+      );
+      els.viewControls.style.removeProperty("--view-controls-block-size");
     } else {
-      const preferredTop = triggerRect.top - toolbarHeight - gap;
-      const fallbackTop = triggerRect.bottom + gap;
-      const roomAbove = Math.max(0, triggerRect.top - gap - minTop);
-      const roomBelow = Math.max(0, maxBottom - triggerRect.bottom - gap);
-
-      if (preferredTop >= minTop) {
-        top = preferredTop;
-        placement = "above";
-      } else if (fallbackTop + toolbarHeight <= maxBottom) {
-        top = fallbackTop;
-        placement = "below";
-      } else if (roomAbove >= roomBelow) {
-        top = Math.max(minTop, triggerRect.top - gap - toolbarHeight);
-        placement = "clamped-above";
-      } else {
-        top = Math.min(maxBottom - toolbarHeight, fallbackTop);
-        placement = "clamped-below";
-      }
-      left = triggerRect.right - toolbarWidth;
+      const roomAbove = Math.max(1, dockRect.top - gap - minTop);
+      const roomBelow = Math.max(1, maxBottom - dockRect.bottom - gap);
+      const opensAbove = roomAbove >= roomBelow;
+      const availableRoom = opensAbove ? roomAbove : roomBelow;
+      toolbarHeight = Math.min(measuredHeight, availableRoom);
+      top = opensAbove ? dockRect.top - gap - toolbarHeight : dockRect.bottom + gap;
+      left = triggerRect.left + triggerRect.width / 2 - toolbarWidth / 2;
+      placement = opensAbove ? "above" : "below";
+      els.viewControls.style.setProperty(
+        "--view-controls-block-size",
+        `${Math.floor(toolbarHeight)}px`,
+      );
+      els.viewControls.style.removeProperty("--view-controls-inline-size");
     }
 
     left = Math.min(Math.max(minLeft, left), Math.max(minLeft, maxRight - toolbarWidth));
