@@ -28,6 +28,7 @@ import {
   type TemporalLayoutCluster,
   type TemporalLayoutMeasurement,
 } from "../src/layout/temporal-layout.ts";
+import type { InteractionCoordinator, InteractionCompletionReason } from "../src/interaction/interaction-coordinator.ts";
 import {
   createRetainedTimelineMetrics,
   type RetainedTimelineSummary,
@@ -310,13 +311,18 @@ class TimelineViewController {
   renderFrame = 0;
   wheelCommitTimer: ReturnType<typeof globalThis.setTimeout> | 0 = 0;
   viewportInitialized = false;
+  interactionCoordinator: InteractionCoordinator | null;
   reducedMotionQuery: MediaQueryList | null =
     typeof globalThis.matchMedia === "function"
       ? globalThis.matchMedia("(prefers-reduced-motion: reduce)")
       : null;
 
-  constructor(root: HTMLElement) {
+  constructor(
+    root: HTMLElement,
+    options: { interactionCoordinator?: InteractionCoordinator | null } = {},
+  ) {
     this.root = root;
+    this.interactionCoordinator = options.interactionCoordinator ?? null;
     this.surface = root.querySelector("#timeline-surface") || root.querySelector(".timeline-surface") || root;
     this.focusView =
       root.querySelector("#timeline-focus-view") || root.querySelector(".timeline-focus-view") || root;
@@ -341,6 +347,15 @@ class TimelineViewController {
 
     this.bind();
     this.applyOrientation();
+  }
+
+  claimGesture(gesture: "tap" | "pan" | "pinch"): boolean {
+    const coordinator = this.interactionCoordinator;
+    if (!coordinator) return true;
+    const current = coordinator.snapshot();
+    if (current.owner !== "timeline") return false;
+    if (current.phase === "owned" && current.gesture === gesture) return true;
+    return coordinator.classify("timeline", gesture) && coordinator.claim("timeline");
   }
 
   bind(): void {
@@ -445,7 +460,7 @@ class TimelineViewController {
 
     const beginPinch = (): boolean => {
       const geometry = pinchGeometry();
-      if (!geometry) return false;
+      if (!geometry || !this.claimGesture("pinch")) return false;
       this.cancelInertia();
       this.beginInteraction();
       this.touchTap = null;
@@ -503,7 +518,9 @@ class TimelineViewController {
       return false;
     };
 
-    const abortSurfaceGesture = (): void => {
+    const abortSurfaceGesture = (
+      reason: Exclude<InteractionCompletionReason, "release"> = "aborted",
+    ): void => {
       const pointerIds = new Set(this.touchPointers.keys());
       if (this.pointerDrag) pointerIds.add(this.pointerDrag.pointerId);
       const interrupted = Boolean(this.pointerDrag || this.pinch || this.touchPointers.size);
@@ -515,6 +532,7 @@ class TimelineViewController {
       this.pointerDrag = null;
       this.cancelInertia();
       for (const pointerId of pointerIds) releasePointerCapture(pointerId);
+      if (interrupted) this.interactionCoordinator?.cancel("timeline", reason);
 
       if (interrupted) {
         this.suppressClickUntil = performance.now() + CLICK_SUPPRESSION_MS;
@@ -535,6 +553,14 @@ class TimelineViewController {
     this.surface.addEventListener("pointerdown", (event) => {
       const isPrimaryPointer = event.pointerType === "touch" || event.button === 0;
       if (!this.items.length || !isPrimaryPointer) return;
+      if (
+        this.interactionCoordinator &&
+        !this.interactionCoordinator.begin("timeline", event.pointerId)
+      ) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
       const interactiveTarget =
         event.target instanceof Element
           ? event.target.closest("button, a, input, select, textarea")
@@ -629,6 +655,7 @@ class TimelineViewController {
       const delta = coordinate - drag.coordinate;
       const span = drag.viewport.end - drag.viewport.start;
       const usable = Math.max(1, length - this.axisPadding(length) * 2);
+      if (Math.abs(delta) > 0.5 && !this.claimGesture("pan")) return;
       const temporalDelta = -(delta / usable) * span;
       const target = {
         start: drag.viewport.start + temporalDelta,
@@ -657,6 +684,19 @@ class TimelineViewController {
           : null;
       if (event.pointerType === "touch") this.touchPointers.delete(event.pointerId);
 
+      if (event.type === "pointercancel") {
+        this.interactionCoordinator?.cancel("timeline", "pointercancel");
+      } else {
+        const current = this.interactionCoordinator?.snapshot();
+        if (
+          current?.owner === "timeline" &&
+          (current.phase === "acquisition" || current.phase === "classification")
+        ) {
+          this.claimGesture("tap");
+        }
+        this.interactionCoordinator?.release("timeline", event.pointerId);
+      }
+
       if (wasPinching) {
         this.touchTap = null;
         this.lastTouchTap = null;
@@ -672,6 +712,8 @@ class TimelineViewController {
         this.pinch = null;
         const remaining = Array.from(this.touchPointers.values())[0];
         if (remaining) {
+          this.interactionCoordinator?.cancel("timeline", "aborted");
+          this.interactionCoordinator?.begin("timeline", remaining.pointerId);
           beginSurfaceDrag(remaining.pointerId, remaining);
           releasePointerCapture(event.pointerId);
           return;
@@ -719,17 +761,21 @@ class TimelineViewController {
         this.pointerDrag?.pointerId === event.pointerId ||
         this.touchPointers.has(event.pointerId)
       ) {
-        abortSurfaceGesture();
+        abortSurfaceGesture("lostpointercapture");
       }
     });
-    window.addEventListener("blur", abortSurfaceGesture);
+    window.addEventListener("blur", () => abortSurfaceGesture("blur"));
     document.addEventListener("visibilitychange", () => {
-      if (document.hidden) abortSurfaceGesture();
+      if (document.hidden) abortSurfaceGesture("visibilitychange");
     });
-    window.addEventListener("orientationchange", abortSurfaceGesture);
-    globalThis.screen?.orientation?.addEventListener?.("change", abortSurfaceGesture);
+    window.addEventListener("orientationchange", () => abortSurfaceGesture("orientationchange"));
+    globalThis.screen?.orientation?.addEventListener?.("change", () =>
+      abortSurfaceGesture("orientationchange"),
+    );
     window.visualViewport?.addEventListener("resize", () => {
-      if (this.pointerDrag || this.pinch || this.touchPointers.size) abortSurfaceGesture();
+      if (this.pointerDrag || this.pinch || this.touchPointers.size) {
+        abortSurfaceGesture("aborted");
+      }
     });
 
 
@@ -797,6 +843,7 @@ class TimelineViewController {
         );
 
     if (!this.items.length) {
+      this.interactionCoordinator?.cancel("timeline", "aborted");
       this.cancelInertia();
       this.pointerDrag = null;
       this.touchPointers.clear();
@@ -1530,6 +1577,7 @@ class TimelineViewController {
     this.reconcileCommittedLayout();
     this.render();
     this.emitViewport(true);
+    this.interactionCoordinator?.commit("timeline");
   }
 
   scheduleRender(): void {
@@ -2809,9 +2857,12 @@ class TimelineViewController {
 }
 
 export const TimelineView = Object.freeze({
-  create(root: HTMLElement): TimelineViewController | null {
+  create(
+    root: HTMLElement,
+    options: { interactionCoordinator?: InteractionCoordinator | null } = {},
+  ): TimelineViewController | null {
     if (!(root instanceof HTMLElement)) return null;
-    return new TimelineViewController(root);
+    return new TimelineViewController(root, options);
   },
   geometry: Object.freeze({
     connectorSegment,
