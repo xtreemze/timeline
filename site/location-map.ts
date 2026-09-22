@@ -174,6 +174,13 @@ function observeMapSize(
   };
 }
 
+interface BasemapLayer {
+  on(event: string, listener: () => void): void;
+  off(): void;
+  remove(): void;
+  addTo(target: unknown): void;
+}
+
 function attachBasemap(
   L: any,
   map: any,
@@ -182,12 +189,7 @@ function attachBasemap(
 ): () => void {
   let providerIndex = 0;
   let tileErrors = 0;
-  let layer: {
-    on: (event: string, listener: () => void) => void;
-    off: () => void;
-    remove: () => void;
-    addTo: (target: unknown) => void;
-  } | null = null;
+  let layer: BasemapLayer | null = null;
   let destroyed = false;
   const failureThreshold = 3;
   const setState = (state: "loading" | "ready" | "unavailable", provider?: MapProvider) => {
@@ -211,7 +213,7 @@ function attachBasemap(
       ...(provider.options || {}),
       maxZoom: provider.maxZoom || Number(provider.options?.maxZoom) || 19,
       attribution: provider.attribution || DEFAULT_PROVIDER.attribution,
-    }) as NonNullable<typeof layer>;
+    }) as BasemapLayer;
     layer = nextLayer;
     nextLayer.on("load", () => {
       tileErrors = 0;
