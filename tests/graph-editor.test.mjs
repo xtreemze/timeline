@@ -325,7 +325,7 @@ test("touch graph gesture ownership separates node drag from graph pan and pinch
 test("graph double tap zooms at the tapped point while long press and multi-touch cancel the tap sequence", async () => {
   const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
   assert.match(bridge, /TOUCH_DOUBLE_TAP_MS\s*=\s*320/);
-  assert.match(bridge, /GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX\s*=\s*-500/);
+  assert.match(bridge, /GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX\s*=\s*-280/);
   assert.match(bridge, /function zoomGraphAtClientPoint\(point\)[\s\S]*new WheelEvent\("wheel"/);
   assert.match(
     bridge,
