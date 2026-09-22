@@ -274,6 +274,14 @@ test("graph exploration is chrome-free and selection-only", async () => {
   assert.doesNotMatch(graphView, /renderDetail|temporal-graph-detail-list/);
 });
 
+test("focused event state drives structural presentation-stage geometry", async () => {
+  const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
+  assert.match(
+    app,
+    /timelinefocuschange[\s\S]*presentationStage\.dataset\.eventFocused\s*=\s*String\(focused\)/,
+  );
+});
+
 test("fullscreen keeps focused event detail in normal presentation-stage layout", async () => {
   const [html, view, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
