@@ -106,9 +106,15 @@ export function clusterProjectedItems(
       continue;
     }
 
-    const previousPosition = current.entries[current.entries.length - 1]!.position;
+    const previousEntry = current.entries.at(-1);
+    const firstEntry = current.entries[0];
+    if (!previousEntry || !firstEntry) {
+      current = { entries: [entry], centroid: entry.position };
+      continue;
+    }
+    const previousPosition = previousEntry.position;
     const adjacentDistance = Math.abs(entry.position - previousPosition);
-    const envelopeStart = current.entries[0]!.position;
+    const envelopeStart = firstEntry.position;
     const envelopeEnd = entry.position;
     const envelopeWidth = envelopeEnd - envelopeStart;
 
@@ -126,7 +132,10 @@ export function clusterProjectedItems(
 
   return groups.map((group): Cluster => {
     if (group.entries.length === 1) {
-      const only = group.entries[0]!;
+      const only = group.entries[0];
+      if (!only) {
+        throw new Error("Single-entry timeline cluster lost its retained entry.");
+      }
       return {
         kind: "item",
         id: String(only.item.id),
@@ -629,14 +638,15 @@ export function clusterExpansionViewport(
   const padding = Math.min(0.4, Math.max(0, Number(paddingRatio) || 0));
   let minimumDelta = Number.POSITIVE_INFINITY;
   for (let index = 1; index < uniqueStarts.length; index += 1) {
-    minimumDelta = Math.min(
-      minimumDelta,
-      uniqueStarts[index]! - uniqueStarts[index - 1]!,
-    );
+    const currentStart = uniqueStarts[index];
+    const previousStart = uniqueStarts[index - 1];
+    if (currentStart === undefined || previousStart === undefined) continue;
+    minimumDelta = Math.min(minimumDelta, currentStart - previousStart);
   }
 
-  const minimum = uniqueStarts[0]!;
-  const maximum = uniqueStarts[uniqueStarts.length - 1]!;
+  const minimum = uniqueStarts[0];
+  const maximum = uniqueStarts.at(-1);
+  if (minimum === undefined || maximum === undefined) return null;
   const range = Math.max(minSpanMs, maximum - minimum);
   const positionFor = (item: any) => ((item.start - start) / span) * length;
   const representations = clusterProjectedItems(
