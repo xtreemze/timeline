@@ -100,7 +100,8 @@ export function createInteractionCoordinator(): InteractionCoordinator {
       }
 
       if (owner && owner !== nextOwner) return false;
-      if (phase === "owned" || phase === "settling") return false;
+      if (phase === "settling") return false;
+      if (phase === "owned" && gesture !== "pan") return false;
 
       owner = nextOwner;
       pointers.add(id);
@@ -112,7 +113,15 @@ export function createInteractionCoordinator(): InteractionCoordinator {
 
     classify(nextOwner: InteractionOwner, nextGesture: GestureKind) {
       if (!owner || owner !== nextOwner) return false;
-      if (phase !== "acquisition" && phase !== "classification") return false;
+      const upgradingPanToPinch =
+        phase === "owned" && gesture === "pan" && nextGesture === "pinch";
+      if (
+        phase !== "acquisition" &&
+        phase !== "classification" &&
+        !upgradingPanToPinch
+      ) {
+        return false;
+      }
       if (nextGesture === "pinch" && pointers.size < 2) return false;
 
       gesture = nextGesture;
