@@ -141,7 +141,12 @@ async function ensureTimelineOrientation(page, orientation) {
     expect(timelineBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.62);
     expect(timelineBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.9);
     expect(timelineBox.x + timelineBox.width).toBeLessThanOrEqual(footerBox.x + 2);
-    expect(surfaceBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.35);
+    // Portrait is a two-surface composition: chronology remains a readable full-height
+    // rail on the right while the relation graph keeps meaningful space on the left.
+    expect(surfaceBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.4);
+    const graphBox = await expectInsideViewport(page.locator('#graph-lens'), PHONE_PORTRAIT);
+    expect(graphBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.25);
+    expect(graphBox.x + graphBox.width).toBeLessThanOrEqual(surfaceBox.x + 2);
     await expect
       .poll(async () => (await surface.boundingBox())?.height ?? 0)
       .toBeGreaterThan(PHONE_PORTRAIT.height * 0.7);
@@ -206,7 +211,7 @@ async function ensureTimelineOrientation(page, orientation) {
         expect(stageBox.x + stageBox.width).toBeLessThanOrEqual(footerBox.x + 2);
         expect(surfaceBox.x + surfaceBox.width).toBeLessThanOrEqual(footerBox.x + 3);
       } else {
-        expect(footerBox.width).toBeGreaterThan(180);
+        expect(footerBox.width).toBeGreaterThan(viewport.width * 0.9);
         expect(footerBox.height).toBeGreaterThan(80);
         expect(dockBox.y + dockBox.height).toBeLessThanOrEqual(titleBox.y + 2);
         expect(stageBox.y + stageBox.height).toBeLessThanOrEqual(footerBox.y + 2);
