@@ -312,7 +312,7 @@ test("fullscreen preserves the common footer app bar inside the fullscreen subtr
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
-  assert.match(app, /appToolDock:\s*document\.querySelector\("\.app-tool-dock"\)/);
+  assert.match(app, /appToolDock:\s*requiredElement<HTMLElement>\("\.app-tool-dock"\)/);
   assert.match(app, /timeline-tool-dock-home/);
   assert.match(app, /mountFullscreenToolDock/);
   assert.match(app, /restoreToolDock/);
@@ -381,10 +381,13 @@ test("workspace sidebar and side sheets are named View Transition participants",
 
 test("story previous and next navigation use the same directional focus travel", async () => {
   const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
-  assert.match(app, /focusCurrentStoryItem\(openFocus = false, options = \{\}\)/);
   assert.match(
     app,
-    /timelineView\?\.focusItem\(currentId, \{[\s\S]*direction: Number\(options\.direction\) < 0 \? -1 : 1/,
+    /focusCurrentStoryItem\(\s*openFocus = false,\s*options:\s*\{ direction\?: number \} = \{\},?\s*\)/,
+  );
+  assert.match(
+    app,
+    /timelineView\?\.focusItem\(currentId, \{[\s\S]*direction: Number\(options\.direction \?\? 1\) < 0 \? -1 : 1/,
   );
   assert.match(
     app,
