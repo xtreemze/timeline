@@ -2469,20 +2469,16 @@ class TimelineViewController {
     next.addEventListener("click", () => this.focusAdjacent(1));
     const edit = document.createElement("button");
     edit.type = "button";
-    edit.className = "button icon-only timeline-focus-nav-edit";
-    edit.setAttribute("aria-label", "Edit event");
-    edit.setAttribute("title", "Edit event");
-    edit.setAttribute("data-semantic-icon", "edit");
+    edit.className = "button secondary";
+    edit.textContent = "Edit event";
     edit.addEventListener("click", () => {
       this.root.dispatchEvent(
         new CustomEvent("timelinefocusedit", { bubbles: true, detail: { id: item.id } }),
       );
       this.closeFocus();
     });
-    if (item.editable !== false) {
-      actions.append(edit);
-    }
     actions.append(previous, next);
+    if (item.editable !== false) actions.append(edit);
     summary.append(actions);
 
     const place = document.createElement("section");
