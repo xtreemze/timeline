@@ -4000,7 +4000,7 @@ body {
   margin-inline-start: auto;
 }
 
-@media (min-width: 760px) {
+@media (min-width: 760px) and (min-height: 600px) {
   #app-shell[data-editor-open="true"] {
     --utility-sidebar-width: clamp(320px, 34%, 440px);
     display: grid;
@@ -4293,7 +4293,7 @@ body {
   height: auto;
 }
 
-@media (min-width: 760px) {
+@media (min-width: 760px) and (min-height: 600px) {
   #app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen) {
     position: relative;
     inset: auto;
