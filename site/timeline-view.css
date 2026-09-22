@@ -572,6 +572,7 @@
   z-index: 2;
   width: 0;
   height: 0;
+  overflow: visible;
   pointer-events: none;
 }
 .timeline-event-terminal {
@@ -635,6 +636,7 @@
   width: 4.25rem;
   height: 2.6rem;
   flex: 0 0 4.25rem;
+  overflow: visible;
 }
 .timeline-cluster-tile {
   --cluster-tile-color: var(--accent);
