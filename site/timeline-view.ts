@@ -289,6 +289,8 @@ class TimelineViewController {
   committedClusterByItem = new Map<string, string>();
   clusterScene = new Map<string, ClusterSceneRecord>();
   expandedClusterItemIds = new Set<string>();
+  clusterSignature: string | null = null;
+  lastClusterHapticAt = 0;
   geometryMeasurements = new Map<string, CachedGeometryMeasurement>();
   committedTickSpecKey = "";
   committedTickSpec: SemanticTickSpec | null = null;
@@ -743,7 +745,7 @@ class TimelineViewController {
       if (event.key === "Home") {
         event.preventDefault();
         this.cancelInertia();
-        this.fitAll();
+        event.shiftKey ? this.fitAll() : this.fitVisible();
         return;
       }
       if (event.key === "+" || event.key === "=" || event.key === "-") {
@@ -826,6 +828,8 @@ class TimelineViewController {
       this.viewportInitialized = false;
       this.viewport = { start: 0, end: DEFAULT_SPAN_MS };
       this.expandedClusterItemIds.clear();
+      this.clusterSignature = null;
+      this.lastClusterHapticAt = 0;
       this.geometryMeasurements.clear();
       this.focusedId = null;
     }
@@ -1489,6 +1493,18 @@ class TimelineViewController {
     }
   }
 
+  fitVisible(): void {
+    const coordinates = this.itemCoordinates();
+    if (!coordinates.length) return;
+    this.expandedClusterItemIds.clear();
+    this.viewport = scale.fit(coordinates, {
+      paddingRatio: 0.1,
+      minSpanMs: DEFAULT_SPAN_MS,
+    });
+    this.commitInteraction();
+    this.surface.focus({ preventScroll: true });
+  }
+
   fitAll(): void {
     const coordinates = this.allCoordinates.length
       ? this.allCoordinates
@@ -1702,7 +1718,22 @@ class TimelineViewController {
         this.committedClusterByItem.set(itemId, cluster.id);
       }
     }
+    this.updateClusterHaptics(clusters);
     this.reconcileClusterScene(clusters);
+  }
+
+  updateClusterHaptics(clusters: readonly TemporalLayoutCluster[]): void {
+    const signature = clusters.map((cluster) => cluster.id).sort().join(";");
+    if (this.clusterSignature === null) {
+      this.clusterSignature = signature;
+      return;
+    }
+    if (signature === this.clusterSignature) return;
+    this.clusterSignature = signature;
+    const now = performance.now();
+    if (now - this.lastClusterHapticAt < 140) return;
+    this.lastClusterHapticAt = now;
+    void motion.pulseHaptic("cluster");
   }
 
   reconcileClusterScene(clusters: readonly TemporalLayoutCluster[]): void {
