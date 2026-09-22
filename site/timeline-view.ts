@@ -1420,6 +1420,16 @@ class TimelineViewController {
         `${this.relationshipBandLane(relationship.id) * 8}px`,
       );
 
+      // Color segment based on associated event
+      const eventIdMatch = relationship.id.match(/event-([a-z0-9-]+)/);
+      if (eventIdMatch) {
+        const eventId = eventIdMatch[1];
+        const event = this.items.find((item) => item.id === eventId);
+        if (event && event.color) {
+          segment.style.setProperty("--relation-event-color", event.color);
+        }
+      }
+
       const visible = itemOverlapsWindow(relationship, this.viewport);
       segment.hidden = !visible;
       segment.classList.toggle("is-buffered", !visible);
