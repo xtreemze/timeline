@@ -127,10 +127,12 @@ test("event editor can change relations at the event timestamp", async () => {
   assert.match(html, /value="update"/);
 });
 
-test("temporal graph exposes a layout refresh for presentation resizing", async () => {
+test("temporal graph exposes renderer-neutral recenter and layout refresh for presentation resizing", async () => {
   const source = await readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8");
   assert.match(source, /refreshLayout\(\)/);
-  assert.match(source, /this\.orb\.recenter\(\)/);
+  assert.match(source, /this\.surface\.recenter\(\)/);
+  assert.match(source, /this\.surface\.refreshLayout\(\)/);
+  assert.doesNotMatch(source, /this\.orb\./);
 });
 
 test("focused presentation graph limits itself to the event neighborhood", async () => {
