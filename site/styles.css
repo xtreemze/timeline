@@ -275,6 +275,10 @@ main > * {
   align-items: start;
   gap: 1rem var(--page-grid-gap);
   min-width: 0;
+  /* Internal timeline layers may overscan and project labels into the shared
+     presentation canvas. The presentation boundary itself must not create
+     document-level scrolling. */
+  overflow: clip;
 }
 .presentation-stage > .timeline-view {
   grid-column: 1 / -1;
