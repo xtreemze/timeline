@@ -585,7 +585,7 @@
   align-items: center;
   gap: 0.62rem;
   width: max-content;
-  max-width: 232px;
+  max-width: 380px;
   min-height: 56px;
   border: 1px solid color-mix(in srgb, var(--event-color, var(--ink)) 34%, var(--line));
   border-radius: 0.82rem;
