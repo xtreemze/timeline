@@ -246,10 +246,10 @@ interface StoryInputRecord {
 
 interface TimelineInputRecord {
   title?: unknown;
-  categories?: CategoryInputRecord[];
-  items?: TimelineItemInputRecord[];
+  categories?: Array<CategoryInputRecord | CategoryRecord>;
+  items?: Array<TimelineItemInputRecord | TimelineItemRecord>;
   events?: LegacyEventInputRecord[];
-  stories?: StoryInputRecord[];
+  stories?: Array<StoryInputRecord | StoryRecord>;
   evidence?: unknown;
   custodyActions?: unknown;
   reasoning?: unknown;
@@ -3891,7 +3891,7 @@ function closestEventTarget<T extends HTMLElement>(
     setError(els.graphEdgeError);
   }
 
-  function buildGraphEdgeTime() {
+  function buildGraphEdgeTime(): TemporalExtent | null {
     const kind = els.graphEdgeTimeKind.value;
     if (kind === "timeless") return null;
     const startDate = els.graphEdgeStartDate.value;
@@ -4927,20 +4927,26 @@ function closestEventTarget<T extends HTMLElement>(
       return;
     }
 
-    if (kind === "range" && !endEndpoint) {
-      setError(els.itemFormError, "A range requires an end value.");
+    const startValue = startEndpoint.value;
+    if (!startValue) {
+      setError(els.itemFormError, "A timeline item requires a canonical start value.");
+      return;
+    }
+    const endValue = kind === "range" ? endEndpoint?.value ?? null : null;
+    if (kind === "range" && !endValue) {
+      setError(els.itemFormError, "A range requires a canonical end value.");
       return;
     }
 
     const item: TimelineItemRecord = {
       id: els.itemId.value || newId("item"),
       kind,
-      start: startEndpoint.value!,
-      end: kind === "range" ? endEndpoint!.value! : null,
+      start: startValue,
+      end: endValue,
       time: {
         type: kind === "range" ? "interval" : "instant",
         start: startEndpoint,
-        end: kind === "range" ? endEndpoint! : null,
+        end: kind === "range" ? endEndpoint : null,
       },
       title: title.slice(0, 160),
       description: els.itemDescription.value.trim().slice(0, 2000),
@@ -5000,7 +5006,7 @@ function closestEventTarget<T extends HTMLElement>(
             itemInferenceDraft.proposal,
             selected,
             { graph, spatial },
-          ),
+          ) as TimelineInputRecord,
           { strictGraph: true },
         );
       }
@@ -5037,8 +5043,10 @@ function closestEventTarget<T extends HTMLElement>(
     (event) => {
       const details = closestEventTarget<HTMLDetailsElement>(event, ".timeline-category-group");
       if (!details) return;
-      if (details.open) ui.collapsedCategoryIds.delete(details.dataset.categoryId);
-      else ui.collapsedCategoryIds.add(details.dataset.categoryId);
+      const categoryId = details.dataset.categoryId;
+      if (!categoryId) return;
+      if (details.open) ui.collapsedCategoryIds.delete(categoryId);
+      else ui.collapsedCategoryIds.add(categoryId);
     },
     true,
   );
@@ -5098,16 +5106,20 @@ function closestEventTarget<T extends HTMLElement>(
     const index = storyDraftIds.indexOf(rowId);
     if (index < 0) return;
     if (button.dataset.action === "story-up" && index > 0) {
-      [storyDraftIds[index - 1], storyDraftIds[index]] = [
-        storyDraftIds[index],
-        storyDraftIds[index - 1],
-      ];
+      const current = storyDraftIds[index];
+      const previous = storyDraftIds[index - 1];
+      if (current && previous) {
+        storyDraftIds[index - 1] = current;
+        storyDraftIds[index] = previous;
+      }
     }
     if (button.dataset.action === "story-down" && index < storyDraftIds.length - 1) {
-      [storyDraftIds[index + 1], storyDraftIds[index]] = [
-        storyDraftIds[index],
-        storyDraftIds[index + 1],
-      ];
+      const current = storyDraftIds[index];
+      const next = storyDraftIds[index + 1];
+      if (current && next) {
+        storyDraftIds[index + 1] = current;
+        storyDraftIds[index] = next;
+      }
     }
     if (button.dataset.action === "story-remove") storyDraftIds.splice(index, 1);
     renderStoryBuilder();
