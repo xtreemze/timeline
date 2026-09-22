@@ -708,6 +708,8 @@ function closestEventTarget<T extends HTMLElement>(
     const edge = 8;
     const measuredWidth = Math.max(1, toolbarRect.width || els.viewControls.offsetWidth || 1);
     const measuredHeight = Math.max(1, toolbarRect.height || els.viewControls.offsetHeight || 1);
+    const viewportInlineSize = Math.max(1, viewport.width - edge * 2);
+    const landscapeWidth = Math.min(measuredWidth, viewportInlineSize);
     const anchor = {
       x: triggerRect.left + triggerRect.width / 2,
       y: triggerRect.top + triggerRect.height / 2,
@@ -748,9 +750,9 @@ function closestEventTarget<T extends HTMLElement>(
             {
               id: "above",
               rect: {
-                x: anchor.x - measuredWidth / 2,
+                x: anchor.x - landscapeWidth / 2,
                 y: dockRect.top - gap - measuredHeight,
-                width: measuredWidth,
+                width: landscapeWidth,
                 height: Math.min(
                   measuredHeight,
                   Math.max(1, dockRect.top - gap - (viewport.top + edge)),
@@ -760,9 +762,9 @@ function closestEventTarget<T extends HTMLElement>(
             {
               id: "below",
               rect: {
-                x: anchor.x - measuredWidth / 2,
+                x: anchor.x - landscapeWidth / 2,
                 y: dockRect.bottom + gap,
-                width: measuredWidth,
+                width: landscapeWidth,
                 height: Math.min(
                   measuredHeight,
                   Math.max(
@@ -799,18 +801,17 @@ function closestEventTarget<T extends HTMLElement>(
     const selected = snapshot.selected;
     if (!selected) return;
 
+    els.viewControls.style.setProperty(
+      "--view-controls-inline-size",
+      `${Math.floor(selected.rect.width)}px`,
+    );
     if (orientation === "portrait") {
-      els.viewControls.style.setProperty(
-        "--view-controls-inline-size",
-        `${Math.floor(selected.rect.width)}px`,
-      );
       els.viewControls.style.removeProperty("--view-controls-block-size");
     } else {
       els.viewControls.style.setProperty(
         "--view-controls-block-size",
         `${Math.floor(selected.rect.height)}px`,
       );
-      els.viewControls.style.removeProperty("--view-controls-inline-size");
     }
 
     els.viewControls.dataset.anchorPlacement = selected.id;
