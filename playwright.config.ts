@@ -26,8 +26,24 @@ export default defineConfig({
       use: { ...devices['Pixel 5'], hasTouch: true },
     },
     {
+      name: 'Mobile Chrome Landscape',
+      use: {
+        ...devices['Pixel 5'],
+        hasTouch: true,
+        viewport: { width: 851, height: 393 },
+      },
+    },
+    {
       name: 'Mobile Safari',
       use: { ...devices['iPhone 12'], hasTouch: true },
+    },
+    {
+      name: 'Mobile Safari Landscape',
+      use: {
+        ...devices['iPhone 12'],
+        hasTouch: true,
+        viewport: { width: 844, height: 390 },
+      },
     },
     {
       name: 'Tablet Touch',
