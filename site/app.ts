@@ -307,6 +307,10 @@ function requiredElements<T extends Element>(selector: string): T[] {
   return [...document.querySelectorAll<T>(selector)];
 }
 
+function eventTargetElement(event: Event): Element | null {
+  return event.target instanceof Element ? event.target : null;
+}
+
   const els = {
     title: requiredElement<HTMLInputElement>("#timeline-title"),
     heading: requiredElement<HTMLElement>("#timeline-heading"),
@@ -2285,7 +2289,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
   }
 
   function collectMediaForm() {
-    const media = [];
+    const media: MediaRecord[] = [];
     for (const row of els.itemMediaRows) {
       const parts = mediaRowParts(row);
       const src = parts.src.value.trim();
@@ -2315,7 +2319,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
   }
 
   function collectTagForm() {
-    const tags = [];
+    const tags: TagRecord[] = [];
     for (const row of els.itemTagRows) {
       const parts = tagRowParts(row);
       const label = parts.label.value.trim();
@@ -2374,7 +2378,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
   }
 
   function collectRelationChangeForm() {
-    const changes = [];
+    const changes: RelationChangeRecord[] = [];
     const seen = new Set();
     for (const row of els.itemRelationChangeRows) {
       const parts = relationChangeRowParts(row);
@@ -2477,7 +2481,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
   function renderEvidenceExtraction(parts, extraction) {
     if (!parts.extractionStatus || !parts.extractionPreview || !parts.extractionText) return;
     parts.extractionStatus.textContent = extraction ? evidenceExtractionLabel(extraction) : "";
-    const lines = [];
+    const lines: string[] = [];
     for (const segment of extraction?.segments || []) {
       const locator =
         segment.locator?.kind === "page"
@@ -2602,7 +2606,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
   }
 
   async function collectEvidenceForm() {
-    const records = [];
+    const records: EvidenceRecord[] = [];
     for (const row of els.itemEvidenceRows) {
       const parts = evidenceRowParts(row);
       const title = parts.title.value.trim();
@@ -2723,7 +2727,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
     if (ensureIds && !els.itemId.value) els.itemId.value = newId("item");
     if (ensureIds) ensureInferenceEvidenceIds();
 
-    const fragments = [];
+    const fragments: Array<{ ref: string; kind: string; text: string }> = [];
     const addFragment = (ref, kind, value) => {
       const content = String(value || "").trim();
       if (content) fragments.push({ ref, kind, text: content });
@@ -2824,7 +2828,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
   function renderInferenceDraft() {
     const proposal = itemInferenceDraft?.proposal;
     if (!proposal || !els.itemInferenceResults) return;
-    const elements = [];
+    const elements: HTMLElement[] = [];
 
     const summary = document.createElement("p");
     summary.className = "inference-summary";
@@ -3522,13 +3526,19 @@ function requiredElements<T extends Element>(selector: string): T[] {
   }
 
   function graphEndpointOptions(select, selected = "") {
-    const groups = [
+    const groups: Array<
+      [string, Array<{ id: string; label: string; type: string }>]
+    > = [
       [
         "Entity nodes",
-        state.entities.map((entity) => ({ id: entity.id, label: entity.name, type: entity.type })),
+        state.entities.map((entity) => ({
+          id: entity.id,
+          label: entity.name,
+          type: entity.type || "entity",
+        })),
       ],
     ];
-    const nodes = [];
+    const nodes: HTMLOptGroupElement[] = [];
     for (const [label, records] of groups) {
       if (!records.length) continue;
       const group = document.createElement("optgroup");
@@ -3548,7 +3558,10 @@ function requiredElements<T extends Element>(selector: string): T[] {
       : available[0]?.value || "";
   }
 
-  function graphContextItemOptions(select, selected = []) {
+  function graphContextItemOptions(
+    select: HTMLSelectElement | null,
+    selected: readonly string[] = [],
+  ): void {
     if (!select) return;
     const selectedIds = new Set(Array.from(selected || [], String));
     const options = sortItems().map((item) => {
@@ -4391,7 +4404,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
   window.visualViewport?.addEventListener("scroll", repositionOpenProjectMenu);
 
   els.projectMenu?.addEventListener("click", (event) => {
-    const action = event.target.closest("[data-project-menu-close]");
+    const action = eventTargetElement(event)?.closest("[data-project-menu-close]");
     if (!action) return;
     queueMicrotask(closeProjectMenu);
   });
@@ -4518,8 +4531,8 @@ function requiredElements<T extends Element>(selector: string): T[] {
   els.cancelGraphNodeEdit.addEventListener("click", resetGraphNodeForm);
 
   els.graphNodeList.addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-action]");
-    const row = event.target.closest(".graph-record");
+    const button = eventTargetElement(event)?.closest("button[data-action]");
+    const row = eventTargetElement(event)?.closest(".graph-record");
     if (!button || !row) return;
     if (button.dataset.action === "edit-graph-node") beginGraphNodeEdit(row.dataset.id);
     if (button.dataset.action === "delete-graph-node") removeGraphNode(row.dataset.id);
@@ -4595,8 +4608,8 @@ function requiredElements<T extends Element>(selector: string): T[] {
   els.cancelGraphPlaceEdit.addEventListener("click", resetGraphPlaceForm);
 
   els.graphPlaceList.addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-action]");
-    const row = event.target.closest(".graph-record");
+    const button = eventTargetElement(event)?.closest("button[data-action]");
+    const row = eventTargetElement(event)?.closest(".graph-record");
     if (!button || !row) return;
     if (button.dataset.action === "edit-graph-place") beginGraphPlaceEdit(row.dataset.id);
     if (button.dataset.action === "delete-graph-place") removeGraphPlace(row.dataset.id);
@@ -4718,8 +4731,8 @@ function requiredElements<T extends Element>(selector: string): T[] {
   els.cancelGraphEdgeEdit.addEventListener("click", resetGraphEdgeForm);
 
   els.graphEdgeList.addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-action]");
-    const row = event.target.closest(".graph-record");
+    const button = eventTargetElement(event)?.closest("button[data-action]");
+    const row = eventTargetElement(event)?.closest(".graph-record");
     if (!button || !row) return;
     if (button.dataset.action === "edit-graph-edge") beginGraphEdgeEdit(row.dataset.id);
     if (button.dataset.action === "delete-graph-edge") removeGraphEdge(row.dataset.id);
@@ -4974,16 +4987,16 @@ function requiredElements<T extends Element>(selector: string): T[] {
   );
 
   els.list.addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-action]");
+    const button = eventTargetElement(event)?.closest("button[data-action]");
     if (!button) return;
 
     if (button.dataset.action === "focus-category") {
-      const group = event.target.closest(".timeline-category-shell");
+      const group = eventTargetElement(event)?.closest(".timeline-category-shell");
       if (group) focusCategory(group.dataset.categoryId);
       return;
     }
 
-    const itemElement = event.target.closest(".timeline-item");
+    const itemElement = eventTargetElement(event)?.closest(".timeline-item");
     if (!itemElement) return;
     if (button.dataset.action === "focus-item") {
       setBrowserSurfaceOpen(false);
@@ -4997,7 +5010,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
   });
 
   els.storyPicker.addEventListener("change", (event) => {
-    const checkbox = event.target.closest('input[type="checkbox"]');
+    const checkbox = eventTargetElement(event)?.closest('input[type="checkbox"]');
     if (!checkbox) return;
     if (checkbox.checked && !storyDraftIds.includes(checkbox.value))
       storyDraftIds.push(checkbox.value);
@@ -5006,7 +5019,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
   });
 
   els.storyPlacePicker?.addEventListener("change", (event) => {
-    const checkbox = event.target.closest('input[type="checkbox"]');
+    const checkbox = eventTargetElement(event)?.closest('input[type="checkbox"]');
     if (!checkbox) return;
     if (checkbox.checked && !storyDraftPlaceIds.includes(checkbox.value)) {
       storyDraftPlaceIds.push(checkbox.value);
@@ -5018,8 +5031,8 @@ function requiredElements<T extends Element>(selector: string): T[] {
   });
 
   els.storySequence.addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-action]");
-    const row = event.target.closest(".sequence-row");
+    const button = eventTargetElement(event)?.closest("button[data-action]");
+    const row = eventTargetElement(event)?.closest(".sequence-row");
     if (!button || !row) return;
     const index = storyDraftIds.indexOf(row.dataset.id);
     if (index < 0) return;
@@ -5075,8 +5088,8 @@ function requiredElements<T extends Element>(selector: string): T[] {
   els.cancelStoryEdit.addEventListener("click", resetStoryForm);
 
   els.storyList.addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-action]");
-    const card = event.target.closest(".story-card");
+    const button = eventTargetElement(event)?.closest("button[data-action]");
+    const card = eventTargetElement(event)?.closest(".story-card");
     if (!button || !card) return;
     if (button.dataset.action === "focus-story") focusStory(card.dataset.id);
     if (button.dataset.action === "edit-story") beginStoryEdit(card.dataset.id);
@@ -5084,7 +5097,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
   });
 
   els.browserStoryList?.addEventListener("click", (event) => {
-    const card = event.target.closest(".browser-story-card[data-id]");
+    const card = eventTargetElement(event)?.closest(".browser-story-card[data-id]");
     if (!card) return;
     focusStory(card.dataset.id);
   });
@@ -5130,8 +5143,8 @@ function requiredElements<T extends Element>(selector: string): T[] {
   els.cancelCategoryEdit.addEventListener("click", resetCategoryForm);
 
   els.categoryList.addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-action]");
-    const row = event.target.closest(".category-row");
+    const button = eventTargetElement(event)?.closest("button[data-action]");
+    const row = eventTargetElement(event)?.closest(".category-row");
     if (!button || !row) return;
     if (button.dataset.action === "edit-category") beginCategoryEdit(row.dataset.id);
     if (button.dataset.action === "delete-category") removeCategory(row.dataset.id);
