@@ -106,7 +106,7 @@ class TemporalGraphViewController {
       root.closest(".graph-lens")?.querySelector("[data-graph-status]") ||
       null;
     this.windowLabel = root.querySelector("[data-graph-window]");
-    this.model = { schemaVersion: 2, entities: [], relationships: [], items: [], stories: [] };
+    this.model = { schemaVersion: 2, entities: [], relationships: [], items: [] };
     this.semanticIndex = createSemanticGraphIndex({
       schemaVersion: 2,
       entities: [],
