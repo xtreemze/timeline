@@ -98,6 +98,7 @@ interface TimelineRelationshipBand {
   predicate?: string;
   start: number;
   end: number;
+  subjectId?: string;
 }
 
 interface SetItemsOptions {
@@ -1426,13 +1427,30 @@ class TimelineViewController {
         `${this.relationshipBandLane(relationship.id) * 8}px`,
       );
 
-      // Color segment based on associated subject event
-      const subjectId = (relationship as Record<string, string>).subjectId;
-      if (subjectId) {
-        const subject = this.items.find((item) => item.id === subjectId);
-        if (subject && subject.color) {
-          segment.style.setProperty("--relation-event-color", subject.color);
+      // Color segment based on associated event
+      // Try to extract event ID from relationship ID (for event-based relationships)
+      let eventId: string | null = null;
+      const eventMatch = relationship.id.match(/event-([a-z0-9-]+)/);
+      if (eventMatch) {
+        eventId = eventMatch[1];
+      }
+
+      let coloredItem = eventId
+        ? this.items.find((item) => item.id === eventId || item.id.includes(eventId))
+        : null;
+
+      // Fall back to finding events by subject entity
+      if (!coloredItem) {
+        const subjectId = (relationship as Record<string, string>).subjectId;
+        if (subjectId) {
+          coloredItem = this.items.find((item) =>
+            item.id.includes(subjectId) || item.label?.includes(subjectId)
+          );
         }
+      }
+
+      if (coloredItem && coloredItem.color) {
+        segment.style.setProperty("--relation-event-color", coloredItem.color);
       }
 
       const visible = itemOverlapsWindow(relationship, this.viewport);
