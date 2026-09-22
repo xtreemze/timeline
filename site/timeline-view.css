@@ -4328,6 +4328,8 @@
   align-items: center;
   justify-content: flex-start;
   width: max-content;
+  max-width: min(85vw, 560px);
+  max-height: 50vh;
   padding: 0.34rem;
   gap: 0.3rem;
   overflow-x: auto;
@@ -4347,7 +4349,7 @@
 @media (max-width: 699px) {
   #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
     width: var(--view-controls-inline-size, 100%);
-    max-height: var(--view-controls-block-size, inherit);
+    max-height: var(--view-controls-block-size, 60vh);
     flex-wrap: wrap;
     justify-content: flex-start;
   }
@@ -4411,16 +4413,8 @@
   left: auto;
   display: flex;
   width: max-content;
-  max-width: calc(
-    100% -
-    max(0.8rem, env(safe-area-inset-left)) -
-    max(0.8rem, env(safe-area-inset-right))
-  );
-  max-height: calc(
-    100dvh -
-    max(0.8rem, env(safe-area-inset-top)) -
-    max(0.8rem, env(safe-area-inset-bottom))
-  );
+  max-width: calc(100% - max(0.8rem, env(safe-area-inset-left)) - max(0.8rem, env(safe-area-inset-right)));
+  max-height: calc(100dvh - max(0.8rem, env(safe-area-inset-top)) - max(0.8rem, env(safe-area-inset-bottom)));
   overflow-x: auto;
   overflow-y: auto;
 }
