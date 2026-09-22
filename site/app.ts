@@ -1192,7 +1192,7 @@ function closestEventTarget<T extends HTMLElement>(
   }
 
   function normalizeTimeline(
-    input: TimelineInputRecord,
+    input: TimelineInputRecord | TimelineState,
     { strictGraph = false }: { strictGraph?: boolean } = {},
   ): TimelineState {
     if (!input || typeof input !== "object") throw new Error("Expected a timeline object.");
@@ -1303,7 +1303,9 @@ function closestEventTarget<T extends HTMLElement>(
         time,
         title,
         description: typeof raw.description === "string" ? raw.description.slice(0, 2000) : "",
-        categoryId: ensureCategory(raw.categoryId || raw.category),
+        categoryId: ensureCategory(
+          raw.categoryId || ("category" in raw ? raw.category : undefined),
+        ),
         presentation: {
           variant: "hero-split",
           terminalShape: "rounded",
