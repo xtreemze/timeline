@@ -713,18 +713,36 @@ function closestEventTarget<T extends HTMLElement>(
       y: triggerRect.top + triggerRect.height / 2,
     };
 
+    const leftAvailable = Math.max(
+      1,
+      dockRect.left - gap - (viewport.left + edge),
+    );
+    const rightAvailable = Math.max(
+      1,
+      viewport.left + viewport.width - edge - dockRect.right - gap,
+    );
+    const aboveAvailable = Math.max(
+      1,
+      dockRect.top - gap - (viewport.top + edge),
+    );
+    const belowAvailable = Math.max(
+      1,
+      viewport.top + viewport.height - edge - dockRect.bottom - gap,
+    );
+    const leftWidth = Math.min(measuredWidth, leftAvailable);
+    const rightWidth = Math.min(measuredWidth, rightAvailable);
+    const aboveHeight = Math.min(measuredHeight, aboveAvailable);
+    const belowHeight = Math.min(measuredHeight, belowAvailable);
+
     const candidates =
       orientation === "portrait"
         ? [
             {
               id: "left",
               rect: {
-                x: dockRect.left - gap - measuredWidth,
+                x: dockRect.left - gap - leftWidth,
                 y: anchor.y - measuredHeight / 2,
-                width: Math.min(
-                  measuredWidth,
-                  Math.max(1, dockRect.left - gap - (viewport.left + edge)),
-                ),
+                width: leftWidth,
                 height: measuredHeight,
               },
             },
@@ -733,13 +751,7 @@ function closestEventTarget<T extends HTMLElement>(
               rect: {
                 x: dockRect.right + gap,
                 y: anchor.y - measuredHeight / 2,
-                width: Math.min(
-                  measuredWidth,
-                  Math.max(
-                    1,
-                    viewport.left + viewport.width - edge - dockRect.right - gap,
-                  ),
-                ),
+                width: rightWidth,
                 height: measuredHeight,
               },
             },
@@ -749,12 +761,9 @@ function closestEventTarget<T extends HTMLElement>(
               id: "above",
               rect: {
                 x: anchor.x - measuredWidth / 2,
-                y: dockRect.top - gap - measuredHeight,
+                y: dockRect.top - gap - aboveHeight,
                 width: measuredWidth,
-                height: Math.min(
-                  measuredHeight,
-                  Math.max(1, dockRect.top - gap - (viewport.top + edge)),
-                ),
+                height: aboveHeight,
               },
             },
             {
@@ -763,13 +772,7 @@ function closestEventTarget<T extends HTMLElement>(
                 x: anchor.x - measuredWidth / 2,
                 y: dockRect.bottom + gap,
                 width: measuredWidth,
-                height: Math.min(
-                  measuredHeight,
-                  Math.max(
-                    1,
-                    viewport.top + viewport.height - edge - dockRect.bottom - gap,
-                  ),
-                ),
+                height: belowHeight,
               },
             },
           ];
