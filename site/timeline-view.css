@@ -5310,7 +5310,7 @@
   block-size: min(28dvh, 240px);
 }
 
-#app-shell[data-graph-open="true"] #presentation-stage {
+#app-shell #presentation-stage {
   --relations-right-safe: var(--workspace-portrait-chrome-inline, 7rem);
   --relations-bottom-safe: var(--workspace-landscape-chrome-block, 6rem);
   --mobile-bottom-chrome: var(--workspace-landscape-chrome-block, 6rem);
@@ -5326,7 +5326,7 @@
   );
 }
 
-#app-shell[data-graph-open="true"]
+#app-shell
   #timeline-view[data-orientation="portrait"]
   > .timeline-surface {
   inset-inline-end: var(--workspace-portrait-chrome-inline, 7rem);
@@ -5341,13 +5341,13 @@
   );
 }
 
-#app-shell[data-graph-open="true"]
+#app-shell
   #timeline-view[data-orientation="landscape"]
   > .timeline-surface {
   inset-block-end: var(--workspace-landscape-chrome-block, 6rem);
 }
 
-#app-shell[data-graph-open="true"]
+#app-shell
   #timeline-view[data-orientation="landscape"]
   .timeline-project-heading {
   inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
