@@ -4268,7 +4268,9 @@ body {
 }
 
 #app-shell #presentation-stage:not(:fullscreen),
-#app-shell.is-event-focused #presentation-stage:not(:fullscreen) {
+#app-shell.is-event-focused #presentation-stage:not(:fullscreen),
+#app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen),
+#app-shell[data-browser-open="false"] #presentation-stage:not(:fullscreen) {
   inset-block-start: 0;
   inset-inline-start: 0;
   inset-inline-end: 0;
@@ -4276,6 +4278,25 @@ body {
   inline-size: auto;
   block-size: auto;
   height: auto;
+}
+
+@media (min-width: 760px) {
+  #app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen),
+  #app-shell[data-browser-open="false"] #presentation-stage:not(:fullscreen) {
+    inset: auto;
+    align-self: start;
+    inline-size: 100%;
+    block-size: calc(100% - var(--workspace-footer-reserved-block));
+    height: auto;
+  }
+
+  #app-shell[data-editor-open="true"] > .app-editor-sheet,
+  #app-shell[data-browser-open="true"] > .timeline-panel > .app-browser-sheet {
+    inset: auto;
+    align-self: start;
+    block-size: calc(100% - var(--workspace-footer-reserved-block));
+    height: auto;
+  }
 }
 
 #app-shell .app-editor-sheet,
