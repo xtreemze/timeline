@@ -42,3 +42,21 @@ test("media stepping updates only focused presentation state", async () => {
     /stepFocusMedia\(delta: number\)[\s\S]{0,600}this\.render\(\)/,
   );
 });
+
+
+test("retained event terminals preserve semantic media, tag icons, and connector weight", async () => {
+  const [view, css] = await Promise.all([
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(view, /timeline-event-art-image/);
+  assert.match(view, /timeline-event-icon-badge/);
+  assert.match(view, /primaryTag[\s\S]*iconName/);
+  assert.match(view, /visual\.dataset\.signature/);
+  assert.match(view, /visual\.replaceChildren\(\)/);
+  assert.match(view, /node\.dataset\.connectorWeight/);
+  assert.match(view, /connectorWeight === "fine" \? 1 : item\.connectorWeight === "strong" \? 4 : 2/);
+  assert.match(css, /\.timeline-event-art-image/);
+  assert.match(css, /\.timeline-event-icon-badge/);
+});
