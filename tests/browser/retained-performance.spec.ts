@@ -139,7 +139,15 @@ test('retained renderer publishes phase-attributed performance evidence', async 
   const pointerId = 91;
   const pointerType = testInfo.project.use.hasTouch ? 'touch' : 'mouse';
   const y = box.y + box.height * 0.52;
-  const positions = [0.72, 0.6, 0.46, 0.32].map((ratio) => box.x + box.width * ratio);
+  const positions = Array.from({ length: 40 }, (_, index) => {
+    const phase = index / 39;
+    // Traverse the scene and reverse once so p95 is based on sustained direct
+    // manipulation rather than one or two scheduler-sensitive samples.
+    const ratio = phase <= 0.5
+      ? 0.72 - phase * 0.8
+      : 0.32 + (phase - 0.5) * 0.72;
+    return box.x + box.width * ratio;
+  });
 
   await surface.dispatchEvent('pointerdown', {
     pointerId,
@@ -150,21 +158,8 @@ test('retained renderer publishes phase-attributed performance evidence', async 
     clientX: positions[0],
     clientY: y,
   });
-  await surface.dispatchEvent('pointermove', {
-    pointerId,
-    pointerType,
-    isPrimary: true,
-    button: 0,
-    buttons: 1,
-    clientX: positions[1],
-    clientY: y,
-  });
 
-  // Keep the gesture active through a render boundary. Without this, a fast
-  // synthetic cancel can legitimately coalesce the scheduled frame into commit.
-  await twoFrames(page);
-
-  for (const clientX of positions.slice(2)) {
+  for (const clientX of positions.slice(1)) {
     await surface.dispatchEvent('pointermove', {
       pointerId,
       pointerType,
@@ -174,8 +169,8 @@ test('retained renderer publishes phase-attributed performance evidence', async 
       clientX,
       clientY: y,
     });
+    await twoFrames(page);
   }
-  await twoFrames(page);
 
   await surface.dispatchEvent('pointercancel', {
     pointerId,
