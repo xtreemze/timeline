@@ -144,6 +144,7 @@ function create(container, handlers = {}) {
   let presentationForcePoint = null;
   let presentationForceFrame = 0;
   let presentationForceSettleTimer = 0;
+  let presentationForceReleaseTimer = 0;
   const topologyTimers = new Set();
   const activeTouchPointers = new Set();
 
@@ -306,9 +307,17 @@ function create(container, handlers = {}) {
     if (samePresentationForcePoint(presentationForcePoint, next)) return;
     presentationForcePoint = next;
     if (!hasGraphData) return;
-    // Re-apply at a low alpha so opening/closing top-layer UI bends the
-    // existing layout instead of kicking nodes into a new high-energy solve.
-    applyInteractionForce(0, { reheat: false });
+    // Popover geometry changes have their own low-priority solve. They can
+    // never cool topology or drag work because the coordinator owns ordering.
+    if (presentationForceReleaseTimer) {
+      globalThis.clearTimeout(presentationForceReleaseTimer);
+      presentationForceReleaseTimer = 0;
+    }
+    requestSimulation("popover-exclusion", 0, { reheat: false });
+    presentationForceReleaseTimer = globalThis.setTimeout(() => {
+      presentationForceReleaseTimer = 0;
+      releaseSimulation("popover-exclusion");
+    }, 480);
   }
 
   function queuePresentationForceUpdate() {
@@ -416,7 +425,7 @@ function create(container, handlers = {}) {
     const simulator = forceSimulator();
     if (simulator) {
       simulator.setSettings(layout);
-      simulator.activateSimulation();
+      if (request.reason !== "idle") simulator.activateSimulation();
       return;
     }
     // Orb does not expose simulation activation publicly in every renderer
@@ -467,11 +476,7 @@ function create(container, handlers = {}) {
 
   function pauseForceForCompetingGesture() {
     clearCompetingGestureResumeTimer();
-    clearInteractionSettleTimer();
-    const simulator = forceSimulator();
-    if (simulator && typeof simulator.stopSimulation === "function") {
-      simulator.stopSimulation();
-    }
+    simulationCoordinator.suspend("competing-surface");
   }
 
   function resumeForceAfterCompetingGesture() {
@@ -479,7 +484,7 @@ function create(container, handlers = {}) {
     competingGestureResumeTimer = globalThis.setTimeout(() => {
       competingGestureResumeTimer = 0;
       if (competingPointerIds.size || !hasGraphData) return;
-      applyInteractionForce(0, { reheat: false });
+      simulationCoordinator.resume("competing-surface");
     }, 180);
   }
 
@@ -503,10 +508,11 @@ function create(container, handlers = {}) {
   };
 
   function keepForceActiveAfterInteraction() {
-    setInteractionHeat(RELEASE_ALPHA_TARGET);
+    clearInteractionSettleTimer();
+    requestSimulation("post-drop", RELEASE_ALPHA_TARGET);
     interactionSettleTimer = globalThis.setTimeout(() => {
       interactionSettleTimer = 0;
-      applyInteractionForce(0, { reheat: false });
+      releaseSimulation("post-drop");
     }, INTERACTION_SETTLE_MS);
   }
 
@@ -809,6 +815,7 @@ function create(container, handlers = {}) {
     const pointerId = touchHold.pointerId;
     const simulator = touchDragSimulator();
     if (simulator && node) simulator.endDragNode(node.getId());
+    releaseSimulation("drag");
     // Mark inactive before releasing capture because browsers may dispatch
     // lostpointercapture synchronously from releasePointerCapture().
     touchHold.activated = false;
@@ -960,7 +967,7 @@ function create(container, handlers = {}) {
       const simulator = touchDragSimulator();
       // Apply force heat before entering the simulator's drag state so any
       // settings-driven simulation restart cannot clear or reorder drag setup.
-      setInteractionHeat(DRAG_ALPHA_TARGET);
+      requestSimulation("drag", DRAG_ALPHA_TARGET);
       simulator?.startDragNode();
       try {
         container.setPointerCapture?.(touchHold.pointerId);
@@ -988,7 +995,7 @@ function create(container, handlers = {}) {
         // simulation restart cannot disturb the active drag state.
         cancelCameraInertia();
         cameraGesture = null;
-        setInteractionHeat(DRAG_ALPHA_TARGET);
+        requestSimulation("drag", DRAG_ALPHA_TARGET);
       } else {
         beginCameraGesture(event, target);
       }
@@ -1183,7 +1190,12 @@ function create(container, handlers = {}) {
 
   const onWindowBlur = () => abortTouchInteraction();
   const onVisibilityChange = () => {
-    if (document.visibilityState === "hidden") abortTouchInteraction();
+    if (document.visibilityState === "hidden") {
+      simulationCoordinator.suspend("hidden");
+      abortTouchInteraction();
+      return;
+    }
+    simulationCoordinator.resume("hidden");
   };
 
   const onClickCapture = (event) => {
@@ -1384,16 +1396,15 @@ function create(container, handlers = {}) {
     handlers.onEdgeClick?.(edge.getData());
   };
   const onNodeDragStart = () => {
-    // Do not re-apply force settings here. Orb has already entered native
-    // mouse drag state by the time this event fires; restarting settings now
-    // can make the dragged node fight the pointer and visibly jitter.
+    // Capture-phase pointerdown already requested drag heat before Orb enters
+    // native drag state. Do not independently restart the simulator here.
     clearInteractionSettleTimer();
-    forceSimulator()?.activateSimulation();
   };
   const onNodeDrag = () => {
     clearInteractionSettleTimer();
   };
   const onNodeDragEnd = (payload) => {
+    releaseSimulation("drag");
     keepForceActiveAfterInteraction();
     if (isTouchInput(payload.event) && touchHold?.activated) finishTouchGesture();
   };
@@ -1645,7 +1656,7 @@ function create(container, handlers = {}) {
       edges: edges.map((edge) => transitionRecord(edge, "active")),
     });
     hasGraphData = true;
-    applyInteractionForce(0);
+    requestSimulation("topology", 0);
     orb.render();
     queuePresentationForceUpdate();
     handlers.onSimulationState?.({ running: true, mode: currentMode });
@@ -1690,6 +1701,15 @@ function create(container, handlers = {}) {
         rewiredEdges.length,
     );
     if (topologyChanged) requestAutoFit();
+    if (!topologyChanged) {
+      orb.data.merge({
+        nodes: nodes.map((node) => transitionRecord(node, "active")),
+        edges: edges.map((edge) => transitionRecord(edge, "active")),
+      });
+      setPerformanceMode(nodes.length);
+      orb.render();
+      return;
+    }
 
     if (prefersReducedMotion()) {
       const breakIds = [
@@ -1708,7 +1728,7 @@ function create(container, handlers = {}) {
       });
       setPerformanceMode(nodes.length);
       orb.render();
-      applyInteractionForce(0);
+      requestSimulation("topology", TOPOLOGY_ALPHA_TARGET, { reheat: false });
       return;
     }
 
@@ -1755,6 +1775,7 @@ function create(container, handlers = {}) {
       }
       finalizeTopology(data);
       keepForceActiveAfterInteraction();
+      releaseSimulation("topology");
     }, TOPOLOGY_SETTLE_MS);
   }
 
@@ -1786,7 +1807,6 @@ function create(container, handlers = {}) {
     },
     refreshLayout() {
       if (!hasGraphData) return;
-      applyInteractionForce(0, { reheat: false });
       orb.render(() => {
         if (!userOwnsCamera) orb.recenter();
         queuePresentationForceUpdate();
@@ -1823,6 +1843,9 @@ function create(container, handlers = {}) {
     getMode() {
       return currentMode;
     },
+    getSimulationState() {
+      return simulationCoordinator.getState();
+    },
     destroy() {
       cancelCameraInertia();
       cameraGesture = null;
@@ -1833,6 +1856,9 @@ function create(container, handlers = {}) {
       presentationForceFrame = 0;
       if (presentationForceSettleTimer) globalThis.clearTimeout(presentationForceSettleTimer);
       presentationForceSettleTimer = 0;
+      if (presentationForceReleaseTimer) globalThis.clearTimeout(presentationForceReleaseTimer);
+      presentationForceReleaseTimer = 0;
+      simulationCoordinator.clear();
       competingPointerIds.clear();
       clearTopologyTimers();
       container.removeEventListener("click", onClickCapture, true);
