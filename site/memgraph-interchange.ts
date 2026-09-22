@@ -31,14 +31,6 @@ function cypherString(value: unknown): string {
     .replaceAll("\n", "\\n")}'`;
 }
 
-function _cypherValue(value: unknown): string {
-  if (value === null || value === undefined) return "null";
-  if (typeof value === "boolean") return value ? "true" : "false";
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  if (Array.isArray(value)) return `[${value.map(_cypherValue).join(", ")}]`;
-  return cypherString(value);
-}
-
 export function relationshipType(predicate: unknown): string {
   const normalized = text(predicate, 120)
     .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
@@ -244,11 +236,6 @@ function rowRecord(row: any): any {
 export function recordsFromRows(rows: unknown): any[] {
   if (!Array.isArray(rows)) return [];
   return rows.map(rowRecord).filter(Boolean);
-}
-
-interface Snapshot {
-  records?: Record<string, any>;
-  [key: string]: any;
 }
 
 export function importSnapshot(snapshot: unknown, baseProject: any = {}): Record<string, any> {

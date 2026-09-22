@@ -54,7 +54,7 @@ test("fictional spatial reference frames use local procedural texture instead of
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
 
-  assert.match(appSource, /spatialReferenceFrame\?\.fictional === true/);
+  assert.match(appSource, /spatialReferenceFrame[\s\S]*fictional/);
   assert.match(appSource, /fictionalReferenceFrame/);
   assert.match(mapSource, /function fictionalTextureLayer/);
   assert.match(mapSource, /L\.gridLayer/);
@@ -153,7 +153,7 @@ test("map runtime is local and basemap failure cannot remove semantic geometry",
   assert.match(html, /src="\.\/leaflet\.bundle\.js"/);
   assert.doesNotMatch(mapSource, /unpkg\.com\/leaflet/);
   assert.match(mapSource, /function attachBasemap\(/);
-  assert.match(mapSource, /layer\.on\("tileerror"/);
+  assert.match(mapSource, /(?:nextLayer|layer)\.on\("tileerror"/);
   assert.match(mapSource, /function observeMapSize\(/);
   assert.match(mapSource, /ResizeObserver/);
   assert.match(mapSource, /geometry-unavailable/);

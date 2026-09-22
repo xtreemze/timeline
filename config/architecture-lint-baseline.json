@@ -21,12 +21,12 @@
       "nonNull": 0
     },
     "site/interchange-adapter.ts": {
-      "any": 38,
+      "any": 34,
       "asAny": 18,
       "nonNull": 1
     },
     "site/memgraph-interchange.ts": {
-      "any": 37,
+      "any": 35,
       "asAny": 23,
       "nonNull": 0
     },
@@ -36,8 +36,8 @@
       "nonNull": 0
     },
     "site/temporal-graph-view.ts": {
-      "any": 12,
-      "asAny": 2,
+      "any": 6,
+      "asAny": 0,
       "nonNull": 0
     },
     "site/temporal-standards.ts": {
@@ -106,7 +106,7 @@
       "nonNull": 0
     },
     "site/graph-inference.ts": {
-      "any": 59,
+      "any": 54,
       "asAny": 6,
       "nonNull": 0
     },
@@ -334,7 +334,6 @@
   "architecture": {
     "ambientTimelineGlobals": {
       "site/app.ts": 15,
-      "site/temporal-graph-view.ts": 2,
       "site/case-reasoning-shim.ts": 1,
       "site/date-range-picker-shim.ts": 1,
       "site/event-presentation-shim.ts": 1,

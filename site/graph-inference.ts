@@ -155,6 +155,57 @@ interface Fragment {
   text: string;
 }
 
+interface ExistingEntityRecord {
+  id?: unknown;
+  name?: unknown;
+  alternateNames?: unknown;
+  aliases?: unknown;
+  attributes?: { storyId?: unknown };
+  [key: string]: unknown;
+}
+
+interface ReconciledEntityCandidate {
+  key: string;
+  name: string;
+  type: string;
+  alternateNames: string[];
+  confidence: number;
+  sourceRefs: string[];
+  rationale: string;
+  status: "existing" | "new";
+  entityId: string;
+  existingEntityId: string;
+  record: Record<string, unknown> | null;
+}
+
+interface ReconciledPlaceCandidate {
+  key: string;
+  name: string;
+  geographicIdentifier: string;
+  address: string;
+  confidence: number;
+  sourceRefs: string[];
+  rationale: string;
+  coordinatesExplicit: boolean;
+  status: string;
+  placeId: string;
+  existingPlaceId: string;
+  record: Record<string, unknown> | null;
+}
+
+interface AppliedInferenceCandidate {
+  key: string;
+  status: string;
+  record?: Record<string, unknown> | null;
+  subjectKey?: string;
+  objectKey?: string;
+  placeKey?: string;
+  sourceRefs?: unknown;
+  mergeIntoRelationshipId?: string;
+  confidence?: number;
+  relationship?: Record<string, unknown> & { placeId?: unknown };
+}
+
 export function inferenceInput(input: any = {}): Record<string, any> {
   const normalizeFragments = (fragments: any) => {
     const result: Fragment[] = [];
@@ -265,18 +316,19 @@ export async function infer(input: any, options: any = {}): Promise<Record<strin
 }
 
 function entityLookup(entities: any, storyIds: any) {
-  const byName = new Map();
+  const byName = new Map<string, ExistingEntityRecord[]>();
   for (const entity of Array.isArray(entities) ? entities : []) {
     const labels = [entity?.name, ...(entity?.alternateNames || entity?.aliases || [])]
       .map(semanticKey)
       .filter(Boolean);
     for (const label of labels) {
-      if (!byName.has(label)) byName.set(label, []);
-      byName.get(label).push(entity);
+      const bucket = byName.get(label);
+      if (bucket) bucket.push(entity);
+      else byName.set(label, [entity]);
     }
   }
   return (name: string, alternateNames: any = []) => {
-    const candidates = [];
+    const candidates: ExistingEntityRecord[] = [];
     for (const label of [name, ...alternateNames].map(semanticKey).filter(Boolean)) {
       for (const entity of byName.get(label) || []) {
         if (!candidates.includes(entity)) candidates.push(entity);
@@ -285,7 +337,9 @@ function entityLookup(entities: any, storyIds: any) {
     if (!candidates.length) return null;
     const stories = new Set((storyIds || []).map(String));
     if (stories.size) {
-      const scoped = candidates.filter((entity: any) => stories.has(String(entity?.attributes?.storyId || "")));
+      const scoped = candidates.filter((entity) =>
+        stories.has(String(entity.attributes?.storyId || "")),
+      );
       if (scoped.length === 1) return scoped[0];
     }
     return candidates.length === 1 ? candidates[0] : null;
@@ -380,8 +434,8 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
   const findEntity = entityLookup(context.existingEntities, storyIds);
   const findPlace = placeLookup(context.existingPlaces);
   const rejected: any[] = [];
-  const entityByKey = new Map();
-  const entities: any[] = [];
+  const entityByKey = new Map<string, ReconciledEntityCandidate>();
+  const entities: ReconciledEntityCandidate[] = [];
 
   for (const candidate of Array.isArray(raw?.entities) ? raw.entities : []) {
     const key = text(candidate?.key, 80);
@@ -395,7 +449,7 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
       continue;
     }
     const existing = findEntity(name, alternateNames);
-    const record = existing ? null : {
+    const record: Record<string, unknown> | null = existing ? null : {
       id: idFactory("entity"),
       type,
       name,
@@ -404,7 +458,7 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
       sourceIds: [],
       attributes: storyIds.length === 1 ? { storyId: storyIds[0] } : {}
     };
-    const normalized = {
+    const normalized: ReconciledEntityCandidate = {
       key,
       name,
       type,
@@ -413,22 +467,22 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
       sourceRefs: uniqueTextList(candidate?.sourceRefs, 16, 160).filter((ref: string) => allowedSourceRefs.has(ref)),
       rationale: text(candidate?.rationale, 400),
       status: existing ? "existing" : "new",
-      entityId: existing?.id || record.id,
-      existingEntityId: existing?.id || "",
+      entityId: String(existing?.id ?? record?.id ?? ""),
+      existingEntityId: String(existing?.id ?? ""),
       record
     };
     entities.push(normalized);
     entityByKey.set(key, normalized);
   }
 
-  const placeByKey = new Map();
-  const places: any[] = [];
+  const placeByKey = new Map<string, ReconciledPlaceCandidate>();
+  const places: ReconciledPlaceCandidate[] = [];
   for (const candidate of Array.isArray(raw?.places) ? raw.places : []) {
     const key = text(candidate?.key, 80);
     const name = text(candidate?.name, 180);
     if (!key || !name || placeByKey.has(key)) continue;
     const existing = findPlace(candidate);
-    let record = null;
+    let record: Record<string, unknown> | null = null;
     let status = "needs-geometry";
     if (existing) {
       status = "existing";
@@ -454,7 +508,7 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
         record = null;
       }
     }
-    const normalized = {
+    const normalized: ReconciledPlaceCandidate = {
       key,
       name,
       geographicIdentifier: text(candidate?.geographicIdentifier, 300),
@@ -464,8 +518,8 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
       rationale: text(candidate?.rationale, 400),
       coordinatesExplicit: candidate?.coordinatesExplicit === true,
       status,
-      placeId: existing?.id || record?.id || "",
-      existingPlaceId: existing?.id || "",
+      placeId: String(existing?.id ?? record?.id ?? ""),
+      existingPlaceId: String(existing?.id ?? ""),
       record
     };
     places.push(normalized);
@@ -573,9 +627,19 @@ export function applyProposal(project: any, item: any, proposal: any, selectedRe
   const draft = clone(project) as any;
   if (!draft || !item?.id) throw new Error("A draft project and stable item ID are required.");
 
-  const selected = new Set(Array.from(selectedRelationshipKeys || [], String));
-  const entityByKey = new Map((proposal?.entities || []).map((candidate: any) => [candidate.key, candidate]));
-  const placeByKey = new Map((proposal?.places || []).map((candidate: any) => [candidate.key, candidate]));
+  const selected = new Set<string>(Array.from(selectedRelationshipKeys || [], String));
+  const proposalEntities: AppliedInferenceCandidate[] = Array.isArray(proposal?.entities)
+    ? proposal.entities
+    : [];
+  const proposalPlaces: AppliedInferenceCandidate[] = Array.isArray(proposal?.places)
+    ? proposal.places
+    : [];
+  const entityByKey = new Map<string, AppliedInferenceCandidate>(
+    proposalEntities.map((candidate) => [String(candidate.key), candidate]),
+  );
+  const placeByKey = new Map<string, AppliedInferenceCandidate>(
+    proposalPlaces.map((candidate) => [String(candidate.key), candidate]),
+  );
   const requiredEntityKeys = new Set<string>();
   const requiredPlaceKeys = new Set<string>();
 
@@ -591,9 +655,10 @@ export function applyProposal(project: any, item: any, proposal: any, selectedRe
   for (const key of requiredEntityKeys) {
     const candidate = entityByKey.get(key);
     if (!candidate) throw new Error(`Inference relationship references unknown entity candidate "${key}".`);
-    if (candidate.status === "new" && candidate.record) {
-      if (!draft.entities.some((entity: any) => String(entity.id) === String(candidate.record.id))) {
-        draft.entities.push(clone(candidate.record));
+    const record = candidate.record;
+    if (candidate.status === "new" && record) {
+      if (!draft.entities.some((entity: any) => String(entity.id) === String(record.id))) {
+        draft.entities.push(clone(record));
       }
     }
   }
@@ -601,9 +666,10 @@ export function applyProposal(project: any, item: any, proposal: any, selectedRe
   for (const key of requiredPlaceKeys) {
     const candidate = placeByKey.get(key);
     if (!candidate) continue;
-    if (candidate.status === "new" && candidate.record) {
-      if (!draft.places.some((place: any) => String(place.id) === String(candidate.record.id))) {
-        draft.places.push(clone(candidate.record));
+    const record = candidate.record;
+    if (candidate.status === "new" && record) {
+      if (!draft.places.some((place: any) => String(place.id) === String(record.id))) {
+        draft.places.push(clone(record));
       }
     }
   }
@@ -628,12 +694,17 @@ export function applyProposal(project: any, item: any, proposal: any, selectedRe
       continue;
     }
 
+    const clonedRelationship = clone(candidate.relationship);
     const relationship = {
-      ...clone(candidate.relationship),
+      ...(clonedRelationship && typeof clonedRelationship === "object"
+        ? (clonedRelationship as Record<string, unknown>)
+        : {}),
       itemIds: [item.id],
       sourceIds
     };
-    if (!draft.relationships.some((current: any) => String(current.id) === String(relationship.id))) {
+    const relationshipId =
+      "id" in relationship ? String(relationship.id ?? "") : "";
+    if (!draft.relationships.some((current: any) => String(current.id) === relationshipId)) {
       draft.relationships.push(relationship);
     }
   }

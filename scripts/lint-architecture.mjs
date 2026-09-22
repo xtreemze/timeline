@@ -320,7 +320,12 @@ function lintArchitectureBoundaries(file, source) {
   const isDomain = file.startsWith("src/domain/");
   const isApplication = file.startsWith("src/application/");
   const isProjection = file.startsWith("src/projection/");
-  if (!isDomain && !isApplication && !isProjection) return;
+  const isLayout = file.startsWith("src/layout/");
+  const isInteraction = file.startsWith("src/interaction/");
+  const isRendererAdapter =
+    file === "src/layout/graph-surface.ts" ||
+    file === "src/layout/orb-graph-surface.ts";
+  if (!isDomain && !isApplication && !isProjection && !isLayout && !isInteraction) return;
 
   const imports = [...source.matchAll(/(?:from\s+|import\s*\(\s*)["']([^"']+)["']/g)].map(
     (match) => match[1],
@@ -339,19 +344,26 @@ function lintArchitectureBoundaries(file, source) {
         `core architecture layer must not import renderer/framework/provider dependency "${specifier}"`,
       );
     }
-    if (isDomain && /(?:^|\/)(?:application|projection)(?:\/|$)/.test(specifier)) {
+    const importSegments = specifier.split("/").filter((segment) => segment && segment !== "." && segment !== "..");
+    if (isDomain && importSegments.some((segment) => ["application", "projection", "layout", "interaction"].includes(segment))) {
       report(file, "domain-dependency-direction", `domain must not import "${specifier}"`);
     }
-    if (isApplication && /(?:^|\/)projection(?:\/|$)/.test(specifier)) {
+    if (isApplication && importSegments.some((segment) => ["projection", "layout", "interaction"].includes(segment))) {
       report(file, "application-dependency-direction", `application must not import "${specifier}"`);
+    }
+    if (isProjection && importSegments.some((segment) => ["layout", "interaction"].includes(segment))) {
+      report(file, "projection-dependency-direction", `projection must not import "${specifier}"`);
     }
   }
 
-  if (/\b(?:document|window|HTMLElement|HTML[A-Za-z]+Element|Element|CSS|requestAnimationFrame|localStorage|sessionStorage|navigator)\b/.test(source)) {
+  if (
+    !isRendererAdapter &&
+    /\b(?:document|window|HTMLElement|HTML[A-Za-z]+Element|Element|CSS|requestAnimationFrame|localStorage|sessionStorage|navigator)\b/.test(source)
+  ) {
     report(
       file,
       "renderer-neutral-core",
-      "domain/application/projection layers must not depend on DOM, CSS, storage, or renderer globals",
+      "domain/application/projection/layout/interaction layers must not depend on DOM, CSS, storage, or renderer globals",
     );
   }
   if (/globalThis(?:\s+as\s+any)?\)?\.Timeline[A-Za-z0-9_]*/.test(source)) {

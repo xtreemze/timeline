@@ -70,6 +70,8 @@ on:
       - 'tests/browser/retained-performance.spec.ts'
       - 'src/performance/retained-timeline-metrics.ts'
       - 'benchmarks/retained-timeline.mjs'
+      - 'benchmarks/graph-data.mjs'
+      - 'docs/CONTRIBUTOR-ARCHITECTURE.md'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
       - 'tests/temporal-layout-runtime.test.mjs'
       - 'tests/timeline-touch-runtime-contracts.test.mjs'
@@ -83,6 +85,8 @@ on:
       - 'tests/temporal-graph-runtime-contracts.test.mjs'
       - 'tests/timeline-projection-runtime.test.mjs'
       - 'tests/graph-editor.test.mjs'
+      - 'tests/graph-surface-contracts.test.mjs'
+      - 'tests/graph-simulation-coordinator.test.mjs'
       - '.github/workflows/timeline-view.yml'
       - '.github/workflows/pages.yml'
   push:
@@ -149,6 +153,8 @@ on:
       - 'tests/browser/retained-performance.spec.ts'
       - 'src/performance/retained-timeline-metrics.ts'
       - 'benchmarks/retained-timeline.mjs'
+      - 'benchmarks/graph-data.mjs'
+      - 'docs/CONTRIBUTOR-ARCHITECTURE.md'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
       - 'tests/temporal-layout-runtime.test.mjs'
       - 'tests/timeline-touch-runtime-contracts.test.mjs'
@@ -162,6 +168,8 @@ on:
       - 'tests/temporal-graph-runtime-contracts.test.mjs'
       - 'tests/timeline-projection-runtime.test.mjs'
       - 'tests/graph-editor.test.mjs'
+      - 'tests/graph-surface-contracts.test.mjs'
+      - 'tests/graph-simulation-coordinator.test.mjs'
       - '.github/workflows/timeline-view.yml'
 
 concurrency:
@@ -182,7 +190,7 @@ jobs:
           node-version: 24
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
-      - run: pnpm types:migrated || echo "⚠ Existing TypeScript migration errors remain (ratcheted follow-up)" && true
+      - run: pnpm types:migrated
       - run: pnpm types:architecture
       - run: pnpm build
       - run: test -s site/orb-graph.bundle.js
@@ -198,11 +206,14 @@ jobs:
       - run: pnpm test:structural-composition-runtime
       - run: pnpm test:retained-timeline-metrics
       - run: pnpm benchmark:retained-timeline
+      - run: pnpm benchmark:graph-data
       - run: pnpm test:touch-runtime-contracts
       - run: pnpm test:temporal-context-runtime
       - run: pnpm test:semantic-hierarchy-runtime
       - run: pnpm test:retained-context-runtime
       - run: pnpm test:graph-runtime-contracts
+      - run: pnpm test:graph-surface-contracts
+      - run: pnpm test:graph-simulation-coordinator
       - run: pnpm test
       - run: pnpm test:webmcp-lifecycle-runtime
       - run: pnpm test:timeline-projection-runtime
