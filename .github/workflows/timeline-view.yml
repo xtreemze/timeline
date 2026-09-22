@@ -67,6 +67,8 @@ on:
       - 'playwright.pages.config.ts'
       - 'vite.config.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
+      - 'tests/browser/retained-performance.spec.ts'
+      - 'src/performance/retained-timeline-metrics.ts'
       - 'benchmarks/retained-timeline.mjs'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
       - 'tests/temporal-layout-runtime.test.mjs'
@@ -144,6 +146,8 @@ on:
       - 'tests/playwright/interaction.spec.ts'
       - 'tests/playwright/layout.spec.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
+      - 'tests/browser/retained-performance.spec.ts'
+      - 'src/performance/retained-timeline-metrics.ts'
       - 'benchmarks/retained-timeline.mjs'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
       - 'tests/temporal-layout-runtime.test.mjs'
@@ -277,6 +281,34 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium webkit
       - name: Run interaction browser tests
         run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/interaction.spec.ts
+
+  graph-touch-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm test:graph-touch-browser
+
+  retained-performance-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - name: Verify retained performance browser discovery
+        run: |
+          pnpm exec playwright test --config=playwright.config.ts tests/browser/retained-performance.spec.ts --list | tee /tmp/retained-performance-list.txt
+          grep -F 'retained-performance.spec.ts' /tmp/retained-performance-list.txt
+      - run: pnpm test:retained-performance-browser
 
   graph-touch-browser:
     runs-on: ubuntu-latest
