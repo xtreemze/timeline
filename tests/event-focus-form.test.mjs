@@ -115,7 +115,7 @@ test("full chronology renders collapsible category groups while story order rema
   assert.match(css, /\.timeline-category-summary/);
 });
 
-test("focused event composition does not instantiate duplicate graph or map surfaces", async () => {
+test("focused event composition avoids duplicate graph surfaces while supporting the inline place map", async () => {
   const [source, css] = await Promise.all([
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
@@ -124,7 +124,7 @@ test("focused event composition does not instantiate duplicate graph or map surf
   assert.doesNotMatch(source, /orbGraphFactory|TimelineOrbGraph|timeline-focus-graph-canvas/);
   assert.doesNotMatch(source, /timeline-focus-place-map/);
   assert.doesNotMatch(css, /\.timeline-focus-graph(?:\s|,|\{)/);
-  assert.doesNotMatch(css, /timeline-focus-place-map/);
+  assert.match(css, /\.timeline-focus-place-map/);
   assert.match(css, /container-type:\s*inline-size/);
   assert.match(css, /font-size:\s*clamp\(3\.2rem,\s*11\.5cqi,\s*9rem\)/);
   assert.doesNotMatch(
