@@ -202,6 +202,18 @@ class TemporalGraphViewController {
     }
   }
 
+  private handleSurfaceEvent(event: GraphSurfaceEvent): void {
+    if (event.kind === "selection-changed") {
+      this.activateSelection(event.selection);
+      return;
+    }
+    if (event.kind === "interaction-start") {
+      this.selectForInteraction(event.selection, event.interaction);
+      return;
+    }
+    this.renderSimulationState(event);
+  }
+
   private renderSimulationState(state: SimulationState): void {
     if (!this.status) return;
     const suffix = state.running
@@ -303,56 +315,72 @@ class TemporalGraphViewController {
     return this.hasFocusedContext;
   }
 
-  private selectNodeForDrag(node: Node): void {
-    this.selection = { kind: "node", id: String(node.id) };
+  private selectForInteraction(
+    selection: CanonicalSelection,
+    interaction: "long-press-drag",
+  ): void {
+    if (selection.kind !== "entity") return;
+    this.selection = selection;
     this.root.dispatchEvent(
       new CustomEvent("graphnodeselect", {
         bubbles: true,
-        detail: { id: node.id, interaction: "long-press-drag" },
+        detail: { id: selection.id, interaction },
       }),
     );
   }
 
-  private activateNode(node: Node): void {
-    this.selection = { kind: "node", id: String(node.id) };
-    this.root.dispatchEvent(
-      new CustomEvent("graphselectionchange", {
-        bubbles: true,
-        detail: {
-          kind: "node",
-          id: node.id,
-          timelineType: node.properties?.timelineType || "entity",
-        },
-      }),
-    );
-  }
+  private activateSelection(selection: CanonicalSelection): void {
+    this.selection = selection;
+    const data = this.currentGraphData();
 
-  private activateEdge(edge: Edge): void {
-    this.selection = { kind: "edge", id: String(edge.id) };
+    if (selection.kind === "entity") {
+      const node = data.nodes.find((candidate) => String(candidate.id) === String(selection.id));
+      this.root.dispatchEvent(
+        new CustomEvent("graphselectionchange", {
+          bubbles: true,
+          detail: {
+            kind: "node",
+            id: selection.id,
+            timelineType:
+              typeof node?.properties?.timelineType === "string"
+                ? node.properties.timelineType
+                : "entity",
+          },
+        }),
+      );
+      return;
+    }
+
+    const edge = data.edges.find((candidate) => String(candidate.id) === String(selection.id));
     this.root.dispatchEvent(
       new CustomEvent("graphselectionchange", {
         bubbles: true,
         detail: {
           kind: "edge",
-          id: edge.id,
-          start: edge.start,
-          end: edge.end,
+          id: selection.id,
+          start: edge?.start,
+          end: edge?.end,
         },
       }),
     );
   }
 
-  private render(): void {
+  private currentGraphData(): GraphData {
     const graph = getGraph();
-    const data = this.focusedId
+    return this.focusedId
       ? graph.neighborhoodGraph(this.model, this.focusedId, this.viewport, {
           depth: 1,
           limit: 36,
         })
       : graph.graphForWindow(this.model, this.viewport);
+  }
+
+  private render(): void {
+    const data = this.currentGraphData();
+    const projection = graphProjection(data);
     const selection = this.selection;
     if (selection) {
-      const records = selection.kind === "node" ? data.nodes : data.edges;
+      const records = selection.kind === "entity" ? data.nodes : data.edges;
       if (!records.some((record) => String(record.id) === selection.id)) {
         this.selection = null;
       }
