@@ -125,6 +125,30 @@ test.describe('Timeline Layout', () => {
     await expectInsideViewport('#timeline-view-toolbar:popover-open');
   });
 
+  test('Project menu exposes every project action without entering Edit mode', async ({ page }) => {
+    const viewport = { width: 390, height: 844 };
+    await page.setViewportSize(viewport);
+    await page.goto('/');
+
+    await expect(page.locator('#app-shell')).toHaveAttribute('data-mode', 'view');
+    await page.locator('#project-menu-toggle').click();
+    await expect(page.locator('#project-menu:popover-open')).toBeVisible();
+
+    for (const selector of [
+      '#load-sample',
+      '#import-json-trigger',
+      '#import-interchange-trigger',
+      '#export-json',
+      '#export-interchange',
+      '#export-markdown',
+      '#clear-timeline',
+    ]) {
+      await expect(page.locator(selector)).toBeEnabled();
+    }
+    await expect(page.locator('#project-menu a[role="menuitem"]')).toBeVisible();
+    await expect(page.locator('#app-shell')).toHaveAttribute('data-mode', 'view');
+  });
+
   test('Project stays in the footer app bar and reachable while editing', async ({ page }) => {
     const viewport = { width: 390, height: 844 };
     await page.setViewportSize(viewport);

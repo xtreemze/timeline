@@ -1365,14 +1365,6 @@ const evidenceExtraction = Reflect.get(
       els.title.tabIndex = editing ? 0 : -1;
       els.title.setAttribute("aria-readonly", String(!editing));
     }
-    for (const control of [
-      els.loadSample,
-      els.importJsonTrigger,
-      els.importInterchangeTrigger,
-      els.clear,
-    ]) {
-      if (control) control.disabled = !editing;
-    }
     if (els.editorToggle) {
       els.editorToggle.setAttribute("aria-expanded", String(ui.editorOpen));
       els.editorToggle.setAttribute("aria-pressed", String(editing));
@@ -4015,11 +4007,9 @@ const evidenceExtraction = Reflect.get(
   }
 
   els.importJsonTrigger?.addEventListener("click", () => {
-    if (ui.mode !== "edit") return;
     els.importJson?.click();
   });
   els.importInterchangeTrigger?.addEventListener("click", () => {
-    if (ui.mode !== "edit") return;
     els.importInterchange?.click();
   });
   function projectMenuViewport() {
@@ -4960,7 +4950,6 @@ const evidenceExtraction = Reflect.get(
   });
 
   els.loadSample.addEventListener("click", () => {
-    if (ui.mode !== "edit") return;
     if (
       (state.items.length || state.stories.length) &&
       !window.confirm("Replace the current timeline with the example dataset?")
@@ -5128,7 +5117,6 @@ const evidenceExtraction = Reflect.get(
   globalThis.TimelineAgentAPI = agentApi;
 
   els.importJson.addEventListener("change", async () => {
-    if (ui.mode !== "edit") return;
     const file = els.importJson.files?.[0];
     if (!file) return;
     try {
@@ -5156,7 +5144,6 @@ const evidenceExtraction = Reflect.get(
   });
 
   els.importInterchange.addEventListener("change", async () => {
-    if (ui.mode !== "edit") return;
     const file = els.importInterchange.files?.[0];
     if (!file) return;
     try {
@@ -5212,7 +5199,6 @@ const evidenceExtraction = Reflect.get(
   });
 
   els.clear.addEventListener("click", () => {
-    if (ui.mode !== "edit") return;
     if (
       (state.items.length || state.stories.length || state.title) &&
       !window.confirm("Clear this timeline? This removes its locally stored items and stories.")
