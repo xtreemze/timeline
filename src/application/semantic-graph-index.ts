@@ -228,7 +228,8 @@ export function createSemanticGraphIndex(initialProject: CanonicalProject) {
       remaining.delete(root);
 
       while (cursor < queue.length) {
-        const current = queue[cursor]!;
+        const current = queue[cursor];
+        if (current === undefined) break;
         cursor += 1;
         component.push(current);
 
