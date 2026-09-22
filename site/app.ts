@@ -4386,16 +4386,14 @@ function closestEventTarget<T extends HTMLElement>(
     const availableWidth = Math.max(1, maxRight - minLeft);
     const availableHeight = Math.max(1, maxBottom - minTop);
     const menuWidth = Math.min(340, availableWidth);
-    const requestedHeight = Math.min(
-      620,
-      Math.max(1, els.projectMenu.scrollHeight || 340),
-      availableHeight,
-    );
     const roomAbove = Math.max(0, rect.top - gap - minTop);
     const roomBelow = Math.max(0, maxBottom - rect.bottom - gap);
     const opensUpward = roomAbove >= roomBelow;
     const verticalRoom = Math.max(1, opensUpward ? roomAbove : roomBelow);
-    const menuHeight = Math.min(requestedHeight, verticalRoom);
+    // A closed popover does not expose a trustworthy scrollHeight in every
+    // browser. Reserve its maximum allowed height before opening so the first
+    // painted top-layer frame is already inside the visual viewport.
+    const menuHeight = Math.min(620, availableHeight, verticalRoom);
     const preferredLeft = rect.left + rect.width / 2 - menuWidth / 2;
     const left = Math.min(
       Math.max(minLeft, preferredLeft),
