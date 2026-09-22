@@ -681,6 +681,8 @@ function closestEventTarget<T extends HTMLElement>(
       "--view-controls-top",
       "--view-controls-right",
       "--view-controls-bottom",
+      "--view-controls-inline-size",
+      "--view-controls-block-size",
     ]) {
       els.viewControls.style.removeProperty(property);
     }
@@ -697,6 +699,7 @@ function closestEventTarget<T extends HTMLElement>(
 
     const triggerRect = els.viewControlsToggle.getBoundingClientRect();
     const toolbarRect = els.viewControls.getBoundingClientRect();
+    const dockRect = els.appToolDock.getBoundingClientRect();
     const viewport = workspaceToolViewport();
     const orientation =
       els.timelineViewRoot?.dataset.orientation === "portrait" ? "portrait" : "landscape";
@@ -706,59 +709,49 @@ function closestEventTarget<T extends HTMLElement>(
     const minTop = viewport.top + edge;
     const maxRight = viewport.left + viewport.width - edge;
     const maxBottom = viewport.top + viewport.height - edge;
-    const toolbarWidth = Math.min(
+    const measuredWidth = Math.min(
       Math.max(1, toolbarRect.width || els.viewControls.offsetWidth || 1),
       Math.max(1, maxRight - minLeft),
     );
-    const toolbarHeight = Math.min(
+    const measuredHeight = Math.min(
       Math.max(1, toolbarRect.height || els.viewControls.offsetHeight || 1),
       Math.max(1, maxBottom - minTop),
     );
 
+    let toolbarWidth = measuredWidth;
+    let toolbarHeight = measuredHeight;
     let left = 0;
     let top = 0;
     let placement = "";
 
     if (orientation === "portrait") {
-      const preferredLeft = triggerRect.left - toolbarWidth - gap;
-      const fallbackLeft = triggerRect.right + gap;
-      const roomLeft = Math.max(0, triggerRect.left - gap - minLeft);
-      const roomRight = Math.max(0, maxRight - triggerRect.right - gap);
-
-      if (preferredLeft >= minLeft) {
-        left = preferredLeft;
-        placement = "left";
-      } else if (fallbackLeft + toolbarWidth <= maxRight) {
-        left = fallbackLeft;
-        placement = "right";
-      } else if (roomLeft >= roomRight) {
-        left = Math.max(minLeft, triggerRect.left - gap - toolbarWidth);
-        placement = "clamped-left";
-      } else {
-        left = Math.min(maxRight - toolbarWidth, fallbackLeft);
-        placement = "clamped-right";
-      }
-      top = triggerRect.bottom - toolbarHeight;
+      const roomLeft = Math.max(1, dockRect.left - gap - minLeft);
+      const roomRight = Math.max(1, maxRight - dockRect.right - gap);
+      const opensLeft = roomLeft >= roomRight;
+      const availableRoom = opensLeft ? roomLeft : roomRight;
+      toolbarWidth = Math.min(measuredWidth, availableRoom);
+      left = opensLeft ? dockRect.left - gap - toolbarWidth : dockRect.right + gap;
+      top = triggerRect.top + triggerRect.height / 2 - toolbarHeight / 2;
+      placement = opensLeft ? "left" : "right";
+      els.viewControls.style.setProperty(
+        "--view-controls-inline-size",
+        `${Math.floor(toolbarWidth)}px`,
+      );
+      els.viewControls.style.removeProperty("--view-controls-block-size");
     } else {
-      const preferredTop = triggerRect.top - toolbarHeight - gap;
-      const fallbackTop = triggerRect.bottom + gap;
-      const roomAbove = Math.max(0, triggerRect.top - gap - minTop);
-      const roomBelow = Math.max(0, maxBottom - triggerRect.bottom - gap);
-
-      if (preferredTop >= minTop) {
-        top = preferredTop;
-        placement = "above";
-      } else if (fallbackTop + toolbarHeight <= maxBottom) {
-        top = fallbackTop;
-        placement = "below";
-      } else if (roomAbove >= roomBelow) {
-        top = Math.max(minTop, triggerRect.top - gap - toolbarHeight);
-        placement = "clamped-above";
-      } else {
-        top = Math.min(maxBottom - toolbarHeight, fallbackTop);
-        placement = "clamped-below";
-      }
-      left = triggerRect.right - toolbarWidth;
+      const roomAbove = Math.max(1, dockRect.top - gap - minTop);
+      const roomBelow = Math.max(1, maxBottom - dockRect.bottom - gap);
+      const opensAbove = roomAbove >= roomBelow;
+      const availableRoom = opensAbove ? roomAbove : roomBelow;
+      toolbarHeight = Math.min(measuredHeight, availableRoom);
+      top = opensAbove ? dockRect.top - gap - toolbarHeight : dockRect.bottom + gap;
+      left = triggerRect.left + triggerRect.width / 2 - toolbarWidth / 2;
+      placement = opensAbove ? "above" : "below";
+      els.viewControls.style.setProperty(
+        "--view-controls-block-size",
+        `${Math.floor(toolbarHeight)}px`,
+      );
+      els.viewControls.style.removeProperty("--view-controls-inline-size");
     }
 
     left = Math.min(Math.max(minLeft, left), Math.max(minLeft, maxRight - toolbarWidth));
@@ -4377,6 +4370,8 @@ function closestEventTarget<T extends HTMLElement>(
     if (!els.projectMenu || !els.projectMenuToggle) return;
     const rect = els.projectMenuToggle.getBoundingClientRect();
     const viewport = projectMenuViewport();
+    const orientation =
+      els.timelineViewRoot?.dataset.orientation === "portrait" ? "portrait" : "landscape";
     const gap = 8;
     const edge = 8;
     const minLeft = viewport.left + edge;
@@ -4385,37 +4380,70 @@ function closestEventTarget<T extends HTMLElement>(
     const maxBottom = viewport.top + viewport.height - edge;
     const availableWidth = Math.max(1, maxRight - minLeft);
     const availableHeight = Math.max(1, maxBottom - minTop);
-    const menuWidth = Math.min(340, availableWidth);
-    const roomAbove = Math.max(0, rect.top - gap - minTop);
-    const roomBelow = Math.max(0, maxBottom - rect.bottom - gap);
-    const opensUpward = roomAbove >= roomBelow;
-    const verticalRoom = Math.max(1, opensUpward ? roomAbove : roomBelow);
-    // A closed popover does not expose a trustworthy scrollHeight in every
-    // browser. Reserve its maximum allowed height before opening so the first
-    // painted top-layer frame is already inside the visual viewport.
-    const menuHeight = Math.min(620, availableHeight, verticalRoom);
-    const preferredLeft = rect.left + rect.width / 2 - menuWidth / 2;
-    const left = Math.min(
-      Math.max(minLeft, preferredLeft),
-      Math.max(minLeft, maxRight - menuWidth),
-    );
-    const preferredTop = opensUpward ? rect.top - gap - menuHeight : rect.bottom + gap;
-    const top = Math.min(
-      Math.max(minTop, preferredTop),
-      Math.max(minTop, maxBottom - menuHeight),
-    );
+
+    let menuWidth = Math.min(340, availableWidth);
+    let menuHeight = Math.min(620, availableHeight);
+    let left = minLeft;
+    let top = minTop;
+    let placement = "";
+
+    if (orientation === "portrait") {
+      const roomLeft = Math.max(0, rect.left - gap - minLeft);
+      const roomRight = Math.max(0, maxRight - rect.right - gap);
+      const opensLeft = roomLeft >= roomRight;
+      const horizontalRoom = Math.max(1, opensLeft ? roomLeft : roomRight);
+      menuWidth = Math.min(menuWidth, horizontalRoom);
+      const preferredLeft = opensLeft ? rect.left - gap - menuWidth : rect.right + gap;
+      left = Math.min(
+        Math.max(minLeft, preferredLeft),
+        Math.max(minLeft, maxRight - menuWidth),
+      );
+      const preferredTop = rect.top + rect.height / 2 - menuHeight / 2;
+      top = Math.min(
+        Math.max(minTop, preferredTop),
+        Math.max(minTop, maxBottom - menuHeight),
+      );
+      placement = opensLeft ? "left" : "right";
+
+      els.projectMenu.style.setProperty(
+        "--project-menu-max-width",
+        `${Math.floor(horizontalRoom)}px`,
+      );
+      els.projectMenu.style.setProperty(
+        "--project-menu-max-height",
+        `${Math.floor(availableHeight)}px`,
+      );
+    } else {
+      const roomAbove = Math.max(0, rect.top - gap - minTop);
+      const roomBelow = Math.max(0, maxBottom - rect.bottom - gap);
+      const opensUpward = roomAbove >= roomBelow;
+      const verticalRoom = Math.max(1, opensUpward ? roomAbove : roomBelow);
+      menuHeight = Math.min(menuHeight, verticalRoom);
+      const preferredLeft = rect.left + rect.width / 2 - menuWidth / 2;
+      left = Math.min(
+        Math.max(minLeft, preferredLeft),
+        Math.max(minLeft, maxRight - menuWidth),
+      );
+      const preferredTop = opensUpward ? rect.top - gap - menuHeight : rect.bottom + gap;
+      top = Math.min(
+        Math.max(minTop, preferredTop),
+        Math.max(minTop, maxBottom - menuHeight),
+      );
+      placement = opensUpward ? "above" : "below";
+
+      els.projectMenu.style.setProperty(
+        "--project-menu-max-width",
+        `${Math.floor(availableWidth)}px`,
+      );
+      els.projectMenu.style.setProperty(
+        "--project-menu-max-height",
+        `${Math.floor(verticalRoom)}px`,
+      );
+    }
 
     els.projectMenu.style.setProperty("--project-menu-left", `${Math.round(left)}px`);
     els.projectMenu.style.setProperty("--project-menu-top", `${Math.round(top)}px`);
-    els.projectMenu.style.setProperty(
-      "--project-menu-max-width",
-      `${Math.floor(availableWidth)}px`,
-    );
-    els.projectMenu.style.setProperty(
-      "--project-menu-max-height",
-      `${Math.floor(verticalRoom)}px`,
-    );
-    els.projectMenu.dataset.anchorPlacement = opensUpward ? "above" : "below";
+    els.projectMenu.dataset.anchorPlacement = placement;
 
     if (els.projectMenu.matches(":popover-open")) {
       const menuRect = els.projectMenu.getBoundingClientRect();
