@@ -38,7 +38,6 @@ async function installPerformanceFixture(page) {
 
     const focus = document.createElement('div');
     focus.className = 'timeline-focus-view';
-    focus.setAttribute('popover', 'manual');
 
     root.append(surface, readout, focus);
     document.body.append(root);
