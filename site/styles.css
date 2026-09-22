@@ -4294,9 +4294,11 @@ body {
 }
 
 @media (min-width: 760px) {
-  #app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen),
-  #app-shell[data-browser-open="false"] #presentation-stage:not(:fullscreen) {
+  #app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen) {
+    position: relative;
     inset: auto;
+    grid-column: 1;
+    grid-row: 1;
     align-self: start;
     inline-size: 100%;
     block-size: calc(100% - var(--workspace-footer-reserved-block));
