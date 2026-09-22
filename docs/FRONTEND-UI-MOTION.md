@@ -46,7 +46,7 @@ Responsive implementation rules:
 The current ratchet verified after the retained-scene and map-resilience work is:
 
 - `site/styles.css`: 15 `max-width`, 6 `min-width`, 1 container query.
-- `site/timeline-view.css`: 28 `max-width`, 8 `min-width`, 0 container queries.
+- `site/timeline-view.css`: 28 `max-width`, 10 `min-width`, 0 container queries.
 
 The responsive architecture test prevents those `max-width` counts from increasing while #243 reduces or explicitly justifies legacy cases. The architecture linter remains the stronger enforcement layer for newly introduced antipatterns.
 
@@ -61,6 +61,8 @@ Use the smallest native primitive that fits the interaction:
 Timeline already uses typed document View Transitions and reduced-motion gating. Because the project targets modern Chromium, capability-gated `Element.startViewTransition()` is encouraged for localized transitions so unrelated surfaces can remain interactive. Document-level transitions remain appropriate for genuinely whole-workspace changes.
 
 Reduced-motion preferences are authoritative across all motion layers. Correct state changes never depend on animation support.
+
+Presentation CSS does not own interaction motion. The primary application styles intentionally avoid `transition:` declarations and hand-authored `@keyframes`; hover/focus/selection styling changes state immediately. Continuous timeline/graph motion remains requestAnimationFrame-driven, while named View Transition participants provide structural continuity without CSS-authored directional keyframes. This keeps layout geometry deterministic during retained-scene interaction and prevents CSS easing from competing with pointer physics.
 
 ## Framework comparison snapshot
 
