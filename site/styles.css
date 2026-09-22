@@ -2138,8 +2138,8 @@ footer > :last-child {
   margin: 1rem 0 1.25rem;
   border: 1px solid var(--line);
   border-radius: 0.9rem;
-  background: var(--paper);
-  overflow: clip;
+  background: transparent;
+  overflow: visible;
 }
 .graph-lens > summary {
   display: flex;
@@ -2222,7 +2222,8 @@ footer > :last-child {
 }
 
 .temporal-graph-canvas[data-touch-drag="holding"]::after {
-  animation: graph-touch-hold 420ms linear both;
+  opacity: 0.95;
+  transform: scale(0.78);
 }
 
 .temporal-graph-canvas[data-touch-drag="active"]::after {
@@ -2230,16 +2231,6 @@ footer > :last-child {
   transform: scale(0.78);
 }
 
-@keyframes graph-touch-hold {
-  from {
-    opacity: 0.3;
-    transform: scale(1.18);
-  }
-  to {
-    opacity: 0.95;
-    transform: scale(0.78);
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .temporal-graph-canvas[data-touch-drag="holding"]::after {
