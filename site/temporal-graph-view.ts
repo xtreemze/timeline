@@ -25,6 +25,16 @@ interface GraphData {
   edges: Edge[];
 }
 
+interface OrbBridge {
+  refreshLayout?(): void;
+  recenter(): void;
+  getMode(): string;
+  setData(data: GraphData): void;
+  transitionData(data: GraphData): void;
+  select?(kind: string, id: string): boolean;
+  updateTemporalEdges(edges: Edge[]): void;
+}
+
 interface Model {
   entities: any[];
   relationships: any[];
@@ -96,7 +106,7 @@ class TemporalGraphViewController {
   private selection: Selection | null;
   private layoutFrame: number;
   private lastCanvasSize: string;
-  private orb: any;
+  private orb: OrbBridge;
   private resizeObserver: ResizeObserver | null;
   private pointerHeldUntil: number;
   private cachedEdgesWhileHeld: Edge[] | null;
