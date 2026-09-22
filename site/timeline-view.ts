@@ -1643,7 +1643,7 @@ class TimelineViewController {
     this.pendingPlannerDurationMs += performance.now() - plannerStarted;
 
     const clusters = planned.clusters.filter((cluster) => {
-      if (this.focusedId && cluster.itemIds.includes(this.focusedId)) return false;
+      // Keep clusters that are not fully expanded, regardless of focus
       return !cluster.itemIds.every((id) => this.expandedClusterItemIds.has(id));
     });
     const liveIds = new Set(occurrences.map((item) => item.id));
