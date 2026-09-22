@@ -157,8 +157,9 @@ test("Orb styling uses semantic iconography, weighted physics, and worker CPU fa
 });
 
 test("touch graph dragging requires a long press while preserving live force physics", async () => {
-  const [bridge, view] = await Promise.all([
+  const [bridge, adapter, view] = await Promise.all([
     readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/layout/orb-graph-surface.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8"),
   ]);
 
@@ -173,7 +174,9 @@ test("touch graph dragging requires a long press while preserving live force phy
   assert.match(bridge, /vibrate\?\.\(12\)/);
   assert.match(bridge, /activeTouchPointers/);
   assert.match(bridge, /Math\.hypot/);
-  assert.match(view, /onNodeLongPress/);
+  assert.match(adapter, /onNodeLongPress/);
+  assert.match(adapter, /kind:\s*"interaction-start"/);
+  assert.match(adapter, /interaction:\s*"long-press-drag"/);
   assert.match(view, /graphnodeselect/);
   assert.match(view, /long-press-drag/);
 });
