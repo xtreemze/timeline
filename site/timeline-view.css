@@ -361,6 +361,7 @@
 }
 .timeline-tick-label {
   position: absolute;
+  z-index: 1;
   color: var(--muted);
   font:
     680 0.62rem / 1.2 "Monaspace Krypton Timeline",
