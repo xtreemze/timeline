@@ -767,7 +767,6 @@
 }
 .timeline-event-copy strong {
   display: -webkit-box;
-  overflow: hidden;
   color: var(--event-color);
   font-size: 0.9rem;
   font-weight: 820;
@@ -781,7 +780,6 @@
 }
 .timeline-event-copy span {
   display: block;
-  overflow: hidden;
   margin-top: 0.18rem;
   color: color-mix(in srgb, var(--event-color) 68%, var(--muted));
   font-size: 0.7rem;
@@ -5348,13 +5346,12 @@
    Landscape: detail left, graph right, chronology full-width below.
    Portrait: detail above graph, chronology owns the full-height right rail. */
 .app-shell.is-event-focused #presentation-stage {
-  --focus-sidebar-inline: clamp(18rem, 34%, 34rem);
-  --focus-timeline-block: clamp(7.5rem, 21dvh, 11.5rem);
-  --focus-timeline-inline: clamp(6.5rem, 18dvw, 9.5rem);
+  --focus-sidebar-inline: clamp(14rem, 42%, 20rem);
+  --focus-timeline-block: clamp(6.75rem, 19dvh, 9rem);
+  --focus-timeline-inline: clamp(5.75rem, 22dvw, 7.5rem);
   align-items: stretch;
   min-width: 0;
   min-height: 0;
-  overflow: clip;
 }
 
 .app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar:not([hidden]) {
@@ -5489,14 +5486,18 @@
   max-height: min(34dvh, 22rem);
 }
 
-@media (max-width: 760px) {
+.app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar:not([hidden]) {
+  font-size: 0.92em;
+}
+
+@media (min-width: 761px) {
   .app-shell.is-event-focused #presentation-stage {
-    --focus-sidebar-inline: clamp(14rem, 42%, 20rem);
-    --focus-timeline-block: clamp(6.75rem, 19dvh, 9rem);
-    --focus-timeline-inline: clamp(5.75rem, 22dvw, 7.5rem);
+    --focus-sidebar-inline: clamp(18rem, 34%, 34rem);
+    --focus-timeline-block: clamp(7.5rem, 21dvh, 11.5rem);
+    --focus-timeline-inline: clamp(6.5rem, 18dvw, 9.5rem);
   }
 
   .app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar:not([hidden]) {
-    font-size: 0.92em;
+    font-size: inherit;
   }
 }
