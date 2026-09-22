@@ -36,8 +36,8 @@
       "nonNull": 0
     },
     "site/temporal-graph-view.ts": {
-      "any": 11,
-      "asAny": 2,
+      "any": 6,
+      "asAny": 0,
       "nonNull": 0
     },
     "site/temporal-standards.ts": {
@@ -334,7 +334,6 @@
   "architecture": {
     "ambientTimelineGlobals": {
       "site/app.ts": 15,
-      "site/temporal-graph-view.ts": 2,
       "site/case-reasoning-shim.ts": 1,
       "site/date-range-picker-shim.ts": 1,
       "site/event-presentation-shim.ts": 1,
