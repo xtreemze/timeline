@@ -1756,8 +1756,10 @@ class TimelineViewController {
       const terminalCross = axisCross + (lane < 0 ? -laneDistance : laneDistance);
       const segment = connectorSegment(axisCross, terminalCross);
 
-      node.dataset.side = lane < 0 ? "before" : "after";
-      node.classList.toggle("label-before", lane < 0);
+      const labelBefore =
+        this.orientation === "horizontal" ? primary > usable / 2 : lane < 0;
+      node.dataset.side = labelBefore ? "before" : "after";
+      node.classList.toggle("label-before", labelBefore);
       if (this.orientation === "horizontal") {
         node.style.transform = `translate3d(${primary}px, ${terminalCross}px, 0)`;
       } else {
@@ -2118,8 +2120,10 @@ class TimelineViewController {
     );
     const shiftedCross = terminalCross + routeOffset;
 
-    node.dataset.side = lane < 0 ? "before" : "after";
-    node.classList.toggle("label-before", lane < 0);
+    const labelBefore =
+      this.orientation === "horizontal" ? primary > primaryLength / 2 : lane < 0;
+    node.dataset.side = labelBefore ? "before" : "after";
+    node.classList.toggle("label-before", labelBefore);
     node.classList.toggle("is-buffered", !itemOverlapsWindow(item, this.viewport));
 
     if (this.orientation === "horizontal") {
