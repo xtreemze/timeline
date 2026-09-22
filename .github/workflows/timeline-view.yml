@@ -84,6 +84,7 @@ on:
       - 'tests/timeline-projection-runtime.test.mjs'
       - 'tests/graph-editor.test.mjs'
       - 'tests/graph-surface-contracts.test.mjs'
+      - 'tests/graph-simulation-coordinator.test.mjs'
       - '.github/workflows/timeline-view.yml'
       - '.github/workflows/pages.yml'
   push:
@@ -164,6 +165,7 @@ on:
       - 'tests/timeline-projection-runtime.test.mjs'
       - 'tests/graph-editor.test.mjs'
       - 'tests/graph-surface-contracts.test.mjs'
+      - 'tests/graph-simulation-coordinator.test.mjs'
       - '.github/workflows/timeline-view.yml'
 
 concurrency:
@@ -206,6 +208,7 @@ jobs:
       - run: pnpm test:retained-context-runtime
       - run: pnpm test:graph-runtime-contracts
       - run: pnpm test:graph-surface-contracts
+      - run: pnpm test:graph-simulation-coordinator
       - run: pnpm test
       - run: pnpm test:webmcp-lifecycle-runtime
       - run: pnpm test:timeline-projection-runtime
