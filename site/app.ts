@@ -167,6 +167,80 @@ interface TimelineState {
   extensions?: Record<string, unknown>;
 }
 
+interface CategoryInputRecord {
+  id?: unknown;
+  name?: unknown;
+  color?: unknown;
+  extensions?: unknown;
+  [key: string]: unknown;
+}
+
+interface TimelineItemInputRecord {
+  id?: unknown;
+  kind?: unknown;
+  start?: unknown;
+  end?: unknown;
+  time?: {
+    start?: { value?: unknown };
+    end?: { value?: unknown };
+    [key: string]: unknown;
+  };
+  title?: unknown;
+  description?: unknown;
+  categoryId?: unknown;
+  category?: unknown;
+  media?: unknown;
+  tags?: unknown;
+  presentation?: {
+    variant?: unknown;
+    terminalShape?: unknown;
+    connectorStyle?: unknown;
+    connectorRouting?: unknown;
+    connectorWeight?: unknown;
+    connectorEndpoint?: unknown;
+    lane?: unknown;
+    [key: string]: unknown;
+  };
+  relationChanges?: unknown;
+  evidenceIds?: unknown;
+  extensions?: unknown;
+  [key: string]: unknown;
+}
+
+interface LegacyEventInputRecord {
+  id?: unknown;
+  date?: unknown;
+  title?: unknown;
+  description?: unknown;
+  category?: unknown;
+}
+
+interface StoryInputRecord {
+  id?: unknown;
+  title?: unknown;
+  description?: unknown;
+  itemIds?: unknown;
+  placeIds?: unknown;
+  extensions?: unknown;
+  [key: string]: unknown;
+}
+
+interface TimelineInputRecord {
+  title?: unknown;
+  categories?: CategoryInputRecord[];
+  items?: TimelineItemInputRecord[];
+  events?: LegacyEventInputRecord[];
+  stories?: StoryInputRecord[];
+  evidence?: unknown;
+  custodyActions?: unknown;
+  reasoning?: unknown;
+  extensions?: unknown;
+  entities?: unknown[];
+  places?: unknown[];
+  relationships?: unknown[];
+  [key: string]: unknown;
+}
+
 // Application version constant
 const VERSION = 2;
 const STORAGE_KEY = "timeline:v2";
@@ -1060,14 +1134,17 @@ function requiredElements<T extends Element>(selector: string): T[] {
       .slice(0, 60);
   }
 
-  function normalizeTimeline(input: any, { strictGraph = false }: { strictGraph?: boolean } = {}): TimelineState {
+  function normalizeTimeline(
+    input: TimelineInputRecord,
+    { strictGraph = false }: { strictGraph?: boolean } = {},
+  ): TimelineState {
     if (!input || typeof input !== "object") throw new Error("Expected a timeline object.");
     const retainedMigrationExtensions = migration.extensionsWithRetainedV2(input);
-    input = graph.migrateLegacySpatialModel(input, spatial);
+    input = graph.migrateLegacySpatialModel(input, spatial) as TimelineInputRecord;
 
     const categories: CategoryRecord[] = [];
     const categoryIds = new Set<string>();
-    const sourceCategories =
+    const sourceCategories: readonly CategoryInputRecord[] =
       Array.isArray(input.categories) && input.categories.length
         ? input.categories
         : DEFAULT_CATEGORIES;
@@ -1098,11 +1175,16 @@ function requiredElements<T extends Element>(selector: string): T[] {
       }
     }
 
+    const defaultCategory = categories[0];
+    if (!defaultCategory) {
+      throw new Error("Timeline normalization requires at least one category.");
+    }
+
     const ensureCategory = (rawId: unknown): string => {
       const candidate =
-        String(rawId || categories[0]!.id)
+        String(rawId || defaultCategory.id)
           .trim()
-          .slice(0, 80) || categories[0]!.id;
+          .slice(0, 80) || defaultCategory.id;
       if (!categoryIds.has(candidate)) {
         categories.push({ id: candidate, name: categoryLabelFromId(candidate), color: "#667085" });
         categoryIds.add(candidate);
@@ -1115,10 +1197,10 @@ function requiredElements<T extends Element>(selector: string): T[] {
     const custodyActions = evidenceStore.normalizeCustodyActions(input.custodyActions);
     const reasoning = caseReasoning.normalizeReasoning(input.reasoning);
 
-    const sourceItems = Array.isArray(input.items)
+    const sourceItems: TimelineItemInputRecord[] = Array.isArray(input.items)
       ? input.items
       : Array.isArray(input.events)
-        ? input.events.map((legacy) => ({
+        ? input.events.map((legacy): TimelineItemInputRecord => ({
             id: legacy.id,
             kind: "event",
             start: legacy.date,
@@ -1129,7 +1211,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
           }))
         : [];
 
-    const items: TimelineItemRecord[] = sourceItems.map((raw: any, index: number): TimelineItemRecord => {
+    const items: TimelineItemRecord[] = sourceItems.map((raw, index): TimelineItemRecord => {
       if (!raw || typeof raw !== "object") throw new Error(`Item ${index + 1} is not an object.`);
       const kind = raw.kind === "range" ? "range" : "event";
       const rawStart = raw.time?.start?.value ?? raw.start;
@@ -4755,7 +4837,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
       description: els.itemDescription.value.trim().slice(0, 2000),
       categoryId: state.categories.some((category) => category.id === els.itemCategory.value)
         ? els.itemCategory.value
-        : state.categories[0]!.id,
+        : (state.categories[0]?.id ?? "incident"),
       presentation: {
         variant: els.itemLayoutVariant.value,
         terminalShape: els.itemTerminalShape.value,
