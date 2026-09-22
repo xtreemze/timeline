@@ -307,7 +307,7 @@
 .timeline-surface.is-landscape {
   width: 100%;
   max-width: none;
-  height: clamp(390px, 44vw, 560px);
+  height: clamp(340px, 40vw, 480px);
 }
 .timeline-surface.is-portrait {
   height: 100%;
