@@ -344,11 +344,15 @@ function lintArchitectureBoundaries(file, source) {
         `core architecture layer must not import renderer/framework/provider dependency "${specifier}"`,
       );
     }
-    if (isDomain && /(?:^|\/)(?:application|projection)(?:\/|$)/.test(specifier)) {
+    const importSegments = specifier.split("/").filter((segment) => segment && segment !== "." && segment !== "..");
+    if (isDomain && importSegments.some((segment) => ["application", "projection", "layout", "interaction"].includes(segment))) {
       report(file, "domain-dependency-direction", `domain must not import "${specifier}"`);
     }
-    if (isApplication && /(?:^|\/)projection(?:\/|$)/.test(specifier)) {
+    if (isApplication && importSegments.some((segment) => ["projection", "layout", "interaction"].includes(segment))) {
       report(file, "application-dependency-direction", `application must not import "${specifier}"`);
+    }
+    if (isProjection && importSegments.some((segment) => ["layout", "interaction"].includes(segment))) {
+      report(file, "projection-dependency-direction", `projection must not import "${specifier}"`);
     }
   }
 
