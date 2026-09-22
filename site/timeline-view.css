@@ -5346,6 +5346,30 @@
 
 /* Focused event detail is structural workspace geometry.
    It never enters the browser top layer or covers the relation graph. */
+#presentation-stage[data-event-focused="true"],
+#presentation-stage:fullscreen[data-event-focused="true"] {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#presentation-stage[data-event-focused="true"] > .timeline-view,
+#presentation-stage[data-event-focused="true"] > .graph-lens:not([hidden]),
+#presentation-stage[data-event-focused="true"] > .timeline-focus-panel,
+#presentation-stage:fullscreen[data-event-focused="true"] > .timeline-view,
+#presentation-stage:fullscreen[data-event-focused="true"] > .graph-lens:not([hidden]),
+#presentation-stage:fullscreen[data-event-focused="true"] > .timeline-focus-panel {
+  position: relative;
+  inset: auto;
+  min-width: 0;
+  min-height: 0;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+}
 #presentation-stage > .timeline-focus-panel {
   min-width: 0;
   min-height: 0;
