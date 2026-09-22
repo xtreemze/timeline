@@ -176,7 +176,7 @@ test("view controls consume the renderer-neutral workspace planner instead of ow
 });
 
 
-test("footer shell fuses project title below actions and reserves its measured block from presentation", async () => {
+test("fused app chrome reserves the bottom in landscape and the right edge in portrait", async () => {
   const [html, styles, timelineCss, app] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
@@ -201,25 +201,28 @@ test("footer shell fuses project title below actions and reserves its measured b
     /#app-shell #presentation-stage:not\(:fullscreen\)[\s\S]*inset-block-end:\s*var\(--workspace-footer-reserved-block\)[\s\S]*block-size:\s*auto/,
   );
   assert.match(
-    app,
-    /appFooter:\s*requiredElement<HTMLElement>\("\.app-footer-shell"\)/,
+    styles,
+    /:has\(#timeline-view\[data-orientation="portrait"\]\) \.app-footer-shell[\s\S]*inset-inline-end:[\s\S]*grid-template-columns:[\s\S]*transform:\s*translateY\(-50%\)/,
   );
-  assert.match(app, /function syncFooterReservation\(\): boolean/);
   assert.match(
-    app,
-    /syncFooterReservation[\s\S]*--workspace-footer-reserved-block/,
+    styles,
+    /:has\(#timeline-view\[data-orientation="portrait"\]\)[\s\S]*#presentation-stage:not\(:fullscreen\)[\s\S]*inset-inline-end:\s*var\(--workspace-footer-reserved-inline\)/,
   );
+  assert.match(app, /appFooter:\s*requiredElement<HTMLElement>\("\.app-footer-shell"\)/);
+  assert.match(app, /function syncFooterReservation\(\): boolean/);
+  assert.match(app, /--workspace-footer-reserved-block/);
+  assert.match(app, /--workspace-footer-reserved-inline/);
   assert.match(
     app,
     /footerResizeObserver = new ResizeObserver\([\s\S]*syncFooterReservation\(\)[\s\S]*footerResizeObserver\.observe\(els\.appFooter\)/,
   );
   assert.match(
     app,
-    /function positionProjectMenu\(\)[\s\S]*appFooter\.getBoundingClientRect\(\)[\s\S]*placement = "above"/,
+    /function positionProjectMenu\(\)[\s\S]*orientation === "portrait"[\s\S]*placement = opensLeft \? "left" : "right"[\s\S]*placement = opensUpward \? "above" : "below"/,
   );
   assert.match(
     app,
-    /function positionViewControls\(\)[\s\S]*appFooter\.getBoundingClientRect\(\)[\s\S]*id:\s*"above"/,
+    /function positionViewControls\(\)[\s\S]*orientation === "portrait"[\s\S]*id:\s*"left"[\s\S]*id:\s*"above"/,
   );
   assert.doesNotMatch(
     styles,
