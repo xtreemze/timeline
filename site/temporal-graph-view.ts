@@ -102,7 +102,7 @@ class TemporalGraphViewController {
   private resizeObserver: ResizeObserver | null;
   private pointerHeldUntil: number;
   private cachedEdgesWhileHeld: Edge[] | null;
-  private edgeUpdateDelayTimer: number;
+  private edgeUpdateDelayTimer: ReturnType<typeof globalThis.setTimeout> | 0;
 
   constructor(root: HTMLElement) {
     this.root = root;
