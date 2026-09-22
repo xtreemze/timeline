@@ -1510,7 +1510,10 @@ function create(container, handlers = {}) {
       edges: edges.map((edge) => transitionRecord(edge, "active")),
     });
     hasGraphData = true;
-    applyInteractionForce(0);
+    // Don't reset force simulation if a node is currently being dragged
+    if (!touchHold?.activated) {
+      applyInteractionForce(0);
+    }
     orb.render();
     handlers.onSimulationState?.({ running: true, mode: currentMode });
   }
@@ -1572,7 +1575,10 @@ function create(container, handlers = {}) {
       });
       setPerformanceMode(nodes.length);
       orb.render();
-      applyInteractionForce(0);
+      // Don't reset force simulation if a node is currently being dragged
+      if (!touchHold?.activated) {
+        applyInteractionForce(0);
+      }
       return;
     }
 
@@ -1650,7 +1656,10 @@ function create(container, handlers = {}) {
     },
     refreshLayout() {
       if (!hasGraphData) return;
-      applyInteractionForce(0, { reheat: false });
+      // Don't reset force simulation if a node is currently being dragged
+      if (!touchHold?.activated) {
+        applyInteractionForce(0, { reheat: false });
+      }
       orb.render(() => {
         if (!userOwnsCamera) orb.recenter();
       });
