@@ -273,11 +273,21 @@ test.describe('Mobile-first Timeline layout contracts', () => {
       const viewButton = page.locator('#timeline-view-controls-toggle');
       await viewButton.click();
       const viewControls = page.locator('#timeline-view-toolbar:popover-open');
-      await expectInsideViewport(viewControls, viewport);
+      const viewControlsBox = await expectInsideViewport(viewControls, viewport);
       await expect(viewControls).toHaveAttribute(
         'data-anchor-placement',
         orientation === 'portrait' ? 'left' : 'above',
       );
+
+      const dockBox = await page.locator('.app-tool-dock').boundingBox();
+      expect(dockBox).not.toBeNull();
+      if (!dockBox) throw new Error('App tool dock has no live bounds.');
+      if (orientation === 'portrait') {
+        expect(viewControlsBox.x + viewControlsBox.width).toBeLessThanOrEqual(dockBox.x - 4);
+      } else {
+        expect(viewControlsBox.y + viewControlsBox.height).toBeLessThanOrEqual(dockBox.y - 4);
+      }
+
       await page.keyboard.press('Escape');
       await expect(viewButton).toHaveAttribute('aria-expanded', 'false');
     }
