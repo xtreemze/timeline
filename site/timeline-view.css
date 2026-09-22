@@ -1356,6 +1356,11 @@
   .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-place {
     grid-column: 1 / -1;
     grid-row: 3;
+    min-height: auto;
+    max-height: 120px;
+  }
+  .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-place-map {
+    min-height: 0;
   }
   .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-relations {
     grid-column: 1 / -1;
@@ -1364,6 +1369,9 @@
   .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-evidence {
     grid-column: 1 / -1;
     grid-row: 5;
+  }
+  .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-evidence-grid {
+    grid-template-columns: 1fr;
   }
   .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-actions {
     grid-column: 1 / -1;
