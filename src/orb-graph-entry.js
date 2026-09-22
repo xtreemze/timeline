@@ -144,7 +144,6 @@ function create(container, handlers = {}) {
   let presentationForcePoint = null;
   let presentationForceFrame = 0;
   let presentationForceSettleTimer = 0;
-  let presentationForceReleaseTimer = 0;
   const topologyTimers = new Set();
   const activeTouchPointers = new Set();
 
@@ -309,15 +308,7 @@ function create(container, handlers = {}) {
     if (!hasGraphData) return;
     // Popover geometry changes have their own low-priority solve. They can
     // never cool topology or drag work because the coordinator owns ordering.
-    if (presentationForceReleaseTimer) {
-      globalThis.clearTimeout(presentationForceReleaseTimer);
-      presentationForceReleaseTimer = 0;
-    }
     requestSimulation("popover-exclusion", 0, { reheat: false });
-    presentationForceReleaseTimer = globalThis.setTimeout(() => {
-      presentationForceReleaseTimer = 0;
-      releaseSimulation("popover-exclusion");
-    }, 480);
   }
 
   function queuePresentationForceUpdate() {
@@ -1188,7 +1179,12 @@ function create(container, handlers = {}) {
     finishTouchGesture();
   }
 
-  const onWindowBlur = () => abortTouchInteraction();
+  const onWindowBlur = () => {
+    abortTouchInteraction();
+    competingPointerIds.clear();
+    clearCompetingGestureResumeTimer();
+    simulationCoordinator.resume("competing-surface");
+  };
   const onVisibilityChange = () => {
     if (document.visibilityState === "hidden") {
       simulationCoordinator.suspend("hidden");
@@ -1415,6 +1411,12 @@ function create(container, handlers = {}) {
     const simulationState = simulationCoordinator.getState();
     if (simulationState.reason === "topology" && topologyTimers.size === 0) {
       releaseSimulation("topology");
+    } else if (
+      simulationState.reason === "popover-exclusion" ||
+      simulationState.reason === "post-drop" ||
+      simulationState.reason === "geometry-refresh"
+    ) {
+      releaseSimulation(simulationState.reason);
     }
     if (firstRender) {
       firstRender = false;
@@ -1779,7 +1781,9 @@ function create(container, handlers = {}) {
       }
       finalizeTopology(data);
       keepForceActiveAfterInteraction();
-      releaseSimulation("topology");
+      if (!simulationCoordinator.getState().suspendedReasons.length) {
+        releaseSimulation("topology");
+      }
     }, TOPOLOGY_SETTLE_MS);
   }
 
@@ -1860,8 +1864,6 @@ function create(container, handlers = {}) {
       presentationForceFrame = 0;
       if (presentationForceSettleTimer) globalThis.clearTimeout(presentationForceSettleTimer);
       presentationForceSettleTimer = 0;
-      if (presentationForceReleaseTimer) globalThis.clearTimeout(presentationForceReleaseTimer);
-      presentationForceReleaseTimer = 0;
       simulationCoordinator.clear();
       competingPointerIds.clear();
       clearTopologyTimers();
