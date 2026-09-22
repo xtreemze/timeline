@@ -29,7 +29,10 @@ async function boxes(page: Page, focus: Locator) {
   expect(graphBox).not.toBeNull();
   expect(timelineBox).not.toBeNull();
   expect(stageBox).not.toBeNull();
-  return { focusBox: focusBox!, graphBox: graphBox!, timelineBox: timelineBox!, stageBox: stageBox! };
+  if (!focusBox || !graphBox || !timelineBox || !stageBox) {
+    throw new Error("Focused presentation surfaces must all have layout bounds.");
+  }
+  return { focusBox, graphBox, timelineBox, stageBox };
 }
 
 test.beforeEach(async ({ page }) => {
