@@ -17,6 +17,7 @@ import {
   type OrbFactory,
 } from "../src/layout/orb-graph-surface.ts";
 import { entityId, relationshipId } from "../src/domain/ids.ts";
+import type { InteractionCoordinator } from "../src/interaction/interaction-coordinator.ts";
 
 interface Viewport {
   start: number;
@@ -148,11 +149,14 @@ class TemporalGraphViewController {
   private lastCanvasSize: string;
   private surface: GraphSurface;
   private resizeObserver: ResizeObserver | null;
-  private pointerHeldUntil: number;
   private cachedEdgesWhileHeld: GraphEdgeProjection[] | null;
-  private edgeUpdateDelayTimer: ReturnType<typeof globalThis.setTimeout> | 0;
+  private interactionCoordinator: InteractionCoordinator | null;
 
-  constructor(root: HTMLElement, surfaceFactory: GraphSurfaceFactory) {
+  constructor(
+    root: HTMLElement,
+    surfaceFactory: GraphSurfaceFactory,
+    interactionCoordinator: InteractionCoordinator | null = null,
+  ) {
     this.root = root;
     this.canvas = root.querySelector(".temporal-graph-canvas");
     this.status =
@@ -170,15 +174,12 @@ class TemporalGraphViewController {
     this.selection = null;
     this.layoutFrame = 0;
     this.lastCanvasSize = "";
-    this.pointerHeldUntil = 0;
     this.cachedEdgesWhileHeld = null;
-    this.edgeUpdateDelayTimer = 0;
+    this.interactionCoordinator = interactionCoordinator;
 
     if (!this.canvas) throw new Error("Temporal graph canvas is required.");
     this.surface = surfaceFactory.create(this.canvas, (event) => this.handleSurfaceEvent(event));
 
-    // Listen for pointer events on the timeline surface to coordinate edge connection delays
-    this.setupPointerEventTracking();
 
     if ("ResizeObserver" in globalThis && this.canvas) {
       this.resizeObserver = new ResizeObserver((entries: ResizeObserverEntry[]) => {
@@ -227,44 +228,13 @@ class TemporalGraphViewController {
     this.status.textContent = `${countText} · ${state.mode || "worker-cpu"}${suffix}`;
   }
 
-  private setupPointerEventTracking(): void {
-    // Find the timeline surface and listen to pointer events
-    const timelineSurface = this.root.closest("[data-view-name]")?.querySelector(".timeline-surface");
-    if (!timelineSurface) return;
-
-    const onPointerDown = () => {
-      this.pointerHeldUntil = performance.now() + 2000; // Hold edge states for at least 2 seconds
-      // Clear any pending edge update delay
-      if (this.edgeUpdateDelayTimer) globalThis.clearTimeout(this.edgeUpdateDelayTimer);
-      this.edgeUpdateDelayTimer = 0;
-    };
-
-    const onPointerUp = () => {
-      const now = performance.now();
-      const heldDuration = Math.max(0, this.pointerHeldUntil - now);
-      if (heldDuration > 0) {
-        // Wait for the remaining hold duration before allowing edge updates
-        if (this.edgeUpdateDelayTimer) globalThis.clearTimeout(this.edgeUpdateDelayTimer);
-        this.edgeUpdateDelayTimer = globalThis.setTimeout(() => {
-          this.edgeUpdateDelayTimer = 0;
-          this.pointerHeldUntil = 0;
-          this.cachedEdgesWhileHeld = null;
-          // Re-render with latest edge states
-          this.render();
-        }, heldDuration);
-      } else {
-        this.pointerHeldUntil = 0;
-        this.cachedEdgesWhileHeld = null;
-      }
-    };
-
-    timelineSurface.addEventListener("pointerdown", onPointerDown, { capture: true });
-    timelineSurface.addEventListener("pointerup", onPointerUp, { capture: true });
-    timelineSurface.addEventListener("pointercancel", onPointerUp, { capture: true });
-  }
-
   private isPointerHeld(): boolean {
-    return performance.now() < this.pointerHeldUntil;
+    const interaction = this.interactionCoordinator?.snapshot();
+    return Boolean(
+      interaction?.owner === "timeline" &&
+        interaction.phase !== "idle" &&
+        interaction.phase !== "committed",
+    );
   }
 
   setModel(model: any): void {
@@ -440,9 +410,17 @@ class TemporalGraphViewController {
   }
 }
 
-export function create(root: HTMLElement | null): TemporalGraphViewController | null {
+export function create(
+  root: HTMLElement | null,
+  options: { interactionCoordinator?: InteractionCoordinator | null } = {},
+): TemporalGraphViewController | null {
   if (!root) return null;
-  return new TemporalGraphViewController(root, createOrbGraphSurfaceFactory(getOrbFactory()));
+  const interactionCoordinator = options.interactionCoordinator ?? null;
+  return new TemporalGraphViewController(
+    root,
+    createOrbGraphSurfaceFactory(getOrbFactory(), interactionCoordinator),
+    interactionCoordinator,
+  );
 }
 
 const TemporalGraphViewObj = { create } as const;
