@@ -5,12 +5,14 @@
 
 import type {
   CanonicalSelection,
-  GraphEdgeProjection,
-  GraphProjection,
   GraphSurface,
   GraphSurfaceEvent,
   GraphSurfaceFactory,
 } from "../src/layout/graph-surface.ts";
+import type {
+  GraphEdgeProjection,
+  GraphProjection,
+} from "../src/projection/graph-projection-types.ts";
 import {
   createSemanticGraphIndex,
   type SemanticGraphIndex,
@@ -24,11 +26,20 @@ import {
   createOrbGraphSurfaceFactory,
   type OrbFactory,
 } from "../src/layout/orb-graph-surface.ts";
-import { entityId, relationshipId } from "../src/domain/ids.ts";
 
 interface Viewport {
   start: number;
   end: number;
+}
+
+interface SimulationState {
+  running: boolean;
+  durationMs?: number;
+  mode?: string;
+}
+
+function hasFunction(value: unknown, key: string): boolean {
+  return typeof value === "object" && value !== null && typeof Reflect.get(value, key) === "function";
 }
 
 function getOrbFactory(): OrbFactory {
@@ -70,7 +81,7 @@ class TemporalGraphViewController {
   private canvas: HTMLElement | null;
   private status: HTMLElement | null;
   private windowLabel: HTMLElement | null;
-  private model: Model;
+  private model: GraphProjectionProject;
   private semanticIndex: SemanticGraphIndex;
   private viewport: Viewport | null;
   private focusedId: string | null;
@@ -207,15 +218,14 @@ class TemporalGraphViewController {
     return performance.now() < this.pointerHeldUntil;
   }
 
-  setModel(model: any): void {
+  setModel(model: GraphProjectionProject): void {
     this.model = {
-      schemaVersion: Number.isInteger(model?.schemaVersion) ? model.schemaVersion : 2,
-      entities: Array.isArray(model?.entities) ? model.entities : [],
-      relationships: Array.isArray(model?.relationships) ? model.relationships : [],
-      items: Array.isArray(model?.items) ? model.items : [],
-      stories: Array.isArray(model?.stories) ? model.stories : [],
+      schemaVersion: Number.isInteger(model.schemaVersion) ? model.schemaVersion : 2,
+      entities: Array.isArray(model.entities) ? model.entities : [],
+      relationships: Array.isArray(model.relationships) ? model.relationships : [],
+      items: Array.isArray(model.items) ? model.items : [],
     };
-    this.semanticIndex.replace(this.projectionProject());
+    this.semanticIndex.replace(this.model);
     this.render();
   }
 
@@ -309,12 +319,8 @@ class TemporalGraphViewController {
     );
   }
 
-  private projectionProject(): GraphProjectionProject {
-    return this.model as unknown as GraphProjectionProject;
-  }
-
   private currentGraphProjection(): GraphProjection {
-    const project = this.projectionProject();
+    const project = this.model;
     return this.focusedId
       ? projectFocusedGraph(project, this.semanticIndex, this.focusedId, this.viewport, {
           depth: 1,
