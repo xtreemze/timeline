@@ -1432,7 +1432,7 @@ class TimelineViewController {
       let eventId: string | null = null;
       const eventMatch = relationship.id.match(/event-([a-z0-9-]+)/);
       if (eventMatch) {
-        eventId = eventMatch[1];
+        eventId = eventMatch[1] ?? null;
       }
 
       let coloredItem = eventId
@@ -1441,10 +1441,10 @@ class TimelineViewController {
 
       // Fall back to finding events by subject entity
       if (!coloredItem) {
-        const subjectId = (relationship as Record<string, string>).subjectId;
+        const subjectId = relationship.subjectId;
         if (subjectId) {
           coloredItem = this.items.find((item) =>
-            item.id.includes(subjectId) || item.label?.includes(subjectId)
+            item.id.includes(subjectId) || item.title?.includes(subjectId)
           );
         }
       }
