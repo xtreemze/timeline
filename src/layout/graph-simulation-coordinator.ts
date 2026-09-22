@@ -1,4 +1,5 @@
 export type GraphSimulationReason =
+  | "idle"
   | "geometry-refresh"
   | "popover-exclusion"
   | "post-drop"
@@ -25,6 +26,7 @@ export interface GraphSimulationState {
 
 export const GRAPH_SIMULATION_PRIORITY: Readonly<Record<GraphSimulationReason, number>> =
   Object.freeze({
+    idle: 0,
     "geometry-refresh": 1,
     "popover-exclusion": 2,
     "post-drop": 3,
@@ -78,7 +80,17 @@ export function createGraphSimulationCoordinator(adapter: GraphSimulationAdapter
 
     stoppedForSuspension = false;
     if (!highest) {
-      applied = null;
+      if (applied && applied.reason !== "idle") {
+        const idleRequest: GraphSimulationRequest = {
+          reason: "idle",
+          alphaTarget: 0,
+          reheat: false,
+        };
+        applied = idleRequest;
+        adapter.apply(idleRequest);
+      } else {
+        applied = null;
+      }
       return;
     }
 
