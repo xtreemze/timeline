@@ -4342,7 +4342,8 @@
 
 @media (max-width: 699px) {
   #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
-    width: 100%;
+    width: var(--view-controls-inline-size, 100%);
+    max-height: var(--view-controls-block-size, inherit);
     flex-wrap: wrap;
     justify-content: flex-start;
   }
