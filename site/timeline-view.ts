@@ -2317,7 +2317,7 @@ class TimelineViewController {
   renderFocus(item: TimelineItem): void {
     this.focusView.tabIndex = -1;
     this.focusView.style.setProperty("--event-color", item.color || "var(--accent)");
-    this.focusView.dataset.layout = item.layoutVariant || "hero-split";
+    this.focusView.dataset.layout = item.layoutVariant || "evidence-dossier";
     this.focusView.dataset.activeTab = "overview";
     this.focusView.setAttribute("aria-labelledby", "timeline-focus-heading");
 
