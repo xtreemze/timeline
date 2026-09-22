@@ -391,11 +391,6 @@ main > * {
   font-weight: 780;
   line-height: 1;
   cursor: pointer;
-  transition:
-    transform 0.12s ease,
-    background 0.12s ease,
-    border-color 0.12s ease,
-    opacity 0.12s ease;
 }
 .button:disabled {
   opacity: 0.4;
@@ -1578,11 +1573,6 @@ geolocation {
   border-inline-start: 3px solid var(--category-color);
   border-radius: 0.75rem;
   background: var(--paper);
-  transition:
-    opacity 0.15s ease,
-    transform 0.15s ease,
-    box-shadow 0.15s ease,
-    border-color 0.15s ease;
 }
 .timeline-item.is-current .timeline-card {
   border-color: color-mix(in srgb, var(--story) 45%, var(--line));
@@ -1688,9 +1678,6 @@ geolocation {
   font-size: 0.78rem;
   opacity: 0;
   pointer-events: none;
-  transition:
-    opacity 0.16s ease,
-    transform 0.16s ease;
 }
 .status.visible {
   opacity: 1;
@@ -1926,9 +1913,6 @@ footer > :last-child {
   *::before,
   *::after {
     scroll-behavior: auto;
-    transition-duration: 0.001ms;
-    animation-duration: 0.001ms;
-    animation-iteration-count: 1;
   }
 }
 
@@ -3355,9 +3339,6 @@ body {
   background: color-mix(in srgb, var(--paper) 91%, transparent);
   box-shadow: 0 3px 10px color-mix(in srgb, var(--ink) 5%, transparent);
   backdrop-filter: blur(12px);
-  transition:
-    opacity 140ms ease,
-    transform 140ms ease;
 }
 #app-shell .timeline-panel > .story-focus[hidden] {
   display: none;
@@ -3527,8 +3508,6 @@ body {
 ::view-transition-group(timeline-workspace-sidebar),
 ::view-transition-group(timeline-editor-sidebar),
 ::view-transition-group(timeline-browser-sidebar) {
-  animation-duration: 300ms;
-  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 ::view-transition-old(timeline-workspace-sidebar),
@@ -3544,7 +3523,6 @@ body {
   ::view-transition-group(timeline-workspace-sidebar),
   ::view-transition-group(timeline-editor-sidebar),
   ::view-transition-group(timeline-browser-sidebar) {
-    animation-duration: 0s;
   }
 }
 
