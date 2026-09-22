@@ -22,19 +22,26 @@ async function expectVisibleChronology(page, viewport) {
   expect(surfaceBox).not.toBeNull();
   if (!surfaceBox) throw new Error('Timeline surface has no live bounds.');
 
-  const intersectsLiveSurface = (box) => {
+  const intersectsViewport = (box) => {
     if (!box || box.width <= 0 || box.height <= 0) return false;
+    const centerX = box.x + box.width / 2;
+    const centerY = box.y + box.height / 2;
+    return (
+      centerX >= 0 &&
+      centerX <= viewport.width &&
+      centerY >= 0 &&
+      centerY <= viewport.height
+    );
+  };
+  const intersectsLiveSurface = (box) => {
+    if (!intersectsViewport(box)) return false;
     const centerX = box.x + box.width / 2;
     const centerY = box.y + box.height / 2;
     return (
       centerX >= surfaceBox.x &&
       centerX <= surfaceBox.x + surfaceBox.width &&
       centerY >= surfaceBox.y &&
-      centerY <= surfaceBox.y + surfaceBox.height &&
-      centerX >= 0 &&
-      centerX <= viewport.width &&
-      centerY >= 0 &&
-      centerY <= viewport.height
+      centerY <= surfaceBox.y + surfaceBox.height
     );
   };
 
@@ -50,7 +57,7 @@ async function expectVisibleChronology(page, viewport) {
     const titleNode = copy.locator('strong');
     const title = (await titleNode.textContent())?.trim() ?? '';
     if (!title || !(await copy.isVisible())) continue;
-    if (intersectsLiveSurface(await titleNode.boundingBox())) {
+    if (intersectsViewport(await titleNode.boundingBox())) {
       readableOccurrenceFound = true;
       break;
     }
