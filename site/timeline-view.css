@@ -499,7 +499,6 @@
   outline: 1px solid color-mix(in srgb, var(--relation-event-color, var(--story)) 35%, transparent);
   cursor: pointer;
   pointer-events: auto;
-  transition: background-color 160ms ease, outline-color 160ms ease;
 }
 .timeline-relation-segment:hover {
   background: color-mix(in srgb, var(--relation-event-color, var(--story)) 72%, transparent);
@@ -612,12 +611,6 @@
   text-align: left;
   transform: translate(calc(-1 * var(--terminal-anchor)), -50%);
   transform-origin: var(--terminal-anchor) 50%;
-  transition:
-    border-color 160ms ease,
-    box-shadow 160ms ease,
-    background-color 160ms ease,
-    opacity 160ms ease,
-    transform 190ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .timeline-event.label-before .timeline-event-terminal {
   flex-direction: row-reverse;
@@ -3277,17 +3270,6 @@
 /* The docked surface is only the chronology rail. Event terminals remain spatial callouts
    and may project inward beyond that rail; the full-viewport .timeline-view is the clip boundary. */
 #app-shell
-  #presentation-stage[data-event-focused="true"][data-has-context-graph="true"]
-  > .timeline-view
-  > .timeline-surface {
-  transition:
-    width 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    height 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    inline-size 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    block-size 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-#app-shell
   #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(
     .timeline-focus-view:popover-open
   )
@@ -3755,9 +3737,6 @@
     max-height: none;
     border-left: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
     background: color-mix(in srgb, var(--paper) 90%, transparent);
-    transition:
-      right 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
-      width 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
   #app-shell[data-graph-open="true"]
@@ -3813,9 +3792,6 @@
     min-height: 0;
     border-top: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
     background: color-mix(in srgb, var(--paper) 90%, transparent);
-    transition:
-      bottom 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
-      height 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 }
 
@@ -3880,9 +3856,6 @@
     overflow: visible;
     border-left: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
     background: color-mix(in srgb, var(--paper) 84%, transparent);
-    transition:
-      width 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
-      right 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
   #app-shell[data-graph-open="true"]
@@ -3918,9 +3891,6 @@
     min-height: 0;
     border-top: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
     background: color-mix(in srgb, var(--paper) 84%, transparent);
-    transition:
-      height 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
-      bottom 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
   /* The graph is contextual: chronology keeps readable event headlines even when
@@ -5163,19 +5133,6 @@
   pointer-events: none;
 }
 
-.timeline-event-connector,
-.timeline-event-connector-turn,
-.timeline-event-dot,
-.timeline-event-terminal,
-.timeline-range-segment {
-  transition:
-    opacity 120ms ease,
-    border-color 120ms ease,
-    background-color 120ms ease,
-    box-shadow 120ms ease,
-    transform 120ms ease;
-}
-
 .timeline-event:is(.is-hovered, .is-focused, .is-selected) .timeline-event-terminal,
 .timeline-range-segment:is(.is-hovered, .is-focused, .is-selected) {
   border-color: var(--event-color);
@@ -5390,9 +5347,6 @@
    Landscape: detail left, graph right, chronology full-width below.
    Portrait: detail above graph, chronology owns the full-height right rail. */
 #app-shell.is-event-focused #presentation-stage {
-  --focus-sidebar-inline: clamp(14rem, 42%, 20rem);
-  --focus-timeline-block: clamp(6.75rem, 19dvh, 9rem);
-  --focus-timeline-inline: clamp(5.75rem, 22dvw, 7.5rem);
   display: grid;
   align-items: stretch;
   min-width: 0;
@@ -5404,16 +5358,14 @@
   inset: auto;
   z-index: 3;
   display: grid;
-  width: auto;
-  height: auto;
-  max-width: none;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
   margin: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  align-self: start;
+  align-self: stretch;
   border-radius: 0;
   box-shadow: none;
 }
@@ -5424,8 +5376,8 @@
 
 #app-shell.is-event-focused
   #presentation-stage[data-timeline-orientation="horizontal"] {
-  grid-template-columns: var(--focus-sidebar-inline) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: 0;
 }
 
@@ -5446,9 +5398,8 @@
   grid-column: 2;
   grid-row: 1;
   margin: 0;
-  align-self: start;
-  max-height: 100%;
-  overflow: auto;
+  align-self: stretch;
+  overflow: visible;
   border-width: 0 0 1px;
   border-radius: 0;
 }
@@ -5469,7 +5420,7 @@
 
 #app-shell.is-event-focused
   #presentation-stage[data-timeline-orientation="vertical"] {
-  grid-template-columns: minmax(0, 1fr) var(--focus-timeline-inline);
+  grid-template-columns: minmax(0, 5fr) minmax(0, 1fr);
   grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: 0;
 }
@@ -5532,24 +5483,9 @@
   display: none;
 }
 
-#app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar .timeline-focus-hero {
+#app-shell.is-event-focused
+  #presentation-stage
+  > .timeline-focus-sidebar
+  :is(.timeline-focus-hero, .timeline-focus-place, .timeline-focus-relations) {
   min-height: 0;
-  max-height: min(34dvh, 22rem);
-}
-
-#app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar:not([hidden]) {
-  font-size: 0.92em;
-}
-
-
-@media (min-width: 761px) {
-  #app-shell.is-event-focused #presentation-stage {
-    --focus-sidebar-inline: clamp(18rem, 34%, 34rem);
-    --focus-timeline-block: clamp(7.5rem, 21dvh, 11.5rem);
-    --focus-timeline-inline: clamp(6.5rem, 18dvw, 9.5rem);
-  }
-
-  #app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar:not([hidden]) {
-    font-size: inherit;
-  }
 }
