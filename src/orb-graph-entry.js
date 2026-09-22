@@ -1646,6 +1646,33 @@ function create(container, handlers = {}) {
     orb.render();
   }
 
+  function seedInitialNodePositions(nodes) {
+    const ordered = [...nodes].sort((left, right) =>
+      String(left?.id ?? "").localeCompare(String(right?.id ?? "")),
+    );
+    const count = ordered.length;
+    for (let index = 0; index < ordered.length; index += 1) {
+      const record = ordered[index];
+      const node = orb.data.getNodeById(record?.id);
+      if (!node) continue;
+      const current = node.getPosition?.();
+      if (current && Number.isFinite(current.x) && Number.isFinite(current.y)) continue;
+
+      if (count === 1) {
+        node.setPosition({ x: 0, y: 0 });
+        continue;
+      }
+
+      const angle = deterministicAngle(record?.id);
+      const ring = Math.floor(Math.sqrt(index));
+      const radius = 48 + ring * 42;
+      node.setPosition({
+        x: Math.cos(angle) * radius,
+        y: Math.sin(angle) * radius,
+      });
+    }
+  }
+
   function setData(data) {
     clearTopologyTimers();
     cancelCameraInertia();
@@ -1662,6 +1689,7 @@ function create(container, handlers = {}) {
       nodes: nodes.map((node) => transitionRecord(node, "active")),
       edges: edges.map((edge) => transitionRecord(edge, "active")),
     });
+    seedInitialNodePositions(nodes);
     hasGraphData = true;
     // Render the new data first. Orb may replace its renderer/simulator while
     // materializing a new topology, so never mark a request applied against
