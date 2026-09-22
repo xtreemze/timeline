@@ -256,8 +256,8 @@ test('retained renderer publishes phase-attributed performance evidence', async 
     };
   });
 
-  const { metrics } = evidence;
-  if (!metrics) throw new Error('Retained performance metrics were not published.');
+  if (!evidence.metrics) throw new Error('Retained performance metrics were not published.');
+  const metrics = evidence.metrics;
   expect(metrics.interaction.frameCount).toBeGreaterThan(0);
   expect(metrics.commit.frameCount).toBeGreaterThan(0);
   expect(metrics.interaction.destroyedNodes).toBe(0);
