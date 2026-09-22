@@ -272,7 +272,7 @@
         "right": 37,
         "border-left": 9,
         "border-right": 3,
-        "margin-left": 1
+        "margin-left": 0
       },
       "viewportWidthSizing": {
         "width: clamp(10rem, 28vw, 26rem);": 1,
