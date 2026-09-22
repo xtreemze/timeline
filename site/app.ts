@@ -1057,10 +1057,7 @@ function closestEventTarget<T extends HTMLElement>(
       temporalGraphView?.setPresentationMode?.(presentationModeActive());
     });
     if (active && timelineView?.hasFocusedItem?.()) {
-      requestAnimationFrame(() => {
-        timelineView?.ensureFocusPopover?.();
-        requestAnimationFrame(() => timelineView?.ensureFocusPopover?.());
-      });
+      requestAnimationFrame(() => timelineView?.refreshLayout?.());
     }
     schedulePresentationGeometryRefresh({ recenterGraph: true });
   }
