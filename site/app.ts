@@ -713,6 +713,10 @@ function closestEventTarget<T extends HTMLElement>(
       y: triggerRect.top + triggerRect.height / 2,
     };
 
+    const viewportInlineAvailable = Math.max(1, viewport.width - edge * 2);
+    const viewportBlockAvailable = Math.max(1, viewport.height - edge * 2);
+    const constrainedWidth = Math.min(measuredWidth, viewportInlineAvailable);
+    const constrainedHeight = Math.min(measuredHeight, viewportBlockAvailable);
     const leftAvailable = Math.max(
       1,
       dockRect.left - gap - (viewport.left + edge),
@@ -729,10 +733,10 @@ function closestEventTarget<T extends HTMLElement>(
       1,
       viewport.top + viewport.height - edge - dockRect.bottom - gap,
     );
-    const leftWidth = Math.min(measuredWidth, leftAvailable);
-    const rightWidth = Math.min(measuredWidth, rightAvailable);
-    const aboveHeight = Math.min(measuredHeight, aboveAvailable);
-    const belowHeight = Math.min(measuredHeight, belowAvailable);
+    const leftWidth = Math.min(constrainedWidth, leftAvailable);
+    const rightWidth = Math.min(constrainedWidth, rightAvailable);
+    const aboveHeight = Math.min(constrainedHeight, aboveAvailable);
+    const belowHeight = Math.min(constrainedHeight, belowAvailable);
 
     const candidates =
       orientation === "portrait"
@@ -741,18 +745,18 @@ function closestEventTarget<T extends HTMLElement>(
               id: "left",
               rect: {
                 x: dockRect.left - gap - leftWidth,
-                y: anchor.y - measuredHeight / 2,
+                y: anchor.y - constrainedHeight / 2,
                 width: leftWidth,
-                height: measuredHeight,
+                height: constrainedHeight,
               },
             },
             {
               id: "right",
               rect: {
                 x: dockRect.right + gap,
-                y: anchor.y - measuredHeight / 2,
+                y: anchor.y - constrainedHeight / 2,
                 width: rightWidth,
-                height: measuredHeight,
+                height: constrainedHeight,
               },
             },
           ]
@@ -760,18 +764,18 @@ function closestEventTarget<T extends HTMLElement>(
             {
               id: "above",
               rect: {
-                x: anchor.x - measuredWidth / 2,
+                x: anchor.x - constrainedWidth / 2,
                 y: dockRect.top - gap - aboveHeight,
-                width: measuredWidth,
+                width: constrainedWidth,
                 height: aboveHeight,
               },
             },
             {
               id: "below",
               rect: {
-                x: anchor.x - measuredWidth / 2,
+                x: anchor.x - constrainedWidth / 2,
                 y: dockRect.bottom + gap,
-                width: measuredWidth,
+                width: constrainedWidth,
                 height: belowHeight,
               },
             },
@@ -802,19 +806,14 @@ function closestEventTarget<T extends HTMLElement>(
     const selected = snapshot.selected;
     if (!selected) return;
 
-    if (orientation === "portrait") {
-      els.viewControls.style.setProperty(
-        "--view-controls-inline-size",
-        `${Math.floor(selected.rect.width)}px`,
-      );
-      els.viewControls.style.removeProperty("--view-controls-block-size");
-    } else {
-      els.viewControls.style.setProperty(
-        "--view-controls-block-size",
-        `${Math.floor(selected.rect.height)}px`,
-      );
-      els.viewControls.style.removeProperty("--view-controls-inline-size");
-    }
+    els.viewControls.style.setProperty(
+      "--view-controls-inline-size",
+      `${Math.floor(selected.rect.width)}px`,
+    );
+    els.viewControls.style.setProperty(
+      "--view-controls-block-size",
+      `${Math.floor(selected.rect.height)}px`,
+    );
 
     els.viewControls.dataset.anchorPlacement = selected.id;
     els.viewControls.dataset.placementValid = String(snapshot.fullySatisfiesConstraints);
