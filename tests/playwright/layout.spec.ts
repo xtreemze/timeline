@@ -455,6 +455,59 @@ test.describe('Mobile-first Timeline layout contracts', () => {
   });
 
 
+  test('focused detail partitions graph space instead of overlaying it in both viewport orientations', async ({
+    page,
+  }) => {
+    for (const { viewport, orientation } of [
+      { viewport: PHONE_LANDSCAPE, orientation: 'landscape' },
+      { viewport: PHONE_PORTRAIT, orientation: 'portrait' },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto('/');
+
+      const stage = page.locator('#presentation-stage');
+      await expect(stage).toHaveAttribute('data-viewport-orientation', orientation);
+
+      const terminal = page
+        .locator('.timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible')
+        .first();
+      await expect(terminal).toBeVisible();
+      await terminal.click();
+
+      await expect(stage).toHaveAttribute('data-event-focused', 'true');
+      const detail = page.locator('#timeline-focus-view');
+      const graph = page.locator('#graph-lens');
+      const timeline = page.locator('#timeline-view');
+
+      const [detailBox, graphBox, timelineBox] = await Promise.all([
+        expectInsideViewport(detail, viewport),
+        expectInsideViewport(graph, viewport),
+        expectInsideViewport(timeline, viewport),
+      ]);
+
+      const detailRight = detailBox.x + detailBox.width;
+      const detailBottom = detailBox.y + detailBox.height;
+      const graphRight = graphBox.x + graphBox.width;
+      const graphBottom = graphBox.y + graphBox.height;
+
+      if (orientation === 'landscape') {
+        expect(detailRight).toBeLessThanOrEqual(graphBox.x + 3);
+        expect(Math.abs(detailBox.y - graphBox.y)).toBeLessThanOrEqual(3);
+        expect(timelineBox.y).toBeGreaterThanOrEqual(Math.max(detailBottom, graphBottom) - 3);
+        expect(timelineBox.x).toBeLessThanOrEqual(detailBox.x + 3);
+        expect(timelineBox.x + timelineBox.width).toBeGreaterThanOrEqual(graphRight - 3);
+      } else {
+        expect(detailBottom).toBeLessThanOrEqual(graphBox.y + 3);
+        expect(Math.abs(detailBox.x - graphBox.x)).toBeLessThanOrEqual(3);
+        expect(timelineBox.x).toBeGreaterThanOrEqual(Math.max(detailRight, graphRight) - 3);
+        expect(timelineBox.y).toBeLessThanOrEqual(detailBox.y + 3);
+        expect(timelineBox.y + timelineBox.height).toBeGreaterThanOrEqual(graphBottom - 3);
+      }
+
+      await expectNoPrimaryDocumentScroll(page, viewport);
+    }
+  });
+
   test('persistent graph and timeline rail are simultaneously visible and independently hittable', async ({ page }) => {
     await page.setViewportSize(TABLET_LANDSCAPE);
     await page.goto('/');
