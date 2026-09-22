@@ -38,6 +38,7 @@ import { TimelineClustering as clustering } from "./timeline-clustering.ts";
 const scale = globalThis.TimelineScale;
 const presentation = globalThis.TimelinePresentation;
 
+const VIEW_STORAGE_KEY = "timeline:view:v1";
 const DEFAULT_SPAN_MS = 86_400_000;
 const MIN_SPAN_MS = 1;
 const MAX_WHEEL_EXPONENT = 0.045;
@@ -164,6 +165,27 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function loadViewPreferences(): { orientation: Orientation } {
+  try {
+    const raw = globalThis.localStorage?.getItem(VIEW_STORAGE_KEY);
+    if (!raw) return { orientation: "horizontal" };
+    const parsed = JSON.parse(raw) as { orientation?: unknown };
+    return {
+      orientation: parsed.orientation === "vertical" ? "vertical" : "horizontal",
+    };
+  } catch {
+    return { orientation: "horizontal" };
+  }
+}
+
+function saveViewPreferences(preferences: { orientation: Orientation }): void {
+  try {
+    globalThis.localStorage?.setItem(VIEW_STORAGE_KEY, JSON.stringify(preferences));
+  } catch {
+    // View preferences are optional and must never block chronology interaction.
+  }
+}
+
 function connectorSegment(axisCoordinate: number, terminalCoordinate: number) {
   const delta = Number(axisCoordinate) - Number(terminalCoordinate);
   if (!Number.isFinite(delta)) throw new TypeError("Connector coordinates must be finite.");
@@ -275,7 +297,7 @@ class TimelineViewController {
   retention: TemporalRetentionState = commitRetention(this.renderWindow);
   focusedId: string | null = null;
   focusMediaIndex = 0;
-  orientation: Orientation = "horizontal";
+  orientation: Orientation = loadViewPreferences().orientation;
   scene = new Map<string, SceneRecord>();
   tickScene = new Map<string, HTMLDivElement>();
   accentScene = new Map<string, HTMLDivElement>();
@@ -2350,12 +2372,18 @@ class TimelineViewController {
     return this.focusedId;
   }
 
-  setOrientation(orientation: string, options = {}): void {
+  setOrientation(
+    orientation: string,
+    options: { persist?: boolean; focus?: boolean } = {},
+  ): void {
     const normalized: Orientation =
       orientation === "vertical" || orientation === "portrait" ? "vertical" : "horizontal";
     if (normalized === this.orientation) return;
     this.runStructuralTransaction(() => {
       this.orientation = normalized;
+      if (options.persist !== false) {
+        saveViewPreferences({ orientation: normalized });
+      }
       this.geometryMeasurements.clear();
       this.applyOrientation();
       this.root.dispatchEvent(
