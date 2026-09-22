@@ -109,15 +109,13 @@ async function ensureTimelineOrientation(page, orientation) {
   if (current !== orientation) await toggleTimelineOrientation(page);
   await expect(root).toHaveAttribute('data-orientation', orientation);
 
-  const dock = page.locator('.app-tool-dock');
-  const surface = page.locator('.timeline-surface');
+  const footer = page.locator('.app-footer-shell');
+  const stage = page.locator('#presentation-stage');
   await expect
     .poll(async () => {
-      const [dockBox, surfaceBox] = await Promise.all([dock.boundingBox(), surface.boundingBox()]);
-      if (!dockBox || !surfaceBox) return false;
-      return orientation === 'portrait'
-        ? surfaceBox.x + surfaceBox.width <= dockBox.x + 3
-        : surfaceBox.y + surfaceBox.height <= dockBox.y + 3;
+      const [footerBox, stageBox] = await Promise.all([footer.boundingBox(), stage.boundingBox()]);
+      if (!footerBox || !stageBox) return false;
+      return stageBox.y + stageBox.height <= footerBox.y + 3;
     })
     .toBe(true);
 }
@@ -131,14 +129,15 @@ test.describe('Mobile-first Timeline layout contracts', () => {
 
     const timeline = page.locator('#timeline-view');
     const surface = page.locator('.timeline-surface');
-    const dock = page.locator('.app-tool-dock');
+    const footer = page.locator('.app-footer-shell');
 
     const timelineBox = await expectInsideViewport(timeline, PHONE_PORTRAIT);
     const surfaceBox = await expectInsideViewport(surface, PHONE_PORTRAIT);
-    await expectInsideViewport(dock, PHONE_PORTRAIT);
+    const footerBox = await expectInsideViewport(footer, PHONE_PORTRAIT);
 
     expect(timelineBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.9);
-    expect(timelineBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.8);
+    expect(timelineBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.75);
+    expect(timelineBox.y + timelineBox.height).toBeLessThanOrEqual(footerBox.y + 2);
     expect(surfaceBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.9);
     // With the relation graph open, chronology still owns at least half of a portrait phone.
     await expect
@@ -157,19 +156,20 @@ test.describe('Mobile-first Timeline layout contracts', () => {
 
     const timeline = page.locator('#timeline-view');
     const surface = page.locator('.timeline-surface');
-    const dock = page.locator('.app-tool-dock');
+    const footer = page.locator('.app-footer-shell');
 
     const timelineBox = await expectInsideViewport(timeline, PHONE_LANDSCAPE);
     const surfaceBox = await expectInsideViewport(surface, PHONE_LANDSCAPE);
-    await expectInsideViewport(dock, PHONE_LANDSCAPE);
+    const footerBox = await expectInsideViewport(footer, PHONE_LANDSCAPE);
 
     expect(timelineBox.width).toBeGreaterThan(PHONE_LANDSCAPE.width * 0.9);
-    expect(timelineBox.height).toBeGreaterThan(PHONE_LANDSCAPE.height * 0.8);
+    expect(timelineBox.height).toBeGreaterThan(PHONE_LANDSCAPE.height * 0.6);
+    expect(timelineBox.y + timelineBox.height).toBeLessThanOrEqual(footerBox.y + 2);
     expect(surfaceBox.width).toBeGreaterThan(PHONE_LANDSCAPE.width * 0.9);
     // Landscape keeps a substantial chronology rail while leaving graph context usable.
     await expect
       .poll(async () => (await surface.boundingBox())?.height ?? 0)
-      .toBeGreaterThan(PHONE_LANDSCAPE.height * 0.4);
+      .toBeGreaterThan(PHONE_LANDSCAPE.height * 0.32);
 
     await expectVisibleChronology(page, PHONE_LANDSCAPE);
     await expectNoPrimaryDocumentScroll(page, PHONE_LANDSCAPE);
@@ -371,19 +371,19 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     await expect(page.locator('#import-json-trigger')).toBeEnabled();
     await expect(page.locator('#clear-timeline')).toBeEnabled();
 
-    const [menuBox, buttonBox] = await Promise.all([
+    const [menuBox, footerBox] = await Promise.all([
       menu.boundingBox(),
-      projectButton.boundingBox(),
+      page.locator('.app-footer-shell').boundingBox(),
     ]);
     expect(menuBox).not.toBeNull();
-    expect(buttonBox).not.toBeNull();
+    expect(footerBox).not.toBeNull();
     expect(menuBox?.x).toBeGreaterThanOrEqual(5);
     expect(menuBox?.y).toBeGreaterThanOrEqual(5);
-    expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(
-      (buttonBox?.x ?? viewport.width) - 5,
+    expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width - 5);
+    expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(
+      (footerBox?.y ?? viewport.height) - 5,
     );
-    expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(viewport.height - 5);
-    await expect(menu).toHaveAttribute('data-anchor-placement', 'left');
+    await expect(menu).toHaveAttribute('data-anchor-placement', 'above');
   });
 
   test('Project menu stays clamped on compact portrait visual viewports', async ({ page }) => {
@@ -402,19 +402,19 @@ test.describe('Mobile-first Timeline layout contracts', () => {
 
       const menu = page.locator('#project-menu:popover-open');
       await expect(menu).toBeVisible();
-      const [menuBox, buttonBox] = await Promise.all([
+      const [menuBox, footerBox] = await Promise.all([
         menu.boundingBox(),
-        projectButton.boundingBox(),
+        page.locator('.app-footer-shell').boundingBox(),
       ]);
       expect(menuBox).not.toBeNull();
-      expect(buttonBox).not.toBeNull();
+      expect(footerBox).not.toBeNull();
       expect(menuBox?.x).toBeGreaterThanOrEqual(5);
       expect(menuBox?.y).toBeGreaterThanOrEqual(5);
-      expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(
-        (buttonBox?.x ?? viewport.width) - 5,
+      expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width - 5);
+      expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(
+        (footerBox?.y ?? viewport.height) - 5,
       );
-      expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(viewport.height - 5);
-      await expect(menu).toHaveAttribute('data-anchor-placement', 'left');
+      await expect(menu).toHaveAttribute('data-anchor-placement', 'above');
 
       await page.keyboard.press('Escape');
     }
