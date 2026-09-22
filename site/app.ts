@@ -742,7 +742,7 @@ function closestEventTarget<T extends HTMLElement>(
     const aboveHeight = Math.min(constrainedHeight, aboveAvailable);
     const belowHeight = Math.min(constrainedHeight, belowAvailable);
 
-    const candidates =
+    const rawCandidates =
       orientation === "portrait"
         ? [
             {
@@ -784,6 +784,14 @@ function closestEventTarget<T extends HTMLElement>(
               },
             },
           ];
+    const minimumViableInline = Math.min(44, constrainedWidth);
+    const minimumViableBlock = Math.min(44, constrainedHeight);
+    const viableCandidates = rawCandidates.filter((candidate) =>
+      orientation === "portrait"
+        ? candidate.rect.width >= minimumViableInline
+        : candidate.rect.height >= minimumViableBlock,
+    );
+    const candidates = viableCandidates.length ? viableCandidates : rawCandidates;
 
     const snapshot = planWorkspacePlacement({
       viewport: {
