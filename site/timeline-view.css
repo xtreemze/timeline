@@ -1272,6 +1272,9 @@
   .timeline-focus-view[data-layout="hero-split"] .timeline-focus-relations {
     grid-column: 1 / -1;
   }
+  .timeline-focus-view[data-layout="hero-split"] .timeline-focus-evidence-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Variant 2: evidence dossier — balanced three/three split above shared context. */
