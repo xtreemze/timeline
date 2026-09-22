@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const useProductionPreview = process.env.PLAYWRIGHT_PREVIEW === '1';
+const previewUrl = useProductionPreview ? 'http://localhost:4173' : 'http://localhost:5173';
+
 export default defineConfig({
   testDir: './tests',
   testMatch: ['**/*.spec.ts', '**/*.spec.mjs'],
@@ -11,7 +14,7 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 5_000 },
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: previewUrl,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -43,8 +46,8 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'pnpm dev',
-    url: 'http://localhost:5173',
+    command: useProductionPreview ? 'pnpm preview' : 'pnpm dev',
+    url: previewUrl,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },
