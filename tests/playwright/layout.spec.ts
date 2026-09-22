@@ -175,7 +175,7 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     await expectNoPrimaryDocumentScroll(page, PHONE_LANDSCAPE);
   });
 
-  test('footer app bar reserves edge space for chronology in portrait and landscape', async ({ page }) => {
+  test('fused footer reserves its full height below chronology in portrait and landscape', async ({ page }) => {
     for (const { viewport, orientation } of [
       { viewport: PHONE_PORTRAIT, orientation: 'portrait' },
       { viewport: PHONE_LANDSCAPE, orientation: 'landscape' },
@@ -185,14 +185,20 @@ test.describe('Mobile-first Timeline layout contracts', () => {
       await ensureTimelineOrientation(page, orientation);
 
       const dock = page.locator('.app-tool-dock');
-      const titleBar = page.locator('.timeline-project-heading');
+      const titleBar = page.locator('.app-footer-title.timeline-project-heading');
+      const stage = page.locator('#presentation-stage');
       const surface = page.locator('.timeline-surface');
-      const actions = dock.locator(':scope > .app-tool');
-      await expect(actions).toHaveCount(4);
+      await expect(dock.locator(':scope > .app-tool')).toHaveCount(4);
 
       const dockBox = await expectInsideViewport(dock, viewport);
-      await expectInsideViewport(titleBar, viewport);
+      const titleBox = await expectInsideViewport(titleBar, viewport);
+      const stageBox = await expectInsideViewport(stage, viewport);
       const surfaceBox = await expectInsideViewport(surface, viewport);
+
+      expect(dockBox.y + dockBox.height).toBeLessThanOrEqual(titleBox.y + 3);
+      expect(stageBox.y + stageBox.height).toBeLessThanOrEqual(dockBox.y + 3);
+      expect(surfaceBox.y + surfaceBox.height).toBeLessThanOrEqual(dockBox.y + 3);
+      expect(titleBox.width).toBeGreaterThan(180);
 
       for (const selector of [
         '#project-menu-toggle',
@@ -201,42 +207,6 @@ test.describe('Mobile-first Timeline layout contracts', () => {
         '#timeline-view-controls-toggle',
       ]) {
         await expect(dock.locator(selector)).toBeVisible();
-      }
-
-      if (orientation === 'portrait') {
-        expect(dockBox.height).toBeGreaterThan(180);
-        expect(dockBox.width).toBeLessThan(90);
-        expect(surfaceBox.x + surfaceBox.width).toBeLessThanOrEqual(dockBox.x + 3);
-        await expect
-          .poll(async () => {
-            const [nextDockBox, nextTitleBox] = await Promise.all([
-              dock.boundingBox(),
-              titleBar.boundingBox(),
-            ]);
-            return Boolean(
-              nextDockBox &&
-                nextTitleBox &&
-                nextDockBox.x + nextDockBox.width <= nextTitleBox.x + 5,
-            );
-          })
-          .toBe(true);
-      } else {
-        expect(dockBox.width).toBeGreaterThan(180);
-        expect(dockBox.height).toBeLessThan(90);
-        expect(surfaceBox.y + surfaceBox.height).toBeLessThanOrEqual(dockBox.y + 3);
-        await expect
-          .poll(async () => {
-            const [nextDockBox, nextTitleBox] = await Promise.all([
-              dock.boundingBox(),
-              titleBar.boundingBox(),
-            ]);
-            return Boolean(
-              nextDockBox &&
-                nextTitleBox &&
-                nextDockBox.y + nextDockBox.height <= nextTitleBox.y + 5,
-            );
-          })
-          .toBe(true);
       }
     }
   });
