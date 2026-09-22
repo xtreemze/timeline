@@ -109,3 +109,34 @@ test("RED #374 force priorities encode the documented lifecycle order", () => {
       GRAPH_SIMULATION_PRIORITY["geometry-refresh"],
   );
 });
+
+
+test("renderer-not-ready requests remain pending and retry once the adapter becomes available", () => {
+  const calls = [];
+  let ready = false;
+  const coordinator = createGraphSimulationCoordinator({
+    apply(request) {
+      calls.push(["apply", request.reason, ready]);
+      return ready;
+    },
+    stop() {
+      calls.push(["stop"]);
+    },
+  });
+
+  coordinator.request({ reason: "topology", alphaTarget: 0.12, reheat: true });
+  assert.deepEqual(calls, [["apply", "topology", false]]);
+  assert.equal(coordinator.getState().reason, "topology");
+
+  ready = true;
+  coordinator.retry();
+
+  assert.deepEqual(calls, [
+    ["apply", "topology", false],
+    ["apply", "topology", true],
+  ]);
+  assert.equal(coordinator.getState().running, true);
+
+  coordinator.retry();
+  assert.equal(calls.length, 2, "successful retry is not redundantly re-applied");
+});
