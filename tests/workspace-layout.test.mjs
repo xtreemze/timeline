@@ -168,7 +168,7 @@ test("view controls consume the renderer-neutral workspace planner instead of ow
 
   assert.match(app, /import \{ planWorkspacePlacement \} from '\.\.\/src\/layout\/workspace-layout\.ts'/);
   assert.match(source, /planWorkspacePlacement\(/);
-  assert.match(source, /exclusionZones:\s*\[[\s\S]*id:\s*"app-tool-dock"/);
+  assert.match(source, /exclusionZones:\s*\[[\s\S]*id:\s*"app-footer-shell"/);
   assert.match(source, /safeInsets:\s*\{ top: edge, right: edge, bottom: edge, left: edge \}/);
   assert.match(source, /dataset\.placementValid = String\(snapshot\.fullySatisfiesConstraints\)/);
   assert.doesNotMatch(source, /left = Math\.min\(Math\.max/);
@@ -204,9 +204,14 @@ test("footer shell fuses project title below actions and reserves its measured b
     app,
     /appFooter:\s*requiredElement<HTMLElement>\("\.app-footer-shell"\)/,
   );
+  assert.match(app, /function syncFooterReservation\(\): boolean/);
   assert.match(
     app,
-    /new ResizeObserver\([\s\S]*--workspace-footer-reserved-block[\s\S]*els\.appFooter/,
+    /syncFooterReservation[\s\S]*--workspace-footer-reserved-block/,
+  );
+  assert.match(
+    app,
+    /footerResizeObserver = new ResizeObserver\([\s\S]*syncFooterReservation\(\)[\s\S]*footerResizeObserver\.observe\(els\.appFooter\)/,
   );
   assert.match(
     app,
