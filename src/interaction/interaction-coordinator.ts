@@ -90,7 +90,7 @@ export function createInteractionCoordinator(): InteractionCoordinator {
   return Object.freeze({
     snapshot,
 
-    begin(nextOwner, rawPointerId) {
+    begin(nextOwner: InteractionOwner, rawPointerId: number) {
       const id = pointerId(rawPointerId);
       if (id === null) return false;
 
@@ -110,7 +110,7 @@ export function createInteractionCoordinator(): InteractionCoordinator {
       return true;
     },
 
-    classify(nextOwner, nextGesture) {
+    classify(nextOwner: InteractionOwner, nextGesture: GestureKind) {
       if (!owner || owner !== nextOwner) return false;
       if (phase !== "acquisition" && phase !== "classification") return false;
       if (nextGesture === "pinch" && pointers.size < 2) return false;
@@ -121,7 +121,7 @@ export function createInteractionCoordinator(): InteractionCoordinator {
       return true;
     },
 
-    claim(nextOwner) {
+    claim(nextOwner: InteractionOwner) {
       if (!owner || owner !== nextOwner) return false;
       if (phase !== "classification" || !gesture) return false;
       phase = "owned";
@@ -129,7 +129,7 @@ export function createInteractionCoordinator(): InteractionCoordinator {
       return true;
     },
 
-    release(nextOwner, rawPointerId) {
+    release(nextOwner: InteractionOwner, rawPointerId: number) {
       const id = pointerId(rawPointerId);
       if (id === null || !owner || owner !== nextOwner || !pointers.has(id)) {
         return false;
@@ -151,13 +151,16 @@ export function createInteractionCoordinator(): InteractionCoordinator {
       return false;
     },
 
-    commit(nextOwner) {
+    commit(nextOwner: InteractionOwner) {
       if (!owner || owner !== nextOwner || phase !== "settling") return false;
       clearCommittedOwnership(reason ?? "release");
       return true;
     },
 
-    cancel(nextOwner, completionReason) {
+    cancel(
+      nextOwner: InteractionOwner,
+      completionReason: Exclude<InteractionCompletionReason, "release">,
+    ) {
       if (!owner || owner !== nextOwner) return snapshot();
       return clearCommittedOwnership(completionReason);
     },
