@@ -5342,3 +5342,194 @@
   inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
   inset-inline-start: 50%;
 }
+
+
+/* Focused event detail is structural workspace geometry.
+   It never enters the browser top layer or covers the relation graph. */
+#presentation-stage > .timeline-focus-panel {
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  box-shadow: none;
+  container-type: inline-size;
+  align-self: stretch;
+  justify-self: stretch;
+}
+
+#presentation-stage > .timeline-focus-panel[hidden] {
+  display: none;
+}
+
+/* A sidebar is narrower than the former six-column overlay, so its internal
+   document stacks vertically instead of compressing a desktop overlay grid. */
+#presentation-stage > .timeline-focus-panel[data-layout] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: max-content;
+  align-content: start;
+}
+
+#presentation-stage
+  > .timeline-focus-panel[data-layout]
+  :is(
+    .timeline-focus-tabs,
+    .timeline-focus-hero,
+    .timeline-focus-summary,
+    .timeline-focus-place,
+    .timeline-focus-relations,
+    .timeline-focus-evidence,
+    .timeline-focus-actions
+  ) {
+  grid-column: 1 / -1;
+  grid-row: auto;
+}
+
+#presentation-stage > .timeline-focus-panel .timeline-focus-hero {
+  min-height: clamp(160px, 30cqi, 300px);
+}
+
+#presentation-stage > .timeline-focus-panel .timeline-focus-evidence-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Place context remains inside the focused detail panel. Keeping the separate
+   presentation map out of the focused composition prevents a fourth competing surface. */
+#presentation-stage[data-event-focused="true"] > .presentation-map-panel {
+  display: none;
+}
+
+/* Landscape: detail occupies the upper-left sidebar, graph gets the remaining
+   upper workspace, and chronology keeps the complete lower width. */
+#presentation-stage[data-event-focused="true"][data-viewport-orientation="landscape"],
+#presentation-stage[data-event-focused="true"][data-viewport-orientation="square"] {
+  grid-template-columns: minmax(18rem, 32fr) minmax(0, 68fr);
+  grid-template-rows: minmax(18rem, 1fr) auto;
+  align-items: stretch;
+}
+
+#presentation-stage[data-event-focused="true"][data-viewport-orientation="landscape"]
+  > .timeline-focus-panel,
+#presentation-stage[data-event-focused="true"][data-viewport-orientation="square"]
+  > .timeline-focus-panel {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+#presentation-stage[data-event-focused="true"][data-viewport-orientation="landscape"]
+  > .graph-lens:not([hidden]),
+#presentation-stage[data-event-focused="true"][data-viewport-orientation="square"]
+  > .graph-lens:not([hidden]) {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+#presentation-stage[data-event-focused="true"][data-viewport-orientation="landscape"]
+  > .timeline-view,
+#presentation-stage[data-event-focused="true"][data-viewport-orientation="square"]
+  > .timeline-view {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-width: 0;
+}
+
+/* Portrait: the right-side chronology retains the complete height. The left
+   workspace is split evenly between focused detail above and graph below. */
+#presentation-stage[data-event-focused="true"][data-viewport-orientation="portrait"] {
+  grid-template-columns: minmax(0, 42fr) minmax(0, 58fr);
+  grid-template-rows: repeat(2, minmax(12rem, 1fr));
+  align-items: stretch;
+}
+
+#presentation-stage[data-event-focused="true"][data-viewport-orientation="portrait"]
+  > .timeline-focus-panel {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+#presentation-stage[data-event-focused="true"][data-viewport-orientation="portrait"]
+  > .graph-lens:not([hidden]) {
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
+}
+
+#presentation-stage[data-event-focused="true"][data-viewport-orientation="portrait"]
+  > .timeline-view {
+  grid-column: 2;
+  grid-row: 1 / -1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Fullscreen uses fixed six-track geometry so the detail/graph split is exact
+   and the timeline edge reservation cannot be displaced by content size. */
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="landscape"],
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="square"],
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="portrait"] {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-rows: repeat(6, minmax(0, 1fr));
+}
+
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="landscape"]
+  > .timeline-focus-panel,
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="square"]
+  > .timeline-focus-panel {
+  grid-column: 1 / span 2;
+  grid-row: 1 / span 2;
+}
+
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="landscape"]
+  > .graph-lens:not([hidden]),
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="square"]
+  > .graph-lens:not([hidden]) {
+  grid-column: 3 / -1;
+  grid-row: 1 / span 2;
+}
+
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="landscape"]
+  > .timeline-view,
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="square"]
+  > .timeline-view {
+  grid-column: 1 / -1;
+  grid-row: 3 / -1;
+}
+
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="portrait"]
+  > .timeline-focus-panel {
+  grid-column: 1 / span 2;
+  grid-row: 1 / span 3;
+}
+
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="portrait"]
+  > .graph-lens:not([hidden]) {
+  grid-column: 1 / span 2;
+  grid-row: 4 / -1;
+}
+
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="portrait"]
+  > .timeline-view {
+  grid-column: 3 / -1;
+  grid-row: 1 / -1;
+}
+
+#presentation-stage:fullscreen[data-event-focused="true"] > .timeline-focus-panel,
+#presentation-stage:fullscreen[data-event-focused="true"] > .graph-lens:not([hidden]),
+#presentation-stage:fullscreen[data-event-focused="true"] > .timeline-view {
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+  width: auto;
+  height: auto;
+  margin: 0;
+}
