@@ -297,7 +297,7 @@
   position: relative;
   min-width: 0;
   outline: none;
-  overflow: visible;
+  overflow: hidden;
   overscroll-behavior: contain;
   touch-action: none;
   user-select: none;
@@ -324,7 +324,7 @@
   position: absolute;
   inset: 0;
   display: block;
-  overflow: visible;
+  overflow: hidden;
   pointer-events: none;
 }
 .timeline-axis {
