@@ -493,7 +493,7 @@
 }
 .timeline-relation-segment {
   position: absolute;
-  z-index: 0;
+  z-index: -1;
   border-radius: 999px;
   background: color-mix(in srgb, var(--relation-event-color, var(--story)) 52%, transparent);
   outline: 1px solid color-mix(in srgb, var(--relation-event-color, var(--story)) 35%, transparent);
@@ -976,6 +976,7 @@
     linear-gradient(140deg, color-mix(in srgb, var(--paper) 94%, transparent), var(--paper)),
     var(--paper);
   outline: none;
+  container-type: inline-size;
 }
 .timeline-focus-view[hidden] {
   display: none;
@@ -1245,6 +1246,24 @@
   grid-column: 3 / -1;
 }
 
+/* Stacked layout for narrow containers (sidebar width ~326px) */
+@container (max-width: 380px) {
+  .timeline-focus-view[data-layout="hero-split"] .timeline-focus-hero {
+    grid-column: 1 / -1;
+    min-height: 280px;
+  }
+  .timeline-focus-view[data-layout="hero-split"] .timeline-focus-summary {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+  .timeline-focus-view[data-layout="hero-split"] .timeline-focus-place {
+    grid-column: 1 / -1;
+  }
+  .timeline-focus-view[data-layout="hero-split"] .timeline-focus-relations {
+    grid-column: 1 / -1;
+  }
+}
+
 /* Variant 2: evidence dossier — balanced three/three split above shared context. */
 .timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-hero {
   grid-column: 1 / span 3;
@@ -1395,6 +1414,14 @@
     grid-row: auto;
   }
   .timeline-focus-actions {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+  .timeline-focus-view[data-layout="hero-split"] .timeline-focus-hero {
+    grid-column: 1 / -1;
+    min-height: 320px;
+  }
+  .timeline-focus-view[data-layout="hero-split"] .timeline-focus-summary {
     grid-column: 1 / -1;
     grid-row: auto;
   }
