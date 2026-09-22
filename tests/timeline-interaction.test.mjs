@@ -547,7 +547,7 @@ test("coarse-pointer timeline controls and ranges retain a 44 CSS px interaction
   );
   assert.match(
     css,
-    /data-orientation="portrait"[\s\S]*timeline-view-toolbar\[popover\]:popover-open[\s\S]*width:\s*104px/,
+    /@media \(pointer: coarse\)[\s\S]*data-orientation="portrait"[\s\S]*timeline-view-toolbar\[popover\]:popover-open[\s\S]*width:\s*var\(--view-controls-inline-size,\s*104px\)/,
   );
 });
 
