@@ -84,11 +84,20 @@
   width: clamp(9rem, 20vw, 18rem);
 }
 
-.timeline-view[data-orientation="landscape"] .story-focus-header {
+.timeline-view[data-orientation="landscape"] > .story-focus-header {
+  position: absolute;
+  z-index: 25;
+  inset-block-start: max(0.5rem, env(safe-area-inset-top));
+  inset-inline-start: max(0.5rem, env(safe-area-inset-left));
   max-width: min(24rem, 46vw);
+  padding: 0.32rem 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--story) 32%, var(--line));
+  border-radius: 0.68rem;
+  background: color-mix(in srgb, var(--paper) 84%, transparent);
+  backdrop-filter: blur(10px);
 }
 
-.timeline-view[data-orientation="landscape"] .story-focus-copy {
+.timeline-view[data-orientation="landscape"] > .story-focus-header .story-focus-copy {
   flex: 1 1 auto;
 }
 
@@ -115,13 +124,19 @@
   text-align: start;
 }
 
-.timeline-view[data-orientation="portrait"] .story-focus-header {
+.timeline-view[data-orientation="portrait"] > .story-focus-header {
+  position: absolute;
+  z-index: 25;
+  inset-block-start: max(0.5rem, env(safe-area-inset-top));
+  inset-inline-end: max(0.5rem, env(safe-area-inset-right));
   flex-direction: column;
   gap: 0.18rem;
-  max-width: 34px;
-  padding: 0.28rem 0 0;
-  border-top: 1px solid color-mix(in srgb, var(--story) 42%, var(--line));
-  border-left: 0;
+  max-inline-size: 44px;
+  padding: 0.28rem;
+  border: 1px solid color-mix(in srgb, var(--story) 42%, var(--line));
+  border-radius: 0.68rem;
+  background: color-mix(in srgb, var(--paper) 84%, transparent);
+  backdrop-filter: blur(10px);
 }
 
 .timeline-view[data-orientation="portrait"] .story-focus-copy {
@@ -2523,10 +2538,14 @@
     max(4.5rem, calc(env(safe-area-inset-left) + 4rem));
 }
 
-/* Utility chrome is not part of the fullscreen presentation. */
-#presentation-stage:fullscreen ~ *,
-#presentation-stage:fullscreen .app-tool-dock {
+/* Non-stage utility chrome is excluded from fullscreen, but the fused footer is
+   explicitly mounted into the fullscreen subtree and remains interactive. */
+#presentation-stage:fullscreen ~ * {
   pointer-events: none;
+}
+
+#presentation-stage:fullscreen .app-footer-shell {
+  pointer-events: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -5265,80 +5284,47 @@
   }
 }
 
-/* Reserved workspace chrome keeps chronology clear of app controls. */
-.timeline-view[data-orientation="landscape"] .timeline-project-heading {
-  inset-block-start: auto;
-  inset-inline-end: auto;
-  inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
-  inset-inline-start: 50%;
-  inline-size: min(22rem, calc(100% - 1rem));
-  max-inline-size: calc(100% - 1rem);
-  min-block-size: var(--workspace-title-block-size, 38px);
-  max-block-size: var(--workspace-title-block-size, 38px);
-  transform: translateX(-50%);
-}
-
-.timeline-view[data-orientation="landscape"] .timeline-project-title input {
-  inline-size: 100%;
-  min-block-size: calc(var(--workspace-title-block-size, 38px) - 0.4rem);
-}
-
-.timeline-view[data-orientation="portrait"] .timeline-project-heading {
-  inset-block-start: 50%;
-  inset-inline-end: max(0.4rem, env(safe-area-inset-right));
-  inset-block-end: auto;
-  inset-inline-start: auto;
-  inline-size: var(--workspace-title-inline-size, 42px);
-  max-inline-size: var(--workspace-title-inline-size, 42px);
-  max-block-size: min(24rem, calc(100dvh - 1rem));
-  transform: translateY(-50%);
-}
-
-.timeline-view[data-orientation="portrait"] .timeline-project-title input {
-  inline-size: calc(var(--workspace-title-inline-size, 42px) - 0.4rem);
-  block-size: min(28dvh, 240px);
-}
-
+/* The fused footer is outside the normal presentation stage, so graph/timeline
+   internals no longer reserve a second orientation-specific chrome strip. */
 #app-shell[data-graph-open="true"] #presentation-stage {
-  --relations-right-safe: var(--workspace-portrait-chrome-inline, 7rem);
-  --relations-bottom-safe: var(--workspace-landscape-chrome-block, 6rem);
-  --mobile-bottom-chrome: var(--workspace-landscape-chrome-block, 6rem);
-  --mobile-focus-bottom: var(--workspace-landscape-chrome-block, 6rem);
+  --relations-right-safe: 0px;
+  --relations-bottom-safe: 0px;
+  --mobile-bottom-chrome: 0px;
+  --mobile-focus-bottom: 0px;
 }
 
 #app-shell[data-graph-open="true"]
   #presentation-stage:has(> #timeline-view[data-orientation="portrait"])
   > .graph-lens:not([hidden]) {
-  inset-inline-end: calc(
-    var(--relations-inline-rail, var(--mobile-relations-inline-rail, 0px)) +
-    var(--workspace-portrait-chrome-inline, 7rem)
-  );
+  inset-inline-end: var(--relations-inline-rail, var(--mobile-relations-inline-rail, 0px));
 }
 
 #app-shell[data-graph-open="true"]
   #timeline-view[data-orientation="portrait"]
   > .timeline-surface {
-  inset-inline-end: var(--workspace-portrait-chrome-inline, 7rem);
+  inset-inline-end: 0;
 }
 
 #app-shell[data-graph-open="true"]
   #presentation-stage:has(> #timeline-view[data-orientation="landscape"])
   > .graph-lens:not([hidden]) {
-  inset-block-end: calc(
-    var(--workspace-landscape-chrome-block, 6rem) +
-    var(--relations-block-rail, var(--mobile-relations-block-rail, 0px))
-  );
+  inset-block-end: var(--relations-block-rail, var(--mobile-relations-block-rail, 0px));
 }
 
 #app-shell[data-graph-open="true"]
   #timeline-view[data-orientation="landscape"]
   > .timeline-surface {
-  inset-block-end: var(--workspace-landscape-chrome-block, 6rem);
+  inset-block-end: 0;
 }
 
-#app-shell[data-graph-open="true"]
-  #timeline-view[data-orientation="landscape"]
-  .timeline-project-heading {
-  inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
-  inset-inline-start: 50%;
+/* In fullscreen the footer becomes a child of the presentation stage, so the stage
+   content reserves the same measured block rather than rendering underneath it. */
+#presentation-stage:fullscreen > .timeline-view {
+  inset-block-end: var(--workspace-footer-reserved-block, 6rem);
+  block-size: auto;
+  height: auto;
+}
+
+#presentation-stage:fullscreen > .graph-lens:not([hidden]) {
+  max-block-size: calc(100% - var(--workspace-footer-reserved-block, 6rem));
 }
