@@ -50,7 +50,7 @@ test("focused detail is layout-owned and never enters the popover top layer", as
 test("landscape places focused detail left of graph with full-width timeline below", async ({ page }) => {
   const timeline = page.locator("#timeline-view");
   if ((await timeline.getAttribute("data-orientation")) !== "landscape") {
-    await page.locator("#timeline-orientation-toggle").click();
+    await page.locator("#timeline-orientation-toggle").evaluate((button: HTMLButtonElement) => button.click());
   }
   await expect(timeline).toHaveAttribute("data-orientation", "landscape");
   const focus = await focusOccurrence(page);
@@ -65,7 +65,7 @@ test("landscape places focused detail left of graph with full-width timeline bel
 test("portrait stacks focused detail above graph while timeline owns the full right rail", async ({ page }) => {
   const timeline = page.locator("#timeline-view");
   if ((await timeline.getAttribute("data-orientation")) !== "portrait") {
-    await page.locator("#timeline-orientation-toggle").click();
+    await page.locator("#timeline-orientation-toggle").evaluate((button: HTMLButtonElement) => button.click());
   }
   await expect(timeline).toHaveAttribute("data-orientation", "portrait");
   const focus = await focusOccurrence(page);
