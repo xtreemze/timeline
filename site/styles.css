@@ -22,9 +22,6 @@
 * {
   box-sizing: border-box;
 }
-html {
-  scroll-behavior: smooth;
-}
 body {
   --page-grid-gap: clamp(0.55rem, 1.15vw, 1.15rem);
   --page-grid-gutter: max(1rem, calc((100vw - 1540px) / 2));
@@ -1902,17 +1899,6 @@ footer > :last-child {
   }
   .tab:is(:hover, :focus-visible) {
     background: rgba(255, 255, 255, 0.025);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto;
   }
 }
 
