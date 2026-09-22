@@ -2640,12 +2640,12 @@
   pointer-events: none;
 }
 
-#presentation-stage > .timeline-view > .timeline-project-heading,
+#presentation-stage > .timeline-view > .story-focus-header,
 #presentation-stage > .timeline-view > .timeline-surface,
 #presentation-stage > .timeline-view > .timeline-semantic-list,
 #presentation-stage > .timeline-view > .timeline-focus-view,
 #presentation-stage > .timeline-view > .timeline-view-toolbar,
-#presentation-stage:fullscreen > .timeline-view > .timeline-project-heading,
+#presentation-stage:fullscreen > .timeline-view > .story-focus-header,
 #presentation-stage:fullscreen > .timeline-view > .timeline-surface,
 #presentation-stage:fullscreen > .timeline-view > .timeline-semantic-list,
 #presentation-stage:fullscreen > .timeline-view > .timeline-focus-view,
