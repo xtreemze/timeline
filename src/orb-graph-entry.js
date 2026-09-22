@@ -33,7 +33,6 @@ const TOPOLOGY_SETTLE_MS = 1100;
 const TOPOLOGY_ENTRY_OFFSET = 36;
 const COMPONENT_PACKING_GAP = 112;
 const CENTER_ATTRACTION_STRENGTH = 0.007;
-const CENTER_ATTRACTION_DENSE_STRENGTH = 0.005;
 const motion = globalThis.TimelineMotion;
 
 function resolvedColor(container, name, fallback) {
@@ -1039,7 +1038,6 @@ function create(container, handlers = {}) {
   }
 
   function onTouchMoveCapture(event) {
-    if (activeTouchPointers.size > 1) settlePresentationForceUpdate();
     const nodeDragOwnsGesture = Boolean(touchHold?.activated);
     const weightedCameraOwnsGesture = Boolean(cameraGesture && activeTouchPointers.size === 1);
     if (!nodeDragOwnsGesture && !weightedCameraOwnsGesture) return;
@@ -1097,7 +1095,6 @@ function create(container, handlers = {}) {
   const onWheelCapture = () => {
     markCameraOwnedByUser();
     cancelCameraInertia();
-    settlePresentationForceUpdate();
   };
   const onGraphKeyDown = (event) => {
     if (event.target !== container || event.altKey || event.ctrlKey || event.metaKey) return;
@@ -1136,7 +1133,6 @@ function create(container, handlers = {}) {
     }
     if (handled) {
       event.preventDefault();
-      queuePresentationForceUpdate();
     }
   };
   const onLostPointerCapture = (event) => {
@@ -1353,7 +1349,6 @@ function create(container, handlers = {}) {
         },
       },
     });
-    queuePresentationForceUpdate();
   }
 
   function clearTopologyTimers() {
@@ -1557,7 +1552,6 @@ function create(container, handlers = {}) {
     // the simulator sees the new node set before Timeline activates the solve.
     orb.render();
     requestSimulation("topology", 0);
-    queuePresentationForceUpdate();
     handlers.onSimulationState?.({ running: true, mode: currentMode });
   }
 
@@ -1710,7 +1704,6 @@ function create(container, handlers = {}) {
       if (!hasGraphData) return;
       orb.render(() => {
         if (!userOwnsCamera) orb.recenter();
-        queuePresentationForceUpdate();
       });
     },
     zoomIn() {
@@ -1753,8 +1746,6 @@ function create(container, handlers = {}) {
       finishTouchGesture();
       clearInteractionSettleTimer();
       clearCompetingGestureResumeTimer();
-        presentationForceFrame = 0;
-        presentationForceSettleTimer = 0;
       simulationCoordinator.clear();
       competingPointerIds.clear();
       clearTopologyTimers();
