@@ -103,3 +103,47 @@ test("planner, query, dirty geometry and long tasks remain phase-attributed", ()
   assert.equal(summary.commit.longTasks, 1);
   assert.equal(summary.interaction.plannerDurationMs, 0);
 });
+
+
+test("input-to-visual latency remains phase-attributed and summarized", () => {
+  const recorder = createRetainedTimelineMetrics();
+  for (const inputLatencyMs of [3, 5, 4, 8, 6]) {
+    recorder.recordFrame({
+      phase: "interaction",
+      durationMs: 7,
+      createdNodes: 0,
+      destroyedNodes: 0,
+      retainedNodes: 180,
+      inputLatencyMs,
+    });
+  }
+  recorder.recordFrame({
+    phase: "commit",
+    durationMs: 15,
+    createdNodes: 0,
+    destroyedNodes: 4,
+    retainedNodes: 176,
+    inputLatencyMs: 11,
+  });
+
+  const summary = recorder.summary();
+  assert.equal(summary.interaction.inputLatencySampleCount, 5);
+  assert.equal(summary.interaction.p95InputLatencyMs, 8);
+  assert.equal(summary.commit.inputLatencySampleCount, 1);
+  assert.equal(summary.commit.p95InputLatencyMs, 11);
+});
+
+test("missing input latency is not fabricated into a zero-latency sample", () => {
+  const recorder = createRetainedTimelineMetrics();
+  recorder.recordFrame({
+    phase: "interaction",
+    durationMs: 6,
+    createdNodes: 0,
+    destroyedNodes: 0,
+    retainedNodes: 90,
+  });
+
+  const summary = recorder.summary();
+  assert.equal(summary.interaction.inputLatencySampleCount, 0);
+  assert.equal(summary.interaction.p95InputLatencyMs, 0);
+});
