@@ -119,8 +119,8 @@ test("map touch targets match the coarse-pointer interaction floor and editing h
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
   ]);
-  assert.match(source, /iconSize:\s*\[44, 44\]/);
-  assert.match(source, /iconAnchor:\s*\[22, 22\]/);
+  assert.match(source, /iconSize:\\s*\\[56, 56\\]/);
+  assert.match(source, /iconAnchor:\\s*\\[28, 28\\]/);
   assert.match(
     source,
     /L\.marker\(\[lat, lng\],[\s\S]*draggable:\s*true[\s\S]*keyboard:\s*true[\s\S]*semanticMarkerIcon/,
