@@ -499,7 +499,7 @@
   outline: 1px solid color-mix(in srgb, var(--relation-event-color, var(--story)) 35%, transparent);
   cursor: pointer;
   pointer-events: auto;
-
+  transition: background-color 160ms ease, outline-color 160ms ease;
 }
 .timeline-relation-segment:hover {
   background: color-mix(in srgb, var(--relation-event-color, var(--story)) 72%, transparent);
@@ -612,7 +612,12 @@
   text-align: left;
   transform: translate(calc(-1 * var(--terminal-anchor)), -50%);
   transform-origin: var(--terminal-anchor) 50%;
-
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease,
+    opacity 160ms ease,
+    transform 190ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .timeline-event.label-before .timeline-event-terminal {
   flex-direction: row-reverse;
@@ -2017,6 +2022,27 @@
 }
 
 #presentation-stage:fullscreen .presentation-map {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+::view-transition-group(timeline-primary-surface),
+::view-transition-group(timeline-relation-surface),
+::view-transition-group(timeline-map-surface) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(timeline-primary-surface),
+  ::view-transition-group(timeline-relation-surface),
+  ::view-transition-group(timeline-map-surface) {
+    animation-duration: 0s;
+  }
+}
+
 /* Overlay-first presentation contract.
    The timeline and relation graph remain mounted in fullscreen. Focused event detail enters
    the top layer while the persistent graph stays interactive in the uncovered background. */
@@ -2175,27 +2201,136 @@
 }
 
 .timeline-focus-place-backdrop .leaflet-control-attribution {
+  max-width: calc(100% - 0.5rem);
+  font-size: 8px;
+}
+
+::view-transition-group(timeline-event-detail-shared),
+::view-transition-group(timeline-focus-chronology) {
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 ::view-transition-old(timeline-event-detail-shared),
 ::view-transition-new(timeline-event-detail-shared),
 ::view-transition-old(timeline-focus-chronology),
 ::view-transition-new(timeline-focus-chronology) {
+  mix-blend-mode: normal;
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+::view-transition-group(timeline-event-detail-swap) {
+  animation-duration: 260ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 ::view-transition-old(timeline-event-detail-swap),
 ::view-transition-new(timeline-event-detail-swap) {
+  mix-blend-mode: normal;
+  animation-duration: 260ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Focus opening/closing is one spatial transition: chronology yields toward its edge
+   while the shared event/detail element expands into the opposite reading region. */
 :root:active-view-transition-type(timeline-focus-open):active-view-transition-type(
-:root:active-view-transition-type(timeline-focus-close):active-view-transition-type(
-:root:active-view-transition-type(timeline-focus-close):active-view-transition-type(
+  timeline-landscape
+)::view-transition-old(timeline-focus-chronology) {
+  animation-name: timeline-chronology-open-landscape-old;
+}
+
 :root:active-view-transition-type(timeline-focus-open):active-view-transition-type(
+  timeline-landscape
+)::view-transition-new(timeline-focus-chronology) {
+  animation-name: timeline-chronology-open-landscape-new;
+}
+
+:root:active-view-transition-type(timeline-focus-close):active-view-transition-type(
+  timeline-landscape
+)::view-transition-old(timeline-focus-chronology) {
+  animation-name: timeline-chronology-close-landscape-old;
+}
+
+:root:active-view-transition-type(timeline-focus-close):active-view-transition-type(
+  timeline-landscape
+)::view-transition-new(timeline-focus-chronology) {
+  animation-name: timeline-chronology-close-landscape-new;
+}
+
 :root:active-view-transition-type(timeline-focus-open):active-view-transition-type(
+  timeline-portrait
+)::view-transition-old(timeline-focus-chronology) {
+  animation-name: timeline-chronology-open-portrait-old;
+}
+
+:root:active-view-transition-type(timeline-focus-open):active-view-transition-type(
+  timeline-portrait
+)::view-transition-new(timeline-focus-chronology) {
+  animation-name: timeline-chronology-open-portrait-new;
+}
+
 :root:active-view-transition-type(timeline-focus-close):active-view-transition-type(
+  timeline-portrait
+)::view-transition-old(timeline-focus-chronology) {
+  animation-name: timeline-chronology-close-portrait-old;
+}
+
 :root:active-view-transition-type(timeline-focus-close):active-view-transition-type(
+  timeline-portrait
+)::view-transition-new(timeline-focus-chronology) {
+  animation-name: timeline-chronology-close-portrait-new;
+}
+
 /* Adjacent focus follows the time axis: X for landscape, Y for portrait. */
 :root:active-view-transition-type(timeline-focus-forward):active-view-transition-type(
-:root:active-view-transition-type(timeline-focus-backward):active-view-transition-type(
-:root:active-view-transition-type(timeline-focus-backward):active-view-transition-type(
+  timeline-landscape
+)::view-transition-old(timeline-event-detail-swap) {
+  animation-name: timeline-focus-old-forward-landscape;
+}
+
 :root:active-view-transition-type(timeline-focus-forward):active-view-transition-type(
+  timeline-landscape
+)::view-transition-new(timeline-event-detail-swap) {
+  animation-name: timeline-focus-new-forward-landscape;
+}
+
+:root:active-view-transition-type(timeline-focus-backward):active-view-transition-type(
+  timeline-landscape
+)::view-transition-old(timeline-event-detail-swap) {
+  animation-name: timeline-focus-old-backward-landscape;
+}
+
+:root:active-view-transition-type(timeline-focus-backward):active-view-transition-type(
+  timeline-landscape
+)::view-transition-new(timeline-event-detail-swap) {
+  animation-name: timeline-focus-new-backward-landscape;
+}
+
 :root:active-view-transition-type(timeline-focus-forward):active-view-transition-type(
+  timeline-portrait
+)::view-transition-old(timeline-event-detail-swap) {
+  animation-name: timeline-focus-old-forward-portrait;
+}
+
+:root:active-view-transition-type(timeline-focus-forward):active-view-transition-type(
+  timeline-portrait
+)::view-transition-new(timeline-event-detail-swap) {
+  animation-name: timeline-focus-new-forward-portrait;
+}
+
 :root:active-view-transition-type(timeline-focus-backward):active-view-transition-type(
+  timeline-portrait
+)::view-transition-old(timeline-event-detail-swap) {
+  animation-name: timeline-focus-old-backward-portrait;
+}
+
 :root:active-view-transition-type(timeline-focus-backward):active-view-transition-type(
+  timeline-portrait
+)::view-transition-new(timeline-event-detail-swap) {
+  animation-name: timeline-focus-new-backward-portrait;
+}
+
 @media (max-width: 900px), (max-height: 650px) {
   .timeline-focus-view[popover] {
     gap: clamp(0.55rem, 1.4vw, 0.9rem);
@@ -2302,6 +2437,16 @@
 
   .timeline-focus-place,
   .timeline-focus-relations {
+    min-height: 150px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(timeline-detail-overlay) {
+    animation-duration: 0s;
+  }
+}
+
 /* Distance-legible story presentation. */
 .timeline-focus-tags .event-tag {
   min-height: 32px;
@@ -3005,6 +3150,31 @@
 #app-shell
   #presentation-stage[data-event-focused="true"][data-has-context-graph="true"]
   > .timeline-view {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  inline-size: 100%;
+  block-size: 100%;
+  max-width: none;
+  max-height: none;
+  max-inline-size: none;
+  max-block-size: none;
+}
+
+/* The docked surface is only the chronology rail. Event terminals remain spatial callouts
+   and may project inward beyond that rail; the full-viewport .timeline-view is the clip boundary. */
+#app-shell
+  #presentation-stage[data-event-focused="true"][data-has-context-graph="true"]
+  > .timeline-view
+  > .timeline-surface {
+  transition:
+    width 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    inline-size 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    block-size 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 #app-shell
   #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(
     .timeline-focus-view:popover-open
@@ -3060,6 +3230,35 @@
   )
   .timeline-view
   > .timeline-focus-view:popover-open {
+  --timeline-focus-left-edge: max(4.7rem, calc(env(safe-area-inset-left) + 4.2rem));
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  left: var(--timeline-focus-left-edge);
+  transform: translateY(-50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app-shell
+    #presentation-stage[data-event-focused="true"][data-has-context-graph="true"]
+    > .timeline-view
+    > .timeline-surface {
+    transition-duration: 0s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(timeline-event-detail-shared),
+  ::view-transition-group(timeline-focus-chronology),
+  ::view-transition-old(timeline-focus-chronology),
+  ::view-transition-new(timeline-focus-chronology),
+  ::view-transition-group(timeline-event-detail-swap),
+  ::view-transition-old(timeline-event-detail-swap),
+  ::view-transition-new(timeline-event-detail-swap) {
+    animation-duration: 0s;
+  }
+}
+
 /* Focus popovers occupy the edge opposite chronology: top/center for a bottom timeline
    and left/center for a right timeline. JS reserves persistent application chrome and the
    contextual timeline strip, then clamps late content growth to the remaining viewport. */
@@ -3187,6 +3386,7 @@
   opacity: 1;
 }
 
+
 /* Timeline controls remain visually continuous while the event-detail transition runs. */
 .timeline-view-toolbar {
   view-transition-name: timeline-view-toolbar;
@@ -3224,6 +3424,20 @@
   ::view-transition-old(timeline-event-detail-shared),
   ::view-transition-new(timeline-event-detail-shared),
   ::view-transition-group(timeline-view-toolbar) {
+    animation: none;
+  }
+}
+
+/* Tabs keep Hero, Context, and application chrome stationary. Only the lower contextual
+   region participates in the tab transition, avoiding a whole-popover/root cross-fade. */
+::view-transition-group(timeline-focus-tab-context),
+::view-transition-group(timeline-focus-tab-place),
+::view-transition-group(timeline-focus-tab-evidence) {
+  animation-duration: 220ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+
 /* The semantic panels themselves stay inside the clamped popover box. The Relations halo
    may extend visually, but panel content cannot push the top-layer surface offscreen. */
 .timeline-focus-view[popover]
@@ -3252,7 +3466,7 @@
   ::view-transition-new(timeline-focus-tab-place),
   ::view-transition-new(timeline-focus-tab-evidence) {
     animation: none;
-
+    animation-duration: 0s;
   }
 }
 
@@ -3429,7 +3643,9 @@
     max-height: none;
     border-left: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
     background: color-mix(in srgb, var(--paper) 90%, transparent);
-
+    transition:
+      right 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      width 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
   #app-shell[data-graph-open="true"]
@@ -3485,7 +3701,9 @@
     min-height: 0;
     border-top: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
     background: color-mix(in srgb, var(--paper) 90%, transparent);
-
+    transition:
+      bottom 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      height 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 }
 
@@ -3550,7 +3768,9 @@
     overflow: visible;
     border-left: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
     background: color-mix(in srgb, var(--paper) 84%, transparent);
-
+    transition:
+      width 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      right 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
   #app-shell[data-graph-open="true"]
@@ -3586,7 +3806,9 @@
     min-height: 0;
     border-top: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
     background: color-mix(in srgb, var(--paper) 84%, transparent);
-
+    transition:
+      height 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      bottom 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
   /* The graph is contextual: chronology keeps readable event headlines even when
@@ -3637,6 +3859,16 @@
 
 @media (max-width: 380px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
+    --mobile-relations-inline-rail: clamp(136px, 38dvw, 168px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app-shell[data-graph-open="true"] #timeline-view > .timeline-surface {
+    transition-duration: 0s;
+  }
+}
+
 /* Mobile focused-event composition: detail stays opposite the chronology edge. */
 @media (max-width: 699px) {
   #app-shell #presentation-stage {
@@ -4106,6 +4338,29 @@
 
 /* Fullscreen has no usable external View invoker, so keep the toolbar in the top-right safe area. */
 #app-shell #presentation-stage:fullscreen .timeline-view-toolbar:popover-open {
+  position: fixed;
+  top: max(0.4rem, env(safe-area-inset-top));
+  right: max(0.4rem, env(safe-area-inset-right));
+  bottom: auto;
+  left: auto;
+  display: flex;
+  width: max-content;
+  max-width: calc(100% - max(0.8rem, env(safe-area-inset-left)) - max(0.8rem, env(safe-area-inset-right)));
+  max-height: calc(100dvh - max(0.8rem, env(safe-area-inset-top)) - max(0.8rem, env(safe-area-inset-bottom)));
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+::view-transition-group(timeline-project-heading) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(timeline-project-heading) {
+    animation-duration: 0s;
+  }
+}
+
 /* Compact focused-event detail: one visual column and one information column.
    Context stays beside the hero; Place occupies a small footer in that information column.
    Evidence replaces Place. Relations remain in the persistent graph, not in the popover. */
@@ -4686,6 +4941,7 @@
   touch-action: pan-y;
 }
 
+
 /* Simplified View toolbar: display controls, semantic zoom, then slideshow.
    Zoom endpoint meaning is icon-only; aria-valuetext retains the intermediate
    semantic Focus state without adding a third visible label. */
@@ -4777,6 +5033,7 @@
   }
 }
 
+
 /* Retained timeline scene: buffered occurrences stay mounted across interaction epochs.
    The visible rail is not the scene boundary; overscanned objects remain non-interactive
    until their temporal extent intersects the logical viewport. */
@@ -4791,6 +5048,22 @@
 
 .timeline-retained-scene .timeline-event.is-buffered .timeline-event-terminal,
 .timeline-retained-scene .timeline-range-segment.is-buffered {
+  pointer-events: none;
+}
+
+.timeline-event-connector,
+.timeline-event-connector-turn,
+.timeline-event-dot,
+.timeline-event-terminal,
+.timeline-range-segment {
+  transition:
+    opacity 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
 .timeline-event:is(.is-hovered, .is-focused, .is-selected) .timeline-event-terminal,
 .timeline-range-segment:is(.is-hovered, .is-focused, .is-selected) {
   border-color: var(--event-color);
@@ -4811,7 +5084,27 @@
 
 .timeline-view[data-scene-state="interacting"] .timeline-event.is-hovered,
 .timeline-view[data-scene-state="interacting"] .timeline-range-segment.is-hovered {
+  pointer-events: none;
+}
+
+.timeline-view[data-scene-state="interacting"] .timeline-event-terminal,
+.timeline-view[data-scene-state="interacting"] .timeline-range-segment {
+  transition-duration: 80ms;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .timeline-retained-scene .timeline-event,
+  .timeline-retained-scene .timeline-range-segment {
+    will-change: auto;
+  }
+
+  .timeline-event-terminal,
+  .timeline-range-segment {
+    transition-duration: 0.01ms;
+  }
+}
+
+
 /* Independent semantic chronology for assistive technology and keyboard fallback.
    It is outside the retained visual scene and therefore never participates in
    pan/zoom reconciliation or virtualization. */
@@ -4867,6 +5160,7 @@
   outline: 2px solid color-mix(in srgb, var(--focus) 50%, transparent);
   outline-offset: 1px;
 }
+
 
 /* Focused place context uses the card's visual field for the existing interactive Leaflet map.
    Keep semantic copy compact so map geometry and markers remain directly manipulable. */
@@ -4978,6 +5272,7 @@
   inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
   inset-inline-start: 50%;
 }
+
 
 /* Focused detail is a layout-owned sidebar, never a top-layer popover.
    Landscape: detail left, graph right, chronology full-width below.
@@ -5133,6 +5428,7 @@
 #app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar:not([hidden]) {
   font-size: 0.92em;
 }
+
 
 @media (min-width: 761px) {
   #app-shell.is-event-focused #presentation-stage {
