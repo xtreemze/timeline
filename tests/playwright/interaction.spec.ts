@@ -1,246 +1,374 @@
-import { test, expect, devices } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
-test.describe('Timeline Interaction', () => {
-  test('pan gesture on timeline surface moves chronology with inertia', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.setViewportSize({ width: 1024, height: 600 });
+async function installViewportRecorder(page) {
+  await page.evaluate(() => {
+    const root = document.querySelector('#timeline-view');
+    if (!root) throw new Error('Timeline root is missing.');
+    globalThis.__timelineViewportEvents = [];
+    root.addEventListener('timelineviewportchange', (event) => {
+      globalThis.__timelineViewportEvents.push({
+        viewport: { ...event.detail.viewport },
+        committed: Boolean(event.detail.committed),
+      });
+    });
+  });
+}
 
-    const timelineSurface = page.locator('.timeline-surface');
-    const box = await timelineSurface.boundingBox();
+async function clearViewportEvents(page) {
+  await page.evaluate(() => {
+    globalThis.__timelineViewportEvents = [];
+  });
+}
 
-    if (box) {
-      // Drag across timeline to pan (drag left to move forward in time)
-      await page.dragAndDrop(
-        '.timeline-surface',
-        '.timeline-surface',
-        {
-          sourcePosition: { x: box.width * 0.7, y: box.height / 2 },
-          targetPosition: { x: box.width * 0.3, y: box.height / 2 },
-        }
-      );
+async function viewportEvents(page) {
+  return page.evaluate(() => globalThis.__timelineViewportEvents ?? []);
+}
 
-      // Timeline should move (test passes if no crash)
-      await expect(timelineSurface).toBeVisible();
+async function waitForViewportEvents(page, minimum = 1) {
+  await expect
+    .poll(() => page.evaluate(() => globalThis.__timelineViewportEvents?.length ?? 0))
+    .toBeGreaterThanOrEqual(minimum);
+}
+
+function span(event) {
+  return event.viewport.end - event.viewport.start;
+}
+
+async function settleTimeline(page) {
+  await expect
+    .poll(() => page.locator('#timeline-view').getAttribute('data-scene-state'))
+    .not.toBe('interacting');
+}
+
+async function performPan(page, surface, testInfo) {
+  const box = await surface.boundingBox();
+  if (!box) throw new Error('Timeline surface has no bounding box.');
+
+  const startX = box.x + box.width * 0.72;
+  const middleX = box.x + box.width * 0.52;
+  const endX = box.x + box.width * 0.32;
+  const y = box.y + box.height * 0.5;
+
+  if (testInfo.project.use.hasTouch) {
+    const pointerId = 31;
+    await surface.dispatchEvent('pointerdown', {
+      pointerId,
+      pointerType: 'touch',
+      isPrimary: true,
+      button: 0,
+      buttons: 1,
+      clientX: startX,
+      clientY: y,
+    });
+    for (const clientX of [middleX, endX]) {
+      await surface.dispatchEvent('pointermove', {
+        pointerId,
+        pointerType: 'touch',
+        isPrimary: true,
+        button: 0,
+        buttons: 1,
+        clientX,
+        clientY: y,
+      });
     }
+    return async () => {
+      await surface.dispatchEvent('pointerup', {
+        pointerId,
+        pointerType: 'touch',
+        isPrimary: true,
+        button: 0,
+        buttons: 0,
+        clientX: endX,
+        clientY: y,
+      });
+    };
+  }
+
+  await page.mouse.move(startX, y);
+  await page.mouse.down();
+  await page.mouse.move(middleX, y, { steps: 4 });
+  await page.mouse.move(endX, y, { steps: 4 });
+  return async () => page.mouse.up();
+}
+
+test.describe('Timeline interaction contracts', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('#timeline-view')).toBeVisible();
+    await expect(page.locator('.timeline-surface')).toBeVisible();
+    await installViewportRecorder(page);
   });
 
-  test('pinch gesture on graph zooms canvas', async ({ page }, testInfo) => {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.setViewportSize({ width: 1024, height: 600 });
+  test('pointer pan changes the logical viewport and settles to a committed state', async ({ page }, testInfo) => {
+    const surface = page.locator('.timeline-surface');
+    const finish = await performPan(page, surface, testInfo);
 
-    const timelineView = page.locator('#timeline-view');
+    await waitForViewportEvents(page, 2);
+    const liveEvents = await viewportEvents(page);
+    expect(liveEvents.some((event) => event.committed === false)).toBeTruthy();
+    expect(new Set(liveEvents.map((event) => event.viewport.start)).size).toBeGreaterThan(1);
+
+    await finish();
+    await settleTimeline(page);
+    await expect
+      .poll(async () => (await viewportEvents(page)).some((event) => event.committed))
+      .toBeTruthy();
+  });
+
+  test('keyboard pan emits committed viewport changes in opposite directions', async ({ page }) => {
+    const surface = page.locator('.timeline-surface');
+    await surface.focus();
+
+    await page.keyboard.press('ArrowRight');
+    await waitForViewportEvents(page);
+    const afterRight = (await viewportEvents(page)).at(-1);
+    expect(afterRight?.committed).toBeTruthy();
+
+    await clearViewportEvents(page);
+    await page.keyboard.press('ArrowLeft');
+    await waitForViewportEvents(page);
+    const afterLeft = (await viewportEvents(page)).at(-1);
+    expect(afterLeft?.committed).toBeTruthy();
+    expect(afterLeft?.viewport.start).toBeLessThan(afterRight?.viewport.start);
+  });
+
+  test('keyboard zoom changes temporal span rather than merely keeping the surface visible', async ({ page }) => {
+    const surface = page.locator('.timeline-surface');
+    await surface.focus();
+
+    await page.keyboard.press('+');
+    await waitForViewportEvents(page);
+    const zoomedIn = (await viewportEvents(page)).at(-1);
+    if (!zoomedIn) throw new Error('Zoom-in emitted no viewport event.');
+
+    await clearViewportEvents(page);
+    await page.keyboard.press('-');
+    await waitForViewportEvents(page);
+    const zoomedOut = (await viewportEvents(page)).at(-1);
+    if (!zoomedOut) throw new Error('Zoom-out emitted no viewport event.');
+
+    expect(span(zoomedOut)).toBeGreaterThan(span(zoomedIn));
+  });
+
+  test('Home fit expands a deliberately zoomed chronology back toward full context', async ({ page }) => {
+    const surface = page.locator('.timeline-surface');
+    await surface.focus();
+
+    await page.keyboard.press('+');
+    await waitForViewportEvents(page);
+    await clearViewportEvents(page);
+    await page.keyboard.press('+');
+    await waitForViewportEvents(page);
+    const zoomed = (await viewportEvents(page)).at(-1);
+    if (!zoomed) throw new Error('Zoom preparation emitted no viewport event.');
+
+    await clearViewportEvents(page);
+    await page.keyboard.press('Home');
+    await waitForViewportEvents(page);
+    const fitted = (await viewportEvents(page)).at(-1);
+    if (!fitted) throw new Error('Home fit emitted no viewport event.');
+
+    expect(span(fitted)).toBeGreaterThan(span(zoomed));
+    expect(fitted.committed).toBeTruthy();
+  });
+
+  test('touch double-tap zooms the retained chronology using pointer semantics', async ({ page }) => {
+    const surface = page.locator('.timeline-surface');
+    await surface.focus();
+    await page.keyboard.press('Home');
+    await waitForViewportEvents(page);
+    const baseline = (await viewportEvents(page)).at(-1);
+    if (!baseline) throw new Error('Home fit emitted no viewport event.');
+    await clearViewportEvents(page);
+
+    const box = await surface.boundingBox();
+    if (!box) throw new Error('Timeline surface has no bounding box.');
+    const x = box.x + box.width * 0.5;
+    const y = box.y + box.height * 0.5;
+
+    for (const pointerId of [41, 42]) {
+      await surface.dispatchEvent('pointerdown', {
+        pointerId,
+        pointerType: 'touch',
+        isPrimary: true,
+        button: 0,
+        clientX: x,
+        clientY: y,
+      });
+      await surface.dispatchEvent('pointerup', {
+        pointerId,
+        pointerType: 'touch',
+        isPrimary: true,
+        button: 0,
+        clientX: x,
+        clientY: y,
+      });
+    }
+
+    await waitForViewportEvents(page, 2);
+    const finalEvent = (await viewportEvents(page)).at(-1);
+    if (!finalEvent) throw new Error('Double-tap emitted no viewport event.');
+    expect(span(finalEvent)).toBeLessThan(span(baseline));
+    expect(finalEvent.committed).toBeTruthy();
+  });
+
+  test('touch pinch changes temporal span and commits after both pointers release', async ({ page }) => {
+    const surface = page.locator('.timeline-surface');
+    await surface.focus();
+    await page.keyboard.press('Home');
+    await waitForViewportEvents(page);
+    const baseline = (await viewportEvents(page)).at(-1);
+    if (!baseline) throw new Error('Home fit emitted no viewport event.');
+    await clearViewportEvents(page);
+
+    const box = await surface.boundingBox();
+    if (!box) throw new Error('Timeline surface has no bounding box.');
+    const y = box.y + box.height * 0.5;
+    const left = box.x + box.width * 0.4;
+    const right = box.x + box.width * 0.6;
+    const expandedRight = box.x + box.width * 0.82;
+
+    await surface.dispatchEvent('pointerdown', {
+      pointerId: 51,
+      pointerType: 'touch',
+      isPrimary: true,
+      button: 0,
+      clientX: left,
+      clientY: y,
+    });
+    await surface.dispatchEvent('pointerdown', {
+      pointerId: 52,
+      pointerType: 'touch',
+      isPrimary: false,
+      button: 0,
+      clientX: right,
+      clientY: y,
+    });
+    await surface.dispatchEvent('pointermove', {
+      pointerId: 52,
+      pointerType: 'touch',
+      isPrimary: false,
+      buttons: 1,
+      clientX: expandedRight,
+      clientY: y,
+    });
+
+    await waitForViewportEvents(page);
+    const pinched = (await viewportEvents(page)).at(-1);
+    if (!pinched) throw new Error('Pinch emitted no viewport event.');
+    expect(span(pinched)).toBeLessThan(span(baseline));
+    expect(pinched.committed).toBeFalsy();
+
+    await surface.dispatchEvent('pointerup', {
+      pointerId: 52,
+      pointerType: 'touch',
+      isPrimary: false,
+      button: 0,
+      clientX: expandedRight,
+      clientY: y,
+    });
+    await surface.dispatchEvent('pointerup', {
+      pointerId: 51,
+      pointerType: 'touch',
+      isPrimary: true,
+      button: 0,
+      clientX: left,
+      clientY: y,
+    });
+
+    await settleTimeline(page);
+    await expect
+      .poll(async () => (await viewportEvents(page)).some((event) => event.committed))
+      .toBeTruthy();
+  });
+
+  test('pointer cancellation cannot leave the retained scene interacting', async ({ page }) => {
+    const surface = page.locator('.timeline-surface');
+    const box = await surface.boundingBox();
+    if (!box) throw new Error('Timeline surface has no bounding box.');
+    const x = box.x + box.width * 0.6;
+    const y = box.y + box.height * 0.5;
+
+    await surface.dispatchEvent('pointerdown', {
+      pointerId: 61,
+      pointerType: 'touch',
+      isPrimary: true,
+      button: 0,
+      clientX: x,
+      clientY: y,
+    });
+    await surface.dispatchEvent('pointermove', {
+      pointerId: 61,
+      pointerType: 'touch',
+      isPrimary: true,
+      buttons: 1,
+      clientX: x - 60,
+      clientY: y,
+    });
+    await waitForViewportEvents(page);
+
+    await surface.dispatchEvent('pointercancel', {
+      pointerId: 61,
+      pointerType: 'touch',
+      isPrimary: true,
+      button: 0,
+      clientX: x - 60,
+      clientY: y,
+    });
+
+    await settleTimeline(page);
+    await expect
+      .poll(async () => (await viewportEvents(page)).some((event) => event.committed))
+      .toBeTruthy();
+  });
+
+  test('graph drag does not mutate the timeline viewport', async ({ page }, testInfo) => {
     const graphCanvas = page.locator('.temporal-graph-canvas');
-    await expect(timelineView).toBeVisible();
     await expect(graphCanvas).toBeVisible();
-
     const box = await graphCanvas.boundingBox();
-    if (!box) throw new Error('Graph canvas has no layout box');
+    if (!box) throw new Error('Graph canvas has no bounding box.');
+
+    const startX = box.x + box.width * 0.7;
+    const endX = box.x + box.width * 0.3;
+    const y = box.y + box.height * 0.5;
+    await clearViewportEvents(page);
 
     if (testInfo.project.use.hasTouch) {
-      const center = {
-        x: box.x + box.width / 2,
-        y: box.y + box.height / 2,
-      };
-      await graphCanvas.evaluate(
-        (canvas, point) => {
-          const dispatch = (
-            type: 'pointerdown' | 'pointermove' | 'pointerup',
-            pointerId: number,
-            x: number,
-            y: number,
-          ) => {
-            canvas.dispatchEvent(
-              new PointerEvent(type, {
-                pointerId,
-                pointerType: 'touch',
-                isPrimary: pointerId === 1,
-                button: 0,
-                buttons: type === 'pointerup' ? 0 : 1,
-                clientX: x,
-                clientY: y,
-                bubbles: true,
-                cancelable: true,
-                composed: true,
-              }),
-            );
-          };
-
-          dispatch('pointerdown', 1, point.x - 24, point.y);
-          dispatch('pointerdown', 2, point.x + 24, point.y);
-          dispatch('pointermove', 1, point.x - 54, point.y);
-          dispatch('pointermove', 2, point.x + 54, point.y);
-          dispatch('pointerup', 1, point.x - 54, point.y);
-          dispatch('pointerup', 2, point.x + 54, point.y);
-        },
-        center,
-      );
+      const pointerId = 81;
+      await graphCanvas.dispatchEvent('pointerdown', {
+        pointerId,
+        pointerType: 'touch',
+        isPrimary: true,
+        button: 0,
+        buttons: 1,
+        clientX: startX,
+        clientY: y,
+      });
+      await graphCanvas.dispatchEvent('pointermove', {
+        pointerId,
+        pointerType: 'touch',
+        isPrimary: true,
+        button: 0,
+        buttons: 1,
+        clientX: endX,
+        clientY: y,
+      });
+      await graphCanvas.dispatchEvent('pointerup', {
+        pointerId,
+        pointerType: 'touch',
+        isPrimary: true,
+        button: 0,
+        buttons: 0,
+        clientX: endX,
+        clientY: y,
+      });
     } else {
-      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-      await page.mouse.wheel(0, 10);
-    }
-
-    await expect(timelineView).toBeVisible();
-    await expect(graphCanvas).toBeVisible();
-  });
-
-  test('touch node long-press on mobile initiates drag', async ({
-    page,
-  }) => {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.setViewportSize({ width: 375, height: 812 });
-
-    // Timeline should be responsive to touch events
-    const timelineView = page.locator('#timeline-view');
-    await expect(timelineView).toBeVisible();
-
-    // Touch interaction should not crash the app
-    const box = await timelineView.boundingBox();
-    if (box) {
-      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.move(startX, y);
       await page.mouse.down();
-      await page.waitForTimeout(500);
+      await page.mouse.move(endX, y, { steps: 5 });
       await page.mouse.up();
-
-      // Should not crash; timeline remains stable
-      await expect(timelineView).toBeVisible();
     }
-  });
 
-  test('double-tap on timeline zooms in (landscape)', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.setViewportSize({ width: 1024, height: 600 });
-
-    const timelineSurface = page.locator('.timeline-surface');
-    const box = await timelineSurface.boundingBox();
-
-    if (box) {
-      const x = box.x + box.width / 2;
-      const y = box.y + box.height / 2;
-
-      // Double-click to zoom
-      await page.mouse.click(x, y);
-      await page.waitForTimeout(100);
-      await page.mouse.click(x, y);
-
-      await expect(timelineSurface).toBeVisible();
-    }
-  });
-
-  test('keyboard navigation: arrow keys pan timeline', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.setViewportSize({ width: 1024, height: 600 });
-
-    const timelineSurface = page.locator('.timeline-surface');
-    await timelineSurface.focus();
-
-    // Arrow left should pan left
-    await page.keyboard.press('ArrowLeft');
-    await page.waitForTimeout(100);
-
-    // Arrow right should pan right
-    await page.keyboard.press('ArrowRight');
-
-    await expect(timelineSurface).toBeVisible();
-  });
-
-  test('keyboard zoom: + and - adjust scale', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.setViewportSize({ width: 1024, height: 600 });
-
-    const timelineSurface = page.locator('.timeline-surface');
-    await timelineSurface.focus();
-
-    // Plus should zoom in
-    await page.keyboard.press('+');
-    await page.waitForTimeout(100);
-
-    // Minus should zoom out
-    await page.keyboard.press('-');
-
-    await expect(timelineSurface).toBeVisible();
-  });
-
-  test('Home key centers graph', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.setViewportSize({ width: 1024, height: 600 });
-
-    // Focus on timeline surface - Home key navigation
-    const timelineSurface = page.locator('.timeline-surface');
-    await timelineSurface.focus();
-
-    await page.keyboard.press('Home');
-    await page.waitForTimeout(100);
-
-    await expect(timelineSurface).toBeVisible();
-  });
-
-  test('touch routing: gesture on graph does not pan timeline', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.setViewportSize({ width: 375, height: 812 });
-
-    // Issue #125: touch routing between surfaces
-    const graphCanvas = page.locator('.temporal-graph-canvas');
-    const timelineSurface = page.locator('.timeline-surface');
-
-    await expect(graphCanvas).toBeVisible();
-    await expect(timelineSurface).toBeVisible();
-
-    // Drag on graph should only affect graph, not timeline
-    const graphBox = await graphCanvas.boundingBox();
-    if (graphBox) {
-      await page.dragAndDrop(
-        '.temporal-graph-canvas',
-        '.temporal-graph-canvas',
-        {
-          sourcePosition: { x: graphBox.width * 0.7, y: graphBox.height / 2 },
-          targetPosition: { x: graphBox.width * 0.3, y: graphBox.height / 2 },
-        }
-      );
-
-      // Both should still be visible (no cross-contamination)
-      await expect(graphCanvas).toBeVisible();
-      await expect(timelineSurface).toBeVisible();
-    }
-  });
-
-  test('popover opens and closes without breaking interaction', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.setViewportSize({ width: 1024, height: 600 });
-
-    // Click to open a popover (e.g., date range picker)
-    const calendarButton = page.locator('#item-calendar-prev, [aria-label*="calendar"]').first();
-    if (await calendarButton.isVisible()) {
-      await calendarButton.click();
-      await page.waitForTimeout(100);
-
-      // Popover should be open
-      const popover = page.locator('[popover]');
-      const isOpen = await popover.isVisible().catch(() => false);
-      expect(isOpen).toBeTruthy();
-
-      // Close popover
-      await page.keyboard.press('Escape');
-      await page.waitForTimeout(100);
-
-      // Timeline interaction should still work
-      const timelineSurface = page.locator('.timeline-surface');
-      await expect(timelineSurface).toBeVisible();
-    }
-  });
-
-  test('focus popover follows orientation (portrait rail, landscape stack)', async ({
-    page,
-  }) => {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-
-    // Test portrait
-    await page.setViewportSize({ width: 375, height: 812 });
-    let focusView = page.locator('.timeline-focus-view[popover]');
-    await expect(focusView).toBeDefined();
-
-    // Test landscape
-    await page.setViewportSize({ width: 1024, height: 600 });
-    focusView = page.locator('.timeline-focus-view[popover]');
-    await expect(focusView).toBeDefined();
+    expect(await viewportEvents(page)).toEqual([]);
   });
 });
