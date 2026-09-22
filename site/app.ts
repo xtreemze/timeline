@@ -347,6 +347,7 @@ function closestEventTarget<T extends HTMLElement>(
     categoryCount: requiredElement<HTMLElement>("#category-count"),
     visibleCount: requiredElement<HTMLElement>("#visible-count"),
     appShell: requiredElement<HTMLElement>("#app-shell"),
+    appFooter: requiredElement<HTMLElement>(".app-footer-shell"),
     appToolDock: requiredElement<HTMLElement>(".app-tool-dock"),
     controlPanel: requiredElement<HTMLElement>("#control-panel"),
     controlPanelClose: requiredElement<HTMLButtonElement>("#control-panel-close"),
@@ -646,8 +647,10 @@ function closestEventTarget<T extends HTMLElement>(
     mode: "range",
   });
   let presentationResizeObserver: ResizeObserver | null = null;
+  let footerResizeObserver: ResizeObserver | null = null;
   let viewControlsResizeObserver: ResizeObserver | null = null;
   let presentationResizeFrame = 0;
+  let footerReservedBlock = 0;
   let timelineOrientationBeforeFullscreen = null;
   let presentationMap: PresentationMapController | null = null;
   let presentationMapKey = "";
@@ -656,8 +659,8 @@ function closestEventTarget<T extends HTMLElement>(
   const presentationMapAnchor = document.createComment("timeline-map-home");
   els.presentationMap.after(presentationMapAnchor);
 
-  const appToolDockAnchor = document.createComment("timeline-tool-dock-home");
-  els.appToolDock.after(appToolDockAnchor);
+  const appFooterAnchor = document.createComment("timeline-tool-dock-home");
+  els.appFooter.after(appFooterAnchor);
 
   function workspaceToolViewport() {
     const visualViewport = window.visualViewport;
@@ -673,6 +676,20 @@ function closestEventTarget<T extends HTMLElement>(
       left: Math.max(0, visualViewport?.offsetLeft || 0),
       top: Math.max(0, visualViewport?.offsetTop || 0),
     };
+  }
+
+  function syncFooterReservation(): boolean {
+    const footerRect = els.appFooter.getBoundingClientRect();
+    const viewport = workspaceToolViewport();
+    const viewportBottom = viewport.top + viewport.height;
+    const nextReservedBlock = Math.max(0, Math.ceil(viewportBottom - footerRect.top));
+    if (nextReservedBlock === footerReservedBlock) return false;
+    footerReservedBlock = nextReservedBlock;
+    els.appShell.style.setProperty(
+      "--workspace-footer-reserved-block",
+      `${nextReservedBlock}px`,
+    );
+    return true;
   }
 
   function clearViewControlsPosition() {
@@ -700,10 +717,8 @@ function closestEventTarget<T extends HTMLElement>(
 
     const triggerRect = els.viewControlsToggle.getBoundingClientRect();
     const toolbarRect = els.viewControls.getBoundingClientRect();
-    const dockRect = els.appToolDock.getBoundingClientRect();
+    const footerRect = els.appFooter.getBoundingClientRect();
     const viewport = workspaceToolViewport();
-    const orientation =
-      els.timelineViewRoot.dataset.orientation === "portrait" ? "portrait" : "landscape";
     const gap = 8;
     const edge = 8;
     const measuredWidth = Math.max(1, toolbarRect.width || els.viewControls.offsetWidth || 1);
@@ -712,67 +727,31 @@ function closestEventTarget<T extends HTMLElement>(
       x: triggerRect.left + triggerRect.width / 2,
       y: triggerRect.top + triggerRect.height / 2,
     };
+    const minTop = viewport.top + edge;
+    const maxBottom = viewport.top + viewport.height - edge;
+    const roomAbove = Math.max(1, footerRect.top - gap - minTop);
+    const roomBelow = Math.max(1, maxBottom - footerRect.bottom - gap);
 
-    const candidates =
-      orientation === "portrait"
-        ? [
-            {
-              id: "left",
-              rect: {
-                x: dockRect.left - gap - measuredWidth,
-                y: anchor.y - measuredHeight / 2,
-                width: Math.min(
-                  measuredWidth,
-                  Math.max(1, dockRect.left - gap - (viewport.left + edge)),
-                ),
-                height: measuredHeight,
-              },
-            },
-            {
-              id: "right",
-              rect: {
-                x: dockRect.right + gap,
-                y: anchor.y - measuredHeight / 2,
-                width: Math.min(
-                  measuredWidth,
-                  Math.max(
-                    1,
-                    viewport.left + viewport.width - edge - dockRect.right - gap,
-                  ),
-                ),
-                height: measuredHeight,
-              },
-            },
-          ]
-        : [
-            {
-              id: "above",
-              rect: {
-                x: anchor.x - measuredWidth / 2,
-                y: dockRect.top - gap - measuredHeight,
-                width: measuredWidth,
-                height: Math.min(
-                  measuredHeight,
-                  Math.max(1, dockRect.top - gap - (viewport.top + edge)),
-                ),
-              },
-            },
-            {
-              id: "below",
-              rect: {
-                x: anchor.x - measuredWidth / 2,
-                y: dockRect.bottom + gap,
-                width: measuredWidth,
-                height: Math.min(
-                  measuredHeight,
-                  Math.max(
-                    1,
-                    viewport.top + viewport.height - edge - dockRect.bottom - gap,
-                  ),
-                ),
-              },
-            },
-          ];
+    const candidates = [
+      {
+        id: "above",
+        rect: {
+          x: anchor.x - measuredWidth / 2,
+          y: footerRect.top - gap - measuredHeight,
+          width: measuredWidth,
+          height: Math.min(measuredHeight, roomAbove),
+        },
+      },
+      {
+        id: "below",
+        rect: {
+          x: anchor.x - measuredWidth / 2,
+          y: footerRect.bottom + gap,
+          width: measuredWidth,
+          height: Math.min(measuredHeight, roomBelow),
+        },
+      },
+    ];
 
     const snapshot = planWorkspacePlacement({
       viewport: {
@@ -785,12 +764,12 @@ function closestEventTarget<T extends HTMLElement>(
       anchor,
       exclusionZones: [
         {
-          id: "app-tool-dock",
+          id: "app-footer-shell",
           rect: {
-            x: dockRect.left,
-            y: dockRect.top,
-            width: dockRect.width,
-            height: dockRect.height,
+            x: footerRect.left,
+            y: footerRect.top,
+            width: footerRect.width,
+            height: footerRect.height,
           },
         },
       ],
@@ -799,20 +778,11 @@ function closestEventTarget<T extends HTMLElement>(
     const selected = snapshot.selected;
     if (!selected) return;
 
-    if (orientation === "portrait") {
-      els.viewControls.style.setProperty(
-        "--view-controls-inline-size",
-        `${Math.floor(selected.rect.width)}px`,
-      );
-      els.viewControls.style.removeProperty("--view-controls-block-size");
-    } else {
-      els.viewControls.style.setProperty(
-        "--view-controls-block-size",
-        `${Math.floor(selected.rect.height)}px`,
-      );
-      els.viewControls.style.removeProperty("--view-controls-inline-size");
-    }
-
+    els.viewControls.style.setProperty(
+      "--view-controls-block-size",
+      `${Math.floor(selected.rect.height)}px`,
+    );
+    els.viewControls.style.removeProperty("--view-controls-inline-size");
     els.viewControls.dataset.anchorPlacement = selected.id;
     els.viewControls.dataset.placementValid = String(snapshot.fullySatisfiesConstraints);
     els.viewControls.style.setProperty(
@@ -828,17 +798,18 @@ function closestEventTarget<T extends HTMLElement>(
   }
 
   function mountFullscreenToolDock() {
-    if (!els.appToolDock || !els.presentationStage) return;
-    if (els.appToolDock.parentNode !== els.presentationStage) {
-      els.presentationStage.append(els.appToolDock);
+    if (els.appFooter.parentNode !== els.presentationStage) {
+      els.presentationStage.append(els.appFooter);
     }
+    syncFooterReservation();
   }
 
   function restoreToolDock() {
-    if (!els.appToolDock || !appToolDockAnchor?.parentNode) return;
-    if (els.appToolDock.parentNode !== appToolDockAnchor.parentNode) {
-      appToolDockAnchor.parentNode.insertBefore(els.appToolDock, appToolDockAnchor);
+    if (!appFooterAnchor.parentNode) return;
+    if (els.appFooter.parentNode !== appFooterAnchor.parentNode) {
+      appFooterAnchor.parentNode.insertBefore(els.appFooter, appFooterAnchor);
     }
+    syncFooterReservation();
   }
 
   function restoreMapSurface() {
@@ -4098,6 +4069,17 @@ function closestEventTarget<T extends HTMLElement>(
     });
   }
 
+  if ("ResizeObserver" in globalThis) {
+    footerResizeObserver = new ResizeObserver(() => {
+      if (syncFooterReservation()) {
+        schedulePresentationGeometryRefresh({ recenterGraph: true });
+        repositionOpenProjectMenu();
+        if (viewControlsAreOpen()) positionViewControls();
+      }
+    });
+    footerResizeObserver.observe(els.appFooter);
+  }
+
   if (els.presentationStage && "ResizeObserver" in globalThis) {
     presentationResizeObserver = new ResizeObserver(() => {
       const changed = updatePresentationStageLayout();
@@ -4118,13 +4100,27 @@ function closestEventTarget<T extends HTMLElement>(
     viewControlsResizeObserver.observe(els.viewControlsToggle);
   }
 
+  syncFooterReservation();
   updatePresentationStageLayout();
   requestAnimationFrame(() => {
+    syncFooterReservation();
     positionViewControls();
   });
-  window.addEventListener("resize", positionViewControls);
-  window.visualViewport?.addEventListener("resize", positionViewControls);
-  window.visualViewport?.addEventListener("scroll", positionViewControls);
+  document.fonts?.ready?.then(() => {
+    if (syncFooterReservation()) schedulePresentationGeometryRefresh({ recenterGraph: true });
+  });
+  window.addEventListener("resize", () => {
+    syncFooterReservation();
+    positionViewControls();
+  });
+  window.visualViewport?.addEventListener("resize", () => {
+    syncFooterReservation();
+    positionViewControls();
+  });
+  window.visualViewport?.addEventListener("scroll", () => {
+    syncFooterReservation();
+    positionViewControls();
+  });
 
   function collapseAllCategories() {
     ui.collapsedCategoryIds.clear();
@@ -4430,11 +4426,9 @@ function closestEventTarget<T extends HTMLElement>(
   }
 
   function positionProjectMenu() {
-    if (!els.projectMenu || !els.projectMenuToggle) return;
     const rect = els.projectMenuToggle.getBoundingClientRect();
+    const footerRect = els.appFooter.getBoundingClientRect();
     const viewport = projectMenuViewport();
-    const orientation =
-      els.timelineViewRoot?.dataset.orientation === "portrait" ? "portrait" : "landscape";
     const gap = 8;
     const edge = 8;
     const minLeft = viewport.left + edge;
@@ -4443,69 +4437,42 @@ function closestEventTarget<T extends HTMLElement>(
     const maxBottom = viewport.top + viewport.height - edge;
     const availableWidth = Math.max(1, maxRight - minLeft);
     const availableHeight = Math.max(1, maxBottom - minTop);
-
-    let menuWidth = Math.min(340, availableWidth);
-    let menuHeight = Math.min(620, availableHeight);
-    let left = minLeft;
-    let top = minTop;
-    let placement = "";
-
-    if (orientation === "portrait") {
-      const roomLeft = Math.max(0, rect.left - gap - minLeft);
-      const roomRight = Math.max(0, maxRight - rect.right - gap);
-      const opensLeft = roomLeft >= roomRight;
-      const horizontalRoom = Math.max(1, opensLeft ? roomLeft : roomRight);
-      menuWidth = Math.min(menuWidth, horizontalRoom);
-      const preferredLeft = opensLeft ? rect.left - gap - menuWidth : rect.right + gap;
-      left = Math.min(
-        Math.max(minLeft, preferredLeft),
-        Math.max(minLeft, maxRight - menuWidth),
-      );
-      const preferredTop = rect.top + rect.height / 2 - menuHeight / 2;
-      top = Math.min(
-        Math.max(minTop, preferredTop),
-        Math.max(minTop, maxBottom - menuHeight),
-      );
-      placement = opensLeft ? "left" : "right";
-
-      els.projectMenu.style.setProperty(
-        "--project-menu-max-width",
-        `${Math.floor(horizontalRoom)}px`,
-      );
-      els.projectMenu.style.setProperty(
-        "--project-menu-max-height",
-        `${Math.floor(availableHeight)}px`,
-      );
-    } else {
-      const roomAbove = Math.max(0, rect.top - gap - minTop);
-      const roomBelow = Math.max(0, maxBottom - rect.bottom - gap);
-      const opensUpward = roomAbove >= roomBelow;
-      const verticalRoom = Math.max(1, opensUpward ? roomAbove : roomBelow);
-      menuHeight = Math.min(menuHeight, verticalRoom);
-      const preferredLeft = rect.left + rect.width / 2 - menuWidth / 2;
-      left = Math.min(
-        Math.max(minLeft, preferredLeft),
-        Math.max(minLeft, maxRight - menuWidth),
-      );
-      const preferredTop = opensUpward ? rect.top - gap - menuHeight : rect.bottom + gap;
-      top = Math.min(
-        Math.max(minTop, preferredTop),
-        Math.max(minTop, maxBottom - menuHeight),
-      );
-      placement = opensUpward ? "above" : "below";
-
-      els.projectMenu.style.setProperty(
-        "--project-menu-max-width",
-        `${Math.floor(availableWidth)}px`,
-      );
-      els.projectMenu.style.setProperty(
-        "--project-menu-max-height",
-        `${Math.floor(verticalRoom)}px`,
-      );
-    }
+    const menuWidth = Math.min(340, availableWidth);
+    const roomAbove = Math.max(1, footerRect.top - gap - minTop);
+    const roomBelow = Math.max(1, maxBottom - footerRect.bottom - gap);
+    const opensUpward = roomAbove >= roomBelow;
+    const verticalRoom = opensUpward ? roomAbove : roomBelow;
+    const menuHeight = Math.min(
+      620,
+      Math.max(1, els.projectMenu.scrollHeight || 340),
+      verticalRoom,
+      availableHeight,
+    );
+    const preferredLeft = rect.left + rect.width / 2 - menuWidth / 2;
+    const left = Math.min(
+      Math.max(minLeft, preferredLeft),
+      Math.max(minLeft, maxRight - menuWidth),
+    );
+    const preferredTop = opensUpward
+      ? footerRect.top - gap - menuHeight
+      : footerRect.bottom + gap;
+    const top = Math.min(
+      Math.max(minTop, preferredTop),
+      Math.max(minTop, maxBottom - menuHeight),
+    );
+    let placement = "above";
+    if (!opensUpward) placement = "below";
 
     els.projectMenu.style.setProperty("--project-menu-left", `${Math.round(left)}px`);
     els.projectMenu.style.setProperty("--project-menu-top", `${Math.round(top)}px`);
+    els.projectMenu.style.setProperty(
+      "--project-menu-max-width",
+      `${Math.floor(availableWidth)}px`,
+    );
+    els.projectMenu.style.setProperty(
+      "--project-menu-max-height",
+      `${Math.floor(verticalRoom)}px`,
+    );
     els.projectMenu.dataset.anchorPlacement = placement;
 
     if (els.projectMenu.matches(":popover-open")) {
