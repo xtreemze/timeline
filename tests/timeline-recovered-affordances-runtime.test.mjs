@@ -68,3 +68,18 @@ test("wheel zoom normalizes line and page delta modes before applying pixel sens
     /const deltaPixels = normalizeWheelDelta\(event, length\);[\s\S]{0,120}wheelZoomFactor\(deltaPixels\)/,
   );
 });
+
+test("direct occurrence and cluster activation preserve mature selection haptics", () => {
+  assert.match(
+    viewSource,
+    /terminal\.addEventListener\("click",[\s\S]{0,500}motion\.pulseHaptic\("selection"\)/,
+  );
+  assert.match(
+    viewSource,
+    /range\.addEventListener\("click",[\s\S]{0,500}motion\.pulseHaptic\("selection"\)/,
+  );
+  assert.match(
+    viewSource,
+    /activateCommittedCluster\([\s\S]{0,1600}motion\.pulseHaptic\("selection"\)/,
+  );
+});
