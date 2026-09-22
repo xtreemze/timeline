@@ -270,6 +270,16 @@ test('retained renderer publishes phase-attributed performance evidence', async 
   expect(metrics.interaction.inputLatencySampleCount).toBeGreaterThan(0);
   expect(Number.isFinite(metrics.interaction.p95InputLatencyMs)).toBeTruthy();
 
+  // First certified baseline (2026-09-22): every browser remained below one
+  // 60 Hz frame for retained render work. Input-to-visual is allowed a wider
+  // ceiling because WebKit's measured mobile path was 38–44 ms.
+  expect(metrics.interaction.p95DurationMs).toBeLessThanOrEqual(16.7);
+  expect(metrics.commit.p95DurationMs).toBeLessThanOrEqual(16.7);
+  expect(metrics.interaction.p95InputLatencyMs).toBeLessThanOrEqual(50);
+  if (evidence.longTaskSupported) {
+    expect(evidence.longTasks.filter((duration) => duration > 50)).toEqual([]);
+  }
+
   const report = {
     project: testInfo.project.name,
     interactionP95Ms: metrics.interaction.p95DurationMs,
