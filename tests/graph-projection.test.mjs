@@ -217,7 +217,7 @@ test("focused projection tolerates legacy relationships without itemIds", () => 
   const project = fixture();
   const legacy = {
     ...project,
-    relationships: project.relationships.map(({ itemIds, ...relationship }) => relationship),
+    relationships: project.relationships.map(({ itemIds: _itemIds, ...relationship }) => relationship),
   };
   const index = createSemanticGraphIndex(legacy);
 
