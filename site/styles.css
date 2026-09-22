@@ -22,9 +22,6 @@
 * {
   box-sizing: border-box;
 }
-html {
-  scroll-behavior: smooth;
-}
 body {
   --page-grid-gap: clamp(0.55rem, 1.15vw, 1.15rem);
   --page-grid-gutter: max(1rem, calc((100vw - 1540px) / 2));
@@ -392,17 +389,6 @@ main > * {
   font-weight: 780;
   line-height: 1;
   cursor: pointer;
-  transition:
-    transform 0.12s ease,
-    background 0.12s ease,
-    border-color 0.12s ease,
-    opacity 0.12s ease;
-}
-.button:is(:hover, :focus-visible):not(:disabled) {
-  transform: translateY(-1px);
-}
-.button:active:not(:disabled) {
-  transform: none;
 }
 .button:disabled {
   opacity: 0.4;
@@ -1590,17 +1576,11 @@ geolocation {
   border-inline-start: 3px solid var(--category-color);
   border-radius: 0.75rem;
   background: var(--paper);
-  transition:
-    opacity 0.15s ease,
-    transform 0.15s ease,
-    box-shadow 0.15s ease,
-    border-color 0.15s ease;
 }
 .timeline-item.is-current .timeline-card {
   border-color: color-mix(in srgb, var(--story) 45%, var(--line));
   border-inline-start-color: var(--story);
   box-shadow: 0 4px 16px color-mix(in srgb, var(--story) 6%, transparent);
-  transform: translateX(3px);
 }
 .timeline-item.story-dimmed .timeline-card {
   opacity: 0.58;
@@ -1700,15 +1680,10 @@ geolocation {
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.14);
   font-size: 0.78rem;
   opacity: 0;
-  transform: translateY(0.6rem);
   pointer-events: none;
-  transition:
-    opacity 0.16s ease,
-    transform 0.16s ease;
 }
 .status.visible {
   opacity: 1;
-  transform: none;
 }
 
 footer {
@@ -3370,9 +3345,6 @@ body {
   background: color-mix(in srgb, var(--paper) 91%, transparent);
   box-shadow: 0 3px 10px color-mix(in srgb, var(--ink) 5%, transparent);
   backdrop-filter: blur(12px);
-  transition:
-    opacity 140ms ease,
-    transform 140ms ease;
 }
 #app-shell .timeline-panel > .story-focus[hidden] {
   display: none;
