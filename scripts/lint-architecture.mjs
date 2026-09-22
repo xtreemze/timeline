@@ -320,7 +320,9 @@ function lintArchitectureBoundaries(file, source) {
   const isDomain = file.startsWith("src/domain/");
   const isApplication = file.startsWith("src/application/");
   const isProjection = file.startsWith("src/projection/");
-  if (!isDomain && !isApplication && !isProjection) return;
+  const isLayout = file.startsWith("src/layout/");
+  const isInteraction = file.startsWith("src/interaction/");
+  if (!isDomain && !isApplication && !isProjection && !isLayout && !isInteraction) return;
 
   const imports = [...source.matchAll(/(?:from\s+|import\s*\(\s*)["']([^"']+)["']/g)].map(
     (match) => match[1],
@@ -351,7 +353,7 @@ function lintArchitectureBoundaries(file, source) {
     report(
       file,
       "renderer-neutral-core",
-      "domain/application/projection layers must not depend on DOM, CSS, storage, or renderer globals",
+      "domain/application/projection/layout/interaction layers must not depend on DOM, CSS, storage, or renderer globals",
     );
   }
   if (/globalThis(?:\s+as\s+any)?\)?\.Timeline[A-Za-z0-9_]*/.test(source)) {
