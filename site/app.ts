@@ -321,6 +321,12 @@ function requiredElements<T extends Element>(selector: string): T[] {
   return [...document.querySelectorAll<T>(selector)];
 }
 
+function requiredDescendant<T extends Element>(root: ParentNode, selector: string): T {
+  const element = root.querySelector<T>(selector);
+  if (!element) throw new Error(`Required Timeline UI descendant is missing: ${selector}`);
+  return element;
+}
+
 function eventTargetElement(event: Event): HTMLElement | null {
   return event.target instanceof HTMLElement ? event.target : null;
 }
@@ -1663,14 +1669,6 @@ function closestEventTarget<T extends HTMLElement>(
       els.title.tabIndex = editing ? 0 : -1;
       els.title.setAttribute("aria-readonly", String(!editing));
     }
-    for (const control of [
-      els.loadSample,
-      els.importJsonTrigger,
-      els.importInterchangeTrigger,
-      els.clear,
-    ]) {
-      if (control) control.disabled = !editing;
-    }
     if (els.editorToggle) {
       els.editorToggle.setAttribute("aria-expanded", String(ui.editorOpen));
       els.editorToggle.setAttribute("aria-pressed", String(editing));
@@ -2382,11 +2380,11 @@ function closestEventTarget<T extends HTMLElement>(
 
   function relationChangeRowParts(row: HTMLElement) {
     return {
-      relationship: row.querySelector<HTMLSelectElement>('select[id$="-relation"]')!,
-      operation: row.querySelector<HTMLSelectElement>('select[id$="-operation"]')!,
-      predicate: row.querySelector<HTMLInputElement>('input[id$="-predicate"]')!,
-      role: row.querySelector<HTMLInputElement>('input[id$="-role"]')!,
-      properties: row.querySelector<HTMLTextAreaElement>('textarea[id$="-properties"]')!,
+      relationship: requiredDescendant<HTMLSelectElement>(row, 'select[id$="-relation"]'),
+      operation: requiredDescendant<HTMLSelectElement>(row, 'select[id$="-operation"]'),
+      predicate: requiredDescendant<HTMLInputElement>(row, 'input[id$="-predicate"]'),
+      role: requiredDescendant<HTMLInputElement>(row, 'input[id$="-role"]'),
+      properties: requiredDescendant<HTMLTextAreaElement>(row, 'textarea[id$="-properties"]'),
     };
   }
 
@@ -4339,7 +4337,7 @@ function closestEventTarget<T extends HTMLElement>(
   els.autoSeconds.addEventListener("change", () => {
     const seconds = Math.max(2, Math.min(3600, Number(els.autoSeconds.value) || 10));
     els.autoSeconds.value = String(seconds);
-    navigationController!.auto.setIntervalMs(seconds * 1000);
+    navigationController?.auto.setIntervalMs(seconds * 1000);
   });
 
   function closeProjectMenu() {
