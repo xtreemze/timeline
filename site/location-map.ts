@@ -877,14 +877,14 @@ class ReadOnlyLocationMap {
       const weightedDrag = weightedMapDragAvailable();
       const hasValidGeometry = pointCoordinates(this.location) || this.geometryBounds();
       this.map = L.map(this.container, {
-        zoomControl: true,
+        zoomControl: this.interactive,
         attributionControl: true,
         dragging: this.interactive && !weightedDrag,
-        scrollWheelZoom: true,
+        scrollWheelZoom: this.interactive,
         doubleClickZoom: this.interactive,
         boxZoom: this.interactive,
         keyboard: this.interactive,
-        touchZoom: true,
+        touchZoom: this.interactive,
         ...mapMotionOptions(this.interactive),
       });
       this.weightedDragCleanup = installWeightedMapDragging(
