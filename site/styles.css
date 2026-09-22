@@ -4164,126 +4164,113 @@ body {
   display: none;
 }
 
-/* Responsive reserved workspace chrome: title and controls share one anchored zone. */
+/* Fused persistent footer: application actions above, project title below.
+   The footer owns its complete reserved block so the presentation never renders beneath it. */
 #app-shell {
-  --workspace-chrome-gap: 0.35rem;
-  --workspace-title-block-size: 38px;
-  --workspace-tool-block-size: 52px;
-  --workspace-title-inline-size: 42px;
-  --workspace-tool-inline-size: 62px;
-  --workspace-landscape-chrome-block: calc(
-    max(0.4rem, env(safe-area-inset-bottom)) +
-    var(--workspace-title-block-size) +
-    var(--workspace-tool-block-size) +
-    (var(--workspace-chrome-gap) * 2)
-  );
-  --workspace-portrait-chrome-inline: calc(
-    max(0.4rem, env(safe-area-inset-right)) +
-    var(--workspace-title-inline-size) +
-    var(--workspace-tool-inline-size) +
-    (var(--workspace-chrome-gap) * 2)
+  --workspace-footer-actions-size: 58px;
+  --workspace-footer-title-size: 42px;
+  --workspace-footer-gap: 0.2rem;
+  --workspace-footer-edge: max(0.4rem, env(safe-area-inset-bottom));
+  --workspace-footer-block: calc(
+    var(--workspace-footer-edge) +
+    var(--workspace-footer-actions-size) +
+    var(--workspace-footer-title-size) +
+    var(--workspace-footer-gap)
   );
 }
 
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock {
-  inset-block-start: auto;
-  inset-inline-end: auto;
+.app-tool-dock {
   inset-block-end: calc(
-    max(0.4rem, env(safe-area-inset-bottom)) +
-    var(--workspace-title-block-size) +
-    var(--workspace-chrome-gap)
+    var(--workspace-footer-edge) +
+    var(--workspace-footer-title-size) +
+    var(--workspace-footer-gap)
   );
+}
+
+.app-footer-title.timeline-project-heading {
+  position: fixed;
+  z-index: 1199;
   inset-inline-start: 50%;
-  flex-direction: row;
-  inline-size: min(22rem, calc(100% - 1rem));
+  inset-block-end: var(--workspace-footer-edge);
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+  inline-size: min(26rem, calc(100% - 1rem));
   max-inline-size: calc(100% - 1rem);
-  max-block-size: var(--workspace-tool-block-size);
-  overflow-inline: auto;
-  overflow-block: clip;
+  min-block-size: var(--workspace-footer-title-size);
+  max-block-size: var(--workspace-footer-title-size);
+  box-sizing: border-box;
+  padding: 0.18rem 0.3rem;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 6%, transparent);
+  backdrop-filter: blur(14px);
   transform: translateX(-50%);
+  pointer-events: auto;
 }
 
-#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
-  inset-block-start: 50%;
-  inset-inline-end: calc(
-    max(0.4rem, env(safe-area-inset-right)) +
-    var(--workspace-title-inline-size) +
-    var(--workspace-chrome-gap)
-  );
-  inset-block-end: auto;
-  inset-inline-start: auto;
-  flex-direction: column;
-  inline-size: var(--workspace-tool-inline-size);
-  max-inline-size: var(--workspace-tool-inline-size);
-  max-block-size: calc(
-    100dvh -
-    max(0.8rem, env(safe-area-inset-top)) -
-    max(0.8rem, env(safe-area-inset-bottom))
-  );
-  overflow-inline: auto;
-  overflow-block: auto;
-  transform: translateY(-50%);
-}
-
-#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool {
-  flex: 0 0 auto;
-  inline-size: 100%;
+.app-footer-title .timeline-project-title {
+  flex: 1 1 auto;
   min-inline-size: 0;
-  min-block-size: 50px;
-  padding: 0.34rem 0.25rem;
 }
 
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-editor-sheet,
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-browser-sheet {
-  position: fixed;
-  inset-block-start: max(0.4rem, env(safe-area-inset-top));
-  inset-block-end: calc(var(--workspace-landscape-chrome-block) + 0.35rem);
-  inset-inline-start: max(0.4rem, env(safe-area-inset-left));
-  inset-inline-end: max(0.4rem, env(safe-area-inset-right));
-  inline-size: auto;
+.app-footer-title .timeline-project-title input {
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 34px;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+}
+
+.app-footer-title .story-focus-header {
+  flex: 0 1 auto;
+  max-inline-size: min(24rem, 48%);
+}
+
+#app-shell #presentation-stage {
+  inset-block-end: var(--workspace-footer-block);
   block-size: auto;
-  max-block-size: none;
 }
 
-#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-editor-sheet,
-#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-browser-sheet {
-  position: fixed;
-  inset-block-start: max(0.4rem, env(safe-area-inset-top));
-  inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
-  inset-inline-start: max(0.4rem, env(safe-area-inset-left));
-  inset-inline-end: calc(var(--workspace-portrait-chrome-inline) + 0.35rem);
-  inline-size: auto;
-  block-size: auto;
-  max-inline-size: calc(100% - var(--workspace-portrait-chrome-inline) - 0.75rem);
-  max-block-size: none;
+#app-shell .app-editor-sheet,
+#app-shell .app-browser-sheet,
+#app-shell .timeline-panel > .story-focus {
+  inset-block-end: calc(var(--workspace-footer-block) + 0.35rem);
 }
 
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .timeline-panel > .story-focus {
-  inset-block-end: calc(var(--workspace-landscape-chrome-block) + 0.35rem);
+#app-shell[data-graph-open="true"] #presentation-stage {
+  --relations-right-safe: 0px;
+  --relations-bottom-safe: 0px;
+  --mobile-bottom-chrome: 0px;
+  --mobile-focus-bottom: 0px;
 }
 
-#app-shell:has(#timeline-view[data-orientation="portrait"]) .timeline-panel > .story-focus {
-  inset-inline-end: calc(var(--workspace-portrait-chrome-inline) + 0.35rem);
+#presentation-stage:fullscreen .app-tool-dock {
+  inset-block-end: calc(
+    max(0.5rem, env(safe-area-inset-bottom)) +
+    var(--workspace-footer-title-size) +
+    var(--workspace-footer-gap)
+  );
 }
 
-@media (min-width: 700px) {
+#presentation-stage:fullscreen .app-footer-title.timeline-project-heading {
+  z-index: 2199;
+  inset-block-end: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 699px) {
   #app-shell {
-    --workspace-title-block-size: 42px;
-    --workspace-tool-block-size: 58px;
-  }
-}
-
-@media (max-height: 520px) {
-  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
-    gap: 0.1rem;
-    padding: 0.2rem;
+    --workspace-footer-actions-size: 54px;
+    --workspace-footer-title-size: 38px;
   }
 
-  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool {
-    min-block-size: 44px;
+  .app-footer-title.timeline-project-heading {
+    inline-size: min(22rem, calc(100% - 0.8rem));
+    max-inline-size: calc(100% - 0.8rem);
   }
 
-  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-label {
-    font-size: 0.6rem;
+  .app-footer-title .story-focus-header {
+    max-inline-size: 46%;
   }
 }
