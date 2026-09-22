@@ -5394,7 +5394,7 @@
 #app-shell.is-event-focused
   #presentation-stage[data-timeline-orientation="horizontal"] {
   grid-template-columns: var(--focus-sidebar-inline) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) var(--focus-timeline-block);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0;
 }
 
@@ -5416,6 +5416,7 @@
   grid-row: 1;
   margin: 0;
   align-self: start;
+  max-height: 100%;
   overflow: auto;
   border-width: 0 0 1px;
   border-radius: 0;
