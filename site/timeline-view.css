@@ -647,6 +647,7 @@
   width: 2.2rem;
   height: 2.2rem;
   overflow: visible;
+  pointer-events: auto;
   border: 2px solid var(--paper);
   border-radius: 0.62rem;
   background: var(--cluster-tile-color);
