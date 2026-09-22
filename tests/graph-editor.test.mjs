@@ -217,7 +217,7 @@ test("node interaction reheats force and preserves wider spacing after release",
   assert.match(source, /radius:\s*dense \? 30 : 42/);
   assert.match(source, /iterations:\s*3/);
   assert.match(source, /centering:[\s\S]*strength:\s*dense \? 0\.005 : 0\.008/);
-  assert.match(source, /forceX:[\s\S]*strength:\s*positioningStrength \* overlapScale/);
+  assert.match(source, /forceX:\s*\{ x: 0, strength: positioningStrength \}/);
   assert.match(source, /alphaMin:\s*dense \? 0\.005 : 0\.004/);
   assert.match(source, /alphaDecay:\s*dense \? 0\.028 : 0\.026/);
   assert.match(source, /clearInteractionSettleTimer\(\)/);
