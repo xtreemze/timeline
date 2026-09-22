@@ -1410,14 +1410,19 @@ function create(container, handlers = {}) {
   const onSimulationEnd = ({ durationMs }) => {
     handlers.onSimulationState?.({ running: false, mode: currentMode, durationMs });
     const simulationState = simulationCoordinator.getState();
-    if (simulationState.reason === "topology" && topologyTimers.size === 0) {
-      releaseSimulation("topology");
-    } else if (
-      simulationState.reason === "popover-exclusion" ||
-      simulationState.reason === "post-drop" ||
-      simulationState.reason === "geometry-refresh"
-    ) {
-      releaseSimulation(simulationState.reason);
+    // stopSimulation() may emit SIMULATION_END while direct manipulation has
+    // intentionally suspended force. Pending work must survive that stop and
+    // resume through the coordinator once every suspension owner releases.
+    if (simulationState.suspendedReasons.length === 0) {
+      if (simulationState.reason === "topology" && topologyTimers.size === 0) {
+        releaseSimulation("topology");
+      } else if (
+        simulationState.reason === "popover-exclusion" ||
+        simulationState.reason === "post-drop" ||
+        simulationState.reason === "geometry-refresh"
+      ) {
+        releaseSimulation(simulationState.reason);
+      }
     }
     if (firstRender) {
       firstRender = false;
