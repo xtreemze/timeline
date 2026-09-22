@@ -3417,46 +3417,6 @@
   opacity: 1;
 }
 
-@keyframes timeline-event-origin-out {
-  0%,
-  28% {
-    opacity: 1;
-    filter: none;
-  }
-  100% {
-    opacity: 0.12;
-    filter: blur(0.4px);
-  }
-}
-
-@keyframes timeline-event-detail-emerge {
-  0% {
-    opacity: 0.28;
-    clip-path: inset(38% 42% round 999px);
-  }
-  42% {
-    opacity: 0.82;
-  }
-  100% {
-    opacity: 1;
-    clip-path: inset(0 round 1rem);
-  }
-}
-
-::view-transition-group(timeline-event-detail-shared) {
-  animation-duration: 340ms;
-  animation-timing-function: cubic-bezier(0.16, 0.82, 0.24, 1);
-}
-
-::view-transition-old(timeline-event-detail-shared) {
-  animation: 340ms cubic-bezier(0.16, 0.82, 0.24, 1) both timeline-event-origin-out;
-  mix-blend-mode: normal;
-}
-
-::view-transition-new(timeline-event-detail-shared) {
-  animation: 340ms cubic-bezier(0.16, 0.82, 0.24, 1) both timeline-event-detail-emerge;
-  mix-blend-mode: normal;
-}
 
 /* Timeline controls remain visually continuous while the event-detail transition runs. */
 .timeline-view-toolbar {
@@ -3508,33 +3468,6 @@
   animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-@keyframes timeline-focus-tab-out {
-  to {
-    opacity: 0;
-    transform: translateY(0.35rem) scale(0.992);
-  }
-}
-
-@keyframes timeline-focus-tab-in {
-  from {
-    opacity: 0;
-    transform: translateY(-0.35rem) scale(0.992);
-  }
-}
-
-::view-transition-old(timeline-focus-tab-context),
-::view-transition-old(timeline-focus-tab-place),
-::view-transition-old(timeline-focus-tab-evidence) {
-  animation: 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both timeline-focus-tab-out;
-  mix-blend-mode: normal;
-}
-
-::view-transition-new(timeline-focus-tab-context),
-::view-transition-new(timeline-focus-tab-place),
-::view-transition-new(timeline-focus-tab-evidence) {
-  animation: 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both timeline-focus-tab-in;
-  mix-blend-mode: normal;
-}
 
 /* The semantic panels themselves stay inside the clamped popover box. The Relations halo
    may extend visually, but panel content cannot push the top-layer surface offscreen. */
