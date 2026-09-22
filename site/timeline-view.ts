@@ -165,6 +165,16 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function normalizeWheelDelta(
+  event: Pick<WheelEvent, "deltaY" | "deltaMode">,
+  pageLength: number,
+): number {
+  let delta = Number(event.deltaY) || 0;
+  if (event.deltaMode === 1) delta *= 16;
+  if (event.deltaMode === 2) delta *= Math.max(1, pageLength);
+  return delta;
+}
+
 function loadViewPreferences(): { orientation: Orientation } {
   try {
     const raw = globalThis.localStorage?.getItem(VIEW_STORAGE_KEY);
@@ -395,7 +405,8 @@ class TimelineViewController {
           this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
         const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
         const ratio = clamp(primary / length, 0, 1);
-        const factor = wheelZoomFactor(event.deltaY);
+        const deltaPixels = normalizeWheelDelta(event, length);
+        const factor = wheelZoomFactor(deltaPixels);
         const span = Math.max(MIN_SPAN_MS, (this.viewport.end - this.viewport.start) * factor);
         const anchor = this.viewport.start + (this.viewport.end - this.viewport.start) * ratio;
         const next = {
