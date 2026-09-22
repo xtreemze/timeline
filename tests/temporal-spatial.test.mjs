@@ -234,16 +234,16 @@ test("presentation map is semantic and selects a reasonable zoom from canonical 
   assert.match(source, /radiusMeters/);
   assert.match(source, /markerShape/);
   assert.match(source, /this\.interactive = options\.interactive === true/);
-  assert.match(source, /zoomControl:\s*this\.interactive/);
-  assert.match(source, /dragging:\s*this\.interactive/);
-  assert.match(source, /scrollWheelZoom:\s*this\.interactive/);
-  assert.match(source, /touchZoom:\s*this\.interactive/);
+  assert.match(source, /zoomControl:\s*true/);
+  assert.match(source, /dragging:\s*this\.interactive\s*&&\s*!weightedDrag/);
+  assert.match(source, /scrollWheelZoom:\s*true/);
+  assert.match(source, /touchZoom:\s*true/);
   assert.match(source, /semanticMarkerIcon/);
   assert.match(source, /L\.divIcon/);
   assert.match(source, /L\.geoJSON/);
   assert.match(source, /L\.circle/);
   assert.match(source, /return 15/);
-  assert.match(source, /return 12/);
+  assert.match(source, /return 13/);
 });
 
 test("round-trips reduced year/month precision and exact milliseconds", () => {
