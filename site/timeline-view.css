@@ -415,21 +415,21 @@
   user-select: none;
 }
 .is-landscape .timeline-month-accent {
-  bottom: 8px;
+  top: calc(var(--timeline-axis-cross) + 28px);
   transform: translateX(-50%);
 }
 .is-portrait .timeline-month-accent {
-  right: 7px;
+  left: calc(var(--timeline-axis-cross) + 28px);
   writing-mode: vertical-rl;
   text-orientation: mixed;
   transform: translateY(-50%);
 }
 
 .is-landscape .timeline-month-accent.avoids-project-heading {
-  bottom: 8px;
+  top: calc(var(--timeline-axis-cross) + 28px);
 }
 .is-portrait .timeline-month-accent.avoids-project-heading {
-  right: calc(7px + var(--timeline-project-heading-clearance, 52px));
+  left: calc(var(--timeline-axis-cross) + 28px);
 }
 
 .timeline-year-accent {
