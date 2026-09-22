@@ -127,10 +127,12 @@ test("event editor can change relations at the event timestamp", async () => {
   assert.match(html, /value="update"/);
 });
 
-test("temporal graph exposes a layout refresh for presentation resizing", async () => {
+test("temporal graph exposes renderer-neutral recenter and layout refresh for presentation resizing", async () => {
   const source = await readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8");
   assert.match(source, /refreshLayout\(\)/);
-  assert.match(source, /this\.orb\.recenter\(\)/);
+  assert.match(source, /this\.surface\.recenter\(\)/);
+  assert.match(source, /this\.surface\.refreshLayout\(\)/);
+  assert.doesNotMatch(source, /this\.orb\./);
 });
 
 test("focused presentation graph limits itself to the event neighborhood", async () => {
@@ -155,8 +157,9 @@ test("Orb styling uses semantic iconography, weighted physics, and worker CPU fa
 });
 
 test("touch graph dragging requires a long press while preserving live force physics", async () => {
-  const [bridge, view] = await Promise.all([
+  const [bridge, adapter, view] = await Promise.all([
     readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/layout/orb-graph-surface.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8"),
   ]);
 
@@ -171,7 +174,9 @@ test("touch graph dragging requires a long press while preserving live force phy
   assert.match(bridge, /vibrate\?\.\(12\)/);
   assert.match(bridge, /activeTouchPointers/);
   assert.match(bridge, /Math\.hypot/);
-  assert.match(view, /onNodeLongPress/);
+  assert.match(adapter, /onNodeLongPress/);
+  assert.match(adapter, /kind:\s*"interaction-start"/);
+  assert.match(adapter, /interaction:\s*"long-press-drag"/);
   assert.match(view, /graphnodeselect/);
   assert.match(view, /long-press-drag/);
 });
@@ -262,7 +267,7 @@ test("timeline topology changes visibly release, break, and bind graph relations
   assert.match(source, /prefers-reduced-motion:\s*reduce/);
 });
 
-test("graph refresh rerenders Orb after reparenting or container resize", async () => {
+test("graph refresh rerenders through GraphSurface after reparenting or container resize", async () => {
   const [bridge, view] = await Promise.all([
     readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8"),
     readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8"),
@@ -276,7 +281,7 @@ test("graph refresh rerenders Orb after reparenting or container resize", async 
   assert.match(view, /entries\.find\(\(candidate\) => candidate\.target === this\.canvas\)/);
   assert.match(view, /this\.lastCanvasSize/);
   assert.match(view, /this\.resizeObserver\.observe\(this\.canvas\)/);
-  assert.match(view, /refreshLayout\(\)[\s\S]*this\.orb\.refreshLayout\?\.\(\)/);
+  assert.match(view, /refreshLayout\(\)[\s\S]*this\.surface\.refreshLayout\(\)/);
 });
 
 test("touch node long press is armed from capture-phase hit testing before Orb drag starts", async () => {

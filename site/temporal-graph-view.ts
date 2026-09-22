@@ -1,7 +1,22 @@
 /**
- * Temporal graph visualization component
- * Manages graph view with focus/context viewport and interactive selection
+ * Temporal graph visualization component.
+ * Owns application-level graph projection/focus state while rendering through GraphSurface.
  */
+
+import type {
+  CanonicalSelection,
+  GraphEdgeProjection,
+  GraphProjection,
+  GraphSurface,
+  GraphSurfaceEvent,
+  GraphSurfaceFactory,
+  GraphTemporalState,
+} from "../src/layout/graph-surface.ts";
+import {
+  createOrbGraphSurfaceFactory,
+  type OrbFactory,
+} from "../src/layout/orb-graph-surface.ts";
+import { entityId, relationshipId } from "../src/domain/ids.ts";
 
 interface Viewport {
   start: number;
@@ -10,29 +25,21 @@ interface Viewport {
 
 interface Node {
   id: string | number;
-  properties?: Record<string, any>;
+  label?: string;
+  properties?: Record<string, unknown>;
 }
 
 interface Edge {
   id: string | number;
-  start: number;
-  end: number;
-  temporalState?: string;
+  start: string | number;
+  end: string | number;
+  label?: string;
+  temporalState?: GraphTemporalState;
 }
 
 interface GraphData {
   nodes: Node[];
   edges: Edge[];
-}
-
-interface OrbBridge {
-  refreshLayout?(): void;
-  recenter(): void;
-  getMode(): string;
-  setData(data: GraphData): void;
-  transitionData(data: GraphData): void;
-  select?(kind: string, id: string): boolean;
-  updateTemporalEdges(edges: Edge[]): void;
 }
 
 interface Model {
@@ -48,21 +55,34 @@ interface SimulationState {
   mode?: string;
 }
 
-interface Selection {
-  kind: string;
-  id: string;
+interface TimelineGraphRuntime {
+  neighborhoodGraph(
+    model: Model,
+    focusedId: string,
+    viewport: Viewport | null,
+    options: { depth: number; limit: number },
+  ): GraphData;
+  graphForWindow(model: Model, viewport: Viewport | null): GraphData;
 }
 
-function getGraph(): any {
-  const graph = (globalThis as any).TimelineGraph;
-  if (!graph) throw new Error("TimelineGraph must load before TemporalGraphView.");
-  return graph;
+function hasFunction(value: unknown, key: string): boolean {
+  return typeof value === "object" && value !== null && typeof Reflect.get(value, key) === "function";
 }
 
-function getOrbFactory(): any {
-  const orbFactory = (globalThis as any).TimelineOrbGraph;
-  if (!orbFactory) throw new Error("Build the bundled Orb graph before loading TemporalGraphView.");
-  return orbFactory;
+function getGraph(): TimelineGraphRuntime {
+  const graph = Reflect.get(globalThis, "TimelineGraph");
+  if (!hasFunction(graph, "neighborhoodGraph") || !hasFunction(graph, "graphForWindow")) {
+    throw new Error("TimelineGraph must load before TemporalGraphView.");
+  }
+  return graph as TimelineGraphRuntime;
+}
+
+function getOrbFactory(): OrbFactory {
+  const orbFactory = Reflect.get(globalThis, "TimelineOrbGraph");
+  if (!hasFunction(orbFactory, "create")) {
+    throw new Error("Build the bundled Orb graph before loading TemporalGraphView.");
+  }
+  return orbFactory as OrbFactory;
 }
 
 function formatWindow(viewport: Viewport | null): string {
@@ -74,6 +94,26 @@ function formatWindow(viewport: Viewport | null): string {
     timeZone: "UTC",
   });
   return `${formatter.format(new Date(viewport.start))} – ${formatter.format(new Date(viewport.end))}`;
+}
+
+function graphProjection(data: GraphData): GraphProjection {
+  return {
+    nodes: data.nodes.map((node) => ({
+      id: entityId(String(node.id)),
+      label: node.label || String(node.id),
+      kind:
+        typeof node.properties?.timelineType === "string"
+          ? node.properties.timelineType
+          : "entity",
+    })),
+    edges: data.edges.map((edge) => ({
+      id: relationshipId(String(edge.id)),
+      sourceId: entityId(String(edge.start)),
+      targetId: entityId(String(edge.end)),
+      label: edge.label || String(edge.id),
+      temporalState: edge.temporalState,
+    })),
+  };
 }
 
 function topologySignature(data: GraphData): string {
@@ -103,16 +143,16 @@ class TemporalGraphViewController {
   private presentationMode: boolean;
   private hasFocusedContext: boolean;
   private hasRenderedData: boolean;
-  private selection: Selection | null;
+  private selection: CanonicalSelection | null;
   private layoutFrame: number;
   private lastCanvasSize: string;
-  private orb: OrbBridge;
+  private surface: GraphSurface;
   private resizeObserver: ResizeObserver | null;
   private pointerHeldUntil: number;
-  private cachedEdgesWhileHeld: Edge[] | null;
+  private cachedEdgesWhileHeld: GraphEdgeProjection[] | null;
   private edgeUpdateDelayTimer: ReturnType<typeof globalThis.setTimeout> | 0;
 
-  constructor(root: HTMLElement) {
+  constructor(root: HTMLElement, surfaceFactory: GraphSurfaceFactory) {
     this.root = root;
     this.canvas = root.querySelector(".temporal-graph-canvas");
     this.status =
@@ -134,13 +174,8 @@ class TemporalGraphViewController {
     this.cachedEdgesWhileHeld = null;
     this.edgeUpdateDelayTimer = 0;
 
-    const orbFactory = getOrbFactory();
-    this.orb = orbFactory.create(this.canvas, {
-      onNodeClick: (node: Node) => this.activateNode(node),
-      onNodeLongPress: (node: Node) => this.selectNodeForDrag(node),
-      onEdgeClick: (edge: Edge) => this.activateEdge(edge),
-      onSimulationState: (state: SimulationState) => this.renderSimulationState(state),
-    });
+    if (!this.canvas) throw new Error("Temporal graph canvas is required.");
+    this.surface = surfaceFactory.create(this.canvas, (event) => this.handleSurfaceEvent(event));
 
     // Listen for pointer events on the timeline surface to coordinate edge connection delays
     this.setupPointerEventTracking();
@@ -158,13 +193,25 @@ class TemporalGraphViewController {
         cancelAnimationFrame(this.layoutFrame);
         this.layoutFrame = requestAnimationFrame(() => {
           this.layoutFrame = 0;
-          this.orb.refreshLayout?.();
+          this.surface.refreshLayout();
         });
       });
       this.resizeObserver.observe(this.canvas);
     } else {
       this.resizeObserver = null;
     }
+  }
+
+  private handleSurfaceEvent(event: GraphSurfaceEvent): void {
+    if (event.kind === "selection-changed") {
+      this.activateSelection(event.selection);
+      return;
+    }
+    if (event.kind === "interaction-start") {
+      this.selectForInteraction(event.selection, event.interaction);
+      return;
+    }
+    this.renderSimulationState(event);
   }
 
   private renderSimulationState(state: SimulationState): void {
@@ -244,18 +291,19 @@ class TemporalGraphViewController {
     this.focusedId = next;
     this.signature = "";
     this.selection = null;
+    this.surface.setSelection(null);
     this.render();
   }
 
   resetView(): void {
-    this.orb.recenter();
+    this.surface.recenter();
   }
 
   refreshLayout(): void {
     cancelAnimationFrame(this.layoutFrame);
     this.layoutFrame = requestAnimationFrame(() => {
       this.layoutFrame = 0;
-      this.orb.refreshLayout?.();
+      this.surface.refreshLayout();
     });
   }
 
@@ -268,56 +316,72 @@ class TemporalGraphViewController {
     return this.hasFocusedContext;
   }
 
-  private selectNodeForDrag(node: Node): void {
-    this.selection = { kind: "node", id: String(node.id) };
+  private selectForInteraction(
+    selection: CanonicalSelection,
+    interaction: "long-press-drag",
+  ): void {
+    if (selection.kind !== "entity") return;
+    this.selection = selection;
     this.root.dispatchEvent(
       new CustomEvent("graphnodeselect", {
         bubbles: true,
-        detail: { id: node.id, interaction: "long-press-drag" },
+        detail: { id: selection.id, interaction },
       }),
     );
   }
 
-  private activateNode(node: Node): void {
-    this.selection = { kind: "node", id: String(node.id) };
-    this.root.dispatchEvent(
-      new CustomEvent("graphselectionchange", {
-        bubbles: true,
-        detail: {
-          kind: "node",
-          id: node.id,
-          timelineType: node.properties?.timelineType || "entity",
-        },
-      }),
-    );
-  }
+  private activateSelection(selection: CanonicalSelection): void {
+    this.selection = selection;
+    const data = this.currentGraphData();
 
-  private activateEdge(edge: Edge): void {
-    this.selection = { kind: "edge", id: String(edge.id) };
+    if (selection.kind === "entity") {
+      const node = data.nodes.find((candidate) => String(candidate.id) === String(selection.id));
+      this.root.dispatchEvent(
+        new CustomEvent("graphselectionchange", {
+          bubbles: true,
+          detail: {
+            kind: "node",
+            id: selection.id,
+            timelineType:
+              typeof node?.properties?.timelineType === "string"
+                ? node.properties.timelineType
+                : "entity",
+          },
+        }),
+      );
+      return;
+    }
+
+    const edge = data.edges.find((candidate) => String(candidate.id) === String(selection.id));
     this.root.dispatchEvent(
       new CustomEvent("graphselectionchange", {
         bubbles: true,
         detail: {
           kind: "edge",
-          id: edge.id,
-          start: edge.start,
-          end: edge.end,
+          id: selection.id,
+          start: edge?.start,
+          end: edge?.end,
         },
       }),
     );
   }
 
-  private render(): void {
+  private currentGraphData(): GraphData {
     const graph = getGraph();
-    const data = this.focusedId
+    return this.focusedId
       ? graph.neighborhoodGraph(this.model, this.focusedId, this.viewport, {
           depth: 1,
           limit: 36,
         })
       : graph.graphForWindow(this.model, this.viewport);
+  }
+
+  private render(): void {
+    const data = this.currentGraphData();
+    const projection = graphProjection(data);
     const selection = this.selection;
     if (selection) {
-      const records = selection.kind === "node" ? data.nodes : data.edges;
+      const records = selection.kind === "entity" ? data.nodes : data.edges;
       if (!records.some((record) => String(record.id) === selection.id)) {
         this.selection = null;
       }
@@ -345,7 +409,7 @@ class TemporalGraphViewController {
     const countText = `${scopeText}${data.edges.length} relations in window${persistentText}`;
     if (this.status) {
       this.status.dataset.edgeCount = countText;
-      this.status.textContent = `${countText} · ${this.orb.getMode()}`;
+      this.status.textContent = `${countText} · ${this.surface.getMode()}`;
     }
     if (this.windowLabel) this.windowLabel.textContent = formatWindow(this.viewport);
 
@@ -354,22 +418,23 @@ class TemporalGraphViewController {
     if (nextSignature !== this.signature) {
       this.signature = nextSignature;
       if (this.hasRenderedData) {
-        if (graphIsEmpty) this.orb.setData(data);
-        else this.orb.transitionData(data);
+        if (graphIsEmpty) this.surface.setProjection(projection);
+        else this.surface.transitionProjection(projection);
       } else {
-        this.orb.setData(data);
+        this.surface.setProjection(projection);
         this.hasRenderedData = true;
       }
-      if (this.selection) this.orb.select?.(this.selection.kind, this.selection.id);
+      if (this.selection) this.surface.setSelection(this.selection);
     } else {
       // When pointer is held, cache the current edge states and don't update them
       if (this.isPointerHeld()) {
-        const heldEdges = this.cachedEdgesWhileHeld ?? data.edges;
-        this.cachedEdgesWhileHeld = heldEdges;
-        this.orb.updateTemporalEdges(heldEdges);
+        if (!this.cachedEdgesWhileHeld) {
+          this.cachedEdgesWhileHeld = projection.edges.slice();
+        }
+        this.surface.updateTemporalEdges(this.cachedEdgesWhileHeld);
       } else {
         this.cachedEdgesWhileHeld = null;
-        this.orb.updateTemporalEdges(data.edges);
+        this.surface.updateTemporalEdges(projection.edges);
       }
     }
   }
@@ -377,7 +442,7 @@ class TemporalGraphViewController {
 
 export function create(root: HTMLElement | null): TemporalGraphViewController | null {
   if (!root) return null;
-  return new TemporalGraphViewController(root);
+  return new TemporalGraphViewController(root, createOrbGraphSurfaceFactory(getOrbFactory()));
 }
 
 const TemporalGraphViewObj = { create } as const;
