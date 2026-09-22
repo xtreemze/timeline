@@ -174,6 +174,13 @@ function observeMapSize(
   };
 }
 
+interface BasemapLayer {
+  on(event: string, listener: () => void): void;
+  off(): void;
+  remove(): void;
+  addTo(target: unknown): void;
+}
+
 function attachBasemap(
   L: any,
   map: any,
@@ -182,12 +189,7 @@ function attachBasemap(
 ): () => void {
   let providerIndex = 0;
   let tileErrors = 0;
-  let layer: {
-    on: (event: string, listener: () => void) => void;
-    off: () => void;
-    remove: () => void;
-    addTo: (target: unknown) => void;
-  } | null = null;
+  let layer: BasemapLayer | null = null;
   let destroyed = false;
   const failureThreshold = 3;
   const setState = (state: "loading" | "ready" | "unavailable", provider?: MapProvider) => {
@@ -207,16 +209,17 @@ function attachBasemap(
     }
     tileErrors = 0;
     setState("loading", provider);
-    layer = L.tileLayer(provider.url, {
+    const nextLayer = L.tileLayer(provider.url, {
       ...(provider.options || {}),
       maxZoom: provider.maxZoom || Number(provider.options?.maxZoom) || 19,
       attribution: provider.attribution || DEFAULT_PROVIDER.attribution,
-    });
-    layer.on("load", () => {
+    }) as BasemapLayer;
+    layer = nextLayer;
+    nextLayer.on("load", () => {
       tileErrors = 0;
       setState("ready", provider);
     });
-    layer.on("tileerror", () => {
+    nextLayer.on("tileerror", () => {
       tileErrors += 1;
       if (tileErrors < failureThreshold) return;
       if (providerIndex + 1 < providers.length) {
@@ -229,7 +232,7 @@ function attachBasemap(
       layer = null;
       setState("unavailable", provider);
     });
-    layer.addTo(map);
+    nextLayer.addTo(map);
   };
   activate();
   return () => {
@@ -453,7 +456,7 @@ function installWeightedMapDragging(
 
     if (event.type !== "pointercancel" && event.pointerType === "touch" && pointers.size === 1) {
       const remaining = Array.from(pointers.values())[0];
-      if (!remaining.blocked) {
+      if (remaining && !remaining.blocked) {
         requestAnimationFrame(() => {
           if (pointers.size === 1 && pointers.has(remaining.pointerId) && !drag) {
             beginDrag(remaining.pointerId, remaining);
@@ -514,7 +517,7 @@ function installWeightedMapDragging(
   };
 }
 
-function presentationZoom(location?: LocationObject): number {
+function presentationZoom(location?: LocationObject | null): number {
   const accuracy = Number(
     location?.radiusMeters ?? location?.accuracyMeters ?? location?.accuracy,
   );
@@ -543,9 +546,10 @@ function isGeoJsonObject(value: unknown): boolean {
   return Boolean(value && typeof value === "object" && GEOJSON_TYPES.has((value as any).type));
 }
 
-function geoJsonObjects(location?: LocationObject): unknown[] {
+function geoJsonObjects(location?: LocationObject | null): unknown[] {
   const objects: unknown[] = [];
-  if (isGeoJsonObject(location?.geometry)) objects.push(location.geometry);
+  const geometry = location?.geometry;
+  if (isGeoJsonObject(geometry)) objects.push(geometry);
   const extras = Array.isArray(location?.mapFeatures) ? location.mapFeatures : [];
   for (const feature of extras) {
     if (isGeoJsonObject(feature)) objects.push(feature);
@@ -553,11 +557,11 @@ function geoJsonObjects(location?: LocationObject): unknown[] {
   return objects;
 }
 
-function hasRenderableGeometry(location?: LocationObject): boolean {
+function hasRenderableGeometry(location?: LocationObject | null): boolean {
   return geoJsonObjects(location).length > 0;
 }
 
-function pointCoordinates(location?: LocationObject): PointCoord | null {
+function pointCoordinates(location?: LocationObject | null): PointCoord | null {
   const geometry = location?.geometry;
   if (
     geometry?.type !== "Point" ||
@@ -760,7 +764,7 @@ class ReadOnlyLocationMap {
   introComplete: boolean;
   cameraUserControlled: boolean;
   introInteractionAbort: AbortController | null;
-  introTimer: number;
+  introTimer: ReturnType<typeof globalThis.setTimeout> | 0;
   weightedDragCleanup: (() => void) | null;
   resizeCleanup: (() => void) | null;
   basemapCleanup: (() => void) | null;
