@@ -1667,9 +1667,10 @@ function create(container, handlers = {}) {
     // materializing a new topology, so never mark a request applied against
     // the pre-render simulator. If the post-render simulator is still
     // detached, the coordinator keeps this request pending for a later retry.
-    orb.render();
+    orb.render(() => {
+      simulationCoordinator.retry();
+    });
     requestSimulation("topology", 0);
-    simulationCoordinator.retry();
     queuePresentationForceUpdate();
     handlers.onSimulationState?.({ running: true, mode: currentMode });
   }
