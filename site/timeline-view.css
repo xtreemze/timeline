@@ -4345,6 +4345,12 @@
 
 #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open > * {
   flex: 0 0 auto;
+  min-width: 0;
+}
+
+#app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open .timeline-zoom-controls {
+  width: clamp(180px, 24vw, 250px);
+  min-width: 180px;
 }
 
 @media (max-width: 699px) {
