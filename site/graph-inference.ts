@@ -164,14 +164,6 @@ interface ExistingEntityRecord {
   [key: string]: unknown;
 }
 
-interface ExistingPlaceRecord {
-  id?: unknown;
-  name?: unknown;
-  geographicIdentifier?: unknown;
-  address?: unknown;
-  [key: string]: unknown;
-}
-
 interface ReconciledEntityCandidate {
   key: string;
   name: string;
@@ -330,8 +322,9 @@ function entityLookup(entities: any, storyIds: any) {
       .map(semanticKey)
       .filter(Boolean);
     for (const label of labels) {
-      if (!byName.has(label)) byName.set(label, []);
-      byName.get(label).push(entity);
+      const bucket = byName.get(label);
+      if (bucket) bucket.push(entity);
+      else byName.set(label, [entity]);
     }
   }
   return (name: string, alternateNames: any = []) => {
@@ -662,9 +655,10 @@ export function applyProposal(project: any, item: any, proposal: any, selectedRe
   for (const key of requiredEntityKeys) {
     const candidate = entityByKey.get(key);
     if (!candidate) throw new Error(`Inference relationship references unknown entity candidate "${key}".`);
-    if (candidate.status === "new" && candidate.record) {
-      if (!draft.entities.some((entity: any) => String(entity.id) === String(candidate.record.id))) {
-        draft.entities.push(clone(candidate.record));
+    const record = candidate.record;
+    if (candidate.status === "new" && record) {
+      if (!draft.entities.some((entity: any) => String(entity.id) === String(record.id))) {
+        draft.entities.push(clone(record));
       }
     }
   }
@@ -672,9 +666,10 @@ export function applyProposal(project: any, item: any, proposal: any, selectedRe
   for (const key of requiredPlaceKeys) {
     const candidate = placeByKey.get(key);
     if (!candidate) continue;
-    if (candidate.status === "new" && candidate.record) {
-      if (!draft.places.some((place: any) => String(place.id) === String(candidate.record.id))) {
-        draft.places.push(clone(candidate.record));
+    const record = candidate.record;
+    if (candidate.status === "new" && record) {
+      if (!draft.places.some((place: any) => String(place.id) === String(record.id))) {
+        draft.places.push(clone(record));
       }
     }
   }
