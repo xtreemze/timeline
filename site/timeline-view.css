@@ -4345,7 +4345,6 @@
 
 #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open > * {
   flex: 0 0 auto;
-  min-width: 0;
 }
 
 #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open .timeline-zoom-controls {
