@@ -417,11 +417,12 @@ function create(container, handlers = {}) {
     if (simulator) {
       simulator.setSettings(layout);
       if (request.reason !== "idle") simulator.activateSimulation();
-      return;
+      return true;
     }
-    // Orb does not expose simulation activation publicly in every renderer
-    // mode. Keep settings behind Timeline's coordinator even on fallback.
+    // Renderer switches can temporarily detach Orb's simulator. Keep the
+    // request pending so Timeline can retry once render reattaches it.
     orb.setSettings({ layout });
+    return false;
   }
 
   const simulationCoordinator = createGraphSimulationCoordinator({
@@ -1645,6 +1646,33 @@ function create(container, handlers = {}) {
     orb.render();
   }
 
+  function seedInitialNodePositions(nodes) {
+    const ordered = [...nodes].sort((left, right) =>
+      String(left?.id ?? "").localeCompare(String(right?.id ?? "")),
+    );
+    const count = ordered.length;
+    for (let index = 0; index < ordered.length; index += 1) {
+      const record = ordered[index];
+      const node = orb.data.getNodeById(record?.id);
+      if (!node) continue;
+      const current = node.getPosition?.();
+      if (current && Number.isFinite(current.x) && Number.isFinite(current.y)) continue;
+
+      if (count === 1) {
+        node.setPosition({ x: 0, y: 0 });
+        continue;
+      }
+
+      const angle = deterministicAngle(record?.id);
+      const ring = Math.floor(Math.sqrt(index));
+      const radius = 48 + ring * 42;
+      node.setPosition({
+        x: Math.cos(angle) * radius,
+        y: Math.sin(angle) * radius,
+      });
+    }
+  }
+
   function setData(data) {
     clearTopologyTimers();
     cancelCameraInertia();
@@ -1661,10 +1689,15 @@ function create(container, handlers = {}) {
       nodes: nodes.map((node) => transitionRecord(node, "active")),
       edges: edges.map((edge) => transitionRecord(edge, "active")),
     });
+    seedInitialNodePositions(nodes);
     hasGraphData = true;
-    // With Orb's automatic data/settings simulation disabled, render first so
-    // the simulator sees the new node set before Timeline activates the solve.
-    orb.render();
+    // Render the new data first. Orb may replace its renderer/simulator while
+    // materializing a new topology, so never mark a request applied against
+    // the pre-render simulator. If the post-render simulator is still
+    // detached, the coordinator keeps this request pending for a later retry.
+    orb.render(() => {
+      simulationCoordinator.retry();
+    });
     requestSimulation("topology", 0);
     queuePresentationForceUpdate();
     handlers.onSimulationState?.({ running: true, mode: currentMode });
