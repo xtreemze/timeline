@@ -34,8 +34,11 @@ export interface InteractionSnapshot {
   readonly revision: number;
 }
 
+export type InteractionSnapshotListener = (snapshot: InteractionSnapshot) => void;
+
 export interface InteractionCoordinator {
   snapshot(): InteractionSnapshot;
+  subscribe(listener: InteractionSnapshotListener): () => void;
   begin(owner: InteractionOwner, pointerId: number): boolean;
   classify(owner: InteractionOwner, gesture: GestureKind): boolean;
   claim(owner: InteractionOwner): boolean;
@@ -60,6 +63,7 @@ export function createInteractionCoordinator(): InteractionCoordinator {
   let reason: InteractionCompletionReason | null = null;
   let revision = 0;
   const pointers = new Set<number>();
+  const listeners = new Set<InteractionSnapshotListener>();
 
   const snapshot = (): InteractionSnapshot =>
     Object.freeze({
@@ -73,6 +77,8 @@ export function createInteractionCoordinator(): InteractionCoordinator {
 
   const mutate = (): void => {
     revision += 1;
+    const current = snapshot();
+    for (const listener of listeners) listener(current);
   };
 
   const clearCommittedOwnership = (
@@ -89,6 +95,12 @@ export function createInteractionCoordinator(): InteractionCoordinator {
 
   return Object.freeze({
     snapshot,
+
+    subscribe(listener: InteractionSnapshotListener) {
+      listeners.add(listener);
+      listener(snapshot());
+      return () => listeners.delete(listener);
+    },
 
     begin(nextOwner: InteractionOwner, rawPointerId: number) {
       const id = pointerId(rawPointerId);
