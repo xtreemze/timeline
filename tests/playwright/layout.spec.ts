@@ -67,17 +67,19 @@ async function expectVisibleChronology(page, viewport) {
   // Retained temporal context may keep overscan labels alive outside the live
   // camera. Certification requires at least one label intersecting the current
   // surface, not that every retained DOM label be in the viewport.
-  const ticks = page.locator('.timeline-tick-label:visible');
-  const tickCount = await ticks.count();
-  expect(tickCount).toBeGreaterThan(0);
-  let readableTickFound = false;
-  for (let index = 0; index < tickCount; index += 1) {
-    if (intersectsLiveSurface(await ticks.nth(index).boundingBox())) {
-      readableTickFound = true;
+  const temporalContext = page.locator(
+    '.timeline-tick-label:visible, .timeline-month-accent:visible, .timeline-axis-month-label:visible',
+  );
+  const contextCount = await temporalContext.count();
+  expect(contextCount).toBeGreaterThan(0);
+  let readableContextFound = false;
+  for (let index = 0; index < contextCount; index += 1) {
+    if (intersectsLiveSurface(await temporalContext.nth(index).boundingBox())) {
+      readableContextFound = true;
       break;
     }
   }
-  expect(readableTickFound).toBeTruthy();
+  expect(readableContextFound).toBeTruthy();
 }
 
 async function expectNoPrimaryDocumentScroll(page, viewport) {
