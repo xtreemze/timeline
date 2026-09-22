@@ -506,7 +506,10 @@
 .timeline-range-segment {
   --event-color: var(--accent);
   position: absolute;
-  z-index: 1;
+  /* Timeline interaction geometry may project inward over the persistent graph.
+     Keep only the retained hit target above the graph canvas; the timeline surface
+     itself remains below so graph interaction is unaffected elsewhere. */
+  z-index: 1060;
   margin: 0;
   border: 0;
   border-radius: 999px;
@@ -569,7 +572,9 @@
 .timeline-event {
   --event-color: var(--accent);
   position: absolute;
-  z-index: 2;
+  /* Graph canvas is z-index 1050. Event cards must remain directly hittable when
+     portrait lanes project left from the chronology rail. */
+  z-index: 1060;
   width: 0;
   height: 0;
   overflow: visible;
