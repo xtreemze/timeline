@@ -964,10 +964,10 @@
 }
 .timeline-focus-hero {
   position: relative;
-  grid-column: 1 / span 4;
+  grid-column: 1 / span 3;
   grid-row: 1 / span 2;
   min-width: 0;
-  min-height: clamp(280px, 40vw, 480px);
+  min-height: clamp(320px, 42vw, 520px);
   overflow: hidden;
   container-type: inline-size;
   border-radius: 1rem;
@@ -1093,9 +1093,9 @@
   background: color-mix(in srgb, var(--paper) 94%, transparent);
 }
 .timeline-focus-summary {
-  grid-column: 5 / -1;
+  grid-column: 4 / -1;
   grid-row: 1 / span 2;
-  align-self: end;
+  align-self: stretch;
 }
 .timeline-focus-place {
   grid-column: 1 / span 2;
