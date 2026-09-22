@@ -11,6 +11,7 @@ export interface RetainedTimelineFrameSample {
   readonly queryDurationMs?: number;
   readonly dirtyMeasurements?: number;
   readonly longTasks?: number;
+  readonly inputLatencyMs?: number;
 }
 
 export interface RetainedTimelineViolation {
@@ -32,6 +33,8 @@ export interface RetainedTimelinePhaseSummary {
   readonly queryDurationMs: number;
   readonly dirtyMeasurements: number;
   readonly longTasks: number;
+  readonly inputLatencySampleCount: number;
+  readonly p95InputLatencyMs: number;
 }
 
 export interface RetainedTimelineSummary {
@@ -50,6 +53,7 @@ interface MutablePhaseStats {
   queryDurationMs: number;
   dirtyMeasurements: number;
   longTasks: number;
+  inputLatencies: number[];
 }
 
 function nonNegative(value: number): number {
@@ -85,6 +89,8 @@ function summarize(stats: MutablePhaseStats): RetainedTimelinePhaseSummary {
     queryDurationMs: stats.queryDurationMs,
     dirtyMeasurements: stats.dirtyMeasurements,
     longTasks: stats.longTasks,
+    inputLatencySampleCount: stats.inputLatencies.length,
+    p95InputLatencyMs: percentileNearestRank(stats.inputLatencies, 0.95),
   });
 }
 
@@ -104,6 +110,7 @@ export function createRetainedTimelineMetrics(): RetainedTimelineMetricsRecorder
       queryDurationMs: 0,
       dirtyMeasurements: 0,
       longTasks: 0,
+      inputLatencies: [],
     },
     commit: {
       durations: [],
@@ -113,6 +120,7 @@ export function createRetainedTimelineMetrics(): RetainedTimelineMetricsRecorder
       queryDurationMs: 0,
       dirtyMeasurements: 0,
       longTasks: 0,
+      inputLatencies: [],
     },
   };
   let retainedPeak = 0;
@@ -127,6 +135,7 @@ export function createRetainedTimelineMetrics(): RetainedTimelineMetricsRecorder
     stats.queryDurationMs = 0;
     stats.dirtyMeasurements = 0;
     stats.longTasks = 0;
+    stats.inputLatencies.length = 0;
   };
 
   return Object.freeze({
@@ -145,6 +154,9 @@ export function createRetainedTimelineMetrics(): RetainedTimelineMetricsRecorder
       stats.queryDurationMs += nonNegative(sample?.queryDurationMs ?? 0);
       stats.dirtyMeasurements += integer(sample?.dirtyMeasurements ?? 0);
       stats.longTasks += integer(sample?.longTasks ?? 0);
+      if (Number.isFinite(sample?.inputLatencyMs)) {
+        stats.inputLatencies.push(nonNegative(Number(sample.inputLatencyMs)));
+      }
       retainedPeak = Math.max(retainedPeak, retainedNodes);
       if (sample?.bufferExpanded) bufferExpansions += 1;
 
