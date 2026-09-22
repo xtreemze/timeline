@@ -10,6 +10,7 @@ import type {
   GraphProjection,
   GraphSelectionKind,
   GraphSurface,
+  GraphSimulationState,
   GraphSurfaceEventListener,
   GraphSurfaceFactory,
 } from "./graph-surface.ts";
@@ -58,6 +59,7 @@ export interface OrbInstance {
   zoomIn(): void;
   zoomOut(): void;
   getMode(): string;
+  getSimulationState?(): GraphSimulationState;
   destroy(): void;
 }
 
@@ -175,6 +177,17 @@ export class OrbGraphSurface implements GraphSurface {
 
   getMode(): string {
     return this.orb.getMode();
+  }
+
+  getSimulationState(): GraphSimulationState {
+    return (
+      this.orb.getSimulationState?.() ?? {
+        running: false,
+        reason: null,
+        suspendedReasons: [],
+        pendingReasons: [],
+      }
+    );
   }
 
   selectForInteraction(kind: GraphSelectionKind, id: EntityId | RelationshipId): void {
