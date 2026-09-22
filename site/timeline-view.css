@@ -1324,6 +1324,8 @@
 .timeline-view.is-event-focused[data-orientation="landscape"] .timeline-focus-view {
   grid-column: 1 / -1;
   grid-row: 2;
+  max-height: 60vh;
+  overflow-y: auto;
 }
 .timeline-view.is-event-focused[data-orientation="landscape"] .timeline-surface {
   grid-column: 1 / -1;
