@@ -4377,6 +4377,8 @@ function closestEventTarget<T extends HTMLElement>(
     if (!els.projectMenu || !els.projectMenuToggle) return;
     const rect = els.projectMenuToggle.getBoundingClientRect();
     const viewport = projectMenuViewport();
+    const orientation =
+      els.timelineViewRoot?.dataset.orientation === "portrait" ? "portrait" : "landscape";
     const gap = 8;
     const edge = 8;
     const minLeft = viewport.left + edge;
@@ -4385,37 +4387,68 @@ function closestEventTarget<T extends HTMLElement>(
     const maxBottom = viewport.top + viewport.height - edge;
     const availableWidth = Math.max(1, maxRight - minLeft);
     const availableHeight = Math.max(1, maxBottom - minTop);
-    const menuWidth = Math.min(340, availableWidth);
-    const roomAbove = Math.max(0, rect.top - gap - minTop);
-    const roomBelow = Math.max(0, maxBottom - rect.bottom - gap);
-    const opensUpward = roomAbove >= roomBelow;
-    const verticalRoom = Math.max(1, opensUpward ? roomAbove : roomBelow);
-    // A closed popover does not expose a trustworthy scrollHeight in every
-    // browser. Reserve its maximum allowed height before opening so the first
-    // painted top-layer frame is already inside the visual viewport.
-    const menuHeight = Math.min(620, availableHeight, verticalRoom);
-    const preferredLeft = rect.left + rect.width / 2 - menuWidth / 2;
-    const left = Math.min(
-      Math.max(minLeft, preferredLeft),
-      Math.max(minLeft, maxRight - menuWidth),
-    );
-    const preferredTop = opensUpward ? rect.top - gap - menuHeight : rect.bottom + gap;
-    const top = Math.min(
-      Math.max(minTop, preferredTop),
-      Math.max(minTop, maxBottom - menuHeight),
-    );
+
+    let menuWidth = Math.min(340, availableWidth);
+    let menuHeight = Math.min(620, availableHeight);
+    let left = minLeft;
+    let top = minTop;
+    let placement = "";
+
+    if (orientation === "portrait") {
+      const roomLeft = Math.max(0, rect.left - gap - minLeft);
+      const roomRight = Math.max(0, maxRight - rect.right - gap);
+      const opensLeft = roomLeft >= roomRight;
+      const horizontalRoom = Math.max(1, opensLeft ? roomLeft : roomRight);
+      menuWidth = Math.min(menuWidth, horizontalRoom);
+      const preferredLeft = opensLeft ? rect.left - gap - menuWidth : rect.right + gap;
+      left = Math.min(
+        Math.max(minLeft, preferredLeft),
+        Math.max(minLeft, maxRight - menuWidth),
+      );
+      const preferredTop = rect.top + rect.height / 2 - menuHeight / 2;
+      top = Math.min(
+        Math.max(minTop, preferredTop),
+        Math.max(minTop, maxBottom - menuHeight),
+      );
+      placement = opensLeft ? "left" : "right";
+      els.projectMenu.style.setProperty(
+        "--project-menu-max-width",
+        `${Math.floor(horizontalRoom)}px`,
+      );
+      els.projectMenu.style.setProperty(
+        "--project-menu-max-height",
+        `${Math.floor(availableHeight)}px`,
+      );
+    } else {
+      const roomAbove = Math.max(0, rect.top - gap - minTop);
+      const roomBelow = Math.max(0, maxBottom - rect.bottom - gap);
+      const opensUpward = roomAbove >= roomBelow;
+      const verticalRoom = Math.max(1, opensUpward ? roomAbove : roomBelow);
+      menuHeight = Math.min(menuHeight, verticalRoom);
+      const preferredLeft = rect.left + rect.width / 2 - menuWidth / 2;
+      left = Math.min(
+        Math.max(minLeft, preferredLeft),
+        Math.max(minLeft, maxRight - menuWidth),
+      );
+      const preferredTop = opensUpward ? rect.top - gap - menuHeight : rect.bottom + gap;
+      top = Math.min(
+        Math.max(minTop, preferredTop),
+        Math.max(minTop, maxBottom - menuHeight),
+      );
+      placement = opensUpward ? "above" : "below";
+      els.projectMenu.style.setProperty(
+        "--project-menu-max-width",
+        `${Math.floor(availableWidth)}px`,
+      );
+      els.projectMenu.style.setProperty(
+        "--project-menu-max-height",
+        `${Math.floor(verticalRoom)}px`,
+      );
+    }
 
     els.projectMenu.style.setProperty("--project-menu-left", `${Math.round(left)}px`);
     els.projectMenu.style.setProperty("--project-menu-top", `${Math.round(top)}px`);
-    els.projectMenu.style.setProperty(
-      "--project-menu-max-width",
-      `${Math.floor(availableWidth)}px`,
-    );
-    els.projectMenu.style.setProperty(
-      "--project-menu-max-height",
-      `${Math.floor(verticalRoom)}px`,
-    );
-    els.projectMenu.dataset.anchorPlacement = opensUpward ? "above" : "below";
+    els.projectMenu.dataset.anchorPlacement = placement;
 
     if (els.projectMenu.matches(":popover-open")) {
       const menuRect = els.projectMenu.getBoundingClientRect();
