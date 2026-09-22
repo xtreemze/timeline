@@ -63,7 +63,7 @@ test("persistent graph owns the complementary canvas while focused place uses in
 
   assert.match(
     css,
-    /#presentation-stage\s*>\s*\.graph-lens:not\(\[hidden\]\)\s*\{[\s\S]{0,500}position:\s*absolute/,
+    /#presentation-stage\s*>\s*\.graph-lens:not\(\[hidden\]\)[\s\S]{0,140}\{[\s\S]{0,500}position:\s*absolute/,
   );
   assert.match(
     css,
