@@ -16,7 +16,8 @@ async function box(locator) {
   await expect(locator).toBeVisible();
   const value = await locator.boundingBox();
   expect(value).not.toBeNull();
-  return value!;
+  if (!value) throw new Error("Expected visible element geometry.");
+  return value;
 }
 
 test.describe("responsive reserved workspace chrome", () => {
