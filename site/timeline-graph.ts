@@ -566,9 +566,11 @@ export function validateActionPredicate(value: unknown): ValidationResult {
     };
   }
   const terms = predicateTerms(predicate);
+  const particle = terms[1];
   if (
     terms.length > 2 ||
-    (terms.length === 2 && !ACTION_PREDICATE_PARTICLES.has(terms[1]!.toLowerCase()))
+    (terms.length === 2 &&
+      (!particle || !ACTION_PREDICATE_PARTICLES.has(particle.toLowerCase())))
   ) {
     return {
       valid: false,
