@@ -58,7 +58,7 @@ test("visible extraction and inference controls are wired to application handler
 
   assert.match(html, /id="item-inference-run"/);
   assert.match(html, /class="button secondary evidence-extract-text"/);
-  assert.match(app, /itemInferenceRun:\s*document\.querySelector\("#item-inference-run"\)/);
+  assert.match(app, /itemInferenceRun:\s*requiredElement<HTMLButtonElement>\("#item-inference-run"\)/);
   assert.match(app, /extractText:\s*row\.querySelector\("\.evidence-extract-text"\)/);
   assert.match(app, /parts\.extractText\?\.addEventListener\("click"/);
   assert.match(app, /itemInferenceRun\?\.addEventListener\("click"/);
@@ -97,7 +97,10 @@ test("app migration preserves the established default category fallback", async 
   ]) {
     assert.match(app, new RegExp(`id: ["']${id}["']`));
   }
-  assert.match(app, /categories:\s*clone\(DEFAULT_CATEGORIES\)/);
+  assert.match(
+    app,
+    /categories:\s*DEFAULT_CATEGORIES\.map\(\(category\)\s*=>\s*\(\{\s*\.\.\.category\s*\}\)\)/,
+  );
 });
 
 test("story place selections are normalized, edited, and saved", async () => {
