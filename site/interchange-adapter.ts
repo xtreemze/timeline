@@ -30,6 +30,19 @@ function boundedClone(value: unknown): unknown {
   };
 }
 
+
+function clonedArray(value: unknown): unknown[] {
+  const cloned = boundedClone(value);
+  return Array.isArray(cloned) ? cloned : [];
+}
+
+function clonedRecord(value: unknown): Record<string, unknown> {
+  const cloned = boundedClone(value);
+  return cloned && typeof cloned === "object" && !Array.isArray(cloned)
+    ? (cloned as Record<string, unknown>)
+    : {};
+}
+
 function firstDefined(object: unknown, keys: string[]): unknown {
   if (!object || typeof object !== "object") return undefined;
   for (const key of keys) {
@@ -420,20 +433,20 @@ function importObject(payload: unknown): ImportResult {
       title: sourceTitle,
       categories,
       items,
-      stories: Array.isArray(timelineMetadata.stories) ? boundedClone(timelineMetadata.stories) : [],
+      stories: Array.isArray(timelineMetadata.stories) ? clonedArray(timelineMetadata.stories) : [],
       entities: Array.isArray(timelineMetadata.entities)
-        ? boundedClone(timelineMetadata.entities)
+        ? clonedArray(timelineMetadata.entities)
         : [],
-      places: Array.isArray(timelineMetadata.places) ? boundedClone(timelineMetadata.places) : [],
+      places: Array.isArray(timelineMetadata.places) ? clonedArray(timelineMetadata.places) : [],
       relationships: Array.isArray(timelineMetadata.relationships)
-        ? boundedClone(timelineMetadata.relationships)
+        ? clonedArray(timelineMetadata.relationships)
         : [],
       evidence: Array.isArray(timelineMetadata.evidence)
-        ? boundedClone(timelineMetadata.evidence)
+        ? clonedArray(timelineMetadata.evidence)
         : [],
       reasoning:
         timelineMetadata.reasoning && typeof timelineMetadata.reasoning === "object"
-          ? boundedClone(timelineMetadata.reasoning)
+          ? clonedRecord(timelineMetadata.reasoning)
           : {},
       extensions: {
         externalInterchange: rootExtensions,
@@ -454,8 +467,8 @@ function xmlText(node: any, names: string[]): string | undefined {
   for (const name of names) {
     const attribute = node.getAttribute?.(name);
     if (attribute !== null && attribute !== undefined && attribute !== "") return attribute;
-    const child = Array.from(node.children || []).find(
-      (candidate: any) => candidate.localName?.toLowerCase() === name.toLowerCase(),
+    const child = (Array.from(node.children || []) as Element[]).find(
+      (candidate) => candidate.localName?.toLowerCase() === name.toLowerCase(),
     );
     if (child?.textContent?.trim()) return child.textContent.trim();
   }
@@ -644,13 +657,15 @@ export function exportData(timeline: any): ExportResult {
   if (!timeline || typeof timeline !== "object") throw new Error("Expected a Timeline document.");
   const categories = Array.isArray(timeline.categories) ? timeline.categories : [];
   const items = Array.isArray(timeline.items) ? timeline.items : [];
-  const categoriesById = new Map(categories.map((category: any) => [category.id, category]));
+  const categoriesById = new Map<string, any>(
+    categories.map((category: any): [string, any] => [String(category.id), category]),
+  );
 
   const groups = categories.map((category: any) => {
     const extension = sourceExtension(category);
     const raw =
       extension.raw && typeof extension.raw === "object" && !Array.isArray(extension.raw)
-        ? cloneJson(extension.raw)
+        ? clonedRecord(extension.raw)
         : {};
     return {
       ...raw,
