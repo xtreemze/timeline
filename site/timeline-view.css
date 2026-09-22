@@ -5382,6 +5382,7 @@
   margin: 0;
   overflow: auto;
   overscroll-behavior: contain;
+  align-self: start;
   border-radius: 0;
   box-shadow: none;
 }
