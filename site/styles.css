@@ -4163,3 +4163,128 @@ body {
 [hidden] {
   display: none;
 }
+
+
+/* Responsive reserved workspace chrome: title and controls share one anchored zone. */
+#app-shell {
+  --workspace-chrome-gap: 0.35rem;
+  --workspace-title-block-size: 38px;
+  --workspace-tool-block-size: 52px;
+  --workspace-title-inline-size: 42px;
+  --workspace-tool-inline-size: 62px;
+  --workspace-landscape-chrome-block: calc(
+    max(0.4rem, env(safe-area-inset-bottom)) +
+    var(--workspace-title-block-size) +
+    var(--workspace-tool-block-size) +
+    (var(--workspace-chrome-gap) * 2)
+  );
+  --workspace-portrait-chrome-inline: calc(
+    max(0.4rem, env(safe-area-inset-right)) +
+    var(--workspace-title-inline-size) +
+    var(--workspace-tool-inline-size) +
+    (var(--workspace-chrome-gap) * 2)
+  );
+}
+
+#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock {
+  inset-block-start: auto;
+  inset-inline-end: auto;
+  inset-block-end: calc(
+    max(0.4rem, env(safe-area-inset-bottom)) +
+    var(--workspace-title-block-size) +
+    var(--workspace-chrome-gap)
+  );
+  inset-inline-start: 50%;
+  flex-direction: row;
+  inline-size: min(22rem, calc(100% - 1rem));
+  max-inline-size: calc(100% - 1rem);
+  max-block-size: var(--workspace-tool-block-size);
+  overflow-inline: auto;
+  overflow-block: clip;
+  transform: translateX(-50%);
+}
+
+#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
+  inset-block-start: 50%;
+  inset-inline-end: calc(
+    max(0.4rem, env(safe-area-inset-right)) +
+    var(--workspace-title-inline-size) +
+    var(--workspace-chrome-gap)
+  );
+  inset-block-end: auto;
+  inset-inline-start: auto;
+  flex-direction: column;
+  inline-size: var(--workspace-tool-inline-size);
+  max-inline-size: var(--workspace-tool-inline-size);
+  max-block-size: calc(
+    100dvh -
+    max(0.8rem, env(safe-area-inset-top)) -
+    max(0.8rem, env(safe-area-inset-bottom))
+  );
+  overflow-inline: auto;
+  overflow-block: auto;
+  transform: translateY(-50%);
+}
+
+#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool {
+  flex: 0 0 auto;
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: 50px;
+  padding: 0.34rem 0.25rem;
+}
+
+#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-editor-sheet,
+#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-browser-sheet {
+  position: fixed;
+  inset-block-start: max(0.4rem, env(safe-area-inset-top));
+  inset-block-end: calc(var(--workspace-landscape-chrome-block) + 0.35rem);
+  inset-inline-start: max(0.4rem, env(safe-area-inset-left));
+  inset-inline-end: max(0.4rem, env(safe-area-inset-right));
+  inline-size: auto;
+  block-size: auto;
+  max-block-size: none;
+}
+
+#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-editor-sheet,
+#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-browser-sheet {
+  position: fixed;
+  inset-block-start: max(0.4rem, env(safe-area-inset-top));
+  inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
+  inset-inline-start: max(0.4rem, env(safe-area-inset-left));
+  inset-inline-end: calc(var(--workspace-portrait-chrome-inline) + 0.35rem);
+  inline-size: auto;
+  block-size: auto;
+  max-inline-size: calc(100% - var(--workspace-portrait-chrome-inline) - 0.75rem);
+  max-block-size: none;
+}
+
+#app-shell:has(#timeline-view[data-orientation="landscape"]) .timeline-panel > .story-focus {
+  inset-block-end: calc(var(--workspace-landscape-chrome-block) + 0.35rem);
+}
+
+#app-shell:has(#timeline-view[data-orientation="portrait"]) .timeline-panel > .story-focus {
+  inset-inline-end: calc(var(--workspace-portrait-chrome-inline) + 0.35rem);
+}
+
+@media (min-width: 700px) {
+  #app-shell {
+    --workspace-title-block-size: 42px;
+    --workspace-tool-block-size: 58px;
+  }
+}
+
+@media (max-height: 520px) {
+  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
+    gap: 0.1rem;
+    padding: 0.2rem;
+  }
+
+  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool {
+    min-block-size: 44px;
+  }
+
+  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-label {
+    font-size: 0.6rem;
+  }
+}
