@@ -297,6 +297,7 @@ class TimelineViewController {
   pendingQueryDurationMs = 0;
   pendingDirtyMeasurements = 0;
   pendingBufferExpanded = false;
+  pendingInputStartedAt: number | null = null;
   pointerDrag: PointerDragState | null = null;
   touchPointers = new Map<number, TouchPointerState>();
   pinch: PinchState | null = null;
@@ -346,6 +347,7 @@ class TimelineViewController {
       this.setOrientation(this.orientation === "horizontal" ? "vertical" : "horizontal");
     });
     this.zoomSlider?.addEventListener("input", () => {
+      this.markInputForNextRender();
       this.setSemanticZoom(Number(this.zoomSlider?.value || 0), false);
     });
     this.zoomSlider?.addEventListener("change", () => {
@@ -375,6 +377,7 @@ class TimelineViewController {
         this.beginInteraction();
         this.viewport = next;
         this.interactionVelocity = 0;
+        this.markInputForNextRender();
         this.scheduleRender();
         this.emitViewport(false);
 
@@ -609,6 +612,7 @@ class TimelineViewController {
         const start = this.pinch.anchorTime - nextSpan * geometry.ratio;
         this.viewport = { start, end: start + nextSpan };
         this.interactionVelocity = 0;
+        this.markInputForNextRender();
         this.scheduleRender();
         this.emitViewport(false);
         return;
@@ -639,6 +643,7 @@ class TimelineViewController {
       };
       const pointerVelocity = motion.estimatePointerVelocity(drag.samples);
       this.interactionVelocity = -((pointerVelocity / usable) * span);
+      this.markInputForNextRender();
       this.scheduleRender();
       this.emitViewport(false);
     });
@@ -1063,6 +1068,13 @@ class TimelineViewController {
     this.pendingQueryDurationMs = 0;
     this.pendingDirtyMeasurements = 0;
     this.pendingBufferExpanded = false;
+    this.pendingInputStartedAt = null;
+  }
+
+  markInputForNextRender(): void {
+    if (this.pendingInputStartedAt === null) {
+      this.pendingInputStartedAt = performance.now();
+    }
   }
 
   tickSpecKey(spec: SemanticTickSpec): string {
@@ -1793,10 +1805,15 @@ class TimelineViewController {
   render(): void {
     const phase = this.retention.active ? "interaction" : "commit";
     const started = performance.now();
+    const inputStartedAt = this.pendingInputStartedAt;
     this.renderScene();
+    const finished = performance.now();
+    this.pendingInputStartedAt = null;
     this.performanceMetrics.recordFrame({
       phase,
-      durationMs: performance.now() - started,
+      durationMs: finished - started,
+      inputLatencyMs:
+        inputStartedAt === null ? undefined : Math.max(0, finished - inputStartedAt),
       createdNodes: this.frameCreatedObjects,
       destroyedNodes: this.frameDestroyedObjects,
       retainedNodes: this.retainedObjectCount(),
