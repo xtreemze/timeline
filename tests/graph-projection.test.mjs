@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { createSemanticGraphIndex } from "../src/application/semantic-graph-index.ts";
@@ -195,4 +196,18 @@ test("projection order is stable regardless of canonical source-array order", ()
   const rightProjection = projectGraphWindow(right, createSemanticGraphIndex(right), null);
 
   assert.deepEqual(rightProjection, leftProjection);
+});
+
+
+test("1k/10k/50k graph benchmark exercises the direct renderer-neutral projection path", async () => {
+  const benchmark = await readFile(
+    new URL("../benchmarks/graph-data.mjs", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(benchmark, /sizes = requestedSizes\.length \? requestedSizes : \[1000, 10000, 50000\]/);
+  assert.match(benchmark, /projectGraphWindow\(fixture, semanticIndex, null\)/);
+  assert.match(benchmark, /projectFocusedGraph\(fixture, semanticIndex, "entity-0", null/);
+  assert.match(benchmark, /directFullProjection/);
+  assert.match(benchmark, /directFocusedProjection/);
 });
