@@ -78,6 +78,7 @@ export function createGraphSimulationCoordinator(adapter: GraphSimulationAdapter
       return;
     }
 
+    const resumingFromSuspension = stoppedForSuspension;
     stoppedForSuspension = false;
     if (!highest) {
       if (applied && applied.reason !== "idle") {
@@ -94,7 +95,7 @@ export function createGraphSimulationCoordinator(adapter: GraphSimulationAdapter
       return;
     }
 
-    if (!requestChanged(applied, highest)) return;
+    if (!resumingFromSuspension && !requestChanged(applied, highest)) return;
     if (
       applied &&
       priority(highest.reason) < priority(applied.reason) &&
