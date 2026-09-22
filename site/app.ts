@@ -682,7 +682,11 @@ function closestEventTarget<T extends HTMLElement>(
     const footerRect = els.appFooter.getBoundingClientRect();
     const viewport = workspaceToolViewport();
     const viewportBottom = viewport.top + viewport.height;
-    const nextReservedBlock = Math.max(0, Math.ceil(viewportBottom - footerRect.top));
+    const bottomInset = Math.max(0, viewportBottom - footerRect.bottom);
+    const nextReservedBlock = Math.max(
+      0,
+      Math.min(viewport.height, Math.ceil(footerRect.height + bottomInset)),
+    );
     if (nextReservedBlock === footerReservedBlock) return false;
     footerReservedBlock = nextReservedBlock;
     els.appShell.style.setProperty(
