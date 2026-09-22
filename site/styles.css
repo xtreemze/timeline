@@ -275,6 +275,7 @@ main > * {
   align-items: start;
   gap: 1rem var(--page-grid-gap);
   min-width: 0;
+  margin-block-end: max(5rem, calc(52px + 1rem + env(safe-area-inset-bottom)));
 }
 .presentation-stage > .timeline-view {
   grid-column: 1 / -1;
