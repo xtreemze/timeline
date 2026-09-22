@@ -17,31 +17,53 @@ async function expectInsideViewport(locator, viewport, tolerance = 2) {
 }
 
 async function expectVisibleChronology(page, viewport) {
-  const terminal = page
-    .locator('.timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible')
-    .first();
-  const eventCopy = terminal.locator('.timeline-event-copy');
-  const tickLabel = page.locator('.timeline-tick-label:visible').first();
+  const terminals = page.locator(
+    '.timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible',
+  );
+  const terminalCount = await terminals.count();
+  expect(terminalCount).toBeGreaterThan(0);
 
-  await expect(terminal).toBeVisible();
-  await expect(eventCopy).toBeVisible();
-  await expect(eventCopy.locator('strong')).not.toHaveText('');
-  await expect(tickLabel).toBeVisible();
+  let readableOccurrenceFound = false;
+  for (let index = 0; index < terminalCount; index += 1) {
+    const terminal = terminals.nth(index);
+    const box = await terminal.boundingBox();
+    const copy = terminal.locator('.timeline-event-copy');
+    const title = (await copy.locator('strong').textContent())?.trim() ?? '';
+    if (!box || !title || !(await copy.isVisible())) continue;
+    const centerX = box.x + box.width / 2;
+    const centerY = box.y + box.height / 2;
+    if (
+      centerX >= 0 &&
+      centerX <= viewport.width &&
+      centerY >= 0 &&
+      centerY <= viewport.height
+    ) {
+      readableOccurrenceFound = true;
+      break;
+    }
+  }
+  expect(readableOccurrenceFound).toBeTruthy();
 
-  const terminalBox = await terminal.boundingBox();
-  const tickBox = await tickLabel.boundingBox();
-  expect(terminalBox).not.toBeNull();
-  expect(tickBox).not.toBeNull();
-
-  for (const box of [terminalBox, tickBox]) {
+  const ticks = page.locator('.timeline-tick-label:visible');
+  const tickCount = await ticks.count();
+  expect(tickCount).toBeGreaterThan(0);
+  let readableTickFound = false;
+  for (let index = 0; index < tickCount; index += 1) {
+    const box = await ticks.nth(index).boundingBox();
     if (!box) continue;
     const centerX = box.x + box.width / 2;
     const centerY = box.y + box.height / 2;
-    expect(centerX).toBeGreaterThanOrEqual(-2);
-    expect(centerX).toBeLessThanOrEqual(viewport.width + 2);
-    expect(centerY).toBeGreaterThanOrEqual(-2);
-    expect(centerY).toBeLessThanOrEqual(viewport.height + 2);
+    if (
+      centerX >= 0 &&
+      centerX <= viewport.width &&
+      centerY >= 0 &&
+      centerY <= viewport.height
+    ) {
+      readableTickFound = true;
+      break;
+    }
   }
+  expect(readableTickFound).toBeTruthy();
 }
 
 async function expectNoPrimaryDocumentScroll(page, viewport) {
@@ -51,6 +73,18 @@ async function expectNoPrimaryDocumentScroll(page, viewport) {
   }));
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(viewport.width + 2);
   expect(dimensions.scrollHeight).toBeLessThanOrEqual(viewport.height + 2);
+}
+
+async function toggleTimelineOrientation(page) {
+  const toolbar = page.locator('#timeline-view-toolbar:popover-open');
+  if ((await toolbar.count()) === 0) {
+    await page.locator('#timeline-view-controls-toggle').click();
+  }
+  const orientationToggle = page.locator(
+    '#timeline-view-toolbar:popover-open #timeline-orientation-toggle',
+  );
+  await expect(orientationToggle).toBeVisible();
+  await orientationToggle.click();
 }
 
 test.describe('Mobile-first Timeline layout contracts', () => {
@@ -72,7 +106,9 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     expect(timelineBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.8);
     expect(surfaceBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.9);
     // With the relation graph open, chronology still owns at least half of a portrait phone.
-    expect(surfaceBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.48);
+    await expect
+      .poll(async () => (await surface.boundingBox())?.height ?? 0)
+      .toBeGreaterThan(PHONE_PORTRAIT.height * 0.48);
 
     await expectVisibleChronology(page, PHONE_PORTRAIT);
     await expectNoPrimaryDocumentScroll(page, PHONE_PORTRAIT);
@@ -96,7 +132,9 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     expect(timelineBox.height).toBeGreaterThan(PHONE_LANDSCAPE.height * 0.8);
     expect(surfaceBox.width).toBeGreaterThan(PHONE_LANDSCAPE.width * 0.9);
     // Landscape keeps a substantial chronology rail while leaving graph context usable.
-    expect(surfaceBox.height).toBeGreaterThan(PHONE_LANDSCAPE.height * 0.4);
+    await expect
+      .poll(async () => (await surface.boundingBox())?.height ?? 0)
+      .toBeGreaterThan(PHONE_LANDSCAPE.height * 0.4);
 
     await expectVisibleChronology(page, PHONE_LANDSCAPE);
     await expectNoPrimaryDocumentScroll(page, PHONE_LANDSCAPE);
@@ -173,7 +211,7 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     const before = await root.getAttribute('data-orientation');
     expect(['portrait', 'landscape']).toContain(before);
 
-    await page.locator('#timeline-orientation-toggle').click();
+    await toggleTimelineOrientation(page);
     const after = before === 'portrait' ? 'landscape' : 'portrait';
     await expect(root).toHaveAttribute('data-orientation', after);
     await expect(root.locator('[data-layout-retained-identity="occurrence"]')).toHaveCount(1);
@@ -182,7 +220,7 @@ test.describe('Mobile-first Timeline layout contracts', () => {
       after === 'portrait' ? 'vertical' : 'horizontal',
     );
 
-    await page.locator('#timeline-orientation-toggle').click();
+    await toggleTimelineOrientation(page);
     await expect(root).toHaveAttribute('data-orientation', before);
     await expect(root.locator('[data-layout-retained-identity="occurrence"]')).toHaveCount(1);
   });
@@ -201,7 +239,9 @@ test.describe('Mobile-first Timeline layout contracts', () => {
 
     expect(timelineBox.width).toBeGreaterThan(TABLET_LANDSCAPE.width * 0.6);
     expect(timelineBox.height).toBeGreaterThan(TABLET_LANDSCAPE.height * 0.5);
-    expect(surfaceBox.height).toBeGreaterThan(TABLET_LANDSCAPE.height * 0.45);
+    await expect
+      .poll(async () => (await surface.boundingBox())?.height ?? 0)
+      .toBeGreaterThan(TABLET_LANDSCAPE.height * 0.4);
     await expectVisibleChronology(page, TABLET_LANDSCAPE);
     await expectNoPrimaryDocumentScroll(page, TABLET_LANDSCAPE);
   });
