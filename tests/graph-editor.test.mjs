@@ -618,7 +618,7 @@ test("graph camera and force policy stays bounded, weighted, and explicitly acti
   );
   assert.match(
     source,
-    /refreshLayout\(\)\s*\{[\s\S]{0,900}applyInteractionForce\(0\)[\s\S]{0,600}orb\.render/,
+    /refreshLayout\(\)\s*\{[\s\S]{0,900}applyInteractionForce\(0,\s*\{\s*reheat:\s*false\s*\}\)[\s\S]{0,600}orb\.render/,
   );
   assert.match(source, /alpha:\s*reheat\s*\?\s*\(dense \? 0\.28 : 0\.34\)\s*:\s*dense \? 0\.08 : 0\.1/);
 });
