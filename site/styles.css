@@ -4168,8 +4168,8 @@ body {
 /* Responsive reserved workspace chrome: title and controls share one anchored zone. */
 #app-shell {
   --workspace-chrome-gap: 0.35rem;
-  --workspace-title-block-size: 42px;
-  --workspace-tool-block-size: 58px;
+  --workspace-title-block-size: 38px;
+  --workspace-tool-block-size: 52px;
   --workspace-title-inline-size: 42px;
   --workspace-tool-inline-size: 62px;
   --workspace-landscape-chrome-block: calc(
@@ -4199,8 +4199,8 @@ body {
   inline-size: min(22rem, calc(100% - 1rem));
   max-inline-size: calc(100% - 1rem);
   max-block-size: var(--workspace-tool-block-size);
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow-inline: auto;
+  overflow-block: clip;
   transform: translateX(-50%);
 }
 
@@ -4221,8 +4221,8 @@ body {
     max(0.8rem, env(safe-area-inset-top)) -
     max(0.8rem, env(safe-area-inset-bottom))
   );
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow-inline: auto;
+  overflow-block: auto;
   transform: translateY(-50%);
 }
 
@@ -4236,33 +4236,28 @@ body {
 
 #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-editor-sheet,
 #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-browser-sheet {
-  bottom: calc(var(--workspace-landscape-chrome-block) + 0.35rem);
+  inset-block-end: calc(var(--workspace-landscape-chrome-block) + 0.35rem);
 }
 
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-editor-sheet,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-browser-sheet {
   inset-inline-end: calc(var(--workspace-portrait-chrome-inline) + 0.35rem);
-  bottom: max(0.4rem, env(safe-area-inset-bottom));
-  max-inline-size: calc(100dvw - var(--workspace-portrait-chrome-inline) - 0.75rem);
+  inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
+  max-inline-size: calc(100% - var(--workspace-portrait-chrome-inline) - 0.75rem);
 }
 
 #app-shell:has(#timeline-view[data-orientation="landscape"]) .timeline-panel > .story-focus {
-  bottom: calc(var(--workspace-landscape-chrome-block) + 0.35rem);
+  inset-block-end: calc(var(--workspace-landscape-chrome-block) + 0.35rem);
 }
 
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .timeline-panel > .story-focus {
   inset-inline-end: calc(var(--workspace-portrait-chrome-inline) + 0.35rem);
 }
 
-@media (max-width: 699px) and (orientation: landscape) {
+@media (min-width: 700px) {
   #app-shell {
-    --workspace-title-block-size: 38px;
-    --workspace-tool-block-size: 52px;
-  }
-
-  #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool {
-    min-block-size: 44px;
-    padding-block: 0.28rem;
+    --workspace-title-block-size: 42px;
+    --workspace-tool-block-size: 58px;
   }
 }
 
