@@ -10,6 +10,7 @@ import { TimelineInterchangeAdapter } from './interchange-adapter.ts';
 import { projectTimelineOccurrences } from '../src/projection/timeline-projection.ts';
 import { TimelineEvidence } from './evidence-store.ts';
 import { TimelineGraphInference } from './graph-inference.ts';
+import { createInteractionCoordinator } from '../src/interaction/interaction-coordinator.ts';
 
 // Import globals that still use globalThis (not yet converted)
 const graph = globalThis.TimelineGraph;
@@ -611,10 +612,12 @@ function closestEventTarget<T extends HTMLElement>(
 
   decorateSemanticControls();
 
-  const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
+  const interactionCoordinator = createInteractionCoordinator();
+  const timelineView =
+    globalThis.TimelineView?.create(els.timelineViewRoot, { interactionCoordinator }) || null;
   let temporalGraphView: ReturnType<typeof temporalGraphFactory.create> | null = null;
   try {
-    temporalGraphView = temporalGraphFactory.create(els.graphViewRoot);
+    temporalGraphView = temporalGraphFactory.create(els.graphViewRoot, { interactionCoordinator });
   } catch (error) {
     console.error("Failed to initialize TemporalGraphView:", error);
   }
@@ -876,6 +879,7 @@ function closestEventTarget<T extends HTMLElement>(
         interactive: true,
         countryContextIntro: true,
         fictionalReferenceFrame,
+        interactionCoordinator,
       }) || null;
     presentationMapKey = presentationMap ? mapKey : "";
     return Boolean(presentationMap);
@@ -1058,6 +1062,7 @@ function closestEventTarget<T extends HTMLElement>(
       source: els.itemLocationSource,
       geolocation: els.itemGeolocation,
       clearButton: els.itemLocationClear,
+      interactionCoordinator,
     }) || null;
 
   function newId(prefix = "id") {
