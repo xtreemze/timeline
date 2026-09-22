@@ -2597,9 +2597,19 @@
   grid-row: auto;
 }
 
-#presentation-stage > .graph-lens,
+#presentation-stage > .graph-lens:not([hidden]),
+#presentation-stage:fullscreen > .graph-lens:not([hidden]) {
+  position: absolute;
+  z-index: 2;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  grid-column: auto;
+  grid-row: auto;
+}
+
 #presentation-stage > .presentation-map-panel,
-#presentation-stage:fullscreen > .graph-lens,
 #presentation-stage:fullscreen > .presentation-map-panel {
   grid-column: auto;
   grid-row: auto;
@@ -2640,7 +2650,7 @@
     right: auto;
     bottom: auto;
     left: 50%;
-    inline-size: min(900px, calc(100dvw - 8rem));
+    inline-size: min(640px, calc(100dvw - 8rem));
     max-block-size: calc(100dvh - 9rem);
     block-size: auto;
     overflow: hidden;
@@ -2652,7 +2662,7 @@
     right: auto;
     bottom: auto;
     left: max(4.5rem, calc(env(safe-area-inset-left) + 4rem));
-    inline-size: min(720px, calc(100dvw - 10rem));
+    inline-size: min(560px, calc(100dvw - 10rem));
     max-block-size: calc(100dvh - 3rem);
     block-size: auto;
     overflow: hidden;
@@ -5187,4 +5197,38 @@
   background: color-mix(in srgb, var(--focus) 12%, var(--paper));
   outline: 2px solid color-mix(in srgb, var(--focus) 50%, transparent);
   outline-offset: 1px;
+}
+
+
+/* Focused place context uses the card's visual field for the existing interactive Leaflet map.
+   Keep semantic copy compact so map geometry and markers remain directly manipulable. */
+.timeline-focus-place-backdrop {
+  opacity: 0.92;
+  filter: none;
+}
+
+.timeline-focus-place-backdrop::after {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--paper) 92%, transparent) 0%,
+    color-mix(in srgb, var(--paper) 72%, transparent) 34%,
+    transparent 68%
+  );
+}
+
+.timeline-focus-place-backdrop .presentation-map,
+.timeline-focus-place-backdrop .presentation-map .leaflet-container,
+.timeline-focus-place-backdrop .presentation-map .leaflet-control-container,
+.timeline-focus-place-backdrop .presentation-map .leaflet-marker-pane {
+  pointer-events: auto;
+}
+
+.timeline-focus-place-backdrop .presentation-map {
+  touch-action: none;
+}
+
+@media (min-width: 700px) {
+  .timeline-focus-place .timeline-focus-section-content {
+    width: min(48%, 18rem);
+  }
 }
