@@ -63,6 +63,7 @@ on:
       - 'tests/browser/semantic-chronology.spec.ts'
       - 'tests/playwright/**'
       - 'playwright.config.ts'
+      - 'tests/playwright-certification-config.test.mjs'
       - 'playwright.pages.config.ts'
       - 'vite.config.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
@@ -190,6 +191,7 @@ jobs:
       - run: node --check src/orb-graph-entry.js
       - run: node --check site/orb-graph.bundle.js
       - run: pnpm test:architecture
+      - run: pnpm test:browser-certification-config
       - run: pnpm test:runtime-contracts
       - run: pnpm test:evidence-inference-runtime
       - run: pnpm test:temporal-layout-runtime
@@ -216,11 +218,21 @@ jobs:
           node-version: 24
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium webkit
-      - name: Verify structural browser test discovery
+      - name: Verify browser discovery and project matrix
         run: |
-          pnpm exec playwright test --config=playwright.config.ts --list | tee /tmp/structural-playwright-list.txt
-          grep -F 'retained-structural-composition.spec.ts' /tmp/structural-playwright-list.txt
-          grep -F 'semantic-chronology.spec.ts' /tmp/structural-playwright-list.txt
+          pnpm exec playwright test --config=playwright.config.ts --list | tee /tmp/playwright-list.txt
+          grep -F 'retained-structural-composition.spec.ts' /tmp/playwright-list.txt
+          grep -F 'semantic-chronology.spec.ts' /tmp/playwright-list.txt
+          grep -F 'playwright/layout.spec.ts' /tmp/playwright-list.txt
+          grep -F 'playwright/interaction.spec.ts' /tmp/playwright-list.txt
+          grep -F 'playwright/graph-touch.spec.ts' /tmp/playwright-list.txt
+          grep -F '[Desktop Chrome]' /tmp/playwright-list.txt
+          grep -F '[Mobile Chrome]' /tmp/playwright-list.txt
+          grep -F '[Mobile Chrome Landscape]' /tmp/playwright-list.txt
+          grep -F '[Mobile Safari]' /tmp/playwright-list.txt
+          grep -F '[Mobile Safari Landscape]' /tmp/playwright-list.txt
+          grep -F '[Tablet Touch]' /tmp/playwright-list.txt
+          grep -F '[Reduced Motion]' /tmp/playwright-list.txt
       - run: pnpm test:structural-composition-browser
       - run: pnpm test:semantic-chronology-browser
 
@@ -254,7 +266,7 @@ jobs:
           pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --list | tee /tmp/application-shell-playwright-list.txt
           grep -F 'layout.spec.ts' /tmp/application-shell-playwright-list.txt
       - name: Run application shell browser tests
-        run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --project="Mobile Chrome" --project="Mobile Safari" --project="Tablet Touch"
+        run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --project="Mobile Chrome" --project="Mobile Chrome Landscape" --project="Mobile Safari" --project="Mobile Safari Landscape" --project="Tablet Touch"
 
   interaction-browser:
     runs-on: ubuntu-latest
