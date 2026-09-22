@@ -61,6 +61,7 @@ on:
       - 'tests/retained-structural-composition-runtime.test.mjs'
       - 'tests/browser/retained-structural-composition.spec.ts'
       - 'tests/browser/semantic-chronology.spec.ts'
+      - 'tests/browser/focus-sidebar.spec.ts'
       - 'tests/playwright/**'
       - 'playwright.config.ts'
       - 'tests/playwright-certification-config.test.mjs'
@@ -235,6 +236,7 @@ jobs:
           pnpm exec playwright test --config=playwright.config.ts --list | tee /tmp/playwright-list.txt
           grep -F 'retained-structural-composition.spec.ts' /tmp/playwright-list.txt
           grep -F 'semantic-chronology.spec.ts' /tmp/playwright-list.txt
+          grep -F 'focus-sidebar.spec.ts' /tmp/playwright-list.txt
           grep -F 'playwright/layout.spec.ts' /tmp/playwright-list.txt
           grep -F 'playwright/interaction.spec.ts' /tmp/playwright-list.txt
           grep -F 'playwright/graph-touch.spec.ts' /tmp/playwright-list.txt
@@ -247,6 +249,8 @@ jobs:
           grep -F '[Reduced Motion]' /tmp/playwright-list.txt
       - run: pnpm test:structural-composition-browser
       - run: pnpm test:semantic-chronology-browser
+      - name: Verify focused sidebar geometry
+        run: pnpm exec playwright test --config=playwright.config.ts tests/browser/focus-sidebar.spec.ts --project="Desktop Chrome" --project="Mobile Chrome" --project="Mobile Chrome Landscape"
 
   pages-runtime-browser:
     runs-on: ubuntu-latest
