@@ -37,23 +37,41 @@ test("wheel zoom is deliberately capped and symmetric enough for fine control", 
   assert.ok(Math.abs(zoomOut * zoomIn - 1) < 0.001);
 });
 
-test("selected events use a compact six-column focus popover over the persistent timeline", async () => {
+test("selected events reserve a focused sidebar beside the graph instead of a popover", async () => {
   const [html, js, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /id="timeline-focus-view"/);
+  assert.match(
+    html,
+    /id="presentation-stage"[\s\S]*id="timeline-view"[\s\S]*id="timeline-focus-view"[\s\S]*id="graph-lens"/,
+  );
+  assert.match(html, /id="timeline-focus-view"[^>]*class="timeline-focus-view timeline-focus-panel"/);
+  assert.doesNotMatch(html, /id="timeline-focus-view"[^>]*popover=/);
   assert.doesNotMatch(html, /id="timeline-detail"/);
   assert.match(js, /focusItem\(id, options = \{\}\)/);
   assert.match(js, /timelinefocuschange/);
   assert.match(js, /createFocusHero/);
-  assert.match(css, /\.timeline-focus-view\s*\{[\s\S]*grid-template-columns:\s*repeat\(6,/);
-  assert.doesNotMatch(css, /\.timeline-focus-view\s*\{[\s\S]*grid-template-columns:\s*repeat\(12,/);
-  assert.match(css, /timeline-focus-view\[popover\]/);
-  assert.match(css, /inline-size:\s*min\(640px/);
-  assert.match(css, /\.timeline-view\.is-event-focused/);
-  assert.match(css, /grid-row:\s*3/);
+  assert.doesNotMatch(js, /showPopover\(\)/);
+  assert.doesNotMatch(js, /hidePopover\(\)/);
+  assert.match(css, /#presentation-stage\s*>\s*\.timeline-focus-panel\s*\{/);
+  assert.match(
+    css,
+    /data-viewport-orientation="landscape"[\s\S]*> \.timeline-focus-panel[\s\S]*grid-column:\s*1;[\s\S]*grid-row:\s*1;/,
+  );
+  assert.match(
+    css,
+    /data-viewport-orientation="landscape"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*grid-column:\s*2;[\s\S]*grid-row:\s*1;/,
+  );
+  assert.match(
+    css,
+    /data-viewport-orientation="portrait"[\s\S]*> \.timeline-focus-panel[\s\S]*grid-column:\s*1;[\s\S]*grid-row:\s*1;/,
+  );
+  assert.match(
+    css,
+    /data-viewport-orientation="portrait"[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*grid-column:\s*1;[\s\S]*grid-row:\s*2;/,
+  );
   assert.doesNotMatch(css, /position-anchor:\s*--timeline-detail-anchor/);
 });
 
