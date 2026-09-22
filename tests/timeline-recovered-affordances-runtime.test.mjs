@@ -46,3 +46,15 @@ test("initial cluster materialization does not buzz and identical membership is 
   );
   assert.match(viewSource, /if \(signature === this\.clusterSignature\) return;/);
 });
+
+test("timeline orientation preference survives reload while temporary orientation can opt out", () => {
+  assert.match(viewSource, /const VIEW_STORAGE_KEY = "timeline:view:v1"/);
+  assert.match(viewSource, /function loadViewPreferences\(/);
+  assert.match(viewSource, /function saveViewPreferences\(/);
+  assert.match(viewSource, /orientation: Orientation = loadViewPreferences\(\)\.orientation/);
+  assert.match(
+    viewSource,
+    /setOrientation\([\s\S]*options:\s*\{ persist\?: boolean; focus\?: boolean \}[\s\S]*options\.persist !== false[\s\S]*saveViewPreferences/,
+  );
+  assert.match(appSource, /persist:\s*false/);
+});
