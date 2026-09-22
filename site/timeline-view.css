@@ -5258,7 +5258,6 @@
   }
 }
 
-
 /* Reserved workspace chrome keeps chronology clear of app controls. */
 .timeline-view[data-orientation="landscape"] .timeline-project-heading {
   inset-block-start: auto;
