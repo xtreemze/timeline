@@ -70,6 +70,8 @@ on:
       - 'tests/browser/retained-performance.spec.ts'
       - 'src/performance/retained-timeline-metrics.ts'
       - 'benchmarks/retained-timeline.mjs'
+      - 'benchmarks/graph-data.mjs'
+      - 'docs/CONTRIBUTOR-ARCHITECTURE.md'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
       - 'tests/temporal-layout-runtime.test.mjs'
       - 'tests/timeline-touch-runtime-contracts.test.mjs'
@@ -150,6 +152,8 @@ on:
       - 'tests/browser/retained-performance.spec.ts'
       - 'src/performance/retained-timeline-metrics.ts'
       - 'benchmarks/retained-timeline.mjs'
+      - 'benchmarks/graph-data.mjs'
+      - 'docs/CONTRIBUTOR-ARCHITECTURE.md'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
       - 'tests/temporal-layout-runtime.test.mjs'
       - 'tests/timeline-touch-runtime-contracts.test.mjs'
@@ -200,6 +204,7 @@ jobs:
       - run: pnpm test:structural-composition-runtime
       - run: pnpm test:retained-timeline-metrics
       - run: pnpm benchmark:retained-timeline
+      - run: pnpm benchmark:graph-data
       - run: pnpm test:touch-runtime-contracts
       - run: pnpm test:temporal-context-runtime
       - run: pnpm test:semantic-hierarchy-runtime
