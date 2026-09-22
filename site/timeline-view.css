@@ -5342,3 +5342,48 @@
   inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
   inset-inline-start: 50%;
 }
+
+
+/* Project identity is footer chrome, not timeline-local chrome. */
+.app-footer-title.timeline-project-heading {
+  top: auto !important;
+  right: auto !important;
+  left: 50% !important;
+  bottom: var(--workspace-footer-edge) !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  inline-size: min(26rem, calc(100% - 1rem)) !important;
+  max-inline-size: calc(100% - 1rem) !important;
+  max-block-size: var(--workspace-footer-title-size) !important;
+  transform: translateX(-50%) !important;
+}
+
+.app-footer-title .timeline-project-title input {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 34px !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
+
+.app-footer-title .story-focus-header {
+  flex-direction: row !important;
+  max-width: min(24rem, 48%) !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+.app-footer-title .story-focus-copy {
+  display: block !important;
+}
+
+.app-footer-title .story-focus-controls {
+  flex-direction: row !important;
+}
+
+@media (max-width: 699px) {
+  .app-footer-title.timeline-project-heading {
+    inline-size: min(22rem, calc(100% - 0.8rem)) !important;
+    max-inline-size: calc(100% - 0.8rem) !important;
+  }
+}
