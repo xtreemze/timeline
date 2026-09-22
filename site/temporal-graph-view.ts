@@ -100,6 +100,9 @@ class TemporalGraphViewController {
   private lastCanvasSize: string;
   private orb: any;
   private resizeObserver: ResizeObserver | null;
+  private pointerHeldUntil: number;
+  private cachedEdgesWhileHeld: Edge[] | null;
+  private edgeUpdateDelayTimer: number;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -120,6 +123,9 @@ class TemporalGraphViewController {
     this.selection = null;
     this.layoutFrame = 0;
     this.lastCanvasSize = "";
+    this.pointerHeldUntil = 0;
+    this.cachedEdgesWhileHeld = null;
+    this.edgeUpdateDelayTimer = 0;
 
     const orbFactory = getOrbFactory();
     this.orb = orbFactory.create(this.canvas, {
@@ -128,6 +134,9 @@ class TemporalGraphViewController {
       onEdgeClick: (edge: Edge) => this.activateEdge(edge),
       onSimulationState: (state: SimulationState) => this.renderSimulationState(state),
     });
+
+    // Listen for pointer events on the timeline surface to coordinate edge connection delays
+    this.setupPointerEventTracking();
 
     if ("ResizeObserver" in globalThis && this.canvas) {
       this.resizeObserver = new ResizeObserver((entries: ResizeObserverEntry[]) => {
@@ -162,6 +171,46 @@ class TemporalGraphViewController {
     this.status.dataset.simulationRunning = String(Boolean(state.running));
     const countText = this.status.dataset.edgeCount || "0 / 0 edges active";
     this.status.textContent = `${countText} · ${state.mode || "worker-cpu"}${suffix}`;
+  }
+
+  private setupPointerEventTracking(): void {
+    // Find the timeline surface and listen to pointer events
+    const timelineSurface = this.root.closest("[data-view-name]")?.querySelector(".timeline-surface");
+    if (!timelineSurface) return;
+
+    const onPointerDown = () => {
+      this.pointerHeldUntil = performance.now() + 2000; // Hold edge states for at least 2 seconds
+      // Clear any pending edge update delay
+      if (this.edgeUpdateDelayTimer) globalThis.clearTimeout(this.edgeUpdateDelayTimer);
+      this.edgeUpdateDelayTimer = 0;
+    };
+
+    const onPointerUp = () => {
+      const now = performance.now();
+      const heldDuration = Math.max(0, this.pointerHeldUntil - now);
+      if (heldDuration > 0) {
+        // Wait for the remaining hold duration before allowing edge updates
+        if (this.edgeUpdateDelayTimer) globalThis.clearTimeout(this.edgeUpdateDelayTimer);
+        this.edgeUpdateDelayTimer = globalThis.setTimeout(() => {
+          this.edgeUpdateDelayTimer = 0;
+          this.pointerHeldUntil = 0;
+          this.cachedEdgesWhileHeld = null;
+          // Re-render with latest edge states
+          this.render();
+        }, heldDuration);
+      } else {
+        this.pointerHeldUntil = 0;
+        this.cachedEdgesWhileHeld = null;
+      }
+    };
+
+    timelineSurface.addEventListener("pointerdown", onPointerDown, { capture: true });
+    timelineSurface.addEventListener("pointerup", onPointerUp, { capture: true });
+    timelineSurface.addEventListener("pointercancel", onPointerUp, { capture: true });
+  }
+
+  private isPointerHeld(): boolean {
+    return performance.now() < this.pointerHeldUntil;
   }
 
   setModel(model: any): void {
@@ -304,7 +353,16 @@ class TemporalGraphViewController {
       }
       if (this.selection) this.orb.select?.(this.selection.kind, this.selection.id);
     } else {
-      this.orb.updateTemporalEdges(data.edges);
+      // When pointer is held, cache the current edge states and don't update them
+      if (this.isPointerHeld()) {
+        if (!this.cachedEdgesWhileHeld) {
+          this.cachedEdgesWhileHeld = data.edges;
+        }
+        this.orb.updateTemporalEdges(this.cachedEdgesWhileHeld);
+      } else {
+        this.cachedEdgesWhileHeld = null;
+        this.orb.updateTemporalEdges(data.edges);
+      }
     }
   }
 }
