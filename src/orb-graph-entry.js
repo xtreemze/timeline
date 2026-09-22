@@ -1520,9 +1520,9 @@ function create(container, handlers = {}) {
       edges: edges.map((edge) => transitionRecord(edge, "active")),
     });
     hasGraphData = true;
-    // Don't reset force simulation if a node is currently being dragged
+    // Reset force but preserve simulation for dragged nodes
     if (!isNodeCurrentlyDragging()) {
-      applyInteractionForce(0);
+      applyInteractionForce(0, { reheat: true });
     }
     orb.render();
     handlers.onSimulationState?.({ running: true, mode: currentMode });
@@ -1585,9 +1585,9 @@ function create(container, handlers = {}) {
       });
       setPerformanceMode(nodes.length);
       orb.render();
-      // Don't reset force simulation if a node is currently being dragged
+      // Reset force but preserve simulation for dragged nodes
       if (!isNodeCurrentlyDragging()) {
-        applyInteractionForce(0);
+        applyInteractionForce(0, { reheat: true });
       }
       return;
     }
