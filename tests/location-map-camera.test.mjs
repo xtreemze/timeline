@@ -107,7 +107,7 @@ test("interactive maps use the timeline weighted drag response and shared releas
   );
   assert.match(source, /dragging:\s*this\.interactive && !weightedDrag/);
   assert.match(source, /dragging:\s*!weightedDrag/);
-  assert.match(source, /touchZoom:\s*this\.interactive/);
+  assert.match(source, /touchZoom:\s*true/);
   assert.match(source, /pointers\.size > 1[\s\S]*cancelDrag\(\)/);
   assert.match(source, /pointers\.size === 1[\s\S]*beginDrag\(remaining\.pointerId, remaining\)/);
   assert.match(source, /prefersReducedMotion\(\)/);
