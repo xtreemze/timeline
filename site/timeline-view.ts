@@ -1426,13 +1426,12 @@ class TimelineViewController {
         `${this.relationshipBandLane(relationship.id) * 8}px`,
       );
 
-      // Color segment based on associated event
-      const eventIdMatch = relationship.id.match(/event-([a-z0-9-]+)/);
-      if (eventIdMatch) {
-        const eventId = eventIdMatch[1];
-        const event = this.items.find((item) => item.id === eventId);
-        if (event && event.color) {
-          segment.style.setProperty("--relation-event-color", event.color);
+      // Color segment based on associated subject event
+      const subjectId = (relationship as Record<string, string>).subjectId;
+      if (subjectId) {
+        const subject = this.items.find((item) => item.id === subjectId);
+        if (subject && subject.color) {
+          segment.style.setProperty("--relation-event-color", subject.color);
         }
       }
 
