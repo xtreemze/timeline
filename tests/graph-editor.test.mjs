@@ -621,7 +621,7 @@ test("graph camera and force policy stays bounded, weighted, and explicitly acti
   assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.028/);
   assert.match(
     source,
-    /function setData\(data\)[\s\S]{0,1800}orb\.render\(\)[\s\S]{0,500}requestSimulation\("topology", 0\)[\s\S]{0,300}simulationCoordinator\.retry\(\)/,
+    /function setData\(data\)[\s\S]{0,1800}orb\.render\(\(\) => \{[\s\S]{0,220}simulationCoordinator\.retry\(\)[\s\S]{0,220}\}\)[\s\S]{0,300}requestSimulation\("topology", 0\)/,
   );
   assert.match(source, /refreshLayout\(\)\s*\{[\s\S]{0,900}orb\.render/);
   assert.doesNotMatch(
