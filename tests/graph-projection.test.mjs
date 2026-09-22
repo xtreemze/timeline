@@ -211,3 +211,21 @@ test("1k/10k/50k graph benchmark exercises the direct renderer-neutral projectio
   assert.match(benchmark, /directFullProjection/);
   assert.match(benchmark, /directFocusedProjection/);
 });
+
+
+test("focused projection tolerates legacy relationships without itemIds", () => {
+  const project = fixture();
+  const legacy = {
+    ...project,
+    relationships: project.relationships.map(({ itemIds, ...relationship }) => relationship),
+  };
+  const index = createSemanticGraphIndex(legacy);
+
+  const focused = projectFocusedGraph(legacy, index, entityId("a"), null, {
+    depth: 1,
+    limit: 36,
+  });
+
+  assert.ok(focused.nodes.some((node) => String(node.id) === "a"));
+  assert.ok(focused.edges.some((edge) => String(edge.id) === "r-timeless"));
+});
