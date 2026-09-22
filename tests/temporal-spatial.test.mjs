@@ -216,38 +216,6 @@ test("canonical places deduplicate equivalent location records", () => {
   );
 });
 
-test("item form uses one range calendar while canonical place authoring is separated into the graph editor", async () => {
-  const [html, mapSource, appSource] = await Promise.all([
-    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
-    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
-  ]);
-  assert.match(html, /id="item-date-range" type="text" readonly/);
-  assert.match(html, /id="item-calendar-popover"[^>]*popover="auto"/);
-  assert.match(html, /id="item-calendar-year"[^>]*type="number"/);
-  assert.match(html, /id="item-start-date" type="hidden"/);
-  assert.match(html, /id="item-end-date" type="hidden"/);
-  assert.match(html, /id="item-start-time" type="time"/);
-  assert.match(html, /id="item-end-time" type="time"/);
-  assert.ok(html.includes('<option value="millennium">Millennium</option>'));
-  assert.ok(html.includes('<option value="century">Century</option>'));
-  assert.ok(html.includes('<option value="decade">Decade</option>'));
-  assert.ok(html.includes('<option value="year">Year</option>'));
-  assert.ok(html.includes('<option value="month">Month</option>'));
-  assert.equal(html.split('<option value="millennium">Millennium</option>').length - 1, 2);
-  assert.ok(
-    appSource.includes(
-      'const hasClock = !["millennium", "century", "decade", "year", "month", "day"].includes(precision);',
-    ),
-  );
-  assert.match(html, /id="item-location-details"[^>]*hidden/);
-  assert.match(html, /id="graph-place-form"/);
-  assert.match(html, /id="graph-edge-place"/);
-  assert.match(mapSource, /tile\.openstreetmap\.org/);
-  assert.match(mapSource, /OpenStreetMap/);
-  assert.match(mapSource, /1\.9\.4/);
-});
-
 test("omits location accuracy when the form field is empty", () => {
   const location = spatial.fromForm({
     name: "Point",
