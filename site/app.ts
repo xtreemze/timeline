@@ -661,17 +661,22 @@ function closestEventTarget<T extends HTMLElement>(
 
   function workspaceToolViewport() {
     const visualViewport = window.visualViewport;
+    const layoutWidth = Math.max(
+      1,
+      document.documentElement.clientWidth || window.innerWidth || visualViewport?.width || 1,
+    );
+    const layoutHeight = Math.max(
+      1,
+      document.documentElement.clientHeight || window.innerHeight || visualViewport?.height || 1,
+    );
     return {
-      width: Math.max(
-        1,
-        visualViewport?.width || document.documentElement.clientWidth || window.innerWidth || 1,
-      ),
-      height: Math.max(
-        1,
-        visualViewport?.height || document.documentElement.clientHeight || window.innerHeight || 1,
-      ),
-      left: Math.max(0, visualViewport?.offsetLeft || 0),
-      top: Math.max(0, visualViewport?.offsetTop || 0),
+      // Placement must remain reachable in the CSS layout viewport. Some mobile
+      // engines report a wider visual viewport while scaling, which is useful
+      // for zoom state but invalid for top-layer control bounds.
+      width: Math.max(1, Math.min(layoutWidth, visualViewport?.width || layoutWidth)),
+      height: Math.max(1, Math.min(layoutHeight, visualViewport?.height || layoutHeight)),
+      left: Math.max(0, Math.min(visualViewport?.offsetLeft || 0, layoutWidth - 1)),
+      top: Math.max(0, Math.min(visualViewport?.offsetTop || 0, layoutHeight - 1)),
     };
   }
 
