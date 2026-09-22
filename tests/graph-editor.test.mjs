@@ -190,9 +190,9 @@ test("graph exploration never opens editors while graph authoring stays inside e
 test("node interaction reheats force and preserves wider spacing after release", async () => {
   const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
-  assert.match(source, /INTERACTION_SETTLE_MS\s*=\s*2400/);
-  assert.match(source, /DRAG_ALPHA_TARGET\s*=\s*0\.075/);
-  assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.035/);
+  assert.match(source, /INTERACTION_SETTLE_MS\s*=\s*3400/);
+  assert.match(source, /DRAG_ALPHA_TARGET\s*=\s*0\.05/);
+  assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.018/);
   assert.match(
     source,
     /function onPointerDown\(event\)[\s\S]*target\?\.kind === "node"[\s\S]*setInteractionHeat\(DRAG_ALPHA_TARGET\)[\s\S]*beginCameraGesture\(event, target\)/,
@@ -206,13 +206,13 @@ test("node interaction reheats force and preserves wider spacing after release",
   assert.match(source, /simulator\.setSettings\(layout\)/);
   assert.match(source, /simulator\.activateSimulation\(\)/);
   assert.match(source, /distance:\s*dense \? 128 : 168/);
-  assert.match(source, /strength:\s*dense \? -220 : -340/);
+  assert.match(source, /strength:\s*dense \? -185 : -285/);
   assert.match(source, /radius:\s*dense \? 30 : 42/);
   assert.match(source, /iterations:\s*3/);
-  assert.match(source, /centering:[\s\S]*strength:\s*dense \? 0\.012 : 0\.02/);
-  assert.match(source, /forceX:[\s\S]*strength:\s*dense \? 0\.008 : 0\.012/);
-  assert.match(source, /alphaMin:\s*dense \? 0\.012 : 0\.008/);
-  assert.match(source, /alphaDecay:\s*dense \? 0\.042 : 0\.038/);
+  assert.match(source, /centering:[\s\S]*strength:\s*dense \? 0\.005 : 0\.008/);
+  assert.match(source, /forceX:[\s\S]*strength:\s*positioningStrength \* overlapScale/);
+  assert.match(source, /alphaMin:\s*dense \? 0\.005 : 0\.004/);
+  assert.match(source, /alphaDecay:\s*dense \? 0\.028 : 0\.026/);
   assert.match(source, /clearInteractionSettleTimer\(\)/);
 });
 
@@ -244,9 +244,9 @@ test("mouse node drag preheats force before Orb enters native drag state", async
 test("timeline topology changes visibly release, break, and bind graph relationships", async () => {
   const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
-  assert.match(source, /TOPOLOGY_EDGE_RELEASE_MS\s*=\s*280/);
-  assert.match(source, /TOPOLOGY_SETTLE_MS\s*=\s*820/);
-  assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.05/);
+  assert.match(source, /TOPOLOGY_EDGE_RELEASE_MS\s*=\s*360/);
+  assert.match(source, /TOPOLOGY_SETTLE_MS\s*=\s*1100/);
+  assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.028/);
   assert.match(source, /orb\.data\.merge\(/);
   assert.match(source, /orb\.data\.remove\(/);
   assert.match(source, /__timelineTransition/);
@@ -609,9 +609,9 @@ test("graph camera and force policy stays bounded, weighted, and explicitly acti
   assert.match(source, /GRAPH_MAX_ZOOM\s*=\s*2\.5/);
   assert.match(source, /GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX\s*=\s*-280/);
   assert.doesNotMatch(source, /nodeCount\s*>=\s*3000\s*\?\s*0\.0005/);
-  assert.match(source, /DRAG_ALPHA_TARGET\s*=\s*0\.075/);
-  assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.035/);
-  assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.05/);
+  assert.match(source, /DRAG_ALPHA_TARGET\s*=\s*0\.05/);
+  assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.018/);
+  assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.028/);
   assert.match(
     source,
     /function setData\(data\)[\s\S]{0,1800}applyInteractionForce\(0\)[\s\S]{0,500}orb\.render/,
@@ -620,9 +620,53 @@ test("graph camera and force policy stays bounded, weighted, and explicitly acti
     source,
     /refreshLayout\(\)\s*\{[\s\S]{0,900}applyInteractionForce\(0,\s*\{\s*reheat:\s*false\s*\}\)[\s\S]{0,600}orb\.render/,
   );
-  assert.match(source, /alpha:\s*reheat\s*\?\s*\(dense \? 0\.18 : 0\.22\)\s*:\s*dense \? 0\.04 : 0\.055/);
+  assert.match(source, /alpha:\s*reheat\s*\?\s*\(dense \? 0\.11 : 0\.14\)\s*:\s*dense \? 0\.025 : 0\.032/);
   assert.match(source, /simulator\.stopSimulation\(\)/);
   assert.match(source, /\.timeline-surface, \.presentation-map, \.leaflet-container/);
   assert.match(source, /document\.addEventListener\("pointerdown", onCompetingPointerDown, true\)/);
   assert.match(source, /applyInteractionForce\(0, \{ reheat: false \}\)/);
+});
+
+
+test("graph presentation force clears visible popovers and returns gradually to center", async () => {
+  const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(source, /POPOVER_REJECTION_STRENGTH\s*=\s*-0\.009/);
+  assert.match(source, /POPOVER_REJECTION_DENSE_STRENGTH\s*=\s*-0\.006/);
+  assert.match(source, /CENTER_ATTRACTION_STRENGTH\s*=\s*0\.007/);
+  assert.match(source, /CENTER_ATTRACTION_DENSE_STRENGTH\s*=\s*0\.005/);
+  assert.match(source, /querySelectorAll\("\[popover\]:popover-open"\)/);
+  assert.match(source, /popover\.contains\(container\)/);
+  assert.match(source, /orb\.getSimulationPosition\(canvasPoint\)/);
+  assert.match(
+    source,
+    /presentationForcePoint[\s\S]*POPOVER_REJECTION_DENSE_STRENGTH[\s\S]*POPOVER_REJECTION_STRENGTH[\s\S]*CENTER_ATTRACTION_DENSE_STRENGTH[\s\S]*CENTER_ATTRACTION_STRENGTH/,
+  );
+  assert.match(source, /document\.addEventListener\("toggle", onPopoverToggle, true\)/);
+  assert.match(source, /globalThis\.addEventListener\?\.\("resize", onPresentationGeometryChange\)/);
+  assert.match(source, /document\.removeEventListener\("toggle", onPopoverToggle, true\)/);
+  assert.match(source, /globalThis\.removeEventListener\?\.\("resize", onPresentationGeometryChange\)/);
+  assert.match(source, /function settlePresentationForceUpdate\(delay = 160\)/);
+  assert.match(
+    source,
+    /function applyCameraPan\([\s\S]*settlePresentationForceUpdate\(\)[\s\S]*return true/,
+  );
+  assert.match(source, /const onPopoverToggle = \(\) => queuePresentationForceUpdate\(\)/);
+  assert.match(
+    source,
+    /const onWheelCapture = \(\) => \{[\s\S]*settlePresentationForceUpdate\(\)/,
+  );
+  assert.match(
+    source,
+    /if \(presentationForceSettleTimer\) globalThis\.clearTimeout\(presentationForceSettleTimer\)/,
+  );
+
+  assert.match(source, /DRAG_ALPHA_TARGET\s*=\s*0\.05/);
+  assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.018/);
+  assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.028/);
+  assert.match(
+    source,
+    /alpha:\s*reheat\s*\?\s*\(dense \? 0\.11 : 0\.14\)\s*:\s*dense \? 0\.025 : 0\.032/,
+  );
+  assert.match(source, /alphaDecay:\s*dense \? 0\.028 : 0\.026/);
 });
