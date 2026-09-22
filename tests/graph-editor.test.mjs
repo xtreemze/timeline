@@ -621,4 +621,8 @@ test("graph camera and force policy stays bounded, weighted, and explicitly acti
     /refreshLayout\(\)\s*\{[\s\S]{0,900}applyInteractionForce\(0,\s*\{\s*reheat:\s*false\s*\}\)[\s\S]{0,600}orb\.render/,
   );
   assert.match(source, /alpha:\s*reheat\s*\?\s*\(dense \? 0\.18 : 0\.22\)\s*:\s*dense \? 0\.04 : 0\.055/);
+  assert.match(source, /simulator\.stopSimulation\(\)/);
+  assert.match(source, /\.timeline-surface, \.presentation-map, \.leaflet-container/);
+  assert.match(source, /document\.addEventListener\("pointerdown", onCompetingPointerDown, true\)/);
+  assert.match(source, /applyInteractionForce\(0, \{ reheat: false \}\)/);
 });
