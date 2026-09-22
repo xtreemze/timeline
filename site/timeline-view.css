@@ -3769,6 +3769,13 @@
   }
 
   #app-shell[data-graph-open="true"]
+    #presentation-stage:has(> #timeline-view[data-orientation="landscape"]) {
+    /* Semantic orientation state is authoritative and avoids another
+       viewport-width media-query exception. */
+    --mobile-relations-block-rail: clamp(156px, 42dvh, 188px);
+  }
+
+  #app-shell[data-graph-open="true"]
     #timeline-view[data-orientation="portrait"][data-empty="true"]
     > .timeline-surface {
     --timeline-axis-cross: 62%;
@@ -3884,14 +3891,6 @@
     text-align: right;
     transform: translate(calc(-100% + var(--terminal-anchor)), -50%);
     transform-origin: calc(100% - var(--terminal-anchor)) 50%;
-  }
-}
-
-@media (max-width: 699px) and (orientation: landscape) {
-  #app-shell[data-graph-open="true"] #presentation-stage {
-    /* Short landscape viewports reserve a readable chronology rail while
-       preserving the complementary graph canvas. */
-    --mobile-relations-block-rail: clamp(156px, 42dvh, 188px);
   }
 }
 
