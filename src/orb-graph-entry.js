@@ -1733,12 +1733,14 @@ function create(container, handlers = {}) {
       orb.zoomOut();
     },
     getNodePosition(id) {
-      const position = orb.data.getNodeById(id)?.getPosition?.();
+      const node = orb.data.getNodeById(id) || orb.data.getNodeById(String(id));
+      const position = node?.getPosition?.();
       if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return null;
       return { x: position.x, y: position.y };
     },
     getNodeCanvasPosition(id) {
-      const position = orb.data.getNodeById(id)?.getPosition?.();
+      const node = orb.data.getNodeById(id) || orb.data.getNodeById(String(id));
+      const position = node?.getPosition?.();
       if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return null;
       const canvasPoint = orb.getCanvasPosition(position);
       if (
