@@ -212,7 +212,7 @@ test("node interaction reheats force and preserves wider spacing after release",
   assert.match(source, /centering:[\s\S]*strength:\s*dense \? 0\.012 : 0\.02/);
   assert.match(source, /forceX:[\s\S]*strength:\s*dense \? 0\.008 : 0\.012/);
   assert.match(source, /alphaMin:\s*dense \? 0\.012 : 0\.008/);
-  assert.match(source, /alphaDecay:\s*dense \? 0\.03 : 0\.028/);
+  assert.match(source, /alphaDecay:\s*dense \? 0\.042 : 0\.038/);
   assert.match(source, /clearInteractionSettleTimer\(\)/);
 });
 
@@ -620,5 +620,5 @@ test("graph camera and force policy stays bounded, weighted, and explicitly acti
     source,
     /refreshLayout\(\)\s*\{[\s\S]{0,900}applyInteractionForce\(0,\s*\{\s*reheat:\s*false\s*\}\)[\s\S]{0,600}orb\.render/,
   );
-  assert.match(source, /alpha:\s*reheat\s*\?\s*\(dense \? 0\.28 : 0\.34\)\s*:\s*dense \? 0\.08 : 0\.1/);
+  assert.match(source, /alpha:\s*reheat\s*\?\s*\(dense \? 0\.18 : 0\.22\)\s*:\s*dense \? 0\.04 : 0\.055/);
 });
