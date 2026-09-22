@@ -377,11 +377,11 @@
   white-space: nowrap;
 }
 .is-landscape .timeline-tick-label {
-  top: 16px;
+  top: calc(var(--timeline-axis-cross) + 16px);
   transform: translateX(-50%);
 }
 .is-portrait .timeline-tick-label {
-  left: 16px;
+  left: calc(var(--timeline-axis-cross) + 16px);
   transform: translateY(-50%);
 }
 
@@ -677,6 +677,7 @@
   height: 100%;
   border-radius: calc(0.62rem - 2px);
   object-fit: cover;
+  pointer-events: none;
 }
 .timeline-cluster-icon-badge {
   position: absolute;
