@@ -318,12 +318,12 @@ class TimelineViewController {
   constructor(root: HTMLElement) {
     this.root = root;
     this.surface = root.querySelector("#timeline-surface") || root.querySelector(".timeline-surface") || root;
-    const presentationStage = root.closest("#presentation-stage");
+    const presentationStage = root.closest<HTMLElement>("#presentation-stage");
     this.focusView =
-      root.querySelector("#timeline-focus-view") ||
-      root.querySelector(".timeline-focus-view") ||
-      presentationStage?.querySelector("#timeline-focus-view") ||
-      presentationStage?.querySelector(".timeline-focus-view") ||
+      root.querySelector<HTMLElement>("#timeline-focus-view") ||
+      root.querySelector<HTMLElement>(".timeline-focus-view") ||
+      presentationStage?.querySelector<HTMLElement>("#timeline-focus-view") ||
+      presentationStage?.querySelector<HTMLElement>(".timeline-focus-view") ||
       root;
     this.readout =
       root.querySelector("#timeline-window-readout") || root.querySelector(".timeline-window-readout") || root;
