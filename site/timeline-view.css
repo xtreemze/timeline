@@ -5339,6 +5339,7 @@
 #app-shell[data-graph-open="true"]
   #timeline-view[data-orientation="portrait"]
   > .timeline-surface {
+  z-index: 1060;
   inset-inline-end: var(--workspace-portrait-chrome-inline, 7rem);
 }
 
@@ -5354,6 +5355,7 @@
 #app-shell[data-graph-open="true"]
   #timeline-view[data-orientation="landscape"]
   > .timeline-surface {
+  z-index: 1060;
   inset-block-end: var(--workspace-landscape-chrome-block, 6rem);
 }
 
