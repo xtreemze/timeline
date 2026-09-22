@@ -232,6 +232,26 @@ function lintCss(file, source) {
   if (/transition\s*:\s*all\b/i.test(source)) {
     report(file, "no-transition-all", "transition: all is forbidden; name the properties that animate");
   }
+  if (
+    ["site/styles.css", "site/timeline-view.css"].includes(file) &&
+    /^\s*transition\s*:/im.test(source)
+  ) {
+    report(
+      file,
+      "no-css-transitions",
+      "core interaction surfaces must use immediate state, WAAPI, or View Transitions instead of CSS transition declarations",
+    );
+  }
+  if (
+    ["site/styles.css", "site/timeline-view.css"].includes(file) &&
+    /scroll-behavior\s*:\s*smooth\b/i.test(source)
+  ) {
+    report(
+      file,
+      "no-css-smooth-scroll",
+      "continuous navigation motion is owned by the interaction layer, not CSS smooth scrolling",
+    );
+  }
   if (/!important\b/.test(source)) {
     report(file, "no-important", "!important is forbidden; resolve cascade/specificity ownership instead");
   }
