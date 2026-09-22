@@ -1,7 +1,6 @@
 export type GraphSimulationReason =
   | "idle"
   | "geometry-refresh"
-  | "popover-exclusion"
   | "post-drop"
   | "topology"
   | "drag";
@@ -28,7 +27,6 @@ export const GRAPH_SIMULATION_PRIORITY: Readonly<Record<GraphSimulationReason, n
   Object.freeze({
     idle: 0,
     "geometry-refresh": 1,
-    "popover-exclusion": 2,
     "post-drop": 3,
     topology: 4,
     drag: 5,
