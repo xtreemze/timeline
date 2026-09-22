@@ -4352,3 +4352,134 @@ body {
     font-size: 0.6rem;
   }
 }
+
+
+/* Orientation-aware fused application chrome: bottom footer in landscape, right rail in portrait. */
+#app-shell {
+  --workspace-footer-reserved-inline: 0px;
+}
+
+#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-footer-shell {
+  inset-block-start: 50%;
+  inset-block-end: auto;
+  inset-inline-start: auto;
+  inset-inline-end: max(0.4rem, env(safe-area-inset-right));
+  grid-template-columns: var(--workspace-footer-actions-block-size) var(--workspace-footer-title-block-size);
+  grid-template-rows: minmax(0, 1fr);
+  inline-size: auto;
+  max-inline-size: none;
+  block-size: min(28rem, calc(100dvh - 0.8rem));
+  max-block-size: calc(100dvh - 0.8rem);
+  transform: translateY(-50%);
+}
+
+#app-shell:has(#timeline-view[data-orientation="portrait"])
+  .app-footer-shell
+  > .app-tool-dock {
+  flex-direction: column;
+  inline-size: var(--workspace-footer-actions-block-size);
+  block-size: 100%;
+  min-block-size: 0;
+  max-block-size: none;
+  overflow-inline: clip;
+  overflow-block: auto;
+}
+
+#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-footer-shell .app-tool {
+  flex: 1 1 0;
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: 44px;
+  padding: 0.3rem 0.24rem;
+}
+
+#app-shell:has(#timeline-view[data-orientation="portrait"])
+  .app-footer-shell
+  > .app-project-title-bar {
+  flex-direction: column;
+  inline-size: var(--workspace-footer-title-block-size);
+  block-size: 100%;
+  min-block-size: 0;
+  max-block-size: none;
+  padding: 0.3rem 0.18rem;
+  border-block-start: 0;
+  border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+#app-shell:has(#timeline-view[data-orientation="portrait"])
+  .app-footer-shell
+  .timeline-project-title {
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+#app-shell:has(#timeline-view[data-orientation="portrait"])
+  .app-footer-shell
+  .timeline-project-title
+  input {
+  inline-size: calc(var(--workspace-footer-title-block-size) - 0.35rem);
+  block-size: 100%;
+  min-block-size: 0;
+  padding: 0.3rem 0.2rem;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  text-align: start;
+}
+
+#app-shell:has(#timeline-view[data-orientation="portrait"]) #presentation-stage:not(:fullscreen),
+#app-shell.is-event-focused:has(#timeline-view[data-orientation="portrait"])
+  #presentation-stage:not(:fullscreen),
+#app-shell[data-browser-open="true"]:has(#timeline-view[data-orientation="portrait"])
+  #presentation-stage:not(:fullscreen),
+#app-shell[data-browser-open="false"]:has(#timeline-view[data-orientation="portrait"])
+  #presentation-stage:not(:fullscreen) {
+  inset-block-end: 0;
+  inset-inline-end: var(--workspace-footer-reserved-inline);
+}
+
+#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-editor-sheet,
+#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-browser-sheet {
+  inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
+  inset-inline-end: calc(var(--workspace-footer-reserved-inline) + 0.35rem);
+  max-inline-size: calc(100dvw - var(--workspace-footer-reserved-inline) - 0.7rem);
+  max-block-size: calc(100dvh - 0.8rem);
+}
+
+#app-shell:has(#timeline-view[data-orientation="portrait"]) .timeline-panel > .story-focus {
+  inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
+  inset-inline-end: calc(var(--workspace-footer-reserved-inline) + 0.35rem);
+}
+
+#app-shell:has(#timeline-view[data-orientation="portrait"])[data-browser-open="true"]
+  #presentation-stage:not(:fullscreen) {
+  block-size: 100%;
+}
+
+#presentation-stage:fullscreen:has(> #timeline-view[data-orientation="portrait"])
+  > .timeline-view {
+  inset-block-end: 0;
+  inset-inline-end: var(--workspace-footer-reserved-inline, 6rem);
+}
+
+#presentation-stage:fullscreen:has(> #timeline-view[data-orientation="portrait"])
+  > .graph-lens:not([hidden]),
+#presentation-stage:fullscreen:has(> #timeline-view[data-orientation="portrait"])
+  > .presentation-map-panel:not([hidden]) {
+  inset-block-end: 0;
+  inset-inline-end: var(--workspace-footer-reserved-inline, 6rem);
+  max-block-size: 100%;
+  max-inline-size: calc(100% - var(--workspace-footer-reserved-inline, 6rem));
+}
+
+@media (max-height: 520px) {
+  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-footer-shell {
+    block-size: calc(100dvh - 0.5rem);
+    max-block-size: calc(100dvh - 0.5rem);
+    padding: 0.2rem;
+  }
+
+  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-footer-shell .app-tool {
+    min-block-size: 40px;
+  }
+}
