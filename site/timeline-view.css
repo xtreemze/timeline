@@ -1231,8 +1231,11 @@
 }
 .timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-summary {
   grid-column: 4 / -1;
-  grid-row: 1;
+  grid-row: 1 / span 2;
   align-self: stretch;
+}
+.timeline-focus-view[data-layout="evidence-dossier"][data-active-tab="evidence"] .timeline-focus-summary {
+  grid-row: 1;
 }
 .timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-evidence {
   grid-column: 4 / -1;
