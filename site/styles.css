@@ -3502,13 +3502,6 @@ body {
   }
 }
 
-/* Workspace chrome participates in the same document View Transition as timeline focus.
-   This preserves spatial continuity when responsive/fullscreen composition moves the dock
-   or a side sheet between application regions. */
-::view-transition-group(timeline-workspace-sidebar),
-::view-transition-group(timeline-editor-sidebar),
-::view-transition-group(timeline-browser-sidebar) {
-}
 
 ::view-transition-old(timeline-workspace-sidebar),
 ::view-transition-new(timeline-workspace-sidebar),
@@ -3519,12 +3512,6 @@ body {
   mix-blend-mode: normal;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(timeline-workspace-sidebar),
-  ::view-transition-group(timeline-editor-sidebar),
-  ::view-transition-group(timeline-browser-sidebar) {
-  }
-}
 
 /* Persistent application chrome is excluded from focus morph animation. Each surface has
    its own transition identity so it remains continuously visible while event detail moves. */
