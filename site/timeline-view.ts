@@ -525,24 +525,6 @@ class TimelineViewController {
     this.surface.addEventListener(
       "click",
       (event) => {
-        const target = event.target instanceof Element ? event.target : null;
-        // Handle cluster button clicks first
-        if (target) {
-          const button = target.closest<HTMLElement>("button[data-cluster-id]");
-          if (button) {
-            const clusterId = button.dataset.clusterId;
-            if (clusterId) {
-              const cluster = this.committedLayout.clusters.find((c) => c.id === clusterId);
-              if (cluster) {
-                const clusterItemTarget = target.closest<HTMLElement>("[data-cluster-item-id]");
-                const selectedId = clusterItemTarget?.dataset.clusterItemId || cluster.itemIds[0];
-                if (selectedId) this.activateCommittedCluster(cluster, selectedId);
-              }
-            }
-            return;
-          }
-        }
-        // For other clicks, apply the suppression logic
         if (performance.now() >= this.suppressClickUntil) return;
         event.preventDefault();
         event.stopPropagation();
@@ -793,6 +775,19 @@ class TimelineViewController {
       }
     });
 
+    this.stage.addEventListener("click", (event) => {
+      const button = (event.target as Element).closest<HTMLElement>("button[data-cluster-id]");
+      if (!button) return;
+      const clusterId = button.dataset.clusterId;
+      if (!clusterId) return;
+      const cluster = this.committedLayout.clusters.find((c) => c.id === clusterId);
+      if (!cluster) return;
+      const target = event.target instanceof Element
+        ? (event.target as Element).closest<HTMLElement>("[data-cluster-item-id]")
+        : null;
+      const selectedId = target?.dataset.clusterItemId || cluster.itemIds[0];
+      if (selectedId) this.activateCommittedCluster(cluster, selectedId);
+    });
   }
 
   setItems(items: TimelineItem[], options: SetItemsOptions = {}): void {
