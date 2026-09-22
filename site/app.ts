@@ -146,10 +146,15 @@ interface RelationshipRecord {
   placeId?: string;
   itemIds?: string[];
   initialState?: "active" | "inactive";
-  time?: unknown;
+  time?: TemporalExtent | null;
   sourceIds?: string[];
   confidence?: number | null;
   attributes?: Record<string, unknown>;
+}
+
+interface PresentationMapController {
+  refresh?(): void;
+  destroy?(): void;
 }
 
 interface TimelineState {
@@ -612,7 +617,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
   let viewControlsResizeObserver: ResizeObserver | null = null;
   let presentationResizeFrame = 0;
   let timelineOrientationBeforeFullscreen = null;
-  let presentationMap = null;
+  let presentationMap: PresentationMapController | null = null;
   let presentationMapKey = "";
   let focusedGraphContextAvailable = false;
 
@@ -799,8 +804,18 @@ function requiredElements<T extends Element>(selector: string): T[] {
       return false;
     }
 
+    const narrativeExtension = state.extensions?.narrative;
+    const spatialReferenceFrame =
+      narrativeExtension &&
+      typeof narrativeExtension === "object" &&
+      !Array.isArray(narrativeExtension)
+        ? (narrativeExtension as Record<string, unknown>).spatialReferenceFrame
+        : null;
     const fictionalReferenceFrame =
-      state.extensions?.narrative?.spatialReferenceFrame?.fictional === true;
+      spatialReferenceFrame &&
+      typeof spatialReferenceFrame === "object" &&
+      !Array.isArray(spatialReferenceFrame) &&
+      (spatialReferenceFrame as Record<string, unknown>).fictional === true;
     const mapKey = JSON.stringify({
       id: item.id,
       place,
@@ -1068,7 +1083,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
   function normalizeExtensions(value: unknown): Record<string, unknown> | undefined {
     if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
     try {
-      return clone(value);
+      return clone(value as Record<string, unknown>);
     } catch {
       return undefined;
     }
@@ -1087,7 +1102,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
     if (!parsed) return { date: value || "Unknown", time: "" };
 
     const dateObject = new Date(0);
-    dateObject.setUTCFullYear(parsed.year, parsed.month - 1, parsed.day);
+    dateObject.setUTCFullYear(parsed.year, (parsed.month ?? 1) - 1, parsed.day ?? 1);
     dateObject.setUTCHours(
       parsed.hour || 0,
       parsed.minute || 0,
@@ -1104,7 +1119,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
 
     let time = "";
     if (parsed.hasTime) {
-      const options = {
+      const options: Intl.DateTimeFormatOptions = {
         hour: "2-digit",
         minute: "2-digit",
         hourCycle: "h23",
@@ -1134,6 +1149,14 @@ function requiredElements<T extends Element>(selector: string): T[] {
       .slice(0, 60);
   }
 
+  function normalizedChoice(
+    value: unknown,
+    allowed: readonly string[],
+    fallback: string,
+  ): string {
+    return typeof value === "string" && allowed.includes(value) ? value : fallback;
+  }
+
   function normalizeTimeline(
     input: TimelineInputRecord,
     { strictGraph = false }: { strictGraph?: boolean } = {},
@@ -1144,7 +1167,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
 
     const categories: CategoryRecord[] = [];
     const categoryIds = new Set<string>();
-    const sourceCategories: readonly CategoryInputRecord[] =
+    const sourceCategories: readonly (CategoryInputRecord | CategoryRecord)[] =
       Array.isArray(input.categories) && input.categories.length
         ? input.categories
         : DEFAULT_CATEGORIES;
@@ -1242,7 +1265,7 @@ function requiredElements<T extends Element>(selector: string): T[] {
           typeof raw.id === "string" && raw.id.trim() ? raw.id.trim().slice(0, 120) : newId("item"),
         kind,
         start: time.start.value,
-        end: kind === "range" ? time.end.value : null,
+        end: kind === "range" ? (time.end?.value ?? null) : null,
         time,
         title,
         description: typeof raw.description === "string" ? raw.description.slice(0, 2000) : "",
@@ -1263,36 +1286,36 @@ function requiredElements<T extends Element>(selector: string): T[] {
       const tags = presentation.normalizeTags(raw.tags);
       if (media.length) item.media = media;
       if (tags.length) item.tags = tags;
-      const variant = ["hero-split", "evidence-dossier", "editorial-mosaic"].includes(
+      const variant = normalizedChoice(
         raw.presentation?.variant,
-      )
-        ? raw.presentation.variant
-        : "hero-split";
-      const terminalShape = ["rounded", "circle", "square", "diamond"].includes(
+        ["hero-split", "evidence-dossier", "editorial-mosaic"],
+        "hero-split",
+      );
+      const terminalShape = normalizedChoice(
         raw.presentation?.terminalShape,
-      )
-        ? raw.presentation.terminalShape
-        : "rounded";
-      const connectorStyle = ["solid", "dashed", "dotted"].includes(
+        ["rounded", "circle", "square", "diamond"],
+        "rounded",
+      );
+      const connectorStyle = normalizedChoice(
         raw.presentation?.connectorStyle,
-      )
-        ? raw.presentation.connectorStyle
-        : "solid";
-      const connectorRouting = ["straight", "orthogonal"].includes(
+        ["solid", "dashed", "dotted"],
+        "solid",
+      );
+      const connectorRouting = normalizedChoice(
         raw.presentation?.connectorRouting,
-      )
-        ? raw.presentation.connectorRouting
-        : "straight";
-      const connectorWeight = ["fine", "normal", "strong"].includes(
+        ["straight", "orthogonal"],
+        "straight",
+      );
+      const connectorWeight = normalizedChoice(
         raw.presentation?.connectorWeight,
-      )
-        ? raw.presentation.connectorWeight
-        : "normal";
-      const connectorEndpoint = ["none", "dot", "arrow"].includes(
+        ["fine", "normal", "strong"],
+        "normal",
+      );
+      const connectorEndpoint = normalizedChoice(
         raw.presentation?.connectorEndpoint,
-      )
-        ? raw.presentation.connectorEndpoint
-        : "none";
+        ["none", "dot", "arrow"],
+        "none",
+      );
       const laneCandidate = raw.presentation?.lane;
       const lane =
         laneCandidate === null || laneCandidate === undefined || laneCandidate === ""
@@ -1349,7 +1372,10 @@ function requiredElements<T extends Element>(selector: string): T[] {
         placeIds: [
           ...new Set(
             (hasExplicitPlaceIds ? raw.placeIds : [])
-              .filter((placeId) => typeof placeId === "string" && placeId.trim())
+              .filter(
+                (placeId): placeId is string =>
+                  typeof placeId === "string" && Boolean(placeId.trim()),
+              )
               .map((placeId) => placeId.trim().slice(0, 120)),
           ),
         ],
