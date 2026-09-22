@@ -45,6 +45,13 @@ export interface GraphProjection {
   readonly temporal?: TemporalProjectionBounds;
 }
 
+export interface GraphSimulationState {
+  readonly running: boolean;
+  readonly reason: string | null;
+  readonly suspendedReasons: readonly string[];
+  readonly pendingReasons: readonly string[];
+}
+
 export interface GraphSurface {
   setProjection(projection: GraphProjection): void;
   transitionProjection(projection: GraphProjection): void;
@@ -55,6 +62,7 @@ export interface GraphSurface {
   zoomIn(): void;
   zoomOut(): void;
   getMode(): string;
+  getSimulationState(): GraphSimulationState;
   destroy(): void;
   selectForInteraction?(kind: GraphSelectionKind, id: EntityId | RelationshipId): void;
 }
