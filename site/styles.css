@@ -3516,6 +3516,7 @@ body {
 }
 
 #presentation-stage:fullscreen .app-footer-shell > .app-tool-dock {
+  view-transition-name: none;
   position: relative;
   inset: auto;
   inline-size: 100%;
