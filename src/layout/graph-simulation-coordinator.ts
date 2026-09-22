@@ -13,7 +13,7 @@ export interface GraphSimulationRequest {
 }
 
 export interface GraphSimulationAdapter {
-  apply(request: GraphSimulationRequest): void;
+  apply(request: GraphSimulationRequest): boolean | void;
   stop(): void;
 }
 
@@ -87,8 +87,8 @@ export function createGraphSimulationCoordinator(adapter: GraphSimulationAdapter
           alphaTarget: 0,
           reheat: false,
         };
-        applied = idleRequest;
-        adapter.apply(idleRequest);
+        const didApply = adapter.apply(idleRequest);
+        applied = didApply === false ? null : idleRequest;
       } else {
         applied = null;
       }
@@ -104,8 +104,13 @@ export function createGraphSimulationCoordinator(adapter: GraphSimulationAdapter
       return;
     }
 
-    applied = highest;
-    adapter.apply(highest);
+    const didApply = adapter.apply(highest);
+    applied = didApply === false ? null : highest;
+  }
+
+  function retry(): GraphSimulationState {
+    reconcile();
+    return getState();
   }
 
   function request(next: GraphSimulationRequest): GraphSimulationState {
@@ -147,7 +152,7 @@ export function createGraphSimulationCoordinator(adapter: GraphSimulationAdapter
   function getState(): GraphSimulationState {
     const highest = highestRequest();
     return Object.freeze({
-      running: Boolean(highest) && suspended.size === 0,
+      running: Boolean(applied && applied.reason !== "idle") && suspended.size === 0,
       reason: highest?.reason ?? null,
       suspendedReasons: Object.freeze([...suspended].sort()),
       pendingReasons: Object.freeze(
@@ -158,6 +163,7 @@ export function createGraphSimulationCoordinator(adapter: GraphSimulationAdapter
 
   return Object.freeze({
     request,
+    retry,
     release,
     suspend,
     resume,
