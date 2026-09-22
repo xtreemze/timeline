@@ -701,6 +701,9 @@ function closestEventTarget<T extends HTMLElement>(
     const triggerRect = els.viewControlsToggle.getBoundingClientRect();
     const toolbarRect = els.viewControls.getBoundingClientRect();
     const dockRect = els.appToolDock.getBoundingClientRect();
+    const titleRect = els.timelineViewRoot
+      .querySelector<HTMLElement>(".timeline-project-heading")
+      ?.getBoundingClientRect();
     const viewport = workspaceToolViewport();
     const orientation =
       els.timelineViewRoot.dataset.orientation === "portrait" ? "portrait" : "landscape";
@@ -793,6 +796,19 @@ function closestEventTarget<T extends HTMLElement>(
             height: dockRect.height,
           },
         },
+        ...(titleRect
+          ? [
+              {
+                id: "timeline-project-heading",
+                rect: {
+                  x: titleRect.left,
+                  y: titleRect.top,
+                  width: titleRect.width,
+                  height: titleRect.height,
+                },
+              },
+            ]
+          : []),
       ],
       candidates,
     });
