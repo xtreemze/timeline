@@ -1,13 +1,26 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 async function ensureSample(page: Page) {
-  const terminal = page.locator(
+  const terminals = page.locator(
     "#timeline-view .timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible",
-  ).first();
-  if (await terminal.count()) return terminal;
-  await page.locator("#load-sample").click();
-  await expect(terminal).toBeVisible();
-  return terminal;
+  );
+  if (!(await terminals.count())) {
+    await page.locator("#load-sample").click();
+    await expect(terminals.first()).toBeVisible();
+  }
+
+  const hitTestableIndex = await terminals.evaluateAll((elements) =>
+    elements.findIndex((element) => {
+      const rect = element.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return false;
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      const hit = document.elementFromPoint(x, y);
+      return hit === element || Boolean(hit?.closest(".timeline-event-terminal") === element);
+    }),
+  );
+  expect(hitTestableIndex).toBeGreaterThanOrEqual(0);
+  return terminals.nth(hitTestableIndex);
 }
 
 async function focusOccurrence(page: Page) {
