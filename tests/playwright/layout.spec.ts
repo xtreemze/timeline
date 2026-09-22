@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 const PHONE_PORTRAIT = { width: 390, height: 844 };
 const PHONE_LANDSCAPE = { width: 844, height: 390 };
 const TABLET_LANDSCAPE = { width: 1024, height: 768 };
+const DESKTOP_LANDSCAPE = { width: 1440, height: 900 };
 
 async function expectInsideViewport(locator, viewport, tolerance = 2) {
   await expect(locator).toBeVisible();
@@ -175,10 +176,12 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     await expectNoPrimaryDocumentScroll(page, PHONE_LANDSCAPE);
   });
 
-  test('footer app bar reserves edge space for chronology in portrait and landscape', async ({ page }) => {
+  test('footer chrome forms one reserved edge stack in portrait and landscape', async ({ page }) => {
     for (const { viewport, orientation } of [
       { viewport: PHONE_PORTRAIT, orientation: 'portrait' },
       { viewport: PHONE_LANDSCAPE, orientation: 'landscape' },
+      { viewport: TABLET_LANDSCAPE, orientation: 'landscape' },
+      { viewport: DESKTOP_LANDSCAPE, orientation: 'landscape' },
     ]) {
       await page.setViewportSize(viewport);
       await page.goto('/');
@@ -213,11 +216,9 @@ test.describe('Mobile-first Timeline layout contracts', () => {
               dock.boundingBox(),
               titleBar.boundingBox(),
             ]);
-            return Boolean(
-              nextDockBox &&
-                nextTitleBox &&
-                nextDockBox.x + nextDockBox.width <= nextTitleBox.x + 5,
-            );
+            if (!nextDockBox || !nextTitleBox) return false;
+            const gap = nextTitleBox.x - (nextDockBox.x + nextDockBox.width);
+            return gap >= -3 && gap <= 16;
           })
           .toBe(true);
       } else {
@@ -230,14 +231,30 @@ test.describe('Mobile-first Timeline layout contracts', () => {
               dock.boundingBox(),
               titleBar.boundingBox(),
             ]);
-            return Boolean(
-              nextDockBox &&
-                nextTitleBox &&
-                nextDockBox.y + nextDockBox.height <= nextTitleBox.y + 5,
-            );
+            if (!nextDockBox || !nextTitleBox) return false;
+            const gap = nextTitleBox.y - (nextDockBox.y + nextDockBox.height);
+            return gap >= -3 && gap <= 16;
           })
           .toBe(true);
       }
+
+      // Footer/edge chrome is application-owned and must remain reserved even
+      // when the contextual graph is unavailable or closed.
+      await page.locator('#app-shell').evaluate((shell) => {
+        shell.setAttribute('data-graph-open', 'false');
+      });
+      await expect
+        .poll(async () => {
+          const [nextDockBox, nextSurfaceBox] = await Promise.all([
+            dock.boundingBox(),
+            surface.boundingBox(),
+          ]);
+          if (!nextDockBox || !nextSurfaceBox) return false;
+          return orientation === 'portrait'
+            ? nextSurfaceBox.x + nextSurfaceBox.width <= nextDockBox.x + 3
+            : nextSurfaceBox.y + nextSurfaceBox.height <= nextDockBox.y + 3;
+        })
+        .toBe(true);
     }
   });
 
@@ -245,6 +262,8 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     for (const { viewport, orientation } of [
       { viewport: PHONE_PORTRAIT, orientation: 'portrait' },
       { viewport: PHONE_LANDSCAPE, orientation: 'landscape' },
+      { viewport: TABLET_LANDSCAPE, orientation: 'landscape' },
+      { viewport: DESKTOP_LANDSCAPE, orientation: 'landscape' },
     ]) {
       await page.setViewportSize(viewport);
       await page.goto('/');
