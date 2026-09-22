@@ -224,11 +224,12 @@ export function createSemanticGraphIndex(initialProject: CanonicalProject) {
       const root = remaining.values().next().value as EntityId;
       const component: EntityId[] = [];
       const queue: EntityId[] = [root];
+      let cursor = 0;
       remaining.delete(root);
 
-      while (queue.length) {
-        const current = queue.shift();
-        if (!current) continue;
+      while (cursor < queue.length) {
+        const current = queue[cursor]!;
+        cursor += 1;
         component.push(current);
 
         const neighbors = incident(current)
