@@ -4293,7 +4293,7 @@ body {
   height: auto;
 }
 
-@media (min-width: 760px) {
+@media (min-width: 760px) and (min-height: 600px) {
   #app-shell[data-browser-open="true"] #presentation-stage:not(:fullscreen) {
     position: relative;
     inset: auto;
