@@ -2707,7 +2707,15 @@ footer > :last-child {
   max-width: none;
   max-height: 100%;
   margin: 0;
-  overflow: hidden;
+  z-index: 0;
+}
+
+#presentation-stage:fullscreen > .timeline-view {
+  z-index: 1;
+}
+
+#presentation-stage:fullscreen .temporal-graph-view {
+  z-index: -1;
 }
 
 #presentation-stage:fullscreen[data-has-context-graph="true"][data-has-context-map="true"] {
