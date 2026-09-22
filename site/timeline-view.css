@@ -297,7 +297,7 @@
   position: relative;
   min-width: 0;
   outline: none;
-  overflow: visible;
+  overflow: hidden;
   overscroll-behavior: contain;
   touch-action: none;
   user-select: none;
@@ -307,7 +307,7 @@
 .timeline-surface.is-landscape {
   width: 100%;
   max-width: none;
-  height: clamp(390px, 44vw, 560px);
+  height: clamp(340px, 40vw, 480px);
 }
 .timeline-surface.is-portrait {
   height: 100%;
@@ -324,7 +324,7 @@
   position: absolute;
   inset: 0;
   display: block;
-  overflow: visible;
+  overflow: hidden;
   pointer-events: none;
 }
 .timeline-axis {
@@ -572,6 +572,7 @@
   z-index: 2;
   width: 0;
   height: 0;
+  overflow: visible;
   pointer-events: none;
 }
 .timeline-event-terminal {
@@ -584,7 +585,7 @@
   align-items: center;
   gap: 0.62rem;
   width: max-content;
-  max-width: 232px;
+  max-width: 380px;
   min-height: 56px;
   border: 1px solid color-mix(in srgb, var(--event-color, var(--ink)) 34%, var(--line));
   border-radius: 0.82rem;
@@ -635,6 +636,7 @@
   width: 4.25rem;
   height: 2.6rem;
   flex: 0 0 4.25rem;
+  overflow: visible;
 }
 .timeline-cluster-tile {
   --cluster-tile-color: var(--accent);
@@ -645,6 +647,7 @@
   width: 2.2rem;
   height: 2.2rem;
   overflow: visible;
+  pointer-events: auto;
   border: 2px solid var(--paper);
   border-radius: 0.62rem;
   background: var(--cluster-tile-color);
@@ -1100,10 +1103,14 @@
 .timeline-focus-place {
   grid-column: 1 / span 2;
   grid-row: 3;
+  position: relative;
+  min-height: clamp(120px, 25vh, 320px);
 }
 .timeline-focus-relations {
   grid-column: 3 / -1;
   grid-row: 3;
+  position: relative;
+  min-height: clamp(120px, 25vh, 320px);
 }
 .timeline-focus-evidence {
   grid-column: 1 / -1;
@@ -4323,10 +4330,13 @@
   bottom: var(--view-controls-bottom, max(4.35rem, calc(env(safe-area-inset-bottom) + 4rem)));
   left: var(--view-controls-left, auto);
   display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: flex-start;
   justify-content: flex-start;
   width: max-content;
+  min-width: 200px;
+  max-width: calc(100vw - max(1rem, env(safe-area-inset-left)) - max(1rem, env(safe-area-inset-right)));
+  max-height: calc(100vh - max(1rem, env(safe-area-inset-top)) - max(5rem, calc(env(safe-area-inset-bottom) + 4rem)));
   padding: 0.34rem;
   gap: 0.3rem;
   overflow-x: auto;
@@ -4344,10 +4354,15 @@
   pointer-events: auto;
 }
 
+#app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open .timeline-zoom-controls {
+  width: clamp(180px, 24vw, 250px);
+  min-width: 180px;
+}
+
 @media (max-width: 699px) {
   #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
     width: var(--view-controls-inline-size, 100%);
-    max-height: var(--view-controls-block-size, inherit);
+    max-height: var(--view-controls-block-size, 60vh);
     flex-wrap: wrap;
     justify-content: flex-start;
   }
@@ -4411,16 +4426,8 @@
   left: auto;
   display: flex;
   width: max-content;
-  max-width: calc(
-    100% -
-    max(0.8rem, env(safe-area-inset-left)) -
-    max(0.8rem, env(safe-area-inset-right))
-  );
-  max-height: calc(
-    100dvh -
-    max(0.8rem, env(safe-area-inset-top)) -
-    max(0.8rem, env(safe-area-inset-bottom))
-  );
+  max-width: calc(100% - max(0.8rem, env(safe-area-inset-left)) - max(0.8rem, env(safe-area-inset-right)));
+  max-height: calc(100dvh - max(0.8rem, env(safe-area-inset-top)) - max(0.8rem, env(safe-area-inset-bottom)));
   overflow-x: auto;
   overflow-y: auto;
 }
