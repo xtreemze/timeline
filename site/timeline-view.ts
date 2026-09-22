@@ -1953,6 +1953,7 @@ class TimelineViewController {
     if (expansion?.viewport) this.viewport = { ...expansion.viewport };
     this.commitInteraction();
     this.focusItem(selectedId, { moveViewport: false });
+    void motion.pulseHaptic("selection");
   }
 
   render(): void {
@@ -2101,6 +2102,7 @@ class TimelineViewController {
         this.closeFocus();
       } else {
         this.focusItem(item.id);
+        void motion.pulseHaptic("selection");
       }
     });
 
@@ -2129,6 +2131,7 @@ class TimelineViewController {
           this.closeFocus();
         } else {
           this.focusItem(item.id);
+          void motion.pulseHaptic("selection");
         }
       });
       this.stage.append(range);
