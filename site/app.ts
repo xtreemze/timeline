@@ -5358,6 +5358,9 @@ function closestEventTarget<T extends HTMLElement>(
       closeProjectMenu();
     }
     els.appShell.classList.toggle("is-event-focused", focused);
+    if (els.presentationStage) {
+      els.presentationStage.dataset.eventFocused = String(focused);
+    }
     temporalGraphView?.setFocus(focused ? event.detail?.id : null);
     focusedGraphContextAvailable = focused && Boolean(temporalGraphView?.hasContext?.());
     temporalGraphView?.setPresentationMode?.(presentationModeActive());
