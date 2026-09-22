@@ -366,6 +366,14 @@ test("focused sidebar bounds content without overlaying the graph", async () => 
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   assert.match(
     css,
+    /#presentation-stage\[data-event-focused="true"\],[\s\S]*display:\s*grid[\s\S]*overflow:\s*hidden/,
+  );
+  assert.match(
+    css,
+    /#presentation-stage\[data-event-focused="true"\]\s*>\s*\.timeline-view,[\s\S]*\.graph-lens:not\(\[hidden\]\)[\s\S]*position:\s*relative[\s\S]*inset:\s*auto/,
+  );
+  assert.match(
+    css,
     /#presentation-stage\s*>\s*\.timeline-focus-panel\s*\{[\s\S]*overflow:\s*auto[\s\S]*overscroll-behavior:\s*contain/,
   );
   assert.match(
