@@ -4620,11 +4620,6 @@
   align-items: stretch;
   justify-content: flex-start;
   inline-size: var(--view-controls-inline-size, 96px);
-  max-width: calc(
-    100dvw -
-    max(0.9rem, env(safe-area-inset-left)) -
-    max(0.9rem, env(safe-area-inset-right))
-  );
   max-height: var(
     --view-controls-block-size,
     calc(
