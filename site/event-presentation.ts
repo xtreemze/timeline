@@ -23,8 +23,6 @@ const ICON_NAMES = Object.freeze([
   "object",
 ] as const);
 
-type IconName = (typeof ICON_NAMES)[number];
-
 const ICON_PATHS: Record<string, string[]> = Object.freeze({
   milestone: ["M12 3v18", "M3 12h18", "M7 7l10 10", "M17 7 7 17"],
   decision: ["M12 3 4 8v8l8 5 8-5V8z", "m8 12 2.5 2.5L16 9"],

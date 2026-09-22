@@ -21,12 +21,12 @@
       "nonNull": 0
     },
     "site/interchange-adapter.ts": {
-      "any": 38,
+      "any": 34,
       "asAny": 18,
       "nonNull": 1
     },
     "site/memgraph-interchange.ts": {
-      "any": 37,
+      "any": 35,
       "asAny": 23,
       "nonNull": 0
     },
@@ -36,7 +36,7 @@
       "nonNull": 0
     },
     "site/temporal-graph-view.ts": {
-      "any": 12,
+      "any": 11,
       "asAny": 2,
       "nonNull": 0
     },
@@ -106,7 +106,7 @@
       "nonNull": 0
     },
     "site/graph-inference.ts": {
-      "any": 59,
+      "any": 54,
       "asAny": 6,
       "nonNull": 0
     },

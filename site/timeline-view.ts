@@ -308,7 +308,7 @@ class TimelineViewController {
   interactionVelocity = 0;
   inertiaAnimationFrame = 0;
   renderFrame = 0;
-  wheelCommitTimer = 0;
+  wheelCommitTimer: ReturnType<typeof globalThis.setTimeout> | 0 = 0;
   viewportInitialized = false;
   reducedMotionQuery: MediaQueryList | null =
     typeof globalThis.matchMedia === "function"
@@ -886,7 +886,9 @@ class TimelineViewController {
     const sorted = [...this.items].sort((left, right) => left.start - right.start);
     if (!sorted.length) return { start: 0, end: DEFAULT_SPAN_MS };
     const local = sorted.slice(0, 3);
-    const start = local[0].start;
+    const first = local[0];
+    if (!first) return { start: 0, end: DEFAULT_SPAN_MS };
+    const start = first.start;
     const end = Math.max(
       ...local.map((item) => (Number.isFinite(item.end) ? Number(item.end) : item.start)),
     );
@@ -1706,6 +1708,7 @@ class TimelineViewController {
       .filter((item): item is TimelineItem => Boolean(item));
     if (!items.length) return;
     const first = items[0];
+    if (!first) return;
     record.node.style.setProperty("--event-color", first.color || "var(--accent)");
     record.terminal.setAttribute(
       "aria-label",
@@ -2672,8 +2675,10 @@ class TimelineViewController {
     if (options.wrap) nextIndex = (nextIndex + ordered.length) % ordered.length;
     if (nextIndex < 0 || nextIndex >= ordered.length) return false;
 
+    const next = ordered[nextIndex];
+    if (!next) return false;
     this.focusMediaIndex = 0;
-    return this.focusItem(ordered[nextIndex].id);
+    return this.focusItem(next.id);
   }
 
   stepFocusMedia(delta: number): boolean {
