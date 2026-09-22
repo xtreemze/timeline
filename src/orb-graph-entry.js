@@ -676,6 +676,16 @@ function create(container, handlers = {}) {
     }
   }
 
+  function isNodeCurrentlyDragging() {
+    const nodes = orb.data?.getNodes?.();
+    if (!nodes) return false;
+    // In D3 force simulation, dragged nodes have fx and fy set
+    return nodes.some((node) => {
+      const data = node?._data || node;
+      return Number.isFinite(data?.fx) || Number.isFinite(data?.fy);
+    });
+  }
+
   function finishActiveTouchNodeDrag({ settle = true } = {}) {
     if (!touchHold?.activated) return false;
     const node = touchHold.node;
@@ -1511,7 +1521,7 @@ function create(container, handlers = {}) {
     });
     hasGraphData = true;
     // Don't reset force simulation if a node is currently being dragged
-    if (!touchHold?.activated) {
+    if (!isNodeCurrentlyDragging()) {
       applyInteractionForce(0);
     }
     orb.render();
@@ -1576,7 +1586,7 @@ function create(container, handlers = {}) {
       setPerformanceMode(nodes.length);
       orb.render();
       // Don't reset force simulation if a node is currently being dragged
-      if (!touchHold?.activated) {
+      if (!isNodeCurrentlyDragging()) {
         applyInteractionForce(0);
       }
       return;
@@ -1657,7 +1667,7 @@ function create(container, handlers = {}) {
     refreshLayout() {
       if (!hasGraphData) return;
       // Don't reset force simulation if a node is currently being dragged
-      if (!touchHold?.activated) {
+      if (!isNodeCurrentlyDragging()) {
         applyInteractionForce(0, { reheat: false });
       }
       orb.render(() => {
