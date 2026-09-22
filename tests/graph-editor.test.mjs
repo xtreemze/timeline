@@ -267,7 +267,7 @@ test("timeline topology changes visibly release, break, and bind graph relations
   assert.match(source, /prefers-reduced-motion:\s*reduce/);
 });
 
-test("graph refresh rerenders Orb after reparenting or container resize", async () => {
+test("graph refresh rerenders through GraphSurface after reparenting or container resize", async () => {
   const [bridge, view] = await Promise.all([
     readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8"),
     readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8"),
@@ -281,7 +281,7 @@ test("graph refresh rerenders Orb after reparenting or container resize", async 
   assert.match(view, /entries\.find\(\(candidate\) => candidate\.target === this\.canvas\)/);
   assert.match(view, /this\.lastCanvasSize/);
   assert.match(view, /this\.resizeObserver\.observe\(this\.canvas\)/);
-  assert.match(view, /refreshLayout\(\)[\s\S]*this\.orb\.refreshLayout\?\.\(\)/);
+  assert.match(view, /refreshLayout\(\)[\s\S]*this\.surface\.refreshLayout\(\)/);
 });
 
 test("touch node long press is armed from capture-phase hit testing before Orb drag starts", async () => {
