@@ -1531,6 +1531,21 @@ function create(container, handlers = {}) {
     orb.render();
   }
 
+  function seedInitialNodePositions() {
+    const nodes = orb.data.getNodes();
+    const count = Math.max(1, nodes.length);
+    const radius = Math.max(36, Math.min(180, 28 * Math.sqrt(count)));
+    nodes.forEach((node, index) => {
+      const position = node.getPosition?.();
+      if (position && Number.isFinite(position.x) && Number.isFinite(position.y)) return;
+      const angle = deterministicAngle(node.getData?.()?.id ?? index) + (index / count) * Math.PI * 2;
+      node.setPosition?.({
+        x: Math.cos(angle) * radius,
+        y: Math.sin(angle) * radius,
+      });
+    });
+  }
+
   function setData(data) {
     clearTopologyTimers();
     cancelCameraInertia();
@@ -1547,6 +1562,7 @@ function create(container, handlers = {}) {
       nodes: nodes.map((node) => transitionRecord(node, "active")),
       edges: edges.map((edge) => transitionRecord(edge, "active")),
     });
+    seedInitialNodePositions();
     hasGraphData = true;
     // With Orb's automatic data/settings simulation disabled, render first so
     // the simulator sees the new node set before Timeline activates the solve.
