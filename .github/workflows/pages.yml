@@ -9,6 +9,9 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - "playwright.config.ts"
+      - "playwright.pages.config.ts"
+      - "vite.config.ts"
+      - "scripts/serve-pages-preview.mjs"
       - "tests/playwright/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
@@ -68,7 +71,11 @@ jobs:
           node --check src/evidence-extraction-entry.js
           node --check site/orb-graph.bundle.js
           node --check site/evidence-extraction.bundle.js
-          test -d dist || echo "⚠ Vite build output not created (expected during Phase 4 migration)"
+          test -s dist/index.html
+          if grep -Eq 'src="[^"]+\.ts([?#][^"]*)?"' dist/index.html; then
+            echo "Built entry point still references raw TypeScript modules"
+            exit 1
+          fi
 
       - name: Validate architecture tests
         run: pnpm test:architecture
@@ -80,6 +87,9 @@ jobs:
       - name: Run E2E tests
         run: pnpm test:e2e
 
+      - name: Certify built Pages runtime
+        run: pnpm exec playwright test --config=playwright.pages.config.ts
+
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
@@ -87,18 +97,24 @@ jobs:
           name: playwright-report
           path: playwright-report/
 
-      - name: Validate static entry point
-        run: test -f site/index.html && test -f site/styles.css && test -f site/icon.svg && test -s site/orb-graph.bundle.js && test -s site/leaflet.bundle.js && test -s site/leaflet.css && test -s site/evidence-extraction.bundle.js && test -s site/pdf.worker.mjs
+      - name: Validate built entry point
+        run: |
+          test -s dist/index.html
+          test -d dist/assets
+          test -s dist/orb-graph.bundle.js
+          test -s dist/leaflet.bundle.js
+          test -s dist/evidence-extraction.bundle.js
+          test -s dist/pdf.worker.mjs
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
           enablement: true
 
-      - name: Upload site artifact
+      - name: Upload built site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: dist
 
       - name: Deploy to GitHub Pages
         id: deployment

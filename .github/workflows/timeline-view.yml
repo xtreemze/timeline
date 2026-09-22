@@ -61,9 +61,10 @@ on:
       - 'tests/retained-structural-composition-runtime.test.mjs'
       - 'tests/browser/retained-structural-composition.spec.ts'
       - 'tests/browser/semantic-chronology.spec.ts'
-      - 'tests/playwright/graph-touch.spec.ts'
-      - 'tests/playwright/interaction.spec.ts'
-      - 'tests/playwright/layout.spec.ts'
+      - 'tests/playwright/**'
+      - 'playwright.config.ts'
+      - 'playwright.pages.config.ts'
+      - 'vite.config.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'benchmarks/retained-timeline.mjs'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
@@ -80,6 +81,7 @@ on:
       - 'tests/timeline-projection-runtime.test.mjs'
       - 'tests/graph-editor.test.mjs'
       - '.github/workflows/timeline-view.yml'
+      - '.github/workflows/pages.yml'
   push:
     branches: [main]
     paths:
@@ -157,6 +159,10 @@ on:
       - 'tests/graph-editor.test.mjs'
       - '.github/workflows/timeline-view.yml'
 
+concurrency:
+  group: timeline-view-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -213,6 +219,21 @@ jobs:
           grep -F 'semantic-chronology.spec.ts' /tmp/structural-playwright-list.txt
       - run: pnpm test:structural-composition-browser
       - run: pnpm test:semantic-chronology-browser
+
+  pages-runtime-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - name: Build production site
+        run: pnpm build
+      - name: Certify built Pages runtime
+        run: pnpm exec playwright test --config=playwright.pages.config.ts
 
   application-shell-browser:
     runs-on: ubuntu-latest
