@@ -306,7 +306,7 @@ test("focused hero keeps image captions and provenance out of the visual overlay
   );
 });
 
-test("fullscreen preserves the fused footer inside the fullscreen subtree", async () => {
+test("fullscreen preserves orientation-aware fused app chrome inside the fullscreen subtree", async () => {
   const [app, styles, timelineCss] = await Promise.all([
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
@@ -323,15 +323,19 @@ test("fullscreen preserves the fused footer inside the fullscreen subtree", asyn
   assert.match(app, /if \(active\)[\s\S]*mountFullscreenToolDock\(\)/);
   assert.match(
     styles,
-    /#presentation-stage:fullscreen \.app-footer-shell[\s\S]*inset-inline-start:\s*50%/,
+    /#presentation-stage:fullscreen \.app-footer-shell[\s\S]*inset-inline-start:\s*50%[\s\S]*inset-block-end:/,
   );
   assert.match(
     styles,
-    /#presentation-stage:fullscreen \.app-footer-shell[\s\S]*inset-block-end:/,
+    /#app-shell:has\(#timeline-view\[data-orientation="portrait"\]\) \.app-footer-shell[\s\S]*inset-inline-end:[\s\S]*transform:\s*translateY\(-50%\)/,
   );
   assert.match(
     timelineCss,
     /#presentation-stage:fullscreen > \.timeline-view[\s\S]*inset-block-end:\s*var\(--workspace-footer-reserved-block/,
+  );
+  assert.match(
+    styles,
+    /#presentation-stage:fullscreen:has\(> #timeline-view\[data-orientation="portrait"\]\)[\s\S]*> \.timeline-view[\s\S]*inset-inline-end:\s*var\(--workspace-footer-reserved-inline/,
   );
   assert.doesNotMatch(timelineCss, /data-project-anchored|workspace-tool-dock/);
 });
