@@ -242,8 +242,10 @@ test("presentation map is semantic and selects a reasonable zoom from canonical 
   assert.match(source, /L\.divIcon/);
   assert.match(source, /L\.geoJSON/);
   assert.match(source, /L\.circle/);
+  assert.match(source, /return 16/);
   assert.match(source, /return 15/);
-  assert.match(source, /return 12/);
+  assert.match(source, /return 13/);
+  assert.match(source, /return 11/);
 });
 
 test("round-trips reduced year/month precision and exact milliseconds", () => {
