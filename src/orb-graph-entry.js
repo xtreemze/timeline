@@ -132,6 +132,8 @@ function create(container, handlers = {}) {
   let pendingAutoFit = false;
   let lastPackedTopologySignature = "";
   let interactionSettleTimer = 0;
+  let competingGestureResumeTimer = 0;
+  const competingPointerIds = new Set();
   let forceNodeCount = 0;
   let hasGraphData = false;
   const topologyTimers = new Set();
@@ -326,6 +328,53 @@ function create(container, handlers = {}) {
     clearInteractionSettleTimer();
     applyInteractionForce(alphaTarget);
   }
+
+  function clearCompetingGestureResumeTimer() {
+    if (!competingGestureResumeTimer) return;
+    globalThis.clearTimeout(competingGestureResumeTimer);
+    competingGestureResumeTimer = 0;
+  }
+
+  function isCompetingSurfaceTarget(target) {
+    if (!(target instanceof Element)) return false;
+    if (target.closest(".temporal-graph-canvas, .graph-lens")) return false;
+    return Boolean(target.closest(".timeline-surface, .presentation-map, .leaflet-container"));
+  }
+
+  function pauseForceForCompetingGesture() {
+    clearCompetingGestureResumeTimer();
+    clearInteractionSettleTimer();
+    const simulator = forceSimulator();
+    if (simulator && typeof simulator.stopSimulation === "function") {
+      simulator.stopSimulation();
+    }
+  }
+
+  function resumeForceAfterCompetingGesture() {
+    clearCompetingGestureResumeTimer();
+    competingGestureResumeTimer = globalThis.setTimeout(() => {
+      competingGestureResumeTimer = 0;
+      if (competingPointerIds.size || !hasGraphData) return;
+      applyInteractionForce(0, { reheat: false });
+    }, 180);
+  }
+
+  const onCompetingPointerDown = (event) => {
+    if (!isCompetingSurfaceTarget(event.target)) return;
+    competingPointerIds.add(event.pointerId);
+    pauseForceForCompetingGesture();
+  };
+
+  const onCompetingPointerEnd = (event) => {
+    if (!competingPointerIds.delete(event.pointerId)) return;
+    if (!competingPointerIds.size) resumeForceAfterCompetingGesture();
+  };
+
+  const onCompetingWheel = (event) => {
+    if (!isCompetingSurfaceTarget(event.target)) return;
+    pauseForceForCompetingGesture();
+    resumeForceAfterCompetingGesture();
+  };
 
   function keepForceActiveAfterInteraction() {
     setInteractionHeat(RELEASE_ALPHA_TARGET);
@@ -1073,6 +1122,10 @@ function create(container, handlers = {}) {
   container.addEventListener("touchcancel", onTouchEnd);
   globalThis.addEventListener?.("blur", onWindowBlur);
   document.addEventListener("visibilitychange", onVisibilityChange);
+  document.addEventListener("pointerdown", onCompetingPointerDown, true);
+  document.addEventListener("pointerup", onCompetingPointerEnd, true);
+  document.addEventListener("pointercancel", onCompetingPointerEnd, true);
+  document.addEventListener("wheel", onCompetingWheel, { capture: true, passive: true });
 
   function nodeStyle(data) {
     const type = semanticType(data);
@@ -1636,6 +1689,8 @@ function create(container, handlers = {}) {
       cameraGesture = null;
       finishTouchGesture();
       clearInteractionSettleTimer();
+      clearCompetingGestureResumeTimer();
+      competingPointerIds.clear();
       clearTopologyTimers();
       container.removeEventListener("click", onClickCapture, true);
       container.removeEventListener("wheel", onWheelCapture, true);
@@ -1650,6 +1705,10 @@ function create(container, handlers = {}) {
       container.removeEventListener("touchcancel", onTouchEnd);
       globalThis.removeEventListener?.("blur", onWindowBlur);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      document.removeEventListener("pointerdown", onCompetingPointerDown, true);
+      document.removeEventListener("pointerup", onCompetingPointerEnd, true);
+      document.removeEventListener("pointercancel", onCompetingPointerEnd, true);
+      document.removeEventListener("wheel", onCompetingWheel, true);
       orb.events.off(OrbEventType.NODE_CLICK, onNodeClick);
       orb.events.off(OrbEventType.EDGE_CLICK, onEdgeClick);
       orb.events.off(OrbEventType.NODE_DRAG_START, onNodeDragStart);
