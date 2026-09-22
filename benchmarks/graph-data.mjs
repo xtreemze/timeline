@@ -12,7 +12,7 @@ function positiveInteger(value) {
 }
 
 const requestedSizes = process.argv.slice(2).map(positiveInteger).filter(Boolean);
-const sizes = requestedSizes.length ? requestedSizes : [1000, 5000, 10000];
+const sizes = requestedSizes.length ? requestedSizes : [1000, 10000, 50000];
 
 function createFixture(nodeCount, edgeFactor = 2) {
   const entities = Array.from({ length: nodeCount }, (_, index) => ({
