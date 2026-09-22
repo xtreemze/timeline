@@ -95,7 +95,6 @@ async function installRetainedTimelineFixture(page) {
 
     const focusView = document.createElement("div");
     focusView.className = "timeline-focus-view";
-    focusView.setAttribute("popover", "manual");
 
     root.append(orientationToggle, readout, surface, focusView);
     document.body.append(root);
