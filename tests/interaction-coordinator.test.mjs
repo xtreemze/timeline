@@ -117,3 +117,31 @@ test("owned node drag cannot acquire a second pointer", () => {
   assert.deepEqual(coordinator.snapshot().pointerIds, [70]);
   assert.equal(coordinator.snapshot().gesture, "node-drag");
 });
+
+
+test("subscribers receive immutable ownership transitions and can unsubscribe", () => {
+  const coordinator = createInteractionCoordinator();
+  const snapshots = [];
+  const unsubscribe = coordinator.subscribe((snapshot) => snapshots.push(snapshot));
+
+  coordinator.begin("map", 81);
+  coordinator.classify("map", "pan");
+  coordinator.claim("map");
+  coordinator.release("map", 81);
+  coordinator.commit("map");
+  unsubscribe();
+  coordinator.begin("timeline", 82);
+
+  assert.deepEqual(
+    snapshots.map((snapshot) => [snapshot.phase, snapshot.owner, snapshot.gesture]),
+    [
+      ["idle", null, null],
+      ["acquisition", "map", null],
+      ["classification", "map", "pan"],
+      ["owned", "map", "pan"],
+      ["settling", "map", "pan"],
+      ["committed", null, null],
+    ],
+  );
+  assert.equal(Object.isFrozen(snapshots.at(-1)), true);
+});
