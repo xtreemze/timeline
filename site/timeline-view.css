@@ -1100,10 +1100,14 @@
 .timeline-focus-place {
   grid-column: 1 / span 2;
   grid-row: 3;
+  position: relative;
+  min-height: clamp(240px, 40vh, 480px);
 }
 .timeline-focus-relations {
   grid-column: 3 / -1;
   grid-row: 3;
+  position: relative;
+  min-height: clamp(240px, 40vh, 480px);
 }
 .timeline-focus-evidence {
   grid-column: 1 / -1;

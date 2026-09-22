@@ -522,12 +522,12 @@ function presentationZoom(location?: LocationObject | null): number {
     location?.radiusMeters ?? location?.accuracyMeters ?? location?.accuracy,
   );
   if (Number.isFinite(accuracy)) {
-    if (accuracy <= 50) return 15;
-    if (accuracy <= 250) return 14;
-    if (accuracy <= 1000) return 12;
-    if (accuracy <= 5000) return 10;
+    if (accuracy <= 50) return 16;
+    if (accuracy <= 250) return 15;
+    if (accuracy <= 1000) return 13;
+    if (accuracy <= 5000) return 11;
   }
-  return 12;
+  return 13;
 }
 
 const GEOJSON_TYPES = new Set([
@@ -675,7 +675,7 @@ function markerAppearance(style: MapStyle = {}, fallbackColor = "#315fbd") {
     color: String(marker.color || fallbackColor),
     fillColor: String(marker.fillColor || ""),
     opacity: styleNumber(marker.opacity, 1, 0, 1),
-    size: styleNumber(marker.size, 32, 16, 40),
+    size: styleNumber(marker.size, 44, 16, 64),
     weight: styleNumber(marker.weight, 2, 0, 8),
   };
 }
@@ -739,8 +739,8 @@ function semanticMarkerIcon(
   return L.divIcon({
     className: "timeline-map-marker",
     html: identity.outerHTML,
-    iconSize: [44, 44],
-    iconAnchor: [22, 22],
+    iconSize: [56, 56],
+    iconAnchor: [28, 28],
   });
 }
 
@@ -875,15 +875,16 @@ class ReadOnlyLocationMap {
       const L = await loadLeaflet();
       if (this.destroyed || !this.container.isConnected) return;
       const weightedDrag = weightedMapDragAvailable();
+      const hasValidGeometry = pointCoordinates(this.location) || this.geometryBounds();
       this.map = L.map(this.container, {
-        zoomControl: this.interactive,
+        zoomControl: true,
         attributionControl: true,
         dragging: this.interactive && !weightedDrag,
-        scrollWheelZoom: this.interactive,
+        scrollWheelZoom: true,
         doubleClickZoom: this.interactive,
         boxZoom: this.interactive,
         keyboard: this.interactive,
-        touchZoom: this.interactive,
+        touchZoom: true,
         ...mapMotionOptions(this.interactive),
       });
       this.weightedDragCleanup = installWeightedMapDragging(
@@ -895,10 +896,12 @@ class ReadOnlyLocationMap {
         this.confirmGeometryVisible();
       });
 
-      if (this.countryContextIntro) {
+      if (this.countryContextIntro && hasValidGeometry) {
         this.map.setView(PRESENTATION_WORLD_VIEW.center, PRESENTATION_WORLD_VIEW.zoom, {
           animate: false,
         });
+      } else if (!hasValidGeometry) {
+        this.map.setView([20, 0], 2, { animate: false });
       }
 
       if (this.fictionalReferenceFrame) {
@@ -976,11 +979,13 @@ class ReadOnlyLocationMap {
         );
       }
 
-      if (!this.countryContextIntro) this.fitGeometry({ animate: false });
+      if (!this.countryContextIntro || !hasValidGeometry) {
+        this.fitGeometry({ animate: false });
+      }
       requestAnimationFrame(() => {
         this.map?.invalidateSize({ pan: false });
         this.confirmGeometryVisible();
-        if (this.countryContextIntro) this.prepareCountryContextIntro();
+        if (this.countryContextIntro && hasValidGeometry) this.prepareCountryContextIntro();
       });
     } catch (error) {
       if (!this.destroyed && this.container) {
@@ -1112,21 +1117,21 @@ class ReadOnlyLocationMap {
     if (bounds?.isValid?.() && !(point && geoJsonObjects(this.location).length === 1)) {
       this.map.fitBounds(bounds, {
         animate,
-        padding: [18, 18],
+        padding: [28, 28],
         maxZoom,
       });
       return;
     }
 
     if (point) {
-      this.map.setView([point.lat, point.lng], maxZoom, { animate });
+      this.map.setView([point.lat, point.lng], Math.max(maxZoom, 10), { animate });
       return;
     }
 
     if (bounds?.isValid?.()) {
       this.map.fitBounds(bounds, {
         animate,
-        padding: [18, 18],
+        padding: [28, 28],
         maxZoom,
       });
     }
