@@ -127,6 +127,7 @@ test("renderer-not-ready requests remain pending and retry once the adapter beco
   coordinator.request({ reason: "topology", alphaTarget: 0.12, reheat: true });
   assert.deepEqual(calls, [["apply", "topology", false]]);
   assert.equal(coordinator.getState().reason, "topology");
+  assert.equal(coordinator.getState().running, false);
 
   ready = true;
   coordinator.retry();
