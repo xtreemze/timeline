@@ -1,5 +1,9 @@
 import { performance } from "node:perf_hooks";
 import { createSemanticGraphIndex } from "../src/application/semantic-graph-index.ts";
+import {
+  projectFocusedGraph,
+  projectGraphWindow,
+} from "../src/projection/graph-projection.ts";
 
 await import("../site/temporal-standards-shim.ts");
 await import("../site/timeline-graph-shim.ts");
@@ -73,17 +77,17 @@ for (const nodeCount of sizes) {
   const edgeCount = fixture.relationships.length;
   const iterations = nodeCount >= 10000 ? 3 : 5;
 
-  const fullProjection = measure(() => {
+  const legacyFullProjection = measure(() => {
     const result = graph.graphForWindow(fixture, null);
     if (result.nodes.length !== nodeCount || result.edges.length !== edgeCount) {
-      throw new Error(`Unexpected full graph size for ${nodeCount} nodes.`);
+      throw new Error(`Unexpected legacy full graph size for ${nodeCount} nodes.`);
     }
   }, iterations);
 
-  const focusedNeighborhood = measure(() => {
+  const legacyFocusedNeighborhood = measure(() => {
     const result = graph.neighborhoodGraph(fixture, "entity-0", null, { depth: 2, limit: 36 });
     if (!result.nodes.some((node) => node.id === "entity-0") || result.nodes.length > 36) {
-      throw new Error(`Unexpected neighborhood projection for ${nodeCount} nodes.`);
+      throw new Error(`Unexpected legacy neighborhood projection for ${nodeCount} nodes.`);
     }
   }, iterations);
 
@@ -95,6 +99,24 @@ for (const nodeCount of sizes) {
   }, iterations);
 
   const semanticIndex = createSemanticGraphIndex(fixture);
+
+  const directFullProjection = measure(() => {
+    const result = projectGraphWindow(fixture, semanticIndex, null);
+    if (result.nodes.length !== nodeCount || result.edges.length !== edgeCount) {
+      throw new Error(`Unexpected direct GraphProjection size for ${nodeCount} nodes.`);
+    }
+  }, iterations);
+
+  const directFocusedProjection = measure(() => {
+    const result = projectFocusedGraph(fixture, semanticIndex, "entity-0", null, {
+      depth: 2,
+      limit: 36,
+    });
+    if (!result.nodes.some((node) => String(node.id) === "entity-0") || result.nodes.length > 36) {
+      throw new Error(`Unexpected direct focused GraphProjection for ${nodeCount} nodes.`);
+    }
+  }, iterations);
+
   const semanticNeighborhood = measure(() => {
     const result = semanticIndex.neighborhood("entity-0", { depth: 2, limit: 36 });
     if (!result.entityIds.includes("entity-0") || result.entityIds.length > 36) {
@@ -113,8 +135,10 @@ for (const nodeCount of sizes) {
   cases.push({
     nodes: nodeCount,
     edges: edgeCount,
-    fullProjection,
-    focusedNeighborhood,
+    legacyFullProjection,
+    legacyFocusedNeighborhood,
+    directFullProjection,
+    directFocusedProjection,
     semanticIndexBuild,
     semanticNeighborhood,
     semanticComponents,
