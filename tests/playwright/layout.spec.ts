@@ -103,6 +103,13 @@ async function toggleTimelineOrientation(page) {
   await orientationToggle.click();
 }
 
+async function ensureTimelineOrientation(page, orientation) {
+  const root = page.locator('#timeline-view');
+  const current = await root.getAttribute('data-orientation');
+  if (current !== orientation) await toggleTimelineOrientation(page);
+  await expect(root).toHaveAttribute('data-orientation', orientation);
+}
+
 test.describe('Mobile-first Timeline layout contracts', () => {
   test('phone portrait gives chronology the viewport and keeps temporal context readable', async ({
     page,
@@ -156,17 +163,24 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     await expectNoPrimaryDocumentScroll(page, PHONE_LANDSCAPE);
   });
 
-  test('footer app bar remains reachable in portrait and landscape', async ({ page }) => {
-    for (const viewport of [PHONE_PORTRAIT, PHONE_LANDSCAPE]) {
+  test('footer app bar reserves edge space for chronology in portrait and landscape', async ({ page }) => {
+    for (const { viewport, orientation } of [
+      { viewport: PHONE_PORTRAIT, orientation: 'portrait' },
+      { viewport: PHONE_LANDSCAPE, orientation: 'landscape' },
+    ]) {
       await page.setViewportSize(viewport);
       await page.goto('/');
+      await ensureTimelineOrientation(page, orientation);
 
       const dock = page.locator('.app-tool-dock');
+      const titleBar = page.locator('.timeline-project-heading');
+      const surface = page.locator('.timeline-surface');
       const actions = dock.locator(':scope > .app-tool');
       await expect(actions).toHaveCount(4);
+
       const dockBox = await expectInsideViewport(dock, viewport);
-      expect(dockBox.width).toBeGreaterThan(180);
-      expect(dockBox.height).toBeLessThan(90);
+      const titleBox = await expectInsideViewport(titleBar, viewport);
+      const surfaceBox = await expectInsideViewport(surface, viewport);
 
       for (const selector of [
         '#project-menu-toggle',
@@ -176,13 +190,29 @@ test.describe('Mobile-first Timeline layout contracts', () => {
       ]) {
         await expect(dock.locator(selector)).toBeVisible();
       }
+
+      if (orientation === 'portrait') {
+        expect(dockBox.height).toBeGreaterThan(180);
+        expect(dockBox.width).toBeLessThan(90);
+        expect(surfaceBox.x + surfaceBox.width).toBeLessThanOrEqual(dockBox.x + 3);
+        expect(dockBox.x + dockBox.width).toBeLessThanOrEqual(titleBox.x + 5);
+      } else {
+        expect(dockBox.width).toBeGreaterThan(180);
+        expect(dockBox.height).toBeLessThan(90);
+        expect(surfaceBox.y + surfaceBox.height).toBeLessThanOrEqual(dockBox.y + 3);
+        expect(dockBox.y + dockBox.height).toBeLessThanOrEqual(titleBox.y + 5);
+      }
     }
   });
 
   test('utility sheets and popovers stay reachable in both phone orientations', async ({ page }) => {
-    for (const viewport of [PHONE_PORTRAIT, PHONE_LANDSCAPE]) {
+    for (const { viewport, orientation } of [
+      { viewport: PHONE_PORTRAIT, orientation: 'portrait' },
+      { viewport: PHONE_LANDSCAPE, orientation: 'landscape' },
+    ]) {
       await page.setViewportSize(viewport);
       await page.goto('/');
+      await ensureTimelineOrientation(page, orientation);
 
       await page.locator('#editor-toggle').click();
       await expectInsideViewport(page.locator('#control-panel'), viewport);
@@ -196,13 +226,22 @@ test.describe('Mobile-first Timeline layout contracts', () => {
       await projectButton.click();
       const projectMenu = page.locator('#project-menu:popover-open');
       await expectInsideViewport(projectMenu, viewport);
+      await expect(projectMenu).toHaveAttribute(
+        'data-anchor-placement',
+        orientation === 'portrait' ? 'left' : 'above',
+      );
       await expect(projectButton).toHaveAttribute('aria-expanded', 'true');
       await page.keyboard.press('Escape');
       await expect(projectButton).toHaveAttribute('aria-expanded', 'false');
 
       const viewButton = page.locator('#timeline-view-controls-toggle');
       await viewButton.click();
-      await expectInsideViewport(page.locator('#timeline-view-toolbar:popover-open'), viewport);
+      const viewControls = page.locator('#timeline-view-toolbar:popover-open');
+      await expectInsideViewport(viewControls, viewport);
+      await expect(viewControls).toHaveAttribute(
+        'data-anchor-placement',
+        orientation === 'portrait' ? 'left' : 'above',
+      );
       await page.keyboard.press('Escape');
       await expect(viewButton).toHaveAttribute('aria-expanded', 'false');
     }
@@ -287,10 +326,11 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     await expect(page.locator('#app-shell')).toHaveAttribute('data-mode', 'view');
   });
 
-  test('Project stays in the footer app bar and reachable while editing', async ({ page }) => {
+  test('Project stays in the responsive app bar and reachable while editing', async ({ page }) => {
     const viewport = { width: 390, height: 844 };
     await page.setViewportSize(viewport);
     await page.goto('/');
+    await ensureTimelineOrientation(page, 'portrait');
 
     const toolDock = page.locator('.app-tool-dock');
     const projectButton = toolDock.locator('#project-menu-toggle');
@@ -325,19 +365,21 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     expect(buttonBox).not.toBeNull();
     expect(menuBox?.x).toBeGreaterThanOrEqual(5);
     expect(menuBox?.y).toBeGreaterThanOrEqual(5);
-    expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width - 5);
-    expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(
-      (buttonBox?.y ?? viewport.height) - 5,
+    expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(
+      (buttonBox?.x ?? viewport.width) - 5,
     );
+    expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(viewport.height - 5);
+    await expect(menu).toHaveAttribute('data-anchor-placement', 'left');
   });
 
-  test('Project footer menu stays clamped on compact visual viewports', async ({ page }) => {
+  test('Project menu stays clamped on compact portrait visual viewports', async ({ page }) => {
     for (const viewport of [
       { width: 320, height: 568 },
       { width: 390, height: 844 },
     ]) {
       await page.setViewportSize(viewport);
       await page.goto('/');
+      await ensureTimelineOrientation(page, 'portrait');
 
       const toolDock = page.locator('.app-tool-dock');
       const projectButton = toolDock.locator('#project-menu-toggle');
@@ -354,15 +396,15 @@ test.describe('Mobile-first Timeline layout contracts', () => {
       expect(buttonBox).not.toBeNull();
       expect(menuBox?.x).toBeGreaterThanOrEqual(5);
       expect(menuBox?.y).toBeGreaterThanOrEqual(5);
-      expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width - 5);
-      expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(
-        (buttonBox?.y ?? viewport.height) - 5,
+      expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(
+        (buttonBox?.x ?? viewport.width) - 5,
       );
+      expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(viewport.height - 5);
+      await expect(menu).toHaveAttribute('data-anchor-placement', 'left');
 
       await page.keyboard.press('Escape');
     }
   });
-
 
 
   test('persistent graph and timeline rail are simultaneously visible and independently hittable', async ({ page }) => {
