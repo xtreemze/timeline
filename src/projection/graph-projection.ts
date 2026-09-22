@@ -7,7 +7,7 @@ import type {
   GraphProjection,
   GraphTemporalState,
   TemporalProjectionBounds,
-} from "../layout/graph-surface.ts";
+} from "./graph-projection-types.ts";
 
 export interface CompatibilityRelationChange {
   readonly relationshipId?: unknown;
