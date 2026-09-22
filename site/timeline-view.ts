@@ -319,7 +319,11 @@ class TimelineViewController {
     this.root = root;
     this.surface = root.querySelector("#timeline-surface") || root.querySelector(".timeline-surface") || root;
     this.focusView =
-      root.querySelector("#timeline-focus-view") || root.querySelector(".timeline-focus-view") || root;
+      root.querySelector("#timeline-focus-view") ||
+      root.querySelector(".timeline-focus-view") ||
+      root.parentElement?.querySelector("#timeline-focus-view") ||
+      root.parentElement?.querySelector(".timeline-focus-view") ||
+      root;
     this.readout =
       root.querySelector("#timeline-window-readout") || root.querySelector(".timeline-window-readout") || root;
     this.orientationToggle = root.querySelector("#timeline-orientation-toggle");
@@ -2725,14 +2729,8 @@ class TimelineViewController {
       this.root.classList.add("is-event-focused");
       this.root.dataset.sceneState = "focused";
       this.focusView.hidden = false;
+      this.focusView.dataset.presentationSurface = "sidebar";
       this.renderFocus(item);
-      if (typeof (this.focusView as HTMLElement & { showPopover?: () => void }).showPopover === "function") {
-        try {
-          (this.focusView as HTMLElement & { showPopover: () => void }).showPopover();
-        } catch {
-          // The popover may already be open.
-        }
-      }
 
       if (moveViewport) {
         const sorted = [...this.items].sort((left, right) => left.start - right.start);
@@ -2773,14 +2771,9 @@ class TimelineViewController {
   }
 
   ensureFocusPopover(): void {
-    if (!this.focusedId || this.focusView.hidden) return;
-    const focus = this.focusView as HTMLElement & { matches: (selector: string) => boolean; showPopover?: () => void };
-    if (focus.matches(":popover-open") || typeof focus.showPopover !== "function") return;
-    try {
-      focus.showPopover();
-    } catch {
-      // A concurrent View Transition/top-layer update can temporarily reject this.
-    }
+    if (!this.focusedId) return;
+    this.focusView.hidden = false;
+    this.focusView.dataset.presentationSurface = "sidebar";
   }
 
   closeFocus(): void {
@@ -2791,14 +2784,6 @@ class TimelineViewController {
       this.syncSemanticChronologySelection();
       this.root.classList.remove("is-event-focused");
       this.root.dataset.sceneState = this.items.length ? "populated" : "empty";
-      const focus = this.focusView as HTMLElement & { matches: (selector: string) => boolean; hidePopover?: () => void };
-      if (focus.matches(":popover-open") && typeof focus.hidePopover === "function") {
-        try {
-          focus.hidePopover();
-        } catch {
-          // Already closing.
-        }
-      }
       this.focusView.hidden = true;
       this.focusView.replaceChildren();
       this.focusView.style.removeProperty("--event-color");
