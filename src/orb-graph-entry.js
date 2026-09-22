@@ -10,6 +10,7 @@ import {
   graphComponentTopologySignature,
   packComponentRects,
 } from "./graph-component-packing.js";
+import { createGraphSimulationCoordinator } from "./layout/graph-simulation-coordinator.ts";
 
 const LARGE_GRAPH_NODE_THRESHOLD = 1200;
 const GPU_LAYOUT_NODE_THRESHOLD = 3000;
@@ -166,8 +167,8 @@ function create(container, handlers = {}) {
         manyBody: { strength: -260, theta: 0.86, distanceMin: 20, distanceMax: 2400 },
         collision: { radius: 34, strength: 0.82, iterations: 3 },
         alpha: { alpha: 0.14, alphaMin: 0.004, alphaDecay: 0.026, alphaTarget: 0 },
-        isSimulatingOnDataUpdate: true,
-        isSimulatingOnSettingsUpdate: true,
+        isSimulatingOnDataUpdate: false,
+        isSimulatingOnSettingsUpdate: false,
         isSimulatingOnUnstick: true,
         isPhysicsEnabled: true,
         centering: { x: 0, y: 0, strength: 0.008 },
@@ -369,8 +370,8 @@ function create(container, handlers = {}) {
         iterations: 3,
       },
       alpha: forceAlphaProfile(nodeCount, alphaTarget, reheat),
-      isSimulatingOnDataUpdate: true,
-      isSimulatingOnSettingsUpdate: true,
+      isSimulatingOnDataUpdate: false,
+      isSimulatingOnSettingsUpdate: false,
       isSimulatingOnUnstick: true,
       isPhysicsEnabled: true,
       centering: { x: 0, y: 0, strength: dense ? 0.005 : 0.008 },
@@ -407,10 +408,10 @@ function create(container, handlers = {}) {
     return null;
   }
 
-  function applyInteractionForce(alphaTarget, { reheat = true } = {}) {
+  function applySimulationRequest(request) {
     const layout = {
       type: "force",
-      options: forceLayoutOptions(forceNodeCount, alphaTarget, reheat),
+      options: forceLayoutOptions(forceNodeCount, request.alphaTarget, request.reheat),
     };
     const simulator = forceSimulator();
     if (simulator) {
@@ -418,9 +419,27 @@ function create(container, handlers = {}) {
       simulator.activateSimulation();
       return;
     }
-    // Orb does not expose simulation activation publicly in 1.0.2. Keep a
-    // compatibility fallback if the pinned internal bridge changes.
+    // Orb does not expose simulation activation publicly in every renderer
+    // mode. Keep settings behind Timeline's coordinator even on fallback.
     orb.setSettings({ layout });
+  }
+
+  const simulationCoordinator = createGraphSimulationCoordinator({
+    apply: applySimulationRequest,
+    stop() {
+      const simulator = forceSimulator();
+      if (simulator && typeof simulator.stopSimulation === "function") {
+        simulator.stopSimulation();
+      }
+    },
+  });
+
+  function requestSimulation(reason, alphaTarget, { reheat = true } = {}) {
+    return simulationCoordinator.request({ reason, alphaTarget, reheat });
+  }
+
+  function releaseSimulation(reason) {
+    return simulationCoordinator.release(reason);
   }
 
   function clearInteractionSettleTimer() {
@@ -431,7 +450,7 @@ function create(container, handlers = {}) {
 
   function setInteractionHeat(alphaTarget) {
     clearInteractionSettleTimer();
-    applyInteractionForce(alphaTarget);
+    requestSimulation("topology", alphaTarget);
   }
 
   function clearCompetingGestureResumeTimer() {
