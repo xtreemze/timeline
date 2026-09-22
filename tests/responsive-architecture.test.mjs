@@ -33,3 +33,40 @@ test("responsive architecture documents mobile-first and container-responsive ru
   assert.match(source, /Touch\/coarse-pointer capability must not be inferred from viewport width/);
   assert.match(source, /#243/);
 });
+
+
+function cssTransitionDeclarationCount(source) {
+  return (source.match(/\btransition\s*:/g) || []).length;
+}
+
+function cssKeyframeCount(source) {
+  return (source.match(/@keyframes\s+[A-Za-z0-9_-]+/g) || []).length;
+}
+
+test("presentation CSS does not reintroduce decorative transition or keyframe debt", async () => {
+  const [styles, timeline] = await Promise.all([
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.equal(
+    cssTransitionDeclarationCount(styles),
+    0,
+    "site/styles.css should not animate state/layout with CSS transitions; interaction motion belongs to explicit browser/runtime primitives.",
+  );
+  assert.equal(
+    cssTransitionDeclarationCount(timeline),
+    0,
+    "site/timeline-view.css should not animate timeline geometry with CSS transitions; retained interaction motion is requestAnimationFrame-driven.",
+  );
+  assert.equal(
+    cssKeyframeCount(timeline),
+    0,
+    "timeline focus/navigation should use named View Transition participants without hand-authored CSS keyframes.",
+  );
+});
+
+test("application shell has no legacy fixed minimum page height", async () => {
+  const source = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /\.app-shell\s*\{[\s\S]{0,500}min-height:\s*780px/);
+});
