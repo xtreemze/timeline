@@ -1707,13 +1707,11 @@ class TimelineViewController {
 
     // Add click handler directly to button
     terminal.addEventListener("click", (event) => {
-      console.log('Cluster button clicked!', cluster.id.substring(0, 50));
       event.stopPropagation();
       const target = event.target instanceof Element
         ? (event.target as Element).closest<HTMLElement>("[data-cluster-item-id]")
         : null;
       const selectedId = target?.dataset.clusterItemId || cluster.itemIds[0];
-      console.log('Activating cluster with selectedId:', selectedId);
       if (selectedId) this.activateCommittedCluster(cluster, selectedId);
     });
 

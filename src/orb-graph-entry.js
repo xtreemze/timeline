@@ -1520,9 +1520,10 @@ function create(container, handlers = {}) {
       edges: edges.map((edge) => transitionRecord(edge, "active")),
     });
     hasGraphData = true;
-    // Reset force but preserve simulation for dragged nodes
+    // Activate force simulation with heat on initial data load
     if (!isNodeCurrentlyDragging()) {
-      applyInteractionForce(0, { reheat: true });
+      const isInitialLoad = firstRender;
+      applyInteractionForce(isInitialLoad ? DRAG_ALPHA_TARGET : 0, { reheat: true });
     }
     orb.render();
     handlers.onSimulationState?.({ running: true, mode: currentMode });
