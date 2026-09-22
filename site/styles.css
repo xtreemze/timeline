@@ -2191,13 +2191,7 @@ footer > :last-child {
   height: clamp(280px, 32vw, 420px);
   min-height: 280px;
   overflow: hidden;
-  background:
-    radial-gradient(
-      circle at 50% 50%,
-      color-mix(in srgb, var(--story) 6%, transparent),
-      transparent 62%
-    ),
-    var(--paper);
+  background: transparent;
   touch-action: none;
 }
 .temporal-graph-canvas canvas {
