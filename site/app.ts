@@ -124,18 +124,7 @@ interface EntityRecord {
   attributes?: Record<string, unknown>;
 }
 
-interface PlaceRecord {
-  id: string;
-  name: string;
-  geographicIdentifier?: string;
-  address?: string;
-  geometry?: { type?: string; coordinates?: unknown } | null;
-  radiusMeters?: number;
-  icon?: string;
-  markerShape?: string;
-  style?: Record<string, unknown>;
-  attributes?: Record<string, unknown>;
-}
+type PlaceRecord = NonNullable<ReturnType<typeof TimelineSpatial.placeFromForm>>;
 
 interface RelationshipRecord {
   id: string;
@@ -155,6 +144,31 @@ interface RelationshipRecord {
 interface PresentationMapController {
   refresh?(): void;
   destroy?(): void;
+}
+
+interface AutoAdvanceState {
+  running: boolean;
+  paused: boolean;
+  intervalMs: number;
+  pauseReason: string;
+}
+
+interface AutoAdvanceController {
+  running: boolean;
+  paused: boolean;
+  toggle(): void;
+  resume(): void;
+  pause(reason?: string): void;
+  setIntervalMs(value: number): void;
+}
+
+interface NavigationControllerBundle {
+  auto: AutoAdvanceController;
+}
+
+interface PresentationCommandMeta {
+  source?: string;
+  event?: KeyboardEvent;
 }
 
 interface TimelineState {
@@ -548,7 +562,7 @@ function eventTargetElement(event: Event): Element | null {
   let itemInferenceDraft: ItemInferenceDraft | null = null;
   let inferenceAbortController: AbortController | null = null;
   let statusTimer = 0;
-  let navigationController = null;
+  let navigationController: NavigationControllerBundle | null = null;
   const ui = {
     activePanel: "items",
     search: "",
@@ -1045,7 +1059,7 @@ function eventTargetElement(event: Event): Element | null {
     return JSON.parse(JSON.stringify(value)) as T;
   }
 
-  function parseJsonObject(value, label = "Properties") {
+  function parseJsonObject(value: unknown, label = "Properties"): Record<string, unknown> {
     const source = String(value || "").trim();
     if (!source) return {};
     let parsed: unknown;
@@ -1057,10 +1071,10 @@ function eventTargetElement(event: Event): Element | null {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       throw new Error(`${label} must be a JSON object.`);
     }
-    return parsed;
+    return parsed as Record<string, unknown>;
   }
 
-  function parseJsonArray(value, label = "Identifiers") {
+  function parseJsonArray(value: unknown, label = "Identifiers"): unknown[] {
     const source = String(value || "").trim();
     if (!source) return [];
     let parsed: unknown;
@@ -1073,7 +1087,10 @@ function eventTargetElement(event: Event): Element | null {
     return parsed;
   }
 
-  function parseLineList(value, { maxItems = 48, maxLength = 180 } = {}) {
+  function parseLineList(
+    value: unknown,
+    { maxItems = 48, maxLength = 180 }: { maxItems?: number; maxLength?: number } = {},
+  ): string[] {
     return [
       ...new Set(
         String(value || "")
@@ -3331,7 +3348,7 @@ function eventTargetElement(event: Event): Element | null {
 
   function renderStories() {
     els.savedStoryCount.textContent = `${state.stories.length}`;
-    const cards = state.stories.map((story) => {
+    const cards: HTMLElement[] = state.stories.map((story): HTMLElement => {
       const card = document.createElement("article");
       card.className = "story-card";
       card.dataset.id = story.id;
@@ -3412,13 +3429,16 @@ function eventTargetElement(event: Event): Element | null {
     focusCurrentStoryItem();
   }
 
-  function focusCurrentStoryItem(openFocus = false, options = {}) {
+  function focusCurrentStoryItem(
+    openFocus = false,
+    options: { direction?: number } = {},
+  ): void {
     const story = getStory(ui.activeStoryId);
     if (!story?.itemIds.length) return;
     const currentId = story.itemIds[ui.storyCursor];
     if (openFocus) {
       timelineView?.focusItem(currentId, {
-        direction: Number(options.direction) < 0 ? -1 : 1,
+        direction: Number(options.direction ?? 1) < 0 ? -1 : 1,
       });
       return;
     }
@@ -3428,7 +3448,7 @@ function eventTargetElement(event: Event): Element | null {
     });
   }
 
-  function stepStory(delta, options = {}) {
+  function stepStory(delta: number, options: { focusEvent?: boolean } = {}): boolean {
     const story = getStory(ui.activeStoryId);
     if (!story) return false;
     const next = ui.storyCursor + (delta < 0 ? -1 : 1);
@@ -4163,7 +4183,7 @@ function eventTargetElement(event: Event): Element | null {
     statusTimer = window.setTimeout(() => els.status.classList.remove("visible"), 2800);
   }
 
-  function renderAutoAdvanceState(autoState) {
+  function renderAutoAdvanceState(autoState: AutoAdvanceState): void {
     const seconds = Math.round(autoState.intervalMs / 1000);
     const playing = autoState.running && !autoState.paused;
     els.autoToggle.setAttribute("aria-pressed", String(playing));
@@ -4196,13 +4216,19 @@ function eventTargetElement(event: Event): Element | null {
     return timelineView?.focusAdjacent(1) || false;
   }
 
-  function advancePresentation(delta, options = {}) {
+  function advancePresentation(
+    delta: number,
+    options: { focusEvent?: boolean } = {},
+  ): boolean {
     const story = getStory(ui.activeStoryId);
     if (story) return stepStory(delta, { focusEvent: options.focusEvent !== false });
     return timelineView?.focusAdjacent(delta) || false;
   }
 
-  function handlePresentationCommand(command, meta = {}) {
+  function handlePresentationCommand(
+    command: string,
+    meta: PresentationCommandMeta = {},
+  ): boolean {
     if (!navigationController) return false;
     if (command === "toggle-auto") {
       if (!navigationController.auto.running || navigationController.auto.paused) {
@@ -4463,6 +4489,7 @@ function eventTargetElement(event: Event): Element | null {
       const current = els.tabs.indexOf(tab);
       const delta = event.key === "ArrowRight" ? 1 : -1;
       const next = els.tabs[(current + delta + els.tabs.length) % els.tabs.length];
+      if (!next) return;
       setActivePanel(next.dataset.panel);
       next.focus();
     });
