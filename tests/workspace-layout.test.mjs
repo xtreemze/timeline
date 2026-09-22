@@ -174,3 +174,54 @@ test("view controls consume the renderer-neutral workspace planner instead of ow
   assert.doesNotMatch(source, /left = Math\.min\(Math\.max/);
   assert.doesNotMatch(source, /top = Math\.min\(Math\.max/);
 });
+
+
+test("footer shell fuses project title below actions and reserves its measured block from presentation", async () => {
+  const [html, styles, timelineCss, app] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(
+    html,
+    /<footer class="app-footer-shell"[\s\S]*<nav class="app-tool-dock app-footer-bar"[\s\S]*<\/nav>[\s\S]*<header class="timeline-project-heading app-project-title-bar"/,
+  );
+  assert.doesNotMatch(
+    html,
+    /id="timeline-view"[\s\S]{0,500}<header class="timeline-project-heading"/,
+  );
+  assert.match(
+    styles,
+    /\.app-footer-shell\s*\{[\s\S]*position:\s*fixed[\s\S]*inset-block-end:[\s\S]*display:\s*grid/,
+  );
+  assert.match(
+    styles,
+    /#app-shell #presentation-stage:not\(:fullscreen\)[\s\S]*inset-block-end:\s*var\(--workspace-footer-reserved-block\)[\s\S]*block-size:\s*auto/,
+  );
+  assert.match(
+    app,
+    /appFooter:\s*requiredElement<HTMLElement>\("\.app-footer-shell"\)/,
+  );
+  assert.match(
+    app,
+    /new ResizeObserver\([\s\S]*--workspace-footer-reserved-block[\s\S]*els\.appFooter/,
+  );
+  assert.match(
+    app,
+    /function positionProjectMenu\(\)[\s\S]*appFooter\.getBoundingClientRect\(\)[\s\S]*placement = "above"/,
+  );
+  assert.match(
+    app,
+    /function positionViewControls\(\)[\s\S]*appFooter\.getBoundingClientRect\(\)[\s\S]*id:\s*"above"/,
+  );
+  assert.doesNotMatch(
+    styles,
+    /workspace-portrait-chrome-inline|workspace-landscape-chrome-block/,
+  );
+  assert.doesNotMatch(
+    timelineCss,
+    /workspace-portrait-chrome-inline|workspace-landscape-chrome-block/,
+  );
+});
