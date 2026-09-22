@@ -47,15 +47,14 @@ Do **not** add an interval tree or worker merely because 100k is large. Compare 
 
 ## Timing policy
 
-Initial observational targets from #286 remain non-fatal until a stable reference environment has enough samples:
+The first cross-browser retained-renderer baseline was certified on 2026-09-22 and is now a release gate:
 
-- desktop interaction p95: <= 16.7 ms;
-- phone/tablet interaction p95: <= 33.3 ms;
-- no ordinary chronology-rendering long task > 50 ms.
+- interaction render p95: <= 16.7 ms;
+- commit render p95: <= 16.7 ms;
+- interaction input-to-visual p95: <= 50 ms;
+- no ordinary chronology-rendering long task > 50 ms where the browser exposes Long Tasks.
 
-Commit duration is reported independently and may exceed one frame, but must remain bounded and visible.
-
-Once #251 establishes stable hardware/browser baselines and variance, those values can be promoted to release gates without changing the structural invariants above.
+Heap and Long Animation Frame evidence remain observational because browser support is incomplete. These gates are intentionally conservative: they freeze the current verified performance envelope without pretending unsupported telemetry is portable.
 
 
 ## Recorded baseline — 2026-09-21
@@ -87,3 +86,23 @@ Revisit this decision when one of these becomes true:
 2. representative fixture sizes materially exceed 100k projected occurrences;
 3. range density or filtering semantics change enough that this benchmark ceases to represent production use;
 4. a simpler sorted/binary-search implementation demonstrates a meaningful end-to-end improvement rather than a microbenchmark-only gain.
+
+## Live retained-renderer baseline — 2026-09-22
+
+Reference CI used Playwright's certified desktop, phone portrait/landscape, tablet-touch and reduced-motion projects against a deterministic 1,000-occurrence retained scene.
+
+| Project | Interaction p95 | Commit p95 | Input-to-visual p95 | Retained peak |
+| --- | ---: | ---: | ---: | ---: |
+| Desktop Chrome | 3.2 ms | 2.5 ms | 13.3 ms | 38 |
+| Mobile Chrome | 5.0 ms | 1.8 ms | 15.5 ms | 24 |
+| Mobile Chrome Landscape | 3.5 ms | 2.1 ms | 15.7 ms | 45 |
+| Mobile Safari | 12.0 ms | 6.0 ms | 44.0 ms | 25 |
+| Mobile Safari Landscape | 12.0 ms | 8.0 ms | 38.0 ms | 45 |
+| Tablet Touch | 3.8 ms | 2.5 ms | 14.6 ms | 38 |
+| Reduced Motion | 4.4 ms | 2.9 ms | 15.6 ms | 38 |
+
+Chromium reported no long tasks above 50 ms and no Long Animation Frame samples for this interaction fixture. WebKit did not expose those observer types, so absence of observations there is not treated as evidence of absence.
+
+### Release decision
+
+The retained scene meets the current interaction budget across the certified matrix. Keep the linear temporal query and current commit-time planner architecture. Do not introduce an interval tree, worker, or renderer replacement for chronology performance on the basis of current measurements.
