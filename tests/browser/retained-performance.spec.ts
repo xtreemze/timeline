@@ -192,24 +192,58 @@ test('retained renderer publishes phase-attributed performance evidence', async 
   await twoFrames(page);
 
   const evidence = await page.evaluate(() => {
-    const globals = globalThis as typeof globalThis & Record<string, any>;
-    globals.__retainedPerformanceLongTaskObserver?.disconnect();
-    globals.__retainedPerformanceLongAnimationFrameObserver?.disconnect();
+    const controller = Reflect.get(globalThis, '__retainedPerformanceController') as
+      | { getPerformanceMetrics(): {
+          interaction: {
+            frameCount: number;
+            destroyedNodes: number;
+            p95DurationMs: number;
+            inputLatencySampleCount: number;
+            p95InputLatencyMs: number;
+          };
+          commit: { frameCount: number; p95DurationMs: number };
+          violations: unknown[];
+          retainedPeak: number;
+          bufferExpansions: number;
+        } }
+      | undefined;
+    const longTaskObserver = Reflect.get(
+      globalThis,
+      '__retainedPerformanceLongTaskObserver',
+    ) as PerformanceObserver | null | undefined;
+    const longAnimationFrameObserver = Reflect.get(
+      globalThis,
+      '__retainedPerformanceLongAnimationFrameObserver',
+    ) as PerformanceObserver | null | undefined;
+    longTaskObserver?.disconnect();
+    longAnimationFrameObserver?.disconnect();
 
     const memory = (performance as Performance & {
       memory?: { usedJSHeapSize?: number };
     }).memory;
     const heapAfter = Number(memory?.usedJSHeapSize) || null;
-    const heapBefore = globals.__retainedPerformanceHeapBefore ?? null;
+    const heapBeforeValue = Reflect.get(globalThis, '__retainedPerformanceHeapBefore');
+    const heapBefore = typeof heapBeforeValue === 'number' ? heapBeforeValue : null;
+    const rawLongTasks = Reflect.get(globalThis, '__retainedPerformanceLongTasks');
+    const rawLongAnimationFrames = Reflect.get(
+      globalThis,
+      '__retainedPerformanceLongAnimationFrames',
+    );
 
     return {
-      metrics: globals.__retainedPerformanceController?.getPerformanceMetrics(),
-      longTaskSupported: Boolean(globals.__retainedPerformanceLongTaskSupported),
-      longTasks: [...(globals.__retainedPerformanceLongTasks ?? [])] as number[],
-      longAnimationFrameSupported: Boolean(
-        globals.__retainedPerformanceLongAnimationFrameSupported,
+      metrics: controller?.getPerformanceMetrics(),
+      longTaskSupported: Boolean(
+        Reflect.get(globalThis, '__retainedPerformanceLongTaskSupported'),
       ),
-      longAnimationFrames: [...(globals.__retainedPerformanceLongAnimationFrames ?? [])],
+      longTasks: Array.isArray(rawLongTasks)
+        ? rawLongTasks.filter((value): value is number => typeof value === 'number')
+        : [],
+      longAnimationFrameSupported: Boolean(
+        Reflect.get(globalThis, '__retainedPerformanceLongAnimationFrameSupported'),
+      ),
+      longAnimationFrames: Array.isArray(rawLongAnimationFrames)
+        ? [...rawLongAnimationFrames]
+        : [],
       heapBefore,
       heapAfter,
       heapDelta:
