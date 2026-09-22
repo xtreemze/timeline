@@ -4545,7 +4545,7 @@
 > .app-view-controls.timeline-view-toolbar[popover]:popover-open {
   flex-direction: row;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   width: max-content;
   max-inline-size: calc(
     100dvw -
@@ -4589,7 +4589,7 @@
   max-block-size: calc(100dvh - 1rem);
   flex-direction: column;
   align-items: stretch;
-  justify-content: flex-end;
+  justify-content: flex-start;
   width: clamp(82px, 22dvw, 96px);
   max-width: calc(
     100dvw -
