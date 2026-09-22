@@ -3,6 +3,11 @@
  * Supports read-only display with geospatial features and interactive editing
  */
 
+import type {
+  InteractionCoordinator,
+  InteractionCompletionReason,
+} from "../src/interaction/interaction-coordinator.ts";
+
 const DEFAULT_PROVIDER = Object.freeze({
   id: "osm-public-compatibility",
   url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -98,6 +103,7 @@ interface DragState {
 
 interface ReadOnlyLocationMapOptions {
   container: HTMLElement;
+  interactionCoordinator?: InteractionCoordinator | null;
   location?: LocationObject;
   color?: string;
   iconName?: string;
@@ -111,6 +117,7 @@ interface ReadOnlyLocationMapOptions {
 
 interface LocationMapControllerOptions {
   container: HTMLElement;
+  interactionCoordinator?: InteractionCoordinator | null;
   details?: HTMLDetailsElement;
   latitude: HTMLInputElement;
   longitude: HTMLInputElement;
@@ -289,6 +296,7 @@ function installWeightedMapDragging(
   map: any,
   container: HTMLElement,
   interactive = true,
+  interactionCoordinator: InteractionCoordinator | null = null,
 ): () => void {
   if (!interactive || !map || !container || !weightedMapDragAvailable()) return () => {};
 
@@ -296,6 +304,14 @@ function installWeightedMapDragging(
   let drag: DragState | null = null;
   let inertiaAnimationFrame = 0;
   let suppressClickUntil = 0;
+
+  const claimGesture = (gesture: "tap" | "pan" | "pinch"): boolean => {
+    if (!interactionCoordinator) return true;
+    const current = interactionCoordinator.snapshot();
+    if (current.owner !== "map") return false;
+    if (current.phase === "owned" && current.gesture === gesture) return true;
+    return interactionCoordinator.classify("map", gesture) && interactionCoordinator.claim("map");
+  };
 
   const releasePointerCapture = (pointerId: number) => {
     if (!Number.isFinite(pointerId)) return;
@@ -379,6 +395,7 @@ function installWeightedMapDragging(
       prefersReducedMotion() ||
       velocity.magnitude < (motion.STOP_VELOCITY_PX_PER_MS || 0.012)
     ) {
+      interactionCoordinator?.commit("map");
       return;
     }
     cancelInertia();
@@ -389,7 +406,10 @@ function installWeightedMapDragging(
     const step = (now: number) => {
       inertiaAnimationFrame = 0;
       const magnitude = Math.hypot(velocityX, velocityY);
-      if (magnitude < (motion.STOP_VELOCITY_PX_PER_MS || 0.012)) return;
+      if (magnitude < (motion.STOP_VELOCITY_PX_PER_MS || 0.012)) {
+        interactionCoordinator?.commit("map");
+        return;
+      }
 
       const elapsed = lastFrame ? Math.min(48, Math.max(1, now - lastFrame)) : 16;
       lastFrame = now;
@@ -399,6 +419,8 @@ function installWeightedMapDragging(
 
       if (Math.hypot(velocityX, velocityY) >= (motion.STOP_VELOCITY_PX_PER_MS || 0.012)) {
         inertiaAnimationFrame = requestAnimationFrame(step);
+      } else {
+        interactionCoordinator?.commit("map");
       }
     };
 
@@ -407,6 +429,11 @@ function installWeightedMapDragging(
 
   const onPointerDown = (event: PointerEvent) => {
     if (event.button !== 0) return;
+    if (interactionCoordinator && !interactionCoordinator.begin("map", event.pointerId)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
     cancelInertia();
     const blocked = targetBlocksCameraDrag(event.target);
     pointers.set(event.pointerId, {
@@ -418,6 +445,7 @@ function installWeightedMapDragging(
     });
 
     if (pointers.size > 1) {
+      claimGesture("pinch");
       cancelDrag();
       return;
     }
@@ -431,13 +459,33 @@ function installWeightedMapDragging(
       pointer.y = event.clientY;
     }
     if (pointers.size > 1) {
+      claimGesture("pinch");
       cancelDrag();
       return;
+    }
+    if (drag) {
+      const distance = Math.hypot(
+        event.clientX - drag.startPoint.x,
+        event.clientY - drag.startPoint.y,
+      );
+      if (distance > MAP_DRAG_MOVE_TOLERANCE_PX && !claimGesture("pan")) return;
     }
     applyWeightedDrag(event);
   };
 
   const finishPointer = (event: PointerEvent) => {
+    if (event.type === "pointercancel") {
+      interactionCoordinator?.cancel("map", "pointercancel");
+    } else {
+      const current = interactionCoordinator?.snapshot();
+      if (
+        current?.owner === "map" &&
+        (current.phase === "acquisition" || current.phase === "classification")
+      ) {
+        claimGesture("tap");
+      }
+      interactionCoordinator?.release("map", event.pointerId);
+    }
     const ownsDrag = Boolean(drag && drag.pointerId === event.pointerId);
     const finishedDrag = ownsDrag ? drag : null;
     if (finishedDrag) motion.appendPointerVectorSamples(finishedDrag.samples, event);
@@ -457,28 +505,38 @@ function installWeightedMapDragging(
     if (event.type !== "pointercancel" && event.pointerType === "touch" && pointers.size === 1) {
       const remaining = Array.from(pointers.values())[0];
       if (remaining && !remaining.blocked) {
+        interactionCoordinator?.cancel("map", "aborted");
+        interactionCoordinator?.begin("map", remaining.pointerId);
         requestAnimationFrame(() => {
           if (pointers.size === 1 && pointers.has(remaining.pointerId) && !drag) {
             beginDrag(remaining.pointerId, remaining);
           }
         });
       }
+      return;
     }
+
+    if (event.type === "pointercancel") return;
+    if (!pointers.size && !(finishedDrag?.moved)) interactionCoordinator?.commit("map");
   };
 
-  const abortInteraction = () => {
+  const abortInteraction = (
+    reason: Exclude<InteractionCompletionReason, "release"> = "aborted",
+  ) => {
     cancelInertia();
     const pointerIds = Array.from(pointers.keys());
     drag = null;
     pointers.clear();
     for (const pointerId of pointerIds) releasePointerCapture(pointerId);
+    if (pointerIds.length) interactionCoordinator?.cancel("map", reason);
   };
 
   const onLostPointerCapture = (event: Event) => {
-    const pe = event as any;
-    if (drag?.pointerId !== pe.pointerId) return;
+    const pe = event as PointerEvent;
+    if (drag?.pointerId !== pe.pointerId && !pointers.has(pe.pointerId)) return;
     drag = null;
     pointers.delete(pe.pointerId);
+    interactionCoordinator?.cancel("map", "lostpointercapture");
   };
 
   const onClickCapture = (event: MouseEvent) => {
@@ -488,8 +546,10 @@ function installWeightedMapDragging(
   };
 
   const onVisibilityChange = () => {
-    if (document.visibilityState === "hidden") abortInteraction();
+    if (document.visibilityState === "hidden") abortInteraction("visibilitychange");
   };
+  const onBlur = () => abortInteraction("blur");
+  const onOrientationChange = () => abortInteraction("orientationchange");
 
   container.addEventListener("pointerdown", onPointerDown as EventListener);
   container.addEventListener("pointermove", onPointerMove as EventListener, { passive: false });
@@ -498,8 +558,8 @@ function installWeightedMapDragging(
   container.addEventListener("lostpointercapture", onLostPointerCapture);
   container.addEventListener("click", onClickCapture, { capture: true });
   container.addEventListener("wheel", cancelInertia, { passive: true });
-  globalThis.addEventListener?.("blur", abortInteraction);
-  globalThis.addEventListener?.("orientationchange", abortInteraction);
+  globalThis.addEventListener?.("blur", onBlur);
+  globalThis.addEventListener?.("orientationchange", onOrientationChange);
   document.addEventListener("visibilitychange", onVisibilityChange);
 
   return () => {
@@ -511,8 +571,8 @@ function installWeightedMapDragging(
     container.removeEventListener("lostpointercapture", onLostPointerCapture);
     container.removeEventListener("click", onClickCapture, true);
     container.removeEventListener("wheel", cancelInertia);
-    globalThis.removeEventListener?.("blur", abortInteraction);
-    globalThis.removeEventListener?.("orientationchange", abortInteraction);
+    globalThis.removeEventListener?.("blur", onBlur);
+    globalThis.removeEventListener?.("orientationchange", onOrientationChange);
     document.removeEventListener("visibilitychange", onVisibilityChange);
   };
 }
@@ -748,6 +808,7 @@ class ReadOnlyLocationMap {
   container: HTMLElement | null;
   location: LocationObject | null;
   providers: MapProvider[];
+  interactionCoordinator: InteractionCoordinator | null;
   color: string;
   iconName: string;
   markerShape: string;
@@ -774,6 +835,7 @@ class ReadOnlyLocationMap {
     this.container = options.container;
     this.location = options.location || null;
     this.providers = tileProviders();
+    this.interactionCoordinator = options.interactionCoordinator ?? null;
     this.color = options.color || "#315fbd";
     this.iconName = options.iconName || this.location?.icon || "place";
     this.markerShape = options.markerShape || this.location?.markerShape || "pin";
@@ -1179,6 +1241,7 @@ class LocationMapController {
   resizeCleanup: (() => void) | null;
   basemapCleanup: (() => void) | null;
   providers: MapProvider[];
+  interactionCoordinator: InteractionCoordinator | null;
 
   constructor(options: LocationMapControllerOptions) {
     this.container = options.container;
@@ -1195,6 +1258,7 @@ class LocationMapController {
     this.resizeCleanup = null;
     this.basemapCleanup = null;
     this.providers = tileProviders();
+    this.interactionCoordinator = options.interactionCoordinator ?? null;
     this.bind();
   }
 
@@ -1246,7 +1310,7 @@ class LocationMapController {
         dragging: !weightedDrag,
         ...mapMotionOptions(true),
       }).setView([20, 0], 2);
-      this.weightedDragCleanup = installWeightedMapDragging(this.map, this.container, true);
+      this.weightedDragCleanup = installWeightedMapDragging(this.map, this.container, true, this.interactionCoordinator);
       this.resizeCleanup = observeMapSize(this.map, this.container, () => {
         this.updateFromInputs(false);
       });
