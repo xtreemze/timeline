@@ -726,64 +726,49 @@ function closestEventTarget<T extends HTMLElement>(
 
     const candidates =
       orientation === "portrait"
-        ? [
-            {
-              id: "left",
-              rect: {
-                x: dockRect.left - gap - measuredWidth,
-                y: anchor.y - measuredHeight / 2,
-                width: Math.min(
-                  measuredWidth,
-                  Math.max(1, dockRect.left - gap - (viewport.left + edge)),
-                ),
-                height: measuredHeight,
+        ? (() => {
+            const width = Math.min(
+              measuredWidth,
+              Math.max(1, dockRect.left - gap - (viewport.left + edge)),
+            );
+            const height = Math.min(measuredHeight, availableHeight);
+            const minTop = viewport.top + edge;
+            const maxTop = viewport.top + viewport.height - edge - height;
+            return [
+              {
+                id: "left",
+                rect: {
+                  x: dockRect.left - gap - width,
+                  y: Math.min(Math.max(minTop, anchor.y - height / 2), Math.max(minTop, maxTop)),
+                  width,
+                  height,
+                },
               },
-            },
-            {
-              id: "right",
-              rect: {
-                x: dockRect.right + gap,
-                y: anchor.y - measuredHeight / 2,
-                width: Math.min(
-                  measuredWidth,
-                  Math.max(
-                    1,
-                    viewport.left + viewport.width - edge - dockRect.right - gap,
+            ];
+          })()
+        : (() => {
+            const width = Math.min(measuredWidth, availableWidth);
+            const height = Math.min(
+              measuredHeight,
+              Math.max(1, dockRect.top - gap - (viewport.top + edge)),
+            );
+            const minLeft = viewport.left + edge;
+            const maxLeft = viewport.left + viewport.width - edge - width;
+            return [
+              {
+                id: "above",
+                rect: {
+                  x: Math.min(
+                    Math.max(minLeft, anchor.x - width / 2),
+                    Math.max(minLeft, maxLeft),
                   ),
-                ),
-                height: measuredHeight,
+                  y: dockRect.top - gap - height,
+                  width,
+                  height,
+                },
               },
-            },
-          ]
-        : [
-            {
-              id: "above",
-              rect: {
-                x: anchor.x - measuredWidth / 2,
-                y: dockRect.top - gap - measuredHeight,
-                width: measuredWidth,
-                height: Math.min(
-                  measuredHeight,
-                  Math.max(1, dockRect.top - gap - (viewport.top + edge)),
-                ),
-              },
-            },
-            {
-              id: "below",
-              rect: {
-                x: anchor.x - measuredWidth / 2,
-                y: dockRect.bottom + gap,
-                width: measuredWidth,
-                height: Math.min(
-                  measuredHeight,
-                  Math.max(
-                    1,
-                    viewport.top + viewport.height - edge - dockRect.bottom - gap,
-                  ),
-                ),
-              },
-            },
-          ];
+            ];
+          })();
 
     const snapshot = planWorkspacePlacement({
       viewport: {
