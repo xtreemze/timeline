@@ -40,11 +40,12 @@ test("tags normalize icon and hue while retaining semantic labels", () => {
   assert.equal(tags[1].hue, 330);
 });
 
-test("form and focus markup use one range input and no small popover detail", async () => {
+test("form keeps its calendar popover while focused event detail is a structural sidebar", async () => {
   const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
   assert.match(html, /id="item-date-range"/);
   assert.match(html, /id="item-calendar-popover"[^>]*popover="auto"/);
-  assert.match(html, /id="timeline-focus-view"/);
+  assert.match(html, /id="timeline-focus-view"[^>]*class="timeline-focus-view timeline-focus-panel"/);
+  assert.doesNotMatch(html, /id="timeline-focus-view"[^>]*popover=/);
   assert.doesNotMatch(html, /id="timeline-detail"/);
 });
 
@@ -273,13 +274,26 @@ test("graph exploration is chrome-free and selection-only", async () => {
   assert.doesNotMatch(graphView, /renderDetail|temporal-graph-detail-list/);
 });
 
-test("fullscreen restores the focused event popover after the browser changes top-layer state", async () => {
-  const [app, view] = await Promise.all([
-    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+test("fullscreen keeps focused event detail in normal presentation-stage layout", async () => {
+  const [html, view, css] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
-  assert.match(view, /ensureFocusPopover\(\)/);
-  assert.match(app, /active && timelineView\?\.hasFocusedItem\?\.\(\)[\s\S]*ensureFocusPopover/);
+  assert.match(
+    html,
+    /id="presentation-stage"[\s\S]*id="timeline-view"[\s\S]*id="timeline-focus-view"[\s\S]*id="graph-lens"/,
+  );
+  assert.doesNotMatch(html, /id="timeline-focus-view"[^>]*popover=/);
+  assert.doesNotMatch(view, /ensureFocusPopover|showPopover|hidePopover/);
+  assert.match(
+    css,
+    /#presentation-stage:fullscreen\[data-event-focused="true"\]\[data-viewport-orientation="landscape"\][\s\S]*> \.timeline-focus-panel[\s\S]*grid-column:\s*1 \/ span 2;[\s\S]*grid-row:\s*1 \/ span 2;/,
+  );
+  assert.match(
+    css,
+    /#presentation-stage:fullscreen\[data-event-focused="true"\]\[data-viewport-orientation="portrait"\][\s\S]*> \.timeline-focus-panel[\s\S]*grid-column:\s*1 \/ span 2;[\s\S]*grid-row:\s*1 \/ span 3;/,
+  );
 });
 
 test("utility surfaces remain coordinated while the relation graph stays persistent", async () => {
@@ -325,7 +339,7 @@ test("fullscreen preserves the common footer app bar inside the fullscreen subtr
   assert.doesNotMatch(timelineCss, /data-project-anchored|workspace-tool-dock/);
 });
 
-test("relations halo remains inside the unified popover chrome", async () => {
+test("relations halo remains inside the unified focused sidebar chrome", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   assert.match(
     css,
@@ -340,15 +354,19 @@ test("relations halo remains inside the unified popover chrome", async () => {
   assert.match(css, /\.timeline-focus-relations::before\s*\{[\s\S]*?inset:\s*0/);
 });
 
-test("desktop popover chrome clips every content band", async () => {
+test("focused sidebar bounds content without overlaying the graph", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   assert.match(
     css,
-    /data-orientation="landscape"[\s\S]*timeline-focus-view:popover-open[\s\S]*overflow:\s*hidden/,
+    /#presentation-stage\s*>\s*\.timeline-focus-panel\s*\{[\s\S]*overflow:\s*auto[\s\S]*overscroll-behavior:\s*contain/,
   );
   assert.match(
     css,
-    /data-orientation="portrait"[\s\S]*timeline-focus-view:popover-open[\s\S]*overflow:\s*hidden/,
+    /data-viewport-orientation="landscape"[\s\S]*> \.timeline-focus-panel[\s\S]*> \.graph-lens:not\(\[hidden\]\)/,
+  );
+  assert.match(
+    css,
+    /data-viewport-orientation="portrait"[\s\S]*> \.timeline-focus-panel[\s\S]*> \.graph-lens:not\(\[hidden\]\)/,
   );
   assert.match(css, /data-active-tab="overview"[\s\S]*overflow:\s*hidden/);
 });
@@ -395,11 +413,11 @@ test("story previous and next navigation use the same directional focus travel",
   );
 });
 
-test("focused popover content remains bounded while Relations halo can stay visually unclipped", async () => {
+test("focused sidebar content remains bounded while Relations halo can stay visually unclipped", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   assert.match(
     css,
-    /timeline-focus-view\[popover\]:popover-open[\s\S]*max-inline-size:\s*calc\(100dvw - 1\.5rem\)[\s\S]*max-block-size:\s*calc\(100dvh - 1\.5rem\)/,
+    /#presentation-stage\s*>\s*\.timeline-focus-panel\s*\{[\s\S]*min-width:\s*0[\s\S]*min-height:\s*0[\s\S]*overflow:\s*auto/,
   );
   assert.match(css, /\.timeline-focus-summary[\s\S]*overflow:\s*auto/);
   assert.match(css, /\.timeline-focus-evidence[\s\S]*overflow:\s*auto/);
@@ -422,7 +440,7 @@ test("focused map mount stays idempotent while the graph remains in its persiste
   assert.doesNotMatch(app, /function renderPresentationMap\(\) \{\s*destroyPresentationMap\(\)/);
 });
 
-test("focused popover chrome derives from the focused timeline event color", async () => {
+test("focused sidebar chrome derives from the focused timeline event color", async () => {
   const [source, css] = await Promise.all([
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
