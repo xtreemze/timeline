@@ -1,7 +1,22 @@
 /**
- * Temporal graph visualization component
- * Manages graph view with focus/context viewport and interactive selection
+ * Temporal graph visualization component.
+ * Owns application-level graph projection/focus state while rendering through GraphSurface.
  */
+
+import type {
+  CanonicalSelection,
+  GraphEdgeProjection,
+  GraphProjection,
+  GraphSurface,
+  GraphSurfaceEvent,
+  GraphSurfaceFactory,
+  GraphTemporalState,
+} from "../src/layout/graph-surface.ts";
+import {
+  createOrbGraphSurfaceFactory,
+  type OrbFactory,
+} from "../src/layout/orb-graph-surface.ts";
+import { entityId, relationshipId } from "../src/domain/ids.ts";
 
 interface Viewport {
   start: number;
@@ -10,14 +25,16 @@ interface Viewport {
 
 interface Node {
   id: string | number;
-  properties?: Record<string, any>;
+  label?: string;
+  properties?: Record<string, unknown>;
 }
 
 interface Edge {
   id: string | number;
-  start: number;
-  end: number;
-  temporalState?: string;
+  start: string | number;
+  end: string | number;
+  label?: string;
+  temporalState?: GraphTemporalState;
 }
 
 interface GraphData {
@@ -38,21 +55,34 @@ interface SimulationState {
   mode?: string;
 }
 
-interface Selection {
-  kind: string;
-  id: string;
+interface TimelineGraphRuntime {
+  neighborhoodGraph(
+    model: Model,
+    focusedId: string,
+    viewport: Viewport | null,
+    options: { depth: number; limit: number },
+  ): GraphData;
+  graphForWindow(model: Model, viewport: Viewport | null): GraphData;
 }
 
-function getGraph(): any {
-  const graph = (globalThis as any).TimelineGraph;
-  if (!graph) throw new Error("TimelineGraph must load before TemporalGraphView.");
-  return graph;
+function hasFunction(value: unknown, key: string): boolean {
+  return typeof value === "object" && value !== null && typeof Reflect.get(value, key) === "function";
 }
 
-function getOrbFactory(): any {
-  const orbFactory = (globalThis as any).TimelineOrbGraph;
-  if (!orbFactory) throw new Error("Build the bundled Orb graph before loading TemporalGraphView.");
-  return orbFactory;
+function getGraph(): TimelineGraphRuntime {
+  const graph = Reflect.get(globalThis, "TimelineGraph");
+  if (!hasFunction(graph, "neighborhoodGraph") || !hasFunction(graph, "graphForWindow")) {
+    throw new Error("TimelineGraph must load before TemporalGraphView.");
+  }
+  return graph as TimelineGraphRuntime;
+}
+
+function getOrbFactory(): OrbFactory {
+  const orbFactory = Reflect.get(globalThis, "TimelineOrbGraph");
+  if (!hasFunction(orbFactory, "create")) {
+    throw new Error("Build the bundled Orb graph before loading TemporalGraphView.");
+  }
+  return orbFactory as OrbFactory;
 }
 
 function formatWindow(viewport: Viewport | null): string {
