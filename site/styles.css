@@ -3637,7 +3637,7 @@ body {
   }
 
   .app-footer-shell {
-    inline-size: calc(100% - 0.7rem);
+    inline-size: min(22rem, calc(100% - 0.7rem));
     max-inline-size: calc(100% - 0.7rem);
     padding: 0.22rem;
     gap: 0.12rem;
@@ -4113,8 +4113,8 @@ body {
   }
 }
 
-/* Workspace actions stay in one bottom app bar regardless of timeline orientation.
-   Orientation changes affect the presentation canvas, not the application chrome. */
+/* Workspace actions and project identity stay in one fused application-chrome shell.
+   Landscape anchors the shell below the presentation; portrait anchors it at the right edge. */
 
 /* Coarse-pointer target floor.
    Keep desktop density unchanged while making primary phone controls consistent with
@@ -4199,7 +4199,7 @@ body {
   inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
   display: grid;
   grid-template-rows: auto auto;
-  inline-size: calc(100% - 0.8rem);
+  inline-size: min(26rem, calc(100% - 0.8rem));
   max-inline-size: calc(100% - 0.8rem);
   min-inline-size: 0;
   gap: var(--workspace-footer-gap);
@@ -4317,6 +4317,13 @@ body {
 #app-shell .app-editor-sheet,
 #app-shell .app-browser-sheet {
   z-index: 1100;
+}
+
+/* Match the higher-specificity open-surface selectors above so the measured
+   landscape footer reservation, rather than the legacy fixed dock offset, owns
+   the reachable bottom edge on constrained mobile landscapes. */
+#app-shell[data-editor-open="true"] > .app-editor-sheet,
+#app-shell[data-browser-open="true"] > .timeline-panel > .app-browser-sheet {
   inset-block-end: calc(var(--workspace-footer-reserved-block) + 0.35rem);
   max-block-size: calc(100dvh - var(--workspace-footer-reserved-block) - 0.7rem);
 }
