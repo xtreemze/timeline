@@ -3639,6 +3639,15 @@
   }
 }
 
+@media (max-width: 699px) and (orientation: landscape) {
+  #app-shell[data-graph-open="true"]
+    #presentation-stage:has(> #timeline-view[data-orientation="landscape"]) {
+    /* A physically short landscape viewport needs a compact horizontal rail.
+       Portrait phones keep the larger mobile-first chronology allocation. */
+    --mobile-relations-block-rail: clamp(156px, 42dvh, 188px);
+  }
+}
+
 @media (max-width: 380px) {
   #app-shell .timeline-event-terminal {
     max-width: min(60vw, 174px);
@@ -3766,13 +3775,6 @@
   #app-shell[data-graph-open="true"]
     #presentation-stage:has(> #timeline-view[data-orientation="portrait"][data-empty="true"]) {
     --mobile-relations-inline-rail: clamp(152px, 44dvw, 188px);
-  }
-
-  #app-shell[data-graph-open="true"]
-    #presentation-stage:has(> #timeline-view[data-orientation="landscape"]) {
-    /* Semantic orientation state is authoritative and avoids another
-       viewport-width media-query exception. */
-    --mobile-relations-block-rail: clamp(156px, 42dvh, 188px);
   }
 
   #app-shell[data-graph-open="true"]
