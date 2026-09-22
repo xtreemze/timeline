@@ -12,6 +12,10 @@ importers:
 
 packages:
 
+  pdfjs-dist@6.3.289:
+    resolution: {integrity: sha512-ZHjSVpDa3D6izMq8/04lvkhkATUmL9px6ChPaXc1k6nU2Mrhlg1/7F0bdUqCwUjw3NsPTfPZsMDUU6ZIcRaeQw==}
+    engines: {node: '>=22.13.0 || >=24'}
+
   '@pnpm/exe.android-arm64@12.5.1':
     resolution: {integrity: sha512-6LGBmQuDzUmgpHSuy+haG0jrmkwFNa4EuShDZqK3cIBv4Wfb75CzjJmowkzr+iJg40vnBKMQ62t4Ko6mwsId7A==}
     cpu: [arm64]
@@ -96,6 +100,8 @@ packages:
 
 snapshots:
 
+  pdfjs-dist@6.3.289: {}
+
   '@pnpm/exe.android-arm64@12.5.1':
     optional: true
 
@@ -165,6 +171,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      pdfjs-dist:
+        specifier: 6.3.289
+        version: 6.3.289
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.5.14
