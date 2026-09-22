@@ -73,6 +73,10 @@ test("persistent graph owns the complementary canvas while focused place uses in
     css,
     /\.timeline-focus-place\s+\.timeline-focus-section-content\s*\{[\s\S]{0,300}width:\s*min\(48%,\s*18rem\)/,
   );
+  assert.doesNotMatch(
+    css,
+    /inline-size:\s*min\((?:640|560)px,\s*calc\(100dvw/,
+  );
   assert.match(
     css,
     /\.timeline-focus-place-backdrop\s+\.presentation-map[\s\S]{0,450}pointer-events:\s*auto/,
