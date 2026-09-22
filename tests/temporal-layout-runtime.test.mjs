@@ -168,3 +168,62 @@ test("committed clusters keep occurrence DOM alive and restore mature tile affor
   assert.match(source, /node\.hidden = hiddenByCluster/);
   assert.doesNotMatch(source, /hiddenByCluster[\s\S]{0,300}removeRecord/);
 });
+
+
+test("clustering follows measured collision pressure rather than nearby event count", () => {
+  const occurrences = [
+    { id: "a", start: 100 },
+    { id: "b", start: 130 },
+    { id: "c", start: 160 },
+    { id: "d", start: 190 },
+  ];
+  const narrowMeasurements = Object.fromEntries(
+    occurrences.map(({ id }) => [id, { inlineSize: 20, blockSize: 52 }]),
+  );
+  const wideMeasurements = Object.fromEntries(
+    occurrences.map(({ id }) => [id, { inlineSize: 120, blockSize: 52 }]),
+  );
+  const common = {
+    viewport: { start: 0, end: 1_000 },
+    occurrences,
+    pixelLength: 1_000,
+    maxLanes: 3,
+    laneGapPx: 16,
+    clusterThresholds: { enterPx: 80, exitPx: 120 },
+  };
+
+  const narrow = planCommittedTemporalLayout({
+    ...common,
+    measurements: narrowMeasurements,
+  });
+  assert.equal(narrow.clusters.length, 0);
+
+  const wide = planCommittedTemporalLayout({
+    ...common,
+    measurements: wideMeasurements,
+  });
+  assert.equal(wide.clusters.length, 1);
+  assert.deepEqual(wide.clusters[0].itemIds, ["a", "b", "c", "d"]);
+});
+
+
+test("coincident timestamps stay separate and gain enough perpendicular lanes", () => {
+  const occurrences = [
+    { id: "a", start: 500 },
+    { id: "b", start: 500 },
+    { id: "c", start: 500 },
+    { id: "d", start: 500 },
+  ];
+  const plan = planCommittedTemporalLayout({
+    viewport: { start: 0, end: 1_000 },
+    occurrences,
+    pixelLength: 1_000,
+    maxLanes: 3,
+    measurements: Object.fromEntries(
+      occurrences.map(({ id }) => [id, { inlineSize: 120, blockSize: 52 }]),
+    ),
+  });
+
+  assert.equal(plan.clusters.length, 0);
+  assert.equal(new Set(Object.values(plan.lanes)).size, 4);
+});

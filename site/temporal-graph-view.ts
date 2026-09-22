@@ -293,11 +293,13 @@ class TemporalGraphViewController {
     }
     if (this.windowLabel) this.windowLabel.textContent = formatWindow(this.viewport);
 
+    const graphIsEmpty = data.nodes.length === 0 && data.edges.length === 0;
     const nextSignature = topologySignature(data);
     if (nextSignature !== this.signature) {
       this.signature = nextSignature;
       if (this.hasRenderedData) {
-        this.orb.transitionData(data);
+        if (graphIsEmpty) this.orb.setData(data);
+        else this.orb.transitionData(data);
       } else {
         this.orb.setData(data);
         this.hasRenderedData = true;

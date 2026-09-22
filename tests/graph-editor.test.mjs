@@ -191,8 +191,8 @@ test("node interaction reheats force and preserves wider spacing after release",
   const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
   assert.match(source, /INTERACTION_SETTLE_MS\s*=\s*2400/);
-  assert.match(source, /DRAG_ALPHA_TARGET\s*=\s*0\.12/);
-  assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.065/);
+  assert.match(source, /DRAG_ALPHA_TARGET\s*=\s*0\.075/);
+  assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.035/);
   assert.match(
     source,
     /function onPointerDown\(event\)[\s\S]*target\?\.kind === "node"[\s\S]*setInteractionHeat\(DRAG_ALPHA_TARGET\)[\s\S]*beginCameraGesture\(event, target\)/,
@@ -206,13 +206,13 @@ test("node interaction reheats force and preserves wider spacing after release",
   assert.match(source, /simulator\.setSettings\(layout\)/);
   assert.match(source, /simulator\.activateSimulation\(\)/);
   assert.match(source, /distance:\s*dense \? 128 : 168/);
-  assert.match(source, /strength:\s*dense \? -300 : -460/);
+  assert.match(source, /strength:\s*dense \? -220 : -340/);
   assert.match(source, /radius:\s*dense \? 30 : 42/);
-  assert.match(source, /iterations:\s*4/);
-  assert.match(source, /centering:[\s\S]*strength:\s*dense \? 0\.02 : 0\.035/);
-  assert.match(source, /forceX:[\s\S]*strength:\s*dense \? 0\.012 : 0\.02/);
-  assert.match(source, /alphaMin:\s*dense \? 0\.018 : 0\.012/);
-  assert.match(source, /alphaDecay:\s*dense \? 0\.024 : 0\.021/);
+  assert.match(source, /iterations:\s*3/);
+  assert.match(source, /centering:[\s\S]*strength:\s*dense \? 0\.012 : 0\.02/);
+  assert.match(source, /forceX:[\s\S]*strength:\s*dense \? 0\.008 : 0\.012/);
+  assert.match(source, /alphaMin:\s*dense \? 0\.012 : 0\.008/);
+  assert.match(source, /alphaDecay:\s*dense \? 0\.042 : 0\.038/);
   assert.match(source, /clearInteractionSettleTimer\(\)/);
 });
 
@@ -246,7 +246,7 @@ test("timeline topology changes visibly release, break, and bind graph relations
 
   assert.match(source, /TOPOLOGY_EDGE_RELEASE_MS\s*=\s*280/);
   assert.match(source, /TOPOLOGY_SETTLE_MS\s*=\s*820/);
-  assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.085/);
+  assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.05/);
   assert.match(source, /orb\.data\.merge\(/);
   assert.match(source, /orb\.data\.remove\(/);
   assert.match(source, /__timelineTransition/);
@@ -325,7 +325,7 @@ test("touch graph gesture ownership separates node drag from graph pan and pinch
 test("graph double tap zooms at the tapped point while long press and multi-touch cancel the tap sequence", async () => {
   const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
   assert.match(bridge, /TOUCH_DOUBLE_TAP_MS\s*=\s*320/);
-  assert.match(bridge, /GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX\s*=\s*-500/);
+  assert.match(bridge, /GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX\s*=\s*-280/);
   assert.match(bridge, /function zoomGraphAtClientPoint\(point\)[\s\S]*new WheelEvent\("wheel"/);
   assert.match(
     bridge,
@@ -585,7 +585,7 @@ test("Relations camera has a hard zoom bound and sanitizes shared transforms", a
   const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
   assert.match(bridge, /GRAPH_MIN_ZOOM\s*=\s*0\.002/);
-  assert.match(bridge, /GRAPH_MAX_ZOOM\s*=\s*4/);
+  assert.match(bridge, /GRAPH_MAX_ZOOM\s*=\s*2\.5/);
   assert.match(bridge, /minZoom:\s*GRAPH_MIN_ZOOM/);
   assert.match(bridge, /maxZoom:\s*GRAPH_MAX_ZOOM/);
   assert.match(
@@ -600,4 +600,29 @@ test("Relations camera has a hard zoom bound and sanitizes shared transforms", a
     bridge,
     /function applyCameraPan\(deltaX, deltaY\)[\s\S]*clampCameraTransform\(canvas\?\.__zoom \|\| orb\?\._renderer\?\.transform\)/,
   );
+});
+
+
+test("graph camera and force policy stays bounded, weighted, and explicitly active", async () => {
+  const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(source, /GRAPH_MAX_ZOOM\s*=\s*2\.5/);
+  assert.match(source, /GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX\s*=\s*-280/);
+  assert.doesNotMatch(source, /nodeCount\s*>=\s*3000\s*\?\s*0\.0005/);
+  assert.match(source, /DRAG_ALPHA_TARGET\s*=\s*0\.075/);
+  assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.035/);
+  assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.05/);
+  assert.match(
+    source,
+    /function setData\(data\)[\s\S]{0,1800}applyInteractionForce\(0\)[\s\S]{0,500}orb\.render/,
+  );
+  assert.match(
+    source,
+    /refreshLayout\(\)\s*\{[\s\S]{0,900}applyInteractionForce\(0,\s*\{\s*reheat:\s*false\s*\}\)[\s\S]{0,600}orb\.render/,
+  );
+  assert.match(source, /alpha:\s*reheat\s*\?\s*\(dense \? 0\.18 : 0\.22\)\s*:\s*dense \? 0\.04 : 0\.055/);
+  assert.match(source, /simulator\.stopSimulation\(\)/);
+  assert.match(source, /\.timeline-surface, \.presentation-map, \.leaflet-container/);
+  assert.match(source, /document\.addEventListener\("pointerdown", onCompetingPointerDown, true\)/);
+  assert.match(source, /applyInteractionForce\(0, \{ reheat: false \}\)/);
 });

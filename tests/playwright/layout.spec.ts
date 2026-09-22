@@ -364,4 +364,48 @@ test.describe('Mobile-first Timeline layout contracts', () => {
   });
 
 
+
+  test('persistent graph and timeline rail are simultaneously visible and independently hittable', async ({ page }) => {
+    await page.setViewportSize(TABLET_LANDSCAPE);
+    await page.goto('/');
+
+    const graph = page.locator('#graph-lens');
+    const graphCanvas = page.locator('#graph-lens .temporal-graph-canvas');
+    const timelineSurface = page.locator('#timeline-view > .timeline-surface');
+
+    await expect(graph).toBeVisible();
+    await expect(graphCanvas).toBeVisible();
+    await expect(timelineSurface).toBeVisible();
+
+    const [graphBox, timelineBox] = await Promise.all([
+      graph.boundingBox(),
+      timelineSurface.boundingBox(),
+    ]);
+    expect(graphBox).not.toBeNull();
+    expect(timelineBox).not.toBeNull();
+    if (!graphBox || !timelineBox) throw new Error('Persistent surfaces have no live bounds.');
+
+    expect(graphBox.width).toBeGreaterThan(300);
+    expect(graphBox.height).toBeGreaterThan(200);
+    expect(timelineBox.height).toBeGreaterThanOrEqual(220);
+
+    const graphOwnsCenter = await page.evaluate(({ x, y }) => {
+      const hit = document.elementFromPoint(x, y);
+      return Boolean(hit?.closest('#graph-lens'));
+    }, {
+      x: graphBox.x + graphBox.width / 2,
+      y: graphBox.y + graphBox.height / 2,
+    });
+    expect(graphOwnsCenter).toBe(true);
+
+    const timelineOwnsCenter = await page.evaluate(({ x, y }) => {
+      const hit = document.elementFromPoint(x, y);
+      return Boolean(hit?.closest('#timeline-view'));
+    }, {
+      x: timelineBox.x + timelineBox.width / 2,
+      y: timelineBox.y + timelineBox.height / 2,
+    });
+    expect(timelineOwnsCenter).toBe(true);
+  });
+
 });
