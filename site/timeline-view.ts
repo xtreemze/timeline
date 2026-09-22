@@ -770,8 +770,9 @@ class TimelineViewController {
       const nodeId = String(detail.id);
       if (!nodeId.startsWith("cluster:")) return;
       const eventIds = nodeId.split(":")[1]?.split("|") || [];
-      if (eventIds.length > 0) {
-        this.focusItem(eventIds[0]);
+      const firstEventId = eventIds[0];
+      if (firstEventId !== undefined) {
+        this.focusItem(firstEventId);
       }
     });
   }
