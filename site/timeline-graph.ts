@@ -69,13 +69,6 @@ interface ValidationResult {
   message: string;
 }
 
-interface RelationshipFactKey {
-  subjectId: string;
-  objectId: string;
-  predicate: string;
-  time: string;
-}
-
 interface GraphAudit {
   orphanEntityIds: string[];
   duplicateFactGroups: string[][];
@@ -122,7 +115,7 @@ interface Relationship {
   initialState?: "active" | "inactive";
   time?: any;
   sourceIds?: string[];
-  confidence?: number;
+  confidence?: number | null;
   attributes?: Record<string, any>;
 }
 
@@ -415,12 +408,17 @@ function findMirroredRelationship(candidate: any, relationships: any[], excludeI
 function auditGraphStructure(input: any): GraphAudit {
   const entities = Array.isArray(input?.entities) ? input.entities : [];
   const relationships = Array.isArray(input?.relationships) ? input.relationships : [];
-  const entityIds = new Set(entities.map((entity) => text(entity?.id, 120)).filter(Boolean));
-  const incident = new Set();
-  const factGroups = new Map();
+  const entityIds = new Set<string>(
+    entities.map((entity) => text(entity?.id, 120)).filter(Boolean),
+  );
+  const incident = new Set<string>();
+  const factGroups = new Map<string, string[]>();
   const mirroredFactPairs: string[][] = [];
-  const mirroredSeen = new Set();
-  const endpointPairs = new Map();
+  const mirroredSeen = new Set<string>();
+  const endpointPairs = new Map<
+    string,
+    Array<{ id: string; subjectId: string; objectId: string }>
+  >();
 
   for (const relationship of relationships) {
     const subjectId = text(relationship?.subjectId, 120);
@@ -467,7 +465,7 @@ function auditGraphStructure(input: any): GraphAudit {
 
   const reciprocalActionPairs: Array<{ entityIds: [string, string]; relationshipIds: string[] }> = [];
   for (const [endpointKey, records] of endpointPairs) {
-    const [first, second] = endpointKey.split(" ");
+    const [first = "", second = ""] = endpointKey.split(" ");
     const forward = records.some(
       (record) => record.subjectId === first && record.objectId === second,
     );
@@ -570,7 +568,7 @@ export function validateActionPredicate(value: unknown): ValidationResult {
   const terms = predicateTerms(predicate);
   if (
     terms.length > 2 ||
-    (terms.length === 2 && !ACTION_PREDICATE_PARTICLES.has(terms[1].toLowerCase()))
+    (terms.length === 2 && !ACTION_PREDICATE_PARTICLES.has(terms[1]!.toLowerCase()))
   ) {
     return {
       valid: false,
@@ -800,25 +798,10 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
   const rawItems = Array.isArray(input?.items) ? input.items : [];
   const rawStories = Array.isArray(input?.stories) ? input.stories : [];
   const rawPlaces = Array.isArray(input?.places) ? input.places : [];
-  const rawEvidence = Array.isArray(input?.evidence) ? input.evidence : [];
-  const itemIds = new Set(rawItems.map((item) => text(item?.id, 120)).filter(Boolean));
-  const storyIds = new Set(rawStories.map((story) => text(story?.id, 120)).filter(Boolean));
-  const entityIds = new Set();
-  const placeIds = new Set();
-  const canonicalIds = new Map();
-  const relationshipById = new Map();
-  const contextualEntityIdsByItem = new Map();
-  const evidenceById = new Map(
-    rawEvidence.map((record) => [text(record?.id, 120), record]).filter(([id]) => Boolean(id)),
-  );
-
-  const addContextualEndpoints = (itemId: string, subjectId: string, objectId: string) => {
-    if (!itemId || !subjectId || !objectId) return;
-    if (!contextualEntityIdsByItem.has(itemId)) contextualEntityIdsByItem.set(itemId, new Set());
-    const endpoints = contextualEntityIdsByItem.get(itemId);
-    endpoints.add(subjectId);
-    endpoints.add(objectId);
-  };
+  const entityIds = new Set<string>();
+  const placeIds = new Set<string>();
+  const canonicalIds = new Map<string, string>();
+  const relationshipById = new Map<string, Relationship>();
 
   const registerId = (rawId: any, kind: string, label: string): string => {
     const id = text(rawId, 120);
@@ -860,7 +843,7 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
         `${label}: graph/place records cannot carry timeline category/group taxonomy (${taxonomyKeys.join(", ")}). Categories classify chronology items only.`,
       );
     }
-    let normalized = null;
+    let normalized: { geometry?: unknown } | null = null;
     try {
       normalized = spatial?.normalizePlace?.(raw, index) || null;
     } catch (error) {
@@ -957,12 +940,17 @@ export function relationshipWindowState(
 }
 
 export function graphForWindow(input: any, viewport: any, temporal: any = globalThis.TimelineTemporal): OrbGraph {
-  const entities = Array.isArray(input?.entities) ? input.entities : [];
-  const relationships = Array.isArray(input?.relationships) ? input.relationships : [];
+  const entities: EntityNode[] = Array.isArray(input?.entities) ? input.entities : [];
+  const relationships: Relationship[] = Array.isArray(input?.relationships)
+    ? input.relationships
+    : [];
   const graphData = toOrbGraph({ entities, relationships });
-  const states = new Map();
-  const relationshipById = new Map(
-    relationships.map((relationship) => [String(relationship.id), relationship]),
+  const states = new Map<string, RelationshipState>();
+  const relationshipById = new Map<string, Relationship>(
+    relationships.map((relationship): [string, Relationship] => [
+      String(relationship.id),
+      relationship,
+    ]),
   );
   const changesByRelationship = relationChangeIndex(input, temporal);
 
@@ -1151,7 +1139,12 @@ export function temporalRelationProjection(
   return projected;
 }
 
-export function toOrbGraph({ entities = [], relationships = [] } = {}): OrbGraph {
+export function toOrbGraph(
+  {
+    entities = [],
+    relationships = [],
+  }: { entities?: EntityNode[]; relationships?: Relationship[] } = {},
+): OrbGraph {
   const nodes: OrbGraphNode[] = [];
   const seen = new Set();
 
