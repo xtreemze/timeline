@@ -53,6 +53,14 @@ function harness() {
     getMode() {
       return "worker-cpu";
     },
+    getSimulationState() {
+      return {
+        running: true,
+        reason: "topology",
+        suspendedReasons: [],
+        pendingReasons: ["topology"],
+      };
+    },
     destroy() {
       calls.destroy += 1;
     },
@@ -210,4 +218,14 @@ test("OrbGraphSurface factory keeps renderer construction at the adapter boundar
   const adapterFactory = createOrbGraphSurfaceFactory(factory);
   const surface = adapterFactory.create({}, () => {});
   assert.ok(surface instanceof OrbGraphSurface);
+});
+
+test("OrbGraphSurface exposes Timeline-owned simulation state without Orb internals", () => {
+  const { surface } = harness();
+  assert.deepEqual(surface.getSimulationState(), {
+    running: true,
+    reason: "topology",
+    suspendedReasons: [],
+    pendingReasons: ["topology"],
+  });
 });
