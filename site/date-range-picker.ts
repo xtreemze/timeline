@@ -224,9 +224,10 @@ class DateRangePicker {
         ArrowUp: -7,
         ArrowDown: 7,
       };
-      if (keyDeltas[event.key] !== undefined) {
+      const keyDelta = keyDeltas[event.key];
+      if (keyDelta !== undefined) {
         event.preventDefault();
-        this.focusDate(addDays((button as any).dataset.date, keyDeltas[event.key]));
+        this.focusDate(addDays((button as any).dataset.date, keyDelta));
         return;
       }
       if (event.key === "PageUp" || event.key === "PageDown") {
@@ -376,7 +377,7 @@ class DateRangePicker {
   }
 
   private render(): void {
-    this.heading.textContent = MONTHS[this.viewMonth - 1];
+    this.heading.textContent = MONTHS[this.viewMonth - 1] ?? "";
     this.yearInput.value = String(this.viewYear);
 
     const leading = mondayIndex(this.viewYear, this.viewMonth);
