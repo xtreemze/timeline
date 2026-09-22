@@ -5505,6 +5505,61 @@
   font-size: 0.92em;
 }
 
+/* Sidebar navigation buttons */
+.timeline-focus-sidebar .timeline-focus-actions {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.3rem;
+  gap: 0.3rem;
+  height: auto;
+  background: transparent;
+}
+
+.timeline-focus-sidebar .timeline-focus-nav-edit {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.timeline-focus-sidebar .button.icon-only {
+  min-width: 32px;
+  min-height: 32px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.4rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 78%, var(--panel));
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.timeline-focus-sidebar .button.icon-only:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--paper) 94%, var(--panel));
+  border-color: var(--ink);
+}
+
+.timeline-focus-sidebar .button.icon-only:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.timeline-focus-sidebar .timeline-focus-nav-prev,
+.timeline-focus-sidebar .timeline-focus-nav-next {
+  flex: 0 0 auto;
+}
+
 @media (min-width: 761px) {
   #app-shell.is-event-focused #presentation-stage {
     --focus-sidebar-inline: clamp(18rem, 34%, 34rem);
