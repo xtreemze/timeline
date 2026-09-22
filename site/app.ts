@@ -1254,7 +1254,7 @@ function closestEventTarget<T extends HTMLElement>(
     const custodyActions = evidenceStore.normalizeCustodyActions(input.custodyActions);
     const reasoning = caseReasoning.normalizeReasoning(input.reasoning);
 
-    const sourceItems: TimelineItemInputRecord[] = Array.isArray(input.items)
+    const sourceItems: Array<TimelineItemInputRecord | TimelineItemRecord> = Array.isArray(input.items)
       ? input.items
       : Array.isArray(input.events)
         ? input.events.map((legacy): TimelineItemInputRecord => ({
@@ -1396,7 +1396,6 @@ function closestEventTarget<T extends HTMLElement>(
           seenItems.add(itemId);
         }
       }
-      const rawPlaceIds = Array.isArray(raw.placeIds) ? raw.placeIds : [];
       const hasExplicitPlaceIds = Array.isArray(raw.placeIds);
       if (!hasExplicitPlaceIds) storyIdsNeedingPlaceInference.add(id);
       const story: StoryRecord = {
@@ -2389,9 +2388,10 @@ function closestEventTarget<T extends HTMLElement>(
   }
 
   function fillRelationChangeOptions(select, selected = "") {
-    const options = [document.createElement("option")];
-    options[0].value = "";
-    options[0].textContent = "No relation change";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "No relation change";
+    const options = [placeholder];
     for (const relationship of state.relationships) {
       const option = document.createElement("option");
       option.value = relationship.id;
@@ -3708,9 +3708,10 @@ function closestEventTarget<T extends HTMLElement>(
 
   function graphPlaceOptions(select, selected = "") {
     if (!select) return;
-    const options = [document.createElement("option")];
-    options[0].value = "";
-    options[0].textContent = "No place";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "No place";
+    const options = [placeholder];
     for (const place of state.places) {
       const option = document.createElement("option");
       option.value = place.id;
