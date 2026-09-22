@@ -639,45 +639,17 @@ test("graph camera and force policy stays bounded, weighted, and explicitly acti
 });
 
 
-test("graph presentation force clears visible popovers and returns gradually to center", async () => {
+test("graph force remains presentation-agnostic when focused detail is visible", async () => {
   const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
-  assert.match(source, /POPOVER_REJECTION_STRENGTH\s*=\s*-0\.009/);
-  assert.match(source, /POPOVER_REJECTION_DENSE_STRENGTH\s*=\s*-0\.006/);
-  assert.match(source, /CENTER_ATTRACTION_STRENGTH\s*=\s*0\.007/);
-  assert.match(source, /CENTER_ATTRACTION_DENSE_STRENGTH\s*=\s*0\.005/);
-  assert.match(source, /querySelectorAll\("\[popover\]:popover-open"\)/);
-  assert.match(source, /popover\.contains\(container\)/);
-  assert.match(source, /orb\.getSimulationPosition\(canvasPoint\)/);
-  assert.match(
-    source,
-    /presentationForcePoint[\s\S]*POPOVER_REJECTION_DENSE_STRENGTH[\s\S]*POPOVER_REJECTION_STRENGTH[\s\S]*CENTER_ATTRACTION_DENSE_STRENGTH[\s\S]*CENTER_ATTRACTION_STRENGTH/,
-  );
-  assert.match(source, /document\.addEventListener\("toggle", onPopoverToggle, true\)/);
-  assert.match(source, /globalThis\.addEventListener\?\.\("resize", onPresentationGeometryChange\)/);
-  assert.match(source, /document\.removeEventListener\("toggle", onPopoverToggle, true\)/);
-  assert.match(source, /globalThis\.removeEventListener\?\.\("resize", onPresentationGeometryChange\)/);
-  assert.match(source, /function settlePresentationForceUpdate\(delay = 160\)/);
-  assert.match(
-    source,
-    /function applyCameraPan\([\s\S]*settlePresentationForceUpdate\(\)[\s\S]*return true/,
-  );
-  assert.match(source, /const onPopoverToggle = \(\) => queuePresentationForceUpdate\(\)/);
-  assert.match(
-    source,
-    /const onWheelCapture = \(\) => \{[\s\S]*settlePresentationForceUpdate\(\)/,
-  );
-  assert.match(
-    source,
-    /if \(presentationForceSettleTimer\) globalThis\.clearTimeout\(presentationForceSettleTimer\)/,
-  );
+  assert.doesNotMatch(source, /POPOVER_REJECTION_STRENGTH/);
+  assert.doesNotMatch(source, /POPOVER_REJECTION_DENSE_STRENGTH/);
+  assert.doesNotMatch(source, /presentationForcePoint/);
+  assert.doesNotMatch(source, /querySelectorAll\("\\[popover\\]:popover-open"\)/);
+  assert.doesNotMatch(source, /onPopoverToggle/);
+  assert.doesNotMatch(source, /popover-exclusion/);
 
-  assert.match(source, /DRAG_ALPHA_TARGET\s*=\s*0\.05/);
-  assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.018/);
-  assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.028/);
-  assert.match(
-    source,
-    /alpha:\s*reheat\s*\?\s*\(dense \? 0\.11 : 0\.14\)\s*:\s*dense \? 0\.025 : 0\.032/,
-  );
-  assert.match(source, /alphaDecay:\s*dense \? 0\.028 : 0\.026/);
+  assert.match(source, /centering:\s*\{\s*x:\s*0,\s*y:\s*0,\s*strength:\s*dense \? 0\.005 : 0\.008\s*\}/);
+  assert.match(source, /positioning:\s*\{[\s\S]*forceX:\s*\{\s*x:\s*0,\s*strength:\s*dense \? 0\.005 : 0\.007\s*\}/);
+  assert.match(source, /forceY:\s*\{\s*y:\s*0,\s*strength:\s*dense \? 0\.005 : 0\.007\s*\}/);
 });
