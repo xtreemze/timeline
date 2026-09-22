@@ -2,7 +2,7 @@ import type { CanonicalEntity } from "../domain/entity.ts";
 import type { EntityId, RelationshipId } from "../domain/ids.ts";
 import type { CanonicalProject } from "../domain/project.ts";
 import type { CanonicalRelationship } from "../domain/relationship.ts";
-import { validateRelationship } from "../domain/relationship.ts";
+import { validateActionPredicate } from "../domain/relationship.ts";
 
 export interface SemanticNeighborhoodOptions {
   readonly depth?: number;
@@ -66,8 +66,14 @@ function buildState(project: CanonicalProject): IndexState {
     if (relationships.has(relationship.id)) {
       throw new Error(`Duplicate relationship ID "${String(relationship.id)}".`);
     }
-    const validation = validateRelationship(relationship, project.entities);
-    if (!validation.valid) throw new Error(validation.message);
+    if (relationship.subjectId === relationship.objectId) {
+      throw new Error("A canonical relationship cannot target its source entity.");
+    }
+    if (!entities.has(relationship.subjectId) || !entities.has(relationship.objectId)) {
+      throw new Error("Both relationship endpoints must reference existing canonical entities.");
+    }
+    const predicateValidation = validateActionPredicate(relationship.predicate);
+    if (!predicateValidation.valid) throw new Error(predicateValidation.message);
 
     relationships.set(relationship.id, relationship);
 
