@@ -23,14 +23,18 @@ const GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX = -280;
 const GRAPH_MIN_ZOOM = 0.002;
 const GRAPH_MAX_ZOOM = 2.5;
 const GRAPH_KEYBOARD_PAN_PX = 72;
-const INTERACTION_SETTLE_MS = 2400;
-const DRAG_ALPHA_TARGET = 0.075;
-const RELEASE_ALPHA_TARGET = 0.035;
-const TOPOLOGY_ALPHA_TARGET = 0.05;
-const TOPOLOGY_EDGE_RELEASE_MS = 280;
-const TOPOLOGY_SETTLE_MS = 820;
+const INTERACTION_SETTLE_MS = 3400;
+const DRAG_ALPHA_TARGET = 0.05;
+const RELEASE_ALPHA_TARGET = 0.018;
+const TOPOLOGY_ALPHA_TARGET = 0.028;
+const TOPOLOGY_EDGE_RELEASE_MS = 360;
+const TOPOLOGY_SETTLE_MS = 1100;
 const TOPOLOGY_ENTRY_OFFSET = 36;
 const COMPONENT_PACKING_GAP = 112;
+const POPOVER_REJECTION_STRENGTH = -0.009;
+const POPOVER_REJECTION_DENSE_STRENGTH = -0.006;
+const CENTER_ATTRACTION_STRENGTH = 0.007;
+const CENTER_ATTRACTION_DENSE_STRENGTH = 0.005;
 const motion = globalThis.TimelineMotion;
 
 function resolvedColor(container, name, fallback) {
@@ -136,6 +140,9 @@ function create(container, handlers = {}) {
   const competingPointerIds = new Set();
   let forceNodeCount = 0;
   let hasGraphData = false;
+  let presentationForcePoint = null;
+  let presentationForceFrame = 0;
+  let presentationForceSettleTimer = 0;
   const topologyTimers = new Set();
   const activeTouchPointers = new Set();
 
@@ -155,18 +162,18 @@ function create(container, handlers = {}) {
     layout: {
       type: "force",
       options: {
-        links: { distance: 132, strength: 0.82, iterations: 2 },
-        manyBody: { strength: -310, theta: 0.86, distanceMin: 20, distanceMax: 2400 },
-        collision: { radius: 34, strength: 1, iterations: 3 },
-        alpha: { alpha: 1, alphaMin: 0.012, alphaDecay: 0.021, alphaTarget: 0 },
+        links: { distance: 132, strength: 0.58, iterations: 2 },
+        manyBody: { strength: -260, theta: 0.86, distanceMin: 20, distanceMax: 2400 },
+        collision: { radius: 34, strength: 0.82, iterations: 3 },
+        alpha: { alpha: 0.14, alphaMin: 0.004, alphaDecay: 0.026, alphaTarget: 0 },
         isSimulatingOnDataUpdate: true,
         isSimulatingOnSettingsUpdate: true,
         isSimulatingOnUnstick: true,
         isPhysicsEnabled: true,
-        centering: { x: 0, y: 0, strength: 0.06 },
+        centering: { x: 0, y: 0, strength: 0.008 },
         positioning: {
-          forceX: { x: 0, strength: 0.035 },
-          forceY: { y: 0, strength: 0.035 },
+          forceX: { x: 0, strength: CENTER_ATTRACTION_STRENGTH },
+          forceY: { y: 0, strength: CENTER_ATTRACTION_STRENGTH },
         },
         useGPU: false,
       },
@@ -175,7 +182,7 @@ function create(container, handlers = {}) {
       isDragEnabled: true,
       isZoomEnabled: true,
     },
-    zoomFitTransitionMs: 360,
+    zoomFitTransitionMs: 520,
   });
 
   const ORB_TOUCH_DRAG_EVENT_TYPES = new Set([
@@ -237,12 +244,98 @@ function create(container, handlers = {}) {
   // double-click, and multi-touch zoom listeners intact.
   removeOrbNativeCameraDragListeners();
 
+  function visiblePopoverForcePoint() {
+    const canvas = orb.canvas;
+    if (!canvas) return null;
+    const canvasRect = canvas.getBoundingClientRect();
+    const canvasArea = canvasRect.width * canvasRect.height;
+    if (canvasArea <= 0) return null;
+
+    let bestOverlap = null;
+    for (const popover of document.querySelectorAll("[popover]:popover-open")) {
+      if (!(popover instanceof HTMLElement)) continue;
+      // A graph rendered inside a focused popover should not repel itself.
+      if (popover.contains(container) || container.contains(popover)) continue;
+      const rect = popover.getBoundingClientRect();
+      const left = Math.max(canvasRect.left, rect.left);
+      const right = Math.min(canvasRect.right, rect.right);
+      const top = Math.max(canvasRect.top, rect.top);
+      const bottom = Math.min(canvasRect.bottom, rect.bottom);
+      if (right <= left || bottom <= top) continue;
+      const area = (right - left) * (bottom - top);
+      if (bestOverlap && bestOverlap.area >= area) continue;
+      bestOverlap = {
+        area,
+        canvasPoint: {
+          x: (left + right) / 2 - canvasRect.left,
+          y: (top + bottom) / 2 - canvasRect.top,
+        },
+      };
+    }
+
+    if (!bestOverlap) return null;
+    const canvasPoint = bestOverlap.canvasPoint;
+    const simulationPoint = orb.getSimulationPosition(canvasPoint);
+    if (
+      !simulationPoint ||
+      !Number.isFinite(simulationPoint.x) ||
+      !Number.isFinite(simulationPoint.y)
+    ) {
+      return null;
+    }
+    return {
+      x: simulationPoint.x,
+      y: simulationPoint.y,
+      overlapRatio: Math.min(1, bestOverlap.area / canvasArea),
+    };
+  }
+
+  function samePresentationForcePoint(left, right) {
+    if (!left || !right) return left === right;
+    return (
+      Math.abs(left.x - right.x) < 0.5 &&
+      Math.abs(left.y - right.y) < 0.5 &&
+      Math.abs(left.overlapRatio - right.overlapRatio) < 0.01
+    );
+  }
+
+  function updatePresentationForcePoint() {
+    presentationForceFrame = 0;
+    const next = visiblePopoverForcePoint();
+    if (samePresentationForcePoint(presentationForcePoint, next)) return;
+    presentationForcePoint = next;
+    if (!hasGraphData) return;
+    // Re-apply at a low alpha so opening/closing top-layer UI bends the
+    // existing layout instead of kicking nodes into a new high-energy solve.
+    applyInteractionForce(0, { reheat: false });
+  }
+
+  function queuePresentationForceUpdate() {
+    if (presentationForceSettleTimer) {
+      globalThis.clearTimeout(presentationForceSettleTimer);
+      presentationForceSettleTimer = 0;
+    }
+    if (presentationForceFrame) cancelAnimationFrame(presentationForceFrame);
+    presentationForceFrame = requestAnimationFrame(updatePresentationForcePoint);
+  }
+
+  function settlePresentationForceUpdate(delay = 160) {
+    if (presentationForceSettleTimer) globalThis.clearTimeout(presentationForceSettleTimer);
+    presentationForceSettleTimer = globalThis.setTimeout(() => {
+      presentationForceSettleTimer = 0;
+      queuePresentationForceUpdate();
+    }, delay);
+  }
+
+  const onPopoverToggle = () => queuePresentationForceUpdate();
+  const onPresentationGeometryChange = () => settlePresentationForceUpdate();
+
   function forceAlphaProfile(nodeCount = forceNodeCount, alphaTarget = 0, reheat = true) {
     const dense = nodeCount >= 1000;
     return {
-      alpha: reheat ? (dense ? 0.18 : 0.22) : dense ? 0.04 : 0.055,
-      alphaMin: dense ? 0.012 : 0.008,
-      alphaDecay: dense ? 0.042 : 0.038,
+      alpha: reheat ? (dense ? 0.11 : 0.14) : dense ? 0.025 : 0.032,
+      alphaMin: dense ? 0.005 : 0.004,
+      alphaDecay: dense ? 0.028 : 0.026,
       alphaTarget,
     };
   }
@@ -250,17 +343,29 @@ function create(container, handlers = {}) {
   function forceLayoutOptions(nodeCount = forceNodeCount, alphaTarget = 0, reheat = true) {
     const dense = nodeCount >= 1000;
     const useGPU = currentMode === "gpu-main-force";
+    const positioningStrength = presentationForcePoint
+      ? dense
+        ? POPOVER_REJECTION_DENSE_STRENGTH
+        : POPOVER_REJECTION_STRENGTH
+      : dense
+        ? CENTER_ATTRACTION_DENSE_STRENGTH
+        : CENTER_ATTRACTION_STRENGTH;
+    const overlapScale = presentationForcePoint
+      ? 0.85 + presentationForcePoint.overlapRatio * 0.35
+      : 1;
+    const targetX = presentationForcePoint?.x ?? 0;
+    const targetY = presentationForcePoint?.y ?? 0;
     return {
-      links: { distance: dense ? 128 : 168, strength: 0.62, iterations: 2 },
+      links: { distance: dense ? 128 : 168, strength: 0.5, iterations: 2 },
       manyBody: {
-        strength: dense ? -220 : -340,
+        strength: dense ? -185 : -285,
         theta: 0.84,
         distanceMin: 24,
         distanceMax: dense ? 1800 : 3200,
       },
       collision: {
         radius: dense ? 30 : 42,
-        strength: 0.86,
+        strength: 0.78,
         iterations: 3,
       },
       alpha: forceAlphaProfile(nodeCount, alphaTarget, reheat),
@@ -268,10 +373,10 @@ function create(container, handlers = {}) {
       isSimulatingOnSettingsUpdate: true,
       isSimulatingOnUnstick: true,
       isPhysicsEnabled: true,
-      centering: { x: 0, y: 0, strength: dense ? 0.012 : 0.02 },
+      centering: { x: 0, y: 0, strength: dense ? 0.005 : 0.008 },
       positioning: {
-        forceX: { x: 0, strength: dense ? 0.008 : 0.012 },
-        forceY: { y: 0, strength: dense ? 0.008 : 0.012 },
+        forceX: { x: targetX, strength: positioningStrength * overlapScale },
+        forceY: { y: targetY, strength: positioningStrength * overlapScale },
       },
       useGPU,
     };
@@ -480,6 +585,9 @@ function create(container, handlers = {}) {
     canvas.__zoom = next;
     if (orb._renderer) orb._renderer.transform = next;
     orb.render();
+    // Keep camera interaction cheap. The screen-space exclusion point is
+    // reconciled after motion settles instead of restarting force each frame.
+    settlePresentationForceUpdate();
     return true;
   }
 
@@ -1020,6 +1128,7 @@ function create(container, handlers = {}) {
   }
 
   function onTouchMoveCapture(event) {
+    if (activeTouchPointers.size > 1) settlePresentationForceUpdate();
     const nodeDragOwnsGesture = Boolean(touchHold?.activated);
     const weightedCameraOwnsGesture = Boolean(cameraGesture && activeTouchPointers.size === 1);
     if (!nodeDragOwnsGesture && !weightedCameraOwnsGesture) return;
@@ -1067,6 +1176,7 @@ function create(container, handlers = {}) {
   const onWheelCapture = () => {
     markCameraOwnedByUser();
     cancelCameraInertia();
+    settlePresentationForceUpdate();
   };
   const onGraphKeyDown = (event) => {
     if (event.target !== container || event.altKey || event.ctrlKey || event.metaKey) return;
@@ -1103,7 +1213,10 @@ function create(container, handlers = {}) {
       default:
         handled = false;
     }
-    if (handled) event.preventDefault();
+    if (handled) {
+      event.preventDefault();
+      queuePresentationForceUpdate();
+    }
   };
   const onLostPointerCapture = (event) => {
     if (!touchHold?.activated || touchHold.pointerId !== event.pointerId) return;
@@ -1128,6 +1241,8 @@ function create(container, handlers = {}) {
   document.addEventListener("pointerup", onCompetingPointerEnd, true);
   document.addEventListener("pointercancel", onCompetingPointerEnd, true);
   document.addEventListener("wheel", onCompetingWheel, { capture: true, passive: true });
+  document.addEventListener("toggle", onPopoverToggle, true);
+  globalThis.addEventListener?.("resize", onPresentationGeometryChange);
 
   function nodeStyle(data) {
     const type = semanticType(data);
@@ -1311,6 +1426,7 @@ function create(container, handlers = {}) {
         },
       },
     });
+    queuePresentationForceUpdate();
   }
 
   function clearTopologyTimers() {
@@ -1512,6 +1628,7 @@ function create(container, handlers = {}) {
     hasGraphData = true;
     applyInteractionForce(0);
     orb.render();
+    queuePresentationForceUpdate();
     handlers.onSimulationState?.({ running: true, mode: currentMode });
   }
 
@@ -1653,6 +1770,7 @@ function create(container, handlers = {}) {
       applyInteractionForce(0, { reheat: false });
       orb.render(() => {
         if (!userOwnsCamera) orb.recenter();
+        queuePresentationForceUpdate();
       });
     },
     zoomIn() {
@@ -1692,6 +1810,10 @@ function create(container, handlers = {}) {
       finishTouchGesture();
       clearInteractionSettleTimer();
       clearCompetingGestureResumeTimer();
+      if (presentationForceFrame) cancelAnimationFrame(presentationForceFrame);
+      presentationForceFrame = 0;
+      if (presentationForceSettleTimer) globalThis.clearTimeout(presentationForceSettleTimer);
+      presentationForceSettleTimer = 0;
       competingPointerIds.clear();
       clearTopologyTimers();
       container.removeEventListener("click", onClickCapture, true);
@@ -1711,6 +1833,8 @@ function create(container, handlers = {}) {
       document.removeEventListener("pointerup", onCompetingPointerEnd, true);
       document.removeEventListener("pointercancel", onCompetingPointerEnd, true);
       document.removeEventListener("wheel", onCompetingWheel, true);
+      document.removeEventListener("toggle", onPopoverToggle, true);
+      globalThis.removeEventListener?.("resize", onPresentationGeometryChange);
       orb.events.off(OrbEventType.NODE_CLICK, onNodeClick);
       orb.events.off(OrbEventType.EDGE_CLICK, onEdgeClick);
       orb.events.off(OrbEventType.NODE_DRAG_START, onNodeDragStart);
