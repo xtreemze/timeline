@@ -338,9 +338,10 @@ function compatibilityContextRelationshipIds(
 ): Set<RelationshipId> {
   const result = new Set<RelationshipId>();
   for (const relationship of project.relationships) {
+    const itemIds = Array.isArray(relationship.itemIds) ? relationship.itemIds : [];
     if (
       String(relationship.id) === rootId ||
-      relationship.itemIds.some((itemId) => String(itemId) === rootId)
+      itemIds.some((itemId) => String(itemId) === rootId)
     ) {
       result.add(relationship.id);
     }
