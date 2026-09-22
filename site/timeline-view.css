@@ -2600,13 +2600,35 @@
 #presentation-stage > .graph-lens:not([hidden]),
 #presentation-stage:fullscreen > .graph-lens:not([hidden]) {
   position: absolute;
-  z-index: 2;
+  z-index: 1;
   min-width: 0;
   min-height: 0;
   margin: 0;
   overflow: hidden;
   grid-column: auto;
   grid-row: auto;
+}
+
+/* The timeline root is a transparent full-stage composition layer. It must not
+   steal background input from the persistent graph, while its actual rail,
+   labels, focus content, and controls stay above and interactive. */
+#presentation-stage > .timeline-view,
+#presentation-stage:fullscreen > .timeline-view {
+  z-index: 2;
+  pointer-events: none;
+}
+
+#presentation-stage > .timeline-view > .timeline-project-heading,
+#presentation-stage > .timeline-view > .timeline-surface,
+#presentation-stage > .timeline-view > .timeline-semantic-list,
+#presentation-stage > .timeline-view > .timeline-focus-view,
+#presentation-stage > .timeline-view > .timeline-view-toolbar,
+#presentation-stage:fullscreen > .timeline-view > .timeline-project-heading,
+#presentation-stage:fullscreen > .timeline-view > .timeline-surface,
+#presentation-stage:fullscreen > .timeline-view > .timeline-semantic-list,
+#presentation-stage:fullscreen > .timeline-view > .timeline-focus-view,
+#presentation-stage:fullscreen > .timeline-view > .timeline-view-toolbar {
+  pointer-events: auto;
 }
 
 #presentation-stage > .presentation-map-panel,
