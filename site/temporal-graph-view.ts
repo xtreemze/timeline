@@ -32,13 +32,6 @@ interface Model {
   stories: any[];
 }
 
-interface OrbFactoryOptions {
-  onNodeClick?: (node: Node) => void;
-  onNodeLongPress?: (node: Node) => void;
-  onEdgeClick?: (edge: Edge) => void;
-  onSimulationState?: (state: any) => void;
-}
-
 interface SimulationState {
   running: boolean;
   durationMs?: number;
@@ -77,7 +70,13 @@ function topologySignature(data: GraphData): string {
   return JSON.stringify({
     nodes: data.nodes.map((node) => String(node.id)).sort(),
     edges: data.edges
-      .map((edge) => [String(edge.id), String(edge.start), String(edge.end)])
+      .map(
+        (edge): [string, string, string] => [
+          String(edge.id),
+          String(edge.start),
+          String(edge.end),
+        ],
+      )
       .sort((a, b) => a[0].localeCompare(b[0])),
   });
 }
@@ -93,7 +92,6 @@ class TemporalGraphViewController {
   private signature: string;
   private presentationMode: boolean;
   private hasFocusedContext: boolean;
-  private currentData: GraphData;
   private hasRenderedData: boolean;
   private selection: Selection | null;
   private layoutFrame: number;
@@ -115,7 +113,6 @@ class TemporalGraphViewController {
     this.signature = "";
     this.presentationMode = false;
     this.hasFocusedContext = false;
-    this.currentData = { nodes: [], edges: [] };
     this.hasRenderedData = false;
     this.selection = null;
     this.layoutFrame = 0;
@@ -259,10 +256,10 @@ class TemporalGraphViewController {
           limit: 36,
         })
       : graph.graphForWindow(this.model, this.viewport);
-    this.currentData = data;
-    if (this.selection) {
-      const records = this.selection.kind === "node" ? data.nodes : data.edges;
-      if (!records.some((record) => String(record.id) === this.selection.id)) {
+    const selection = this.selection;
+    if (selection) {
+      const records = selection.kind === "node" ? data.nodes : data.edges;
+      if (!records.some((record) => String(record.id) === selection.id)) {
         this.selection = null;
       }
     }
