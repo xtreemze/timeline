@@ -767,6 +767,7 @@
 }
 .timeline-event-copy strong {
   display: -webkit-box;
+  overflow: hidden;
   color: var(--event-color);
   font-size: 0.9rem;
   font-weight: 820;
@@ -780,6 +781,7 @@
 }
 .timeline-event-copy span {
   display: block;
+  overflow: hidden;
   margin-top: 0.18rem;
   color: color-mix(in srgb, var(--event-color) 68%, var(--muted));
   font-size: 0.7rem;
@@ -5467,13 +5469,11 @@
 
 .app-shell.is-event-focused #presentation-stage > .graph-lens:not([hidden]) {
   display: grid;
-  overflow: hidden;
 }
 
 .app-shell.is-event-focused #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-view {
   display: grid;
   grid-template-rows: minmax(0, 1fr);
-  overflow: hidden;
   border-top: 0;
 }
 
