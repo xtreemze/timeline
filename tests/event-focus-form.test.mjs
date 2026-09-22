@@ -306,21 +306,28 @@ test("focused hero keeps image captions and provenance out of the visual overlay
   );
 });
 
-test("fullscreen preserves the common footer app bar inside the fullscreen subtree", async () => {
+test("fullscreen preserves the fused footer inside the fullscreen subtree", async () => {
   const [app, styles, timelineCss] = await Promise.all([
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
-  assert.match(app, /appToolDock:\s*requiredElement<HTMLElement>\("\.app-tool-dock"\)/);
+  assert.match(app, /appFooter:\s*requiredElement<HTMLElement>\("\.app-footer-shell"\)/);
   assert.match(app, /timeline-tool-dock-home/);
   assert.match(app, /mountFullscreenToolDock/);
   assert.match(app, /restoreToolDock/);
+  assert.match(
+    app,
+    /function mountFullscreenToolDock\(\)[\s\S]*presentationStage\.append\(els\.appFooter\)/,
+  );
   assert.match(app, /if \(active\)[\s\S]*mountFullscreenToolDock\(\)/);
-  assert.doesNotMatch(app, /positionWorkspaceToolDock|workspaceToolDockResizeObserver/);
   assert.match(
     styles,
-    /#presentation-stage:fullscreen \.app-tool-dock[\s\S]*inset-block-end:[\s\S]*inset-inline-start:\s*50%[\s\S]*flex-direction:\s*row/,
+    /#presentation-stage:fullscreen \.app-footer-shell[\s\S]*inset-block-end:[\s\S]*inset-inline-start:\s*50%/,
+  );
+  assert.match(
+    timelineCss,
+    /#presentation-stage:fullscreen > \.timeline-view[\s\S]*inset-block-end:\s*var\(--workspace-footer-reserved-block/,
   );
   assert.doesNotMatch(timelineCss, /data-project-anchored|workspace-tool-dock/);
 });
@@ -360,7 +367,7 @@ test("workspace sidebar and side sheets are named View Transition participants",
   ]);
   assert.match(
     styles,
-    /\.app-tool-dock\s*\{[\s\S]*view-transition-name:\s*timeline-workspace-sidebar/,
+    /\.app-footer-shell\s*\{[\s\S]*view-transition-name:\s*timeline-workspace-sidebar/,
   );
   assert.match(
     styles,
