@@ -10,8 +10,16 @@ import type {
   GraphSurface,
   GraphSurfaceEvent,
   GraphSurfaceFactory,
-  GraphTemporalState,
 } from "../src/layout/graph-surface.ts";
+import {
+  createSemanticGraphIndex,
+  type SemanticGraphIndex,
+} from "../src/application/semantic-graph-index.ts";
+import {
+  projectFocusedGraph,
+  projectGraphWindow,
+  type GraphProjectionProject,
+} from "../src/projection/graph-projection.ts";
 import {
   createOrbGraphSurfaceFactory,
   type OrbFactory,
@@ -21,60 +29,6 @@ import { entityId, relationshipId } from "../src/domain/ids.ts";
 interface Viewport {
   start: number;
   end: number;
-}
-
-interface Node {
-  id: string | number;
-  label?: string;
-  properties?: Record<string, unknown>;
-}
-
-interface Edge {
-  id: string | number;
-  start: string | number;
-  end: string | number;
-  label?: string;
-  temporalState?: GraphTemporalState;
-}
-
-interface GraphData {
-  nodes: Node[];
-  edges: Edge[];
-}
-
-interface Model {
-  entities: any[];
-  relationships: any[];
-  items: any[];
-  stories: any[];
-}
-
-interface SimulationState {
-  running: boolean;
-  durationMs?: number;
-  mode?: string;
-}
-
-interface TimelineGraphRuntime {
-  neighborhoodGraph(
-    model: Model,
-    focusedId: string,
-    viewport: Viewport | null,
-    options: { depth: number; limit: number },
-  ): GraphData;
-  graphForWindow(model: Model, viewport: Viewport | null): GraphData;
-}
-
-function hasFunction(value: unknown, key: string): boolean {
-  return typeof value === "object" && value !== null && typeof Reflect.get(value, key) === "function";
-}
-
-function getGraph(): TimelineGraphRuntime {
-  const graph = Reflect.get(globalThis, "TimelineGraph");
-  if (!hasFunction(graph, "neighborhoodGraph") || !hasFunction(graph, "graphForWindow")) {
-    throw new Error("TimelineGraph must load before TemporalGraphView.");
-  }
-  return graph as TimelineGraphRuntime;
 }
 
 function getOrbFactory(): OrbFactory {
@@ -96,35 +50,15 @@ function formatWindow(viewport: Viewport | null): string {
   return `${formatter.format(new Date(viewport.start))} – ${formatter.format(new Date(viewport.end))}`;
 }
 
-function graphProjection(data: GraphData): GraphProjection {
-  return {
-    nodes: data.nodes.map((node) => ({
-      id: entityId(String(node.id)),
-      label: node.label || String(node.id),
-      kind:
-        typeof node.properties?.timelineType === "string"
-          ? node.properties.timelineType
-          : "entity",
-    })),
-    edges: data.edges.map((edge) => ({
-      id: relationshipId(String(edge.id)),
-      sourceId: entityId(String(edge.start)),
-      targetId: entityId(String(edge.end)),
-      label: edge.label || String(edge.id),
-      temporalState: edge.temporalState,
-    })),
-  };
-}
-
-function topologySignature(data: GraphData): string {
+function topologySignature(projection: GraphProjection): string {
   return JSON.stringify({
-    nodes: data.nodes.map((node) => String(node.id)).sort(),
-    edges: data.edges
+    nodes: projection.nodes.map((node) => String(node.id)).sort(),
+    edges: projection.edges
       .map(
         (edge): [string, string, string] => [
           String(edge.id),
-          String(edge.start),
-          String(edge.end),
+          String(edge.sourceId),
+          String(edge.targetId),
         ],
       )
       .sort((a, b) => a[0].localeCompare(b[0])),
@@ -137,6 +71,7 @@ class TemporalGraphViewController {
   private status: HTMLElement | null;
   private windowLabel: HTMLElement | null;
   private model: Model;
+  private semanticIndex: SemanticGraphIndex;
   private viewport: Viewport | null;
   private focusedId: string | null;
   private signature: string;
@@ -160,7 +95,12 @@ class TemporalGraphViewController {
       root.closest(".graph-lens")?.querySelector("[data-graph-status]") ||
       null;
     this.windowLabel = root.querySelector("[data-graph-window]");
-    this.model = { entities: [], relationships: [], items: [], stories: [] };
+    this.model = { schemaVersion: 2, entities: [], relationships: [], items: [], stories: [] };
+    this.semanticIndex = createSemanticGraphIndex({
+      schemaVersion: 2,
+      entities: [],
+      relationships: [],
+    });
     this.viewport = null;
     this.focusedId = null;
     this.signature = "";
@@ -269,11 +209,13 @@ class TemporalGraphViewController {
 
   setModel(model: any): void {
     this.model = {
+      schemaVersion: Number.isInteger(model?.schemaVersion) ? model.schemaVersion : 2,
       entities: Array.isArray(model?.entities) ? model.entities : [],
       relationships: Array.isArray(model?.relationships) ? model.relationships : [],
       items: Array.isArray(model?.items) ? model.items : [],
       stories: Array.isArray(model?.stories) ? model.stories : [],
     };
+    this.semanticIndex.replace(this.projectionProject());
     this.render();
   }
 
@@ -332,62 +274,66 @@ class TemporalGraphViewController {
 
   private activateSelection(selection: CanonicalSelection): void {
     this.selection = selection;
-    const data = this.currentGraphData();
+    const projection = this.currentGraphProjection();
 
     if (selection.kind === "entity") {
-      const node = data.nodes.find((candidate) => String(candidate.id) === String(selection.id));
+      const node = projection.nodes.find(
+        (candidate) => String(candidate.id) === String(selection.id),
+      );
       this.root.dispatchEvent(
         new CustomEvent("graphselectionchange", {
           bubbles: true,
           detail: {
             kind: "node",
             id: selection.id,
-            timelineType:
-              typeof node?.properties?.timelineType === "string"
-                ? node.properties.timelineType
-                : "entity",
+            timelineType: node?.kind || "entity",
           },
         }),
       );
       return;
     }
 
-    const edge = data.edges.find((candidate) => String(candidate.id) === String(selection.id));
+    const edge = projection.edges.find(
+      (candidate) => String(candidate.id) === String(selection.id),
+    );
     this.root.dispatchEvent(
       new CustomEvent("graphselectionchange", {
         bubbles: true,
         detail: {
           kind: "edge",
           id: selection.id,
-          start: edge?.start,
-          end: edge?.end,
+          start: edge?.sourceId,
+          end: edge?.targetId,
         },
       }),
     );
   }
 
-  private currentGraphData(): GraphData {
-    const graph = getGraph();
+  private projectionProject(): GraphProjectionProject {
+    return this.model as unknown as GraphProjectionProject;
+  }
+
+  private currentGraphProjection(): GraphProjection {
+    const project = this.projectionProject();
     return this.focusedId
-      ? graph.neighborhoodGraph(this.model, this.focusedId, this.viewport, {
+      ? projectFocusedGraph(project, this.semanticIndex, this.focusedId, this.viewport, {
           depth: 1,
           limit: 36,
         })
-      : graph.graphForWindow(this.model, this.viewport);
+      : projectGraphWindow(project, this.semanticIndex, this.viewport);
   }
 
   private render(): void {
-    const data = this.currentGraphData();
-    const projection = graphProjection(data);
+    const projection = this.currentGraphProjection();
     const selection = this.selection;
     if (selection) {
-      const records = selection.kind === "entity" ? data.nodes : data.edges;
+      const records = selection.kind === "entity" ? projection.nodes : projection.edges;
       if (!records.some((record) => String(record.id) === selection.id)) {
         this.selection = null;
       }
     }
     const nextHasFocusedContext = Boolean(
-      this.focusedId && data.nodes.length > 1 && data.edges.length > 0,
+      this.focusedId && projection.nodes.length > 1 && projection.edges.length > 0,
     );
     if (nextHasFocusedContext !== this.hasFocusedContext) {
       this.hasFocusedContext = nextHasFocusedContext;
@@ -397,24 +343,26 @@ class TemporalGraphViewController {
           detail: {
             focusedId: this.focusedId,
             hasContext: this.hasFocusedContext,
-            nodeCount: data.nodes.length,
-            edgeCount: data.edges.length,
+            nodeCount: projection.nodes.length,
+            edgeCount: projection.edges.length,
           },
         }),
       );
     }
-    const scopeText = this.focusedId ? `${data.nodes.length} relevant nodes · ` : "";
-    const timelessCount = data.edges.filter((edge) => edge.temporalState === "timeless").length;
+    const scopeText = this.focusedId ? `${projection.nodes.length} relevant nodes · ` : "";
+    const timelessCount = projection.edges.filter(
+      (edge) => edge.temporalState === "timeless",
+    ).length;
     const persistentText = timelessCount ? ` · ${timelessCount} persistent` : "";
-    const countText = `${scopeText}${data.edges.length} relations in window${persistentText}`;
+    const countText = `${scopeText}${projection.edges.length} relations in window${persistentText}`;
     if (this.status) {
       this.status.dataset.edgeCount = countText;
       this.status.textContent = `${countText} · ${this.surface.getMode()}`;
     }
     if (this.windowLabel) this.windowLabel.textContent = formatWindow(this.viewport);
 
-    const graphIsEmpty = data.nodes.length === 0 && data.edges.length === 0;
-    const nextSignature = topologySignature(data);
+    const graphIsEmpty = projection.nodes.length === 0 && projection.edges.length === 0;
+    const nextSignature = topologySignature(projection);
     if (nextSignature !== this.signature) {
       this.signature = nextSignature;
       if (this.hasRenderedData) {
