@@ -110,7 +110,7 @@ class TemporalGraphViewController {
   private resizeObserver: ResizeObserver | null;
   private pointerHeldUntil: number;
   private cachedEdgesWhileHeld: Edge[] | null;
-  private edgeUpdateDelayTimer: number;
+  private edgeUpdateDelayTimer: ReturnType<typeof globalThis.setTimeout> | 0;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -364,10 +364,9 @@ class TemporalGraphViewController {
     } else {
       // When pointer is held, cache the current edge states and don't update them
       if (this.isPointerHeld()) {
-        if (!this.cachedEdgesWhileHeld) {
-          this.cachedEdgesWhileHeld = data.edges;
-        }
-        this.orb.updateTemporalEdges(this.cachedEdgesWhileHeld);
+        const heldEdges = this.cachedEdgesWhileHeld ?? data.edges;
+        this.cachedEdgesWhileHeld = heldEdges;
+        this.orb.updateTemporalEdges(heldEdges);
       } else {
         this.cachedEdgesWhileHeld = null;
         this.orb.updateTemporalEdges(data.edges);
