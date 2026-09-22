@@ -2453,28 +2453,36 @@ class TimelineViewController {
     actions.className = "timeline-focus-actions";
     const previous = document.createElement("button");
     previous.type = "button";
-    previous.className = "button secondary";
-    previous.textContent = "Previous event";
+    previous.className = "button icon-only timeline-focus-nav-prev";
+    previous.setAttribute("aria-label", "Previous event");
+    previous.setAttribute("title", "Previous event");
+    previous.textContent = "←";
     previous.disabled = currentIndex <= 0;
     previous.addEventListener("click", () => this.focusAdjacent(-1));
     const next = document.createElement("button");
     next.type = "button";
-    next.className = "button secondary";
-    next.textContent = "Next event";
+    next.className = "button icon-only timeline-focus-nav-next";
+    next.setAttribute("aria-label", "Next event");
+    next.setAttribute("title", "Next event");
+    next.textContent = "→";
     next.disabled = currentIndex < 0 || currentIndex >= ordered.length - 1;
     next.addEventListener("click", () => this.focusAdjacent(1));
     const edit = document.createElement("button");
     edit.type = "button";
-    edit.className = "button secondary";
-    edit.textContent = "Edit event";
+    edit.className = "button icon-only timeline-focus-nav-edit";
+    edit.setAttribute("aria-label", "Edit event");
+    edit.setAttribute("title", "Edit event");
+    edit.setAttribute("data-semantic-icon", "edit");
     edit.addEventListener("click", () => {
       this.root.dispatchEvent(
         new CustomEvent("timelinefocusedit", { bubbles: true, detail: { id: item.id } }),
       );
       this.closeFocus();
     });
+    if (item.editable !== false) {
+      actions.append(edit);
+    }
     actions.append(previous, next);
-    if (item.editable !== false) actions.append(edit);
     summary.append(actions);
 
     const place = document.createElement("section");
