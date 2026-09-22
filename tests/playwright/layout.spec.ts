@@ -191,7 +191,7 @@ test.describe('Mobile-first Timeline layout contracts', () => {
       await expect(actions).toHaveCount(4);
 
       const dockBox = await expectInsideViewport(dock, viewport);
-      const titleBox = await expectInsideViewport(titleBar, viewport);
+      await expectInsideViewport(titleBar, viewport);
       const surfaceBox = await expectInsideViewport(surface, viewport);
 
       for (const selector of [
