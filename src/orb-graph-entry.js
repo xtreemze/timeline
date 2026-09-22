@@ -1412,6 +1412,10 @@ function create(container, handlers = {}) {
     handlers.onSimulationState?.({ running: true, mode: currentMode });
   const onSimulationEnd = ({ durationMs }) => {
     handlers.onSimulationState?.({ running: false, mode: currentMode, durationMs });
+    const simulationState = simulationCoordinator.getState();
+    if (simulationState.reason === "topology" && topologyTimers.size === 0) {
+      releaseSimulation("topology");
+    }
     if (firstRender) {
       firstRender = false;
       requestAutoFit();
