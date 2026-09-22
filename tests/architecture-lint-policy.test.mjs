@@ -173,3 +173,22 @@ test("strict architecture lint prevents projections from importing layout or int
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /projection-dependency-direction/);
 });
+
+
+test("renderer adapter exception is restricted to the established GraphSurface seam", async () => {
+  const root = await fixture();
+  await mkdir(path.join(root, "src", "layout"), { recursive: true });
+  await writeFile(
+    path.join(root, "src", "layout", "graph-surface.ts"),
+    "export interface SurfaceFactory { create(container: HTMLElement): unknown; }\n",
+  );
+  await writeFile(
+    path.join(root, "src", "layout", "other-surface.ts"),
+    "export const root = document.documentElement;\n",
+  );
+
+  const result = run(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /src\/layout\/other-surface\.ts: renderer-neutral-core/);
+  assert.doesNotMatch(result.stderr, /src\/layout\/graph-surface\.ts: renderer-neutral-core/);
+});
