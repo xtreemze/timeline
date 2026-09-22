@@ -17,6 +17,27 @@ async function expectInsideViewport(locator, viewport, tolerance = 2) {
 }
 
 async function expectVisibleChronology(page, viewport) {
+  const surface = page.locator('.timeline-surface');
+  const surfaceBox = await surface.boundingBox();
+  expect(surfaceBox).not.toBeNull();
+  if (!surfaceBox) throw new Error('Timeline surface has no live bounds.');
+
+  const intersectsLiveSurface = (box) => {
+    if (!box || box.width <= 0 || box.height <= 0) return false;
+    const centerX = box.x + box.width / 2;
+    const centerY = box.y + box.height / 2;
+    return (
+      centerX >= surfaceBox.x &&
+      centerX <= surfaceBox.x + surfaceBox.width &&
+      centerY >= surfaceBox.y &&
+      centerY <= surfaceBox.y + surfaceBox.height &&
+      centerX >= 0 &&
+      centerX <= viewport.width &&
+      centerY >= 0 &&
+      centerY <= viewport.height
+    );
+  };
+
   const terminals = page.locator(
     '.timeline-event:not(.timeline-cluster):not(.is-buffered) .timeline-event-terminal:visible',
   );
@@ -25,43 +46,26 @@ async function expectVisibleChronology(page, viewport) {
 
   let readableOccurrenceFound = false;
   for (let index = 0; index < terminalCount; index += 1) {
-    const terminal = terminals.nth(index);
-    const copy = terminal.locator('.timeline-event-copy');
+    const copy = terminals.nth(index).locator('.timeline-event-copy');
     const titleNode = copy.locator('strong');
     const title = (await titleNode.textContent())?.trim() ?? '';
-    const titleBox = await titleNode.boundingBox();
-    if (!title || !titleBox || !(await copy.isVisible())) continue;
-    const centerX = titleBox.x + titleBox.width / 2;
-    const centerY = titleBox.y + titleBox.height / 2;
-    if (
-      titleBox.width > 0 &&
-      titleBox.height > 0 &&
-      centerX >= 0 &&
-      centerX <= viewport.width &&
-      centerY >= 0 &&
-      centerY <= viewport.height
-    ) {
+    if (!title || !(await copy.isVisible())) continue;
+    if (intersectsLiveSurface(await titleNode.boundingBox())) {
       readableOccurrenceFound = true;
       break;
     }
   }
   expect(readableOccurrenceFound).toBeTruthy();
 
+  // Retained temporal context may keep overscan labels alive outside the live
+  // camera. Certification requires at least one label intersecting the current
+  // surface, not that every retained DOM label be in the viewport.
   const ticks = page.locator('.timeline-tick-label:visible');
   const tickCount = await ticks.count();
   expect(tickCount).toBeGreaterThan(0);
   let readableTickFound = false;
   for (let index = 0; index < tickCount; index += 1) {
-    const box = await ticks.nth(index).boundingBox();
-    if (!box) continue;
-    const centerX = box.x + box.width / 2;
-    const centerY = box.y + box.height / 2;
-    if (
-      centerX >= 0 &&
-      centerX <= viewport.width &&
-      centerY >= 0 &&
-      centerY <= viewport.height
-    ) {
+    if (intersectsLiveSurface(await ticks.nth(index).boundingBox())) {
       readableTickFound = true;
       break;
     }
