@@ -4220,7 +4220,7 @@ body {
     max(0.8rem, env(safe-area-inset-top)) -
     max(0.8rem, env(safe-area-inset-bottom))
   );
-  overflow-inline: clip;
+  overflow-inline: visible;
   overflow-block: auto;
   transform: translateY(-50%);
 }
