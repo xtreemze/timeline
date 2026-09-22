@@ -108,6 +108,18 @@ async function ensureTimelineOrientation(page, orientation) {
   const current = await root.getAttribute('data-orientation');
   if (current !== orientation) await toggleTimelineOrientation(page);
   await expect(root).toHaveAttribute('data-orientation', orientation);
+
+  const dock = page.locator('.app-tool-dock');
+  const surface = page.locator('.timeline-surface');
+  await expect
+    .poll(async () => {
+      const [dockBox, surfaceBox] = await Promise.all([dock.boundingBox(), surface.boundingBox()]);
+      if (!dockBox || !surfaceBox) return false;
+      return orientation === 'portrait'
+        ? surfaceBox.x + surfaceBox.width <= dockBox.x + 3
+        : surfaceBox.y + surfaceBox.height <= dockBox.y + 3;
+    })
+    .toBe(true);
 }
 
 test.describe('Mobile-first Timeline layout contracts', () => {
@@ -195,12 +207,36 @@ test.describe('Mobile-first Timeline layout contracts', () => {
         expect(dockBox.height).toBeGreaterThan(180);
         expect(dockBox.width).toBeLessThan(90);
         expect(surfaceBox.x + surfaceBox.width).toBeLessThanOrEqual(dockBox.x + 3);
-        expect(dockBox.x + dockBox.width).toBeLessThanOrEqual(titleBox.x + 5);
+        await expect
+          .poll(async () => {
+            const [nextDockBox, nextTitleBox] = await Promise.all([
+              dock.boundingBox(),
+              titleBar.boundingBox(),
+            ]);
+            return Boolean(
+              nextDockBox &&
+                nextTitleBox &&
+                nextDockBox.x + nextDockBox.width <= nextTitleBox.x + 5,
+            );
+          })
+          .toBe(true);
       } else {
         expect(dockBox.width).toBeGreaterThan(180);
         expect(dockBox.height).toBeLessThan(90);
         expect(surfaceBox.y + surfaceBox.height).toBeLessThanOrEqual(dockBox.y + 3);
-        expect(dockBox.y + dockBox.height).toBeLessThanOrEqual(titleBox.y + 5);
+        await expect
+          .poll(async () => {
+            const [nextDockBox, nextTitleBox] = await Promise.all([
+              dock.boundingBox(),
+              titleBar.boundingBox(),
+            ]);
+            return Boolean(
+              nextDockBox &&
+                nextTitleBox &&
+                nextDockBox.y + nextDockBox.height <= nextTitleBox.y + 5,
+            );
+          })
+          .toBe(true);
       }
     }
   });
