@@ -182,7 +182,7 @@ jobs:
           node-version: 24
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
-      - run: pnpm types:migrated || echo "⚠ Existing TypeScript migration errors remain (ratcheted follow-up)" && true
+      - run: pnpm types:migrated
       - run: pnpm types:architecture
       - run: pnpm build
       - run: test -s site/orb-graph.bundle.js
