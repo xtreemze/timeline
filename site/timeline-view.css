@@ -4327,7 +4327,8 @@
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: flex-start;
-  width: auto;
+  width: max-content;
+  min-width: 200px;
   max-width: calc(100vw - max(1rem, env(safe-area-inset-left)) - max(1rem, env(safe-area-inset-right)));
   max-height: calc(100vh - max(1rem, env(safe-area-inset-top)) - max(5rem, calc(env(safe-area-inset-bottom) + 4rem)));
   padding: 0.34rem;
