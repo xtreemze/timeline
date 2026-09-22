@@ -774,6 +774,20 @@ class TimelineViewController {
         this.focusItem(eventIds[0]);
       }
     });
+
+    this.stage.addEventListener("click", (event) => {
+      const button = (event.target as Element).closest<HTMLElement>("button[data-cluster-id]");
+      if (!button) return;
+      const clusterId = button.dataset.clusterId;
+      if (!clusterId) return;
+      const cluster = this.committedLayout.clusters.find((c) => c.id === clusterId);
+      if (!cluster) return;
+      const target = event.target instanceof Element
+        ? (event.target as Element).closest<HTMLElement>("[data-cluster-item-id]")
+        : null;
+      const selectedId = target?.dataset.clusterItemId || cluster.itemIds[0];
+      if (selectedId) this.activateCommittedCluster(cluster, selectedId);
+    });
   }
 
   setItems(items: TimelineItem[], options: SetItemsOptions = {}): void {
@@ -1689,13 +1703,7 @@ class TimelineViewController {
     this.frameCreatedObjects += 1;
 
     const record: ClusterSceneRecord = { cluster, node, terminal };
-    terminal.addEventListener("click", (event) => {
-      const target = event.target instanceof Element
-        ? event.target.closest<HTMLElement>("[data-cluster-item-id]")
-        : null;
-      const selectedId = target?.dataset.clusterItemId || record.cluster.itemIds[0];
-      if (selectedId) this.activateCommittedCluster(record.cluster, selectedId);
-    });
+    terminal.setAttribute("data-cluster-id", cluster.id);
     this.updateClusterRecord(record);
     return record;
   }
