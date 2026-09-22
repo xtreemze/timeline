@@ -37,6 +37,36 @@
           <span class="app-tool-label">View</span>
         </button>
       </nav>
+        <div class="app-footer-title timeline-project-heading" aria-label="Timeline project">
+<label class="project-title-field timeline-project-title">
+                <span class="sr-only">Timeline title</span>
+                <input id="timeline-title" type="text" maxlength="120" autocomplete="off" placeholder="Untitled timeline" readonly aria-readonly="true" tabindex="-1">
+              </label>
+              <div id="story-focus" class="story-focus story-focus-header" aria-live="polite" hidden>
+                <div class="story-focus-copy">
+                  <span class="story-focus-context" aria-hidden="true">Story</span>
+                  <strong id="story-focus-title"></strong>
+                  <span id="story-focus-description" class="sr-only"></span>
+                </div>
+                <div class="story-focus-controls" role="group" aria-label="Story navigation">
+                  <span id="story-focus-position" aria-label="Story position">1 / 1</span>
+                  <button id="story-prev" class="story-nav-button" type="button" data-semantic-icon="chevron-left" aria-label="Previous story event" title="Previous story event">
+                    <span class="sr-only">Previous story event</span>
+                  </button>
+                  <button id="story-next" class="story-nav-button" type="button" data-semantic-icon="chevron-right" aria-label="Next story event" title="Next story event">
+                    <span class="sr-only">Next story event</span>
+                  </button>
+                  <button id="story-exit" class="story-nav-button" type="button" data-semantic-icon="close" aria-label="Exit story" title="Exit story">
+                    <span class="sr-only">Exit story</span>
+                  </button>
+                </div>
+              </div>
+              <div class="project-stats timeline-project-stats" aria-label="Timeline statistics">
+                <span id="item-count">0 items</span>
+                <span id="story-count">0 stories</span>
+                <span id="category-count">0 categories</span>
+              </div>
+                    </div>
       <aside id="control-panel" class="control-panel app-editor-sheet" aria-label="Timeline editors" aria-hidden="true" hidden>
         <header class="app-surface-header">
           <div>
@@ -1171,40 +1201,11 @@
 
         <section id="presentation-stage" class="presentation-stage" data-stage-shape="stacked" data-timeline-orientation="horizontal" aria-label="Timeline presentation with contextual relation graph and place map">
           <section id="timeline-view" class="timeline-view" aria-label="Interactive timeline">
-            <header class="timeline-project-heading" aria-label="Timeline project">
-              <label class="project-title-field timeline-project-title">
-                <span class="sr-only">Timeline title</span>
-                <input id="timeline-title" type="text" maxlength="120" autocomplete="off" placeholder="Untitled timeline" readonly aria-readonly="true" tabindex="-1">
-              </label>
-              <div id="story-focus" class="story-focus story-focus-header" aria-live="polite" hidden>
-                <div class="story-focus-copy">
-                  <span class="story-focus-context" aria-hidden="true">Story</span>
-                  <strong id="story-focus-title"></strong>
-                  <span id="story-focus-description" class="sr-only"></span>
-                </div>
-                <div class="story-focus-controls" role="group" aria-label="Story navigation">
-                  <span id="story-focus-position" aria-label="Story position">1 / 1</span>
-                  <button id="story-prev" class="story-nav-button" type="button" data-semantic-icon="chevron-left" aria-label="Previous story event" title="Previous story event">
-                    <span class="sr-only">Previous story event</span>
-                  </button>
-                  <button id="story-next" class="story-nav-button" type="button" data-semantic-icon="chevron-right" aria-label="Next story event" title="Next story event">
-                    <span class="sr-only">Next story event</span>
-                  </button>
-                  <button id="story-exit" class="story-nav-button" type="button" data-semantic-icon="close" aria-label="Exit story" title="Exit story">
-                    <span class="sr-only">Exit story</span>
-                  </button>
-                </div>
-              </div>
-              <div class="project-stats timeline-project-stats" aria-label="Timeline statistics">
-                <span id="item-count">0 items</span>
-                <span id="story-count">0 stories</span>
-                <span id="category-count">0 categories</span>
-              </div>
             <div id="project-menu" class="project-menu" popover="auto" role="menu" aria-label="Project actions">
               <header class="project-menu-header">
                 <strong>Project</strong>
                 <span>Local timeline file and workspace actions</span>
-              </header>
+              
               <div class="project-actions">
                 <section class="project-menu-group" aria-labelledby="project-start-label">
                   <p id="project-start-label" class="project-menu-label">Start</p>
