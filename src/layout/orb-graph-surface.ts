@@ -14,6 +14,7 @@ import type {
   GraphSurfaceFactory,
 } from "./graph-surface.ts";
 import type { EntityId, RelationshipId } from "../domain/ids.ts";
+import type { InteractionCoordinator } from "../interaction/interaction-coordinator.ts";
 
 interface OrbNode {
   id: string | number;
@@ -41,6 +42,7 @@ interface OrbSimulationState {
 }
 
 interface OrbFactoryOptions {
+  interactionCoordinator?: InteractionCoordinator | null;
   onNodeClick?: (node: OrbNode) => void;
   onNodeLongPress?: (node: OrbNode) => void;
   onEdgeClick?: (edge: OrbEdge) => void;
@@ -96,9 +98,11 @@ export class OrbGraphSurface implements GraphSurface {
     container: HTMLElement,
     orbFactory: OrbFactory,
     eventListener: GraphSurfaceEventListener,
+    interactionCoordinator: InteractionCoordinator | null = null,
   ) {
     this.eventListener = eventListener;
     this.orb = orbFactory.create(container, {
+      interactionCoordinator,
       onNodeClick: (node) => this.handleNodeClick(node),
       onNodeLongPress: (node) => this.handleNodeLongPress(node),
       onEdgeClick: (edge) => this.handleEdgeClick(edge),
@@ -186,10 +190,18 @@ export class OrbGraphSurface implements GraphSurface {
   }
 }
 
-export function createOrbGraphSurfaceFactory(orbFactory: OrbFactory): GraphSurfaceFactory {
+export function createOrbGraphSurfaceFactory(
+  orbFactory: OrbFactory,
+  interactionCoordinator: InteractionCoordinator | null = null,
+): GraphSurfaceFactory {
   return {
     create(container, eventListener) {
-      return new OrbGraphSurface(container, orbFactory, eventListener);
+      return new OrbGraphSurface(
+        container,
+        orbFactory,
+        eventListener,
+        interactionCoordinator,
+      );
     },
   };
 }
