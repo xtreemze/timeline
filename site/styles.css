@@ -4164,7 +4164,6 @@ body {
   display: none;
 }
 
-
 /* Responsive reserved workspace chrome: title and controls share one anchored zone. */
 #app-shell {
   --workspace-chrome-gap: 0.35rem;
