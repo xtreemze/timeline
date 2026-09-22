@@ -58,11 +58,13 @@ export function estimatePointerVelocity(samples: unknown, windowMs: number = 90)
   const source = Array.isArray(samples) ? samples.filter(isPointerSample) : [];
   if (source.length < 2) return 0;
 
-  const last = source[source.length - 1]!;
+  const last = source.at(-1);
+  let first = source[0];
+  if (!last || !first) return 0;
   const minimumTime = last.time - Math.max(16, Number(windowMs) || 90);
-  let first = source[0]!;
   for (let index = source.length - 2; index >= 0; index -= 1) {
-    const candidate = source[index]!;
+    const candidate = source[index];
+    if (!candidate) continue;
     if (candidate.time < minimumTime) break;
     first = candidate;
   }
@@ -138,11 +140,13 @@ export function estimatePointerVectorVelocity(samples: unknown, windowMs: number
   const source = Array.isArray(samples) ? samples.filter(isVectorSample) : [];
   if (source.length < 2) return { x: 0, y: 0, magnitude: 0 };
 
-  const last = source[source.length - 1];
-  const minimumTime = last.time - Math.max(16, Number(windowMs) || 90);
+  const last = source.at(-1);
   let first = source[0];
+  if (!last || !first) return { x: 0, y: 0, magnitude: 0 };
+  const minimumTime = last.time - Math.max(16, Number(windowMs) || 90);
   for (let index = source.length - 2; index >= 0; index -= 1) {
-    const candidate = source[index]!;
+    const candidate = source[index];
+    if (!candidate) continue;
     if (candidate.time < minimumTime) break;
     first = candidate;
   }
