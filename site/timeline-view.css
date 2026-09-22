@@ -1121,6 +1121,16 @@
   grid-row: 3;
   position: relative;
   min-height: clamp(120px, 25vh, 320px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  background: var(--paper);
+}
+.timeline-focus-place-map {
+  flex: 1;
+  min-height: 200px;
+  width: 100%;
 }
 .timeline-focus-relations {
   grid-column: 3 / -1;
@@ -1326,6 +1336,36 @@
 }
 .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-actions {
   grid-row: 5;
+}
+
+/* Stacked layout for narrow containers (sidebar width ~326px) */
+@container (max-width: 400px) {
+  .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-hero {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    min-height: 240px;
+  }
+  .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-summary {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    align-self: auto;
+  }
+  .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-place {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+  .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-relations {
+    grid-column: 1 / -1;
+    grid-row: 4;
+  }
+  .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-evidence {
+    grid-column: 1 / -1;
+    grid-row: 5;
+  }
+  .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-actions {
+    grid-column: 1 / -1;
+    grid-row: 6;
+  }
 }
 
 .timeline-view.is-event-focused {
