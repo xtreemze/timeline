@@ -302,7 +302,7 @@
         "overflow-x: hidden;": 1
       },
       "rootMinWidth": {},
-      "legacy100vh": 1,
+      "legacy100vh": 0,
       "maxWidthContainer": {},
       "primarySurfaceOverflow": {
         ".presentation-stage:fullscreen .timeline-focus-view, .presentation-stage:fullscreen .timeline-focus-view[data-layout] => overflow: hidden;": 1,
