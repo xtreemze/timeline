@@ -4310,11 +4310,14 @@
 
 #app-shell .app-view-controls.timeline-view-toolbar[popover]::backdrop {
   background: transparent;
+  pointer-events: none;
 }
 
 #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
   position: fixed;
   z-index: 1150;
+  pointer-events: auto;
+  isolation: isolate;
   top: var(--view-controls-top, auto);
   right: var(--view-controls-right, max(0.45rem, env(safe-area-inset-right)));
   bottom: var(--view-controls-bottom, max(4.35rem, calc(env(safe-area-inset-bottom) + 4rem)));
@@ -4338,6 +4341,7 @@
 
 #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open > * {
   flex: 0 0 auto;
+  pointer-events: auto;
 }
 
 @media (max-width: 699px) {
