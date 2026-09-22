@@ -82,6 +82,24 @@ test("inference remains reviewable and stale proposals cannot mutate canonical s
   );
 });
 
+
+test("app migration preserves the established default category fallback", async () => {
+  const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
+  for (const id of [
+    "incident",
+    "witness",
+    "communication",
+    "evidence",
+    "document",
+    "decision",
+    "transaction",
+    "observation",
+  ]) {
+    assert.match(app, new RegExp(`id: ["']${id}["']`));
+  }
+  assert.match(app, /categories:\s*clone\(DEFAULT_CATEGORIES\)/);
+});
+
 test("story place selections are normalized, edited, and saved", async () => {
   const [html, app] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
@@ -89,8 +107,8 @@ test("story place selections are normalized, edited, and saved", async () => {
   ]);
 
   assert.match(html, /id="story-place-picker"/);
-  assert.match(app, /storyPlacePicker:\s*document\.querySelector\("#story-place-picker"\)/);
-  assert.match(app, /let storyDraftPlaceIds = \[\]/);
+  assert.match(app, /storyPlacePicker:\s*requiredElement<HTMLElement>\("#story-place-picker"\)/);
+  assert.match(app, /let storyDraftPlaceIds:\s*string\[\]\s*=\s*\[\]/);
   assert.match(app, /placeIds:\s*\[\.\.\.storyDraftPlaceIds\]/);
   assert.match(app, /storyDraftPlaceIds = \[\.\.\.\(story\.placeIds \|\| \[\]\)\]/);
   assert.match(app, /normalizedPlaceIds/);
