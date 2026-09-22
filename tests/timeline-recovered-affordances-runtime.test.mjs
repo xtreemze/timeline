@@ -58,3 +58,13 @@ test("timeline orientation preference survives reload while temporary orientatio
   );
   assert.match(appSource, /persist:\s*false/);
 });
+
+test("wheel zoom normalizes line and page delta modes before applying pixel sensitivity", () => {
+  assert.match(viewSource, /function normalizeWheelDelta\(/);
+  assert.match(viewSource, /event\.deltaMode === 1[\s\S]{0,120}delta \*= 16/);
+  assert.match(viewSource, /event\.deltaMode === 2[\s\S]{0,160}Math\.max\(1, pageLength\)/);
+  assert.match(
+    viewSource,
+    /const deltaPixels = normalizeWheelDelta\(event, length\);[\s\S]{0,120}wheelZoomFactor\(deltaPixels\)/,
+  );
+});
