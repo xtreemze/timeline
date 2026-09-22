@@ -496,6 +496,17 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--story) 52%, transparent);
   outline: 1px solid color-mix(in srgb, var(--story) 35%, transparent);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background-color 160ms ease, outline-color 160ms ease;
+}
+.timeline-relation-segment:hover {
+  background: color-mix(in srgb, var(--story) 72%, transparent);
+  outline-color: color-mix(in srgb, var(--story) 55%, transparent);
+}
+.timeline-relation-segment:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--focus) 65%, transparent);
+  outline-offset: 1px;
 }
 .is-landscape .timeline-relation-segment {
   top: calc(var(--relation-lane-offset));
