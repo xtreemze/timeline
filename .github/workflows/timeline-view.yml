@@ -61,7 +61,14 @@ on:
       - 'tests/retained-structural-composition-runtime.test.mjs'
       - 'tests/browser/retained-structural-composition.spec.ts'
       - 'tests/browser/semantic-chronology.spec.ts'
+      - 'tests/playwright/**'
+      - 'playwright.config.ts'
+      - 'tests/playwright-certification-config.test.mjs'
+      - 'playwright.pages.config.ts'
+      - 'vite.config.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
+      - 'tests/browser/retained-performance.spec.ts'
+      - 'src/performance/retained-timeline-metrics.ts'
       - 'benchmarks/retained-timeline.mjs'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
       - 'tests/temporal-layout-runtime.test.mjs'
@@ -77,6 +84,7 @@ on:
       - 'tests/timeline-projection-runtime.test.mjs'
       - 'tests/graph-editor.test.mjs'
       - '.github/workflows/timeline-view.yml'
+      - '.github/workflows/pages.yml'
   push:
     branches: [main]
     paths:
@@ -134,7 +142,12 @@ on:
       - 'tests/retained-structural-composition-runtime.test.mjs'
       - 'tests/browser/retained-structural-composition.spec.ts'
       - 'tests/browser/semantic-chronology.spec.ts'
+      - 'tests/playwright/graph-touch.spec.ts'
+      - 'tests/playwright/interaction.spec.ts'
+      - 'tests/playwright/layout.spec.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
+      - 'tests/browser/retained-performance.spec.ts'
+      - 'src/performance/retained-timeline-metrics.ts'
       - 'benchmarks/retained-timeline.mjs'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
       - 'tests/temporal-layout-runtime.test.mjs'
@@ -151,6 +164,10 @@ on:
       - 'tests/graph-editor.test.mjs'
       - '.github/workflows/timeline-view.yml'
 
+concurrency:
+  group: timeline-view-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -158,9 +175,9 @@ jobs:
   syntax:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
@@ -174,6 +191,7 @@ jobs:
       - run: node --check src/orb-graph-entry.js
       - run: node --check site/orb-graph.bundle.js
       - run: pnpm test:architecture
+      - run: pnpm test:browser-certification-config
       - run: pnpm test:runtime-contracts
       - run: pnpm test:evidence-inference-runtime
       - run: pnpm test:temporal-layout-runtime
@@ -185,6 +203,7 @@ jobs:
       - run: pnpm test:semantic-hierarchy-runtime
       - run: pnpm test:retained-context-runtime
       - run: pnpm test:graph-runtime-contracts
+      - run: pnpm test
       - run: pnpm test:webmcp-lifecycle-runtime
       - run: pnpm test:timeline-projection-runtime
       - run: |
@@ -193,17 +212,100 @@ jobs:
   structural-composition-browser:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
-      - name: Verify structural browser test discovery
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - name: Verify browser discovery and project matrix
         run: |
-          pnpm exec playwright test --config=playwright.config.mjs --list | tee /tmp/structural-playwright-list.txt
-          grep -F 'retained-structural-composition.spec.ts' /tmp/structural-playwright-list.txt
-          grep -F 'semantic-chronology.spec.ts' /tmp/structural-playwright-list.txt
+          pnpm exec playwright test --config=playwright.config.ts --list | tee /tmp/playwright-list.txt
+          grep -F 'retained-structural-composition.spec.ts' /tmp/playwright-list.txt
+          grep -F 'semantic-chronology.spec.ts' /tmp/playwright-list.txt
+          grep -F 'playwright/layout.spec.ts' /tmp/playwright-list.txt
+          grep -F 'playwright/interaction.spec.ts' /tmp/playwright-list.txt
+          grep -F 'playwright/graph-touch.spec.ts' /tmp/playwright-list.txt
+          grep -F '[Desktop Chrome]' /tmp/playwright-list.txt
+          grep -F '[Mobile Chrome]' /tmp/playwright-list.txt
+          grep -F '[Mobile Chrome Landscape]' /tmp/playwright-list.txt
+          grep -F '[Mobile Safari]' /tmp/playwright-list.txt
+          grep -F '[Mobile Safari Landscape]' /tmp/playwright-list.txt
+          grep -F '[Tablet Touch]' /tmp/playwright-list.txt
+          grep -F '[Reduced Motion]' /tmp/playwright-list.txt
       - run: pnpm test:structural-composition-browser
       - run: pnpm test:semantic-chronology-browser
+
+  pages-runtime-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - name: Build production site
+        run: pnpm build
+      - name: Certify built Pages runtime
+        run: pnpm exec playwright test --config=playwright.pages.config.ts
+
+  application-shell-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - name: Verify application shell browser test discovery
+        run: |
+          pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --list | tee /tmp/application-shell-playwright-list.txt
+          grep -F 'layout.spec.ts' /tmp/application-shell-playwright-list.txt
+      - name: Run application shell browser tests
+        run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --project="Mobile Chrome" --project="Mobile Chrome Landscape" --project="Mobile Safari" --project="Mobile Safari Landscape" --project="Tablet Touch"
+
+  interaction-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - name: Run interaction browser tests
+        run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/interaction.spec.ts
+
+  retained-performance-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - name: Verify retained performance browser discovery
+        run: |
+          pnpm exec playwright test --config=playwright.config.ts tests/browser/retained-performance.spec.ts --list | tee /tmp/retained-performance-list.txt
+          grep -F 'retained-performance.spec.ts' /tmp/retained-performance-list.txt
+      - run: pnpm test:retained-performance-browser
+
+  graph-touch-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm test:graph-touch-browser

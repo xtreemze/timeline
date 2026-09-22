@@ -39,3 +39,50 @@ test("focused popover emits the surviving rich presentation contract", async () 
   assert.match(source, /data-active-tab|dataset\.activeTab/);
   assert.match(source, /timelinefocusrender/);
 });
+
+
+test("empty timeline resets retained camera authority before later content loads", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  assert.match(
+    source,
+    /setItems\(items:[\s\S]*if \(!this\.items\.length\) \{[\s\S]{0,900}this\.viewportInitialized = false/,
+  );
+  assert.match(
+    source,
+    /if \(!this\.items\.length\) \{[\s\S]{0,900}this\.cancelInertia\(\)/,
+  );
+  assert.match(
+    source,
+    /if \(!this\.items\.length\) \{[\s\S]{0,900}this\.expandedClusterItemIds\.clear\(\)/,
+  );
+});
+
+test("persistent graph owns the complementary canvas while focused place uses interactive map space", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+
+  assert.match(
+    css,
+    /#presentation-stage\s*>\s*\.graph-lens:not\(\[hidden\]\)[\s\S]{0,140}\{[\s\S]{0,500}position:\s*absolute/,
+  );
+  assert.match(
+    css,
+    /\.timeline-view\[data-orientation="landscape"\]\s*>\s*\.timeline-focus-view:popover-open\s*\{[\s\S]{0,500}inline-size:\s*min\(640px,/,
+  );
+  assert.match(
+    css,
+    /\.timeline-focus-place\s+\.timeline-focus-section-content\s*\{[\s\S]{0,300}width:\s*min\(48%,\s*18rem\)/,
+  );
+  assert.match(
+    css,
+    /\.timeline-view\[data-orientation="landscape"\]\s*>\s*\.timeline-focus-view:popover-open\s*\{[\s\S]{0,500}inline-size:\s*min\(640px,\s*calc\(100% - 8rem\)\)/,
+  );
+  assert.match(
+    css,
+    /\.timeline-view\[data-orientation="portrait"\]\s*>\s*\.timeline-focus-view:popover-open\s*\{[\s\S]{0,500}inline-size:\s*min\(560px,\s*calc\(100% - 10rem\)\)/,
+  );
+  assert.match(
+    css,
+    /\.timeline-focus-place-backdrop\s+\.presentation-map[\s\S]{0,450}pointer-events:\s*auto/,
+  );
+});

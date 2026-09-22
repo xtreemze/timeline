@@ -168,12 +168,38 @@ function measurementFor(
   };
 }
 
+function requiredLaneCount(
+  group: readonly TemporalLayoutOccurrence[],
+  positions: ReadonlyMap<string, number>,
+  measurements: Readonly<Record<string, TemporalLayoutMeasurement>> | undefined,
+  laneGapPx: number,
+): number {
+  const intervals = group
+    .map((occurrence) => {
+      const measurement = measurementFor(occurrence.id, measurements);
+      const position = positions.get(occurrence.id) ?? 0;
+      const half = measurement.inlineSize / 2;
+      return { id: occurrence.id, start: position - half, end: position + half };
+    })
+    .sort((left, right) => left.start - right.start || left.end - right.end || left.id.localeCompare(right.id));
+
+  const laneEnds: number[] = [];
+  for (const interval of intervals) {
+    const legalLane = laneEnds.findIndex((lastEnd) => interval.start >= lastEnd + laneGapPx);
+    if (legalLane >= 0) laneEnds[legalLane] = interval.end;
+    else laneEnds.push(interval.end);
+  }
+  return laneEnds.length;
+}
+
 function clusterGroups(
   occurrences: readonly TemporalLayoutOccurrence[],
   positions: ReadonlyMap<string, number>,
   previous: TemporalLayoutPrevious | undefined,
   thresholds: ClusterThresholds,
   maxLanes: number,
+  measurements: Readonly<Record<string, TemporalLayoutMeasurement>> | undefined,
+  laneGapPx: number,
 ): TemporalLayoutCluster[] {
   const previousPairs = previousClusterPairs(previous);
   const groups: TemporalLayoutOccurrence[][] = [];
@@ -210,12 +236,17 @@ function clusterGroups(
   return groups
     .filter((group) => {
       if (group.length <= 1) return false;
-      if (group.length > maxLanes) return true;
-      return group.some((occurrence, index) =>
+      const allCoincident = group.every((occurrence) => occurrence.start === group[0]?.start);
+      if (allCoincident) return false;
+
+      const retainedByHysteresis = group.some((occurrence, index) =>
         group.slice(index + 1).some((candidate) =>
           previousPairs.has(pairKey(occurrence.id, candidate.id)),
         ),
       );
+      if (retainedByHysteresis) return true;
+
+      return requiredLaneCount(group, positions, measurements, laneGapPx) > maxLanes;
     })
     .map((group) => {
       const itemIds = group.map((occurrence) => occurrence.id).sort();
@@ -277,10 +308,18 @@ export function planCommittedTemporalLayout(
     input.previous,
     thresholds,
     maxLanes,
+    input.measurements,
+    laneGapPx,
   );
   const clusteredIds = new Set(clusters.flatMap((cluster) => cluster.itemIds));
 
-  const laneEnds = Array.from({ length: maxLanes }, () => Number.NEGATIVE_INFINITY);
+  const coincidentCounts = new Map<number, number>();
+  for (const occurrence of occurrences) {
+    coincidentCounts.set(occurrence.start, (coincidentCounts.get(occurrence.start) ?? 0) + 1);
+  }
+  const coincidentLaneCapacity = Math.max(0, ...coincidentCounts.values());
+  const laneCapacity = Math.max(maxLanes, coincidentLaneCapacity);
+  const laneEnds = Array.from({ length: laneCapacity }, () => Number.NEGATIVE_INFINITY);
   const lanes: Record<string, number> = {};
   const placements: TemporalLayoutPlacement[] = [];
 
@@ -298,7 +337,7 @@ export function planCommittedTemporalLayout(
     const previousLane = input.previous?.lanes?.[occurrence.id];
     const lane = chooseStableLane(
       previousLane,
-      legalLanes.length ? legalLanes : Array.from({ length: maxLanes }, (_, index) => index),
+      legalLanes.length ? legalLanes : Array.from({ length: laneCapacity }, (_, index) => index),
     );
     lanes[occurrence.id] = lane;
     laneEnds[lane] = Math.max(laneEnds[lane] ?? Number.NEGATIVE_INFINITY, endPx);

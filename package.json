@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "build": "pnpm build:leaflet && pnpm build:graph && pnpm build:evidence && vite build",
     "build:graph": "esbuild src/orb-graph-entry.js --bundle --format=iife --platform=browser --target=chrome155 --outfile=site/orb-graph.bundle.js --legal-comments=eof",
-    "test": "node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/timeline-interaction.test.mjs tests/temporal-scene.test.mjs tests/timeline-retained-interaction.test.mjs tests/temporal-layout-runtime.test.mjs tests/retained-structural-composition-runtime.test.mjs tests/retained-timeline-metrics-runtime.test.mjs tests/timeline-runtime-contracts.test.mjs tests/timeline-motion-popover-regression.test.mjs tests/timeline-temporal-context-runtime.test.mjs tests/semantic-hierarchy-runtime.test.mjs tests/retained-temporal-context-runtime.test.mjs tests/timeline-touch-runtime-contracts.test.mjs tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/event-focus-form.test.mjs tests/evidence-store.test.mjs tests/evidence-inference-runtime.test.mjs tests/sample-case.test.mjs tests/timeline-navigation.test.mjs tests/temporal-graph-view.test.mjs tests/temporal-graph-runtime-contracts.test.mjs tests/timeline-projection-runtime.test.mjs tests/graph-camera-fit.test.mjs tests/graph-component-packing.test.mjs tests/graph-editor.test.mjs tests/case-reasoning.test.mjs tests/location-map-camera.test.mjs tests/webmcp.test.mjs tests/webmcp-lifecycle-runtime.test.mjs tests/domain-kernel.test.mjs tests/responsive-architecture.test.mjs",
+    "test": "node --test tests/time-scale.test.mjs tests/timeline-view-geometry.test.mjs tests/timeline-interaction.test.mjs tests/temporal-scene.test.mjs tests/timeline-retained-interaction.test.mjs tests/temporal-layout-runtime.test.mjs tests/retained-structural-composition-runtime.test.mjs tests/retained-timeline-metrics-runtime.test.mjs tests/timeline-runtime-contracts.test.mjs tests/timeline-motion-popover-regression.test.mjs tests/timeline-temporal-context-runtime.test.mjs tests/semantic-hierarchy-runtime.test.mjs tests/retained-temporal-context-runtime.test.mjs tests/timeline-touch-runtime-contracts.test.mjs tests/interchange-adapter.test.mjs tests/temporal-spatial.test.mjs tests/event-focus-form.test.mjs tests/evidence-store.test.mjs tests/evidence-inference-runtime.test.mjs tests/sample-case.test.mjs tests/timeline-navigation.test.mjs tests/temporal-graph-view.test.mjs tests/temporal-graph-runtime-contracts.test.mjs tests/timeline-projection-runtime.test.mjs tests/graph-camera-fit.test.mjs tests/graph-component-packing.test.mjs tests/graph-editor.test.mjs tests/case-reasoning.test.mjs tests/location-map-camera.test.mjs tests/webmcp.test.mjs tests/webmcp-lifecycle-runtime.test.mjs tests/domain-kernel.test.mjs tests/analytical-lens.test.mjs tests/temporal-constraint.test.mjs tests/responsive-architecture.test.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
@@ -25,7 +25,7 @@
     "benchmark:graph-data": "node benchmarks/graph-data.mjs",
     "types:migrated": "tsc -p tsconfig.migrated.json --pretty",
     "types:architecture": "tsc -p tsconfig.architecture.json --pretty",
-    "test:architecture": "node --test tests/domain-kernel.test.mjs tests/claim-pipeline.test.mjs tests/architecture-lint-policy.test.mjs tests/temporal-scene.test.mjs",
+    "test:architecture": "node --test tests/domain-kernel.test.mjs tests/claim-pipeline.test.mjs tests/analytical-lens.test.mjs tests/temporal-constraint.test.mjs tests/architecture-lint-policy.test.mjs tests/temporal-scene.test.mjs",
     "lint:eslint": "eslint . --max-warnings 0",
     "lint:biome": "biome lint --diagnostic-level=error --max-diagnostics=200",
     "lint:architecture": "node scripts/lint-architecture.mjs",
@@ -42,10 +42,13 @@
     "benchmark:retained-timeline": "node benchmarks/retained-timeline.mjs",
     "build:leaflet": "esbuild src/leaflet-entry.js --bundle --format=iife --platform=browser --target=chrome155 --outfile=site/leaflet.bundle.js --legal-comments=eof && cp node_modules/leaflet/dist/leaflet.css site/leaflet.css && mkdir -p site/images && cp node_modules/leaflet/dist/images/* site/images/",
     "test:structural-composition-runtime": "node --test tests/retained-structural-composition-runtime.test.mjs",
-    "test:structural-composition-browser": "playwright test --config=playwright.config.mjs retained-structural-composition.spec.ts",
+    "test:structural-composition-browser": "playwright test --config=playwright.config.ts retained-structural-composition.spec.ts",
     "test:semantic-hierarchy-runtime": "node --test tests/semantic-hierarchy-runtime.test.mjs",
     "test:webmcp-lifecycle-runtime": "node --test tests/webmcp-lifecycle-runtime.test.mjs",
-    "test:semantic-chronology-browser": "playwright test --config=playwright.config.mjs semantic-chronology.spec.ts"
+    "test:semantic-chronology-browser": "playwright test --config=playwright.config.ts semantic-chronology.spec.ts",
+    "test:graph-touch-browser": "pnpm build:graph && playwright test --config=playwright.config.ts tests/playwright/graph-touch.spec.ts --project=\"Mobile Chrome\" --project=\"Mobile Chrome Landscape\" --project=\"Mobile Safari\" --project=\"Mobile Safari Landscape\" --project=\"Tablet Touch\"",
+    "test:browser-certification-config": "node --test tests/playwright-certification-config.test.mjs",
+    "test:retained-performance-browser": "playwright test --config=playwright.config.ts tests/browser/retained-performance.spec.ts"
   },
   "packageManager": "pnpm@12.5.1+sha512.e3f305bc784a2bc89f5ad3b6138889470fae8d2af5f36b61216ec91c2c3d64089775f9de38aac331044ea40f245cb0d5666392dfdf65824e1907ef6a2c62de5f",
   "devDependencies": {

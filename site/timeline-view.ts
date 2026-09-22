@@ -76,7 +76,7 @@ interface TimelineItem {
   connectorEndpoint?: string;
   lane?: number | null;
   media?: Array<{ src?: string; alt?: string; caption?: string }>;
-  tags?: string[];
+  tags?: Array<string | { label?: string; icon?: string; hue?: number }>;
   layoutVariant?: string;
   locationName?: string;
   location?: unknown;
@@ -111,6 +111,7 @@ interface SceneRecord {
   node: HTMLDivElement;
   terminal: HTMLButtonElement;
   range: HTMLButtonElement | null;
+  visual: HTMLSpanElement;
   copy: HTMLSpanElement;
 }
 
@@ -297,6 +298,7 @@ class TimelineViewController {
   pendingQueryDurationMs = 0;
   pendingDirtyMeasurements = 0;
   pendingBufferExpanded = false;
+  pendingInputStartedAt: number | null = null;
   pointerDrag: PointerDragState | null = null;
   touchPointers = new Map<number, TouchPointerState>();
   pinch: PinchState | null = null;
@@ -346,6 +348,7 @@ class TimelineViewController {
       this.setOrientation(this.orientation === "horizontal" ? "vertical" : "horizontal");
     });
     this.zoomSlider?.addEventListener("input", () => {
+      this.markInputForNextRender();
       this.setSemanticZoom(Number(this.zoomSlider?.value || 0), false);
     });
     this.zoomSlider?.addEventListener("change", () => {
@@ -375,6 +378,7 @@ class TimelineViewController {
         this.beginInteraction();
         this.viewport = next;
         this.interactionVelocity = 0;
+        this.markInputForNextRender();
         this.scheduleRender();
         this.emitViewport(false);
 
@@ -529,7 +533,8 @@ class TimelineViewController {
     );
 
     this.surface.addEventListener("pointerdown", (event) => {
-      if (!this.items.length || event.button !== 0) return;
+      const isPrimaryPointer = event.pointerType === "touch" || event.button === 0;
+      if (!this.items.length || !isPrimaryPointer) return;
       const interactiveTarget =
         event.target instanceof Element
           ? event.target.closest("button, a, input, select, textarea")
@@ -608,6 +613,7 @@ class TimelineViewController {
         const start = this.pinch.anchorTime - nextSpan * geometry.ratio;
         this.viewport = { start, end: start + nextSpan };
         this.interactionVelocity = 0;
+        this.markInputForNextRender();
         this.scheduleRender();
         this.emitViewport(false);
         return;
@@ -638,6 +644,7 @@ class TimelineViewController {
       };
       const pointerVelocity = motion.estimatePointerVelocity(drag.samples);
       this.interactionVelocity = -((pointerVelocity / usable) * span);
+      this.markInputForNextRender();
       this.scheduleRender();
       this.emitViewport(false);
     });
@@ -776,6 +783,21 @@ class TimelineViewController {
       : this.items.flatMap((item) =>
           Number.isFinite(item.end) ? [item.start, Number(item.end)] : [item.start],
         );
+
+    if (!this.items.length) {
+      this.cancelInertia();
+      this.pointerDrag = null;
+      this.touchPointers.clear();
+      this.pinch = null;
+      this.touchTap = null;
+      this.lastTouchTap = null;
+      this.suppressClickUntil = 0;
+      this.viewportInitialized = false;
+      this.viewport = { start: 0, end: DEFAULT_SPAN_MS };
+      this.expandedClusterItemIds.clear();
+      this.geometryMeasurements.clear();
+      this.focusedId = null;
+    }
 
     if (!this.viewportInitialized && this.items.length) {
       this.viewport = this.initialViewport();
@@ -1062,6 +1084,13 @@ class TimelineViewController {
     this.pendingQueryDurationMs = 0;
     this.pendingDirtyMeasurements = 0;
     this.pendingBufferExpanded = false;
+    this.pendingInputStartedAt = null;
+  }
+
+  markInputForNextRender(): void {
+    if (this.pendingInputStartedAt === null) {
+      this.pendingInputStartedAt = performance.now();
+    }
   }
 
   tickSpecKey(spec: SemanticTickSpec): string {
@@ -1739,8 +1768,10 @@ class TimelineViewController {
       const terminalCross = axisCross + (lane < 0 ? -laneDistance : laneDistance);
       const segment = connectorSegment(axisCross, terminalCross);
 
-      node.dataset.side = lane < 0 ? "before" : "after";
-      node.classList.toggle("label-before", lane < 0);
+      const labelBefore =
+        this.orientation === "horizontal" ? primary > usable / 2 : lane < 0;
+      node.dataset.side = labelBefore ? "before" : "after";
+      node.classList.toggle("label-before", labelBefore);
       if (this.orientation === "horizontal") {
         node.style.transform = `translate3d(${primary}px, ${terminalCross}px, 0)`;
       } else {
@@ -1792,10 +1823,15 @@ class TimelineViewController {
   render(): void {
     const phase = this.retention.active ? "interaction" : "commit";
     const started = performance.now();
+    const inputStartedAt = this.pendingInputStartedAt;
     this.renderScene();
+    const finished = performance.now();
+    this.pendingInputStartedAt = null;
     this.performanceMetrics.recordFrame({
       phase,
-      durationMs: performance.now() - started,
+      durationMs: finished - started,
+      inputLatencyMs:
+        inputStartedAt === null ? undefined : Math.max(0, finished - inputStartedAt),
       createdNodes: this.frameCreatedObjects,
       destroyedNodes: this.frameDestroyedObjects,
       retainedNodes: this.retainedObjectCount(),
@@ -1927,19 +1963,13 @@ class TimelineViewController {
     terminal.dataset.id = item.id;
     terminal.addEventListener("click", () => this.focusItem(item.id));
 
-    const dot = document.createElement("span");
-    dot.className = "timeline-event-dot";
-    dot.setAttribute("aria-hidden", "true");
-    const icon =
-      presentation && typeof presentation.createIcon === "function"
-        ? presentation.createIcon("milestone", { size: 24 })
-        : null;
-    if (icon) dot.append(icon);
-    else dot.textContent = "•";
+    const visual = document.createElement("span");
+    visual.className = "timeline-event-dot";
+    visual.setAttribute("aria-hidden", "true");
 
     const copy = document.createElement("span");
     copy.className = "timeline-event-copy";
-    terminal.append(dot, copy);
+    terminal.append(visual, copy);
 
     const connector = document.createElement("span");
     connector.className = "timeline-event-connector";
@@ -1959,7 +1989,7 @@ class TimelineViewController {
 
     this.stage.append(node);
     this.frameCreatedObjects += range ? 2 : 1;
-    const record = { item, node, terminal, range, copy };
+    const record = { item, node, terminal, range, visual, copy };
     this.bindRecordInteractionTarget(record, terminal);
     if (range) this.bindRecordInteractionTarget(record, range);
     this.updateRecordContent(record);
@@ -2000,7 +2030,7 @@ class TimelineViewController {
   }
 
   updateRecordContent(record: SceneRecord): void {
-    const { item, node, terminal, range, copy } = record;
+    const { item, node, terminal, range, visual, copy } = record;
     node.style.setProperty("--event-color", item.color || "var(--accent)");
     node.dataset.terminalShape = item.terminalShape || "rounded";
     node.dataset.connectorStyle = item.connectorStyle || "solid";
@@ -2009,6 +2039,46 @@ class TimelineViewController {
     const selected = item.id === this.focusedId;
     node.classList.toggle("is-selected", selected);
     range?.classList.toggle("is-selected", selected);
+
+    const primaryTag = item.tags?.[0];
+    const iconName =
+      typeof primaryTag === "object" && primaryTag?.icon
+        ? primaryTag.icon
+        : "milestone";
+    const media = item.media?.[0];
+    const mediaSignature = [media?.src || "", iconName].join("\u0001");
+    if (visual.dataset.signature !== mediaSignature) {
+      visual.dataset.signature = mediaSignature;
+      visual.className = media?.src ? "timeline-event-art" : "timeline-event-dot";
+      visual.replaceChildren();
+      if (media?.src) {
+        const image = document.createElement("img");
+        image.className = "timeline-event-art-image";
+        image.src = media.src;
+        image.alt = "";
+        image.decoding = "async";
+        image.loading = "lazy";
+        visual.append(image);
+
+        const badge = document.createElement("span");
+        badge.className = "timeline-event-icon-badge";
+        const badgeIcon =
+          presentation && typeof presentation.createIcon === "function"
+            ? presentation.createIcon(iconName, { size: 18 })
+            : null;
+        if (badgeIcon) badge.append(badgeIcon);
+        visual.append(badge);
+      } else {
+        const icon =
+          presentation && typeof presentation.createIcon === "function"
+            ? presentation.createIcon(iconName, { size: 24 })
+            : null;
+        if (icon) visual.append(icon);
+        else visual.textContent = "•";
+      }
+    }
+
+    node.dataset.connectorWeight = item.connectorWeight || "normal";
 
     const strong = copy.querySelector("strong") || document.createElement("strong");
     strong.textContent = item.title || item.id;
@@ -2062,8 +2132,10 @@ class TimelineViewController {
     );
     const shiftedCross = terminalCross + routeOffset;
 
-    node.dataset.side = lane < 0 ? "before" : "after";
-    node.classList.toggle("label-before", lane < 0);
+    const labelBefore =
+      this.orientation === "horizontal" ? primary > primaryLength / 2 : lane < 0;
+    node.dataset.side = labelBefore ? "before" : "after";
+    node.classList.toggle("label-before", labelBefore);
     node.classList.toggle("is-buffered", !itemOverlapsWindow(item, this.viewport));
 
     if (this.orientation === "horizontal") {
@@ -2078,23 +2150,25 @@ class TimelineViewController {
     const connectorTurn = node.querySelector<HTMLElement>(".timeline-event-connector-turn");
     if (connector && connectorTurn) {
       const segment = connectorSegment(axisCross, shiftedCross);
+      const connectorThickness =
+        item.connectorWeight === "fine" ? 1 : item.connectorWeight === "strong" ? 4 : 2;
       if (this.orientation === "horizontal") {
         connector.style.left = "0";
         connector.style.top = `${segment.offset}px`;
-        connector.style.width = "2px";
+        connector.style.width = `${connectorThickness}px`;
         connector.style.height = `${Math.max(1, segment.length)}px`;
         connectorTurn.style.left = "0";
         connectorTurn.style.top = `${Math.min(-routeOffset, 0)}px`;
         connectorTurn.style.width = `${Math.max(1, Math.abs(routeOffset))}px`;
-        connectorTurn.style.height = "2px";
+        connectorTurn.style.height = `${connectorThickness}px`;
       } else {
         connector.style.left = `${segment.offset}px`;
         connector.style.top = "0";
         connector.style.width = `${Math.max(1, segment.length)}px`;
-        connector.style.height = "2px";
+        connector.style.height = `${connectorThickness}px`;
         connectorTurn.style.left = `${Math.min(-routeOffset, 0)}px`;
         connectorTurn.style.top = "0";
-        connectorTurn.style.width = "2px";
+        connectorTurn.style.width = `${connectorThickness}px`;
         connectorTurn.style.height = `${Math.max(1, Math.abs(routeOffset))}px`;
       }
     }

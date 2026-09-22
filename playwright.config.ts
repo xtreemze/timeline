@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   testMatch: ['**/*.spec.ts', '**/*.spec.mjs'],
+  testIgnore: ['**/pages-runtime.spec.ts'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -23,15 +24,31 @@ export default defineConfig({
     },
     {
       name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
+      use: { ...devices['Pixel 5'], hasTouch: true },
+    },
+    {
+      name: 'Mobile Chrome Landscape',
+      use: {
+        ...devices['Pixel 5'],
+        hasTouch: true,
+        viewport: { width: 851, height: 393 },
+      },
     },
     {
       name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'] },
+      use: { ...devices['iPhone 12'], hasTouch: true },
+    },
+    {
+      name: 'Mobile Safari Landscape',
+      use: {
+        ...devices['iPhone 12'],
+        hasTouch: true,
+        viewport: { width: 844, height: 390 },
+      },
     },
     {
       name: 'Tablet Touch',
-      use: { ...devices['iPad Pro'] },
+      use: { ...devices['iPad Pro'], hasTouch: true },
     },
     {
       name: 'Reduced Motion',

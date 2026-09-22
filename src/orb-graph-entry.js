@@ -19,14 +19,14 @@ const TOUCH_NODE_TARGET_DIAMETER_PX = 44;
 const TOUCH_EDGE_TARGET_RADIUS_PX = 22;
 const TOUCH_DOUBLE_TAP_MS = 320;
 const TOUCH_DOUBLE_TAP_DISTANCE_PX = 28;
-const GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX = -500;
+const GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX = -280;
 const GRAPH_MIN_ZOOM = 0.002;
-const GRAPH_MAX_ZOOM = 4;
+const GRAPH_MAX_ZOOM = 2.5;
 const GRAPH_KEYBOARD_PAN_PX = 72;
 const INTERACTION_SETTLE_MS = 2400;
-const DRAG_ALPHA_TARGET = 0.12;
-const RELEASE_ALPHA_TARGET = 0.065;
-const TOPOLOGY_ALPHA_TARGET = 0.085;
+const DRAG_ALPHA_TARGET = 0.075;
+const RELEASE_ALPHA_TARGET = 0.035;
+const TOPOLOGY_ALPHA_TARGET = 0.05;
 const TOPOLOGY_EDGE_RELEASE_MS = 280;
 const TOPOLOGY_SETTLE_MS = 820;
 const TOPOLOGY_ENTRY_OFFSET = 36;
@@ -132,6 +132,8 @@ function create(container, handlers = {}) {
   let pendingAutoFit = false;
   let lastPackedTopologySignature = "";
   let interactionSettleTimer = 0;
+  let competingGestureResumeTimer = 0;
+  const competingPointerIds = new Set();
   let forceNodeCount = 0;
   let hasGraphData = false;
   const topologyTimers = new Set();
@@ -173,7 +175,7 @@ function create(container, handlers = {}) {
       isDragEnabled: true,
       isZoomEnabled: true,
     },
-    zoomFitTransitionMs: 240,
+    zoomFitTransitionMs: 360,
   });
 
   const ORB_TOUCH_DRAG_EVENT_TYPES = new Set([
@@ -204,7 +206,7 @@ function create(container, handlers = {}) {
     else delete canvas.__on;
   }
 
-  // Orb 1.0.2 wires d3-drag before d3-zoom. d3-drag consumes touchstart and
+  // Orb 1.1.0 wires d3-drag before d3-zoom. d3-drag consumes touchstart and
   // touchmove when a node is its subject, which prevents camera navigation
   // from taking over when Timeline cancels a pending long press. Timeline owns
   // touch node dragging directly, so keep Orb drag for mouse input only.
@@ -235,41 +237,41 @@ function create(container, handlers = {}) {
   // double-click, and multi-touch zoom listeners intact.
   removeOrbNativeCameraDragListeners();
 
-  function forceAlphaProfile(nodeCount = forceNodeCount, alphaTarget = 0) {
+  function forceAlphaProfile(nodeCount = forceNodeCount, alphaTarget = 0, reheat = true) {
     const dense = nodeCount >= 1000;
     return {
-      alpha: 1,
-      alphaMin: dense ? 0.018 : 0.012,
-      alphaDecay: dense ? 0.024 : 0.021,
+      alpha: reheat ? (dense ? 0.18 : 0.22) : dense ? 0.04 : 0.055,
+      alphaMin: dense ? 0.012 : 0.008,
+      alphaDecay: dense ? 0.042 : 0.038,
       alphaTarget,
     };
   }
 
-  function forceLayoutOptions(nodeCount = forceNodeCount, alphaTarget = 0) {
+  function forceLayoutOptions(nodeCount = forceNodeCount, alphaTarget = 0, reheat = true) {
     const dense = nodeCount >= 1000;
     const useGPU = currentMode === "gpu-main-force";
     return {
-      links: { distance: dense ? 128 : 168, strength: 0.78, iterations: 3 },
+      links: { distance: dense ? 128 : 168, strength: 0.62, iterations: 2 },
       manyBody: {
-        strength: dense ? -300 : -460,
+        strength: dense ? -220 : -340,
         theta: 0.84,
         distanceMin: 24,
         distanceMax: dense ? 1800 : 3200,
       },
       collision: {
         radius: dense ? 30 : 42,
-        strength: 1,
-        iterations: 4,
+        strength: 0.86,
+        iterations: 3,
       },
-      alpha: forceAlphaProfile(nodeCount, alphaTarget),
+      alpha: forceAlphaProfile(nodeCount, alphaTarget, reheat),
       isSimulatingOnDataUpdate: true,
       isSimulatingOnSettingsUpdate: true,
       isSimulatingOnUnstick: true,
       isPhysicsEnabled: true,
-      centering: { x: 0, y: 0, strength: dense ? 0.02 : 0.035 },
+      centering: { x: 0, y: 0, strength: dense ? 0.012 : 0.02 },
       positioning: {
-        forceX: { x: 0, strength: dense ? 0.012 : 0.02 },
-        forceY: { y: 0, strength: dense ? 0.012 : 0.02 },
+        forceX: { x: 0, strength: dense ? 0.008 : 0.012 },
+        forceY: { y: 0, strength: dense ? 0.008 : 0.012 },
       },
       useGPU,
     };
@@ -300,10 +302,10 @@ function create(container, handlers = {}) {
     return null;
   }
 
-  function applyInteractionForce(alphaTarget) {
+  function applyInteractionForce(alphaTarget, { reheat = true } = {}) {
     const layout = {
       type: "force",
-      options: forceLayoutOptions(forceNodeCount, alphaTarget),
+      options: forceLayoutOptions(forceNodeCount, alphaTarget, reheat),
     };
     const simulator = forceSimulator();
     if (simulator) {
@@ -327,11 +329,58 @@ function create(container, handlers = {}) {
     applyInteractionForce(alphaTarget);
   }
 
+  function clearCompetingGestureResumeTimer() {
+    if (!competingGestureResumeTimer) return;
+    globalThis.clearTimeout(competingGestureResumeTimer);
+    competingGestureResumeTimer = 0;
+  }
+
+  function isCompetingSurfaceTarget(target) {
+    if (!(target instanceof Element)) return false;
+    if (target.closest(".temporal-graph-canvas, .graph-lens")) return false;
+    return Boolean(target.closest(".timeline-surface, .presentation-map, .leaflet-container"));
+  }
+
+  function pauseForceForCompetingGesture() {
+    clearCompetingGestureResumeTimer();
+    clearInteractionSettleTimer();
+    const simulator = forceSimulator();
+    if (simulator && typeof simulator.stopSimulation === "function") {
+      simulator.stopSimulation();
+    }
+  }
+
+  function resumeForceAfterCompetingGesture() {
+    clearCompetingGestureResumeTimer();
+    competingGestureResumeTimer = globalThis.setTimeout(() => {
+      competingGestureResumeTimer = 0;
+      if (competingPointerIds.size || !hasGraphData) return;
+      applyInteractionForce(0, { reheat: false });
+    }, 180);
+  }
+
+  const onCompetingPointerDown = (event) => {
+    if (!isCompetingSurfaceTarget(event.target)) return;
+    competingPointerIds.add(event.pointerId);
+    pauseForceForCompetingGesture();
+  };
+
+  const onCompetingPointerEnd = (event) => {
+    if (!competingPointerIds.delete(event.pointerId)) return;
+    if (!competingPointerIds.size) resumeForceAfterCompetingGesture();
+  };
+
+  const onCompetingWheel = (event) => {
+    if (!isCompetingSurfaceTarget(event.target)) return;
+    pauseForceForCompetingGesture();
+    resumeForceAfterCompetingGesture();
+  };
+
   function keepForceActiveAfterInteraction() {
     setInteractionHeat(RELEASE_ALPHA_TARGET);
     interactionSettleTimer = globalThis.setTimeout(() => {
       interactionSettleTimer = 0;
-      applyInteractionForce(0);
+      applyInteractionForce(0, { reheat: false });
     }, INTERACTION_SETTLE_MS);
   }
 
@@ -800,7 +849,7 @@ function create(container, handlers = {}) {
   }
 
   function onPointerDown(event) {
-    if (event.button !== 0) return;
+    if (event.pointerType !== "touch" && event.button !== 0) return;
     const target = touchTargetPayload(event);
     if (event.pointerType !== "touch") {
       if (target?.kind === "node") {
@@ -865,6 +914,25 @@ function create(container, handlers = {}) {
   }
 
   function onPointerMove(event) {
+    // An activated touch node drag has exclusive ownership. Handle it before
+    // camera motion so stale or interrupted camera state can never translate
+    // the graph under the dragged node.
+    if (
+      event.pointerType === "touch" &&
+      touchHold?.activated &&
+      touchHold.pointerId === event.pointerId
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      const geometry = touchGeometry(event);
+      const simulator = touchDragSimulator();
+      if (geometry && simulator) {
+        simulator.dragNode(touchHold.node.getId(), geometry.localPoint);
+        clearInteractionSettleTimer();
+      }
+      return;
+    }
+
     updateCameraGesture(event);
     if (event.pointerType !== "touch") return;
     if (touchTap?.pointerId === event.pointerId && !touchTap.cancelled) {
@@ -878,20 +946,6 @@ function create(container, handlers = {}) {
       }
     }
     if (!touchHold) return;
-    if (touchHold.activated) {
-      if (touchHold.pointerId !== event.pointerId) return;
-      event.preventDefault();
-      // The active node drag owns this pointer. Stop the event before it
-      // reaches Orb/D3 camera listeners on the canvas.
-      event.stopPropagation();
-      const geometry = touchGeometry(event);
-      const simulator = touchDragSimulator();
-      if (geometry && simulator) {
-        simulator.dragNode(touchHold.node.getId(), geometry.localPoint);
-        clearInteractionSettleTimer();
-      }
-      return;
-    }
     const origin = touchHold.startClientPoint;
     if (!origin) return;
     const distance = Math.hypot(event.clientX - origin.x, event.clientY - origin.y);
@@ -967,7 +1021,7 @@ function create(container, handlers = {}) {
     const nodeDragOwnsGesture = Boolean(touchHold?.activated);
     const weightedCameraOwnsGesture = Boolean(cameraGesture && activeTouchPointers.size === 1);
     if (!nodeDragOwnsGesture && !weightedCameraOwnsGesture) return;
-    // Orb 1.0.2's camera uses D3 touch listeners on the canvas. Once Timeline
+    // Orb 1.1.0's camera uses D3 touch listeners on the canvas. Once Timeline
     // owns either an active node drag or a one-finger weighted camera pan,
     // block D3's direct touchmove path. Multi-touch remains available to D3
     // for pinch zoom because cameraGesture is cleared when a second touch lands.
@@ -1068,6 +1122,10 @@ function create(container, handlers = {}) {
   container.addEventListener("touchcancel", onTouchEnd);
   globalThis.addEventListener?.("blur", onWindowBlur);
   document.addEventListener("visibilitychange", onVisibilityChange);
+  document.addEventListener("pointerdown", onCompetingPointerDown, true);
+  document.addEventListener("pointerup", onCompetingPointerEnd, true);
+  document.addEventListener("pointercancel", onCompetingPointerEnd, true);
+  document.addEventListener("wheel", onCompetingWheel, { capture: true, passive: true });
 
   function nodeStyle(data) {
     const type = semanticType(data);
@@ -1092,7 +1150,7 @@ function create(container, handlers = {}) {
     const size = type === "event" ? 12 : type === "story" ? 13 : 10;
     return {
       size: exiting ? Math.max(6, size * 0.72) : entering ? size * 0.88 : size,
-      mass: type === "event" ? 2.6 : type === "story" ? 2.2 : 1.35,
+      mass: type === "event" ? 3.4 : type === "story" ? 3 : 1.8,
       shape: nodeShape(type),
       imageUrl: semanticIconUrl(type),
       imageUrlSelected: semanticIconUrl(type),
@@ -1240,7 +1298,8 @@ function create(container, handlers = {}) {
         labelsIsEnabled: nodeCount < 1800,
         labelsOnEventIsEnabled: true,
         shadowIsEnabled: false,
-        minZoom: nodeCount >= 3000 ? 0.0005 : 0.002,
+        minZoom: GRAPH_MIN_ZOOM,
+        maxZoom: GRAPH_MAX_ZOOM,
       },
       layout: {
         type: "force",
@@ -1449,6 +1508,7 @@ function create(container, handlers = {}) {
       edges: edges.map((edge) => transitionRecord(edge, "active")),
     });
     hasGraphData = true;
+    applyInteractionForce(0);
     orb.render();
     handlers.onSimulationState?.({ running: true, mode: currentMode });
   }
@@ -1588,6 +1648,7 @@ function create(container, handlers = {}) {
     },
     refreshLayout() {
       if (!hasGraphData) return;
+      applyInteractionForce(0, { reheat: false });
       orb.render(() => {
         if (!userOwnsCamera) orb.recenter();
       });
@@ -1602,6 +1663,24 @@ function create(container, handlers = {}) {
       markCameraOwnedByUser();
       orb.zoomOut();
     },
+    getNodePosition(id) {
+      const position = orb.data.getNodeById(id)?.getPosition?.();
+      if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return null;
+      return { x: position.x, y: position.y };
+    },
+    getNodeCanvasPosition(id) {
+      const position = orb.data.getNodeById(id)?.getPosition?.();
+      if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return null;
+      const canvasPoint = orb.getCanvasPosition(position);
+      if (
+        !canvasPoint ||
+        !Number.isFinite(canvasPoint.x) ||
+        !Number.isFinite(canvasPoint.y)
+      ) {
+        return null;
+      }
+      return { x: canvasPoint.x, y: canvasPoint.y };
+    },
     getMode() {
       return currentMode;
     },
@@ -1610,6 +1689,8 @@ function create(container, handlers = {}) {
       cameraGesture = null;
       finishTouchGesture();
       clearInteractionSettleTimer();
+      clearCompetingGestureResumeTimer();
+      competingPointerIds.clear();
       clearTopologyTimers();
       container.removeEventListener("click", onClickCapture, true);
       container.removeEventListener("wheel", onWheelCapture, true);
@@ -1624,6 +1705,10 @@ function create(container, handlers = {}) {
       container.removeEventListener("touchcancel", onTouchEnd);
       globalThis.removeEventListener?.("blur", onWindowBlur);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      document.removeEventListener("pointerdown", onCompetingPointerDown, true);
+      document.removeEventListener("pointerup", onCompetingPointerEnd, true);
+      document.removeEventListener("pointercancel", onCompetingPointerEnd, true);
+      document.removeEventListener("wheel", onCompetingWheel, true);
       orb.events.off(OrbEventType.NODE_CLICK, onNodeClick);
       orb.events.off(OrbEventType.EDGE_CLICK, onEdgeClick);
       orb.events.off(OrbEventType.NODE_DRAG_START, onNodeDragStart);
@@ -1638,5 +1723,5 @@ function create(container, handlers = {}) {
 
 globalThis.TimelineOrbGraph = Object.freeze({
   create,
-  version: "1.0.2",
+  version: "1.1.0",
 });

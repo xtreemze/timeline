@@ -2600,9 +2600,41 @@
   grid-row: auto;
 }
 
-#presentation-stage > .graph-lens,
+#presentation-stage > .graph-lens:not([hidden]),
+#presentation-stage:fullscreen > .graph-lens:not([hidden]) {
+  position: absolute;
+  z-index: 1;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  grid-column: auto;
+  grid-row: auto;
+}
+
+/* The timeline root is a transparent full-stage composition layer. It must not
+   steal background input from the persistent graph, while its actual rail,
+   labels, focus content, and controls stay above and interactive. */
+#presentation-stage > .timeline-view,
+#presentation-stage:fullscreen > .timeline-view {
+  z-index: 2;
+  pointer-events: none;
+}
+
+#presentation-stage > .timeline-view > .timeline-project-heading,
+#presentation-stage > .timeline-view > .timeline-surface,
+#presentation-stage > .timeline-view > .timeline-semantic-list,
+#presentation-stage > .timeline-view > .timeline-focus-view,
+#presentation-stage > .timeline-view > .timeline-view-toolbar,
+#presentation-stage:fullscreen > .timeline-view > .timeline-project-heading,
+#presentation-stage:fullscreen > .timeline-view > .timeline-surface,
+#presentation-stage:fullscreen > .timeline-view > .timeline-semantic-list,
+#presentation-stage:fullscreen > .timeline-view > .timeline-focus-view,
+#presentation-stage:fullscreen > .timeline-view > .timeline-view-toolbar {
+  pointer-events: auto;
+}
+
 #presentation-stage > .presentation-map-panel,
-#presentation-stage:fullscreen > .graph-lens,
 #presentation-stage:fullscreen > .presentation-map-panel {
   grid-column: auto;
   grid-row: auto;
@@ -2643,7 +2675,7 @@
     right: auto;
     bottom: auto;
     left: 50%;
-    inline-size: min(900px, calc(100dvw - 8rem));
+    inline-size: min(640px, calc(100% - 8rem));
     max-block-size: calc(100dvh - 9rem);
     block-size: auto;
     overflow: hidden;
@@ -2655,7 +2687,7 @@
     right: auto;
     bottom: auto;
     left: max(4.5rem, calc(env(safe-area-inset-left) + 4rem));
-    inline-size: min(720px, calc(100dvw - 10rem));
+    inline-size: min(560px, calc(100% - 10rem));
     max-block-size: calc(100dvh - 3rem);
     block-size: auto;
     overflow: hidden;
@@ -3759,8 +3791,10 @@
    the complete complementary canvas; mobile chrome may cover graph edges without shrinking it. */
 @media (max-width: 699px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
-    --mobile-relations-inline-rail: clamp(136px, 38dvw, 168px);
-    --mobile-relations-block-rail: clamp(136px, 32dvh, 184px);
+    --mobile-relations-inline-rail: clamp(156px, 44dvw, 196px);
+    /* Chronology is the primary surface. In portrait it keeps roughly half the
+       viewport while the graph fills the complementary region. */
+    --mobile-relations-block-rail: clamp(220px, 52dvh, 460px);
     --mobile-bottom-chrome: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
   }
 
@@ -3851,19 +3885,20 @@
       bottom 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
-  /* The persistent graph preserves chronology as an orientation/context rail. Text labels yield
-     to semantic event and cluster visuals so the graph keeps the readable majority area. */
+  /* The graph is contextual: chronology keeps readable event headlines even when
+     graph context is present. Terminals may project inward from the retained rail. */
   #app-shell[data-graph-open="true"] .timeline-event-copy {
-    display: none;
+    display: grid;
   }
 
   #app-shell[data-graph-open="true"] .timeline-event-terminal {
     min-width: 46px;
-    max-width: 62px;
+    width: max-content;
+    max-width: 190px;
     min-height: 46px;
-    justify-content: center;
-    padding: 0.28rem;
-    gap: 0;
+    justify-content: flex-start;
+    padding: 0.32rem 0.42rem;
+    gap: 0.38rem;
   }
 
   #app-shell[data-graph-open="true"] .timeline-cluster-terminal {
@@ -3873,6 +3908,26 @@
   #app-shell[data-graph-open="true"] .timeline-cluster-tiles {
     width: 3.25rem;
     flex-basis: 3.25rem;
+  }
+
+  /* The portrait rail lives on the right edge. Both lane directions project
+     semantic cards inward so text cannot create page-level overflow. */
+  #app-shell[data-graph-open="true"]
+    #timeline-view[data-orientation="portrait"]
+    .timeline-event-terminal {
+    flex-direction: row-reverse;
+    text-align: right;
+    transform: translate(calc(-100% + var(--terminal-anchor)), -50%);
+    transform-origin: calc(100% - var(--terminal-anchor)) 50%;
+  }
+
+  @media (orientation: landscape) {
+    #app-shell[data-graph-open="true"]
+      #presentation-stage:has(> #timeline-view[data-orientation="landscape"]) {
+      /* A physically short landscape viewport needs a compact horizontal rail.
+         Portrait phones keep the larger mobile-first chronology allocation. */
+      --mobile-relations-block-rail: clamp(156px, 42dvh, 188px);
+    }
   }
 }
 
@@ -5167,4 +5222,38 @@
   background: color-mix(in srgb, var(--focus) 12%, var(--paper));
   outline: 2px solid color-mix(in srgb, var(--focus) 50%, transparent);
   outline-offset: 1px;
+}
+
+
+/* Focused place context uses the card's visual field for the existing interactive Leaflet map.
+   Keep semantic copy compact so map geometry and markers remain directly manipulable. */
+.timeline-focus-place-backdrop {
+  opacity: 0.92;
+  filter: none;
+}
+
+.timeline-focus-place-backdrop::after {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--paper) 92%, transparent) 0%,
+    color-mix(in srgb, var(--paper) 72%, transparent) 34%,
+    transparent 68%
+  );
+}
+
+.timeline-focus-place-backdrop .presentation-map,
+.timeline-focus-place-backdrop .presentation-map .leaflet-container,
+.timeline-focus-place-backdrop .presentation-map .leaflet-control-container,
+.timeline-focus-place-backdrop .presentation-map .leaflet-marker-pane {
+  pointer-events: auto;
+}
+
+.timeline-focus-place-backdrop .presentation-map {
+  touch-action: none;
+}
+
+@media (min-width: 700px) {
+  .timeline-focus-place .timeline-focus-section-content {
+    width: min(48%, 18rem);
+  }
 }
