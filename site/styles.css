@@ -235,8 +235,7 @@ main > * {
   display: grid;
   grid-template-columns: subgrid;
   grid-column: 1 / -1;
-  min-height: 780px;
-  border: 1px solid var(--line-strong);
+border: 1px solid var(--line-strong);
   border-radius: 1.15rem;
   overflow: clip;
   background: var(--paper);
@@ -392,17 +391,7 @@ main > * {
   font-weight: 780;
   line-height: 1;
   cursor: pointer;
-  transition:
-    transform 0.12s ease,
-    background 0.12s ease,
-    border-color 0.12s ease,
-    opacity 0.12s ease;
-}
-.button:is(:hover, :focus-visible):not(:disabled) {
-  transform: translateY(-1px);
-}
-.button:active:not(:disabled) {
-  transform: none;
+
 }
 .button:disabled {
   opacity: 0.4;
@@ -711,11 +700,6 @@ a:focus-visible {
 }
 .map-style-editor > .field-hint {
   margin-inline: 0.9rem;
-}
-@media (min-width: 700px) {
-  .map-style-group {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 .optional-editor[open] > summary {
   border-bottom: 1px solid var(--line);
@@ -1590,17 +1574,12 @@ geolocation {
   border-inline-start: 3px solid var(--category-color);
   border-radius: 0.75rem;
   background: var(--paper);
-  transition:
-    opacity 0.15s ease,
-    transform 0.15s ease,
-    box-shadow 0.15s ease,
-    border-color 0.15s ease;
+
 }
 .timeline-item.is-current .timeline-card {
   border-color: color-mix(in srgb, var(--story) 45%, var(--line));
   border-inline-start-color: var(--story);
   box-shadow: 0 4px 16px color-mix(in srgb, var(--story) 6%, transparent);
-  transform: translateX(3px);
 }
 .timeline-item.story-dimmed .timeline-card {
   opacity: 0.58;
@@ -1700,15 +1679,11 @@ geolocation {
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.14);
   font-size: 0.78rem;
   opacity: 0;
-  transform: translateY(0.6rem);
   pointer-events: none;
-  transition:
-    opacity 0.16s ease,
-    transform 0.16s ease;
+
 }
 .status.visible {
   opacity: 1;
-  transform: none;
 }
 
 footer {
@@ -1941,9 +1916,7 @@ footer > :last-child {
   *::before,
   *::after {
     scroll-behavior: auto;
-    transition-duration: 0.001ms;
-    animation-duration: 0.001ms;
-    animation-iteration-count: 1;
+
   }
 }
 
@@ -2224,7 +2197,6 @@ footer > :last-child {
   opacity: 0.9;
   transform: scale(0.78);
 }
-
 
 @media (prefers-reduced-motion: reduce) {
   .temporal-graph-canvas[data-touch-drag="holding"]::after {
@@ -3370,9 +3342,7 @@ body {
   background: color-mix(in srgb, var(--paper) 91%, transparent);
   box-shadow: 0 3px 10px color-mix(in srgb, var(--ink) 5%, transparent);
   backdrop-filter: blur(12px);
-  transition:
-    opacity 140ms ease,
-    transform 140ms ease;
+
 }
 #app-shell .timeline-panel > .story-focus[hidden] {
   display: none;
@@ -3412,7 +3382,6 @@ body {
   > .story-focus {
   opacity: 0;
   pointer-events: none;
-  transform: translateY(0.4rem);
 }
 
 @media (min-width: 900px) {
@@ -3531,39 +3500,12 @@ body {
     grid-template-columns: minmax(0, 1fr);
   }
   .timeline-category-focus {
-    width: 100%;
-    min-height: 40px;
-    margin-top: -0.2rem;
-  }
-}
-
-/* Workspace chrome participates in the same document View Transition as timeline focus.
-   This preserves spatial continuity when responsive/fullscreen composition moves the dock
-   or a side sheet between application regions. */
-::view-transition-group(timeline-workspace-sidebar),
-::view-transition-group(timeline-editor-sidebar),
-::view-transition-group(timeline-browser-sidebar) {
-  animation-duration: 300ms;
-  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
 ::view-transition-old(timeline-workspace-sidebar),
 ::view-transition-new(timeline-workspace-sidebar),
 ::view-transition-old(timeline-editor-sidebar),
 ::view-transition-new(timeline-editor-sidebar),
 ::view-transition-old(timeline-browser-sidebar),
 ::view-transition-new(timeline-browser-sidebar) {
-  mix-blend-mode: normal;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(timeline-workspace-sidebar),
-  ::view-transition-group(timeline-editor-sidebar),
-  ::view-transition-group(timeline-browser-sidebar) {
-    animation-duration: 0s;
-  }
-}
-
 /* Persistent application chrome is excluded from focus morph animation. Each surface has
    its own transition identity so it remains continuously visible while event detail moves. */
 .app-command-bar {
