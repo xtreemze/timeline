@@ -1340,6 +1340,9 @@
 
 /* Stacked layout for narrow containers (sidebar width ~326px) */
 @container (max-width: 400px) {
+  .timeline-focus-view[data-layout="editorial-mosaic"] {
+    padding-top: 3rem;
+  }
   .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-hero {
     grid-column: 1 / -1;
     grid-row: 1;
