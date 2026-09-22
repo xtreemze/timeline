@@ -47,6 +47,7 @@
     "test:webmcp-lifecycle-runtime": "node --test tests/webmcp-lifecycle-runtime.test.mjs",
     "test:semantic-chronology-browser": "playwright test --config=playwright.config.ts semantic-chronology.spec.ts",
     "test:graph-touch-browser": "pnpm build:graph && playwright test --config=playwright.config.ts tests/playwright/graph-touch.spec.ts --project=\"Mobile Chrome\" --project=\"Mobile Safari\" --project=\"Tablet Touch\"",
+    "test:browser-certification-config": "node --test tests/playwright-certification-config.test.mjs",
     "test:retained-performance-browser": "playwright test --config=playwright.config.ts tests/browser/retained-performance.spec.ts"
   },
   "packageManager": "pnpm@12.5.1+sha512.e3f305bc784a2bc89f5ad3b6138889470fae8d2af5f36b61216ec91c2c3d64089775f9de38aac331044ea40f245cb0d5666392dfdf65824e1907ef6a2c62de5f",
