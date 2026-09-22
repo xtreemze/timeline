@@ -7,7 +7,6 @@
 import { TimelineTemporal } from './temporal-standards.ts';
 import { TimelineSpatial } from './spatial.ts';
 import { TimelineInterchangeAdapter } from './interchange-adapter.ts';
-import { TimelineScale } from './time-scale.ts';
 import { projectTimelineOccurrences } from '../src/projection/timeline-projection.ts';
 import { TimelineEvidence } from './evidence-store.ts';
 import { TimelineGraphInference } from './graph-inference.ts';
@@ -41,11 +40,131 @@ if (!webMcp) throw new Error("TimelineWebMCP must load before app.ts.");
 const temporal = TimelineTemporal;
 const spatial = TimelineSpatial;
 const interchangeAdapter = TimelineInterchangeAdapter;
-const timeScale = TimelineScale;
 
 // Get sample data from globalThis, or fallback to blankTimeline if not available
 function getSample() {
   return globalThis.TimelineSampleCase || null;
+}
+
+type TemporalExtent = NonNullable<ReturnType<typeof TimelineTemporal.normalizeExtent>>;
+type EvidenceRecord = ReturnType<typeof TimelineEvidence.normalizeRecords>[number];
+type CustodyAction = ReturnType<typeof TimelineEvidence.normalizeCustodyActions>[number];
+
+interface CategoryRecord {
+  id: string;
+  name: string;
+  color: string;
+  extensions?: Record<string, unknown>;
+}
+
+interface MediaRecord {
+  src: string;
+  alt?: string;
+  caption?: string;
+}
+
+interface TagRecord {
+  label: string;
+  icon?: string;
+  hue?: number;
+}
+
+interface ItemPresentationRecord {
+  variant: string;
+  terminalShape: string;
+  connectorStyle: string;
+  connectorRouting: string;
+  connectorWeight: string;
+  connectorEndpoint: string;
+  lane: number | null;
+}
+
+interface RelationChangeRecord {
+  relationshipId: string;
+  operation: string;
+  predicate?: string;
+  role?: string;
+  properties?: Record<string, unknown>;
+}
+
+interface TimelineItemRecord {
+  id: string;
+  kind: "event" | "range";
+  start: string;
+  end: string | null;
+  time: TemporalExtent;
+  title: string;
+  description: string;
+  categoryId: string;
+  media?: MediaRecord[];
+  tags?: TagRecord[];
+  presentation: ItemPresentationRecord;
+  relationChanges: RelationChangeRecord[];
+  evidenceIds: string[];
+  extensions?: Record<string, unknown>;
+  location?: Record<string, unknown>;
+}
+
+interface StoryRecord {
+  id: string;
+  title: string;
+  description: string;
+  itemIds: string[];
+  placeIds: string[];
+  extensions?: Record<string, unknown>;
+}
+
+interface EntityRecord {
+  id: string;
+  name: string;
+  type?: string;
+  alternateNames?: string[];
+  identifiers?: unknown[];
+  sourceIds?: string[];
+  attributes?: Record<string, unknown>;
+}
+
+interface PlaceRecord {
+  id: string;
+  name: string;
+  geographicIdentifier?: string;
+  address?: string;
+  geometry?: { type?: string; coordinates?: unknown } | null;
+  radiusMeters?: number;
+  icon?: string;
+  markerShape?: string;
+  style?: Record<string, unknown>;
+  attributes?: Record<string, unknown>;
+}
+
+interface RelationshipRecord {
+  id: string;
+  subjectId: string;
+  objectId: string;
+  predicate: string;
+  role?: string;
+  placeId?: string;
+  itemIds?: string[];
+  initialState?: "active" | "inactive";
+  time?: unknown;
+  sourceIds?: string[];
+  confidence?: number | null;
+  attributes?: Record<string, unknown>;
+}
+
+interface TimelineState {
+  version: number;
+  title: string;
+  categories: CategoryRecord[];
+  items: TimelineItemRecord[];
+  stories: StoryRecord[];
+  entities: EntityRecord[];
+  places: PlaceRecord[];
+  relationships: RelationshipRecord[];
+  evidence: EvidenceRecord[];
+  custodyActions: CustodyAction[];
+  reasoning: unknown;
+  extensions?: Record<string, unknown>;
 }
 
 // Application version constant
@@ -53,6 +172,16 @@ const VERSION = 2;
 const STORAGE_KEY = "timeline:v2";
 const LEGACY_STORAGE_KEY = "timeline:v1";
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+const DEFAULT_CATEGORIES: ReadonlyArray<CategoryRecord> = Object.freeze([
+  { id: "incident", name: "Incident", color: "#b42318" },
+  { id: "witness", name: "Witness / Interview", color: "#7a5af8" },
+  { id: "communication", name: "Communication", color: "#2563eb" },
+  { id: "evidence", name: "Evidence", color: "#027a48" },
+  { id: "document", name: "Document / Record", color: "#667085" },
+  { id: "decision", name: "Decision / Action", color: "#b54708" },
+  { id: "transaction", name: "Transaction", color: "#0e7090" },
+  { id: "observation", name: "Observation", color: "#475467" },
+]);
 
 type EvidenceExtractionDraft = NonNullable<
   ReturnType<(typeof TimelineEvidence)["normalizeExtraction"]>
@@ -88,239 +217,250 @@ const evidenceExtraction = Reflect.get(
   "TimelineEvidenceExtraction",
 ) as EvidenceExtractionApi | undefined;
 
+
+function requiredElement<T extends Element>(selector: string): T {
+  const element = document.querySelector<T>(selector);
+  if (!element) throw new Error(`Required Timeline UI element is missing: ${selector}`);
+  return element;
+}
+
+function requiredElements<T extends Element>(selector: string): T[] {
+  return [...document.querySelectorAll<T>(selector)];
+}
+
   const els = {
-    title: document.querySelector("#timeline-title"),
-    heading: document.querySelector("#timeline-heading"),
-    itemCount: document.querySelector("#item-count"),
-    storyCount: document.querySelector("#story-count"),
-    categoryCount: document.querySelector("#category-count"),
-    visibleCount: document.querySelector("#visible-count"),
-    appShell: document.querySelector("#app-shell"),
-    appToolDock: document.querySelector(".app-tool-dock"),
-    controlPanel: document.querySelector("#control-panel"),
-    controlPanelClose: document.querySelector("#control-panel-close"),
-    editorToggle: document.querySelector("#editor-toggle"),
-    editorSurfaceTitle: document.querySelector("#editor-surface-title"),
-    panelOpeners: [...document.querySelectorAll("[data-open-panel]")],
-    semanticIconTargets: [...document.querySelectorAll("[data-semantic-icon]")],
-    projectMenu: document.querySelector("#project-menu"),
-    projectMenuToggle: document.querySelector("#project-menu-toggle"),
-    importJsonTrigger: document.querySelector("#import-json-trigger"),
-    importInterchangeTrigger: document.querySelector("#import-interchange-trigger"),
-    browserSheet: document.querySelector("#timeline-browser-sheet"),
-    browserToggle: document.querySelector("#timeline-browser-toggle"),
-    browserClose: document.querySelector("#timeline-browser-close"),
-    browserStoryList: document.querySelector("#browser-story-list"),
-    browserStoryCount: document.querySelector("#browser-story-count"),
-    viewControls: document.querySelector("#timeline-view-toolbar"),
-    viewControlsToggle: document.querySelector("#timeline-view-controls-toggle"),
-    loadSample: document.querySelector("#load-sample"),
-    importJson: document.querySelector("#import-json"),
-    importInterchange: document.querySelector("#import-interchange"),
-    exportJson: document.querySelector("#export-json"),
-    exportInterchange: document.querySelector("#export-interchange"),
-    exportMarkdown: document.querySelector("#export-markdown"),
-    clear: document.querySelector("#clear-timeline"),
-    tabs: [...document.querySelectorAll(".tab")],
-    panels: [...document.querySelectorAll(".editor-section")],
+    title: requiredElement<HTMLInputElement>("#timeline-title"),
+    heading: requiredElement<HTMLElement>("#timeline-heading"),
+    itemCount: requiredElement<HTMLElement>("#item-count"),
+    storyCount: requiredElement<HTMLElement>("#story-count"),
+    categoryCount: requiredElement<HTMLElement>("#category-count"),
+    visibleCount: requiredElement<HTMLElement>("#visible-count"),
+    appShell: requiredElement<HTMLElement>("#app-shell"),
+    appToolDock: requiredElement<HTMLElement>(".app-tool-dock"),
+    controlPanel: requiredElement<HTMLElement>("#control-panel"),
+    controlPanelClose: requiredElement<HTMLButtonElement>("#control-panel-close"),
+    editorToggle: requiredElement<HTMLButtonElement>("#editor-toggle"),
+    editorSurfaceTitle: requiredElement<HTMLElement>("#editor-surface-title"),
+    panelOpeners: requiredElements<HTMLElement>("[data-open-panel]"),
+    semanticIconTargets: requiredElements<HTMLElement>("[data-semantic-icon]"),
+    projectMenu: requiredElement<HTMLElement>("#project-menu"),
+    projectMenuToggle: requiredElement<HTMLButtonElement>("#project-menu-toggle"),
+    importJsonTrigger: requiredElement<HTMLButtonElement>("#import-json-trigger"),
+    importInterchangeTrigger: requiredElement<HTMLButtonElement>("#import-interchange-trigger"),
+    browserSheet: requiredElement<HTMLElement>("#timeline-browser-sheet"),
+    browserToggle: requiredElement<HTMLButtonElement>("#timeline-browser-toggle"),
+    browserClose: requiredElement<HTMLButtonElement>("#timeline-browser-close"),
+    browserStoryList: requiredElement<HTMLElement>("#browser-story-list"),
+    browserStoryCount: requiredElement<HTMLElement>("#browser-story-count"),
+    viewControls: requiredElement<HTMLElement>("#timeline-view-toolbar"),
+    viewControlsToggle: requiredElement<HTMLButtonElement>("#timeline-view-controls-toggle"),
+    loadSample: requiredElement<HTMLButtonElement>("#load-sample"),
+    importJson: requiredElement<HTMLInputElement>("#import-json"),
+    importInterchange: requiredElement<HTMLInputElement>("#import-interchange"),
+    exportJson: requiredElement<HTMLButtonElement>("#export-json"),
+    exportInterchange: requiredElement<HTMLButtonElement>("#export-interchange"),
+    exportMarkdown: requiredElement<HTMLButtonElement>("#export-markdown"),
+    clear: requiredElement<HTMLButtonElement>("#clear-timeline"),
+    tabs: requiredElements<HTMLElement>(".tab"),
+    panels: requiredElements<HTMLElement>(".editor-section"),
 
-    itemForm: document.querySelector("#item-form"),
-    itemId: document.querySelector("#item-id"),
-    itemKind: document.querySelector("#item-kind"),
-    itemCategory: document.querySelector("#item-category"),
-    itemLayoutVariant: document.querySelector("#item-layout-variant"),
-    itemTerminalShape: document.querySelector("#item-terminal-shape"),
-    itemConnectorStyle: document.querySelector("#item-connector-style"),
-    itemConnectorRouting: document.querySelector("#item-connector-routing"),
-    itemConnectorWeight: document.querySelector("#item-connector-weight"),
-    itemConnectorEndpoint: document.querySelector("#item-connector-endpoint"),
-    itemLane: document.querySelector("#item-lane"),
-    itemDateRange: document.querySelector("#item-date-range"),
-    itemCalendarPopover: document.querySelector("#item-calendar-popover"),
-    itemCalendarGrid: document.querySelector("#item-calendar-grid"),
-    itemCalendarMonth: document.querySelector("#item-calendar-month"),
-    itemCalendarYear: document.querySelector("#item-calendar-year"),
-    itemCalendarPrev: document.querySelector("#item-calendar-prev"),
-    itemCalendarNext: document.querySelector("#item-calendar-next"),
-    itemCalendarClear: document.querySelector("#item-calendar-clear"),
-    itemStartDate: document.querySelector("#item-start-date"),
-    itemStartTime: document.querySelector("#item-start-time"),
-    itemStartPrecision: document.querySelector("#item-start-precision"),
-    itemStartCertainty: document.querySelector("#item-start-certainty"),
-    itemStartZone: document.querySelector("#item-start-zone"),
-    itemStartTimeField: document.querySelector("#item-start-time-field"),
-    itemStartZoneField: document.querySelector("#item-start-zone-field"),
-    itemEndDate: document.querySelector("#item-end-date"),
-    itemEndTime: document.querySelector("#item-end-time"),
-    itemEndPrecision: document.querySelector("#item-end-precision"),
-    itemEndCertainty: document.querySelector("#item-end-certainty"),
-    itemEndZone: document.querySelector("#item-end-zone"),
-    itemEndTimeField: document.querySelector("#item-end-time-field"),
-    itemEndZoneField: document.querySelector("#item-end-zone-field"),
-    timeZoneOptions: document.querySelector("#time-zone-options"),
-    endField: document.querySelector("#end-field"),
-    itemTitle: document.querySelector("#item-title"),
-    itemDescription: document.querySelector("#item-description"),
-    itemMediaDetails: document.querySelector("#item-media-details"),
-    itemMediaRows: [...document.querySelectorAll("[data-media-slot]")],
-    itemTagsDetails: document.querySelector("#item-tags-details"),
-    itemTagRows: [...document.querySelectorAll("[data-tag-slot]")],
-    itemRelationChangesDetails: document.querySelector("#item-relation-changes-details"),
-    itemRelationChangeRows: [...document.querySelectorAll("[data-relation-change-slot]")],
-    itemEvidenceDetails: document.querySelector("#item-evidence-details"),
-    itemEvidenceRows: [...document.querySelectorAll("[data-evidence-slot]")],
-    itemInferenceDetails: document.querySelector("#item-inference-details"),
-    itemInferenceRun: document.querySelector("#item-inference-run"),
-    itemInferenceClear: document.querySelector("#item-inference-clear"),
-    itemInferenceStatus: document.querySelector("#item-inference-status"),
-    itemInferenceResults: document.querySelector("#item-inference-results"),
-    itemLocationDetails: document.querySelector("#item-location-details"),
-    itemLocationName: document.querySelector("#item-location-name"),
-    itemLocationIdentifier: document.querySelector("#item-location-identifier"),
-    itemLocationAddress: document.querySelector("#item-location-address"),
-    itemLocationLatitude: document.querySelector("#item-location-latitude"),
-    itemLocationLongitude: document.querySelector("#item-location-longitude"),
-    itemLocationSource: document.querySelector("#item-location-source"),
-    itemLocationAccuracy: document.querySelector("#item-location-accuracy"),
-    itemGeolocation: document.querySelector("#item-geolocation"),
-    itemLocationClear: document.querySelector("#item-location-clear"),
-    itemLocationMap: document.querySelector("#item-location-map"),
-    itemFormError: document.querySelector("#item-form-error"),
-    saveItem: document.querySelector("#save-item"),
-    cancelItemEdit: document.querySelector("#cancel-item-edit"),
-    deleteItemEdit: document.querySelector("#delete-item-edit"),
+    itemForm: requiredElement<HTMLFormElement>("#item-form"),
+    itemId: requiredElement<HTMLInputElement>("#item-id"),
+    itemKind: requiredElement<HTMLSelectElement>("#item-kind"),
+    itemCategory: requiredElement<HTMLSelectElement>("#item-category"),
+    itemLayoutVariant: requiredElement<HTMLSelectElement>("#item-layout-variant"),
+    itemTerminalShape: requiredElement<HTMLSelectElement>("#item-terminal-shape"),
+    itemConnectorStyle: requiredElement<HTMLSelectElement>("#item-connector-style"),
+    itemConnectorRouting: requiredElement<HTMLSelectElement>("#item-connector-routing"),
+    itemConnectorWeight: requiredElement<HTMLSelectElement>("#item-connector-weight"),
+    itemConnectorEndpoint: requiredElement<HTMLSelectElement>("#item-connector-endpoint"),
+    itemLane: requiredElement<HTMLInputElement>("#item-lane"),
+    itemDateRange: requiredElement<HTMLInputElement>("#item-date-range"),
+    itemCalendarPopover: requiredElement<HTMLElement>("#item-calendar-popover"),
+    itemCalendarGrid: requiredElement<HTMLElement>("#item-calendar-grid"),
+    itemCalendarMonth: requiredElement<HTMLElement>("#item-calendar-month"),
+    itemCalendarYear: requiredElement<HTMLInputElement>("#item-calendar-year"),
+    itemCalendarPrev: requiredElement<HTMLButtonElement>("#item-calendar-prev"),
+    itemCalendarNext: requiredElement<HTMLButtonElement>("#item-calendar-next"),
+    itemCalendarClear: requiredElement<HTMLButtonElement>("#item-calendar-clear"),
+    itemStartDate: requiredElement<HTMLInputElement>("#item-start-date"),
+    itemStartTime: requiredElement<HTMLInputElement>("#item-start-time"),
+    itemStartPrecision: requiredElement<HTMLSelectElement>("#item-start-precision"),
+    itemStartCertainty: requiredElement<HTMLSelectElement>("#item-start-certainty"),
+    itemStartZone: requiredElement<HTMLInputElement>("#item-start-zone"),
+    itemStartTimeField: requiredElement<HTMLLabelElement>("#item-start-time-field"),
+    itemStartZoneField: requiredElement<HTMLLabelElement>("#item-start-zone-field"),
+    itemEndDate: requiredElement<HTMLInputElement>("#item-end-date"),
+    itemEndTime: requiredElement<HTMLInputElement>("#item-end-time"),
+    itemEndPrecision: requiredElement<HTMLSelectElement>("#item-end-precision"),
+    itemEndCertainty: requiredElement<HTMLSelectElement>("#item-end-certainty"),
+    itemEndZone: requiredElement<HTMLInputElement>("#item-end-zone"),
+    itemEndTimeField: requiredElement<HTMLLabelElement>("#item-end-time-field"),
+    itemEndZoneField: requiredElement<HTMLLabelElement>("#item-end-zone-field"),
+    timeZoneOptions: requiredElement<HTMLDataListElement>("#time-zone-options"),
+    endField: requiredElement<HTMLElement>("#end-field"),
+    itemTitle: requiredElement<HTMLInputElement>("#item-title"),
+    itemDescription: requiredElement<HTMLTextAreaElement>("#item-description"),
+    itemMediaDetails: requiredElement<HTMLDetailsElement>("#item-media-details"),
+    itemMediaRows: requiredElements<HTMLElement>("[data-media-slot]"),
+    itemTagsDetails: requiredElement<HTMLDetailsElement>("#item-tags-details"),
+    itemTagRows: requiredElements<HTMLElement>("[data-tag-slot]"),
+    itemRelationChangesDetails: requiredElement<HTMLDetailsElement>("#item-relation-changes-details"),
+    itemRelationChangeRows: requiredElements<HTMLElement>("[data-relation-change-slot]"),
+    itemEvidenceDetails: requiredElement<HTMLDetailsElement>("#item-evidence-details"),
+    itemEvidenceRows: requiredElements<HTMLElement>("[data-evidence-slot]"),
+    itemInferenceDetails: requiredElement<HTMLDetailsElement>("#item-inference-details"),
+    itemInferenceRun: requiredElement<HTMLButtonElement>("#item-inference-run"),
+    itemInferenceClear: requiredElement<HTMLButtonElement>("#item-inference-clear"),
+    itemInferenceStatus: requiredElement<HTMLParagraphElement>("#item-inference-status"),
+    itemInferenceResults: requiredElement<HTMLElement>("#item-inference-results"),
+    itemLocationDetails: requiredElement<HTMLDetailsElement>("#item-location-details"),
+    itemLocationName: requiredElement<HTMLInputElement>("#item-location-name"),
+    itemLocationIdentifier: requiredElement<HTMLInputElement>("#item-location-identifier"),
+    itemLocationAddress: requiredElement<HTMLInputElement>("#item-location-address"),
+    itemLocationLatitude: requiredElement<HTMLInputElement>("#item-location-latitude"),
+    itemLocationLongitude: requiredElement<HTMLInputElement>("#item-location-longitude"),
+    itemLocationSource: requiredElement<HTMLInputElement>("#item-location-source"),
+    itemLocationAccuracy: requiredElement<HTMLInputElement>("#item-location-accuracy"),
+    itemGeolocation: requiredElement<HTMLElement>("#item-geolocation"),
+    itemLocationClear: requiredElement<HTMLButtonElement>("#item-location-clear"),
+    itemLocationMap: requiredElement<HTMLElement>("#item-location-map"),
+    itemFormError: requiredElement<HTMLParagraphElement>("#item-form-error"),
+    saveItem: requiredElement<HTMLButtonElement>("#save-item"),
+    cancelItemEdit: requiredElement<HTMLButtonElement>("#cancel-item-edit"),
+    deleteItemEdit: requiredElement<HTMLButtonElement>("#delete-item-edit"),
 
-    storyForm: document.querySelector("#story-form"),
-    storyId: document.querySelector("#story-id"),
-    storyTitle: document.querySelector("#story-title"),
-    storyDescription: document.querySelector("#story-description"),
-    storyPicker: document.querySelector("#story-picker"),
-    storyPickerCount: document.querySelector("#story-picker-count"),
-    storySequence: document.querySelector("#story-sequence"),
-    storySequenceCount: document.querySelector("#story-sequence-count"),
-    storyPlacePicker: document.querySelector("#story-place-picker"),
-    storyPlacePickerCount: document.querySelector("#story-place-picker-count"),
-    storyFormError: document.querySelector("#story-form-error"),
-    saveStory: document.querySelector("#save-story"),
-    cancelStoryEdit: document.querySelector("#cancel-story-edit"),
-    storyList: document.querySelector("#story-list"),
-    savedStoryCount: document.querySelector("#saved-story-count"),
+    storyForm: requiredElement<HTMLFormElement>("#story-form"),
+    storyId: requiredElement<HTMLInputElement>("#story-id"),
+    storyTitle: requiredElement<HTMLInputElement>("#story-title"),
+    storyDescription: requiredElement<HTMLTextAreaElement>("#story-description"),
+    storyPicker: requiredElement<HTMLElement>("#story-picker"),
+    storyPickerCount: requiredElement<HTMLElement>("#story-picker-count"),
+    storySequence: requiredElement<HTMLOListElement>("#story-sequence"),
+    storySequenceCount: requiredElement<HTMLElement>("#story-sequence-count"),
+    storyPlacePicker: requiredElement<HTMLElement>("#story-place-picker"),
+    storyPlacePickerCount: requiredElement<HTMLElement>("#story-place-picker-count"),
+    storyFormError: requiredElement<HTMLParagraphElement>("#story-form-error"),
+    saveStory: requiredElement<HTMLButtonElement>("#save-story"),
+    cancelStoryEdit: requiredElement<HTMLButtonElement>("#cancel-story-edit"),
+    storyList: requiredElement<HTMLElement>("#story-list"),
+    savedStoryCount: requiredElement<HTMLElement>("#saved-story-count"),
 
-    categoryForm: document.querySelector("#category-form"),
-    categoryId: document.querySelector("#category-id"),
-    categoryName: document.querySelector("#category-name"),
-    categoryColor: document.querySelector("#category-color"),
-    categoryFormError: document.querySelector("#category-form-error"),
-    saveCategory: document.querySelector("#save-category"),
-    cancelCategoryEdit: document.querySelector("#cancel-category-edit"),
-    categoryList: document.querySelector("#category-list"),
+    categoryForm: requiredElement<HTMLFormElement>("#category-form"),
+    categoryId: requiredElement<HTMLInputElement>("#category-id"),
+    categoryName: requiredElement<HTMLInputElement>("#category-name"),
+    categoryColor: requiredElement<HTMLInputElement>("#category-color"),
+    categoryFormError: requiredElement<HTMLParagraphElement>("#category-form-error"),
+    saveCategory: requiredElement<HTMLButtonElement>("#save-category"),
+    cancelCategoryEdit: requiredElement<HTMLButtonElement>("#cancel-category-edit"),
+    categoryList: requiredElement<HTMLElement>("#category-list"),
 
-    graphNodeForm: document.querySelector("#graph-node-form"),
-    graphNodeId: document.querySelector("#graph-node-id"),
-    graphNodeName: document.querySelector("#graph-node-name"),
-    graphNodeType: document.querySelector("#graph-node-type"),
-    graphNodeAlternateNames: document.querySelector("#graph-node-alternate-names"),
-    graphNodeIdentifiers: document.querySelector("#graph-node-identifiers"),
-    graphNodeSourceIds: document.querySelector("#graph-node-source-ids"),
-    graphNodeProperties: document.querySelector("#graph-node-properties"),
-    graphNodeError: document.querySelector("#graph-node-error"),
-    saveGraphNode: document.querySelector("#save-graph-node"),
-    cancelGraphNodeEdit: document.querySelector("#cancel-graph-node-edit"),
-    graphNodeList: document.querySelector("#graph-node-list"),
-    graphNodeCount: document.querySelector("#graph-node-count"),
-    graphPlaceForm: document.querySelector("#graph-place-form"),
-    graphPlaceId: document.querySelector("#graph-place-id"),
-    graphPlaceName: document.querySelector("#graph-place-name"),
-    graphPlaceIdentifier: document.querySelector("#graph-place-identifier"),
-    graphPlaceAddress: document.querySelector("#graph-place-address"),
-    graphPlaceLatitude: document.querySelector("#graph-place-latitude"),
-    graphPlaceLongitude: document.querySelector("#graph-place-longitude"),
-    graphPlaceRadius: document.querySelector("#graph-place-radius"),
-    graphPlaceIcon: document.querySelector("#graph-place-icon"),
-    graphPlaceMarkerShape: document.querySelector("#graph-place-marker-shape"),
-    graphPlaceMarkerColor: document.querySelector("#graph-place-marker-color"),
-    graphPlaceMarkerFillColor: document.querySelector("#graph-place-marker-fill-color"),
-    graphPlaceMarkerOpacity: document.querySelector("#graph-place-marker-opacity"),
-    graphPlaceMarkerSize: document.querySelector("#graph-place-marker-size"),
-    graphPlaceMarkerWeight: document.querySelector("#graph-place-marker-weight"),
-    graphPlacePathStroke: document.querySelector("#graph-place-path-stroke"),
-    graphPlacePathColor: document.querySelector("#graph-place-path-color"),
-    graphPlacePathWeight: document.querySelector("#graph-place-path-weight"),
-    graphPlacePathOpacity: document.querySelector("#graph-place-path-opacity"),
-    graphPlacePathDashArray: document.querySelector("#graph-place-path-dash-array"),
-    graphPlacePathDashOffset: document.querySelector("#graph-place-path-dash-offset"),
-    graphPlacePathLineCap: document.querySelector("#graph-place-path-line-cap"),
-    graphPlacePathLineJoin: document.querySelector("#graph-place-path-line-join"),
-    graphPlaceAreaFill: document.querySelector("#graph-place-area-fill"),
-    graphPlaceAreaFillColor: document.querySelector("#graph-place-area-fill-color"),
-    graphPlaceAreaFillOpacity: document.querySelector("#graph-place-area-fill-opacity"),
-    graphPlaceAreaFillRule: document.querySelector("#graph-place-area-fill-rule"),
-    graphPlaceArea: document.querySelector("#graph-place-area"),
-    graphPlaceError: document.querySelector("#graph-place-error"),
-    saveGraphPlace: document.querySelector("#save-graph-place"),
-    cancelGraphPlaceEdit: document.querySelector("#cancel-graph-place-edit"),
-    graphPlaceList: document.querySelector("#graph-place-list"),
-    graphPlaceCount: document.querySelector("#graph-place-count"),
-    graphEdgeForm: document.querySelector("#graph-edge-form"),
-    graphEdgeId: document.querySelector("#graph-edge-id"),
-    graphEdgeSubject: document.querySelector("#graph-edge-subject"),
-    graphEdgePredicate: document.querySelector("#graph-edge-predicate"),
-    graphEdgeObject: document.querySelector("#graph-edge-object"),
-    graphEdgePlace: document.querySelector("#graph-edge-place"),
-    graphEdgeItemIds: document.querySelector("#graph-edge-item-ids"),
-    graphEdgeRole: document.querySelector("#graph-edge-role"),
-    graphEdgeInitialState: document.querySelector("#graph-edge-initial-state"),
-    graphEdgeSourceIds: document.querySelector("#graph-edge-source-ids"),
-    graphEdgeConfidence: document.querySelector("#graph-edge-confidence"),
-    graphEdgeProperties: document.querySelector("#graph-edge-properties"),
-    graphEdgeTimeKind: document.querySelector("#graph-edge-time-kind"),
-    graphEdgeDateField: document.querySelector("#graph-edge-date-field"),
-    graphEdgeDateRange: document.querySelector("#graph-edge-date-range"),
-    graphEdgeCalendarPopover: document.querySelector("#graph-edge-calendar-popover"),
-    graphEdgeCalendarGrid: document.querySelector("#graph-edge-calendar-grid"),
-    graphEdgeCalendarMonth: document.querySelector("#graph-edge-calendar-month"),
-    graphEdgeCalendarYear: document.querySelector("#graph-edge-calendar-year"),
-    graphEdgeCalendarPrev: document.querySelector("#graph-edge-calendar-prev"),
-    graphEdgeCalendarNext: document.querySelector("#graph-edge-calendar-next"),
-    graphEdgeCalendarClear: document.querySelector("#graph-edge-calendar-clear"),
-    graphEdgeStartDate: document.querySelector("#graph-edge-start-date"),
-    graphEdgeEndDate: document.querySelector("#graph-edge-end-date"),
-    graphEdgeError: document.querySelector("#graph-edge-error"),
-    saveGraphEdge: document.querySelector("#save-graph-edge"),
-    cancelGraphEdgeEdit: document.querySelector("#cancel-graph-edge-edit"),
-    graphEdgeList: document.querySelector("#graph-edge-list"),
-    graphEdgeCount: document.querySelector("#graph-edge-count"),
-    graphViewRoot: document.querySelector("#temporal-graph-view"),
-    graphLens: document.querySelector("#graph-lens"),
-    presentationStage: document.querySelector("#presentation-stage"),
-    presentationFullscreenToggle: document.querySelector("#presentation-fullscreen-toggle"),
-    presentationMapPanel: document.querySelector("#presentation-map-panel"),
-    presentationMap: document.querySelector("#presentation-map"),
-    presentationMapLabel: document.querySelector("#presentation-map-label"),
+    graphNodeForm: requiredElement<HTMLFormElement>("#graph-node-form"),
+    graphNodeId: requiredElement<HTMLInputElement>("#graph-node-id"),
+    graphNodeName: requiredElement<HTMLInputElement>("#graph-node-name"),
+    graphNodeType: requiredElement<HTMLInputElement>("#graph-node-type"),
+    graphNodeAlternateNames: requiredElement<HTMLTextAreaElement>("#graph-node-alternate-names"),
+    graphNodeIdentifiers: requiredElement<HTMLTextAreaElement>("#graph-node-identifiers"),
+    graphNodeSourceIds: requiredElement<HTMLTextAreaElement>("#graph-node-source-ids"),
+    graphNodeProperties: requiredElement<HTMLTextAreaElement>("#graph-node-properties"),
+    graphNodeError: requiredElement<HTMLParagraphElement>("#graph-node-error"),
+    saveGraphNode: requiredElement<HTMLButtonElement>("#save-graph-node"),
+    cancelGraphNodeEdit: requiredElement<HTMLButtonElement>("#cancel-graph-node-edit"),
+    graphNodeList: requiredElement<HTMLElement>("#graph-node-list"),
+    graphNodeCount: requiredElement<HTMLElement>("#graph-node-count"),
+    graphPlaceForm: requiredElement<HTMLFormElement>("#graph-place-form"),
+    graphPlaceId: requiredElement<HTMLInputElement>("#graph-place-id"),
+    graphPlaceName: requiredElement<HTMLInputElement>("#graph-place-name"),
+    graphPlaceIdentifier: requiredElement<HTMLInputElement>("#graph-place-identifier"),
+    graphPlaceAddress: requiredElement<HTMLInputElement>("#graph-place-address"),
+    graphPlaceLatitude: requiredElement<HTMLInputElement>("#graph-place-latitude"),
+    graphPlaceLongitude: requiredElement<HTMLInputElement>("#graph-place-longitude"),
+    graphPlaceRadius: requiredElement<HTMLInputElement>("#graph-place-radius"),
+    graphPlaceIcon: requiredElement<HTMLSelectElement>("#graph-place-icon"),
+    graphPlaceMarkerShape: requiredElement<HTMLSelectElement>("#graph-place-marker-shape"),
+    graphPlaceMarkerColor: requiredElement<HTMLInputElement>("#graph-place-marker-color"),
+    graphPlaceMarkerFillColor: requiredElement<HTMLInputElement>("#graph-place-marker-fill-color"),
+    graphPlaceMarkerOpacity: requiredElement<HTMLInputElement>("#graph-place-marker-opacity"),
+    graphPlaceMarkerSize: requiredElement<HTMLInputElement>("#graph-place-marker-size"),
+    graphPlaceMarkerWeight: requiredElement<HTMLInputElement>("#graph-place-marker-weight"),
+    graphPlacePathStroke: requiredElement<HTMLSelectElement>("#graph-place-path-stroke"),
+    graphPlacePathColor: requiredElement<HTMLInputElement>("#graph-place-path-color"),
+    graphPlacePathWeight: requiredElement<HTMLInputElement>("#graph-place-path-weight"),
+    graphPlacePathOpacity: requiredElement<HTMLInputElement>("#graph-place-path-opacity"),
+    graphPlacePathDashArray: requiredElement<HTMLInputElement>("#graph-place-path-dash-array"),
+    graphPlacePathDashOffset: requiredElement<HTMLInputElement>("#graph-place-path-dash-offset"),
+    graphPlacePathLineCap: requiredElement<HTMLSelectElement>("#graph-place-path-line-cap"),
+    graphPlacePathLineJoin: requiredElement<HTMLSelectElement>("#graph-place-path-line-join"),
+    graphPlaceAreaFill: requiredElement<HTMLSelectElement>("#graph-place-area-fill"),
+    graphPlaceAreaFillColor: requiredElement<HTMLInputElement>("#graph-place-area-fill-color"),
+    graphPlaceAreaFillOpacity: requiredElement<HTMLInputElement>("#graph-place-area-fill-opacity"),
+    graphPlaceAreaFillRule: requiredElement<HTMLSelectElement>("#graph-place-area-fill-rule"),
+    graphPlaceArea: requiredElement<HTMLTextAreaElement>("#graph-place-area"),
+    graphPlaceError: requiredElement<HTMLParagraphElement>("#graph-place-error"),
+    saveGraphPlace: requiredElement<HTMLButtonElement>("#save-graph-place"),
+    cancelGraphPlaceEdit: requiredElement<HTMLButtonElement>("#cancel-graph-place-edit"),
+    graphPlaceList: requiredElement<HTMLElement>("#graph-place-list"),
+    graphPlaceCount: requiredElement<HTMLElement>("#graph-place-count"),
+    graphEdgeForm: requiredElement<HTMLFormElement>("#graph-edge-form"),
+    graphEdgeId: requiredElement<HTMLInputElement>("#graph-edge-id"),
+    graphEdgeSubject: requiredElement<HTMLSelectElement>("#graph-edge-subject"),
+    graphEdgePredicate: requiredElement<HTMLInputElement>("#graph-edge-predicate"),
+    graphEdgeObject: requiredElement<HTMLSelectElement>("#graph-edge-object"),
+    graphEdgePlace: requiredElement<HTMLSelectElement>("#graph-edge-place"),
+    graphEdgeItemIds: requiredElement<HTMLSelectElement>("#graph-edge-item-ids"),
+    graphEdgeRole: requiredElement<HTMLInputElement>("#graph-edge-role"),
+    graphEdgeInitialState: requiredElement<HTMLSelectElement>("#graph-edge-initial-state"),
+    graphEdgeSourceIds: requiredElement<HTMLTextAreaElement>("#graph-edge-source-ids"),
+    graphEdgeConfidence: requiredElement<HTMLInputElement>("#graph-edge-confidence"),
+    graphEdgeProperties: requiredElement<HTMLTextAreaElement>("#graph-edge-properties"),
+    graphEdgeTimeKind: requiredElement<HTMLSelectElement>("#graph-edge-time-kind"),
+    graphEdgeDateField: requiredElement<HTMLLabelElement>("#graph-edge-date-field"),
+    graphEdgeDateRange: requiredElement<HTMLInputElement>("#graph-edge-date-range"),
+    graphEdgeCalendarPopover: requiredElement<HTMLElement>("#graph-edge-calendar-popover"),
+    graphEdgeCalendarGrid: requiredElement<HTMLElement>("#graph-edge-calendar-grid"),
+    graphEdgeCalendarMonth: requiredElement<HTMLElement>("#graph-edge-calendar-month"),
+    graphEdgeCalendarYear: requiredElement<HTMLInputElement>("#graph-edge-calendar-year"),
+    graphEdgeCalendarPrev: requiredElement<HTMLButtonElement>("#graph-edge-calendar-prev"),
+    graphEdgeCalendarNext: requiredElement<HTMLButtonElement>("#graph-edge-calendar-next"),
+    graphEdgeCalendarClear: requiredElement<HTMLButtonElement>("#graph-edge-calendar-clear"),
+    graphEdgeStartDate: requiredElement<HTMLInputElement>("#graph-edge-start-date"),
+    graphEdgeEndDate: requiredElement<HTMLInputElement>("#graph-edge-end-date"),
+    graphEdgeError: requiredElement<HTMLParagraphElement>("#graph-edge-error"),
+    saveGraphEdge: requiredElement<HTMLButtonElement>("#save-graph-edge"),
+    cancelGraphEdgeEdit: requiredElement<HTMLButtonElement>("#cancel-graph-edge-edit"),
+    graphEdgeList: requiredElement<HTMLElement>("#graph-edge-list"),
+    graphEdgeCount: requiredElement<HTMLElement>("#graph-edge-count"),
+    graphViewRoot: requiredElement<HTMLElement>("#temporal-graph-view"),
+    graphLens: requiredElement<HTMLElement>("#graph-lens"),
+    presentationStage: requiredElement<HTMLElement>("#presentation-stage"),
+    presentationFullscreenToggle: requiredElement<HTMLButtonElement>("#presentation-fullscreen-toggle"),
+    presentationMapPanel: requiredElement<HTMLElement>("#presentation-map-panel"),
+    presentationMap: requiredElement<HTMLElement>("#presentation-map"),
+    presentationMapLabel: requiredElement<HTMLElement>("#presentation-map-label"),
 
-    search: document.querySelector("#timeline-search"),
-    categoryFilter: document.querySelector("#category-filter"),
-    clearFilters: document.querySelector("#clear-filters"),
-    timelineViewRoot: document.querySelector("#timeline-view"),
-    autoToggle: document.querySelector("#timeline-auto-toggle"),
-    autoSeconds: document.querySelector("#timeline-auto-seconds"),
-    autoStatus: document.querySelector("#timeline-auto-status"),
-    storyFocus: document.querySelector("#story-focus"),
-    storyFocusTitle: document.querySelector("#story-focus-title"),
-    storyFocusDescription: document.querySelector("#story-focus-description"),
-    storyFocusPosition: document.querySelector("#story-focus-position"),
-    storyPrev: document.querySelector("#story-prev"),
-    storyNext: document.querySelector("#story-next"),
-    storyExit: document.querySelector("#story-exit"),
-    empty: document.querySelector("#empty-state"),
-    filteredEmpty: document.querySelector("#filtered-empty-state"),
-    list: document.querySelector("#timeline-list"),
-    status: document.querySelector("#status"),
+    search: requiredElement<HTMLInputElement>("#timeline-search"),
+    categoryFilter: requiredElement<HTMLSelectElement>("#category-filter"),
+    clearFilters: requiredElement<HTMLButtonElement>("#clear-filters"),
+    timelineViewRoot: requiredElement<HTMLElement>("#timeline-view"),
+    autoToggle: requiredElement<HTMLButtonElement>("#timeline-auto-toggle"),
+    autoSeconds: requiredElement<HTMLInputElement>("#timeline-auto-seconds"),
+    autoStatus: requiredElement<HTMLElement>("#timeline-auto-status"),
+    storyFocus: requiredElement<HTMLElement>("#story-focus"),
+    storyFocusTitle: requiredElement<HTMLElement>("#story-focus-title"),
+    storyFocusDescription: requiredElement<HTMLElement>("#story-focus-description"),
+    storyFocusPosition: requiredElement<HTMLElement>("#story-focus-position"),
+    storyPrev: requiredElement<HTMLButtonElement>("#story-prev"),
+    storyNext: requiredElement<HTMLButtonElement>("#story-next"),
+    storyExit: requiredElement<HTMLButtonElement>("#story-exit"),
+    empty: requiredElement<HTMLElement>("#empty-state"),
+    filteredEmpty: requiredElement<HTMLElement>("#filtered-empty-state"),
+    list: requiredElement<HTMLElement>("#timeline-list"),
+    status: requiredElement<HTMLElement>("#status"),
   };
 
   let state = loadState();
-  let storyDraftIds = [];
-  let storyDraftPlaceIds = [];
+  let storyDraftIds: string[] = [];
+  let storyDraftPlaceIds: string[] = [];
   const evidenceExtractionDrafts = new Map<string, EvidenceExtractionDraft>();
   let itemInferenceDraft: ItemInferenceDraft | null = null;
   let inferenceAbortController: AbortController | null = null;
@@ -394,23 +534,19 @@ const evidenceExtraction = Reflect.get(
     endInput: els.graphEdgeEndDate,
     mode: "range",
   });
-  let presentationResizeObserver = null;
-  let viewControlsResizeObserver = null;
+  let presentationResizeObserver: ResizeObserver | null = null;
+  let viewControlsResizeObserver: ResizeObserver | null = null;
   let presentationResizeFrame = 0;
   let timelineOrientationBeforeFullscreen = null;
   let presentationMap = null;
   let presentationMapKey = "";
   let focusedGraphContextAvailable = false;
 
-  const presentationMapAnchor = els.presentationMap
-    ? document.createComment("timeline-map-home")
-    : null;
-  els.presentationMap?.after(presentationMapAnchor);
+  const presentationMapAnchor = document.createComment("timeline-map-home");
+  els.presentationMap.after(presentationMapAnchor);
 
-  const appToolDockAnchor = els.appToolDock
-    ? document.createComment("timeline-tool-dock-home")
-    : null;
-  els.appToolDock?.after(appToolDockAnchor);
+  const appToolDockAnchor = document.createComment("timeline-tool-dock-home");
+  els.appToolDock.after(appToolDockAnchor);
 
   function workspaceToolViewport() {
     const visualViewport = window.visualViewport;
@@ -812,8 +948,8 @@ const evidenceExtraction = Reflect.get(
     return `${prefix}-${random}`;
   }
 
-  function clone(value) {
-    return JSON.parse(JSON.stringify(value));
+  function clone<T>(value: T): T {
+    return JSON.parse(JSON.stringify(value)) as T;
   }
 
   function parseJsonObject(value, label = "Properties") {
@@ -855,7 +991,7 @@ const evidenceExtraction = Reflect.get(
     ].slice(0, maxItems);
   }
 
-  function normalizeExtensions(value) {
+  function normalizeExtensions(value: unknown): Record<string, unknown> | undefined {
     if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
     try {
       return clone(value);
@@ -924,13 +1060,13 @@ const evidenceExtraction = Reflect.get(
       .slice(0, 60);
   }
 
-  function normalizeTimeline(input, { strictGraph = false } = {}) {
+  function normalizeTimeline(input: any, { strictGraph = false }: { strictGraph?: boolean } = {}): TimelineState {
     if (!input || typeof input !== "object") throw new Error("Expected a timeline object.");
     const retainedMigrationExtensions = migration.extensionsWithRetainedV2(input);
     input = graph.migrateLegacySpatialModel(input, spatial);
 
-    const categories = [];
-    const categoryIds = new Set();
+    const categories: CategoryRecord[] = [];
+    const categoryIds = new Set<string>();
     const sourceCategories =
       Array.isArray(input.categories) && input.categories.length
         ? input.categories
@@ -948,7 +1084,7 @@ const evidenceExtraction = Reflect.get(
         String(raw.name || categoryLabelFromId(id))
           .trim()
           .slice(0, 60) || categoryLabelFromId(id);
-      const category = { id, name, color: normalizeColor(raw.color) };
+      const category: CategoryRecord = { id, name, color: normalizeColor(raw.color) };
       const extensions = normalizeExtensions(raw.extensions);
       if (extensions) category.extensions = extensions;
       categories.push(category);
@@ -957,16 +1093,16 @@ const evidenceExtraction = Reflect.get(
 
     if (!categories.length) {
       for (const category of DEFAULT_CATEGORIES) {
-        categories.push(clone(category));
+        categories.push({ ...category });
         categoryIds.add(category.id);
       }
     }
 
-    const ensureCategory = (rawId) => {
+    const ensureCategory = (rawId: unknown): string => {
       const candidate =
-        String(rawId || categories[0].id)
+        String(rawId || categories[0]!.id)
           .trim()
-          .slice(0, 80) || categories[0].id;
+          .slice(0, 80) || categories[0]!.id;
       if (!categoryIds.has(candidate)) {
         categories.push({ id: candidate, name: categoryLabelFromId(candidate), color: "#667085" });
         categoryIds.add(candidate);
@@ -993,7 +1129,7 @@ const evidenceExtraction = Reflect.get(
           }))
         : [];
 
-    const items = sourceItems.map((raw, index) => {
+    const items: TimelineItemRecord[] = sourceItems.map((raw: any, index: number): TimelineItemRecord => {
       if (!raw || typeof raw !== "object") throw new Error(`Item ${index + 1} is not an object.`);
       const kind = raw.kind === "range" ? "range" : "event";
       const rawStart = raw.time?.start?.value ?? raw.start;
@@ -1019,7 +1155,7 @@ const evidenceExtraction = Reflect.get(
         }
       }
 
-      const item = {
+      const item: TimelineItemRecord = {
         id:
           typeof raw.id === "string" && raw.id.trim() ? raw.id.trim().slice(0, 120) : newId("item"),
         kind,
@@ -1029,6 +1165,17 @@ const evidenceExtraction = Reflect.get(
         title,
         description: typeof raw.description === "string" ? raw.description.slice(0, 2000) : "",
         categoryId: ensureCategory(raw.categoryId || raw.category),
+        presentation: {
+          variant: "hero-split",
+          terminalShape: "rounded",
+          connectorStyle: "solid",
+          connectorRouting: "straight",
+          connectorWeight: "normal",
+          connectorEndpoint: "none",
+          lane: null,
+        },
+        relationChanges: [],
+        evidenceIds: [],
       };
       const media = presentation.normalizeMedia(raw.media);
       const tags = presentation.normalizeTags(raw.tags);
@@ -1091,8 +1238,8 @@ const evidenceExtraction = Reflect.get(
       return item;
     });
 
-    const itemIds = new Set(items.map((item) => item.id));
-    const seenStoryIds = new Set();
+    const itemIds = new Set<string>(items.map((item) => item.id));
+    const seenStoryIds = new Set<string>();
     const storyIdsNeedingPlaceInference = new Set<string>();
     const stories = (Array.isArray(input.stories) ? input.stories : []).map((raw, index) => {
       if (!raw || typeof raw !== "object") throw new Error(`Story ${index + 1} is not an object.`);
@@ -1102,8 +1249,8 @@ const evidenceExtraction = Reflect.get(
       seenStoryIds.add(id);
       const title = typeof raw.title === "string" ? raw.title.trim().slice(0, 160) : "";
       if (!title) throw new Error(`Story ${index + 1} is missing a title.`);
-      const uniqueIds = [];
-      const seenItems = new Set();
+      const uniqueIds: string[] = [];
+      const seenItems = new Set<string>();
       for (const itemId of Array.isArray(raw.itemIds) ? raw.itemIds : []) {
         if (typeof itemId === "string" && itemIds.has(itemId) && !seenItems.has(itemId)) {
           uniqueIds.push(itemId);
@@ -1112,7 +1259,7 @@ const evidenceExtraction = Reflect.get(
       }
       const hasExplicitPlaceIds = Array.isArray(raw.placeIds);
       if (!hasExplicitPlaceIds) storyIdsNeedingPlaceInference.add(id);
-      const story = {
+      const story: StoryRecord = {
         id,
         title,
         description: typeof raw.description === "string" ? raw.description.slice(0, 1500) : "",
@@ -1160,7 +1307,7 @@ const evidenceExtraction = Reflect.get(
         relationshipIds.has(change.relationshipId),
       );
     }
-    const normalized = {
+    const normalized: TimelineState = {
       version: VERSION,
       title: typeof input.title === "string" ? input.title.slice(0, 120) : "",
       categories,
@@ -1178,11 +1325,11 @@ const evidenceExtraction = Reflect.get(
     return normalized;
   }
 
-  function blankTimeline() {
+  function blankTimeline(): TimelineState {
     return {
       version: VERSION,
       title: "",
-      categories: clone(DEFAULT_CATEGORIES),
+      categories: DEFAULT_CATEGORIES.map((category) => ({ ...category })),
       items: [],
       stories: [],
       entities: [],
@@ -1194,7 +1341,7 @@ const evidenceExtraction = Reflect.get(
     };
   }
 
-  function loadState() {
+  function loadState(): TimelineState {
     try {
       const current = localStorage.getItem(STORAGE_KEY);
       if (current) return normalizeTimeline(JSON.parse(current));
@@ -1212,7 +1359,7 @@ const evidenceExtraction = Reflect.get(
     // Persisted current/legacy timelines still take precedence above this sample fallback.
     const sample = getSample();
     if (sample && sample.items && sample.items.length > 0) {
-      return sample;
+      return normalizeTimeline(clone(sample));
     }
     return blankTimeline();
   }
@@ -1226,7 +1373,7 @@ const evidenceExtraction = Reflect.get(
     }
   }
 
-  function sortItems(items = state.items) {
+  function sortItems(items: TimelineItemRecord[] = state.items): TimelineItemRecord[] {
     return [...items].sort((a, b) => {
       const startDelta = parseDate(a.start).sortKey - parseDate(b.start).sortKey;
       if (startDelta) return startDelta;
@@ -1236,19 +1383,19 @@ const evidenceExtraction = Reflect.get(
     });
   }
 
-  function getCategory(id) {
+  function getCategory(id: string): CategoryRecord | undefined {
     return state.categories.find((category) => category.id === id) || state.categories[0];
   }
 
-  function getStory(id) {
+  function getStory(id: string | null): StoryRecord | null {
     return state.stories.find((story) => story.id === id) || null;
   }
 
-  function getItem(id) {
+  function getItem(id: string): TimelineItemRecord | null {
     return state.items.find((item) => item.id === id) || null;
   }
 
-  function entityOrItemName(id) {
+  function entityOrItemName(id: string): string {
     const entity = state.entities.find((candidate) => candidate.id === id);
     if (entity) return entity.name || entity.id;
     const item = getItem(id);
@@ -1257,7 +1404,7 @@ const evidenceExtraction = Reflect.get(
     return story?.title || id;
   }
 
-  function storySpanLabel(story) {
+  function storySpanLabel(story: StoryRecord): string {
     const items = story.itemIds.map(getItem).filter(Boolean);
     if (!items.length) return "empty";
     const starts = items
@@ -1279,7 +1426,7 @@ const evidenceExtraction = Reflect.get(
     return `${(spanMs / (day * 365.2425)).toFixed(1)} years`;
   }
 
-  function storyMembershipCount(itemId) {
+  function storyMembershipCount(itemId: string): number {
     return state.stories.reduce(
       (count, story) => count + (story.itemIds.includes(itemId) ? 1 : 0),
       0,
@@ -4608,7 +4755,7 @@ const evidenceExtraction = Reflect.get(
       description: els.itemDescription.value.trim().slice(0, 2000),
       categoryId: state.categories.some((category) => category.id === els.itemCategory.value)
         ? els.itemCategory.value
-        : state.categories[0].id,
+        : state.categories[0]!.id,
       presentation: {
         variant: els.itemLayoutVariant.value,
         terminalShape: els.itemTerminalShape.value,
