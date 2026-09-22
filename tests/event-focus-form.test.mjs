@@ -323,7 +323,11 @@ test("fullscreen preserves the fused footer inside the fullscreen subtree", asyn
   assert.match(app, /if \(active\)[\s\S]*mountFullscreenToolDock\(\)/);
   assert.match(
     styles,
-    /#presentation-stage:fullscreen \.app-footer-shell[\s\S]*inset-block-end:[\s\S]*inset-inline-start:\s*50%/,
+    /#presentation-stage:fullscreen \.app-footer-shell[\s\S]*inset-inline-start:\s*50%/,
+  );
+  assert.match(
+    styles,
+    /#presentation-stage:fullscreen \.app-footer-shell[\s\S]*inset-block-end:/,
   );
   assert.match(
     timelineCss,
