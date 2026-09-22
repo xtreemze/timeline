@@ -5342,3 +5342,161 @@
   inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
   inset-inline-start: 50%;
 }
+
+
+/* Focused detail is a layout-owned sidebar, never a top-layer popover.
+   Landscape: detail left, graph right, chronology full-width below.
+   Portrait: detail above graph, chronology owns the full-height right rail. */
+.app-shell.is-event-focused #presentation-stage {
+  --focus-sidebar-inline: clamp(18rem, 34%, 34rem);
+  --focus-timeline-block: clamp(7.5rem, 21dvh, 11.5rem);
+  --focus-timeline-inline: clamp(6.5rem, 18dvw, 9.5rem);
+  align-items: stretch;
+  min-width: 0;
+  min-height: 0;
+  overflow: clip;
+}
+
+.app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar:not([hidden]) {
+  position: relative;
+  inset: auto;
+  z-index: 3;
+  display: grid;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar[popover] {
+  position: relative;
+  inset: auto;
+}
+
+.app-shell.is-event-focused #presentation-stage > .presentation-map-panel {
+  display: none;
+}
+
+.app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="horizontal"] {
+  grid-template-columns: var(--focus-sidebar-inline) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) var(--focus-timeline-block);
+  gap: 0;
+}
+
+.app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="horizontal"]
+  > .timeline-focus-sidebar:not([hidden]) {
+  grid-column: 1;
+  grid-row: 1;
+  border-inline-end: 1px solid var(--line);
+  border-block-end: 1px solid var(--line);
+}
+
+.app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="horizontal"]
+  > .graph-lens:not([hidden]) {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+  border-width: 0 0 1px;
+  border-radius: 0;
+}
+
+.app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="horizontal"]
+  > .timeline-view {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+}
+
+.app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="vertical"] {
+  grid-template-columns: minmax(0, 1fr) var(--focus-timeline-inline);
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 0;
+}
+
+.app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="vertical"]
+  > .timeline-focus-sidebar:not([hidden]) {
+  grid-column: 1;
+  grid-row: 1;
+  border-inline-end: 1px solid var(--line);
+  border-block-end: 1px solid var(--line);
+}
+
+.app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="vertical"]
+  > .graph-lens:not([hidden]) {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0;
+  border-width: 0 1px 0 0;
+  border-radius: 0;
+}
+
+.app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="vertical"]
+  > .timeline-view {
+  grid-column: 2;
+  grid-row: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+}
+
+.app-shell.is-event-focused #presentation-stage > .graph-lens:not([hidden]),
+.app-shell.is-event-focused #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-view,
+.app-shell.is-event-focused #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-canvas {
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+}
+
+.app-shell.is-event-focused #presentation-stage > .graph-lens:not([hidden]) {
+  display: grid;
+  overflow: hidden;
+}
+
+.app-shell.is-event-focused #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-view {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+  border-top: 0;
+}
+
+.app-shell.is-event-focused #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-toolbar {
+  display: none;
+}
+
+.app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar .timeline-focus-hero {
+  min-height: 0;
+  max-height: min(34dvh, 22rem);
+}
+
+@media (max-width: 760px) {
+  .app-shell.is-event-focused #presentation-stage {
+    --focus-sidebar-inline: clamp(14rem, 42%, 20rem);
+    --focus-timeline-block: clamp(6.75rem, 19dvh, 9rem);
+    --focus-timeline-inline: clamp(5.75rem, 22dvw, 7.5rem);
+  }
+
+  .app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar:not([hidden]) {
+    font-size: 0.92em;
+  }
+}
