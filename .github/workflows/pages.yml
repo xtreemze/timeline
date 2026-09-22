@@ -80,9 +80,8 @@ jobs:
       - name: Validate architecture tests
         run: pnpm test:architecture
 
-      - name: Inventory legacy migrated tests
-        run: |
-          pnpm test || echo "⚠ Legacy ESM/TypeScript test migration debt tracked in issue 258"
+      - name: Run full migrated Node test suite
+        run: pnpm test
 
       - name: Run E2E tests
         run: pnpm test:e2e
