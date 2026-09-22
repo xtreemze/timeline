@@ -313,11 +313,12 @@ function create(container, handlers = {}) {
     if (simulator) {
       simulator.setSettings(layout);
       if (request.reason !== "idle") simulator.activateSimulation();
-      return;
+      return true;
     }
-    // Orb does not expose simulation activation publicly in every renderer
-    // mode. Keep settings behind Timeline's coordinator even on fallback.
+    // Renderer switches can temporarily detach Orb's simulator. Keep the
+    // request pending so Timeline can retry once render reattaches it.
     orb.setSettings({ layout });
+    return false;
   }
 
   const simulationCoordinator = createGraphSimulationCoordinator({
@@ -1564,9 +1565,13 @@ function create(container, handlers = {}) {
     });
     seedInitialNodePositions();
     hasGraphData = true;
-    // With Orb's automatic data/settings simulation disabled, render first so
-    // the simulator sees the new node set before Timeline activates the solve.
-    orb.render();
+    // Render the new data first. Orb may replace its renderer/simulator while
+    // materializing a new topology, so never mark a request applied against
+    // the pre-render simulator. If the post-render simulator is still
+    // detached, the coordinator keeps this request pending for a later retry.
+    orb.render(() => {
+      simulationCoordinator.retry();
+    });
     requestSimulation("topology", 0);
     handlers.onSimulationState?.({ running: true, mode: currentMode });
   }
