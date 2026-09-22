@@ -10,6 +10,7 @@ import { TimelineInterchangeAdapter } from './interchange-adapter.ts';
 import { projectTimelineOccurrences } from '../src/projection/timeline-projection.ts';
 import { TimelineEvidence } from './evidence-store.ts';
 import { TimelineGraphInference } from './graph-inference.ts';
+import { planWorkspacePlacement } from '../src/layout/workspace-layout.ts';
 
 // Import globals that still use globalThis (not yet converted)
 const graph = globalThis.TimelineGraph;
@@ -689,7 +690,7 @@ function closestEventTarget<T extends HTMLElement>(
   }
 
   function positionViewControls() {
-    if (!els.viewControls || !els.viewControlsToggle || !viewControlsAreOpen()) return;
+    if (!viewControlsAreOpen()) return;
 
     if (presentationIsFullscreen()) {
       clearViewControlsPosition();
@@ -702,64 +703,126 @@ function closestEventTarget<T extends HTMLElement>(
     const dockRect = els.appToolDock.getBoundingClientRect();
     const viewport = workspaceToolViewport();
     const orientation =
-      els.timelineViewRoot?.dataset.orientation === "portrait" ? "portrait" : "landscape";
+      els.timelineViewRoot.dataset.orientation === "portrait" ? "portrait" : "landscape";
     const gap = 8;
     const edge = 8;
-    const minLeft = viewport.left + edge;
-    const minTop = viewport.top + edge;
-    const maxRight = viewport.left + viewport.width - edge;
-    const maxBottom = viewport.top + viewport.height - edge;
-    const measuredWidth = Math.min(
-      Math.max(1, toolbarRect.width || els.viewControls.offsetWidth || 1),
-      Math.max(1, maxRight - minLeft),
-    );
-    const measuredHeight = Math.min(
-      Math.max(1, toolbarRect.height || els.viewControls.offsetHeight || 1),
-      Math.max(1, maxBottom - minTop),
-    );
+    const measuredWidth = Math.max(1, toolbarRect.width || els.viewControls.offsetWidth || 1);
+    const measuredHeight = Math.max(1, toolbarRect.height || els.viewControls.offsetHeight || 1);
+    const anchor = {
+      x: triggerRect.left + triggerRect.width / 2,
+      y: triggerRect.top + triggerRect.height / 2,
+    };
 
-    let toolbarWidth = measuredWidth;
-    let toolbarHeight = measuredHeight;
-    let left = 0;
-    let top = 0;
-    let placement = "";
+    const candidates =
+      orientation === "portrait"
+        ? [
+            {
+              id: "left",
+              rect: {
+                x: dockRect.left - gap - measuredWidth,
+                y: anchor.y - measuredHeight / 2,
+                width: Math.min(
+                  measuredWidth,
+                  Math.max(1, dockRect.left - gap - (viewport.left + edge)),
+                ),
+                height: measuredHeight,
+              },
+            },
+            {
+              id: "right",
+              rect: {
+                x: dockRect.right + gap,
+                y: anchor.y - measuredHeight / 2,
+                width: Math.min(
+                  measuredWidth,
+                  Math.max(
+                    1,
+                    viewport.left + viewport.width - edge - dockRect.right - gap,
+                  ),
+                ),
+                height: measuredHeight,
+              },
+            },
+          ]
+        : [
+            {
+              id: "above",
+              rect: {
+                x: anchor.x - measuredWidth / 2,
+                y: dockRect.top - gap - measuredHeight,
+                width: measuredWidth,
+                height: Math.min(
+                  measuredHeight,
+                  Math.max(1, dockRect.top - gap - (viewport.top + edge)),
+                ),
+              },
+            },
+            {
+              id: "below",
+              rect: {
+                x: anchor.x - measuredWidth / 2,
+                y: dockRect.bottom + gap,
+                width: measuredWidth,
+                height: Math.min(
+                  measuredHeight,
+                  Math.max(
+                    1,
+                    viewport.top + viewport.height - edge - dockRect.bottom - gap,
+                  ),
+                ),
+              },
+            },
+          ];
+
+    const snapshot = planWorkspacePlacement({
+      viewport: {
+        x: viewport.left,
+        y: viewport.top,
+        width: viewport.width,
+        height: viewport.height,
+        safeInsets: { top: edge, right: edge, bottom: edge, left: edge },
+      },
+      anchor,
+      exclusionZones: [
+        {
+          id: "app-tool-dock",
+          rect: {
+            x: dockRect.left,
+            y: dockRect.top,
+            width: dockRect.width,
+            height: dockRect.height,
+          },
+        },
+      ],
+      candidates,
+    });
+    const selected = snapshot.selected;
+    if (!selected) return;
 
     if (orientation === "portrait") {
-      const roomLeft = Math.max(1, dockRect.left - gap - minLeft);
-      const roomRight = Math.max(1, maxRight - dockRect.right - gap);
-      const opensLeft = roomLeft >= roomRight;
-      const availableRoom = opensLeft ? roomLeft : roomRight;
-      toolbarWidth = Math.min(measuredWidth, availableRoom);
-      left = opensLeft ? dockRect.left - gap - toolbarWidth : dockRect.right + gap;
-      top = triggerRect.top + triggerRect.height / 2 - toolbarHeight / 2;
-      placement = opensLeft ? "left" : "right";
       els.viewControls.style.setProperty(
         "--view-controls-inline-size",
-        `${Math.floor(toolbarWidth)}px`,
+        `${Math.floor(selected.rect.width)}px`,
       );
       els.viewControls.style.removeProperty("--view-controls-block-size");
     } else {
-      const roomAbove = Math.max(1, dockRect.top - gap - minTop);
-      const roomBelow = Math.max(1, maxBottom - dockRect.bottom - gap);
-      const opensAbove = roomAbove >= roomBelow;
-      const availableRoom = opensAbove ? roomAbove : roomBelow;
-      toolbarHeight = Math.min(measuredHeight, availableRoom);
-      top = opensAbove ? dockRect.top - gap - toolbarHeight : dockRect.bottom + gap;
-      left = triggerRect.left + triggerRect.width / 2 - toolbarWidth / 2;
-      placement = opensAbove ? "above" : "below";
       els.viewControls.style.setProperty(
         "--view-controls-block-size",
-        `${Math.floor(toolbarHeight)}px`,
+        `${Math.floor(selected.rect.height)}px`,
       );
       els.viewControls.style.removeProperty("--view-controls-inline-size");
     }
 
-    left = Math.min(Math.max(minLeft, left), Math.max(minLeft, maxRight - toolbarWidth));
-    top = Math.min(Math.max(minTop, top), Math.max(minTop, maxBottom - toolbarHeight));
-
-    els.viewControls.dataset.anchorPlacement = placement;
-    els.viewControls.style.setProperty("--view-controls-left", `${Math.round(left)}px`);
-    els.viewControls.style.setProperty("--view-controls-top", `${Math.round(top)}px`);
+    els.viewControls.dataset.anchorPlacement = selected.id;
+    els.viewControls.dataset.placementValid = String(snapshot.fullySatisfiesConstraints);
+    els.viewControls.style.setProperty(
+      "--view-controls-left",
+      `${Math.round(selected.rect.x)}px`,
+    );
+    els.viewControls.style.setProperty(
+      "--view-controls-top",
+      `${Math.round(selected.rect.y)}px`,
+    );
     els.viewControls.style.setProperty("--view-controls-right", "auto");
     els.viewControls.style.setProperty("--view-controls-bottom", "auto");
   }
