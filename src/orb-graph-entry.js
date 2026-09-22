@@ -361,6 +361,8 @@ function create(container, handlers = {}) {
 
   const onCompetingPointerDown = (event) => {
     if (!isCompetingSurfaceTarget(event.target)) return;
+    // Do not pause force if a node is currently being dragged
+    if (touchHold?.activated) return;
     competingPointerIds.add(event.pointerId);
     pauseForceForCompetingGesture();
   };
