@@ -1663,8 +1663,12 @@ function create(container, handlers = {}) {
       edges: edges.map((edge) => transitionRecord(edge, "active")),
     });
     hasGraphData = true;
-    requestSimulation("topology", 0);
+    // Render the new data first. Orb may replace its renderer/simulator while
+    // materializing a new topology, so never mark a request applied against
+    // the pre-render simulator. If the post-render simulator is still
+    // detached, the coordinator keeps this request pending for a later retry.
     orb.render();
+    requestSimulation("topology", 0);
     simulationCoordinator.retry();
     queuePresentationForceUpdate();
     handlers.onSimulationState?.({ running: true, mode: currentMode });
