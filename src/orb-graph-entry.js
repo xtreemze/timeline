@@ -1304,7 +1304,6 @@ function create(container, handlers = {}) {
     if (simulationState.reason === "topology" && topologyTimers.size === 0) {
       releaseSimulation("topology");
     } else if (
-      simulationState.reason === "popover-exclusion" ||
       simulationState.reason === "post-drop" ||
       simulationState.reason === "geometry-refresh"
     ) {
