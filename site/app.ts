@@ -321,8 +321,15 @@ function requiredElements<T extends Element>(selector: string): T[] {
   return [...document.querySelectorAll<T>(selector)];
 }
 
-function eventTargetElement(event: Event): Element | null {
-  return event.target instanceof Element ? event.target : null;
+function eventTargetElement(event: Event): HTMLElement | null {
+  return event.target instanceof HTMLElement ? event.target : null;
+}
+
+function closestEventTarget<T extends HTMLElement>(
+  event: Event,
+  selector: string,
+): T | null {
+  return eventTargetElement(event)?.closest<T>(selector) ?? null;
 }
 
   const els = {
@@ -1390,16 +1397,18 @@ function eventTargetElement(event: Event): Element | null {
         title,
         description: typeof raw.description === "string" ? raw.description.slice(0, 1500) : "",
         itemIds: uniqueIds,
-        placeIds: [
-          ...new Set(
-            (hasExplicitPlaceIds ? raw.placeIds : [])
-              .filter(
-                (placeId): placeId is string =>
-                  typeof placeId === "string" && Boolean(placeId.trim()),
-              )
-              .map((placeId) => placeId.trim().slice(0, 120)),
-          ),
-        ],
+        placeIds: hasExplicitPlaceIds
+          ? [
+              ...new Set(
+                (raw.placeIds as unknown[])
+                  .filter(
+                    (placeId): placeId is string =>
+                      typeof placeId === "string" && Boolean(placeId.trim()),
+                  )
+                  .map((placeId) => placeId.trim().slice(0, 120)),
+              ),
+            ]
+          : [],
       };
       const extensions = normalizeExtensions(raw.extensions);
       if (extensions) story.extensions = extensions;
@@ -2370,13 +2379,13 @@ function eventTargetElement(event: Event): Element | null {
     els.itemTagsDetails.open = normalized.length > 0;
   }
 
-  function relationChangeRowParts(row) {
+  function relationChangeRowParts(row: HTMLElement) {
     return {
-      relationship: row.querySelector('select[id$="-relation"]'),
-      operation: row.querySelector('select[id$="-operation"]'),
-      predicate: row.querySelector('input[id$="-predicate"]'),
-      role: row.querySelector('input[id$="-role"]'),
-      properties: row.querySelector('textarea[id$="-properties"]'),
+      relationship: row.querySelector<HTMLSelectElement>('select[id$="-relation"]')!,
+      operation: row.querySelector<HTMLSelectElement>('select[id$="-operation"]')!,
+      predicate: row.querySelector<HTMLInputElement>('input[id$="-predicate"]')!,
+      role: row.querySelector<HTMLInputElement>('input[id$="-role"]')!,
+      properties: row.querySelector<HTMLTextAreaElement>('textarea[id$="-properties"]')!,
     };
   }
 
@@ -2912,8 +2921,13 @@ function eventTargetElement(event: Event): Element | null {
       const heading = document.createElement("h4");
       heading.textContent = "Actions to apply on save";
       elements.push(heading);
-      const entityByKey = new Map(
-        proposal.entities.map((candidate) => [candidate.key, candidate]),
+      const entityByKey = new Map<string, (typeof proposal.entities)[number]>(
+        proposal.entities.map(
+          (candidate): [string, (typeof proposal.entities)[number]] => [
+            String(candidate.key),
+            candidate,
+          ],
+        ),
       );
       for (const candidate of proposal.relationships) {
         const label = document.createElement("label");
@@ -2976,7 +2990,7 @@ function eventTargetElement(event: Event): Element | null {
       ) || []),
     ]
       .map((input) => input.dataset.inferenceRelationship)
-      .filter(Boolean);
+      .filter((key): key is string => Boolean(key));
   }
 
   async function syncInferenceAvailability() {
@@ -3099,13 +3113,13 @@ function eventTargetElement(event: Event): Element | null {
 
   function fillLocationForm(location) {
     const parts = spatial.formParts(location);
-    els.itemLocationName.value = parts.name;
-    els.itemLocationIdentifier.value = parts.geographicIdentifier;
-    els.itemLocationAddress.value = parts.address;
-    els.itemLocationLatitude.value = parts.latitude;
-    els.itemLocationLongitude.value = parts.longitude;
-    els.itemLocationSource.value = parts.source;
-    els.itemLocationAccuracy.value = parts.accuracyMeters;
+    els.itemLocationName.value = String(parts.name ?? "");
+    els.itemLocationIdentifier.value = String(parts.geographicIdentifier ?? "");
+    els.itemLocationAddress.value = String(parts.address ?? "");
+    els.itemLocationLatitude.value = String(parts.latitude ?? "");
+    els.itemLocationLongitude.value = String(parts.longitude ?? "");
+    els.itemLocationSource.value = String(parts.source ?? "");
+    els.itemLocationAccuracy.value = String(parts.accuracyMeters ?? "");
     els.itemLocationDetails.open = Boolean(location);
     if (location) locationMap?.refresh();
   }
@@ -3218,7 +3232,7 @@ function eventTargetElement(event: Event): Element | null {
     }
 
     if (els.storyPlacePicker) {
-      const placeRows = state.places.map((place) => {
+      const placeRows: HTMLElement[] = state.places.map((place) => {
         const label = document.createElement("label");
         label.className = "picker-row";
         const checkbox = document.createElement("input");
@@ -3257,7 +3271,7 @@ function eventTargetElement(event: Event): Element | null {
       const title = document.createElement("strong");
       title.textContent = item.title;
       const meta = document.createElement("span");
-      meta.textContent = `${formatDateInline(item.start)} · ${getCategory(item.categoryId).name}`;
+      meta.textContent = `${formatDateInline(item.start)} · ${getCategory(item.categoryId)?.name ?? item.categoryId}`;
       copy.append(title, meta);
       label.append(checkbox, copy);
       return label;
@@ -3293,7 +3307,7 @@ function eventTargetElement(event: Event): Element | null {
         row.append(number, title, actions);
         return row;
       })
-      .filter(Boolean);
+      .filter((row): row is HTMLLIElement => row !== null);
     els.storySequence.replaceChildren(...sequenceRows);
   }
 
@@ -3436,6 +3450,7 @@ function eventTargetElement(event: Event): Element | null {
     const story = getStory(ui.activeStoryId);
     if (!story?.itemIds.length) return;
     const currentId = story.itemIds[ui.storyCursor];
+    if (!currentId) return;
     if (openFocus) {
       timelineView?.focusItem(currentId, {
         direction: Number(options.direction ?? 1) < 0 ? -1 : 1,
@@ -3498,6 +3513,7 @@ function eventTargetElement(event: Event): Element | null {
     }
     const usage = state.items.filter((item) => item.categoryId === id).length;
     const replacement = state.categories.find((candidate) => candidate.id !== id);
+    if (!replacement) return;
     const detail = usage
       ? ` ${usage} ${usage === 1 ? "item" : "items"} will be reassigned to “${replacement.name}”.`
       : "";
@@ -3661,7 +3677,7 @@ function eventTargetElement(event: Event): Element | null {
 
   function renderGraphNodes() {
     els.graphNodeCount.textContent = String(state.entities.length);
-    const rows = state.entities.map((entity) => {
+    const rows: HTMLElement[] = state.entities.map((entity) => {
       const row = document.createElement("article");
       row.className = "graph-record";
       row.dataset.id = entity.id;
@@ -3759,32 +3775,34 @@ function eventTargetElement(event: Event): Element | null {
     setActivePanel("graph");
     const parts = spatial.placeFormParts(place);
     els.graphPlaceId.value = place.id;
-    els.graphPlaceName.value = parts.name;
-    els.graphPlaceIdentifier.value = parts.geographicIdentifier;
-    els.graphPlaceAddress.value = parts.address;
-    els.graphPlaceLatitude.value = parts.latitude;
-    els.graphPlaceLongitude.value = parts.longitude;
-    els.graphPlaceRadius.value = parts.radiusMeters;
-    els.graphPlaceIcon.value = presentation.ICON_NAMES.includes(parts.icon) ? parts.icon : "place";
-    els.graphPlaceMarkerShape.value = parts.markerShape;
-    els.graphPlaceMarkerColor.value = parts.markerColor;
-    els.graphPlaceMarkerFillColor.value = parts.markerFillColor;
-    els.graphPlaceMarkerOpacity.value = parts.markerOpacity;
-    els.graphPlaceMarkerSize.value = parts.markerSize;
-    els.graphPlaceMarkerWeight.value = parts.markerWeight;
-    els.graphPlacePathStroke.value = parts.pathStroke;
-    els.graphPlacePathColor.value = parts.pathColor;
-    els.graphPlacePathWeight.value = parts.pathWeight;
-    els.graphPlacePathOpacity.value = parts.pathOpacity;
-    els.graphPlacePathDashArray.value = parts.pathDashArray;
-    els.graphPlacePathDashOffset.value = parts.pathDashOffset;
-    els.graphPlacePathLineCap.value = parts.pathLineCap;
-    els.graphPlacePathLineJoin.value = parts.pathLineJoin;
-    els.graphPlaceAreaFill.value = parts.areaFill;
-    els.graphPlaceAreaFillColor.value = parts.areaFillColor;
-    els.graphPlaceAreaFillOpacity.value = parts.areaFillOpacity;
-    els.graphPlaceAreaFillRule.value = parts.areaFillRule;
-    els.graphPlaceArea.value = parts.areaGeometry;
+    els.graphPlaceName.value = String(parts.name ?? "");
+    els.graphPlaceIdentifier.value = String(parts.geographicIdentifier ?? "");
+    els.graphPlaceAddress.value = String(parts.address ?? "");
+    els.graphPlaceLatitude.value = String(parts.latitude ?? "");
+    els.graphPlaceLongitude.value = String(parts.longitude ?? "");
+    els.graphPlaceRadius.value = String(parts.radiusMeters ?? "");
+    els.graphPlaceIcon.value = presentation.ICON_NAMES.includes(String(parts.icon))
+      ? String(parts.icon)
+      : "place";
+    els.graphPlaceMarkerShape.value = String(parts.markerShape ?? "");
+    els.graphPlaceMarkerColor.value = String(parts.markerColor ?? "");
+    els.graphPlaceMarkerFillColor.value = String(parts.markerFillColor ?? "");
+    els.graphPlaceMarkerOpacity.value = String(parts.markerOpacity ?? "");
+    els.graphPlaceMarkerSize.value = String(parts.markerSize ?? "");
+    els.graphPlaceMarkerWeight.value = String(parts.markerWeight ?? "");
+    els.graphPlacePathStroke.value = String(parts.pathStroke ?? "");
+    els.graphPlacePathColor.value = String(parts.pathColor ?? "");
+    els.graphPlacePathWeight.value = String(parts.pathWeight ?? "");
+    els.graphPlacePathOpacity.value = String(parts.pathOpacity ?? "");
+    els.graphPlacePathDashArray.value = String(parts.pathDashArray ?? "");
+    els.graphPlacePathDashOffset.value = String(parts.pathDashOffset ?? "");
+    els.graphPlacePathLineCap.value = String(parts.pathLineCap ?? "");
+    els.graphPlacePathLineJoin.value = String(parts.pathLineJoin ?? "");
+    els.graphPlaceAreaFill.value = String(parts.areaFill ?? "");
+    els.graphPlaceAreaFillColor.value = String(parts.areaFillColor ?? "");
+    els.graphPlaceAreaFillOpacity.value = String(parts.areaFillOpacity ?? "");
+    els.graphPlaceAreaFillRule.value = String(parts.areaFillRule ?? "");
+    els.graphPlaceArea.value = String(parts.areaGeometry ?? "");
     els.saveGraphPlace.textContent = "Save place";
     els.cancelGraphPlaceEdit.hidden = false;
     setError(els.graphPlaceError);
@@ -3920,7 +3938,10 @@ function eventTargetElement(event: Event): Element | null {
     els.graphEdgeInitialState.value =
       relationship.initialState === "inactive" ? "inactive" : "active";
     els.graphEdgeSourceIds.value = (relationship.sourceIds || []).join("\n");
-    els.graphEdgeConfidence.value = relationship.confidence ?? "";
+    els.graphEdgeConfidence.value =
+      relationship.confidence === null || relationship.confidence === undefined
+        ? ""
+        : String(relationship.confidence);
     els.graphEdgeProperties.value = JSON.stringify(relationship.attributes || {}, null, 2);
     const timeKind = relationship.time?.end
       ? "range"
@@ -4317,7 +4338,7 @@ function eventTargetElement(event: Event): Element | null {
   els.autoSeconds.addEventListener("change", () => {
     const seconds = Math.max(2, Math.min(3600, Number(els.autoSeconds.value) || 10));
     els.autoSeconds.value = String(seconds);
-    navigationController.auto.setIntervalMs(seconds * 1000);
+    navigationController!.auto.setIntervalMs(seconds * 1000);
   });
 
   function closeProjectMenu() {
@@ -4558,8 +4579,8 @@ function eventTargetElement(event: Event): Element | null {
   els.cancelGraphNodeEdit.addEventListener("click", resetGraphNodeForm);
 
   els.graphNodeList.addEventListener("click", (event) => {
-    const button = eventTargetElement(event)?.closest("button[data-action]");
-    const row = eventTargetElement(event)?.closest(".graph-record");
+    const button = closestEventTarget<HTMLButtonElement>(event, "button[data-action]");
+    const row = closestEventTarget<HTMLElement>(event, ".graph-record");
     if (!button || !row) return;
     if (button.dataset.action === "edit-graph-node") beginGraphNodeEdit(row.dataset.id);
     if (button.dataset.action === "delete-graph-node") removeGraphNode(row.dataset.id);
@@ -4635,8 +4656,8 @@ function eventTargetElement(event: Event): Element | null {
   els.cancelGraphPlaceEdit.addEventListener("click", resetGraphPlaceForm);
 
   els.graphPlaceList.addEventListener("click", (event) => {
-    const button = eventTargetElement(event)?.closest("button[data-action]");
-    const row = eventTargetElement(event)?.closest(".graph-record");
+    const button = closestEventTarget<HTMLButtonElement>(event, "button[data-action]");
+    const row = closestEventTarget<HTMLElement>(event, ".graph-record");
     if (!button || !row) return;
     if (button.dataset.action === "edit-graph-place") beginGraphPlaceEdit(row.dataset.id);
     if (button.dataset.action === "delete-graph-place") removeGraphPlace(row.dataset.id);
@@ -4703,7 +4724,7 @@ function eventTargetElement(event: Event): Element | null {
       return;
     }
 
-    const relationship = {
+    const relationship: RelationshipRecord = {
       id: els.graphEdgeId.value || newId("relationship"),
       subjectId,
       objectId,
@@ -4758,8 +4779,8 @@ function eventTargetElement(event: Event): Element | null {
   els.cancelGraphEdgeEdit.addEventListener("click", resetGraphEdgeForm);
 
   els.graphEdgeList.addEventListener("click", (event) => {
-    const button = eventTargetElement(event)?.closest("button[data-action]");
-    const row = eventTargetElement(event)?.closest(".graph-record");
+    const button = closestEventTarget<HTMLButtonElement>(event, "button[data-action]");
+    const row = closestEventTarget<HTMLElement>(event, ".graph-record");
     if (!button || !row) return;
     if (button.dataset.action === "edit-graph-edge") beginGraphEdgeEdit(row.dataset.id);
     if (button.dataset.action === "delete-graph-edge") removeGraphEdge(row.dataset.id);
@@ -4790,7 +4811,7 @@ function eventTargetElement(event: Event): Element | null {
       active instanceof HTMLInputElement ||
       active instanceof HTMLTextAreaElement ||
       active instanceof HTMLSelectElement ||
-      active?.isContentEditable
+      (active instanceof HTMLElement && active.isContentEditable)
     )
       return;
     const stageHasFocus = Boolean(
@@ -4905,15 +4926,20 @@ function eventTargetElement(event: Event): Element | null {
       return;
     }
 
-    const item = {
+    if (kind === "range" && !endEndpoint) {
+      setError(els.itemFormError, "A range requires an end value.");
+      return;
+    }
+
+    const item: TimelineItemRecord = {
       id: els.itemId.value || newId("item"),
       kind,
-      start: startEndpoint.value,
-      end: kind === "range" ? endEndpoint.value : null,
+      start: startEndpoint.value!,
+      end: kind === "range" ? endEndpoint!.value! : null,
       time: {
         type: kind === "range" ? "interval" : "instant",
         start: startEndpoint,
-        end: kind === "range" ? endEndpoint : null,
+        end: kind === "range" ? endEndpoint! : null,
       },
       title: title.slice(0, 160),
       description: els.itemDescription.value.trim().slice(0, 2000),
@@ -4966,12 +4992,15 @@ function eventTargetElement(event: Event): Element | null {
         }
         const selected = selectedInferenceRelationshipKeys();
         inferredRelationshipCount = selected.length;
-        draft = graphInference.applyProposal(
-          draft,
-          item,
-          itemInferenceDraft.proposal,
-          selected,
-          { graph, spatial },
+        draft = normalizeTimeline(
+          graphInference.applyProposal(
+            draft,
+            item,
+            itemInferenceDraft.proposal,
+            selected,
+            { graph, spatial },
+          ),
+          { strictGraph: true },
         );
       }
       state = normalizeTimeline(draft, { strictGraph: true });
@@ -5005,7 +5034,7 @@ function eventTargetElement(event: Event): Element | null {
   els.list.addEventListener(
     "toggle",
     (event) => {
-      const details = event.target.closest?.(".timeline-category-group");
+      const details = closestEventTarget<HTMLDetailsElement>(event, ".timeline-category-group");
       if (!details) return;
       if (details.open) ui.collapsedCategoryIds.delete(details.dataset.categoryId);
       else ui.collapsedCategoryIds.add(details.dataset.categoryId);
@@ -5014,20 +5043,22 @@ function eventTargetElement(event: Event): Element | null {
   );
 
   els.list.addEventListener("click", (event) => {
-    const button = eventTargetElement(event)?.closest("button[data-action]");
+    const button = closestEventTarget<HTMLButtonElement>(event, "button[data-action]");
     if (!button) return;
 
     if (button.dataset.action === "focus-category") {
-      const group = eventTargetElement(event)?.closest(".timeline-category-shell");
-      if (group) focusCategory(group.dataset.categoryId);
+      const group = closestEventTarget<HTMLElement>(event, ".timeline-category-shell");
+      const categoryId = group?.dataset.categoryId;
+      if (categoryId) focusCategory(categoryId);
       return;
     }
 
-    const itemElement = eventTargetElement(event)?.closest(".timeline-item");
+    const itemElement = closestEventTarget<HTMLElement>(event, ".timeline-item");
     if (!itemElement) return;
     if (button.dataset.action === "focus-item") {
       setBrowserSurfaceOpen(false);
-      timelineView?.focusItem(itemElement.dataset.id);
+      const itemId = itemElement.dataset.id;
+      if (itemId) timelineView?.focusItem(itemId);
     }
     if (button.dataset.action === "story-focus") {
       ui.storyCursor = Number(button.dataset.storyIndex);
@@ -5037,7 +5068,7 @@ function eventTargetElement(event: Event): Element | null {
   });
 
   els.storyPicker.addEventListener("change", (event) => {
-    const checkbox = eventTargetElement(event)?.closest('input[type="checkbox"]');
+    const checkbox = closestEventTarget<HTMLInputElement>(event, 'input[type="checkbox"]');
     if (!checkbox) return;
     if (checkbox.checked && !storyDraftIds.includes(checkbox.value))
       storyDraftIds.push(checkbox.value);
@@ -5046,7 +5077,7 @@ function eventTargetElement(event: Event): Element | null {
   });
 
   els.storyPlacePicker?.addEventListener("change", (event) => {
-    const checkbox = eventTargetElement(event)?.closest('input[type="checkbox"]');
+    const checkbox = closestEventTarget<HTMLInputElement>(event, 'input[type="checkbox"]');
     if (!checkbox) return;
     if (checkbox.checked && !storyDraftPlaceIds.includes(checkbox.value)) {
       storyDraftPlaceIds.push(checkbox.value);
@@ -5058,10 +5089,12 @@ function eventTargetElement(event: Event): Element | null {
   });
 
   els.storySequence.addEventListener("click", (event) => {
-    const button = eventTargetElement(event)?.closest("button[data-action]");
-    const row = eventTargetElement(event)?.closest(".sequence-row");
+    const button = closestEventTarget<HTMLButtonElement>(event, "button[data-action]");
+    const row = closestEventTarget<HTMLElement>(event, ".sequence-row");
     if (!button || !row) return;
-    const index = storyDraftIds.indexOf(row.dataset.id);
+    const rowId = row.dataset.id;
+    if (!rowId) return;
+    const index = storyDraftIds.indexOf(rowId);
     if (index < 0) return;
     if (button.dataset.action === "story-up" && index > 0) {
       [storyDraftIds[index - 1], storyDraftIds[index]] = [
@@ -5115,18 +5148,21 @@ function eventTargetElement(event: Event): Element | null {
   els.cancelStoryEdit.addEventListener("click", resetStoryForm);
 
   els.storyList.addEventListener("click", (event) => {
-    const button = eventTargetElement(event)?.closest("button[data-action]");
-    const card = eventTargetElement(event)?.closest(".story-card");
+    const button = closestEventTarget<HTMLButtonElement>(event, "button[data-action]");
+    const card = closestEventTarget<HTMLElement>(event, ".story-card");
     if (!button || !card) return;
-    if (button.dataset.action === "focus-story") focusStory(card.dataset.id);
-    if (button.dataset.action === "edit-story") beginStoryEdit(card.dataset.id);
-    if (button.dataset.action === "delete-story") removeStory(card.dataset.id);
+    const storyId = card.dataset.id;
+    if (!storyId) return;
+    if (button.dataset.action === "focus-story") focusStory(storyId);
+    if (button.dataset.action === "edit-story") beginStoryEdit(storyId);
+    if (button.dataset.action === "delete-story") removeStory(storyId);
   });
 
   els.browserStoryList?.addEventListener("click", (event) => {
-    const card = eventTargetElement(event)?.closest(".browser-story-card[data-id]");
+    const card = closestEventTarget<HTMLElement>(event, ".browser-story-card[data-id]");
     if (!card) return;
-    focusStory(card.dataset.id);
+    const storyId = card.dataset.id;
+    if (storyId) focusStory(storyId);
   });
 
   els.categoryForm.addEventListener("submit", (event) => {
@@ -5170,8 +5206,8 @@ function eventTargetElement(event: Event): Element | null {
   els.cancelCategoryEdit.addEventListener("click", resetCategoryForm);
 
   els.categoryList.addEventListener("click", (event) => {
-    const button = eventTargetElement(event)?.closest("button[data-action]");
-    const row = eventTargetElement(event)?.closest(".category-row");
+    const button = closestEventTarget<HTMLButtonElement>(event, "button[data-action]");
+    const row = closestEventTarget<HTMLElement>(event, ".category-row");
     if (!button || !row) return;
     if (button.dataset.action === "edit-category") beginCategoryEdit(row.dataset.id);
     if (button.dataset.action === "delete-category") removeCategory(row.dataset.id);
