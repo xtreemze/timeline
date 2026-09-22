@@ -1576,8 +1576,8 @@ class TimelineViewController {
     this.measureCommittedGeometry();
     this.reconcileCommittedLayout();
     this.render();
-    this.emitViewport(true);
     this.interactionCoordinator?.commit("timeline");
+    this.emitViewport(true);
   }
 
   scheduleRender(): void {
