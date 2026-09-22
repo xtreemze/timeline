@@ -238,9 +238,9 @@ function create(container, handlers = {}) {
   function forceAlphaProfile(nodeCount = forceNodeCount, alphaTarget = 0, reheat = true) {
     const dense = nodeCount >= 1000;
     return {
-      alpha: reheat ? (dense ? 0.28 : 0.34) : dense ? 0.08 : 0.1,
+      alpha: reheat ? (dense ? 0.18 : 0.22) : dense ? 0.04 : 0.055,
       alphaMin: dense ? 0.012 : 0.008,
-      alphaDecay: dense ? 0.03 : 0.028,
+      alphaDecay: dense ? 0.042 : 0.038,
       alphaTarget,
     };
   }
