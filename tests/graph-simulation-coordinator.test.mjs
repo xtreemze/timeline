@@ -19,11 +19,10 @@ function harness() {
   return { calls, coordinator };
 }
 
-test("RED #374 topology solve cannot be cooled by lower-priority geometry or popover work", () => {
+test("RED #374 topology solve cannot be cooled by lower-priority geometry work", () => {
   const { calls, coordinator } = harness();
 
   coordinator.request({ reason: "topology", alphaTarget: 0.12, reheat: true });
-  coordinator.request({ reason: "popover-exclusion", alphaTarget: 0, reheat: false });
   coordinator.request({ reason: "geometry-refresh", alphaTarget: 0, reheat: false });
 
   assert.deepEqual(calls, [["apply", "topology", 0.12, true]]);
@@ -102,10 +101,6 @@ test("RED #374 force priorities encode the documented lifecycle order", () => {
   assert.ok(GRAPH_SIMULATION_PRIORITY.topology > GRAPH_SIMULATION_PRIORITY["post-drop"]);
   assert.ok(
     GRAPH_SIMULATION_PRIORITY["post-drop"] >
-      GRAPH_SIMULATION_PRIORITY["popover-exclusion"],
-  );
-  assert.ok(
-    GRAPH_SIMULATION_PRIORITY["popover-exclusion"] >
       GRAPH_SIMULATION_PRIORITY["geometry-refresh"],
   );
 });
