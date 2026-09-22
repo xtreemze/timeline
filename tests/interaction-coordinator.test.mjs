@@ -92,3 +92,28 @@ test("stale releases and commits from non-owners cannot mutate state", () => {
   assert.equal(coordinator.commit("map"), false);
   assert.deepEqual(coordinator.snapshot(), before);
 });
+
+
+test("owned pan can acquire a second pointer and upgrade to pinch", () => {
+  const coordinator = createInteractionCoordinator();
+  coordinator.begin("timeline", 61);
+  coordinator.classify("timeline", "pan");
+  coordinator.claim("timeline");
+
+  assert.equal(coordinator.begin("timeline", 62), true);
+  assert.equal(coordinator.classify("timeline", "pinch"), true);
+  assert.equal(coordinator.claim("timeline"), true);
+  assert.equal(coordinator.snapshot().gesture, "pinch");
+  assert.deepEqual(coordinator.snapshot().pointerIds, [61, 62]);
+});
+
+test("owned node drag cannot acquire a second pointer", () => {
+  const coordinator = createInteractionCoordinator();
+  coordinator.begin("graph", 70);
+  coordinator.classify("graph", "node-drag");
+  coordinator.claim("graph");
+
+  assert.equal(coordinator.begin("graph", 71), false);
+  assert.deepEqual(coordinator.snapshot().pointerIds, [70]);
+  assert.equal(coordinator.snapshot().gesture, "node-drag");
+});
