@@ -1,4 +1,6 @@
 import type { EntityId, PlaceId, RelationshipId } from "../../src/domain/ids.ts";
+import { resolveWorldNodeDragPosition } from "../../src/interaction/world-node-drag-geometry.ts";
+import type { WorldNodeDragPosition } from "../../src/interaction/world-node-drag-controller.ts";
 import {
   createWorldCameraState,
   createWorldSpatialPosition,
@@ -43,6 +45,24 @@ interface DeckRuntimeViewState {
 interface DeckRuntimePickingInfo {
   readonly object?: unknown;
   readonly layer?: { readonly id?: string };
+  readonly x?: number;
+  readonly y?: number;
+}
+
+interface DeckRuntimePointerEvent {
+  readonly pointerId?: unknown;
+  readonly srcEvent?: unknown;
+}
+
+export interface DeckWorldNodeDragSink {
+  begin(
+    pointerId: number,
+    instanceId: WorldInstanceId,
+    position: WorldNodeDragPosition,
+  ): boolean;
+  update(pointerId: number, position: WorldNodeDragPosition): boolean;
+  release(pointerId: number): boolean;
+  cancel(reason: "pointercancel" | "lostpointercapture"): void;
 }
 
 export interface DeckRuntimeViewport {
@@ -96,7 +116,6 @@ interface DeckWorldPlaceDatum {
 const BASE_CAPABILITIES = Object.freeze({
   globe: true,
   depthPicking: true,
-  directNodeDrag: false,
   gpuFiltering: false,
 });
 
@@ -119,6 +138,25 @@ function numberField(
 ): number {
   const value = record[key];
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function pointerIdFromRuntimeEvent(event: DeckRuntimePointerEvent): number | null {
+  const source = isRecord(event.srcEvent) ? event.srcEvent : null;
+  const value = source?.["pointerId"] ?? event.pointerId;
+  const number = Number(value);
+  return Number.isInteger(number) && number >= 0 ? number : null;
+}
+
+function screenPointFromPicking(info: DeckRuntimePickingInfo): ScreenPoint | null {
+  if (
+    typeof info.x !== "number" ||
+    typeof info.y !== "number" ||
+    !Number.isFinite(info.x) ||
+    !Number.isFinite(info.y)
+  ) {
+    return null;
+  }
+  return Object.freeze({ x: info.x, y: info.y });
 }
 
 function cameraFromRuntime(
@@ -270,11 +308,36 @@ export class DeckWorldSurface implements WorldSurface {
   readonly #deck: DeckRuntimeInstance;
   readonly #globeView: unknown;
   readonly #localView: unknown | null;
+  readonly #container: HTMLElement;
   #projection: WorldProjection = Object.freeze({ instances: Object.freeze([]), edges: Object.freeze([]) });
   #selection: WorldSelection | null = null;
   #camera: WorldCameraState;
   #spatialMode: WorldSpatialMode = "globe";
+  #nodeDragSink: DeckWorldNodeDragSink | null = null;
+  #activeDragPointerId: number | null = null;
   #destroyed = false;
+
+  readonly #handlePointerCancel = (event: PointerEvent): void => {
+    if (
+      this.#activeDragPointerId === null ||
+      event.pointerId !== this.#activeDragPointerId
+    ) {
+      return;
+    }
+    this.#nodeDragSink?.cancel("pointercancel");
+    this.#activeDragPointerId = null;
+  };
+
+  readonly #handleLostPointerCapture = (event: PointerEvent): void => {
+    if (
+      this.#activeDragPointerId === null ||
+      event.pointerId !== this.#activeDragPointerId
+    ) {
+      return;
+    }
+    this.#nodeDragSink?.cancel("lostpointercapture");
+    this.#activeDragPointerId = null;
+  };
 
   constructor(
     container: HTMLElement,
@@ -282,6 +345,7 @@ export class DeckWorldSurface implements WorldSurface {
     initialCamera: WorldCameraState = DEFAULT_CAMERA,
   ) {
     this.#runtime = runtime;
+    this.#container = container;
     this.#camera = createWorldCameraState(initialCamera);
 
     this.#globeView = runtime.createGlobeView({ id: "lum-world" });
@@ -300,6 +364,19 @@ export class DeckWorldSurface implements WorldSurface {
         }
       },
     });
+
+    this.#container.addEventListener?.("pointercancel", this.#handlePointerCancel);
+    this.#container.addEventListener?.(
+      "lostpointercapture",
+      this.#handleLostPointerCapture,
+    );
+  }
+
+  setNodeDragSink(sink: DeckWorldNodeDragSink | null): void {
+    this.#assertAlive();
+    this.#nodeDragSink = sink;
+    if (!sink) this.#activeDragPointerId = null;
+    this.#render();
   }
 
   setProjection(projection: WorldProjection): void {
@@ -447,6 +524,7 @@ export class DeckWorldSurface implements WorldSurface {
   getCapabilities(): WorldSurfaceCapabilities {
     return Object.freeze({
       ...BASE_CAPABILITIES,
+      directNodeDrag: this.#nodeDragSink !== null,
       localPrecisionMode: this.#localView !== null,
     });
   }
@@ -459,7 +537,82 @@ export class DeckWorldSurface implements WorldSurface {
   destroy(): void {
     if (this.#destroyed) return;
     this.#destroyed = true;
+    this.#container.removeEventListener?.("pointercancel", this.#handlePointerCancel);
+    this.#container.removeEventListener?.(
+      "lostpointercapture",
+      this.#handleLostPointerCapture,
+    );
     this.#deck.finalize();
+  }
+
+  #dragTarget(
+    info: DeckRuntimePickingInfo,
+  ): { readonly instanceId: WorldInstanceId; readonly position: WorldNodeDragPosition } | null {
+    if (!isRecord(info.object) || info.object["kind"] !== "entity") return null;
+    const worldInstanceId = info.object["worldInstanceId"];
+    if (typeof worldInstanceId !== "string") return null;
+
+    const instance = this.#projection.instances.find(
+      (candidate) => candidate.id === worldInstanceId,
+    );
+    const point = screenPointFromPicking(info);
+    if (!instance || !point) return null;
+
+    const position = resolveWorldNodeDragPosition(this, instance, point);
+    return position
+      ? Object.freeze({
+          instanceId: instance.id,
+          position,
+        })
+      : null;
+  }
+
+  #beginEntityDrag(
+    info: DeckRuntimePickingInfo,
+    event: DeckRuntimePointerEvent,
+  ): boolean {
+    const sink = this.#nodeDragSink;
+    const pointerId = pointerIdFromRuntimeEvent(event);
+    const target = this.#dragTarget(info);
+    if (!sink || pointerId === null || !target) return false;
+
+    const claimed = sink.begin(pointerId, target.instanceId, target.position);
+    if (claimed) this.#activeDragPointerId = pointerId;
+    return claimed;
+  }
+
+  #updateEntityDrag(
+    info: DeckRuntimePickingInfo,
+    event: DeckRuntimePointerEvent,
+  ): boolean {
+    const sink = this.#nodeDragSink;
+    const pointerId = pointerIdFromRuntimeEvent(event);
+    const target = this.#dragTarget(info);
+    if (
+      !sink ||
+      pointerId === null ||
+      pointerId !== this.#activeDragPointerId ||
+      !target
+    ) {
+      return false;
+    }
+    return sink.update(pointerId, target.position);
+  }
+
+  #endEntityDrag(event: DeckRuntimePointerEvent): boolean {
+    const sink = this.#nodeDragSink;
+    const pointerId =
+      pointerIdFromRuntimeEvent(event) ?? this.#activeDragPointerId;
+    if (
+      !sink ||
+      pointerId === null ||
+      pointerId !== this.#activeDragPointerId
+    ) {
+      return false;
+    }
+
+    this.#activeDragPointerId = null;
+    return sink.release(pointerId);
   }
 
   #syncSpatialMode(): void {
@@ -524,6 +677,22 @@ export class DeckWorldSurface implements WorldSurface {
         getRadius: (datum: DeckWorldEntityDatum) => 80 + datum.visualWeight * 120,
         getFillColor: (datum: DeckWorldEntityDatum) =>
           datum.selected ? [255, 255, 255, 255] : [220, 220, 220, 235],
+        ...(this.#nodeDragSink
+          ? {
+              onDragStart: (
+                info: DeckRuntimePickingInfo,
+                event: DeckRuntimePointerEvent,
+              ) => this.#beginEntityDrag(info, event),
+              onDrag: (
+                info: DeckRuntimePickingInfo,
+                event: DeckRuntimePointerEvent,
+              ) => this.#updateEntityDrag(info, event),
+              onDragEnd: (
+                _info: DeckRuntimePickingInfo,
+                event: DeckRuntimePointerEvent,
+              ) => this.#endEntityDrag(event),
+            }
+          : {}),
       }),
     ];
 
