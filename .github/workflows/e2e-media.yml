@@ -7,11 +7,14 @@ on:
       - 'src/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
+      - 'vite.config.ts'
+      - 'playwright.config.ts'
       - 'playwright.highlight.config.ts'
       - 'tests/highlight/**'
       - 'scripts/render-e2e-highlight.mjs'
       - 'tests/playwright-certification-config.test.mjs'
       - 'docs/E2E-HIGHLIGHT-REEL.md'
+      - 'docs/FORMAL-PRESENTATION.md'
       - 'README.md'
       - '.github/workflows/e2e-media.yml'
       - '.github/workflows/pages.yml'
@@ -22,11 +25,14 @@ on:
       - 'src/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
+      - 'vite.config.ts'
+      - 'playwright.config.ts'
       - 'playwright.highlight.config.ts'
       - 'tests/highlight/**'
       - 'scripts/render-e2e-highlight.mjs'
       - 'tests/playwright-certification-config.test.mjs'
       - 'docs/E2E-HIGHLIGHT-REEL.md'
+      - 'docs/FORMAL-PRESENTATION.md'
       - 'README.md'
       - '.github/workflows/e2e-media.yml'
       - '.github/workflows/pages.yml'
@@ -48,7 +54,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-      - run: pnpm install --frozen-lockfile
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Certify media-pipeline configuration
         run: pnpm test:browser-certification-config
@@ -61,24 +69,34 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
-      - name: Record five real-browser showcase loops
-        run: pnpm test:e2e:highlight
+      - name: Record ten real-browser showcase scenes
+        run: pnpm test:e2e:showcase
 
-      - name: Render MP4, GIFs, and README snippet
-        run: pnpm render:e2e:highlight
+      - name: Render desktop and mobile reels and GIF collections
+        run: pnpm render:e2e:showcase
 
       - name: Verify media evidence
         run: |
           test -s artifacts/e2e-media/manifest.json
-          test -s artifacts/e2e-media/lum-e2e-highlight.mp4
-          test "$(find artifacts/e2e-media/raw -type f -name '*.webm' | wc -l)" -eq 5
-          test "$(find artifacts/e2e-media/raw -type f -name '*.png' | wc -l)" -eq 5
-          test "$(find artifacts/e2e-media/gifs -type f -name '*.gif' | wc -l)" -eq 5
           test -s artifacts/e2e-media/README-showcase.md
+          test -s artifacts/e2e-media/reels/lum-desktop-highlight.mp4
+          test -s artifacts/e2e-media/reels/lum-mobile-highlight.mp4
+          test "$(find artifacts/e2e-media/raw/desktop -type f -name '*.webm' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/raw/mobile -type f -name '*.webm' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/raw/desktop -type f -name '*.png' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/raw/mobile -type f -name '*.png' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/gifs/desktop -type f -name '*.gif' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/gifs/mobile -type f -name '*.gif' | wc -l)" -eq 5
 
       - name: Report GIF sizes
         run: |
-          du -h artifacts/e2e-media/gifs/*.gif
+          echo "Desktop GIFs"
+          du -h artifacts/e2e-media/gifs/desktop/*.gif
+          du -sh artifacts/e2e-media/gifs/desktop
+          echo "Mobile GIFs"
+          du -h artifacts/e2e-media/gifs/mobile/*.gif
+          du -sh artifacts/e2e-media/gifs/mobile
+          echo "Combined GIF payload"
           du -sh artifacts/e2e-media/gifs
 
       - name: Upload E2E media evidence
@@ -87,5 +105,5 @@ jobs:
         with:
           name: lum-e2e-showcase
           path: artifacts/e2e-media/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
