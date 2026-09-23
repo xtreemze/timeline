@@ -54,7 +54,13 @@ Categories and stories serve different axes and should not be used interchangeab
 - The same category should be reusable by unrelated stories when their events have the same semantic type.
 - A story title or story identifier should not be copied into `categoryId` merely to color or group that story. Story identity belongs in `story.itemIds` and, where useful, narrative extension metadata.
 
-The default anthology therefore keeps **The Three Little Pigs**, **Snow White**, and **Cinderella** as three story nodes while categorizing their events with a reusable semantic taxonomy: background/condition, movement/transition, creation/preparation, conflict/threat, decision/choice, discovery/information, relationship/social, state change/transformation, and resolution/outcome.
+The default anthology keeps **The Three Little Pigs**, **Snow White**, **Cinderella**, **Little Red Riding Hood**, and **Hansel and Gretel** as five independent story records while categorizing their events with a reusable semantic taxonomy: background/condition, movement/transition, creation/preparation, conflict/threat, decision/choice, discovery/information, relationship/social, state change/transformation, and resolution/outcome.
+
+## Narrative evidence
+
+Fictional does not mean unsourced. Narrative fixtures should cite a stable public-domain edition or another authoritative text for every modeled story. The source supports the characters and actions; the synthetic dates and fictional map coordinates remain presentation metadata and are explicitly excluded from the source claim.
+
+For the bundled anthology, primary narrative evidence comes from Project Gutenberg editions, while public-domain illustrations are linked through Wikimedia Commons. Every chronology item has evidence IDs, every canonical entity and edge has source IDs, and every media record uses descriptive alt text plus a caption that distinguishes illustration from evidence.
 
 ## Parallel stories
 
@@ -67,4 +73,4 @@ Multiple stories may coexist in one timeline. The recommended pattern is:
 - stories remain narrative metadata rather than graph nodes or synthetic container topology;
 - with story focus off, the timeline shows all items together; selecting a story uses the existing focus path to inspect only that narrative sequence.
 
-The default sample uses **The Three Little Pigs**, **Snow White**, and **Cinderella** to exercise this model across year-scale prologues, minute-scale action, ranges, media, locations, graph relationships, relation lifecycle changes, and all three focused-event compositions.
+The default sample uses **The Three Little Pigs**, **Snow White**, **Cinderella**, **Little Red Riding Hood**, and **Hansel and Gretel** to exercise this model across year-scale prologues, minute-scale action, ranges, media, locations, graph relationships, relation lifecycle changes, and all three focused-event compositions.
