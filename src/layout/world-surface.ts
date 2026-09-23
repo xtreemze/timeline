@@ -1,5 +1,6 @@
 import type { EntityId, PlaceId, RelationshipId } from "../domain/ids.ts";
 import type { WorldInstanceId, WorldProjection } from "../projection/world-projection.ts";
+import type { WorldProjectionDelta } from "../projection/world-projection-delta.ts";
 
 export interface WorldTemporalWindow {
   readonly start: number;
@@ -62,6 +63,7 @@ export interface WorldSurfaceCapabilities {
 
 export interface WorldSurface {
   setProjection(projection: WorldProjection): void;
+  applyProjectionDelta?(delta: WorldProjectionDelta): void;
   setTemporalWindow(range: WorldTemporalWindow): void;
   setSelection(selection: WorldSelection | null): void;
 
@@ -87,13 +89,11 @@ function finite(value: number, label: string): number {
 }
 
 function normalizedBearing(value: number): number {
-  const normalized = ((value + 180) % 360 + 360) % 360 - 180;
+  const normalized = ((((value + 180) % 360) + 360) % 360) - 180;
   return Object.is(normalized, -0) ? 0 : normalized;
 }
 
-export function createWorldSpatialPosition(
-  position: WorldSpatialPosition,
-): WorldSpatialPosition {
+export function createWorldSpatialPosition(position: WorldSpatialPosition): WorldSpatialPosition {
   const longitude = finite(position.longitude, "World spatial longitude");
   const latitude = finite(position.latitude, "World spatial latitude");
   const altitudeMeters = finite(position.altitudeMeters, "World spatial altitude");
