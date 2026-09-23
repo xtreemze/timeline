@@ -74,7 +74,9 @@ export function representativeGeographicPosition(
 
   const magnitude = Math.hypot(x, y, z);
   if (magnitude < 1e-12) {
-    const [longitude, latitude] = positions[0];
+    const first = positions[0];
+    if (!first) throw new Error("Spatial geometry must contain at least one position.");
+    const [longitude, latitude] = first;
     return Object.freeze([normalizeLongitude(longitude), latitude]);
   }
 
