@@ -1,59 +1,59 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
-  testDir: './tests',
-  testMatch: ['**/*.spec.ts', '**/*.spec.mjs'],
-  testIgnore: ['**/pages-runtime.spec.ts', '**/highlight/**'],
+  testDir: "./tests",
+  testMatch: ["**/*.spec.ts", "**/*.spec.mjs"],
+  testIgnore: ["**/pages-runtime.spec.ts", "**/highlight/**"],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: [['html'], ['github']],
+  reporter: [["html"], ["github"]],
   timeout: 30_000,
   expect: { timeout: 5_000 },
   use: {
-    baseURL: 'http://localhost:5173',
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
+    baseURL: "http://localhost:5173",
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
   },
 
   projects: [
     {
-      name: 'Desktop Chrome',
-      use: { ...devices['Desktop Chrome'] },
+      name: "Desktop Chrome",
+      use: { ...devices["Desktop Chrome"] },
     },
     {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'], hasTouch: true },
+      name: "Mobile Chrome",
+      use: { ...devices["Pixel 5"], hasTouch: true },
     },
     {
-      name: 'Mobile Chrome Landscape',
+      name: "Mobile Chrome Landscape",
       use: {
-        ...devices['Pixel 5'],
+        ...devices["Pixel 5"],
         hasTouch: true,
         viewport: { width: 851, height: 393 },
       },
     },
     {
-      name: 'Tablet Touch',
+      name: "Tablet Touch",
       use: {
-        ...devices['Pixel 5'],
+        ...devices["Pixel 5"],
         hasTouch: true,
         viewport: { width: 1024, height: 768 },
       },
     },
     {
-      name: 'Reduced Motion',
+      name: "Reduced Motion",
       use: {
-        ...devices['Desktop Chrome'],
-        reducedMotion: 'reduce',
+        ...devices["Desktop Chrome"],
+        reducedMotion: "reduce",
       },
     },
   ],
 
   webServer: {
-    command: 'pnpm dev',
-    url: 'http://localhost:5173',
+    command: "pnpm dev",
+    url: "http://localhost:5173",
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },
