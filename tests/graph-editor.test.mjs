@@ -385,7 +385,7 @@ test("touch graph uses forgiving node and edge hit targets with visible long-pre
   assert.match(styles, /width:\s*44px[\s\S]*height:\s*44px/);
   assert.match(
     styles,
-    /data-touch-drag="holding"\]\::after[\s\S]*opacity:\s*0\.95[\s\S]*transform:\s*scale\(0\.78\)/,
+    /data-touch-drag="holding"\]::after[\s\S]*opacity:\s*0\.95[\s\S]*transform:\s*scale\(0\.78\)/,
   );
   assert.doesNotMatch(styles, /animation:\s*graph-touch-hold/);
   assert.match(
