@@ -17,7 +17,7 @@ export type WorldViewRegistrationOptions = Omit<
 export function registerTimelineWorldView(
   bindings: DeckWorldBindings,
   options: WorldViewRegistrationOptions = {},
-  target: WorldViewRegistrationTarget = globalThis,
+  target: WorldViewRegistrationTarget = globalThis as typeof globalThis & WorldViewRegistrationTarget,
 ): WorldViewFactory {
   const factory = createWorldViewFactory({
     bindings,
