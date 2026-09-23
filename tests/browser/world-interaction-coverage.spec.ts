@@ -59,7 +59,10 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     await page.waitForTimeout(300);
 
     const after = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
-    expect(after.zoom, "wheel zoom should change the camera zoom level").not.toBeCloseTo(before.zoom, 5);
+    expect(after.zoom, "wheel zoom should change the camera zoom level").not.toBeCloseTo(
+      before.zoom,
+      5,
+    );
   });
 
   test("picking resolves a click at a known entity's projected screen point", async ({ page }) => {
@@ -67,7 +70,9 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
 
     const result = await page.evaluate(async () => {
       const helpersModulePath = "/world-test-helpers.mjs";
-      const { createWorldProjection, createProjectedWorldInstance } = await import(helpersModulePath);
+      const { createWorldProjection, createProjectedWorldInstance } = await import(
+        helpersModulePath
+      );
       const harness = window.__worldPerfHarness;
       const instance = createProjectedWorldInstance({
         canonicalId: "entity-pick-target",
@@ -79,14 +84,24 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       const projection = createWorldProjection({ instances: [instance], edges: [] });
       harness.surface.setCamera({ longitude: 0, latitude: 20, zoom: 6, bearing: 0, pitch: 0 });
       harness.surface.setProjection(projection);
-      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
 
-      const screenPoint = harness.surface.project({ longitude: 0, latitude: 20, altitudeMeters: 0 });
+      const screenPoint = harness.surface.project({
+        longitude: 0,
+        latitude: 20,
+        altitudeMeters: 0,
+      });
       return { screenPoint, entityId: instance.canonicalId };
     });
 
-    expect(result.screenPoint, "known entity position should project to a screen point").not.toBeNull();
-    if (!result.screenPoint) throw new Error("Known entity position did not project to a screen point.");
+    expect(
+      result.screenPoint,
+      "known entity position should project to a screen point",
+    ).not.toBeNull();
+    if (!result.screenPoint)
+      throw new Error("Known entity position did not project to a screen point.");
     const { x, y } = result.screenPoint;
 
     await page.mouse.click(x, y);
@@ -115,7 +130,9 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       },
       { x, y },
     );
-    const snapshot = await page.evaluate(() => window.__worldPerfHarness.surface.getAccessibleSnapshot());
+    const snapshot = await page.evaluate(() =>
+      window.__worldPerfHarness.surface.getAccessibleSnapshot(),
+    );
     expect(snapshot.selection).toEqual({ kind: "entity", id: result.entityId });
   });
 
@@ -126,7 +143,9 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
 
     const setup = await page.evaluate(async () => {
       const helpersModulePath = "/world-test-helpers.mjs";
-      const { createWorldProjection, createProjectedWorldInstance } = await import(helpersModulePath);
+      const { createWorldProjection, createProjectedWorldInstance } = await import(
+        helpersModulePath
+      );
       const harness = window.__worldPerfHarness;
       const instance = createProjectedWorldInstance({
         canonicalId: "entity-drag-target",
@@ -138,8 +157,14 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       const projection = createWorldProjection({ instances: [instance], edges: [] });
       harness.surface.setCamera({ longitude: 10, latitude: 10, zoom: 6, bearing: 0, pitch: 0 });
       harness.surface.setProjection(projection);
-      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-      const screenPoint = harness.surface.project({ longitude: 10, latitude: 10, altitudeMeters: 0 });
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+      const screenPoint = harness.surface.project({
+        longitude: 10,
+        latitude: 10,
+        altitudeMeters: 0,
+      });
       return { screenPoint, worldInstanceId: instance.id, canonicalId: instance.canonicalId };
     });
 
@@ -147,8 +172,8 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     if (!setup.screenPoint) throw new Error("Drag target did not project to a screen point.");
     const { x, y } = setup.screenPoint;
 
-    const beforeAnchors = await page.evaluate(() =>
-      window.__worldPerfHarness.surface.getAccessibleSnapshot().entities,
+    const beforeAnchors = await page.evaluate(
+      () => window.__worldPerfHarness.surface.getAccessibleSnapshot().entities,
     );
     expect(beforeAnchors.length).toBe(1);
 
@@ -176,7 +201,9 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     ).toBeGreaterThan(0);
 
     const afterCanonical = await page.evaluate(() => window.__worldPerfHarness.getProjection());
-    const beforeInstance = beforeCanonical.instances.find((i) => i.canonicalId === setup.canonicalId);
+    const beforeInstance = beforeCanonical.instances.find(
+      (i) => i.canonicalId === setup.canonicalId,
+    );
     const afterInstance = afterCanonical.instances.find((i) => i.canonicalId === setup.canonicalId);
     expect(afterInstance?.geographicAnchors).toEqual(beforeInstance?.geographicAnchors);
     // The rendered/derived position (localOffset) should have moved, since
@@ -215,12 +242,16 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     expect(counts.filteredEntities).toBeLessThan(counts.fullEntities);
   });
 
-  test("selection survives crossing the globe/local spatial-mode zoom threshold", async ({ page }) => {
+  test("selection survives crossing the globe/local spatial-mode zoom threshold", async ({
+    page,
+  }) => {
     test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
 
     const result = await page.evaluate(async () => {
       const helpersModulePath = "/world-test-helpers.mjs";
-      const { createWorldProjection, createProjectedWorldInstance } = await import(helpersModulePath);
+      const { createWorldProjection, createProjectedWorldInstance } = await import(
+        helpersModulePath
+      );
       const harness = window.__worldPerfHarness;
       const instance = createProjectedWorldInstance({
         canonicalId: "entity-mode-crossing",
@@ -256,7 +287,9 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     expect(result.afterExitLocal).toEqual(expected);
   });
 
-  test("the role=status live region text tracks selection and projection changes", async ({ page }) => {
+  test("the role=status live region text tracks selection and projection changes", async ({
+    page,
+  }) => {
     test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
 
     const status = page.locator("#world-container [role='status']");
@@ -266,7 +299,9 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
 
     await page.evaluate(async () => {
       const helpersModulePath = "/world-test-helpers.mjs";
-      const { createWorldProjection, createProjectedWorldInstance } = await import(helpersModulePath);
+      const { createWorldProjection, createProjectedWorldInstance } = await import(
+        helpersModulePath
+      );
       const harness = window.__worldPerfHarness;
       const instance = createProjectedWorldInstance({
         canonicalId: "entity-live-region",
@@ -310,7 +345,9 @@ test.describe("mobile viewport containment (issue #445 Priority 8, item 7)", () 
         svgCount: document.querySelectorAll("#world-container svg").length,
       }));
 
-      expect(measurements.canvasCount, "deck.gl should render at least one canvas").toBeGreaterThan(0);
+      expect(measurements.canvasCount, "deck.gl should render at least one canvas").toBeGreaterThan(
+        0,
+      );
       expect(measurements.svgCount, "no legacy Orb SVG surface should be present").toBe(0);
       expect(
         measurements.scrollHeight - measurements.innerHeight,
