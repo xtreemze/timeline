@@ -251,8 +251,8 @@ test("mouse node drag preheats force before Orb enters native drag state", async
 test("timeline topology changes visibly release, break, and bind graph relationships", async () => {
   const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
-  assert.match(source, /TOPOLOGY_EDGE_RELEASE_MS\s*=\s*360/);
-  assert.match(source, /TOPOLOGY_SETTLE_MS\s*=\s*1100/);
+  assert.match(source, /TOPOLOGY_EDGE_RELEASE_MS\s*=\s*420/);
+  assert.match(source, /TOPOLOGY_SETTLE_MS\s*=\s*1500/);
   assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.018/);
   assert.match(source, /orb\.data\.merge\(/);
   assert.match(source, /orb\.data\.remove\(/);
