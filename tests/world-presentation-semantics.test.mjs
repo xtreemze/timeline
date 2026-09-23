@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  DECK_WORLD_LAYER_IDS,
-  DeckWorldSurface,
-} from "../site/world/deck-world-surface.ts";
+import { DECK_WORLD_LAYER_IDS, DeckWorldSurface } from "../site/world/deck-world-surface.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
