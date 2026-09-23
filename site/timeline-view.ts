@@ -2918,7 +2918,7 @@ class TimelineViewController {
     this.focusItem(itemId);
   }
 
-  ensureFocusPopover(): void {
+  ensureFocusSidebar(): void {
     if (!this.focusedId) return;
     this.focusView.hidden = false;
     this.focusView.dataset.presentationSurface = "sidebar";
