@@ -356,8 +356,10 @@ jobs:
         run: |
           test -s artifacts/e2e-media/manifest.json
           test -s artifacts/e2e-media/lum-e2e-highlight.mp4
-          test "$(find artifacts/e2e-media/raw -type f -name '*.webm' | wc -l)" -ge 3
-          test "$(find artifacts/e2e-media/raw -type f -name '*.png' | wc -l)" -ge 3
+          test "$(find artifacts/e2e-media/raw -type f -name '*.webm' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/raw -type f -name '*.png' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/gifs -type f -name '*.gif' | wc -l)" -eq 5
+          test -s artifacts/e2e-media/README-showcase.md
       - name: Upload E2E media evidence
         if: always()
         uses: actions/upload-artifact@v4
