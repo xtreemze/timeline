@@ -383,7 +383,44 @@ jobs:
           };
           for (const suite of report.suites ?? []) walk(suite);
           if (!results.length) throw new Error("WorldSurface interaction certification executed no tests.");
-          const nonPassing = results.filter(({ status }) => status !== "passed");
+
+          const allowedComplementarySkip = ({ title, status }) =>
+            status === "skipped" &&
+            (
+              (
+                title.includes("mouse-wheel zoom changes the camera on the desktop controller path") &&
+                (title.endsWith("Mobile Chrome") || title.endsWith("Mobile Chrome Landscape"))
+              ) ||
+              (
+                title.includes("two-finger pinch changes the camera on mobile Chromium") &&
+                (
+                  title.endsWith("Desktop Chrome") ||
+                  title.endsWith("Tablet Touch") ||
+                  title.endsWith("Reduced Motion")
+                )
+              )
+            );
+
+          const requiredZoomPasses = [
+            ["mouse-wheel zoom changes the camera on the desktop controller path", "Desktop Chrome"],
+            ["mouse-wheel zoom changes the camera on the desktop controller path", "Tablet Touch"],
+            ["mouse-wheel zoom changes the camera on the desktop controller path", "Reduced Motion"],
+            ["two-finger pinch changes the camera on mobile Chromium", "Mobile Chrome"],
+            ["two-finger pinch changes the camera on mobile Chromium", "Mobile Chrome Landscape"],
+          ];
+          for (const [testTitle, project] of requiredZoomPasses) {
+            const passed = results.some(
+              ({ title, status }) =>
+                title.includes(testTitle) && title.endsWith(project) && status === "passed",
+            );
+            if (!passed) {
+              throw new Error(`Required WorldSurface zoom certification did not pass: ${testTitle} > ${project}`);
+            }
+          }
+
+          const nonPassing = results.filter(
+            (result) => result.status !== "passed" && !allowedComplementarySkip(result),
+          );
           if (nonPassing.length) {
             console.error("WorldSurface interaction certification failures:");
             for (const result of nonPassing) {
