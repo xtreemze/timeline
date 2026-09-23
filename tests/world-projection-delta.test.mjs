@@ -1,14 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { createWorldProjection, worldInstanceId } from "../src/projection/world-projection.ts";
 import {
+  applyWorldProjectionDelta,
   diffWorldProjection,
   isEmptyWorldProjectionDelta,
 } from "../src/projection/world-projection-delta.ts";
-import {
-  createWorldProjection,
-  worldInstanceId,
-} from "../src/projection/world-projection.ts";
 
 function instance(canonicalId, occurrenceId, overrides = {}) {
   return {
@@ -56,22 +54,26 @@ test("delta distinguishes additions, updates, and removals by stable world ident
     edges: [edge("meeting", alice.id, bob.id)],
   });
   const next = createWorldProjection({
-    instances: [
-      instance("alice", "meeting", { visualWeight: 0.5 }),
-      charlie,
-    ],
-    edges: [
-      edge("meeting", alice.id, charlie.id, { temporalWeight: 0.75 }),
-    ],
+    instances: [instance("alice", "meeting", { visualWeight: 0.5 }), charlie],
+    edges: [edge("meeting", alice.id, charlie.id, { temporalWeight: 0.75 })],
   });
 
   const delta = diffWorldProjection(previous, next);
 
-  assert.deepEqual(delta.addedInstances.map((value) => value.canonicalId), ["charlie"]);
-  assert.deepEqual(delta.updatedInstances.map((value) => value.canonicalId), ["alice"]);
+  assert.deepEqual(
+    delta.addedInstances.map((value) => value.canonicalId),
+    ["charlie"],
+  );
+  assert.deepEqual(
+    delta.updatedInstances.map((value) => value.canonicalId),
+    ["alice"],
+  );
   assert.deepEqual(delta.removedInstanceIds, [bob.id]);
   assert.equal(delta.addedEdges.length, 0);
-  assert.deepEqual(delta.updatedEdges.map((value) => value.id), ["meeting"]);
+  assert.deepEqual(
+    delta.updatedEdges.map((value) => value.id),
+    ["meeting"],
+  );
   assert.deepEqual(delta.removedEdgeIds, []);
 });
 
@@ -90,4 +92,21 @@ test("removing an occurrence emits removals without renderer-specific state", ()
   assert.deepEqual(delta.removedEdgeIds, ["meeting"]);
   assert.equal("position" in delta, false);
   assert.equal("camera" in delta, false);
+});
+
+test("applying a deterministic delta reconstructs the next WorldProjection", () => {
+  const alice = instance("alice", "meeting");
+  const bob = instance("bob", "meeting");
+  const charlie = instance("charlie", "meeting");
+  const previous = createWorldProjection({
+    instances: [alice, bob],
+    edges: [edge("meeting", alice.id, bob.id)],
+  });
+  const next = createWorldProjection({
+    instances: [instance("alice", "meeting", { visualWeight: 0.5 }), charlie],
+    edges: [edge("meeting", alice.id, charlie.id, { temporalWeight: 0.75 })],
+  });
+
+  const delta = diffWorldProjection(previous, next);
+  assert.deepEqual(applyWorldProjectionDelta(previous, delta), next);
 });

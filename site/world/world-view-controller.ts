@@ -1,23 +1,34 @@
-import type { WorldSelection, WorldSurface, WorldTemporalWindow } from "../../src/layout/world-surface.ts";
-import { applyWorldForceLayout, type WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
-import { createWorldForceScene, type WorldForceScenePolicy } from "../../src/layout/world-force-scene.ts";
-import {
-  createWorldSimulationCoordinator,
-  type WorldForceSimulationBackend,
-} from "../../src/layout/world-force-simulation.ts";
-import {
-  createWorldNodeDragController,
-  type WorldNodeDragPosition,
-} from "../../src/interaction/world-node-drag-controller.ts";
 import {
   createInteractionCoordinator,
   type InteractionCompletionReason,
   type InteractionCoordinator,
 } from "../../src/interaction/interaction-coordinator.ts";
+import {
+  createWorldNodeDragController,
+  type WorldNodeDragPosition,
+} from "../../src/interaction/world-node-drag-controller.ts";
+import {
+  applyWorldForceLayout,
+  type WorldForceLayoutSample,
+} from "../../src/layout/world-force-layout.ts";
+import {
+  createWorldForceScene,
+  type WorldForceScenePolicy,
+} from "../../src/layout/world-force-scene.ts";
+import {
+  createWorldSimulationCoordinator,
+  type WorldForceSimulationBackend,
+} from "../../src/layout/world-force-simulation.ts";
 import type {
-  WorldInstanceId,
-  WorldProjection,
-} from "../../src/projection/world-projection.ts";
+  WorldSelection,
+  WorldSurface,
+  WorldTemporalWindow,
+} from "../../src/layout/world-surface.ts";
+import type { WorldInstanceId, WorldProjection } from "../../src/projection/world-projection.ts";
+import {
+  diffWorldProjection,
+  isEmptyWorldProjectionDelta,
+} from "../../src/projection/world-projection-delta.ts";
 
 export interface WorldLayoutReadback {
   read(): readonly WorldForceLayoutSample[];
@@ -70,6 +81,7 @@ export class WorldViewRuntimeController {
 
   setProjection(projection: WorldProjection): void {
     this.#assertAlive();
+    const previous = this.#sourceProjection;
     this.#sourceProjection = projection;
     this.#renderProjection = projection;
     this.#projectionRevision += 1;
@@ -84,6 +96,13 @@ export class WorldViewRuntimeController {
       energyTarget: 0.08,
       reheat: true,
     });
+
+    if (previous && this.#surface.applyProjectionDelta) {
+      const delta = diffWorldProjection(previous, projection);
+      if (!isEmptyWorldProjectionDelta(delta)) this.#surface.applyProjectionDelta(delta);
+      return;
+    }
+
     this.#surface.setProjection(projection);
   }
 
@@ -131,9 +150,7 @@ export class WorldViewRuntimeController {
     return this.#drag.release(pointerId);
   }
 
-  cancelNodeDrag(
-    reason: Exclude<InteractionCompletionReason, "release">,
-  ): void {
+  cancelNodeDrag(reason: Exclude<InteractionCompletionReason, "release">): void {
     this.#assertAlive();
     this.#drag.cancel(reason);
   }
