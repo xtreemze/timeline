@@ -58,7 +58,7 @@ function projection() {
   });
 }
 
-function harness({ settled = false, readback = false } = {}) {
+function harness({ settled = false, readback = false, delta = false } = {}) {
   const calls = [];
   const diagnostics = { running: false, settled, energy: 0, iteration: 0 };
   let pin = null;
@@ -85,6 +85,10 @@ function harness({ settled = false, readback = false } = {}) {
     refresh() { calls.push(["surface:refresh"]); },
     destroy() { calls.push(["surface:destroy"]); },
   };
+
+  if (delta) {
+    surface.applyProjectionDelta = (value) => calls.push(["surface:delta", value]);
+  }
 
   const backend = {
     setScene(scene) { calls.push(["force:scene", scene]); },
@@ -224,4 +228,29 @@ test("destroy is idempotent and shuts down force and surface execution", () => {
   assert.equal(calls.filter(([name]) => name === "force:destroy").length, 1);
   assert.equal(calls.filter(([name]) => name === "surface:destroy").length, 1);
   assert.throws(() => controller.refresh(), /destroyed/);
+});
+
+
+test("subsequent projection revisions use WorldSurface delta updates when supported", () => {
+  const { calls, controller } = harness({ delta: true });
+  const initial = projection();
+  const next = createWorldProjection({
+    instances: initial.instances.map((instance) =>
+      instance.canonicalId === "alice"
+        ? createProjectedWorldInstance({ ...instance, visualWeight: 0.5 })
+        : instance,
+    ),
+    edges: initial.edges,
+  });
+
+  controller.setProjection(initial);
+  controller.setProjection(next);
+
+  assert.equal(calls.filter(([name]) => name === "surface:projection").length, 1);
+  const deltaCall = calls.find(([name]) => name === "surface:delta");
+  assert.ok(deltaCall);
+  assert.deepEqual(
+    deltaCall[1].updatedInstances.map((instance) => instance.canonicalId),
+    ["alice"],
+  );
 });
