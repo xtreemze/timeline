@@ -116,9 +116,7 @@ async function ensureTimelineOrientation(page, orientation) {
     .poll(async () => {
       const [dockBox, surfaceBox] = await Promise.all([dock.boundingBox(), surface.boundingBox()]);
       if (!dockBox || !surfaceBox) return false;
-      return orientation === 'portrait'
-        ? surfaceBox.x + surfaceBox.width <= dockBox.x + 3
-        : surfaceBox.y + surfaceBox.height <= dockBox.y + 3;
+      return surfaceBox.y + surfaceBox.height <= dockBox.y + 3;
     })
     .toBe(true);
 }
@@ -176,7 +174,7 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     await expectNoPrimaryDocumentScroll(page, PHONE_LANDSCAPE);
   });
 
-  test('footer chrome forms one reserved edge stack in portrait and landscape', async ({ page }) => {
+  test('bottom navigation remains a conventional footer in every timeline orientation', async ({ page }) => {
     for (const { viewport, orientation } of [
       { viewport: PHONE_PORTRAIT, orientation: 'portrait' },
       { viewport: PHONE_LANDSCAPE, orientation: 'landscape' },
@@ -194,7 +192,7 @@ test.describe('Mobile-first Timeline layout contracts', () => {
       await expect(actions).toHaveCount(4);
 
       const dockBox = await expectInsideViewport(dock, viewport);
-      await expectInsideViewport(titleBar, viewport);
+      const titleBox = await expectInsideViewport(titleBar, viewport);
       const surfaceBox = await expectInsideViewport(surface, viewport);
 
       for (const selector of [
@@ -206,39 +204,16 @@ test.describe('Mobile-first Timeline layout contracts', () => {
         await expect(dock.locator(selector)).toBeVisible();
       }
 
-      if (orientation === 'portrait') {
-        expect(dockBox.height).toBeGreaterThan(180);
-        expect(dockBox.width).toBeLessThan(90);
-        expect(surfaceBox.x + surfaceBox.width).toBeLessThanOrEqual(dockBox.x + 3);
-        await expect
-          .poll(async () => {
-            const [nextDockBox, nextTitleBox] = await Promise.all([
-              dock.boundingBox(),
-              titleBar.boundingBox(),
-            ]);
-            if (!nextDockBox || !nextTitleBox) return false;
-            const gap = nextTitleBox.x - (nextDockBox.x + nextDockBox.width);
-            return gap >= -3 && gap <= 16;
-          })
-          .toBe(true);
-      } else {
-        expect(dockBox.width).toBeGreaterThan(180);
-        expect(dockBox.height).toBeLessThan(90);
-        expect(surfaceBox.y + surfaceBox.height).toBeLessThanOrEqual(dockBox.y + 3);
-        await expect
-          .poll(async () => {
-            const [nextDockBox, nextTitleBox] = await Promise.all([
-              dock.boundingBox(),
-              titleBar.boundingBox(),
-            ]);
-            if (!nextDockBox || !nextTitleBox) return false;
-            const gap = nextTitleBox.y - (nextDockBox.y + nextDockBox.height);
-            return gap >= -3 && gap <= 16;
-          })
-          .toBe(true);
-      }
+      expect(dockBox.x).toBeLessThanOrEqual(2);
+      expect(dockBox.width).toBeGreaterThanOrEqual(viewport.width - 4);
+      expect(dockBox.height).toBeGreaterThanOrEqual(56);
+      expect(dockBox.height).toBeLessThan(96);
+      expect(dockBox.y + dockBox.height).toBeGreaterThanOrEqual(viewport.height - 2);
+      expect(surfaceBox.y + surfaceBox.height).toBeLessThanOrEqual(dockBox.y + 3);
+      expect(titleBox.y).toBeLessThan(dockBox.y);
+      expect(titleBox.y + titleBox.height).toBeLessThanOrEqual(dockBox.y - 4);
 
-      // Application chrome must reserve its edge even when contextual graph
+      // Application chrome must reserve the bottom edge even when contextual graph
       // content is absent, so chronology can never slide underneath controls.
       await page.locator('#app-shell').evaluate((shell) => {
         shell.setAttribute('data-graph-open', 'false');
@@ -250,9 +225,7 @@ test.describe('Mobile-first Timeline layout contracts', () => {
             surface.boundingBox(),
           ]);
           if (!nextDockBox || !nextSurfaceBox) return false;
-          return orientation === 'portrait'
-            ? nextSurfaceBox.x + nextSurfaceBox.width <= nextDockBox.x + 3
-            : nextSurfaceBox.y + nextSurfaceBox.height <= nextDockBox.y + 3;
+          return nextSurfaceBox.y + nextSurfaceBox.height <= nextDockBox.y + 3;
         })
         .toBe(true);
     }
@@ -281,10 +254,7 @@ test.describe('Mobile-first Timeline layout contracts', () => {
       await projectButton.click();
       const projectMenu = page.locator('#project-menu:popover-open');
       await expectInsideViewport(projectMenu, viewport);
-      await expect(projectMenu).toHaveAttribute(
-        'data-anchor-placement',
-        orientation === 'portrait' ? 'left' : 'above',
-      );
+      await expect(projectMenu).toHaveAttribute('data-anchor-placement', 'above');
       await expect(projectButton).toHaveAttribute('aria-expanded', 'true');
       await page.keyboard.press('Escape');
       await expect(projectButton).toHaveAttribute('aria-expanded', 'false');
@@ -293,19 +263,12 @@ test.describe('Mobile-first Timeline layout contracts', () => {
       await viewButton.click();
       const viewControls = page.locator('#timeline-view-toolbar:popover-open');
       const viewControlsBox = await expectInsideViewport(viewControls, viewport);
-      await expect(viewControls).toHaveAttribute(
-        'data-anchor-placement',
-        orientation === 'portrait' ? 'left' : 'above',
-      );
+      await expect(viewControls).toHaveAttribute('data-anchor-placement', 'above');
 
       const dockBox = await page.locator('.app-tool-dock').boundingBox();
       expect(dockBox).not.toBeNull();
       if (!dockBox) throw new Error('App tool dock has no live bounds.');
-      if (orientation === 'portrait') {
-        expect(viewControlsBox.x + viewControlsBox.width).toBeLessThanOrEqual(dockBox.x - 4);
-      } else {
-        expect(viewControlsBox.y + viewControlsBox.height).toBeLessThanOrEqual(dockBox.y - 4);
-      }
+      expect(viewControlsBox.y + viewControlsBox.height).toBeLessThanOrEqual(dockBox.y - 4);
 
       await page.keyboard.press('Escape');
       await expect(viewButton).toHaveAttribute('aria-expanded', 'false');
@@ -432,11 +395,11 @@ test.describe('Mobile-first Timeline layout contracts', () => {
     expect(buttonBox).not.toBeNull();
     expect(menuBox?.x).toBeGreaterThanOrEqual(5);
     expect(menuBox?.y).toBeGreaterThanOrEqual(5);
-    expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(
-      (buttonBox?.x ?? viewport.width) - 5,
+    expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width - 5);
+    expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(
+      (buttonBox?.y ?? viewport.height) - 5,
     );
-    expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(viewport.height - 5);
-    await expect(menu).toHaveAttribute('data-anchor-placement', 'left');
+    await expect(menu).toHaveAttribute('data-anchor-placement', 'above');
   });
 
   test('Project menu stays clamped on compact portrait visual viewports', async ({ page }) => {
@@ -463,11 +426,11 @@ test.describe('Mobile-first Timeline layout contracts', () => {
       expect(buttonBox).not.toBeNull();
       expect(menuBox?.x).toBeGreaterThanOrEqual(5);
       expect(menuBox?.y).toBeGreaterThanOrEqual(5);
-      expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(
-        (buttonBox?.x ?? viewport.width) - 5,
+      expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width - 5);
+      expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(
+        (buttonBox?.y ?? viewport.height) - 5,
       );
-      expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual(viewport.height - 5);
-      await expect(menu).toHaveAttribute('data-anchor-placement', 'left');
+      await expect(menu).toHaveAttribute('data-anchor-placement', 'above');
 
       await page.keyboard.press('Escape');
     }
