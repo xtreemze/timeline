@@ -22,7 +22,7 @@ layout / interaction planning
 renderer and UI adapters
 ```
 
-Core code under `src/domain`, `src/application`, `src/projection`, pure `src/layout`, and pure `src/interaction` must not depend on DOM, CSS, browser storage, Leaflet, Orb, Lit, or other renderer/provider state. Explicit GraphSurface adapter files are the bounded exception because they bridge core graph projections to renderers.
+Core code under `src/domain`, `src/application`, `src/projection`, pure `src/layout`, and pure `src/interaction` must not depend on DOM, CSS, browser storage, deck.gl, luma.gl, Cosmos, Sigma, Leaflet, Orb, Lit, or other renderer/provider state. Explicit surface/renderer adapter files are the bounded exception because they bridge core projections to execution technologies.
 
 Dependencies point inward:
 - domain does not import application, projection, layout, interaction, UI, or renderers;
@@ -43,7 +43,7 @@ Dependencies point inward:
 - Accepted inferred facts retain their source/provenance.
 - Canonical IDs are stable and renderer-neutral.
 
-Do not place Orb, Sigma, Leaflet, Lit, DOM nodes, CSS state, camera coordinates, or renderer handles in canonical serialization.
+Do not place deck/luma/Cosmos/Sigma/Orb/Leaflet objects, Lit/DOM nodes, CSS state, camera coordinates, rendered-instance offsets, visual altitude, GPU resources, or renderer handles in canonical serialization.
 
 ## Mutation ownership
 
@@ -57,7 +57,7 @@ The architecture linter ratchets existing direct-mutation and ambient-global deb
 
 ## Projection and layout rules
 
-Projections are deterministic functions of canonical state and explicit view state. They must not rewrite canonical data. Timeline, graph, and map share one `SpatiotemporalViewport` and one occurrence-activation rule; no individual renderer may redefine time or geography semantics. See `docs/SPATIOTEMPORAL-PROJECTION.md`.
+Projections are deterministic functions of canonical state and explicit view state. They must not rewrite canonical data. The retained timeline and the globe-first world surface share one `SpatiotemporalViewport` and one occurrence-activation rule. Geography and relational topology converge in `WorldProjection`; legacy graph/map projections are migration adapters, not independent sources of time or place semantics. See `docs/SPATIOTEMPORAL-PROJECTION.md`.
 
 Timeline chronology uses retained scene identity:
 - semantic zoom may change representation but must not make an intersecting occurrence disappear;
@@ -69,9 +69,9 @@ Workspace placement uses `src/layout/workspace-layout.ts`. Measure real rectangl
 
 ## Interaction rules
 
-One interaction epoch has one owner: timeline, graph, or map. The shared contract in `src/interaction/interaction-coordinator.ts` owns acquisition, classification, ownership, settling, and completion semantics.
+One interaction epoch has one owner: timeline or world surface; legacy graph/map adapters use the same coordinator during migration. The shared contract in `src/interaction/interaction-coordinator.ts` owns acquisition, classification, ownership, settling, and completion semantics.
 
-Pointer Events are the primary direct-manipulation model. Any pointer capture path must handle `pointercancel` and `lostpointercapture`. Long-press node acquisition must not become whole-graph pan. Renderer-specific drag/zoom APIs remain behind their adapter.
+Pointer Events are the baseline direct-manipulation model; a mjolnir-backed input adapter may normalize compound gestures when it earns its dependency. Any pointer capture path must handle `pointercancel` and `lostpointercapture`. Long-press elevated-node acquisition must not become globe rotation/pan. Depth picking and renderer-specific drag/zoom APIs remain behind adapters; application gesture meaning stays Lūm-owned.
 
 ## Responsive/mobile rules
 
