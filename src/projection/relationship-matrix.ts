@@ -58,7 +58,7 @@ function relationshipVisible(
   }
 
   const placeIds = new Set(filter.placeIds ?? []);
-  if (placeIds.size > 0 && (!(relationship.placeId && placeIds.has(String(relationship.placeId))))) {
+  if (placeIds.size > 0 && !(relationship.placeId && placeIds.has(String(relationship.placeId)))) {
     return false;
   }
 

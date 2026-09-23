@@ -276,14 +276,11 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       const force = forces.get(state.node.id) ?? [0, 0, 0];
       const inverseMass = 1 / Math.max(0.001, state.node.mass);
       state.vx =
-        (state.vx + force[0] * inverseMass * dt * energyScale) *
-        this.#options.damping ** dt;
+        (state.vx + force[0] * inverseMass * dt * energyScale) * this.#options.damping ** dt;
       state.vy =
-        (state.vy + force[1] * inverseMass * dt * energyScale) *
-        this.#options.damping ** dt;
+        (state.vy + force[1] * inverseMass * dt * energyScale) * this.#options.damping ** dt;
       state.vz =
-        (state.vz + force[2] * inverseMass * dt * energyScale) *
-        this.#options.damping ** dt;
+        (state.vz + force[2] * inverseMass * dt * energyScale) * this.#options.damping ** dt;
 
       state.x += state.vx * dt;
       state.y += state.vy * dt;

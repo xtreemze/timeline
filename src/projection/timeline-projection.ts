@@ -130,7 +130,7 @@ function occurrenceFor(
   const subjectId = text(relationship.subjectId, 120);
   const objectId = text(relationship.objectId, 120);
   const predicate = text(relationship.predicate, 120);
-  if (!((((id && subjectId ) && objectId ) && predicate ) && relationship.time)) return null;
+  if (!(id && subjectId && objectId && predicate && relationship.time)) return null;
   if (relationship.time.openStart) return null;
 
   const start = endpointTime(relationship.time.start);

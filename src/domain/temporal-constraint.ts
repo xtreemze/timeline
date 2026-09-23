@@ -47,10 +47,12 @@ export function validateTemporalEnvelope(envelope: TemporalEnvelope): readonly s
   const findings: string[] = [];
   if (!envelope.id.trim()) findings.push("Temporal envelope ID is required.");
   if (
-    !(((finite(envelope.earliestStart) &&
-    finite(envelope.latestStart) ) &&
-    finite(envelope.earliestEnd) ) &&
-    finite(envelope.latestEnd))
+    !(
+      finite(envelope.earliestStart) &&
+      finite(envelope.latestStart) &&
+      finite(envelope.earliestEnd) &&
+      finite(envelope.latestEnd)
+    )
   ) {
     findings.push("Temporal envelope bounds must be finite.");
     return Object.freeze(findings);
