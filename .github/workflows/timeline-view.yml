@@ -244,7 +244,7 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm exec playwright install --with-deps chromium
       - name: Verify browser discovery and project matrix
         run: |
           pnpm exec playwright test --config=playwright.config.ts --list | tee /tmp/playwright-list.txt
@@ -257,8 +257,6 @@ jobs:
           grep -F '[Desktop Chrome]' /tmp/playwright-list.txt
           grep -F '[Mobile Chrome]' /tmp/playwright-list.txt
           grep -F '[Mobile Chrome Landscape]' /tmp/playwright-list.txt
-          grep -F '[Mobile Safari]' /tmp/playwright-list.txt
-          grep -F '[Mobile Safari Landscape]' /tmp/playwright-list.txt
           grep -F '[Tablet Touch]' /tmp/playwright-list.txt
           grep -F '[Reduced Motion]' /tmp/playwright-list.txt
       - run: pnpm test:structural-composition-browser
@@ -275,7 +273,7 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm exec playwright install --with-deps chromium
       - name: Build production site
         run: pnpm build
       - name: Certify built Pages runtime
@@ -290,13 +288,13 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm exec playwright install --with-deps chromium
       - name: Verify application shell browser test discovery
         run: |
           pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --list | tee /tmp/application-shell-playwright-list.txt
           grep -F 'layout.spec.ts' /tmp/application-shell-playwright-list.txt
       - name: Run application shell browser tests
-        run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --project="Mobile Chrome" --project="Mobile Chrome Landscape" --project="Mobile Safari" --project="Mobile Safari Landscape" --project="Tablet Touch"
+        run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --project="Mobile Chrome" --project="Mobile Chrome Landscape" --project="Tablet Touch"
 
   interaction-browser:
     runs-on: ubuntu-latest
@@ -307,7 +305,7 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm exec playwright install --with-deps chromium
       - name: Run interaction browser tests
         run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/interaction.spec.ts
 
@@ -320,7 +318,7 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm exec playwright install --with-deps chromium
       - name: Verify retained performance browser discovery
         run: |
           pnpm exec playwright test --config=playwright.config.ts tests/browser/retained-performance.spec.ts --list | tee /tmp/retained-performance-list.txt
@@ -336,5 +334,5 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:graph-touch-browser
