@@ -56,26 +56,29 @@ const SAMPLE = {
     evidence: [
       {
         id: "src-pigs",
-        type: "article",
-        title: "The Three Little Pigs — narrative source card",
-        sourceName: "Storybook fixture",
-        note: "A fictional narrative source used to demonstrate source attachment. It is not forensic evidence.",
+        type: "document",
+        title: "The Story of the Three Little Pigs — L. Leslie Brooke",
+        sourceName: "Project Gutenberg",
+        url: "https://www.gutenberg.org/ebooks/18155",
+        note: "Primary public-domain narrative source for the Three Little Pigs scenes; event dates and Storybook Realm coordinates remain synthetic presentation anchors.",
         publishedAt: "1000-04-01",
       },
       {
         id: "src-snow",
         type: "document",
-        title: "Snow White — narrative source card",
-        sourceName: "Storybook fixture",
-        note: "A fictional narrative source used to demonstrate source attachment. It is not forensic evidence.",
+        title: "Grimm\'s Fairy Stories — Little Snow White",
+        sourceName: "Project Gutenberg",
+        url: "https://www.gutenberg.org/ebooks/11027",
+        note: "Primary public-domain narrative source for Little Snow White in Grimm\'s Fairy Stories; synthetic chronology and geography are explicitly separated from source claims.",
         publishedAt: "1000-04-01",
       },
       {
         id: "src-cinderella",
         type: "pdf",
-        title: "Cinderella — narrative source card",
-        sourceName: "Storybook fixture",
-        note: "A fictional narrative source used to exercise document/PDF presentation. It is not forensic evidence.",
+        title: "Cinderella; or, The Little Glass Slipper — illustrated edition",
+        sourceName: "Project Gutenberg",
+        url: "https://www.gutenberg.org/ebooks/10830",
+        note: "Primary public-domain narrative source for the Cinderella scenes, including the mother\'s death, stepfamily, fairy godmother, ball, midnight flight, slipper search, and marriage.",
         publishedAt: "1000-04-01",
       },
       {
@@ -3677,6 +3680,7 @@ const SAMPLE = {
         type: "person",
         name: "First Pig",
         identifiers: [],
+        sourceIds: ["src-pigs"],
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -3687,6 +3691,7 @@ const SAMPLE = {
         type: "person",
         name: "Second Pig",
         identifiers: [],
+        sourceIds: ["src-pigs"],
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -3697,6 +3702,7 @@ const SAMPLE = {
         type: "person",
         name: "Third Pig",
         identifiers: [],
+        sourceIds: ["src-pigs"],
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -3707,6 +3713,7 @@ const SAMPLE = {
         type: "person",
         name: "Mother Pig",
         identifiers: [],
+        sourceIds: ["src-pigs"],
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -3717,6 +3724,7 @@ const SAMPLE = {
         type: "person",
         name: "Big Bad Wolf",
         identifiers: [],
+        sourceIds: ["src-pigs"],
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -3727,6 +3735,7 @@ const SAMPLE = {
         type: "group",
         name: "The Three Pig Brothers",
         identifiers: [],
+        sourceIds: ["src-pigs"],
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -3734,9 +3743,10 @@ const SAMPLE = {
       },
       {
         id: "pigs-brick-house",
-        type: "object",
+        type: "dwelling",
         name: "Brick House",
         identifiers: [],
+        sourceIds: ["src-pigs"],
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -3747,6 +3757,7 @@ const SAMPLE = {
         type: "person",
         name: "Snow White",
         identifiers: [],
+        sourceIds: ["src-snow"],
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -3757,6 +3768,7 @@ const SAMPLE = {
         type: "person",
         name: "The Queen",
         identifiers: [],
+        sourceIds: ["src-snow"],
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -3767,6 +3779,7 @@ const SAMPLE = {
         type: "person",
         name: "The Huntsman",
         identifiers: [],
+        sourceIds: ["src-snow"],
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -3777,6 +3790,7 @@ const SAMPLE = {
         type: "person",
         name: "The Prince",
         identifiers: [],
+        sourceIds: ["src-snow"],
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -3787,6 +3801,7 @@ const SAMPLE = {
         type: "group",
         name: "Seven Dwarfs",
         identifiers: [],
+        sourceIds: ["src-snow"],
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -3794,9 +3809,10 @@ const SAMPLE = {
       },
       {
         id: "snow-mirror-object",
-        type: "object",
+        type: "enchantedArtifact",
         name: "Magic Mirror",
         identifiers: [],
+        sourceIds: ["src-snow"],
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -3804,9 +3820,10 @@ const SAMPLE = {
       },
       {
         id: "snow-apple-object",
-        type: "object",
+        type: "food",
         name: "Apple",
         identifiers: [],
+        sourceIds: ["src-snow"],
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -3827,6 +3844,7 @@ const SAMPLE = {
         type: "person",
         name: "Stepmother",
         identifiers: [],
+        sourceIds: ["src-cinderella"],
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -3837,6 +3855,7 @@ const SAMPLE = {
         type: "group",
         name: "Stepsisters",
         identifiers: [],
+        sourceIds: ["src-cinderella"],
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -3847,6 +3866,7 @@ const SAMPLE = {
         type: "person",
         name: "Fairy Godmother",
         identifiers: [],
+        sourceIds: ["src-cinderella"],
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -3857,6 +3877,7 @@ const SAMPLE = {
         type: "person",
         name: "The Prince",
         identifiers: [],
+        sourceIds: ["src-cinderella"],
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -3864,9 +3885,10 @@ const SAMPLE = {
       },
       {
         id: "cinderella-slipper-object",
-        type: "object",
+        type: "footwear",
         name: "Glass Slipper",
         identifiers: [],
+        sourceIds: ["src-cinderella"],
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -3874,9 +3896,10 @@ const SAMPLE = {
       },
       {
         id: "cinderella-coach",
-        type: "object",
+        type: "vehicle",
         name: "Enchanted Coach",
         identifiers: [],
+        sourceIds: ["src-cinderella"],
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -3887,6 +3910,7 @@ const SAMPLE = {
         type: "group",
         name: "Pigwood Material Sellers",
         identifiers: [],
+        sourceIds: ["src-pigs"],
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -3894,9 +3918,10 @@ const SAMPLE = {
       },
       {
         id: "pigs-straw-bundle",
-        type: "object",
+        type: "buildingMaterial",
         name: "Straw Bundle",
         identifiers: [],
+        sourceIds: ["src-pigs"],
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -3904,9 +3929,10 @@ const SAMPLE = {
       },
       {
         id: "pigs-stick-bundle",
-        type: "object",
+        type: "buildingMaterial",
         name: "Stick Bundle",
         identifiers: [],
+        sourceIds: ["src-pigs"],
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -3914,9 +3940,10 @@ const SAMPLE = {
       },
       {
         id: "pigs-brick-load",
-        type: "object",
+        type: "buildingMaterial",
         name: "Brick and Mortar Load",
         identifiers: [],
+        sourceIds: ["src-pigs"],
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -3924,9 +3951,10 @@ const SAMPLE = {
       },
       {
         id: "snow-laces-object",
-        type: "object",
+        type: "garmentAccessory",
         name: "Enchanted Laces",
         identifiers: [],
+        sourceIds: ["src-snow"],
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -3934,9 +3962,10 @@ const SAMPLE = {
       },
       {
         id: "snow-comb-object",
-        type: "object",
+        type: "personalItem",
         name: "Comb",
         identifiers: [],
+        sourceIds: ["src-snow"],
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -3944,9 +3973,10 @@ const SAMPLE = {
       },
       {
         id: "snow-coffin-object",
-        type: "object",
+        type: "container",
         name: "Glass Coffin",
         identifiers: [],
+        sourceIds: ["src-snow"],
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -3957,6 +3987,7 @@ const SAMPLE = {
         type: "person",
         name: "Cinderella's Father",
         identifiers: [],
+        sourceIds: ["src-cinderella"],
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -3964,9 +3995,10 @@ const SAMPLE = {
       },
       {
         id: "cinderella-pumpkin",
-        type: "object",
+        type: "food",
         name: "Pumpkin",
         identifiers: [],
+        sourceIds: ["src-cinderella"],
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -3974,9 +4006,10 @@ const SAMPLE = {
       },
       {
         id: "cinderella-gown",
-        type: "object",
+        type: "garment",
         name: "Ball Gown",
         identifiers: [],
+        sourceIds: ["src-cinderella"],
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -3987,6 +4020,7 @@ const SAMPLE = {
         type: "person",
         name: "Royal Herald",
         identifiers: [],
+        sourceIds: ["src-cinderella"],
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -3997,6 +4031,7 @@ const SAMPLE = {
         type: "group",
         name: "Snow White's Royal Family",
         identifiers: [],
+        sourceIds: ["src-snow"],
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -4007,6 +4042,7 @@ const SAMPLE = {
         type: "person",
         name: "Cinderella's Mother",
         identifiers: [],
+        sourceIds: ["src-cinderella"],
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -4014,9 +4050,10 @@ const SAMPLE = {
       },
       {
         id: "pigs-straw-house-object",
-        type: "object",
+        type: "dwelling",
         name: "Straw House",
         identifiers: [],
+        sourceIds: ["src-pigs"],
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -4024,9 +4061,10 @@ const SAMPLE = {
       },
       {
         id: "pigs-stick-house-object",
-        type: "object",
+        type: "dwelling",
         name: "Stick House",
         identifiers: [],
+        sourceIds: ["src-pigs"],
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -4034,9 +4072,10 @@ const SAMPLE = {
       },
       {
         id: "snow-dwarfs-cottage",
-        type: "object",
+        type: "dwelling",
         name: "Dwarfs' Cottage",
         identifiers: [],
+        sourceIds: ["src-snow"],
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -4044,9 +4083,10 @@ const SAMPLE = {
       },
       {
         id: "snow-peddler-disguise",
-        type: "object",
+        type: "disguise",
         name: "Peddler Disguise",
         identifiers: [],
+        sourceIds: ["src-snow"],
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -4057,6 +4097,7 @@ const SAMPLE = {
         type: "group",
         name: "Cinderella's Household",
         identifiers: [],
+        sourceIds: ["src-cinderella"],
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -4069,6 +4110,7 @@ const SAMPLE = {
         subjectId: "pigs-wolf",
         objectId: "pigs-brothers",
         predicate: "pursues",
+        sourceIds: ["src-pigs"],
         initialState: "inactive",
         attributes: {
           storyId: "story-three-little-pigs",
@@ -4080,6 +4122,7 @@ const SAMPLE = {
         subjectId: "snow-queen",
         objectId: "snow-huntsman",
         predicate: "commands",
+        sourceIds: ["src-snow"],
         time: {
           type: "instant",
           start: {
@@ -4109,6 +4152,7 @@ const SAMPLE = {
         subjectId: "snow-huntsman",
         objectId: "snow-white",
         predicate: "spares",
+        sourceIds: ["src-snow"],
         time: {
           type: "instant",
           start: {
@@ -4131,6 +4175,7 @@ const SAMPLE = {
         subjectId: "snow-dwarfs",
         objectId: "snow-white",
         predicate: "shelters",
+        sourceIds: ["src-snow"],
         time: {
           type: "interval",
           start: {
@@ -4161,6 +4206,7 @@ const SAMPLE = {
         subjectId: "snow-queen",
         objectId: "snow-apple-object",
         predicate: "poisons",
+        sourceIds: ["src-snow"],
         time: {
           type: "instant",
           start: {
@@ -4186,6 +4232,7 @@ const SAMPLE = {
         subjectId: "snow-queen",
         objectId: "snow-white",
         predicate: "threatens",
+        sourceIds: ["src-snow"],
         initialState: "inactive",
         attributes: {
           storyId: "story-snow-white",
@@ -4204,6 +4251,7 @@ const SAMPLE = {
         subjectId: "cinderella-stepsisters",
         objectId: "cinderella",
         predicate: "burdens",
+        sourceIds: ["src-cinderella"],
         time: {
           type: "interval",
           start: {
@@ -4236,6 +4284,7 @@ const SAMPLE = {
         subjectId: "cinderella-fairy",
         objectId: "cinderella",
         predicate: "assists",
+        sourceIds: ["src-cinderella"],
         time: {
           type: "instant",
           start: {
@@ -4266,6 +4315,7 @@ const SAMPLE = {
         subjectId: "cinderella-prince",
         objectId: "cinderella",
         predicate: "searchesFor",
+        sourceIds: ["src-cinderella"],
         initialState: "inactive",
         attributes: {
           storyId: "story-cinderella",
@@ -4280,6 +4330,7 @@ const SAMPLE = {
         subjectId: "cinderella-stepmother",
         objectId: "cinderella",
         predicate: "restricts",
+        sourceIds: ["src-cinderella"],
         time: {
           type: "interval",
           start: {
@@ -4312,6 +4363,7 @@ const SAMPLE = {
         subjectId: "pigs-first",
         objectId: "pigs-second",
         predicate: "joins",
+        sourceIds: ["src-pigs"],
         time: {
           type: "instant",
           start: {
@@ -4336,6 +4388,7 @@ const SAMPLE = {
         subjectId: "pigs-second",
         objectId: "pigs-third",
         predicate: "joins",
+        sourceIds: ["src-pigs"],
         time: {
           type: "instant",
           start: {
@@ -4358,6 +4411,7 @@ const SAMPLE = {
         subjectId: "snow-dwarfs",
         objectId: "snow-white",
         predicate: "revives",
+        sourceIds: ["src-snow"],
         time: {
           type: "instant",
           start: {
@@ -4382,6 +4436,7 @@ const SAMPLE = {
         subjectId: "snow-dwarfs",
         objectId: "snow-white",
         predicate: "revives",
+        sourceIds: ["src-snow"],
         time: {
           type: "instant",
           start: {
@@ -4406,6 +4461,7 @@ const SAMPLE = {
         subjectId: "snow-prince",
         objectId: "snow-coffin-object",
         predicate: "encounters",
+        sourceIds: ["src-snow"],
         time: {
           type: "instant",
           start: {
@@ -4428,6 +4484,7 @@ const SAMPLE = {
         subjectId: "cinderella-father",
         objectId: "cinderella-stepmother",
         predicate: "marries",
+        sourceIds: ["src-cinderella"],
         time: {
           type: "instant",
           start: {
@@ -4452,6 +4509,7 @@ const SAMPLE = {
         subjectId: "cinderella-fairy",
         objectId: "cinderella-pumpkin",
         predicate: "transforms",
+        sourceIds: ["src-cinderella"],
         time: {
           type: "instant",
           start: {
@@ -4476,6 +4534,7 @@ const SAMPLE = {
         subjectId: "cinderella-prince",
         objectId: "cinderella",
         predicate: "dancesWith",
+        sourceIds: ["src-cinderella"],
         time: {
           type: "instant",
           start: {
@@ -4500,6 +4559,7 @@ const SAMPLE = {
         subjectId: "cinderella-herald",
         objectId: "cinderella-slipper-object",
         predicate: "carries",
+        sourceIds: ["src-cinderella"],
         time: {
           type: "interval",
           start: {
@@ -4532,6 +4592,7 @@ const SAMPLE = {
         subjectId: "snow-royal-family",
         objectId: "snow-white",
         predicate: "welcomes",
+        sourceIds: ["src-snow"],
         itemIds: ["snow-birth"],
         time: {
           type: "instant",
@@ -4554,6 +4615,7 @@ const SAMPLE = {
         subjectId: "snow-royal-family",
         objectId: "snow-white",
         predicate: "raises",
+        sourceIds: ["src-snow"],
         itemIds: ["snow-childhood"],
         time: {
           type: "interval",
@@ -4636,6 +4698,7 @@ const SAMPLE = {
         subjectId: "pigs-mother",
         objectId: "pigs-brothers",
         predicate: "raises",
+        sourceIds: ["src-pigs"],
         itemIds: ["pigs-childhood"],
         time: {
           type: "interval",
@@ -4666,6 +4729,7 @@ const SAMPLE = {
         subjectId: "pigs-mother",
         objectId: "pigs-brothers",
         predicate: "sendsForth",
+        sourceIds: ["src-pigs"],
         itemIds: ["pigs-leave-home"],
         time: {
           type: "instant",
@@ -4688,6 +4752,7 @@ const SAMPLE = {
         subjectId: "pigs-material-vendors",
         objectId: "pigs-first",
         predicate: "sells",
+        sourceIds: ["src-pigs"],
         itemIds: ["pigs-acquire-straw"],
         time: {
           type: "instant",
@@ -4710,6 +4775,7 @@ const SAMPLE = {
         subjectId: "pigs-first",
         objectId: "pigs-straw-bundle",
         predicate: "acquires",
+        sourceIds: ["src-pigs"],
         itemIds: ["pigs-acquire-straw", "pigs-acquire-sticks"],
         time: {
           type: "instant",
@@ -4732,6 +4798,7 @@ const SAMPLE = {
         subjectId: "snow-queen",
         objectId: "snow-mirror-object",
         predicate: "consults",
+        sourceIds: ["src-snow"],
         itemIds: ["snow-mirror"],
         time: {
           type: "instant",
@@ -4754,6 +4821,7 @@ const SAMPLE = {
         subjectId: "pigs-material-vendors",
         objectId: "pigs-second",
         predicate: "sells",
+        sourceIds: ["src-pigs"],
         itemIds: ["pigs-acquire-sticks"],
         time: {
           type: "instant",
@@ -4776,6 +4844,7 @@ const SAMPLE = {
         subjectId: "pigs-second",
         objectId: "pigs-stick-bundle",
         predicate: "acquires",
+        sourceIds: ["src-pigs"],
         itemIds: ["pigs-acquire-sticks"],
         time: {
           type: "instant",
@@ -4798,6 +4867,7 @@ const SAMPLE = {
         subjectId: "pigs-material-vendors",
         objectId: "pigs-third",
         predicate: "sells",
+        sourceIds: ["src-pigs"],
         itemIds: ["pigs-acquire-bricks"],
         time: {
           type: "instant",
@@ -4820,6 +4890,7 @@ const SAMPLE = {
         subjectId: "pigs-third",
         objectId: "pigs-brick-load",
         predicate: "acquires",
+        sourceIds: ["src-pigs"],
         itemIds: ["pigs-acquire-bricks"],
         time: {
           type: "instant",
@@ -4842,6 +4913,7 @@ const SAMPLE = {
         subjectId: "pigs-third",
         objectId: "pigs-brick-house",
         predicate: "builds",
+        sourceIds: ["src-pigs"],
         itemIds: [
           "pigs-brick-build",
           "pigs-childhood",
@@ -4883,6 +4955,7 @@ const SAMPLE = {
         subjectId: "pigs-first",
         objectId: "pigs-straw-house-object",
         predicate: "builds",
+        sourceIds: ["src-pigs"],
         itemIds: ["pigs-straw-house", "pigs-leave-home", "pigs-acquire-straw"],
         time: {
           type: "instant",
@@ -4905,6 +4978,7 @@ const SAMPLE = {
         subjectId: "snow-white",
         objectId: "snow-queen",
         predicate: "evades",
+        sourceIds: ["src-snow"],
         itemIds: ["snow-forest-flight"],
         time: {
           type: "instant",
@@ -4927,6 +5001,7 @@ const SAMPLE = {
         subjectId: "pigs-second",
         objectId: "pigs-stick-house-object",
         predicate: "builds",
+        sourceIds: ["src-pigs"],
         itemIds: ["pigs-stick-house", "pigs-first-flees"],
         time: {
           type: "instant",
@@ -4949,6 +5024,7 @@ const SAMPLE = {
         subjectId: "snow-white",
         objectId: "snow-dwarfs-cottage",
         predicate: "enters",
+        sourceIds: ["src-snow"],
         itemIds: [
           "snow-finds-cottage",
           "snow-huntsman-spares",
@@ -4977,6 +5053,7 @@ const SAMPLE = {
         subjectId: "cinderella-herald",
         objectId: "cinderella",
         predicate: "invites",
+        sourceIds: ["src-cinderella"],
         itemIds: ["cinderella-invitation"],
         time: {
           type: "instant",
@@ -4999,6 +5076,7 @@ const SAMPLE = {
         subjectId: "snow-queen",
         objectId: "snow-white",
         predicate: "discovers",
+        sourceIds: ["src-snow"],
         itemIds: ["snow-queen-discovers"],
         time: {
           type: "instant",
@@ -5021,6 +5099,7 @@ const SAMPLE = {
         subjectId: "cinderella-stepmother",
         objectId: "cinderella",
         predicate: "forbids",
+        sourceIds: ["src-cinderella"],
         itemIds: ["cinderella-denied"],
         time: {
           type: "instant",
@@ -5043,6 +5122,7 @@ const SAMPLE = {
         subjectId: "cinderella-stepmother",
         objectId: "cinderella",
         predicate: "assigns",
+        sourceIds: ["src-cinderella"],
         itemIds: ["cinderella-extra-chores"],
         time: {
           type: "instant",
@@ -5065,6 +5145,7 @@ const SAMPLE = {
         subjectId: "snow-queen",
         objectId: "snow-peddler-disguise",
         predicate: "adopts",
+        sourceIds: ["src-snow"],
         itemIds: ["snow-disguises"],
         time: {
           type: "interval",
@@ -5095,6 +5176,7 @@ const SAMPLE = {
         subjectId: "snow-queen",
         objectId: "snow-white",
         predicate: "attacks",
+        sourceIds: ["src-snow"],
         itemIds: ["snow-laces"],
         time: {
           type: "instant",
@@ -5117,6 +5199,7 @@ const SAMPLE = {
         subjectId: "snow-queen",
         objectId: "snow-laces-object",
         predicate: "uses",
+        sourceIds: ["src-snow"],
         itemIds: ["snow-laces"],
         time: {
           type: "instant",
@@ -5139,6 +5222,7 @@ const SAMPLE = {
         subjectId: "pigs-wolf",
         objectId: "pigs-straw-house-object",
         predicate: "attacks",
+        sourceIds: ["src-pigs"],
         itemIds: ["pigs-wolf-straw", "pigs-first-flees", "pigs-safe"],
         time: {
           type: "instant",
@@ -5161,6 +5245,7 @@ const SAMPLE = {
         subjectId: "cinderella-fairy",
         objectId: "cinderella-gown",
         predicate: "conjures",
+        sourceIds: ["src-cinderella"],
         itemIds: ["cinderella-transformation"],
         time: {
           type: "instant",
@@ -5183,6 +5268,7 @@ const SAMPLE = {
         subjectId: "cinderella-fairy",
         objectId: "cinderella-coach",
         predicate: "creates",
+        sourceIds: ["src-cinderella"],
         itemIds: ["cinderella-coach-created"],
         time: {
           type: "instant",
@@ -5205,6 +5291,7 @@ const SAMPLE = {
         subjectId: "pigs-wolf",
         objectId: "pigs-stick-house-object",
         predicate: "attacks",
+        sourceIds: ["src-pigs"],
         itemIds: ["pigs-wolf-sticks", "pigs-two-flee"],
         time: {
           type: "instant",
@@ -5227,6 +5314,7 @@ const SAMPLE = {
         subjectId: "snow-queen",
         objectId: "snow-white",
         predicate: "attacks",
+        sourceIds: ["src-snow"],
         itemIds: ["snow-comb"],
         time: {
           type: "instant",
@@ -5249,6 +5337,7 @@ const SAMPLE = {
         subjectId: "snow-queen",
         objectId: "snow-comb-object",
         predicate: "uses",
+        sourceIds: ["src-snow"],
         itemIds: ["snow-comb", "snow-disguises", "snow-comb-recovery"],
         time: {
           type: "instant",
@@ -5323,6 +5412,7 @@ const SAMPLE = {
         subjectId: "pigs-wolf",
         objectId: "pigs-brick-house",
         predicate: "besieges",
+        sourceIds: ["src-pigs"],
         itemIds: ["pigs-brick-siege"],
         time: {
           type: "interval",
@@ -5353,6 +5443,7 @@ const SAMPLE = {
         subjectId: "pigs-wolf",
         objectId: "pigs-brick-house",
         predicate: "climbs",
+        sourceIds: ["src-pigs"],
         itemIds: ["pigs-wolf-roof"],
         time: {
           type: "instant",
@@ -5375,6 +5466,7 @@ const SAMPLE = {
         subjectId: "pigs-wolf",
         objectId: "pigs-brick-house",
         predicate: "enters",
+        sourceIds: ["src-pigs"],
         itemIds: ["pigs-chimney"],
         time: {
           type: "instant",
@@ -5397,6 +5489,7 @@ const SAMPLE = {
         subjectId: "pigs-brothers",
         objectId: "pigs-brick-house",
         predicate: "occupies",
+        sourceIds: ["src-pigs"],
         itemIds: ["pigs-safe"],
         time: {
           type: "instant",
@@ -5419,6 +5512,7 @@ const SAMPLE = {
         subjectId: "snow-white",
         objectId: "snow-apple-object",
         predicate: "bites",
+        sourceIds: ["src-snow"],
         itemIds: ["snow-apple", "snow-apple-prepared", "snow-coffin"],
         time: {
           type: "instant",
@@ -5441,6 +5535,7 @@ const SAMPLE = {
         subjectId: "snow-dwarfs",
         objectId: "snow-coffin-object",
         predicate: "guards",
+        sourceIds: ["src-snow"],
         itemIds: ["snow-coffin"],
         time: {
           type: "interval",
@@ -5545,6 +5640,7 @@ const SAMPLE = {
         subjectId: "cinderella-prince",
         objectId: "cinderella-herald",
         predicate: "dispatches",
+        sourceIds: ["src-cinderella"],
         itemIds: ["cinderella-search"],
         time: {
           type: "interval",
@@ -5575,6 +5671,7 @@ const SAMPLE = {
         subjectId: "snow-white",
         objectId: "snow-apple-object",
         predicate: "expels",
+        sourceIds: ["src-snow"],
         itemIds: ["snow-revival"],
         time: {
           type: "instant",
@@ -5597,6 +5694,7 @@ const SAMPLE = {
         subjectId: "cinderella-stepsisters",
         objectId: "cinderella-slipper-object",
         predicate: "tries",
+        sourceIds: ["src-cinderella"],
         itemIds: ["cinderella-stepsisters-try"],
         time: {
           type: "instant",
@@ -5663,6 +5761,7 @@ const SAMPLE = {
         subjectId: "snow-white",
         objectId: "snow-prince",
         predicate: "marries",
+        sourceIds: ["src-snow"],
         itemIds: ["snow-resolution"],
         time: {
           type: "instant",
@@ -5707,6 +5806,7 @@ const SAMPLE = {
         subjectId: "pigs-first",
         objectId: "pigs-third",
         predicate: "joins",
+        sourceIds: ["src-pigs"],
         time: {
           type: "instant",
           start: {
@@ -5835,6 +5935,11 @@ const SAMPLE = {
         radiusMeters: 180,
         icon: "home",
         markerShape: "square",
+        style: {
+          marker: { color: "#b54708", fillColor: "#b54708", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#b54708", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#b54708", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -5853,6 +5958,11 @@ const SAMPLE = {
         radiusMeters: null,
         icon: "home",
         markerShape: "square",
+        style: {
+          marker: { color: "#2563eb", fillColor: "#2563eb", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#2563eb", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#2563eb", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -5871,6 +5981,11 @@ const SAMPLE = {
         radiusMeters: null,
         icon: "crown",
         markerShape: "square",
+        style: {
+          marker: { color: "#7a5af8", fillColor: "#7a5af8", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#7a5af8", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#7a5af8", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -5887,8 +6002,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "object",
+        icon: "market",
         markerShape: "square",
+        style: {
+          marker: { color: "#b54708", fillColor: "#b54708", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#b54708", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#b54708", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -5905,8 +6025,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "place",
+        icon: "nature",
         markerShape: "pin",
+        style: {
+          marker: { color: "#2563eb", fillColor: "#2563eb", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#2563eb", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#2563eb", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -5925,6 +6050,11 @@ const SAMPLE = {
         radiusMeters: null,
         icon: "crown",
         markerShape: "square",
+        style: {
+          marker: { color: "#7a5af8", fillColor: "#7a5af8", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#7a5af8", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#7a5af8", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -5949,8 +6079,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "place",
+        icon: "route",
         markerShape: "diamond",
+        style: {
+          marker: { color: "#2563eb", fillColor: "#2563eb", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#2563eb", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#2563eb", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -5969,6 +6104,11 @@ const SAMPLE = {
         radiusMeters: null,
         icon: "crown",
         markerShape: "square",
+        style: {
+          marker: { color: "#2563eb", fillColor: "#2563eb", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#2563eb", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#2563eb", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -5987,6 +6127,11 @@ const SAMPLE = {
         radiusMeters: null,
         icon: "home",
         markerShape: "square",
+        style: {
+          marker: { color: "#7a5af8", fillColor: "#7a5af8", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#7a5af8", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#7a5af8", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -6005,6 +6150,11 @@ const SAMPLE = {
         radiusMeters: null,
         icon: "home",
         markerShape: "square",
+        style: {
+          marker: { color: "#b54708", fillColor: "#b54708", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#b54708", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#b54708", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -6021,8 +6171,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "place",
+        icon: "nature",
         markerShape: "pin",
+        style: {
+          marker: { color: "#b54708", fillColor: "#b54708", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#b54708", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#b54708", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -6039,8 +6194,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "place",
+        icon: "milestone",
         markerShape: "pin",
+        style: {
+          marker: { color: "#2563eb", fillColor: "#2563eb", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#2563eb", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#2563eb", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -6057,8 +6217,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "place",
+        icon: "route",
         markerShape: "pin",
+        style: {
+          marker: { color: "#b54708", fillColor: "#b54708", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#b54708", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#b54708", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -6075,8 +6240,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "object",
+        icon: "workshop",
         markerShape: "pin",
+        style: {
+          marker: { color: "#b54708", fillColor: "#b54708", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#b54708", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#b54708", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -6095,6 +6265,11 @@ const SAMPLE = {
         radiusMeters: null,
         icon: "crown",
         markerShape: "square",
+        style: {
+          marker: { color: "#2563eb", fillColor: "#2563eb", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#2563eb", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#2563eb", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -6111,8 +6286,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "home",
+        icon: "nature",
         markerShape: "square",
+        style: {
+          marker: { color: "#b54708", fillColor: "#b54708", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#b54708", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#b54708", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -6129,8 +6309,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "place",
+        icon: "nature",
         markerShape: "pin",
+        style: {
+          marker: { color: "#2563eb", fillColor: "#2563eb", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#2563eb", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#2563eb", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -6147,8 +6332,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "home",
+        icon: "nature",
         markerShape: "square",
+        style: {
+          marker: { color: "#b54708", fillColor: "#b54708", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#b54708", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#b54708", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -6165,8 +6355,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "place",
+        icon: "nature",
         markerShape: "pin",
+        style: {
+          marker: { color: "#7a5af8", fillColor: "#7a5af8", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#7a5af8", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#7a5af8", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -6185,6 +6380,11 @@ const SAMPLE = {
         radiusMeters: null,
         icon: "crown",
         markerShape: "square",
+        style: {
+          marker: { color: "#7a5af8", fillColor: "#7a5af8", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#7a5af8", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#7a5af8", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -6201,8 +6401,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "place",
+        icon: "route",
         markerShape: "pin",
+        style: {
+          marker: { color: "#7a5af8", fillColor: "#7a5af8", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#7a5af8", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#7a5af8", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -6219,8 +6424,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "home",
+        icon: "route",
         markerShape: "square",
+        style: {
+          marker: { color: "#2563eb", fillColor: "#2563eb", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#2563eb", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#2563eb", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
@@ -6237,8 +6447,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "place",
+        icon: "route",
         markerShape: "pin",
+        style: {
+          marker: { color: "#b54708", fillColor: "#b54708", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#b54708", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#b54708", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -6255,8 +6470,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "home",
+        icon: "route",
         markerShape: "square",
+        style: {
+          marker: { color: "#b54708", fillColor: "#b54708", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#b54708", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#b54708", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-three-little-pigs",
           fictional: true,
@@ -6273,8 +6493,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "crown",
+        icon: "route",
         markerShape: "square",
+        style: {
+          marker: { color: "#7a5af8", fillColor: "#7a5af8", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#7a5af8", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#7a5af8", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -6291,8 +6516,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "search",
+        icon: "route",
         markerShape: "diamond",
+        style: {
+          marker: { color: "#7a5af8", fillColor: "#7a5af8", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#7a5af8", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#7a5af8", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-cinderella",
           fictional: true,
@@ -6309,8 +6539,13 @@ const SAMPLE = {
         },
         crs: "OGC:CRS84",
         radiusMeters: null,
-        icon: "object",
+        icon: "workshop",
         markerShape: "pin",
+        style: {
+          marker: { color: "#2563eb", fillColor: "#2563eb", opacity: 0.92, size: 24, weight: 2 },
+          path: { color: "#2563eb", opacity: 0.82, weight: 3 },
+          area: { fillColor: "#2563eb", fillOpacity: 0.18 },
+        },
         attributes: {
           storyId: "story-snow-white",
           fictional: true,
