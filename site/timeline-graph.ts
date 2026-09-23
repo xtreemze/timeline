@@ -3,9 +3,11 @@
  * Enforces one-entity-per-node, one-action-per-edge semantics with spatiotemporal properties
  */
 
-const GRAPH_CONTRACT_VERSION = "2026-09-21.1";
+const GRAPH_CONTRACT_VERSION = "2026-09-24.1";
 const GRAPH_MODEL_RULES = Object.freeze({
   nodeIdentity: "one-durable-entity",
+  nodeTypes: "specific-domain-types-no-generic-placeholders",
+  propertyKeys: "lowerCamelCase",
   relationshipIdentity: "one-directed-action-fact",
   stableExplicitIds: true,
   selfLoops: "forbidden",
@@ -16,6 +18,7 @@ const GRAPH_MODEL_RULES = Object.freeze({
   orphanCanonicalEntities: "forbidden",
   eventActionPlaceTimeNodes: "forbidden",
   spatiotemporalContext: "relationship.time-and-relationship.placeId",
+  referentialIntegrity: "relationship-place-item-source-references-must-resolve",
   categories: "chronology-items-only",
   stories: "narrative-membership-not-graph-topology",
   namedNarrativeEntities: "known-canonical-mentions-must-be-endpoints-of-contextual-action-edges",
@@ -204,6 +207,12 @@ const NON_ENTITY_NODE_TYPES = new Set([
   "interaction", "communication", "decision", "movement", "meeting", "visit",
   "place", "location", "date", "time", "period", "geometry", "coordinate",
 ]);
+
+const GENERIC_ENTITY_NODE_TYPES = new Set([
+  "entity", "object", "thing", "item", "resource", "agent",
+]);
+
+const PROPERTY_KEY_PATTERN = /^[a-z][A-Za-z0-9]*$/;
 
 const ENTITY_CONTEXT_KEYS = new Set([
   "time", "date", "period", "start", "end", "location", "place", "placeid",
@@ -508,8 +517,16 @@ function cleanContextFreeAttributes(value: unknown): Record<string, any> {
 
 export function validateEntityNode(raw: any): ValidationResult {
   const name = text(raw?.name || raw?.label || raw?.title, 180);
-  const type = text(raw?.type, 60) || "entity";
+  const type = text(raw?.type, 60);
   const typeKey = semanticKey(type);
+  if (!name) return { valid: false, message: "An entity name is required." };
+  if (!type) return { valid: false, message: "A specific entity type is required." };
+  if (GENERIC_ENTITY_NODE_TYPES.has(typeKey)) {
+    return {
+      valid: false,
+      message: `"${type}" is too generic for a canonical entity type. Use a domain type such as person, organization, dwelling, vehicle, document, garment, food, or buildingMaterial.`,
+    };
+  }
   if (NON_ENTITY_NODE_TYPES.has(typeKey)) {
     return {
       valid: false,
@@ -524,6 +541,13 @@ export function validateEntityNode(raw: any): ValidationResult {
   }
   const attributes = raw?.attributes || raw?.properties;
   if (attributes && typeof attributes === "object" && !Array.isArray(attributes)) {
+    const nonCanonicalKey = Object.keys(attributes).find((key) => !PROPERTY_KEY_PATTERN.test(key));
+    if (nonCanonicalKey) {
+      return {
+        valid: false,
+        message: `Node property "${nonCanonicalKey}" must use lowerCamelCase.`,
+      };
+    }
     const invalidKey = Object.keys(attributes).find((key) =>
       ENTITY_CONTEXT_KEYS.has(semanticKey(key)),
     );
@@ -589,7 +613,7 @@ function normalizeEntity(raw: any, index: number): EntityNode | null {
   const id = text(raw.id, 120) || `entity-${index + 1}`;
   return {
     id,
-    type: text(raw.type, 60) || "entity",
+    type: text(raw.type, 60),
     name: text(raw.name || raw.label || raw.title, 180) || id,
     alternateNames: textList(raw.alternateNames || raw.aliases, { maxItems: 48, maxLength: 180 }),
     identifiers: Array.isArray(raw.identifiers) ? cloneJson(raw.identifiers) : [],
@@ -803,6 +827,9 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
   const rawItems = Array.isArray(input?.items) ? input.items : [];
   const rawStories = Array.isArray(input?.stories) ? input.stories : [];
   const rawPlaces = Array.isArray(input?.places) ? input.places : [];
+  const rawEvidence = Array.isArray(input?.evidence) ? input.evidence : [];
+  const itemIds = new Set<string>();
+  const evidenceIds = new Set<string>();
   const entityIds = new Set<string>();
   const placeIds = new Set<string>();
   const canonicalIds = new Map<string, string>();
@@ -827,7 +854,12 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
   };
 
   rawItems.forEach((item, index) => {
-    registerId(item?.id, `chronology item ${index + 1}`, `Chronology item ${index + 1}`);
+    const id = registerId(item?.id, `chronology item ${index + 1}`, `Chronology item ${index + 1}`);
+    if (id) itemIds.add(id);
+  });
+  rawEvidence.forEach((record, index) => {
+    const id = registerId(record?.id, `evidence record ${index + 1}`, `Evidence record ${index + 1}`);
+    if (id) evidenceIds.add(id);
   });
   rawStories.forEach((story, index) => {
     registerId(story?.id, `story ${index + 1}`, `Story ${index + 1}`);
@@ -857,6 +889,11 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
       errors.push(
         `${label}: canonical place requires Point coordinates or Polygon/MultiPolygon area geometry.`,
       );
+    }
+    const attrs = raw?.attributes;
+    if (attrs && typeof attrs === "object" && !Array.isArray(attrs)) {
+      const badKey = Object.keys(attrs).find((key) => !PROPERTY_KEY_PATTERN.test(key));
+      if (badKey) errors.push(`${label}: place attribute "${badKey}" must use lowerCamelCase.`);
     }
   });
 
@@ -894,6 +931,24 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
       errors.push(`${label}: subject/source must reference an entity node.`);
     if (!entityIds.has(objectId))
       errors.push(`${label}: object/target must reference an entity node.`);
+
+    const placeId = text(raw.placeId || raw.locationId, 120);
+    if (placeId && !placeIds.has(placeId)) {
+      errors.push(`${label}: placeId "${placeId}" must reference a canonical place.`);
+    }
+    for (const itemId of textList(raw.itemIds || raw.contextItemIds || raw.eventIds, { maxItems: 96, maxLength: 120 })) {
+      if (!itemIds.has(itemId)) errors.push(`${label}: itemId "${itemId}" must reference a chronology item.`);
+    }
+    for (const sourceId of textList(raw.sourceIds, { maxItems: 96, maxLength: 120 })) {
+      if (!evidenceIds.has(sourceId)) errors.push(`${label}: sourceId "${sourceId}" must reference an evidence record.`);
+    }
+    const attributes = raw.attributes || raw.properties;
+    if (attributes && typeof attributes === "object" && !Array.isArray(attributes)) {
+      const badKey = Object.keys(attributes).find((key) => !PROPERTY_KEY_PATTERN.test(key));
+      if (badKey) errors.push(`${label}: relationship property "${badKey}" must use lowerCamelCase.`);
+      const contextKey = Object.keys(attributes).find(contextPropertyKey);
+      if (contextKey) errors.push(`${label}: relationship property "${contextKey}" is spatiotemporal context; use time/placeId.`);
+    }
 
   });
 
