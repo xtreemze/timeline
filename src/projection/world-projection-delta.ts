@@ -1,5 +1,6 @@
-import type {
-  ProjectedWorldEdge,
+import {
+  createWorldProjection,
+  type ProjectedWorldEdge,
   ProjectedWorldInstance,
   WorldInstanceId,
   WorldProjection,
@@ -64,4 +65,47 @@ export function isEmptyWorldProjectionDelta(delta: WorldProjectionDelta): boolea
     delta.updatedEdges.length === 0 &&
     delta.removedEdgeIds.length === 0
   );
+}
+
+
+export function applyWorldProjectionDelta(
+  previous: WorldProjection,
+  delta: WorldProjectionDelta,
+): WorldProjection {
+  const instances = new Map(previous.instances.map((value) => [value.id, value]));
+  const edges = new Map(previous.edges.map((value) => [value.id, value]));
+
+  for (const id of delta.removedInstanceIds) instances.delete(id);
+  for (const id of delta.removedEdgeIds) edges.delete(id as never);
+
+  for (const value of delta.updatedInstances) {
+    if (!instances.has(value.id)) {
+      throw new Error(`Cannot update missing world instance: ${String(value.id)}`);
+    }
+    instances.set(value.id, value);
+  }
+  for (const value of delta.addedInstances) {
+    if (instances.has(value.id)) {
+      throw new Error(`Cannot add existing world instance: ${String(value.id)}`);
+    }
+    instances.set(value.id, value);
+  }
+
+  for (const value of delta.updatedEdges) {
+    if (!edges.has(value.id)) {
+      throw new Error(`Cannot update missing world edge: ${String(value.id)}`);
+    }
+    edges.set(value.id, value);
+  }
+  for (const value of delta.addedEdges) {
+    if (edges.has(value.id)) {
+      throw new Error(`Cannot add existing world edge: ${String(value.id)}`);
+    }
+    edges.set(value.id, value);
+  }
+
+  return createWorldProjection({
+    instances: [...instances.values()],
+    edges: [...edges.values()],
+  });
 }
