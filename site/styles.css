@@ -4091,126 +4091,115 @@ body {
   display: none;
 }
 
-/* Responsive reserved workspace chrome: title and controls share one anchored zone. */
+/* Conventional application footer: navigation stays on the physical bottom edge in every
+   timeline orientation. Timeline orientation changes chronology, never application chrome. */
 #app-shell {
-  --workspace-chrome-gap: 0.35rem;
-  --workspace-title-block-size: 38px;
-  --workspace-tool-block-size: 52px;
-  --workspace-title-inline-size: 42px;
-  --workspace-tool-inline-size: 62px;
-  --workspace-landscape-chrome-block: calc(
-    max(0.4rem, env(safe-area-inset-bottom)) +
-    var(--workspace-title-block-size) +
-    var(--workspace-tool-block-size) +
-    (var(--workspace-chrome-gap) * 2)
+  --workspace-footer-content-block-size: 64px;
+  --workspace-footer-block-size: calc(
+    var(--workspace-footer-content-block-size) + env(safe-area-inset-bottom)
   );
-  --workspace-portrait-chrome-inline: calc(
-    max(0.4rem, env(safe-area-inset-right)) +
-    var(--workspace-title-inline-size) +
-    var(--workspace-tool-inline-size) +
-    (var(--workspace-chrome-gap) * 2)
-  );
+  --workspace-title-block-size: 42px;
+
+  /* Compatibility aliases for geometry owned by timeline-view.css. There is no side chrome. */
+  --workspace-portrait-chrome-inline: 0px;
+  --workspace-landscape-chrome-block: var(--workspace-footer-block-size);
 }
 
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock {
-  inset-block-start: auto;
-  inset-inline-end: auto;
-  inset-block-end: calc(
-    max(0.4rem, env(safe-area-inset-bottom)) +
-    var(--workspace-title-block-size) +
-    var(--workspace-chrome-gap)
-  );
-  inset-inline-start: 50%;
-  flex-direction: row;
-  inline-size: min(22rem, calc(100% - 1rem));
-  max-inline-size: calc(100% - 1rem);
-  max-block-size: var(--workspace-tool-block-size);
-  overflow-inline: auto;
-  overflow-block: clip;
-  transform: translateX(-50%);
-}
-
+.app-tool-dock,
+#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
-  inset-block-start: 50%;
-  inset-inline-end: calc(
-    max(0.4rem, env(safe-area-inset-right)) +
-    var(--workspace-title-inline-size) +
-    var(--workspace-chrome-gap)
-  );
-  inset-block-end: auto;
-  inset-inline-start: auto;
-  flex-direction: column;
-  inline-size: var(--workspace-tool-inline-size);
-  max-inline-size: var(--workspace-tool-inline-size);
-  max-block-size: calc(
-    100dvh -
-    max(0.8rem, env(safe-area-inset-top)) -
-    max(0.8rem, env(safe-area-inset-bottom))
-  );
-  overflow-inline: auto;
-  overflow-block: auto;
-  transform: translateY(-50%);
+  inset-block-start: auto;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  inset-block-end: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  justify-content: stretch;
+  inline-size: 100%;
+  max-inline-size: none;
+  block-size: var(--workspace-footer-block-size);
+  min-block-size: var(--workspace-footer-block-size);
+  max-block-size: none;
+  padding: 0.3rem max(0.4rem, env(safe-area-inset-right))
+    max(0.3rem, env(safe-area-inset-bottom)) max(0.4rem, env(safe-area-inset-left));
+  gap: 0.12rem;
+  overflow: hidden;
+  transform: none;
+  border: 0;
+  border-block-start: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  border-radius: 0;
+  background: color-mix(in srgb, var(--paper) 96%, transparent);
+  box-shadow: 0 -3px 14px color-mix(in srgb, var(--ink) 7%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.app-tool {
+  min-inline-size: 0;
+  min-block-size: 52px;
+  padding: 0.34rem 0.3rem;
+  border-radius: 0.7rem;
+  touch-action: manipulation;
 }
 
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool {
-  flex: 0 0 auto;
-  inline-size: 100%;
-  min-inline-size: 0;
-  min-block-size: 50px;
-  padding: 0.34rem 0.25rem;
-}
-
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-editor-sheet,
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-browser-sheet {
-  position: fixed;
-  inset-block-start: max(0.4rem, env(safe-area-inset-top));
-  inset-block-end: calc(var(--workspace-landscape-chrome-block) + 0.35rem);
-  inset-inline-start: max(0.4rem, env(safe-area-inset-left));
-  inset-inline-end: max(0.4rem, env(safe-area-inset-right));
   inline-size: auto;
-  block-size: auto;
-  max-block-size: none;
+  min-inline-size: 0;
+  min-block-size: 52px;
+  padding: 0.34rem 0.3rem;
 }
 
+#presentation-stage:fullscreen .app-tool-dock {
+  inset-block-start: auto;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  inset-block-end: 0;
+  inline-size: 100%;
+  max-inline-size: none;
+  block-size: var(--workspace-footer-block-size);
+  max-block-size: none;
+  overflow: hidden;
+  transform: none;
+  border-radius: 0;
+  box-shadow: 0 -3px 14px color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+#app-shell .app-editor-sheet,
+#app-shell .app-browser-sheet,
+#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-editor-sheet,
+#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-browser-sheet,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-editor-sheet,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-browser-sheet {
-  position: fixed;
-  inset-block-start: max(0.4rem, env(safe-area-inset-top));
-  inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
-  inset-inline-start: max(0.4rem, env(safe-area-inset-left));
-  inset-inline-end: calc(var(--workspace-portrait-chrome-inline) + 0.35rem);
-  inline-size: auto;
-  block-size: auto;
-  max-inline-size: calc(100% - var(--workspace-portrait-chrome-inline) - 0.75rem);
-  max-block-size: none;
+  inset-block-end: calc(var(--workspace-footer-block-size) + 0.35rem);
 }
 
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .timeline-panel > .story-focus {
-  inset-block-end: calc(var(--workspace-landscape-chrome-block) + 0.35rem);
-}
-
+#app-shell .timeline-panel > .story-focus,
+#app-shell:has(#timeline-view[data-orientation="landscape"]) .timeline-panel > .story-focus,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .timeline-panel > .story-focus {
-  inset-inline-end: calc(var(--workspace-portrait-chrome-inline) + 0.35rem);
+  inset-block-end: calc(var(--workspace-footer-block-size) + 0.35rem);
+  inset-inline-end: max(0.45rem, env(safe-area-inset-right));
 }
 
 @media (min-width: 700px) {
-  #app-shell {
-    --workspace-title-block-size: 42px;
-    --workspace-tool-block-size: 58px;
+  .app-tool-dock,
+  #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock,
+  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
+    grid-template-columns: repeat(4, minmax(72px, 112px));
+    justify-content: center;
   }
 }
 
 @media (max-height: 520px) {
-  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
-    gap: 0.1rem;
-    padding: 0.2rem;
+  #app-shell {
+    --workspace-footer-content-block-size: 58px;
   }
 
+  .app-tool,
   #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool {
-    min-block-size: 44px;
+    min-block-size: 46px;
   }
 
-  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-label {
+  .app-tool-label {
     font-size: 0.6rem;
   }
 }
