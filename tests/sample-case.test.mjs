@@ -29,10 +29,10 @@ function storySpan(story) {
   };
 }
 
-test("sample is a three-story fictional anthology with strict logical consistency", () => {
+test("sample is a five-story fictional anthology with strict logical consistency", () => {
   assert.deepEqual(
     sample.stories.map((story) => story.title),
-    ["The Three Little Pigs", "Snow White", "Cinderella"],
+    ["The Three Little Pigs", "Snow White", "Cinderella", "Little Red Riding Hood", "Hansel and Gretel"],
   );
   assert.equal(sample.extensions?.narrative?.mode, "fictional");
   assert.equal(sample.extensions?.narrative?.validationProfile, "narrative");
@@ -51,7 +51,7 @@ test("every chronology item belongs to exactly one independently inspectable sto
   for (const [id, count] of memberships) assert.equal(count, 1, id);
 });
 
-test("all three stories coexist on the same chronology and overlap during their main action", () => {
+test("all five stories coexist on the same chronology and overlap during their main action", () => {
   const spans = sample.stories.map(storySpan);
   for (let i = 0; i < spans.length; i += 1) {
     for (let j = i + 1; j < spans.length; j += 1) {
@@ -142,8 +142,69 @@ test("sample exercises focus compositions, media, source surfaces, and tags", ()
   assert.ok(sample.items.every((item) => item.media?.length >= 2));
   assert.ok(sample.items.every((item) => item.tags?.length));
   const evidenceTypes = new Set(sample.evidence.map((record) => record.type));
-  assert.deepEqual([...evidenceTypes].sort(), ["article", "document", "note", "pdf"]);
-  assert.ok(sample.evidence.every((record) => /fixture|Timeline demo/i.test(record.sourceName)));
+  assert.deepEqual([...evidenceTypes].sort(), ["document", "note", "pdf"]);
+  const narrativeSources = sample.evidence.filter((record) => record.sourceName === "Project Gutenberg");
+  assert.ok(narrativeSources.length >= sample.stories.length);
+  assert.ok(
+    narrativeSources.every(
+      (record) =>
+        /^https:\/\/www\.gutenberg\.org\/ebooks\/\d+$/.test(record.url || "") &&
+        /^20\d{2}-\d{2}-\d{2}$/.test(record.publishedAt || ""),
+    ),
+  );
+  assert.ok(sample.evidence.some((record) => record.sourceName === "Timeline demo"));
+});
+
+
+test("sample entities, relationships, places, and evidence satisfy the strict semantic quality profile", () => {
+  const genericTypes = new Set(["entity", "object", "thing", "item", "resource", "agent"]);
+  const evidenceIds = new Set(sample.evidence.map((record) => record.id));
+  const itemIds = new Set(sample.items.map((item) => item.id));
+  const placeIds = new Set(sample.places.map((place) => place.id));
+  const lowerCamel = /^[a-z][A-Za-z0-9]*$/;
+
+  for (const entity of sample.entities) {
+    assert.ok(entity.type && !genericTypes.has(entity.type), `${entity.id}: specific type`);
+    assert.ok(lowerCamel.test(entity.type), `${entity.id}: lowerCamelCase type`);
+    assert.ok(entity.sourceIds?.length, `${entity.id}: provenance`);
+    for (const sourceId of entity.sourceIds) assert.ok(evidenceIds.has(sourceId), sourceId);
+    for (const key of Object.keys(entity.attributes || {}))
+      assert.ok(lowerCamel.test(key), `${entity.id}: attribute ${key}`);
+  }
+
+  for (const relationship of sample.relationships) {
+    assert.ok(relationship.sourceIds?.length, `${relationship.id}: provenance`);
+    for (const sourceId of relationship.sourceIds) assert.ok(evidenceIds.has(sourceId), sourceId);
+    if (relationship.placeId) assert.ok(placeIds.has(relationship.placeId), relationship.id);
+    for (const itemId of relationship.itemIds || []) assert.ok(itemIds.has(itemId), relationship.id);
+    for (const key of Object.keys(relationship.attributes || {}))
+      assert.ok(lowerCamel.test(key), `${relationship.id}: property ${key}`);
+  }
+
+  for (const item of sample.items) {
+    assert.ok(item.evidenceIds?.length, `${item.id}: evidence`);
+    for (const evidenceId of item.evidenceIds) assert.ok(evidenceIds.has(evidenceId), evidenceId);
+  }
+
+  for (const place of sample.places) {
+    assert.ok(presentation.ICON_NAMES.includes(place.icon), `${place.id}: semantic icon`);
+    assert.ok(spatial.PLACE_MARKER_SHAPES.includes(place.markerShape), `${place.id}: semantic shape`);
+    assert.match(place.style?.marker?.color || "", /^#[0-9a-f]{6}$/i, `${place.id}: semantic color`);
+    assert.match(place.style?.marker?.fillColor || "", /^#[0-9a-f]{6}$/i, `${place.id}: semantic fill`);
+  }
+});
+
+test("the expanded anthology includes sourced classic narratives beyond the original three tales", () => {
+  const red = sample.stories.find((story) => story.id === "story-little-red-riding-hood");
+  const hansel = sample.stories.find((story) => story.id === "story-hansel-and-gretel");
+  assert.equal(red?.title, "Little Red Riding Hood");
+  assert.equal(hansel?.title, "Hansel and Gretel");
+  assert.ok(red.itemIds.length >= 10);
+  assert.ok(hansel.itemIds.length >= 10);
+  assert.ok(sample.entities.some((entity) => entity.id === "red-wolf" && entity.type === "anthropomorphicWolf"));
+  assert.ok(sample.entities.some((entity) => entity.id === "hg-gingerbread-house" && entity.type === "dwelling"));
+  assert.ok(sample.evidence.some((record) => record.id === "src-red-cap" && /11027/.test(record.url || "")));
+  assert.ok(sample.evidence.some((record) => record.id === "src-hansel-gretel" && /11027/.test(record.url || "")));
 });
 
 test("the anthology keeps tales separate through narrative membership, not graph topology", () => {
@@ -203,7 +264,13 @@ test("each tale demonstrates an event-driven relationship lifecycle", () => {
   );
   assert.deepEqual(
     dynamicIds,
-    new Set(["rel-pigs-wolf-threat", "rel-snow-queen-threat", "rel-cinderella-prince-search"]),
+    new Set([
+      "rel-pigs-wolf-threat",
+      "rel-snow-queen-threat",
+      "rel-cinderella-prince-search",
+      "rel-red-wolf-threat",
+      "rel-hg-witch-threat",
+    ]),
   );
 
   const changes = sample.items.flatMap((item) =>
@@ -233,9 +300,11 @@ test("timed graph edges cover intervals, instants, attributes, entities, and reu
   assert.ok(timed.some((relationship) => relationship.time?.type === "instant"));
   assert.ok(timed.some((relationship) => Object.keys(relationship.attributes || {}).length > 0));
   const entityTypes = new Set(sample.entities.map((entity) => entity.type));
-  for (const type of ["group", "object", "person"]) assert.ok(entityTypes.has(type));
-  assert.equal(entityTypes.has("place"), false);
-  assert.ok(sample.places.length >= 27);
+  for (const type of ["group", "person", "dwelling", "buildingMaterial", "food", "vehicle"])
+    assert.ok(entityTypes.has(type), type);
+  for (const genericType of ["entity", "object", "thing", "item", "resource", "agent", "place"])
+    assert.equal(entityTypes.has(genericType), false, genericType);
+  assert.ok(sample.places.length >= 37);
 });
 
 test("storybook scenes remain recognizable through distributed media and semantic icons", () => {
@@ -296,6 +365,8 @@ test("each story exposes a detailed causal sequence rather than summary-only bea
     ["story-three-little-pigs", 16],
     ["story-snow-white", 20],
     ["story-cinderella", 19],
+    ["story-little-red-riding-hood", 10],
+    ["story-hansel-and-gretel", 10],
   ]);
   for (const story of sample.stories) {
     const items = storyItems(story);
@@ -389,10 +460,10 @@ test("Cinderella includes household formation, practical transformation, palace 
 });
 
 test("detailed stories add graph and place depth without conflating categories with stories", () => {
-  assert.ok(sample.items.length >= 55);
-  assert.ok(sample.entities.length >= 39);
-  assert.ok(sample.places.length >= 27);
-  assert.ok(sample.relationships.length >= 46);
+  assert.ok(sample.items.length >= 75);
+  assert.ok(sample.entities.length >= 52);
+  assert.ok(sample.places.length >= 37);
+  assert.ok(sample.relationships.length >= 95);
   assert.ok(
     sample.relationships.filter((relationship) => relationship.time?.start?.value).length >= 30,
   );
