@@ -321,6 +321,12 @@ main > * {
   grid-column: 1 / -1;
   min-width: 0;
 }
+.graph-lens > summary,
+.temporal-graph-toolbar,
+.temporal-graph-detail {
+  display: none;
+}
+
 .presentation-stage > .graph-lens,
 .presentation-map-panel {
   min-width: 0;
@@ -2721,6 +2727,12 @@ body {
   overflow: hidden;
 }
 
+#app-shell #presentation-stage {
+  display: block;
+  grid-template-columns: none;
+  grid-template-rows: none;
+}
+
 #app-shell #presentation-stage,
 #app-shell.is-event-focused #presentation-stage {
   position: absolute;
@@ -3025,6 +3037,7 @@ body {
 /* Contextual mode chrome stays independent of Browse so story navigation is never hidden
    behind a utility sheet. It yields visually while a larger task surface is open. */
 #app-shell .timeline-panel > .story-focus {
+  view-transition-name: timeline-story-controls;
   position: fixed;
   z-index: 1040;
   inset-inline-start: max(0.45rem, env(safe-area-inset-left));
@@ -3100,12 +3113,6 @@ body {
 }
 
 /* The persistent application no longer uses a page-level 12-column grid. */
-#app-shell #presentation-stage {
-  display: block;
-  grid-template-columns: none;
-  grid-template-rows: none;
-}
-
 /* Keep the footer application bar structurally stable in Edit mode.
    Browse and View are disabled by application state while editing, but Project must remain
    reachable because load/import/clear project actions are intentionally edit-only. */
@@ -3125,17 +3132,6 @@ body {
 
 /* The persistent relation graph is a stage canvas, never a utility card. Application chrome
    may overlay it; timeline-view.css alone reserves the chronology rail. */
-.graph-lens > summary,
-.temporal-graph-toolbar,
-.temporal-graph-detail {
-  display: none;
-}
-
-#app-shell #presentation-stage:not(:fullscreen) > .graph-lens:not([hidden]) {
-  position: absolute;
-  z-index: 1050;
-}
-
 #app-shell #presentation-stage > .graph-lens:not([hidden]) {
   display: block;
   box-sizing: border-box;
@@ -3153,6 +3149,11 @@ body {
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
+}
+
+#app-shell #presentation-stage:not(:fullscreen) > .graph-lens:not([hidden]) {
+  position: absolute;
+  z-index: 1050;
 }
 
 #app-shell #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-view,
@@ -3213,16 +3214,8 @@ body {
   view-transition-name: timeline-command-bar;
 }
 
-.app-tool-dock {
-  view-transition-name: timeline-workspace-sidebar;
-}
-
 .app-view-controls {
   view-transition-name: timeline-view-controls;
-}
-
-#app-shell .timeline-panel > .story-focus {
-  view-transition-name: timeline-story-controls;
 }
 
 ::view-transition-group(timeline-command-bar),
