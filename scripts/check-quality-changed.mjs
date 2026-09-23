@@ -1,6 +1,6 @@
+import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { extname } from "node:path";
-import { spawnSync } from "node:child_process";
 
 const supportedExtensions = new Set([
   ".cjs",
@@ -71,9 +71,12 @@ if (files.length === 0) {
   process.exit(0);
 }
 
-console.log(`Strict quality gate: checking ${files.length} changed file(s) against ${base.slice(0, 12)}.`);
+console.log(
+  `Strict quality gate: checking ${files.length} changed file(s) against ${base.slice(0, 12)}.`,
+);
 
-const command = process.platform === "win32" ? "node_modules/.bin/biome.cmd" : "node_modules/.bin/biome";
+const command =
+  process.platform === "win32" ? "node_modules/.bin/biome.cmd" : "node_modules/.bin/biome";
 const result = spawnSync(
   command,
   [
