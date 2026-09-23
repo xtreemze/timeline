@@ -1157,11 +1157,6 @@
   grid-row: 1 / span 2;
   min-height: clamp(320px, 42vw, 520px);
 }
-.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-summary {
-  grid-column: 4 / -1;
-  grid-row: 1 / span 2;
-  align-self: stretch;
-}
 .timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-evidence-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1726,14 +1721,6 @@
   display: block;
 }
 
-#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="landscape"]
-  > .presentation-map-panel:not([hidden]),
-#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="square"]
-  > .presentation-map-panel:not([hidden]) {
-  grid-column: 3 / span 2;
-  grid-row: 1 / span 2;
-}
-
 #presentation-stage:fullscreen .presentation-map-heading {
   position: absolute;
   z-index: 450;
@@ -1769,17 +1756,6 @@
 #presentation-stage:fullscreen[data-stage-shape][data-viewport-orientation] {
   grid-template-columns: repeat(6, minmax(0, 1fr));
   grid-template-rows: repeat(6, minmax(0, 1fr));
-}
-
-#presentation-stage:fullscreen > .timeline-view {
-  position: relative;
-  grid-column: 1 / -1;
-  grid-row: 1 / -1;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  overflow: visible;
 }
 
 #presentation-stage:fullscreen > .graph-lens {
@@ -2142,23 +2118,6 @@
   grid-template-rows: none;
 }
 
-#presentation-stage > .timeline-view,
-#presentation-stage:fullscreen > .timeline-view,
-#presentation-stage:fullscreen[data-event-focused] > .timeline-view,
-#presentation-stage:fullscreen[data-has-context-graph] > .timeline-view,
-#presentation-stage:fullscreen[data-has-context-map] > .timeline-view {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  max-width: none;
-  max-height: none;
-  grid-column: auto;
-  grid-row: auto;
-}
-
 #presentation-stage > .graph-lens:not([hidden]),
 #presentation-stage:fullscreen > .graph-lens:not([hidden]) {
   position: absolute;
@@ -2181,6 +2140,14 @@
   height: auto;
   margin: 0;
   overflow: hidden;
+}
+
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="landscape"]
+  > .presentation-map-panel:not([hidden]),
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="square"]
+  > .presentation-map-panel:not([hidden]) {
+  grid-column: 3 / span 2;
+  grid-row: 1 / span 2;
 }
 
 #presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="portrait"]
@@ -2210,6 +2177,34 @@
 #presentation-stage:fullscreen > .timeline-view {
   z-index: 2;
   pointer-events: none;
+}
+
+#presentation-stage > .timeline-view,
+#presentation-stage:fullscreen > .timeline-view,
+#presentation-stage:fullscreen[data-event-focused] > .timeline-view,
+#presentation-stage:fullscreen[data-has-context-graph] > .timeline-view,
+#presentation-stage:fullscreen[data-has-context-map] > .timeline-view {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+  grid-column: auto;
+  grid-row: auto;
+}
+
+#presentation-stage:fullscreen > .timeline-view {
+  position: relative;
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
 }
 
 #presentation-stage:fullscreen[data-event-focused="false"] > .timeline-view {
@@ -2496,14 +2491,6 @@
   overflow: hidden;
   background: transparent;
 }
-.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-relations {
-  grid-column: 3 / -1;
-  grid-row: 3;
-}
-.timeline-focus-view[data-layout="hero-split"] .timeline-focus-place,
-.timeline-focus-view[data-layout="hero-split"] .timeline-focus-relations {
-  grid-column: 1 / -1;
-}
 
 .timeline-focus-relations::before {
   content: "";
@@ -2773,6 +2760,11 @@
 .timeline-focus-summary {
   overflow: auto;
 }
+.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-summary {
+  grid-column: 4 / -1;
+  grid-row: 1 / span 2;
+  align-self: stretch;
+}
 .timeline-focus-view[data-layout="hero-split"] .timeline-focus-summary {
   grid-column: 1 / -1;
   grid-row: auto;
@@ -3004,6 +2996,14 @@
 .timeline-focus-place,
 .timeline-focus-relations {
   max-block-size: 100%;
+}
+.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-relations {
+  grid-column: 3 / -1;
+  grid-row: 3;
+}
+.timeline-focus-view[data-layout="hero-split"] .timeline-focus-place,
+.timeline-focus-view[data-layout="hero-split"] .timeline-focus-relations {
+  grid-column: 1 / -1;
 }
 .timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-place {
   grid-column: 1 / span 2;
@@ -4405,11 +4405,6 @@
     grid-row: 4;
   }
 
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero,
-  #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero {
-    grid-row: 3;
-  }
-
   .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero,
   #app-shell .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero {
     grid-row: 2;
@@ -4421,6 +4416,11 @@
     min-height: var(--focus-hero-block-size);
     height: var(--focus-hero-block-size);
     max-height: var(--focus-hero-block-size);
+  }
+
+  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero,
+  #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero {
+    grid-row: 3;
   }
 
   .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence,
@@ -4885,19 +4885,6 @@
   transform: translateY(-50%);
 }
 
-#presentation-stage > .timeline-view > .timeline-project-heading,
-#presentation-stage > .timeline-view > .timeline-surface,
-#presentation-stage > .timeline-view > .timeline-semantic-list,
-#presentation-stage > .timeline-view > .timeline-focus-view,
-#presentation-stage > .timeline-view > .timeline-view-toolbar,
-#presentation-stage:fullscreen > .timeline-view > .timeline-project-heading,
-#presentation-stage:fullscreen > .timeline-view > .timeline-surface,
-#presentation-stage:fullscreen > .timeline-view > .timeline-semantic-list,
-#presentation-stage:fullscreen > .timeline-view > .timeline-focus-view,
-#presentation-stage:fullscreen > .timeline-view > .timeline-view-toolbar {
-  pointer-events: auto;
-}
-
 #presentation-stage:fullscreen .timeline-surface,
 #presentation-stage:fullscreen .timeline-view.is-event-focused .timeline-surface,
 #presentation-stage:fullscreen
@@ -4913,6 +4900,19 @@
   min-width: 0;
   min-height: 0;
   border: 0;
+}
+
+#presentation-stage > .timeline-view > .timeline-project-heading,
+#presentation-stage > .timeline-view > .timeline-surface,
+#presentation-stage > .timeline-view > .timeline-semantic-list,
+#presentation-stage > .timeline-view > .timeline-focus-view,
+#presentation-stage > .timeline-view > .timeline-view-toolbar,
+#presentation-stage:fullscreen > .timeline-view > .timeline-project-heading,
+#presentation-stage:fullscreen > .timeline-view > .timeline-surface,
+#presentation-stage:fullscreen > .timeline-view > .timeline-semantic-list,
+#presentation-stage:fullscreen > .timeline-view > .timeline-focus-view,
+#presentation-stage:fullscreen > .timeline-view > .timeline-view-toolbar {
+  pointer-events: auto;
 }
 
 #app-shell #timeline-view .timeline-surface,
@@ -5163,20 +5163,6 @@
 
 #app-shell.is-event-focused
   #presentation-stage[data-timeline-orientation="horizontal"]
-  > .graph-lens:not([hidden]) {
-  position: relative;
-  inset: auto;
-  grid-column: 2;
-  grid-row: 1;
-  margin: 0;
-  align-self: stretch;
-  overflow: visible;
-  border-width: 0 0 1px;
-  border-radius: 0;
-}
-
-#app-shell.is-event-focused
-  #presentation-stage[data-timeline-orientation="horizontal"]
   > .timeline-view {
   position: relative;
   inset: auto;
@@ -5241,6 +5227,20 @@
 
 #app-shell.is-event-focused #presentation-stage > .graph-lens:not([hidden]) {
   display: grid;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="horizontal"]
+  > .graph-lens:not([hidden]) {
+  position: relative;
+  inset: auto;
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+  align-self: stretch;
+  overflow: visible;
+  border-width: 0 0 1px;
+  border-radius: 0;
 }
 
 #app-shell[data-graph-open="true"]
