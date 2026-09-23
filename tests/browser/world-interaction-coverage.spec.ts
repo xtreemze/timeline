@@ -19,7 +19,6 @@ import { expect, test } from "@playwright/test";
  * zoom. Both must move deck.gl's real controller-backed camera.
  */
 
-
 async function dispatchPinchZoom(page: import("@playwright/test").Page) {
   const viewport = page.viewportSize();
   if (!viewport) throw new Error("WorldSurface pinch certification requires a viewport.");
