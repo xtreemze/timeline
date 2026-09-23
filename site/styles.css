@@ -337,6 +337,12 @@ main > * {
   grid-column: 1 / -1;
   min-width: 0;
 }
+.graph-lens > summary,
+.temporal-graph-toolbar,
+.temporal-graph-detail {
+  display: none;
+}
+
 .graph-lens {
   margin: 1rem 0 1.25rem;
   border: 1px solid var(--line);
@@ -344,6 +350,7 @@ main > * {
   background: transparent;
   overflow: visible;
 }
+
 
 .graph-lens > summary {
   display: flex;
@@ -354,12 +361,6 @@ main > * {
   padding: 0.75rem 0.9rem;
   cursor: pointer;
   list-style: none;
-}
-
-.graph-lens > summary,
-.temporal-graph-toolbar,
-.temporal-graph-detail {
-  display: none;
 }
 
 .presentation-stage > .graph-lens,
@@ -613,6 +614,20 @@ a:focus-visible {
   font-size: 0.82rem;
   font-weight: 800;
 }
+footer p {
+  grid-column: 1 / span 8;
+  margin: 0;
+}
+
+.project-menu-action > small {
+  grid-column: 2;
+  grid-row: 2;
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 520;
+  line-height: 1.35;
+}
+
 .temporal-editor legend small {
   margin-inline-start: 0.25rem;
   color: var(--muted);
@@ -1105,6 +1120,13 @@ geolocation {
   stroke-width: 1.9;
 }
 
+.timeline-map-place-icon {
+  width: 2.35rem;
+  height: 2.35rem;
+  flex-basis: 2.35rem;
+  backdrop-filter: blur(8px);
+}
+
 .timeline-map-marker-shape-circle .timeline-map-marker-shell,
 .timeline-map-marker-shape-circle .timeline-map-place-icon {
   border-radius: 50%;
@@ -1160,12 +1182,6 @@ geolocation {
   max-width: calc(100% - 1.3rem);
   transform: translate(-50%, -50%);
   pointer-events: none;
-}
-.timeline-map-place-icon {
-  width: 2.35rem;
-  height: 2.35rem;
-  flex-basis: 2.35rem;
-  backdrop-filter: blur(8px);
 }
 .timeline-map-place-status {
   position: absolute;
@@ -2227,11 +2243,6 @@ footer > :last-child {
   display: grid;
   gap: 0.15rem;
 }
-footer p {
-  grid-column: 1 / span 8;
-  margin: 0;
-}
-
 .temporal-graph-detail strong {
   color: var(--ink);
   font-size: 0.8rem;
@@ -2240,15 +2251,6 @@ footer p {
 .project-menu-header strong {
   font-size: 0.88rem;
   letter-spacing: -0.02em;
-}
-
-.project-menu-action > small {
-  grid-column: 2;
-  grid-row: 2;
-  color: var(--muted);
-  font-size: 0.64rem;
-  font-weight: 520;
-  line-height: 1.35;
 }
 
 .app-surface-header strong {
