@@ -1,0 +1,38 @@
+name: Refresh deck world lockfile
+
+on:
+  push:
+    branches:
+      - feat/deck-world-packages
+    paths:
+      - package.json
+      - .github/workflows/refresh-deck-world-lock.yml
+
+permissions:
+  contents: write
+
+jobs:
+  lockfile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/deck-world-packages
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --lockfile-only --no-frozen-lockfile
+      - name: Commit generated lockfile
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml; then
+            echo "pnpm-lock.yaml already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git commit -m "chore: refresh deck world lockfile [skip ci]"
+          git push origin HEAD:feat/deck-world-packages
