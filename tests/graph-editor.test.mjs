@@ -57,7 +57,13 @@ test("timeline includes an interactive temporal node-edge graph lens", async () 
   assert.match(source, /graphselectionchange/);
   assert.doesNotMatch(source, /graphnodefocus|graphstoryfocus|graphentityfocus|graphedgefocus/);
   assert.match(source, /updateTemporalEdges/);
-  assert.match(html, /orb-graph\.bundle\.js/);
+  const orbRuntimeIndex = html.indexOf('<script src="./orb-graph.bundle.js"></script>');
+  const temporalGraphModuleIndex = html.indexOf(
+    '<script type="module" src="./temporal-graph-view-shim.ts" defer></script>',
+  );
+  assert.ok(orbRuntimeIndex >= 0, "Orb runtime must load as a blocking classic script");
+  assert.ok(temporalGraphModuleIndex > orbRuntimeIndex, "Orb runtime must execute before graph modules");
+  assert.doesNotMatch(html, /orb-graph\.bundle\.js" defer/);
   assert.match(css, /\.temporal-graph-canvas canvas/);
 });
 
