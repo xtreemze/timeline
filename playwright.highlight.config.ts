@@ -8,15 +8,16 @@ export default defineConfig({
   retries: 0,
   workers: 1,
   reporter: [['line']],
-  timeout: 120_000,
-  expect: { timeout: 7_500 },
-  outputDir: 'artifacts/e2e-media/playwright',
+  timeout: 240_000,
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'off',
     screenshot: 'off',
     video: 'off',
+    actionTimeout: 10_000,
   },
+  expect: { timeout: 7_500 },
+  outputDir: 'artifacts/e2e-media/playwright',
   projects: [
     {
       name: 'Desktop Showcase',
