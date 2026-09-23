@@ -1,0 +1,91 @@
+name: E2E media showcase
+
+on:
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'src/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'playwright.highlight.config.ts'
+      - 'tests/highlight/**'
+      - 'scripts/render-e2e-highlight.mjs'
+      - 'tests/playwright-certification-config.test.mjs'
+      - 'docs/E2E-HIGHLIGHT-REEL.md'
+      - 'README.md'
+      - '.github/workflows/e2e-media.yml'
+      - '.github/workflows/pages.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'src/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'playwright.highlight.config.ts'
+      - 'tests/highlight/**'
+      - 'scripts/render-e2e-highlight.mjs'
+      - 'tests/playwright-certification-config.test.mjs'
+      - 'docs/E2E-HIGHLIGHT-REEL.md'
+      - 'README.md'
+      - '.github/workflows/e2e-media.yml'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-media-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  showcase:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+
+      - name: Certify media-pipeline configuration
+        run: pnpm test:browser-certification-config
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Record five real-browser showcase loops
+        run: pnpm test:e2e:highlight
+
+      - name: Render MP4, GIFs, and README snippet
+        run: pnpm render:e2e:highlight
+
+      - name: Verify media evidence
+        run: |
+          test -s artifacts/e2e-media/manifest.json
+          test -s artifacts/e2e-media/lum-e2e-highlight.mp4
+          test "$(find artifacts/e2e-media/raw -type f -name '*.webm' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/raw -type f -name '*.png' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/gifs -type f -name '*.gif' | wc -l)" -eq 5
+          test -s artifacts/e2e-media/README-showcase.md
+
+      - name: Report GIF sizes
+        run: |
+          du -h artifacts/e2e-media/gifs/*.gif
+          du -sh artifacts/e2e-media/gifs
+
+      - name: Upload E2E media evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lum-e2e-showcase
+          path: artifacts/e2e-media/
+          if-no-files-found: warn
+          retention-days: 14
