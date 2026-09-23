@@ -89,7 +89,7 @@ async function loadSample(page: Page) {
   await page.locator('#load-sample').click();
   await expect
     .poll(async () =>
-      page.locator('.timeline-event:visible').count(),
+      page.locator('.timeline-event .timeline-event-terminal:visible').count(),
     )
     .toBeGreaterThan(0);
 }
