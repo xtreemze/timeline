@@ -83,6 +83,8 @@
     "vite": "^8.3.0"
   },
   "dependencies": {
+    "@deck.gl/core": "9.4.0",
+    "@deck.gl/layers": "9.4.0",
     "pdfjs-dist": "6.3.289",
     "leaflet": "1.9.4",
     "lit": "3.3.3"
