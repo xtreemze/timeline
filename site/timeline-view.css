@@ -2165,7 +2165,7 @@
   grid-row: 1 / span 2;
 }
 
-#presentation-stage:fullscreen > .timeline-view {
+#presentation-stage:where(:fullscreen) > .timeline-view {
   position: relative;
   grid-column: 1 / -1;
   grid-row: 1 / -1;
@@ -2177,10 +2177,10 @@
 }
 
 #presentation-stage > .timeline-view,
-#presentation-stage:fullscreen > .timeline-view,
-#presentation-stage:fullscreen[data-event-focused] > .timeline-view,
-#presentation-stage:fullscreen[data-has-context-graph] > .timeline-view,
-#presentation-stage:fullscreen[data-has-context-map] > .timeline-view {
+#presentation-stage:where(:fullscreen) > .timeline-view,
+#presentation-stage:where(:fullscreen[data-event-focused]) > .timeline-view,
+#presentation-stage:where(:fullscreen[data-has-context-graph]) > .timeline-view,
+#presentation-stage:where(:fullscreen[data-has-context-map]) > .timeline-view {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -2197,7 +2197,7 @@
    steal background input from the persistent graph, while its actual rail,
    labels, focus content, and controls stay above and interactive. */
 #presentation-stage > .timeline-view,
-#presentation-stage:fullscreen > .timeline-view {
+#presentation-stage:where(:fullscreen) > .timeline-view {
   z-index: 2;
   pointer-events: none;
 }
@@ -4360,7 +4360,7 @@
     grid-template-rows: auto var(--focus-hero-block-size) minmax(120px, auto);
   }
 
-  #app-shell .timeline-focus-view[popover] > .timeline-focus-tabs,
+  :where(#app-shell) .timeline-focus-view[popover] > .timeline-focus-tabs,
   .timeline-focus-view[popover] > .timeline-focus-tabs {
     position: relative;
     z-index: 5;
@@ -4388,7 +4388,7 @@
   }
 
   .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary,
-  #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary {
+  :where(#app-shell) .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary {
     grid-column: 1;
     grid-row: 2;
     display: flex;
@@ -4400,31 +4400,31 @@
   }
 
   .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place,
-  #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place {
+  :where(#app-shell) .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place {
     grid-column: 1;
     grid-row: 4;
   }
 
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero,
-  #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero {
-    grid-row: 3;
-  }
-
   .timeline-focus-view[popover] .timeline-focus-hero,
-  #app-shell .timeline-focus-view[popover] .timeline-focus-hero {
+  :where(#app-shell) .timeline-focus-view[popover] .timeline-focus-hero {
     grid-column: 1;
     min-height: var(--focus-hero-block-size);
     height: var(--focus-hero-block-size);
     max-height: var(--focus-hero-block-size);
   }
 
+  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero,
+  :where(#app-shell) .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero {
+    grid-row: 3;
+  }
+
   .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero,
-  #app-shell .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero {
+  :where(#app-shell) .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero {
     grid-row: 2;
   }
 
   .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence,
-  #app-shell .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
+  :where(#app-shell) .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
     grid-column: 1;
     grid-row: 3;
     min-height: 120px;
@@ -4890,11 +4890,11 @@
 #presentation-stage > .timeline-view > .timeline-semantic-list,
 #presentation-stage > .timeline-view > .timeline-focus-view,
 #presentation-stage > .timeline-view > .timeline-view-toolbar,
-#presentation-stage:fullscreen > .timeline-view > .timeline-project-heading,
-#presentation-stage:fullscreen > .timeline-view > .timeline-surface,
-#presentation-stage:fullscreen > .timeline-view > .timeline-semantic-list,
-#presentation-stage:fullscreen > .timeline-view > .timeline-focus-view,
-#presentation-stage:fullscreen > .timeline-view > .timeline-view-toolbar {
+#presentation-stage:where(:fullscreen) > .timeline-view > .timeline-project-heading,
+#presentation-stage:where(:fullscreen) > .timeline-view > .timeline-surface,
+#presentation-stage:where(:fullscreen) > .timeline-view > .timeline-semantic-list,
+#presentation-stage:where(:fullscreen) > .timeline-view > .timeline-focus-view,
+#presentation-stage:where(:fullscreen) > .timeline-view > .timeline-view-toolbar {
   pointer-events: auto;
 }
 
