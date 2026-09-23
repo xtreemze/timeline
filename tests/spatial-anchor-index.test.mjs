@@ -185,3 +185,19 @@ test("polygon representative position is derived without mutating canonical geom
   assert.ok(latitude > 59.2 && latitude < 59.4);
   assert.equal(JSON.stringify(geometry), before);
 });
+
+test("place presentation labels follow anchors without becoming topology", () => {
+  const index = new SpatialAnchorIndex(
+    [
+      {
+        id: "stockholm",
+        label: "Stockholm",
+        geometry: { type: "Point", coordinates: [18.0686, 59.3293] },
+      },
+    ],
+    [relationship({ id: "meeting", placeId: "stockholm" })],
+  );
+
+  assert.equal(index.anchorForOccurrence("meeting")?.label, "Stockholm");
+  assert.equal(index.place("stockholm")?.label, "Stockholm");
+});
