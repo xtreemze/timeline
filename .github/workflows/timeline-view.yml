@@ -88,6 +88,10 @@ on:
       - 'tests/graph-editor.test.mjs'
       - 'tests/graph-surface-contracts.test.mjs'
       - 'tests/graph-simulation-coordinator.test.mjs'
+      - 'playwright.highlight.config.ts'
+      - 'tests/highlight/**'
+      - 'scripts/render-e2e-highlight.mjs'
+      - 'docs/E2E-HIGHLIGHT-REEL.md'
       - '.github/workflows/timeline-view.yml'
       - '.github/workflows/pages.yml'
   push:
@@ -171,6 +175,10 @@ on:
       - 'tests/graph-editor.test.mjs'
       - 'tests/graph-surface-contracts.test.mjs'
       - 'tests/graph-simulation-coordinator.test.mjs'
+      - 'playwright.highlight.config.ts'
+      - 'tests/highlight/**'
+      - 'scripts/render-e2e-highlight.mjs'
+      - 'docs/E2E-HIGHLIGHT-REEL.md'
       - '.github/workflows/timeline-view.yml'
 
 concurrency:
@@ -324,3 +332,37 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium webkit
       - run: pnpm test:graph-touch-browser
+
+  e2e-highlight-reel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      - name: Record real-browser highlight sources
+        run: pnpm test:e2e:highlight
+      - name: Render branded highlight reel
+        run: pnpm render:e2e:highlight
+      - name: Verify media evidence
+        run: |
+          test -s artifacts/e2e-media/manifest.json
+          test -s artifacts/e2e-media/lum-e2e-highlight.mp4
+          test "$(find artifacts/e2e-media/raw -type f -name '*.webm' | wc -l)" -ge 3
+          test "$(find artifacts/e2e-media/raw -type f -name '*.png' | wc -l)" -ge 3
+      - name: Upload E2E media evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lum-e2e-highlight-reel
+          path: artifacts/e2e-media/
+          if-no-files-found: warn
+          retention-days: 14
