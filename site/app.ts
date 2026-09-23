@@ -819,8 +819,20 @@ function closestEventTarget<T extends HTMLElement>(
       minTop,
       viewport.top + viewport.height - edge - boundedBlockSize,
     );
-    const boundedLeft = Math.min(maxLeft, Math.max(minLeft, selected.rect.x));
-    const boundedTop = Math.min(maxTop, Math.max(minTop, selected.rect.y));
+    const boundedLeft =
+      orientation === "portrait"
+        ? Math.min(
+            maxLeft,
+            Math.max(minLeft, dockRect.left - gap - boundedInlineSize),
+          )
+        : Math.min(maxLeft, Math.max(minLeft, anchor.x - boundedInlineSize / 2));
+    const boundedTop =
+      orientation === "portrait"
+        ? Math.min(maxTop, Math.max(minTop, anchor.y - boundedBlockSize / 2))
+        : Math.min(
+            maxTop,
+            Math.max(minTop, dockRect.top - gap - boundedBlockSize),
+          );
 
     els.viewControls.style.setProperty("--view-controls-inline-size", `${boundedInlineSize}px`);
     els.viewControls.style.setProperty("--view-controls-block-size", `${boundedBlockSize}px`);
