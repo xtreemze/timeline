@@ -166,8 +166,14 @@ export function createProjectedWorldEdge(edge: ProjectedWorldEdge): ProjectedWor
   return Object.freeze({
     id: nonEmpty(edge.id, "Relationship ID") as RelationshipId,
     ...(label === undefined ? {} : { label }),
-    sourceInstanceId: nonEmpty(edge.sourceInstanceId, "Source world instance ID") as WorldInstanceId,
-    targetInstanceId: nonEmpty(edge.targetInstanceId, "Target world instance ID") as WorldInstanceId,
+    sourceInstanceId: nonEmpty(
+      edge.sourceInstanceId,
+      "Source world instance ID",
+    ) as WorldInstanceId,
+    targetInstanceId: nonEmpty(
+      edge.targetInstanceId,
+      "Target world instance ID",
+    ) as WorldInstanceId,
     temporalWeight: unitInterval(edge.temporalWeight, "Edge temporal weight"),
     visible: Boolean(edge.visible),
     retained: Boolean(edge.retained),
