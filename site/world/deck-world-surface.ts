@@ -175,63 +175,133 @@ function anchorPosition(instance: ProjectedWorldInstance): WorldRenderPosition |
   return resolveWorldRenderPosition(instance);
 }
 
+function positionEquals(left: WorldRenderPosition, right: WorldRenderPosition): boolean {
+  return left[0] === right[0] && left[1] === right[1] && left[2] === right[2];
+}
+
+function placeDatumUnchanged(
+  previous: DeckWorldPlaceDatum,
+  position: WorldRenderPosition,
+  selected: boolean,
+): boolean {
+  return previous.selected === selected && positionEquals(previous.position, position);
+}
+
+/**
+ * Incremental datum construction (issue #445 Priority 3): each builder is
+ * handed the previous frame's datum-by-id map and reuses the prior datum
+ * object by reference whenever the fields deck.gl actually reads from it
+ * (position/selection/weight) are unchanged. This preserves object identity
+ * across `setProps({ layers })` calls so deck.gl's own attribute diffing can
+ * skip GPU buffer recompute for unchanged rows.
+ */
 function placeDatums(
   instances: readonly ProjectedWorldInstance[],
   selection: WorldSelection | null,
-): readonly DeckWorldPlaceDatum[] {
+  previous: ReadonlyMap<PlaceId, DeckWorldPlaceDatum>,
+): { readonly datums: readonly DeckWorldPlaceDatum[]; readonly byId: Map<PlaceId, DeckWorldPlaceDatum> } {
   const byPlace = new Map<PlaceId, DeckWorldPlaceDatum>();
 
   for (const instance of instances) {
     for (const anchor of instance.geographicAnchors) {
       if (byPlace.has(anchor.placeId)) continue;
+      const position = Object.freeze([
+        anchor.longitude,
+        anchor.latitude,
+        anchor.sourceAltitude ?? 0,
+      ]) as WorldRenderPosition;
+      const selected = selection?.kind === "place" && selection.id === anchor.placeId;
+      const prior = previous.get(anchor.placeId);
       byPlace.set(
         anchor.placeId,
-        Object.freeze({
-          kind: "place",
-          placeId: anchor.placeId,
-          position: Object.freeze([
-            anchor.longitude,
-            anchor.latitude,
-            anchor.sourceAltitude ?? 0,
-          ]) as WorldRenderPosition,
-          selected: selection?.kind === "place" && selection.id === anchor.placeId,
-        }),
+        prior && placeDatumUnchanged(prior, position, selected)
+          ? prior
+          : Object.freeze({
+              kind: "place",
+              placeId: anchor.placeId,
+              position,
+              selected,
+            }),
       );
     }
   }
 
-  return Object.freeze(
-    [...byPlace.values()].sort((left, right) =>
-      String(left.placeId).localeCompare(String(right.placeId)),
+  return {
+    datums: Object.freeze(
+      [...byPlace.values()].sort((left, right) =>
+        String(left.placeId).localeCompare(String(right.placeId)),
+      ),
     ),
+    byId: byPlace,
+  };
+}
+
+function entityDatumUnchanged(
+  previous: DeckWorldEntityDatum,
+  position: WorldRenderPosition,
+  selected: boolean,
+  visualWeight: number,
+): boolean {
+  return (
+    previous.selected === selected &&
+    previous.visualWeight === visualWeight &&
+    positionEquals(previous.position, position)
   );
 }
 
 function entityDatums(
   instances: readonly ProjectedWorldInstance[],
   selection: WorldSelection | null,
-): readonly DeckWorldEntityDatum[] {
+  previous: ReadonlyMap<WorldInstanceId, DeckWorldEntityDatum>,
+): {
+  readonly datums: readonly DeckWorldEntityDatum[];
+  readonly byId: Map<WorldInstanceId, DeckWorldEntityDatum>;
+} {
+  const byId = new Map<WorldInstanceId, DeckWorldEntityDatum>();
   const result: DeckWorldEntityDatum[] = [];
 
   for (const instance of instances) {
     const position = anchorPosition(instance);
     if (!position) continue;
-    result.push(
-      Object.freeze({
-        kind: "entity",
-        entityId: instance.canonicalId,
-        worldInstanceId: instance.id,
-        position,
-        selected: selection?.kind === "entity" && selection.id === instance.canonicalId,
-        visualWeight: instance.visualWeight,
-      }),
-    );
+    const selected = selection?.kind === "entity" && selection.id === instance.canonicalId;
+    const prior = previous.get(instance.id);
+    const datum =
+      prior && entityDatumUnchanged(prior, position, selected, instance.visualWeight)
+        ? prior
+        : Object.freeze({
+            kind: "entity" as const,
+            entityId: instance.canonicalId,
+            worldInstanceId: instance.id,
+            position,
+            selected,
+            visualWeight: instance.visualWeight,
+          });
+    byId.set(instance.id, datum);
+    result.push(datum);
   }
 
-  return Object.freeze(
-    result.sort((left, right) =>
-      String(left.worldInstanceId).localeCompare(String(right.worldInstanceId)),
+  return {
+    datums: Object.freeze(
+      result.sort((left, right) =>
+        String(left.worldInstanceId).localeCompare(String(right.worldInstanceId)),
+      ),
     ),
+    byId,
+  };
+}
+
+function relationshipDatumUnchanged(
+  previous: DeckWorldRelationshipDatum,
+  source: WorldRenderPosition,
+  target: WorldRenderPosition,
+  selected: boolean,
+  temporalWeight: number,
+): boolean {
+  return (
+    previous.selected === selected &&
+    previous.temporalWeight === temporalWeight &&
+    positionEquals(previous.path[0], source) &&
+    positionEquals(previous.path[1], target)
   );
 }
 
@@ -239,7 +309,12 @@ function relationshipDatums(
   projection: WorldProjection,
   positions: ReadonlyMap<WorldInstanceId, WorldRenderPosition>,
   selection: WorldSelection | null,
-): readonly DeckWorldRelationshipDatum[] {
+  previous: ReadonlyMap<RelationshipId, DeckWorldRelationshipDatum>,
+): {
+  readonly datums: readonly DeckWorldRelationshipDatum[];
+  readonly byId: Map<RelationshipId, DeckWorldRelationshipDatum>;
+} {
+  const byId = new Map<RelationshipId, DeckWorldRelationshipDatum>();
   const result: DeckWorldRelationshipDatum[] = [];
 
   for (const edge of projection.edges) {
@@ -247,25 +322,33 @@ function relationshipDatums(
     const target = positions.get(edge.targetInstanceId);
     if (!source || !target) continue;
 
-    result.push(
-      Object.freeze({
-        kind: "relationship",
-        relationshipId: edge.id,
-        path: Object.freeze([source, target]) as readonly [
-          WorldRenderPosition,
-          WorldRenderPosition,
-        ],
-        selected: selection?.kind === "relationship" && selection.id === edge.id,
-        temporalWeight: edge.temporalWeight,
-      }),
-    );
+    const selected = selection?.kind === "relationship" && selection.id === edge.id;
+    const prior = previous.get(edge.id);
+    const datum =
+      prior && relationshipDatumUnchanged(prior, source, target, selected, edge.temporalWeight)
+        ? prior
+        : Object.freeze({
+            kind: "relationship" as const,
+            relationshipId: edge.id,
+            path: Object.freeze([source, target]) as readonly [
+              WorldRenderPosition,
+              WorldRenderPosition,
+            ],
+            selected,
+            temporalWeight: edge.temporalWeight,
+          });
+    byId.set(edge.id, datum);
+    result.push(datum);
   }
 
-  return Object.freeze(
-    result.sort((left, right) =>
-      String(left.relationshipId).localeCompare(String(right.relationshipId)),
+  return {
+    datums: Object.freeze(
+      result.sort((left, right) =>
+        String(left.relationshipId).localeCompare(String(right.relationshipId)),
+      ),
     ),
-  );
+    byId,
+  };
 }
 
 function worldHitFromPicking(info: DeckRuntimePickingInfo | null): WorldHit | null {
@@ -317,6 +400,12 @@ export class DeckWorldSurface implements WorldSurface {
   #nodeDragSink: DeckWorldNodeDragSink | null = null;
   #activeDragPointerId: number | null = null;
   #destroyed = false;
+
+  // Priority 3 (issue #445): previous frame's datum-by-id maps, kept so
+  // #render can reuse unchanged datum object references across frames.
+  #placeDatumCache: ReadonlyMap<PlaceId, DeckWorldPlaceDatum> = new Map();
+  #entityDatumCache: ReadonlyMap<WorldInstanceId, DeckWorldEntityDatum> = new Map();
+  #relationshipDatumCache: ReadonlyMap<RelationshipId, DeckWorldRelationshipDatum> = new Map();
 
   readonly #handlePointerCancel = (event: PointerEvent): void => {
     if (this.#activeDragPointerId === null || event.pointerId !== this.#activeDragPointerId) {
@@ -401,7 +490,7 @@ export class DeckWorldSurface implements WorldSurface {
 
   focusEntity(id: EntityId): void {
     this.#focusPosition(
-      entityDatums(this.#projection.instances, this.#selection).find(
+      entityDatums(this.#projection.instances, this.#selection, this.#entityDatumCache).datums.find(
         (datum) => datum.entityId === id,
       )?.position ?? null,
     );
@@ -410,16 +499,20 @@ export class DeckWorldSurface implements WorldSurface {
   focusOccurrence(id: RelationshipId): void {
     const positions = this.#positions();
     this.#focusPosition(
-      relationshipDatums(this.#projection, positions, this.#selection).find(
-        (datum) => datum.relationshipId === id,
-      )?.path[0] ?? null,
+      relationshipDatums(
+        this.#projection,
+        positions,
+        this.#selection,
+        this.#relationshipDatumCache,
+      ).datums.find((datum) => datum.relationshipId === id)?.path[0] ?? null,
     );
   }
 
   focusPlace(id: PlaceId): void {
     this.#focusPosition(
-      placeDatums(this.#projection.instances, this.#selection).find((datum) => datum.placeId === id)
-        ?.position ?? null,
+      placeDatums(this.#projection.instances, this.#selection, this.#placeDatumCache).datums.find(
+        (datum) => datum.placeId === id,
+      )?.position ?? null,
     );
   }
 
@@ -608,9 +701,24 @@ export class DeckWorldSurface implements WorldSurface {
 
   #render(): void {
     const positions = this.#positions();
-    const places = placeDatums(this.#projection.instances, this.#selection);
-    const relationships = relationshipDatums(this.#projection, positions, this.#selection);
-    const entities = entityDatums(this.#projection.instances, this.#selection);
+    const placeResult = placeDatums(this.#projection.instances, this.#selection, this.#placeDatumCache);
+    const relationshipResult = relationshipDatums(
+      this.#projection,
+      positions,
+      this.#selection,
+      this.#relationshipDatumCache,
+    );
+    const entityResult = entityDatums(
+      this.#projection.instances,
+      this.#selection,
+      this.#entityDatumCache,
+    );
+    const places = placeResult.datums;
+    const relationships = relationshipResult.datums;
+    const entities = entityResult.datums;
+    this.#placeDatumCache = placeResult.byId;
+    this.#relationshipDatumCache = relationshipResult.byId;
+    this.#entityDatumCache = entityResult.byId;
 
     const layers = [
       this.#runtime.createScatterplotLayer({

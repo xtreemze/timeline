@@ -590,3 +590,131 @@ test("removing the world drag sink disables direct-node-drag capability", () => 
   surface.setNodeDragSink(null);
   assert.equal(surface.getCapabilities().directNodeDrag, false);
 });
+
+function largeProjection(count, overrides = {}) {
+  const instances = [];
+  const edges = [];
+  let previousId = null;
+
+  for (let index = 0; index < count; index += 1) {
+    const id = worldInstanceId(`entity-${index}`, `occ-${index}`);
+    const override = overrides[index];
+    instances.push(
+      createProjectedWorldInstance({
+        id,
+        canonicalId: `entity-${index}`,
+        occurrenceId: `occ-${index}`,
+        geographicAnchors: [
+          {
+            placeId: `place-${index % 10}`,
+            longitude: override?.longitude ?? -170 + (index % 340),
+            latitude: override?.latitude ?? -80 + (index % 160),
+            sourceAltitude: 0,
+            influence: 1,
+          },
+        ],
+        temporalWeight: 1,
+        visualWeight: override?.visualWeight ?? 1,
+        retained: false,
+      }),
+    );
+    if (previousId !== null) {
+      edges.push(
+        createProjectedWorldEdge({
+          id: `edge-${index}`,
+          sourceInstanceId: previousId,
+          targetInstanceId: id,
+          temporalWeight: 1,
+          visible: true,
+          retained: false,
+        }),
+      );
+    }
+    previousId = id;
+  }
+
+  return createWorldProjection({ instances, edges });
+}
+
+test("incremental render reuses prior datum object references for unchanged rows (issue #445 Priority 3)", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+
+  surface.setProjection(largeProjection(500));
+  const firstRender = calls.setProps.at(-1);
+  const firstEntities = firstRender.layers[2].props.data;
+  const firstRelationships = firstRender.layers[1].props.data;
+  const firstPlaces = firstRender.layers[0].props.data;
+
+  // Perturb a single instance's position among 500.
+  surface.setProjection(largeProjection(500, { 250: { longitude: 12.3, latitude: 45.6 } }));
+  const secondRender = calls.setProps.at(-1);
+  const secondEntities = secondRender.layers[2].props.data;
+  const secondRelationships = secondRender.layers[1].props.data;
+  const secondPlaces = secondRender.layers[0].props.data;
+
+  assert.equal(secondEntities.length, firstEntities.length);
+
+  const byId = new Map(firstEntities.map((datum) => [datum.worldInstanceId, datum]));
+  let sameReference = 0;
+  let changedReference = 0;
+  for (const datum of secondEntities) {
+    const prior = byId.get(datum.worldInstanceId);
+    if (datum === prior) {
+      sameReference += 1;
+    } else {
+      changedReference += 1;
+    }
+  }
+
+  // Only the perturbed instance (and the edges touching it) should get a new
+  // datum object; the vast majority must be the exact same reference.
+  assert.ok(
+    sameReference >= firstEntities.length - 1,
+    `expected at most 1 changed entity datum reference, saw ${changedReference}`,
+  );
+  assert.ok(changedReference >= 1, "expected the perturbed instance to receive a new datum object");
+
+  const relByIdFirst = new Map(firstRelationships.map((datum) => [datum.relationshipId, datum]));
+  let relSame = 0;
+  for (const datum of secondRelationships) {
+    if (relByIdFirst.get(datum.relationshipId) === datum) relSame += 1;
+  }
+  // Two edges touch the perturbed instance (edge-250 and edge-251).
+  assert.ok(
+    relSame >= firstRelationships.length - 2,
+    `expected at most 2 changed relationship datum references, saw ${firstRelationships.length - relSame}`,
+  );
+
+  // Places are unaffected by this perturbation (place-0 remains anchored by
+  // many other, unperturbed instances), so every place datum must be reused.
+  assert.equal(secondPlaces.length, firstPlaces.length);
+  const placeByIdFirst = new Map(firstPlaces.map((datum) => [datum.placeId, datum]));
+  for (const datum of secondPlaces) {
+    assert.equal(datum, placeByIdFirst.get(datum.placeId));
+  }
+});
+
+test("incremental render only replaces datums whose selection actually changed", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(largeProjection(50));
+
+  const firstRender = calls.setProps.at(-1);
+  const firstEntities = firstRender.layers[2].props.data;
+
+  surface.setSelection({ kind: "entity", id: "entity-10" });
+  const secondRender = calls.setProps.at(-1);
+  const secondEntities = secondRender.layers[2].props.data;
+
+  const byId = new Map(firstEntities.map((datum) => [datum.worldInstanceId, datum]));
+  let changed = 0;
+  for (const datum of secondEntities) {
+    if (datum !== byId.get(datum.worldInstanceId)) changed += 1;
+  }
+  assert.equal(changed, 1);
+  assert.equal(
+    secondEntities.find((datum) => datum.entityId === "entity-10").selected,
+    true,
+  );
+});
