@@ -12,7 +12,7 @@ export interface WorldProjectionDelta {
   readonly removedInstanceIds: readonly WorldInstanceId[];
   readonly addedEdges: readonly ProjectedWorldEdge[];
   readonly updatedEdges: readonly ProjectedWorldEdge[];
-  readonly removedEdgeIds: readonly string[];
+  readonly removedEdgeIds: readonly ProjectedWorldEdge["id"][];
 }
 
 function sameValue(left: unknown, right: unknown): boolean {
@@ -44,7 +44,7 @@ export function diffWorldProjection(
   });
   const removedEdgeIds = previous.edges
     .filter((value) => !nextEdges.has(value.id))
-    .map((value) => String(value.id));
+    .map((value) => value.id);
 
   return Object.freeze({
     addedInstances: Object.freeze(addedInstances),
@@ -76,7 +76,7 @@ export function applyWorldProjectionDelta(
   const edges = new Map(previous.edges.map((value) => [value.id, value]));
 
   for (const id of delta.removedInstanceIds) instances.delete(id);
-  for (const id of delta.removedEdgeIds) edges.delete(id as never);
+  for (const id of delta.removedEdgeIds) edges.delete(id);
 
   for (const value of delta.updatedInstances) {
     if (!instances.has(value.id)) {
