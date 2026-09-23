@@ -3,24 +3,54 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-const workflow = readFileSync(new URL("../.github/workflows/timeline-view.yml", import.meta.url), "utf8");
-const mediaWorkflow = readFileSync(new URL("../.github/workflows/e2e-media.yml", import.meta.url), "utf8");
+const workflow = readFileSync(
+  new URL("../.github/workflows/timeline-view.yml", import.meta.url),
+  "utf8",
+);
+const mediaWorkflow = readFileSync(
+  new URL("../.github/workflows/e2e-media.yml", import.meta.url),
+  "utf8",
+);
 const config = readFileSync(new URL("../playwright.config.ts", import.meta.url), "utf8");
 const pagesConfig = readFileSync(new URL("../playwright.pages.config.ts", import.meta.url), "utf8");
-const pagesWorkflow = readFileSync(new URL("../.github/workflows/pages.yml", import.meta.url), "utf8");
-const highlightConfig = readFileSync(new URL("../playwright.highlight.config.ts", import.meta.url), "utf8");
-const highlightSpec = readFileSync(new URL("./highlight/highlight-reel.spec.ts", import.meta.url), "utf8");
-const highlightRenderer = readFileSync(new URL("../scripts/render-e2e-highlight.mjs", import.meta.url), "utf8");
+const pagesWorkflow = readFileSync(
+  new URL("../.github/workflows/pages.yml", import.meta.url),
+  "utf8",
+);
+const highlightConfig = readFileSync(
+  new URL("../playwright.highlight.config.ts", import.meta.url),
+  "utf8",
+);
+const highlightSpec = readFileSync(
+  new URL("./highlight/highlight-reel.spec.ts", import.meta.url),
+  "utf8",
+);
+const highlightRenderer = readFileSync(
+  new URL("../scripts/render-e2e-highlight.mjs", import.meta.url),
+  "utf8",
+);
 const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
-const showcaseDocs = readFileSync(new URL("../docs/E2E-HIGHLIGHT-REEL.md", import.meta.url), "utf8");
-const formalPresentation = readFileSync(new URL("../docs/FORMAL-PRESENTATION.md", import.meta.url), "utf8");
+const showcaseDocs = readFileSync(
+  new URL("../docs/E2E-HIGHLIGHT-REEL.md", import.meta.url),
+  "utf8",
+);
+const formalPresentation = readFileSync(
+  new URL("../docs/FORMAL-PRESENTATION.md", import.meta.url),
+  "utf8",
+);
 
 test("all browser specs use one authoritative Playwright discovery root", () => {
   const scripts = Object.values(packageJson.scripts ?? {}).join("\n");
   assert.doesNotMatch(scripts, /playwright\.config\.mjs/);
   assert.match(config, /testDir:\s*['"]\.\/tests['"]/);
-  assert.match(config, /testMatch:\s*\[['"]\*\*\/\*\.spec\.ts['"],\s*['"]\*\*\/\*\.spec\.mjs['"]\]/);
-  assert.match(config, /testIgnore:\s*\[['"]\*\*\/pages-runtime\.spec\.ts['"],\s*['"]\*\*\/highlight\/\*\*['"]\]/);
+  assert.match(
+    config,
+    /testMatch:\s*\[['"]\*\*\/\*\.spec\.ts['"],\s*['"]\*\*\/\*\.spec\.mjs['"]\]/,
+  );
+  assert.match(
+    config,
+    /testIgnore:\s*\[['"]\*\*\/pages-runtime\.spec\.ts['"],\s*['"]\*\*\/highlight\/\*\*['"]\]/,
+  );
 });
 
 test("certification matrix includes desktop, portrait and landscape phones, tablet touch, and reduced motion", () => {
@@ -31,15 +61,11 @@ test("certification matrix includes desktop, portrait and landscape phones, tabl
     "Tablet Touch",
     "Reduced Motion",
   ]) {
-    assert.ok(config.includes(`name: '${project}'`), `missing Playwright project: ${project}`);
+    assert.ok(config.includes(`name: "${project}"`), `missing Playwright project: ${project}`);
   }
 
-  for (const touchProject of [
-    "Mobile Chrome",
-    "Mobile Chrome Landscape",
-    "Tablet Touch",
-  ]) {
-    const projectStart = config.indexOf(`name: '${touchProject}'`);
+  for (const touchProject of ["Mobile Chrome", "Mobile Chrome Landscape", "Tablet Touch"]) {
+    const projectStart = config.indexOf(`name: "${touchProject}"`);
     assert.ok(projectStart >= 0);
     const nextProject = config.indexOf("name:", projectStart + 6);
     const block = config.slice(projectStart, nextProject >= 0 ? nextProject : undefined);
@@ -84,38 +110,32 @@ test("CI discovers core browser contracts and runs each browser lane fatally", (
   }
 });
 
-
 test("compiled Pages runtime is owned only by the production preview config", () => {
   assert.match(pagesConfig, /testMatch:\s*\[['"]pages-runtime\.spec\.ts['"]\]/);
-  assert.match(pagesConfig, /baseURL:\s*['"]http:\/\/127\.0\.0\.1:4173\/timeline\/['"]/);
+  assert.match(
+    pagesConfig,
+    /baseURL:\s*['"]http:\/\/127\.0\.0\.1:4173\/timeline\/['"]/,
+  );
   assert.match(pagesWorkflow, /playwright\.pages\.config\.ts/);
   assert.match(pagesWorkflow, /path:\s*dist/);
-  const developmentTestMatch = config
-    .split("\n")
-    .find((line) => line.includes("testMatch:"));
+  const developmentTestMatch = config.split("\n").find((line) => line.includes("testMatch:"));
   assert.ok(developmentTestMatch);
   assert.doesNotMatch(developmentTestMatch, /pages-runtime\.spec\.ts/);
 });
 
 test("graph touch certification covers portrait and landscape phone projects", () => {
   const command = packageJson.scripts?.["test:graph-touch-browser"] || "";
-  for (const project of [
-    "Mobile Chrome",
-    "Mobile Chrome Landscape",
-    "Tablet Touch",
-  ]) {
+  for (const project of ["Mobile Chrome", "Mobile Chrome Landscape", "Tablet Touch"]) {
     assert.ok(command.includes(`--project="${project}"`), `graph touch missing ${project}`);
   }
 });
+
 test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(
     packageJson.scripts?.["test:e2e:showcase"] || "",
     /playwright\.highlight\.config\.ts/,
   );
-  assert.match(
-    packageJson.scripts?.["render:e2e:showcase"] || "",
-    /render-e2e-highlight\.mjs/,
-  );
+  assert.match(packageJson.scripts?.["render:e2e:showcase"] || "", /render-e2e-highlight\.mjs/);
 
   assert.match(highlightConfig, /testDir:\s*['"]\.\/tests\/highlight['"]/);
   assert.match(config, /\*\*\/highlight\/\*\*/);
