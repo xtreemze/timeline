@@ -14,6 +14,7 @@ import {
   type InteractionCompletionReason,
   type InteractionCoordinator,
 } from "../../src/interaction/interaction-coordinator.ts";
+import { diffWorldProjection, isEmptyWorldProjectionDelta } from "../../src/projection/world-projection-delta.ts";
 import type {
   WorldInstanceId,
   WorldProjection,
@@ -70,21 +71,38 @@ export class WorldViewRuntimeController {
 
   setProjection(projection: WorldProjection): void {
     this.#assertAlive();
+
+    if (this.#sourceProjection) {
+      const delta = diffWorldProjection(this.#sourceProjection, projection);
+      if (isEmptyWorldProjectionDelta(delta)) return;
+    }
+
+    let renderProjection = projection;
+    if (this.#layoutReadback && this.#sourceProjection) {
+      const nextIds = new Set(projection.instances.map((instance) => instance.id));
+      const retainedSamples = this.#layoutReadback
+        .read()
+        .filter((sample) => nextIds.has(sample.instanceId));
+      if (retainedSamples.length) {
+        renderProjection = applyWorldForceLayout(projection, retainedSamples);
+      }
+    }
+
     this.#sourceProjection = projection;
-    this.#renderProjection = projection;
+    this.#renderProjection = renderProjection;
     this.#projectionRevision += 1;
 
     this.#forceBackend.setScene(
       this.#forcePolicy
-        ? createWorldForceScene(projection, this.#forcePolicy)
-        : createWorldForceScene(projection),
+        ? createWorldForceScene(renderProjection, this.#forcePolicy)
+        : createWorldForceScene(renderProjection),
     );
     this.#simulation.request({
       reason: "projection-update",
       energyTarget: 0.08,
       reheat: true,
     });
-    this.#surface.setProjection(projection);
+    this.#surface.setProjection(renderProjection);
   }
 
   setTemporalWindow(window: WorldTemporalWindow): void {
