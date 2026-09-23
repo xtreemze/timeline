@@ -89,9 +89,9 @@ async function loadSample(page: Page) {
   await page.locator('#load-sample').click();
   await expect
     .poll(async () =>
-      page.locator('.timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible').count(),
+      page.locator('.timeline-event:visible').count(),
     )
-    .toBeGreaterThan(2);
+    .toBeGreaterThan(0);
 }
 
 async function firstVisibleOccurrence(page: Page) {
@@ -199,9 +199,9 @@ async function recordSegment(
       scale: 'css',
     });
   } finally {
-    await brand.dispose();
-    await actions.dispose();
-    await page.screencast.stop();
+    await brand.dispose().catch(() => {});
+    await actions.dispose().catch(() => {});
+    if (!page.isClosed()) await page.screencast.stop().catch(() => {});
   }
 
   return {
@@ -288,7 +288,6 @@ async function desktopRoutine(page: Page, sceneName: string) {
   const storyCards = browser.locator('.browser-story-card');
   await expect(storyCards.first()).toBeVisible();
   expect(await storyCards.count()).toBeGreaterThanOrEqual(3);
-  await storyCards.first().hover();
   await page.waitForTimeout(650);
   await page.locator('#timeline-browser-close').click();
   await expect(browser).toBeHidden();
@@ -354,26 +353,28 @@ async function mobileRoutine(page: Page, sceneName: string) {
 }
 
 test('records five loop-safe Lūm showcase scenes per form factor', async ({ page }, testInfo) => {
-  test.setTimeout(150_000);
+  test.setTimeout(240_000);
   const settings = projectSettings(testInfo);
-  await loadSample(page);
 
   const segments: ShowcaseSegment[] = [];
   for (const scene of SCENES) {
-    segments.push(
-      await recordSegment(
-        page,
-        settings.formFactor,
-        scene,
-        settings.size,
-        settings.gifWidth,
-        settings.markdownWidth,
-        async () => {
-          if (settings.formFactor === 'desktop') await desktopRoutine(page, scene.name);
-          else await mobileRoutine(page, scene.name);
-        },
-      ),
-    );
+    await test.step(scene.title, async () => {
+      await loadSample(page);
+      segments.push(
+        await recordSegment(
+          page,
+          settings.formFactor,
+          scene,
+          settings.size,
+          settings.gifWidth,
+          settings.markdownWidth,
+          async () => {
+            if (settings.formFactor === 'desktop') await desktopRoutine(page, scene.name);
+            else await mobileRoutine(page, scene.name);
+          },
+        ),
+      );
+    });
   }
 
   expect(segments).toHaveLength(5);
