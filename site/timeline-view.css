@@ -5366,6 +5366,45 @@
 }
 
 
+/* Permanent application chrome is outside the spatial/chronology canvas.
+   These final overrides intentionally outrank the older graph-open/mobile rail
+   rules so changing orientation cannot put chronology underneath the dock. */
+#app-shell[data-graph-open="true"]
+  #timeline-view[data-orientation="portrait"]
+  > .timeline-surface {
+  right: var(--workspace-portrait-chrome-inline, 7rem);
+}
+
+#app-shell[data-graph-open="true"]
+  #timeline-view[data-orientation="landscape"]
+  > .timeline-surface {
+  bottom: var(--workspace-landscape-chrome-block, 6rem);
+}
+
+#app-shell[data-graph-open="true"]
+  #presentation-stage:has(> #timeline-view[data-orientation="portrait"])
+  > .graph-lens:not([hidden]) {
+  right: calc(
+    var(--relations-inline-rail, var(--mobile-relations-inline-rail, 0px)) +
+    var(--workspace-portrait-chrome-inline, 7rem)
+  );
+}
+
+#app-shell[data-graph-open="true"]
+  #presentation-stage:has(> #timeline-view[data-orientation="landscape"])
+  > .graph-lens:not([hidden]) {
+  bottom: calc(
+    var(--relations-block-rail, var(--mobile-relations-block-rail, 0px)) +
+    var(--workspace-landscape-chrome-block, 6rem)
+  );
+}
+
+#app-shell[data-graph-open="true"]
+  #timeline-view[data-orientation="landscape"]
+  .timeline-project-heading {
+  bottom: max(0.4rem, env(safe-area-inset-bottom));
+}
+
 /* Focused detail is a layout-owned sidebar, never a top-layer popover.
    Landscape: detail left, graph right, chronology full-width below.
    Portrait: detail above graph, chronology owns the full-height right rail. */
