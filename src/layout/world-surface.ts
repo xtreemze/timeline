@@ -1,6 +1,6 @@
 import type { EntityId, PlaceId, RelationshipId } from "../domain/ids.ts";
-import type { WorldProjectionDelta } from "../projection/world-projection-delta.ts";
 import type { WorldInstanceId, WorldProjection } from "../projection/world-projection.ts";
+import type { WorldProjectionDelta } from "../projection/world-projection-delta.ts";
 
 export interface WorldTemporalWindow {
   readonly start: number;
