@@ -145,6 +145,23 @@ export type DeckWorldEntityRenderDatum = DeckWorldEntityDatum | DeckWorldCluster
  */
 export const CLUSTER_ZOOM_THRESHOLD = 0.5;
 
+/**
+ * Dense projections need semantic LOD earlier than sparse scenes: drawing
+ * tens of thousands of individually pickable glyphs at a globe overview is
+ * both unreadable and needlessly expensive. This threshold is presentation
+ * only; canonical membership remains in each cluster and zooming to a
+ * working scale restores the original world instances.
+ */
+const DENSE_CLUSTER_ENTITY_THRESHOLD = 25_000;
+const DENSE_CLUSTER_ZOOM_THRESHOLD = 4.5;
+
+export function shouldClusterEntityDatums(entityCount: number, zoom: number): boolean {
+  return (
+    zoom < CLUSTER_ZOOM_THRESHOLD ||
+    (entityCount >= DENSE_CLUSTER_ENTITY_THRESHOLD && zoom < DENSE_CLUSTER_ZOOM_THRESHOLD)
+  );
+}
+
 /** Grid-cell size (degrees) used to bucket entities for clustering. */
 const CLUSTER_CELL_DEGREES = 6;
 
@@ -168,7 +185,7 @@ export function clusterEntityDatums(
   entities: readonly DeckWorldEntityDatum[],
   zoom: number,
 ): readonly DeckWorldEntityRenderDatum[] {
-  if (zoom >= CLUSTER_ZOOM_THRESHOLD) return entities;
+  if (!shouldClusterEntityDatums(entities.length, zoom)) return entities;
 
   const cells = new Map<string, DeckWorldEntityDatum[]>();
   for (const entity of entities) {
@@ -395,7 +412,10 @@ function placeDatums(
   instances: readonly ProjectedWorldInstance[],
   selection: WorldSelection | null,
   previous: ReadonlyMap<PlaceId, DeckWorldPlaceDatum>,
-): { readonly datums: readonly DeckWorldPlaceDatum[]; readonly byId: Map<PlaceId, DeckWorldPlaceDatum> } {
+): {
+  readonly datums: readonly DeckWorldPlaceDatum[];
+  readonly byId: Map<PlaceId, DeckWorldPlaceDatum>;
+} {
   const byPlace = new Map<PlaceId, DeckWorldPlaceDatum>();
 
   for (const instance of instances) {
@@ -550,7 +570,12 @@ function relationshipDatums(
 function screenPointFromDoubleClickEvent(event: DoubleClickEvent): ScreenPoint | null {
   const x = event.offsetX;
   const y = event.offsetY;
-  if (typeof x !== "number" || typeof y !== "number" || !Number.isFinite(x) || !Number.isFinite(y)) {
+  if (
+    typeof x !== "number" ||
+    typeof y !== "number" ||
+    !Number.isFinite(x) ||
+    !Number.isFinite(y)
+  ) {
     return null;
   }
   return Object.freeze({ x, y });
@@ -598,11 +623,7 @@ function worldHitFromPicking(info: DeckRuntimePickingInfo | null): WorldHit | nu
     const first = object["clusterMembers"][0] as
       | { readonly entityId?: unknown; readonly worldInstanceId?: unknown }
       | undefined;
-    if (
-      first &&
-      typeof first.entityId === "string" &&
-      typeof first.worldInstanceId === "string"
-    ) {
+    if (first && typeof first.entityId === "string" && typeof first.worldInstanceId === "string") {
       return Object.freeze({
         kind: "entity",
         entityId: first.entityId as EntityId,
@@ -701,7 +722,8 @@ export class DeckWorldSurface implements WorldSurface {
         ? candidates.findIndex((candidate) => selectionEquals(candidate, this.#selection))
         : -1;
       const delta = event.shiftKey ? -1 : 1;
-      const nextIndex = (((currentIndex + delta) % candidates.length) + candidates.length) % candidates.length;
+      const nextIndex =
+        (((currentIndex + delta) % candidates.length) + candidates.length) % candidates.length;
       this.setSelection(candidates[nextIndex] ?? null);
       return;
     }
@@ -923,9 +945,11 @@ export class DeckWorldSurface implements WorldSurface {
    * a fresh full scan of `#projection.instances`.
    */
   getAccessibleSnapshot(): AccessibleWorldSnapshot {
-    const places = placeDatums(this.#projection.instances, this.#selection, this.#placeDatumCache).datums.map(
-      (datum) => Object.freeze({ placeId: datum.placeId, selected: datum.selected }),
-    );
+    const places = placeDatums(
+      this.#projection.instances,
+      this.#selection,
+      this.#placeDatumCache,
+    ).datums.map((datum) => Object.freeze({ placeId: datum.placeId, selected: datum.selected }));
     const relationships = relationshipDatums(
       this.#projection,
       this.#positions(),
@@ -1058,7 +1082,7 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #reclusterIfZoomCrossedThreshold(): void {
-    const clusteredNow = this.#camera.zoom < CLUSTER_ZOOM_THRESHOLD;
+    const clusteredNow = shouldClusterEntityDatums(this.#entityDatumCache.size, this.#camera.zoom);
     if (clusteredNow !== this.#clusteredLastRender) this.#render();
   }
 
@@ -1106,7 +1130,11 @@ export class DeckWorldSurface implements WorldSurface {
 
   #render(): void {
     const positions = this.#positions();
-    const placeResult = placeDatums(this.#projection.instances, this.#selection, this.#placeDatumCache);
+    const placeResult = placeDatums(
+      this.#projection.instances,
+      this.#selection,
+      this.#placeDatumCache,
+    );
     const relationshipResult = relationshipDatums(
       this.#projection,
       positions,
@@ -1124,7 +1152,10 @@ export class DeckWorldSurface implements WorldSurface {
     this.#placeDatumCache = placeResult.byId;
     this.#relationshipDatumCache = relationshipResult.byId;
     this.#entityDatumCache = entityResult.byId;
-    this.#clusteredLastRender = this.#camera.zoom < CLUSTER_ZOOM_THRESHOLD;
+    this.#clusteredLastRender = shouldClusterEntityDatums(
+      entityResult.datums.length,
+      this.#camera.zoom,
+    );
 
     const layers = [
       this.#runtime.createScatterplotLayer({
