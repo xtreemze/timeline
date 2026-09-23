@@ -311,8 +311,7 @@
         ".timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-relations, .timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-relations-backdrop, .timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-relations-backdrop .temporal-graph-canvas, .timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-relations-backdrop .temporal-graph-canvas canvas => overflow: hidden;": 1,
         "#app-shell[data-graph-open=\"true\"] #timeline-view[data-orientation=\"portrait\"] .timeline-tick-label => overflow: hidden;": 1,
         "#app-shell .timeline-view-toolbar > .toolbar-readout => overflow: hidden;": 1,
-        ".timeline-view[data-orientation=\"portrait\"] > .app-view-controls.timeline-view-toolbar[popover]:popover-open => overflow-x: hidden;": 1,
-        ".timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-summary, #app-shell .timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-summary => overflow: hidden;": 1
+        ".timeline-view[data-orientation=\"portrait\"] > .app-view-controls.timeline-view-toolbar[popover]:popover-open => overflow-x: hidden;": 1
       }
     },
     "site/print.css": {
