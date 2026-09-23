@@ -44,6 +44,9 @@
       "preset": "all",
       "nursery": {
         "recommended": true
+      },
+      "correctness": {
+        "useQwikValidLexicalScope": "off"
       }
     }
   },
@@ -57,7 +60,10 @@
   },
   "overrides": [
     {
-      "includes": ["site/**/*.ts", "site/**/*.js"],
+      "includes": [
+        "site/**/*.ts",
+        "site/**/*.js"
+      ],
       "linter": {
         "rules": {
           "suspicious": {
@@ -70,11 +76,29 @@
       }
     },
     {
-      "includes": ["tests/**", "benchmarks/**"],
+      "includes": [
+        "tests/**",
+        "benchmarks/**"
+      ],
       "linter": {
         "rules": {
           "security": {
             "noDangerouslySetInnerHtml": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/evidence-extraction-entry.js",
+        "src/leaflet-entry.js",
+        "src/orb-graph-entry.js",
+        "vite.config.ts"
+      ],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUnresolvedImports": "off"
           }
         }
       }
