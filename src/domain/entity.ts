@@ -37,6 +37,17 @@ const NON_ENTITY_NODE_TYPES = new Set([
   "coordinate",
 ]);
 
+const GENERIC_ENTITY_NODE_TYPES = new Set([
+  "entity",
+  "object",
+  "thing",
+  "item",
+  "resource",
+  "agent",
+]);
+
+const PROPERTY_KEY_PATTERN = /^[a-z][A-Za-z0-9]*$/;
+
 const ENTITY_CONTEXT_KEYS = new Set([
   "time",
   "date",
@@ -70,10 +81,17 @@ export function validateEntity(entity: {
   readonly attributes?: Readonly<Record<string, unknown>>;
 }): ValidationResult {
   const name = entity.name?.trim().slice(0, 180) ?? "";
-  const type = entity.type?.trim().slice(0, 60) || "entity";
+  const type = entity.type?.trim().slice(0, 60) ?? "";
   const typeKey = semanticKey(type);
 
   if (!name) return { valid: false, message: "An entity name is required." };
+  if (!type) return { valid: false, message: "A specific entity type is required." };
+  if (GENERIC_ENTITY_NODE_TYPES.has(typeKey)) {
+    return {
+      valid: false,
+      message: `"${type}" is too generic for a canonical entity type. Use a domain type such as person, organization, dwelling, vehicle, document, garment, food, or buildingMaterial.`,
+    };
+  }
 
   if (NON_ENTITY_NODE_TYPES.has(typeKey)) {
     return {
@@ -90,6 +108,13 @@ export function validateEntity(entity: {
   }
 
   if (entity.attributes) {
+    const nonCanonicalKey = Object.keys(entity.attributes).find((key) => !PROPERTY_KEY_PATTERN.test(key));
+    if (nonCanonicalKey) {
+      return {
+        valid: false,
+        message: `Entity attribute "${nonCanonicalKey}" must use lowerCamelCase.`,
+      };
+    }
     const invalidKey = Object.keys(entity.attributes).find((key) =>
       ENTITY_CONTEXT_KEYS.has(semanticKey(key)),
     );
