@@ -35,12 +35,14 @@ function projection() {
         id: bob,
         canonicalId: "bob",
         occurrenceId: "meeting",
-        geographicAnchors: [{
-          placeId: "stockholm",
-          longitude: 18.0686,
-          latitude: 59.3293,
-          influence: 1,
-        }],
+        geographicAnchors: [
+          {
+            placeId: "stockholm",
+            longitude: 18.0686,
+            latitude: 59.3293,
+            influence: 1,
+          },
+        ],
         temporalWeight: 1,
         visualWeight: 1,
         retained: false,
