@@ -1,4 +1,5 @@
 import { performance } from "node:perf_hooks";
+import { createSemanticGraphIndex } from "../src/application/semantic-graph-index.ts";
 
 await import("../site/temporal-standards-shim.ts");
 await import("../site/timeline-graph-shim.ts");
@@ -86,11 +87,37 @@ for (const nodeCount of sizes) {
     }
   }, iterations);
 
+  const semanticIndexBuild = measure(() => {
+    const index = createSemanticGraphIndex(fixture);
+    if (!index.entity("entity-0")) {
+      throw new Error(`Semantic index failed to materialize ${nodeCount} nodes.`);
+    }
+  }, iterations);
+
+  const semanticIndex = createSemanticGraphIndex(fixture);
+  const semanticNeighborhood = measure(() => {
+    const result = semanticIndex.neighborhood("entity-0", { depth: 2, limit: 36 });
+    if (!result.entityIds.includes("entity-0") || result.entityIds.length > 36) {
+      throw new Error(`Unexpected semantic neighborhood for ${nodeCount} nodes.`);
+    }
+  }, iterations);
+
+  const semanticComponents = measure(() => {
+    const components = semanticIndex.connectedComponents();
+    const covered = components.reduce((sum, component) => sum + component.length, 0);
+    if (covered !== nodeCount) {
+      throw new Error(`Semantic components lost nodes for ${nodeCount} fixture.`);
+    }
+  }, iterations);
+
   cases.push({
     nodes: nodeCount,
     edges: edgeCount,
     fullProjection,
     focusedNeighborhood,
+    semanticIndexBuild,
+    semanticNeighborhood,
+    semanticComponents,
   });
 }
 
