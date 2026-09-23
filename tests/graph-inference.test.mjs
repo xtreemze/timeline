@@ -1,5 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 
 await import("../site/temporal-standards-shim.ts");
 await import("../site/spatial-shim.ts");
@@ -33,51 +33,63 @@ function context() {
           precision: "day",
           certainty: "exact",
           calendar: "gregorian",
-          timeZone: ""
+          timeZone: "",
         },
-        end: null
+        end: null,
       },
-      storyIds: ["story-a"]
+      storyIds: ["story-a"],
     },
     fragments: [
-      { ref: "event:title", kind: "event-title", text: "Alice called Bob and warned Charlie at the office." },
-      { ref: "evidence:evidence-a:note", kind: "evidence-note", text: "Alice warned Charlie after calling Bob." }
+      {
+        ref: "event:title",
+        kind: "event-title",
+        text: "Alice called Bob and warned Charlie at the office.",
+      },
+      {
+        ref: "evidence:evidence-a:note",
+        kind: "evidence-note",
+        text: "Alice warned Charlie after calling Bob.",
+      },
     ],
     existingEntities: [
       { id: "alice", type: "person", name: "Alice", attributes: { storyId: "story-a" } },
-      { id: "bob", type: "person", name: "Bob", attributes: { storyId: "story-a" } }
+      { id: "bob", type: "person", name: "Bob", attributes: { storyId: "story-a" } },
     ],
-    existingPlaces: [{
-      id: "office",
-      name: "Office",
-      geographicIdentifier: "Stockholm office",
-      address: "Example Street 1",
-      geometry: { type: "Point", coordinates: [18, 59] },
-      icon: "place",
-      markerShape: "pin",
-      attributes: {}
-    }],
-    existingRelationships: [{
-      id: "alice-calls-bob",
-      subjectId: "alice",
-      objectId: "bob",
-      predicate: "called",
-      itemIds: [],
-      sourceIds: [],
-      placeId: "",
-      time: {
-        type: "instant",
-        start: {
-          value: "2026-09-21",
-          precision: "day",
-          certainty: "exact",
-          calendar: "gregorian",
-          timeZone: ""
-        },
-        end: null
+    existingPlaces: [
+      {
+        id: "office",
+        name: "Office",
+        geographicIdentifier: "Stockholm office",
+        address: "Example Street 1",
+        geometry: { type: "Point", coordinates: [18, 59] },
+        icon: "place",
+        markerShape: "pin",
+        attributes: {},
       },
-      attributes: {}
-    }]
+    ],
+    existingRelationships: [
+      {
+        id: "alice-calls-bob",
+        subjectId: "alice",
+        objectId: "bob",
+        predicate: "called",
+        itemIds: [],
+        sourceIds: [],
+        placeId: "",
+        time: {
+          type: "instant",
+          start: {
+            value: "2026-09-21",
+            precision: "day",
+            certainty: "exact",
+            calendar: "gregorian",
+            timeZone: "",
+          },
+          end: null,
+        },
+        attributes: {},
+      },
+    ],
   };
 }
 
@@ -108,21 +120,43 @@ test("built-in LanguageModel inference uses responseConstraint and can be inject
           promptOptions = options;
           return JSON.stringify({
             entities: [
-              { key: "alice", name: "Alice", type: "person", confidence: 0.99, sourceRefs: ["event:title"], rationale: "Named caller" },
-              { key: "bob", name: "Bob", type: "person", confidence: 0.99, sourceRefs: ["event:title"], rationale: "Named recipient" }
+              {
+                key: "alice",
+                name: "Alice",
+                type: "person",
+                confidence: 0.99,
+                sourceRefs: ["event:title"],
+                rationale: "Named caller",
+              },
+              {
+                key: "bob",
+                name: "Bob",
+                type: "person",
+                confidence: 0.99,
+                sourceRefs: ["event:title"],
+                rationale: "Named recipient",
+              },
             ],
             places: [],
             relationships: [
-              { key: "call", subjectKey: "alice", predicate: "called", objectKey: "bob", confidence: 0.95, sourceRefs: ["event:title"], rationale: "Explicit action" }
+              {
+                key: "call",
+                subjectKey: "alice",
+                predicate: "called",
+                objectKey: "bob",
+                confidence: 0.95,
+                sourceRefs: ["event:title"],
+                rationale: "Explicit action",
+              },
             ],
-            unresolved: []
+            unresolved: [],
           });
         },
         destroy() {
           destroyed = true;
-        }
+        },
       };
-    }
+    },
   };
 
   const status = await inference.availability(languageModel);
@@ -138,28 +172,104 @@ test("built-in LanguageModel inference uses responseConstraint and can be inject
 test("inference reconciliation reuses canonical records and rejects unsafe graph facts", () => {
   const raw = {
     entities: [
-      { key: "alice-key", name: "Alice", type: "person", confidence: 0.99, sourceRefs: ["event:title"], rationale: "Explicit" },
-      { key: "bob-key", name: "Bob", type: "person", confidence: 0.99, sourceRefs: ["event:title"], rationale: "Explicit" },
-      { key: "charlie-key", name: "Charlie", type: "person", confidence: 0.9, sourceRefs: ["event:title", "evidence:evidence-a:note"], rationale: "Explicit" },
-      { key: "bad-event", name: "Alice calling Bob", type: "event", confidence: 0.7, sourceRefs: ["event:title"], rationale: "Not a durable entity" }
+      {
+        key: "alice-key",
+        name: "Alice",
+        type: "person",
+        confidence: 0.99,
+        sourceRefs: ["event:title"],
+        rationale: "Explicit",
+      },
+      {
+        key: "bob-key",
+        name: "Bob",
+        type: "person",
+        confidence: 0.99,
+        sourceRefs: ["event:title"],
+        rationale: "Explicit",
+      },
+      {
+        key: "charlie-key",
+        name: "Charlie",
+        type: "person",
+        confidence: 0.9,
+        sourceRefs: ["event:title", "evidence:evidence-a:note"],
+        rationale: "Explicit",
+      },
+      {
+        key: "bad-event",
+        name: "Alice calling Bob",
+        type: "event",
+        confidence: 0.7,
+        sourceRefs: ["event:title"],
+        rationale: "Not a durable entity",
+      },
     ],
     places: [
-      { key: "office-key", name: "Office", geographicIdentifier: "Stockholm office", coordinatesExplicit: false, confidence: 0.9, sourceRefs: ["event:title"], rationale: "Named place" },
-      { key: "station-key", name: "Station", coordinatesExplicit: false, confidence: 0.6, sourceRefs: ["event:title"], rationale: "No coordinates supplied" }
+      {
+        key: "office-key",
+        name: "Office",
+        geographicIdentifier: "Stockholm office",
+        coordinatesExplicit: false,
+        confidence: 0.9,
+        sourceRefs: ["event:title"],
+        rationale: "Named place",
+      },
+      {
+        key: "station-key",
+        name: "Station",
+        coordinatesExplicit: false,
+        confidence: 0.6,
+        sourceRefs: ["event:title"],
+        rationale: "No coordinates supplied",
+      },
     ],
     relationships: [
-      { key: "call-key", subjectKey: "alice-key", predicate: "called", objectKey: "bob-key", placeKey: "office-key", confidence: 0.95, sourceRefs: ["event:title"], rationale: "Explicit call" },
-      { key: "warn-key", subjectKey: "alice-key", predicate: "warned", objectKey: "charlie-key", confidence: 0.92, sourceRefs: ["event:title", "evidence:evidence-a:note"], rationale: "Explicit warning" },
-      { key: "generic-key", subjectKey: "bob-key", predicate: "relatedTo", objectKey: "alice-key", confidence: 0.5, sourceRefs: ["event:title"], rationale: "Generic association" },
-      { key: "self-key", subjectKey: "alice-key", predicate: "called", objectKey: "alice-key", confidence: 0.5, sourceRefs: ["event:title"], rationale: "Invalid self loop" }
+      {
+        key: "call-key",
+        subjectKey: "alice-key",
+        predicate: "called",
+        objectKey: "bob-key",
+        placeKey: "office-key",
+        confidence: 0.95,
+        sourceRefs: ["event:title"],
+        rationale: "Explicit call",
+      },
+      {
+        key: "warn-key",
+        subjectKey: "alice-key",
+        predicate: "warned",
+        objectKey: "charlie-key",
+        confidence: 0.92,
+        sourceRefs: ["event:title", "evidence:evidence-a:note"],
+        rationale: "Explicit warning",
+      },
+      {
+        key: "generic-key",
+        subjectKey: "bob-key",
+        predicate: "relatedTo",
+        objectKey: "alice-key",
+        confidence: 0.5,
+        sourceRefs: ["event:title"],
+        rationale: "Generic association",
+      },
+      {
+        key: "self-key",
+        subjectKey: "alice-key",
+        predicate: "called",
+        objectKey: "alice-key",
+        confidence: 0.5,
+        sourceRefs: ["event:title"],
+        rationale: "Invalid self loop",
+      },
     ],
-    unresolved: []
+    unresolved: [],
   };
 
   const proposal = inference.reconcileProposal(raw, context(), {
     graph,
     spatial,
-    idFactory: idFactory()
+    idFactory: idFactory(),
   });
 
   const alice = proposal.entities.find((candidate) => candidate.key === "alice-key");
@@ -191,12 +301,26 @@ test("new inferred places require explicit source coordinates", () => {
   ctx.fragments.push({
     ref: "location:form",
     kind: "explicit-location",
-    text: "Measured point coordinates: 59.3293, 18.0686"
+    text: "Measured point coordinates: 59.3293, 18.0686",
   });
   const raw = {
     entities: [
-      { key: "alice-key", name: "Alice", type: "person", confidence: 0.9, sourceRefs: ["event:title"], rationale: "Explicit" },
-      { key: "bob-key", name: "Bob", type: "person", confidence: 0.9, sourceRefs: ["event:title"], rationale: "Explicit" }
+      {
+        key: "alice-key",
+        name: "Alice",
+        type: "person",
+        confidence: 0.9,
+        sourceRefs: ["event:title"],
+        rationale: "Explicit",
+      },
+      {
+        key: "bob-key",
+        name: "Bob",
+        type: "person",
+        confidence: 0.9,
+        sourceRefs: ["event:title"],
+        rationale: "Explicit",
+      },
     ],
     places: [
       {
@@ -207,7 +331,7 @@ test("new inferred places require explicit source coordinates", () => {
         coordinatesExplicit: true,
         confidence: 0.9,
         sourceRefs: ["location:form"],
-        rationale: "Coordinates were supplied"
+        rationale: "Coordinates were supplied",
       },
       {
         key: "invented-place",
@@ -217,19 +341,22 @@ test("new inferred places require explicit source coordinates", () => {
         coordinatesExplicit: false,
         confidence: 0.9,
         sourceRefs: ["event:title"],
-        rationale: "Coordinates not present in source"
-      }
+        rationale: "Coordinates not present in source",
+      },
     ],
     relationships: [],
-    unresolved: []
+    unresolved: [],
   };
   const proposal = inference.reconcileProposal(raw, ctx, {
     graph,
     spatial,
-    idFactory: idFactory()
+    idFactory: idFactory(),
   });
   assert.equal(proposal.places.find((place) => place.key === "coords-place").status, "new");
-  assert.equal(proposal.places.find((place) => place.key === "invented-place").status, "needs-geometry");
+  assert.equal(
+    proposal.places.find((place) => place.key === "invented-place").status,
+    "needs-geometry",
+  );
 });
 
 test("selected inference facts apply atomically and preserve graph validation", () => {
@@ -237,27 +364,74 @@ test("selected inference facts apply atomically and preserve graph validation", 
   ctx.fragments.push({
     ref: "evidence:evidence-a:page:1",
     kind: "evidence-pdf-text",
-    text: "Alice warned Charlie after calling Bob."
+    text: "Alice warned Charlie after calling Bob.",
   });
   const raw = {
     entities: [
-      { key: "alice-key", name: "Alice", type: "person", confidence: 0.99, sourceRefs: ["event:title"], rationale: "Explicit" },
-      { key: "bob-key", name: "Bob", type: "person", confidence: 0.99, sourceRefs: ["event:title"], rationale: "Explicit" },
-      { key: "charlie-key", name: "Charlie", type: "person", confidence: 0.95, sourceRefs: ["event:title", "evidence:evidence-a:note"], rationale: "Explicit" }
+      {
+        key: "alice-key",
+        name: "Alice",
+        type: "person",
+        confidence: 0.99,
+        sourceRefs: ["event:title"],
+        rationale: "Explicit",
+      },
+      {
+        key: "bob-key",
+        name: "Bob",
+        type: "person",
+        confidence: 0.99,
+        sourceRefs: ["event:title"],
+        rationale: "Explicit",
+      },
+      {
+        key: "charlie-key",
+        name: "Charlie",
+        type: "person",
+        confidence: 0.95,
+        sourceRefs: ["event:title", "evidence:evidence-a:note"],
+        rationale: "Explicit",
+      },
     ],
     places: [
-      { key: "office-key", name: "Office", geographicIdentifier: "Stockholm office", coordinatesExplicit: false, confidence: 0.8, sourceRefs: ["event:title"], rationale: "Existing canonical place" }
+      {
+        key: "office-key",
+        name: "Office",
+        geographicIdentifier: "Stockholm office",
+        coordinatesExplicit: false,
+        confidence: 0.8,
+        sourceRefs: ["event:title"],
+        rationale: "Existing canonical place",
+      },
     ],
     relationships: [
-      { key: "call-key", subjectKey: "alice-key", predicate: "called", objectKey: "bob-key", placeKey: "office-key", confidence: 0.95, sourceRefs: ["event:title"], rationale: "Explicit call" },
-      { key: "warn-key", subjectKey: "alice-key", predicate: "warned", objectKey: "charlie-key", placeKey: "office-key", confidence: 0.9, sourceRefs: ["evidence:evidence-a:page:1"], rationale: "Explicit warning" }
+      {
+        key: "call-key",
+        subjectKey: "alice-key",
+        predicate: "called",
+        objectKey: "bob-key",
+        placeKey: "office-key",
+        confidence: 0.95,
+        sourceRefs: ["event:title"],
+        rationale: "Explicit call",
+      },
+      {
+        key: "warn-key",
+        subjectKey: "alice-key",
+        predicate: "warned",
+        objectKey: "charlie-key",
+        placeKey: "office-key",
+        confidence: 0.9,
+        sourceRefs: ["evidence:evidence-a:page:1"],
+        rationale: "Explicit warning",
+      },
     ],
-    unresolved: []
+    unresolved: [],
   };
   const proposal = inference.reconcileProposal(raw, ctx, {
     graph,
     spatial,
-    idFactory: idFactory()
+    idFactory: idFactory(),
   });
 
   const item = {
@@ -269,7 +443,7 @@ test("selected inference facts apply atomically and preserve graph validation", 
     title: "Alice called Bob and warned Charlie at the office.",
     description: "",
     categoryId: "incident",
-    evidenceIds: ["evidence-a"]
+    evidenceIds: ["evidence-a"],
   };
   const project = {
     version: 2,
@@ -280,34 +454,46 @@ test("selected inference facts apply atomically and preserve graph validation", 
     entities: clone(ctx.existingEntities),
     places: clone(ctx.existingPlaces),
     relationships: clone(ctx.existingRelationships),
-    evidence: [{
-      id: "evidence-a",
-      type: "pdf",
-      title: "Witness exhibit",
-      note: "",
-      extraction: {
-        schemaVersion: "timeline-evidence-extraction-v1",
-        status: "complete",
-        mimeType: "application/pdf",
-        generatedAt: "2026-09-21T00:00:00Z",
-        tool: { name: "Timeline Evidence Extraction", version: "1" },
-        segments: [{
-          id: "page-1",
-          locator: { kind: "page", page: 1 },
-          method: "pdf-text",
-          text: "Alice warned Charlie after calling Bob.",
-          confidence: 1
-        }],
-        unresolved: []
-      }
-    }],
+    evidence: [
+      {
+        id: "evidence-a",
+        type: "pdf",
+        title: "Witness exhibit",
+        note: "",
+        extraction: {
+          schemaVersion: "timeline-evidence-extraction-v1",
+          status: "complete",
+          mimeType: "application/pdf",
+          generatedAt: "2026-09-21T00:00:00Z",
+          tool: { name: "Timeline Evidence Extraction", version: "1" },
+          segments: [
+            {
+              id: "page-1",
+              locator: { kind: "page", page: 1 },
+              method: "pdf-text",
+              text: "Alice warned Charlie after calling Bob.",
+              confidence: 1,
+            },
+          ],
+          unresolved: [],
+        },
+      },
+    ],
     custodyActions: [],
-    reasoning: {}
+    reasoning: {},
   };
 
-  const applied = inference.applyProposal(project, item, proposal, ["call-key", "warn-key"], { graph, spatial });
+  const applied = inference.applyProposal(project, item, proposal, ["call-key", "warn-key"], {
+    graph,
+    spatial,
+  });
   assert.ok(applied.entities.some((entity) => entity.name === "Charlie"));
-  assert.equal(applied.relationships.find((relationship) => relationship.id === "alice-calls-bob").itemIds.includes("event-a"), true);
+  assert.equal(
+    applied.relationships
+      .find((relationship) => relationship.id === "alice-calls-bob")
+      .itemIds.includes("event-a"),
+    true,
+  );
   const warning = applied.relationships.find((relationship) => relationship.predicate === "warned");
   assert.ok(warning);
   assert.equal(warning.placeId, "office");
@@ -318,7 +504,10 @@ test("selected inference facts apply atomically and preserve graph validation", 
 test("inference fingerprints invalidate changed narrative/evidence context", () => {
   const original = context();
   const changed = context();
-  changed.fragments = [...changed.fragments, { ref: "event:description", kind: "event-description", text: "New detail" }];
+  changed.fragments = [
+    ...changed.fragments,
+    { ref: "event:description", kind: "event-description", text: "New detail" },
+  ];
   assert.notEqual(inference.fingerprint(original), inference.fingerprint(changed));
 
   const changedTime = context();
@@ -326,15 +515,29 @@ test("inference fingerprints invalidate changed narrative/evidence context", () 
   assert.notEqual(
     inference.fingerprint(original),
     inference.fingerprint(changedTime),
-    "changing temporal semantics makes staged inference stale"
+    "changing temporal semantics makes staged inference stale",
   );
 });
 
 test("relationships without a valid cited source fragment are rejected", () => {
   const raw = {
     entities: [
-      { key: "alice-key", name: "Alice", type: "person", confidence: 0.9, sourceRefs: ["event:title"], rationale: "Explicit" },
-      { key: "bob-key", name: "Bob", type: "person", confidence: 0.9, sourceRefs: ["event:title"], rationale: "Explicit" }
+      {
+        key: "alice-key",
+        name: "Alice",
+        type: "person",
+        confidence: 0.9,
+        sourceRefs: ["event:title"],
+        rationale: "Explicit",
+      },
+      {
+        key: "bob-key",
+        name: "Bob",
+        type: "person",
+        confidence: 0.9,
+        sourceRefs: ["event:title"],
+        rationale: "Explicit",
+      },
     ],
     places: [],
     relationships: [
@@ -345,16 +548,18 @@ test("relationships without a valid cited source fragment are rejected", () => {
         objectKey: "bob-key",
         confidence: 0.8,
         sourceRefs: ["invented:source"],
-        rationale: "Model cited a fragment that was never supplied"
-      }
+        rationale: "Model cited a fragment that was never supplied",
+      },
     ],
-    unresolved: []
+    unresolved: [],
   };
   const proposal = inference.reconcileProposal(raw, context(), {
     graph,
     spatial,
-    idFactory: idFactory()
+    idFactory: idFactory(),
   });
   assert.equal(proposal.relationships.length, 0);
-  assert.ok(proposal.unresolved.some((entry) => /valid source fragment reference/.test(entry.reason)));
+  assert.ok(
+    proposal.unresolved.some((entry) => /valid source fragment reference/.test(entry.reason)),
+  );
 });

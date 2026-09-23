@@ -144,7 +144,7 @@ export const STANDARDS_BASELINE = Object.freeze([
   }),
 ]);
 
-function text(value: unknown, max: number = 5000): string {
+function text(value: unknown, max = 5000): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
@@ -165,7 +165,7 @@ function normalizedStatus(value: unknown): string {
   return text(value, 80) || "unassessed";
 }
 
-function wholeNumber(value: unknown, minimum: number = 0): number | null {
+function wholeNumber(value: unknown, minimum = 0): number | null {
   if (value === "" || value === null || value === undefined) return null;
   const number = typeof value === "number" ? value : Number(value);
   return Number.isInteger(number) && number >= minimum ? number : null;
@@ -215,16 +215,16 @@ export function normalizeCitationLocator(raw: any): Record<string, any> | null {
   return locator;
 }
 
-export function normalizeRecord(raw: any, type: string, index: number = 0): Record<string, any> | null {
+export function normalizeRecord(raw: any, type: string, index = 0): Record<string, any> | null {
   if (!raw || typeof raw !== "object") return null;
   const id = text(raw.id, 160) || `${type}-${index + 1}`;
   const record: Record<string, any> = {
     id,
     type,
-    text: text(raw.text ?? raw.title ?? raw.description, 12000),
+    text: text(raw.text ?? raw.title ?? raw.description, 12_000),
     status: normalizedStatus(raw.status),
-    rationale: text(raw.rationale, 12000),
-    limitations: text(raw.limitations, 12000),
+    rationale: text(raw.rationale, 12_000),
+    limitations: text(raw.limitations, 12_000),
     authorEntityId: text(raw.authorEntityId ?? raw.recordedByEntityId, 160),
     createdAt: text(raw.createdAt, 80),
     modifiedAt: text(raw.modifiedAt, 80),
@@ -243,8 +243,8 @@ export function normalizeRecord(raw: any, type: string, index: number = 0): Reco
     record.evidenceIds = record.evidenceId ? [record.evidenceId] : [];
     record.relation = CITATION_RELATIONS.includes(raw.relation) ? raw.relation : "mentions";
     record.locator = normalizeCitationLocator(raw.locator);
-    record.excerpt = text(raw.excerpt, 24000);
-    record.analystNote = text(raw.analystNote ?? raw.note, 12000);
+    record.excerpt = text(raw.excerpt, 24_000);
+    record.analystNote = text(raw.analystNote ?? raw.note, 12_000);
     record.linkageConfidence = text(raw.linkageConfidence ?? raw.confidence, 80);
   } else if (type === "observation") {
     record.evidenceIds = idList(raw.evidenceIds);
@@ -273,7 +273,7 @@ export function normalizeRecord(raw: any, type: string, index: number = 0): Reco
     record.propositionIds = idList(raw.propositionIds);
     record.methodId = text(raw.methodId, 160);
     record.methodVersion = text(raw.methodVersion, 160);
-    record.conditioningInformation = text(raw.conditioningInformation, 12000);
+    record.conditioningInformation = text(raw.conditioningInformation, 12_000);
     record.reviewStatus = text(raw.reviewStatus, 80) || "unreviewed";
   } else if (type === "legalIssue") {
     record.authorityIds = idList(raw.authorityIds);
@@ -311,18 +311,18 @@ function normalizeCollection(value: unknown, type: string): Record<string, any>[
   return records;
 }
 
-export function normalizeEdge(raw: any, index: number = 0): Record<string, any> | null {
+export function normalizeEdge(raw: any, index = 0): Record<string, any> | null {
   if (!raw || typeof raw !== "object") return null;
   const fromId = text(raw.fromId, 160);
   const toId = text(raw.toId, 160);
-  if (!fromId || !toId) return null;
+  if (!(fromId && toId)) return null;
   const predicate = EDGE_PREDICATES.includes(raw.predicate) ? raw.predicate : "reliesOn";
   return {
     id: text(raw.id, 160) || `reasoning-edge-${index + 1}`,
     fromId,
     toId,
     predicate,
-    rationale: text(raw.rationale, 12000),
+    rationale: text(raw.rationale, 12_000),
     authorEntityId: text(raw.authorEntityId, 160),
     createdAt: text(raw.createdAt, 80),
     temporalScope:
@@ -449,7 +449,7 @@ export function summarizeSupport(id: string, reasoning: any) {
     contradicts: relevant.filter((edge) => CONTRADICTION_PREDICATES.has(edge.predicate)),
     contextual: relevant.filter(
       (edge) =>
-        !SUPPORT_PREDICATES.has(edge.predicate) && !CONTRADICTION_PREDICATES.has(edge.predicate),
+        !(SUPPORT_PREDICATES.has(edge.predicate) || CONTRADICTION_PREDICATES.has(edge.predicate)),
     ),
   };
 }
@@ -707,9 +707,7 @@ export function orderedRecords(reasoning: any): Record<string, any>[] {
   while (ready.length) {
     const record = ready.shift()!;
     ordered.push(record);
-    const dependents = [...outgoing.get(record.id)!]
-      .map((id) => recordById.get(id)!)
-      .sort(compare);
+    const dependents = [...outgoing.get(record.id)!].map((id) => recordById.get(id)!).sort(compare);
     for (const dependent of dependents) {
       const next = indegree.get(dependent.id)! - 1;
       indegree.set(dependent.id, next);

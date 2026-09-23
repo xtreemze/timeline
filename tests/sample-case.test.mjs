@@ -166,7 +166,7 @@ test("the anthology keeps tales separate through narrative membership, not graph
   assert.ok(
     sample.relationships.every(
       (relationship) =>
-        !storyIds.has(relationship.subjectId) && !storyIds.has(relationship.objectId),
+        !(storyIds.has(relationship.subjectId) || storyIds.has(relationship.objectId)),
     ),
   );
 });
@@ -621,7 +621,7 @@ test("story membership stays narrative metadata rather than generic graph topolo
   assert.ok(
     sample.relationships.every(
       (relationship) =>
-        !storyIds.has(relationship.subjectId) && !storyIds.has(relationship.objectId),
+        !(storyIds.has(relationship.subjectId) || storyIds.has(relationship.objectId)),
     ),
   );
 });

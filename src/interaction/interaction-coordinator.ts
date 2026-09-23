@@ -1,12 +1,6 @@
 export type InteractionOwner = "timeline" | "graph" | "map";
 
-export type GestureKind =
-  | "tap"
-  | "pan"
-  | "pinch"
-  | "node-drag"
-  | "wheel"
-  | "keyboard";
+export type GestureKind = "tap" | "pan" | "pinch" | "node-drag" | "wheel" | "keyboard";
 
 export type InteractionPhase =
   | "idle"

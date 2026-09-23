@@ -16,7 +16,10 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-export function responseForElapsed(elapsedMs: unknown, responseMs: number = PAN_RESPONSE_MS): number {
+export function responseForElapsed(
+  elapsedMs: unknown,
+  responseMs: number = PAN_RESPONSE_MS,
+): number {
   const elapsed = clamp(Number(elapsedMs) || 0, 0, 64);
   const response = Math.max(1, Number(responseMs) || PAN_RESPONSE_MS);
   return 1 - Math.exp(-elapsed / response);
@@ -54,13 +57,13 @@ function isPointerSample(value: unknown): value is PointerSample {
   return Number.isFinite(record.coordinate) && Number.isFinite(record.time);
 }
 
-export function estimatePointerVelocity(samples: unknown, windowMs: number = 90): number {
+export function estimatePointerVelocity(samples: unknown, windowMs = 90): number {
   const source = Array.isArray(samples) ? samples.filter(isPointerSample) : [];
   if (source.length < 2) return 0;
 
   const last = source.at(-1);
   let first = source[0];
-  if (!last || !first) return 0;
+  if (!(last && first)) return 0;
   const minimumTime = last.time - Math.max(16, Number(windowMs) || 90);
   for (let index = source.length - 2; index >= 0; index -= 1) {
     const candidate = source[index];
@@ -81,7 +84,7 @@ export function appendPointerSamples(
   samples: unknown,
   event: PointerEvent | null,
   orientation: string,
-  maxSamples: number = 24,
+  maxSamples = 24,
 ): PointerSample[] {
   const target = Array.isArray(samples) ? (samples as PointerSample[]) : [];
   for (const pointerEvent of coalescedPointerEvents(event)) {
@@ -103,23 +106,19 @@ interface VectorSample {
 function isVectorSample(value: unknown): value is VectorSample {
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
-  return (
-    Number.isFinite(record.x) &&
-    Number.isFinite(record.y) &&
-    Number.isFinite(record.time)
-  );
+  return Number.isFinite(record.x) && Number.isFinite(record.y) && Number.isFinite(record.time);
 }
 
 export function appendPointerVectorSamples(
   samples: unknown,
   event: PointerEvent | null,
-  maxSamples: number = 24,
+  maxSamples = 24,
 ): VectorSample[] {
   const target = Array.isArray(samples) ? (samples as VectorSample[]) : [];
   for (const pointerEvent of coalescedPointerEvents(event)) {
     const x = Number(pointerEvent.clientX);
     const y = Number(pointerEvent.clientY);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    if (!(Number.isFinite(x) && Number.isFinite(y))) continue;
     target.push({
       x,
       y,
@@ -136,13 +135,13 @@ interface Velocity {
   magnitude: number;
 }
 
-export function estimatePointerVectorVelocity(samples: unknown, windowMs: number = 90): Velocity {
+export function estimatePointerVectorVelocity(samples: unknown, windowMs = 90): Velocity {
   const source = Array.isArray(samples) ? samples.filter(isVectorSample) : [];
   if (source.length < 2) return { x: 0, y: 0, magnitude: 0 };
 
   const last = source.at(-1);
   let first = source[0];
-  if (!last || !first) return { x: 0, y: 0, magnitude: 0 };
+  if (!(last && first)) return { x: 0, y: 0, magnitude: 0 };
   const minimumTime = last.time - Math.max(16, Number(windowMs) || 90);
   for (let index = source.length - 2; index >= 0; index -= 1) {
     const candidate = source[index];
@@ -183,8 +182,7 @@ type HapticGamepad = Gamepad & {
 };
 
 async function gamepadPulse(duration: number, magnitude: number): Promise<boolean> {
-  if (typeof navigator === "undefined" || typeof navigator.getGamepads !== "function")
-    return false;
+  if (typeof navigator === "undefined" || typeof navigator.getGamepads !== "function") return false;
   const gamepads = Array.from(navigator.getGamepads?.() || []).filter(
     (gamepad): gamepad is Gamepad => Boolean(gamepad),
   );
@@ -226,7 +224,7 @@ function hapticPattern(kind: string): HapticPattern {
   return { duration: 12, magnitude: 0.14, vibration: 6 };
 }
 
-export async function pulseHaptic(kind: string = "tick"): Promise<boolean> {
+export async function pulseHaptic(kind = "tick"): Promise<boolean> {
   if (typeof document !== "undefined" && document.visibilityState === "hidden") return false;
   const pattern = hapticPattern(kind);
   if (await gamepadPulse(pattern.duration, pattern.magnitude)) return true;

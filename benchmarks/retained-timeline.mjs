@@ -1,12 +1,12 @@
 import { performance } from "node:perf_hooks";
-
+import process from "node:process";
 import { queryOccurrences } from "../src/projection/temporal-scene.ts";
 
 function makeOccurrences(count, seed = 17) {
   let state = seed >>> 0;
   const next = () => {
-    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
-    return state / 0x1_0000_0000;
+    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+    return state / 0x1_00_00_00_00;
   };
 
   const origin = Date.UTC(1800, 0, 1);

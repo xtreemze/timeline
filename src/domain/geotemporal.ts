@@ -61,7 +61,7 @@ function isPosition(value: unknown): value is GeoPosition {
   if (!Array.isArray(value) || value.length < 2) return false;
   if (!value.every(isFiniteNumber)) return false;
   const [longitude, latitude] = value;
-  if (!isFiniteNumber(longitude) || !isFiniteNumber(latitude)) return false;
+  if (!(isFiniteNumber(longitude) && isFiniteNumber(latitude))) return false;
   return longitude >= -180 && longitude <= 180 && latitude >= -90 && latitude <= 90;
 }
 
@@ -77,7 +77,7 @@ function polygonRings(value: unknown): value is readonly (readonly GeoPosition[]
       if (!positions(ring, 4)) return false;
       const first = ring.at(0);
       const last = ring.at(-1);
-      if (!first || !last) return false;
+      if (!(first && last)) return false;
       return first[0] === last[0] && first[1] === last[1];
     })
   );
@@ -94,7 +94,9 @@ export function validateSpatialGeometry(geometry: unknown): readonly string[] {
 
   if (type === "Point") {
     return Object.freeze(
-      isPosition(coordinates) ? [] : ["Point coordinates must contain valid longitude and latitude."],
+      isPosition(coordinates)
+        ? []
+        : ["Point coordinates must contain valid longitude and latitude."],
     );
   }
 
@@ -149,7 +151,7 @@ function temporalOrderingFindings(time: CanonicalTemporalExtent): readonly strin
   if (time.type !== "interval" || time.openStart || time.openEnd) return Object.freeze([]);
   const startValue = endpointValue(time.start);
   const endValue = endpointValue(time.end);
-  if (!startValue || !endValue) return Object.freeze([]);
+  if (!(startValue && endValue)) return Object.freeze([]);
 
   const start = Date.parse(startValue);
   const end = Date.parse(endValue);

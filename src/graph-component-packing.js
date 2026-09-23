@@ -17,8 +17,8 @@ export function connectedGraphComponents(nodes = [], edges = []) {
   const adjacency = new Map(ids.map((id) => [id, new Set()]));
   for (const edge of Array.isArray(edges) ? edges : []) {
     const [start, end] = edgeEndpoints(edge);
-    if (!start || !end || start === end) continue;
-    if (!adjacency.has(start) || !adjacency.has(end)) continue;
+    if (!(start && end) || start === end) continue;
+    if (!(adjacency.has(start) && adjacency.has(end))) continue;
     adjacency.get(start).add(end);
     adjacency.get(end).add(start);
   }
@@ -56,7 +56,7 @@ export function graphComponentTopologySignature(nodes = [], edges = []) {
 
   for (const edge of Array.isArray(edges) ? edges : []) {
     let [start, end] = edgeEndpoints(edge);
-    if (!start || !end || start === end || !allowed.has(start) || !allowed.has(end)) continue;
+    if (!(start && end) || start === end || !allowed.has(start) || !allowed.has(end)) continue;
     if (start.localeCompare(end) > 0) [start, end] = [end, start];
     links.add(`${start}\u0001${end}`);
   }

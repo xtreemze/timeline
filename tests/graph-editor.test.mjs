@@ -609,7 +609,6 @@ test("Relations camera has a hard zoom bound and sanitizes shared transforms", a
   );
 });
 
-
 test("graph camera and force policy stays bounded, weighted, and explicitly active", async () => {
   const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
@@ -624,11 +623,11 @@ test("graph camera and force policy stays bounded, weighted, and explicitly acti
     /function setData\(data\)[\s\S]{0,1800}orb\.render\(\)[\s\S]{0,500}requestSimulation\("topology", 0\)/,
   );
   assert.match(source, /refreshLayout\(\)\s*\{[\s\S]{0,900}orb\.render/);
-  assert.doesNotMatch(
+  assert.doesNotMatch(source, /refreshLayout\(\)\s*\{[\s\S]{0,500}requestSimulation\(/);
+  assert.match(
     source,
-    /refreshLayout\(\)\s*\{[\s\S]{0,500}requestSimulation\(/,
+    /alpha:\s*reheat\s*\?\s*\(dense \? 0\.11 : 0\.14\)\s*:\s*dense \? 0\.025 : 0\.032/,
   );
-  assert.match(source, /alpha:\s*reheat\s*\?\s*\(dense \? 0\.11 : 0\.14\)\s*:\s*dense \? 0\.025 : 0\.032/);
   assert.match(source, /simulator\.stopSimulation\(\)/);
   assert.match(source, /isSimulatingOnDataUpdate:\s*false/);
   assert.match(source, /isSimulatingOnSettingsUpdate:\s*false/);
@@ -637,7 +636,6 @@ test("graph camera and force policy stays bounded, weighted, and explicitly acti
   assert.match(source, /simulationCoordinator\.suspend\("competing-surface"\)/);
   assert.match(source, /simulationCoordinator\.resume\("competing-surface"\)/);
 });
-
 
 test("graph force remains presentation-agnostic when focused detail is visible", async () => {
   const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
@@ -649,7 +647,13 @@ test("graph force remains presentation-agnostic when focused detail is visible",
   assert.doesNotMatch(source, /onPopoverToggle/);
   assert.doesNotMatch(source, /popover-exclusion/);
 
-  assert.match(source, /centering:\s*\{\s*x:\s*0,\s*y:\s*0,\s*strength:\s*dense \? 0\.005 : 0\.008\s*\}/);
-  assert.match(source, /positioning:\s*\{[\s\S]*forceX:\s*\{\s*x:\s*0,\s*strength:\s*dense \? 0\.005 : 0\.007\s*\}/);
+  assert.match(
+    source,
+    /centering:\s*\{\s*x:\s*0,\s*y:\s*0,\s*strength:\s*dense \? 0\.005 : 0\.008\s*\}/,
+  );
+  assert.match(
+    source,
+    /positioning:\s*\{[\s\S]*forceX:\s*\{\s*x:\s*0,\s*strength:\s*dense \? 0\.005 : 0\.007\s*\}/,
+  );
   assert.match(source, /forceY:\s*\{\s*y:\s*0,\s*strength:\s*dense \? 0\.005 : 0\.007\s*\}/);
 });

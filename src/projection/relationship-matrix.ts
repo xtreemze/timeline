@@ -58,10 +58,7 @@ function relationshipVisible(
   }
 
   const placeIds = new Set(filter.placeIds ?? []);
-  if (
-    placeIds.size > 0 &&
-    (!relationship.placeId || !placeIds.has(String(relationship.placeId)))
-  ) {
+  if (placeIds.size > 0 && !(relationship.placeId && placeIds.has(String(relationship.placeId)))) {
     return false;
   }
 
@@ -110,10 +107,7 @@ export function projectRelationshipMatrix(
         type: entity.type,
       }),
     )
-    .sort(
-      (left, right) =>
-        left.name.localeCompare(right.name) || left.id.localeCompare(right.id),
-    );
+    .sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
 
   const includedEntityIds = new Set(entities.map((entity) => entity.id));
   const relationships = project.relationships.filter(
@@ -124,8 +118,7 @@ export function projectRelationshipMatrix(
 
   const relationshipsByPair = new Map<string, CanonicalRelationship[]>();
   for (const relationship of relationships) {
-    const key =
-      String(relationship.subjectId) + "\u0000" + String(relationship.objectId);
+    const key = String(relationship.subjectId) + "\u0000" + String(relationship.objectId);
     const current = relationshipsByPair.get(key);
     if (current) {
       current.push(relationship);

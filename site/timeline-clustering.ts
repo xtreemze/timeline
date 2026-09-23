@@ -18,7 +18,7 @@ const MONTH_NAMES = [
   "DEC",
 ];
 
-function finite(value: unknown, fallback: number = 0): number {
+function finite(value: unknown, fallback = 0): number {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
 }
@@ -64,14 +64,14 @@ type Cluster = SingleCluster | MultiCluster;
 export function clusterProjectedItems(
   items: unknown,
   positionFor: (item: any) => number,
-  thresholdPx: number = 120,
+  thresholdPx = 120,
 ): Cluster[] {
   if (!Array.isArray(items)) return [];
   if (typeof positionFor !== "function") throw new TypeError("positionFor must be a function.");
   const threshold = Math.max(1, finite(thresholdPx, 120));
   const startCounts = new Map<string, number>();
   for (const item of items) {
-    if (!item || !Number.isFinite(item.start)) continue;
+    if (!(item && Number.isFinite(item.start))) continue;
     const key = String(item.start);
     startCounts.set(key, (startCounts.get(key) || 0) + 1);
   }
@@ -108,7 +108,7 @@ export function clusterProjectedItems(
 
     const previousEntry = current.entries.at(-1);
     const firstEntry = current.entries[0];
-    if (!previousEntry || !firstEntry) {
+    if (!(previousEntry && firstEntry)) {
       current = { entries: [entry], centroid: entry.position };
       continue;
     }
@@ -214,7 +214,7 @@ export function monthAccents(items: unknown, options?: AccentOptions): AccentInf
   const { maxItemsPerMonth = 3, limit = 18 } = options || {};
   const buckets = new Map<string, TimelineItem[]>();
   for (const item of Array.isArray(items) ? items : []) {
-    if (!item || !Number.isFinite(item.start)) continue;
+    if (!(item && Number.isFinite(item.start))) continue;
     const key = getMonthKey(item.start);
     if (!key) continue;
     if (!buckets.has(key)) buckets.set(key, []);
@@ -250,7 +250,7 @@ export function dayAccents(items: unknown, options?: DayAccentOptions): AccentIn
   const { maxItemsPerDay = 3, limit = 18 } = options || {};
   const buckets = new Map<string, TimelineItem[]>();
   for (const item of Array.isArray(items) ? items : []) {
-    if (!item || !Number.isFinite(item.start)) continue;
+    if (!(item && Number.isFinite(item.start))) continue;
     const key = dayKey(item.start);
     if (!key) continue;
     if (!buckets.has(key)) buckets.set(key, []);
@@ -289,7 +289,7 @@ export function yearAccents(items: unknown, options?: YearAccentOptions): YearAc
   const { limit = 18 } = options || {};
   const buckets = new Map<string, TimelineItem[]>();
   for (const item of Array.isArray(items) ? items : []) {
-    if (!item || !Number.isFinite(item.start)) continue;
+    if (!(item && Number.isFinite(item.start))) continue;
     const label = yearLabelForTime(item.start);
     if (!label) continue;
     if (!buckets.has(label)) buckets.set(label, []);
@@ -337,14 +337,13 @@ export function projectedPosition(
   timeMs: number,
   viewport: Viewport | null,
   pixelLength: number,
-  padding: number = 0,
+  padding = 0,
 ): number {
   const start = Number(viewport?.start);
   const end = Number(viewport?.end);
   const length = Number(pixelLength);
   if (
-    !Number.isFinite(start) ||
-    !Number.isFinite(end) ||
+    !(Number.isFinite(start) && Number.isFinite(end)) ||
     end <= start ||
     !Number.isFinite(length)
   ) {
@@ -621,9 +620,7 @@ export function clusterExpansionViewport(
     return null;
   }
 
-  const uniqueStarts = starts.filter(
-    (value, index) => index === 0 || value !== starts[index - 1],
-  );
+  const uniqueStarts = starts.filter((value, index) => index === 0 || value !== starts[index - 1]);
   if (uniqueStarts.length < 2) {
     return {
       viewport: { start, end },
@@ -708,12 +705,7 @@ export function focusContextViewport(
     .slice()
     .sort((a: any, b: any) => a.start - b.start || String(a.id).localeCompare(String(b.id)));
   const focused = source.find((item: any) => String(item.id) === String(focusedId));
-  if (
-    !focused ||
-    !viewport ||
-    !Number.isFinite(viewport.start) ||
-    !Number.isFinite(viewport.end)
-  ) {
+  if (!(focused && viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end))) {
     return null;
   }
 
@@ -740,10 +732,7 @@ export function focusContextViewport(
   );
 
   const coincidentIds = source
-    .filter(
-      (item: any) =>
-        String(item.id) !== String(focused.id) && item.start === focused.start,
-    )
+    .filter((item: any) => String(item.id) !== String(focused.id) && item.start === focused.start)
     .map((item: any) => String(item.id));
 
   if ((representation as any)?.kind === "cluster") {
@@ -800,13 +789,13 @@ export function focusContextViewport(
   if (after[0] && selected.length < targetContextCount) selected.push(after[0]);
 
   const remaining = distinctOthers
-    .filter((item: any) => !selected.some((candidate: any) => String(candidate.id) === String(item.id)))
+    .filter(
+      (item: any) => !selected.some((candidate: any) => String(candidate.id) === String(item.id)),
+    )
     .sort(
-      (a: any, b: any) =>
-        Math.abs(a.start - focused.start) - Math.abs(b.start - focused.start),
+      (a: any, b: any) => Math.abs(a.start - focused.start) - Math.abs(b.start - focused.start),
     );
-  while (selected.length < targetContextCount && remaining.length)
-    selected.push(remaining.shift());
+  while (selected.length < targetContextCount && remaining.length) selected.push(remaining.shift());
 
   const values = [focused.start, focusedEnd];
   for (const item of selected) {
@@ -818,10 +807,7 @@ export function focusContextViewport(
   const rawLocalSpan = Math.max(0, max - min);
   const localSpan = rawLocalSpan > 0 ? rawLocalSpan / availableRatio : 0;
 
-  const minimumFocusSpan = Math.min(
-    span,
-    Math.max(minSpanMs, span * 0.18, focusedContainingSpan),
-  );
+  const minimumFocusSpan = Math.min(span, Math.max(minSpanMs, span * 0.18, focusedContainingSpan));
   const maximumFocusSpan = Math.max(minimumFocusSpan, span * 0.6);
   const targetSpan = Math.min(
     span,
@@ -851,7 +837,7 @@ export function focusContextViewport(
   };
 }
 
-function pad(value: number | string, width: number = 2): string {
+function pad(value: number | string, width = 2): string {
   return String(value).padStart(width, "0");
 }
 
@@ -860,7 +846,7 @@ export function compactTickLabel(
   spec: TemporalSpec | null,
   hasAmbientMonth: boolean,
 ): string | null {
-  if (!spec || !spec.unit) return null;
+  if (!(spec && spec.unit)) return null;
   const date = new Date(Number(timeMs));
   if (!Number.isFinite(date.getTime())) return null;
 

@@ -290,7 +290,7 @@ function installWeightedMapDragging(
   container: HTMLElement,
   interactive = true,
 ): () => void {
-  if (!interactive || !map || !container || !weightedMapDragAvailable()) return () => {};
+  if (!(interactive && map && container && weightedMapDragAvailable())) return () => {};
 
   const pointers = new Map<number, PointerState>();
   let drag: DragState | null = null;
@@ -518,9 +518,7 @@ function installWeightedMapDragging(
 }
 
 function presentationZoom(location?: LocationObject | null): number {
-  const accuracy = Number(
-    location?.radiusMeters ?? location?.accuracyMeters ?? location?.accuracy,
-  );
+  const accuracy = Number(location?.radiusMeters ?? location?.accuracyMeters ?? location?.accuracy);
   if (Number.isFinite(accuracy)) {
     if (accuracy <= 50) return 16;
     if (accuracy <= 250) return 15;
@@ -572,7 +570,7 @@ function pointCoordinates(location?: LocationObject | null): PointCoord | null {
   }
   const lng = Number(geometry.coordinates[0]);
   const lat = Number(geometry.coordinates[1]);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (!(Number.isFinite(lat) && Number.isFinite(lng))) return null;
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
   return { lat, lng };
 }
@@ -602,13 +600,14 @@ function fictionalTextureLayer(L: any, container: HTMLElement): any {
     context.fillStyle = paper;
     context.fillRect(0, 0, tile.width, tile.height);
 
-    const seed = ((coords.x * 73856093) ^ (coords.y * 19349663) ^ (coords.z * 83492791)) >>> 0;
+    const seed =
+      ((coords.x * 73_856_093) ^ (coords.y * 19_349_663) ^ (coords.z * 83_492_791)) >>> 0;
     const unit = (salt: number) => {
-      let value = (seed ^ (salt * 2654435761)) >>> 0;
+      let value = (seed ^ (salt * 2_654_435_761)) >>> 0;
       value ^= value << 13;
       value ^= value >>> 17;
       value ^= value << 5;
-      return (value >>> 0) / 4294967295;
+      return (value >>> 0) / 4_294_967_295;
     };
 
     context.strokeStyle = line;
@@ -808,7 +807,8 @@ class ReadOnlyLocationMap {
     placeholder.className = `timeline-map-place-placeholder timeline-map-marker-shape-${this.markerShape}`;
     const appearance = markerAppearance(this.style, this.color);
     placeholder.style.setProperty("--map-marker-color", appearance.color);
-    if (appearance.fillColor) placeholder.style.setProperty("--map-marker-fill", appearance.fillColor);
+    if (appearance.fillColor)
+      placeholder.style.setProperty("--map-marker-fill", appearance.fillColor);
     placeholder.style.setProperty("--map-marker-size", `${appearance.size}px`);
     placeholder.style.setProperty("--map-marker-weight", `${appearance.weight}px`);
     placeholder.style.opacity = String(appearance.opacity);
@@ -837,7 +837,7 @@ class ReadOnlyLocationMap {
   }
 
   setPlaceStatus(message: string) {
-    if (!this.placePlaceholder || !message) return;
+    if (!(this.placePlaceholder && message)) return;
     let status = this.placePlaceholder.querySelector<HTMLElement>(".timeline-map-place-status");
     if (!status) {
       status = document.createElement("small");
@@ -979,7 +979,7 @@ class ReadOnlyLocationMap {
         );
       }
 
-      if (!this.countryContextIntro || !hasValidGeometry) {
+      if (!(this.countryContextIntro && hasValidGeometry)) {
         this.fitGeometry({ animate: false });
       }
       requestAnimationFrame(() => {
@@ -1024,7 +1024,7 @@ class ReadOnlyLocationMap {
   }
 
   bindCountryContextInteractionGuard() {
-    if (!this.interactive || !this.container) return;
+    if (!(this.interactive && this.container)) return;
     this.clearCountryContextInteractionGuard();
     const controller = new AbortController();
     const cancel = () => this.cancelCountryContextIntro();
@@ -1110,7 +1110,7 @@ class ReadOnlyLocationMap {
   }
 
   fitGeometry({ animate = false, maxZoom = presentationZoom(this.location) } = {}) {
-    if (!this.map || !globalThis.L) return;
+    if (!(this.map && globalThis.L)) return;
     const point = pointCoordinates(this.location);
     const bounds = this.geometryBounds();
 
@@ -1284,7 +1284,7 @@ class LocationMapController {
   }
 
   updateFromInputs(fit = false) {
-    if (!this.map || !globalThis.L) return;
+    if (!(this.map && globalThis.L)) return;
     const lat = numeric(this.latitude, -90, 90);
     const lng = numeric(this.longitude, -180, 180);
     if (lat === null || lng === null) {
@@ -1295,7 +1295,9 @@ class LocationMapController {
       return;
     }
 
-    if (!this.marker) {
+    if (this.marker) {
+      this.marker.setLatLng([lat, lng]);
+    } else {
       const markerColor =
         getComputedStyle(this.container).getPropertyValue("--focus").trim() || "#315fbd";
       this.marker = globalThis.L.marker([lat, lng], {
@@ -1308,8 +1310,6 @@ class LocationMapController {
         const point = this.marker.getLatLng();
         this.applyPosition(point.lat, point.lng, { source: "manual" });
       });
-    } else {
-      this.marker.setLatLng([lat, lng]);
     }
     if (fit || this.map.getZoom() < 5) this.map.setView([lat, lng], 13);
   }

@@ -29,7 +29,7 @@ function existingOriginalV2(input: unknown): unknown {
 
 export function isLegacyV2Timeline(input: unknown): boolean {
   const root = object(input);
-  if (!root || !Array.isArray(root.items)) return false;
+  if (!(root && Array.isArray(root.items))) return false;
   return root.items.some((item) => {
     const record = object(item);
     if (!record || object(record.time)) return false;
@@ -48,9 +48,7 @@ function withoutMigrationEnvelope(input: unknown): unknown {
   return copy;
 }
 
-export function extensionsWithRetainedV2(
-  input: unknown,
-): Record<string, unknown> | undefined {
+export function extensionsWithRetainedV2(input: unknown): Record<string, unknown> | undefined {
   const root = object(input);
   if (!root) return undefined;
 

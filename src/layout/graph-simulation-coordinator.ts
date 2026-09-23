@@ -43,7 +43,7 @@ function requestChanged(
   right: GraphSimulationRequest | null,
 ): boolean {
   if (left === right) return false;
-  if (!left || !right) return true;
+  if (!(left && right)) return true;
   return (
     left.reason !== right.reason ||
     left.alphaTarget !== right.alphaTarget ||
@@ -95,7 +95,7 @@ export function createGraphSimulationCoordinator(adapter: GraphSimulationAdapter
       return;
     }
 
-    if (!resumingFromSuspension && !requestChanged(applied, highest)) return;
+    if (!(resumingFromSuspension || requestChanged(applied, highest))) return;
     if (
       applied &&
       priority(highest.reason) < priority(applied.reason) &&
@@ -166,6 +166,4 @@ export function createGraphSimulationCoordinator(adapter: GraphSimulationAdapter
   });
 }
 
-export type GraphSimulationCoordinator = ReturnType<
-  typeof createGraphSimulationCoordinator
->;
+export type GraphSimulationCoordinator = ReturnType<typeof createGraphSimulationCoordinator>;

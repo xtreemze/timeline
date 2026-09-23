@@ -1,10 +1,11 @@
+import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import assert from "node:assert/strict";
+import process from "node:process";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 const lintScript = fileURLToPath(new URL("../scripts/lint-architecture.mjs", import.meta.url));
 
@@ -97,7 +98,6 @@ test("strict architecture lint rejects viewport zoom restrictions and inline eve
   assert.match(result.stderr, /no-inline-event-handlers/);
 });
 
-
 test("strict architecture lint rejects ambient Timeline globals in core layers", async () => {
   const root = await fixture();
   await mkdir(path.join(root, "src", "projection"), { recursive: true });
@@ -127,10 +127,7 @@ test("strict architecture lint enforces inward application dependency direction"
   const root = await fixture();
   await mkdir(path.join(root, "src", "application"), { recursive: true });
   await mkdir(path.join(root, "src", "projection"), { recursive: true });
-  await writeFile(
-    path.join(root, "src", "projection", "view.ts"),
-    "export const view = true;\n",
-  );
+  await writeFile(path.join(root, "src", "projection", "view.ts"), "export const view = true;\n");
   await writeFile(
     path.join(root, "src", "application", "bad.ts"),
     'import { view } from "../projection/view.ts"; export const bad = view;\n',
@@ -147,11 +144,11 @@ test("strict architecture lint keeps layout and interaction cores renderer-neutr
   await mkdir(path.join(root, "src", "interaction"), { recursive: true });
   await writeFile(
     path.join(root, "src", "layout", "bad.ts"),
-    'export const width = document.documentElement.clientWidth;\n',
+    "export const width = document.documentElement.clientWidth;\n",
   );
   await writeFile(
     path.join(root, "src", "interaction", "bad.ts"),
-    'export const frame = requestAnimationFrame(() => {});\n',
+    "export const frame = requestAnimationFrame(() => {});\n",
   );
 
   const result = run(root);
@@ -173,7 +170,6 @@ test("strict architecture lint prevents projections from importing layout or int
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /projection-dependency-direction/);
 });
-
 
 test("renderer adapter exception is restricted to the established GraphSurface seam", async () => {
   const root = await fixture();

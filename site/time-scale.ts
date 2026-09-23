@@ -71,7 +71,7 @@ const CANDIDATES: TickCandidate[] = CANDIDATE_STEPS.map(([unit, step]) => ({
 
 export function approximateMilliseconds(unit: string, step: number): number {
   if (FIXED_UNITS[unit]) return FIXED_UNITS[unit]! * step;
-  if (unit === "month") return 30.436875 * FIXED_UNITS.day! * step;
+  if (unit === "month") return 30.436_875 * FIXED_UNITS.day! * step;
   if (unit === "year") return 365.2425 * FIXED_UNITS.day! * step;
   throw new Error(`Unknown temporal unit: ${unit}`);
 }
@@ -86,8 +86,7 @@ interface Viewport {
 }
 
 export function normalizeViewport(viewport: unknown): Viewport {
-  if (!viewport || typeof viewport !== "object")
-    throw new TypeError("Expected a viewport object.");
+  if (!viewport || typeof viewport !== "object") throw new TypeError("Expected a viewport object.");
   const start = Number((viewport as any).start);
   const end = Number((viewport as any).end);
   assertFinite(start, "viewport.start");
@@ -106,7 +105,7 @@ export function zoom(
   viewport: unknown,
   factor: number,
   anchorMs: number | null = null,
-  minSpanMs: number = 1,
+  minSpanMs = 1,
 ): Viewport {
   const value = normalizeViewport(viewport);
   assertFinite(factor, "factor");
@@ -164,7 +163,7 @@ export interface TickSpec {
 export function selectTickSpec(
   viewport: unknown,
   pixelLength: number,
-  targetPixelSpacing: number = 96,
+  targetPixelSpacing = 96,
 ): TickSpec {
   const value = normalizeViewport(viewport);
   assertFinite(pixelLength, "pixelLength");
@@ -186,12 +185,12 @@ export function selectTickSpec(
 
 export function createUtcDate(
   year: number,
-  monthIndex: number = 0,
-  day: number = 1,
-  hour: number = 0,
-  minute: number = 0,
-  second: number = 0,
-  millisecond: number = 0,
+  monthIndex = 0,
+  day = 1,
+  hour = 0,
+  minute = 0,
+  second = 0,
+  millisecond = 0,
 ): Date {
   const date = new Date(0);
   date.setUTCFullYear(year, monthIndex, day);
@@ -246,11 +245,7 @@ interface Tick {
   spec: TickSpec;
 }
 
-export function generateTicksForSpec(
-  viewport: unknown,
-  spec: TickSpec,
-  limit: number = 2000,
-): Tick[] {
+export function generateTicksForSpec(viewport: unknown, spec: TickSpec, limit = 2000): Tick[] {
   const value = normalizeViewport(viewport);
   if (!spec || typeof spec.unit !== "string" || !spec.unit.trim()) {
     throw new TypeError("generateTicksForSpec() requires a semantic tick unit.");
@@ -295,15 +290,15 @@ export function generateTicksForSpec(
 export function generateTicks(
   viewport: unknown,
   pixelLength: number,
-  targetPixelSpacing: number = 96,
-  limit: number = 2000,
+  targetPixelSpacing = 96,
+  limit = 2000,
 ): Tick[] {
   const value = normalizeViewport(viewport);
   const spec = selectTickSpec(value, pixelLength, targetPixelSpacing);
   return generateTicksForSpec(value, spec, limit);
 }
 
-function pad(value: number, width: number = 2): string {
+function pad(value: number, width = 2): string {
   return String(Math.abs(value)).padStart(width, "0");
 }
 

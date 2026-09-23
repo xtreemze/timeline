@@ -188,10 +188,7 @@ function text(value: unknown, max = 180): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
-function textList(
-  value: unknown,
-  { maxItems = 48, maxLength = 180 } = {},
-): string[] {
+function textList(value: unknown, { maxItems = 48, maxLength = 180 } = {}): string[] {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.map((entry) => text(entry, maxLength)).filter(Boolean))].slice(
     0,
@@ -200,34 +197,111 @@ function textList(
 }
 
 const NON_ENTITY_NODE_TYPES = new Set([
-  "action", "activity", "event", "occurrence", "process", "operation", "transaction",
-  "interaction", "communication", "decision", "movement", "meeting", "visit",
-  "place", "location", "date", "time", "period", "geometry", "coordinate",
+  "action",
+  "activity",
+  "event",
+  "occurrence",
+  "process",
+  "operation",
+  "transaction",
+  "interaction",
+  "communication",
+  "decision",
+  "movement",
+  "meeting",
+  "visit",
+  "place",
+  "location",
+  "date",
+  "time",
+  "period",
+  "geometry",
+  "coordinate",
 ]);
 
 const ENTITY_CONTEXT_KEYS = new Set([
-  "time", "date", "period", "start", "end", "location", "place", "placeid",
-  "geometry", "coordinates", "latitude", "longitude", "radius", "radiusmeters",
+  "time",
+  "date",
+  "period",
+  "start",
+  "end",
+  "location",
+  "place",
+  "placeid",
+  "geometry",
+  "coordinates",
+  "latitude",
+  "longitude",
+  "radius",
+  "radiusmeters",
 ]);
 
 const GENERIC_RELATION_KEYS = new Set([
-  "relatedto", "relationto", "associatedwith", "associationwith", "connectedto", "linkedto",
-  "linksto", "involvedin", "involves", "involvesobject", "participatesin", "participatedin",
-  "participantof", "tookpartin", "partof", "partofstory", "memberof", "belongsto", "belongto",
-  "haspart", "contains", "containsstory", "includes", "includesstory", "features",
-  "protagonistof", "presentat", "locatedat", "occursat", "is", "was", "were", "has",
+  "relatedto",
+  "relationto",
+  "associatedwith",
+  "associationwith",
+  "connectedto",
+  "linkedto",
+  "linksto",
+  "involvedin",
+  "involves",
+  "involvesobject",
+  "participatesin",
+  "participatedin",
+  "participantof",
+  "tookpartin",
+  "partof",
+  "partofstory",
+  "memberof",
+  "belongsto",
+  "belongto",
+  "haspart",
+  "contains",
+  "containsstory",
+  "includes",
+  "includesstory",
+  "features",
+  "protagonistof",
+  "presentat",
+  "locatedat",
+  "occursat",
+  "is",
+  "was",
+  "were",
+  "has",
 ]);
 
 const ACTION_NAME_PATTERN =
   /^(?:called|calls|met|meets|sent|sends|transferred|transfers|paid|pays|visited|visits|arrived|arrives|departed|departs|left|leaves|built|builds|created|creates|attacked|attacks|ordered|orders|warned|warns|approved|approves|authorized|authorizes|signed|signs|moved|moves|travelled|traveled|travels|fled|flees|married|marries|danced|dances|consulted|consults|poisoned|poisons|searched|searches|found|finds|lost|loses|gave|gives|took|takes|received|receives)\b/i;
 
 const ACTION_PREDICATE_PARTICLES = new Set([
-  "for", "with", "to", "over", "under", "through", "across", "up", "down", "out",
-  "off", "away", "back", "forth", "against", "around",
+  "for",
+  "with",
+  "to",
+  "over",
+  "under",
+  "through",
+  "across",
+  "up",
+  "down",
+  "out",
+  "off",
+  "away",
+  "back",
+  "forth",
+  "against",
+  "around",
 ]);
 
 const FORBIDDEN_GRAPH_TAXONOMY_KEYS = new Set([
-  "category", "categoryid", "categoryids", "categories", "group", "groupid", "groupids",
+  "category",
+  "categoryid",
+  "categoryids",
+  "categories",
+  "group",
+  "groupid",
+  "groupids",
 ]);
 
 function semanticKey(value: unknown): string {
@@ -277,7 +351,11 @@ function itemNarrativeContext(item: any, evidenceById: Map<string, any> | null =
     .join(" ");
 }
 
-function namedEntityMentions(item: any, entities: any[], evidenceById: Map<string, any> | null = null): any[] {
+function namedEntityMentions(
+  item: any,
+  entities: any[],
+  evidenceById: Map<string, any> | null = null,
+): any[] {
   const context = entityMentionKey(itemNarrativeContext(item, evidenceById));
   if (!context) return [];
   const padded = ` ${context} `;
@@ -286,7 +364,7 @@ function namedEntityMentions(item: any, entities: any[], evidenceById: Map<strin
 
   for (const entity of Array.isArray(entities) ? entities : []) {
     const id = text(entity?.id, 120);
-    if (!id || !validateEntityNode(entity).valid) continue;
+    if (!(id && validateEntityNode(entity).valid)) continue;
     const entityStoryId = text(entity?.attributes?.storyId, 120);
     const canonicalLabel = text(entity?.name || entity?.label || entity?.title, 180);
     const labels = [
@@ -371,7 +449,7 @@ function relationshipFactKey(raw: any): string {
   const subjectId = text(raw.subjectId ?? raw.start ?? raw.source, 120);
   const objectId = text(raw.objectId ?? raw.end ?? raw.target, 120);
   const predicate = semanticKey(raw.predicate ?? raw.label ?? raw.type);
-  if (!subjectId || !objectId || !predicate) return "";
+  if (!(subjectId && objectId && predicate)) return "";
   return JSON.stringify([subjectId, predicate, objectId, temporalFactKey(raw.time)]);
 }
 
@@ -425,8 +503,7 @@ function auditGraphStructure(input: any): GraphAudit {
     const objectId = text(relationship?.objectId, 120);
     const predicate = text(relationship?.predicate, 120);
     if (
-      !subjectId ||
-      !objectId ||
+      !(subjectId && objectId) ||
       subjectId === objectId ||
       !entityIds.has(subjectId) ||
       !entityIds.has(objectId) ||
@@ -466,7 +543,8 @@ function auditGraphStructure(input: any): GraphAudit {
     else endpointPairs.set(endpointKey, [endpointRecord]);
   }
 
-  const reciprocalActionPairs: Array<{ entityIds: [string, string]; relationshipIds: string[] }> = [];
+  const reciprocalActionPairs: Array<{ entityIds: [string, string]; relationshipIds: string[] }> =
+    [];
   for (const [endpointKey, records] of endpointPairs) {
     const [first = "", second = ""] = endpointKey.split(" ");
     const forward = records.some(
@@ -499,7 +577,7 @@ function cleanContextFreeAttributes(value: unknown): Record<string, any> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const cleaned: Record<string, any> = {};
   for (const [key, entry] of Object.entries(value)) {
-    if (!contextPropertyKey(key) && !FORBIDDEN_GRAPH_TAXONOMY_KEYS.has(semanticKey(key))) {
+    if (!(contextPropertyKey(key) || FORBIDDEN_GRAPH_TAXONOMY_KEYS.has(semanticKey(key)))) {
       cleaned[key] = cloneJson(entry);
     }
   }
@@ -572,8 +650,7 @@ export function validateActionPredicate(value: unknown): ValidationResult {
   const particle = terms[1];
   if (
     terms.length > 2 ||
-    (terms.length === 2 &&
-      (!particle || !ACTION_PREDICATE_PARTICLES.has(particle.toLowerCase())))
+    (terms.length === 2 && !(particle && ACTION_PREDICATE_PARTICLES.has(particle.toLowerCase())))
   ) {
     return {
       valid: false,
@@ -617,8 +694,7 @@ function normalizeRelationship(raw: any, index: number, temporal: any): Relation
   const objectId = text(raw.objectId ?? raw.end ?? raw.target, 120);
   const predicate = text(raw.predicate || raw.label || raw.type, 120);
   if (
-    !subjectId ||
-    !objectId ||
+    !(subjectId && objectId) ||
     subjectId === objectId ||
     !validateActionPredicate(predicate).valid
   )
@@ -694,7 +770,10 @@ function normalizeRelationChanges(value: unknown): RelationChangeRecord[] {
     .filter(Boolean) as RelationChangeRecord[];
 }
 
-function relationChangeIndex(input: any, temporal: any = globalThis.TimelineTemporal): Map<string, any[]> {
+function relationChangeIndex(
+  input: any,
+  temporal: any = globalThis.TimelineTemporal,
+): Map<string, any[]> {
   const index = new Map();
   for (const item of Array.isArray(input?.items) ? input.items : []) {
     const time = temporal?.sortKey(item.time?.start || item.start);
@@ -717,7 +796,11 @@ function relationChangeIndex(input: any, temporal: any = globalThis.TimelineTemp
   return index;
 }
 
-function relationChangesFor(input: any, relationshipId: string, temporal: any = globalThis.TimelineTemporal): any[] {
+function relationChangesFor(
+  input: any,
+  relationshipId: string,
+  temporal: any = globalThis.TimelineTemporal,
+): any[] {
   return relationChangeIndex(input, temporal).get(String(relationshipId)) || [];
 }
 
@@ -729,8 +812,7 @@ export function relationshipStateAt(
   indexedChanges: any[] | null = null,
 ): RelationshipState {
   const changes = indexedChanges || relationChangesFor(input, relationship.id, temporal);
-  const hasViewport =
-    viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end);
+  const hasViewport = viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end);
   const snapshotTime = hasViewport
     ? viewport.start + (viewport.end - viewport.start) / 2
     : Number.POSITIVE_INFINITY;
@@ -796,7 +878,10 @@ export function normalizeGraphData(
   return { entities, places, relationships };
 }
 
-export function validateGraphInput(input: any, spatial: any = globalThis.TimelineSpatial): string[] {
+export function validateGraphInput(
+  input: any,
+  spatial: any = globalThis.TimelineSpatial,
+): string[] {
   const errors: string[] = [];
   const rawEntities = Array.isArray(input?.entities) ? input.entities : [];
   const rawRelationships = Array.isArray(input?.relationships) ? input.relationships : [];
@@ -894,7 +979,6 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
       errors.push(`${label}: subject/source must reference an entity node.`);
     if (!entityIds.has(objectId))
       errors.push(`${label}: object/target must reference an entity node.`);
-
   });
 
   const audit = auditGraphStructure(input);
@@ -909,7 +993,9 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
     );
   }
   for (const id of audit.orphanEntityIds) {
-    errors.push(`Node ${id}: canonical entity is orphaned and must participate in at least one meaningful action edge.`);
+    errors.push(
+      `Node ${id}: canonical entity is orphaned and must participate in at least one meaningful action edge.`,
+    );
   }
 
   return errors;
@@ -923,20 +1009,23 @@ export function relationshipWindowState(
   if (!relationship) return "inactive";
   if (!relationship.time) return "timeless";
   const temporalAdapter =
-    temporal ??
-    (Reflect.get(globalThis, "TimelineTemporal") as TemporalAdapter | undefined);
+    temporal ?? (Reflect.get(globalThis, "TimelineTemporal") as TemporalAdapter | undefined);
   if (!temporalAdapter) return "unknown";
 
   const bounds = temporalAdapter.extentBounds?.(relationship.time);
   if (!bounds?.locatable) return "unknown";
-  if (!viewport || !Number.isFinite(viewport.start) || !Number.isFinite(viewport.end)) {
+  if (!(viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end))) {
     return "active";
   }
 
   return bounds.end >= viewport.start && bounds.start <= viewport.end ? "active" : "inactive";
 }
 
-export function graphForWindow(input: any, viewport: any, temporal: any = globalThis.TimelineTemporal): OrbGraph {
+export function graphForWindow(
+  input: any,
+  viewport: any,
+  temporal: any = globalThis.TimelineTemporal,
+): OrbGraph {
   const entities: EntityNode[] = Array.isArray(input?.entities) ? input.entities : [];
   const relationships: Relationship[] = Array.isArray(input?.relationships)
     ? input.relationships
@@ -966,12 +1055,9 @@ export function graphForWindow(input: any, viewport: any, temporal: any = global
     .map((edge) => {
       const relationship = relationshipById.get(String(edge.id));
       const state = states.get(String(edge.id));
-      if (!relationship || !state) return { ...edge, temporalState: "inactive" };
+      if (!(relationship && state)) return { ...edge, temporalState: "inactive" };
 
-      const structurallyTimeless =
-        !relationship.time &&
-        state.changes.length === 0 &&
-        state.active;
+      const structurallyTimeless = !relationship.time && state.changes.length === 0 && state.active;
       const explicitWindowState = relationshipWindowState(
         relationship,
         viewport,
@@ -1006,8 +1092,7 @@ export function graphForWindow(input: any, viewport: any, temporal: any = global
     })
     .filter((edge) => edge.temporalState !== "inactive");
 
-  const hasViewport =
-    viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end);
+  const hasViewport = viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end);
   if (!hasViewport) return { ...graphData, edges };
 
   const visibleNodeIds = new Set<string>();
@@ -1035,8 +1120,7 @@ export function neighborhoodGraph(
   const root = String(rootId || "");
   if (!root) return { nodes: [], edges: [] };
 
-  const inputRecord =
-    input && typeof input === "object" ? (input as Record<string, unknown>) : {};
+  const inputRecord = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
   const items = Array.isArray(inputRecord.items) ? inputRecord.items : [];
   const rootItem = items.find((item) => {
     if (!item || typeof item !== "object") return false;
@@ -1114,11 +1198,11 @@ export function temporalRelationProjection(
       relationship.time && typeof relationship.time === "object"
         ? (relationship.time as Record<string, unknown>)
         : null;
-    if (!time?.start || !temporal) continue;
+    if (!(time?.start && temporal)) continue;
 
     const start = temporal.sortKey(time.start);
     const end = time.end ? temporal.sortKey(time.end) : start;
-    if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+    if (!(Number.isFinite(start) && Number.isFinite(end))) continue;
 
     projected.push({
       id: String(relationship.id || ""),
@@ -1136,12 +1220,13 @@ export function temporalRelationProjection(
   return projected;
 }
 
-export function toOrbGraph(
-  {
-    entities = [],
-    relationships = [],
-  }: { entities?: EntityNode[]; relationships?: Relationship[] } = {},
-): OrbGraph {
+export function toOrbGraph({
+  entities = [],
+  relationships = [],
+}: {
+  entities?: EntityNode[];
+  relationships?: Relationship[];
+} = {}): OrbGraph {
   const nodes: OrbGraphNode[] = [];
   const seen = new Set();
 
@@ -1189,7 +1274,10 @@ export function toOrbGraph(
   return { nodes, edges };
 }
 
-export function migrateLegacySpatialModel(input: any, spatial: any = globalThis.TimelineSpatial): any {
+export function migrateLegacySpatialModel(
+  input: any,
+  spatial: any = globalThis.TimelineSpatial,
+): any {
   const migrated = cloneJson(input) || {};
   const rawEntities = Array.isArray(migrated.entities) ? migrated.entities : [];
   const legacyPlaceEntities = rawEntities.filter((entity) =>

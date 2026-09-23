@@ -20,14 +20,8 @@ test("retained occurrences synchronize hover focus and selection without rerende
     css,
     /\.timeline-event:is\(\.is-hovered, \.is-focused, \.is-selected\) \.timeline-event-terminal/,
   );
-  assert.match(
-    css,
-    /\.timeline-range-segment:is\(\.is-hovered, \.is-focused, \.is-selected\)/,
-  );
-  assert.match(
-    css,
-    /data-scene-state="interacting"[\s\S]*\.timeline-event\.is-hovered/,
-  );
+  assert.match(css, /\.timeline-range-segment:is\(\.is-hovered, \.is-focused, \.is-selected\)/);
+  assert.match(css, /data-scene-state="interacting"[\s\S]*\.timeline-event\.is-hovered/);
 });
 
 test("connector and point emphasis follows the retained occurrence state", async () => {

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from "@playwright/test";
 
 async function twoFrames(page) {
   await page.evaluate(
@@ -11,49 +11,49 @@ async function twoFrames(page) {
 
 async function installPerformanceFixture(page) {
   await page.evaluate(async () => {
-    document.querySelector('#retained-performance-host')?.remove();
+    document.querySelector("#retained-performance-host")?.remove();
 
-    const root = document.createElement('section');
-    root.id = 'retained-performance-host';
-    root.className = 'timeline-view';
+    const root = document.createElement("section");
+    root.id = "retained-performance-host";
+    root.className = "timeline-view";
     Object.assign(root.style, {
-      position: 'fixed',
-      inset: '0',
-      zIndex: '99999',
-      margin: '0',
-      background: 'white',
+      position: "fixed",
+      inset: "0",
+      zIndex: "99999",
+      margin: "0",
+      background: "white",
     });
 
-    const surface = document.createElement('div');
-    surface.className = 'timeline-surface';
+    const surface = document.createElement("div");
+    surface.className = "timeline-surface";
     surface.tabIndex = 0;
     Object.assign(surface.style, {
-      width: '100%',
-      height: 'min(70dvh, 560px)',
-      position: 'relative',
+      width: "100%",
+      height: "min(70dvh, 560px)",
+      position: "relative",
     });
 
-    const readout = document.createElement('output');
-    readout.className = 'timeline-window-readout';
+    const readout = document.createElement("output");
+    readout.className = "timeline-window-readout";
 
-    const focus = document.createElement('div');
-    focus.className = 'timeline-focus-view';
-    focus.setAttribute('popover', 'manual');
+    const focus = document.createElement("div");
+    focus.className = "timeline-focus-view";
+    focus.setAttribute("popover", "manual");
 
     root.append(surface, readout, focus);
     document.body.append(root);
 
-    const timelineViewModulePath = '/timeline-view.ts';
+    const timelineViewModulePath = "/timeline-view.ts";
     const { TimelineView } = await import(/* @vite-ignore */ timelineViewModulePath);
     const controller = TimelineView.create(root);
-    if (!controller) throw new Error('Timeline performance fixture did not initialize.');
+    if (!controller) throw new Error("Timeline performance fixture did not initialize.");
 
-    const origin = Date.parse('1900-01-01T00:00:00Z');
+    const origin = Date.parse("1900-01-01T00:00:00Z");
     const step = 12 * 60 * 60 * 1000;
     controller.setItems(
-      Array.from({ length: 1_000 }, (_, index) => ({
-        id: `perf-${String(index).padStart(4, '0')}`,
-        kind: 'event',
+      Array.from({ length: 1000 }, (_, index) => ({
+        id: `perf-${String(index).padStart(4, "0")}`,
+        kind: "event",
         title: `Performance occurrence ${index}`,
         start: origin + index * step,
         end: index % 5 === 0 ? origin + index * step + step * 3 : null,
@@ -64,14 +64,14 @@ async function installPerformanceFixture(page) {
     const longTasks: number[] = [];
     let longTaskObserver: PerformanceObserver | null = null;
     const longTaskSupported =
-      typeof PerformanceObserver !== 'undefined' &&
-      PerformanceObserver.supportedEntryTypes?.includes('longtask');
+      typeof PerformanceObserver !== "undefined" &&
+      PerformanceObserver.supportedEntryTypes?.includes("longtask");
 
     if (longTaskSupported) {
       longTaskObserver = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) longTasks.push(entry.duration);
       });
-      longTaskObserver.observe({ type: 'longtask', buffered: false });
+      longTaskObserver.observe({ type: "longtask", buffered: false });
     }
 
     const longAnimationFrames: Array<{
@@ -82,8 +82,8 @@ async function installPerformanceFixture(page) {
     }> = [];
     let longAnimationFrameObserver: PerformanceObserver | null = null;
     const longAnimationFrameSupported =
-      typeof PerformanceObserver !== 'undefined' &&
-      PerformanceObserver.supportedEntryTypes?.includes('long-animation-frame');
+      typeof PerformanceObserver !== "undefined" &&
+      PerformanceObserver.supportedEntryTypes?.includes("long-animation-frame");
 
     if (longAnimationFrameSupported) {
       longAnimationFrameObserver = new PerformanceObserver((list) => {
@@ -101,12 +101,14 @@ async function installPerformanceFixture(page) {
           });
         }
       });
-      longAnimationFrameObserver.observe({ type: 'long-animation-frame', buffered: false });
+      longAnimationFrameObserver.observe({ type: "long-animation-frame", buffered: false });
     }
 
-    const memory = (performance as Performance & {
-      memory?: { usedJSHeapSize?: number };
-    }).memory;
+    const memory = (
+      performance as Performance & {
+        memory?: { usedJSHeapSize?: number };
+      }
+    ).memory;
     const heapBefore = Number(memory?.usedJSHeapSize) || null;
 
     controller.resetPerformanceMetrics();
@@ -125,31 +127,31 @@ async function installPerformanceFixture(page) {
   await twoFrames(page);
 }
 
-test('retained renderer publishes phase-attributed performance evidence', async ({ page }, testInfo) => {
-  await page.goto('/');
+test("retained renderer publishes phase-attributed performance evidence", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/");
   await installPerformanceFixture(page);
 
-  const root = page.locator('#retained-performance-host');
-  const surface = root.locator('.timeline-surface');
+  const root = page.locator("#retained-performance-host");
+  const surface = root.locator(".timeline-surface");
   await expect(surface).toBeVisible();
 
   const box = await surface.boundingBox();
-  if (!box) throw new Error('Performance timeline surface has no bounding box.');
+  if (!box) throw new Error("Performance timeline surface has no bounding box.");
 
   const pointerId = 91;
-  const pointerType = testInfo.project.use.hasTouch ? 'touch' : 'mouse';
+  const pointerType = testInfo.project.use.hasTouch ? "touch" : "mouse";
   const y = box.y + box.height * 0.52;
   const positions = Array.from({ length: 40 }, (_, index) => {
     const phase = index / 39;
     // Traverse the scene and reverse once so p95 is based on sustained direct
     // manipulation rather than one or two scheduler-sensitive samples.
-    const ratio = phase <= 0.5
-      ? 0.72 - phase * 0.8
-      : 0.32 + (phase - 0.5) * 0.72;
+    const ratio = phase <= 0.5 ? 0.72 - phase * 0.8 : 0.32 + (phase - 0.5) * 0.72;
     return box.x + box.width * ratio;
   });
 
-  await surface.dispatchEvent('pointerdown', {
+  await surface.dispatchEvent("pointerdown", {
     pointerId,
     pointerType,
     isPrimary: true,
@@ -160,7 +162,7 @@ test('retained renderer publishes phase-attributed performance evidence', async 
   });
 
   for (const clientX of positions.slice(1)) {
-    await surface.dispatchEvent('pointermove', {
+    await surface.dispatchEvent("pointermove", {
       pointerId,
       pointerType,
       isPrimary: true,
@@ -172,7 +174,7 @@ test('retained renderer publishes phase-attributed performance evidence', async 
     await twoFrames(page);
   }
 
-  await surface.dispatchEvent('pointercancel', {
+  await surface.dispatchEvent("pointercancel", {
     pointerId,
     pointerType,
     isPrimary: true,
@@ -182,83 +184,80 @@ test('retained renderer publishes phase-attributed performance evidence', async 
     clientY: y,
   });
 
-  await expect.poll(() => root.getAttribute('data-scene-state')).not.toBe('interacting');
-  await expect.poll(() => root.getAttribute('data-scene-state')).not.toBe('settling');
+  await expect.poll(() => root.getAttribute("data-scene-state")).not.toBe("interacting");
+  await expect.poll(() => root.getAttribute("data-scene-state")).not.toBe("settling");
   await twoFrames(page);
 
   const evidence = await page.evaluate(() => {
-    const controller = Reflect.get(globalThis, '__retainedPerformanceController') as
-      | { getPerformanceMetrics(): {
-          interaction: {
-            frameCount: number;
-            destroyedNodes: number;
-            p95DurationMs: number;
-            inputLatencySampleCount: number;
-            p95InputLatencyMs: number;
+    const controller = Reflect.get(globalThis, "__retainedPerformanceController") as
+      | {
+          getPerformanceMetrics(): {
+            interaction: {
+              frameCount: number;
+              destroyedNodes: number;
+              p95DurationMs: number;
+              inputLatencySampleCount: number;
+              p95InputLatencyMs: number;
+            };
+            commit: { frameCount: number; p95DurationMs: number };
+            violations: unknown[];
+            retainedPeak: number;
+            bufferExpansions: number;
           };
-          commit: { frameCount: number; p95DurationMs: number };
-          violations: unknown[];
-          retainedPeak: number;
-          bufferExpansions: number;
-        } }
+        }
       | undefined;
-    const longTaskObserver = Reflect.get(
-      globalThis,
-      '__retainedPerformanceLongTaskObserver',
-    ) as PerformanceObserver | null | undefined;
+    const longTaskObserver = Reflect.get(globalThis, "__retainedPerformanceLongTaskObserver") as
+      | PerformanceObserver
+      | null
+      | undefined;
     const longAnimationFrameObserver = Reflect.get(
       globalThis,
-      '__retainedPerformanceLongAnimationFrameObserver',
+      "__retainedPerformanceLongAnimationFrameObserver",
     ) as PerformanceObserver | null | undefined;
     longTaskObserver?.disconnect();
     longAnimationFrameObserver?.disconnect();
 
-    const memory = (performance as Performance & {
-      memory?: { usedJSHeapSize?: number };
-    }).memory;
+    const memory = (
+      performance as Performance & {
+        memory?: { usedJSHeapSize?: number };
+      }
+    ).memory;
     const heapAfter = Number(memory?.usedJSHeapSize) || null;
-    const heapBeforeValue = Reflect.get(globalThis, '__retainedPerformanceHeapBefore');
-    const heapBefore = typeof heapBeforeValue === 'number' ? heapBeforeValue : null;
-    const rawLongTasks = Reflect.get(globalThis, '__retainedPerformanceLongTasks');
+    const heapBeforeValue = Reflect.get(globalThis, "__retainedPerformanceHeapBefore");
+    const heapBefore = typeof heapBeforeValue === "number" ? heapBeforeValue : null;
+    const rawLongTasks = Reflect.get(globalThis, "__retainedPerformanceLongTasks");
     const rawLongAnimationFrames = Reflect.get(
       globalThis,
-      '__retainedPerformanceLongAnimationFrames',
+      "__retainedPerformanceLongAnimationFrames",
     );
 
     return {
       metrics: controller?.getPerformanceMetrics(),
-      longTaskSupported: Boolean(
-        Reflect.get(globalThis, '__retainedPerformanceLongTaskSupported'),
-      ),
+      longTaskSupported: Boolean(Reflect.get(globalThis, "__retainedPerformanceLongTaskSupported")),
       longTasks: Array.isArray(rawLongTasks)
-        ? rawLongTasks.filter((value): value is number => typeof value === 'number')
+        ? rawLongTasks.filter((value): value is number => typeof value === "number")
         : [],
       longAnimationFrameSupported: Boolean(
-        Reflect.get(globalThis, '__retainedPerformanceLongAnimationFrameSupported'),
+        Reflect.get(globalThis, "__retainedPerformanceLongAnimationFrameSupported"),
       ),
-      longAnimationFrames: Array.isArray(rawLongAnimationFrames)
-        ? [...rawLongAnimationFrames]
-        : [],
+      longAnimationFrames: Array.isArray(rawLongAnimationFrames) ? [...rawLongAnimationFrames] : [],
       heapBefore,
       heapAfter,
-      heapDelta:
-        heapBefore !== null && heapAfter !== null
-          ? heapAfter - heapBefore
-          : null,
+      heapDelta: heapBefore !== null && heapAfter !== null ? heapAfter - heapBefore : null,
       eventNodes: document.querySelectorAll(
-        '#retained-performance-host .timeline-event, #retained-performance-host .timeline-range-segment',
+        "#retained-performance-host .timeline-event, #retained-performance-host .timeline-range-segment",
       ).length,
     };
   });
 
-  if (!evidence.metrics) throw new Error('Retained performance metrics were not published.');
+  if (!evidence.metrics) throw new Error("Retained performance metrics were not published.");
   const metrics = evidence.metrics;
   expect(metrics.interaction.frameCount).toBeGreaterThan(0);
   expect(metrics.commit.frameCount).toBeGreaterThan(0);
   expect(metrics.interaction.destroyedNodes).toBe(0);
   expect(metrics.violations).toEqual([]);
   expect(metrics.retainedPeak).toBeGreaterThan(0);
-  expect(metrics.retainedPeak).toBeLessThan(3_000);
+  expect(metrics.retainedPeak).toBeLessThan(3000);
   expect(evidence.eventNodes).toBeLessThanOrEqual(metrics.retainedPeak);
   expect(Number.isFinite(metrics.interaction.p95DurationMs)).toBeTruthy();
   expect(Number.isFinite(metrics.commit.p95DurationMs)).toBeTruthy();
@@ -295,9 +294,9 @@ test('retained renderer publishes phase-attributed performance evidence', async 
     longAnimationFrames: evidence.longAnimationFrames,
   };
 
-  console.log('RETAINED_TIMELINE_PERF ' + JSON.stringify(report));
-  await testInfo.attach('retained-timeline-performance.json', {
+  console.log("RETAINED_TIMELINE_PERF " + JSON.stringify(report));
+  await testInfo.attach("retained-timeline-performance.json", {
     body: Buffer.from(JSON.stringify(report, null, 2)),
-    contentType: 'application/json',
+    contentType: "application/json",
   });
 });

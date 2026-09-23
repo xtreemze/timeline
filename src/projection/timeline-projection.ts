@@ -100,9 +100,7 @@ function parseCanonicalTime(value: unknown): number {
   return Number.isFinite(timestamp) ? timestamp : Number.NaN;
 }
 
-function endpointTime(
-  endpoint: TimelineProjectionEndpoint | string | null | undefined,
-): number {
+function endpointTime(endpoint: TimelineProjectionEndpoint | string | null | undefined): number {
   if (typeof endpoint === "string") return parseCanonicalTime(endpoint);
   if (!endpoint || typeof endpoint !== "object") return Number.NaN;
 
@@ -132,7 +130,7 @@ function occurrenceFor(
   const subjectId = text(relationship.subjectId, 120);
   const objectId = text(relationship.objectId, 120);
   const predicate = text(relationship.predicate, 120);
-  if (!id || !subjectId || !objectId || !predicate || !relationship.time) return null;
+  if (!(id && subjectId && objectId && predicate && relationship.time)) return null;
   if (relationship.time.openStart) return null;
 
   const start = endpointTime(relationship.time.start);
@@ -196,9 +194,7 @@ export function projectTimelineOccurrences(
   return Object.freeze(
     (Array.isArray(project?.relationships) ? project.relationships : [])
       .map((relationship) => occurrenceFor(relationship, entityNames))
-      .filter(
-        (occurrence): occurrence is TimelineOccurrenceProjection => occurrence !== null,
-      )
+      .filter((occurrence): occurrence is TimelineOccurrenceProjection => occurrence !== null)
       .sort(
         (left, right) =>
           left.start - right.start ||

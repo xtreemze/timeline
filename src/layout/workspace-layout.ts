@@ -132,21 +132,12 @@ function safeViewportRect(viewport: LayoutViewport): LayoutRect {
 export function intersectionArea(left: LayoutRect, right: LayoutRect): number {
   const a = normalizeRect(left);
   const b = normalizeRect(right);
-  const overlapWidth = Math.max(
-    0,
-    Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x),
-  );
-  const overlapHeight = Math.max(
-    0,
-    Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y),
-  );
+  const overlapWidth = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+  const overlapHeight = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
   return overlapWidth * overlapHeight;
 }
 
-export function clampRectToViewport(
-  rect: LayoutRect,
-  viewport: LayoutViewport,
-): LayoutRect {
+export function clampRectToViewport(rect: LayoutRect, viewport: LayoutViewport): LayoutRect {
   const source = normalizeRect(rect);
   const safe = safeViewportRect(viewport);
   const width = Math.min(source.width, safe.width);
@@ -237,9 +228,7 @@ function candidateRank(
   );
 }
 
-export function planWorkspacePlacement(
-  input: WorkspacePlacementInput,
-): LayoutSnapshot {
+export function planWorkspacePlacement(input: WorkspacePlacementInput): LayoutSnapshot {
   const viewport = normalizeViewport(input.viewport);
   const anchor = input.anchor
     ? Object.freeze({
@@ -258,18 +247,10 @@ export function planWorkspacePlacement(
     .filter((candidate) => candidate.id)
     .sort((left, right) => left.id.localeCompare(right.id))
     .map((candidate) =>
-      evaluateCandidate(
-        candidate,
-        viewport,
-        anchor,
-        protectedRegions,
-        exclusionZones,
-      ),
+      evaluateCandidate(candidate, viewport, anchor, protectedRegions, exclusionZones),
     );
 
-  const selected = candidates.length
-    ? [...candidates].sort(candidateRank)[0] ?? null
-    : null;
+  const selected = candidates.length ? ([...candidates].sort(candidateRank)[0] ?? null) : null;
 
   const constraints: LayoutConstraint[] = [
     { kind: "inside-viewport", id: "safe-viewport" },
@@ -300,8 +281,6 @@ export function planWorkspacePlacement(
     selected,
     candidates: Object.freeze(candidates),
     constraints: Object.freeze(constraints),
-    fullySatisfiesConstraints: Boolean(
-      selected && selected.violations.length === 0,
-    ),
+    fullySatisfiesConstraints: Boolean(selected && selected.violations.length === 0),
   });
 }

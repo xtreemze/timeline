@@ -1,11 +1,5 @@
 import type { CanonicalEntity, ValidationResult } from "./entity.ts";
-import type {
-  EntityId,
-  PlaceId,
-  RelationshipId,
-  SourceId,
-  TimelineId,
-} from "./ids.ts";
+import type { EntityId, PlaceId, RelationshipId, SourceId, TimelineId } from "./ids.ts";
 
 export interface CanonicalTemporalExtent {
   readonly type: "instant" | "interval";
@@ -153,7 +147,7 @@ export function validateRelationship(
   }
 
   const entityIds = new Set(entities.map((entity) => entity.id));
-  if (!entityIds.has(relationship.subjectId) || !entityIds.has(relationship.objectId)) {
+  if (!(entityIds.has(relationship.subjectId) && entityIds.has(relationship.objectId))) {
     return {
       valid: false,
       message: "Both relationship endpoints must reference existing canonical entities.",
@@ -169,10 +163,7 @@ function temporalFactKey(time: CanonicalTemporalExtent | null): string {
 }
 
 export function relationshipFactKey(
-  relationship: Pick<
-    CanonicalRelationship,
-    "subjectId" | "objectId" | "predicate" | "time"
-  >,
+  relationship: Pick<CanonicalRelationship, "subjectId" | "objectId" | "predicate" | "time">,
 ): string {
   return JSON.stringify([
     relationship.subjectId,

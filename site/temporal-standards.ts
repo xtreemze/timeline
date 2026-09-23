@@ -34,7 +34,7 @@ interface ParsedDate {
   millisecond: number;
   offset: string | null;
   hasTime: boolean;
-  precision: (typeof PRECISIONS) extends Set<infer U> ? U : string;
+  precision: typeof PRECISIONS extends Set<infer U> ? U : string;
 }
 
 interface Endpoint {
@@ -72,7 +72,7 @@ interface FormParts {
   timeZone: string;
 }
 
-function pad(value: number | string, width: number = 2): string {
+function pad(value: number | string, width = 2): string {
   return String(value).padStart(width, "0");
 }
 
@@ -91,7 +91,7 @@ function daysInMonth(year: number, month: number): number {
   return [4, 6, 9, 11].includes(month) ? 30 : 31;
 }
 
-function text(value: unknown, max: number = 4000): string {
+function text(value: unknown, max = 4000): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
@@ -181,7 +181,7 @@ function certaintyFromForm(value: unknown): string {
 function normalizeTimeInput(time: unknown, precision: string): string {
   if (["millennium", "century", "decade", "year", "month", "day"].includes(precision)) return "";
   const match = /^(\d{2})(?::(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?$/.exec(
-    String(time || "").trim()
+    String(time || "").trim(),
   );
   if (!match) throw new Error("Choose a valid clock time.");
   const hour = Number(match[1]);
@@ -206,7 +206,7 @@ function normalizeBound(value: unknown): string | null {
 
 function withEndpointMetadata(
   endpoint: Endpoint,
-  metadata: Record<string, unknown> = {}
+  metadata: Record<string, unknown> = {},
 ): Endpoint {
   const earliest = normalizeBound((metadata as any).earliest);
   const latest = normalizeBound((metadata as any).latest);
@@ -245,7 +245,11 @@ export function buildEndpoint(options: {
         utcOffset: null,
         sourceText: options.sourceText || null,
       },
-      { earliest: options.earliest, latest: options.latest, referenceSystem: options.referenceSystem }
+      {
+        earliest: options.earliest,
+        latest: options.latest,
+        referenceSystem: options.referenceSystem,
+      },
     );
   }
 
@@ -266,13 +270,17 @@ export function buildEndpoint(options: {
         utcOffset: null,
         sourceText: options.sourceText || null,
       },
-      { earliest: options.earliest, latest: options.latest, referenceSystem: options.referenceSystem }
+      {
+        earliest: options.earliest,
+        latest: options.latest,
+        referenceSystem: options.referenceSystem,
+      },
     );
   }
 
   if (!(globalThis.Temporal as any)?.ZonedDateTime) {
     throw new Error(
-      "This browser does not provide the Temporal API required for time-zone-aware dates."
+      "This browser does not provide the Temporal API required for time-zone-aware dates.",
     );
   }
 
@@ -289,7 +297,7 @@ export function buildEndpoint(options: {
         second: parsedLocal.second || 0,
         millisecond: parsedLocal.millisecond || 0,
       },
-      { disambiguation: "reject" }
+      { disambiguation: "reject" },
     );
   } catch {
     throw new Error("That local date/time does not exist uniquely in the selected time zone.");
@@ -305,11 +313,18 @@ export function buildEndpoint(options: {
       utcOffset: zoned.offset,
       sourceText: options.sourceText || null,
     },
-    { earliest: options.earliest, latest: options.latest, referenceSystem: options.referenceSystem }
+    {
+      earliest: options.earliest,
+      latest: options.latest,
+      referenceSystem: options.referenceSystem,
+    },
   );
 }
 
-export function endpointFrom(value: unknown, metadata: Record<string, unknown> = {}): Endpoint | null {
+export function endpointFrom(
+  value: unknown,
+  metadata: Record<string, unknown> = {},
+): Endpoint | null {
   const parsed = parse(value);
   if (!parsed) return null;
   const endpoint: Endpoint = {
@@ -319,12 +334,18 @@ export function endpointFrom(value: unknown, metadata: Record<string, unknown> =
       : parsed.precision,
     certainty: certaintyFromForm((metadata as any).certainty),
     calendar: (metadata as any).calendar === "gregorian" ? "gregorian" : "gregorian",
-    timeZone: typeof (metadata as any).timeZone === "string" && (metadata as any).timeZone ? (metadata as any).timeZone : null,
+    timeZone:
+      typeof (metadata as any).timeZone === "string" && (metadata as any).timeZone
+        ? (metadata as any).timeZone
+        : null,
     utcOffset:
       typeof (metadata as any).utcOffset === "string" && (metadata as any).utcOffset
         ? (metadata as any).utcOffset
         : parsed.offset,
-    sourceText: typeof (metadata as any).sourceText === "string" && (metadata as any).sourceText ? (metadata as any).sourceText : null,
+    sourceText:
+      typeof (metadata as any).sourceText === "string" && (metadata as any).sourceText
+        ? (metadata as any).sourceText
+        : null,
   };
   return withEndpointMetadata(endpoint, metadata);
 }
@@ -335,14 +356,16 @@ export function unknownEndpoint(metadata: Record<string, unknown> = {}): Endpoin
   const endpoint = withEndpointMetadata(
     {
       value: null,
-      precision: PRECISIONS.has((metadata as any).precision) ? ((metadata as any).precision as string) : null,
+      precision: PRECISIONS.has((metadata as any).precision)
+        ? ((metadata as any).precision as string)
+        : null,
       certainty: "unknown",
       calendar: (metadata as any).calendar === "gregorian" ? "gregorian" : "gregorian",
       timeZone: null,
       utcOffset: null,
       sourceText: text((metadata as any).sourceText, 4000) || null,
     },
-    metadata
+    metadata,
   );
   const earliest = endpoint.earliest ? sortKey(endpoint.earliest) : Number.NaN;
   const latest = endpoint.latest ? sortKey(endpoint.latest) : Number.NaN;
@@ -355,7 +378,9 @@ function normalizeEndpointInput(raw: unknown, fallback: unknown): Endpoint | nul
     if (typeof (raw as any).value === "string" && (raw as any).value.trim())
       return endpointFrom((raw as any).value, raw as Record<string, unknown>);
     if (
-      ((raw as any).value === null || (raw as any).value === undefined || (raw as any).value === "") &&
+      ((raw as any).value === null ||
+        (raw as any).value === undefined ||
+        (raw as any).value === "") &&
       (raw as any).certainty === "unknown"
     ) {
       return unknownEndpoint(raw as Record<string, unknown>);
@@ -371,7 +396,7 @@ export function normalizeExtent(
   rawTime: unknown,
   start: unknown,
   end: unknown,
-  kind: string
+  kind: string,
 ): Extent | null {
   const source = rawTime && typeof rawTime === "object" ? rawTime : {};
   const interval = kind === "range" || (source as any).type === "interval";
@@ -381,7 +406,7 @@ export function normalizeExtent(
     return null;
 
   const normalizedStart = openStart ? null : normalizeEndpointInput((source as any).start, start);
-  if (!openStart && !normalizedStart) return null;
+  if (!(openStart || normalizedStart)) return null;
 
   const normalizedEnd = interval
     ? openEnd
@@ -421,7 +446,7 @@ function knownSortKey(value: string): number {
     parsed.hour ?? 0,
     parsed.minute ?? 0,
     parsed.second ?? 0,
-    parsed.millisecond ?? 0
+    parsed.millisecond ?? 0,
   );
   let timestamp = probe.getTime();
   if (!Number.isFinite(timestamp)) return Number.NaN;
@@ -438,7 +463,9 @@ function knownSortKey(value: string): number {
 
 export function endpointBounds(endpointOrValue: unknown): Bounds {
   const endpoint =
-    typeof endpointOrValue === "string" ? endpointFrom(endpointOrValue) : (endpointOrValue as Endpoint | null);
+    typeof endpointOrValue === "string"
+      ? endpointFrom(endpointOrValue)
+      : (endpointOrValue as Endpoint | null);
   if (!endpoint || typeof endpoint !== "object") {
     return { start: Number.NaN, end: Number.NaN, locatable: false };
   }
@@ -506,13 +533,15 @@ export function formParts(endpointOrValue: unknown): FormParts {
       timeZone: "",
     };
   }
-  const precision = PRECISIONS.has(endpoint.precision as any) ? endpoint.precision : parsed.precision;
+  const precision = PRECISIONS.has(endpoint.precision as any)
+    ? endpoint.precision
+    : parsed.precision;
   const date =
-    parsed.day !== null
-      ? localValue(parsed, "day")
-      : parsed.month !== null
-        ? `${localValue(parsed, "month")}-01`
-        : `${localValue(parsed, "year")}-01-01`;
+    parsed.day === null
+      ? parsed.month === null
+        ? `${localValue(parsed, "year")}-01-01`
+        : `${localValue(parsed, "month")}-01`
+      : localValue(parsed, "day");
   let time = "";
   if (!["millennium", "century", "decade", "year", "month", "day"].includes(precision as string)) {
     const hour = pad(parsed.hour ?? 0);
@@ -544,7 +573,8 @@ function endpointRepresentation(endpoint: Endpoint | null | undefined): string {
 export function intervalRepresentation(extent: unknown): string {
   if (!extent || typeof extent !== "object") return "";
   if ((extent as any).type !== "interval") return endpointRepresentation((extent as any).start);
-  const start = (extent as any).openStart === true ? "" : endpointRepresentation((extent as any).start);
+  const start =
+    (extent as any).openStart === true ? "" : endpointRepresentation((extent as any).start);
   const end = (extent as any).openEnd === true ? "" : endpointRepresentation((extent as any).end);
   return `${start}/${end}`;
 }

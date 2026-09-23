@@ -42,11 +42,7 @@ export type CandidateReference =
   | { readonly kind: "resolved"; readonly entityId: EntityId }
   | { readonly kind: "unresolved"; readonly label: string };
 
-export type CandidateClaimStatus =
-  | "proposed"
-  | "accepted"
-  | "rejected"
-  | "unresolved";
+export type CandidateClaimStatus = "proposed" | "accepted" | "rejected" | "unresolved";
 
 export interface ClaimReviewEvent {
   readonly decision: "accepted" | "rejected" | "unresolved";
@@ -80,20 +76,19 @@ export interface ClaimLedger {
 export function validateFragment(fragment: ExtractedFragment): string[] {
   const findings: string[] = [];
   if (!fragment.text.trim()) findings.push("Extracted fragment text must not be empty.");
-  if (!fragment.locator.value.trim()) findings.push("Extracted fragment requires a source locator.");
+  if (!fragment.locator.value.trim())
+    findings.push("Extracted fragment requires a source locator.");
   if (fragment.confidence !== null && (fragment.confidence < 0 || fragment.confidence > 1)) {
     findings.push("Extracted fragment confidence must be between 0 and 1.");
   }
   return findings;
 }
 
-export function validateCandidateClaim(
-  claim: CandidateClaim,
-  ledger: ClaimLedger,
-): string[] {
+export function validateCandidateClaim(claim: CandidateClaim, ledger: ClaimLedger): string[] {
   const findings: string[] = [];
   if (!claim.predicate.trim()) findings.push("Candidate claim requires an action predicate.");
-  if (!claim.fragmentIds.length) findings.push("Candidate claim requires at least one source fragment.");
+  if (!claim.fragmentIds.length)
+    findings.push("Candidate claim requires at least one source fragment.");
   if (!claim.sourceIds.length) findings.push("Candidate claim requires at least one source.");
   if (claim.confidence !== null && (claim.confidence < 0 || claim.confidence > 1)) {
     findings.push("Candidate claim confidence must be between 0 and 1.");

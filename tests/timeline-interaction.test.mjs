@@ -39,18 +39,18 @@ test("events less than 50 ms apart separate after zoom without temporal drift", 
   await import("../site/time-scale-shim.ts");
   const scale = globalThis.TimelineScale;
   const events = [
-    { id: "a", start: 1_000 },
-    { id: "b", start: 1_030 },
+    { id: "a", start: 1000 },
+    { id: "b", start: 1030 },
   ];
   const overview = { start: 0, end: 10_000 };
-  const detail = scale.zoom(overview, 0.01, 1_015, 1);
+  const detail = scale.zoom(overview, 0.01, 1015, 1);
   const overviewPositions = events.map((item) => scale.coordinateFor(item.start, overview, 1000));
   const detailPositions = events.map((item) => scale.coordinateFor(item.start, detail, 1000));
 
   assert.ok(Math.abs(overviewPositions[1] - overviewPositions[0]) < 10);
   assert.ok(Math.abs(detailPositions[1] - detailPositions[0]) > 100);
-  const detailAnchorRatio = (1_015 - detail.start) / (detail.end - detail.start);
-  const overviewAnchorRatio = (1_015 - overview.start) / (overview.end - overview.start);
+  const detailAnchorRatio = (1015 - detail.start) / (detail.end - detail.start);
+  const overviewAnchorRatio = (1015 - overview.start) / (overview.end - overview.start);
   assert.ok(Math.abs(detailAnchorRatio - overviewAnchorRatio) < 1e-12);
 });
 
@@ -579,4 +579,3 @@ test("focused event popover keeps event semantics compact and image controls dot
   );
   assert.match(architectureDocs, /explicit duration for ranged events/);
 });
-

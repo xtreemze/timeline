@@ -9,7 +9,6 @@ export interface TemporalOccurrence {
   readonly end?: number | null;
 }
 
-
 export interface TemporalSceneTickIdentity {
   readonly unit: string;
   readonly value: number;
@@ -121,10 +120,16 @@ export function createRenderWindow(
 ): TemporalWindow {
   const normalized = normalizeWindow(viewport);
   const span = windowSpan(normalized);
-  const overscanRatio = Math.max(0, finite(options.overscanRatio ?? DEFAULT_OVERSCAN_RATIO, DEFAULT_OVERSCAN_RATIO));
+  const overscanRatio = Math.max(
+    0,
+    finite(options.overscanRatio ?? DEFAULT_OVERSCAN_RATIO, DEFAULT_OVERSCAN_RATIO),
+  );
   const horizon = Math.max(
     0,
-    finite(options.predictionHorizonMs ?? DEFAULT_PREDICTION_HORIZON_MS, DEFAULT_PREDICTION_HORIZON_MS),
+    finite(
+      options.predictionHorizonMs ?? DEFAULT_PREDICTION_HORIZON_MS,
+      DEFAULT_PREDICTION_HORIZON_MS,
+    ),
   );
   const velocity = finite(options.velocityTemporalPerMs ?? 0, 0);
   const zoomVelocity = Math.abs(finite(options.zoomVelocity ?? 0, 0));

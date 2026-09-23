@@ -39,10 +39,7 @@ test("RED #374 competing-surface suspension stages topology and resumes the high
   coordinator.request({ reason: "topology", alphaTarget: 0.12, reheat: true });
   coordinator.resume("competing-surface");
 
-  assert.deepEqual(calls, [
-    ["stop"],
-    ["apply", "topology", 0.12, true],
-  ]);
+  assert.deepEqual(calls, [["stop"], ["apply", "topology", 0.12, true]]);
   assert.deepEqual(coordinator.getState().suspendedReasons, []);
   assert.equal(coordinator.getState().reason, "topology");
 });
@@ -74,10 +71,7 @@ test("RED #374 multiple suspension owners require every owner to release before 
   coordinator.suspend("hidden");
   coordinator.resume("competing-surface");
 
-  assert.deepEqual(calls, [
-    ["apply", "topology", 0.12, true],
-    ["stop"],
-  ]);
+  assert.deepEqual(calls, [["apply", "topology", 0.12, true], ["stop"]]);
   assert.equal(coordinator.getState().running, false);
   assert.deepEqual(coordinator.getState().suspendedReasons, ["hidden"]);
 
@@ -101,11 +95,9 @@ test("RED #374 force priorities encode the documented lifecycle order", () => {
   assert.ok(GRAPH_SIMULATION_PRIORITY.drag > GRAPH_SIMULATION_PRIORITY.topology);
   assert.ok(GRAPH_SIMULATION_PRIORITY.topology > GRAPH_SIMULATION_PRIORITY["post-drop"]);
   assert.ok(
-    GRAPH_SIMULATION_PRIORITY["post-drop"] >
-      GRAPH_SIMULATION_PRIORITY["popover-exclusion"],
+    GRAPH_SIMULATION_PRIORITY["post-drop"] > GRAPH_SIMULATION_PRIORITY["popover-exclusion"],
   );
   assert.ok(
-    GRAPH_SIMULATION_PRIORITY["popover-exclusion"] >
-      GRAPH_SIMULATION_PRIORITY["geometry-refresh"],
+    GRAPH_SIMULATION_PRIORITY["popover-exclusion"] > GRAPH_SIMULATION_PRIORITY["geometry-refresh"],
   );
 });

@@ -60,9 +60,7 @@ test("wholesale chronology replacement is a machine-readable invariant violation
 
   const summary = recorder.summary();
   assert.ok(
-    summary.violations.some(
-      (violation) => violation.code === "wholesale-interaction-replacement",
-    ),
+    summary.violations.some((violation) => violation.code === "wholesale-interaction-replacement"),
   );
 });
 
@@ -103,7 +101,6 @@ test("planner, query, dirty geometry and long tasks remain phase-attributed", ()
   assert.equal(summary.commit.longTasks, 1);
   assert.equal(summary.interaction.plannerDurationMs, 0);
 });
-
 
 test("input-to-visual latency remains phase-attributed and summarized", () => {
   const recorder = createRetainedTimelineMetrics();

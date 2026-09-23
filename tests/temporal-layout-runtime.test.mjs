@@ -41,7 +41,7 @@ test("measurement identity changes only with scene identity or content revision"
 
 test("committed layout planning is deterministic and capped at three lanes by default", () => {
   const input = {
-    viewport: { start: 0, end: 1_000 },
+    viewport: { start: 0, end: 1000 },
     occurrences: [
       { id: "a", start: 100, end: null },
       { id: "b", start: 130, end: null },
@@ -66,8 +66,8 @@ test("committed layout planning is deterministic and capped at three lanes by de
 
 test("three nearby occurrences use lanes before a fourth forces clustering", () => {
   const common = {
-    viewport: { start: 0, end: 1_000 },
-    pixelLength: 1_000,
+    viewport: { start: 0, end: 1000 },
+    pixelLength: 1000,
     measurements: {
       a: { inlineSize: 120, blockSize: 52 },
       b: { inlineSize: 120, blockSize: 52 },
@@ -101,7 +101,7 @@ test("three nearby occurrences use lanes before a fourth forces clustering", () 
 
 test("previous cluster membership survives inside exit hysteresis and splits beyond it", () => {
   const base = {
-    viewport: { start: 0, end: 1_000 },
+    viewport: { start: 0, end: 1000 },
     occurrences: [
       { id: "a", start: 100 },
       { id: "b", start: 200 },
@@ -113,7 +113,7 @@ test("previous cluster membership survives inside exit hysteresis and splits bey
     clusterThresholds: { enterPx: 80, exitPx: 120 },
   };
 
-  const retained = planCommittedTemporalLayout({ ...base, pixelLength: 1_000 });
+  const retained = planCommittedTemporalLayout({ ...base, pixelLength: 1000 });
   assert.equal(retained.clusters.length, 1);
 
   const split = planCommittedTemporalLayout({
@@ -122,7 +122,7 @@ test("previous cluster membership survives inside exit hysteresis and splits bey
       { id: "a", start: 100 },
       { id: "b", start: 300 },
     ],
-    pixelLength: 1_000,
+    pixelLength: 1000,
   });
   assert.equal(split.clusters.length, 0);
 });
@@ -169,7 +169,6 @@ test("committed clusters keep occurrence DOM alive and restore mature tile affor
   assert.doesNotMatch(source, /hiddenByCluster[\s\S]{0,300}removeRecord/);
 });
 
-
 test("clustering follows measured collision pressure rather than nearby event count", () => {
   const occurrences = [
     { id: "a", start: 100 },
@@ -184,9 +183,9 @@ test("clustering follows measured collision pressure rather than nearby event co
     occurrences.map(({ id }) => [id, { inlineSize: 120, blockSize: 52 }]),
   );
   const common = {
-    viewport: { start: 0, end: 1_000 },
+    viewport: { start: 0, end: 1000 },
     occurrences,
-    pixelLength: 1_000,
+    pixelLength: 1000,
     maxLanes: 3,
     laneGapPx: 16,
     clusterThresholds: { enterPx: 80, exitPx: 120 },
@@ -206,7 +205,6 @@ test("clustering follows measured collision pressure rather than nearby event co
   assert.deepEqual(wide.clusters[0].itemIds, ["a", "b", "c", "d"]);
 });
 
-
 test("coincident timestamps stay separate and gain enough perpendicular lanes", () => {
   const occurrences = [
     { id: "a", start: 500 },
@@ -215,9 +213,9 @@ test("coincident timestamps stay separate and gain enough perpendicular lanes", 
     { id: "d", start: 500 },
   ];
   const plan = planCommittedTemporalLayout({
-    viewport: { start: 0, end: 1_000 },
+    viewport: { start: 0, end: 1000 },
     occurrences,
-    pixelLength: 1_000,
+    pixelLength: 1000,
     maxLanes: 3,
     measurements: Object.fromEntries(
       occurrences.map(({ id }) => [id, { inlineSize: 120, blockSize: 52 }]),

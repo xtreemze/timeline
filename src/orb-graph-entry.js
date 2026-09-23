@@ -42,7 +42,7 @@ function resolvedColor(container, name, fallback) {
   return fallback;
 }
 
-function supportsWebGL2() {
+function supportsWebGl2() {
   try {
     const canvas = document.createElement("canvas");
     return Boolean(canvas.getContext("webgl2"));
@@ -180,23 +180,18 @@ function create(container, handlers = {}) {
     zoomFitTransitionMs: 520,
   });
 
-  const ORB_TOUCH_DRAG_EVENT_TYPES = new Set([
-    "touchstart",
-    "touchmove",
-    "touchend",
-    "touchcancel",
-  ]);
-  const ORB_NATIVE_CAMERA_DRAG_EVENT_TYPES = new Set(["mousedown"]);
+  const OrbTouchDragEventTypes = new Set(["touchstart", "touchmove", "touchend", "touchcancel"]);
+  const OrbNativeCameraDragEventTypes = new Set(["mousedown"]);
 
   function removeOrbTouchDragListeners() {
     const canvas = orb.canvas;
     const listeners = Array.isArray(canvas?.__on) ? canvas.__on : null;
-    if (!canvas || !listeners?.length) return;
+    if (!(canvas && listeners?.length)) return;
 
     const retained = [];
     for (const listener of listeners) {
       const isTouchDragListener =
-        listener?.name === "drag" && ORB_TOUCH_DRAG_EVENT_TYPES.has(listener.type);
+        listener?.name === "drag" && OrbTouchDragEventTypes.has(listener.type);
       if (!isTouchDragListener) {
         retained.push(listener);
         continue;
@@ -217,12 +212,12 @@ function create(container, handlers = {}) {
   function removeOrbNativeCameraDragListeners() {
     const canvas = orb.canvas;
     const listeners = Array.isArray(canvas?.__on) ? canvas.__on : null;
-    if (!canvas || !listeners?.length) return;
+    if (!(canvas && listeners?.length)) return;
 
     const retained = [];
     for (const listener of listeners) {
       const isNativeCameraDrag =
-        listener?.name === "zoom" && ORB_NATIVE_CAMERA_DRAG_EVENT_TYPES.has(listener.type);
+        listener?.name === "zoom" && OrbNativeCameraDragEventTypes.has(listener.type);
       if (!isNativeCameraDrag) {
         retained.push(listener);
         continue;
@@ -251,7 +246,7 @@ function create(container, handlers = {}) {
 
   function forceLayoutOptions(nodeCount = forceNodeCount, alphaTarget = 0, reheat = true) {
     const dense = nodeCount >= 1000;
-    const useGPU = currentMode === "gpu-main-force";
+    const useGpu = currentMode === "gpu-main-force";
     return {
       links: { distance: dense ? 128 : 168, strength: 0.5, iterations: 2 },
       manyBody: {
@@ -275,7 +270,7 @@ function create(container, handlers = {}) {
         forceX: { x: 0, strength: dense ? 0.005 : 0.007 },
         forceY: { y: 0, strength: dense ? 0.005 : 0.007 },
       },
-      useGPU,
+      useGPU: useGpu,
     };
   }
 
@@ -439,7 +434,7 @@ function create(container, handlers = {}) {
     const canvas = orb.canvas;
     const renderer = orb?._renderer;
     const transform = clampCameraTransform(renderer?.transform);
-    if (!canvas || !transform) {
+    if (!(canvas && transform)) {
       if (
         canvas &&
         renderer?.transform &&
@@ -491,7 +486,7 @@ function create(container, handlers = {}) {
   function applyCameraPan(deltaX, deltaY) {
     const canvas = orb.canvas;
     const transform = clampCameraTransform(canvas?.__zoom || orb?._renderer?.transform);
-    if (!canvas || !transform || typeof transform.translate !== "function") return false;
+    if (!(canvas && transform) || typeof transform.translate !== "function") return false;
     markCameraOwnedByUser();
     const next = transform.translate(deltaX / transform.k, deltaY / transform.k);
     canvas.__zoom = next;
@@ -617,7 +612,7 @@ function create(container, handlers = {}) {
   }
 
   function zoomGraphAtClientPoint(point) {
-    if (!point || !orb.canvas) return;
+    if (!(point && orb.canvas)) return;
     const event = new WheelEvent("wheel", {
       clientX: point.x,
       clientY: point.y,
@@ -734,7 +729,7 @@ function create(container, handlers = {}) {
 
   function touchGeometry(event) {
     const point = eventClientPoint(event);
-    if (!point || !orb.canvas) return null;
+    if (!(point && orb.canvas)) return null;
     const rect = orb.canvas.getBoundingClientRect();
     const globalPoint = {
       x: Math.max(0, Math.min(rect.width, point.x - rect.left)),
@@ -745,7 +740,7 @@ function create(container, handlers = {}) {
   }
 
   function simulationRadiusForPixels(globalPoint, radiusPx) {
-    if (!orb.canvas || !globalPoint) return 0;
+    if (!(orb.canvas && globalPoint)) return 0;
     const rect = orb.canvas.getBoundingClientRect();
     const direction = globalPoint.x + radiusPx <= rect.width ? 1 : -1;
     const offsetPoint = {
@@ -767,7 +762,7 @@ function create(container, handlers = {}) {
     for (let index = nodes.length - 1; index >= 0; index -= 1) {
       const node = nodes[index];
       const center = node.getCenter?.();
-      if (!center || !Number.isFinite(center.x) || !Number.isFinite(center.y)) continue;
+      if (!(center && Number.isFinite(center.x) && Number.isFinite(center.y))) continue;
       const distance = Math.hypot(localPoint.x - center.x, localPoint.y - center.y);
       const hitRadius = Math.max(Number(node.getBorderedRadius?.()) || 0, minimumRadius);
       if (distance <= hitRadius && distance < bestDistance) {
@@ -1040,7 +1035,7 @@ function create(container, handlers = {}) {
   function onTouchMoveCapture(event) {
     const nodeDragOwnsGesture = Boolean(touchHold?.activated);
     const weightedCameraOwnsGesture = Boolean(cameraGesture && activeTouchPointers.size === 1);
-    if (!nodeDragOwnsGesture && !weightedCameraOwnsGesture) return;
+    if (!(nodeDragOwnsGesture || weightedCameraOwnsGesture)) return;
     // Orb 1.1.0's camera uses D3 touch listeners on the canvas. Once Timeline
     // owns either an active node drag or a one-finger weighted camera pan,
     // block D3's direct touchmove path. Multi-touch remains available to D3
@@ -1323,13 +1318,13 @@ function create(container, handlers = {}) {
 
   function setPerformanceMode(nodeCount) {
     forceNodeCount = nodeCount;
-    const wantsWebGL = nodeCount >= LARGE_GRAPH_NODE_THRESHOLD && supportsWebGL2();
-    const wantsGPU = nodeCount >= GPU_LAYOUT_NODE_THRESHOLD && wantsWebGL;
-    const sizeClass = `${wantsWebGL ? "webgl" : "canvas"}:${wantsGPU ? "gpu" : "worker"}:${nodeCount >= 400 ? "dense" : "normal"}`;
+    const wantsWebGl = nodeCount >= LARGE_GRAPH_NODE_THRESHOLD && supportsWebGl2();
+    const wantsGpu = nodeCount >= GPU_LAYOUT_NODE_THRESHOLD && wantsWebGl;
+    const sizeClass = `${wantsWebGl ? "webgl" : "canvas"}:${wantsGpu ? "gpu" : "worker"}:${nodeCount >= 400 ? "dense" : "normal"}`;
     if (sizeClass === lastSizeClass) return;
     lastSizeClass = sizeClass;
-    currentMode = wantsGPU ? "gpu-main-force" : "worker-cpu";
-    orb.setRenderer(wantsWebGL ? "webgl" : "canvas");
+    currentMode = wantsGpu ? "gpu-main-force" : "worker-cpu";
+    orb.setRenderer(wantsWebGl ? "webgl" : "canvas");
     // Renderer switches recreate the canvas and re-register Orb's D3 handlers.
     removeOrbTouchDragListeners();
     removeOrbNativeCameraDragListeners();
@@ -1345,7 +1340,7 @@ function create(container, handlers = {}) {
         type: "force",
         options: {
           ...forceLayoutOptions(nodeCount, 0),
-          useGPU: wantsGPU,
+          useGPU: wantsGpu,
         },
       },
     });
@@ -1407,7 +1402,7 @@ function create(container, handlers = {}) {
       for (const id of component) {
         const node = nodeObjects.get(String(id));
         const position = node?.getPosition?.() || node?.getCenter?.();
-        if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) continue;
+        if (!(position && Number.isFinite(position.x) && Number.isFinite(position.y))) continue;
         const radius = Math.max(18, Number(node?.getBorderedRadius?.()) || 0);
         minX = Math.min(minX, position.x - radius);
         maxX = Math.max(maxX, position.x + radius);
@@ -1440,13 +1435,13 @@ function create(container, handlers = {}) {
 
     for (const component of componentRects) {
       const offset = offsets.get(component.key);
-      if (!offset || !Number.isFinite(offset.dx) || !Number.isFinite(offset.dy)) continue;
+      if (!(offset && Number.isFinite(offset.dx) && Number.isFinite(offset.dy))) continue;
       if (Math.abs(offset.dx) < 1 && Math.abs(offset.dy) < 1) continue;
 
       for (const id of component.nodeIds) {
         const node = nodeObjects.get(String(id));
         const position = node?.getPosition?.() || node?.getCenter?.();
-        if (!node || !position || !Number.isFinite(position.x) || !Number.isFinite(position.y))
+        if (!(node && position && Number.isFinite(position.x) && Number.isFinite(position.y)))
           continue;
         node.setPosition({
           x: position.x + offset.dx,
@@ -1500,7 +1495,7 @@ function create(container, handlers = {}) {
       if (anchorId === null || anchorId === undefined) continue;
       const anchor = orb.data.getNodeById(anchorId);
       const position = anchor?.getPosition?.();
-      if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) continue;
+      if (!(position && Number.isFinite(position.x) && Number.isFinite(position.y))) continue;
       const angle = deterministicAngle(record.id);
       node.setPosition({
         x: position.x + Math.cos(angle) * TOPOLOGY_ENTRY_OFFSET,
@@ -1538,7 +1533,8 @@ function create(container, handlers = {}) {
     nodes.forEach((node, index) => {
       const position = node.getPosition?.();
       if (position && Number.isFinite(position.x) && Number.isFinite(position.y)) return;
-      const angle = deterministicAngle(node.getData?.()?.id ?? index) + (index / count) * Math.PI * 2;
+      const angle =
+        deterministicAngle(node.getData?.()?.id ?? index) + (index / count) * Math.PI * 2;
       node.setPosition?.({
         x: Math.cos(angle) * radius,
         y: Math.sin(angle) * radius,
@@ -1734,18 +1730,14 @@ function create(container, handlers = {}) {
     },
     getNodePosition(id) {
       const position = orb.data.getNodeById(id)?.getPosition?.();
-      if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return null;
+      if (!(position && Number.isFinite(position.x) && Number.isFinite(position.y))) return null;
       return { x: position.x, y: position.y };
     },
     getNodeCanvasPosition(id) {
       const position = orb.data.getNodeById(id)?.getPosition?.();
-      if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return null;
+      if (!(position && Number.isFinite(position.x) && Number.isFinite(position.y))) return null;
       const canvasPoint = orb.getCanvasPosition(position);
-      if (
-        !canvasPoint ||
-        !Number.isFinite(canvasPoint.x) ||
-        !Number.isFinite(canvasPoint.y)
-      ) {
+      if (!(canvasPoint && Number.isFinite(canvasPoint.x) && Number.isFinite(canvasPoint.y))) {
         return null;
       }
       return { x: canvasPoint.x, y: canvasPoint.y };

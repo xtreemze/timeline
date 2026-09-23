@@ -1,4 +1,5 @@
 import { performance } from "node:perf_hooks";
+import process from "node:process";
 
 await import("../site/temporal-standards-shim.ts");
 await import("../site/timeline-graph-shim.ts");
@@ -12,7 +13,7 @@ function positiveInteger(value) {
 }
 
 const requestedSizes = process.argv.slice(2).map(positiveInteger).filter(Boolean);
-const sizes = requestedSizes.length ? requestedSizes : [1000, 10000, 50000];
+const sizes = requestedSizes.length ? requestedSizes : [1000, 10_000, 50_000];
 
 function createFixture(nodeCount, edgeFactor = 2) {
   const entities = Array.from({ length: nodeCount }, (_, index) => ({
@@ -70,7 +71,7 @@ const cases = [];
 for (const nodeCount of sizes) {
   const fixture = createFixture(nodeCount);
   const edgeCount = fixture.relationships.length;
-  const iterations = nodeCount >= 10000 ? 3 : 5;
+  const iterations = nodeCount >= 10_000 ? 3 : 5;
 
   const fullProjection = measure(() => {
     const result = graph.graphForWindow(fixture, null);

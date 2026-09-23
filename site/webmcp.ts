@@ -20,7 +20,7 @@ function clone(value: unknown): unknown {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 }
 
-function text(value: unknown, max: number = 240): string {
+function text(value: unknown, max = 240): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
@@ -156,7 +156,7 @@ export function applyOperations(project: any, operations: Operation[]): any {
   if (!project || typeof project !== "object" || Array.isArray(project)) {
     throw new Error("Lūm project must be an object.");
   }
-  if (!Array.isArray(operations) || !operations.length) {
+  if (!(Array.isArray(operations) && operations.length)) {
     throw new Error("A non-empty operations array is required.");
   }
   if (operations.length > 500) throw new Error("A transaction is limited to 500 operations.");
@@ -209,12 +209,8 @@ interface TimelineAdapter {
 }
 
 export function toolDefinitions(adapter: TimelineAdapter): Record<string, unknown>[] {
-  if (!adapter || typeof adapter !== "object")
-    throw new Error("Lūm WebMCP adapter is required.");
-  if (
-    typeof adapter.getGraphContract !== "function" ||
-    typeof adapter.auditGraph !== "function"
-  ) {
+  if (!adapter || typeof adapter !== "object") throw new Error("Lūm WebMCP adapter is required.");
+  if (typeof adapter.getGraphContract !== "function" || typeof adapter.auditGraph !== "function") {
     throw new Error("Lūm WebMCP adapter must expose getGraphContract() and auditGraph().");
   }
 
@@ -409,7 +405,7 @@ export async function register(
   };
 }
 
-const TimelineWebMCPObj = {
+const TimelineWebMcpObj = {
   MANAGED_COLLECTIONS,
   TOP_LEVEL_FIELDS,
   applyOperations,
@@ -418,4 +414,4 @@ const TimelineWebMCPObj = {
   register,
 } as const;
 
-export const TimelineWebMCP = Object.freeze(TimelineWebMCPObj);
+export const TimelineWebMCP = Object.freeze(TimelineWebMcpObj);

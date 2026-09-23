@@ -19,7 +19,7 @@ function clone(value: unknown): unknown {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 }
 
-function text(value: unknown, max: number = 240): string {
+function text(value: unknown, max = 240): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
@@ -83,7 +83,7 @@ function relationshipStatements(relationship: any, namespace: string): string[] 
   const subjectId = text(relationship?.subjectId, 120);
   const objectId = text(relationship?.objectId, 120);
   const predicate = text(relationship?.predicate, 120);
-  if (!id || !subjectId || !objectId || !predicate) {
+  if (!(id && subjectId && objectId && predicate)) {
     throw new Error(
       "Memgraph export requires relationship id, subjectId, objectId, and predicate.",
     );

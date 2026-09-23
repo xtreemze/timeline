@@ -3,6 +3,7 @@
  * Owns application-level graph projection/focus state while rendering through GraphSurface.
  */
 
+import { entityId, relationshipId } from "../src/domain/ids.ts";
 import type {
   CanonicalSelection,
   GraphEdgeProjection,
@@ -12,11 +13,7 @@ import type {
   GraphSurfaceFactory,
   GraphTemporalState,
 } from "../src/layout/graph-surface.ts";
-import {
-  createOrbGraphSurfaceFactory,
-  type OrbFactory,
-} from "../src/layout/orb-graph-surface.ts";
-import { entityId, relationshipId } from "../src/domain/ids.ts";
+import { createOrbGraphSurfaceFactory, type OrbFactory } from "../src/layout/orb-graph-surface.ts";
 
 interface Viewport {
   start: number;
@@ -66,12 +63,14 @@ interface TimelineGraphRuntime {
 }
 
 function hasFunction(value: unknown, key: string): boolean {
-  return typeof value === "object" && value !== null && typeof Reflect.get(value, key) === "function";
+  return (
+    typeof value === "object" && value !== null && typeof Reflect.get(value, key) === "function"
+  );
 }
 
 function getGraph(): TimelineGraphRuntime {
   const graph = Reflect.get(globalThis, "TimelineGraph");
-  if (!hasFunction(graph, "neighborhoodGraph") || !hasFunction(graph, "graphForWindow")) {
+  if (!(hasFunction(graph, "neighborhoodGraph") && hasFunction(graph, "graphForWindow"))) {
     throw new Error("TimelineGraph must load before TemporalGraphView.");
   }
   return graph as TimelineGraphRuntime;
@@ -102,9 +101,7 @@ function graphProjection(data: GraphData): GraphProjection {
       id: entityId(String(node.id)),
       label: node.label || String(node.id),
       kind:
-        typeof node.properties?.timelineType === "string"
-          ? node.properties.timelineType
-          : "entity",
+        typeof node.properties?.timelineType === "string" ? node.properties.timelineType : "entity",
     })),
     edges: data.edges.map((edge) => ({
       id: relationshipId(String(edge.id)),
@@ -120,13 +117,11 @@ function topologySignature(data: GraphData): string {
   return JSON.stringify({
     nodes: data.nodes.map((node) => String(node.id)).sort(),
     edges: data.edges
-      .map(
-        (edge): [string, string, string] => [
-          String(edge.id),
-          String(edge.start),
-          String(edge.end),
-        ],
-      )
+      .map((edge): [string, string, string] => [
+        String(edge.id),
+        String(edge.start),
+        String(edge.end),
+      ])
       .sort((a, b) => a[0].localeCompare(b[0])),
   });
 }
@@ -229,7 +224,9 @@ class TemporalGraphViewController {
 
   private setupPointerEventTracking(): void {
     // Find the timeline surface and listen to pointer events
-    const timelineSurface = this.root.closest("[data-view-name]")?.querySelector(".timeline-surface");
+    const timelineSurface = this.root
+      .closest("[data-view-name]")
+      ?.querySelector(".timeline-surface");
     if (!timelineSurface) return;
 
     const onPointerDown = () => {
@@ -415,17 +412,7 @@ class TemporalGraphViewController {
 
     const graphIsEmpty = data.nodes.length === 0 && data.edges.length === 0;
     const nextSignature = topologySignature(data);
-    if (nextSignature !== this.signature) {
-      this.signature = nextSignature;
-      if (this.hasRenderedData) {
-        if (graphIsEmpty) this.surface.setProjection(projection);
-        else this.surface.transitionProjection(projection);
-      } else {
-        this.surface.setProjection(projection);
-        this.hasRenderedData = true;
-      }
-      if (this.selection) this.surface.setSelection(this.selection);
-    } else {
+    if (nextSignature === this.signature) {
       // When pointer is held, cache the current edge states and don't update them
       if (this.isPointerHeld()) {
         if (!this.cachedEdgesWhileHeld) {
@@ -436,6 +423,16 @@ class TemporalGraphViewController {
         this.cachedEdgesWhileHeld = null;
         this.surface.updateTemporalEdges(projection.edges);
       }
+    } else {
+      this.signature = nextSignature;
+      if (this.hasRenderedData) {
+        if (graphIsEmpty) this.surface.setProjection(projection);
+        else this.surface.transitionProjection(projection);
+      } else {
+        this.surface.setProjection(projection);
+        this.hasRenderedData = true;
+      }
+      if (this.selection) this.surface.setSelection(this.selection);
     }
   }
 }

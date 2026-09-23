@@ -96,9 +96,7 @@ export function normalizeMedia(value: unknown): Media[] {
       src,
       alt: typeof (raw as any).alt === "string" ? (raw as any).alt.trim().slice(0, 240) : "",
       caption:
-        typeof (raw as any).caption === "string"
-          ? (raw as any).caption.trim().slice(0, 320)
-          : "",
+        typeof (raw as any).caption === "string" ? (raw as any).caption.trim().slice(0, 320) : "",
     });
   }
   return media;
@@ -121,7 +119,8 @@ export function normalizeTags(value: unknown): Tag[] {
   const tags: Tag[] = [];
   for (const raw of source.slice(0, MAX_TAGS)) {
     if (!raw || typeof raw !== "object") continue;
-    const label = typeof (raw as any).label === "string" ? (raw as any).label.trim().slice(0, 48) : "";
+    const label =
+      typeof (raw as any).label === "string" ? (raw as any).label.trim().slice(0, 48) : "";
     if (!label) continue;
     tags.push({
       label,

@@ -7,21 +7,6 @@
  */
 
 import {
-  beginRetention,
-  commitRetention,
-  createRenderWindow,
-  extendRetention,
-  itemOverlapsWindow,
-  occurrenceSceneKey,
-  queryOccurrences,
-  relationshipBandSceneKey,
-  temporalAccentSceneKey,
-  tickSceneKey,
-  visibleIntervalAnchor,
-  type TemporalRetentionState,
-  type TemporalWindow,
-} from "../src/projection/temporal-scene.ts";
-import {
   geometryMeasurementKey,
   planCommittedTemporalLayout,
   type TemporalCommittedLayoutPlan,
@@ -32,8 +17,23 @@ import {
   createRetainedTimelineMetrics,
   type RetainedTimelineSummary,
 } from "../src/performance/retained-timeline-metrics.ts";
-import { TimelineMotion as motion } from "./timeline-motion.ts";
+import {
+  beginRetention,
+  commitRetention,
+  createRenderWindow,
+  extendRetention,
+  itemOverlapsWindow,
+  occurrenceSceneKey,
+  queryOccurrences,
+  relationshipBandSceneKey,
+  type TemporalRetentionState,
+  type TemporalWindow,
+  temporalAccentSceneKey,
+  tickSceneKey,
+  visibleIntervalAnchor,
+} from "../src/projection/temporal-scene.ts";
 import { TimelineClustering as clustering } from "./timeline-clustering.ts";
+import { TimelineMotion as motion } from "./timeline-motion.ts";
 
 const scale = globalThis.TimelineScale;
 const presentation = globalThis.TimelinePresentation;
@@ -41,7 +41,7 @@ const presentation = globalThis.TimelinePresentation;
 const DEFAULT_SPAN_MS = 86_400_000;
 const MIN_SPAN_MS = 1;
 const MAX_WHEEL_EXPONENT = 0.045;
-const WHEEL_ZOOM_SENSITIVITY = 0.00065;
+const WHEEL_ZOOM_SENSITIVITY = 0.000_65;
 const OVERSCAN_RATIO = 0.6;
 const POINTER_PREDICTION_HORIZON_MS = 260;
 const WHEEL_COMMIT_DELAY_MS = 150;
@@ -182,7 +182,7 @@ function connectorRouteOffset(
   if (routing !== "orthogonal") return 0;
   const anchor = Number(position);
   const available = Number(extent);
-  if (!Number.isFinite(anchor) || !Number.isFinite(available) || available <= 0) return 0;
+  if (!(Number.isFinite(anchor) && Number.isFinite(available) ) || available <= 0) return 0;
   const inset = Math.min(CONNECTOR_ROUTE_EDGE_INSET_PX, available / 2);
   const min = inset;
   const max = Math.max(inset, available - inset);
@@ -220,7 +220,7 @@ function stableLane(id: string, explicit: number | null | undefined): number {
 }
 
 function normalizedViewport(start: number, end: number): TemporalWindow {
-  if (!Number.isFinite(start) || !Number.isFinite(end)) return { start: 0, end: DEFAULT_SPAN_MS };
+  if (!(Number.isFinite(start) && Number.isFinite(end))) return { start: 0, end: DEFAULT_SPAN_MS };
   if (end > start) return { start, end };
   return { start: start - DEFAULT_SPAN_MS / 2, end: start + DEFAULT_SPAN_MS / 2 };
 }
@@ -242,7 +242,7 @@ function formatElapsedDuration(durationMs: number): string {
     ["day", 86_400_000],
     ["hour", 3_600_000],
     ["minute", 60_000],
-    ["second", 1_000],
+    ["second", 1000],
   ];
   let remaining = durationMs;
   const parts: string[] = [];
@@ -433,7 +433,7 @@ class TimelineViewController {
     const pinchGeometry = (): { distance: number; ratio: number } | null => {
       if (this.touchPointers.size < 2) return null;
       const [first, second] = Array.from(this.touchPointers.values()).slice(0, 2);
-      if (!first || !second) return null;
+      if (!(first && second)) return null;
       const rect = this.surface.getBoundingClientRect();
       const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
       const primary =
@@ -539,7 +539,7 @@ class TimelineViewController {
 
     this.surface.addEventListener("pointerdown", (event) => {
       const isPrimaryPointer = event.pointerType === "touch" || event.button === 0;
-      if (!this.items.length || !isPrimaryPointer) return;
+      if (!(this.items.length && isPrimaryPointer)) return;
       const interactiveTarget =
         event.target instanceof Element
           ? event.target.closest("button, a, input, select, textarea")
@@ -714,7 +714,7 @@ class TimelineViewController {
       const doubleTapped = tap ? registerTouchTap(event, tap) : false;
       if (event.pointerType === "touch" && !tap) this.touchTap = null;
       releasePointerCapture(event.pointerId);
-      if (!startedInertia && !doubleTapped) this.commitInteraction();
+      if (!(startedInertia || doubleTapped)) this.commitInteraction();
     };
 
     this.surface.addEventListener("pointerup", finishPointer);
@@ -1385,7 +1385,7 @@ class TimelineViewController {
       }
     }
 
-    if (virtualLength <= 0) return;
+    if (virtualLength <= 0) 
   }
 
   relationshipBandLane(id: string): number {
@@ -1997,13 +1997,13 @@ class TimelineViewController {
       const key = occurrenceSceneKey(item.id);
       keep.add(key);
       let record = this.scene.get(key);
-      if (!record) {
+      if (record) {
+        record.item = item;
+        this.updateRecordContent(record);
+      } else {
         record = this.createRecord(item);
         this.scene.set(key, record);
         this.animateEntry(record);
-      } else {
-        record.item = item;
-        this.updateRecordContent(record);
       }
       this.positionRecord(record, primaryLength, axisCross);
     }
@@ -2386,7 +2386,7 @@ class TimelineViewController {
     const canTransition =
       !this.reducedMotionQuery?.matches &&
       typeof document.startViewTransition === "function" &&
-      !Boolean((document as Document & { activeViewTransition?: unknown }).activeViewTransition);
+      !(document as Document & { activeViewTransition?: unknown }).activeViewTransition;
 
     if (canTransition) {
       try {
@@ -2705,7 +2705,7 @@ class TimelineViewController {
       if (
         !this.reducedMotionQuery?.matches &&
         typeof document.startViewTransition === "function" &&
-        !Boolean((document as Document & { activeViewTransition?: unknown }).activeViewTransition)
+        !(document as Document & { activeViewTransition?: unknown }).activeViewTransition
       ) {
         try {
           document.startViewTransition(apply);
