@@ -5745,7 +5745,7 @@ function closestEventTarget<T extends HTMLElement>(
       webMcpRegistration?.dispose?.();
       webMcpRegistration = registration;
       if (!registration.registered) {
-        console.warn("Timeline WebMCP tools are not registered:", registration.reason);
+        console.info("Timeline WebMCP tools are unavailable in this browser:", registration.reason);
       }
     })
     .catch((error) => {
