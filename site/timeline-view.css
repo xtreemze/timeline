@@ -4055,6 +4055,7 @@
 }
 
 #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
+  box-sizing: border-box;
   position: fixed;
   z-index: 1150;
   pointer-events: auto;
@@ -5043,10 +5044,14 @@
   );
 }
 
-#app-shell[data-graph-open="true"]
+#app-shell[data-graph-open="false"]
   #timeline-view[data-orientation="portrait"]
   > .timeline-surface {
+  inset-block: 0;
+  inset-inline-start: 0;
   inset-inline-end: var(--workspace-portrait-chrome-inline, 7rem);
+  inline-size: auto;
+  block-size: 100%;
 }
 
 #app-shell[data-graph-open="true"]
@@ -5058,6 +5063,33 @@
   );
 }
 
+#app-shell[data-graph-open="false"]
+  #timeline-view[data-orientation="landscape"]
+  > .timeline-surface {
+  inset-block-start: 0;
+  inset-block-end: var(--workspace-landscape-chrome-block, 6rem);
+  inset-inline: 0;
+  inline-size: 100%;
+  block-size: auto;
+}
+
+#app-shell
+  #timeline-view[data-orientation="landscape"]
+  .timeline-project-heading {
+  inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
+  inset-inline-start: 50%;
+}
+
+
+/* Permanent application chrome is outside the spatial/chronology canvas.
+   These final overrides intentionally outrank the older graph-open/mobile rail
+   rules so changing orientation cannot put chronology underneath the dock. */
+#app-shell[data-graph-open="true"]
+  #timeline-view[data-orientation="portrait"]
+  > .timeline-surface {
+  inset-inline-end: var(--workspace-portrait-chrome-inline, 7rem);
+}
+
 #app-shell[data-graph-open="true"]
   #timeline-view[data-orientation="landscape"]
   > .timeline-surface {
@@ -5065,12 +5097,64 @@
 }
 
 #app-shell[data-graph-open="true"]
+  #presentation-stage:has(> #timeline-view[data-orientation="portrait"])
+  > .graph-lens:not([hidden]) {
+  inset-inline-end: calc(
+    var(--relations-inline-rail, var(--mobile-relations-inline-rail, 0px)) +
+    var(--workspace-portrait-chrome-inline, 7rem)
+  );
+}
+
+#app-shell[data-graph-open="true"]
+  #presentation-stage:has(> #timeline-view[data-orientation="landscape"])
+  > .graph-lens:not([hidden]) {
+  inset-block-end: calc(
+    var(--relations-block-rail, var(--mobile-relations-block-rail, 0px)) +
+    var(--workspace-landscape-chrome-block, 6rem)
+  );
+}
+
+#app-shell[data-graph-open="true"]
   #timeline-view[data-orientation="landscape"]
   .timeline-project-heading {
   inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
-  inset-inline-start: 50%;
 }
 
+/* Final title-bar geometry uses one logical positioning model.
+   Clear older mixed physical/logical offsets so the used border box stays
+   inside the visual viewport in both orientations. */
+#app-shell
+  #timeline-view[data-orientation="landscape"]
+  .timeline-project-heading {
+  box-sizing: border-box;
+  inset-block-start: auto;
+  inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
+  inset-inline-start: max(0.5rem, env(safe-area-inset-left));
+  inset-inline-end: max(0.5rem, env(safe-area-inset-right));
+  inline-size: min(22rem, calc(100% - 1rem));
+  max-inline-size: calc(100% - 1rem);
+  block-size: var(--workspace-title-block-size, 38px);
+  min-block-size: var(--workspace-title-block-size, 38px);
+  max-block-size: var(--workspace-title-block-size, 38px);
+  margin-inline: auto;
+  transform: none;
+}
+
+#app-shell
+  #timeline-view[data-orientation="portrait"]
+  .timeline-project-heading {
+  box-sizing: border-box;
+  inset-block-start: 50%;
+  inset-block-end: auto;
+  inset-inline-start: auto;
+  inset-inline-end: max(0.4rem, env(safe-area-inset-right));
+  inline-size: var(--workspace-title-inline-size, 42px);
+  min-inline-size: var(--workspace-title-inline-size, 42px);
+  max-inline-size: var(--workspace-title-inline-size, 42px);
+  block-size: min(24rem, calc(100dvh - 1rem));
+  max-block-size: calc(100dvh - 1rem);
+  transform: translateY(-50%);
+}
 
 /* Focused detail is a layout-owned sidebar, never a top-layer popover.
    Landscape: detail left, graph right, chronology full-width below.

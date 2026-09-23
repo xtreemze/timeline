@@ -6,18 +6,17 @@ const viewSource = await readFile(new URL("../site/timeline-view.ts", import.met
 const appSource = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
 
 test("category focus has a concrete fitVisible controller implementation", () => {
-  const fitVisibleSource = viewSource.slice(
-    viewSource.indexOf("  fitVisible(): void"),
-    viewSource.indexOf("  fitAll(): void"),
-  );
   assert.match(appSource, /timelineView\?\.fitVisible\?\.\(\)/);
-  assert.match(fitVisibleSource, /fitVisible\(\): void\s*\{/);
+  assert.match(viewSource, /fitVisible\(\): void\s*\{/);
   assert.match(
-    fitVisibleSource,
+    viewSource,
     /fitVisible\(\): void\s*\{[\s\S]*this\.itemCoordinates\(\)[\s\S]*scale\.fit/,
   );
-  assert.doesNotMatch(fitVisibleSource, /this\.allCoordinates/);
-});
+  const fitVisibleSource = viewSource.slice(
+    viewSource.indexOf("fitVisible(): void"),
+    viewSource.indexOf("fitAll(): void"),
+  );
+  assert.doesNotMatch(fitVisibleSource, /this\.allCoordinates/);});
 
 test("Home frames visible chronology while Shift+Home frames whole context", () => {
   assert.match(

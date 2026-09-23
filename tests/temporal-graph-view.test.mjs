@@ -437,7 +437,6 @@ test("clearing all graph records bypasses topology transitions through GraphSurf
   assert.doesNotMatch(source, /this\.orb\./);
 });
 
-
 test("application spatial-view selection prefers the globe WorldView factory", () => {
   const world = { create() { return { kind: "world" }; } };
   const legacy = { create() { return { kind: "legacy" }; } };

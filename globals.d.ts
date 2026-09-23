@@ -9,7 +9,6 @@ declare global {
   var TimelineDateRangePicker: any;
   var TimelineNavigation: any;
   var TimelineEvidence: any;
-  var TimelineWorldView: any;
   var TemporalGraphView: any;
   var TimelinePresentationLayout: any;
   var TimelineCaseReasoning: any;

@@ -465,7 +465,6 @@ test("DeckWorldSurface switches to local geographic view only at high zoom", () 
   assert.ok(globeSwitches.length >= 1);
 });
 
-
 test("deck entity drag callbacks resolve screen motion into world-local drag intents", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);

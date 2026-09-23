@@ -79,6 +79,8 @@ test("runtime creation does not instantiate any deck resource eagerly", () => {
   assert.ok(runtime);
   assert.equal(calls, 0);
 });
+
+
 function compositionHarness() {
   const deckCalls = [];
   let settled = true;
@@ -303,6 +305,7 @@ test("world view registration publishes the composed factory without eager deck 
   assert.equal(typeof factory.create, "function");
   assert.equal(constructionCalls, 0);
 });
+
 test("deck world runtime exposes MapView only when the binding is supplied", () => {
   const calls = [];
   const runtime = createDeckWorldRuntime({

@@ -524,8 +524,8 @@ export class DeckWorldSurface implements WorldSurface {
   getCapabilities(): WorldSurfaceCapabilities {
     return Object.freeze({
       ...BASE_CAPABILITIES,
-      localPrecisionMode: this.#localView !== null,
       directNodeDrag: this.#nodeDragSink !== null,
+      localPrecisionMode: this.#localView !== null,
     });
   }
 
@@ -543,19 +543,6 @@ export class DeckWorldSurface implements WorldSurface {
       this.#handleLostPointerCapture,
     );
     this.#deck.finalize();
-  }
-
-  #syncSpatialMode(): void {
-    const nextMode =
-      this.#localView === null
-        ? "globe"
-        : selectWorldSpatialMode(this.#camera, this.#spatialMode);
-    if (nextMode === this.#spatialMode) return;
-
-    this.#spatialMode = nextMode;
-    this.#deck.setProps({
-      views: [nextMode === "local" ? this.#localView : this.#globeView],
-    });
   }
 
   #dragTarget(
@@ -626,6 +613,19 @@ export class DeckWorldSurface implements WorldSurface {
 
     this.#activeDragPointerId = null;
     return sink.release(pointerId);
+  }
+
+  #syncSpatialMode(): void {
+    const nextMode =
+      this.#localView === null
+        ? "globe"
+        : selectWorldSpatialMode(this.#camera, this.#spatialMode);
+    if (nextMode === this.#spatialMode) return;
+
+    this.#spatialMode = nextMode;
+    this.#deck.setProps({
+      views: [nextMode === "local" ? this.#localView : this.#globeView],
+    });
   }
 
   #positions(): ReadonlyMap<WorldInstanceId, WorldRenderPosition> {
