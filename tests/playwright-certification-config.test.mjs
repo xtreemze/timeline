@@ -12,6 +12,8 @@ const highlightConfig = readFileSync(new URL("../playwright.highlight.config.ts"
 const highlightSpec = readFileSync(new URL("./highlight/highlight-reel.spec.ts", import.meta.url), "utf8");
 const highlightRenderer = readFileSync(new URL("../scripts/render-e2e-highlight.mjs", import.meta.url), "utf8");
 const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+const showcaseDocs = readFileSync(new URL("../docs/E2E-HIGHLIGHT-REEL.md", import.meta.url), "utf8");
+const formalPresentation = readFileSync(new URL("../docs/FORMAL-PRESENTATION.md", import.meta.url), "utf8");
 
 test("all browser specs use one authoritative Playwright discovery root", () => {
   const scripts = Object.values(packageJson.scripts ?? {}).join("\n");
@@ -111,58 +113,86 @@ test("graph touch certification covers portrait and landscape phone projects", (
     assert.ok(command.includes(`--project="${project}"`), `graph touch missing ${project}`);
   }
 });
-
-
-test("CI produces a branded real-browser E2E highlight reel and retains raw evidence", () => {
+test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(
-    packageJson.scripts?.["test:e2e:highlight"] || "",
+    packageJson.scripts?.["test:e2e:showcase"] || "",
     /playwright\.highlight\.config\.ts/,
   );
   assert.match(
-    packageJson.scripts?.["render:e2e:highlight"] || "",
+    packageJson.scripts?.["render:e2e:showcase"] || "",
     /render-e2e-highlight\.mjs/,
   );
 
   assert.match(highlightConfig, /testDir:\s*['"]\.\/tests\/highlight['"]/);
   assert.match(config, /\*\*\/highlight\/\*\*/);
-  assert.match(highlightConfig, /video:\s*['"]off['"]/);
+  assert.match(highlightConfig, /name:\s*['"]Desktop Showcase['"]/);
+  assert.match(highlightConfig, /name:\s*['"]Mobile Showcase['"]/);
+  assert.match(highlightConfig, /viewport:\s*\{\s*width:\s*1440,\s*height:\s*900\s*\}/);
+  assert.match(highlightConfig, /viewport:\s*\{\s*width:\s*390,\s*height:\s*844\s*\}/);
+  assert.match(highlightConfig, /hasTouch:\s*true/);
+
+  assert.match(highlightSpec, /records five loop-safe Lūm showcase scenes per form factor/);
   assert.match(highlightSpec, /page\.screencast\.start/);
   assert.match(highlightSpec, /page\.screencast\.showChapter/);
   assert.match(highlightSpec, /page\.screencast\.showOverlay/);
   assert.match(highlightSpec, /page\.screenshot/);
-  assert.match(highlightRenderer, /xfade=transition=fade/);
-  assert.match(highlightRenderer, /libx264/);
+  assert.match(highlightSpec, /touchDrag/);
+  for (const scene of [
+    "01-timeline-navigation",
+    "02-focused-context",
+    "03-evidence",
+    "04-relation-graph",
+    "05-story-browser",
+  ]) {
+    assert.ok(highlightSpec.includes(scene), `showcase intent missing ${scene}`);
+  }
+
+  assert.match(highlightRenderer, /lum-\$\{formFactor\}-highlight\.mp4/);
+  assert.match(highlightRenderer, /path\.join\(gifsRoot, formFactor\)/);
   assert.match(highlightRenderer, /palettegen/);
   assert.match(highlightRenderer, /paletteuse/);
-  assert.match(highlightRenderer, /-loop/);
+  assert.match(highlightRenderer, /'-loop', '0'/);
+  assert.match(highlightRenderer, /combinedGifBytes/);
   assert.match(highlightRenderer, /README-showcase\.md/);
-  assert.match(highlightSpec, /records five branded Lūm showcase loops/);
-  assert.match(highlightSpec, /01-timeline-navigation/);
-  assert.match(highlightSpec, /02-focused-context/);
-  assert.match(highlightSpec, /03-evidence/);
-  assert.match(highlightSpec, /04-relation-graph/);
-  assert.match(highlightSpec, /05-mobile/);
+  assert.match(highlightRenderer, /desktop/);
+  assert.match(highlightRenderer, /mobile/);
 
-  assert.match(mediaWorkflow, /showcase:/);
-  assert.match(mediaWorkflow, /Certify media-pipeline configuration/);
-  assert.match(mediaWorkflow, /pnpm test:browser-certification-config/);
-  assert.match(mediaWorkflow, /playwright install --with-deps chromium/);
-  assert.match(mediaWorkflow, /apt-get install -y ffmpeg/);
-  assert.match(mediaWorkflow, /pnpm test:e2e:highlight/);
-  assert.match(mediaWorkflow, /pnpm render:e2e:highlight/);
+  assert.match(mediaWorkflow, /Record ten real-browser showcase scenes/);
+  assert.match(mediaWorkflow, /pnpm test:e2e:showcase/);
+  assert.match(mediaWorkflow, /pnpm render:e2e:showcase/);
+  assert.match(mediaWorkflow, /raw\/desktop/);
+  assert.match(mediaWorkflow, /raw\/mobile/);
+  assert.match(mediaWorkflow, /gifs\/desktop/);
+  assert.match(mediaWorkflow, /gifs\/mobile/);
+  assert.match(mediaWorkflow, /lum-desktop-highlight\.mp4/);
+  assert.match(mediaWorkflow, /lum-mobile-highlight\.mp4/);
   assert.match(mediaWorkflow, /name:\s*lum-e2e-showcase/);
-  assert.match(mediaWorkflow, /path:\s*artifacts\/e2e-media\//);
-  assert.match(mediaWorkflow, /find artifacts\/e2e-media\/gifs/);
-  assert.match(pagesWorkflow, /pnpm test:e2e:highlight/);
-  assert.match(pagesWorkflow, /pnpm render:e2e:highlight/);
-  assert.match(pagesWorkflow, /dist\/showcase/);
-  for (const gif of [
-    "01-timeline-navigation.gif",
-    "02-focused-context.gif",
-    "03-evidence.gif",
-    "04-relation-graph.gif",
-    "05-mobile.gif",
-  ]) {
-    assert.ok(readme.includes(gif), `README showcase missing ${gif}`);
+
+  assert.match(pagesWorkflow, /workflow_run:/);
+  assert.match(pagesWorkflow, /workflows:\s*\["E2E media showcase"\]/);
+  assert.match(pagesWorkflow, /actions\/download-artifact@v4/);
+  assert.doesNotMatch(pagesWorkflow, /pnpm test:e2e:showcase/);
+  assert.match(pagesWorkflow, /dist\/showcase\/desktop/);
+  assert.match(pagesWorkflow, /dist\/showcase\/mobile/);
+
+  for (const formFactor of ["desktop", "mobile"]) {
+    for (const gif of [
+      "01-timeline-navigation.gif",
+      "02-focused-context.gif",
+      "03-evidence.gif",
+      "04-relation-graph.gif",
+      "05-story-browser.gif",
+    ]) {
+      assert.ok(
+        readme.includes(`showcase/${formFactor}/${gif}`),
+        `README showcase missing ${formFactor}/${gif}`,
+      );
+    }
   }
+
+  assert.match(showcaseDocs, /five desktop scenes/i);
+  assert.match(showcaseDocs, /five mobile scenes/i);
+  assert.match(showcaseDocs, /lum-desktop-highlight\.mp4/);
+  assert.match(showcaseDocs, /lum-mobile-highlight\.mp4/);
+  assert.match(formalPresentation, /CI-generated product showcase media/);
 });
