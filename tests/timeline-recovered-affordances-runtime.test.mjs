@@ -12,11 +12,11 @@ test("category focus has a concrete fitVisible controller implementation", () =>
     viewSource,
     /fitVisible\(\): void\s*\{[\s\S]*this\.itemCoordinates\(\)[\s\S]*scale\.fit/,
   );
-  assert.doesNotMatch(
-    viewSource,
-    /fitVisible\(\): void\s*\{[\s\S]{0,900}this\.allCoordinates/,
+  const fitVisibleSource = viewSource.slice(
+    viewSource.indexOf("fitVisible(): void"),
+    viewSource.indexOf("fitAll(): void"),
   );
-});
+  assert.doesNotMatch(fitVisibleSource, /this\.allCoordinates/);});
 
 test("Home frames visible chronology while Shift+Home frames whole context", () => {
   assert.match(
