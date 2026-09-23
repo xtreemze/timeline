@@ -20,6 +20,7 @@ function harness() {
     globeViews: [],
     scatterLayers: [],
     pathLayers: [],
+    textLayers: [],
     deckProps: null,
     setProps: [],
     pickOptions: [],
@@ -46,6 +47,11 @@ function harness() {
     createPathLayer(props) {
       const layer = { type: "path", props };
       calls.pathLayers.push(layer);
+      return layer;
+    },
+    createTextLayer(props) {
+      const layer = { type: "text", props };
+      calls.textLayers.push(layer);
       return layer;
     },
     createDeck(props) {
@@ -149,6 +155,70 @@ function projection() {
   });
 }
 
+function labeledProjection(entityLabel = "Alice") {
+  const aliceId = worldInstanceId("alice", "meeting");
+  const bobId = worldInstanceId("bob", "meeting");
+
+  return createWorldProjection({
+    instances: [
+      createProjectedWorldInstance({
+        id: aliceId,
+        canonicalId: "alice",
+        label: entityLabel,
+        kind: "person",
+        occurrenceId: "meeting",
+        geographicAnchors: [
+          {
+            placeId: "stockholm",
+            label: "Stockholm",
+            longitude: 18.0686,
+            latitude: 59.3293,
+            sourceAltitude: 20,
+            influence: 1,
+          },
+        ],
+        temporalWeight: 1,
+        visualWeight: 1,
+        retained: false,
+        visualAltitude: 1000,
+      }),
+      createProjectedWorldInstance({
+        id: bobId,
+        canonicalId: "bob",
+        label: "Bob",
+        kind: "person",
+        occurrenceId: "meeting",
+        geographicAnchors: [
+          {
+            placeId: "stockholm",
+            label: "Stockholm",
+            longitude: 18.0686,
+            latitude: 59.3293,
+            sourceAltitude: 20,
+            influence: 1,
+          },
+        ],
+        temporalWeight: 1,
+        visualWeight: 0.5,
+        retained: false,
+        visualAltitude: 1200,
+        localOffset: { eastMeters: 150, northMeters: 0 },
+      }),
+    ],
+    edges: [
+      createProjectedWorldEdge({
+        id: "meeting",
+        label: "met",
+        sourceInstanceId: aliceId,
+        targetInstanceId: bobId,
+        temporalWeight: 1,
+        visible: true,
+        retained: false,
+      }),
+    ],
+  });
+}
+
 test("DeckWorldSurface constructs one globe view and controlled deck runtime", () => {
   const { calls, runtime } = harness();
   const container = {};
@@ -220,6 +290,57 @@ test("DeckWorldSurface renders places, globe-visible paths, and elevated entity 
   assert.equal(relationships.props.data.length, 1);
   assert.equal(relationships.props.parameters.cullMode, "none");
   assert.equal(relationships.props.data[0].path.length, 2);
+});
+
+
+test("DeckWorldSurface renders semantic entity and place labels through the optional TextLayer seam", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+
+  surface.setProjection(labeledProjection());
+
+  const render = calls.setProps.at(-1);
+  assert.equal(render.layers.length, 4);
+  const labels = render.layers.at(-1);
+  assert.equal(labels.props.id, DECK_WORLD_LAYER_IDS.labels);
+  assert.equal(labels.props.pickable, false);
+  assert.deepEqual(
+    labels.props.data.map(({ kind, label }) => [kind, label]),
+    [
+      ["place", "Stockholm"],
+      ["entity", "Alice"],
+      ["entity", "Bob"],
+    ],
+  );
+  assert.equal(labels.props.getText(labels.props.data[1]), "Alice");
+});
+
+test("label rendering respects cluster LOD and refreshes memoized datums when semantic labels change", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+
+  surface.setProjection(labeledProjection());
+  const firstRender = calls.setProps.at(-1);
+  const firstLabels = firstRender.layers.at(-1).props.data;
+  const firstAlice = firstLabels.find((datum) => datum.kind === "entity" && datum.entityId === "alice");
+
+  surface.setProjection(labeledProjection("Alice Updated"));
+  const updatedRender = calls.setProps.at(-1);
+  const updatedLabels = updatedRender.layers.at(-1).props.data;
+  const updatedAlice = updatedLabels.find(
+    (datum) => datum.kind === "entity" && datum.entityId === "alice",
+  );
+
+  assert.equal(updatedAlice.label, "Alice Updated");
+  assert.notEqual(updatedAlice, firstAlice);
+
+  surface.setCamera({ longitude: 0, latitude: 0, zoom: 0, bearing: 0, pitch: 0 });
+  const clusteredRender = calls.setProps.at(-1);
+  const clusteredLabels = clusteredRender.layers.at(-1).props.data;
+  assert.deepEqual(
+    clusteredLabels.map(({ kind, label }) => [kind, label]),
+    [["place", "Stockholm"]],
+  );
 });
 
 test("unplaced instances remain outside globe layers rather than receiving invented coordinates", () => {
