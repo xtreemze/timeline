@@ -38,10 +38,15 @@ function harness() {
 }
 
 const model = {
-  entities: [{ id: "alice" }, { id: "bob" }, { id: "charlie" }],
+  entities: [
+    { id: "alice", name: "Alice", type: "person" },
+    { id: "bob", name: "Bob", type: "person" },
+    { id: "charlie", name: "Charlie", type: "person" },
+  ],
   places: [
     {
       id: "stockholm",
+      name: "Stockholm",
       geometry: { type: "Point", coordinates: [18.0686, 59.3293] },
       accuracyMeters: 25,
     },
@@ -187,4 +192,21 @@ test("presentation and refresh compatibility methods preserve the current app-fa
 
   view.destroy();
   assert.deepEqual(calls.at(-1), ["destroy"]);
+});
+
+test("application presentation names survive into renderer-neutral world records", () => {
+  const { view, getProjection } = harness();
+  view.setModel(model);
+
+  const projection = getProjection();
+  const alice = projection.instances.find((instance) => instance.canonicalId === "alice");
+  const meeting = projection.edges.find((edge) => edge.id === "meeting");
+  const stockholm = projection.instances
+    .find((instance) => instance.occurrenceId === "meeting")
+    ?.geographicAnchors[0];
+
+  assert.equal(alice.label, "Alice");
+  assert.equal(alice.kind, "person");
+  assert.equal(meeting.label, "met");
+  assert.equal(stockholm.label, "Stockholm");
 });
