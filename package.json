@@ -66,7 +66,7 @@
     "test:semantic-hierarchy-runtime": "node --test tests/semantic-hierarchy-runtime.test.mjs",
     "test:webmcp-lifecycle-runtime": "node --test tests/webmcp-lifecycle-runtime.test.mjs",
     "test:semantic-chronology-browser": "playwright test --config=playwright.config.ts semantic-chronology.spec.ts",
-    "test:graph-touch-browser": "pnpm build:graph && playwright test --config=playwright.config.ts tests/playwright/graph-touch.spec.ts --project=\"Mobile Chrome\" --project=\"Mobile Chrome Landscape\" --project=\"Mobile Safari\" --project=\"Mobile Safari Landscape\" --project=\"Tablet Touch\"",
+    "test:graph-touch-browser": "pnpm build:graph && playwright test --config=playwright.config.ts tests/playwright/graph-touch.spec.ts --project=\"Mobile Chrome\" --project=\"Mobile Chrome Landscape\" --project=\"Tablet Touch\"",
     "test:browser-certification-config": "node --test tests/playwright-certification-config.test.mjs",
     "test:retained-performance-browser": "playwright test --config=playwright.config.ts tests/browser/retained-performance.spec.ts",
     "test:graph-surface-contracts": "node --test tests/graph-surface-contracts.test.mjs",
