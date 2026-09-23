@@ -5319,7 +5319,8 @@
 }
 
 #app-shell
-  #timeline-view:is([data-orientation="portrait"], [data-orientation="landscape"])
+  #presentation-stage
+  > #timeline-view:is([data-orientation="portrait"], [data-orientation="landscape"])
   .timeline-project-heading {
   box-sizing: border-box;
   inset-block-start: max(0.5rem, env(safe-area-inset-top));
@@ -5341,14 +5342,16 @@
 }
 
 #app-shell
-  #timeline-view:is([data-orientation="portrait"], [data-orientation="landscape"])
+  #presentation-stage
+  > #timeline-view:is([data-orientation="portrait"], [data-orientation="landscape"])
   .timeline-project-title {
   inline-size: 100%;
   max-inline-size: 100%;
 }
 
 #app-shell
-  #timeline-view:is([data-orientation="portrait"], [data-orientation="landscape"])
+  #presentation-stage
+  > #timeline-view:is([data-orientation="portrait"], [data-orientation="landscape"])
   .timeline-project-title
   input {
   inline-size: 100%;
@@ -5370,10 +5373,12 @@
 }
 
 #app-shell[data-graph-open="true"]
-  #timeline-view[data-orientation="portrait"]
+  #presentation-stage
+  > #timeline-view[data-orientation="portrait"]
   > .timeline-surface,
 #app-shell[data-graph-open="false"]
-  #timeline-view[data-orientation="portrait"]
+  #presentation-stage
+  > #timeline-view[data-orientation="portrait"]
   > .timeline-surface {
   inset-block-start: 0;
   inset-block-end: var(--workspace-footer-block-size, 64px);
@@ -5382,10 +5387,12 @@
 }
 
 #app-shell[data-graph-open="true"]
-  #timeline-view[data-orientation="landscape"]
+  #presentation-stage
+  > #timeline-view[data-orientation="landscape"]
   > .timeline-surface,
 #app-shell[data-graph-open="false"]
-  #timeline-view[data-orientation="landscape"]
+  #presentation-stage
+  > #timeline-view[data-orientation="landscape"]
   > .timeline-surface {
   inset-block-end: var(--workspace-footer-block-size, 64px);
 }
