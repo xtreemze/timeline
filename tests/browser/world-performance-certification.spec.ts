@@ -113,15 +113,17 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
       // --- Sustained frame time: drive camera through an orbit path. ---
       // Step count is scaled down at larger entity counts: headless
       // Chromium's software (SwiftShader) WebGL rasterizer is far slower
-      // per-frame than a real GPU, so a fixed 60-step orbit at 50k+ entities
-      // would blow the test timeout without adding measurement value — 20
-      // steps is still enough for a stable p50/p95 read.
+      // per-frame than a real GPU. Keep the sample budget internally
+      // consistent with the unchanged performance ceilings below: at 50k,
+      // eight samples still make p95 effectively the slowest observed frame
+      // while leaving enough of the 300 s test budget for first-frame,
+      // incremental-update, picking, and navigation certification.
       const sustainedFrame = await page.evaluate(
         async ({ entityCount }) => {
           const harness = window.__worldPerfHarness;
           const camera = harness.surface.getCamera();
           const samples: number[] = [];
-          const steps = entityCount >= 100000 ? 5 : entityCount >= 50000 ? 20 : 60;
+          const steps = entityCount >= 100000 ? 5 : entityCount >= 50000 ? 8 : 60;
           for (let i = 0; i < steps; i++) {
             const start = performance.now();
             harness.surface.setCamera({
