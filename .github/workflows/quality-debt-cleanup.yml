@@ -1,0 +1,52 @@
+name: Quality debt cleanup
+
+on:
+  push:
+    branches:
+      - chore/quality-debt-cleanup
+
+permissions:
+  contents: write
+
+concurrency:
+  group: quality-debt-cleanup
+  cancel-in-progress: true
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout cleanup branch
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Format repository with Biome
+        run: pnpm exec biome format --write .
+
+      - name: Verify formatting diff
+        run: git diff --check
+
+      - name: Commit mechanical formatting
+        run: |
+          if git diff --quiet; then
+            echo "Repository already formatted."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "style: apply Biome formatting"
+          git push origin HEAD:chore/quality-debt-cleanup
