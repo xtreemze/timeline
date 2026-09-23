@@ -278,6 +278,8 @@ test("projection updates retain layout samples only for surviving world instance
   assert.equal(charlie.localOffset, undefined);
 
   const latestScene = [...calls].reverse().find(([name]) => name === "force:scene")[1];
-  const sceneAlice = latestScene.instances.find((instance) => instance.id === alice.id);
-  assert.deepEqual(sceneAlice.localOffset, { eastMeters: 100, northMeters: 50 });
+  const sceneAlice = latestScene.nodes.find((node) => node.id === alice.id);
+  assert.equal(sceneAlice.initialEastMeters, 100);
+  assert.equal(sceneAlice.initialNorthMeters, 50);
+  assert.equal(sceneAlice.targetVisualAltitudeMeters, 1500);
 });
