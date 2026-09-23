@@ -1872,7 +1872,7 @@
   border: 0;
 }
 
-.timeline-focus-view[popover] > :is(.timeline-focus-place, .timeline-focus-relations) {
+.timeline-focus-relations) {
   pointer-events: auto;
 }
 
@@ -2000,28 +2000,25 @@
 }
 
 @media (max-width: 760px) {
-  .timeline-focus-view[popover]
-    :is(.timeline-focus-hero, .timeline-focus-evidence, .timeline-focus-actions) {
+  .timeline-focus-evidence,
+.timeline-focus-actions) {
     grid-column: 1 / -1;
     grid-row: auto;
   }
 
-  .timeline-focus-view[popover]
-    :is(.timeline-focus-summary, .timeline-focus-place, .timeline-focus-relations) {
+  .timeline-focus-place,
+.timeline-focus-relations) {
     grid-column: span 3;
     grid-row: auto;
   }
 }
 
 @media (max-width: 500px) {
-  .timeline-focus-view[popover]
-    :is(
-      .timeline-focus-hero,
-      .timeline-focus-summary,
-      .timeline-focus-place,
-      .timeline-focus-relations,
-      .timeline-focus-evidence,
-      .timeline-focus-actions
+  .timeline-focus-summary,
+.timeline-focus-place,
+.timeline-focus-relations,
+.timeline-focus-evidence,
+.timeline-focus-actions
     ) {
     grid-column: 1;
     grid-row: auto;
@@ -2249,15 +2246,13 @@
 }
 
 @media (min-width: 501px) {
-  .timeline-focus-view,
-  .timeline-focus-view[popover] {
+  .timeline-focus-view {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 500px) {
-  .timeline-focus-view,
-  .timeline-focus-view[popover] {
+  .timeline-focus-view {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -2273,7 +2268,7 @@
    Horizontal timelines live low, so detail stays high; vertical timelines live right,
    so detail stays left. The compact grid avoids an internal desktop scroll surface. */
 @media (min-width: 900px) and (min-height: 700px) {
-  .timeline-focus-view[popover] :is(.timeline-focus-place, .timeline-focus-relations) {
+  .timeline-focus-relations) {
     min-height: clamp(125px, 17dvh, 165px);
   }
 }
@@ -2660,13 +2655,10 @@
 
 /* The semantic panels themselves stay inside the clamped popover box. The Relations halo
    may extend visually, but panel content cannot push the top-layer surface offscreen. */
-.timeline-focus-view[popover]
-> :is(
-  .timeline-focus-hero,
-  .timeline-focus-summary,
-  .timeline-focus-place,
-  .timeline-focus-relations,
-  .timeline-focus-evidence
+.timeline-focus-summary,
+.timeline-focus-place,
+.timeline-focus-relations,
+.timeline-focus-evidence
 ) {
   min-width: 0;
   min-height: 0;
@@ -2707,21 +2699,20 @@
    terminal/range. Keep the content surfaces mostly neutral; use the event color for identity,
    controls, separators, and focus affordances. */
 
-.timeline-focus-view[popover] .timeline-focus-tab:is(:hover, :focus-visible) {
+:focus-visible) {
   background: color-mix(in srgb, var(--focus-chrome-color) 12%, var(--paper));
   color: color-mix(in srgb, var(--focus-chrome-color) 72%, var(--ink));
 }
 
-.timeline-focus-view[popover] .timeline-focus-tab:focus-visible,
-.timeline-focus-view[popover] :is(.button, a):focus-visible {
+a):focus-visible {
   outline-color: var(--focus-chrome-color);
 }
 
-.timeline-focus-view[popover] .timeline-focus-close.button.primary:is(:hover, :focus-visible) {
+:focus-visible) {
   background: color-mix(in srgb, var(--focus-chrome-color) 84%, var(--paper));
 }
 
-.timeline-focus-view[popover] .button.secondary:is(:hover, :focus-visible) {
+:focus-visible) {
   background: color-mix(in srgb, var(--focus-chrome-color) 9%, var(--paper));
 }
 
@@ -3032,14 +3023,10 @@
     font-size: 0.66rem;
   }
 
-  #app-shell
-    .timeline-focus-view[popover]
-    :is(
-      .timeline-focus-hero,
-      .timeline-focus-summary,
-      .timeline-focus-place,
-      .timeline-focus-relations,
-      .timeline-focus-evidence
+  .timeline-focus-summary,
+.timeline-focus-place,
+.timeline-focus-relations,
+.timeline-focus-evidence
     ) {
     grid-column: 1;
     grid-row: auto;
@@ -3475,7 +3462,6 @@
    Context stays beside the hero; Place occupies a small footer in that information column.
    Evidence replaces Place. Relations remain in the persistent graph, not in the popover. */
 @media (min-width: 761px) {
-  .timeline-focus-view[popover] .timeline-focus-hero,
   #presentation-stage:fullscreen .timeline-focus-view .timeline-focus-hero {
     grid-column: 1;
     grid-row: 1 / span 2;
@@ -3485,7 +3471,6 @@
     border-radius: calc(1rem - 1px) 0 0 calc(1rem - 1px);
   }
 
-  .timeline-focus-view[popover] .timeline-focus-summary,
   #presentation-stage:fullscreen .timeline-focus-view .timeline-focus-summary {
     grid-column: 2;
     grid-row: 1;
@@ -3497,7 +3482,6 @@
     overflow: auto;
   }
 
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place,
   #presentation-stage:fullscreen
     .timeline-focus-view[data-active-tab="overview"]
     .timeline-focus-place {
@@ -3509,7 +3493,6 @@
     overflow: hidden;
   }
 
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence,
   #presentation-stage:fullscreen
     .timeline-focus-view[data-active-tab="evidence"]
     .timeline-focus-evidence {
@@ -3699,7 +3682,6 @@
    - Hero is outside the tab-swapped region and keeps identical responsive dimensions.
    - Tabs/Close own layout space and never overlap either tab's content. */
 @media (min-width: 761px) {
-  .timeline-focus-view[popover] .timeline-focus-hero,
   #presentation-stage:fullscreen .timeline-focus-view .timeline-focus-hero {
     grid-column: 1;
     grid-row: 1 / span 3;
@@ -3708,7 +3690,6 @@
     max-height: var(--focus-hero-block-size);
   }
 
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary,
   #presentation-stage:fullscreen
     .timeline-focus-view[data-active-tab="overview"]
     .timeline-focus-summary {
@@ -3722,7 +3703,6 @@
     overflow: hidden;
   }
 
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place,
   #presentation-stage:fullscreen
     .timeline-focus-view[data-active-tab="overview"]
     .timeline-focus-place {
@@ -3732,7 +3712,6 @@
     max-height: 104px;
   }
 
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence,
   #presentation-stage:fullscreen
     .timeline-focus-view[data-active-tab="evidence"]
     .timeline-focus-evidence {
@@ -3747,7 +3726,6 @@
 }
 
 @media (max-width: 760px) {
-  .timeline-focus-view[popover] .timeline-focus-summary .timeline-focus-actions,
   #app-shell .timeline-focus-summary .timeline-focus-actions {
     flex: 0 0 auto;
     display: grid;
