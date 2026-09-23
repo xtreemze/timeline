@@ -2273,126 +2273,9 @@
    Horizontal timelines live low, so detail stays high; vertical timelines live right,
    so detail stays left. The compact grid avoids an internal desktop scroll surface. */
 @media (min-width: 900px) and (min-height: 700px) {
-  .timeline-view[data-orientation="landscape"] > .timeline-focus-view:popover-open {
-    top: max(4.25rem, calc(env(safe-area-inset-top) + 3.8rem));
-    right: auto;
-    bottom: auto;
-    left: 50%;
-    inline-size: min(640px, calc(100% - 8rem));
-    max-block-size: calc(100dvh - 9rem);
-    block-size: auto;
-    overflow: hidden;
-    transform: translateX(-50%);
-  }
-
-  .timeline-view[data-orientation="portrait"] > .timeline-focus-view:popover-open {
-    top: 50%;
-    right: auto;
-    bottom: auto;
-    left: max(4.5rem, calc(env(safe-area-inset-left) + 4rem));
-    inline-size: min(560px, calc(100% - 10rem));
-    max-block-size: calc(100dvh - 3rem);
-    block-size: auto;
-    overflow: hidden;
-    transform: translateY(-50%);
-  }
-
-  .timeline-focus-view[popover] {
-    gap: 0.42rem;
-    padding: 0.52rem;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-section {
-    padding: 0.62rem 0.7rem;
-  }
-
-  .timeline-focus-view[popover][data-layout] .timeline-focus-hero {
-    min-height: clamp(190px, 27dvh, 255px);
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-hero-veil {
-    gap: 0.32rem;
-    padding: clamp(0.8rem, 2vw, 1.35rem);
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-title {
-    font-size: clamp(2.2rem, 7cqi, 4.6rem);
-    line-height: 0.94;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-section-heading {
-    margin-bottom: 0.45rem;
-    font-size: clamp(1.2rem, 2.3vw, 2rem);
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-description,
-  .timeline-focus-view[popover] .timeline-focus-place-name {
-    font-size: 0.86rem;
-    line-height: 1.42;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-description {
-    display: -webkit-box;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 5;
-  }
 
   .timeline-focus-view[popover] :is(.timeline-focus-place, .timeline-focus-relations) {
     min-height: clamp(125px, 17dvh, 165px);
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-relation-list {
-    gap: 0.2rem;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-relation-list li {
-    min-height: 24px;
-    font-size: 0.7rem;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-evidence-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.38rem;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-evidence-card {
-    padding: 0.52rem;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-evidence-title {
-    margin-top: 0.35rem;
-    font-size: 0.82rem;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-evidence-meta,
-  .timeline-focus-view[popover] .timeline-focus-evidence-note {
-    margin-top: 0.26rem;
-    font-size: 0.64rem;
-    line-height: 1.35;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-evidence-note {
-    display: -webkit-box;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-evidence-actions {
-    margin-top: 0.4rem;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-actions {
-    gap: 0.3rem;
-    padding: 0;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-actions .button,
-  .timeline-focus-view[popover] .timeline-focus-evidence-actions .button {
-    min-height: 32px;
-    padding: 0.48rem 0.58rem;
-    font-size: 0.68rem;
   }
 }
 
@@ -2407,12 +2290,8 @@
 
 .timeline-focus-relations-backdrop {
   opacity: 0.64;
-}
+}/* Focused presentation refinement: two-row overview, tabbed evidence, and direct graph manipulation. */
 
-/* Focused presentation refinement: two-row overview, tabbed evidence, and direct graph manipulation. */
-.timeline-focus-view[popover] {
-  padding-top: 0;
-}
 
 .timeline-focus-tabs {
   position: absolute;
@@ -2522,39 +2401,6 @@
 
 /* HD desktop uses exactly two content rows; Evidence replaces the overview in-place. */
 @media (min-width: 900px) and (min-height: 700px) {
-  .timeline-focus-view[popover][data-active-tab="overview"] {
-    grid-template-rows: minmax(190px, auto) minmax(125px, auto);
-  }
-
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero {
-    grid-column: 1 / span 4;
-    grid-row: 1;
-    min-height: clamp(190px, 27dvh, 255px);
-  }
-
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary {
-    grid-column: 5 / -1;
-    grid-row: 1;
-    align-self: stretch;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place {
-    grid-column: 1 / span 2;
-    grid-row: 2;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations {
-    grid-column: 3 / -1;
-    grid-row: 2;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
-    grid-column: 1 / -1;
-    grid-row: 1 / span 2;
-    max-height: calc(100dvh - 10rem);
-    overflow: auto;
-    overscroll-behavior: contain;
-  }
 }
 
 #presentation-stage:fullscreen[data-viewport-orientation="landscape"]
@@ -2688,17 +2534,10 @@
   ::view-transition-new(timeline-event-detail-swap) {
     animation-duration: 0s;
   }
-}
-
-/* Focus popovers occupy the edge opposite chronology: top/center for a bottom timeline
+}/* Focus popovers occupy the edge opposite chronology: top/center for a bottom timeline
    and left/center for a right timeline. JS reserves persistent application chrome and the
    contextual timeline strip, then clamps late content growth to the remaining viewport. */
-.timeline-focus-view[popover]:popover-open {
-  margin: 0;
-  min-inline-size: 0;
-  max-inline-size: calc(100dvw - 1.5rem);
-  max-block-size: calc(100dvh - 1.5rem);
-}
+
 
 .timeline-focus-summary,
 .timeline-focus-evidence {
@@ -2717,42 +2556,6 @@
 /* Hero and Context are persistent identity/context surfaces. Tabs only replace the lower
    contextual region, so switching to Evidence cannot collapse or rebuild the popover. */
 @media (min-width: 900px) and (min-height: 700px) {
-  .timeline-focus-view[popover][data-active-tab="overview"],
-  .timeline-focus-view[popover][data-active-tab="evidence"] {
-    grid-template-rows: clamp(240px, 30dvh, 290px) clamp(120px, 18dvh, 160px);
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-hero {
-    grid-column: 1 / span 4;
-    grid-row: 1;
-    min-height: 0;
-    height: 100%;
-    max-height: none;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-summary {
-    grid-column: 5 / -1;
-    grid-row: 1;
-    align-self: stretch;
-    min-height: 0;
-    max-height: none;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place {
-    grid-column: 1 / span 2;
-    grid-row: 2;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations {
-    grid-column: 3 / -1;
-    grid-row: 2;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    max-height: min(34dvh, 300px);
-  }
 }
 
 /* Preserve Hero/Context coordinates through fullscreen tab changes. Evidence substitutes
@@ -2903,25 +2706,10 @@
 .timeline-focus-relations-backdrop .temporal-graph-canvas canvas {
   user-select: none;
   -webkit-user-select: none;
-}
-
-/* Focused event chrome inherits the exact semantic color already used by its timeline
+}/* Focused event chrome inherits the exact semantic color already used by its timeline
    terminal/range. Keep the content surfaces mostly neutral; use the event color for identity,
    controls, separators, and focus affordances. */
-.timeline-focus-view[popover] {
-  --focus-chrome-color: var(--event-color, var(--accent));
-  --focus-chrome-contrast: contrast-color(var(--focus-chrome-color));
-  border-color: color-mix(in srgb, var(--focus-chrome-color) 72%, var(--line-strong));
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--focus-chrome-color) 7%, var(--paper)) 0%,
-    var(--paper) 42%,
-    color-mix(in srgb, var(--focus-chrome-color) 4%, var(--paper)) 100%
-  );
-  box-shadow:
-    inset 0 3px 0 var(--focus-chrome-color),
-    0 3px 12px color-mix(in srgb, var(--focus-chrome-color) 11%, transparent);
-}
+
 
 .timeline-focus-view[popover] .timeline-focus-tab:is(:hover, :focus-visible) {
   background: color-mix(in srgb, var(--focus-chrome-color) 12%, var(--paper));
@@ -3232,42 +3020,6 @@
     --mobile-focus-rail: clamp(136px, 38dvw, 168px);
   }
 
-  #app-shell .timeline-view[data-orientation="landscape"] > .timeline-focus-view:popover-open {
-    top: var(--mobile-focus-top);
-    right: max(0.35rem, env(safe-area-inset-right));
-    bottom: calc(var(--mobile-focus-bottom) + var(--mobile-focus-rail) + 0.25rem);
-    left: max(0.35rem, env(safe-area-inset-left));
-    inline-size: auto;
-    block-size: auto;
-    max-inline-size: none;
-    max-block-size: none;
-    transform: none;
-    overflow: auto;
-    border-radius: 0.82rem;
-  }
-
-  #app-shell .timeline-view[data-orientation="portrait"] > .timeline-focus-view:popover-open {
-    top: var(--mobile-focus-top);
-    right: calc(var(--mobile-focus-rail) + max(0.25rem, env(safe-area-inset-right)));
-    bottom: var(--mobile-focus-bottom);
-    left: max(0.35rem, env(safe-area-inset-left));
-    inline-size: auto;
-    block-size: auto;
-    max-inline-size: none;
-    max-block-size: none;
-    transform: none;
-    overflow: auto;
-    border-radius: 0.82rem;
-  }
-
-  #app-shell .timeline-focus-view[popover] {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.38rem;
-    padding: 0.42rem;
-    padding-top: 0;
-    scrollbar-gutter: stable;
-  }
-
   #app-shell .timeline-focus-tabs {
     top: 0.4rem;
     right: 0.4rem;
@@ -3282,11 +3034,6 @@
     min-height: 38px;
     padding: 0.42rem 0.52rem;
     font-size: 0.66rem;
-  }
-
-  #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary,
-  #app-shell .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
-    padding-top: 3rem;
   }
 
   #app-shell
@@ -3732,13 +3479,6 @@
    Context stays beside the hero; Place occupies a small footer in that information column.
    Evidence replaces Place. Relations remain in the persistent graph, not in the popover. */
 @media (min-width: 761px) {
-  .timeline-focus-view[popover][data-active-tab="overview"],
-  .timeline-focus-view[popover][data-active-tab="evidence"] {
-    grid-template-columns: minmax(0, 1.08fr) minmax(16rem, 0.92fr);
-    grid-template-rows: minmax(240px, auto) minmax(92px, auto);
-    gap: 0;
-    padding: 0;
-  }
 
   .timeline-focus-view[popover] .timeline-focus-hero,
   #presentation-stage:fullscreen .timeline-focus-view .timeline-focus-hero {
@@ -3785,40 +3525,6 @@
     padding: 0.72rem 1rem;
     overflow: auto;
     overscroll-behavior: contain;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-description {
-    margin: 0;
-    font-size: 0.9rem;
-    line-height: 1.48;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-place-name {
-    font-size: 0.86rem;
-    line-height: 1.35;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-place-coordinates {
-    margin-top: 0.28rem;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-actions {
-    justify-content: flex-start;
-    flex-wrap: wrap;
-    gap: 0.32rem;
-    margin-top: 0.7rem;
-    padding: 0;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-actions .button {
-    min-height: 32px;
-    padding: 0.38rem 0.55rem;
-    font-size: 0.72rem;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-evidence-grid {
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
   }
 }
 
@@ -3998,35 +3704,6 @@
    - Hero is outside the tab-swapped region and keeps identical responsive dimensions.
    - Tabs/Close own layout space and never overlap either tab's content. */
 @media (min-width: 761px) {
-  .timeline-focus-view[popover][data-active-tab="overview"],
-  .timeline-focus-view[popover][data-active-tab="evidence"] {
-    --focus-hero-block-size: clamp(320px, 44dvh, 400px);
-    grid-template-columns: minmax(0, 1.08fr) minmax(16rem, 0.92fr);
-    grid-template-rows: auto minmax(0, 1fr) 104px;
-  }
-
-  .timeline-focus-view[popover] > .timeline-focus-tabs {
-    position: relative;
-    z-index: 5;
-    top: auto;
-    right: auto;
-    bottom: auto;
-    left: auto;
-    grid-column: 2;
-    grid-row: 1;
-    align-self: start;
-    justify-self: stretch;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: auto;
-    max-width: none;
-    margin: 0.52rem 0.52rem 0;
-    box-sizing: border-box;
-  }
-
-  .timeline-focus-view[popover] > .timeline-focus-tabs > * {
-    min-width: 0;
-  }
 
   .timeline-focus-view[popover] .timeline-focus-hero,
   #presentation-stage:fullscreen .timeline-focus-view .timeline-focus-hero {
@@ -4051,28 +3728,6 @@
     overflow: hidden;
   }
 
-  .timeline-focus-view[popover] .timeline-focus-description {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-summary .timeline-focus-actions {
-    flex: 0 0 auto;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: 100%;
-    margin-top: 0.62rem;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-summary .timeline-focus-actions .button {
-    min-width: 0;
-    min-height: 38px;
-    white-space: normal;
-  }
-
   .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place,
   #presentation-stage:fullscreen
     .timeline-focus-view[data-active-tab="overview"]
@@ -4081,11 +3736,6 @@
     grid-row: 3;
     min-height: 104px;
     max-height: 104px;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-summary,
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-place {
-    display: none;
   }
 
   .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence,
