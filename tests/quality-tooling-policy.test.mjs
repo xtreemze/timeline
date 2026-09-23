@@ -48,9 +48,10 @@ test("package scripts expose formatter, style lint, safe fixes, and the CI quali
   assert.equal(scripts["format:check"], "biome format .");
   assert.match(scripts["lint:biome"] ?? "", /^biome lint /);
   assert.match(scripts["lint:styles"] ?? "", /\.css/);
-  assert.match(scripts["check:quality"] ?? "", /^pnpm lint && node scripts\/check-quality-changed\.mjs$/);
-  assert.match(scripts["check:quality"] ?? "", /pnpm lint:eslint/);
-  assert.match(scripts["check:quality"] ?? "", /pnpm lint:architecture/);
+  assert.match(
+    scripts["check:quality"] ?? "",
+    /^pnpm lint && node scripts\/check-quality-changed\.mjs$/,
+  );
   assert.doesNotMatch(scripts.format ?? "", /disabled|echo/i);
 });
 
