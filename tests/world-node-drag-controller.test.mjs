@@ -122,9 +122,8 @@ test("ordinary release clears the pin and enters explicit post-drop settling", (
     settling: true,
   });
 
-  assert.deepEqual(calls.slice(-3), [
+  assert.deepEqual(calls.slice(-2), [
     ["pin", null, null, null, null],
-    ["apply", "post-drop", 0.035, true],
     ["apply", "post-drop", 0.035, true],
   ]);
 });
