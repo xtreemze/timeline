@@ -476,6 +476,157 @@ test("destroying the surface removes the double-click listener", () => {
   assert.ok(!listeners.has("dblclick"));
 });
 
+function keyboardHarness(runtime) {
+  const listeners = new Map();
+  const container = {
+    addEventListener(type, listener) {
+      listeners.set(type, listener);
+    },
+    removeEventListener(type, listener) {
+      if (listeners.get(type) === listener) listeners.delete(type);
+    },
+  };
+  const surface = new DeckWorldSurface(container, runtime);
+  return { surface, listeners };
+}
+
+function keyEvent(key, extra = {}) {
+  let defaultPrevented = false;
+  return {
+    key,
+    shiftKey: false,
+    ...extra,
+    preventDefault() {
+      defaultPrevented = true;
+    },
+    get defaultPrevented() {
+      return defaultPrevented;
+    },
+  };
+}
+
+function selectedIds(render) {
+  const [places, relationships, entities] = render.layers;
+  return {
+    place: places.props.data.find((datum) => datum.selected)?.placeId ?? null,
+    relationship: relationships.props.data.find((datum) => datum.selected)?.relationshipId ?? null,
+    entity: entities.props.data.find((datum) => datum.selected)?.entityId ?? null,
+  };
+}
+
+test("Tab cycles selection through places, then relationships, then entities (issue #445 Priority 4)", () => {
+  const { calls, runtime } = harness();
+  const { surface, listeners } = keyboardHarness(runtime);
+  surface.setProjection(projection());
+  const onKeyDown = listeners.get("keydown");
+
+  onKeyDown(keyEvent("Tab"));
+  assert.deepEqual(selectedIds(calls.setProps.at(-1)), {
+    place: "stockholm",
+    relationship: null,
+    entity: null,
+  });
+
+  onKeyDown(keyEvent("Tab"));
+  assert.deepEqual(selectedIds(calls.setProps.at(-1)), {
+    place: null,
+    relationship: "meeting",
+    entity: null,
+  });
+
+  onKeyDown(keyEvent("Tab"));
+  assert.deepEqual(selectedIds(calls.setProps.at(-1)), {
+    place: null,
+    relationship: null,
+    entity: "alice",
+  });
+
+  onKeyDown(keyEvent("Tab"));
+  assert.deepEqual(selectedIds(calls.setProps.at(-1)), {
+    place: null,
+    relationship: null,
+    entity: "bob",
+  });
+
+  // Wraps back to the first candidate (place "stockholm").
+  onKeyDown(keyEvent("Tab"));
+  assert.deepEqual(selectedIds(calls.setProps.at(-1)), {
+    place: "stockholm",
+    relationship: null,
+    entity: null,
+  });
+});
+
+test("Shift+Tab cycles backward and wraps to the last candidate", () => {
+  const { calls, runtime } = harness();
+  const { surface, listeners } = keyboardHarness(runtime);
+  surface.setProjection(projection());
+  const onKeyDown = listeners.get("keydown");
+
+  onKeyDown(keyEvent("Tab", { shiftKey: true }));
+  assert.deepEqual(selectedIds(calls.setProps.at(-1)), {
+    place: null,
+    relationship: null,
+    entity: "alice",
+  });
+
+  onKeyDown(keyEvent("Tab", { shiftKey: true }));
+  assert.deepEqual(selectedIds(calls.setProps.at(-1)), {
+    place: null,
+    relationship: "meeting",
+    entity: null,
+  });
+});
+
+test("Enter focuses the camera on the currently cycled selection", () => {
+  const { calls, runtime } = harness();
+  const { surface, listeners } = keyboardHarness(runtime);
+  surface.setProjection(projection());
+  const onKeyDown = listeners.get("keydown");
+
+  // Cycle until an entity is selected (entities are last in candidate order).
+  onKeyDown(keyEvent("Tab"));
+  onKeyDown(keyEvent("Tab"));
+  const enterEvent = keyEvent("Enter");
+  const setPropsBefore = calls.setProps.length;
+  onKeyDown(enterEvent);
+
+  assert.ok(enterEvent.defaultPrevented);
+  assert.ok(calls.setProps.length > setPropsBefore);
+});
+
+test("Enter is a no-op when nothing is selected", () => {
+  const { calls, runtime } = harness();
+  const { surface, listeners } = keyboardHarness(runtime);
+  surface.setProjection(projection());
+  const onKeyDown = listeners.get("keydown");
+
+  const before = calls.setProps.length;
+  onKeyDown(keyEvent("Enter"));
+  assert.equal(calls.setProps.length, before);
+});
+
+test("Tab is a no-op with no renderable candidates", () => {
+  const { calls, runtime } = harness();
+  const { listeners } = keyboardHarness(runtime);
+  const onKeyDown = listeners.get("keydown");
+
+  const before = calls.setProps.length;
+  const event = keyEvent("Tab");
+  onKeyDown(event);
+  assert.equal(calls.setProps.length, before);
+  assert.ok(!event.defaultPrevented);
+});
+
+test("destroying the surface removes the keydown listener", () => {
+  const { runtime } = harness();
+  const { surface, listeners } = keyboardHarness(runtime);
+  assert.ok(listeners.has("keydown"));
+
+  surface.destroy();
+  assert.ok(!listeners.has("keydown"));
+});
+
 test("runtime view-state callbacks stay inside renderer-neutral camera validation", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);

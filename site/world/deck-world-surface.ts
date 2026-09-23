@@ -515,6 +515,10 @@ function screenPointFromDoubleClickEvent(event: DoubleClickEvent): ScreenPoint |
   return Object.freeze({ x, y });
 }
 
+function selectionEquals(left: WorldSelection, right: WorldSelection | null): boolean {
+  return right !== null && left.kind === right.kind && left.id === right.id;
+}
+
 function worldHitFromPicking(info: DeckRuntimePickingInfo | null): WorldHit | null {
   if (!info || !isRecord(info.object)) return null;
   const object = info.object;
@@ -632,6 +636,37 @@ export class DeckWorldSurface implements WorldSurface {
     else if (hit.kind === "place") this.focusPlace(hit.placeId);
   };
 
+  // Keyboard selection-cycling equivalent (issue #445 Priority 4). deck.gl's
+  // controller already provides keyboard camera pan (arrow keys) and zoom
+  // (+/-) as a `keyboard: true` Controller default (see
+  // `deckControllerOptions`), so this handler does not reimplement camera
+  // movement. What deck.gl has no notion of is canonical selection, so
+  // Tab/Shift+Tab cycle through renderable places/relationships/entities and
+  // Enter "confirms" the current selection by focusing the camera on it.
+  readonly #handleKeyDown = (event: KeyboardEvent): void => {
+    if (event.key === "Tab") {
+      const candidates = this.#selectionCandidates();
+      if (candidates.length === 0) return;
+      event.preventDefault?.();
+
+      const currentIndex = this.#selection
+        ? candidates.findIndex((candidate) => selectionEquals(candidate, this.#selection))
+        : -1;
+      const delta = event.shiftKey ? -1 : 1;
+      const nextIndex = (((currentIndex + delta) % candidates.length) + candidates.length) % candidates.length;
+      this.setSelection(candidates[nextIndex] ?? null);
+      return;
+    }
+
+    if (event.key === "Enter" && this.#selection) {
+      event.preventDefault?.();
+      const selection = this.#selection;
+      if (selection.kind === "entity") this.focusEntity(selection.id);
+      else if (selection.kind === "relationship") this.focusOccurrence(selection.id);
+      else if (selection.kind === "place") this.focusPlace(selection.id);
+    }
+  };
+
   constructor(
     container: HTMLElement,
     runtime: DeckWorldRuntime,
@@ -662,6 +697,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#container.addEventListener?.("pointercancel", this.#handlePointerCancel);
     this.#container.addEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
     this.#container.addEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
+    this.#container.addEventListener?.("keydown", this.#handleKeyDown as EventListener);
   }
 
   setNodeDragSink(sink: DeckWorldNodeDragSink | null): void {
@@ -835,6 +871,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#container.removeEventListener?.("pointercancel", this.#handlePointerCancel);
     this.#container.removeEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
     this.#container.removeEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
+    this.#container.removeEventListener?.("keydown", this.#handleKeyDown as EventListener);
     this.#deck.finalize();
   }
 
@@ -906,6 +943,39 @@ export class DeckWorldSurface implements WorldSurface {
   #reclusterIfZoomCrossedThreshold(): void {
     const clusteredNow = this.#camera.zoom < CLUSTER_ZOOM_THRESHOLD;
     if (clusteredNow !== this.#clusteredLastRender) this.#render();
+  }
+
+  #selectionCandidates(): readonly WorldSelection[] {
+    const entities = entityDatums(
+      this.#projection.instances,
+      this.#selection,
+      this.#entityDatumCache,
+    ).datums;
+    const relationships = relationshipDatums(
+      this.#projection,
+      this.#positions(),
+      this.#selection,
+      this.#relationshipDatumCache,
+    ).datums;
+    const places = placeDatums(
+      this.#projection.instances,
+      this.#selection,
+      this.#placeDatumCache,
+    ).datums;
+
+    const candidates: WorldSelection[] = [];
+    for (const place of places) {
+      candidates.push(Object.freeze({ kind: "place" as const, id: place.placeId }));
+    }
+    for (const relationship of relationships) {
+      candidates.push(
+        Object.freeze({ kind: "relationship" as const, id: relationship.relationshipId }),
+      );
+    }
+    for (const entity of entities) {
+      candidates.push(Object.freeze({ kind: "entity" as const, id: entity.entityId }));
+    }
+    return Object.freeze(candidates);
   }
 
   #positions(): ReadonlyMap<WorldInstanceId, WorldRenderPosition> {
