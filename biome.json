@@ -49,19 +49,17 @@
       "complexity": {
         "noImportantStyles": "error"
       },
-      "correctness": {
-        "noExcessiveSelectorClasses": "error"
-      },
       "style": {
         "noDescendingSpecificity": "error",
-        "noNonNullAssertion": "off",
+        "noNonNullAssertion": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "off",
         "noShorthandPropertyOverrides": "error",
         "noUnknownAtRules": "error"
       },
-      "suspicious": {
-        "noExplicitAny": "off"
-      },
       "nursery": {
+        "noExcessiveSelectorClasses": "error",
         "noReturnInFinally": "error"
       }
     }
