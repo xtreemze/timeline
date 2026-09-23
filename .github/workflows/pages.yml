@@ -9,9 +9,12 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - "playwright.config.ts"
+      - "playwright.highlight.config.ts"
       - "playwright.pages.config.ts"
       - "vite.config.ts"
       - "scripts/serve-pages-preview.mjs"
+      - "scripts/render-e2e-highlight.mjs"
+      - "tests/highlight/**"
       - "tests/playwright/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
@@ -48,6 +51,11 @@ jobs:
 
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium webkit
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
 
       - name: Lint code
         run: pnpm lint
@@ -89,6 +97,18 @@ jobs:
       - name: Certify built Pages runtime
         run: pnpm exec playwright test --config=playwright.pages.config.ts
 
+      - name: Record showcase loops in real Chromium
+        run: pnpm test:e2e:highlight
+
+      - name: Render five looping showcase GIFs
+        run: pnpm render:e2e:highlight
+
+      - name: Publish showcase GIFs into Pages artifact
+        run: |
+          test "$(find artifacts/e2e-media/gifs -type f -name '*.gif' | wc -l)" -eq 5
+          mkdir -p dist/showcase
+          cp artifacts/e2e-media/gifs/*.gif dist/showcase/
+
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
@@ -104,6 +124,7 @@ jobs:
           test -s dist/leaflet.bundle.js
           test -s dist/evidence-extraction.bundle.js
           test -s dist/pdf.worker.mjs
+          test "$(find dist/showcase -type f -name '*.gif' | wc -l)" -eq 5
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
