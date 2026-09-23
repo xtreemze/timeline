@@ -101,10 +101,13 @@ function projection() {
       createProjectedWorldInstance({
         id: aliceId,
         canonicalId: "alice",
+        label: "Alice",
+        kind: "person",
         occurrenceId: "meeting",
         geographicAnchors: [
           {
             placeId: "stockholm",
+            label: "Stockholm",
             longitude: 18.0686,
             latitude: 59.3293,
             sourceAltitude: 20,
@@ -119,6 +122,8 @@ function projection() {
       createProjectedWorldInstance({
         id: bobId,
         canonicalId: "bob",
+        label: "Bob",
+        kind: "person",
         occurrenceId: "meeting",
         geographicAnchors: [
           {
@@ -192,6 +197,35 @@ test("DeckWorldSurface renders places, globe-visible paths, and elevated entity 
   assert.equal(relationships.props.parameters.cullMode, "none");
   assert.equal(relationships.props.data[0].path.length, 2);
 });
+
+test("DeckWorldSurface emits semantic entity and place labels only when TextLayer is available", () => {
+  const { calls, runtime } = harness();
+  calls.textLayers = [];
+  runtime.createTextLayer = (props) => {
+    const layer = { type: "text", props };
+    calls.textLayers.push(layer);
+    return layer;
+  };
+  const surface = new DeckWorldSurface({}, runtime);
+
+  surface.setProjection(projection());
+
+  const render = calls.setProps.at(-1);
+  assert.equal(render.layers.length, 4);
+  const labels = render.layers.at(-1);
+  assert.equal(labels.props.id, DECK_WORLD_LAYER_IDS.labels);
+  assert.equal(labels.props.pickable, false);
+  assert.deepEqual(
+    labels.props.data.map(({ kind, label }) => [kind, label]),
+    [
+      ["entity", "Alice"],
+      ["entity", "Bob"],
+      ["place", "Stockholm"],
+    ],
+  );
+  assert.equal(labels.props.getText(labels.props.data[0]), "Alice");
+});
+
 
 test("unplaced instances remain outside globe layers rather than receiving invented coordinates", () => {
   const { calls, runtime } = harness();
