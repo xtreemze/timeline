@@ -98,8 +98,8 @@ test("world search is deterministic, accent-insensitive, and relevance ordered",
   assert.deepEqual(
     index.query("alice").map((result) => [result.kind, result.id, result.score]),
     [
-      ["place", "p1", 1],
       ["entity", "e1", 1],
+      ["place", "p1", 1],
       ["occurrence", "r1", 2],
       ["evidence", "ev1", 4],
     ],
