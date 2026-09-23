@@ -10,6 +10,7 @@ const pagesWorkflow = readFileSync(new URL("../.github/workflows/pages.yml", imp
 const highlightConfig = readFileSync(new URL("../playwright.highlight.config.ts", import.meta.url), "utf8");
 const highlightSpec = readFileSync(new URL("./highlight/highlight-reel.spec.ts", import.meta.url), "utf8");
 const highlightRenderer = readFileSync(new URL("../scripts/render-e2e-highlight.mjs", import.meta.url), "utf8");
+const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
 
 test("all browser specs use one authoritative Playwright discovery root", () => {
   const scripts = Object.values(packageJson.scripts ?? {}).join("\n");
@@ -130,6 +131,16 @@ test("CI produces a branded real-browser E2E highlight reel and retains raw evid
   assert.match(highlightSpec, /page\.screenshot/);
   assert.match(highlightRenderer, /xfade=transition=fade/);
   assert.match(highlightRenderer, /libx264/);
+  assert.match(highlightRenderer, /palettegen/);
+  assert.match(highlightRenderer, /paletteuse/);
+  assert.match(highlightRenderer, /-loop/);
+  assert.match(highlightRenderer, /README-showcase\.md/);
+  assert.match(highlightSpec, /records five branded Lūm showcase loops/);
+  assert.match(highlightSpec, /01-timeline-navigation/);
+  assert.match(highlightSpec, /02-focused-context/);
+  assert.match(highlightSpec, /03-evidence/);
+  assert.match(highlightSpec, /04-relation-graph/);
+  assert.match(highlightSpec, /05-mobile/);
 
   assert.match(workflow, /e2e-highlight-reel:/);
   assert.match(workflow, /playwright install --with-deps chromium/);
@@ -138,4 +149,17 @@ test("CI produces a branded real-browser E2E highlight reel and retains raw evid
   assert.match(workflow, /pnpm render:e2e:highlight/);
   assert.match(workflow, /name:\s*lum-e2e-highlight-reel/);
   assert.match(workflow, /path:\s*artifacts\/e2e-media\//);
+  assert.match(workflow, /find artifacts\/e2e-media\/gifs/);
+  assert.match(pagesWorkflow, /pnpm test:e2e:highlight/);
+  assert.match(pagesWorkflow, /pnpm render:e2e:highlight/);
+  assert.match(pagesWorkflow, /dist\/showcase/);
+  for (const gif of [
+    "01-timeline-navigation.gif",
+    "02-focused-context.gif",
+    "03-evidence.gif",
+    "04-relation-graph.gif",
+    "05-mobile.gif",
+  ]) {
+    assert.ok(readme.includes(gif), `README showcase missing ${gif}`);
+  }
 });
