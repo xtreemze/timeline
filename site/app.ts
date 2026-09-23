@@ -3,14 +3,14 @@
  * Main entry point coordinating all modules, UI state, and persistence
  */
 
-// Import ESM modules
-import { TimelineTemporal } from "./temporal-standards.ts";
-import { TimelineSpatial } from "./spatial.ts";
-import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
+import { planWorkspacePlacement } from "../src/layout/workspace-layout.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
-import { planWorkspacePlacement } from "../src/layout/workspace-layout.ts";
+import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
+import { TimelineSpatial } from "./spatial.ts";
+// Import ESM modules
+import { TimelineTemporal } from "./temporal-standards.ts";
 import { selectPrimarySpatialViewFactory } from "./world/world-view-selection.ts";
 
 // Import globals that still use globalThis (not yet converted)
