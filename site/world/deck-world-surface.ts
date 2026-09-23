@@ -32,6 +32,7 @@ export const DECK_WORLD_LAYER_IDS = Object.freeze({
   places: "lum-world-places",
   relationships: "lum-world-relationships",
   entities: "lum-world-entities",
+  labels: "lum-world-labels",
 });
 
 interface DeckRuntimeViewState {
@@ -86,12 +87,14 @@ export interface DeckWorldRuntime {
   createMapView?(props: Readonly<Record<string, unknown>>): unknown;
   createScatterplotLayer(props: Readonly<Record<string, unknown>>): unknown;
   createPathLayer(props: Readonly<Record<string, unknown>>): unknown;
+  createTextLayer?(props: Readonly<Record<string, unknown>>): unknown;
   createDeck(props: Readonly<Record<string, unknown>>): DeckRuntimeInstance;
 }
 
 interface DeckWorldEntityDatum {
   readonly kind: "entity";
   readonly entityId: EntityId;
+  readonly label?: string;
   readonly worldInstanceId: WorldInstanceId;
   readonly position: WorldRenderPosition;
   readonly selected: boolean;
@@ -109,6 +112,7 @@ interface DeckWorldRelationshipDatum {
 interface DeckWorldPlaceDatum {
   readonly kind: "place";
   readonly placeId: PlaceId;
+  readonly label?: string;
   readonly position: WorldRenderPosition;
   readonly selected: boolean;
 }
@@ -196,6 +200,7 @@ function placeDatums(
         Object.freeze({
           kind: "place",
           placeId: anchor.placeId,
+          ...(anchor.label ? { label: anchor.label } : {}),
           position: Object.freeze([
             anchor.longitude,
             anchor.latitude,
@@ -227,6 +232,7 @@ function entityDatums(
       Object.freeze({
         kind: "entity",
         entityId: instance.canonicalId,
+        ...(instance.label ? { label: instance.label } : {}),
         worldInstanceId: instance.id,
         position,
         selected: selection?.kind === "entity" && selection.id === instance.canonicalId,
@@ -238,6 +244,52 @@ function entityDatums(
   return Object.freeze(
     result.sort((left, right) => String(left.worldInstanceId).localeCompare(String(right.worldInstanceId))),
   );
+}
+
+interface DeckWorldLabelDatum {
+  readonly id: string;
+  readonly kind: "entity" | "place";
+  readonly label: string;
+  readonly position: WorldRenderPosition;
+  readonly selected: boolean;
+  readonly visualWeight: number;
+}
+
+function labelDatums(
+  places: readonly DeckWorldPlaceDatum[],
+  entities: readonly DeckWorldEntityDatum[],
+): readonly DeckWorldLabelDatum[] {
+  const result: DeckWorldLabelDatum[] = [];
+
+  for (const place of places) {
+    if (!place.label) continue;
+    result.push(
+      Object.freeze({
+        id: `place:${String(place.placeId)}`,
+        kind: "place",
+        label: place.label,
+        position: place.position,
+        selected: place.selected,
+        visualWeight: 1,
+      }),
+    );
+  }
+
+  for (const entity of entities) {
+    if (!entity.label) continue;
+    result.push(
+      Object.freeze({
+        id: `entity:${String(entity.worldInstanceId)}`,
+        kind: "entity",
+        label: entity.label,
+        position: entity.position,
+        selected: entity.selected,
+        visualWeight: entity.visualWeight,
+      }),
+    );
+  }
+
+  return Object.freeze(result.sort((left, right) => left.id.localeCompare(right.id)));
 }
 
 function relationshipDatums(
@@ -642,6 +694,7 @@ export class DeckWorldSurface implements WorldSurface {
     const places = placeDatums(this.#projection.instances, this.#selection);
     const relationships = relationshipDatums(this.#projection, positions, this.#selection);
     const entities = entityDatums(this.#projection.instances, this.#selection);
+    const labels = labelDatums(places, entities);
 
     const layers = [
       this.#runtime.createScatterplotLayer({
@@ -694,6 +747,24 @@ export class DeckWorldSurface implements WorldSurface {
             }
           : {}),
       }),
+      ...(this.#runtime.createTextLayer && labels.length > 0
+        ? [
+            this.#runtime.createTextLayer({
+              id: DECK_WORLD_LAYER_IDS.labels,
+              data: labels,
+              pickable: false,
+              billboard: true,
+              sizeUnits: "pixels",
+              getPosition: (datum: DeckWorldLabelDatum) => datum.position,
+              getText: (datum: DeckWorldLabelDatum) => datum.label,
+              getSize: (datum: DeckWorldLabelDatum) =>
+                datum.selected ? 16 : 11 + Math.round(datum.visualWeight * 3),
+              getColor: (datum: DeckWorldLabelDatum) =>
+                datum.selected ? [255, 255, 255, 255] : [235, 235, 235, 230],
+              getPixelOffset: [0, -14],
+            }),
+          ]
+        : []),
     ];
 
     this.#deck.setProps({ layers });
