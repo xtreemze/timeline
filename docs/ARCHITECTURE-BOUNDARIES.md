@@ -8,7 +8,7 @@ Related: #236, #243, #245–#251
 
 Lūm is an evidence-to-structured-relational-knowledge system. Its canonical project model is the continuum. Temporal, topological, spatial, narrative, evidentiary, analytical, reporting, and future surfaces are synchronized projections over that shared continuum.
 
-This document defines dependency direction and ownership boundaries so new features do not re-couple canonical knowledge to rendering, framework, provider, or layout implementation details. Product/domain terminology follows [LUM-TERMINOLOGY.md](LUM-TERMINOLOGY.md); legacy `Timeline*` identifiers remain compatibility names.
+This document defines dependency direction and ownership boundaries so new features do not re-couple canonical knowledge to rendering, framework, provider, or layout implementation details. The authoritative cross-view coordination model is the occurrence-centered spatiotemporal projection contract in [SPATIOTEMPORAL-PROJECTION.md](SPATIOTEMPORAL-PROJECTION.md). Product/domain terminology follows [LUM-TERMINOLOGY.md](LUM-TERMINOLOGY.md); legacy `Timeline*` identifiers remain compatibility names.
 
 ## Architectural laws
 
@@ -168,7 +168,7 @@ Shared state may include:
 - workspace/orientation state;
 - transient interaction state.
 
-Selection always references canonical IDs. Renderer IDs are local implementation details.
+Selection always references canonical IDs. Renderer IDs are local implementation details. Temporal, spatial, focus, story, and semantic-zoom state converge through one renderer-neutral `SpatiotemporalViewport`; timeline, graph, and map must derive occurrence activation from that shared state.
 
 ## 5. Projection engines
 
