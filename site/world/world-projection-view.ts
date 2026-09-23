@@ -36,10 +36,13 @@ export interface WorldProjectionRuntime {
 
 interface InputEntity {
   readonly id?: unknown;
+  readonly name?: unknown;
+  readonly type?: unknown;
 }
 
 interface InputPlace {
   readonly id?: unknown;
+  readonly name?: unknown;
   readonly geometry?: unknown;
   readonly accuracyMeters?: unknown;
 }
@@ -142,6 +145,7 @@ function canonicalPlaces(input: readonly InputPlace[]): readonly SpatialPlaceRec
     result.push(
       Object.freeze({
         id: placeId(id),
+        ...(text(raw.name) ? { label: text(raw.name) } : {}),
         geometry,
         ...(radius === undefined ? {} : { precisionRadiusMeters: radius }),
       }),
@@ -221,6 +225,7 @@ export class WorldProjectionView {
   #focusId: string | null = null;
   #presentationMode = false;
   #entityIds = new Set<string>();
+  #entityPresentation = new Map<EntityId, Readonly<{ label?: string; kind?: string }>>();
   #placeIds = new Set<string>();
 
   constructor(runtime: WorldProjectionRuntime) {
@@ -233,6 +238,30 @@ export class WorldProjectionView {
 
     this.#entityIds = new Set(
       entities.map((entity) => text(entity.id)).filter(Boolean),
+    );
+    this.#entityPresentation = new Map(
+      entities
+        .map((entity) => {
+          const id = text(entity.id);
+          if (!id) return null;
+          const label = text(entity.name);
+          const kind = text(entity.type);
+          return [
+            entityId(id),
+            Object.freeze({
+              ...(label ? { label } : {}),
+              ...(kind ? { kind } : {}),
+            }),
+          ] as const;
+        })
+        .filter(
+          (
+            entry,
+          ): entry is readonly [
+            EntityId,
+            Readonly<{ label?: string; kind?: string }>,
+          ] => entry !== null,
+        ),
     );
     this.#placeIds = new Set(places.map((place) => String(place.id)));
 
@@ -321,7 +350,10 @@ export class WorldProjectionView {
       this.#relationships,
       activeIds,
       this.#spatialAnchors,
-      { temporalWeights: weights },
+      {
+        entityPresentation: this.#entityPresentation,
+        temporalWeights: weights,
+      },
     );
 
     this.#runtime.setProjection(projection);
