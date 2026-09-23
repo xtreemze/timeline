@@ -713,8 +713,6 @@ function closestEventTarget<T extends HTMLElement>(
       .querySelector<HTMLElement>(".timeline-project-heading")
       ?.getBoundingClientRect();
     const viewport = workspaceToolViewport();
-    const orientation =
-      els.timelineViewRoot.dataset.orientation === "portrait" ? "portrait" : "landscape";
     const gap = 8;
     const edge = 8;
     const availableWidth = Math.max(1, viewport.width - edge * 2);
@@ -732,42 +730,20 @@ function closestEventTarget<T extends HTMLElement>(
       y: triggerRect.top + triggerRect.height / 2,
     };
 
-    const candidates =
-      orientation === "portrait"
-        ? [
-            {
-              id: "left",
-              rect: {
-                x: dockRect.left - gap - measuredWidth,
-                y: anchor.y - measuredHeight / 2,
-                width: Math.min(
-                  measuredWidth,
-                  Math.max(1, dockRect.left - gap - (viewport.left + edge)),
-                ),
-                height: Math.min(
-                  measuredHeight,
-                  Math.max(1, viewport.height - edge * 2),
-                ),
-              },
-            },
-          ]
-        : [
-            {
-              id: "above",
-              rect: {
-                x: anchor.x - measuredWidth / 2,
-                y: dockRect.top - gap - measuredHeight,
-                width: Math.min(
-                  measuredWidth,
-                  Math.max(1, viewport.width - edge * 2),
-                ),
-                height: Math.min(
-                  measuredHeight,
-                  Math.max(1, dockRect.top - gap - (viewport.top + edge)),
-                ),
-              },
-            },
-          ];
+    const candidates = [
+      {
+        id: "above",
+        rect: {
+          x: anchor.x - measuredWidth / 2,
+          y: dockRect.top - gap - measuredHeight,
+          width: Math.min(measuredWidth, Math.max(1, viewport.width - edge * 2)),
+          height: Math.min(
+            measuredHeight,
+            Math.max(1, dockRect.top - gap - (viewport.top + edge)),
+          ),
+        },
+      },
+    ];
 
     const snapshot = planWorkspacePlacement({
       viewport: {
@@ -840,20 +816,14 @@ function closestEventTarget<T extends HTMLElement>(
       minTop,
       viewport.top + viewport.height - edge - actualBlockSize,
     );
-    const boundedLeft =
-      orientation === "portrait"
-        ? Math.min(
-            maxLeft,
-            Math.max(minLeft, dockRect.left - gap - actualInlineSize),
-          )
-        : Math.min(maxLeft, Math.max(minLeft, anchor.x - actualInlineSize / 2));
-    const boundedTop =
-      orientation === "portrait"
-        ? Math.min(maxTop, Math.max(minTop, anchor.y - actualBlockSize / 2))
-        : Math.min(
-            maxTop,
-            Math.max(minTop, dockRect.top - gap - actualBlockSize),
-          );
+    const boundedLeft = Math.min(
+      maxLeft,
+      Math.max(minLeft, anchor.x - actualInlineSize / 2),
+    );
+    const boundedTop = Math.min(
+      maxTop,
+      Math.max(minTop, dockRect.top - gap - actualBlockSize),
+    );
 
     els.viewControls.dataset.anchorPlacement = selected.id;
     els.viewControls.dataset.placementValid = String(snapshot.fullySatisfiesConstraints);
@@ -4475,8 +4445,6 @@ function closestEventTarget<T extends HTMLElement>(
     if (!els.projectMenu || !els.projectMenuToggle) return;
     const rect = els.projectMenuToggle.getBoundingClientRect();
     const viewport = projectMenuViewport();
-    const orientation =
-      els.timelineViewRoot?.dataset.orientation === "portrait" ? "portrait" : "landscape";
     const gap = 8;
     const edge = 8;
     const minLeft = viewport.left + edge;
@@ -4492,59 +4460,31 @@ function closestEventTarget<T extends HTMLElement>(
     let top = minTop;
     let placement = "";
 
-    if (orientation === "portrait") {
-      const roomLeft = Math.max(0, rect.left - gap - minLeft);
-      const roomRight = Math.max(0, maxRight - rect.right - gap);
-      const opensLeft = roomLeft >= roomRight;
-      const horizontalRoom = Math.max(1, opensLeft ? roomLeft : roomRight);
-      menuWidth = Math.min(menuWidth, horizontalRoom);
-      const preferredLeft = opensLeft ? rect.left - gap - menuWidth : rect.right + gap;
-      left = Math.min(
-        Math.max(minLeft, preferredLeft),
-        Math.max(minLeft, maxRight - menuWidth),
-      );
-      const preferredTop = rect.top + rect.height / 2 - menuHeight / 2;
-      top = Math.min(
-        Math.max(minTop, preferredTop),
-        Math.max(minTop, maxBottom - menuHeight),
-      );
-      placement = opensLeft ? "left" : "right";
+    const roomAbove = Math.max(0, rect.top - gap - minTop);
+    const roomBelow = Math.max(0, maxBottom - rect.bottom - gap);
+    const opensUpward = roomAbove >= roomBelow;
+    const verticalRoom = Math.max(1, opensUpward ? roomAbove : roomBelow);
+    menuHeight = Math.min(menuHeight, verticalRoom);
+    const preferredLeft = rect.left + rect.width / 2 - menuWidth / 2;
+    left = Math.min(
+      Math.max(minLeft, preferredLeft),
+      Math.max(minLeft, maxRight - menuWidth),
+    );
+    const preferredTop = opensUpward ? rect.top - gap - menuHeight : rect.bottom + gap;
+    top = Math.min(
+      Math.max(minTop, preferredTop),
+      Math.max(minTop, maxBottom - menuHeight),
+    );
+    placement = opensUpward ? "above" : "below";
 
-      els.projectMenu.style.setProperty(
-        "--project-menu-max-width",
-        `${Math.floor(horizontalRoom)}px`,
-      );
-      els.projectMenu.style.setProperty(
-        "--project-menu-max-height",
-        `${Math.floor(availableHeight)}px`,
-      );
-    } else {
-      const roomAbove = Math.max(0, rect.top - gap - minTop);
-      const roomBelow = Math.max(0, maxBottom - rect.bottom - gap);
-      const opensUpward = roomAbove >= roomBelow;
-      const verticalRoom = Math.max(1, opensUpward ? roomAbove : roomBelow);
-      menuHeight = Math.min(menuHeight, verticalRoom);
-      const preferredLeft = rect.left + rect.width / 2 - menuWidth / 2;
-      left = Math.min(
-        Math.max(minLeft, preferredLeft),
-        Math.max(minLeft, maxRight - menuWidth),
-      );
-      const preferredTop = opensUpward ? rect.top - gap - menuHeight : rect.bottom + gap;
-      top = Math.min(
-        Math.max(minTop, preferredTop),
-        Math.max(minTop, maxBottom - menuHeight),
-      );
-      placement = opensUpward ? "above" : "below";
-
-      els.projectMenu.style.setProperty(
-        "--project-menu-max-width",
-        `${Math.floor(availableWidth)}px`,
-      );
-      els.projectMenu.style.setProperty(
-        "--project-menu-max-height",
-        `${Math.floor(verticalRoom)}px`,
-      );
-    }
+    els.projectMenu.style.setProperty(
+      "--project-menu-max-width",
+      `${Math.floor(availableWidth)}px`,
+    );
+    els.projectMenu.style.setProperty(
+      "--project-menu-max-height",
+      `${Math.floor(verticalRoom)}px`,
+    );
 
     els.projectMenu.style.setProperty("--project-menu-left", `${Math.round(left)}px`);
     els.projectMenu.style.setProperty("--project-menu-top", `${Math.round(top)}px`);
