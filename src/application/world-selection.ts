@@ -172,22 +172,24 @@ function normalizeSearchText(value: string): string {
     .replace(/\s+/g, " ");
 }
 
+function canonicalStringList(
+  values: readonly string[] | undefined,
+): readonly string[] | undefined {
+  if (!values?.length) return undefined;
+  return Object.freeze(
+    [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort((left, right) =>
+      left.localeCompare(right),
+    ),
+  );
+}
+
 function canonicalRecord(record: WorldSearchRecord): WorldSearchRecord {
   const id = normalizedId(record.id);
   const label = record.label.trim();
   if (!label) throw new Error("Search record label must be non-empty.");
 
-  const list = (values: readonly string[] | undefined): readonly string[] | undefined => {
-    if (!values?.length) return undefined;
-    return Object.freeze(
-      [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort((left, right) =>
-        left.localeCompare(right),
-      ),
-    );
-  };
-
-  const aliases = list(record.aliases);
-  const keywords = list(record.keywords);
+  const aliases = canonicalStringList(record.aliases);
+  const keywords = canonicalStringList(record.keywords);
   const detail = record.detail?.trim();
 
   return Object.freeze({
