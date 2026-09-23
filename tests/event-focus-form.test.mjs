@@ -88,7 +88,10 @@ test("item editor exposes reusable PDF/image evidence with extraction controls",
   assert.match(html, /value="pdf"/);
   assert.match(html, /value="image"/);
   assert.match(html, /value="note"/);
-  assert.match(html, /accept="application\/pdf,.pdf,image\/png,image\/jpeg,image\/webp,image\/gif"/);
+  assert.match(
+    html,
+    /accept="application\/pdf,.pdf,image\/png,image\/jpeg,image\/webp,image\/gif"/,
+  );
   assert.match(html, /class="button secondary evidence-extract-text"/);
   assert.match(html, /class="evidence-extraction-preview field-wide"/);
   assert.match(html, /evidence-extraction\.bundle\.js/);

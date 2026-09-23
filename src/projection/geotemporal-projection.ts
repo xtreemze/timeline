@@ -74,9 +74,7 @@ function endpointTime(
   return earliest ?? latest;
 }
 
-function temporalBounds(
-  extent: CanonicalTemporalExtent,
-): readonly [number, number] | null {
+function temporalBounds(extent: CanonicalTemporalExtent): readonly [number, number] | null {
   const start = extent.openStart ? Number.NEGATIVE_INFINITY : endpointTime(extent.start);
   if (start === null) return null;
 
@@ -116,8 +114,7 @@ export function projectGeotemporalStatesAt(
       )
       .sort(
         (left, right) =>
-          left.entityId.localeCompare(right.entityId) ||
-          left.stateId.localeCompare(right.stateId),
+          left.entityId.localeCompare(right.entityId) || left.stateId.localeCompare(right.stateId),
       ),
   );
 }
@@ -151,12 +148,8 @@ export function interpolatePointStates(
   const ratio = (at - earlierTime) / (laterTime - earlierTime);
   const earlierCoordinates = earlier.geometry.coordinates;
   const laterCoordinates = later.geometry.coordinates;
-  const longitude =
-    earlierCoordinates[0] +
-    (laterCoordinates[0] - earlierCoordinates[0]) * ratio;
-  const latitude =
-    earlierCoordinates[1] +
-    (laterCoordinates[1] - earlierCoordinates[1]) * ratio;
+  const longitude = earlierCoordinates[0] + (laterCoordinates[0] - earlierCoordinates[0]) * ratio;
+  const latitude = earlierCoordinates[1] + (laterCoordinates[1] - earlierCoordinates[1]) * ratio;
 
   return Object.freeze({
     derivation: "interpolated" as const,

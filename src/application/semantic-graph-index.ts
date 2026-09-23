@@ -97,14 +97,14 @@ function buildState(project: CanonicalProject): IndexState {
     outgoing.set(entityId, outgoingRecords);
     incident.set(
       entityId,
-      sortedRelationships(
-        [...new Map(
+      sortedRelationships([
+        ...new Map(
           [...incomingRecords, ...outgoingRecords].map((relationship) => [
             relationship.id,
             relationship,
           ]),
-        ).values()],
-      ),
+        ).values(),
+      ]),
     );
   }
 
@@ -178,8 +178,7 @@ export function createSemanticGraphIndex(initialProject: CanonicalProject) {
 
       for (const currentId of frontier) {
         for (const edge of incident(currentId)) {
-          const neighbor =
-            edge.subjectId === currentId ? edge.objectId : edge.subjectId;
+          const neighbor = edge.subjectId === currentId ? edge.objectId : edge.subjectId;
           if (!selected.has(neighbor)) candidates.add(neighbor);
         }
       }
@@ -202,10 +201,7 @@ export function createSemanticGraphIndex(initialProject: CanonicalProject) {
     );
     const selectedIds = new Set(entityIds);
     const relationshipIds = [...state.relationships.values()]
-      .filter(
-        (edge) =>
-          selectedIds.has(edge.subjectId) && selectedIds.has(edge.objectId),
-      )
+      .filter((edge) => selectedIds.has(edge.subjectId) && selectedIds.has(edge.objectId))
       .map((edge) => edge.id)
       .sort((left, right) => String(left).localeCompare(String(right)));
 
@@ -214,9 +210,7 @@ export function createSemanticGraphIndex(initialProject: CanonicalProject) {
 
   function connectedComponents(): readonly (readonly EntityId[])[] {
     const remaining = new Set(
-      [...state.entities.keys()].sort((left, right) =>
-        String(left).localeCompare(String(right)),
-      ),
+      [...state.entities.keys()].sort((left, right) => String(left).localeCompare(String(right))),
     );
     const components: EntityId[][] = [];
 
@@ -234,9 +228,7 @@ export function createSemanticGraphIndex(initialProject: CanonicalProject) {
         component.push(current);
 
         const neighbors = incident(current)
-          .map((edge) =>
-            edge.subjectId === current ? edge.objectId : edge.subjectId,
-          )
+          .map((edge) => (edge.subjectId === current ? edge.objectId : edge.subjectId))
           .filter((candidate) => remaining.has(candidate))
           .sort((left, right) => String(left).localeCompare(String(right)));
 
@@ -260,14 +252,12 @@ export function createSemanticGraphIndex(initialProject: CanonicalProject) {
       entityIds: [...state.entities.keys()]
         .map(String)
         .sort((left, right) => left.localeCompare(right)),
-      relationships: [...state.relationships.values()]
-        .sort(compareIds)
-        .map((edge) => ({
-          id: String(edge.id),
-          subjectId: String(edge.subjectId),
-          objectId: String(edge.objectId),
-          predicate: edge.predicate,
-        })),
+      relationships: [...state.relationships.values()].sort(compareIds).map((edge) => ({
+        id: String(edge.id),
+        subjectId: String(edge.subjectId),
+        objectId: String(edge.objectId),
+        predicate: edge.predicate,
+      })),
     };
   }
 

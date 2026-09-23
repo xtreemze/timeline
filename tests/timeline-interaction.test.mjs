@@ -579,4 +579,3 @@ test("focused event popover keeps event semantics compact and image controls dot
   );
   assert.match(architectureDocs, /explicit duration for ranged events/);
 });
-

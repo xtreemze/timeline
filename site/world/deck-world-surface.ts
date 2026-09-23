@@ -55,11 +55,7 @@ interface DeckRuntimePointerEvent {
 }
 
 export interface DeckWorldNodeDragSink {
-  begin(
-    pointerId: number,
-    instanceId: WorldInstanceId,
-    position: WorldNodeDragPosition,
-  ): boolean;
+  begin(pointerId: number, instanceId: WorldInstanceId, position: WorldNodeDragPosition): boolean;
   update(pointerId: number, position: WorldNodeDragPosition): boolean;
   release(pointerId: number): boolean;
   cancel(reason: "pointercancel" | "lostpointercapture"): void;
@@ -159,10 +155,7 @@ function screenPointFromPicking(info: DeckRuntimePickingInfo): ScreenPoint | nul
   return Object.freeze({ x: info.x, y: info.y });
 }
 
-function cameraFromRuntime(
-  value: unknown,
-  fallback: WorldCameraState,
-): WorldCameraState | null {
+function cameraFromRuntime(value: unknown, fallback: WorldCameraState): WorldCameraState | null {
   if (!isRecord(value)) return null;
 
   try {
@@ -236,7 +229,9 @@ function entityDatums(
   }
 
   return Object.freeze(
-    result.sort((left, right) => String(left.worldInstanceId).localeCompare(String(right.worldInstanceId))),
+    result.sort((left, right) =>
+      String(left.worldInstanceId).localeCompare(String(right.worldInstanceId)),
+    ),
   );
 }
 
@@ -256,7 +251,10 @@ function relationshipDatums(
       Object.freeze({
         kind: "relationship",
         relationshipId: edge.id,
-        path: Object.freeze([source, target]) as readonly [WorldRenderPosition, WorldRenderPosition],
+        path: Object.freeze([source, target]) as readonly [
+          WorldRenderPosition,
+          WorldRenderPosition,
+        ],
         selected: selection?.kind === "relationship" && selection.id === edge.id,
         temporalWeight: edge.temporalWeight,
       }),
@@ -309,7 +307,10 @@ export class DeckWorldSurface implements WorldSurface {
   readonly #globeView: unknown;
   readonly #localView: unknown | null;
   readonly #container: HTMLElement;
-  #projection: WorldProjection = Object.freeze({ instances: Object.freeze([]), edges: Object.freeze([]) });
+  #projection: WorldProjection = Object.freeze({
+    instances: Object.freeze([]),
+    edges: Object.freeze([]),
+  });
   #selection: WorldSelection | null = null;
   #camera: WorldCameraState;
   #spatialMode: WorldSpatialMode = "globe";
@@ -318,10 +319,7 @@ export class DeckWorldSurface implements WorldSurface {
   #destroyed = false;
 
   readonly #handlePointerCancel = (event: PointerEvent): void => {
-    if (
-      this.#activeDragPointerId === null ||
-      event.pointerId !== this.#activeDragPointerId
-    ) {
+    if (this.#activeDragPointerId === null || event.pointerId !== this.#activeDragPointerId) {
       return;
     }
     this.#nodeDragSink?.cancel("pointercancel");
@@ -329,10 +327,7 @@ export class DeckWorldSurface implements WorldSurface {
   };
 
   readonly #handleLostPointerCapture = (event: PointerEvent): void => {
-    if (
-      this.#activeDragPointerId === null ||
-      event.pointerId !== this.#activeDragPointerId
-    ) {
+    if (this.#activeDragPointerId === null || event.pointerId !== this.#activeDragPointerId) {
       return;
     }
     this.#nodeDragSink?.cancel("lostpointercapture");
@@ -366,10 +361,7 @@ export class DeckWorldSurface implements WorldSurface {
     });
 
     this.#container.addEventListener?.("pointercancel", this.#handlePointerCancel);
-    this.#container.addEventListener?.(
-      "lostpointercapture",
-      this.#handleLostPointerCapture,
-    );
+    this.#container.addEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
   }
 
   setNodeDragSink(sink: DeckWorldNodeDragSink | null): void {
@@ -409,8 +401,9 @@ export class DeckWorldSurface implements WorldSurface {
 
   focusEntity(id: EntityId): void {
     this.#focusPosition(
-      entityDatums(this.#projection.instances, this.#selection).find((datum) => datum.entityId === id)
-        ?.position ?? null,
+      entityDatums(this.#projection.instances, this.#selection).find(
+        (datum) => datum.entityId === id,
+      )?.position ?? null,
     );
   }
 
@@ -454,10 +447,7 @@ export class DeckWorldSurface implements WorldSurface {
     return Object.freeze({ x, y });
   }
 
-  unproject(
-    point: ScreenPoint,
-    targetAltitudeMeters: number,
-  ): WorldSpatialPosition | null {
+  unproject(point: ScreenPoint, targetAltitudeMeters: number): WorldSpatialPosition | null {
     this.#assertAlive();
     if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
       throw new Error("World screen point must contain finite coordinates.");
@@ -538,18 +528,13 @@ export class DeckWorldSurface implements WorldSurface {
     if (this.#destroyed) return;
     this.#destroyed = true;
     this.#container.removeEventListener?.("pointercancel", this.#handlePointerCancel);
-    this.#container.removeEventListener?.(
-      "lostpointercapture",
-      this.#handleLostPointerCapture,
-    );
+    this.#container.removeEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
     this.#deck.finalize();
   }
 
   #syncSpatialMode(): void {
     const nextMode =
-      this.#localView === null
-        ? "globe"
-        : selectWorldSpatialMode(this.#camera, this.#spatialMode);
+      this.#localView === null ? "globe" : selectWorldSpatialMode(this.#camera, this.#spatialMode);
     if (nextMode === this.#spatialMode) return;
 
     this.#spatialMode = nextMode;
@@ -580,10 +565,7 @@ export class DeckWorldSurface implements WorldSurface {
       : null;
   }
 
-  #beginEntityDrag(
-    info: DeckRuntimePickingInfo,
-    event: DeckRuntimePointerEvent,
-  ): boolean {
+  #beginEntityDrag(info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent): boolean {
     const sink = this.#nodeDragSink;
     const pointerId = pointerIdFromRuntimeEvent(event);
     const target = this.#dragTarget(info);
@@ -594,19 +576,11 @@ export class DeckWorldSurface implements WorldSurface {
     return claimed;
   }
 
-  #updateEntityDrag(
-    info: DeckRuntimePickingInfo,
-    event: DeckRuntimePointerEvent,
-  ): boolean {
+  #updateEntityDrag(info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent): boolean {
     const sink = this.#nodeDragSink;
     const pointerId = pointerIdFromRuntimeEvent(event);
     const target = this.#dragTarget(info);
-    if (
-      !sink ||
-      pointerId === null ||
-      pointerId !== this.#activeDragPointerId ||
-      !target
-    ) {
+    if (!sink || pointerId === null || pointerId !== this.#activeDragPointerId || !target) {
       return false;
     }
     return sink.update(pointerId, target.position);
@@ -614,13 +588,8 @@ export class DeckWorldSurface implements WorldSurface {
 
   #endEntityDrag(event: DeckRuntimePointerEvent): boolean {
     const sink = this.#nodeDragSink;
-    const pointerId =
-      pointerIdFromRuntimeEvent(event) ?? this.#activeDragPointerId;
-    if (
-      !sink ||
-      pointerId === null ||
-      pointerId !== this.#activeDragPointerId
-    ) {
+    const pointerId = pointerIdFromRuntimeEvent(event) ?? this.#activeDragPointerId;
+    if (!sink || pointerId === null || pointerId !== this.#activeDragPointerId) {
       return false;
     }
 
@@ -679,18 +648,12 @@ export class DeckWorldSurface implements WorldSurface {
           datum.selected ? [255, 255, 255, 255] : [220, 220, 220, 235],
         ...(this.#nodeDragSink
           ? {
-              onDragStart: (
-                info: DeckRuntimePickingInfo,
-                event: DeckRuntimePointerEvent,
-              ) => this.#beginEntityDrag(info, event),
-              onDrag: (
-                info: DeckRuntimePickingInfo,
-                event: DeckRuntimePointerEvent,
-              ) => this.#updateEntityDrag(info, event),
-              onDragEnd: (
-                _info: DeckRuntimePickingInfo,
-                event: DeckRuntimePointerEvent,
-              ) => this.#endEntityDrag(event),
+              onDragStart: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
+                this.#beginEntityDrag(info, event),
+              onDrag: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
+                this.#updateEntityDrag(info, event),
+              onDragEnd: (_info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
+                this.#endEntityDrag(event),
             }
           : {}),
       }),

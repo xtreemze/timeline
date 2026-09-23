@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  OrbGraphSurface,
-  createOrbGraphSurfaceFactory,
-} from "../src/layout/orb-graph-surface.ts";
+import { OrbGraphSurface, createOrbGraphSurfaceFactory } from "../src/layout/orb-graph-surface.ts";
 
 function harness() {
   const calls = {

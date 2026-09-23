@@ -7,17 +7,13 @@ export interface WorldSpatialModePolicy {
   readonly exitLocalBelowZoom: number;
 }
 
-export const DEFAULT_WORLD_SPATIAL_MODE_POLICY: WorldSpatialModePolicy =
-  Object.freeze({
-    enterLocalAtZoom: 11.5,
-    exitLocalBelowZoom: 10.5,
-  });
+export const DEFAULT_WORLD_SPATIAL_MODE_POLICY: WorldSpatialModePolicy = Object.freeze({
+  enterLocalAtZoom: 11.5,
+  exitLocalBelowZoom: 10.5,
+});
 
 function validatePolicy(policy: WorldSpatialModePolicy): WorldSpatialModePolicy {
-  if (
-    !Number.isFinite(policy.enterLocalAtZoom) ||
-    !Number.isFinite(policy.exitLocalBelowZoom)
-  ) {
+  if (!Number.isFinite(policy.enterLocalAtZoom) || !Number.isFinite(policy.exitLocalBelowZoom)) {
     throw new Error("World spatial-mode zoom thresholds must be finite.");
   }
   if (policy.exitLocalBelowZoom >= policy.enterLocalAtZoom) {

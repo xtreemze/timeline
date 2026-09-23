@@ -49,6 +49,12 @@
       "@tests/*": ["./tests/*"]
     }
   },
-  "include": ["globals.d.ts", "src/**/*.js", "site/**/*.js", "tests/**/*.mjs", "benchmarks/**/*.mjs"],
+  "include": [
+    "globals.d.ts",
+    "src/**/*.js",
+    "site/**/*.js",
+    "tests/**/*.mjs",
+    "benchmarks/**/*.mjs"
+  ],
   "exclude": ["node_modules", "site/orb-graph.bundle.js"]
 }

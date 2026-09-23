@@ -39,9 +39,7 @@ export function normalize(raw: unknown): Location | null {
 
   const geometry = isRecord(raw.geometry) ? raw.geometry : null;
   const coords =
-    geometry?.type === "Point" && Array.isArray(geometry.coordinates)
-      ? geometry.coordinates
-      : null;
+    geometry?.type === "Point" && Array.isArray(geometry.coordinates) ? geometry.coordinates : null;
 
   const longitude = coordinate(raw.longitude ?? coords?.[0], -180, 180);
   const latitude = coordinate(raw.latitude ?? coords?.[1], -90, 90);
@@ -53,13 +51,9 @@ export function normalize(raw: unknown): Location | null {
       ? raw.source
       : "manual";
   const hasAccuracy =
-    raw.accuracyMeters !== "" &&
-    raw.accuracyMeters !== null &&
-    raw.accuracyMeters !== undefined;
+    raw.accuracyMeters !== "" && raw.accuracyMeters !== null && raw.accuracyMeters !== undefined;
   const accuracyMeters =
-    hasAccuracy &&
-    Number.isFinite(Number(raw.accuracyMeters)) &&
-    Number(raw.accuracyMeters) >= 0
+    hasAccuracy && Number.isFinite(Number(raw.accuracyMeters)) && Number(raw.accuracyMeters) >= 0
       ? Number(raw.accuracyMeters)
       : null;
 
@@ -166,11 +160,7 @@ function clone(value: unknown): unknown {
   }
 }
 
-type NonPointPlaceGeometryType =
-  | "LineString"
-  | "MultiLineString"
-  | "Polygon"
-  | "MultiPolygon";
+type NonPointPlaceGeometryType = "LineString" | "MultiLineString" | "Polygon" | "MultiPolygon";
 
 type PlaceGeometry =
   | {
@@ -355,13 +345,8 @@ export function normalizePlace(raw: unknown, index: number = 0): Place | null {
 
   const iconCandidate = text(raw.icon || marker.icon || attributes.icon, 48);
   const icon = PLACE_ICON_NAMES.has(iconCandidate) ? iconCandidate : "place";
-  const markerShapeCandidate = text(
-    raw.markerShape || marker.shape || attributes.markerShape,
-    24,
-  );
-  const markerShape = PLACE_MARKER_SHAPES.has(markerShapeCandidate)
-    ? markerShapeCandidate
-    : "pin";
+  const markerShapeCandidate = text(raw.markerShape || marker.shape || attributes.markerShape, 24);
+  const markerShape = PLACE_MARKER_SHAPES.has(markerShapeCandidate) ? markerShapeCandidate : "pin";
   const style = normalizePlaceStyle(raw.style || raw.mapStyle || attributes.style);
 
   const clonedAttributes = clone(attributes);
@@ -551,15 +536,12 @@ export function placeFormParts(place: unknown): {
     pathDashOffset: normalized?.style?.path?.dashOffset || "",
     pathLineCap: normalized?.style?.path?.lineCap || "",
     pathLineJoin: normalized?.style?.path?.lineJoin || "",
-    areaFill:
-      normalized?.style?.area?.fill === undefined ? "" : String(normalized.style.area.fill),
+    areaFill: normalized?.style?.area?.fill === undefined ? "" : String(normalized.style.area.fill),
     areaFillColor: normalized?.style?.area?.fillColor || "",
     areaFillOpacity: normalized?.style?.area?.fillOpacity ?? "",
     areaFillRule: normalized?.style?.area?.fillRule || "",
     areaGeometry:
-      normalized?.geometry &&
-      "type" in normalized.geometry &&
-      normalized.geometry.type !== "Point"
+      normalized?.geometry && "type" in normalized.geometry && normalized.geometry.type !== "Point"
         ? JSON.stringify(normalized.geometry, null, 2)
         : "",
   };

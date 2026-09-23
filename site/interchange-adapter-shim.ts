@@ -4,7 +4,7 @@
  * This shim can be removed after app.ts conversion (Phase 4d)
  */
 
-import { TimelineInterchangeAdapter } from './interchange-adapter.ts';
+import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
 
 globalThis.TimelineInterchangeAdapter = TimelineInterchangeAdapter;
 

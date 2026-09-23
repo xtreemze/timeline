@@ -510,7 +510,6 @@ test("keeps open-boundary flags invalid on instants", () => {
   );
 });
 
-
 const geotemporalAlice = {
   id: entityId("geo-alice"),
   type: "person",
@@ -547,7 +546,14 @@ test("geotemporal geometry validation enforces CRS84 coordinate bounds and close
   assert.match(
     validateSpatialGeometry({
       type: "Polygon",
-      coordinates: [[[18, 59], [19, 59], [19, 60], [18, 60]]],
+      coordinates: [
+        [
+          [18, 59],
+          [19, 59],
+          [19, 60],
+          [18, 60],
+        ],
+      ],
     }).join(" "),
     /closed/i,
   );
@@ -563,9 +569,7 @@ test("geotemporal states remain immutable canonical records with explicit eviden
   assert.equal(ledger.states.length, 0);
   assert.equal(recorded.states.length, 1);
   assert.equal(recorded.states[0].basis, "observed");
-  assert.throws(() =>
-    recordGeotemporalState(recorded, observed, [geotemporalAlice]),
-  );
+  assert.throws(() => recordGeotemporalState(recorded, observed, [geotemporalAlice]));
 });
 
 test("geotemporal projection preserves overlapping spatial claims instead of selecting truth", () => {
@@ -578,7 +582,7 @@ test("geotemporal projection preserves overlapping spatial claims instead of sel
     },
   };
   const asserted = {
-    ...geoInstant("state-asserted", "2026-09-21", [18.40, 59.20], "asserted"),
+    ...geoInstant("state-asserted", "2026-09-21", [18.4, 59.2], "asserted"),
     validTime: {
       type: "interval",
       start: { value: "2026-09-21" },
@@ -605,11 +609,7 @@ test("interpolated point geometry is disposable projection state, never a canoni
   const later = geoInstant("state-b", "2026-09-22", [20, 61]);
   const before = JSON.stringify([earlier, later]);
 
-  const projected = interpolatePointStates(
-    earlier,
-    later,
-    Date.parse("2026-09-21T00:00:00Z"),
-  );
+  const projected = interpolatePointStates(earlier, later, Date.parse("2026-09-21T00:00:00Z"));
 
   assert.equal(projected.derivation, "interpolated");
   assert.deepEqual(projected.geometry.coordinates, [19, 60]);
@@ -622,10 +622,7 @@ test("movement continuity metadata is restricted to path geometry", () => {
     ...geoInstant("state-point-path", "2026-09-20", [18, 59]),
     movementContinuity: "continuous",
   };
-  assert.match(
-    validateGeotemporalState(invalid, [geotemporalAlice]).join(" "),
-    /path geometries/i,
-  );
+  assert.match(validateGeotemporalState(invalid, [geotemporalAlice]).join(" "), /path geometries/i);
 
   const valid = {
     ...invalid,

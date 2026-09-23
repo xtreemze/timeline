@@ -70,10 +70,7 @@ test("source fragments require text, locator, and bounded confidence", () => {
 
 test("candidate claims preserve resolvable fragment/source provenance", () => {
   assert.deepEqual(validateCandidateClaim(claim, ledger), []);
-  assert.match(
-    validateCandidateClaim({ ...claim, sourceIds: [] }, ledger).join(" "),
-    /source/i,
-  );
+  assert.match(validateCandidateClaim({ ...claim, sourceIds: [] }, ledger).join(" "), /source/i);
 });
 
 test("accepted claim commits one canonical relationship atomically", () => {

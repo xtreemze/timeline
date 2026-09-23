@@ -210,17 +210,16 @@ function lintCss(file, source) {
     primarySurfaceOverflowMasking(source),
     debt.primarySurfaceOverflow || {},
   );
-  compareExactDebt(
-    file,
-    "no-root-min-width",
-    rootMinWidth(source),
-    debt.rootMinWidth || {},
-  );
+  compareExactDebt(file, "no-root-min-width", rootMinWidth(source), debt.rootMinWidth || {});
 
   const vh = countMatches(source, /\b100vh\b/g);
   const allowedVh = debt.legacy100vh || 0;
   if (vh > allowedVh) {
-    report(file, "prefer-dynamic-viewport-units", `100vh occurs ${vh} time(s), baseline allows ${allowedVh}`);
+    report(
+      file,
+      "prefer-dynamic-viewport-units",
+      `100vh occurs ${vh} time(s), baseline allows ${allowedVh}`,
+    );
   } else if (vh < allowedVh) {
     report(
       file,
@@ -230,7 +229,11 @@ function lintCss(file, source) {
   }
 
   if (/transition\s*:\s*all\b/i.test(source)) {
-    report(file, "no-transition-all", "transition: all is forbidden; name the properties that animate");
+    report(
+      file,
+      "no-transition-all",
+      "transition: all is forbidden; name the properties that animate",
+    );
   }
   if (
     ["site/styles.css", "site/timeline-view.css"].includes(file) &&
@@ -253,7 +256,11 @@ function lintCss(file, source) {
     );
   }
   if (/!important\b/.test(source)) {
-    report(file, "no-important", "!important is forbidden; resolve cascade/specificity ownership instead");
+    report(
+      file,
+      "no-important",
+      "!important is forbidden; resolve cascade/specificity ownership instead",
+    );
   }
 }
 
@@ -306,10 +313,18 @@ function lintTypeScript(file, source) {
   );
 
   if (/@ts-(?:ignore|nocheck|expect-error)\b/.test(source)) {
-    report(file, "no-ts-suppression", "@ts-ignore, @ts-nocheck, and @ts-expect-error are forbidden; model the uncertainty explicitly");
+    report(
+      file,
+      "no-ts-suppression",
+      "@ts-ignore, @ts-nocheck, and @ts-expect-error are forbidden; model the uncertainty explicitly",
+    );
   }
   if (/\bas\s+unknown\s+as\s+(?:[A-Za-z_$]|[<{(\[])/.test(source)) {
-    report(file, "no-double-assertion", "double assertions through unknown are forbidden; validate or narrow at the boundary");
+    report(
+      file,
+      "no-double-assertion",
+      "double assertions through unknown are forbidden; validate or narrow at the boundary",
+    );
   }
   if (/matchMedia\s*\(\s*["'`][^"'`]*(?:max-width|width\s*(?:<=|<))/.test(source)) {
     report(
@@ -332,7 +347,11 @@ function lintTypeScript(file, source) {
     );
   }
   if (importsLit && /document\.createElement\s*\(/.test(source)) {
-    report(file, "lit-no-imperative-dom", "Lit-owned surfaces must not construct UI with document.createElement()");
+    report(
+      file,
+      "lit-no-imperative-dom",
+      "Lit-owned surfaces must not construct UI with document.createElement()",
+    );
   }
 }
 
@@ -343,8 +362,7 @@ function lintArchitectureBoundaries(file, source) {
   const isLayout = file.startsWith("src/layout/");
   const isInteraction = file.startsWith("src/interaction/");
   const isRendererAdapter =
-    file === "src/layout/graph-surface.ts" ||
-    file === "src/layout/orb-graph-surface.ts";
+    file === "src/layout/graph-surface.ts" || file === "src/layout/orb-graph-surface.ts";
   if (!isDomain && !isApplication && !isProjection && !isLayout && !isInteraction) return;
 
   const imports = [...source.matchAll(/(?:from\s+|import\s*\(\s*)["']([^"']+)["']/g)].map(
@@ -364,21 +382,40 @@ function lintArchitectureBoundaries(file, source) {
         `core architecture layer must not import renderer/framework/provider dependency "${specifier}"`,
       );
     }
-    const importSegments = specifier.split("/").filter((segment) => segment && segment !== "." && segment !== "..");
-    if (isDomain && importSegments.some((segment) => ["application", "projection", "layout", "interaction"].includes(segment))) {
+    const importSegments = specifier
+      .split("/")
+      .filter((segment) => segment && segment !== "." && segment !== "..");
+    if (
+      isDomain &&
+      importSegments.some((segment) =>
+        ["application", "projection", "layout", "interaction"].includes(segment),
+      )
+    ) {
       report(file, "domain-dependency-direction", `domain must not import "${specifier}"`);
     }
-    if (isApplication && importSegments.some((segment) => ["projection", "layout", "interaction"].includes(segment))) {
-      report(file, "application-dependency-direction", `application must not import "${specifier}"`);
+    if (
+      isApplication &&
+      importSegments.some((segment) => ["projection", "layout", "interaction"].includes(segment))
+    ) {
+      report(
+        file,
+        "application-dependency-direction",
+        `application must not import "${specifier}"`,
+      );
     }
-    if (isProjection && importSegments.some((segment) => ["layout", "interaction"].includes(segment))) {
+    if (
+      isProjection &&
+      importSegments.some((segment) => ["layout", "interaction"].includes(segment))
+    ) {
       report(file, "projection-dependency-direction", `projection must not import "${specifier}"`);
     }
   }
 
   if (
     !isRendererAdapter &&
-    /\b(?:document|window|HTMLElement|HTML[A-Za-z]+Element|Element|CSS|requestAnimationFrame|localStorage|sessionStorage|navigator)\b/.test(source)
+    /\b(?:document|window|HTMLElement|HTML[A-Za-z]+Element|Element|CSS|requestAnimationFrame|localStorage|sessionStorage|navigator)\b/.test(
+      source,
+    )
   ) {
     report(
       file,
@@ -387,9 +424,16 @@ function lintArchitectureBoundaries(file, source) {
     );
   }
   if (/globalThis(?:\s+as\s+any)?\)?\.Timeline[A-Za-z0-9_]*/.test(source)) {
-    report(file, "no-ambient-timeline-global-in-core", "core architecture layers must use imports/contracts, never ambient Timeline globals");
+    report(
+      file,
+      "no-ambient-timeline-global-in-core",
+      "core architecture layers must use imports/contracts, never ambient Timeline globals",
+    );
   }
-  if ((isDomain || isProjection) && /\b(?:Math\.random|Date\.now|performance\.now|crypto\.randomUUID)\s*\(/.test(source)) {
+  if (
+    (isDomain || isProjection) &&
+    /\b(?:Math\.random|Date\.now|performance\.now|crypto\.randomUUID)\s*\(/.test(source)
+  ) {
     report(
       file,
       "deterministic-core",
@@ -400,7 +444,11 @@ function lintArchitectureBoundaries(file, source) {
 
 function lintResponsiveScriptPolicy(file, source) {
   if (/\bnavigator\.(?:userAgent|platform|vendor|userAgentData)\b/.test(source)) {
-    report(file, "no-device-sniffing", "user-agent/platform sniffing is forbidden; use capability detection and progressive enhancement");
+    report(
+      file,
+      "no-device-sniffing",
+      "user-agent/platform sniffing is forbidden; use capability detection and progressive enhancement",
+    );
   }
   if (
     /matchMedia\s*\(\s*["'`][^"'`]*(?:max-width|width\s*(?:<=|<))/.test(source) ||
@@ -415,7 +463,11 @@ function lintResponsiveScriptPolicy(file, source) {
     );
   }
   if (/["']ontouchstart["']\s+in\s+(?:window|globalThis)/.test(source)) {
-    report(file, "no-touch-presence-sniffing", "do not infer interaction mode from ontouchstart; use Pointer Events/capability queries");
+    report(
+      file,
+      "no-touch-presence-sniffing",
+      "do not infer interaction mode from ontouchstart; use Pointer Events/capability queries",
+    );
   }
 }
 
@@ -466,7 +518,10 @@ function lintHtml(file, source) {
     report(file, "viewport-meta-required", "HTML entry points must declare a responsive viewport");
   } else {
     const content = viewport[0].match(/\bcontent=["']([^"']*)["']/i)?.[1] || "";
-    if (!/\bwidth\s*=\s*device-width\b/i.test(content) || !/\binitial-scale\s*=\s*1(?:\.0+)?\b/i.test(content)) {
+    if (
+      !/\bwidth\s*=\s*device-width\b/i.test(content) ||
+      !/\binitial-scale\s*=\s*1(?:\.0+)?\b/i.test(content)
+    ) {
       report(
         file,
         "viewport-meta-responsive",
@@ -488,7 +543,9 @@ function lintHtml(file, source) {
 }
 
 function lintScriptSafety(file, source) {
-  if (/\.innerHTML\s*=|\.outerHTML\s*=|\.insertAdjacentHTML\s*\(|document\.write\s*\(/.test(source)) {
+  if (
+    /\.innerHTML\s*=|\.outerHTML\s*=|\.insertAdjacentHTML\s*\(|document\.write\s*\(/.test(source)
+  ) {
     report(file, "no-unsafe-dom-html", "HTML string injection APIs are forbidden");
   }
   if (/\b(?:eval|Function)\s*\(/.test(source)) {
@@ -536,7 +593,12 @@ function lintDisableComments(file, source) {
   }
 }
 
-const files = [...(await walk("site")), ...(await walk("src")), ...(await walk("tests")), ...(await walk("benchmarks"))];
+const files = [
+  ...(await walk("site")),
+  ...(await walk("src")),
+  ...(await walk("tests")),
+  ...(await walk("benchmarks")),
+];
 
 for (const file of files) {
   if (file.endsWith(".bundle.js")) continue;
@@ -565,5 +627,7 @@ if (errors.length > 0) {
   );
   process.exitCode = 1;
 } else {
-  console.log("Architecture lint passed: no new responsive, input-model, typing, DOM, or framework-boundary debt.");
+  console.log(
+    "Architecture lint passed: no new responsive, input-model, typing, DOM, or framework-boundary debt.",
+  );
 }

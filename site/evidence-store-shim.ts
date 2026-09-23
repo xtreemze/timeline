@@ -3,7 +3,7 @@
  * Sets TimelineEvidence on globalThis for backward compatibility with IIFE code
  */
 
-import { TimelineEvidence } from './evidence-store.ts';
+import { TimelineEvidence } from "./evidence-store.ts";
 
 globalThis.TimelineEvidence = TimelineEvidence;
 

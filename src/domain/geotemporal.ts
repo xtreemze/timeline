@@ -94,7 +94,9 @@ export function validateSpatialGeometry(geometry: unknown): readonly string[] {
 
   if (type === "Point") {
     return Object.freeze(
-      isPosition(coordinates) ? [] : ["Point coordinates must contain valid longitude and latitude."],
+      isPosition(coordinates)
+        ? []
+        : ["Point coordinates must contain valid longitude and latitude."],
     );
   }
 

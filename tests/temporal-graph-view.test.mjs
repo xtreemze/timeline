@@ -297,7 +297,10 @@ test("temporal graph stages topology deltas through GraphSurface after first ren
 
   assert.match(source, /hasRenderedData\s*=\s*false/);
   assert.match(source, /this\.surface\.transitionProjection\(projection\)/);
-  assert.match(source, /this\.surface\.setProjection\(projection\)[\s\S]*this\.hasRenderedData\s*=\s*true/);
+  assert.match(
+    source,
+    /this\.surface\.setProjection\(projection\)[\s\S]*this\.hasRenderedData\s*=\s*true/,
+  );
 });
 
 test("open-ended relationship intervals intersect only the appropriate timeline side", () => {
@@ -425,11 +428,13 @@ test("bounded unknown relationship time uses only its declared bounds for window
   );
 });
 
-
 test("clearing all graph records bypasses topology transitions through GraphSurface", async () => {
   const source = await readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8");
 
-  assert.match(source, /const graphIsEmpty = data\.nodes\.length === 0 && data\.edges\.length === 0/);
+  assert.match(
+    source,
+    /const graphIsEmpty = data\.nodes\.length === 0 && data\.edges\.length === 0/,
+  );
   assert.match(
     source,
     /if \(this\.hasRenderedData\) \{[\s\S]{0,500}if \(graphIsEmpty\) this\.surface\.setProjection\(projection\)[\s\S]{0,300}else this\.surface\.transitionProjection\(projection\)/,
@@ -437,16 +442,27 @@ test("clearing all graph records bypasses topology transitions through GraphSurf
   assert.doesNotMatch(source, /this\.orb\./);
 });
 
-
 test("application spatial-view selection prefers the globe WorldView factory", () => {
-  const world = { create() { return { kind: "world" }; } };
-  const legacy = { create() { return { kind: "legacy" }; } };
+  const world = {
+    create() {
+      return { kind: "world" };
+    },
+  };
+  const legacy = {
+    create() {
+      return { kind: "legacy" };
+    },
+  };
 
   assert.equal(selectPrimarySpatialViewFactory(world, legacy), world);
 });
 
 test("application spatial-view selection retains Orb graph fallback during migration", () => {
-  const legacy = { create() { return { kind: "legacy" }; } };
+  const legacy = {
+    create() {
+      return { kind: "legacy" };
+    },
+  };
 
   assert.equal(selectPrimarySpatialViewFactory(null, legacy), legacy);
 });

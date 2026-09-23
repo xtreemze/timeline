@@ -86,8 +86,7 @@ interface Viewport {
 }
 
 export function normalizeViewport(viewport: unknown): Viewport {
-  if (!viewport || typeof viewport !== "object")
-    throw new TypeError("Expected a viewport object.");
+  if (!viewport || typeof viewport !== "object") throw new TypeError("Expected a viewport object.");
   const start = Number((viewport as any).start);
   const end = Number((viewport as any).end);
   assertFinite(start, "viewport.start");

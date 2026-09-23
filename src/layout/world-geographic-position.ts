@@ -1,7 +1,4 @@
-import type {
-  ProjectedWorldInstance,
-  SpatialAnchor,
-} from "../projection/world-projection.ts";
+import type { ProjectedWorldInstance, SpatialAnchor } from "../projection/world-projection.ts";
 
 export type WorldRenderPosition = readonly [longitude: number, latitude: number, altitude: number];
 
@@ -24,7 +21,7 @@ function radians(value: number): number {
 
 function wrapLongitude(value: number): number {
   if (value >= -180 && value <= 180) return Object.is(value, -0) ? 0 : value;
-  const wrapped = ((value + 180) % 360 + 360) % 360 - 180;
+  const wrapped = ((((value + 180) % 360) + 360) % 360) - 180;
   return Object.is(wrapped, -0) ? 0 : wrapped;
 }
 
@@ -48,12 +45,14 @@ function validateRenderPosition(position: WorldRenderPosition): void {
 function primaryAnchor(anchors: readonly SpatialAnchor[]): SpatialAnchor | null {
   if (!anchors.length) return null;
 
-  return [...anchors].sort(
-    (left, right) =>
-      right.influence - left.influence ||
-      (right.certainty ?? -1) - (left.certainty ?? -1) ||
-      String(left.placeId).localeCompare(String(right.placeId)),
-  )[0] ?? null;
+  return (
+    [...anchors].sort(
+      (left, right) =>
+        right.influence - left.influence ||
+        (right.certainty ?? -1) - (left.certainty ?? -1) ||
+        String(left.placeId).localeCompare(String(right.placeId)),
+    )[0] ?? null
+  );
 }
 
 export function resolveWorldRenderPosition(
@@ -83,7 +82,6 @@ export function resolveWorldRenderPosition(
   return Object.freeze([longitude, latitude, altitude]);
 }
 
-
 export function resolveWorldLocalLayoutPosition(
   instance: ProjectedWorldInstance,
   position: WorldRenderPosition,
@@ -101,12 +99,8 @@ export function resolveWorldLocalLayoutPosition(
     Math.abs(cosine) <= POLAR_COSINE_EPSILON
       ? 0
       : radians(longitudeDelta) * EARTH_RADIUS_METERS * cosine;
-  const northMeters =
-    radians(latitude - anchor.latitude) * EARTH_RADIUS_METERS;
-  const visualAltitudeMeters = Math.max(
-    0,
-    altitude - (anchor.sourceAltitude ?? 0),
-  );
+  const northMeters = radians(latitude - anchor.latitude) * EARTH_RADIUS_METERS;
+  const visualAltitudeMeters = Math.max(0, altitude - (anchor.sourceAltitude ?? 0));
 
   return Object.freeze({
     eastMeters,

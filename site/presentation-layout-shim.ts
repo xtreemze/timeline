@@ -3,7 +3,7 @@
  * Sets TimelinePresentationLayout on globalThis for backward compatibility with IIFE code
  */
 
-import { TimelinePresentationLayout } from './presentation-layout.ts';
+import { TimelinePresentationLayout } from "./presentation-layout.ts";
 
 globalThis.TimelinePresentationLayout = TimelinePresentationLayout;
 

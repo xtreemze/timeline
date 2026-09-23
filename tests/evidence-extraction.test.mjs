@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   createEvidenceExtraction,
   normalizeExtraction,
-  pdfTextFromItems
+  pdfTextFromItems,
 } from "../src/evidence-extraction-core.js";
 
 function fakePdfjs(pages) {
@@ -17,13 +17,13 @@ function fakePdfjs(pages) {
         async getPage(pageNumber) {
           return pages[pageNumber - 1];
         },
-        async destroy() {}
+        async destroy() {},
       };
       return {
         promise: Promise.resolve(document),
-        destroy() {}
+        destroy() {},
       };
-    }
+    },
   };
 }
 
@@ -33,11 +33,11 @@ function nativeTextPage(text) {
       return {
         items: text.split(" ").map((word, index, words) => ({
           str: word,
-          hasEOL: index === words.length - 1
-        }))
+          hasEOL: index === words.length - 1,
+        })),
       };
     },
-    cleanup() {}
+    cleanup() {},
   };
 }
 
@@ -52,7 +52,7 @@ function scannedPage() {
     render() {
       return { promise: Promise.resolve() };
     },
-    cleanup() {}
+    cleanup() {},
   };
 }
 
@@ -67,11 +67,11 @@ function fakeCanvasRoot(overrides = {}) {
           height: 0,
           getContext() {
             return {};
-          }
+          },
         };
-      }
+      },
     },
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -81,15 +81,17 @@ test("PDF text item joining preserves page reading flow", () => {
       { str: "Alice", hasEOL: false },
       { str: "called", hasEOL: false },
       { str: "Bob.", hasEOL: true },
-      { str: "09:30", hasEOL: true }
+      { str: "09:30", hasEOL: true },
     ]),
-    "Alice called Bob.\n09:30"
+    "Alice called Bob.\n09:30",
   );
 });
 
 test("embedded PDF text is extracted before OCR and keeps a page locator", async () => {
   const pdfjs = fakePdfjs([
-    nativeTextPage("Alice called Bob from the Stockholm office at 09:30 and confirmed the transfer in writing.")
+    nativeTextPage(
+      "Alice called Bob from the Stockholm office at 09:30 and confirmed the transfer in writing.",
+    ),
   ]);
   class ForbiddenTextDetector {
     constructor() {
@@ -100,13 +102,12 @@ test("embedded PDF text is extracted before OCR and keeps a page locator", async
   const extraction = createEvidenceExtraction({
     pdfjs,
     root,
-    now: () => "2026-09-21T00:00:00Z"
+    now: () => "2026-09-21T00:00:00Z",
   });
 
-  const result = await extraction.extract(
-    new Blob(["fake-pdf"], { type: "application/pdf" }),
-    { fileName: "evidence.pdf" }
-  );
+  const result = await extraction.extract(new Blob(["fake-pdf"], { type: "application/pdf" }), {
+    fileName: "evidence.pdf",
+  });
 
   assert.equal(result.status, "complete");
   assert.equal(result.segments.length, 1);
@@ -122,20 +123,19 @@ test("scanned PDF pages fall through to OCR and retain page provenance", async (
     async detect() {
       return [
         { rawValue: "Alice called Bob", boundingBox: { x: 10, y: 20 } },
-        { rawValue: "at 09:30", boundingBox: { x: 10, y: 40 } }
+        { rawValue: "at 09:30", boundingBox: { x: 10, y: 40 } },
       ];
     }
   }
   const extraction = createEvidenceExtraction({
     pdfjs,
     root: fakeCanvasRoot({ TextDetector }),
-    now: () => "2026-09-21T00:00:00Z"
+    now: () => "2026-09-21T00:00:00Z",
   });
 
-  const result = await extraction.extract(
-    new Blob(["scan"], { type: "application/pdf" }),
-    { fileName: "scan.pdf" }
-  );
+  const result = await extraction.extract(new Blob(["scan"], { type: "application/pdf" }), {
+    fileName: "scan.pdf",
+  });
 
   assert.equal(result.segments.length, 1);
   assert.deepEqual(result.segments[0].locator, { kind: "page", page: 1 });
@@ -154,13 +154,12 @@ test("image evidence uses OCR and keeps image provenance", async () => {
   const extraction = createEvidenceExtraction({
     pdfjs,
     root: { TextDetector },
-    now: () => "2026-09-21T00:00:00Z"
+    now: () => "2026-09-21T00:00:00Z",
   });
 
-  const result = await extraction.extract(
-    new Blob(["png"], { type: "image/png" }),
-    { fileName: "invoice.png" }
-  );
+  const result = await extraction.extract(new Blob(["png"], { type: "image/png" }), {
+    fileName: "invoice.png",
+  });
 
   assert.deepEqual(result.segments[0].locator, { kind: "image", index: 1 });
   assert.equal(result.segments[0].method, "text-detector");
@@ -187,20 +186,19 @@ test("built-in multimodal LanguageModel is the OCR fallback when native text det
         },
         destroy() {
           destroyed = true;
-        }
+        },
       };
-    }
+    },
   };
   const extraction = createEvidenceExtraction({
     pdfjs,
     root: { LanguageModel },
-    now: () => "2026-09-21T00:00:00Z"
+    now: () => "2026-09-21T00:00:00Z",
   });
 
-  const result = await extraction.extract(
-    new Blob(["photo"], { type: "image/jpeg" }),
-    { fileName: "serial.jpg" }
-  );
+  const result = await extraction.extract(new Blob(["photo"], { type: "image/jpeg" }), {
+    fileName: "serial.jpg",
+  });
 
   assert.equal(result.segments[0].method, "language-model-vision");
   assert.equal(result.segments[0].text, "Visible serial 7A-42");
@@ -215,17 +213,21 @@ test("normalization preserves derived extraction locators without promoting unre
     mimeType: "application/pdf",
     generatedAt: "2026-09-21T00:00:00Z",
     tool: { name: "Timeline Evidence Extraction", version: "1" },
-    segments: [{
-      id: "page-2",
-      locator: { kind: "page", page: 2 },
-      method: "pdf-text",
-      text: "Confirmed transfer.",
-      confidence: 1
-    }],
-    unresolved: [{
-      locator: { kind: "page", page: 3 },
-      reason: "No text recovered."
-    }]
+    segments: [
+      {
+        id: "page-2",
+        locator: { kind: "page", page: 2 },
+        method: "pdf-text",
+        text: "Confirmed transfer.",
+        confidence: 1,
+      },
+    ],
+    unresolved: [
+      {
+        locator: { kind: "page", page: 3 },
+        reason: "No text recovered.",
+      },
+    ],
   });
 
   assert.equal(normalized.status, "partial");

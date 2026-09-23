@@ -11,18 +11,9 @@ test("focus and orientation share the retained structural transaction boundary",
   assert.match(source, /document\.startViewTransition\(commit\)/);
   assert.match(source, /update\(\);\s*this\.commitInteraction\(\)/);
   assert.match(source, /activeElement\.focus\(\{ preventScroll: true \}\)/);
-  assert.match(
-    source,
-    /setOrientation[\s\S]*this\.runStructuralTransaction\(\(\) => \{/,
-  );
-  assert.match(
-    source,
-    /focusItem[\s\S]*this\.runStructuralTransaction\(update\)/,
-  );
-  assert.match(
-    source,
-    /closeFocus[\s\S]*this\.runStructuralTransaction\(update\)/,
-  );
+  assert.match(source, /setOrientation[\s\S]*this\.runStructuralTransaction\(\(\) => \{/);
+  assert.match(source, /focusItem[\s\S]*this\.runStructuralTransaction\(update\)/);
+  assert.match(source, /closeFocus[\s\S]*this\.runStructuralTransaction\(update\)/);
 });
 
 test("structural transactions preserve reduced-motion semantic commits", async () => {
