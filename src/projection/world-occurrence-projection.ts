@@ -5,6 +5,8 @@ import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
   createWorldProjection,
+  type ProjectedWorldEdge,
+  type ProjectedWorldInstance,
   type WorldProjection,
   worldInstanceId,
 } from "./world-projection.ts";
@@ -30,8 +32,8 @@ export function projectWorldOccurrences(
     relationshipsById.set(relationship.id, relationship);
   }
 
-  const instances = [];
-  const edges = [];
+  const instances: ProjectedWorldInstance[] = [];
+  const edges: ProjectedWorldEdge[] = [];
 
   const activeIds = [...new Set(activeOccurrenceIds)].sort((left, right) =>
     String(left).localeCompare(String(right)),
