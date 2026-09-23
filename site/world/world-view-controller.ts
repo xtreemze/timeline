@@ -150,9 +150,7 @@ export class WorldViewRuntimeController {
     return this.#drag.release(pointerId);
   }
 
-  cancelNodeDrag(
-    reason: Exclude<InteractionCompletionReason, "release">,
-  ): void {
+  cancelNodeDrag(reason: Exclude<InteractionCompletionReason, "release">): void {
     this.#assertAlive();
     this.#drag.cancel(reason);
   }
