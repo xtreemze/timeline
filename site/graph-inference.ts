@@ -133,7 +133,8 @@ export const SYSTEM_PROMPT = [
   "Return only the JSON required by the response schema.",
   "",
   "Graph rules:",
-  "- entity candidates are durable people, organizations, groups, devices, accounts, documents, or physical/digital objects with independent identity;",
+  "- entity candidates are durable nouns with independent identity and MUST use the narrowest defensible domain type (for example person, organization, dwelling, vehicle, garment, food, document, buildingMaterial);",
+  "- never emit placeholder entity types such as entity, object, thing, item, resource, or agent;",
   "- never create nodes for actions, events, meetings, transactions, decisions, processes, places, dates, times, geometry, categories, stories, or roles;",
   "- a relationship connects two different entity candidates and its predicate is one concrete action verb, optionally followed by one grammatical particle;",
   "- never encode an entity name, place, time, instrument, role, cause, or other noun into the predicate;",
@@ -442,7 +443,7 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
     const name = text(candidate?.name, 180);
     if (!key || !name || entityByKey.has(key)) continue;
     const alternateNames = uniqueTextList(candidate?.alternateNames, 24, 180);
-    const type = text(candidate?.type, 60) || "entity";
+    const type = text(candidate?.type, 60);
     const validation = graph.validateEntityNode({ name, type, alternateNames, attributes: {} });
     if (!validation.valid) {
       rejected.push({ kind: "entity", label: name, reason: validation.message });
