@@ -8,7 +8,14 @@ import { projectFocusedTopology, projectTopology } from "../src/projection/topol
 import { projectTopologyWorld } from "../src/projection/topology-world-projection.ts";
 
 function entity(id) {
-  return { id: entityId(id), type: "person", name: id.toUpperCase(), alternateNames: [], sourceIds: [], attributes: {} };
+  return {
+    id: entityId(id),
+    type: "person",
+    name: id.toUpperCase(),
+    alternateNames: [],
+    sourceIds: [],
+    attributes: {},
+  };
 }
 
 function relationship(id, subjectId, objectId, placeId) {
@@ -51,17 +58,24 @@ function anchors(project) {
 
 test("topology edges define canonical relationships materialized into the world", () => {
   const project = fixture();
-  const topology = projectTopology(
-    project,
-    createSemanticGraphIndex(project),
-    [relationshipId("bc"), relationshipId("ab")],
-  );
+  const topology = projectTopology(project, createSemanticGraphIndex(project), [
+    relationshipId("bc"),
+    relationshipId("ab"),
+  ]);
   const world = projectTopologyWorld(project.relationships, topology, anchors(project));
 
-  assert.deepEqual(world.edges.map((edge) => String(edge.id)), ["ab", "bc"]);
-  assert.equal(world.edges.some((edge) => edge.id === "cd"), false);
   assert.deepEqual(
-    world.instances.filter((instance) => instance.canonicalId === "b").map((instance) => String(instance.occurrenceId)),
+    world.edges.map((edge) => String(edge.id)),
+    ["ab", "bc"],
+  );
+  assert.equal(
+    world.edges.some((edge) => edge.id === "cd"),
+    false,
+  );
+  assert.deepEqual(
+    world.instances
+      .filter((instance) => instance.canonicalId === "b")
+      .map((instance) => String(instance.occurrenceId)),
     ["ab", "bc"],
   );
 });
@@ -78,7 +92,10 @@ test("focused topology directly reduces the world scene", () => {
   );
   const world = projectTopologyWorld(project.relationships, topology, anchors(project));
 
-  assert.deepEqual(world.edges.map((edge) => String(edge.id)), ["ab"]);
+  assert.deepEqual(
+    world.edges.map((edge) => String(edge.id)),
+    ["ab"],
+  );
   assert.deepEqual(
     [...new Set(world.instances.map((instance) => String(instance.canonicalId)))],
     ["a", "b"],
@@ -87,7 +104,9 @@ test("focused topology directly reduces the world scene", () => {
 
 test("world composition preserves temporal, visual, and retention weights", () => {
   const project = fixture();
-  const topology = projectTopology(project, createSemanticGraphIndex(project), [relationshipId("ab")]);
+  const topology = projectTopology(project, createSemanticGraphIndex(project), [
+    relationshipId("ab"),
+  ]);
   const world = projectTopologyWorld(project.relationships, topology, anchors(project), {
     temporalWeights: new Map([[relationshipId("ab"), 0.5]]),
     visualWeights: new Map([[relationshipId("ab"), 0.75]]),
@@ -109,7 +128,14 @@ test("topology cannot introduce a noncanonical relationship", () => {
         project.relationships,
         {
           nodes: [],
-          edges: [{ id: relationshipId("missing"), sourceId: entityId("a"), targetId: entityId("b"), label: "invented" }],
+          edges: [
+            {
+              id: relationshipId("missing"),
+              sourceId: entityId("a"),
+              targetId: entityId("b"),
+              label: "invented",
+            },
+          ],
         },
         anchors(project),
       ),
