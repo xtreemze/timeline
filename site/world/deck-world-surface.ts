@@ -144,7 +144,23 @@ export type DeckWorldEntityRenderDatum = DeckWorldEntityDatum | DeckWorldCluster
  * unaffected at working zoom levels.
  */
 export const CLUSTER_ZOOM_THRESHOLD = 0.5;
-// Dense-overview LOD is certified separately from this baseline proximity threshold.
+
+/**
+ * Dense projections need semantic LOD earlier than sparse scenes: drawing
+ * tens of thousands of individually pickable glyphs at a globe overview is
+ * both unreadable and needlessly expensive. This threshold is presentation
+ * only; canonical membership remains in each cluster and zooming to a
+ * working scale restores the original world instances.
+ */
+const DENSE_CLUSTER_ENTITY_THRESHOLD = 25_000;
+const DENSE_CLUSTER_ZOOM_THRESHOLD = 4.5;
+
+export function shouldClusterEntityDatums(entityCount: number, zoom: number): boolean {
+  return (
+    zoom < CLUSTER_ZOOM_THRESHOLD ||
+    (entityCount >= DENSE_CLUSTER_ENTITY_THRESHOLD && zoom < DENSE_CLUSTER_ZOOM_THRESHOLD)
+  );
+}
 
 /** Grid-cell size (degrees) used to bucket entities for clustering. */
 const CLUSTER_CELL_DEGREES = 6;
@@ -169,7 +185,7 @@ export function clusterEntityDatums(
   entities: readonly DeckWorldEntityDatum[],
   zoom: number,
 ): readonly DeckWorldEntityRenderDatum[] {
-  if (zoom >= CLUSTER_ZOOM_THRESHOLD) return entities;
+  if (!shouldClusterEntityDatums(entities.length, zoom)) return entities;
 
   const cells = new Map<string, DeckWorldEntityDatum[]>();
   for (const entity of entities) {
@@ -1059,7 +1075,10 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #reclusterIfZoomCrossedThreshold(): void {
-    const clusteredNow = this.#camera.zoom < CLUSTER_ZOOM_THRESHOLD;
+    const clusteredNow = shouldClusterEntityDatums(
+      this.#entityDatumCache.size,
+      this.#camera.zoom,
+    );
     if (clusteredNow !== this.#clusteredLastRender) this.#render();
   }
 
@@ -1125,7 +1144,10 @@ export class DeckWorldSurface implements WorldSurface {
     this.#placeDatumCache = placeResult.byId;
     this.#relationshipDatumCache = relationshipResult.byId;
     this.#entityDatumCache = entityResult.byId;
-    this.#clusteredLastRender = this.#camera.zoom < CLUSTER_ZOOM_THRESHOLD;
+    this.#clusteredLastRender = shouldClusterEntityDatums(
+      entityResult.datums.length,
+      this.#camera.zoom,
+    );
 
     const layers = [
       this.#runtime.createScatterplotLayer({
