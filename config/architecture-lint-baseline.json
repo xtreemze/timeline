@@ -268,11 +268,10 @@
       },
       "hoverOnlySelectors": {},
       "physicalInlineProperties": {
-        "left": 53,
-        "right": 37,
-        "border-left": 9,
-        "border-right": 3,
-        "margin-left": 1
+        "right": 34,
+        "left": 50,
+        "border-left": 7,
+        "border-right": 3
       },
       "viewportWidthSizing": {
         "width: clamp(10rem, 28vw, 26rem);": 1,
@@ -301,7 +300,7 @@
         "overflow-x: hidden;": 1
       },
       "rootMinWidth": {},
-      "legacy100vh": 1,
+      "legacy100vh": 0,
       "maxWidthContainer": {},
       "primarySurfaceOverflow": {
         ".presentation-stage:fullscreen .timeline-focus-view, .presentation-stage:fullscreen .timeline-focus-view[data-layout] => overflow: hidden;": 1,
