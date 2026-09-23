@@ -228,6 +228,47 @@ export function clusterEntityDatums(
   );
 }
 
+/**
+ * Renderer-neutral, non-visual description of the currently active
+ * projection (issue #445 Priority 6). Derived purely from `#projection`/
+ * `#selection` — never from deck.gl/GPU layer state — so it cannot drift
+ * from what is canonically true; it simply reflects the same state the
+ * visual layers were built from.
+ */
+export interface AccessibleWorldEntity {
+  readonly entityId: EntityId;
+  readonly worldInstanceId: WorldInstanceId;
+  readonly selected: boolean;
+}
+
+export interface AccessibleWorldPlace {
+  readonly placeId: PlaceId;
+  readonly selected: boolean;
+}
+
+export interface AccessibleWorldRelationship {
+  readonly relationshipId: RelationshipId;
+  readonly selected: boolean;
+}
+
+export interface AccessibleWorldSnapshot {
+  readonly entities: readonly AccessibleWorldEntity[];
+  readonly places: readonly AccessibleWorldPlace[];
+  readonly relationships: readonly AccessibleWorldRelationship[];
+  readonly selection: WorldSelection | null;
+}
+
+function accessibleSnapshotSummary(snapshot: AccessibleWorldSnapshot): string {
+  const parts = [
+    `${snapshot.places.length} place${snapshot.places.length === 1 ? "" : "s"}`,
+    `${snapshot.relationships.length} relationship${snapshot.relationships.length === 1 ? "" : "s"}`,
+    `${snapshot.entities.length} entit${snapshot.entities.length === 1 ? "y" : "ies"}`,
+  ];
+  const base = `World view: ${parts.join(", ")} visible.`;
+  if (!snapshot.selection) return `${base} No selection.`;
+  return `${base} Selected ${snapshot.selection.kind} ${snapshot.selection.id}.`;
+}
+
 const BASE_CAPABILITIES = Object.freeze({
   globe: true,
   depthPicking: true,
@@ -601,6 +642,13 @@ export class DeckWorldSurface implements WorldSurface {
   // as cheap as before).
   #clusteredLastRender = false;
 
+  // Off-screen `aria-live` region (issue #445 Priority 6) mirroring the
+  // Priority 3 `.sr-only` pattern already used elsewhere in the app (see
+  // `site/app.ts`). Created lazily/defensively: a fake or non-DOM container
+  // (as used by this file's own tests) simply leaves this null and the
+  // surface still functions without it.
+  readonly #liveRegion: HTMLElement | null;
+
   readonly #handlePointerCancel = (event: PointerEvent): void => {
     if (this.#activeDragPointerId === null || event.pointerId !== this.#activeDragPointerId) {
       return;
@@ -698,6 +746,20 @@ export class DeckWorldSurface implements WorldSurface {
     this.#container.addEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
     this.#container.addEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
     this.#container.addEventListener?.("keydown", this.#handleKeyDown as EventListener);
+
+    this.#liveRegion = this.#createLiveRegion();
+  }
+
+  #createLiveRegion(): HTMLElement | null {
+    const doc = this.#container.ownerDocument;
+    if (!doc?.createElement) return null;
+
+    const region = doc.createElement("div");
+    region.setAttribute("aria-live", "polite");
+    region.setAttribute("role", "status");
+    region.className = "sr-only";
+    this.#container.appendChild?.(region);
+    return region;
   }
 
   setNodeDragSink(sink: DeckWorldNodeDragSink | null): void {
@@ -852,6 +914,46 @@ export class DeckWorldSurface implements WorldSurface {
     );
   }
 
+  /**
+   * Renderer-neutral accessibility projection (issue #445 Priority 6):
+   * derived purely from `#projection`/`#selection` — the same source the
+   * visual deck.gl layers are built from — never from GPU/layer state, so
+   * it cannot drift from what is canonically visible/selected. Reuses the
+   * Priority 3 memoized datum caches as a cheap read rather than performing
+   * a fresh full scan of `#projection.instances`.
+   */
+  getAccessibleSnapshot(): AccessibleWorldSnapshot {
+    const places = placeDatums(this.#projection.instances, this.#selection, this.#placeDatumCache).datums.map(
+      (datum) => Object.freeze({ placeId: datum.placeId, selected: datum.selected }),
+    );
+    const relationships = relationshipDatums(
+      this.#projection,
+      this.#positions(),
+      this.#selection,
+      this.#relationshipDatumCache,
+    ).datums.map((datum) =>
+      Object.freeze({ relationshipId: datum.relationshipId, selected: datum.selected }),
+    );
+    const entities = entityDatums(
+      this.#projection.instances,
+      this.#selection,
+      this.#entityDatumCache,
+    ).datums.map((datum) =>
+      Object.freeze({
+        entityId: datum.entityId,
+        worldInstanceId: datum.worldInstanceId,
+        selected: datum.selected,
+      }),
+    );
+
+    return Object.freeze({
+      entities: Object.freeze(entities),
+      places: Object.freeze(places),
+      relationships: Object.freeze(relationships),
+      selection: this.#selection,
+    });
+  }
+
   getCapabilities(): WorldSurfaceCapabilities {
     return Object.freeze({
       ...BASE_CAPABILITIES,
@@ -872,6 +974,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#container.removeEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
     this.#container.removeEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
     this.#container.removeEventListener?.("keydown", this.#handleKeyDown as EventListener);
+    this.#liveRegion?.remove?.();
     this.#deck.finalize();
   }
 
@@ -934,9 +1037,23 @@ export class DeckWorldSurface implements WorldSurface {
       this.#localView === null ? "globe" : selectWorldSpatialMode(this.#camera, this.#spatialMode);
     if (nextMode === this.#spatialMode) return;
 
+    // A node drag mid-flight has no well-defined meaning across a
+    // globe<->local view swap (the drag's screen-space geometry is tied to
+    // the view it started under), so a crossing cleanly cancels an ongoing
+    // drag rather than leaving dangling pointer-capture/drag state.
+    if (this.#activeDragPointerId !== null) {
+      this.#nodeDragSink?.cancel("pointercancel");
+      this.#activeDragPointerId = null;
+    }
+
     this.#spatialMode = nextMode;
+    // Camera continuity: pass the current camera explicitly alongside the
+    // view swap so longitude/latitude/zoom/bearing/pitch carry over into the
+    // new view rather than relying on it implicitly surviving a separate
+    // setProps call.
     this.#deck.setProps({
       views: [nextMode === "local" ? this.#localView : this.#globeView],
+      viewState: this.#camera,
     });
   }
 
@@ -1064,6 +1181,12 @@ export class DeckWorldSurface implements WorldSurface {
     ];
 
     this.#deck.setProps({ layers });
+    this.#updateLiveRegion();
+  }
+
+  #updateLiveRegion(): void {
+    if (!this.#liveRegion) return;
+    this.#liveRegion.textContent = accessibleSnapshotSummary(this.getAccessibleSnapshot());
   }
 
   #focusPosition(position: WorldRenderPosition | null): void {

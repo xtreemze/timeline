@@ -1054,3 +1054,201 @@ test("zooming back in above the cluster threshold restores per-entity picking an
   assert.equal(entities.length, 2);
   assert.ok(entities.every((datum) => datum.kind === "entity"));
 });
+
+function harnessWithLocalView() {
+  const built = harness();
+  const localViews = [];
+  built.runtime.createMapView = (props) => {
+    const view = { type: "map", props };
+    localViews.push(view);
+    return view;
+  };
+  return { ...built, localViews };
+}
+
+test("crossing into local precision mode preserves the current canonical selection", () => {
+  const { runtime } = harnessWithLocalView();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+  surface.setSelection({ kind: "entity", id: "alice" });
+
+  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 11.5, bearing: 0, pitch: 20 });
+
+  assert.deepEqual(surface.getAccessibleSnapshot().selection, { kind: "entity", id: "alice" });
+
+  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 10.5, bearing: 0, pitch: 20 });
+
+  assert.deepEqual(surface.getAccessibleSnapshot().selection, { kind: "entity", id: "alice" });
+});
+
+test("a globe<->local view switch carries the current camera into the new view's props", () => {
+  const { calls, runtime } = harnessWithLocalView();
+  const surface = new DeckWorldSurface({}, runtime);
+
+  const nextCamera = { longitude: 18.0686, latitude: 59.3293, zoom: 11.5, bearing: 0, pitch: 20 };
+  surface.setCamera(nextCamera);
+
+  const viewSwitch = calls.setProps.find((props) => props.views?.[0]?.type === "map");
+  assert.ok(viewSwitch);
+  assert.deepEqual(viewSwitch.viewState, nextCamera);
+});
+
+test("a spatial-mode crossing with no drag in flight does not touch the drag sink", () => {
+  const { runtime } = harnessWithLocalView();
+  const surface = new DeckWorldSurface({}, runtime);
+
+  const dragCalls = [];
+  surface.setNodeDragSink({
+    begin: () => true,
+    update: () => true,
+    release: () => true,
+    cancel: (reason) => dragCalls.push(reason),
+  });
+
+  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 11.5, bearing: 0, pitch: 20 });
+
+  assert.deepEqual(dragCalls, []);
+});
+
+test("an in-flight node drag is cleanly cancelled when a spatial-mode crossing occurs", () => {
+  const { calls, runtime } = harnessWithLocalView();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+
+  const dragCalls = [];
+  surface.setNodeDragSink({
+    begin: () => true,
+    update: () => true,
+    release: () => true,
+    cancel: (reason) => dragCalls.push(reason),
+  });
+
+  const entityLayer = calls.scatterLayers
+    .filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities)
+    .at(-1);
+  const alice = entityLayer.props.data.find((datum) => datum.entityId === "alice");
+  const begun = entityLayer.props.onDragStart(
+    { object: alice, x: 118.0786, y: 259.3393 },
+    { srcEvent: { pointerId: 3 } },
+  );
+  assert.equal(begun, true);
+
+  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 11.5, bearing: 0, pitch: 20 });
+
+  assert.deepEqual(dragCalls, ["pointercancel"]);
+
+  // The cancelled drag's pointer no longer owns anything, so a further
+  // update for that pointer is rejected rather than silently continuing a
+  // drag that was supposed to have ended.
+  assert.equal(
+    entityLayer.props.onDrag({ object: alice, x: 5, y: 6 }, { srcEvent: { pointerId: 3 } }),
+    false,
+  );
+});
+
+test("a spatial-mode crossing alone does not re-render or invalidate memoized datums", () => {
+  const { calls, runtime } = harnessWithLocalView();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+  surface.setSelection({ kind: "entity", id: "alice" });
+
+  const beforeEntities = calls.setProps.filter((props) => props.layers).at(-1).layers[2].props.data;
+  const renderCallCountBefore = calls.setProps.filter((props) => props.layers).length;
+
+  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 11.5, bearing: 0, pitch: 20 });
+
+  const renderCallCountAfter = calls.setProps.filter((props) => props.layers).length;
+  assert.equal(renderCallCountAfter, renderCallCountBefore);
+
+  // Nothing re-rendered, so re-deriving datums from unchanged projection and
+  // selection state reuses the same memoized datum object references.
+  const afterEntities = surface
+    .getAccessibleSnapshot()
+    .entities.map((entry) => entry.worldInstanceId);
+  assert.deepEqual(
+    afterEntities.sort(),
+    beforeEntities.map((datum) => datum.worldInstanceId).sort(),
+  );
+  assert.equal(calls.setProps.filter((props) => props.layers).at(-1).layers[2].props.data, beforeEntities);
+});
+
+test("getAccessibleSnapshot derives entities/places/relationships/selection from projection state", () => {
+  const { runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+  surface.setSelection({ kind: "entity", id: "alice" });
+
+  const snapshot = surface.getAccessibleSnapshot();
+  assert.equal(snapshot.places.length, 1);
+  assert.equal(snapshot.places[0].placeId, "stockholm");
+  assert.equal(snapshot.relationships.length, 1);
+  assert.equal(snapshot.relationships[0].relationshipId, "meeting");
+  assert.equal(snapshot.entities.length, 2);
+
+  const alice = snapshot.entities.find((entity) => entity.entityId === "alice");
+  const bob = snapshot.entities.find((entity) => entity.entityId === "bob");
+  assert.equal(alice.selected, true);
+  assert.equal(bob.selected, false);
+  assert.deepEqual(snapshot.selection, { kind: "entity", id: "alice" });
+});
+
+test("getAccessibleSnapshot never reflects GPU/layer state, only projection/selection", () => {
+  const { calls, runtime, setPickResult } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+
+  // Simulate a pick/hover-style GPU interaction that never touches
+  // #projection or #selection: the accessible snapshot must be unaffected.
+  setPickResult({ object: { kind: "entity", entityId: "alice", worldInstanceId: "alice::meeting" } });
+  surface.pick({ x: 1, y: 2 });
+
+  const snapshot = surface.getAccessibleSnapshot();
+  assert.equal(snapshot.entities.every((entity) => entity.selected === false), true);
+  assert.equal(snapshot.selection, null);
+  assert.ok(calls.pickOptions.length >= 1);
+});
+
+test("an off-screen live region mirrors the accessible snapshot when the container supports DOM", () => {
+  const { runtime } = harness();
+
+  const region = { attrs: {}, className: "", textContent: "", removed: false };
+  const fakeDocument = {
+    createElement: () => ({
+      setAttribute(name, value) {
+        region.attrs[name] = value;
+      },
+      set className(value) {
+        region.className = value;
+      },
+      get className() {
+        return region.className;
+      },
+      set textContent(value) {
+        region.textContent = value;
+      },
+      get textContent() {
+        return region.textContent;
+      },
+      remove() {
+        region.removed = true;
+      },
+    }),
+  };
+  const container = { ownerDocument: fakeDocument, appendChild: () => {} };
+
+  const surface = new DeckWorldSurface(container, runtime);
+  assert.equal(region.attrs["aria-live"], "polite");
+  assert.equal(region.className, "sr-only");
+
+  surface.setProjection(projection());
+  assert.match(region.textContent, /1 place/);
+  assert.match(region.textContent, /1 relationship/);
+  assert.match(region.textContent, /2 entities/);
+  assert.match(region.textContent, /No selection/);
+
+  surface.setSelection({ kind: "entity", id: "alice" });
+  assert.match(region.textContent, /Selected entity alice/);
+
+  surface.destroy();
+  assert.equal(region.removed, true);
+});
