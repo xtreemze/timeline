@@ -21,6 +21,10 @@ const ICON_NAMES = Object.freeze([
   "search",
   "crown",
   "object",
+  "route",
+  "nature",
+  "market",
+  "workshop",
 ] as const);
 
 const ICON_PATHS: Record<string, string[]> = Object.freeze({
@@ -51,6 +55,10 @@ const ICON_PATHS: Record<string, string[]> = Object.freeze({
   search: ["M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4z", "m16 16 5 5"],
   crown: ["m3 7 4 4 5-7 5 7 4-4-2 11H5z", "M6 21h12"],
   object: ["M12 3 20 7 12 11 4 7z", "M4 7v10l8 4 8-4V7", "M12 11v10"],
+  route: ["M5 21c0-5 6-5 6-10s8-5 8-10", "M5 21h.01", "M19 3h.01"],
+  nature: ["M12 3c-4 3-6 6-6 9a6 6 0 0 0 12 0c0-3-2-6-6-9z", "M12 10v11", "m8 17 4-4 4 4"],
+  market: ["M4 10h16", "M5 10 7-6 7 6", "M6 10v10", "M18 10v10", "M9 14h6v6"],
+  workshop: ["M4 20h16", "M6 20V9l6-5 6 5v11", "m9 14 6-6", "m11 8 5 5"],
   landscape: ["M3 5h18v14H3z", "M8 16h8"],
   portrait: ["M6 2h12v20H6z", "M10 18h4"],
   fullscreen: ["M8 3H3v5", "M16 3h5v5", "M8 21H3v-5", "M16 21h5v-5"],
