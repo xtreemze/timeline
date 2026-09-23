@@ -27,7 +27,7 @@ test("retained timeline preserves weighted drag response and decaying release in
   );
 });
 
-test("focused popover emits the surviving rich presentation contract", async () => {
+test("focused sidebar emits the surviving rich presentation contract", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
   assert.doesNotMatch(source, /timeline-focus-layout/);
@@ -57,31 +57,28 @@ test("empty timeline resets retained camera authority before later content loads
   );
 });
 
-test("persistent graph owns the complementary canvas while focused place uses interactive map space", async () => {
+test("focused sidebar and persistent graph share layout-owned presentation space", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
 
   assert.match(
     css,
-    /#presentation-stage\s*>\s*\.graph-lens:not\(\[hidden\]\)[\s\S]{0,140}\{[\s\S]{0,500}position:\s*absolute/,
+    /#app-shell\.is-event-focused #presentation-stage\s*\{[\s\S]{0,240}display:\s*grid/,
   );
   assert.match(
     css,
-    /\.timeline-view\[data-orientation="landscape"\]\s*>\s*\.timeline-focus-view:popover-open\s*\{[\s\S]{0,500}inline-size:\s*min\(640px,/,
+    /#app-shell\.is-event-focused #presentation-stage > \.timeline-focus-sidebar:not\(\[hidden\]\)[\s\S]{0,700}position:\s*relative[\s\S]{0,700}overflow:\s*auto/,
   );
   assert.match(
     css,
-    /\.timeline-focus-place\s+\.timeline-focus-section-content\s*\{[\s\S]{0,300}width:\s*min\(48%,\s*18rem\)/,
+    /data-timeline-orientation="horizontal"[\s\S]{0,260}grid-template-columns:\s*minmax\(0, 2fr\) minmax\(0, 3fr\)/,
   );
   assert.match(
     css,
-    /\.timeline-view\[data-orientation="landscape"\]\s*>\s*\.timeline-focus-view:popover-open\s*\{[\s\S]{0,500}inline-size:\s*min\(640px,\s*calc\(100% - 8rem\)\)/,
-  );
-  assert.match(
-    css,
-    /\.timeline-view\[data-orientation="portrait"\]\s*>\s*\.timeline-focus-view:popover-open\s*\{[\s\S]{0,500}inline-size:\s*min\(560px,\s*calc\(100% - 10rem\)\)/,
+    /data-timeline-orientation="vertical"[\s\S]{0,260}grid-template-columns:\s*minmax\(0, 5fr\) minmax\(0, 1fr\)/,
   );
   assert.match(
     css,
     /\.timeline-focus-place-backdrop\s+\.presentation-map[\s\S]{0,450}pointer-events:\s*auto/,
   );
+  assert.doesNotMatch(css, /\.timeline-focus-view:popover-open/);
 });
