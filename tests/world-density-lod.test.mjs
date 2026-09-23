@@ -11,11 +11,7 @@ function entityDatum(index) {
     kind: "entity",
     entityId: `entity-${index}`,
     worldInstanceId: `entity-${index}::occurrence-${index}`,
-    position: Object.freeze([
-      -170 + (index % 340),
-      -80 + (index % 160),
-      1000,
-    ]),
+    position: Object.freeze([-170 + (index % 340), -80 + (index % 160), 1000]),
     selected: false,
     visualWeight: 1,
   });
