@@ -157,7 +157,6 @@ test("DeckWorldSurface constructs one globe view and controlled deck runtime", (
   assert.equal(calls.globeViews.length, 1);
   assert.deepEqual(calls.globeViews[0].props, { id: "lum-world" });
   assert.equal(calls.deckProps.parent, container);
-  assert.equal(calls.deckProps.controller, true);
   assert.equal(calls.deckProps.views.length, 1);
   assert.deepEqual(surface.getCamera(), {
     longitude: 0,
@@ -166,6 +165,36 @@ test("DeckWorldSurface constructs one globe view and controlled deck runtime", (
     bearing: 0,
     pitch: 20,
   });
+});
+
+test("deck controller is configured with orbit, pointer-anchored zoom, and inertia enabled", () => {
+  const { calls, runtime } = harness();
+  new DeckWorldSurface({}, runtime);
+
+  assert.deepEqual(calls.deckProps.controller, {
+    dragPan: true,
+    dragRotate: true,
+    scrollZoom: true,
+    touchZoom: true,
+    multiTouchDrag: "rotate",
+    keyboard: true,
+    doubleClickZoom: false,
+    zoomAround: "pointer",
+    inertia: true,
+  });
+});
+
+test("deck controller disables inertia when prefers-reduced-motion is set", (t) => {
+  const originalMatchMedia = globalThis.matchMedia;
+  globalThis.matchMedia = (query) => ({ matches: query === "(prefers-reduced-motion: reduce)" });
+  t.after(() => {
+    globalThis.matchMedia = originalMatchMedia;
+  });
+
+  const { calls, runtime } = harness();
+  new DeckWorldSurface({}, runtime);
+
+  assert.equal(calls.deckProps.controller.inertia, false);
 });
 
 test("DeckWorldSurface renders places, globe-visible paths, and elevated entity instances", () => {

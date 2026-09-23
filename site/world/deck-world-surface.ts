@@ -237,6 +237,42 @@ const DEFAULT_CAMERA = createWorldCameraState({
   pitch: 20,
 });
 
+/**
+ * Mirrors the `prefers-reduced-motion` check already used elsewhere in the
+ * codebase (see `site/location-map.ts` `prefersReducedMotion` and
+ * `site/timeline-view.ts` `reducedMotionQuery`) rather than inventing a new
+ * global preference signal: when the platform requests reduced motion,
+ * deck.gl's built-in camera inertia is disabled.
+ */
+function prefersReducedMotion(): boolean {
+  return globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+}
+
+/**
+ * Explicit deck.gl `Controller` options (issue #445 Priority 4). deck.gl's
+ * own `GlobeController`/`MapController` already implements orbit/rotate,
+ * pointer-anchored wheel/pinch zoom (`zoomAround: "pointer"` is deck.gl's
+ * default), and keyboard pan/zoom (`keyboard: true` is deck.gl's default) —
+ * this file does not reimplement that gesture handling. What deck.gl
+ * does *not* default to "on" is inertia, so it is set explicitly here and
+ * tied to the platform's reduced-motion preference. `doubleClickZoom` is
+ * left off (deck.gl's own default) because this surface wires its own
+ * double-tap/double-click focus gesture (see `#handleDoubleClick`) instead.
+ */
+function deckControllerOptions(): Readonly<Record<string, unknown>> {
+  return Object.freeze({
+    dragPan: true,
+    dragRotate: true,
+    scrollZoom: true,
+    touchZoom: true,
+    multiTouchDrag: "rotate",
+    keyboard: true,
+    doubleClickZoom: false,
+    zoomAround: "pointer",
+    inertia: !prefersReducedMotion(),
+  });
+}
+
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -577,7 +613,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#deck = runtime.createDeck({
       parent: container,
       views: [this.#globeView],
-      controller: true,
+      controller: deckControllerOptions(),
       initialViewState: this.#camera,
       layers: [],
       onViewStateChange: ({ viewState }: { readonly viewState: DeckRuntimeViewState }) => {
