@@ -4145,7 +4145,7 @@ body {
   padding: 0.34rem 0.3rem;
 }
 
-#app-shell #presentation-stage:fullscreen .app-tool-dock {
+#presentation-stage:fullscreen:has(#timeline-view) .app-tool-dock {
   inset-block-start: auto;
   inset-inline-start: 0;
   inset-inline-end: 0;
