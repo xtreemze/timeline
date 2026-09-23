@@ -1020,6 +1020,17 @@ geolocation {
   max-inline-size: min(24rem, 100%);
 }
 .timeline-map-marker-shell,
+.timeline-map-marker-shell .semantic-icon {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.timeline-map-place-icon .semantic-icon {
+  width: 1.3rem;
+  height: 1.3rem;
+  stroke-width: 2.2;
+}
+
 .timeline-map-place-icon {
   display: grid;
   place-items: center;
@@ -1033,16 +1044,28 @@ geolocation {
   box-shadow: 0 2px 10px color-mix(in srgb, var(--ink) 18%, transparent);
 }
 
-.timeline-map-marker-shell .semantic-icon {
-  width: 1.05rem;
-  height: 1.05rem;
+
+.story-nav-button .semantic-icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
 }
 
-.timeline-map-place-icon .semantic-icon {
-  width: 1.3rem;
-  height: 1.3rem;
-  stroke-width: 2.2;
+
+.project-menu-action .semantic-icon {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  width: 21px;
+  height: 21px;
+  color: var(--muted);
 }
+
+.app-tool .semantic-icon {
+  width: 22px;
+  height: 22px;
+  stroke-width: 1.9;
+}
+
 
 .timeline-map-marker-shape-circle .timeline-map-marker-shell,
 .timeline-map-marker-shape-circle .timeline-map-place-icon {
@@ -1523,12 +1546,6 @@ geolocation {
   opacity: 0.32;
   cursor: default;
 }
-.story-nav-button .semantic-icon {
-  width: 16px;
-  height: 16px;
-  stroke-width: 2;
-}
-
 .empty-state h3 {
   margin: 0.2rem 0 0.55rem;
   color: var(--ink);
@@ -1746,10 +1763,6 @@ footer {
   padding: 2.5rem 0 3rem;
   color: var(--muted);
   font-size: 0.8rem;
-}
-footer p {
-  grid-column: 1 / span 8;
-  margin: 0;
 }
 footer > :last-child {
   grid-column: 9 / -1;
@@ -2186,6 +2199,36 @@ footer > :last-child {
   display: grid;
   gap: 0.15rem;
 }
+footer p {
+  grid-column: 1 / span 8;
+  margin: 0;
+}
+
+.temporal-graph-detail strong {
+  color: var(--ink);
+  font-size: 0.8rem;
+}
+
+.project-menu-header strong {
+  font-size: 0.88rem;
+  letter-spacing: -0.02em;
+}
+
+.project-menu-action > small {
+  grid-column: 2;
+  grid-row: 2;
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 520;
+  line-height: 1.35;
+}
+
+.app-surface-header strong {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.1;
+}
+
 .graph-lens > summary strong {
   font-size: 0.82rem;
 }
@@ -2413,10 +2456,6 @@ footer > :last-child {
   gap: 0.16rem;
   min-width: 0;
 }
-.temporal-graph-detail strong {
-  color: var(--ink);
-  font-size: 0.8rem;
-}
 .temporal-graph-detail-close {
   flex: 0 0 auto;
   min-width: 32px;
@@ -2592,10 +2631,6 @@ body {
   padding: 0.45rem 0.5rem 0.55rem;
   border-bottom: 1px solid var(--line);
 }
-.project-menu-header strong {
-  font-size: 0.88rem;
-  letter-spacing: -0.02em;
-}
 .project-menu-header span {
   color: var(--muted);
   font-size: 0.68rem;
@@ -2644,26 +2679,11 @@ body {
   text-align: left;
   text-decoration: none;
 }
-.project-menu-action .semantic-icon {
-  grid-column: 1;
-  grid-row: 1 / span 2;
-  width: 21px;
-  height: 21px;
-  color: var(--muted);
-}
 .project-menu-action > span {
   grid-column: 2;
   grid-row: 1;
   font-size: 0.75rem;
   font-weight: 780;
-}
-.project-menu-action > small {
-  grid-column: 2;
-  grid-row: 2;
-  color: var(--muted);
-  font-size: 0.64rem;
-  font-weight: 520;
-  line-height: 1.35;
 }
 .project-menu-action:hover,
 .project-menu-action:focus-visible {
@@ -2777,12 +2797,6 @@ body {
   font-weight: 760;
   white-space: nowrap;
 }
-.app-tool .semantic-icon {
-  width: 22px;
-  height: 22px;
-  stroke-width: 1.9;
-}
-
 .app-view-tool {
   view-transition-name: timeline-view-button;
 }
@@ -2864,11 +2878,6 @@ body {
   margin: 0 0 0.15rem;
 }
 .app-surface-header h2,
-.app-surface-header strong {
-  margin: 0;
-  font-size: 0.95rem;
-  line-height: 1.1;
-}
 .app-surface-header-actions {
   display: flex;
   align-items: center;
