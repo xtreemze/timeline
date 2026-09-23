@@ -87,7 +87,7 @@ export function buildNumericHistogram(
   for (const value of finiteValues) {
     if (value < min || value > max) continue;
     const index = max === min ? 0 : Math.min(binCount - 1, Math.floor((value - min) / width));
-    counts[index] += 1;
+    counts[index] = (counts[index] ?? 0) + 1;
   }
 
   return Object.freeze(
@@ -161,7 +161,10 @@ export function buildTemporalHistogram(
       bins.length - 1,
       Math.max(first, Math.floor((occurrence.end - origin) / width)),
     );
-    for (let index = first; index <= last; index += 1) bins[index].count += 1;
+    for (let index = first; index <= last; index += 1) {
+      const bin = bins[index];
+      if (bin) bin.count += 1;
+    }
   }
 
   return Object.freeze(bins.map((bin) => Object.freeze(bin)));
