@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveWorldRenderPosition } from "../src/layout/world-geographic-position.ts";
+import {
+  resolveWorldLocalLayoutPosition,
+  resolveWorldRenderPosition,
+} from "../src/layout/world-geographic-position.ts";
 import { createProjectedWorldInstance } from "../src/projection/world-projection.ts";
 
 function instance(overrides = {}) {
@@ -114,4 +117,53 @@ test("polar east-west offsets remain bounded instead of exploding longitude", ()
   });
 
   assert.deepEqual(resolveWorldRenderPosition(projected), [40, 90, 0]);
+});
+
+
+test("world render positions round-trip back to local tangent drag coordinates", () => {
+  const projected = instance({
+    localOffset: { eastMeters: 1250, northMeters: -750 },
+    visualAltitude: 1450,
+  });
+  const world = resolveWorldRenderPosition(projected);
+  assert.ok(world);
+
+  const local = resolveWorldLocalLayoutPosition(projected, world);
+  assert.ok(local);
+  assert.ok(Math.abs(local.eastMeters - 1250) < 0.001);
+  assert.ok(Math.abs(local.northMeters + 750) < 0.001);
+  assert.equal(local.visualAltitudeMeters, 1450);
+});
+
+test("inverse local drag conversion chooses the shortest path across the date line", () => {
+  const projected = instance({
+    geographicAnchors: [
+      {
+        placeId: "dateline",
+        longitude: 179.999,
+        latitude: 0,
+        influence: 1,
+      },
+    ],
+    localOffset: { eastMeters: 1000, northMeters: 0 },
+    visualAltitude: 500,
+  });
+  const world = resolveWorldRenderPosition(projected);
+  assert.ok(world);
+  assert.ok(world[0] < -179.98);
+
+  const local = resolveWorldLocalLayoutPosition(projected, world);
+  assert.ok(local);
+  assert.ok(Math.abs(local.eastMeters - 1000) < 0.001);
+  assert.ok(Math.abs(local.northMeters) < 0.001);
+  assert.equal(local.visualAltitudeMeters, 500);
+});
+
+test("inverse local drag conversion preserves unplaced semantics", () => {
+  const projected = instance({ geographicAnchors: [] });
+
+  assert.equal(
+    resolveWorldLocalLayoutPosition(projected, [18.0686, 59.3293, 1000]),
+    null,
+  );
 });
