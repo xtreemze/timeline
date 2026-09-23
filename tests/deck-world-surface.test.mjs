@@ -467,3 +467,129 @@ test("DeckWorldSurface switches to local geographic view only at high zoom", () 
   );
   assert.ok(globeSwitches.length >= 1);
 });
+
+test("deck entity drag callbacks resolve screen motion into world-local drag intents", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+
+  const dragCalls = [];
+  surface.setNodeDragSink({
+    begin(pointerId, instanceId, position) {
+      dragCalls.push(["begin", pointerId, instanceId, position]);
+      return true;
+    },
+    update(pointerId, position) {
+      dragCalls.push(["update", pointerId, position]);
+      return true;
+    },
+    release(pointerId) {
+      dragCalls.push(["release", pointerId]);
+      return true;
+    },
+    cancel(reason) {
+      dragCalls.push(["cancel", reason]);
+    },
+  });
+
+  assert.equal(surface.getCapabilities().directNodeDrag, true);
+  const entityLayer = calls.scatterLayers
+    .filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities)
+    .at(-1);
+  const alice = entityLayer.props.data.find((datum) => datum.entityId === "alice");
+
+  assert.equal(
+    entityLayer.props.onDragStart(
+      { object: alice, x: 118.0786, y: 259.3393 },
+      { srcEvent: { pointerId: 7 } },
+    ),
+    true,
+  );
+  assert.equal(dragCalls[0][0], "begin");
+  assert.equal(dragCalls[0][1], 7);
+  assert.equal(dragCalls[0][2], alice.worldInstanceId);
+  assert.ok(dragCalls[0][3].eastMeters > 0);
+  assert.ok(dragCalls[0][3].northMeters > 0);
+
+  assert.equal(
+    entityLayer.props.onDrag(
+      { object: alice, x: 118.0886, y: 259.3493 },
+      { srcEvent: { pointerId: 7 } },
+    ),
+    true,
+  );
+  assert.equal(dragCalls.at(-1)[0], "update");
+
+  assert.equal(
+    entityLayer.props.onDragEnd(
+      { object: alice, x: 118.0886, y: 259.3493 },
+      { srcEvent: { pointerId: 7 } },
+    ),
+    true,
+  );
+  assert.deepEqual(dragCalls.at(-1), ["release", 7]);
+});
+
+test("pointer cancellation reaches the active Lūm world drag owner", () => {
+  const { calls, runtime } = harness();
+  const listeners = new Map();
+  const container = {
+    addEventListener(type, listener) {
+      listeners.set(type, listener);
+    },
+    removeEventListener(type, listener) {
+      if (listeners.get(type) === listener) listeners.delete(type);
+    },
+  };
+  const surface = new DeckWorldSurface(container, runtime);
+  surface.setProjection(projection());
+
+  const dragCalls = [];
+  surface.setNodeDragSink({
+    begin() {
+      return true;
+    },
+    update() {
+      return true;
+    },
+    release() {
+      return true;
+    },
+    cancel(reason) {
+      dragCalls.push(reason);
+    },
+  });
+
+  const entityLayer = calls.scatterLayers
+    .filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities)
+    .at(-1);
+  const alice = entityLayer.props.data.find((datum) => datum.entityId === "alice");
+
+  entityLayer.props.onDragStart(
+    { object: alice, x: 118.0786, y: 259.3393 },
+    { srcEvent: { pointerId: 11 } },
+  );
+  listeners.get("pointercancel")({ pointerId: 11 });
+
+  assert.deepEqual(dragCalls, ["pointercancel"]);
+
+  surface.destroy();
+  assert.equal(listeners.size, 0);
+});
+
+test("removing the world drag sink disables direct-node-drag capability", () => {
+  const { runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  const sink = {
+    begin() { return true; },
+    update() { return true; },
+    release() { return true; },
+    cancel() {},
+  };
+
+  surface.setNodeDragSink(sink);
+  assert.equal(surface.getCapabilities().directNodeDrag, true);
+
+  surface.setNodeDragSink(null);
+  assert.equal(surface.getCapabilities().directNodeDrag, false);
+});
