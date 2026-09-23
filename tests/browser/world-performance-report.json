@@ -1,0 +1,88 @@
+{
+  "generatedAt": "2026-09-23T15:03:51.911Z",
+  "scales": [
+    {
+      "label": "1k",
+      "entityCount": 1000,
+      "firstUsableFrameMs": 1486.5,
+      "sustainedFrame": {
+        "p50Ms": 120.69999980926514,
+        "p95Ms": 124.10000014305115,
+        "samples": 60
+      },
+      "inputToPaintMs": 0.09999990463256836,
+      "pickingLatencyMs": 205.39999985694885,
+      "incrementalUpdate": {
+        "smallDeltaMs": 16,
+        "fullSwapMs": 123.39999985694885
+      },
+      "sustainedNavigation": {
+        "durationMs": 3050.5,
+        "frames": 31,
+        "heapStartBytes": 17100000,
+        "heapEndBytes": 17100000,
+        "heapGrowthBytes": 0
+      }
+    },
+    {
+      "label": "10k",
+      "entityCount": 10000,
+      "firstUsableFrameMs": 2499.2999999523163,
+      "sustainedFrame": {
+        "p50Ms": 1089.5,
+        "p95Ms": 1105,
+        "samples": 60
+      },
+      "inputToPaintMs": 0.20000004768371582,
+      "pickingLatencyMs": 794.2000000476837,
+      "incrementalUpdate": {
+        "smallDeltaMs": 39.40000009536743,
+        "fullSwapMs": 1113.8999998569489
+      },
+      "sustainedNavigation": {
+        "durationMs": 3263.7000000476837,
+        "frames": 5,
+        "heapStartBytes": 17100000,
+        "heapEndBytes": 17100000,
+        "heapGrowthBytes": 0
+      }
+    },
+    {
+      "label": "50k",
+      "entityCount": 50000,
+      "firstUsableFrameMs": 6915.299999952316,
+      "sustainedFrame": {
+        "p50Ms": 5403.200000047684,
+        "p95Ms": 5665.400000095367,
+        "samples": 20
+      },
+      "inputToPaintMs": 0.2999999523162842,
+      "pickingLatencyMs": 6150.600000143051,
+      "incrementalUpdate": {
+        "smallDeltaMs": 124.40000009536743,
+        "fullSwapMs": 5544
+      },
+      "sustainedNavigation": {
+        "durationMs": 5455,
+        "frames": 3,
+        "heapStartBytes": 17100000,
+        "heapEndBytes": 17100000,
+        "heapGrowthBytes": 0
+      }
+    },
+    {
+      "label": "150k-render-only",
+      "entityCount": 150000,
+      "firstUsableFrameMs": 17782.400000095367,
+      "sustainedFrame": {
+        "p50Ms": 16079,
+        "p95Ms": 16359.100000143051,
+        "samples": 20
+      },
+      "inputToPaintMs": null,
+      "pickingLatencyMs": null,
+      "incrementalUpdate": null,
+      "sustainedNavigation": null
+    }
+  ]
+}
