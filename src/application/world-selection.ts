@@ -1,9 +1,4 @@
-import type {
-  EntityId,
-  EvidenceId,
-  PlaceId,
-  RelationshipId,
-} from "../domain/ids.ts";
+import type { EntityId, EvidenceId, PlaceId, RelationshipId } from "../domain/ids.ts";
 
 export type CanonicalWorldHit =
   | {
