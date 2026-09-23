@@ -19,6 +19,12 @@ export interface ScreenPoint {
   readonly y: number;
 }
 
+export interface WorldSpatialPosition {
+  readonly longitude: number;
+  readonly latitude: number;
+  readonly altitudeMeters: number;
+}
+
 export type WorldSelection =
   | { readonly kind: "entity"; readonly id: EntityId }
   | { readonly kind: "relationship"; readonly id: RelationshipId }
@@ -66,6 +72,8 @@ export interface WorldSurface {
   focusOccurrence(id: RelationshipId): void;
   focusPlace(id: PlaceId): void;
 
+  project(position: WorldSpatialPosition): ScreenPoint | null;
+  unproject(point: ScreenPoint, targetAltitudeMeters: number): WorldSpatialPosition | null;
   pick(point: ScreenPoint): WorldHit | null;
   getCapabilities(): WorldSurfaceCapabilities;
 
