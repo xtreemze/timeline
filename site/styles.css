@@ -252,17 +252,6 @@ main > * {
 .app-shell.is-event-focused .control-panel {
   display: none;
 }
-.app-shell.is-event-focused .timeline-panel {
-  grid-column: 1 / -1;
-  padding: 0;
-}
-.app-shell.is-event-focused .timeline-heading-row,
-.app-shell.is-event-focused .timeline-toolbar,
-.app-shell.is-event-focused .empty-state,
-.app-shell.is-event-focused .timeline-list-heading,
-.app-shell.is-event-focused .timeline-list {
-  display: none;
-}
 
 .presentation-stage {
   display: grid;
@@ -275,10 +264,6 @@ main > * {
 }
 .presentation-stage > .timeline-view {
   grid-column: 1 / -1;
-  min-width: 0;
-}
-.presentation-stage > .graph-lens,
-.presentation-stage > .presentation-map-panel {
   min-width: 0;
 }
 .app-shell.is-event-focused .presentation-stage {
@@ -623,9 +608,6 @@ a:focus-visible {
   border-radius: 0.65rem;
   background: var(--paper);
 }
-.temporal-clock-section .subheading-row {
-  margin-top: 0;
-}
 
 .temporal-range-grid {
   display: grid;
@@ -701,9 +683,6 @@ a:focus-visible {
   .map-style-group {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
-.optional-editor[open] > summary {
-  border-bottom: 1px solid var(--line);
 }
 .location-fields {
   display: grid;
@@ -790,15 +769,6 @@ geolocation {
   border-radius: 0.62rem;
   background: var(--paper);
 }
-.media-editor-row > p {
-  grid-column: 1 / -1;
-  margin: 0 0 0.45rem;
-  color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
 .tag-editor-row {
   grid-template-columns: minmax(0, 1.4fr) minmax(110px, 0.8fr);
   position: relative;
@@ -838,16 +808,16 @@ geolocation {
     color: contrast-color(var(--tag-color));
   }
 }
-.event-tag .semantic-icon {
-  flex: 0 0 auto;
-  width: 1.12rem;
-  height: 1.12rem;
-}
 .semantic-icon {
   display: block;
   min-width: 1rem;
   min-height: 1rem;
   overflow: visible;
+}
+.event-tag .semantic-icon {
+  flex: 0 0 auto;
+  width: 1.12rem;
+  height: 1.12rem;
 }
 
 .leaflet-container {
@@ -919,10 +889,6 @@ geolocation {
   color: var(--map-marker-color, var(--focus));
   box-shadow: 0 2px 10px color-mix(in srgb, var(--ink) 18%, transparent);
 }
-.timeline-map-marker-shape-circle .timeline-map-marker-shell,
-.timeline-map-marker-shape-circle .timeline-map-place-icon {
-  border-radius: 50%;
-}
 .timeline-map-marker-shape-square .timeline-map-marker-shell,
 .timeline-map-marker-shape-square .timeline-map-place-icon {
   border-radius: 0.28rem;
@@ -931,10 +897,6 @@ geolocation {
 .timeline-map-marker-shape-diamond .timeline-map-place-icon {
   border-radius: 0.25rem;
   transform: rotate(45deg);
-}
-.timeline-map-marker-shape-diamond .timeline-map-marker-shell .semantic-icon,
-.timeline-map-marker-shape-diamond .timeline-map-place-icon .semantic-icon {
-  transform: rotate(-45deg);
 }
 .timeline-map-marker-shape-pin .timeline-map-marker-shell,
 .timeline-map-marker-shape-pin .timeline-map-place-icon {
@@ -989,6 +951,10 @@ geolocation {
   flex-basis: 2.35rem;
   backdrop-filter: blur(8px);
 }
+.timeline-map-marker-shape-circle .timeline-map-marker-shell,
+.timeline-map-marker-shape-circle .timeline-map-place-icon {
+  border-radius: 50%;
+}
 .timeline-map-place-icon .semantic-icon {
   width: 1.3rem;
   height: 1.3rem;
@@ -1033,6 +999,9 @@ geolocation {
   align-items: baseline;
   gap: 1rem;
   margin: 0.2rem 0 0.65rem;
+}
+.temporal-clock-section .subheading-row {
+  margin-top: 0;
 }
 .subheading-row h3 {
   margin: 0;
@@ -1333,6 +1302,10 @@ geolocation {
   padding: clamp(1.2rem, 2.7vw, 2.4rem);
   position: relative;
 }
+.app-shell.is-event-focused .timeline-panel {
+  grid-column: 1 / -1;
+  padding: 0;
+}
 .timeline-panel > * {
   grid-column: 1 / -1;
 }
@@ -1573,11 +1546,6 @@ geolocation {
   border-radius: 0.75rem;
   background: var(--paper);
 }
-.timeline-item.is-current .timeline-card {
-  border-color: color-mix(in srgb, var(--story) 45%, var(--line));
-  border-inline-start-color: var(--story);
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--story) 6%, transparent);
-}
 .timeline-item.story-dimmed .timeline-card {
   opacity: 0.58;
 }
@@ -1693,6 +1661,15 @@ footer {
 footer p {
   grid-column: 1 / span 8;
   margin: 0;
+}
+.media-editor-row > p {
+  grid-column: 1 / -1;
+  margin: 0 0 0.45rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 footer > :last-child {
   grid-column: 9 / -1;
@@ -2122,15 +2099,15 @@ footer > :last-child {
   cursor: pointer;
   list-style: none;
 }
+.optional-editor[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
 .graph-lens > summary::-webkit-details-marker {
   display: none;
 }
 .graph-lens > summary > span:first-child {
   display: grid;
   gap: 0.15rem;
-}
-.graph-lens > summary strong {
-  font-size: 0.82rem;
 }
 .graph-lens > summary small,
 .graph-lens > summary [data-graph-status] {
@@ -2240,9 +2217,6 @@ footer > :last-child {
   min-height: 44px;
   padding: 0.5rem 0.65rem;
   pointer-events: none;
-}
-.presentation-stage:fullscreen .graph-lens > summary small {
-  display: none;
 }
 .presentation-stage:fullscreen .temporal-graph-view {
   display: grid;
@@ -2419,6 +2393,10 @@ footer > :last-child {
   border-radius: 0.9rem;
   background: var(--paper);
 }
+.presentation-stage > .graph-lens,
+.presentation-stage > .presentation-map-panel {
+  min-width: 0;
+}
 .presentation-map-heading {
   display: flex;
   align-items: center;
@@ -2462,22 +2440,8 @@ footer > :last-child {
   grid-template-columns: repeat(6, minmax(0, 1fr));
   grid-template-rows: repeat(6, minmax(0, 1fr));
 }
-
-/* Timeline owns 75% of the presentation and stays attached to its temporal edge.
-   Graph and map share the complementary 25% rail at equal weight. */
-#presentation-stage:fullscreen[data-timeline-orientation="horizontal"] > .timeline-view {
-  grid-column: 1 / -1;
-  grid-row: 4 / -1;
-}
 #presentation-stage:fullscreen[data-timeline-orientation="horizontal"] > .graph-lens {
   grid-column: 1 / span 6;
-  grid-row: 1 / span 3;
-}
-#presentation-stage:fullscreen[data-timeline-orientation="horizontal"]
-  > .presentation-map-panel:not([hidden]) {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  grid-column: 7 / -1;
   grid-row: 1 / span 3;
 }
 
@@ -2496,25 +2460,12 @@ footer > :last-child {
   grid-column: 1 / span 3;
   grid-row: 7 / -1;
 }
-
-#presentation-stage:fullscreen:has(
-    > .presentation-map-panel[hidden]
-  )[data-timeline-orientation="horizontal"]
-  > .graph-lens {
-  grid-column: 1 / -1;
-  grid-row: 1 / span 3;
-}
 #presentation-stage:fullscreen:has(
     > .presentation-map-panel[hidden]
   )[data-timeline-orientation="vertical"]
   > .graph-lens {
   grid-column: 1 / span 3;
   grid-row: 1 / -1;
-}
-
-#presentation-stage:fullscreen .graph-lens > summary,
-#presentation-stage:fullscreen .temporal-graph-toolbar {
-  display: none;
 }
 #presentation-stage:fullscreen .graph-lens[open],
 #presentation-stage:fullscreen .temporal-graph-view {
@@ -2536,6 +2487,13 @@ footer > :last-child {
 #presentation-stage:fullscreen .presentation-map-panel,
 #presentation-stage:fullscreen .timeline-view {
   box-shadow: none;
+}
+
+/* Timeline owns 75% of the presentation and stays attached to its temporal edge.
+   Graph and map share the complementary 25% rail at equal weight. */
+#presentation-stage:fullscreen[data-timeline-orientation="horizontal"] > .timeline-view {
+  grid-column: 1 / -1;
+  grid-row: 4 / -1;
 }
 
 @media (max-width: 760px) {
@@ -2584,14 +2542,6 @@ footer > :last-child {
   grid-column: 1 / span 9;
 }
 
-.app-shell.is-event-focused #presentation-stage > .graph-lens:not([hidden]),
-.app-shell.is-event-focused #presentation-stage > .presentation-map-panel:not([hidden]) {
-  grid-column: 10 / -1;
-  min-width: 0;
-  max-height: 100dvh;
-  margin: 0;
-}
-
 .app-shell.is-event-focused
   #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"] {
   grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
@@ -2599,20 +2549,8 @@ footer > :last-child {
 
 .app-shell.is-event-focused
   #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"]
-  > .timeline-view {
-  grid-row: 1 / -1;
-}
-
-.app-shell.is-event-focused
-  #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"]
   > .graph-lens {
   grid-row: 1;
-}
-
-.app-shell.is-event-focused
-  #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"]
-  > .presentation-map-panel {
-  grid-row: 2;
 }
 
 #presentation-stage:fullscreen {
@@ -2653,6 +2591,14 @@ footer > :last-child {
   z-index: 0;
 }
 
+.app-shell.is-event-focused #presentation-stage > .graph-lens:not([hidden]),
+.app-shell.is-event-focused #presentation-stage > .presentation-map-panel:not([hidden]) {
+  grid-column: 10 / -1;
+  min-width: 0;
+  max-height: 100dvh;
+  margin: 0;
+}
+
 #presentation-stage:fullscreen > .timeline-view {
   z-index: 1;
 }
@@ -2670,9 +2616,23 @@ footer > :last-child {
   grid-row: 1 / -1;
 }
 
+.app-shell.is-event-focused
+  #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"]
+  > .timeline-view {
+  grid-row: 1 / -1;
+}
+
 #presentation-stage:fullscreen[data-has-context-graph="true"][data-has-context-map="true"]
   > .graph-lens {
   grid-row: 1;
+}
+
+#presentation-stage:fullscreen:has(
+    > .presentation-map-panel[hidden]
+  )[data-timeline-orientation="horizontal"]
+  > .graph-lens {
+  grid-column: 1 / -1;
+  grid-row: 1 / span 3;
 }
 
 #presentation-stage:fullscreen[data-has-context-graph="true"][data-has-context-map="true"]
@@ -2680,9 +2640,22 @@ footer > :last-child {
   grid-row: 2;
 }
 
+.app-shell.is-event-focused
+  #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"]
+  > .presentation-map-panel {
+  grid-row: 2;
+}
+
 #presentation-stage:fullscreen .graph-lens[open],
 #presentation-stage:fullscreen .presentation-map-panel:not([hidden]) {
   height: 100%;
+}
+#presentation-stage:fullscreen[data-timeline-orientation="horizontal"]
+  > .presentation-map-panel:not([hidden]) {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-column: 7 / -1;
+  grid-row: 1 / span 3;
 }
 
 #presentation-stage:fullscreen .temporal-graph-canvas,
@@ -2956,6 +2929,9 @@ body {
   font-weight: 520;
   line-height: 1.35;
 }
+.presentation-stage:fullscreen .graph-lens > summary small {
+  display: none;
+}
 .project-menu-action:hover,
 .project-menu-action:focus-visible {
   background: var(--paper-2);
@@ -2992,20 +2968,6 @@ body {
   border: 0;
   border-radius: 0;
   background: transparent;
-  overflow: hidden;
-}
-
-#app-shell #presentation-stage,
-#app-shell.is-event-focused #presentation-stage {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
   overflow: hidden;
 }
 
@@ -3072,6 +3034,10 @@ body {
   width: 22px;
   height: 22px;
   stroke-width: 1.9;
+}
+.timeline-map-marker-shape-diamond .timeline-map-marker-shell .semantic-icon,
+.timeline-map-marker-shape-diamond .timeline-map-place-icon .semantic-icon {
+  transform: rotate(-45deg);
 }
 
 .app-view-tool {
@@ -3159,6 +3125,9 @@ body {
   margin: 0;
   font-size: 0.95rem;
   line-height: 1.1;
+}
+.graph-lens > summary strong {
+  font-size: 0.82rem;
 }
 .app-surface-header-actions {
   display: flex;
@@ -3362,13 +3331,6 @@ body {
   min-height: 40px;
   padding-inline: 0.55rem;
 }
-#app-shell:is([data-editor-open="true"], [data-browser-open="true"])
-  .timeline-panel
-  > .story-focus {
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(0.4rem);
-}
 
 @media (min-width: 900px) {
   .app-tool .semantic-icon {
@@ -3389,6 +3351,20 @@ body {
   display: block;
   grid-template-columns: none;
   grid-template-rows: none;
+}
+
+#app-shell #presentation-stage,
+#app-shell.is-event-focused #presentation-stage {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 /* Keep the footer application bar structurally stable in Edit mode.
@@ -3416,9 +3392,9 @@ body {
   display: none;
 }
 
-#app-shell #presentation-stage:not(:fullscreen) > .graph-lens:not([hidden]) {
-  position: absolute;
-  z-index: 1050;
+#presentation-stage:fullscreen .graph-lens > summary,
+#presentation-stage:fullscreen .temporal-graph-toolbar {
+  display: none;
 }
 
 #app-shell #presentation-stage > .graph-lens:not([hidden]) {
@@ -3440,6 +3416,11 @@ body {
   backdrop-filter: none;
 }
 
+#app-shell #presentation-stage:not(:fullscreen) > .graph-lens:not([hidden]) {
+  position: absolute;
+  z-index: 1050;
+}
+
 #app-shell #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-view,
 #app-shell #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-canvas {
   width: 100%;
@@ -3455,25 +3436,6 @@ body {
 #app-shell #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-canvas canvas {
   pointer-events: auto;
   touch-action: none;
-}
-
-/* Fullscreen preserves the same bottom app bar so controls do not jump between edges. */
-#presentation-stage:fullscreen .app-tool-dock {
-  pointer-events: auto;
-  z-index: 2200;
-  inset-block-start: auto;
-  inset-inline-end: auto;
-  inset-block-end: max(0.5rem, env(safe-area-inset-bottom));
-  inset-inline-start: 50%;
-  flex-direction: row;
-  inline-size: min(26rem, calc(100% - 1rem));
-  max-inline-size: calc(100% - 1rem);
-  max-block-size: none;
-  overflow-x: auto;
-  overflow-y: hidden;
-  transform: translateX(-50%);
-  box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 6%, transparent);
-  backdrop-filter: blur(14px);
 }
 
 #presentation-stage:fullscreen .app-tool {
@@ -3502,12 +3464,38 @@ body {
   view-transition-name: timeline-workspace-sidebar;
 }
 
+/* Fullscreen preserves the same bottom app bar so controls do not jump between edges. */
+#presentation-stage:fullscreen .app-tool-dock {
+  pointer-events: auto;
+  z-index: 2200;
+  inset-block-start: auto;
+  inset-inline-end: auto;
+  inset-block-end: max(0.5rem, env(safe-area-inset-bottom));
+  inset-inline-start: 50%;
+  flex-direction: row;
+  inline-size: min(26rem, calc(100% - 1rem));
+  max-inline-size: calc(100% - 1rem);
+  max-block-size: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  transform: translateX(-50%);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 6%, transparent);
+  backdrop-filter: blur(14px);
+}
+
 .app-view-controls {
   view-transition-name: timeline-view-controls;
 }
 
 #app-shell .timeline-panel > .story-focus {
   view-transition-name: timeline-story-controls;
+}
+#app-shell:is([data-editor-open="true"], [data-browser-open="true"])
+  .timeline-panel
+  > .story-focus {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(0.4rem);
 }
 
 ::view-transition-group(timeline-command-bar),
@@ -3859,6 +3847,13 @@ body {
 .app-browser-sheet .timeline-toolbar {
   grid-template-columns: minmax(0, 1fr);
 }
+.app-shell.is-event-focused .timeline-heading-row,
+.app-shell.is-event-focused .timeline-toolbar,
+.app-shell.is-event-focused .empty-state,
+.app-shell.is-event-focused .timeline-list-heading,
+.app-shell.is-event-focused .timeline-list {
+  display: none;
+}
 
 .app-browser-sheet .browser-story-description {
   max-width: 100%;
@@ -3913,6 +3908,11 @@ body {
   grid-row: auto;
   margin: 0 0 0.65rem;
   padding: 0.7rem 0.75rem 0.8rem;
+}
+.timeline-item.is-current .timeline-card {
+  border-color: color-mix(in srgb, var(--story) 45%, var(--line));
+  border-inline-start-color: var(--story);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--story) 6%, transparent);
 }
 
 .app-browser-sheet .timeline-card-top > :first-child {
