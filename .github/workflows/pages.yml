@@ -59,7 +59,7 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium webkit
 
       - name: Lint code
-        run: pnpm check:quality
+        run: pnpm lint
 
       - name: Inventory migrated TypeScript
         run: pnpm types:migrated || echo "⚠ Existing TypeScript migration errors remain (ratcheted follow-up)" && true
