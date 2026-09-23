@@ -4331,6 +4331,7 @@
 }
 
 #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open {
+  box-sizing: border-box;
   position: fixed;
   z-index: 1150;
   pointer-events: auto;
@@ -5328,10 +5329,14 @@
   );
 }
 
-#app-shell
+#app-shell[data-graph-open="false"]
   #timeline-view[data-orientation="portrait"]
   > .timeline-surface {
+  inset-block: 0;
+  inset-inline-start: 0;
   inset-inline-end: var(--workspace-portrait-chrome-inline, 7rem);
+  inline-size: auto;
+  block-size: 100%;
 }
 
 #app-shell[data-graph-open="true"]
@@ -5343,10 +5348,14 @@
   );
 }
 
-#app-shell
+#app-shell[data-graph-open="false"]
   #timeline-view[data-orientation="landscape"]
   > .timeline-surface {
+  inset-block-start: 0;
   inset-block-end: var(--workspace-landscape-chrome-block, 6rem);
+  inset-inline: 0;
+  inline-size: 100%;
+  block-size: auto;
 }
 
 #app-shell
