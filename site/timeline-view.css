@@ -139,27 +139,6 @@
   height: 30px;
   min-height: 30px;
 }
-#app-shell
-  #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(
-    .timeline-focus-view:popover-open
-  )
-  .timeline-project-title
-  input {
-  width: min(30rem, calc(100dvw - 5.5rem));
-  height: auto;
-  min-height: 34px;
-  writing-mode: horizontal-tb;
-  text-orientation: mixed;
-}
-#app-shell
-  #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="vertical"]:has(
-    .timeline-focus-view:popover-open
-  )
-  .timeline-project-heading {
-  top: max(0.45rem, env(safe-area-inset-top));
-  inset-inline-end: max(0.35rem, env(safe-area-inset-right));
-  inset-inline-start: auto;
-}
 
 .timeline-view-toolbar {
   flex-wrap: wrap;
@@ -697,10 +676,6 @@
   height: 1.6rem;
   stroke-width: 2.2;
 }
-.timeline-event[data-terminal-shape="square"] .timeline-event-dot,
-.timeline-event[data-terminal-shape="square"] .timeline-event-art-image {
-  border-radius: 0.16rem;
-}
 .timeline-event[data-terminal-shape="diamond"] .timeline-event-dot,
 .timeline-event[data-terminal-shape="diamond"] .timeline-event-art-image {
   border-radius: 0.12rem;
@@ -713,6 +688,10 @@
   object-fit: cover;
   border-radius: 0.6rem;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--event-color) 44%, var(--line));
+}
+.timeline-event[data-terminal-shape="square"] .timeline-event-dot,
+.timeline-event[data-terminal-shape="square"] .timeline-event-art-image {
+  border-radius: 0.16rem;
 }
 .timeline-event[data-terminal-shape="circle"] .timeline-event-dot,
 .timeline-event[data-terminal-shape="circle"] .timeline-event-art-image {
@@ -791,20 +770,6 @@
 .timeline-event[data-connector-routing="orthogonal"] .timeline-event-connector-turn {
   display: block;
 }
-.is-portrait .timeline-event[data-connector-style="dashed"] .timeline-event-connector {
-  background: repeating-linear-gradient(
-    to right,
-    color-mix(in srgb, var(--event-color) 66%, var(--line-strong)) 0 8px,
-    transparent 8px 13px
-  );
-}
-.is-portrait .timeline-event[data-connector-style="dashed"] .timeline-event-connector-turn {
-  background: repeating-linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--event-color) 66%, var(--line-strong)) 0 8px,
-    transparent 8px 13px
-  );
-}
 .is-landscape .timeline-event[data-connector-style="dotted"] .timeline-event-connector {
   background: repeating-linear-gradient(
     to bottom,
@@ -843,13 +808,6 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--paper) 78%, transparent);
   pointer-events: none;
 }
-.is-landscape
-  .timeline-event[data-side="after"][data-connector-endpoint="dot"]
-  .timeline-event-connector::after {
-  left: 50%;
-  top: 0;
-  transform: translate(-50%, -50%);
-}
 .is-portrait
   .timeline-event[data-side="before"][data-connector-endpoint="dot"]
   .timeline-event-connector::after {
@@ -870,6 +828,13 @@
   width: 0;
   height: 0;
   pointer-events: none;
+}
+.is-landscape
+  .timeline-event[data-side="after"][data-connector-endpoint="dot"]
+  .timeline-event-connector::after {
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -50%);
 }
 .is-landscape
   .timeline-event[data-side="before"][data-connector-endpoint="dot"]
@@ -1244,14 +1209,6 @@
 .timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-evidence-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-place {
-  grid-column: 1 / span 2;
-  grid-row: 3;
-}
-.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-relations {
-  grid-column: 3 / -1;
-  grid-row: 3;
-}
 
 /* Variant 3: editorial mosaic. Narrow containers are the default. */
 .timeline-focus-view[data-layout="editorial-mosaic"] {
@@ -1287,10 +1244,6 @@
 }
 .timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-evidence-grid {
   grid-template-columns: 1fr;
-}
-.timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-actions {
-  grid-column: 1 / -1;
-  grid-row: 6;
 }
 
 @container (min-width: 401px) {
@@ -1825,32 +1778,11 @@
   justify-self: stretch;
 }
 
-/* Landscape: chronology keeps the complete horizontal measure and shifts to the lower edge. */
-#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="landscape"]
-> .timeline-view,
-#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="square"]
-  > .timeline-view {
-  grid-column: 1 / -1;
-  grid-row: 3 / -1;
-}
-
 /* Portrait: chronology keeps the complete vertical measure and shifts to the right edge. */
 #presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="portrait"]
 > .timeline-view {
   grid-column: 3 / -1;
   grid-row: 1 / -1;
-}
-
-#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="portrait"]
-  > .graph-lens:not([hidden]) {
-  grid-column: 1 / span 2;
-  grid-row: 1 / span 2;
-}
-
-#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="portrait"]
-  > .presentation-map-panel:not([hidden]) {
-  grid-column: 1 / span 2;
-  grid-row: 3 / span 2;
 }
 
 #presentation-stage:fullscreen > .graph-lens:not([hidden]),
@@ -1880,6 +1812,12 @@
 #presentation-stage:fullscreen .presentation-map-panel:not([hidden]) {
   position: relative;
   display: block;
+}
+
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="portrait"]
+  > .presentation-map-panel:not([hidden]) {
+  grid-column: 1 / span 2;
+  grid-row: 3 / span 2;
 }
 
 #presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="landscape"]
@@ -1940,10 +1878,6 @@
 
 #presentation-stage:fullscreen > .graph-lens {
   display: block;
-}
-
-#presentation-stage:fullscreen > .presentation-map-panel {
-  display: none;
 }
 
 #presentation-stage:fullscreen .timeline-surface,
@@ -2012,6 +1946,10 @@
   min-height: clamp(190px, 26vh, 320px);
   overflow: hidden;
   background: var(--paper-2);
+}
+.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-place {
+  grid-column: 1 / span 2;
+  grid-row: 3;
 }
 
 .timeline-focus-section-backdrop {
@@ -2265,12 +2203,6 @@
   display: none;
 }
 
-/* Utility chrome is not part of the fullscreen presentation. */
-#presentation-stage:fullscreen ~ *,
-#presentation-stage:fullscreen .app-tool-dock {
-  pointer-events: none;
-}
-
 @media (prefers-reduced-motion: reduce) {
   #app-shell .app-editor-sheet,
   #app-shell .app-browser-sheet,
@@ -2354,6 +2286,12 @@
   grid-row: auto;
 }
 
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="portrait"]
+  > .graph-lens:not([hidden]) {
+  grid-column: 1 / span 2;
+  grid-row: 1 / span 2;
+}
+
 #presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="landscape"]
   > .graph-lens:not([hidden]),
 #presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="square"]
@@ -2371,6 +2309,15 @@
   pointer-events: none;
 }
 
+/* Landscape: chronology keeps the complete horizontal measure and shifts to the lower edge. */
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="landscape"]
+> .timeline-view,
+#presentation-stage:fullscreen[data-event-focused="true"][data-viewport-orientation="square"]
+  > .timeline-view {
+  grid-column: 1 / -1;
+  grid-row: 3 / -1;
+}
+
 #presentation-stage:fullscreen[data-stage-shape][data-viewport-orientation] > .timeline-view {
   min-width: 0;
   min-height: 0;
@@ -2382,6 +2329,10 @@
 #presentation-stage:fullscreen > .presentation-map-panel {
   grid-column: auto;
   grid-row: auto;
+}
+
+#presentation-stage:fullscreen > .presentation-map-panel {
+  display: none;
 }
 
 #presentation-stage:fullscreen[data-event-focused="false"] > .graph-lens,
@@ -2612,6 +2563,10 @@
   grid-column: auto;
   grid-row: auto;
 }
+.timeline-focus-view[data-layout="editorial-mosaic"] .timeline-focus-actions {
+  grid-column: 1 / -1;
+  grid-row: 6;
+}
 .timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-actions {
   grid-row: 4;
 }
@@ -2623,6 +2578,10 @@
 .timeline-focus-relations {
   overflow: hidden;
   background: transparent;
+}
+.timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-relations {
+  grid-column: 3 / -1;
+  grid-row: 3;
 }
 .timeline-focus-view[data-layout="hero-split"] .timeline-focus-place,
 .timeline-focus-view[data-layout="hero-split"] .timeline-focus-relations {
@@ -2739,35 +2698,6 @@
   transform: translateY(-50%);
 }
 
-#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
-  .timeline-focus-view[data-active-tab="overview"]
-  .timeline-focus-relations {
-  grid-column: 1 / span 3;
-  grid-row: 1 / span 2;
-  min-height: clamp(300px, 48dvh, 580px);
-}
-
-#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
-  .timeline-focus-view[data-active-tab="overview"]
-  .timeline-focus-hero {
-  grid-column: 4 / -1;
-  grid-row: 1;
-}
-
-#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
-  .timeline-focus-view[data-active-tab="overview"]
-  .timeline-focus-summary {
-  grid-column: 4 / span 2;
-  grid-row: 2;
-}
-
-#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
-  .timeline-focus-view[data-active-tab="overview"]
-  .timeline-focus-place {
-  grid-column: 6 / -1;
-  grid-row: 2;
-}
-
 @media (max-width: 760px) {
   .timeline-focus-view[popover] {
     padding-top: 0;
@@ -2795,11 +2725,6 @@
 .timeline-focus-view[popover][data-active-tab="overview"],
 .timeline-focus-view[popover][data-active-tab="evidence"] {
   overflow: hidden;
-}
-
-.timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
-  overflow: auto;
-  overscroll-behavior: contain;
 }
 
 .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations {
@@ -2879,25 +2804,6 @@
   max-block-size: none;
 }
 
-#app-shell
-  #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="vertical"]:has(
-    .timeline-focus-view:popover-open
-  )
-  > .timeline-view
-  > .timeline-surface {
-  position: absolute;
-  inset: 0 0 0 auto;
-  width: var(--timeline-context-edge-span);
-  height: 100%;
-  inline-size: var(--timeline-context-edge-span);
-  block-size: 100%;
-  max-width: var(--timeline-context-edge-span);
-  max-height: none;
-  max-inline-size: var(--timeline-context-edge-span);
-  max-block-size: none;
-  overflow: visible;
-}
-
 /* Keep the focused content and graph entirely in the space chronology yielded. */
 #app-shell
   #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(
@@ -2957,6 +2863,11 @@
 
 .timeline-focus-evidence {
   overflow: auto;
+}
+
+.timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary,
@@ -3040,6 +2951,13 @@
   grid-row: 1;
 }
 
+#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
+  .timeline-focus-view[data-active-tab="overview"]
+  .timeline-focus-hero {
+  grid-column: 4 / -1;
+  grid-row: 1;
+}
+
 #presentation-stage:fullscreen[data-viewport-orientation="landscape"]
   .timeline-focus-view[data-active-tab="overview"]
   .timeline-focus-hero {
@@ -3051,6 +2969,13 @@
   .timeline-focus-view
   .timeline-focus-summary {
   grid-column: 4 / -1;
+  grid-row: 2;
+}
+
+#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
+  .timeline-focus-view[data-active-tab="overview"]
+  .timeline-focus-summary {
+  grid-column: 4 / span 2;
   grid-row: 2;
 }
 
@@ -3151,6 +3076,13 @@
   max-block-size: 100%;
 }
 
+#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
+  .timeline-focus-view[data-active-tab="overview"]
+  .timeline-focus-place {
+  grid-column: 6 / -1;
+  grid-row: 2;
+}
+
 #presentation-stage:fullscreen[data-viewport-orientation="landscape"]
   .timeline-focus-view[data-active-tab="overview"]
   .timeline-focus-place {
@@ -3204,6 +3136,14 @@
   .temporal-graph-canvas
   canvas {
   overflow: hidden;
+}
+
+#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
+  .timeline-focus-view[data-active-tab="overview"]
+  .timeline-focus-relations {
+  grid-column: 1 / span 3;
+  grid-row: 1 / span 2;
+  min-height: clamp(300px, 48dvh, 580px);
 }
 
 #presentation-stage:fullscreen .temporal-graph-canvas {
@@ -3833,17 +3773,6 @@
   background: transparent;
 }
 
-#app-shell .timeline-zoom-controls {
-  display: flex;
-  align-items: center;
-  width: clamp(180px, 24vw, 250px);
-  min-width: 180px;
-  padding: 0.28rem 0.42rem 0.2rem;
-  border: 1px solid var(--line);
-  border-radius: 0.68rem;
-  background: var(--paper-2);
-}
-
 .timeline-zoom-control {
   display: grid;
   grid-template-rows: 22px auto;
@@ -4241,6 +4170,12 @@
   max-width: 100%;
 }
 
+/* Utility chrome is not part of the fullscreen presentation. */
+#presentation-stage:fullscreen ~ *,
+#presentation-stage:fullscreen .app-tool-dock {
+  pointer-events: none;
+}
+
 #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open > * {
   flex: 1 1 auto;
   min-inline-size: 0;
@@ -4529,11 +4464,6 @@
     grid-row: 4;
   }
 
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero,
-  #app-shell .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero {
-    grid-row: 2;
-  }
-
   .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero,
   #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero {
     grid-row: 3;
@@ -4545,6 +4475,11 @@
     min-height: var(--focus-hero-block-size);
     height: var(--focus-hero-block-size);
     max-height: var(--focus-hero-block-size);
+  }
+
+  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero,
+  #app-shell .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero {
+    grid-row: 2;
   }
 
   .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence,
@@ -4726,6 +4661,17 @@
   padding: 0.35rem 0.25rem;
 }
 
+#app-shell .timeline-zoom-controls {
+  display: flex;
+  align-items: center;
+  width: clamp(180px, 24vw, 250px);
+  min-width: 180px;
+  padding: 0.28rem 0.42rem 0.2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.68rem;
+  background: var(--paper-2);
+}
+
 #app-shell .app-view-controls.timeline-view-toolbar[popover]:popover-open .timeline-zoom-controls {
   width: 220px;
   min-width: 180px;
@@ -4773,11 +4719,6 @@
   will-change: transform;
 }
 
-.timeline-retained-scene .timeline-event.is-buffered .timeline-event-terminal,
-.timeline-retained-scene .timeline-range-segment.is-buffered {
-  pointer-events: none;
-}
-
 .timeline-event:is(.is-hovered, .is-focused, .is-selected) .timeline-event-terminal,
 .timeline-range-segment:is(.is-hovered, .is-focused, .is-selected) {
   border-color: var(--event-color);
@@ -4785,6 +4726,11 @@
   box-shadow:
     0 0 0 2px color-mix(in srgb, var(--event-color) 13%, transparent),
     0 5px 16px color-mix(in srgb, var(--event-color) 12%, transparent);
+}
+
+.timeline-retained-scene .timeline-event.is-buffered .timeline-event-terminal,
+.timeline-retained-scene .timeline-range-segment.is-buffered {
+  pointer-events: none;
 }
 
 #app-shell .timeline-event-terminal,
@@ -4803,6 +4749,20 @@
 .timeline-event:is(.is-hovered, .is-focused, .is-selected) .timeline-event-connector,
 .timeline-event:is(.is-hovered, .is-focused, .is-selected) .timeline-event-connector-turn {
   opacity: 1;
+}
+.is-portrait .timeline-event[data-connector-style="dashed"] .timeline-event-connector {
+  background: repeating-linear-gradient(
+    to right,
+    color-mix(in srgb, var(--event-color) 66%, var(--line-strong)) 0 8px,
+    transparent 8px 13px
+  );
+}
+.is-portrait .timeline-event[data-connector-style="dashed"] .timeline-event-connector-turn {
+  background: repeating-linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--event-color) 66%, var(--line-strong)) 0 8px,
+    transparent 8px 13px
+  );
 }
 .is-landscape .timeline-event[data-connector-style="dashed"] .timeline-event-connector {
   background: repeating-linear-gradient(
@@ -4987,6 +4947,18 @@
   inline-size: calc(var(--workspace-title-inline-size, 42px) - 0.4rem);
   block-size: min(28dvh, 240px);
 }
+#app-shell
+  #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(
+    .timeline-focus-view:popover-open
+  )
+  .timeline-project-title
+  input {
+  width: min(30rem, calc(100dvw - 5.5rem));
+  height: auto;
+  min-height: 34px;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+}
 
 #app-shell
   #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(
@@ -5015,15 +4987,6 @@
   block-size: 100%;
 }
 
-#app-shell[data-graph-open="true"]
-  #presentation-stage:has(> #timeline-view[data-orientation="landscape"])
-  > .graph-lens:not([hidden]) {
-  inset-block-end: calc(
-    var(--workspace-landscape-chrome-block, 6rem) +
-    var(--relations-block-rail, var(--mobile-relations-block-rail, 0px))
-  );
-}
-
 #app-shell[data-graph-open="false"]
   #timeline-view[data-orientation="landscape"]
   > .timeline-surface {
@@ -5050,6 +5013,25 @@
   #timeline-view[data-orientation="landscape"]
   > .timeline-surface {
   inset-block-end: var(--workspace-landscape-chrome-block, 6rem);
+}
+
+#app-shell
+  #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="vertical"]:has(
+    .timeline-focus-view:popover-open
+  )
+  > .timeline-view
+  > .timeline-surface {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: var(--timeline-context-edge-span);
+  height: 100%;
+  inline-size: var(--timeline-context-edge-span);
+  block-size: 100%;
+  max-width: var(--timeline-context-edge-span);
+  max-height: none;
+  max-inline-size: var(--timeline-context-edge-span);
+  max-block-size: none;
+  overflow: visible;
 }
 
 /* The docked surface is only the chronology rail. Event terminals remain spatial callouts
@@ -5127,6 +5109,15 @@
   block-size: min(24rem, calc(100dvh - 1rem));
   max-block-size: calc(100dvh - 1rem);
   transform: translateY(-50%);
+}
+#app-shell
+  #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="vertical"]:has(
+    .timeline-focus-view:popover-open
+  )
+  .timeline-project-heading {
+  top: max(0.45rem, env(safe-area-inset-top));
+  inset-inline-end: max(0.35rem, env(safe-area-inset-right));
+  inset-inline-start: auto;
 }
 
 #app-shell
@@ -5268,6 +5259,15 @@
 
 #app-shell.is-event-focused #presentation-stage > .graph-lens:not([hidden]) {
   display: grid;
+}
+
+#app-shell[data-graph-open="true"]
+  #presentation-stage:has(> #timeline-view[data-orientation="landscape"])
+  > .graph-lens:not([hidden]) {
+  inset-block-end: calc(
+    var(--workspace-landscape-chrome-block, 6rem) +
+    var(--relations-block-rail, var(--mobile-relations-block-rail, 0px))
+  );
 }
 
 #app-shell[data-graph-open="true"]
