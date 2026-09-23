@@ -5,6 +5,7 @@ import { createSpatialAnchor, type SpatialAnchor } from "./world-projection.ts";
 
 export interface SpatialPlaceRecord {
   readonly id: PlaceId;
+  readonly label?: string;
   readonly geometry: CanonicalSpatialGeometry;
   readonly certainty?: number;
   readonly precisionRadiusMeters?: number;
@@ -94,6 +95,7 @@ function anchorFromPlace(place: SpatialPlaceRecord): SpatialAnchor {
   const [longitude, latitude] = representativeGeographicPosition(place.geometry);
   return createSpatialAnchor({
     placeId: place.id,
+    ...(place.label ? { label: place.label } : {}),
     longitude,
     latitude,
     influence: 1,
