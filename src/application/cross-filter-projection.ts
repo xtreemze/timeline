@@ -1,8 +1,8 @@
 import {
-  evaluateAnalyticalLens,
   type AnalyticalLens,
   type AnalyticalLensDataset,
   type AnalyticalLensEvaluation,
+  evaluateAnalyticalLens,
 } from "./analytical-lens.ts";
 
 export interface HistogramBin {
@@ -58,11 +58,7 @@ function positive(value: number, label: string): number {
   return normalized;
 }
 
-export function chooseTemporalBinWidth(
-  start: number,
-  end: number,
-  targetBins = 30,
-): number {
+export function chooseTemporalBinWidth(start: number, end: number, targetBins = 30): number {
   const first = finite(start, "Temporal histogram start");
   const last = finite(end, "Temporal histogram end");
   if (last < first) throw new Error("Temporal histogram end must be >= start.");
@@ -78,8 +74,10 @@ export function buildNumericHistogram(
   const finiteValues = values.filter(Number.isFinite);
   if (!finiteValues.length) return Object.freeze([]);
 
-  const min = options.min === undefined ? Math.min(...finiteValues) : finite(options.min, "Histogram min");
-  const max = options.max === undefined ? Math.max(...finiteValues) : finite(options.max, "Histogram max");
+  const min =
+    options.min === undefined ? Math.min(...finiteValues) : finite(options.min, "Histogram min");
+  const max =
+    options.max === undefined ? Math.max(...finiteValues) : finite(options.max, "Histogram max");
   if (max < min) throw new Error("Histogram max must be >= min.");
 
   const binCount = Math.max(1, Math.min(512, Math.trunc(options.bins ?? 20)));
@@ -88,8 +86,7 @@ export function buildNumericHistogram(
 
   for (const value of finiteValues) {
     if (value < min || value > max) continue;
-    const index =
-      max === min ? 0 : Math.min(binCount - 1, Math.floor((value - min) / width));
+    const index = max === min ? 0 : Math.min(binCount - 1, Math.floor((value - min) / width));
     counts[index] += 1;
   }
 
@@ -133,9 +130,7 @@ export function buildTemporalHistogram(
       const start = occurrence.start;
       if (start === null || start === undefined || !Number.isFinite(start)) return null;
       const end =
-        occurrence.end === null ||
-        occurrence.end === undefined ||
-        !Number.isFinite(occurrence.end)
+        occurrence.end === null || occurrence.end === undefined || !Number.isFinite(occurrence.end)
           ? start
           : occurrence.end;
       if (end < start) return null;
