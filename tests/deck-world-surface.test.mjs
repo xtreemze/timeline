@@ -718,3 +718,63 @@ test("incremental render only replaces datums whose selection actually changed",
     true,
   );
 });
+
+test("clustering is bypassed at the default working zoom (issue #445 Priority 2)", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+
+  const render = calls.setProps.at(-1);
+  const entities = render.layers[2].props.data;
+  assert.equal(entities.length, 2);
+  assert.ok(entities.every((datum) => datum.kind === "entity"));
+});
+
+test("zooming out past the cluster threshold groups nearby entities without losing canonical identity", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+  surface.setCamera({ longitude: 0, latitude: 0, zoom: 0, bearing: 0, pitch: 0 });
+
+  const render = calls.setProps.at(-1);
+  const entities = render.layers[2].props.data;
+
+  // alice and bob share the same Stockholm anchor, so at low zoom they
+  // collapse into a single cluster datum.
+  assert.equal(entities.length, 1);
+  const [cluster] = entities;
+  assert.equal(cluster.kind, "cluster");
+  assert.equal(cluster.clusterMembers.length, 2);
+  const memberIds = cluster.clusterMembers.map((member) => member.entityId).sort();
+  assert.deepEqual(memberIds, ["alice", "bob"]);
+});
+
+test("picking a cluster resolves to one of its real canonical member entities", () => {
+  const { calls, runtime, setPickResult } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+  surface.setCamera({ longitude: 0, latitude: 0, zoom: 0, bearing: 0, pitch: 0 });
+
+  const render = calls.setProps.at(-1);
+  const [cluster] = render.layers[2].props.data;
+  assert.equal(cluster.kind, "cluster");
+
+  setPickResult({ object: cluster, layer: { id: DECK_WORLD_LAYER_IDS.entities }, x: 1, y: 2 });
+  const hit = surface.pick({ x: 1, y: 2 });
+
+  assert.equal(hit.kind, "entity");
+  assert.ok(["alice", "bob"].includes(hit.entityId));
+});
+
+test("zooming back in above the cluster threshold restores per-entity picking and dragging", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+  surface.setCamera({ longitude: 0, latitude: 0, zoom: 0, bearing: 0, pitch: 0 });
+  assert.equal(calls.setProps.at(-1).layers[2].props.data.length, 1);
+
+  surface.setCamera({ longitude: 0, latitude: 0, zoom: 5, bearing: 0, pitch: 0 });
+  const entities = calls.setProps.at(-1).layers[2].props.data;
+  assert.equal(entities.length, 2);
+  assert.ok(entities.every((datum) => datum.kind === "entity"));
+});

@@ -109,6 +109,120 @@ interface DeckWorldPlaceDatum {
   readonly selected: boolean;
 }
 
+export interface DeckWorldClusterMember {
+  readonly entityId: EntityId;
+  readonly worldInstanceId: WorldInstanceId;
+}
+
+/**
+ * A screen-proximity grouping of entity datums at low zoom (issue #445
+ * Priority 2 semantic LOD). `clusterMembers` always carries the full list of
+ * canonical entity/instance ids the cluster represents, so picking a cluster
+ * can still resolve back to real canonical entities rather than an opaque
+ * blob.
+ */
+export interface DeckWorldClusterDatum {
+  readonly kind: "cluster";
+  readonly clusterId: string;
+  readonly position: WorldRenderPosition;
+  readonly clusterMembers: readonly DeckWorldClusterMember[];
+  readonly visualWeight: number;
+}
+
+export type DeckWorldEntityRenderDatum = DeckWorldEntityDatum | DeckWorldClusterDatum;
+
+/**
+ * Below this globe zoom level, nearby entities are grouped into clusters.
+ * The default camera (zoom 1, see `DEFAULT_CAMERA` below) sits above this
+ * threshold so clustering stays fully bypassed until the viewer zooms out
+ * past the initial globe overview, keeping per-entity picking/dragging
+ * unaffected at working zoom levels.
+ */
+export const CLUSTER_ZOOM_THRESHOLD = 0.5;
+
+/** Grid-cell size (degrees) used to bucket entities for clustering. */
+const CLUSTER_CELL_DEGREES = 6;
+
+function clusterCellKey(position: WorldRenderPosition): string {
+  const cellLongitude = Math.floor(position[0] / CLUSTER_CELL_DEGREES);
+  const cellLatitude = Math.floor(position[1] / CLUSTER_CELL_DEGREES);
+  return `${cellLongitude}:${cellLatitude}`;
+}
+
+/**
+ * Pure function grouping entity datums into clusters by screen-proximity
+ * (approximated here via a lon/lat grid, since actual pixel projection would
+ * require a live viewport). Fully bypassed at/above `CLUSTER_ZOOM_THRESHOLD`
+ * so per-entity picking/dragging is unaffected at working zoom levels, and
+ * a place-anchor's own entities are only grouped when more than one entity
+ * shares proximity — a lone entity is returned unchanged (same reference),
+ * preserving the Priority 3 incremental-memoization guarantee for the
+ * common case.
+ */
+export function clusterEntityDatums(
+  entities: readonly DeckWorldEntityDatum[],
+  zoom: number,
+): readonly DeckWorldEntityRenderDatum[] {
+  if (zoom >= CLUSTER_ZOOM_THRESHOLD) return entities;
+
+  const cells = new Map<string, DeckWorldEntityDatum[]>();
+  for (const entity of entities) {
+    const key = clusterCellKey(entity.position);
+    const bucket = cells.get(key);
+    if (bucket) {
+      bucket.push(entity);
+    } else {
+      cells.set(key, [entity]);
+    }
+  }
+
+  const result: DeckWorldEntityRenderDatum[] = [];
+  for (const [key, members] of cells) {
+    const [onlyMember] = members;
+    if (members.length === 1 && onlyMember) {
+      result.push(onlyMember);
+      continue;
+    }
+
+    let sumLongitude = 0;
+    let sumLatitude = 0;
+    let sumAltitude = 0;
+    let sumWeight = 0;
+    const clusterMembers: DeckWorldClusterMember[] = [];
+    for (const member of members) {
+      sumLongitude += member.position[0];
+      sumLatitude += member.position[1];
+      sumAltitude += member.position[2];
+      sumWeight += member.visualWeight;
+      clusterMembers.push(
+        Object.freeze({ entityId: member.entityId, worldInstanceId: member.worldInstanceId }),
+      );
+    }
+
+    result.push(
+      Object.freeze({
+        kind: "cluster",
+        clusterId: `cluster:${key}`,
+        position: Object.freeze([
+          sumLongitude / members.length,
+          sumLatitude / members.length,
+          sumAltitude / members.length,
+        ]) as WorldRenderPosition,
+        clusterMembers: Object.freeze(clusterMembers),
+        visualWeight: sumWeight / members.length,
+      }),
+    );
+  }
+
+  return Object.freeze(
+    result.sort((left, right) => {
+      const leftId = left.kind === "cluster" ? left.clusterId : left.worldInstanceId;
+      const rightId = right.kind === "cluster" ? right.clusterId : right.worldInstanceId;
+      return String(leftId).localeCompare(String(rightId));
+    }),
+  );
+}
+
 const BASE_CAPABILITIES = Object.freeze({
   globe: true,
   depthPicking: true,
@@ -381,6 +495,27 @@ function worldHitFromPicking(info: DeckRuntimePickingInfo | null): WorldHit | nu
     });
   }
 
+  if (object["kind"] === "cluster" && Array.isArray(object["clusterMembers"])) {
+    // Clusters are a presentation-only grouping (issue #445 Priority 2):
+    // picking one resolves back to its first real canonical member rather
+    // than exposing the cluster as its own selectable identity, so the
+    // renderer-neutral WorldHit contract never needs a "cluster" variant.
+    const first = object["clusterMembers"][0] as
+      | { readonly entityId?: unknown; readonly worldInstanceId?: unknown }
+      | undefined;
+    if (
+      first &&
+      typeof first.entityId === "string" &&
+      typeof first.worldInstanceId === "string"
+    ) {
+      return Object.freeze({
+        kind: "entity",
+        entityId: first.entityId as EntityId,
+        worldInstanceId: first.worldInstanceId as WorldInstanceId,
+      });
+    }
+  }
+
   return null;
 }
 
@@ -406,6 +541,11 @@ export class DeckWorldSurface implements WorldSurface {
   #placeDatumCache: ReadonlyMap<PlaceId, DeckWorldPlaceDatum> = new Map();
   #entityDatumCache: ReadonlyMap<WorldInstanceId, DeckWorldEntityDatum> = new Map();
   #relationshipDatumCache: ReadonlyMap<RelationshipId, DeckWorldRelationshipDatum> = new Map();
+  // Tracks which side of CLUSTER_ZOOM_THRESHOLD the last render used, so
+  // camera-only zoom changes only trigger a re-render when clustering would
+  // actually turn on/off (ordinary panning/zooming above the threshold stays
+  // as cheap as before).
+  #clusteredLastRender = false;
 
   readonly #handlePointerCancel = (event: PointerEvent): void => {
     if (this.#activeDragPointerId === null || event.pointerId !== this.#activeDragPointerId) {
@@ -445,6 +585,7 @@ export class DeckWorldSurface implements WorldSurface {
         if (next) {
           this.#camera = next;
           this.#syncSpatialMode();
+          this.#reclusterIfZoomCrossedThreshold();
         }
       },
     });
@@ -486,6 +627,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#camera = createWorldCameraState(camera);
     this.#syncSpatialMode();
     this.#deck.setProps({ viewState: this.#camera });
+    this.#reclusterIfZoomCrossedThreshold();
   }
 
   focusEntity(id: EntityId): void {
@@ -690,6 +832,11 @@ export class DeckWorldSurface implements WorldSurface {
     });
   }
 
+  #reclusterIfZoomCrossedThreshold(): void {
+    const clusteredNow = this.#camera.zoom < CLUSTER_ZOOM_THRESHOLD;
+    if (clusteredNow !== this.#clusteredLastRender) this.#render();
+  }
+
   #positions(): ReadonlyMap<WorldInstanceId, WorldRenderPosition> {
     const result = new Map<WorldInstanceId, WorldRenderPosition>();
     for (const instance of this.#projection.instances) {
@@ -715,10 +862,11 @@ export class DeckWorldSurface implements WorldSurface {
     );
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
-    const entities = entityResult.datums;
+    const entities = clusterEntityDatums(entityResult.datums, this.#camera.zoom);
     this.#placeDatumCache = placeResult.byId;
     this.#relationshipDatumCache = relationshipResult.byId;
     this.#entityDatumCache = entityResult.byId;
+    this.#clusteredLastRender = this.#camera.zoom < CLUSTER_ZOOM_THRESHOLD;
 
     const layers = [
       this.#runtime.createScatterplotLayer({
@@ -750,10 +898,17 @@ export class DeckWorldSurface implements WorldSurface {
         radiusUnits: "meters",
         radiusMinPixels: 5,
         radiusMaxPixels: 24,
-        getPosition: (datum: DeckWorldEntityDatum) => datum.position,
-        getRadius: (datum: DeckWorldEntityDatum) => 80 + datum.visualWeight * 120,
-        getFillColor: (datum: DeckWorldEntityDatum) =>
-          datum.selected ? [255, 255, 255, 255] : [220, 220, 220, 235],
+        getPosition: (datum: DeckWorldEntityRenderDatum) => datum.position,
+        getRadius: (datum: DeckWorldEntityRenderDatum) =>
+          datum.kind === "cluster"
+            ? 120 + datum.visualWeight * 120 + Math.min(datum.clusterMembers.length, 20) * 15
+            : 80 + datum.visualWeight * 120,
+        getFillColor: (datum: DeckWorldEntityRenderDatum) =>
+          datum.kind === "cluster"
+            ? [120, 170, 255, 235]
+            : datum.selected
+              ? [255, 255, 255, 255]
+              : [220, 220, 220, 235],
         ...(this.#nodeDragSink
           ? {
               onDragStart: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
