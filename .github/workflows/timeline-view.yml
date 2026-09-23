@@ -350,6 +350,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - name: Run WorldSurface interaction certification
+        continue-on-error: true
         run: |
           pnpm exec playwright test --config=playwright.config.ts \
             tests/browser/world-interaction-coverage.spec.ts \
@@ -365,23 +366,41 @@ jobs:
           import { readFileSync } from "node:fs";
           const report = JSON.parse(readFileSync("/tmp/world-interaction-report.json", "utf8"));
           const results = [];
-          const walk = (suite) => {
+          const walk = (suite, ancestry = []) => {
+            const suitePath = [...ancestry, suite.title].filter(Boolean);
             for (const spec of suite.specs ?? []) {
               for (const test of spec.tests ?? []) {
-                for (const result of test.results ?? []) results.push(result.status);
+                for (const result of test.results ?? []) {
+                  results.push({
+                    title: [...suitePath, spec.title, test.projectName].filter(Boolean).join(" > "),
+                    status: result.status,
+                    errors: result.errors ?? [],
+                  });
+                }
               }
             }
-            for (const child of suite.suites ?? []) walk(child);
+            for (const child of suite.suites ?? []) walk(child, suitePath);
           };
           for (const suite of report.suites ?? []) walk(suite);
           if (!results.length) throw new Error("WorldSurface interaction certification executed no tests.");
-          if (results.some((status) => status === "skipped")) {
-            throw new Error("WorldSurface interaction certification contains skipped results.");
-          }
-          if (results.some((status) => status !== "passed")) {
-            throw new Error("WorldSurface interaction certification contains non-passing results.");
+          const nonPassing = results.filter(({ status }) => status !== "passed");
+          if (nonPassing.length) {
+            console.error("WorldSurface interaction certification failures:");
+            for (const result of nonPassing) {
+              console.error(`- ${result.status}: ${result.title}`);
+              for (const error of result.errors) console.error(error.message ?? String(error));
+            }
+            process.exitCode = 1;
           }
           NODE
+      - name: Upload WorldSurface interaction evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-surface-interaction-report
+          path: /tmp/world-interaction-report.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Run WorldSurface scale certification
         run: |
           pnpm exec playwright test --config=playwright.config.ts \
