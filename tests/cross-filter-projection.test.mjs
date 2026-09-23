@@ -68,14 +68,11 @@ test("numeric histogram is deterministic and includes upper bound in final bin",
 });
 
 test("categorical counts sort by frequency then value", () => {
-  assert.deepEqual(
-    buildCategoryCounts(["b", "a", "b", "c", "a", "b", null, ""]),
-    [
-      { value: "b", count: 3 },
-      { value: "a", count: 2 },
-      { value: "c", count: 1 },
-    ],
-  );
+  assert.deepEqual(buildCategoryCounts(["b", "a", "b", "c", "a", "b", null, ""]), [
+    { value: "b", count: 3 },
+    { value: "a", count: 2 },
+    { value: "c", count: 1 },
+  ]);
 });
 
 test("adaptive temporal width ranges from millisecond scale upward", () => {
@@ -86,10 +83,7 @@ test("adaptive temporal width ranges from millisecond scale upward", () => {
 test("temporal density counts ranged occurrences in every intersected bin", () => {
   const width = 24 * 60 * 60 * 1000;
   const bins = buildTemporalHistogram(
-    [
-      { start: day("2026-09-20") },
-      { start: day("2026-09-21"), end: day("2026-09-22") },
-    ],
+    [{ start: day("2026-09-20") }, { start: day("2026-09-21"), end: day("2026-09-22") }],
     { binWidthMs: width },
   );
 
