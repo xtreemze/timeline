@@ -685,3 +685,13 @@ test("graph force motion stays deliberately low-energy so topology changes settl
   assert.match(source, /forceX:\s*\{\s*x:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.0035\s*\}/);
   assert.match(source, /forceY:\s*\{\s*y:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.0035\s*\}/);
 });
+
+
+test("legacy Orb fallback keeps data synchronization enabled before manual force requests", async () => {
+  const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+  assert.match(
+    source,
+    /Orb 1\.1\.0 only rebinds freshly loaded graph data into d3-force[\s\S]*isSimulatingOnDataUpdate:\s*true/,
+  );
+  assert.match(source, /isSimulatingOnSettingsUpdate:\s*false/);
+});
