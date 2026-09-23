@@ -8,17 +8,33 @@ export default defineConfig({
   retries: 0,
   workers: 1,
   reporter: [['line']],
-  timeout: 90_000,
+  timeout: 120_000,
   expect: { timeout: 7_500 },
   outputDir: 'artifacts/e2e-media/playwright',
   use: {
-    ...devices['Desktop Chrome'],
     baseURL: 'http://localhost:5173',
-    viewport: { width: 1440, height: 900 },
     trace: 'off',
     screenshot: 'off',
     video: 'off',
   },
+  projects: [
+    {
+      name: 'Desktop Showcase',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1440, height: 900 },
+      },
+    },
+    {
+      name: 'Mobile Showcase',
+      use: {
+        ...devices['Pixel 5'],
+        viewport: { width: 390, height: 844 },
+        hasTouch: true,
+        isMobile: true,
+      },
+    },
+  ],
   webServer: {
     command: 'pnpm dev',
     url: 'http://localhost:5173',
