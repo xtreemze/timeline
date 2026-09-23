@@ -354,7 +354,14 @@ export class DeckWorldSurface implements WorldSurface {
     ]);
     const x = projected[0];
     const y = projected[1];
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    if (
+      typeof x !== "number" ||
+      typeof y !== "number" ||
+      !Number.isFinite(x) ||
+      !Number.isFinite(y)
+    ) {
+      return null;
+    }
     return Object.freeze({ x, y });
   }
 
@@ -387,6 +394,9 @@ export class DeckWorldSurface implements WorldSurface {
     const altitudeMeters = unprojected[2] ?? targetAltitudeMeters;
 
     if (
+      typeof longitude !== "number" ||
+      typeof latitude !== "number" ||
+      typeof altitudeMeters !== "number" ||
       !Number.isFinite(longitude) ||
       !Number.isFinite(latitude) ||
       !Number.isFinite(altitudeMeters)
