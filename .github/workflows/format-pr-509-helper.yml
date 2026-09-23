@@ -1,0 +1,57 @@
+name: PR 509 formatter helper
+
+on:
+  pull_request:
+    paths:
+      - 'site/world/world-projection-view.ts'
+      - 'src/projection/spatial-anchor-index.ts'
+      - 'src/projection/world-occurrence-projection.ts'
+      - 'src/projection/world-projection.ts'
+      - 'tests/spatial-anchor-index.test.mjs'
+      - 'tests/world-occurrence-projection.test.mjs'
+      - 'tests/world-projection-view.test.mjs'
+      - 'tests/world-projection.test.mjs'
+      - '.github/workflows/format-pr-509-helper.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    if: github.head_ref == 'feat/world-presentation-metadata-mainline'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - name: Format PR 509 files with repository Biome
+        run: |
+          pnpm exec biome check --write \
+            site/world/world-projection-view.ts \
+            src/projection/spatial-anchor-index.ts \
+            src/projection/world-occurrence-projection.ts \
+            src/projection/world-projection.ts \
+            tests/spatial-anchor-index.test.mjs \
+            tests/world-occurrence-projection.test.mjs \
+            tests/world-projection-view.test.mjs \
+            tests/world-projection.test.mjs
+      - name: Emit formatted files
+        run: |
+          for file in \
+            site/world/world-projection-view.ts \
+            src/projection/spatial-anchor-index.ts \
+            src/projection/world-occurrence-projection.ts \
+            src/projection/world-projection.ts \
+            tests/spatial-anchor-index.test.mjs \
+            tests/world-occurrence-projection.test.mjs \
+            tests/world-projection-view.test.mjs \
+            tests/world-projection.test.mjs
+          do
+            echo "BEGIN_FORMATTED::$file"
+            base64 -w 0 "$file"
+            echo
+            echo "END_FORMATTED::$file"
+          done
