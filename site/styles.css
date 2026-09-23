@@ -2490,11 +2490,6 @@ footer > :last-child {
   height: 100%;
 }
 
-#presentation-stage:fullscreen[data-has-context-graph="true"] > .timeline-view,
-#presentation-stage:fullscreen[data-has-context-map="true"] > .timeline-view {
-  grid-column: 1 / span 9;
-}
-
 #presentation-stage:fullscreen > .graph-lens:not([hidden]),
 #presentation-stage:fullscreen > .presentation-map-panel:not([hidden]) {
   grid-column: 10 / -1;
@@ -2510,6 +2505,11 @@ footer > :last-child {
 
 #presentation-stage:fullscreen > .timeline-view {
   z-index: 1;
+}
+
+#presentation-stage:fullscreen[data-has-context-graph="true"] > .timeline-view,
+#presentation-stage:fullscreen[data-has-context-map="true"] > .timeline-view {
+  grid-column: 1 / span 9;
 }
 
 .app-shell.is-event-focused #presentation-stage > .timeline-view {
