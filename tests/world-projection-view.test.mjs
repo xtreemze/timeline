@@ -34,7 +34,12 @@ function harness() {
     },
   };
 
-  return { calls, runtime, view: new WorldProjectionView(runtime), getProjection: () => projection };
+  return {
+    calls,
+    runtime,
+    view: new WorldProjectionView(runtime),
+    getProjection: () => projection,
+  };
 }
 
 const model = {
@@ -101,9 +106,7 @@ test("application model projects timed and timeless relationships into one world
     (instance) => instance.occurrenceId === "meeting",
   );
   assert.ok(
-    meetingInstances.every(
-      (instance) => instance.geographicAnchors[0]?.placeId === "stockholm",
-    ),
+    meetingInstances.every((instance) => instance.geographicAnchors[0]?.placeId === "stockholm"),
   );
 
   const timelessInstances = projection.instances.filter(
@@ -201,8 +204,7 @@ test("application presentation names survive into renderer-neutral world records
   const projection = getProjection();
   const alice = projection.instances.find((instance) => instance.canonicalId === "alice");
   const meeting = projection.edges.find((edge) => edge.id === "meeting");
-  const stockholm = projection.instances
-    .find((instance) => instance.occurrenceId === "meeting")
+  const stockholm = projection.instances.find((instance) => instance.occurrenceId === "meeting")
     ?.geographicAnchors[0];
 
   assert.equal(alice.label, "Alice");
