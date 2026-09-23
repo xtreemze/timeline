@@ -115,7 +115,7 @@ test('records a branded Lūm E2E highlight reel source set', async ({ page }) =>
         await page.waitForTimeout(700);
         await page.keyboard.press('Escape');
         await page.locator('.timeline-surface').hover();
-        await page.mouse.wheel(-240, 0);
+        await page.mouse.wheel(0, -240);
         await page.waitForTimeout(700);
       },
     ),
