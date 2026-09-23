@@ -43,6 +43,14 @@ const baseRelationship = {
 
 test("domain entity rules reject event/action semantics", () => {
   assert.equal(validateEntity({ name: "Alice", type: "person" }).valid, true);
+  assert.equal(validateEntity({ name: "Mirror", type: "enchantedArtifact" }).valid, true);
+  assert.equal(validateEntity({ name: "Mystery", type: "object" }).valid, false);
+  assert.equal(validateEntity({ name: "Mystery", type: "entity" }).valid, false);
+  assert.equal(validateEntity({ name: "Alice" }).valid, false);
+  assert.equal(
+    validateEntity({ name: "Alice", type: "person", attributes: { source_name: "x" } }).valid,
+    false,
+  );
   assert.equal(validateEntity({ name: "Payment", type: "transaction" }).valid, false);
   assert.equal(validateEntity({ name: "Called Alice", type: "person" }).valid, false);
   assert.equal(
