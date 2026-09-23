@@ -20,7 +20,19 @@ import {
 import { projectWorldOccurrences } from "../../src/projection/world-occurrence-projection.ts";
 import type { RelationshipId } from "../../src/domain/ids.ts";
 import { TimelineTemporal } from "../temporal-standards.ts";
-import type { WorldViewRuntimeController } from "./world-view-controller.ts";
+import type { EntityId, PlaceId } from "../../src/domain/ids.ts";
+import type { WorldProjection } from "../../src/projection/world-projection.ts";
+
+export interface WorldProjectionRuntime {
+  setProjection(projection: WorldProjection): void;
+  setTemporalWindow(window: WorldViewViewport): void;
+  focusEntity(id: EntityId): void;
+  focusOccurrence(id: RelationshipId): void;
+  focusPlace(id: PlaceId): void;
+  refresh(): void;
+  getRenderProjection(): WorldProjection | null;
+  destroy(): void;
+}
 
 interface InputEntity {
   readonly id?: unknown;
@@ -169,7 +181,7 @@ function indexedOccurrence(
 }
 
 export class WorldProjectionView {
-  readonly #runtime: WorldViewRuntimeController;
+  readonly #runtime: WorldProjectionRuntime;
 
   #relationships: readonly CanonicalRelationship[] = Object.freeze([]);
   #spatialAnchors = new SpatialAnchorIndex([], []);
@@ -182,7 +194,7 @@ export class WorldProjectionView {
   #entityIds = new Set<string>();
   #placeIds = new Set<string>();
 
-  constructor(runtime: WorldViewRuntimeController) {
+  constructor(runtime: WorldProjectionRuntime) {
     this.#runtime = runtime;
   }
 
