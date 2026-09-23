@@ -333,11 +333,9 @@ async function mobileRoutine(page: Page, sceneName: string) {
   if (sceneName === '04-relation-graph') {
     const graph = page.locator('.temporal-graph-canvas');
     await expect(graph).toBeVisible();
-    const canvas = graph.locator('canvas').first();
-    await expect(canvas).toBeVisible();
-    await touchDrag(canvas, -42, 18);
+    await touchDrag(graph, -42, 18);
     await page.waitForTimeout(400);
-    await touchDrag(canvas, 42, -18);
+    await touchDrag(graph, 42, -18);
     return;
   }
 
