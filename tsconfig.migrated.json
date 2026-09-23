@@ -12,7 +12,8 @@
     "src/**/*.ts",
     "tests/**/*.ts",
     "vite.config.ts",
-    "playwright.config.ts"
+    "playwright.config.ts",
+    "playwright.highlight.config.ts"
   ],
   "exclude": [
     "node_modules",

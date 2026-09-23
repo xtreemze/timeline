@@ -20,6 +20,78 @@ The application is static and runs entirely in the browser. Lūm project data is
 
 > GitHub Pages must be enabled for the repository with **Settings → Pages → Source → GitHub Actions** before the deployment workflow can publish the site.
 
+## Lūm in motion
+
+These loops are generated from the real Chromium application exercised by CI. Desktop and mobile demonstrate the same five capabilities using interactions appropriate to each layout.
+
+### Desktop
+
+#### Navigate the continuum
+
+Zoom and pan the retained chronology while relational context remains synchronized.
+
+<img src="https://xtreemze.github.io/timeline/showcase/desktop/01-timeline-navigation.gif" alt="Lūm chronology navigation with synchronized relational context" width="760">
+
+#### Read an occurrence in context
+
+Open focused occurrence detail without losing the surrounding chronology and relationships.
+
+<img src="https://xtreemze.github.io/timeline/showcase/desktop/02-focused-context.gif" alt="Lūm focused occurrence context beside the retained chronology" width="760">
+
+#### Inspect evidence
+
+Move from contextual reading to the occurrence evidence dossier and back.
+
+<img src="https://xtreemze.github.io/timeline/showcase/desktop/03-evidence.gif" alt="Lūm occurrence evidence dossier with source cards" width="760">
+
+#### Explore relationships
+
+Pan and zoom the relation graph independently while timeline state remains intact.
+
+<img src="https://xtreemze.github.io/timeline/showcase/desktop/04-relation-graph.gif" alt="Lūm interactive relation graph coordinated with the timeline" width="760">
+
+#### Browse narrative threads
+
+Inspect authored stories as traversals through the same canonical continuum.
+
+<img src="https://xtreemze.github.io/timeline/showcase/desktop/05-story-browser.gif" alt="Lūm story browser showing narrative threads through the continuum" width="760">
+
+### Mobile
+
+Mobile is the same product model and capability set, presented through its portrait responsive composition and touch interactions.
+
+#### Navigate the continuum
+
+Touch-pan the retained chronology and open mobile view controls without leaving the responsive stage.
+
+<img src="https://xtreemze.github.io/timeline/showcase/mobile/01-timeline-navigation.gif" alt="Lūm mobile chronology navigation in portrait layout" width="320">
+
+#### Read an occurrence in context
+
+Open focused occurrence context within the mobile composition and return to the continuum.
+
+<img src="https://xtreemze.github.io/timeline/showcase/mobile/02-focused-context.gif" alt="Lūm focused occurrence context on mobile" width="320">
+
+#### Inspect evidence
+
+Switch to the evidence dossier with touch interactions and retain the focused occurrence.
+
+<img src="https://xtreemze.github.io/timeline/showcase/mobile/03-evidence.gif" alt="Lūm mobile occurrence evidence dossier" width="320">
+
+#### Explore relationships
+
+Use touch pointer gestures directly on the relation graph.
+
+<img src="https://xtreemze.github.io/timeline/showcase/mobile/04-relation-graph.gif" alt="Lūm mobile touch interaction with the relation graph" width="320">
+
+#### Browse narrative threads
+
+Open the responsive story browser and inspect the available authored traversals.
+
+<img src="https://xtreemze.github.io/timeline/showcase/mobile/05-story-browser.gif" alt="Lūm mobile story browser in portrait layout" width="320">
+
+The dedicated showcase workflow also produces separate desktop and portrait-mobile H.264 highlight reels plus raw WebM/PNG evidence for every scene. See [the visual showcase documentation](docs/E2E-HIGHLIGHT-REEL.md).
+
 ## Conceptual language
 
 - **Lūm** — the loom: the product and instrument that reconciles and relates loose threads.

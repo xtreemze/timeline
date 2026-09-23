@@ -1,0 +1,109 @@
+name: E2E media showcase
+
+on:
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'src/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'vite.config.ts'
+      - 'playwright.config.ts'
+      - 'playwright.highlight.config.ts'
+      - 'tests/highlight/**'
+      - 'scripts/render-e2e-highlight.mjs'
+      - 'tests/playwright-certification-config.test.mjs'
+      - 'docs/E2E-HIGHLIGHT-REEL.md'
+      - 'docs/FORMAL-PRESENTATION.md'
+      - 'README.md'
+      - '.github/workflows/e2e-media.yml'
+      - '.github/workflows/pages.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'src/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'vite.config.ts'
+      - 'playwright.config.ts'
+      - 'playwright.highlight.config.ts'
+      - 'tests/highlight/**'
+      - 'scripts/render-e2e-highlight.mjs'
+      - 'tests/playwright-certification-config.test.mjs'
+      - 'docs/E2E-HIGHLIGHT-REEL.md'
+      - 'docs/FORMAL-PRESENTATION.md'
+      - 'README.md'
+      - '.github/workflows/e2e-media.yml'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-media-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  showcase:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Certify media-pipeline configuration
+        run: pnpm test:browser-certification-config
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Record ten real-browser showcase scenes
+        run: pnpm test:e2e:showcase
+
+      - name: Render desktop and mobile reels and GIF collections
+        run: pnpm render:e2e:showcase
+
+      - name: Verify media evidence
+        run: |
+          test -s artifacts/e2e-media/manifest.json
+          test -s artifacts/e2e-media/README-showcase.md
+          test -s artifacts/e2e-media/reels/lum-desktop-highlight.mp4
+          test -s artifacts/e2e-media/reels/lum-mobile-highlight.mp4
+          test "$(find artifacts/e2e-media/raw/desktop -type f -name '*.webm' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/raw/mobile -type f -name '*.webm' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/raw/desktop -type f -name '*.png' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/raw/mobile -type f -name '*.png' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/gifs/desktop -type f -name '*.gif' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/gifs/mobile -type f -name '*.gif' | wc -l)" -eq 5
+
+      - name: Report GIF sizes
+        run: |
+          echo "Desktop GIFs"
+          du -h artifacts/e2e-media/gifs/desktop/*.gif
+          du -sh artifacts/e2e-media/gifs/desktop
+          echo "Mobile GIFs"
+          du -h artifacts/e2e-media/gifs/mobile/*.gif
+          du -sh artifacts/e2e-media/gifs/mobile
+          echo "Combined GIF payload"
+          du -sh artifacts/e2e-media/gifs
+
+      - name: Upload E2E media evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lum-e2e-showcase
+          path: artifacts/e2e-media/
+          if-no-files-found: error
+          retention-days: 14

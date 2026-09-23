@@ -171,3 +171,17 @@ A formal Timeline report should still look appropriate if:
 - reproduced in black and white.
 
 If the design depends on current visual fashion to look intentional, simplify it.
+
+
+## CI-generated product showcase media
+
+For product demonstrations, release reviews, talks, and slide/web presentations, use the CI-generated showcase rather than hand-recorded or mocked application footage. The dedicated media workflow records the real application in Chromium and emits:
+
+- `artifacts/e2e-media/reels/lum-desktop-highlight.mp4`;
+- `artifacts/e2e-media/reels/lum-mobile-highlight.mp4`;
+- five looping desktop GIFs under `gifs/desktop/`;
+- five looping mobile GIFs under `gifs/mobile/`.
+
+The desktop and mobile collections demonstrate the same five product capabilities with layout-appropriate interactions. Stable published GIFs live under `/timeline/showcase/desktop/` and `/timeline/showcase/mobile/`.
+
+These files are product-presentation assets only. They must not be represented as case evidence, provenance, source material, or a substitute for the evidence and trace model described elsewhere in this documentation.

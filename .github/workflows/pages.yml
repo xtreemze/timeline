@@ -1,23 +1,19 @@
 name: Deploy GitHub Pages
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "site/**"
-      - "src/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "playwright.config.ts"
-      - "playwright.pages.config.ts"
-      - "vite.config.ts"
-      - "scripts/serve-pages-preview.mjs"
-      - "tests/playwright/**"
-      - ".github/workflows/pages.yml"
+  workflow_run:
+    workflows: ["E2E media showcase"]
+    types: [completed]
   workflow_dispatch:
+    inputs:
+      media_run_id:
+        description: Successful E2E media showcase run ID whose artifact should be published
+        required: true
+        type: string
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 
@@ -27,6 +23,9 @@ concurrency:
 
 jobs:
   deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -34,6 +33,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Download certified showcase media
+        uses: actions/download-artifact@v4
+        with:
+          name: lum-e2e-showcase
+          path: artifacts/e2e-media
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id || inputs.media_run_id }}
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
@@ -89,6 +98,14 @@ jobs:
       - name: Certify built Pages runtime
         run: pnpm exec playwright test --config=playwright.pages.config.ts
 
+      - name: Publish certified showcase GIFs into Pages artifact
+        run: |
+          test "$(find artifacts/e2e-media/gifs/desktop -type f -name '*.gif' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/gifs/mobile -type f -name '*.gif' | wc -l)" -eq 5
+          mkdir -p dist/showcase/desktop dist/showcase/mobile
+          cp artifacts/e2e-media/gifs/desktop/*.gif dist/showcase/desktop/
+          cp artifacts/e2e-media/gifs/mobile/*.gif dist/showcase/mobile/
+
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
@@ -104,6 +121,8 @@ jobs:
           test -s dist/leaflet.bundle.js
           test -s dist/evidence-extraction.bundle.js
           test -s dist/pdf.worker.mjs
+          test "$(find dist/showcase/desktop -type f -name '*.gif' | wc -l)" -eq 5
+          test "$(find dist/showcase/mobile -type f -name '*.gif' | wc -l)" -eq 5
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
