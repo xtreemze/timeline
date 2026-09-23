@@ -89,7 +89,7 @@ export function validateEntity(entity: {
   if (GENERIC_ENTITY_NODE_TYPES.has(typeKey)) {
     return {
       valid: false,
-      message: `"${type}" is too generic for a canonical entity type. Use a domain type such as person, organization, dwelling, vehicle, document, garment, food, or buildingMaterial.`,
+      message: `"${type}" is too generic for a canonical entity type. Use a domain type such as person, organization, dwelling, vehicle, garment, food, or buildingMaterial.`,
     };
   }
 
