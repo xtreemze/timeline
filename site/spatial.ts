@@ -156,6 +156,10 @@ const PLACE_ICON_NAMES = new Set<string>([
   "search",
   "crown",
   "object",
+  "route",
+  "nature",
+  "market",
+  "workshop",
 ]);
 
 function clone(value: unknown): unknown {
