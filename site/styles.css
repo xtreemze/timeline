@@ -4124,7 +4124,7 @@ body {
   padding: 0.3rem max(0.4rem, env(safe-area-inset-right))
     max(0.3rem, env(safe-area-inset-bottom)) max(0.4rem, env(safe-area-inset-left));
   gap: 0.12rem;
-  overflow: hidden;
+  overflow: clip;
   transform: none;
   border: 0;
   border-block-start: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
