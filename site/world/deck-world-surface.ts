@@ -22,7 +22,6 @@ import {
   selectWorldSpatialMode,
   type WorldSpatialMode,
 } from "../../src/layout/world-spatial-mode.ts";
-import { applyWorldProjectionDelta, type WorldProjectionDelta } from "../../src/projection/world-projection-delta.ts";
 import type {
   ProjectedWorldInstance,
   WorldInstanceId,
@@ -383,12 +382,6 @@ export class DeckWorldSurface implements WorldSurface {
   setProjection(projection: WorldProjection): void {
     this.#assertAlive();
     this.#projection = projection;
-    this.#render();
-  }
-
-  applyProjectionDelta(delta: WorldProjectionDelta): void {
-    this.#assertAlive();
-    this.#projection = applyWorldProjectionDelta(this.#projection, delta);
     this.#render();
   }
 
