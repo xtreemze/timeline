@@ -73,6 +73,12 @@ on:
       - 'vite.config.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'tests/browser/retained-performance.spec.ts'
+      - 'tests/browser/world-interaction-coverage.spec.ts'
+      - 'tests/browser/world-performance-certification.spec.ts'
+      - 'tests/browser/fixtures/world-performance-baseline.json'
+      - 'site/world-perf-harness.html'
+      - 'site/world-fixture-generator.mjs'
+      - 'site/world-test-helpers.mjs'
       - 'src/performance/retained-timeline-metrics.ts'
       - 'benchmarks/retained-timeline.mjs'
       - 'benchmarks/graph-data.mjs'
@@ -161,6 +167,12 @@ on:
       - 'tests/playwright/layout.spec.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'tests/browser/retained-performance.spec.ts'
+      - 'tests/browser/world-interaction-coverage.spec.ts'
+      - 'tests/browser/world-performance-certification.spec.ts'
+      - 'tests/browser/fixtures/world-performance-baseline.json'
+      - 'site/world-perf-harness.html'
+      - 'site/world-fixture-generator.mjs'
+      - 'site/world-test-helpers.mjs'
       - 'src/performance/retained-timeline-metrics.ts'
       - 'benchmarks/retained-timeline.mjs'
       - 'benchmarks/graph-data.mjs'
@@ -326,6 +338,95 @@ jobs:
           pnpm exec playwright test --config=playwright.config.ts tests/browser/retained-performance.spec.ts --list | tee /tmp/retained-performance-list.txt
           grep -F 'retained-performance.spec.ts' /tmp/retained-performance-list.txt
       - run: pnpm test:retained-performance-browser
+
+  world-surface-certification-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Run WorldSurface interaction certification
+        continue-on-error: true
+        run: |
+          pnpm exec playwright test --config=playwright.config.ts \
+            tests/browser/world-interaction-coverage.spec.ts \
+            --project="Desktop Chrome" \
+            --project="Mobile Chrome" \
+            --project="Mobile Chrome Landscape" \
+            --project="Tablet Touch" \
+            --project="Reduced Motion" \
+            --reporter=json > /tmp/world-interaction-report.json
+      - name: Verify WorldSurface interaction certification executed
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const report = JSON.parse(readFileSync("/tmp/world-interaction-report.json", "utf8"));
+          const results = [];
+          const walk = (suite, ancestry = []) => {
+            const suitePath = [...ancestry, suite.title].filter(Boolean);
+            for (const spec of suite.specs ?? []) {
+              for (const test of spec.tests ?? []) {
+                for (const result of test.results ?? []) {
+                  results.push({
+                    title: [...suitePath, spec.title, test.projectName].filter(Boolean).join(" > "),
+                    status: result.status,
+                    errors: result.errors ?? [],
+                  });
+                }
+              }
+            }
+            for (const child of suite.suites ?? []) walk(child, suitePath);
+          };
+          for (const suite of report.suites ?? []) walk(suite);
+          if (!results.length) throw new Error("WorldSurface interaction certification executed no tests.");
+          const nonPassing = results.filter(({ status }) => status !== "passed");
+          if (nonPassing.length) {
+            console.error("WorldSurface interaction certification failures:");
+            for (const result of nonPassing) {
+              console.error(`- ${result.status}: ${result.title}`);
+              for (const error of result.errors) console.error(error.message ?? String(error));
+            }
+            process.exitCode = 1;
+          }
+          NODE
+      - name: Upload WorldSurface interaction evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-surface-interaction-report
+          path: /tmp/world-interaction-report.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Run WorldSurface scale certification
+        run: |
+          pnpm exec playwright test --config=playwright.config.ts \
+            tests/browser/world-performance-certification.spec.ts \
+            --project="Desktop Chrome"
+      - name: Verify WorldSurface scale certification executed
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const report = JSON.parse(
+            readFileSync("tests/browser/world-performance-report.json", "utf8"),
+          );
+          const expected = ["1k", "10k", "50k", "150k-render-only"];
+          const labels = new Set((report.scales ?? []).map((scale) => scale.label));
+          for (const label of expected) {
+            if (!labels.has(label)) throw new Error(`Missing WorldSurface performance result: ${label}`);
+          }
+          NODE
+      - name: Upload WorldSurface performance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-surface-performance-report
+          path: tests/browser/world-performance-report.json
+          if-no-files-found: error
+          retention-days: 14
 
   graph-touch-browser:
     runs-on: ubuntu-latest
