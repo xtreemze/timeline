@@ -58,6 +58,7 @@ on:
       - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
+      - 'tests/timeline-recovered-affordances-runtime.test.mjs'
       - 'tests/retained-structural-composition-runtime.test.mjs'
       - 'tests/browser/retained-structural-composition.spec.ts'
       - 'tests/browser/semantic-chronology.spec.ts'
@@ -145,6 +146,7 @@ on:
       - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
+      - 'tests/timeline-recovered-affordances-runtime.test.mjs'
       - 'tests/retained-structural-composition-runtime.test.mjs'
       - 'tests/browser/retained-structural-composition.spec.ts'
       - 'tests/browser/semantic-chronology.spec.ts'
@@ -204,6 +206,7 @@ jobs:
       - run: pnpm test:architecture
       - run: pnpm test:browser-certification-config
       - run: pnpm test:runtime-contracts
+      - run: pnpm test:recovered-affordances-runtime
       - run: pnpm test:evidence-inference-runtime
       - run: pnpm test:temporal-layout-runtime
       - run: pnpm test:structural-composition-runtime
