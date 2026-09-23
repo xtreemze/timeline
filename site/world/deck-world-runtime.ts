@@ -19,6 +19,9 @@ export interface DeckWorldBindings {
   readonly pathLayer: (
     props: Readonly<Record<string, unknown>>,
   ) => unknown;
+  readonly textLayer?: (
+    props: Readonly<Record<string, unknown>>,
+  ) => unknown;
 }
 
 export function createDeckWorldRuntime(
@@ -44,5 +47,12 @@ export function createDeckWorldRuntime(
     createPathLayer(props) {
       return bindings.pathLayer(props);
     },
+    ...(bindings.textLayer
+      ? {
+          createTextLayer(props: Readonly<Record<string, unknown>>) {
+            return bindings.textLayer?.(props) ?? null;
+          },
+        }
+      : {}),
   });
 }
