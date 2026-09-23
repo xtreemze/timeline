@@ -2465,11 +2465,6 @@ footer > :last-child {
   grid-template-rows: minmax(0, 1fr);
 }
 
-.app-shell.is-event-focused #presentation-stage > .timeline-view {
-  grid-column: 1 / -1;
-  grid-row: 1;
-}
-
 .app-shell.is-event-focused
   #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"] {
   grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
@@ -2515,6 +2510,11 @@ footer > :last-child {
 
 #presentation-stage:fullscreen > .timeline-view {
   z-index: 1;
+}
+
+.app-shell.is-event-focused #presentation-stage > .timeline-view {
+  grid-column: 1 / -1;
+  grid-row: 1;
 }
 
 /* Timeline owns 75% of the presentation and stays attached to its temporal edge.
