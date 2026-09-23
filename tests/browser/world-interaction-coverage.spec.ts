@@ -5,22 +5,68 @@ import { expect, test } from "@playwright/test";
  * the deck.gl WorldSurface. Drives the real `DeckWorldSurface` (real deck.gl
  * / real WebGL context via `site/world-perf-harness.ts` — the same harness
  * Priority 7's certification spec uses) with actual Playwright input
- * (`page.mouse.wheel`, `page.mouse.down/move/up`, `page.setViewportSize`)
- * rather than only calling surface methods directly, and asserts on the
+ * (`page.mouse.wheel`, Chromium CDP multi-touch, `page.mouse.down/move/up`,
+ * `page.setViewportSize`) rather than only calling surface methods directly,
+ * and asserts on the
  * renderer-neutral state the surface itself exposes
  * (`getCamera()`, `getAccessibleSnapshot()`, the `role="status"` live
  * region, and the test-only `getProjection()`/`dragSinkCalls` readback added
  * to the harness for this spec).
  *
- * Honest limitation: Playwright's built-in touch APIs (`page.touchscreen`)
- * only support single-point taps/swipes — there is no built-in two-finger
- * pinch gesture, and CDP's `Input.dispatchTouchEvent` multi-touch path is
- * not reliably exposed through Playwright's public API in this environment.
- * Camera-zoom coverage below therefore uses `page.mouse.wheel`, which drives
- * the same deck.gl `GlobeController` zoom handler a trackpad/mouse wheel
- * gesture would (scrollZoom), and is deck.gl's documented desktop-equivalent
- * of pinch-to-zoom. True multi-touch pinch is not exercised by this spec.
+ * Playwright's high-level touch API is single-point only, so Chromium mobile
+ * certification uses the public CDP session API to dispatch a real two-contact
+ * touch sequence. Desktop certification separately exercises wheel/trackpad
+ * zoom. Both must move deck.gl's real controller-backed camera.
  */
+
+
+async function dispatchPinchZoom(page: import("@playwright/test").Page) {
+  const viewport = page.viewportSize();
+  if (!viewport) throw new Error("WorldSurface pinch certification requires a viewport.");
+
+  const centerX = Math.round(viewport.width / 2);
+  const centerY = Math.round(viewport.height / 2);
+  const session = await page.context().newCDPSession(page);
+
+  const points = (distance: number) => [
+    {
+      x: centerX - distance,
+      y: centerY,
+      radiusX: 8,
+      radiusY: 8,
+      force: 1,
+      id: 1,
+    },
+    {
+      x: centerX + distance,
+      y: centerY,
+      radiusX: 8,
+      radiusY: 8,
+      force: 1,
+      id: 2,
+    },
+  ];
+
+  try {
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: points(28),
+    });
+    for (const distance of [40, 54, 70, 88]) {
+      await session.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: points(distance),
+      });
+      await page.waitForTimeout(32);
+    }
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+  } finally {
+    await session.detach();
+  }
+}
 
 async function gotoHarness(page: import("@playwright/test").Page) {
   await page.goto("/world-perf-harness.html");
@@ -36,30 +82,43 @@ async function gotoHarness(page: import("@playwright/test").Page) {
 }
 
 test.describe("world interaction coverage (issue #445 Priority 8)", () => {
-  test("mouse-wheel zoom changes the camera (desktop equivalent of pinch)", async ({
+  test("mouse-wheel zoom changes the camera on the desktop controller path", async ({
     page,
-    browserName,
     isMobile,
   }) => {
+    test.skip(isMobile, "Mobile projects certify two-finger pinch separately.");
     test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
-    // Playwright's mouse.wheel is unsupported on WebKit in mobile-emulation
-    // mode ("Mouse wheel is not supported in mobile WebKit") — this is the
-    // real touch-pinch limitation called out in the file header: neither
-    // Playwright's touch API nor its WebKit wheel emulation can drive a
-    // pinch/zoom gesture on Mobile Safari in this environment.
-    test.skip(
-      browserName === "webkit" && isMobile,
-      "Playwright's mouse.wheel is unsupported on mobile WebKit, and there is no built-in pinch gesture to fall back to.",
-    );
 
     const before = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
 
-    await page.mouse.move(512, 384);
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error("WorldSurface wheel certification requires a viewport.");
+    await page.mouse.move(Math.round(viewport.width / 2), Math.round(viewport.height / 2));
     await page.mouse.wheel(0, -400);
     await page.waitForTimeout(300);
 
     const after = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
     expect(after.zoom, "wheel zoom should change the camera zoom level").not.toBeCloseTo(
+      before.zoom,
+      5,
+    );
+  });
+
+  test("two-finger pinch changes the camera on mobile Chromium", async ({
+    page,
+    browserName,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, "Desktop projects certify wheel/trackpad zoom separately.");
+    test.skip(browserName !== "chromium", "CDP multi-touch certification is Chromium-only.");
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const before = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+    await dispatchPinchZoom(page);
+    await page.waitForTimeout(300);
+    const after = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+
+    expect(after.zoom, "two-finger pinch should change the camera zoom level").not.toBeCloseTo(
       before.zoom,
       5,
     );
