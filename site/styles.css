@@ -232,7 +232,6 @@ main > * {
   display: grid;
   grid-template-columns: subgrid;
   grid-column: 1 / -1;
-  min-height: 780px;
   border: 1px solid var(--line-strong);
   border-radius: 1.15rem;
   overflow: clip;
@@ -2201,14 +2200,6 @@ footer > :last-child {
 }
 
 
-@media (prefers-reduced-motion: reduce) {
-  .temporal-graph-canvas[data-touch-drag="holding"]::after {
-    animation: none;
-    opacity: 0.72;
-    transform: scale(1);
-  }
-}
-
 .presentation-stage:fullscreen {
   inline-size: 100%;
   block-size: 100%;
@@ -2536,10 +2527,6 @@ footer > :last-child {
 #presentation-stage:fullscreen .presentation-map {
   min-height: 0;
 }
-#presentation-stage:fullscreen .timeline-focus-place-map {
-  display: none;
-}
-
 #presentation-stage:fullscreen .timeline-focus-view {
   scrollbar-width: thin;
 }
@@ -3506,33 +3493,6 @@ body {
     width: 100%;
     min-height: 40px;
     margin-top: -0.2rem;
-  }
-}
-
-/* Workspace chrome participates in the same document View Transition as timeline focus.
-   This preserves spatial continuity when responsive/fullscreen composition moves the dock
-   or a side sheet between application regions. */
-::view-transition-group(timeline-workspace-sidebar),
-::view-transition-group(timeline-editor-sidebar),
-::view-transition-group(timeline-browser-sidebar) {
-  animation-duration: 300ms;
-  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-::view-transition-old(timeline-workspace-sidebar),
-::view-transition-new(timeline-workspace-sidebar),
-::view-transition-old(timeline-editor-sidebar),
-::view-transition-new(timeline-editor-sidebar),
-::view-transition-old(timeline-browser-sidebar),
-::view-transition-new(timeline-browser-sidebar) {
-  mix-blend-mode: normal;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(timeline-workspace-sidebar),
-  ::view-transition-group(timeline-editor-sidebar),
-  ::view-transition-group(timeline-browser-sidebar) {
-    animation-duration: 0s;
   }
 }
 

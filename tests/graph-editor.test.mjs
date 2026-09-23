@@ -388,10 +388,7 @@ test("touch graph uses forgiving node and edge hit targets with visible long-pre
     /data-touch-drag="holding"\]::after[\s\S]*opacity:\s*0\.95[\s\S]*transform:\s*scale\(0\.78\)/,
   );
   assert.doesNotMatch(styles, /animation:\s*graph-touch-hold/);
-  assert.match(
-    styles,
-    /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*data-touch-drag="holding"/,
-  );
+  assert.doesNotMatch(styles, /@keyframes\s+graph-touch-hold/);
 });
 
 test("graph camera release reuses Timeline weighted inertia without changing node force physics", async () => {
