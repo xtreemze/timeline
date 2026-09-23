@@ -5372,19 +5372,19 @@
 #app-shell[data-graph-open="true"]
   #timeline-view[data-orientation="portrait"]
   > .timeline-surface {
-  right: var(--workspace-portrait-chrome-inline, 7rem);
+  inset-inline-end: var(--workspace-portrait-chrome-inline, 7rem);
 }
 
 #app-shell[data-graph-open="true"]
   #timeline-view[data-orientation="landscape"]
   > .timeline-surface {
-  bottom: var(--workspace-landscape-chrome-block, 6rem);
+  inset-block-end: var(--workspace-landscape-chrome-block, 6rem);
 }
 
 #app-shell[data-graph-open="true"]
   #presentation-stage:has(> #timeline-view[data-orientation="portrait"])
   > .graph-lens:not([hidden]) {
-  right: calc(
+  inset-inline-end: calc(
     var(--relations-inline-rail, var(--mobile-relations-inline-rail, 0px)) +
     var(--workspace-portrait-chrome-inline, 7rem)
   );
@@ -5393,7 +5393,7 @@
 #app-shell[data-graph-open="true"]
   #presentation-stage:has(> #timeline-view[data-orientation="landscape"])
   > .graph-lens:not([hidden]) {
-  bottom: calc(
+  inset-block-end: calc(
     var(--relations-block-rail, var(--mobile-relations-block-rail, 0px)) +
     var(--workspace-landscape-chrome-block, 6rem)
   );
@@ -5402,7 +5402,7 @@
 #app-shell[data-graph-open="true"]
   #timeline-view[data-orientation="landscape"]
   .timeline-project-heading {
-  bottom: max(0.4rem, env(safe-area-inset-bottom));
+  inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
 }
 
 /* Focused detail is a layout-owned sidebar, never a top-layer popover.
