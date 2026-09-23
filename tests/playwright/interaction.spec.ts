@@ -84,11 +84,38 @@ async function performPan(page, surface, testInfo) {
     };
   }
 
-  await page.mouse.move(startX, y);
-  await page.mouse.down();
-  await page.mouse.move(middleX, y, { steps: 4 });
-  await page.mouse.move(endX, y, { steps: 4 });
-  return async () => page.mouse.up();
+  const pointerId = 31;
+  await surface.dispatchEvent('pointerdown', {
+    pointerId,
+    pointerType: 'mouse',
+    isPrimary: true,
+    button: 0,
+    buttons: 1,
+    clientX: startX,
+    clientY: y,
+  });
+  for (const clientX of [middleX, endX]) {
+    await surface.dispatchEvent('pointermove', {
+      pointerId,
+      pointerType: 'mouse',
+      isPrimary: true,
+      button: 0,
+      buttons: 1,
+      clientX,
+      clientY: y,
+    });
+  }
+  return async () => {
+    await surface.dispatchEvent('pointerup', {
+      pointerId,
+      pointerType: 'mouse',
+      isPrimary: true,
+      button: 0,
+      buttons: 0,
+      clientX: endX,
+      clientY: y,
+    });
+  };
 }
 
 test.describe('Timeline interaction contracts', () => {
