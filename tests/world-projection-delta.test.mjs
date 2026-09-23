@@ -93,7 +93,6 @@ test("removing an occurrence emits removals without renderer-specific state", ()
   assert.equal("camera" in delta, false);
 });
 
-
 test("applying a deterministic delta reconstructs the next WorldProjection", () => {
   const alice = instance("alice", "meeting");
   const bob = instance("bob", "meeting");
