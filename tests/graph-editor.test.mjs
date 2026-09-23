@@ -625,7 +625,7 @@ test("graph camera and force policy stays bounded, weighted, and explicitly acti
   assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.028/);
   assert.match(
     source,
-    /function setData\(data\)[\s\S]{0,1800}orb\.render\(\)[\s\S]{0,500}requestSimulation\("topology", 0\)/,
+    /function setData\(data\)[\s\S]{0,2200}orb\.render\(\(\) => \{[\s\S]{0,300}simulationCoordinator\.retry\(\)[\s\S]{0,500}requestSimulation\("topology", 0\)/,
   );
   assert.match(source, /refreshLayout\(\)\s*\{[\s\S]{0,900}orb\.render/);
   assert.doesNotMatch(
@@ -656,4 +656,11 @@ test("graph force remains presentation-agnostic when focused detail is visible",
   assert.match(source, /centering:\s*\{\s*x:\s*0,\s*y:\s*0,\s*strength:\s*dense \? 0\.005 : 0\.008\s*\}/);
   assert.match(source, /positioning:\s*\{[\s\S]*forceX:\s*\{\s*x:\s*0,\s*strength:\s*dense \? 0\.005 : 0\.007\s*\}/);
   assert.match(source, /forceY:\s*\{\s*y:\s*0,\s*strength:\s*dense \? 0\.005 : 0\.007\s*\}/);
+});
+
+
+test("Orb graph retries a pending topology solve after render attaches its simulator", async () => {
+  const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+  assert.match(source, /return false;[\s\S]*simulationCoordinator\.retry\(\)/);
+  assert.match(source, /orb\.render\(\(\) => \{[\s\S]*simulationCoordinator\.retry\(\)/);
 });
