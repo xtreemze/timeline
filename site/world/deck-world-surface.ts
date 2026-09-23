@@ -16,6 +16,10 @@ import {
   resolveWorldRenderPosition,
   type WorldRenderPosition,
 } from "../../src/layout/world-geographic-position.ts";
+import {
+  selectWorldSpatialMode,
+  type WorldSpatialMode,
+} from "../../src/layout/world-spatial-mode.ts";
 import type {
   ProjectedWorldInstance,
   WorldInstanceId,
@@ -59,6 +63,7 @@ export interface DeckRuntimeInstance {
 
 export interface DeckWorldRuntime {
   createGlobeView(props: Readonly<Record<string, unknown>>): unknown;
+  createMapView?(props: Readonly<Record<string, unknown>>): unknown;
   createScatterplotLayer(props: Readonly<Record<string, unknown>>): unknown;
   createPathLayer(props: Readonly<Record<string, unknown>>): unknown;
   createDeck(props: Readonly<Record<string, unknown>>): DeckRuntimeInstance;
@@ -88,12 +93,11 @@ interface DeckWorldPlaceDatum {
   readonly selected: boolean;
 }
 
-const CAPABILITIES: WorldSurfaceCapabilities = Object.freeze({
+const BASE_CAPABILITIES = Object.freeze({
   globe: true,
   depthPicking: true,
   directNodeDrag: false,
   gpuFiltering: false,
-  localPrecisionMode: false,
 });
 
 const DEFAULT_CAMERA = createWorldCameraState({
@@ -264,9 +268,12 @@ function worldHitFromPicking(info: DeckRuntimePickingInfo | null): WorldHit | nu
 export class DeckWorldSurface implements WorldSurface {
   readonly #runtime: DeckWorldRuntime;
   readonly #deck: DeckRuntimeInstance;
+  readonly #globeView: unknown;
+  readonly #localView: unknown | null;
   #projection: WorldProjection = Object.freeze({ instances: Object.freeze([]), edges: Object.freeze([]) });
   #selection: WorldSelection | null = null;
   #camera: WorldCameraState;
+  #spatialMode: WorldSpatialMode = "globe";
   #destroyed = false;
 
   constructor(
@@ -277,16 +284,20 @@ export class DeckWorldSurface implements WorldSurface {
     this.#runtime = runtime;
     this.#camera = createWorldCameraState(initialCamera);
 
-    const globeView = runtime.createGlobeView({ id: "lum-world" });
+    this.#globeView = runtime.createGlobeView({ id: "lum-world" });
+    this.#localView = runtime.createMapView?.({ id: "lum-world-local" }) ?? null;
     this.#deck = runtime.createDeck({
       parent: container,
-      views: [globeView],
+      views: [this.#globeView],
       controller: true,
       initialViewState: this.#camera,
       layers: [],
       onViewStateChange: ({ viewState }: { readonly viewState: DeckRuntimeViewState }) => {
         const next = cameraFromRuntime(viewState, this.#camera);
-        if (next) this.#camera = next;
+        if (next) {
+          this.#camera = next;
+          this.#syncSpatialMode();
+        }
       },
     });
   }
@@ -315,6 +326,7 @@ export class DeckWorldSurface implements WorldSurface {
   setCamera(camera: WorldCameraState): void {
     this.#assertAlive();
     this.#camera = createWorldCameraState(camera);
+    this.#syncSpatialMode();
     this.#deck.setProps({ viewState: this.#camera });
   }
 
@@ -433,7 +445,10 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   getCapabilities(): WorldSurfaceCapabilities {
-    return CAPABILITIES;
+    return Object.freeze({
+      ...BASE_CAPABILITIES,
+      localPrecisionMode: this.#localView !== null,
+    });
   }
 
   refresh(): void {
@@ -445,6 +460,19 @@ export class DeckWorldSurface implements WorldSurface {
     if (this.#destroyed) return;
     this.#destroyed = true;
     this.#deck.finalize();
+  }
+
+  #syncSpatialMode(): void {
+    const nextMode =
+      this.#localView === null
+        ? "globe"
+        : selectWorldSpatialMode(this.#camera, this.#spatialMode);
+    if (nextMode === this.#spatialMode) return;
+
+    this.#spatialMode = nextMode;
+    this.#deck.setProps({
+      views: [nextMode === "local" ? this.#localView : this.#globeView],
+    });
   }
 
   #positions(): ReadonlyMap<WorldInstanceId, WorldRenderPosition> {

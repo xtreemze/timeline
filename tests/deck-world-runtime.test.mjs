@@ -305,3 +305,32 @@ test("world view registration publishes the composed factory without eager deck 
   assert.equal(typeof factory.create, "function");
   assert.equal(constructionCalls, 0);
 });
+
+test("deck world runtime exposes MapView only when the binding is supplied", () => {
+  const calls = [];
+  const runtime = createDeckWorldRuntime({
+    deck() {
+      throw new Error("not used");
+    },
+    globeView() {
+      throw new Error("not used");
+    },
+    mapView(props) {
+      calls.push(props);
+      return { kind: "map", props };
+    },
+    scatterplotLayer() {
+      throw new Error("not used");
+    },
+    pathLayer() {
+      throw new Error("not used");
+    },
+  });
+
+  assert.equal(typeof runtime.createMapView, "function");
+  assert.deepEqual(runtime.createMapView({ id: "local" }), {
+    kind: "map",
+    props: { id: "local" },
+  });
+  assert.deepEqual(calls, [{ id: "local" }]);
+});
