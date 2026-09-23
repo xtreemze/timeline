@@ -24,15 +24,15 @@ const GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX = -280;
 const GRAPH_MIN_ZOOM = 0.002;
 const GRAPH_MAX_ZOOM = 2.5;
 const GRAPH_KEYBOARD_PAN_PX = 72;
-const INTERACTION_SETTLE_MS = 3400;
-const DRAG_ALPHA_TARGET = 0.05;
-const RELEASE_ALPHA_TARGET = 0.018;
-const TOPOLOGY_ALPHA_TARGET = 0.028;
-const TOPOLOGY_EDGE_RELEASE_MS = 360;
-const TOPOLOGY_SETTLE_MS = 1100;
-const TOPOLOGY_ENTRY_OFFSET = 36;
+const INTERACTION_SETTLE_MS = 4400;
+const DRAG_ALPHA_TARGET = 0.034;
+const RELEASE_ALPHA_TARGET = 0.009;
+const TOPOLOGY_ALPHA_TARGET = 0.018;
+const TOPOLOGY_EDGE_RELEASE_MS = 420;
+const TOPOLOGY_SETTLE_MS = 1500;
+const TOPOLOGY_ENTRY_OFFSET = 28;
 const COMPONENT_PACKING_GAP = 112;
-const CENTER_ATTRACTION_STRENGTH = 0.007;
+const CENTER_ATTRACTION_STRENGTH = 0.004;
 const motion = globalThis.TimelineMotion;
 
 function resolvedColor(container, name, fallback) {
@@ -158,14 +158,14 @@ function create(container, handlers = {}) {
       type: "force",
       options: {
         links: { distance: 132, strength: 0.58, iterations: 2 },
-        manyBody: { strength: -260, theta: 0.86, distanceMin: 20, distanceMax: 2400 },
-        collision: { radius: 34, strength: 0.82, iterations: 3 },
-        alpha: { alpha: 0.14, alphaMin: 0.004, alphaDecay: 0.026, alphaTarget: 0 },
+        manyBody: { strength: -190, theta: 0.86, distanceMin: 20, distanceMax: 2400 },
+        collision: { radius: 34, strength: 0.68, iterations: 3 },
+        alpha: { alpha: 0.09, alphaMin: 0.003, alphaDecay: 0.018, alphaTarget: 0 },
         isSimulatingOnDataUpdate: false,
         isSimulatingOnSettingsUpdate: false,
         isSimulatingOnUnstick: true,
         isPhysicsEnabled: true,
-        centering: { x: 0, y: 0, strength: 0.008 },
+        centering: { x: 0, y: 0, strength: 0.004 },
         positioning: {
           forceX: { x: 0, strength: CENTER_ATTRACTION_STRENGTH },
           forceY: { y: 0, strength: CENTER_ATTRACTION_STRENGTH },
@@ -239,12 +239,16 @@ function create(container, handlers = {}) {
   // double-click, and multi-touch zoom listeners intact.
   removeOrbNativeCameraDragListeners();
 
+  // Orb 1.1.0 does not apply its exposed node mass field to d3-force acceleration.
+  // Perceived weight therefore comes from a deliberately low-energy force profile:
+  // smaller reheats and weaker centering/repulsion spread correction across more ticks
+  // instead of letting topology changes snap nodes across the canvas.
   function forceAlphaProfile(nodeCount = forceNodeCount, alphaTarget = 0, reheat = true) {
     const dense = nodeCount >= 1000;
     return {
-      alpha: reheat ? (dense ? 0.11 : 0.14) : dense ? 0.025 : 0.032,
-      alphaMin: dense ? 0.005 : 0.004,
-      alphaDecay: dense ? 0.028 : 0.026,
+      alpha: reheat ? (dense ? 0.07 : 0.09) : dense ? 0.012 : 0.016,
+      alphaMin: dense ? 0.0035 : 0.003,
+      alphaDecay: dense ? 0.02 : 0.018,
       alphaTarget,
     };
   }
@@ -255,14 +259,14 @@ function create(container, handlers = {}) {
     return {
       links: { distance: dense ? 128 : 168, strength: 0.5, iterations: 2 },
       manyBody: {
-        strength: dense ? -185 : -285,
+        strength: dense ? -125 : -190,
         theta: 0.84,
         distanceMin: 24,
         distanceMax: dense ? 1800 : 3200,
       },
       collision: {
         radius: dense ? 30 : 42,
-        strength: 0.78,
+        strength: 0.66,
         iterations: 3,
       },
       alpha: forceAlphaProfile(nodeCount, alphaTarget, reheat),
@@ -270,10 +274,10 @@ function create(container, handlers = {}) {
       isSimulatingOnSettingsUpdate: false,
       isSimulatingOnUnstick: true,
       isPhysicsEnabled: true,
-      centering: { x: 0, y: 0, strength: dense ? 0.005 : 0.008 },
+      centering: { x: 0, y: 0, strength: dense ? 0.0028 : 0.004 },
       positioning: {
-        forceX: { x: 0, strength: dense ? 0.005 : 0.007 },
-        forceY: { y: 0, strength: dense ? 0.005 : 0.007 },
+        forceX: { x: 0, strength: dense ? 0.0028 : 0.0035 },
+        forceY: { y: 0, strength: dense ? 0.0028 : 0.0035 },
       },
       useGPU,
     };
