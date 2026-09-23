@@ -37,26 +37,36 @@ test("wheel zoom is deliberately capped and symmetric enough for fine control", 
   assert.ok(Math.abs(zoomOut * zoomIn - 1) < 0.001);
 });
 
-test("selected events use a compact six-column focus popover over the persistent timeline", async () => {
+test("selected events use a layout-owned focus sidebar beside the persistent graph", async () => {
   const [html, js, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /id="timeline-focus-view"/);
+  assert.match(
+    html,
+    /id="timeline-focus-view"[^>]*timeline-focus-sidebar[^>]*data-presentation-surface="sidebar"/,
+  );
   assert.doesNotMatch(html, /id="timeline-detail"/);
-  assert.match(js, /focusItem\(id, options = \{\}\)/);
+  assert.doesNotMatch(html, /id="timeline-focus-view"[^>]*popover/);
+  assert.match(js, /focusItem\(id:/);
   assert.match(js, /timelinefocuschange/);
   assert.match(js, /createFocusHero/);
-  assert.match(css, /\.timeline-focus-view\s*\{[\s\S]*grid-template-columns:\s*repeat\(6,/);
-  assert.doesNotMatch(css, /\.timeline-focus-view\s*\{[\s\S]*grid-template-columns:\s*repeat\(12,/);
-  assert.match(css, /timeline-focus-view\[popover\]/);
-  assert.match(css, /inline-size:\s*min\(640px/);
-  assert.match(css, /\.timeline-view\.is-event-focused/);
-  assert.match(css, /grid-row:\s*3/);
-  assert.doesNotMatch(css, /position-anchor:\s*--timeline-detail-anchor/);
+  assert.match(js, /dataset\.presentationSurface = "sidebar"/);
+  assert.match(
+    css,
+    /#app-shell\.is-event-focused #presentation-stage > \.timeline-focus-sidebar:not\(\[hidden\]\)/,
+  );
+  assert.match(
+    css,
+    /data-timeline-orientation="horizontal"[\s\S]*grid-template-columns:\s*minmax\(0, 2fr\) minmax\(0, 3fr\)/,
+  );
+  assert.match(
+    css,
+    /data-timeline-orientation="vertical"[\s\S]*grid-template-columns:\s*minmax\(0, 5fr\) minmax\(0, 1fr\)/,
+  );
+  assert.doesNotMatch(css, /timeline-focus-view\[popover\]|timeline-focus-view:popover-open/);
 });
-
 test("close zoom keeps every timeline item whose temporal extent intersects the viewport", () => {
   const viewport = { start: 400, end: 700 };
 
