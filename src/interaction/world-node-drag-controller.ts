@@ -132,11 +132,6 @@ export function createWorldNodeDragController(
   ): WorldNodeDragState {
     if (activeInstanceId !== null) {
       backend.setPin(null);
-      simulation.request({
-        reason: "post-drop",
-        energyTarget: 0.035,
-        reheat: true,
-      });
       simulation.release("drag");
     }
 
