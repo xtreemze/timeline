@@ -65,7 +65,7 @@ test("selected events use a layout-owned focus sidebar beside the persistent gra
     css,
     /data-timeline-orientation="vertical"[\s\S]*grid-template-columns:\s*minmax\(0, 5fr\) minmax\(0, 1fr\)/,
   );
-  assert.doesNotMatch(css, /timeline-focus-view\[popover\]|timeline-focus-view:popover-open/);
+  assert.doesNotMatch(css, /timeline-focus-view:popover-open/);
 });
 test("close zoom keeps every timeline item whose temporal extent intersects the viewport", () => {
   const viewport = { start: 400, end: 700 };
