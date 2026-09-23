@@ -1980,7 +1980,6 @@
 }
 
 @media (max-width: 900px), (max-height: 650px) {
-
   .timeline-focus-hero {
     min-height: clamp(220px, 38dvh, 420px);
   }
@@ -2001,7 +2000,6 @@
 }
 
 @media (max-width: 760px) {
-
   .timeline-focus-view[popover]
     :is(.timeline-focus-hero, .timeline-focus-evidence, .timeline-focus-actions) {
     grid-column: 1 / -1;
@@ -2016,7 +2014,6 @@
 }
 
 @media (max-width: 500px) {
-
   .timeline-focus-view[popover]
     :is(
       .timeline-focus-hero,
@@ -2049,7 +2046,6 @@
 }
 
 @media (max-height: 520px) and (orientation: landscape) {
-
   .timeline-focus-hero {
     min-height: clamp(170px, 54dvh, 280px);
   }
@@ -2620,7 +2616,6 @@
 }
 
 @media (max-width: 760px) {
-
   .timeline-focus-tabs {
     left: 0.45rem;
     right: 0.45rem;
@@ -2834,7 +2829,6 @@
 }
 
 @media (max-width: 760px) {
-
   .timeline-focus-summary {
     max-height: min(26dvh, 220px);
   }
@@ -4109,7 +4103,6 @@
 }
 
 @media (max-width: 760px) {
-
   .timeline-focus-view[popover] .timeline-focus-summary .timeline-focus-actions,
   #app-shell .timeline-focus-summary .timeline-focus-actions {
     flex: 0 0 auto;
