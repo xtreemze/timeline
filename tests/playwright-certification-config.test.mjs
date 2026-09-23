@@ -7,6 +7,9 @@ const workflow = readFileSync(new URL("../.github/workflows/timeline-view.yml", 
 const config = readFileSync(new URL("../playwright.config.ts", import.meta.url), "utf8");
 const pagesConfig = readFileSync(new URL("../playwright.pages.config.ts", import.meta.url), "utf8");
 const pagesWorkflow = readFileSync(new URL("../.github/workflows/pages.yml", import.meta.url), "utf8");
+const highlightConfig = readFileSync(new URL("../playwright.highlight.config.ts", import.meta.url), "utf8");
+const highlightSpec = readFileSync(new URL("./highlight/highlight-reel.spec.ts", import.meta.url), "utf8");
+const highlightRenderer = readFileSync(new URL("../scripts/render-e2e-highlight.mjs", import.meta.url), "utf8");
 
 test("all browser specs use one authoritative Playwright discovery root", () => {
   const scripts = Object.values(packageJson.scripts ?? {}).join("\n");
@@ -105,4 +108,33 @@ test("graph touch certification covers portrait and landscape phone projects", (
   ]) {
     assert.ok(command.includes(`--project="${project}"`), `graph touch missing ${project}`);
   }
+});
+
+
+test("CI produces a branded real-browser E2E highlight reel and retains raw evidence", () => {
+  assert.match(
+    packageJson.scripts?.["test:e2e:highlight"] || "",
+    /playwright\.highlight\.config\.ts/,
+  );
+  assert.match(
+    packageJson.scripts?.["render:e2e:highlight"] || "",
+    /render-e2e-highlight\.mjs/,
+  );
+
+  assert.match(highlightConfig, /testDir:\s*['"]\.\/tests\/highlight['"]/);
+  assert.match(highlightConfig, /video:\s*['"]off['"]/);
+  assert.match(highlightSpec, /page\.screencast\.start/);
+  assert.match(highlightSpec, /page\.screencast\.showChapter/);
+  assert.match(highlightSpec, /page\.screencast\.showOverlay/);
+  assert.match(highlightSpec, /page\.screenshot/);
+  assert.match(highlightRenderer, /xfade=transition=fade/);
+  assert.match(highlightRenderer, /libx264/);
+
+  assert.match(workflow, /e2e-highlight-reel:/);
+  assert.match(workflow, /playwright install --with-deps chromium/);
+  assert.match(workflow, /apt-get install -y ffmpeg/);
+  assert.match(workflow, /pnpm test:e2e:highlight/);
+  assert.match(workflow, /pnpm render:e2e:highlight/);
+  assert.match(workflow, /name:\s*lum-e2e-highlight-reel/);
+  assert.match(workflow, /path:\s*artifacts\/e2e-media\//);
 });
