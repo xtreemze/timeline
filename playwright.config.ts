@@ -37,7 +37,7 @@ export default defineConfig({
     {
       name: "Tablet Touch",
       use: {
-        ...devices["Pixel 5"],
+        ...devices["Desktop Chrome"],
         hasTouch: true,
         viewport: { width: 1024, height: 768 },
       },
