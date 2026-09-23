@@ -5417,7 +5417,7 @@
   inset-inline-start: max(0.5rem, env(safe-area-inset-left));
   inset-inline-end: max(0.5rem, env(safe-area-inset-right));
   inline-size: min(22rem, calc(100% - 1rem));
-  max-inline-size: calc(100dvw - 1rem);
+  max-inline-size: calc(100% - 1rem);
   block-size: var(--workspace-title-block-size, 38px);
   min-block-size: var(--workspace-title-block-size, 38px);
   max-block-size: var(--workspace-title-block-size, 38px);
