@@ -1,0 +1,54 @@
+{
+  "compilerOptions": {
+    // Strict type checking
+    "allowJs": true,
+    "checkJs": true,
+    "strict": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "useUnknownInCatchVariables": true,
+    "noImplicitAny": false,
+    "noImplicitOverride": false,
+    "noPropertyAccessFromIndexSignature": false,
+
+    // Module resolution
+    "module": "esnext",
+    "target": "es2024",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+
+    // Output
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "removeComments": false,
+
+    // Emit behavior
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+
+    // Library and DOM
+    "lib": ["es2024", "dom", "dom.iterable", "webworker"],
+    "jsx": "react-jsx",
+    "types": ["node"],
+
+    // Path mapping
+    "paths": {
+      "@/*": ["./src/*"],
+      "@tests/*": ["./tests/*"]
+    }
+  },
+  "include": ["globals.d.ts", "src/**/*.js", "site/**/*.js", "tests/**/*.mjs", "benchmarks/**/*.mjs"],
+  "exclude": ["node_modules", "site/orb-graph.bundle.js"]
+}

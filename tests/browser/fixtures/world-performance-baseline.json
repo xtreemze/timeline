@@ -1,0 +1,9 @@
+{
+  "_comment": "Issue #445 Priority 7: loose sanity ceilings, not tight regression gates. These exist to catch a total collapse (e.g. a scene that suddenly takes many multiples longer per frame) rather than to flag ordinary machine-to-machine variance, so CI stays non-flaky. Values are generous (roughly 2-3x) multiples of the numbers actually observed on the development machine's headless Chromium at generation time -- see tests/browser/world-performance-report.json for the real observed numbers from the most recent certification run. IMPORTANT CAVEAT: headless Chromium here has no real GPU; WebGL falls back to the SwiftShader software rasterizer, which is dramatically slower per-frame than a real GPU (roughly 10-50x at higher entity counts based on the observed scaling from 1k to 50k). These numbers certify that the real DeckWorldSurface/deck.gl code path runs correctly end-to-end and scales sanely, NOT real-GPU frame budgets -- do not use these absolute millisecond figures as a stand-in for real-hardware performance targets.",
+  "scales": {
+    "1k": { "maxFirstUsableFrameMs": 5000, "maxSustainedFrameP95Ms": 500 },
+    "10k": { "maxFirstUsableFrameMs": 10000, "maxSustainedFrameP95Ms": 4000 },
+    "50k": { "maxFirstUsableFrameMs": 25000, "maxSustainedFrameP95Ms": 18000 },
+    "150k-render-only": { "maxFirstUsableFrameMs": 60000, "maxSustainedFrameP95Ms": 50000 }
+  }
+}
