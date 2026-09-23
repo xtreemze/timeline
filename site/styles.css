@@ -4250,3 +4250,12 @@ body {
     font-size: 0.6rem;
   }
 }
+
+.story-focus-controls,
+.view-display-controls,
+.timeline-auto-controls {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
