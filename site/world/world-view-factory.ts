@@ -1,8 +1,8 @@
 import { ReferenceWorldForceSimulation } from "../../src/layout/reference-world-force-simulation.ts";
-import type { WorldForceSimulationBackend } from "../../src/layout/world-force-simulation.ts";
 import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
-import { DeckWorldSurface } from "./deck-world-surface.ts";
+import type { WorldForceSimulationBackend } from "../../src/layout/world-force-simulation.ts";
 import { createDeckWorldRuntime, type DeckWorldBindings } from "./deck-world-runtime.ts";
+import { DeckWorldSurface } from "./deck-world-surface.ts";
 import {
   WorldProjectionView,
   type WorldViewModel,
