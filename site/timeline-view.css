@@ -145,50 +145,6 @@
   min-height: 30px;
 }
 
-#app-shell
-  #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(
-    .timeline-focus-view:popover-open
-  )
-  .timeline-project-heading {
-  top: auto;
-  inset-inline-end: auto;
-  bottom: max(0.45rem, env(safe-area-inset-bottom));
-  inset-inline-start: max(0.45rem, env(safe-area-inset-left));
-  flex-direction: row;
-  max-width: min(52rem, calc(100% - 1rem));
-}
-#app-shell
-  #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(
-    .timeline-focus-view:popover-open
-  )
-  .timeline-project-title
-  input {
-  width: min(30rem, calc(100dvw - 5.5rem));
-  height: auto;
-  min-height: 34px;
-  writing-mode: horizontal-tb;
-  text-orientation: mixed;
-}
-
-#app-shell
-  #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(
-    .timeline-focus-view:popover-open
-  )
-  .timeline-project-heading:has(.story-focus:not([hidden]))
-  .timeline-project-title
-  input {
-  width: clamp(9rem, 20vw, 18rem);
-}
-#app-shell
-  #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="vertical"]:has(
-    .timeline-focus-view:popover-open
-  )
-  .timeline-project-heading {
-  top: max(0.45rem, env(safe-area-inset-top));
-  inset-inline-end: max(0.35rem, env(safe-area-inset-right));
-  inset-inline-start: auto;
-}
-
 .timeline-view-toolbar {
   flex-wrap: wrap;
   justify-content: space-between;
@@ -1916,44 +1872,6 @@
   border: 0;
 }
 
-.timeline-focus-view[popover] {
-  margin: 0;
-  pointer-events: auto;
-  border: 1px solid color-mix(in srgb, var(--line-strong) 86%, transparent);
-  border-radius: 1rem;
-  max-width: none;
-  max-height: none;
-  overflow: auto;
-  overscroll-behavior: contain;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 6%, transparent);
-  background: color-mix(in srgb, var(--paper) 96%, transparent);
-  backdrop-filter: blur(14px);
-  container-type: inline-size;
-}
-
-.timeline-view[data-orientation="landscape"] > .timeline-focus-view:popover-open {
-  position: fixed;
-  inset: max(4.25rem, calc(env(safe-area-inset-top) + 3.8rem)) auto auto 50%;
-  inline-size: min(640px, calc(100dvw - 6.5rem));
-  max-block-size: min(62dvh, 640px);
-  block-size: auto;
-  transform: translateX(-50%);
-}
-
-.timeline-view[data-orientation="portrait"] > .timeline-focus-view:popover-open {
-  position: fixed;
-  inset: 50% auto auto max(4.7rem, calc(env(safe-area-inset-left) + 4.2rem));
-  inline-size: min(520px, calc(100dvw - 7.2rem));
-  max-block-size: min(68dvh, 660px);
-  block-size: auto;
-  border-radius: 1rem;
-  transform: translateY(-50%);
-}
-
-.timeline-focus-view[popover] > * {
-  pointer-events: auto;
-}
-
 .timeline-focus-view[popover] > :is(.timeline-focus-place, .timeline-focus-relations) {
   pointer-events: auto;
 }
@@ -2062,10 +1980,6 @@
 }
 
 @media (max-width: 900px), (max-height: 650px) {
-  .timeline-focus-view[popover] {
-    gap: clamp(0.55rem, 1.4vw, 0.9rem);
-    padding: clamp(0.65rem, 1.7vw, 1rem);
-  }
 
   .timeline-focus-hero {
     min-height: clamp(220px, 38dvh, 420px);
@@ -2087,21 +2001,6 @@
 }
 
 @media (max-width: 760px) {
-  .timeline-view[data-orientation="landscape"] > .timeline-focus-view:popover-open,
-  .timeline-view[data-orientation="portrait"] > .timeline-focus-view:popover-open {
-    inset: auto max(0.35rem, env(safe-area-inset-right))
-      max(4.55rem, calc(env(safe-area-inset-bottom) + 4.15rem))
-      max(0.35rem, env(safe-area-inset-left));
-    inline-size: auto;
-    max-block-size: 66dvh;
-    block-size: auto;
-    border-radius: 1rem;
-    transform: none;
-  }
-
-  .timeline-focus-view[popover] {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
 
   .timeline-focus-view[popover]
     :is(.timeline-focus-hero, .timeline-focus-evidence, .timeline-focus-actions) {
@@ -2117,11 +2016,6 @@
 }
 
 @media (max-width: 500px) {
-  .timeline-focus-view[popover] {
-    grid-template-columns: 1fr;
-    padding: 0.55rem;
-    gap: 0.5rem;
-  }
 
   .timeline-focus-view[popover]
     :is(
@@ -2155,11 +2049,6 @@
 }
 
 @media (max-height: 520px) and (orientation: landscape) {
-  .timeline-view[data-orientation="landscape"] > .timeline-focus-view:popover-open {
-    inset-block-start: 0.35rem;
-    inline-size: min(640px, calc(100dvw - 5rem));
-    block-size: calc(100dvh - 0.7rem);
-  }
 
   .timeline-focus-hero {
     min-height: clamp(170px, 54dvh, 280px);
@@ -2375,11 +2264,6 @@
   .timeline-focus-view[popover] {
     grid-template-columns: minmax(0, 1fr);
   }
-
-  .timeline-focus-view[popover] > * {
-    min-inline-size: 0;
-    max-inline-size: 100%;
-  }
 }
 
 .timeline-focus-evidence-more {
@@ -2534,11 +2418,6 @@
   padding-top: 0;
 }
 
-.timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary,
-.timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
-  padding-top: 3.2rem;
-}
-
 .timeline-focus-tabs {
   position: absolute;
   z-index: 30;
@@ -2590,10 +2469,6 @@
   padding: 0;
   grid-column: auto;
   grid-row: auto;
-}
-
-.timeline-focus-view[popover] > [hidden] {
-  display: none;
 }
 
 .timeline-focus-relations {
@@ -2686,19 +2561,6 @@
   }
 }
 
-/* Fullscreen keeps the timeline edge exposed and places graph context away from that edge. */
-#presentation-stage:fullscreen[data-viewport-orientation="landscape"]
-  .timeline-view
-  > .timeline-focus-view:popover-open {
-  top: max(0.8rem, env(safe-area-inset-top));
-  right: auto;
-  bottom: auto;
-  left: 50%;
-  inline-size: min(840px, calc(100dvw - 7.5rem));
-  max-block-size: min(64dvh, 660px);
-  transform: translateX(-50%);
-}
-
 #presentation-stage:fullscreen[data-viewport-orientation="landscape"]
   .timeline-focus-view[data-active-tab="overview"]
   .timeline-focus-relations {
@@ -2726,18 +2588,6 @@
   .timeline-focus-place {
   grid-column: 4 / -1;
   grid-row: 2;
-}
-
-#presentation-stage:fullscreen[data-viewport-orientation="portrait"]
-  .timeline-view
-  > .timeline-focus-view:popover-open {
-  top: 50%;
-  right: auto;
-  bottom: auto;
-  left: max(4.7rem, calc(env(safe-area-inset-left) + 4.2rem));
-  inline-size: min(58dvw, 620px);
-  max-block-size: min(76dvh, 720px);
-  transform: translateY(-50%);
 }
 
 #presentation-stage:fullscreen[data-viewport-orientation="portrait"]
@@ -2770,68 +2620,12 @@
 }
 
 @media (max-width: 760px) {
-  .timeline-focus-view[popover] {
-    padding-top: 0;
-  }
 
   .timeline-focus-tabs {
     left: 0.45rem;
     right: 0.45rem;
     justify-content: flex-end;
   }
-
-  #presentation-stage:fullscreen[data-viewport-orientation="portrait"]
-    .timeline-view
-    > .timeline-focus-view:popover-open,
-  #presentation-stage:fullscreen[data-viewport-orientation="landscape"]
-    .timeline-view
-    > .timeline-focus-view:popover-open {
-    inline-size: auto;
-    max-block-size: 68dvh;
-  }
-}
-
-/* Focused detail is one bounded card. Relations keeps an ambient field inside its
-   own graph region so the halo cannot detach visually from the popover chrome. */
-.timeline-focus-view[popover][data-active-tab="overview"],
-.timeline-focus-view[popover][data-active-tab="evidence"] {
-  overflow: hidden;
-}
-
-.timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-
-.timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations,
-.timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations-backdrop,
-.timeline-focus-view[popover][data-active-tab="overview"]
-  .timeline-focus-relations-backdrop
-  .temporal-graph-canvas,
-.timeline-focus-view[popover][data-active-tab="overview"]
-  .timeline-focus-relations-backdrop
-  .temporal-graph-canvas
-  canvas {
-  overflow: hidden;
-}
-
-.timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations {
-  isolation: isolate;
-}
-
-.timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-relations::before {
-  inset: 0;
-  background: radial-gradient(
-    ellipse 72% 82% at 50% 50%,
-    color-mix(in srgb, var(--story) 5%, transparent) 0%,
-    color-mix(in srgb, var(--story) 2%, transparent) 38%,
-    transparent 72%
-  );
-}
-
-.timeline-focus-view[popover][data-active-tab="overview"]
-  .timeline-focus-relations-backdrop::after {
-  opacity: 0.16;
 }
 
 /* Bias the contained halo away from chronology according to the timeline orientation,
@@ -2859,9 +2653,6 @@
 }
 
 @media (max-width: 760px) {
-  .timeline-focus-view[popover][data-active-tab="overview"] {
-    overflow: auto;
-  }
 }
 
 /* Contextual Relations must claim real layout space.
@@ -2890,71 +2681,6 @@
   max-height: none;
   max-inline-size: none;
   max-block-size: none;
-}
-
-/* The docked surface is only the chronology rail. Event terminals remain spatial callouts
-   and may project inward beyond that rail; the full-viewport .timeline-view is the clip boundary. */
-#app-shell
-  #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(
-    .timeline-focus-view:popover-open
-  )
-  > .timeline-view
-  > .timeline-surface {
-  position: absolute;
-  inset: auto 0 0 0;
-  width: 100%;
-  height: var(--timeline-context-edge-span);
-  inline-size: 100%;
-  block-size: var(--timeline-context-edge-span);
-  max-width: none;
-  max-height: var(--timeline-context-edge-span);
-  max-inline-size: none;
-  max-block-size: var(--timeline-context-edge-span);
-  overflow: visible;
-}
-
-#app-shell
-  #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="vertical"]:has(
-    .timeline-focus-view:popover-open
-  )
-  > .timeline-view
-  > .timeline-surface {
-  position: absolute;
-  inset: 0 0 0 auto;
-  width: var(--timeline-context-edge-span);
-  height: 100%;
-  inline-size: var(--timeline-context-edge-span);
-  block-size: 100%;
-  max-width: var(--timeline-context-edge-span);
-  max-height: none;
-  max-inline-size: var(--timeline-context-edge-span);
-  max-block-size: none;
-  overflow: visible;
-}
-
-/* Keep the focused content and graph entirely in the space chronology yielded. */
-#app-shell
-  #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="horizontal"]:has(
-    .timeline-focus-view[data-active-tab="overview"]
-  )
-  .timeline-view
-  > .timeline-focus-view:popover-open {
-  top: max(0.65rem, env(safe-area-inset-top));
-  bottom: auto;
-}
-
-#app-shell
-  #presentation-stage[data-event-focused="true"][data-has-context-graph="true"][data-timeline-orientation="vertical"]:has(
-    .timeline-focus-view[data-active-tab="overview"]
-  )
-  .timeline-view
-  > .timeline-focus-view:popover-open {
-  --timeline-focus-left-edge: max(4.7rem, calc(env(safe-area-inset-left) + 4.2rem));
-  top: 50%;
-  right: auto;
-  bottom: auto;
-  left: var(--timeline-focus-left-edge);
-  transform: translateY(-50%);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2991,10 +2717,6 @@
 
 .timeline-focus-evidence {
   overflow: auto;
-}
-
-.timeline-focus-view[popover][data-active-tab="evidence"] {
-  overflow: hidden;
 }
 
 /* Hero and Context are persistent identity/context surfaces. Tabs only replace the lower
@@ -3112,10 +2834,6 @@
 }
 
 @media (max-width: 760px) {
-  .timeline-focus-view[popover]:popover-open {
-    max-inline-size: calc(100dvw - 0.7rem);
-    max-block-size: calc(100dvh - 5rem);
-  }
 
   .timeline-focus-summary {
     max-height: min(26dvh, 220px);
@@ -3178,15 +2896,6 @@
   }
 }
 
-/* Runtime owns the outer popover rectangle; the grid keeps deterministic content bands.
-   Do not replace these rows with auto tracks later in the cascade. */
-.timeline-focus-view[popover]:popover-open {
-  box-sizing: border-box;
-  align-content: start;
-  block-size: auto;
-  grid-auto-rows: auto;
-}
-
 /* View Transition snapshots are visual only. Pointer input must always reach the live
    map, graph, toolbar, and popover beneath the generated transition layer. */
 ::view-transition {
@@ -3220,24 +2929,9 @@
     0 3px 12px color-mix(in srgb, var(--focus-chrome-color) 11%, transparent);
 }
 
-.timeline-focus-view[popover]:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--focus-chrome-color) 76%, white);
-  outline-offset: 3px;
-}
-
-.timeline-focus-view[popover] .timeline-focus-tabs {
-  border-color: color-mix(in srgb, var(--focus-chrome-color) 34%, var(--line));
-  background: color-mix(in srgb, var(--focus-chrome-color) 6%, var(--paper));
-}
-
 .timeline-focus-view[popover] .timeline-focus-tab:is(:hover, :focus-visible) {
   background: color-mix(in srgb, var(--focus-chrome-color) 12%, var(--paper));
   color: color-mix(in srgb, var(--focus-chrome-color) 72%, var(--ink));
-}
-
-.timeline-focus-view[popover] .timeline-focus-tab.is-active {
-  background: var(--focus-chrome-color);
-  color: var(--focus-chrome-contrast);
 }
 
 .timeline-focus-view[popover] .timeline-focus-tab:focus-visible,
@@ -3245,35 +2939,12 @@
   outline-color: var(--focus-chrome-color);
 }
 
-.timeline-focus-view[popover] .timeline-focus-close.button.primary {
-  border-color: var(--focus-chrome-color);
-  background: var(--focus-chrome-color);
-  color: var(--focus-chrome-contrast);
-}
-
 .timeline-focus-view[popover] .timeline-focus-close.button.primary:is(:hover, :focus-visible) {
   background: color-mix(in srgb, var(--focus-chrome-color) 84%, var(--paper));
 }
 
-.timeline-focus-view[popover] .button.secondary {
-  border-color: color-mix(in srgb, var(--focus-chrome-color) 38%, var(--line-strong));
-}
-
 .timeline-focus-view[popover] .button.secondary:is(:hover, :focus-visible) {
   background: color-mix(in srgb, var(--focus-chrome-color) 9%, var(--paper));
-}
-
-.timeline-focus-view[popover] .timeline-focus-section {
-  border-top-color: color-mix(in srgb, var(--focus-chrome-color) 24%, var(--line));
-}
-
-.timeline-focus-view[popover] .timeline-focus-evidence-card {
-  border-color: color-mix(in srgb, var(--focus-chrome-color) 18%, var(--line));
-}
-
-.timeline-focus-view[popover] .timeline-focus-section-heading,
-.timeline-focus-view[popover] .timeline-focus-evidence-type {
-  color: color-mix(in srgb, var(--focus-chrome-color) 74%, var(--ink));
 }
 
 /* Narrow-screen control composition: mobile is the constrained baseline, not a wrapped desktop toolbar. */
@@ -3764,9 +3435,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #app-shell .timeline-view > .timeline-focus-view:popover-open {
-    scroll-behavior: auto;
-  }
 }
 
 /* Consolidated view control cluster: compact semantic controls live beside the bottom-right View affordance. */
@@ -4161,24 +3829,6 @@
 }
 
 @media (max-width: 760px) {
-  .timeline-focus-view[popover][data-active-tab="overview"],
-  .timeline-focus-view[popover][data-active-tab="evidence"] {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto;
-    gap: 0;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-hero,
-  .timeline-focus-view[popover] .timeline-focus-summary,
-  .timeline-focus-view[popover] .timeline-focus-place,
-  .timeline-focus-view[popover] .timeline-focus-evidence {
-    grid-column: 1;
-    grid-row: auto;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-summary {
-    padding-top: 3.15rem;
-  }
 }
 
 /* Toolbar deployment follows the timeline's own orientation without relying on :has().
@@ -4459,96 +4109,6 @@
 }
 
 @media (max-width: 760px) {
-  .timeline-focus-view[popover][data-active-tab="overview"] {
-    --focus-hero-block-size: clamp(190px, 30dvh, 250px);
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto var(--focus-hero-block-size) auto;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="evidence"] {
-    --focus-hero-block-size: clamp(190px, 30dvh, 250px);
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto var(--focus-hero-block-size) minmax(120px, auto);
-  }
-
-  #app-shell .timeline-focus-view[popover] > .timeline-focus-tabs,
-  .timeline-focus-view[popover] > .timeline-focus-tabs {
-    position: relative;
-    z-index: 5;
-    top: auto;
-    right: auto;
-    bottom: auto;
-    left: auto;
-    grid-column: 1;
-    grid-row: 1;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: auto;
-    max-width: none;
-    margin: 0.4rem 0.4rem 0;
-    box-sizing: border-box;
-  }
-
-  .timeline-focus-view[popover] > .timeline-focus-tabs > * {
-    min-width: 0;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-hero,
-  #app-shell .timeline-focus-view[popover] .timeline-focus-hero {
-    grid-column: 1;
-    min-height: var(--focus-hero-block-size);
-    height: var(--focus-hero-block-size);
-    max-height: var(--focus-hero-block-size);
-  }
-
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary,
-  #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary {
-    grid-column: 1;
-    grid-row: 2;
-    display: flex;
-    flex-direction: column;
-    min-height: 150px;
-    max-height: min(32dvh, 240px);
-    padding: 0.7rem;
-    overflow: hidden;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero,
-  #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero {
-    grid-row: 3;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place,
-  #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place {
-    grid-column: 1;
-    grid-row: 4;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-summary,
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-place {
-    display: none;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero,
-  #app-shell .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero {
-    grid-row: 2;
-  }
-
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence,
-  #app-shell .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
-    grid-column: 1;
-    grid-row: 3;
-    min-height: 120px;
-    max-height: min(38dvh, 300px);
-    overflow: auto;
-  }
-
-  .timeline-focus-view[popover] .timeline-focus-description {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: auto;
-    overscroll-behavior: contain;
-  }
 
   .timeline-focus-view[popover] .timeline-focus-summary .timeline-focus-actions,
   #app-shell .timeline-focus-summary .timeline-focus-actions {
