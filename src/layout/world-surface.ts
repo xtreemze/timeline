@@ -91,6 +91,23 @@ function normalizedBearing(value: number): number {
   return Object.is(normalized, -0) ? 0 : normalized;
 }
 
+export function createWorldSpatialPosition(
+  position: WorldSpatialPosition,
+): WorldSpatialPosition {
+  const longitude = finite(position.longitude, "World spatial longitude");
+  const latitude = finite(position.latitude, "World spatial latitude");
+  const altitudeMeters = finite(position.altitudeMeters, "World spatial altitude");
+
+  if (longitude < -180 || longitude > 180) {
+    throw new Error("World spatial longitude must be between -180 and 180.");
+  }
+  if (latitude < -90 || latitude > 90) {
+    throw new Error("World spatial latitude must be between -90 and 90.");
+  }
+
+  return Object.freeze({ longitude, latitude, altitudeMeters });
+}
+
 export function createWorldTemporalWindow(window: WorldTemporalWindow): WorldTemporalWindow {
   const start = finite(window.start, "World temporal window start");
   const end = finite(window.end, "World temporal window end");
