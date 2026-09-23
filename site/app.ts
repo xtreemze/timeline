@@ -807,32 +807,15 @@ function closestEventTarget<T extends HTMLElement>(
     const selected = snapshot.selected;
     if (!selected) return;
 
-    const boundedInlineSize = Math.floor(Math.min(availableWidth, selected.rect.width));
-    const boundedBlockSize = Math.floor(Math.min(availableHeight, selected.rect.height));
-    const minLeft = viewport.left + edge;
-    const minTop = viewport.top + edge;
-    const maxLeft = Math.max(
-      minLeft,
-      viewport.left + viewport.width - edge - boundedInlineSize,
+    const primaryCandidate = candidates[0];
+    if (!primaryCandidate) return;
+
+    const boundedInlineSize = Math.floor(
+      Math.min(availableWidth, Math.max(1, primaryCandidate.rect.width)),
     );
-    const maxTop = Math.max(
-      minTop,
-      viewport.top + viewport.height - edge - boundedBlockSize,
+    const boundedBlockSize = Math.floor(
+      Math.min(availableHeight, Math.max(1, primaryCandidate.rect.height)),
     );
-    const boundedLeft =
-      orientation === "portrait"
-        ? Math.min(
-            maxLeft,
-            Math.max(minLeft, dockRect.left - gap - boundedInlineSize),
-          )
-        : Math.min(maxLeft, Math.max(minLeft, anchor.x - boundedInlineSize / 2));
-    const boundedTop =
-      orientation === "portrait"
-        ? Math.min(maxTop, Math.max(minTop, anchor.y - boundedBlockSize / 2))
-        : Math.min(
-            maxTop,
-            Math.max(minTop, dockRect.top - gap - boundedBlockSize),
-          );
 
     els.viewControls.style.setProperty("--view-controls-inline-size", `${boundedInlineSize}px`);
     els.viewControls.style.setProperty("--view-controls-block-size", `${boundedBlockSize}px`);
@@ -840,6 +823,37 @@ function closestEventTarget<T extends HTMLElement>(
     els.viewControls.style.width = `${boundedInlineSize}px`;
     els.viewControls.style.maxWidth = `${availableWidth}px`;
     els.viewControls.style.maxHeight = `${availableHeight}px`;
+
+    // Measure the actual border box after applying constraints. Flex content and
+    // native top-layer sizing may otherwise make the final box larger than the
+    // candidate rect used by the placement planner.
+    const constrainedRect = els.viewControls.getBoundingClientRect();
+    const actualInlineSize = Math.min(availableWidth, Math.max(1, constrainedRect.width));
+    const actualBlockSize = Math.min(availableHeight, Math.max(1, constrainedRect.height));
+    const minLeft = viewport.left + edge;
+    const minTop = viewport.top + edge;
+    const maxLeft = Math.max(
+      minLeft,
+      viewport.left + viewport.width - edge - actualInlineSize,
+    );
+    const maxTop = Math.max(
+      minTop,
+      viewport.top + viewport.height - edge - actualBlockSize,
+    );
+    const boundedLeft =
+      orientation === "portrait"
+        ? Math.min(
+            maxLeft,
+            Math.max(minLeft, dockRect.left - gap - actualInlineSize),
+          )
+        : Math.min(maxLeft, Math.max(minLeft, anchor.x - actualInlineSize / 2));
+    const boundedTop =
+      orientation === "portrait"
+        ? Math.min(maxTop, Math.max(minTop, anchor.y - actualBlockSize / 2))
+        : Math.min(
+            maxTop,
+            Math.max(minTop, dockRect.top - gap - actualBlockSize),
+          );
 
     els.viewControls.dataset.anchorPlacement = selected.id;
     els.viewControls.dataset.placementValid = String(snapshot.fullySatisfiesConstraints);
