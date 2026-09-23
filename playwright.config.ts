@@ -35,20 +35,12 @@ export default defineConfig({
       },
     },
     {
-      name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'], hasTouch: true },
-    },
-    {
-      name: 'Mobile Safari Landscape',
-      use: {
-        ...devices['iPhone 12'],
-        hasTouch: true,
-        viewport: { width: 844, height: 390 },
-      },
-    },
-    {
       name: 'Tablet Touch',
-      use: { ...devices['iPad Pro'], hasTouch: true },
+      use: {
+        ...devices['Pixel 5'],
+        hasTouch: true,
+        viewport: { width: 1024, height: 768 },
+      },
     },
     {
       name: 'Reduced Motion',
