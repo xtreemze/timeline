@@ -112,10 +112,7 @@ test("CI discovers core browser contracts and runs each browser lane fatally", (
 
 test("compiled Pages runtime is owned only by the production preview config", () => {
   assert.match(pagesConfig, /testMatch:\s*\[['"]pages-runtime\.spec\.ts['"]\]/);
-  assert.match(
-    pagesConfig,
-    /baseURL:\s*['"]http:\/\/127\.0\.0\.1:4173\/timeline\/['"]/,
-  );
+  assert.match(pagesConfig, /baseURL:\s*['"]http:\/\/127\.0\.0\.1:4173\/timeline\/['"]/);
   assert.match(pagesWorkflow, /playwright\.pages\.config\.ts/);
   assert.match(pagesWorkflow, /path:\s*dist/);
   const developmentTestMatch = config.split("\n").find((line) => line.includes("testMatch:"));
