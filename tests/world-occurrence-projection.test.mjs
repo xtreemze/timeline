@@ -188,3 +188,35 @@ test("unknown active occurrence IDs are rejected", () => {
     /not a canonical relationship/,
   );
 });
+
+test("entity and relationship presentation metadata projects independently of identity", () => {
+  const relationships = [
+    relationship({
+      id: "meeting",
+      subjectId: "alice",
+      objectId: "bob",
+      predicate: "met",
+    }),
+  ];
+  const spatialAnchors = new SpatialAnchorIndex([], relationships);
+  const projection = projectWorldOccurrences(
+    relationships,
+    ["meeting"],
+    spatialAnchors,
+    {
+      entityPresentation: new Map([
+        ["alice", { label: "Alice", kind: "person" }],
+        ["bob", { label: "Bob", kind: "person" }],
+      ]),
+    },
+  );
+
+  assert.deepEqual(
+    projection.instances.map(({ canonicalId, label, kind }) => [canonicalId, label, kind]),
+    [
+      ["alice", "Alice", "person"],
+      ["bob", "Bob", "person"],
+    ],
+  );
+  assert.equal(projection.edges[0].label, "met");
+});
