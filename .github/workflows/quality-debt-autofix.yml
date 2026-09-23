@@ -1,0 +1,39 @@
+name: Quality debt autofix
+
+on:
+  push:
+    branches:
+      - chore/reduce-quality-debt
+
+permissions:
+  contents: write
+
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - name: Apply deterministic formatting and safe lint fixes
+        if: github.actor != 'github-actions[bot]'
+        run: |
+          pnpm format
+          pnpm lint:fix
+      - name: Commit debt reduction
+        if: github.actor != 'github-actions[bot]'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          if ! git diff --cached --quiet; then
+            git commit -m "style: format repository and apply safe lint fixes"
+            git push
+          fi
+      - name: Report strict CSS debt
+        run: pnpm lint:styles
