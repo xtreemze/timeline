@@ -23,7 +23,7 @@ import type { WorldNodeDragPosition } from "../src/interaction/world-node-drag-c
 
 declare global {
   interface Window {
-    __worldPerfHarness?: {
+    __worldPerfHarness: {
       surface: DeckWorldSurface;
       ready: boolean;
       /** Test-only readback of the exact projection last passed to
@@ -35,6 +35,8 @@ declare global {
        * received, for asserting a drag sequence actually engaged it. */
       dragSinkCalls: { begin: number; update: number; release: number; cancel: number };
     };
+    /** Test-only retained fixture used by the performance certification page. */
+    __worldPerfFixture?: WorldProjection;
   }
 }
 
