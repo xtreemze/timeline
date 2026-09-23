@@ -2165,13 +2165,15 @@
   grid-row: 1 / span 2;
 }
 
-/* The timeline root is a transparent full-stage composition layer. It must not
-   steal background input from the persistent graph, while its actual rail,
-   labels, focus content, and controls stay above and interactive. */
-#presentation-stage > .timeline-view,
 #presentation-stage:fullscreen > .timeline-view {
-  z-index: 2;
-  pointer-events: none;
+  position: relative;
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
 }
 
 #presentation-stage > .timeline-view,
@@ -2191,15 +2193,13 @@
   grid-row: auto;
 }
 
+/* The timeline root is a transparent full-stage composition layer. It must not
+   steal background input from the persistent graph, while its actual rail,
+   labels, focus content, and controls stay above and interactive. */
+#presentation-stage > .timeline-view,
 #presentation-stage:fullscreen > .timeline-view {
-  position: relative;
-  grid-column: 1 / -1;
-  grid-row: 1 / -1;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  overflow: visible;
+  z-index: 2;
+  pointer-events: none;
 }
 
 #presentation-stage:fullscreen[data-event-focused="false"] > .timeline-view {
@@ -4405,11 +4405,6 @@
     grid-row: 4;
   }
 
-  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero,
-  #app-shell .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero {
-    grid-row: 2;
-  }
-
   .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero,
   #app-shell .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero {
     grid-row: 3;
@@ -4421,6 +4416,11 @@
     min-height: var(--focus-hero-block-size);
     height: var(--focus-hero-block-size);
     max-height: var(--focus-hero-block-size);
+  }
+
+  .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero,
+  #app-shell .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero {
+    grid-row: 2;
   }
 
   .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence,
@@ -4885,6 +4885,19 @@
   transform: translateY(-50%);
 }
 
+#presentation-stage > .timeline-view > .timeline-project-heading,
+#presentation-stage > .timeline-view > .timeline-surface,
+#presentation-stage > .timeline-view > .timeline-semantic-list,
+#presentation-stage > .timeline-view > .timeline-focus-view,
+#presentation-stage > .timeline-view > .timeline-view-toolbar,
+#presentation-stage:fullscreen > .timeline-view > .timeline-project-heading,
+#presentation-stage:fullscreen > .timeline-view > .timeline-surface,
+#presentation-stage:fullscreen > .timeline-view > .timeline-semantic-list,
+#presentation-stage:fullscreen > .timeline-view > .timeline-focus-view,
+#presentation-stage:fullscreen > .timeline-view > .timeline-view-toolbar {
+  pointer-events: auto;
+}
+
 #presentation-stage:fullscreen .timeline-surface,
 #presentation-stage:fullscreen .timeline-view.is-event-focused .timeline-surface,
 #presentation-stage:fullscreen
@@ -4900,19 +4913,6 @@
   min-width: 0;
   min-height: 0;
   border: 0;
-}
-
-#presentation-stage > .timeline-view > .timeline-project-heading,
-#presentation-stage > .timeline-view > .timeline-surface,
-#presentation-stage > .timeline-view > .timeline-semantic-list,
-#presentation-stage > .timeline-view > .timeline-focus-view,
-#presentation-stage > .timeline-view > .timeline-view-toolbar,
-#presentation-stage:fullscreen > .timeline-view > .timeline-project-heading,
-#presentation-stage:fullscreen > .timeline-view > .timeline-surface,
-#presentation-stage:fullscreen > .timeline-view > .timeline-semantic-list,
-#presentation-stage:fullscreen > .timeline-view > .timeline-focus-view,
-#presentation-stage:fullscreen > .timeline-view > .timeline-view-toolbar {
-  pointer-events: auto;
 }
 
 #app-shell #timeline-view .timeline-surface,
