@@ -49,6 +49,7 @@ function radians(value: number): number {
 }
 
 function normalizeLongitude(value: number): number {
+  if (value >= -180 && value <= 180) return Object.is(value, -0) ? 0 : value;
   const normalized = ((value + 180) % 360 + 360) % 360 - 180;
   return Object.is(normalized, -0) ? 0 : normalized;
 }
@@ -56,6 +57,10 @@ function normalizeLongitude(value: number): number {
 export function representativeGeographicPosition(
   geometry: CanonicalSpatialGeometry,
 ): readonly [number, number] {
+  if (geometry.type === "Point") {
+    return Object.freeze([geometry.coordinates[0], geometry.coordinates[1]]);
+  }
+
   const positions = positionsFromGeometry(geometry);
   if (!positions.length) throw new Error("Spatial geometry must contain at least one position.");
 

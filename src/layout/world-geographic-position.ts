@@ -23,6 +23,7 @@ function radians(value: number): number {
 }
 
 function wrapLongitude(value: number): number {
+  if (value >= -180 && value <= 180) return Object.is(value, -0) ? 0 : value;
   const wrapped = ((value + 180) % 360 + 360) % 360 - 180;
   return Object.is(wrapped, -0) ? 0 : wrapped;
 }
