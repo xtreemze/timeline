@@ -1,4 +1,5 @@
 name: Quality debt audit
+# Strict debt measurement after mechanical formatting.
 
 on:
   push:
