@@ -1,9 +1,9 @@
 import {
   createWorldProjection,
   type ProjectedWorldEdge,
-  ProjectedWorldInstance,
-  WorldInstanceId,
-  WorldProjection,
+  type ProjectedWorldInstance,
+  type WorldInstanceId,
+  type WorldProjection,
 } from "./world-projection.ts";
 
 export interface WorldProjectionDelta {
@@ -66,7 +66,6 @@ export function isEmptyWorldProjectionDelta(delta: WorldProjectionDelta): boolea
     delta.removedEdgeIds.length === 0
   );
 }
-
 
 export function applyWorldProjectionDelta(
   previous: WorldProjection,
