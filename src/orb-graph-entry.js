@@ -63,6 +63,13 @@ const ICON_PATHS = Object.freeze({
   organization: ["M4 21h16", "M6 21V8l6-5 6 5v13", "M9 11h1", "M14 11h1", "M9 15h1", "M14 15h1"],
   device: ["M5 4h14v12H5z", "M9 20h6", "M12 16v4"],
   account: ["M4 7h16v12H4z", "M4 10h16", "M8 15h4"],
+  animal: ["M8 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z", "M16 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z", "M7 16c2-3 8-3 10 0 1 2-1 5-5 5s-6-3-5-5z"],
+  structure: ["M3 11.5 12 3l9 8.5", "M5.5 10.5V21h13V10.5", "M9.5 21v-6h5v6"],
+  artifact: ["M12 3 20 7 12 11 4 7z", "M4 7v10l8 4 8-4V7", "M12 11v10"],
+  vehicle: ["M4 14 6 8h12l2 6v4H4z", "M7 18a2 2 0 1 0 0 4", "M17 18a2 2 0 1 0 0 4"],
+  material: ["M4 6h16v4H4z", "M4 14h16v4H4z", "M7 10v4", "M17 10v4"],
+  apparel: ["M8 4 4 7l3 3v10h10V10l3-3-4-3-2 3h-4z"],
+  food: ["M12 7c-4 0-7 3-7 7s3 7 7 7 7-3 7-7-3-7-7-7z", "M12 7c0-3 2-4 4-4", "M12 7c-1-2-3-3-5-3"],
   relation: [
     "M7 7h10",
     "M7 17h10",
@@ -77,7 +84,14 @@ function semanticType(data) {
   const type = String(data?.properties?.timelineType || "entity").toLowerCase();
   if (type === "chronology-item") return "event";
   if (type === "story") return "story";
-  if (type.includes("person") || type.includes("group")) return "person";
+  if (/pig|wolf|animal/.test(type)) return "animal";
+  if (type.includes("person") || type.includes("group") || /princess|prince|queen|king|huntsman|fairy|mother|father|stepmother|herald/.test(type)) return "person";
+  if (/dwelling|house|cottage|structure|building/.test(type)) return "structure";
+  if (/vehicle|coach|carriage/.test(type)) return "vehicle";
+  if (/material/.test(type)) return "material";
+  if (/garment|footwear|disguise|apparel/.test(type)) return "apparel";
+  if (/food|produce|apple|pumpkin/.test(type)) return "food";
+  if (/artifact|item|container|mirror|comb/.test(type)) return "artifact";
   if (type.includes("place") || type.includes("location")) return "place";
   if (type.includes("evidence") || type.includes("document") || type.includes("record"))
     return "evidence";
@@ -103,7 +117,9 @@ function nodeShape(type) {
   if (type === "story") return NodeShapeType.HEXAGON;
   if (type === "organization") return NodeShapeType.SQUARE;
   if (type === "evidence") return NodeShapeType.DIAMOND;
-  if (type === "device" || type === "account") return NodeShapeType.HEXAGON;
+  if (type === "device" || type === "account" || type === "vehicle") return NodeShapeType.HEXAGON;
+  if (type === "structure" || type === "material") return NodeShapeType.SQUARE;
+  if (type === "artifact" || type === "food") return NodeShapeType.DIAMOND;
   return NodeShapeType.CIRCLE;
 }
 
@@ -1188,7 +1204,21 @@ function create(container, handlers = {}) {
                 ? "#4b5f86"
                 : type === "organization"
                   ? "#6b526f"
-                  : palette.ink;
+                  : type === "animal"
+                    ? "#8a5b2d"
+                    : type === "structure"
+                      ? "#64748b"
+                      : type === "vehicle"
+                        ? "#0e7090"
+                        : type === "material"
+                          ? "#8a6a44"
+                          : type === "apparel"
+                            ? "#9b4f77"
+                            : type === "food"
+                              ? "#72843e"
+                              : type === "artifact"
+                                ? "#795f9b"
+                                : palette.ink;
     const color = exiting ? palette.muted : baseColor;
     const size = type === "event" ? 12 : type === "story" ? 13 : 10;
     return {
