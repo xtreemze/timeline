@@ -53,12 +53,12 @@ test("timeline includes an interactive temporal node-edge graph lens", async () 
   assert.match(html, /class="temporal-graph-canvas"/);
   assert.match(source, /graphForWindow/);
   assert.match(source, /temporalState/);
-  assert.match(source, /import\s+"\.\.\/src\/orb-graph-entry\\.js";/);
+  assert.match(source, /import\s+"\.\.\/src\/orb-graph-entry\.js";/);
   assert.match(source, /TimelineOrbGraph/);
   assert.match(source, /graphselectionchange/);
   assert.doesNotMatch(source, /graphnodefocus|graphstoryfocus|graphentityfocus|graphedgefocus/);
   assert.match(source, /updateTemporalEdges/);
-  assert.doesNotMatch(html, /<script[^>]+orb-graph\\.bundle\\.js/);
+  assert.doesNotMatch(html, /<script[^>]+orb-graph\.bundle\.js/);
   assert.match(css, /\.temporal-graph-canvas canvas/);
 });
 
