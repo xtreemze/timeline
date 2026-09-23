@@ -14,6 +14,9 @@ export interface WorldForceNode {
   readonly canonicalId: EntityId;
   readonly mass: number;
   readonly collisionRadiusMeters: number;
+  readonly initialEastMeters: number;
+  readonly initialNorthMeters: number;
+  readonly targetVisualAltitudeMeters: number;
 }
 
 export interface WorldForceEdge {
