@@ -14,6 +14,7 @@ import {
   type InteractionCompletionReason,
   type InteractionCoordinator,
 } from "../../src/interaction/interaction-coordinator.ts";
+import { diffWorldProjection, isEmptyWorldProjectionDelta } from "../../src/projection/world-projection-delta.ts";
 import type {
   WorldInstanceId,
   WorldProjection,
@@ -70,6 +71,7 @@ export class WorldViewRuntimeController {
 
   setProjection(projection: WorldProjection): void {
     this.#assertAlive();
+    const previous = this.#sourceProjection;
     this.#sourceProjection = projection;
     this.#renderProjection = projection;
     this.#projectionRevision += 1;
@@ -84,6 +86,13 @@ export class WorldViewRuntimeController {
       energyTarget: 0.08,
       reheat: true,
     });
+
+    if (previous && this.#surface.applyProjectionDelta) {
+      const delta = diffWorldProjection(previous, projection);
+      if (!isEmptyWorldProjectionDelta(delta)) this.#surface.applyProjectionDelta(delta);
+      return;
+    }
+
     this.#surface.setProjection(projection);
   }
 
