@@ -5302,3 +5302,84 @@
   :is(.timeline-focus-hero, .timeline-focus-place, .timeline-focus-relations) {
   min-height: 0;
 }
+
+/* Conventional footer integration. Application navigation is always a bottom bar;
+   chronology orientation never rotates the application chrome. */
+#app-shell[data-graph-open="true"] #presentation-stage {
+  --relations-right-safe: max(0.25rem, env(safe-area-inset-right));
+  --relations-bottom-safe: var(--workspace-footer-block-size, 64px);
+  --mobile-bottom-chrome: var(--workspace-footer-block-size, 64px);
+  --mobile-focus-bottom: var(--workspace-footer-block-size, 64px);
+}
+
+#app-shell
+  #timeline-view:is([data-orientation="portrait"], [data-orientation="landscape"])
+  .timeline-project-heading {
+  box-sizing: border-box;
+  inset-block-start: max(0.5rem, env(safe-area-inset-top));
+  inset-block-end: auto;
+  inset-inline-start: 50%;
+  inset-inline-end: auto;
+  flex-direction: row;
+  align-items: center;
+  inline-size: min(32rem, calc(100% - 1rem));
+  min-inline-size: 0;
+  max-inline-size: calc(100% - 1rem);
+  block-size: var(--workspace-title-block-size, 42px);
+  min-block-size: var(--workspace-title-block-size, 42px);
+  max-block-size: var(--workspace-title-block-size, 42px);
+  max-width: calc(100% - 1rem);
+  max-height: var(--workspace-title-block-size, 42px);
+  margin: 0;
+  transform: translateX(-50%);
+}
+
+#app-shell
+  #timeline-view:is([data-orientation="portrait"], [data-orientation="landscape"])
+  .timeline-project-title {
+  inline-size: 100%;
+  max-inline-size: 100%;
+}
+
+#app-shell
+  #timeline-view:is([data-orientation="portrait"], [data-orientation="landscape"])
+  .timeline-project-title
+  input {
+  inline-size: 100%;
+  width: 100%;
+  block-size: auto;
+  height: auto;
+  min-block-size: calc(var(--workspace-title-block-size, 42px) - 0.4rem);
+  min-height: calc(var(--workspace-title-block-size, 42px) - 0.4rem);
+  padding: 0.28rem 0.35rem;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  text-align: start;
+}
+
+#app-shell[data-graph-open="true"]
+  #presentation-stage:has(> #timeline-view[data-orientation="portrait"])
+  > .graph-lens:not([hidden]) {
+  inset-block-end: var(--workspace-footer-block-size, 64px);
+}
+
+#app-shell[data-graph-open="true"]
+  #timeline-view[data-orientation="portrait"]
+  > .timeline-surface,
+#app-shell[data-graph-open="false"]
+  #timeline-view[data-orientation="portrait"]
+  > .timeline-surface {
+  inset-block-start: 0;
+  inset-block-end: var(--workspace-footer-block-size, 64px);
+  block-size: auto;
+  height: auto;
+}
+
+#app-shell[data-graph-open="true"]
+  #timeline-view[data-orientation="landscape"]
+  > .timeline-surface,
+#app-shell[data-graph-open="false"]
+  #timeline-view[data-orientation="landscape"]
+  > .timeline-surface {
+  inset-block-end: var(--workspace-footer-block-size, 64px);
+}
