@@ -161,7 +161,7 @@ function create(container, handlers = {}) {
         manyBody: { strength: -190, theta: 0.86, distanceMin: 20, distanceMax: 2400 },
         collision: { radius: 34, strength: 0.68, iterations: 3 },
         alpha: { alpha: 0.09, alphaMin: 0.003, alphaDecay: 0.018, alphaTarget: 0 },
-        isSimulatingOnDataUpdate: false,
+        isSimulatingOnDataUpdate: true,
         isSimulatingOnSettingsUpdate: false,
         isSimulatingOnUnstick: true,
         isPhysicsEnabled: true,
@@ -239,6 +239,12 @@ function create(container, handlers = {}) {
   // double-click, and multi-touch zoom listeners intact.
   removeOrbNativeCameraDragListeners();
 
+  // Orb 1.1.0 only rebinds freshly loaded graph data into d3-force from its
+  // data-update simulation path. Keep that path enabled in this legacy adapter
+  // so Timeline never manually activates a simulator still bound to stale data.
+  // Settings-driven restarts remain disabled and temporal style updates do not
+  // mutate topology.
+  //
   // Orb 1.1.0 does not apply its exposed node mass field to d3-force acceleration.
   // Perceived weight therefore comes from a deliberately low-energy force profile:
   // smaller reheats and weaker centering/repulsion spread correction across more ticks
@@ -270,7 +276,7 @@ function create(container, handlers = {}) {
         iterations: 3,
       },
       alpha: forceAlphaProfile(nodeCount, alphaTarget, reheat),
-      isSimulatingOnDataUpdate: false,
+      isSimulatingOnDataUpdate: true,
       isSimulatingOnSettingsUpdate: false,
       isSimulatingOnUnstick: true,
       isPhysicsEnabled: true,
@@ -1543,7 +1549,8 @@ function create(container, handlers = {}) {
     nodes.forEach((node, index) => {
       const position = node.getPosition?.();
       if (position && Number.isFinite(position.x) && Number.isFinite(position.y)) return;
-      const angle = deterministicAngle(node.getData?.()?.id ?? index) + (index / count) * Math.PI * 2;
+      const angle =
+        deterministicAngle(node.getData?.()?.id ?? index) + (index / count) * Math.PI * 2;
       node.setPosition?.({
         x: Math.cos(angle) * radius,
         y: Math.sin(angle) * radius,
@@ -1750,11 +1757,7 @@ function create(container, handlers = {}) {
       const position = orb.data.getNodeById(id)?.getPosition?.();
       if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return null;
       const canvasPoint = orb.getCanvasPosition(position);
-      if (
-        !canvasPoint ||
-        !Number.isFinite(canvasPoint.x) ||
-        !Number.isFinite(canvasPoint.y)
-      ) {
+      if (!canvasPoint || !Number.isFinite(canvasPoint.x) || !Number.isFinite(canvasPoint.y)) {
         return null;
       }
       return { x: canvasPoint.x, y: canvasPoint.y };
