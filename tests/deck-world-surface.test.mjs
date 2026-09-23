@@ -398,6 +398,84 @@ test("focus moves the globe camera to a rendered canonical target", () => {
   });
 });
 
+test("double-click/double-tap focuses the canonical entity picked under the pointer (issue #445 Priority 4)", () => {
+  const { calls, runtime, setPickResult } = harness();
+  const listeners = new Map();
+  const container = {
+    addEventListener(type, listener) {
+      listeners.set(type, listener);
+    },
+    removeEventListener(type, listener) {
+      if (listeners.get(type) === listener) listeners.delete(type);
+    },
+  };
+  const surface = new DeckWorldSurface(container, runtime);
+  surface.setProjection(projection());
+
+  setPickResult({
+    layer: { id: DECK_WORLD_LAYER_IDS.entities },
+    object: { kind: "entity", entityId: "alice", worldInstanceId: worldInstanceId("alice", "meeting") },
+  });
+
+  listeners.get("dblclick")({ offsetX: 40, offsetY: 60 });
+
+  assert.deepEqual(calls.pickOptions.at(-1), {
+    x: 40,
+    y: 60,
+    radius: 22,
+    unproject3D: true,
+    layerIds: [
+      DECK_WORLD_LAYER_IDS.entities,
+      DECK_WORLD_LAYER_IDS.relationships,
+      DECK_WORLD_LAYER_IDS.places,
+    ],
+  });
+  assert.deepEqual(calls.setProps.at(-1).viewState, {
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 5,
+    bearing: 0,
+    pitch: 20,
+  });
+});
+
+test("double-click/double-tap on empty space does not move the camera", () => {
+  const { calls, runtime, setPickResult } = harness();
+  const listeners = new Map();
+  const container = {
+    addEventListener(type, listener) {
+      listeners.set(type, listener);
+    },
+    removeEventListener() {},
+  };
+  const surface = new DeckWorldSurface(container, runtime);
+  surface.setProjection(projection());
+
+  setPickResult(null);
+  const setPropsCountBefore = calls.setProps.length;
+  listeners.get("dblclick")({ offsetX: 40, offsetY: 60 });
+
+  assert.equal(calls.setProps.length, setPropsCountBefore);
+});
+
+test("destroying the surface removes the double-click listener", () => {
+  const { runtime } = harness();
+  const listeners = new Map();
+  const container = {
+    addEventListener(type, listener) {
+      listeners.set(type, listener);
+    },
+    removeEventListener(type) {
+      listeners.delete(type);
+    },
+  };
+  const surface = new DeckWorldSurface(container, runtime);
+  assert.ok(listeners.has("dblclick"));
+
+  surface.destroy();
+  assert.ok(!listeners.has("dblclick"));
+});
+
 test("runtime view-state callbacks stay inside renderer-neutral camera validation", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);

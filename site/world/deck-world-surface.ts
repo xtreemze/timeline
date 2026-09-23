@@ -54,6 +54,11 @@ interface DeckRuntimePointerEvent {
   readonly srcEvent?: unknown;
 }
 
+interface DoubleClickEvent {
+  readonly offsetX?: unknown;
+  readonly offsetY?: unknown;
+}
+
 export interface DeckWorldNodeDragSink {
   begin(pointerId: number, instanceId: WorldInstanceId, position: WorldNodeDragPosition): boolean;
   update(pointerId: number, position: WorldNodeDragPosition): boolean;
@@ -501,6 +506,15 @@ function relationshipDatums(
   };
 }
 
+function screenPointFromDoubleClickEvent(event: DoubleClickEvent): ScreenPoint | null {
+  const x = event.offsetX;
+  const y = event.offsetY;
+  if (typeof x !== "number" || typeof y !== "number" || !Number.isFinite(x) || !Number.isFinite(y)) {
+    return null;
+  }
+  return Object.freeze({ x, y });
+}
+
 function worldHitFromPicking(info: DeckRuntimePickingInfo | null): WorldHit | null {
   if (!info || !isRecord(info.object)) return null;
   const object = info.object;
@@ -599,6 +613,25 @@ export class DeckWorldSurface implements WorldSurface {
     this.#activeDragPointerId = null;
   };
 
+  // Double-tap/double-click focus (issue #445 Priority 4). deck.gl's own
+  // `doubleClickZoom` controller option is left off (see
+  // `deckControllerOptions` above) so this native `dblclick` listener — which
+  // fires for both mouse double-click and touch double-tap — is the sole
+  // owner of double-tap semantics: it picks whatever is under the pointer
+  // and focuses that canonical entity/occurrence/place. A miss (no hit under
+  // the pointer) is a no-op rather than falling back to a generic zoom.
+  readonly #handleDoubleClick = (event: DoubleClickEvent): void => {
+    const point = screenPointFromDoubleClickEvent(event);
+    if (!point) return;
+
+    const hit = this.pick(point);
+    if (!hit) return;
+
+    if (hit.kind === "entity") this.focusEntity(hit.entityId);
+    else if (hit.kind === "relationship") this.focusOccurrence(hit.relationshipId);
+    else if (hit.kind === "place") this.focusPlace(hit.placeId);
+  };
+
   constructor(
     container: HTMLElement,
     runtime: DeckWorldRuntime,
@@ -628,6 +661,7 @@ export class DeckWorldSurface implements WorldSurface {
 
     this.#container.addEventListener?.("pointercancel", this.#handlePointerCancel);
     this.#container.addEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
+    this.#container.addEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
   }
 
   setNodeDragSink(sink: DeckWorldNodeDragSink | null): void {
@@ -800,6 +834,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#destroyed = true;
     this.#container.removeEventListener?.("pointercancel", this.#handlePointerCancel);
     this.#container.removeEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
+    this.#container.removeEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
     this.#deck.finalize();
   }
 
