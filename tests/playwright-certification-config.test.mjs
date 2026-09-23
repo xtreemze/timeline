@@ -54,6 +54,9 @@ test("all browser specs use one authoritative Playwright discovery root", () => 
 });
 
 test("certification matrix includes desktop, portrait and landscape phones, tablet touch, and reduced motion", () => {
+  const projectStartIndex = (project) =>
+    Math.max(config.indexOf(`name: "${project}"`), config.indexOf(`name: '${project}'`));
+
   for (const project of [
     "Desktop Chrome",
     "Mobile Chrome",
@@ -63,7 +66,7 @@ test("certification matrix includes desktop, portrait and landscape phones, tabl
     "Tablet Touch",
     "Reduced Motion",
   ]) {
-    assert.ok(config.includes(`name: '${project}'`), `missing Playwright project: ${project}`);
+    assert.ok(projectStartIndex(project) >= 0, `missing Playwright project: ${project}`);
   }
 
   for (const touchProject of [
@@ -73,7 +76,7 @@ test("certification matrix includes desktop, portrait and landscape phones, tabl
     "Mobile Safari Landscape",
     "Tablet Touch",
   ]) {
-    const projectStart = config.indexOf(`name: '${touchProject}'`);
+    const projectStart = projectStartIndex(touchProject);
     assert.ok(projectStart >= 0);
     const nextProject = config.indexOf("name:", projectStart + 6);
     const block = config.slice(projectStart, nextProject >= 0 ? nextProject : undefined);
