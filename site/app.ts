@@ -661,17 +661,19 @@ function closestEventTarget<T extends HTMLElement>(
 
   function workspaceToolViewport() {
     const visualViewport = window.visualViewport;
+    const layoutWidth = Math.max(
+      1,
+      document.documentElement.clientWidth || window.innerWidth || visualViewport?.width || 1,
+    );
+    const layoutHeight = Math.max(
+      1,
+      document.documentElement.clientHeight || window.innerHeight || visualViewport?.height || 1,
+    );
     return {
-      width: Math.max(
-        1,
-        visualViewport?.width || document.documentElement.clientWidth || window.innerWidth || 1,
-      ),
-      height: Math.max(
-        1,
-        visualViewport?.height || document.documentElement.clientHeight || window.innerHeight || 1,
-      ),
-      left: Math.max(0, visualViewport?.offsetLeft || 0),
-      top: Math.max(0, visualViewport?.offsetTop || 0),
+      width: Math.max(1, Math.min(layoutWidth, visualViewport?.width || layoutWidth)),
+      height: Math.max(1, Math.min(layoutHeight, visualViewport?.height || layoutHeight)),
+      left: Math.max(0, Math.min(visualViewport?.offsetLeft || 0, layoutWidth - 1)),
+      top: Math.max(0, Math.min(visualViewport?.offsetTop || 0, layoutHeight - 1)),
     };
   }
 
@@ -706,8 +708,16 @@ function closestEventTarget<T extends HTMLElement>(
       els.timelineViewRoot.dataset.orientation === "portrait" ? "portrait" : "landscape";
     const gap = 8;
     const edge = 8;
-    const measuredWidth = Math.max(1, toolbarRect.width || els.viewControls.offsetWidth || 1);
-    const measuredHeight = Math.max(1, toolbarRect.height || els.viewControls.offsetHeight || 1);
+    const availableWidth = Math.max(1, viewport.width - edge * 2);
+    const availableHeight = Math.max(1, viewport.height - edge * 2);
+    const measuredWidth = Math.min(
+      availableWidth,
+      Math.max(1, toolbarRect.width || els.viewControls.offsetWidth || 1),
+    );
+    const measuredHeight = Math.min(
+      availableHeight,
+      Math.max(1, toolbarRect.height || els.viewControls.offsetHeight || 1),
+    );
     const anchor = {
       x: triggerRect.left + triggerRect.width / 2,
       y: triggerRect.top + triggerRect.height / 2,
@@ -799,19 +809,14 @@ function closestEventTarget<T extends HTMLElement>(
     const selected = snapshot.selected;
     if (!selected) return;
 
-    if (orientation === "portrait") {
-      els.viewControls.style.setProperty(
-        "--view-controls-inline-size",
-        `${Math.floor(selected.rect.width)}px`,
-      );
-      els.viewControls.style.removeProperty("--view-controls-block-size");
-    } else {
-      els.viewControls.style.setProperty(
-        "--view-controls-block-size",
-        `${Math.floor(selected.rect.height)}px`,
-      );
-      els.viewControls.style.removeProperty("--view-controls-inline-size");
-    }
+    els.viewControls.style.setProperty(
+      "--view-controls-inline-size",
+      `${Math.floor(Math.min(availableWidth, selected.rect.width))}px`,
+    );
+    els.viewControls.style.setProperty(
+      "--view-controls-block-size",
+      `${Math.floor(Math.min(availableHeight, selected.rect.height))}px`,
+    );
 
     els.viewControls.dataset.anchorPlacement = selected.id;
     els.viewControls.dataset.placementValid = String(snapshot.fullySatisfiesConstraints);
