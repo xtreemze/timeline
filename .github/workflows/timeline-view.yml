@@ -194,7 +194,7 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
+      - run: pnpm check:quality
       - run: pnpm types:migrated
       - run: pnpm types:architecture
       - run: pnpm build
