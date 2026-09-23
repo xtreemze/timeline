@@ -75,7 +75,7 @@
     "test:world-projection-view": "node --test tests/world-projection-view.test.mjs",
     "test:recovered-affordances-runtime": "node --test tests/timeline-recovered-affordances-runtime.test.mjs",
     "test:semantic-graph-index": "node --test tests/semantic-graph-index.test.mjs",
-    "lint:styles": "biome lint site/print.css site/styles.css site/timeline-view.css --diagnostic-level=error --max-diagnostics=200",
+    "lint:styles": "biome lint --config-path=biome.strict.json site/print.css site/styles.css site/timeline-view.css --diagnostic-level=error --max-diagnostics=200",
     "format:check": "biome format .",
     "check:quality": "pnpm lint && node scripts/check-quality-changed.mjs"
   },
