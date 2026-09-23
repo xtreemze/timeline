@@ -148,6 +148,7 @@
                     </div>
                     <button id="item-calendar-next" class="icon-button range-calendar-nav" type="button" aria-label="Next month">→</button>
                   </div>
+                  <!-- biome-ignore lint/a11y/useSemanticElements: interactive calendar uses an ARIA grid with roving-focus day buttons rather than a data table -->
                   <div id="item-calendar-grid" class="range-calendar-grid" role="grid" aria-label="Calendar days"></div>
                   <div class="range-calendar-footer">
                     <span id="item-calendar-help">Choose a date.</span>
@@ -664,7 +665,7 @@
                   </geolocation>
                   <button id="item-location-clear" class="button ghost" type="button">Clear location</button>
                 </div>
-                <div id="item-location-map" class="location-map" role="region" aria-label="Location map picker"></div>
+                <section id="item-location-map" class="location-map" aria-label="Location map picker"></section>
                 <p class="field-hint">Click the map or drag its marker to set coordinates. Basemap tiles load only while this section is open; Timeline-owned markers remain available if the provider fails. Location records remain local.</p>
               </details>
 
@@ -713,7 +714,7 @@
             <div class="story-builder">
               <div>
                 <div class="subheading-row"><h3>Available items</h3><span id="story-picker-count">0</span></div>
-                <div id="story-picker" class="picker-list" aria-label="Items available to this story"></div>
+                <section id="story-picker" class="picker-list" aria-label="Items available to this story"></section>
               </div>
               <div>
                 <div class="subheading-row"><h3>Story sequence</h3><span id="story-sequence-count">0</span></div>
@@ -727,7 +728,7 @@
                 <span id="story-place-picker-count">0/0</span>
               </div>
               <p class="field-hint">Choose the reusable places this story may reference. Each place keeps its canonical geometry, semantic icon, and marker shape so it can be projected directly onto the map.</p>
-              <div id="story-place-picker" class="picker-list" aria-label="Reusable places available to this story"></div>
+              <section id="story-place-picker" class="picker-list" aria-label="Reusable places available to this story"></section>
             </div>
 
             <p id="story-form-error" class="form-error" role="alert" hidden></p>
@@ -1081,6 +1082,7 @@
                   </div>
                   <button id="graph-edge-calendar-next" class="icon-button range-calendar-nav" type="button" aria-label="Next month">→</button>
                 </div>
+                <!-- biome-ignore lint/a11y/useSemanticElements: interactive calendar uses an ARIA grid with roving-focus day buttons rather than a data table -->
                 <div id="graph-edge-calendar-grid" class="range-calendar-grid" role="grid" aria-label="Calendar days"></div>
                 <div class="range-calendar-footer">
                   <span>Relation active time</span>
@@ -1137,7 +1139,7 @@
             </div>
           </div>
 
-        <div class="timeline-toolbar" aria-label="Timeline filters">
+        <section class="timeline-toolbar" aria-label="Timeline filters">
           <label class="search-field">
             <span class="sr-only">Search timeline</span>
             <input id="timeline-search" type="search" autocomplete="off" placeholder="Search title or description">
@@ -1147,7 +1149,7 @@
             <select id="category-filter"><option value="all">All categories</option></select>
           </label>
           <button id="clear-filters" class="button ghost compact-button" type="button">Reset filters</button>
-        </div>
+        </section>
 
 
 
@@ -1171,7 +1173,7 @@
 
         <section id="presentation-stage" class="presentation-stage" data-stage-shape="stacked" data-timeline-orientation="horizontal" aria-label="Timeline presentation with contextual relation graph and place map">
           <section id="timeline-view" class="timeline-view" aria-label="Interactive timeline">
-            <header class="timeline-project-heading" aria-label="Timeline project">
+            <header class="timeline-project-heading">
               <label class="project-title-field timeline-project-title">
                 <span class="sr-only">Timeline title</span>
                 <input id="timeline-title" type="text" maxlength="120" autocomplete="off" placeholder="Untitled timeline" readonly aria-readonly="true" tabindex="-1">
@@ -1182,8 +1184,9 @@
                   <strong id="story-focus-title"></strong>
                   <span id="story-focus-description" class="sr-only"></span>
                 </div>
-                <div class="story-focus-controls" role="group" aria-label="Story navigation">
-                  <span id="story-focus-position" aria-label="Story position">1 / 1</span>
+                <fieldset class="story-focus-controls">
+                  <legend class="sr-only">Story navigation</legend>
+                  <span id="story-focus-position" role="status" aria-label="Story position">1 / 1</span>
                   <button id="story-prev" class="story-nav-button" type="button" data-semantic-icon="chevron-left" aria-label="Previous story event" title="Previous story event">
                     <span class="sr-only">Previous story event</span>
                   </button>
@@ -1193,13 +1196,13 @@
                   <button id="story-exit" class="story-nav-button" type="button" data-semantic-icon="close" aria-label="Exit story" title="Exit story">
                     <span class="sr-only">Exit story</span>
                   </button>
-                </div>
+                </fieldset>
               </div>
-              <div class="project-stats timeline-project-stats" aria-label="Timeline statistics">
+              <section class="project-stats timeline-project-stats" aria-label="Timeline statistics">
                 <span id="item-count">0 items</span>
                 <span id="story-count">0 stories</span>
                 <span id="category-count">0 categories</span>
-              </div>
+              </section>
             <div id="project-menu" class="project-menu" popover="auto" role="menu" aria-label="Project actions">
               <header class="project-menu-header">
                 <strong>Project</strong>
@@ -1249,15 +1252,16 @@
 
             </header>
           <div id="timeline-view-toolbar" class="timeline-view-toolbar app-view-controls" popover="manual" role="toolbar" aria-label="View controls">
-            <div class="view-display-controls" role="group" aria-label="Layout and display">
+            <fieldset class="view-display-controls">
+              <legend class="sr-only">Layout and display</legend>
               <button id="timeline-orientation-toggle" class="view-icon-button" type="button" data-semantic-icon="portrait" aria-label="Switch to portrait timeline" title="Switch to portrait timeline">
                 <span class="sr-only">Switch to portrait timeline</span>
               </button>
               <button id="presentation-fullscreen-toggle" class="view-icon-button" type="button" data-semantic-icon="fullscreen" aria-pressed="false" aria-keyshortcuts="F" aria-label="Enter full screen" title="Enter full screen">
                 <span class="sr-only">Enter full screen</span>
               </button>
-            </div>
-            <div class="timeline-zoom-controls" aria-label="Timeline zoom">
+            </fieldset>
+            <section class="timeline-zoom-controls" aria-label="Timeline zoom">
               <label class="timeline-zoom-control" for="timeline-zoom-level">
                 <span class="sr-only">Timeline zoom level</span>
                 <span class="timeline-zoom-endpoint" data-semantic-icon="zoom-out" aria-hidden="true"></span>
@@ -1265,8 +1269,9 @@
                 <span class="timeline-zoom-endpoint" data-semantic-icon="zoom-in" aria-hidden="true"></span>
               </label>
               <span id="timeline-zoom-level-hint" class="sr-only">Farthest shows the whole timeline context. The middle centers the focused event with two neighboring events. Closest isolates the focused time window while keeping every event or range that intersects it visible.</span>
-            </div>
-            <div class="timeline-auto-controls" data-auto-control role="group" aria-label="Slideshow">
+            </section>
+            <fieldset class="timeline-auto-controls" data-auto-control>
+              <legend class="sr-only">Slideshow</legend>
               <button id="timeline-auto-toggle" class="view-icon-button" type="button" data-semantic-icon="play" aria-pressed="false" aria-keyshortcuts="Space" aria-label="Play slideshow" title="Play slideshow">
                 <span class="sr-only">Play slideshow</span>
               </button>
@@ -1276,11 +1281,12 @@
                 <span aria-hidden="true">s</span>
               </label>
               <span id="timeline-auto-status" class="timeline-auto-status sr-only" aria-live="polite">Slideshow stopped</span>
-            </div>
+            </fieldset>
             <span id="timeline-window-readout" class="timeline-window-readout toolbar-readout" aria-live="polite">No visible events</span>
           </div>
           <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan with inertia. Scroll or pinch over the timeline for slow pointer-anchored zoom. The View zoom slider runs from whole chronology context, through the focused event with two neighboring events, to an isolated focused-event time window that preserves intersecting timeline items. Home fits the currently visible or filtered chronology; Shift+Home fits the full chronology. Selecting an event enters a full focused composition. In focused presentation mode, Left and Right move between events, Up and Down move between photographs, Space or media Play/Pause toggles automatic advance, and Escape or Browser Back returns. Standard gamepads and TV remote D-pads use the same commands. Any manual interaction pauses automatic advance. Press F while the presentation stage has focus to enter or leave full screen; the timeline and relation graph remain visible, with focused detail arranged beside the graph and place context shown when the focused event provides it.</p>
-          <div id="timeline-surface" class="timeline-surface is-landscape" tabindex="0" role="group" aria-describedby="timeline-surface-help"></div>
+          <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: timeline surface is an application-owned keyboard interaction target for pan, zoom, navigation, and presentation commands -->
+          <div id="timeline-surface" class="timeline-surface is-landscape" tabindex="0" aria-describedby="timeline-surface-help"></div>
         </section>
 
         <section id="timeline-focus-view" class="timeline-focus-view timeline-focus-sidebar" data-presentation-surface="sidebar" aria-live="polite" aria-label="Focused occurrence details" hidden></section>
@@ -1290,6 +1296,7 @@
             <span class="sr-only" data-graph-window>All time</span>
             <span class="sr-only" data-graph-status aria-live="polite">0 relations in window</span>
             <p id="graph-surface-help" class="sr-only">Touch: drag empty graph space to pan, pinch to zoom, double tap to zoom in, and long press then drag a node to reposition it. Keyboard: arrow keys pan, plus and minus zoom, and Home recenters the graph.</p>
+            <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: graph canvas is an application-owned keyboard interaction target for graph pan, zoom, and recenter commands -->
             <div class="temporal-graph-canvas" role="application" tabindex="0" aria-describedby="graph-surface-help" aria-label="Node and edge graph synchronized to the visible timeline window"></div>
           </div>
         </section>
