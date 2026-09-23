@@ -334,3 +334,32 @@ test("deck world runtime exposes MapView only when the binding is supplied", () 
   });
   assert.deepEqual(calls, [{ id: "local" }]);
 });
+
+test("deck world runtime exposes TextLayer only when supplied by the execution binding", () => {
+  const calls = [];
+  const runtime = createDeckWorldRuntime({
+    deck() {
+      throw new Error("not used");
+    },
+    globeView() {
+      throw new Error("not used");
+    },
+    scatterplotLayer() {
+      throw new Error("not used");
+    },
+    pathLayer() {
+      throw new Error("not used");
+    },
+    textLayer(props) {
+      calls.push(props);
+      return { kind: "text", props };
+    },
+  });
+
+  assert.equal(typeof runtime.createTextLayer, "function");
+  assert.deepEqual(runtime.createTextLayer({ id: "labels" }), {
+    kind: "text",
+    props: { id: "labels" },
+  });
+  assert.deepEqual(calls, [{ id: "labels" }]);
+});
