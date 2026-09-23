@@ -861,6 +861,14 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
     const id = registerId(record?.id, `evidence record ${index + 1}`, `Evidence record ${index + 1}`);
     if (id) evidenceIds.add(id);
   });
+  for (const item of rawItems) {
+    for (const sourceId of textList(item?.evidenceIds, { maxItems: 96, maxLength: 120 })) {
+      if (!evidenceIds.has(sourceId)) {
+        errors.push(`Chronology item ${text(item?.id, 120) || "unknown"}: evidenceId "${sourceId}" must reference an evidence record.`);
+      }
+    }
+  }
+
   rawStories.forEach((story, index) => {
     registerId(story?.id, `story ${index + 1}`, `Story ${index + 1}`);
   });
@@ -903,6 +911,9 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
     if (id) entityIds.add(id);
     const result = validateEntityNode(raw);
     if (!result.valid) errors.push(`${label}: ${result.message}`);
+    for (const sourceId of textList(raw?.sourceIds, { maxItems: 96, maxLength: 120 })) {
+      if (!evidenceIds.has(sourceId)) errors.push(`${label}: sourceId "${sourceId}" must reference an evidence record.`);
+    }
     const taxonomyKeys = graphTaxonomyKeys(raw);
     if (taxonomyKeys.length) {
       errors.push(
