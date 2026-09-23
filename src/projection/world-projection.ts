@@ -108,7 +108,6 @@ export function createSpatialAnchor(anchor: SpatialAnchor): SpatialAnchor {
     anchor.precisionRadiusMeters === undefined
       ? undefined
       : nonNegative(anchor.precisionRadiusMeters, "Precision radius");
-
   const label = optionalText(anchor.label, 180);
 
   return Object.freeze({
