@@ -1,7 +1,7 @@
-import { expect, test } from "@playwright/test";
-import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@playwright/test";
 
 /**
  * Issue #445 Priority 7: real-renderer performance certification.
@@ -41,7 +41,11 @@ interface ScaleReport {
   readonly label: string;
   readonly entityCount: number;
   readonly firstUsableFrameMs: number;
-  readonly sustainedFrame: { readonly p50Ms: number; readonly p95Ms: number; readonly samples: number };
+  readonly sustainedFrame: {
+    readonly p50Ms: number;
+    readonly p95Ms: number;
+    readonly samples: number;
+  };
   readonly inputToPaintMs: number | null;
   readonly pickingLatencyMs: number | null;
   readonly incrementalUpdate: {
@@ -80,23 +84,31 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
           return false;
         }
       });
-      test.skip(!webgl2, "WebGL2 unavailable in this environment; skipping real-renderer certification.");
+      test.skip(
+        !webgl2,
+        "WebGL2 unavailable in this environment; skipping real-renderer certification.",
+      );
 
       await page.goto("/world-perf-harness.html");
       await page.waitForFunction(() => window.__worldPerfHarness?.ready === true);
 
       // --- First usable frame: construction -> first redraw completing. ---
-      const firstUsableFrameMs = await page.evaluate(async ({ entityCount }) => {
-        const fixtureModulePath = "/world-fixture-generator.mjs";
-        const { generateWorldProjectionFixture } = await import(fixtureModulePath);
-        const fixture = generateWorldProjectionFixture({ entityCount });
-        const harness = window.__worldPerfHarness!;
-        const start = performance.now();
-        harness.surface.setProjection(fixture);
-        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-        (window as unknown as { __fixture: unknown }).__fixture = fixture;
-        return performance.now() - start;
-      }, { entityCount: scale.entityCount });
+      const firstUsableFrameMs = await page.evaluate(
+        async ({ entityCount }) => {
+          const fixtureModulePath = "/world-fixture-generator.mjs";
+          const { generateWorldProjectionFixture } = await import(fixtureModulePath);
+          const fixture = generateWorldProjectionFixture({ entityCount });
+          const harness = window.__worldPerfHarness;
+          const start = performance.now();
+          harness.surface.setProjection(fixture);
+          await new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          );
+          window.__worldPerfFixture = fixture;
+          return performance.now() - start;
+        },
+        { entityCount: scale.entityCount },
+      );
 
       // --- Sustained frame time: drive camera through an orbit path. ---
       // Step count is scaled down at larger entity counts: headless
@@ -104,26 +116,29 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
       // per-frame than a real GPU, so a fixed 60-step orbit at 50k+ entities
       // would blow the test timeout without adding measurement value — 20
       // steps is still enough for a stable p50/p95 read.
-      const sustainedFrame = await page.evaluate(async ({ entityCount }) => {
-        const harness = window.__worldPerfHarness!;
-        const camera = harness.surface.getCamera();
-        const samples: number[] = [];
-        const steps = entityCount >= 100000 ? 5 : entityCount >= 50000 ? 20 : 60;
-        for (let i = 0; i < steps; i++) {
-          const start = performance.now();
-          harness.surface.setCamera({
-            ...camera,
-            longitude: camera.longitude + Math.sin(i / 10) * 5,
-            bearing: (i * 6) % 360,
-          });
-          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-          samples.push(performance.now() - start);
-        }
-        samples.sort((a, b) => a - b);
-        const p50 = samples[Math.floor(samples.length * 0.5)] ?? 0;
-        const p95 = samples[Math.floor(samples.length * 0.95)] ?? 0;
-        return { p50Ms: p50, p95Ms: p95, samples: samples.length };
-      }, { entityCount: scale.entityCount });
+      const sustainedFrame = await page.evaluate(
+        async ({ entityCount }) => {
+          const harness = window.__worldPerfHarness;
+          const camera = harness.surface.getCamera();
+          const samples: number[] = [];
+          const steps = entityCount >= 100000 ? 5 : entityCount >= 50000 ? 20 : 60;
+          for (let i = 0; i < steps; i++) {
+            const start = performance.now();
+            harness.surface.setCamera({
+              ...camera,
+              longitude: camera.longitude + Math.sin(i / 10) * 5,
+              bearing: (i * 6) % 360,
+            });
+            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+            samples.push(performance.now() - start);
+          }
+          samples.sort((a, b) => a - b);
+          const p50 = samples[Math.floor(samples.length * 0.5)] ?? 0;
+          const p95 = samples[Math.floor(samples.length * 0.95)] ?? 0;
+          return { p50Ms: p50, p95Ms: p95, samples: samples.length };
+        },
+        { entityCount: scale.entityCount },
+      );
 
       let inputToPaintMs: number | null = null;
       let pickingLatencyMs: number | null = null;
@@ -133,7 +148,8 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
       if (scale.interactive) {
         // --- Input-to-visual latency: synthetic wheel event -> next paint. ---
         inputToPaintMs = await page.evaluate(async () => {
-          const container = document.getElementById("world-container")!;
+          const container = document.getElementById("world-container");
+          if (!container) throw new Error("World performance harness container is unavailable.");
           const start = performance.now();
           container.dispatchEvent(
             new WheelEvent("wheel", { deltaY: -100, clientX: 512, clientY: 384, bubbles: true }),
@@ -144,7 +160,7 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
 
         // --- Picking latency. ---
         pickingLatencyMs = await page.evaluate(() => {
-          const harness = window.__worldPerfHarness!;
+          const harness = window.__worldPerfHarness;
           const start = performance.now();
           harness.surface.pick({ x: 512, y: 384 });
           return performance.now() - start;
@@ -153,11 +169,12 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
         // --- Incremental update cost: small delta vs full fixture swap. ---
         incrementalUpdate = await page.evaluate(async () => {
           const fixtureModulePath = "/world-fixture-generator.mjs";
-          const { generateWorldProjectionFixture, generateSmallDeltaFixture } =
-            await import(fixtureModulePath);
-          const harness = window.__worldPerfHarness!;
-          const base = (window as unknown as { __fixture: ReturnType<typeof generateWorldProjectionFixture> })
-            .__fixture;
+          const { generateWorldProjectionFixture, generateSmallDeltaFixture } = await import(
+            fixtureModulePath
+          );
+          const harness = window.__worldPerfHarness;
+          const base = window.__worldPerfFixture;
+          if (!base) throw new Error("World performance fixture is unavailable.");
 
           const delta = generateSmallDeltaFixture(base, 25);
           const deltaStart = performance.now();
@@ -183,35 +200,47 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
         });
 
         // --- Sustained navigation: repeated camera changes, memory proxy. ---
-        sustainedNavigation = await page.evaluate(async ({ entityCount }) => {
-          const harness = window.__worldPerfHarness!;
-          const camera = harness.surface.getCamera();
-          const perfMemory = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
-          const heapStartBytes = perfMemory ? perfMemory.usedJSHeapSize : null;
-          const start = performance.now();
-          let frames = 0;
-          // Shorter budget at large scale for the same SwiftShader-latency
-          // reason as the sustained-frame loop above.
-          const durationBudgetMs = entityCount >= 50000 ? 1500 : 3000;
-          while (performance.now() - start < durationBudgetMs) {
-            harness.surface.setCamera({
-              ...camera,
-              longitude: (camera.longitude + frames * 0.7) % 180,
-              zoom: 1 + Math.abs(Math.sin(frames / 20)) * 3,
-            });
-            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-            frames++;
-          }
-          const heapEndBytes = perfMemory ? perfMemory.usedJSHeapSize : null;
-          return {
-            durationMs: performance.now() - start,
-            frames,
-            heapStartBytes,
-            heapEndBytes,
-            heapGrowthBytes:
-              heapStartBytes !== null && heapEndBytes !== null ? heapEndBytes - heapStartBytes : null,
-          };
-        }, { entityCount: scale.entityCount });
+        sustainedNavigation = await page.evaluate(
+          async ({ entityCount }) => {
+            const harness = window.__worldPerfHarness;
+            const camera = harness.surface.getCamera();
+            const memoryCandidate = Reflect.get(performance, "memory");
+            const perfMemory =
+              memoryCandidate &&
+              typeof memoryCandidate === "object" &&
+              "usedJSHeapSize" in memoryCandidate &&
+              typeof memoryCandidate.usedJSHeapSize === "number"
+                ? { usedJSHeapSize: memoryCandidate.usedJSHeapSize }
+                : null;
+            const heapStartBytes = perfMemory ? perfMemory.usedJSHeapSize : null;
+            const start = performance.now();
+            let frames = 0;
+            // Shorter budget at large scale for the same SwiftShader-latency
+            // reason as the sustained-frame loop above.
+            const durationBudgetMs = entityCount >= 50000 ? 1500 : 3000;
+            while (performance.now() - start < durationBudgetMs) {
+              harness.surface.setCamera({
+                ...camera,
+                longitude: (camera.longitude + frames * 0.7) % 180,
+                zoom: 1 + Math.abs(Math.sin(frames / 20)) * 3,
+              });
+              await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+              frames++;
+            }
+            const heapEndBytes = perfMemory ? perfMemory.usedJSHeapSize : null;
+            return {
+              durationMs: performance.now() - start,
+              frames,
+              heapStartBytes,
+              heapEndBytes,
+              heapGrowthBytes:
+                heapStartBytes !== null && heapEndBytes !== null
+                  ? heapEndBytes - heapStartBytes
+                  : null,
+            };
+          },
+          { entityCount: scale.entityCount },
+        );
       }
 
       const scaleReport: ScaleReport = {
@@ -262,6 +291,6 @@ function loadBaseline(): {
 
 // `Window.__worldPerfHarness` is declared once, as the source of truth, in
 // `site/world-perf-harness.ts` (imported for its ambient `declare global`
-// side effect by any file in this program); redeclaring it here would
+// side effect throughout this test program); redeclaring it here would
 // conflict once that shape grows (see world-interaction-coverage.spec.ts).
 import type {} from "../../site/world-perf-harness.ts";
