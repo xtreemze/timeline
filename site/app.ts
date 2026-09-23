@@ -21,7 +21,7 @@ const navigationFactory = globalThis.TimelineNavigation;
 const evidenceStore = TimelineEvidence;
 const graphInference = TimelineGraphInference;
 const temporalGraphFactory = selectPrimarySpatialViewFactory(
-  globalThis.TimelineWorldView,
+  Reflect.get(globalThis, "TimelineWorldView"),
   globalThis.TemporalGraphView,
 );
 const presentationLayout = globalThis.TimelinePresentationLayout;
