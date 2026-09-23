@@ -51,7 +51,7 @@ function assertRecord(value: unknown, label: string): asserts value is Record<st
 }
 
 function assertInteger(value: unknown, label: string, minimum: number): asserts value is number {
-  if (!Number.isInteger(value) || (value as number) < minimum) {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < minimum) {
     throw new Error(`${label} must be an integer greater than or equal to ${minimum}.`);
   }
 }
@@ -87,20 +87,20 @@ export function parseProjectEnvelope<TProject>(
 ): ProjectSnapshotEnvelope<TProject> {
   assertRecord(candidate, "Project snapshot");
 
-  if (candidate.format !== PROJECT_ENVELOPE_FORMAT) {
-    throw new Error(`Unsupported project snapshot format: ${String(candidate.format)}.`);
+  if (candidate["format"] !== PROJECT_ENVELOPE_FORMAT) {
+    throw new Error(`Unsupported project snapshot format: ${String(candidate["format"])}.`);
   }
 
-  assertInteger(candidate.schemaVersion, "Project schemaVersion", 1);
-  assertInteger(candidate.revision, "Project revision", 0);
-  assertSavedAt(candidate.savedAt);
+  assertInteger(candidate["schemaVersion"], "Project schemaVersion", 1);
+  assertInteger(candidate["revision"], "Project revision", 0);
+  assertSavedAt(candidate["savedAt"]);
 
-  const project = validateProject(candidate.project);
+  const project = validateProject(candidate["project"]);
   return createProjectEnvelope({
     project,
-    schemaVersion: candidate.schemaVersion,
-    revision: candidate.revision,
-    savedAt: candidate.savedAt,
+    schemaVersion: candidate["schemaVersion"],
+    revision: candidate["revision"],
+    savedAt: candidate["savedAt"],
   });
 }
 
