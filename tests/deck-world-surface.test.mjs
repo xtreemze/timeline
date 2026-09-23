@@ -281,6 +281,24 @@ test("selection updates presentation data while preserving canonical IDs", () =>
   assert.equal(entities.find((datum) => datum.entityId === "bob").selected, false);
 });
 
+test("relationship and place selection are also reflected in their render datums (issue #445 Priority 4)", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+
+  surface.setSelection({ kind: "relationship", id: "meeting" });
+  const relationshipRender = calls.setProps.at(-1);
+  const relationships = relationshipRender.layers[1].props.data;
+  assert.equal(relationships.find((datum) => datum.relationshipId === "meeting").selected, true);
+
+  surface.setSelection({ kind: "place", id: "stockholm" });
+  const placeRender = calls.setProps.at(-1);
+  const places = placeRender.layers[0].props.data;
+  assert.equal(places.find((datum) => datum.placeId === "stockholm").selected, true);
+  const entitiesAfterPlaceSelection = placeRender.layers[2].props.data;
+  assert.ok(entitiesAfterPlaceSelection.every((datum) => datum.selected === false));
+});
+
 test("deck viewport project/unproject stays behind renderer-neutral world coordinates", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
