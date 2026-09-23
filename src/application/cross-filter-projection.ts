@@ -153,7 +153,7 @@ export function buildTemporalHistogram(
       : positive(options.binWidthMs, "Temporal bin width");
 
   const origin = Math.floor(start / width) * width;
-  const count = Math.max(1, Math.ceil((end - origin) / width) || 1);
+  const count = Math.max(1, Math.floor((end - origin) / width) + 1);
   const bins = Array.from({ length: count }, (_, index) => ({
     start: origin + index * width,
     end: origin + (index + 1) * width,
@@ -202,11 +202,33 @@ export function withAnalyticalCategoryFilter(
     ),
   );
 
+  if (dimension === "categoryIds") {
+    const { categoryIds: _ignored, ...rest } = lens.filters;
+    return Object.freeze({
+      ...lens,
+      filters: Object.freeze({
+        ...rest,
+        ...(normalized.length ? { categoryIds: normalized } : {}),
+      }),
+    });
+  }
+  if (dimension === "placeIds") {
+    const { placeIds: _ignored, ...rest } = lens.filters;
+    return Object.freeze({
+      ...lens,
+      filters: Object.freeze({
+        ...rest,
+        ...(normalized.length ? { placeIds: normalized } : {}),
+      }),
+    });
+  }
+
+  const { relationshipPredicates: _ignored, ...rest } = lens.filters;
   return Object.freeze({
     ...lens,
     filters: Object.freeze({
-      ...lens.filters,
-      ...(normalized.length ? { [dimension]: normalized } : { [dimension]: undefined }),
+      ...rest,
+      ...(normalized.length ? { relationshipPredicates: normalized } : {}),
     }),
   });
 }
