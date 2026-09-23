@@ -412,7 +412,10 @@ function placeDatums(
   instances: readonly ProjectedWorldInstance[],
   selection: WorldSelection | null,
   previous: ReadonlyMap<PlaceId, DeckWorldPlaceDatum>,
-): { readonly datums: readonly DeckWorldPlaceDatum[]; readonly byId: Map<PlaceId, DeckWorldPlaceDatum> } {
+): {
+  readonly datums: readonly DeckWorldPlaceDatum[];
+  readonly byId: Map<PlaceId, DeckWorldPlaceDatum>;
+} {
   const byPlace = new Map<PlaceId, DeckWorldPlaceDatum>();
 
   for (const instance of instances) {
@@ -567,7 +570,12 @@ function relationshipDatums(
 function screenPointFromDoubleClickEvent(event: DoubleClickEvent): ScreenPoint | null {
   const x = event.offsetX;
   const y = event.offsetY;
-  if (typeof x !== "number" || typeof y !== "number" || !Number.isFinite(x) || !Number.isFinite(y)) {
+  if (
+    typeof x !== "number" ||
+    typeof y !== "number" ||
+    !Number.isFinite(x) ||
+    !Number.isFinite(y)
+  ) {
     return null;
   }
   return Object.freeze({ x, y });
@@ -615,11 +623,7 @@ function worldHitFromPicking(info: DeckRuntimePickingInfo | null): WorldHit | nu
     const first = object["clusterMembers"][0] as
       | { readonly entityId?: unknown; readonly worldInstanceId?: unknown }
       | undefined;
-    if (
-      first &&
-      typeof first.entityId === "string" &&
-      typeof first.worldInstanceId === "string"
-    ) {
+    if (first && typeof first.entityId === "string" && typeof first.worldInstanceId === "string") {
       return Object.freeze({
         kind: "entity",
         entityId: first.entityId as EntityId,
@@ -718,7 +722,8 @@ export class DeckWorldSurface implements WorldSurface {
         ? candidates.findIndex((candidate) => selectionEquals(candidate, this.#selection))
         : -1;
       const delta = event.shiftKey ? -1 : 1;
-      const nextIndex = (((currentIndex + delta) % candidates.length) + candidates.length) % candidates.length;
+      const nextIndex =
+        (((currentIndex + delta) % candidates.length) + candidates.length) % candidates.length;
       this.setSelection(candidates[nextIndex] ?? null);
       return;
     }
@@ -940,9 +945,11 @@ export class DeckWorldSurface implements WorldSurface {
    * a fresh full scan of `#projection.instances`.
    */
   getAccessibleSnapshot(): AccessibleWorldSnapshot {
-    const places = placeDatums(this.#projection.instances, this.#selection, this.#placeDatumCache).datums.map(
-      (datum) => Object.freeze({ placeId: datum.placeId, selected: datum.selected }),
-    );
+    const places = placeDatums(
+      this.#projection.instances,
+      this.#selection,
+      this.#placeDatumCache,
+    ).datums.map((datum) => Object.freeze({ placeId: datum.placeId, selected: datum.selected }));
     const relationships = relationshipDatums(
       this.#projection,
       this.#positions(),
@@ -1075,10 +1082,7 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #reclusterIfZoomCrossedThreshold(): void {
-    const clusteredNow = shouldClusterEntityDatums(
-      this.#entityDatumCache.size,
-      this.#camera.zoom,
-    );
+    const clusteredNow = shouldClusterEntityDatums(this.#entityDatumCache.size, this.#camera.zoom);
     if (clusteredNow !== this.#clusteredLastRender) this.#render();
   }
 
@@ -1126,7 +1130,11 @@ export class DeckWorldSurface implements WorldSurface {
 
   #render(): void {
     const positions = this.#positions();
-    const placeResult = placeDatums(this.#projection.instances, this.#selection, this.#placeDatumCache);
+    const placeResult = placeDatums(
+      this.#projection.instances,
+      this.#selection,
+      this.#placeDatumCache,
+    );
     const relationshipResult = relationshipDatums(
       this.#projection,
       positions,
