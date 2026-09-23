@@ -1,11 +1,13 @@
 import type { EntityId, PlaceId, RelationshipId } from "../../src/domain/ids.ts";
 import {
   createWorldCameraState,
+  createWorldSpatialPosition,
   createWorldTemporalWindow,
   type ScreenPoint,
   type WorldCameraState,
   type WorldHit,
   type WorldSelection,
+  type WorldSpatialPosition,
   type WorldSurface,
   type WorldSurfaceCapabilities,
   type WorldTemporalWindow,
@@ -39,9 +41,18 @@ interface DeckRuntimePickingInfo {
   readonly layer?: { readonly id?: string };
 }
 
+export interface DeckRuntimeViewport {
+  project(coordinates: readonly number[]): readonly number[];
+  unproject(
+    pixels: readonly number[],
+    options?: Readonly<Record<string, unknown>>,
+  ): readonly number[];
+}
+
 export interface DeckRuntimeInstance {
   setProps(props: Readonly<Record<string, unknown>>): void;
   pickObject(options: Readonly<Record<string, unknown>>): DeckRuntimePickingInfo | null;
+  getViewports(rect?: Readonly<Record<string, number>>): readonly DeckRuntimeViewport[];
   redraw(force?: boolean): void;
   finalize(): void;
 }
@@ -328,6 +339,70 @@ export class DeckWorldSurface implements WorldSurface {
       placeDatums(this.#projection.instances, this.#selection).find((datum) => datum.placeId === id)
         ?.position ?? null,
     );
+  }
+
+  project(position: WorldSpatialPosition): ScreenPoint | null {
+    this.#assertAlive();
+    const viewport = this.#deck.getViewports()[0];
+    if (!viewport) return null;
+
+    const validated = createWorldSpatialPosition(position);
+    const projected = viewport.project([
+      validated.longitude,
+      validated.latitude,
+      validated.altitudeMeters,
+    ]);
+    const x = projected[0];
+    const y = projected[1];
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return Object.freeze({ x, y });
+  }
+
+  unproject(
+    point: ScreenPoint,
+    targetAltitudeMeters: number,
+  ): WorldSpatialPosition | null {
+    this.#assertAlive();
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+      throw new Error("World screen point must contain finite coordinates.");
+    }
+    if (!Number.isFinite(targetAltitudeMeters)) {
+      throw new Error("World target altitude must be finite.");
+    }
+
+    const viewport =
+      this.#deck.getViewports({
+        x: point.x,
+        y: point.y,
+        width: 1,
+        height: 1,
+      })[0] ?? this.#deck.getViewports()[0];
+    if (!viewport) return null;
+
+    const unprojected = viewport.unproject([point.x, point.y], {
+      targetZ: targetAltitudeMeters,
+    });
+    const longitude = unprojected[0];
+    const latitude = unprojected[1];
+    const altitudeMeters = unprojected[2] ?? targetAltitudeMeters;
+
+    if (
+      !Number.isFinite(longitude) ||
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(altitudeMeters)
+    ) {
+      return null;
+    }
+
+    try {
+      return createWorldSpatialPosition({
+        longitude,
+        latitude,
+        altitudeMeters,
+      });
+    } catch {
+      return null;
+    }
   }
 
   pick(point: ScreenPoint): WorldHit | null {
