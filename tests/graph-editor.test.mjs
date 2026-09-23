@@ -639,7 +639,7 @@ test("graph camera and force policy stays bounded, weighted, and explicitly acti
     /alpha:\s*reheat\s*\?\s*\(dense \? 0\.07 : 0\.09\)\s*:\s*dense \? 0\.012 : 0\.016/,
   );
   assert.match(source, /simulator\.stopSimulation\(\)/);
-  assert.match(source, /isSimulatingOnDataUpdate:\s*false/);
+  assert.match(source, /isSimulatingOnDataUpdate:\s*true/);
   assert.match(source, /isSimulatingOnSettingsUpdate:\s*false/);
   assert.match(source, /\.timeline-surface, \.presentation-map, \.leaflet-container/);
   assert.match(source, /document\.addEventListener\("pointerdown", onCompetingPointerDown, true\)/);
@@ -697,4 +697,13 @@ test("graph force motion stays deliberately low-energy so topology changes settl
   );
   assert.match(source, /forceX:\s*\{\s*x:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.0035\s*\}/);
   assert.match(source, /forceY:\s*\{\s*y:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.0035\s*\}/);
+});
+
+test("legacy Orb fallback keeps data synchronization enabled before manual force requests", async () => {
+  const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+  assert.match(
+    source,
+    /Orb 1\.1\.0 only rebinds freshly loaded graph data into d3-force[\s\S]*isSimulatingOnDataUpdate:\s*true/,
+  );
+  assert.match(source, /isSimulatingOnSettingsUpdate:\s*false/);
 });
