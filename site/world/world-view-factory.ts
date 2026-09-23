@@ -110,6 +110,11 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
     this.#view.refreshLayout();
   }
 
+  wake(): void {
+    this.#assertAlive();
+    this.#schedule();
+  }
+
   destroy(): void {
     if (this.#destroyed) return;
     this.#destroyed = true;
@@ -177,8 +182,31 @@ export function createWorldViewFactory(
           : {}),
       });
       const view = new WorldProjectionView(runtime);
+      const scheduledView = new ScheduledWorldProjectionView(view, runtime, scheduler);
 
-      return new ScheduledWorldProjectionView(view, runtime, scheduler);
+      surface.setNodeDragSink({
+        begin(pointerId, instanceId, position) {
+          const claimed = runtime.beginNodeDrag(pointerId, instanceId, position);
+          if (claimed) scheduledView.wake();
+          return claimed;
+        },
+        update(pointerId, position) {
+          const changed = runtime.updateNodeDrag(pointerId, position);
+          if (changed) scheduledView.wake();
+          return changed;
+        },
+        release(pointerId) {
+          const released = runtime.releaseNodeDrag(pointerId);
+          if (released) scheduledView.wake();
+          return released;
+        },
+        cancel(reason) {
+          runtime.cancelNodeDrag(reason);
+          scheduledView.wake();
+        },
+      });
+
+      return scheduledView;
     },
   });
 }
