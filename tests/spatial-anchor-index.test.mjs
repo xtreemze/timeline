@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  SpatialAnchorIndex,
   representativeGeographicPosition,
+  SpatialAnchorIndex,
 } from "../src/projection/spatial-anchor-index.ts";
 
 function relationship(overrides) {
@@ -68,10 +68,9 @@ test("SpatialAnchorIndex derives occurrence and endpoint constraints without pla
   );
 
   assert.deepEqual(
-    index.constraintsForOccurrences(["meeting"]).map(({ canonicalId, occurrenceId }) => [
-      canonicalId,
-      occurrenceId,
-    ]),
+    index
+      .constraintsForOccurrences(["meeting"])
+      .map(({ canonicalId, occurrenceId }) => [canonicalId, occurrenceId]),
     [
       ["alice", "meeting"],
       ["bob", "meeting"],
@@ -117,15 +116,9 @@ test("one entity can retain distinct anchors from multiple placed occurrences", 
     ],
   );
 
-  const constraints = index.constraintsForOccurrences([
-    "stockholm-meeting",
-    "copenhagen-meeting",
-  ]);
+  const constraints = index.constraintsForOccurrences(["stockholm-meeting", "copenhagen-meeting"]);
 
-  assert.equal(
-    constraints.filter(({ canonicalId }) => canonicalId === "alice").length,
-    2,
-  );
+  assert.equal(constraints.filter(({ canonicalId }) => canonicalId === "alice").length, 2);
 });
 
 test("unplaced occurrences do not acquire invented geographic anchors", () => {
@@ -184,4 +177,20 @@ test("polygon representative position is derived without mutating canonical geom
   assert.ok(longitude > 17.9 && longitude < 18.2);
   assert.ok(latitude > 59.2 && latitude < 59.4);
   assert.equal(JSON.stringify(geometry), before);
+});
+
+test("place presentation labels follow anchors without becoming topology", () => {
+  const index = new SpatialAnchorIndex(
+    [
+      {
+        id: "stockholm",
+        label: "Stockholm",
+        geometry: { type: "Point", coordinates: [18.0686, 59.3293] },
+      },
+    ],
+    [relationship({ id: "meeting", placeId: "stockholm" })],
+  );
+
+  assert.equal(index.anchorForOccurrence("meeting")?.label, "Stockholm");
+  assert.equal(index.place("stockholm")?.label, "Stockholm");
 });
