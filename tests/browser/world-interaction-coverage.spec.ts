@@ -52,13 +52,13 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       "Playwright's mouse.wheel is unsupported on mobile WebKit, and there is no built-in pinch gesture to fall back to.",
     );
 
-    const before = await page.evaluate(() => window.__worldPerfHarness!.surface.getCamera());
+    const before = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
 
     await page.mouse.move(512, 384);
     await page.mouse.wheel(0, -400);
     await page.waitForTimeout(300);
 
-    const after = await page.evaluate(() => window.__worldPerfHarness!.surface.getCamera());
+    const after = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
     expect(after.zoom, "wheel zoom should change the camera zoom level").not.toBeCloseTo(before.zoom, 5);
   });
 
@@ -68,7 +68,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     const result = await page.evaluate(async () => {
       const helpersModulePath = "/world-test-helpers.mjs";
       const { createWorldProjection, createProjectedWorldInstance } = await import(helpersModulePath);
-      const harness = window.__worldPerfHarness!;
+      const harness = window.__worldPerfHarness;
       const instance = createProjectedWorldInstance({
         canonicalId: "entity-pick-target",
         geographicAnchors: [{ placeId: "place-pick", longitude: 0, latitude: 20, influence: 1 }],
@@ -86,12 +86,13 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     });
 
     expect(result.screenPoint, "known entity position should project to a screen point").not.toBeNull();
-    const { x, y } = result.screenPoint!;
+    if (!result.screenPoint) throw new Error("Known entity position did not project to a screen point.");
+    const { x, y } = result.screenPoint;
 
     await page.mouse.click(x, y);
 
     const pickHit = await page.evaluate(
-      ({ x, y }) => window.__worldPerfHarness!.surface.pick({ x, y }),
+      ({ x, y }) => window.__worldPerfHarness.surface.pick({ x, y }),
       { x, y },
     );
     expect(pickHit?.kind).toBe("entity");
@@ -102,7 +103,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     // from the hit.
     await page.evaluate(
       ({ x, y }) => {
-        const harness = window.__worldPerfHarness!;
+        const harness = window.__worldPerfHarness;
         const hit = harness.surface.pick({ x, y });
         if (hit?.kind === "entity") {
           harness.surface.setSelection({ kind: "entity", id: hit.entityId });
@@ -114,7 +115,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       },
       { x, y },
     );
-    const snapshot = await page.evaluate(() => window.__worldPerfHarness!.surface.getAccessibleSnapshot());
+    const snapshot = await page.evaluate(() => window.__worldPerfHarness.surface.getAccessibleSnapshot());
     expect(snapshot.selection).toEqual({ kind: "entity", id: result.entityId });
   });
 
@@ -126,7 +127,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     const setup = await page.evaluate(async () => {
       const helpersModulePath = "/world-test-helpers.mjs";
       const { createWorldProjection, createProjectedWorldInstance } = await import(helpersModulePath);
-      const harness = window.__worldPerfHarness!;
+      const harness = window.__worldPerfHarness;
       const instance = createProjectedWorldInstance({
         canonicalId: "entity-drag-target",
         geographicAnchors: [{ placeId: "place-drag", longitude: 10, latitude: 10, influence: 1 }],
@@ -143,14 +144,15 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     });
 
     expect(setup.screenPoint).not.toBeNull();
-    const { x, y } = setup.screenPoint!;
+    if (!setup.screenPoint) throw new Error("Drag target did not project to a screen point.");
+    const { x, y } = setup.screenPoint;
 
     const beforeAnchors = await page.evaluate(() =>
-      window.__worldPerfHarness!.surface.getAccessibleSnapshot().entities,
+      window.__worldPerfHarness.surface.getAccessibleSnapshot().entities,
     );
     expect(beforeAnchors.length).toBe(1);
 
-    const beforeCanonical = await page.evaluate(() => window.__worldPerfHarness!.getProjection());
+    const beforeCanonical = await page.evaluate(() => window.__worldPerfHarness.getProjection());
 
     // Real Playwright pointer sequence: long-press then drag.
     await page.mouse.move(x, y);
@@ -160,7 +162,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     await page.waitForTimeout(100);
     await page.mouse.up();
 
-    const dragSinkCalls = await page.evaluate(() => window.__worldPerfHarness!.dragSinkCalls);
+    const dragSinkCalls = await page.evaluate(() => window.__worldPerfHarness.dragSinkCalls);
     // Whether deck.gl's own picking + drag-gesture recognition actually
     // fires onDragStart/onDrag for a synthetic mouse.down/move/up sequence
     // against a software (SwiftShader) WebGL canvas is exactly what this
@@ -173,7 +175,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       "a real mouse drag over the entity should engage the drag sink's begin()",
     ).toBeGreaterThan(0);
 
-    const afterCanonical = await page.evaluate(() => window.__worldPerfHarness!.getProjection());
+    const afterCanonical = await page.evaluate(() => window.__worldPerfHarness.getProjection());
     const beforeInstance = beforeCanonical.instances.find((i) => i.canonicalId === setup.canonicalId);
     const afterInstance = afterCanonical.instances.find((i) => i.canonicalId === setup.canonicalId);
     expect(afterInstance?.geographicAnchors).toEqual(beforeInstance?.geographicAnchors);
@@ -190,7 +192,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     const counts = await page.evaluate(async () => {
       const fixtureModulePath = "/world-fixture-generator.mjs";
       const { generateWorldProjectionFixture } = await import(fixtureModulePath);
-      const harness = window.__worldPerfHarness!;
+      const harness = window.__worldPerfHarness;
 
       const full = generateWorldProjectionFixture({ entityCount: 40 });
       harness.surface.setProjection(full);
@@ -219,7 +221,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     const result = await page.evaluate(async () => {
       const helpersModulePath = "/world-test-helpers.mjs";
       const { createWorldProjection, createProjectedWorldInstance } = await import(helpersModulePath);
-      const harness = window.__worldPerfHarness!;
+      const harness = window.__worldPerfHarness;
       const instance = createProjectedWorldInstance({
         canonicalId: "entity-mode-crossing",
         geographicAnchors: [{ placeId: "place-mode", longitude: 5, latitude: 5, influence: 1 }],
@@ -265,7 +267,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     await page.evaluate(async () => {
       const helpersModulePath = "/world-test-helpers.mjs";
       const { createWorldProjection, createProjectedWorldInstance } = await import(helpersModulePath);
-      const harness = window.__worldPerfHarness!;
+      const harness = window.__worldPerfHarness;
       const instance = createProjectedWorldInstance({
         canonicalId: "entity-live-region",
         geographicAnchors: [{ placeId: "place-live", longitude: 1, latitude: 1, influence: 1 }],
