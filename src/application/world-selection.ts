@@ -154,9 +154,7 @@ export function clearCanonicalSelection(): CanonicalSelectionSet {
   return EMPTY_SELECTION;
 }
 
-export function summarizeSelection(
-  selection: CanonicalSelectionSet,
-): SelectionSummary {
+export function summarizeSelection(selection: CanonicalSelectionSet): SelectionSummary {
   const summary = Object.freeze({
     entities: selection.entityIds.length,
     occurrences: selection.occurrenceIds.length,
@@ -193,9 +191,7 @@ function normalizeSearchText(value: string): string {
     .replace(/\s+/g, " ");
 }
 
-function canonicalStringList(
-  values: readonly string[] | undefined,
-): readonly string[] | undefined {
+function canonicalStringList(values: readonly string[] | undefined): readonly string[] | undefined {
   if (!values?.length) return undefined;
   return Object.freeze(
     [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort((left, right) =>
@@ -239,9 +235,7 @@ function scoreRecord(record: WorldSearchRecord, query: string): number | null {
   return null;
 }
 
-export function createWorldSearchIndex(
-  records: readonly WorldSearchRecord[],
-): WorldSearchIndex {
+export function createWorldSearchIndex(records: readonly WorldSearchRecord[]): WorldSearchIndex {
   const canonical = Object.freeze(
     records
       .map(canonicalRecord)
