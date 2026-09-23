@@ -1076,8 +1076,8 @@ function syncPresentationFullscreenState() {
   });
   if (active && timelineView?.hasFocusedItem?.()) {
     requestAnimationFrame(() => {
-      timelineView?.ensureFocusPopover?.();
-      requestAnimationFrame(() => timelineView?.ensureFocusPopover?.());
+      timelineView?.ensureFocusSidebar?.();
+      requestAnimationFrame(() => timelineView?.ensureFocusSidebar?.());
     });
   }
   schedulePresentationGeometryRefresh({ recenterGraph: true });
