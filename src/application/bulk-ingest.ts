@@ -93,7 +93,8 @@ function parseDelimitedRecords(input: string, delimiter: "," | "\t"): readonly B
   if (!rows.length) return Object.freeze([]);
 
   const headers = rows[0].map((value) => value.trim());
-  if (headers.some((value) => !value)) throw new Error("Delimited input contains an empty column name.");
+  if (headers.some((value) => !value))
+    throw new Error("Delimited input contains an empty column name.");
   if (new Set(headers).size !== headers.length) {
     throw new Error("Delimited input contains duplicate column names.");
   }
@@ -155,9 +156,7 @@ function inferredType(values: readonly unknown[]): ColumnProfile["inferredType"]
       .map((value) => {
         if (Array.isArray(value)) return "object";
         const type = typeof value;
-        return type === "number" || type === "string" || type === "boolean"
-          ? type
-          : "object";
+        return type === "number" || type === "string" || type === "boolean" ? type : "object";
       }),
   );
 
@@ -187,8 +186,7 @@ function numericProfile(values: readonly unknown[]): NumericColumnProfile | unde
 
   const sorted = [...numbers].sort((left, right) => left - right);
   const mean = numbers.reduce((sum, value) => sum + value, 0) / numbers.length;
-  const variance =
-    numbers.reduce((sum, value) => sum + (value - mean) ** 2, 0) / numbers.length;
+  const variance = numbers.reduce((sum, value) => sum + (value - mean) ** 2, 0) / numbers.length;
 
   return Object.freeze({
     min: sorted[0],
@@ -207,10 +205,7 @@ function stableValueKey(value: unknown): string {
   return `${typeof value}:${JSON.stringify(value)}`;
 }
 
-export function profileBulkRows(
-  rows: readonly BulkRow[],
-  sampleLimit = 5,
-): BulkDataProfile {
+export function profileBulkRows(rows: readonly BulkRow[], sampleLimit = 5): BulkDataProfile {
   const columnNames = [...new Set(rows.flatMap((row) => Object.keys(row)))].sort((a, b) =>
     a.localeCompare(b),
   );
