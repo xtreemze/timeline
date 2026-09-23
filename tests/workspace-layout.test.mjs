@@ -167,7 +167,7 @@ test("view controls consume the renderer-neutral workspace planner instead of ow
 
   assert.match(
     app,
-    /import \{ planWorkspacePlacement \} from '\.\.\/src\/layout\/workspace-layout\.ts'/,
+    /import \\{ planWorkspacePlacement \\} from [\"']\\.\\.\\/src\\/layout\\/workspace-layout\\.ts[\"']/,
   );
   assert.match(source, /planWorkspacePlacement\(/);
   assert.match(source, /exclusionZones:\s*\[[\s\S]*id:\s*"app-tool-dock"/);
