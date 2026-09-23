@@ -10,6 +10,9 @@ export interface DeckWorldBindings {
   readonly globeView: (
     props: Readonly<Record<string, unknown>>,
   ) => unknown;
+  readonly mapView?: (
+    props: Readonly<Record<string, unknown>>,
+  ) => unknown;
   readonly scatterplotLayer: (
     props: Readonly<Record<string, unknown>>,
   ) => unknown;
@@ -28,6 +31,13 @@ export function createDeckWorldRuntime(
     createGlobeView(props) {
       return bindings.globeView(props);
     },
+    ...(bindings.mapView
+      ? {
+          createMapView(props: Readonly<Record<string, unknown>>) {
+            return bindings.mapView?.(props) ?? null;
+          },
+        }
+      : {}),
     createScatterplotLayer(props) {
       return bindings.scatterplotLayer(props);
     },

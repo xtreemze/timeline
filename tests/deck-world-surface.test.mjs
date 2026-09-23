@@ -11,6 +11,9 @@ import {
   createWorldProjection,
   worldInstanceId,
 } from "../src/projection/world-projection.ts";
+import {
+  selectWorldSpatialMode,
+} from "../src/layout/world-spatial-mode.ts";
 
 function harness() {
   const calls = {
@@ -398,4 +401,69 @@ test("refresh and destruction delegate to Deck lifecycle exactly once", () => {
   assert.deepEqual(calls.redraw, [true]);
   assert.equal(calls.finalize, 1);
   assert.throws(() => surface.refresh(), /destroyed/);
+});
+
+
+test("world spatial mode uses hysteresis around the local precision threshold", () => {
+  assert.equal(selectWorldSpatialMode({ zoom: 11.4 }, "globe"), "globe");
+  assert.equal(selectWorldSpatialMode({ zoom: 11.5 }, "globe"), "local");
+  assert.equal(selectWorldSpatialMode({ zoom: 11.0 }, "local"), "local");
+  assert.equal(selectWorldSpatialMode({ zoom: 10.5 }, "local"), "globe");
+});
+
+test("DeckWorldSurface switches to local geographic view only at high zoom", () => {
+  const { calls, runtime } = harness();
+  const localViews = [];
+  runtime.createMapView = (props) => {
+    const view = { type: "map", props };
+    localViews.push(view);
+    return view;
+  };
+
+  const surface = new DeckWorldSurface({}, runtime);
+  assert.equal(surface.getCapabilities().localPrecisionMode, true);
+  assert.equal(localViews.length, 1);
+
+  surface.setCamera({
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 11.5,
+    bearing: 0,
+    pitch: 20,
+  });
+
+  const localSwitch = calls.setProps.find(
+    (props) => props.views?.[0]?.type === "map",
+  );
+  assert.ok(localSwitch);
+  assert.deepEqual(localSwitch.views[0].props, { id: "lum-world-local" });
+
+  const localSwitchCount = calls.setProps.filter(
+    (props) => props.views?.[0]?.type === "map",
+  ).length;
+
+  surface.setCamera({
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 11,
+    bearing: 0,
+    pitch: 20,
+  });
+  assert.equal(
+    calls.setProps.filter((props) => props.views?.[0]?.type === "map").length,
+    localSwitchCount,
+  );
+
+  surface.setCamera({
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 10.5,
+    bearing: 0,
+    pitch: 20,
+  });
+
+  const globeSwitches = calls.setProps.filter(
+    (props) => props.views?.[0]?.type === "globe",
+  );
+  assert.ok(globeSwitches.length >= 1);
 });
