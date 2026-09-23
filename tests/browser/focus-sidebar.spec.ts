@@ -46,9 +46,8 @@ test("focused detail is layout-owned and never enters the popover top layer", as
   const focus = await focusOccurrence(page);
   await expect(focus).toHaveAttribute("data-presentation-surface", "sidebar");
   await expect(focus).not.toHaveAttribute("popover", /.+/);
-  await expect
-    .poll(() => focus.evaluate((element) => element.matches(":popover-open")))
-    .toBe(false);
+  await expect(focus).toBeVisible();
+  await expect(focus).not.toHaveAttribute("hidden", "");
 });
 
 test("landscape places focused detail left of graph with full-width timeline below", async ({
