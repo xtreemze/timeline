@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  applyWorldProjectionDelta,
   diffWorldProjection,
   isEmptyWorldProjectionDelta,
 } from "../src/projection/world-projection-delta.ts";
@@ -90,4 +91,22 @@ test("removing an occurrence emits removals without renderer-specific state", ()
   assert.deepEqual(delta.removedEdgeIds, ["meeting"]);
   assert.equal("position" in delta, false);
   assert.equal("camera" in delta, false);
+});
+
+
+test("applying a deterministic delta reconstructs the next WorldProjection", () => {
+  const alice = instance("alice", "meeting");
+  const bob = instance("bob", "meeting");
+  const charlie = instance("charlie", "meeting");
+  const previous = createWorldProjection({
+    instances: [alice, bob],
+    edges: [edge("meeting", alice.id, bob.id)],
+  });
+  const next = createWorldProjection({
+    instances: [instance("alice", "meeting", { visualWeight: 0.5 }), charlie],
+    edges: [edge("meeting", alice.id, charlie.id, { temporalWeight: 0.75 })],
+  });
+
+  const delta = diffWorldProjection(previous, next);
+  assert.deepEqual(applyWorldProjectionDelta(previous, delta), next);
 });
