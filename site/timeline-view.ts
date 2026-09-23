@@ -1384,8 +1384,6 @@ class TimelineViewController {
         this.retireTemporalContextNode(node);
       }
     }
-
-    if (virtualLength <= 0) 
   }
 
   relationshipBandLane(id: string): number {
