@@ -9,9 +9,8 @@
  * `rollupOptions.input`) — it exists purely so the Playwright certification
  * spec can exercise the real renderer without the full app shell.
  */
-import { DeckWorldSurface, type DeckWorldNodeDragSink } from "./world/deck-world-surface.ts";
-import { realDeckWorldBindings } from "./world/deck-world-bindings.ts";
-import { createDeckWorldRuntime } from "./world/deck-world-runtime.ts";
+
+import type { WorldNodeDragPosition } from "../src/interaction/world-node-drag-controller.ts";
 import { createWorldCameraState } from "../src/layout/world-surface.ts";
 import {
   createProjectedWorldInstance,
@@ -19,7 +18,9 @@ import {
   type WorldInstanceId,
   type WorldProjection,
 } from "../src/projection/world-projection.ts";
-import type { WorldNodeDragPosition } from "../src/interaction/world-node-drag-controller.ts";
+import { realDeckWorldBindings } from "./world/deck-world-bindings.ts";
+import { createDeckWorldRuntime } from "./world/deck-world-runtime.ts";
+import { type DeckWorldNodeDragSink, DeckWorldSurface } from "./world/deck-world-surface.ts";
 
 declare global {
   interface Window {
