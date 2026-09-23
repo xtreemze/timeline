@@ -97,6 +97,21 @@ export class WorldViewRuntimeController {
     this.#surface.setSelection(selection);
   }
 
+  focusEntity(id: Parameters<WorldSurface["focusEntity"]>[0]): void {
+    this.#assertAlive();
+    this.#surface.focusEntity(id);
+  }
+
+  focusOccurrence(id: Parameters<WorldSurface["focusOccurrence"]>[0]): void {
+    this.#assertAlive();
+    this.#surface.focusOccurrence(id);
+  }
+
+  focusPlace(id: Parameters<WorldSurface["focusPlace"]>[0]): void {
+    this.#assertAlive();
+    this.#surface.focusPlace(id);
+  }
+
   beginNodeDrag(
     pointerId: number,
     instanceId: WorldInstanceId,
