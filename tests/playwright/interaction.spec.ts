@@ -40,7 +40,7 @@ async function settleTimeline(page) {
     .not.toBe('interacting');
 }
 
-async function performPan(page, surface, testInfo) {
+async function performPan(surface, testInfo) {
   const box = await surface.boundingBox();
   if (!box) throw new Error('Timeline surface has no bounding box.');
 
@@ -84,11 +84,38 @@ async function performPan(page, surface, testInfo) {
     };
   }
 
-  await page.mouse.move(startX, y);
-  await page.mouse.down();
-  await page.mouse.move(middleX, y, { steps: 4 });
-  await page.mouse.move(endX, y, { steps: 4 });
-  return async () => page.mouse.up();
+  const pointerId = 31;
+  await surface.dispatchEvent('pointerdown', {
+    pointerId,
+    pointerType: 'mouse',
+    isPrimary: true,
+    button: 0,
+    buttons: 1,
+    clientX: startX,
+    clientY: y,
+  });
+  for (const clientX of [middleX, endX]) {
+    await surface.dispatchEvent('pointermove', {
+      pointerId,
+      pointerType: 'mouse',
+      isPrimary: true,
+      button: 0,
+      buttons: 1,
+      clientX,
+      clientY: y,
+    });
+  }
+  return async () => {
+    await surface.dispatchEvent('pointerup', {
+      pointerId,
+      pointerType: 'mouse',
+      isPrimary: true,
+      button: 0,
+      buttons: 0,
+      clientX: endX,
+      clientY: y,
+    });
+  };
 }
 
 test.describe('Timeline interaction contracts', () => {
@@ -101,7 +128,7 @@ test.describe('Timeline interaction contracts', () => {
 
   test('pointer pan changes the logical viewport and settles to a committed state', async ({ page }, testInfo) => {
     const surface = page.locator('.timeline-surface');
-    const finish = await performPan(page, surface, testInfo);
+    const finish = await performPan(surface, testInfo);
 
     await waitForViewportEvents(page, 2);
     const liveEvents = await viewportEvents(page);

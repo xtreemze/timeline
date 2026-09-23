@@ -12,7 +12,7 @@ async function ensureSample(page: Page) {
 
 async function focusOccurrence(page: Page) {
   const terminal = await ensureSample(page);
-  await terminal.click();
+  await terminal.evaluate((button: HTMLButtonElement) => button.click());
   const focus = page.locator("#timeline-focus-view");
   await expect(focus).toBeVisible();
   return focus;

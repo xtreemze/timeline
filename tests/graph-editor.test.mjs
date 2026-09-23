@@ -195,9 +195,9 @@ test("graph exploration never opens editors while graph authoring stays inside e
 test("node interaction reheats force and preserves wider spacing after release", async () => {
   const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
-  assert.match(source, /INTERACTION_SETTLE_MS\s*=\s*3400/);
-  assert.match(source, /DRAG_ALPHA_TARGET\s*=\s*0\.05/);
-  assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.018/);
+  assert.match(source, /INTERACTION_SETTLE_MS\s*=\s*4400/);
+  assert.match(source, /DRAG_ALPHA_TARGET\s*=\s*0\.034/);
+  assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.009/);
   assert.match(
     source,
     /function onPointerDown\(event\)[\s\S]*target\?\.kind === "node"[\s\S]*requestSimulation\("drag", DRAG_ALPHA_TARGET\)[\s\S]*beginCameraGesture\(event, target\)/,
@@ -213,13 +213,13 @@ test("node interaction reheats force and preserves wider spacing after release",
   assert.match(source, /simulator\.setSettings\(layout\)/);
   assert.match(source, /simulator\.activateSimulation\(\)/);
   assert.match(source, /distance:\s*dense \? 128 : 168/);
-  assert.match(source, /strength:\s*dense \? -185 : -285/);
+  assert.match(source, /strength:\s*dense \? -125 : -190/);
   assert.match(source, /radius:\s*dense \? 30 : 42/);
   assert.match(source, /iterations:\s*3/);
-  assert.match(source, /centering:[\s\S]*strength:\s*dense \? 0\.005 : 0\.008/);
-  assert.match(source, /forceX:\s*\{\s*x:\s*0,\s*strength:\s*dense \? 0\.005 : 0\.007\s*\}/);
-  assert.match(source, /alphaMin:\s*dense \? 0\.005 : 0\.004/);
-  assert.match(source, /alphaDecay:\s*dense \? 0\.028 : 0\.026/);
+  assert.match(source, /centering:[\s\S]*strength:\s*dense \? 0\.0028 : 0\.004/);
+  assert.match(source, /forceX:\s*\{\s*x:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.0035\s*\}/);
+  assert.match(source, /alphaMin:\s*dense \? 0\.0035 : 0\.003/);
+  assert.match(source, /alphaDecay:\s*dense \? 0\.02 : 0\.018/);
   assert.match(source, /clearInteractionSettleTimer\(\)/);
 });
 
@@ -251,9 +251,9 @@ test("mouse node drag preheats force before Orb enters native drag state", async
 test("timeline topology changes visibly release, break, and bind graph relationships", async () => {
   const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
-  assert.match(source, /TOPOLOGY_EDGE_RELEASE_MS\s*=\s*360/);
-  assert.match(source, /TOPOLOGY_SETTLE_MS\s*=\s*1100/);
-  assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.028/);
+  assert.match(source, /TOPOLOGY_EDGE_RELEASE_MS\s*=\s*420/);
+  assert.match(source, /TOPOLOGY_SETTLE_MS\s*=\s*1500/);
+  assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.018/);
   assert.match(source, /orb\.data\.merge\(/);
   assert.match(source, /orb\.data\.remove\(/);
   assert.match(source, /__timelineTransition/);
@@ -355,7 +355,7 @@ test("graph double tap zooms at the tapped point while long press and multi-touc
   assert.match(bridge, /addEventListener\("click", onClickCapture, \{ capture: true \}\)/);
 });
 
-test("touch graph uses forgiving node and edge hit targets with visible long-press progress", async () => {
+test("touch graph uses forgiving node and edge hit targets with visible long-press state", async () => {
   const [bridge, styles] = await Promise.all([
     readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
@@ -383,7 +383,11 @@ test("touch graph uses forgiving node and edge hit targets with visible long-pre
 
   assert.match(styles, /temporal-graph-canvas\[data-touch-drag="holding"\]::after/);
   assert.match(styles, /width:\s*44px[\s\S]*height:\s*44px/);
-  assert.match(styles, /animation:\s*graph-touch-hold 420ms linear both/);
+  assert.match(
+    styles,
+    /data-touch-drag="holding"\]::after[\s\S]*opacity:\s*0\.95[\s\S]*transform:\s*scale\(0\.78\)/,
+  );
+  assert.doesNotMatch(styles, /animation:\s*graph-touch-hold/);
   assert.match(
     styles,
     /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*data-touch-drag="holding"/,
@@ -616,19 +620,19 @@ test("graph camera and force policy stays bounded, weighted, and explicitly acti
   assert.match(source, /GRAPH_MAX_ZOOM\s*=\s*2\.5/);
   assert.match(source, /GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX\s*=\s*-280/);
   assert.doesNotMatch(source, /nodeCount\s*>=\s*3000\s*\?\s*0\.0005/);
-  assert.match(source, /DRAG_ALPHA_TARGET\s*=\s*0\.05/);
-  assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.018/);
-  assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.028/);
+  assert.match(source, /DRAG_ALPHA_TARGET\s*=\s*0\.034/);
+  assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.009/);
+  assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.018/);
   assert.match(
     source,
-    /function setData\(data\)[\s\S]{0,1800}orb\.render\(\)[\s\S]{0,500}requestSimulation\("topology", 0\)/,
+    /function setData\(data\)[\s\S]{0,2200}orb\.render\(\(\) => \{[\s\S]{0,300}simulationCoordinator\.retry\(\)[\s\S]{0,500}requestSimulation\("topology", 0\)/,
   );
   assert.match(source, /refreshLayout\(\)\s*\{[\s\S]{0,900}orb\.render/);
   assert.doesNotMatch(
     source,
     /refreshLayout\(\)\s*\{[\s\S]{0,500}requestSimulation\(/,
   );
-  assert.match(source, /alpha:\s*reheat\s*\?\s*\(dense \? 0\.11 : 0\.14\)\s*:\s*dense \? 0\.025 : 0\.032/);
+  assert.match(source, /alpha:\s*reheat\s*\?\s*\(dense \? 0\.07 : 0\.09\)\s*:\s*dense \? 0\.012 : 0\.016/);
   assert.match(source, /simulator\.stopSimulation\(\)/);
   assert.match(source, /isSimulatingOnDataUpdate:\s*false/);
   assert.match(source, /isSimulatingOnSettingsUpdate:\s*false/);
@@ -649,7 +653,32 @@ test("graph force remains presentation-agnostic when focused detail is visible",
   assert.doesNotMatch(source, /onPopoverToggle/);
   assert.doesNotMatch(source, /popover-exclusion/);
 
-  assert.match(source, /centering:\s*\{\s*x:\s*0,\s*y:\s*0,\s*strength:\s*dense \? 0\.005 : 0\.008\s*\}/);
-  assert.match(source, /positioning:\s*\{[\s\S]*forceX:\s*\{\s*x:\s*0,\s*strength:\s*dense \? 0\.005 : 0\.007\s*\}/);
-  assert.match(source, /forceY:\s*\{\s*y:\s*0,\s*strength:\s*dense \? 0\.005 : 0\.007\s*\}/);
+  assert.match(source, /centering:\s*\{\s*x:\s*0,\s*y:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.004\s*\}/);
+  assert.match(source, /positioning:\s*\{[\s\S]*forceX:\s*\{\s*x:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.0035\s*\}/);
+  assert.match(source, /forceY:\s*\{\s*y:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.0035\s*\}/);
+});
+test("Orb graph retries a pending topology solve after render attaches its simulator", async () => {
+  const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+  assert.match(source, /return false;[\s\S]*simulationCoordinator\.retry\(\)/);
+  assert.match(source, /orb\.render\(\(\) => \{[\s\S]*simulationCoordinator\.retry\(\)/);
+});
+test("graph force motion stays deliberately low-energy so topology changes settle with visible weight", async () => {
+  const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(source, /INTERACTION_SETTLE_MS\s*=\s*4400/);
+  assert.match(source, /DRAG_ALPHA_TARGET\s*=\s*0\.034/);
+  assert.match(source, /RELEASE_ALPHA_TARGET\s*=\s*0\.009/);
+  assert.match(source, /TOPOLOGY_ALPHA_TARGET\s*=\s*0\.018/);
+  assert.match(source, /TOPOLOGY_EDGE_RELEASE_MS\s*=\s*420/);
+  assert.match(source, /TOPOLOGY_SETTLE_MS\s*=\s*1500/);
+  assert.match(source, /TOPOLOGY_ENTRY_OFFSET\s*=\s*28/);
+  assert.match(source, /CENTER_ATTRACTION_STRENGTH\s*=\s*0\.004/);
+  assert.match(source, /manyBody:\s*\{\s*strength:\s*-190/);
+  assert.match(source, /collision:\s*\{\s*radius:\s*34,\s*strength:\s*0\.68/);
+  assert.match(source, /alpha:\s*\{\s*alpha:\s*0\.09,\s*alphaMin:\s*0\.003,\s*alphaDecay:\s*0\.018/);
+  assert.match(source, /strength:\s*dense \? -125 : -190/);
+  assert.match(source, /strength:\s*0\.66/);
+  assert.match(source, /centering:\s*\{\s*x:\s*0,\s*y:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.004\s*\}/);
+  assert.match(source, /forceX:\s*\{\s*x:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.0035\s*\}/);
+  assert.match(source, /forceY:\s*\{\s*y:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.0035\s*\}/);
 });

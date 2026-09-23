@@ -1,12 +1,7 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
   "files": {
-    "includes": [
-      "**",
-      "!!node_modules",
-      "!!dist",
-      "!!site/orb-graph.bundle.js"
-    ]
+    "includes": ["**", "!!node_modules", "!!dist", "!!site/orb-graph.bundle.js"]
   },
   "formatter": {
     "enabled": true,
@@ -16,13 +11,7 @@
   },
   "linter": {
     "enabled": true,
-    "includes": [
-      "site/**/*.ts",
-      "site/**/*.css",
-      "src/**/*.ts",
-      "src/**/*.js",
-      "scripts/**/*.mjs"
-    ],
+    "includes": ["site/**/*.ts", "site/**/*.css", "src/**/*.ts", "src/**/*.js", "scripts/**/*.mjs"],
     "rules": {
       "preset": "recommended",
       "suspicious": {
@@ -49,7 +38,7 @@
         "rules": {
           "preset": "all",
           "nursery": {
-            "recommended": true
+            "preset": "recommended"
           }
         }
       }
