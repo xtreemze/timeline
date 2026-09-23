@@ -18,12 +18,14 @@ function projection() {
         id: alice,
         canonicalId: "alice",
         occurrenceId: "meeting",
-        geographicAnchors: [{
-          placeId: "stockholm",
-          longitude: 18.0686,
-          latitude: 59.3293,
-          influence: 1,
-        }],
+        geographicAnchors: [
+          {
+            placeId: "stockholm",
+            longitude: 18.0686,
+            latitude: 59.3293,
+            influence: 1,
+          },
+        ],
         temporalWeight: 1,
         visualWeight: 1,
         retained: false,
@@ -64,15 +66,25 @@ function harness({ settled = false, readback = false, delta = false } = {}) {
   let pin = null;
 
   const surface = {
-    setProjection(value) { calls.push(["surface:projection", value]); },
-    setTemporalWindow(value) { calls.push(["surface:window", value]); },
-    setSelection(value) { calls.push(["surface:selection", value]); },
-    getCamera() { return { longitude: 0, latitude: 0, zoom: 1, bearing: 0, pitch: 0 }; },
+    setProjection(value) {
+      calls.push(["surface:projection", value]);
+    },
+    setTemporalWindow(value) {
+      calls.push(["surface:window", value]);
+    },
+    setSelection(value) {
+      calls.push(["surface:selection", value]);
+    },
+    getCamera() {
+      return { longitude: 0, latitude: 0, zoom: 1, bearing: 0, pitch: 0 };
+    },
     setCamera() {},
     focusEntity() {},
     focusOccurrence() {},
     focusPlace() {},
-    pick() { return null; },
+    pick() {
+      return null;
+    },
     getCapabilities() {
       return {
         globe: true,
@@ -82,8 +94,12 @@ function harness({ settled = false, readback = false, delta = false } = {}) {
         localPrecisionMode: false,
       };
     },
-    refresh() { calls.push(["surface:refresh"]); },
-    destroy() { calls.push(["surface:destroy"]); },
+    refresh() {
+      calls.push(["surface:refresh"]);
+    },
+    destroy() {
+      calls.push(["surface:destroy"]);
+    },
   };
 
   if (delta) {
@@ -91,17 +107,32 @@ function harness({ settled = false, readback = false, delta = false } = {}) {
   }
 
   const backend = {
-    setScene(scene) { calls.push(["force:scene", scene]); },
-    setPin(value) { pin = value; calls.push(["force:pin", value]); },
+    setScene(scene) {
+      calls.push(["force:scene", scene]);
+    },
+    setPin(value) {
+      pin = value;
+      calls.push(["force:pin", value]);
+    },
     apply(request) {
       diagnostics.running = request.reason !== "idle";
       if (request.reason === "idle") diagnostics.settled = true;
       calls.push(["force:apply", request]);
     },
-    stop() { diagnostics.running = false; calls.push(["force:stop"]); },
-    step(deltaMs) { diagnostics.iteration += 1; calls.push(["force:step", deltaMs]); },
-    getDiagnostics() { return { ...diagnostics }; },
-    destroy() { calls.push(["force:destroy"]); },
+    stop() {
+      diagnostics.running = false;
+      calls.push(["force:stop"]);
+    },
+    step(deltaMs) {
+      diagnostics.iteration += 1;
+      calls.push(["force:step", deltaMs]);
+    },
+    getDiagnostics() {
+      return { ...diagnostics };
+    },
+    destroy() {
+      calls.push(["force:destroy"]);
+    },
   };
 
   const options = { surface, forceBackend: backend };
@@ -109,12 +140,14 @@ function harness({ settled = false, readback = false, delta = false } = {}) {
     options.layoutReadback = {
       read() {
         const id = worldInstanceId("alice", "meeting");
-        return [{
-          instanceId: id,
-          eastMeters: 100,
-          northMeters: 50,
-          visualAltitudeMeters: 1500,
-        }];
+        return [
+          {
+            instanceId: id,
+            eastMeters: 100,
+            northMeters: 50,
+            visualAltitudeMeters: 1500,
+          },
+        ];
       },
     };
   }
@@ -229,7 +262,6 @@ test("destroy is idempotent and shuts down force and surface execution", () => {
   assert.equal(calls.filter(([name]) => name === "surface:destroy").length, 1);
   assert.throws(() => controller.refresh(), /destroyed/);
 });
-
 
 test("subsequent projection revisions use WorldSurface delta updates when supported", () => {
   const { calls, controller } = harness({ delta: true });
