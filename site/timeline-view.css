@@ -2273,7 +2273,6 @@
    Horizontal timelines live low, so detail stays high; vertical timelines live right,
    so detail stays left. The compact grid avoids an internal desktop scroll surface. */
 @media (min-width: 900px) and (min-height: 700px) {
-
   .timeline-focus-view[popover] :is(.timeline-focus-place, .timeline-focus-relations) {
     min-height: clamp(125px, 17dvh, 165px);
   }
@@ -2290,8 +2289,7 @@
 
 .timeline-focus-relations-backdrop {
   opacity: 0.64;
-}/* Focused presentation refinement: two-row overview, tabbed evidence, and direct graph manipulation. */
-
+} /* Focused presentation refinement: two-row overview, tabbed evidence, and direct graph manipulation. */
 
 .timeline-focus-tabs {
   position: absolute;
@@ -2534,10 +2532,9 @@
   ::view-transition-new(timeline-event-detail-swap) {
     animation-duration: 0s;
   }
-}/* Focus popovers occupy the edge opposite chronology: top/center for a bottom timeline
+} /* Focus popovers occupy the edge opposite chronology: top/center for a bottom timeline
    and left/center for a right timeline. JS reserves persistent application chrome and the
    contextual timeline strip, then clamps late content growth to the remaining viewport. */
-
 
 .timeline-focus-summary,
 .timeline-focus-evidence {
@@ -2706,10 +2703,9 @@
 .timeline-focus-relations-backdrop .temporal-graph-canvas canvas {
   user-select: none;
   -webkit-user-select: none;
-}/* Focused event chrome inherits the exact semantic color already used by its timeline
+} /* Focused event chrome inherits the exact semantic color already used by its timeline
    terminal/range. Keep the content surfaces mostly neutral; use the event color for identity,
    controls, separators, and focus affordances. */
-
 
 .timeline-focus-view[popover] .timeline-focus-tab:is(:hover, :focus-visible) {
   background: color-mix(in srgb, var(--focus-chrome-color) 12%, var(--paper));
@@ -3479,7 +3475,6 @@
    Context stays beside the hero; Place occupies a small footer in that information column.
    Evidence replaces Place. Relations remain in the persistent graph, not in the popover. */
 @media (min-width: 761px) {
-
   .timeline-focus-view[popover] .timeline-focus-hero,
   #presentation-stage:fullscreen .timeline-focus-view .timeline-focus-hero {
     grid-column: 1;
@@ -3704,7 +3699,6 @@
    - Hero is outside the tab-swapped region and keeps identical responsive dimensions.
    - Tabs/Close own layout space and never overlap either tab's content. */
 @media (min-width: 761px) {
-
   .timeline-focus-view[popover] .timeline-focus-hero,
   #presentation-stage:fullscreen .timeline-focus-view .timeline-focus-hero {
     grid-column: 1;

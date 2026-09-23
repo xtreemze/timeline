@@ -44,7 +44,10 @@ test("form and focus markup use one range input and a layout-owned focus sidebar
   const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
   assert.match(html, /id="item-date-range"/);
   assert.match(html, /id="item-calendar-popover"[^>]*popover="auto"/);
-  assert.match(html, /id="timeline-focus-view"[^>]*timeline-focus-sidebar[^>]*data-presentation-surface="sidebar"[^>]*hidden/);
+  assert.match(
+    html,
+    /id="timeline-focus-view"[^>]*timeline-focus-sidebar[^>]*data-presentation-surface="sidebar"[^>]*hidden/,
+  );
   assert.doesNotMatch(html, /id="timeline-detail"/);
 });
 
