@@ -5,6 +5,10 @@ import { realDeckWorldBindings } from "../site/world/deck-world-bindings.ts";
 import { registerTimelineWorldView } from "../site/world/world-view-registration.ts";
 import { selectPrimarySpatialViewFactory } from "../site/world/world-view-selection.ts";
 
+test("production deck bindings include the semantic TextLayer constructor", () => {
+  assert.equal(typeof realDeckWorldBindings.textLayer, "function");
+});
+
 test("registering the real deck.gl bindings produces a usable WorldView factory", () => {
   const target = {};
   const factory = registerTimelineWorldView(realDeckWorldBindings, {}, target);
