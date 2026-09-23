@@ -1,24 +1,34 @@
-import type { WorldSelection, WorldSurface, WorldTemporalWindow } from "../../src/layout/world-surface.ts";
-import { applyWorldForceLayout, type WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
-import { createWorldForceScene, type WorldForceScenePolicy } from "../../src/layout/world-force-scene.ts";
-import {
-  createWorldSimulationCoordinator,
-  type WorldForceSimulationBackend,
-} from "../../src/layout/world-force-simulation.ts";
-import {
-  createWorldNodeDragController,
-  type WorldNodeDragPosition,
-} from "../../src/interaction/world-node-drag-controller.ts";
 import {
   createInteractionCoordinator,
   type InteractionCompletionReason,
   type InteractionCoordinator,
 } from "../../src/interaction/interaction-coordinator.ts";
-import { diffWorldProjection, isEmptyWorldProjectionDelta } from "../../src/projection/world-projection-delta.ts";
+import {
+  createWorldNodeDragController,
+  type WorldNodeDragPosition,
+} from "../../src/interaction/world-node-drag-controller.ts";
+import {
+  applyWorldForceLayout,
+  type WorldForceLayoutSample,
+} from "../../src/layout/world-force-layout.ts";
+import {
+  createWorldForceScene,
+  type WorldForceScenePolicy,
+} from "../../src/layout/world-force-scene.ts";
+import {
+  createWorldSimulationCoordinator,
+  type WorldForceSimulationBackend,
+} from "../../src/layout/world-force-simulation.ts";
 import type {
-  WorldInstanceId,
-  WorldProjection,
-} from "../../src/projection/world-projection.ts";
+  WorldSelection,
+  WorldSurface,
+  WorldTemporalWindow,
+} from "../../src/layout/world-surface.ts";
+import type { WorldInstanceId, WorldProjection } from "../../src/projection/world-projection.ts";
+import {
+  diffWorldProjection,
+  isEmptyWorldProjectionDelta,
+} from "../../src/projection/world-projection-delta.ts";
 
 export interface WorldLayoutReadback {
   read(): readonly WorldForceLayoutSample[];
