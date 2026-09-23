@@ -5405,6 +5405,42 @@
   inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
 }
 
+/* Final title-bar geometry uses one logical positioning model.
+   Clear older mixed physical/logical offsets so the used border box stays
+   inside the visual viewport in both orientations. */
+#app-shell
+  #timeline-view[data-orientation="landscape"]
+  .timeline-project-heading {
+  box-sizing: border-box;
+  inset-block-start: auto;
+  inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
+  inset-inline-start: max(0.5rem, env(safe-area-inset-left));
+  inset-inline-end: max(0.5rem, env(safe-area-inset-right));
+  inline-size: min(22rem, calc(100dvw - 1rem));
+  max-inline-size: calc(100dvw - 1rem);
+  block-size: var(--workspace-title-block-size, 38px);
+  min-block-size: var(--workspace-title-block-size, 38px);
+  max-block-size: var(--workspace-title-block-size, 38px);
+  margin-inline: auto;
+  transform: none;
+}
+
+#app-shell
+  #timeline-view[data-orientation="portrait"]
+  .timeline-project-heading {
+  box-sizing: border-box;
+  inset-block-start: 50%;
+  inset-block-end: auto;
+  inset-inline-start: auto;
+  inset-inline-end: max(0.4rem, env(safe-area-inset-right));
+  inline-size: var(--workspace-title-inline-size, 42px);
+  min-inline-size: var(--workspace-title-inline-size, 42px);
+  max-inline-size: var(--workspace-title-inline-size, 42px);
+  block-size: min(24rem, calc(100dvh - 1rem));
+  max-block-size: calc(100dvh - 1rem);
+  transform: translateY(-50%);
+}
+
 /* Focused detail is a layout-owned sidebar, never a top-layer popover.
    Landscape: detail left, graph right, chronology full-width below.
    Portrait: detail above graph, chronology owns the full-height right rail. */
