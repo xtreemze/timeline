@@ -3,7 +3,15 @@ import js from "@eslint/js";
 export default [
   // Ignore bundled and lock files
   {
-    ignores: ["site/orb-graph.bundle.js", "pnpm-lock.yaml", "node_modules/**"],
+    ignores: [
+      "dist/**",
+      "site/orb-graph.bundle.js",
+      "site/evidence-extraction.bundle.js",
+      "site/leaflet.bundle.js",
+      "site/pdf.worker.mjs",
+      "pnpm-lock.yaml",
+      "node_modules/**",
+    ],
   },
   {
     linterOptions: {
