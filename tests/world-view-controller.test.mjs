@@ -225,3 +225,59 @@ test("destroy is idempotent and shuts down force and surface execution", () => {
   assert.equal(calls.filter(([name]) => name === "surface:destroy").length, 1);
   assert.throws(() => controller.refresh(), /destroyed/);
 });
+
+
+test("identical projection updates are ignored without reheating or re-rendering", () => {
+  const { calls, controller } = harness();
+  const input = projection();
+
+  controller.setProjection(input);
+  const revision = controller.state().projectionRevision;
+  const callCount = calls.length;
+
+  controller.setProjection(input);
+
+  assert.equal(controller.state().projectionRevision, revision);
+  assert.equal(calls.length, callCount);
+});
+
+test("projection updates retain layout samples only for surviving world instances", () => {
+  const { calls, controller } = harness({ readback: true });
+  const initial = projection();
+  controller.setProjection(initial);
+
+  const alice = initial.instances.find((instance) => instance.canonicalId === "alice");
+  const charlieId = worldInstanceId("charlie", "follow-up");
+  const next = createWorldProjection({
+    instances: [
+      createProjectedWorldInstance({
+        ...alice,
+        visualWeight: 0.75,
+      }),
+      createProjectedWorldInstance({
+        id: charlieId,
+        canonicalId: "charlie",
+        occurrenceId: "follow-up",
+        geographicAnchors: [],
+        temporalWeight: 1,
+        visualWeight: 1,
+        retained: false,
+      }),
+    ],
+    edges: [],
+  });
+
+  controller.setProjection(next);
+
+  const render = controller.getRenderProjection();
+  const retainedAlice = render.instances.find((instance) => instance.id === alice.id);
+  const charlie = render.instances.find((instance) => instance.id === charlieId);
+
+  assert.deepEqual(retainedAlice.localOffset, { eastMeters: 100, northMeters: 50 });
+  assert.equal(retainedAlice.visualAltitude, 1500);
+  assert.equal(charlie.localOffset, undefined);
+
+  const latestScene = [...calls].reverse().find(([name]) => name === "force:scene")[1];
+  const sceneAlice = latestScene.instances.find((instance) => instance.id === alice.id);
+  assert.deepEqual(sceneAlice.localOffset, { eastMeters: 100, northMeters: 50 });
+});
