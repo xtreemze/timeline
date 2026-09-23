@@ -1,0 +1,37 @@
+name: Biome normalize
+
+on:
+  push:
+    branches:
+      - chore/strict-biome-quality-gate-v2
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: chore/strict-biome-quality-gate-v2
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply formatter only
+        run: pnpm exec biome format --write .
+      - name: Organize imports only
+        run: pnpm exec biome check --write --formatter-enabled=false --linter-enabled=false --assist-enabled=true --only=source/organizeImports .
+      - name: Commit deterministic normalization
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "style: normalize strict Biome formatting"
+          git push
