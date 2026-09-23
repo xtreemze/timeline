@@ -175,7 +175,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /path\.join\(gifsRoot, formFactor\)/);
   assert.match(highlightRenderer, /palettegen/);
   assert.match(highlightRenderer, /paletteuse/);
-  assert.match(highlightRenderer, /'-loop', '0'/);
+  assert.match(highlightRenderer, /["\']-loop["\'],\s*["\']0["\']/);
   assert.match(highlightRenderer, /combinedGifBytes/);
   assert.match(highlightRenderer, /README-showcase\.md/);
   assert.match(highlightRenderer, /desktop/);
