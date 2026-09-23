@@ -20,6 +20,9 @@ function harness() {
     deckProps: null,
     setProps: [],
     pickOptions: [],
+    viewportQueries: [],
+    projected: [],
+    unprojected: [],
     redraw: [],
     finalize: 0,
   };
@@ -51,6 +54,21 @@ function harness() {
         pickObject(options) {
           calls.pickOptions.push(options);
           return pickResult;
+        },
+        getViewports(rect) {
+          calls.viewportQueries.push(rect ?? null);
+          return [
+            {
+              project(coordinates) {
+                calls.projected.push(coordinates);
+                return [coordinates[0] + 100, coordinates[1] + 200, 0.5];
+              },
+              unproject(pixels, options) {
+                calls.unprojected.push([pixels, options]);
+                return [pixels[0] - 100, pixels[1] - 200, options?.targetZ ?? 0];
+              },
+            },
+          ];
         },
         redraw(force) {
           calls.redraw.push(force);
@@ -229,6 +247,59 @@ test("selection updates presentation data while preserving canonical IDs", () =>
 
   assert.equal(entities.find((datum) => datum.entityId === "alice").selected, true);
   assert.equal(entities.find((datum) => datum.entityId === "bob").selected, false);
+});
+
+test("deck viewport project/unproject stays behind renderer-neutral world coordinates", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+
+  assert.deepEqual(
+    surface.project({
+      longitude: 18.0686,
+      latitude: 59.3293,
+      altitudeMeters: 1200,
+    }),
+    { x: 118.0686, y: 259.3293 },
+  );
+  assert.deepEqual(calls.projected.at(-1), [18.0686, 59.3293, 1200]);
+
+  assert.deepEqual(
+    surface.unproject({ x: 118.0686, y: 259.3293 }, 1200),
+    {
+      longitude: 18.0686,
+      latitude: 59.3293,
+      altitudeMeters: 1200,
+    },
+  );
+  assert.deepEqual(calls.viewportQueries.at(-1), {
+    x: 118.0686,
+    y: 259.3293,
+    width: 1,
+    height: 1,
+  });
+  assert.deepEqual(calls.unprojected.at(-1), [
+    [118.0686, 259.3293],
+    { targetZ: 1200 },
+  ]);
+});
+
+test("deck viewport projection rejects invalid renderer-neutral spatial inputs", () => {
+  const { runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+
+  assert.throws(
+    () =>
+      surface.project({
+        longitude: 181,
+        latitude: 0,
+        altitudeMeters: 0,
+      }),
+    /longitude/,
+  );
+  assert.throws(
+    () => surface.unproject({ x: Number.NaN, y: 0 }, 1000),
+    /screen point/,
+  );
 });
 
 test("deck picking translates directly to canonical world hits with a touch-sized radius", () => {

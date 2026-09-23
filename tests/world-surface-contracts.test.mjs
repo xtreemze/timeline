@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   createWorldCameraState,
+  createWorldSpatialPosition,
   createWorldTemporalWindow,
   worldSelectionFromHit,
 } from "../src/layout/world-surface.ts";
@@ -71,6 +72,40 @@ test("world camera validates globe coordinates and normalizes bearing", () => {
         pitch: 90,
       }),
     /pitch/,
+  );
+});
+
+test("world spatial positions validate renderer-neutral globe coordinates", () => {
+  assert.deepEqual(
+    createWorldSpatialPosition({
+      longitude: 18.0686,
+      latitude: 59.3293,
+      altitudeMeters: 1200,
+    }),
+    {
+      longitude: 18.0686,
+      latitude: 59.3293,
+      altitudeMeters: 1200,
+    },
+  );
+
+  assert.throws(
+    () =>
+      createWorldSpatialPosition({
+        longitude: 181,
+        latitude: 0,
+        altitudeMeters: 0,
+      }),
+    /longitude/,
+  );
+  assert.throws(
+    () =>
+      createWorldSpatialPosition({
+        longitude: 0,
+        latitude: 91,
+        altitudeMeters: 0,
+      }),
+    /latitude/,
   );
 });
 

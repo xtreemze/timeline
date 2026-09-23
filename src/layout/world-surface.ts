@@ -19,6 +19,12 @@ export interface ScreenPoint {
   readonly y: number;
 }
 
+export interface WorldSpatialPosition {
+  readonly longitude: number;
+  readonly latitude: number;
+  readonly altitudeMeters: number;
+}
+
 export type WorldSelection =
   | { readonly kind: "entity"; readonly id: EntityId }
   | { readonly kind: "relationship"; readonly id: RelationshipId }
@@ -66,6 +72,8 @@ export interface WorldSurface {
   focusOccurrence(id: RelationshipId): void;
   focusPlace(id: PlaceId): void;
 
+  project(position: WorldSpatialPosition): ScreenPoint | null;
+  unproject(point: ScreenPoint, targetAltitudeMeters: number): WorldSpatialPosition | null;
   pick(point: ScreenPoint): WorldHit | null;
   getCapabilities(): WorldSurfaceCapabilities;
 
@@ -81,6 +89,23 @@ function finite(value: number, label: string): number {
 function normalizedBearing(value: number): number {
   const normalized = ((value + 180) % 360 + 360) % 360 - 180;
   return Object.is(normalized, -0) ? 0 : normalized;
+}
+
+export function createWorldSpatialPosition(
+  position: WorldSpatialPosition,
+): WorldSpatialPosition {
+  const longitude = finite(position.longitude, "World spatial longitude");
+  const latitude = finite(position.latitude, "World spatial latitude");
+  const altitudeMeters = finite(position.altitudeMeters, "World spatial altitude");
+
+  if (longitude < -180 || longitude > 180) {
+    throw new Error("World spatial longitude must be between -180 and 180.");
+  }
+  if (latitude < -90 || latitude > 90) {
+    throw new Error("World spatial latitude must be between -90 and 90.");
+  }
+
+  return Object.freeze({ longitude, latitude, altitudeMeters });
 }
 
 export function createWorldTemporalWindow(window: WorldTemporalWindow): WorldTemporalWindow {
