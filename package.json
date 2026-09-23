@@ -16,6 +16,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
+    "test:e2e:showcase": "playwright test --config=playwright.highlight.config.ts",
+    "render:e2e:showcase": "node scripts/render-e2e-highlight.mjs",
     "lint": "pnpm lint:eslint && pnpm lint:biome && pnpm lint:architecture",
     "lint:fix": "eslint . --fix && biome lint --write",
     "format": "echo 'Biome formatter configured but disabled until tests are updated for new formatting'",
@@ -70,7 +72,8 @@
     "test:graph-surface-contracts": "node --test tests/graph-surface-contracts.test.mjs",
     "test:workspace-layout": "node --test tests/workspace-layout.test.mjs",
     "test:interaction-coordinator": "node --test tests/interaction-coordinator.test.mjs",
-    "test:graph-simulation-coordinator": "node --test tests/graph-simulation-coordinator.test.mjs tests/semantic-graph-index.test.mjs",
+    "test:graph-simulation-coordinator": "node --test tests/graph-simulation-coordinator.test.mjs",
+    "test:semantic-graph-index": "node --test tests/semantic-graph-index.test.mjs",
     "test:recovered-affordances-runtime": "node --test tests/timeline-recovered-affordances-runtime.test.mjs"
   },
   "packageManager": "pnpm@12.5.1+sha512.e3f305bc784a2bc89f5ad3b6138889470fae8d2af5f36b61216ec91c2c3d64089775f9de38aac331044ea40f245cb0d5666392dfdf65824e1907ef6a2c62de5f",
