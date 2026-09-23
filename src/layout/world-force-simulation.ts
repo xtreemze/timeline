@@ -174,9 +174,7 @@ export function createWorldSimulationCoordinator(backend: WorldForceSimulationBa
   }
 
   function release(reason: WorldSimulationReason): WorldSimulationState {
-    const wasApplied = applied?.reason === reason;
     requests.delete(reason);
-    if (wasApplied) applied = null;
     reconcile();
     return getState();
   }
