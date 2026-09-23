@@ -53,3 +53,11 @@ test("package scripts expose formatter, style lint, safe fixes, and the CI quali
   assert.match(scripts["check:quality"] ?? "", /pnpm lint:architecture/);
   assert.doesNotMatch(scripts.format ?? "", /disabled|echo/i);
 });
+
+test("ESLint excludes generated artifacts instead of linting bundles", async () => {
+  const eslint = await readFile(new URL("eslint.config.js", root), "utf8");
+  assert.match(eslint, /"dist\/\*\*"/);
+  assert.match(eslint, /"site\/orb-graph\.bundle\.js"/);
+  assert.match(eslint, /"site\/evidence-extraction\.bundle\.js"/);
+  assert.match(eslint, /"site\/leaflet\.bundle\.js"/);
+});
