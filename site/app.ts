@@ -734,10 +734,7 @@ function positionViewControls() {
         x: anchor.x - measuredWidth / 2,
         y: dockRect.top - gap - measuredHeight,
         width: Math.min(measuredWidth, Math.max(1, viewport.width - edge * 2)),
-        height: Math.min(
-          measuredHeight,
-          Math.max(1, dockRect.top - gap - (viewport.top + edge)),
-        ),
+        height: Math.min(measuredHeight, Math.max(1, dockRect.top - gap - (viewport.top + edge))),
       },
     },
   ];
@@ -807,14 +804,8 @@ function positionViewControls() {
   const minTop = viewport.top + edge;
   const maxLeft = Math.max(minLeft, viewport.left + viewport.width - edge - actualInlineSize);
   const maxTop = Math.max(minTop, viewport.top + viewport.height - edge - actualBlockSize);
-  const boundedLeft = Math.min(
-    maxLeft,
-    Math.max(minLeft, anchor.x - actualInlineSize / 2),
-  );
-  const boundedTop = Math.min(
-    maxTop,
-    Math.max(minTop, dockRect.top - gap - actualBlockSize),
-  );
+  const boundedLeft = Math.min(maxLeft, Math.max(minLeft, anchor.x - actualInlineSize / 2));
+  const boundedTop = Math.min(maxTop, Math.max(minTop, dockRect.top - gap - actualBlockSize));
 
   els.viewControls.dataset.anchorPlacement = selected.id;
   els.viewControls.dataset.placementValid = String(snapshot.fullySatisfiesConstraints);
@@ -4401,10 +4392,7 @@ function positionProjectMenu() {
   top = Math.min(Math.max(minTop, preferredTop), Math.max(minTop, maxBottom - menuHeight));
   placement = opensUpward ? "above" : "below";
 
-  els.projectMenu.style.setProperty(
-    "--project-menu-max-width",
-    `${Math.floor(availableWidth)}px`,
-  );
+  els.projectMenu.style.setProperty("--project-menu-max-width", `${Math.floor(availableWidth)}px`);
   els.projectMenu.style.setProperty("--project-menu-max-height", `${Math.floor(verticalRoom)}px`);
 
   els.projectMenu.style.setProperty("--project-menu-left", `${Math.round(left)}px`);
