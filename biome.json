@@ -50,7 +50,6 @@
         "noImportantStyles": "error"
       },
       "style": {
-        "noDescendingSpecificity": "error",
         "noNonNullAssertion": "off"
       },
       "suspicious": {
