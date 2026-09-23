@@ -90,11 +90,11 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
         const fixtureModulePath = "/world-fixture-generator.mjs";
         const { generateWorldProjectionFixture } = await import(fixtureModulePath);
         const fixture = generateWorldProjectionFixture({ entityCount });
-        const harness = window.__worldPerfHarness!;
+        const harness = window.__worldPerfHarness;
         const start = performance.now();
         harness.surface.setProjection(fixture);
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-        (window as unknown as { __fixture: unknown }).__fixture = fixture;
+        window.__worldPerfFixture = fixture;
         return performance.now() - start;
       }, { entityCount: scale.entityCount });
 
@@ -105,7 +105,7 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
       // would blow the test timeout without adding measurement value — 20
       // steps is still enough for a stable p50/p95 read.
       const sustainedFrame = await page.evaluate(async ({ entityCount }) => {
-        const harness = window.__worldPerfHarness!;
+        const harness = window.__worldPerfHarness;
         const camera = harness.surface.getCamera();
         const samples: number[] = [];
         const steps = entityCount >= 100000 ? 5 : entityCount >= 50000 ? 20 : 60;
@@ -133,7 +133,8 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
       if (scale.interactive) {
         // --- Input-to-visual latency: synthetic wheel event -> next paint. ---
         inputToPaintMs = await page.evaluate(async () => {
-          const container = document.getElementById("world-container")!;
+          const container = document.getElementById("world-container");
+          if (!container) throw new Error("World performance harness container is unavailable.");
           const start = performance.now();
           container.dispatchEvent(
             new WheelEvent("wheel", { deltaY: -100, clientX: 512, clientY: 384, bubbles: true }),
@@ -144,7 +145,7 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
 
         // --- Picking latency. ---
         pickingLatencyMs = await page.evaluate(() => {
-          const harness = window.__worldPerfHarness!;
+          const harness = window.__worldPerfHarness;
           const start = performance.now();
           harness.surface.pick({ x: 512, y: 384 });
           return performance.now() - start;
@@ -155,9 +156,9 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
           const fixtureModulePath = "/world-fixture-generator.mjs";
           const { generateWorldProjectionFixture, generateSmallDeltaFixture } =
             await import(fixtureModulePath);
-          const harness = window.__worldPerfHarness!;
-          const base = (window as unknown as { __fixture: ReturnType<typeof generateWorldProjectionFixture> })
-            .__fixture;
+          const harness = window.__worldPerfHarness;
+          const base = window.__worldPerfFixture;
+          if (!base) throw new Error("World performance fixture is unavailable.");
 
           const delta = generateSmallDeltaFixture(base, 25);
           const deltaStart = performance.now();
@@ -184,9 +185,16 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
 
         // --- Sustained navigation: repeated camera changes, memory proxy. ---
         sustainedNavigation = await page.evaluate(async ({ entityCount }) => {
-          const harness = window.__worldPerfHarness!;
+          const harness = window.__worldPerfHarness;
           const camera = harness.surface.getCamera();
-          const perfMemory = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
+          const memoryCandidate = Reflect.get(performance, "memory");
+          const perfMemory =
+            memoryCandidate &&
+            typeof memoryCandidate === "object" &&
+            "usedJSHeapSize" in memoryCandidate &&
+            typeof memoryCandidate.usedJSHeapSize === "number"
+              ? { usedJSHeapSize: memoryCandidate.usedJSHeapSize }
+              : null;
           const heapStartBytes = perfMemory ? perfMemory.usedJSHeapSize : null;
           const start = performance.now();
           let frames = 0;
@@ -262,6 +270,6 @@ function loadBaseline(): {
 
 // `Window.__worldPerfHarness` is declared once, as the source of truth, in
 // `site/world-perf-harness.ts` (imported for its ambient `declare global`
-// side effect by any file in this program); redeclaring it here would
+// side effect throughout this test program); redeclaring it here would
 // conflict once that shape grows (see world-interaction-coverage.spec.ts).
 import type {} from "../../site/world-perf-harness.ts";
