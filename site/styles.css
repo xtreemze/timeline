@@ -4092,7 +4092,8 @@ body {
 #app-shell {
   --workspace-footer-content-block-size: 64px;
   --workspace-footer-block-size: calc(
-    var(--workspace-footer-content-block-size) + env(safe-area-inset-bottom)
+    var(--workspace-footer-content-block-size) +
+    env(safe-area-inset-bottom)
   );
   --workspace-title-block-size: 42px;
 
@@ -4101,7 +4102,6 @@ body {
   --workspace-landscape-chrome-block: var(--workspace-footer-block-size);
 }
 
-.app-tool-dock,
 #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
   inset-block-start: auto;
@@ -4117,8 +4117,8 @@ body {
   block-size: var(--workspace-footer-block-size);
   min-block-size: var(--workspace-footer-block-size);
   max-block-size: none;
-  padding: 0.3rem max(0.4rem, env(safe-area-inset-right))
-    max(0.3rem, env(safe-area-inset-bottom)) max(0.4rem, env(safe-area-inset-left));
+  padding: 0.3rem max(0.4rem, env(safe-area-inset-right)) max(0.3rem, env(safe-area-inset-bottom))
+    max(0.4rem, env(safe-area-inset-left));
   gap: 0.12rem;
   transform: none;
   border: 0;
@@ -4129,7 +4129,8 @@ body {
   backdrop-filter: blur(18px);
 }
 
-.app-tool {
+#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool,
+#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool {
   min-inline-size: 0;
   min-block-size: 52px;
   padding: 0.34rem 0.3rem;
@@ -4144,7 +4145,7 @@ body {
   padding: 0.34rem 0.3rem;
 }
 
-#presentation-stage:fullscreen .app-tool-dock {
+#app-shell #presentation-stage:fullscreen .app-tool-dock {
   inset-block-start: auto;
   inset-inline-start: 0;
   inset-inline-end: 0;
@@ -4174,7 +4175,6 @@ body {
   max-block-size: none;
 }
 
-#app-shell .timeline-panel > .story-focus,
 #app-shell:has(#timeline-view[data-orientation="landscape"]) .timeline-panel > .story-focus,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .timeline-panel > .story-focus {
   inset-block-end: calc(var(--workspace-footer-block-size) + 0.35rem);
