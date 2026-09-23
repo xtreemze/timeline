@@ -16,7 +16,7 @@ test("all browser specs use one authoritative Playwright discovery root", () => 
   assert.doesNotMatch(scripts, /playwright\.config\.mjs/);
   assert.match(config, /testDir:\s*['"]\.\/tests['"]/);
   assert.match(config, /testMatch:\s*\[['"]\*\*\/\*\.spec\.ts['"],\s*['"]\*\*\/\*\.spec\.mjs['"]\]/);
-  assert.match(config, /testIgnore:\s*\[['"]\*\*\/pages-runtime\.spec\.ts['"]\]/);
+  assert.match(config, /testIgnore:\s*\[['"]\*\*\/pages-runtime\.spec\.ts['"],\s*['"]\*\*\/highlight\/\*\*['"]\]/);
 });
 
 test("certification matrix includes desktop, portrait and landscape phones, tablet touch, and reduced motion", () => {
@@ -122,6 +122,7 @@ test("CI produces a branded real-browser E2E highlight reel and retains raw evid
   );
 
   assert.match(highlightConfig, /testDir:\s*['"]\.\/tests\/highlight['"]/);
+  assert.match(config, /\*\*\/highlight\/\*\*/);
   assert.match(highlightConfig, /video:\s*['"]off['"]/);
   assert.match(highlightSpec, /page\.screencast\.start/);
   assert.match(highlightSpec, /page\.screencast\.showChapter/);
