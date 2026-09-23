@@ -4,7 +4,28 @@ import type {
   PlaceId,
   RelationshipId,
 } from "../domain/ids.ts";
-import type { WorldHit } from "../layout/world-surface.ts";
+
+export type CanonicalWorldHit =
+  | {
+      readonly kind: "entity";
+      readonly entityId: EntityId;
+      readonly worldInstanceId?: string;
+      readonly depth?: number;
+    }
+  | {
+      readonly kind: "relationship";
+      readonly relationshipId: RelationshipId;
+      readonly depth?: number;
+    }
+  | {
+      readonly kind: "place";
+      readonly placeId: PlaceId;
+      readonly depth?: number;
+    }
+  | {
+      readonly kind: "background";
+      readonly depth?: number;
+    };
 
 export type CanonicalSelectionItem =
   | { readonly kind: "entity"; readonly id: EntityId }
@@ -151,7 +172,7 @@ export function summarizeSelection(
 }
 
 export function selectionItemFromWorldHit(
-  hit: WorldHit | null,
+  hit: CanonicalWorldHit | null,
 ): CanonicalSelectionItem | null {
   if (!hit || hit.kind === "background") return null;
   if (hit.kind === "entity") {
