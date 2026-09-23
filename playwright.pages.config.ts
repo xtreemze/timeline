@@ -21,8 +21,8 @@ export default defineConfig({
       use: { ...devices['Pixel 5'], hasTouch: true },
     },
     {
-      name: 'Pages Mobile Safari',
-      use: { ...devices['iPhone 12'], hasTouch: true },
+      name: 'Pages Desktop Chrome',
+      use: { ...devices['Desktop Chrome'] },
     },
   ],
   webServer: {
