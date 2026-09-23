@@ -53,6 +53,10 @@ test("all browser specs use one authoritative Playwright discovery root", () => 
   );
 });
 
+function projectDeclaration(project) {
+  return new RegExp(`name:\\s*["']${project}["']`);
+}
+
 test("certification matrix includes desktop, portrait and landscape phones, tablet touch, and reduced motion", () => {
   for (const project of [
     "Desktop Chrome",
@@ -63,7 +67,7 @@ test("certification matrix includes desktop, portrait and landscape phones, tabl
     "Tablet Touch",
     "Reduced Motion",
   ]) {
-    assert.ok(config.includes(`name: '${project}'`), `missing Playwright project: ${project}`);
+    assert.match(config, projectDeclaration(project), `missing Playwright project: ${project}`);
   }
 
   for (const touchProject of [
@@ -73,7 +77,7 @@ test("certification matrix includes desktop, portrait and landscape phones, tabl
     "Mobile Safari Landscape",
     "Tablet Touch",
   ]) {
-    const projectStart = config.indexOf(`name: '${touchProject}'`);
+    const projectStart = config.search(projectDeclaration(touchProject));
     assert.ok(projectStart >= 0);
     const nextProject = config.indexOf("name:", projectStart + 6);
     const block = config.slice(projectStart, nextProject >= 0 ? nextProject : undefined);
@@ -175,7 +179,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /path\.join\(gifsRoot, formFactor\)/);
   assert.match(highlightRenderer, /palettegen/);
   assert.match(highlightRenderer, /paletteuse/);
-  assert.match(highlightRenderer, /'-loop', '0'/);
+  assert.match(highlightRenderer, /["\']-loop["\'],\s*["\']0["\']/);
   assert.match(highlightRenderer, /combinedGifBytes/);
   assert.match(highlightRenderer, /README-showcase\.md/);
   assert.match(highlightRenderer, /desktop/);
