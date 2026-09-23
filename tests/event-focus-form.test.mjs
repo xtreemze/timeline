@@ -149,15 +149,17 @@ test("focused layouts reclaim the former duplicate graph columns for event conte
   assert.match(css, /data-layout="editorial-mosaic"/);
 });
 
-test("presentation stage keeps timeline and graph together and supports fullscreen", async () => {
-  const [html, app, css, timelineSource] = await Promise.all([
+test("presentation stage keeps timeline, graph, and focused sidebar under one layout owner", async () => {
+  const [html, app, styles, timelineCss, timelineSource] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(html, /id="presentation-stage"[\s\S]*id="timeline-view"[\s\S]*id="graph-lens"/);
+  assert.match(html, /id="timeline-focus-view"[^>]*timeline-focus-sidebar/);
   assert.match(html, /id="presentation-fullscreen-toggle"/);
   assert.match(app, /requestFullscreen/);
   assert.match(app, /fullscreenchange/);
@@ -165,26 +167,29 @@ test("presentation stage keeps timeline and graph together and supports fullscre
   assert.match(app, /data(?:set)?\.timelineOrientation|dataset\.timelineOrientation/);
   assert.match(timelineSource, /timelineorientationchange/);
   assert.match(timelineSource, /getOrientation\(\)/);
-  assert.match(css, /\.presentation-stage:fullscreen/);
-  assert.match(css, /data-timeline-orientation="horizontal"/);
-  assert.match(css, /data-timeline-orientation="vertical"/);
-  assert.doesNotMatch(css, /\.app-shell\.is-event-focused \.graph-lens\s*\{\s*display:\s*none/);
+  assert.match(styles, /The persistent relation graph is a stage canvas/);
+  assert.match(timelineCss, /Focused detail is a layout-owned sidebar, never a top-layer popover/);
+  assert.doesNotMatch(timelineCss, /timeline-focus-view\[popover\]|timeline-focus-view:popover-open/);
 });
 
-test("fullscreen composition preserves both axes across wide and tall displays", async () => {
-  const css = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
+test("focused composition preserves horizontal and vertical timeline-axis layouts", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   assert.match(
     css,
-    /presentation-stage:fullscreen\[data-timeline-orientation="horizontal"\][\s\S]*grid-template-rows/,
+    /data-timeline-orientation="horizontal"[\s\S]{0,260}grid-template-columns:\s*minmax\(0, 2fr\) minmax\(0, 3fr\)/,
   );
   assert.match(
     css,
-    /presentation-stage:fullscreen\[data-timeline-orientation="vertical"\][\s\S]*grid-template-columns/,
+    /data-timeline-orientation="vertical"[\s\S]{0,260}grid-template-columns:\s*minmax\(0, 5fr\) minmax\(0, 1fr\)/,
   );
-  assert.match(css, /data-stage-shape="tall"\]\[data-timeline-orientation="horizontal"\]/);
-  assert.match(css, /data-stage-shape="tall"\]\[data-timeline-orientation="vertical"\]/);
-  assert.match(css, /presentation-stage:fullscreen \.temporal-graph-canvas[\s\S]*min-height:\s*0/);
-  assert.match(css, /presentation-stage:fullscreen \.timeline-focus-view[\s\S]*overflow:\s*auto/);
+  assert.match(
+    css,
+    /data-timeline-orientation="horizontal"[\s\S]*> \.timeline-view[\s\S]*grid-column:\s*1 \/ -1[\s\S]*grid-row:\s*2/,
+  );
+  assert.match(
+    css,
+    /data-timeline-orientation="vertical"[\s\S]*> \.timeline-view[\s\S]*grid-column:\s*2[\s\S]*grid-row:\s*1 \/ -1/,
+  );
 });
 
 test("Escape exits fullscreen before focused-event back navigation", async () => {
