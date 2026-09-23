@@ -463,10 +463,12 @@ The v2 model provides a stable base for richer chronology work. Strong next addi
 
 ## Licensing boundary
 
-Timeline's MIT license covers this project's software. It does **not** relicense timelines, evidence, user data, imported documents, media, or third-party material processed with the application.
+Lūm is proprietary software. No permission is granted to use, copy, modify, redistribute, sublicense, sell, deploy, host, or create derivative works from this project's software except under a separate written agreement from the copyright holder. Public access to the source repository does not constitute a license or waiver of rights.
+
+Timelines, evidence, user data, imported documents, media, and third-party material processed with the application remain owned or licensed by their respective rights holders. Third-party dependencies remain governed by their own licenses.
 
 ## License
 
-Timeline is released under the [MIT License](LICENSE).
+**Proprietary — all rights reserved.** See [LICENSE](LICENSE).
 
 Copyright © 2026 Carlos Eduardo Velasco Romero.

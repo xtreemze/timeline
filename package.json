@@ -102,5 +102,6 @@
     "leaflet": "1.9.4",
     "lit": "3.3.3",
     "pdfjs-dist": "6.3.289"
-  }
+  },
+  "license": "UNLICENSED"
 }
