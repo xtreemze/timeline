@@ -108,7 +108,7 @@ Vite extracts CSS automatically. Currently all CSS is in `site/styles.css` and l
 - `esbuild` still bundles graph (`src/orb-graph-entry.js` → `site/orb-graph.bundle.js`)
 - HTML template (`site/index.html`) unchanged
 - Node tests (`tests/*.mjs`) unchanged
-- ESLint + TypeScript checking unchanged
+- Biome lint/format + TypeScript checking enforced through the shared quality gate
 
 ## Building Without Vite
 
