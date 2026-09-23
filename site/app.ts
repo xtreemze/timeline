@@ -11,6 +11,7 @@ import { projectTimelineOccurrences } from '../src/projection/timeline-projectio
 import { TimelineEvidence } from './evidence-store.ts';
 import { TimelineGraphInference } from './graph-inference.ts';
 import { planWorkspacePlacement } from '../src/layout/workspace-layout.ts';
+import { selectPrimarySpatialViewFactory } from './world/world-view-selection.ts';
 
 // Import globals that still use globalThis (not yet converted)
 const graph = globalThis.TimelineGraph;
@@ -19,7 +20,10 @@ const dateRangeFactory = globalThis.TimelineDateRangePicker;
 const navigationFactory = globalThis.TimelineNavigation;
 const evidenceStore = TimelineEvidence;
 const graphInference = TimelineGraphInference;
-const temporalGraphFactory = globalThis.TemporalGraphView;
+const temporalGraphFactory = selectPrimarySpatialViewFactory(
+  globalThis.TimelineWorldView,
+  globalThis.TemporalGraphView,
+);
 const presentationLayout = globalThis.TimelinePresentationLayout;
 const caseReasoning = globalThis.TimelineCaseReasoning;
 const migration = globalThis.TimelineMigration;
@@ -31,7 +35,6 @@ if (!presentation) throw new Error("TimelinePresentation must load before app.ts
 if (!dateRangeFactory) throw new Error("TimelineDateRangePicker must load before app.ts.");
 if (!navigationFactory) throw new Error("TimelineNavigation must load before app.ts.");
 if (!evidenceStore) throw new Error("TimelineEvidence must load before app.ts.");
-if (!temporalGraphFactory) throw new Error("TemporalGraphView must load before app.ts.");
 if (!presentationLayout) throw new Error("TimelinePresentationLayout must load before app.ts.");
 if (!caseReasoning) throw new Error("TimelineCaseReasoning must load before app.ts.");
 if (!migration) throw new Error("TimelineMigration must load before app.ts.");
