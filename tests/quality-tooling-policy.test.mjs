@@ -19,10 +19,10 @@ test("Biome is the authoritative formatter and strict multi-language linter", as
 
   assert.equal(biome.linter?.rules?.a11y?.useGenericFontNames, "error");
   assert.equal(biome.linter?.rules?.complexity?.noImportantStyles, "error");
-  assert.equal(biome.linter?.rules?.correctness?.noExcessiveSelectorClasses, "error");
+  assert.equal(biome.linter?.rules?.nursery?.noExcessiveSelectorClasses, "error");
   assert.equal(biome.linter?.rules?.style?.noDescendingSpecificity, "error");
-  assert.equal(biome.linter?.rules?.style?.noShorthandPropertyOverrides, "error");
-  assert.equal(biome.linter?.rules?.style?.noUnknownAtRules, "error");
+  assert.equal(biome.linter?.rules?.suspicious?.noShorthandPropertyOverrides, "error");
+  assert.equal(biome.linter?.rules?.suspicious?.noUnknownAtRules, "error");
 
   const strictOverride = biome.overrides?.find((override) =>
     override.includes?.includes("src/domain/**"),
