@@ -30,10 +30,5 @@ export function projectTopologyWorld(
     }
   }
 
-  return projectWorldOccurrences(
-    relationships,
-    relationshipIds,
-    spatialAnchors,
-    options,
-  );
+  return projectWorldOccurrences(relationships, relationshipIds, spatialAnchors, options);
 }
