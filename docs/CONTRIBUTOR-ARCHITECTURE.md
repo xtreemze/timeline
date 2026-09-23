@@ -1,6 +1,6 @@
 # Architecture contract for contributors
 
-Timeline/Lūm is a canonical temporal knowledge system with multiple coordinated projections. Changes should preserve the dependency direction and domain invariants below, regardless of whether the contributor is human or automated.
+Timeline/Lūm is an occurrence-centered spatiotemporal knowledge system with multiple coordinated projections. Changes should preserve the dependency direction and domain invariants below, regardless of whether the contributor is human or automated.
 
 ## Dependency direction
 
@@ -57,7 +57,7 @@ The architecture linter ratchets existing direct-mutation and ambient-global deb
 
 ## Projection and layout rules
 
-Projections are deterministic functions of canonical state and explicit view state. They must not rewrite canonical data.
+Projections are deterministic functions of canonical state and explicit view state. They must not rewrite canonical data. Timeline, graph, and map share one `SpatiotemporalViewport` and one occurrence-activation rule; no individual renderer may redefine time or geography semantics. See `docs/SPATIOTEMPORAL-PROJECTION.md`.
 
 Timeline chronology uses retained scene identity:
 - semantic zoom may change representation but must not make an intersecting occurrence disappear;
