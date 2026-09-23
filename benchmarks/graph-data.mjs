@@ -1,5 +1,6 @@
 import { performance } from "node:perf_hooks";
 import { createSemanticGraphIndex } from "../src/application/semantic-graph-index.ts";
+import { projectTopology } from "../src/projection/topology-projection.ts";
 
 await import("../site/temporal-standards-shim.ts");
 await import("../site/timeline-graph-shim.ts");
@@ -95,6 +96,14 @@ for (const nodeCount of sizes) {
   }, iterations);
 
   const semanticIndex = createSemanticGraphIndex(fixture);
+  const activeRelationshipIds = fixture.relationships.map((relationship) => relationship.id);
+  const topologyProjection = measure(() => {
+    const result = projectTopology(fixture, semanticIndex, activeRelationshipIds);
+    if (result.nodes.length !== nodeCount || result.edges.length !== edgeCount) {
+      throw new Error(`Unexpected topology projection size for ${nodeCount} nodes.`);
+    }
+  }, iterations);
+
   const semanticNeighborhood = measure(() => {
     const result = semanticIndex.neighborhood("entity-0", { depth: 2, limit: 36 });
     if (!result.entityIds.includes("entity-0") || result.entityIds.length > 36) {
@@ -116,6 +125,7 @@ for (const nodeCount of sizes) {
     fullProjection,
     focusedNeighborhood,
     semanticIndexBuild,
+    topologyProjection,
     semanticNeighborhood,
     semanticComponents,
   });
