@@ -4388,7 +4388,9 @@
   }
 
   .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary,
-  :where(#app-shell) .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-summary {
+  :where(#app-shell)
+    .timeline-focus-view[popover][data-active-tab="overview"]
+    .timeline-focus-summary {
     grid-column: 1;
     grid-row: 2;
     display: flex;
@@ -4400,7 +4402,9 @@
   }
 
   .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place,
-  :where(#app-shell) .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-place {
+  :where(#app-shell)
+    .timeline-focus-view[popover][data-active-tab="overview"]
+    .timeline-focus-place {
     grid-column: 1;
     grid-row: 4;
   }
@@ -4414,17 +4418,23 @@
   }
 
   .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero,
-  :where(#app-shell) .timeline-focus-view[popover][data-active-tab="overview"] .timeline-focus-hero {
+  :where(#app-shell)
+    .timeline-focus-view[popover][data-active-tab="overview"]
+    .timeline-focus-hero {
     grid-row: 3;
   }
 
   .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero,
-  :where(#app-shell) .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-hero {
+  :where(#app-shell)
+    .timeline-focus-view[popover][data-active-tab="evidence"]
+    .timeline-focus-hero {
     grid-row: 2;
   }
 
   .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence,
-  :where(#app-shell) .timeline-focus-view[popover][data-active-tab="evidence"] .timeline-focus-evidence {
+  :where(#app-shell)
+    .timeline-focus-view[popover][data-active-tab="evidence"]
+    .timeline-focus-evidence {
     grid-column: 1;
     grid-row: 3;
     min-height: 120px;
