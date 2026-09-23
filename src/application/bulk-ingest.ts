@@ -92,7 +92,9 @@ function parseDelimitedRecords(input: string, delimiter: "," | "\t"): readonly B
   if (row.some((value) => value.length > 0)) rows.push(row);
   if (!rows.length) return Object.freeze([]);
 
-  const headers = rows[0].map((value) => value.trim());
+  const headerRow = rows[0];
+  if (!headerRow) return Object.freeze([]);
+  const headers = headerRow.map((value) => value.trim());
   if (headers.some((value) => !value))
     throw new Error("Delimited input contains an empty column name.");
   if (new Set(headers).size !== headers.length) {
@@ -104,7 +106,8 @@ function parseDelimitedRecords(input: string, delimiter: "," | "\t"): readonly B
       const record: Record<string, unknown> = {};
       for (let index = 0; index < headers.length; index += 1) {
         const value = values[index] ?? "";
-        record[headers[index]] = value === "" ? null : value;
+        const header = headers[index];
+        if (header) record[header] = value === "" ? null : value;
       }
       return Object.freeze(record);
     }),
@@ -170,7 +173,9 @@ function quantile(sorted: readonly number[], fraction: number): number {
   const position = (sorted.length - 1) * fraction;
   const lower = Math.floor(position);
   const upper = Math.ceil(position);
-  const left = sorted[lower] ?? sorted[0];
+  const first = sorted[0];
+  if (first === undefined) return Number.NaN;
+  const left = sorted[lower] ?? first;
   const right = sorted[upper] ?? sorted.at(-1) ?? left;
   return left + (right - left) * (position - lower);
 }
@@ -188,9 +193,12 @@ function numericProfile(values: readonly unknown[]): NumericColumnProfile | unde
   const mean = numbers.reduce((sum, value) => sum + value, 0) / numbers.length;
   const variance = numbers.reduce((sum, value) => sum + (value - mean) ** 2, 0) / numbers.length;
 
+  const min = sorted[0];
+  if (min === undefined) return undefined;
+
   return Object.freeze({
-    min: sorted[0],
-    max: sorted.at(-1) ?? sorted[0],
+    min,
+    max: sorted.at(-1) ?? min,
     mean,
     standardDeviation: Math.sqrt(variance),
     q25: quantile(sorted, 0.25),
