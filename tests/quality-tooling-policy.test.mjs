@@ -38,6 +38,8 @@ test("strict changed-file config ratchets style debt without weakening new work"
   assert.match(script, /QUALITY_BASE_SHA/);
   assert.match(script, /--config-path=biome\.strict\.json/);
   assert.match(script, /--diff-filter=ACMR/);
+  assert.match(script, /--cached/);
+  assert.match(script, /ls-files/);
 });
 
 test("package scripts expose formatter, style lint, safe fixes, and the CI quality gate", async () => {
