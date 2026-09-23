@@ -53,18 +53,18 @@ test("world hits map immediately to canonical selection items", () => {
     selectionItemFromWorldHit({
       kind: "entity",
       entityId: "alice",
-      worldInstanceId: "[\"alice\",\"meeting\"]",
+      worldInstanceId: '["alice","meeting"]',
     }),
     { kind: "entity", id: "alice" },
   );
-  assert.deepEqual(
-    selectionItemFromWorldHit({ kind: "relationship", relationshipId: "meeting" }),
-    { kind: "occurrence", id: "meeting" },
-  );
-  assert.deepEqual(
-    selectionItemFromWorldHit({ kind: "place", placeId: "stockholm" }),
-    { kind: "place", id: "stockholm" },
-  );
+  assert.deepEqual(selectionItemFromWorldHit({ kind: "relationship", relationshipId: "meeting" }), {
+    kind: "occurrence",
+    id: "meeting",
+  });
+  assert.deepEqual(selectionItemFromWorldHit({ kind: "place", placeId: "stockholm" }), {
+    kind: "place",
+    id: "stockholm",
+  });
   assert.equal(selectionItemFromWorldHit({ kind: "background" }), null);
 });
 
