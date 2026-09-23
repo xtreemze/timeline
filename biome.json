@@ -1,24 +1,65 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true,
+    "defaultBranch": "main"
+  },
   "files": {
-    "includes": ["**", "!!node_modules", "!!dist", "!!site/orb-graph.bundle.js"]
+    "includes": [
+      "**",
+      "!!node_modules",
+      "!!dist",
+      "!!test-results",
+      "!!playwright-report",
+      "!!blob-report",
+      "!!site/orb-graph.bundle.js",
+      "!!site/evidence-extraction.bundle.js",
+      "!!site/leaflet.bundle.js",
+      "!!site/leaflet.css",
+      "!!site/pdf.worker.mjs"
+    ]
   },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 100
+    "lineWidth": 100,
+    "lineEnding": "lf"
   },
   "linter": {
     "enabled": true,
-    "includes": ["site/**/*.ts", "site/**/*.css", "src/**/*.ts", "src/**/*.js", "scripts/**/*.mjs"],
+    "includes": [
+      "site/**/*.ts",
+      "site/**/*.js",
+      "site/**/*.css",
+      "src/**/*.ts",
+      "src/**/*.js",
+      "scripts/**/*.mjs",
+      "tests/**/*.mjs",
+      "benchmarks/**/*.mjs",
+      "*.config.ts"
+    ],
     "rules": {
       "preset": "recommended",
-      "suspicious": {
-        "noExplicitAny": "off"
+      "a11y": {
+        "useGenericFontNames": "error"
+      },
+      "complexity": {
+        "noImportantStyles": "error"
+      },
+      "correctness": {
+        "noExcessiveSelectorClasses": "error"
       },
       "style": {
-        "noNonNullAssertion": "off"
+        "noDescendingSpecificity": "error",
+        "noNonNullAssertion": "off",
+        "noShorthandPropertyOverrides": "error",
+        "noUnknownAtRules": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "off"
       },
       "nursery": {
         "noReturnInFinally": "error"
