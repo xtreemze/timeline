@@ -300,6 +300,22 @@ main > * {
   grid-column: 1 / -1;
   padding: 0;
 }
+.app-browser-sheet .timeline-toolbar {
+  position: sticky;
+  z-index: 6;
+  top: 54px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.4rem;
+  padding: 0.55rem 0;
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.app-browser-sheet .timeline-list {
+  padding-bottom: 1rem;
+}
+
 .app-shell.is-event-focused .timeline-heading-row,
 .app-shell.is-event-focused .timeline-toolbar,
 .app-shell.is-event-focused .empty-state,
@@ -321,6 +337,25 @@ main > * {
   grid-column: 1 / -1;
   min-width: 0;
 }
+.graph-lens {
+  margin: 1rem 0 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  background: transparent;
+  overflow: visible;
+}
+
+.graph-lens > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  min-height: 54px;
+  padding: 0.75rem 0.9rem;
+  cursor: pointer;
+  list-style: none;
+}
+
 .graph-lens > summary,
 .temporal-graph-toolbar,
 .temporal-graph-detail {
@@ -1650,6 +1685,13 @@ geolocation {
   border-radius: 0.75rem;
   background: var(--paper);
 }
+.app-browser-sheet .timeline-card {
+  grid-column: 1;
+  grid-row: auto;
+  margin: 0 0 0.65rem;
+  padding: 0.7rem 0.75rem 0.8rem;
+}
+
 .timeline-item.is-current .timeline-card {
   border-color: color-mix(in srgb, var(--story) 45%, var(--line));
   border-inline-start-color: var(--story);
@@ -2178,23 +2220,6 @@ footer > :last-child {
   background: var(--paper);
 }
 
-.graph-lens {
-  margin: 1rem 0 1.25rem;
-  border: 1px solid var(--line);
-  border-radius: 0.9rem;
-  background: transparent;
-  overflow: visible;
-}
-.graph-lens > summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  min-height: 54px;
-  padding: 0.75rem 0.9rem;
-  cursor: pointer;
-  list-style: none;
-}
 .graph-lens > summary::-webkit-details-marker {
   display: none;
 }
@@ -2952,24 +2977,9 @@ body {
   font-size: 1rem;
 }
 
-.app-browser-sheet .timeline-toolbar {
-  position: sticky;
-  z-index: 6;
-  top: 54px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.4rem;
-  padding: 0.55rem 0;
-  background: color-mix(in srgb, var(--paper) 94%, transparent);
-  backdrop-filter: blur(14px);
-}
 .app-browser-sheet .timeline-toolbar > * {
   min-width: 0;
 }
-.app-browser-sheet .timeline-list {
-  padding-bottom: 1rem;
-}
-
 .status {
   z-index: 1600;
   max-inline-size: min(520px, calc(100% - 1rem));
@@ -3614,13 +3624,6 @@ body {
 
 .app-browser-sheet .timeline-marker {
   display: none;
-}
-
-.app-browser-sheet .timeline-card {
-  grid-column: 1;
-  grid-row: auto;
-  margin: 0 0 0.65rem;
-  padding: 0.7rem 0.75rem 0.8rem;
 }
 
 .app-browser-sheet .timeline-card-top > :first-child {
