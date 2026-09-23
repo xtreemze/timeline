@@ -4873,6 +4873,7 @@ const SAMPLE = {
       },
       {
         id: "cinderella",
+        sourceIds: ["src-cinderella"],
         type: "person",
         name: "Cinderella",
         identifiers: [],
@@ -5792,6 +5793,7 @@ const SAMPLE = {
         subjectId: "cinderella",
         objectId: "cinderella-late-mother",
         predicate: "mourns",
+        sourceIds: ["src-cinderella"],
         itemIds: ["cinderella-mother"],
         time: {
           type: "instant",
@@ -5814,6 +5816,7 @@ const SAMPLE = {
         subjectId: "cinderella",
         objectId: "cinderella-stepmother",
         predicate: "serves",
+        sourceIds: ["src-cinderella"],
         itemIds: ["cinderella-hardship"],
         time: {
           type: "interval",
@@ -6506,6 +6509,7 @@ const SAMPLE = {
         subjectId: "cinderella",
         objectId: "cinderella-prince",
         predicate: "meets",
+        sourceIds: ["src-cinderella"],
         itemIds: ["cinderella-first-ball", "cinderella-invitation"],
         time: {
           type: "interval",
@@ -6536,6 +6540,7 @@ const SAMPLE = {
         subjectId: "cinderella",
         objectId: "cinderella-household",
         predicate: "rejoins",
+        sourceIds: ["src-cinderella"],
         itemIds: ["cinderella-first-return"],
         time: {
           type: "instant",
@@ -6712,6 +6717,7 @@ const SAMPLE = {
         subjectId: "cinderella",
         objectId: "cinderella-prince",
         predicate: "meets",
+        sourceIds: ["src-cinderella"],
         itemIds: ["cinderella-second-ball"],
         time: {
           type: "interval",
@@ -6742,6 +6748,7 @@ const SAMPLE = {
         subjectId: "cinderella",
         objectId: "cinderella-prince",
         predicate: "leaves",
+        sourceIds: ["src-cinderella"],
         itemIds: ["cinderella-midnight-flight"],
         time: {
           type: "instant",
@@ -6764,6 +6771,7 @@ const SAMPLE = {
         subjectId: "cinderella",
         objectId: "cinderella-slipper-object",
         predicate: "loses",
+        sourceIds: ["src-cinderella"],
         itemIds: ["cinderella-slipper"],
         time: {
           type: "instant",
@@ -6863,6 +6871,7 @@ const SAMPLE = {
         subjectId: "cinderella",
         objectId: "cinderella-herald",
         predicate: "requests",
+        sourceIds: ["src-cinderella"],
         itemIds: ["cinderella-asks-to-try", "cinderella-stepsisters-try"],
         time: {
           type: "instant",
@@ -6885,6 +6894,7 @@ const SAMPLE = {
         subjectId: "cinderella",
         objectId: "cinderella-slipper-object",
         predicate: "wears",
+        sourceIds: ["src-cinderella"],
         itemIds: ["cinderella-fit"],
         time: {
           type: "instant",
@@ -6930,6 +6940,7 @@ const SAMPLE = {
         subjectId: "cinderella",
         objectId: "cinderella-prince",
         predicate: "marries",
+        sourceIds: ["src-cinderella"],
         itemIds: ["cinderella-resolution"],
         time: {
           type: "instant",
