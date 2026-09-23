@@ -1,5 +1,5 @@
 name: Quality debt audit
-# Strict debt measurement after mechanical formatting.
+# Temporary cleanup validation. Remove before merging the cleanup branch.
 
 on:
   push:
@@ -25,3 +25,19 @@ jobs:
         run: pnpm format:check
       - name: Audit strict CSS
         run: pnpm lint:styles
+      - name: Run full lint stack
+        run: pnpm lint
+      - name: Enforce architecture types
+        run: pnpm types:architecture
+      - name: Validate focused cleanup contracts
+        run: >-
+          node --test
+          tests/quality-tooling-policy.test.mjs
+          tests/timeline-motion-popover-regression.test.mjs
+          tests/event-focus-form.test.mjs
+          tests/timeline-view-geometry.test.mjs
+          tests/browser-certification-config.test.mjs
+      - name: Run architecture suite
+        run: pnpm test:architecture
+      - name: Build production site
+        run: pnpm build
