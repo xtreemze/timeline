@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  parseBulkRows,
-  profileBulkRows,
-} from "../src/application/bulk-ingest.ts";
+import { parseBulkRows, profileBulkRows } from "../src/application/bulk-ingest.ts";
 
 test("CSV and TSV ingest preserve source values without silent type coercion", async () => {
   const csv = await parseBulkRows({
@@ -67,17 +64,11 @@ test("Arrow and Parquet use the same ingest contract through binary adapters", a
   };
 
   assert.deepEqual(
-    await parseBulkRows(
-      { format: "arrow", data: new Uint8Array([1, 2]) },
-      adapters,
-    ),
+    await parseBulkRows({ format: "arrow", data: new Uint8Array([1, 2]) }, adapters),
     [{ id: "arrow-row", score: 3 }],
   );
   assert.deepEqual(
-    await parseBulkRows(
-      { format: "parquet", data: new Uint8Array([3, 4]) },
-      adapters,
-    ),
+    await parseBulkRows({ format: "parquet", data: new Uint8Array([3, 4]) }, adapters),
     [{ id: "parquet-row", score: 5 }],
   );
   assert.deepEqual(calls, [
@@ -122,11 +113,7 @@ test("profiling reports null, unique, numeric, and quantile summaries", () => {
 });
 
 test("mixed columns are profiled without coercing strings to numbers", () => {
-  const profile = profileBulkRows([
-    { value: 1 },
-    { value: "2" },
-    { value: null },
-  ]);
+  const profile = profileBulkRows([{ value: 1 }, { value: "2" }, { value: null }]);
 
   const value = profile.columns.find((column) => column.name === "value");
   assert.equal(value.inferredType, "mixed");
