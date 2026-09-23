@@ -255,7 +255,6 @@ export class DeckWorldSurface implements WorldSurface {
   readonly #deck: DeckRuntimeInstance;
   #projection: WorldProjection = Object.freeze({ instances: Object.freeze([]), edges: Object.freeze([]) });
   #selection: WorldSelection | null = null;
-  #temporalWindow: WorldTemporalWindow = Object.freeze({ start: 0, end: 0 });
   #camera: WorldCameraState;
   #destroyed = false;
 
@@ -289,7 +288,7 @@ export class DeckWorldSurface implements WorldSurface {
 
   setTemporalWindow(window: WorldTemporalWindow): void {
     this.#assertAlive();
-    this.#temporalWindow = createWorldTemporalWindow(window);
+    createWorldTemporalWindow(window);
   }
 
   setSelection(selection: WorldSelection | null): void {
