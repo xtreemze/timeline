@@ -196,3 +196,29 @@ test("derived altitude and local offsets stay presentation-only inputs", () => {
   assert.equal("visualAltitude" in canonicalEntity, false);
   assert.equal("localOffset" in canonicalEntity, false);
 });
+
+test("world presentation metadata is normalized without changing canonical identity", () => {
+  const instance = createProjectedWorldInstance({
+    canonicalId: "alice",
+    label: "  Alice Example  ",
+    kind: " person ",
+    occurrenceId: "meeting",
+    geographicAnchors: [
+      {
+        placeId: "stockholm",
+        label: " Stockholm ",
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 1,
+      },
+    ],
+    temporalWeight: 1,
+    visualWeight: 1,
+    retained: false,
+  });
+
+  assert.equal(instance.canonicalId, "alice");
+  assert.equal(instance.label, "Alice Example");
+  assert.equal(instance.kind, "person");
+  assert.equal(instance.geographicAnchors[0].label, "Stockholm");
+});
