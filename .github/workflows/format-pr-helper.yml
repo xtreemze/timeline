@@ -1,0 +1,42 @@
+name: PR formatter helper
+
+on:
+  pull_request:
+    paths:
+      - 'site/world-perf-harness.ts'
+      - 'tests/browser/world-interaction-coverage.spec.ts'
+      - 'tests/browser/world-performance-certification.spec.ts'
+      - '.github/workflows/format-pr-helper.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    if: github.head_ref == 'fix/world-certification-quality-gate'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - name: Format changed certification files with repository Biome
+        run: |
+          pnpm exec biome check --write \
+            site/world-perf-harness.ts \
+            tests/browser/world-interaction-coverage.spec.ts \
+            tests/browser/world-performance-certification.spec.ts
+      - name: Emit formatted files
+        run: |
+          for file in \
+            site/world-perf-harness.ts \
+            tests/browser/world-interaction-coverage.spec.ts \
+            tests/browser/world-performance-certification.spec.ts
+          do
+            echo "BEGIN_FORMATTED::$file"
+            base64 -w 0 "$file"
+            echo
+            echo "END_FORMATTED::$file"
+          done
