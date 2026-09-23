@@ -25,7 +25,7 @@
     "benchmark:graph-data": "node benchmarks/graph-data.mjs",
     "types:migrated": "tsc -p tsconfig.migrated.json --pretty",
     "types:architecture": "tsc -p tsconfig.architecture.json --pretty",
-    "test:architecture": "node --test tests/domain-kernel.test.mjs tests/claim-pipeline.test.mjs tests/analytical-lens.test.mjs tests/temporal-constraint.test.mjs tests/architecture-lint-policy.test.mjs tests/temporal-scene.test.mjs tests/workspace-layout.test.mjs tests/interaction-coordinator.test.mjs",
+    "test:architecture": "node --test tests/domain-kernel.test.mjs tests/claim-pipeline.test.mjs tests/analytical-lens.test.mjs tests/temporal-constraint.test.mjs tests/architecture-lint-policy.test.mjs tests/temporal-scene.test.mjs tests/workspace-layout.test.mjs tests/interaction-coordinator.test.mjs tests/tooling-policy.test.mjs",
     "lint:biome": "biome ci . --diagnostic-level=error --max-diagnostics=200",
     "lint:architecture": "node scripts/lint-architecture.mjs",
     "test:runtime-contracts": "node --test tests/timeline-runtime-contracts.test.mjs tests/timeline-motion-popover-regression.test.mjs",
