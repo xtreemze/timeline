@@ -38,6 +38,7 @@ import { TimelineClustering as clustering } from "./timeline-clustering.ts";
 const scale = globalThis.TimelineScale;
 const presentation = globalThis.TimelinePresentation;
 
+const VIEW_STORAGE_KEY = "timeline:view:v1";
 const DEFAULT_SPAN_MS = 86_400_000;
 const MIN_SPAN_MS = 1;
 const MAX_WHEEL_EXPONENT = 0.045;
@@ -164,6 +165,37 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function normalizeWheelDelta(
+  event: Pick<WheelEvent, "deltaY" | "deltaMode">,
+  pageLength: number,
+): number {
+  let delta = Number(event.deltaY) || 0;
+  if (event.deltaMode === 1) delta *= 16;
+  if (event.deltaMode === 2) delta *= Math.max(1, pageLength);
+  return delta;
+}
+
+function loadViewPreferences(): { orientation: Orientation } {
+  try {
+    const raw = globalThis.localStorage?.getItem(VIEW_STORAGE_KEY);
+    if (!raw) return { orientation: "horizontal" };
+    const parsed = JSON.parse(raw) as { orientation?: unknown };
+    return {
+      orientation: parsed.orientation === "vertical" ? "vertical" : "horizontal",
+    };
+  } catch {
+    return { orientation: "horizontal" };
+  }
+}
+
+function saveViewPreferences(preferences: { orientation: Orientation }): void {
+  try {
+    globalThis.localStorage?.setItem(VIEW_STORAGE_KEY, JSON.stringify(preferences));
+  } catch {
+    // View preferences are optional and must never block chronology interaction.
+  }
+}
+
 function connectorSegment(axisCoordinate: number, terminalCoordinate: number) {
   const delta = Number(axisCoordinate) - Number(terminalCoordinate);
   if (!Number.isFinite(delta)) throw new TypeError("Connector coordinates must be finite.");
@@ -275,7 +307,7 @@ class TimelineViewController {
   retention: TemporalRetentionState = commitRetention(this.renderWindow);
   focusedId: string | null = null;
   focusMediaIndex = 0;
-  orientation: Orientation = "horizontal";
+  orientation: Orientation = loadViewPreferences().orientation;
   scene = new Map<string, SceneRecord>();
   tickScene = new Map<string, HTMLDivElement>();
   accentScene = new Map<string, HTMLDivElement>();
@@ -289,6 +321,8 @@ class TimelineViewController {
   committedClusterByItem = new Map<string, string>();
   clusterScene = new Map<string, ClusterSceneRecord>();
   expandedClusterItemIds = new Set<string>();
+  clusterSignature: string | null = null;
+  lastClusterHapticAt = 0;
   geometryMeasurements = new Map<string, CachedGeometryMeasurement>();
   committedTickSpecKey = "";
   committedTickSpec: SemanticTickSpec | null = null;
@@ -371,7 +405,8 @@ class TimelineViewController {
           this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
         const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
         const ratio = clamp(primary / length, 0, 1);
-        const factor = wheelZoomFactor(event.deltaY);
+        const deltaPixels = normalizeWheelDelta(event, length);
+        const factor = wheelZoomFactor(deltaPixels);
         const span = Math.max(MIN_SPAN_MS, (this.viewport.end - this.viewport.start) * factor);
         const anchor = this.viewport.start + (this.viewport.end - this.viewport.start) * ratio;
         const next = {
@@ -743,7 +778,7 @@ class TimelineViewController {
       if (event.key === "Home") {
         event.preventDefault();
         this.cancelInertia();
-        this.fitAll();
+        event.shiftKey ? this.fitAll() : this.fitVisible();
         return;
       }
       if (event.key === "+" || event.key === "=" || event.key === "-") {
@@ -826,6 +861,8 @@ class TimelineViewController {
       this.viewportInitialized = false;
       this.viewport = { start: 0, end: DEFAULT_SPAN_MS };
       this.expandedClusterItemIds.clear();
+      this.clusterSignature = null;
+      this.lastClusterHapticAt = 0;
       this.geometryMeasurements.clear();
       this.focusedId = null;
     }
@@ -1489,6 +1526,18 @@ class TimelineViewController {
     }
   }
 
+  fitVisible(): void {
+    const coordinates = this.itemCoordinates();
+    if (!coordinates.length) return;
+    this.expandedClusterItemIds.clear();
+    this.viewport = scale.fit(coordinates, {
+      paddingRatio: 0.1,
+      minSpanMs: DEFAULT_SPAN_MS,
+    });
+    this.commitInteraction();
+    this.surface.focus({ preventScroll: true });
+  }
+
   fitAll(): void {
     const coordinates = this.allCoordinates.length
       ? this.allCoordinates
@@ -1702,7 +1751,22 @@ class TimelineViewController {
         this.committedClusterByItem.set(itemId, cluster.id);
       }
     }
+    this.updateClusterHaptics(clusters);
     this.reconcileClusterScene(clusters);
+  }
+
+  updateClusterHaptics(clusters: readonly TemporalLayoutCluster[]): void {
+    const signature = clusters.map((cluster) => cluster.id).sort().join(";");
+    if (this.clusterSignature === null) {
+      this.clusterSignature = signature;
+      return;
+    }
+    if (signature === this.clusterSignature) return;
+    this.clusterSignature = signature;
+    const now = performance.now();
+    if (now - this.lastClusterHapticAt < 140) return;
+    this.lastClusterHapticAt = now;
+    void motion.pulseHaptic("cluster");
   }
 
   reconcileClusterScene(clusters: readonly TemporalLayoutCluster[]): void {
@@ -1889,6 +1953,7 @@ class TimelineViewController {
     if (expansion?.viewport) this.viewport = { ...expansion.viewport };
     this.commitInteraction();
     this.focusItem(selectedId, { moveViewport: false });
+    void motion.pulseHaptic("selection");
   }
 
   render(): void {
@@ -2037,6 +2102,7 @@ class TimelineViewController {
         this.closeFocus();
       } else {
         this.focusItem(item.id);
+        void motion.pulseHaptic("selection");
       }
     });
 
@@ -2065,6 +2131,7 @@ class TimelineViewController {
           this.closeFocus();
         } else {
           this.focusItem(item.id);
+          void motion.pulseHaptic("selection");
         }
       });
       this.stage.append(range);
@@ -2319,12 +2386,18 @@ class TimelineViewController {
     return this.focusedId;
   }
 
-  setOrientation(orientation: string, options = {}): void {
+  setOrientation(
+    orientation: string,
+    options: { persist?: boolean; focus?: boolean } = {},
+  ): void {
     const normalized: Orientation =
       orientation === "vertical" || orientation === "portrait" ? "vertical" : "horizontal";
     if (normalized === this.orientation) return;
     this.runStructuralTransaction(() => {
       this.orientation = normalized;
+      if (options.persist !== false) {
+        saveViewPreferences({ orientation: normalized });
+      }
       this.geometryMeasurements.clear();
       this.applyOrientation();
       this.root.dispatchEvent(
