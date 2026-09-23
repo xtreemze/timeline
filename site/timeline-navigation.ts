@@ -41,7 +41,8 @@ export function gamepadControls(gamepad: Gamepad | null): Map<string, string> {
   const buttons = gamepad.buttons || [];
   const axes = gamepad.axes || [];
   const active = new Map<string, string>();
-  const pressed = (index: number) => Boolean(buttons[index]?.pressed || (buttons[index]?.value ?? 0) > 0.6);
+  const pressed = (index: number) =>
+    Boolean(buttons[index]?.pressed || (buttons[index]?.value ?? 0) > 0.6);
   if (pressed(0)) active.set("button-0", "activate");
   if (pressed(1)) active.set("button-1", "back");
   if (pressed(4)) active.set("button-4", "previous");
@@ -225,7 +226,10 @@ class NavigationController {
       (event) => {
         const command = commandFromKeyboard(event, this.isNavigationActive());
         if (!command) {
-          if (!isEditableTarget(event.target) && !(event.target as any).closest?.("[data-auto-control]")) {
+          if (
+            !isEditableTarget(event.target) &&
+            !(event.target as any).closest?.("[data-auto-control]")
+          ) {
             this.auto?.noteInteraction();
           }
           return;
@@ -262,7 +266,7 @@ class NavigationController {
   private startGamepadPolling(): void {
     if (this.frame || !navigator.getGamepads) return;
     const poll = () => {
-      const gamepads = [...navigator.getGamepads?.() || []].filter(Boolean) as Gamepad[];
+      const gamepads = [...(navigator.getGamepads?.() || [])].filter(Boolean) as Gamepad[];
       if (!gamepads.length) {
         this.frame = 0;
         this.pressedGamepadControls.clear();
@@ -294,7 +298,10 @@ interface NavigationControllerOptions {
   auto?: AutoAdvanceOptions;
 }
 
-export function create(options: NavigationControllerOptions): { auto: AutoAdvanceController; navigation: NavigationController } {
+export function create(options: NavigationControllerOptions): {
+  auto: AutoAdvanceController;
+  navigation: NavigationController;
+} {
   const auto = new AutoAdvanceController(options.auto || {});
   const navigation = new NavigationController({ ...options, auto });
   return Object.freeze({ auto, navigation });

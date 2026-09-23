@@ -9,10 +9,7 @@ export interface WorldViewRegistrationTarget {
   TimelineWorldView?: WorldViewFactory;
 }
 
-export type WorldViewRegistrationOptions = Omit<
-  WorldViewFactoryOptions,
-  "bindings"
->;
+export type WorldViewRegistrationOptions = Omit<WorldViewFactoryOptions, "bindings">;
 
 export function registerTimelineWorldView(
   bindings: DeckWorldBindings,

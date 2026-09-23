@@ -239,10 +239,7 @@ function occurrenceMatches(
   }
 
   const categories = new Set(filters.categoryIds ?? []);
-  if (
-    categories.size > 0 &&
-    (!occurrence.categoryId || !categories.has(occurrence.categoryId))
-  ) {
+  if (categories.size > 0 && (!occurrence.categoryId || !categories.has(occurrence.categoryId))) {
     return false;
   }
 
@@ -288,9 +285,7 @@ export function validateAnalyticalLens(lens: AnalyticalLens): readonly string[] 
   const neighborhood = lens.filters.neighborhood;
   if (
     neighborhood &&
-    (!Number.isInteger(neighborhood.depth) ||
-      neighborhood.depth < 0 ||
-      neighborhood.depth > 8)
+    (!Number.isInteger(neighborhood.depth) || neighborhood.depth < 0 || neighborhood.depth > 8)
   ) {
     errors.push("Analytical lens neighborhood depth must be an integer from 0 through 8.");
   }
@@ -325,9 +320,7 @@ export function parseAnalyticalLens(input: unknown): AnalyticalLensParseResult {
   }
 
   const filterInput =
-    record["filters"] &&
-    typeof record["filters"] === "object" &&
-    !Array.isArray(record["filters"])
+    record["filters"] && typeof record["filters"] === "object" && !Array.isArray(record["filters"])
       ? (record["filters"] as Readonly<Record<string, unknown>>)
       : {};
 
@@ -369,9 +362,7 @@ export function parseAnalyticalLens(input: unknown): AnalyticalLensParseResult {
     ...(relationshipPredicates.length ? { relationshipPredicates } : {}),
     ...(categoryIds.length ? { categoryIds } : {}),
     ...(placeIds.length ? { placeIds } : {}),
-    ...(timeInput && start !== null && end !== null
-      ? { timeWindow: { start, end, untimed } }
-      : {}),
+    ...(timeInput && start !== null && end !== null ? { timeWindow: { start, end, untimed } } : {}),
     ...(neighborhoodInput && neighborhoodDepth !== null
       ? {
           neighborhood: {
@@ -426,16 +417,12 @@ export function evaluateAnalyticalLens(
     relationshipMatches(relationship, lens.filters),
   );
 
-  const neighborhood = neighborhoodEntityIds(
-    semanticRelationships,
-    lens.filters.neighborhood,
-  );
+  const neighborhood = neighborhoodEntityIds(semanticRelationships, lens.filters.neighborhood);
 
   const visibleRelationships = neighborhood
     ? semanticRelationships.filter(
         (relationship) =>
-          neighborhood.has(relationship.subjectId) &&
-          neighborhood.has(relationship.objectId),
+          neighborhood.has(relationship.subjectId) && neighborhood.has(relationship.objectId),
       )
     : semanticRelationships;
 
@@ -466,12 +453,7 @@ export function evaluateAnalyticalLens(
 
   const occurrences = dataset.occurrences ?? [];
   const visibleOccurrences = occurrences.filter((occurrence) =>
-    occurrenceMatches(
-      occurrence,
-      lens.filters,
-      visibleRelationshipIds,
-      visibleEntityIds,
-    ),
+    occurrenceMatches(occurrence, lens.filters, visibleRelationshipIds, visibleEntityIds),
   );
 
   for (const occurrence of visibleOccurrences) {
@@ -479,16 +461,10 @@ export function evaluateAnalyticalLens(
   }
 
   const entityIds = uniqueSorted(
-    dataset.entities
-      .map((entity) => entity.id)
-      .filter((id) => visibleEntityIds.has(id)),
+    dataset.entities.map((entity) => entity.id).filter((id) => visibleEntityIds.has(id)),
   );
-  const relationshipIds = uniqueSorted(
-    visibleRelationships.map((relationship) => relationship.id),
-  );
-  const occurrenceIds = uniqueSorted(
-    visibleOccurrences.map((occurrence) => occurrence.id),
-  );
+  const relationshipIds = uniqueSorted(visibleRelationships.map((relationship) => relationship.id));
+  const occurrenceIds = uniqueSorted(visibleOccurrences.map((occurrence) => occurrence.id));
 
   return Object.freeze({
     entityIds,
@@ -501,7 +477,6 @@ export function evaluateAnalyticalLens(
     }),
   });
 }
-
 
 export interface AnalyticalLensCatalog {
   readonly lenses: readonly AnalyticalLens[];
@@ -536,9 +511,7 @@ export function replaceAnalyticalLens(
   const replacement = canonicalLensCopy(lens);
   return Object.freeze({
     lenses: Object.freeze(
-      catalog.lenses.map((existing, current) =>
-        current === index ? replacement : existing,
-      ),
+      catalog.lenses.map((existing, current) => (current === index ? replacement : existing)),
     ),
   });
 }

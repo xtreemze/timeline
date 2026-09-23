@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-
+import { reviewCandidateClaim } from "../src/application/claim-review.ts";
+import { validateCandidateClaim, validateFragment } from "../src/domain/claim.ts";
 import {
   candidateClaimId,
   entityId,
@@ -9,8 +10,6 @@ import {
   sourceFragmentId,
   sourceId,
 } from "../src/domain/index.ts";
-import { validateCandidateClaim, validateFragment } from "../src/domain/claim.ts";
-import { reviewCandidateClaim } from "../src/application/claim-review.ts";
 
 const alice = {
   id: entityId("alice"),
@@ -70,10 +69,7 @@ test("source fragments require text, locator, and bounded confidence", () => {
 
 test("candidate claims preserve resolvable fragment/source provenance", () => {
   assert.deepEqual(validateCandidateClaim(claim, ledger), []);
-  assert.match(
-    validateCandidateClaim({ ...claim, sourceIds: [] }, ledger).join(" "),
-    /source/i,
-  );
+  assert.match(validateCandidateClaim({ ...claim, sourceIds: [] }, ledger).join(" "), /source/i);
 });
 
 test("accepted claim commits one canonical relationship atomically", () => {

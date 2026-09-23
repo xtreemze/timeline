@@ -21,10 +21,7 @@ test("temporal ticks are retained by stable calendar identity instead of rebuilt
 
   assert.match(source, /tickScene = new Map<string, HTMLDivElement>\(\)/);
   assert.match(source, /accentScene = new Map<string, HTMLDivElement>\(\)/);
-  assert.match(
-    source,
-    /tickSceneKey\(\{ unit: tick\.spec\.unit, value: tick\.value \}\)/,
-  );
+  assert.match(source, /tickSceneKey\(\{ unit: tick\.spec\.unit, value: tick\.value \}\)/);
   assert.match(source, /this\.tickScene\.get\(key\)/);
   assert.match(source, /this\.accentScene\.get\(key\)/);
   assert.match(source, /if \(!this\.retention\.active\)[\s\S]*this\.tickScene/);

@@ -34,7 +34,12 @@ function harness() {
     },
   };
 
-  return { calls, runtime, view: new WorldProjectionView(runtime), getProjection: () => projection };
+  return {
+    calls,
+    runtime,
+    view: new WorldProjectionView(runtime),
+    getProjection: () => projection,
+  };
 }
 
 const model = {
@@ -96,9 +101,7 @@ test("application model projects timed and timeless relationships into one world
     (instance) => instance.occurrenceId === "meeting",
   );
   assert.ok(
-    meetingInstances.every(
-      (instance) => instance.geographicAnchors[0]?.placeId === "stockholm",
-    ),
+    meetingInstances.every((instance) => instance.geographicAnchors[0]?.placeId === "stockholm"),
   );
 
   const timelessInstances = projection.instances.filter(

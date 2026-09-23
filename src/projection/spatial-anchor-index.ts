@@ -34,9 +34,7 @@ function positionsFromGeometry(geometry: CanonicalSpatialGeometry): readonly Geo
     return Object.freeze(geometry.coordinates.flatMap((ring) => [...ring]));
   }
   return Object.freeze(
-    geometry.coordinates.flatMap((polygon) =>
-      polygon.flatMap((ring) => [...ring]),
-    ),
+    geometry.coordinates.flatMap((polygon) => polygon.flatMap((ring) => [...ring])),
   );
 }
 
@@ -50,7 +48,7 @@ function radians(value: number): number {
 
 function normalizeLongitude(value: number): number {
   if (value >= -180 && value <= 180) return Object.is(value, -0) ? 0 : value;
-  const normalized = ((value + 180) % 360 + 360) % 360 - 180;
+  const normalized = ((((value + 180) % 360) + 360) % 360) - 180;
   return Object.is(normalized, -0) ? 0 : normalized;
 }
 

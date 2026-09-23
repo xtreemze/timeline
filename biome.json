@@ -60,10 +60,7 @@
   },
   "overrides": [
     {
-      "includes": [
-        "site/**/*.ts",
-        "site/**/*.js"
-      ],
+      "includes": ["site/**/*.ts", "site/**/*.js"],
       "linter": {
         "rules": {
           "suspicious": {
@@ -76,10 +73,7 @@
       }
     },
     {
-      "includes": [
-        "tests/**",
-        "benchmarks/**"
-      ],
+      "includes": ["tests/**", "benchmarks/**"],
       "linter": {
         "rules": {
           "security": {

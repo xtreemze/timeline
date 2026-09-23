@@ -20,12 +20,7 @@ const instant = (value) => ({
 });
 
 const dataset = {
-  entities: [
-    { id: "alice" },
-    { id: "bob" },
-    { id: "carol" },
-    { id: "dave" },
-  ],
+  entities: [{ id: "alice" }, { id: "bob" }, { id: "carol" }, { id: "dave" }],
   relationships: [
     {
       id: "r1",
@@ -224,7 +219,6 @@ test("untimed relationship visibility is explicit rather than accidental", () =>
   assert.deepEqual(excludeUntimed.relationshipIds, ["r1"]);
 });
 
-
 test("analytical lens catalog commands are immutable and reject duplicate IDs", () => {
   const original = { lenses: [] };
   const saved = saveAnalyticalLens(
@@ -251,12 +245,7 @@ test("analytical lens edit, duplicate, and delete use explicit deterministic ide
   assert.equal(saved.lenses[0].name, "Test lens");
   assert.equal(edited.lenses[0].name, "Stockholm focus");
 
-  const duplicated = duplicateAnalyticalLens(
-    edited,
-    "lens-a",
-    "lens-b",
-    "Stockholm copy",
-  );
+  const duplicated = duplicateAnalyticalLens(edited, "lens-a", "lens-b", "Stockholm copy");
   assert.deepEqual(
     duplicated.lenses.map((entry) => entry.id),
     ["lens-a", "lens-b"],
@@ -264,7 +253,10 @@ test("analytical lens edit, duplicate, and delete use explicit deterministic ide
   assert.equal(duplicated.lenses[1].name, "Stockholm copy");
 
   const removed = deleteAnalyticalLens(duplicated, "lens-a");
-  assert.deepEqual(removed.lenses.map((entry) => entry.id), ["lens-b"]);
+  assert.deepEqual(
+    removed.lenses.map((entry) => entry.id),
+    ["lens-b"],
+  );
   assert.equal(duplicated.lenses.length, 2);
   assert.throws(() => deleteAnalyticalLens(removed, "missing"), /does not exist/i);
 });

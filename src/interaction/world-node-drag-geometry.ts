@@ -1,8 +1,8 @@
-import type { ScreenPoint, WorldSurface } from "../layout/world-surface.ts";
 import {
   resolveWorldLocalLayoutPosition,
   resolveWorldRenderPosition,
 } from "../layout/world-geographic-position.ts";
+import type { ScreenPoint, WorldSurface } from "../layout/world-surface.ts";
 import type { ProjectedWorldInstance } from "../projection/world-projection.ts";
 import type { WorldNodeDragPosition } from "./world-node-drag-controller.ts";
 

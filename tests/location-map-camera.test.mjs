@@ -61,7 +61,10 @@ test("fictional spatial reference frames use local procedural texture instead of
   assert.match(mapSource, /createTile/);
   assert.match(mapSource, /timeline-fictional-map-tile/);
   assert.match(mapSource, /if \(this\.fictionalReferenceFrame\)[\s\S]*fictionalTextureLayer/);
-  assert.match(mapSource, /else \{[\s\S]*attachBasemap\(L, this\.map, this\.container, this\.providers\)/);
+  assert.match(
+    mapSource,
+    /else \{[\s\S]*attachBasemap\(L, this\.map, this\.container, this\.providers\)/,
+  );
   assert.match(mapSource, /function attachBasemap\([\s\S]*L\.tileLayer\(provider\.url/);
   assert.match(mapSource, /Fictional reference frame · procedural texture/);
   assert.match(styles, /\.presentation-map\.is-fictional-map/);
@@ -126,10 +129,7 @@ test("map touch targets match the coarse-pointer interaction floor and editing h
     /L\.marker\(\[lat, lng\],[\s\S]*draggable:\s*true[\s\S]*keyboard:\s*true[\s\S]*semanticMarkerIcon/,
   );
   assert.match(source, /this\.map\.on\("click"[\s\S]*this\.applyPosition/);
-  assert.match(
-    styles,
-    /\.timeline-map-marker\s*\{[\s\S]*width:\s*44px[\s\S]*height:\s*44px/,
-  );
+  assert.match(styles, /\.timeline-map-marker\s*\{[\s\S]*width:\s*44px[\s\S]*height:\s*44px/);
   assert.match(
     styles,
     /@media \(pointer:\s*coarse\)[\s\S]*leaflet-control-zoom a[\s\S]*width:\s*44px[\s\S]*height:\s*44px/,
@@ -137,7 +137,6 @@ test("map touch targets match the coarse-pointer interaction floor and editing h
   assert.match(html, /id="item-location-latitude"[^>]*inputmode="decimal"/);
   assert.match(html, /id="item-location-longitude"[^>]*inputmode="decimal"/);
 });
-
 
 test("map runtime is local and basemap failure cannot remove semantic geometry", async () => {
   const [mapSource, html, packageSource, styles] = await Promise.all([
@@ -170,16 +169,25 @@ test("place editor exposes renderer-neutral marker path and area styling", async
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
   for (const id of [
-    "graph-place-marker-color", "graph-place-marker-fill-color",
-    "graph-place-marker-opacity", "graph-place-marker-size",
-    "graph-place-marker-weight", "graph-place-path-stroke",
-    "graph-place-path-color", "graph-place-path-weight",
-    "graph-place-path-opacity", "graph-place-path-dash-array",
-    "graph-place-path-dash-offset", "graph-place-path-line-cap",
-    "graph-place-path-line-join", "graph-place-area-fill",
-    "graph-place-area-fill-color", "graph-place-area-fill-opacity",
+    "graph-place-marker-color",
+    "graph-place-marker-fill-color",
+    "graph-place-marker-opacity",
+    "graph-place-marker-size",
+    "graph-place-marker-weight",
+    "graph-place-path-stroke",
+    "graph-place-path-color",
+    "graph-place-path-weight",
+    "graph-place-path-opacity",
+    "graph-place-path-dash-array",
+    "graph-place-path-dash-offset",
+    "graph-place-path-line-cap",
+    "graph-place-path-line-join",
+    "graph-place-area-fill",
+    "graph-place-area-fill-color",
+    "graph-place-area-fill-opacity",
     "graph-place-area-fill-rule",
-  ]) assert.match(html, new RegExp(`id="${id}"`));
+  ])
+    assert.match(html, new RegExp(`id="${id}"`));
 
   assert.match(html, /LineString\/MultiLineString\/Polygon\/MultiPolygon/);
   assert.match(spatialSource, /interface PlaceStyle/);

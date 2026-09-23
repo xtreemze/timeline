@@ -1282,7 +1282,8 @@
   grid-row: 1 / span 2;
   align-self: stretch;
 }
-.timeline-focus-view[data-layout="evidence-dossier"][data-active-tab="evidence"] .timeline-focus-summary {
+.timeline-focus-view[data-layout="evidence-dossier"][data-active-tab="evidence"]
+  .timeline-focus-summary {
   grid-row: 1;
 }
 .timeline-focus-view[data-layout="evidence-dossier"] .timeline-focus-evidence {
@@ -3489,7 +3490,6 @@
   opacity: 1;
 }
 
-
 /* Timeline controls remain visually continuous while the event-detail transition runs. */
 .timeline-view-toolbar {
   view-transition-name: timeline-view-toolbar;
@@ -3539,7 +3539,6 @@
   animation-duration: 220ms;
   animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-
 
 /* The semantic panels themselves stay inside the clamped popover box. The Relations halo
    may extend visually, but panel content cannot push the top-layer surface offscreen. */
@@ -4443,8 +4442,16 @@
   left: auto;
   display: flex;
   width: max-content;
-  max-width: calc(100% - max(0.8rem, env(safe-area-inset-left)) - max(0.8rem, env(safe-area-inset-right)));
-  max-height: calc(100dvh - max(0.8rem, env(safe-area-inset-top)) - max(0.8rem, env(safe-area-inset-bottom)));
+  max-width: calc(
+    100% -
+    max(0.8rem, env(safe-area-inset-left)) -
+    max(0.8rem, env(safe-area-inset-right))
+  );
+  max-height: calc(
+    100dvh -
+    max(0.8rem, env(safe-area-inset-top)) -
+    max(0.8rem, env(safe-area-inset-bottom))
+  );
   overflow-x: auto;
   overflow-y: auto;
 }
@@ -5037,7 +5044,6 @@
   touch-action: pan-y;
 }
 
-
 /* Simplified View toolbar: display controls, semantic zoom, then slideshow.
    Zoom endpoint meaning is icon-only; aria-valuetext retains the intermediate
    semantic Focus state without adding a third visible label. */
@@ -5047,7 +5053,7 @@
   flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
-  gap: .22rem;
+  gap: 0.22rem;
   width: auto;
   min-width: 0;
   padding: 0;
@@ -5059,7 +5065,7 @@
   grid-template-columns: 18px minmax(0, 1fr) 18px;
   grid-template-rows: 22px;
   align-items: center;
-  column-gap: .3rem;
+  column-gap: 0.3rem;
 }
 
 .timeline-zoom-endpoint {
@@ -5079,15 +5085,17 @@
 #app-shell .timeline-zoom-controls {
   width: clamp(150px, 20vw, 220px);
   min-width: 150px;
-  padding: .28rem .38rem;
+  padding: 0.28rem 0.38rem;
 }
 
-.timeline-view[data-orientation="landscape"] > .app-view-controls.timeline-view-toolbar[popover]:popover-open
+.timeline-view[data-orientation="landscape"]
+  > .app-view-controls.timeline-view-toolbar[popover]:popover-open
   .view-display-controls {
   flex-direction: row;
 }
 
-.timeline-view[data-orientation="portrait"] > .app-view-controls.timeline-view-toolbar[popover]:popover-open
+.timeline-view[data-orientation="portrait"]
+  > .app-view-controls.timeline-view-toolbar[popover]:popover-open
   .view-display-controls {
   flex-direction: row;
   width: 100%;
@@ -5097,14 +5105,14 @@
   width: 64px;
   min-width: 64px;
   height: clamp(140px, 24dvh, 196px);
-  padding: .35rem .25rem;
+  padding: 0.35rem 0.25rem;
 }
 
 .timeline-view[data-orientation="portrait"] .timeline-zoom-control {
   grid-template-columns: minmax(34px, 1fr);
   grid-template-rows: 18px minmax(0, 1fr) 18px;
   place-items: center;
-  row-gap: .24rem;
+  row-gap: 0.24rem;
   column-gap: 0;
   width: 100%;
   height: 100%;
@@ -5128,7 +5136,6 @@
     flex: 1 1 140px;
   }
 }
-
 
 /* Retained timeline scene: buffered occurrences stay mounted across interaction epochs.
    The visible rail is not the scene boundary; overscanned objects remain non-interactive
@@ -5187,7 +5194,6 @@
   }
 }
 
-
 /* Independent semantic chronology for assistive technology and keyboard fallback.
    It is outside the retained visual scene and therefore never participates in
    pan/zoom reconciliation or virtualization. */
@@ -5243,7 +5249,6 @@
   outline: 2px solid color-mix(in srgb, var(--focus) 50%, transparent);
   outline-offset: 1px;
 }
-
 
 /* Focused place context uses the card's visual field for the existing interactive Leaflet map.
    Keep semantic copy compact so map geometry and markers remain directly manipulable. */
@@ -5328,9 +5333,7 @@
   );
 }
 
-#app-shell[data-graph-open="true"]
-  #timeline-view[data-orientation="portrait"]
-  > .timeline-surface {
+#app-shell[data-graph-open="true"] #timeline-view[data-orientation="portrait"] > .timeline-surface {
   inset-inline-end: var(--workspace-portrait-chrome-inline, 7rem);
 }
 
@@ -5355,7 +5358,6 @@
   inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
   inset-inline-start: 50%;
 }
-
 
 /* Focused detail is a layout-owned sidebar, never a top-layer popover.
    Landscape: detail left, graph right, chronology full-width below.
@@ -5388,8 +5390,7 @@
   display: none;
 }
 
-#app-shell.is-event-focused
-  #presentation-stage[data-timeline-orientation="horizontal"] {
+#app-shell.is-event-focused #presentation-stage[data-timeline-orientation="horizontal"] {
   grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: 0;
@@ -5432,8 +5433,7 @@
   overflow: visible;
 }
 
-#app-shell.is-event-focused
-  #presentation-stage[data-timeline-orientation="vertical"] {
+#app-shell.is-event-focused #presentation-stage[data-timeline-orientation="vertical"] {
   grid-template-columns: minmax(0, 5fr) minmax(0, 1fr);
   grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: 0;
@@ -5493,7 +5493,10 @@
   border-top: 0;
 }
 
-#app-shell.is-event-focused #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-toolbar {
+#app-shell.is-event-focused
+  #presentation-stage
+  > .graph-lens:not([hidden])
+  .temporal-graph-toolbar {
   display: none;
 }
 

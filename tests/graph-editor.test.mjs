@@ -613,7 +613,6 @@ test("Relations camera has a hard zoom bound and sanitizes shared transforms", a
   );
 });
 
-
 test("graph camera and force policy stays bounded, weighted, and explicitly active", async () => {
   const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
@@ -628,11 +627,11 @@ test("graph camera and force policy stays bounded, weighted, and explicitly acti
     /function setData\(data\)[\s\S]{0,2200}orb\.render\(\(\) => \{[\s\S]{0,300}simulationCoordinator\.retry\(\)[\s\S]{0,500}requestSimulation\("topology", 0\)/,
   );
   assert.match(source, /refreshLayout\(\)\s*\{[\s\S]{0,900}orb\.render/);
-  assert.doesNotMatch(
+  assert.doesNotMatch(source, /refreshLayout\(\)\s*\{[\s\S]{0,500}requestSimulation\(/);
+  assert.match(
     source,
-    /refreshLayout\(\)\s*\{[\s\S]{0,500}requestSimulation\(/,
+    /alpha:\s*reheat\s*\?\s*\(dense \? 0\.07 : 0\.09\)\s*:\s*dense \? 0\.012 : 0\.016/,
   );
-  assert.match(source, /alpha:\s*reheat\s*\?\s*\(dense \? 0\.07 : 0\.09\)\s*:\s*dense \? 0\.012 : 0\.016/);
   assert.match(source, /simulator\.stopSimulation\(\)/);
   assert.match(source, /isSimulatingOnDataUpdate:\s*false/);
   assert.match(source, /isSimulatingOnSettingsUpdate:\s*false/);
@@ -641,7 +640,6 @@ test("graph camera and force policy stays bounded, weighted, and explicitly acti
   assert.match(source, /simulationCoordinator\.suspend\("competing-surface"\)/);
   assert.match(source, /simulationCoordinator\.resume\("competing-surface"\)/);
 });
-
 
 test("graph force remains presentation-agnostic when focused detail is visible", async () => {
   const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
@@ -653,8 +651,14 @@ test("graph force remains presentation-agnostic when focused detail is visible",
   assert.doesNotMatch(source, /onPopoverToggle/);
   assert.doesNotMatch(source, /popover-exclusion/);
 
-  assert.match(source, /centering:\s*\{\s*x:\s*0,\s*y:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.004\s*\}/);
-  assert.match(source, /positioning:\s*\{[\s\S]*forceX:\s*\{\s*x:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.0035\s*\}/);
+  assert.match(
+    source,
+    /centering:\s*\{\s*x:\s*0,\s*y:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.004\s*\}/,
+  );
+  assert.match(
+    source,
+    /positioning:\s*\{[\s\S]*forceX:\s*\{\s*x:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.0035\s*\}/,
+  );
   assert.match(source, /forceY:\s*\{\s*y:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.0035\s*\}/);
 });
 test("Orb graph retries a pending topology solve after render attaches its simulator", async () => {
@@ -675,10 +679,16 @@ test("graph force motion stays deliberately low-energy so topology changes settl
   assert.match(source, /CENTER_ATTRACTION_STRENGTH\s*=\s*0\.004/);
   assert.match(source, /manyBody:\s*\{\s*strength:\s*-190/);
   assert.match(source, /collision:\s*\{\s*radius:\s*34,\s*strength:\s*0\.68/);
-  assert.match(source, /alpha:\s*\{\s*alpha:\s*0\.09,\s*alphaMin:\s*0\.003,\s*alphaDecay:\s*0\.018/);
+  assert.match(
+    source,
+    /alpha:\s*\{\s*alpha:\s*0\.09,\s*alphaMin:\s*0\.003,\s*alphaDecay:\s*0\.018/,
+  );
   assert.match(source, /strength:\s*dense \? -125 : -190/);
   assert.match(source, /strength:\s*0\.66/);
-  assert.match(source, /centering:\s*\{\s*x:\s*0,\s*y:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.004\s*\}/);
+  assert.match(
+    source,
+    /centering:\s*\{\s*x:\s*0,\s*y:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.004\s*\}/,
+  );
   assert.match(source, /forceX:\s*\{\s*x:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.0035\s*\}/);
   assert.match(source, /forceY:\s*\{\s*y:\s*0,\s*strength:\s*dense \? 0\.0028 : 0\.0035\s*\}/);
 });

@@ -1,9 +1,9 @@
-import type { WorldInstanceId } from "../projection/world-projection.ts";
 import type {
   WorldForcePin,
   WorldForceSimulationBackend,
   WorldSimulationCoordinator,
 } from "../layout/world-force-simulation.ts";
+import type { WorldInstanceId } from "../projection/world-projection.ts";
 import type {
   InteractionCompletionReason,
   InteractionCoordinator,
@@ -38,18 +38,12 @@ function nonNegative(value: number, label: string): number {
   return normalized;
 }
 
-function forcePin(
-  instanceId: WorldInstanceId,
-  position: WorldNodeDragPosition,
-): WorldForcePin {
+function forcePin(instanceId: WorldInstanceId, position: WorldNodeDragPosition): WorldForcePin {
   return Object.freeze({
     instanceId,
     eastMeters: finite(position.eastMeters, "World drag east offset"),
     northMeters: finite(position.northMeters, "World drag north offset"),
-    visualAltitudeMeters: nonNegative(
-      position.visualAltitudeMeters,
-      "World drag visual altitude",
-    ),
+    visualAltitudeMeters: nonNegative(position.visualAltitudeMeters, "World drag visual altitude"),
   });
 }
 
@@ -108,11 +102,7 @@ export function createWorldNodeDragController(
   }
 
   function release(pointerId: number): boolean {
-    if (
-      activeInstanceId === null ||
-      activePointerId === null ||
-      activePointerId !== pointerId
-    ) {
+    if (activeInstanceId === null || activePointerId === null || activePointerId !== pointerId) {
       return false;
     }
 
@@ -127,9 +117,7 @@ export function createWorldNodeDragController(
     return released;
   }
 
-  function cancel(
-    reason: Exclude<InteractionCompletionReason, "release">,
-  ): WorldNodeDragState {
+  function cancel(reason: Exclude<InteractionCompletionReason, "release">): WorldNodeDragState {
     if (activeInstanceId !== null) {
       backend.setPin(null);
       simulation.release("drag");
@@ -160,6 +148,4 @@ export function createWorldNodeDragController(
   });
 }
 
-export type WorldNodeDragController = ReturnType<
-  typeof createWorldNodeDragController
->;
+export type WorldNodeDragController = ReturnType<typeof createWorldNodeDragController>;

@@ -1,13 +1,8 @@
 import { ReferenceWorldForceSimulation } from "../../src/layout/reference-world-force-simulation.ts";
-import type {
-  WorldForceSimulationBackend,
-} from "../../src/layout/world-force-simulation.ts";
 import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
+import type { WorldForceSimulationBackend } from "../../src/layout/world-force-simulation.ts";
+import { createDeckWorldRuntime, type DeckWorldBindings } from "./deck-world-runtime.ts";
 import { DeckWorldSurface } from "./deck-world-surface.ts";
-import {
-  createDeckWorldRuntime,
-  type DeckWorldBindings,
-} from "./deck-world-runtime.ts";
 import {
   WorldProjectionView,
   type WorldViewModel,
@@ -130,8 +125,7 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
     if (this.#destroyed) return;
 
     const elapsed = timestamp - this.#lastFrameAt;
-    const deltaMs =
-      Number.isFinite(elapsed) && elapsed > 0 ? Math.min(64, elapsed) : 1000 / 60;
+    const deltaMs = Number.isFinite(elapsed) && elapsed > 0 ? Math.min(64, elapsed) : 1000 / 60;
     this.#lastFrameAt = timestamp;
 
     const state = this.#runtime.step(deltaMs);
@@ -150,9 +144,7 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
   }
 }
 
-export function createWorldViewFactory(
-  options: WorldViewFactoryOptions,
-): WorldViewFactory {
+export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldViewFactory {
   const scheduler = options.scheduler ?? browserScheduler();
   const deckRuntime = createDeckWorldRuntime(options.bindings);
 
@@ -160,11 +152,9 @@ export function createWorldViewFactory(
     create(root: HTMLElement | null): WorldApplicationView | null {
       if (!root) return null;
 
-      const container =
-        root.querySelector<HTMLElement>(".temporal-graph-canvas") ?? root;
+      const container = root.querySelector<HTMLElement>(".temporal-graph-canvas") ?? root;
       const surface = new DeckWorldSurface(container, deckRuntime);
-      const forceBackend =
-        options.createForceBackend?.() ?? new ReferenceWorldForceSimulation();
+      const forceBackend = options.createForceBackend?.() ?? new ReferenceWorldForceSimulation();
       const runtime = new WorldViewRuntimeController({
         surface,
         forceBackend,

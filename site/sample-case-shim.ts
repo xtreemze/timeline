@@ -1,3 +1,5 @@
-import { TimelineSampleCase } from './sample-case.ts';
+import { TimelineSampleCase } from "./sample-case.ts";
+
 globalThis.TimelineSampleCase = TimelineSampleCase;
+
 export {};

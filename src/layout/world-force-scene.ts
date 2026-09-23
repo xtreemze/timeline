@@ -69,8 +69,7 @@ function nodeFromInstance(
     id: instance.id,
     canonicalId: instance.canonicalId,
     mass: policy.baseMass + instance.visualWeight * policy.visualWeightMassScale,
-    collisionRadiusMeters:
-      policy.baseCollisionRadiusMeters * (0.75 + instance.visualWeight * 0.5),
+    collisionRadiusMeters: policy.baseCollisionRadiusMeters * (0.75 + instance.visualWeight * 0.5),
     initialEastMeters: instance.localOffset?.eastMeters ?? 0,
     initialNorthMeters: instance.localOffset?.northMeters ?? 0,
     targetVisualAltitudeMeters: instance.visualAltitude ?? 0,
@@ -125,9 +124,7 @@ export function createWorldForceScene(
     }),
   );
 
-  const anchors = projection.instances.flatMap((instance) =>
-    anchorsFromInstance(instance, policy),
-  );
+  const anchors = projection.instances.flatMap((instance) => anchorsFromInstance(instance, policy));
 
   return Object.freeze({
     nodes: Object.freeze(

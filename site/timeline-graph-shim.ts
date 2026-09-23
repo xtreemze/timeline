@@ -8,4 +8,5 @@ import { TimelineGraph } from "./timeline-graph.ts";
  * with renderer-availability fallbacks.
  */
 globalThis.TimelineGraph = TimelineGraph;
+
 export {};

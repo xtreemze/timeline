@@ -11,7 +11,10 @@ async function readJson(relativePath) {
 }
 
 test("quality tooling uses one strict Biome gate plus architecture policy", async () => {
-  const [biome, packageJson] = await Promise.all([readJson("biome.json"), readJson("package.json")]);
+  const [biome, packageJson] = await Promise.all([
+    readJson("biome.json"),
+    readJson("package.json"),
+  ]);
 
   assert.equal(biome.linter?.enabled, true);
   assert.equal(biome.linter?.rules?.preset, "all");

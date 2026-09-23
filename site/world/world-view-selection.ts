@@ -15,9 +15,7 @@ export interface CompatibleSpatialViewFactory {
 function compatibleFactory(value: unknown): CompatibleSpatialViewFactory | null {
   if (!value || typeof value !== "object") return null;
   const create = Reflect.get(value, "create");
-  return typeof create === "function"
-    ? (value as CompatibleSpatialViewFactory)
-    : null;
+  return typeof create === "function" ? (value as CompatibleSpatialViewFactory) : null;
 }
 
 export function selectPrimarySpatialViewFactory(

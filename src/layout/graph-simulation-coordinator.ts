@@ -172,6 +172,4 @@ export function createGraphSimulationCoordinator(adapter: GraphSimulationAdapter
   });
 }
 
-export type GraphSimulationCoordinator = ReturnType<
-  typeof createGraphSimulationCoordinator
->;
+export type GraphSimulationCoordinator = ReturnType<typeof createGraphSimulationCoordinator>;

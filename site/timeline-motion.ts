@@ -16,7 +16,10 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-export function responseForElapsed(elapsedMs: unknown, responseMs: number = PAN_RESPONSE_MS): number {
+export function responseForElapsed(
+  elapsedMs: unknown,
+  responseMs: number = PAN_RESPONSE_MS,
+): number {
   const elapsed = clamp(Number(elapsedMs) || 0, 0, 64);
   const response = Math.max(1, Number(responseMs) || PAN_RESPONSE_MS);
   return 1 - Math.exp(-elapsed / response);
@@ -103,11 +106,7 @@ interface VectorSample {
 function isVectorSample(value: unknown): value is VectorSample {
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
-  return (
-    Number.isFinite(record.x) &&
-    Number.isFinite(record.y) &&
-    Number.isFinite(record.time)
-  );
+  return Number.isFinite(record.x) && Number.isFinite(record.y) && Number.isFinite(record.time);
 }
 
 export function appendPointerVectorSamples(
@@ -183,8 +182,7 @@ type HapticGamepad = Gamepad & {
 };
 
 async function gamepadPulse(duration: number, magnitude: number): Promise<boolean> {
-  if (typeof navigator === "undefined" || typeof navigator.getGamepads !== "function")
-    return false;
+  if (typeof navigator === "undefined" || typeof navigator.getGamepads !== "function") return false;
   const gamepads = Array.from(navigator.getGamepads?.() || []).filter(
     (gamepad): gamepad is Gamepad => Boolean(gamepad),
   );

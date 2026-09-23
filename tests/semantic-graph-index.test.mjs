@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  createSemanticGraphIndex,
-} from "../src/application/semantic-graph-index.ts";
+import { createSemanticGraphIndex } from "../src/application/semantic-graph-index.ts";
 import { entityId, relationshipId } from "../src/domain/ids.ts";
 
 function entity(id) {
@@ -47,22 +45,25 @@ test("semantic graph index exposes deterministic incoming outgoing and incident 
     ),
   );
 
-  assert.deepEqual(index.outgoing(entityId("a")).map((entry) => String(entry.id)), ["r-1"]);
-  assert.deepEqual(index.incoming(entityId("a")).map((entry) => String(entry.id)), ["r-2", "r-3"]);
-  assert.deepEqual(index.incident(entityId("a")).map((entry) => String(entry.id)), [
-    "r-1",
-    "r-2",
-    "r-3",
-  ]);
+  assert.deepEqual(
+    index.outgoing(entityId("a")).map((entry) => String(entry.id)),
+    ["r-1"],
+  );
+  assert.deepEqual(
+    index.incoming(entityId("a")).map((entry) => String(entry.id)),
+    ["r-2", "r-3"],
+  );
+  assert.deepEqual(
+    index.incident(entityId("a")).map((entry) => String(entry.id)),
+    ["r-1", "r-2", "r-3"],
+  );
   assert.deepEqual(index.degree(entityId("a")), { incoming: 2, outgoing: 1, total: 3 });
 });
 
 test("semantic graph index rejects self loops and duplicate canonical IDs deterministically", () => {
   assert.throws(
     () =>
-      createSemanticGraphIndex(
-        project([entity("a")], [relationship("loop", "a", "a", "called")]),
-      ),
+      createSemanticGraphIndex(project([entity("a")], [relationship("loop", "a", "a", "called")])),
     /cannot target its source entity/i,
   );
 
@@ -76,10 +77,7 @@ test("semantic graph index rejects self loops and duplicate canonical IDs determ
       createSemanticGraphIndex(
         project(
           [entity("a"), entity("b")],
-          [
-            relationship("same", "a", "b", "called"),
-            relationship("same", "b", "a", "warned"),
-          ],
+          [relationship("same", "a", "b", "called"), relationship("same", "b", "a", "warned")],
         ),
       ),
     /Duplicate relationship ID "same"/,
@@ -110,10 +108,7 @@ test("bounded deterministic neighborhood traversal is independent of input order
 
 test("connected components are stable regardless of source array ordering", () => {
   const entities = ["a", "b", "c", "d", "e"].map(entity);
-  const relationships = [
-    relationship("r-ab", "a", "b"),
-    relationship("r-cd", "c", "d"),
-  ];
+  const relationships = [relationship("r-ab", "a", "b"), relationship("r-cd", "c", "d")];
 
   const expected = [["a", "b"], ["c", "d"], ["e"]];
   assert.deepEqual(
@@ -130,10 +125,7 @@ test("connected components are stable regardless of source array ordering", () =
 
 test("debug snapshot contains canonical topology only and no renderer/provider attributes", () => {
   const index = createSemanticGraphIndex(
-    project(
-      [entity("a"), entity("b")],
-      [relationship("r-ab", "a", "b", "called")],
-    ),
+    project([entity("a"), entity("b")], [relationship("r-ab", "a", "b", "called")]),
   );
 
   const snapshot = index.snapshot();
@@ -161,10 +153,7 @@ test("replace rebuilds topology atomically and updates the revision", () => {
   index.replace(
     project(
       [entity("a"), entity("b"), entity("c")],
-      [
-        relationship("r-ab", "a", "b"),
-        relationship("r-bc", "b", "c", "warned"),
-      ],
+      [relationship("r-ab", "a", "b"), relationship("r-bc", "b", "c", "warned")],
     ),
   );
 

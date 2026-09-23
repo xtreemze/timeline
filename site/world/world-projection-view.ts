@@ -1,10 +1,15 @@
-import { entityId, placeId, relationshipId } from "../../src/domain/ids.ts";
 import type { CanonicalSpatialGeometry } from "../../src/domain/geotemporal.ts";
 import { validateSpatialGeometry } from "../../src/domain/geotemporal.ts";
+import type { EntityId, PlaceId, RelationshipId } from "../../src/domain/ids.ts";
+import { entityId, placeId, relationshipId } from "../../src/domain/ids.ts";
 import type {
   CanonicalRelationship,
   CanonicalTemporalExtent,
 } from "../../src/domain/relationship.ts";
+import {
+  SpatialAnchorIndex,
+  type SpatialPlaceRecord,
+} from "../../src/projection/spatial-anchor-index.ts";
 import {
   occurrenceViewportWeight,
   type ProjectableOccurrence,
@@ -13,15 +18,9 @@ import {
   createTemporalOccurrenceIndex,
   type TemporalOccurrenceIndex,
 } from "../../src/projection/temporal-occurrence-index.ts";
-import {
-  SpatialAnchorIndex,
-  type SpatialPlaceRecord,
-} from "../../src/projection/spatial-anchor-index.ts";
 import { projectWorldOccurrences } from "../../src/projection/world-occurrence-projection.ts";
-import type { RelationshipId } from "../../src/domain/ids.ts";
-import { TimelineTemporal } from "../temporal-standards.ts";
-import type { EntityId, PlaceId } from "../../src/domain/ids.ts";
 import type { WorldProjection } from "../../src/projection/world-projection.ts";
+import { TimelineTemporal } from "../temporal-standards.ts";
 
 export interface WorldProjectionRuntime {
   setProjection(projection: WorldProjection): void;
@@ -84,9 +83,7 @@ function canonicalGeometry(value: unknown): CanonicalSpatialGeometry | null {
   return value as CanonicalSpatialGeometry;
 }
 
-function temporalEndpoint(
-  value: unknown,
-): Readonly<Record<string, unknown>> | null {
+function temporalEndpoint(value: unknown): Readonly<Record<string, unknown>> | null {
   if (value === null || value === undefined) return null;
   return isRecord(value) ? Object.freeze({ ...value }) : null;
 }
@@ -183,7 +180,9 @@ function canonicalRelationships(
         sourceIds: Object.freeze([]),
         confidence: confidence(raw.confidence),
         time: canonicalTime(raw.time),
-        attributes: isRecord(raw.attributes) ? Object.freeze({ ...raw.attributes }) : Object.freeze({}),
+        attributes: isRecord(raw.attributes)
+          ? Object.freeze({ ...raw.attributes })
+          : Object.freeze({}),
       }),
     );
   }
@@ -231,9 +230,7 @@ export class WorldProjectionView {
     const entities = Array.isArray(model.entities) ? model.entities : [];
     const places = canonicalPlaces(Array.isArray(model.places) ? model.places : []);
 
-    this.#entityIds = new Set(
-      entities.map((entity) => text(entity.id)).filter(Boolean),
-    );
+    this.#entityIds = new Set(entities.map((entity) => text(entity.id)).filter(Boolean));
     this.#placeIds = new Set(places.map((place) => String(place.id)));
 
     this.#relationships = canonicalRelationships(
@@ -278,8 +275,10 @@ export class WorldProjectionView {
   hasContext(): boolean {
     const projection = this.#runtime.getRenderProjection();
     if (!this.#focusId || !projection) return false;
-    return projection.edges.some((edge) => String(edge.id) === this.#focusId) ||
-      projection.instances.some((instance) => String(instance.canonicalId) === this.#focusId);
+    return (
+      projection.edges.some((edge) => String(edge.id) === this.#focusId) ||
+      projection.instances.some((instance) => String(instance.canonicalId) === this.#focusId)
+    );
   }
 
   refreshLayout(): void {
@@ -309,10 +308,7 @@ export class WorldProjectionView {
     const weights = new Map<RelationshipId, number>();
     if (this.#viewport) {
       for (const occurrence of activeTimed) {
-        weights.set(
-          occurrence.id,
-          occurrenceViewportWeight(occurrence, { time: this.#viewport }),
-        );
+        weights.set(occurrence.id, occurrenceViewportWeight(occurrence, { time: this.#viewport }));
       }
     }
     for (const id of this.#timelessIds) weights.set(id, 1);

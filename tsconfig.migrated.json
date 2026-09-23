@@ -15,8 +15,5 @@
     "playwright.config.ts",
     "playwright.highlight.config.ts"
   ],
-  "exclude": [
-    "node_modules",
-    "site/orb-graph.bundle.js"
-  ]
+  "exclude": ["node_modules", "site/orb-graph.bundle.js"]
 }

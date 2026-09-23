@@ -1,22 +1,22 @@
-import { copyFileSync, mkdirSync } from 'node:fs';
-import { defineConfig } from 'vite';
+import { copyFileSync, mkdirSync } from "node:fs";
+import { defineConfig } from "vite";
 
 const runtimeFiles = [
-  'orb-graph.bundle.js',
-  'leaflet.bundle.js',
-  'evidence-extraction.bundle.js',
-  'pdf.worker.mjs',
+  "orb-graph.bundle.js",
+  "leaflet.bundle.js",
+  "evidence-extraction.bundle.js",
+  "pdf.worker.mjs",
 ] as const;
 
 export default defineConfig({
-  root: 'site',
+  root: "site",
   // Keep production assets relative so the same build works under GitHub Pages' /timeline/ subpath.
-  base: './',
+  base: "./",
   plugins: [
     {
-      name: 'copy-static-runtime-bundles',
+      name: "copy-static-runtime-bundles",
       closeBundle() {
-        const outputDirectory = new URL('./dist/', import.meta.url);
+        const outputDirectory = new URL("./dist/", import.meta.url);
         mkdirSync(outputDirectory, { recursive: true });
         for (const file of runtimeFiles) {
           copyFileSync(
@@ -29,12 +29,12 @@ export default defineConfig({
   ],
   build: {
     emptyOutDir: true,
-    outDir: '../dist',
+    outDir: "../dist",
     sourcemap: false,
-    target: 'chrome155',
+    target: "chrome155",
     rollupOptions: {
       input: {
-        main: new URL('./site/index.html', import.meta.url).pathname,
+        main: new URL("./site/index.html", import.meta.url).pathname,
       },
     },
   },
@@ -42,7 +42,7 @@ export default defineConfig({
     port: 5173,
     open: true,
     watch: {
-      include: ['site/**', 'src/**'],
+      include: ["site/**", "src/**"],
     },
   },
   preview: {

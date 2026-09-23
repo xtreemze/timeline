@@ -38,11 +38,7 @@ test("screen drag geometry unprojects at the node's current visual altitude", ()
     },
   };
 
-  const position = resolveWorldNodeDragPosition(
-    surface,
-    instance(),
-    { x: 120, y: 80 },
-  );
+  const position = resolveWorldNodeDragPosition(surface, instance(), { x: 120, y: 80 });
 
   assert.ok(position);
   assert.deepEqual(calls, [[{ x: 120, y: 80 }, 1020]]);
@@ -79,11 +75,7 @@ test("unplaced instances cannot acquire drag geography by unprojecting the scree
   };
 
   assert.equal(
-    resolveWorldNodeDragPosition(
-      surface,
-      instance({ geographicAnchors: [] }),
-      { x: 10, y: 10 },
-    ),
+    resolveWorldNodeDragPosition(surface, instance({ geographicAnchors: [] }), { x: 10, y: 10 }),
     null,
   );
   assert.equal(called, false);
@@ -96,8 +88,5 @@ test("failed viewport unprojection leaves the drag unresolved", () => {
     },
   };
 
-  assert.equal(
-    resolveWorldNodeDragPosition(surface, instance(), { x: 10, y: 10 }),
-    null,
-  );
+  assert.equal(resolveWorldNodeDragPosition(surface, instance(), { x: 10, y: 10 }), null);
 });

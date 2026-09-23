@@ -49,10 +49,7 @@ test("viewport identity is deterministic for equivalent explicit state", () => {
 test("occurrence activation uses inclusive interval intersection", () => {
   const viewport = { time: { start: 100, end: 200 } };
 
-  assert.equal(
-    occurrenceIntersectsViewport({ id: "covers", start: 0, end: 300 }, viewport),
-    true,
-  );
+  assert.equal(occurrenceIntersectsViewport({ id: "covers", start: 0, end: 300 }, viewport), true);
   assert.equal(
     occurrenceIntersectsViewport({ id: "left-boundary", start: 0, end: 100 }, viewport),
     true,
@@ -65,10 +62,7 @@ test("occurrence activation uses inclusive interval intersection", () => {
     occurrenceIntersectsViewport({ id: "instant", start: 150, end: null }, viewport),
     true,
   );
-  assert.equal(
-    occurrenceIntersectsViewport({ id: "before", start: 0, end: 99 }, viewport),
-    false,
-  );
+  assert.equal(occurrenceIntersectsViewport({ id: "before", start: 0, end: 99 }, viewport), false);
 });
 
 test("active occurrence projection is stable independent of source order", () => {
