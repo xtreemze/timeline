@@ -47,13 +47,24 @@ function resolveBase() {
   return null;
 }
 
-function changedFiles(base) {
-  if (!base) return [];
-  const result = git(["diff", "--name-only", "--diff-filter=ACMR", `${base}...HEAD`]);
+function pathsFrom(result) {
   return result.stdout
     .split("\n")
     .map((path) => path.trim())
-    .filter(Boolean)
+    .filter(Boolean);
+}
+
+function changedFiles(base) {
+  if (!base) return [];
+
+  const paths = new Set([
+    ...pathsFrom(git(["diff", "--name-only", "--diff-filter=ACMR", `${base}...HEAD`])),
+    ...pathsFrom(git(["diff", "--name-only", "--diff-filter=ACMR"])),
+    ...pathsFrom(git(["diff", "--cached", "--name-only", "--diff-filter=ACMR"])),
+    ...pathsFrom(git(["ls-files", "--others", "--exclude-standard"])),
+  ]);
+
+  return [...paths]
     .filter((path) => supportedExtensions.has(extname(path)))
     .filter((path) => !ignoredPaths.has(path))
     .filter((path) => existsSync(path));
