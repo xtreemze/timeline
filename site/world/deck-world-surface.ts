@@ -32,6 +32,7 @@ export const DECK_WORLD_LAYER_IDS = Object.freeze({
   places: "lum-world-places",
   relationships: "lum-world-relationships",
   entities: "lum-world-entities",
+  labels: "lum-world-labels",
 });
 
 interface DeckRuntimeViewState {
@@ -87,12 +88,14 @@ export interface DeckWorldRuntime {
   createMapView?(props: Readonly<Record<string, unknown>>): unknown;
   createScatterplotLayer(props: Readonly<Record<string, unknown>>): unknown;
   createPathLayer(props: Readonly<Record<string, unknown>>): unknown;
+  createTextLayer?(props: Readonly<Record<string, unknown>>): unknown;
   createDeck(props: Readonly<Record<string, unknown>>): DeckRuntimeInstance;
 }
 
 interface DeckWorldEntityDatum {
   readonly kind: "entity";
   readonly entityId: EntityId;
+  readonly label?: string;
   readonly worldInstanceId: WorldInstanceId;
   readonly position: WorldRenderPosition;
   readonly selected: boolean;
@@ -110,6 +113,7 @@ interface DeckWorldRelationshipDatum {
 interface DeckWorldPlaceDatum {
   readonly kind: "place";
   readonly placeId: PlaceId;
+  readonly label?: string;
   readonly position: WorldRenderPosition;
   readonly selected: boolean;
 }
@@ -379,8 +383,13 @@ function placeDatumUnchanged(
   previous: DeckWorldPlaceDatum,
   position: WorldRenderPosition,
   selected: boolean,
+  label: string | undefined,
 ): boolean {
-  return previous.selected === selected && positionEquals(previous.position, position);
+  return (
+    previous.selected === selected &&
+    previous.label === label &&
+    positionEquals(previous.position, position)
+  );
 }
 
 /**
@@ -407,14 +416,16 @@ function placeDatums(
         anchor.sourceAltitude ?? 0,
       ]) as WorldRenderPosition;
       const selected = selection?.kind === "place" && selection.id === anchor.placeId;
+      const label = anchor.label;
       const prior = previous.get(anchor.placeId);
       byPlace.set(
         anchor.placeId,
-        prior && placeDatumUnchanged(prior, position, selected)
+        prior && placeDatumUnchanged(prior, position, selected, label)
           ? prior
           : Object.freeze({
               kind: "place",
               placeId: anchor.placeId,
+              ...(label ? { label } : {}),
               position,
               selected,
             }),
@@ -437,10 +448,12 @@ function entityDatumUnchanged(
   position: WorldRenderPosition,
   selected: boolean,
   visualWeight: number,
+  label: string | undefined,
 ): boolean {
   return (
     previous.selected === selected &&
     previous.visualWeight === visualWeight &&
+    previous.label === label &&
     positionEquals(previous.position, position)
   );
 }
@@ -460,13 +473,15 @@ function entityDatums(
     const position = anchorPosition(instance);
     if (!position) continue;
     const selected = selection?.kind === "entity" && selection.id === instance.canonicalId;
+    const label = instance.label;
     const prior = previous.get(instance.id);
     const datum =
-      prior && entityDatumUnchanged(prior, position, selected, instance.visualWeight)
+      prior && entityDatumUnchanged(prior, position, selected, instance.visualWeight, label)
         ? prior
         : Object.freeze({
             kind: "entity" as const,
             entityId: instance.canonicalId,
+            ...(label ? { label } : {}),
             worldInstanceId: instance.id,
             position,
             selected,
@@ -484,6 +499,25 @@ function entityDatums(
     ),
     byId,
   };
+}
+
+type DeckWorldLabelDatum = DeckWorldPlaceDatum | DeckWorldEntityDatum;
+
+function labelDatums(
+  places: readonly DeckWorldPlaceDatum[],
+  entities: readonly DeckWorldEntityRenderDatum[],
+): readonly DeckWorldLabelDatum[] {
+  const result: DeckWorldLabelDatum[] = [];
+
+  for (const place of places) {
+    if (place.label) result.push(place);
+  }
+
+  for (const entity of entities) {
+    if (entity.kind === "entity" && entity.label) result.push(entity);
+  }
+
+  return Object.freeze(result);
 }
 
 function relationshipDatumUnchanged(
@@ -1121,6 +1155,7 @@ export class DeckWorldSurface implements WorldSurface {
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
     const entities = clusterEntityDatums(entityResult.datums, this.#camera.zoom);
+    const labels = labelDatums(places, entities);
     this.#placeDatumCache = placeResult.byId;
     this.#relationshipDatumCache = relationshipResult.byId;
     this.#entityDatumCache = entityResult.byId;
@@ -1178,6 +1213,28 @@ export class DeckWorldSurface implements WorldSurface {
             }
           : {}),
       }),
+      ...(this.#runtime.createTextLayer && labels.length > 0
+        ? [
+            this.#runtime.createTextLayer({
+              id: DECK_WORLD_LAYER_IDS.labels,
+              data: labels,
+              pickable: false,
+              billboard: true,
+              sizeUnits: "pixels",
+              getPosition: (datum: DeckWorldLabelDatum) => datum.position,
+              getText: (datum: DeckWorldLabelDatum) => datum.label ?? "",
+              getSize: (datum: DeckWorldLabelDatum) =>
+                datum.selected
+                  ? 16
+                  : datum.kind === "entity"
+                    ? 11 + Math.round(datum.visualWeight * 3)
+                    : 12,
+              getColor: (datum: DeckWorldLabelDatum) =>
+                datum.selected ? [255, 255, 255, 255] : [235, 235, 235, 230],
+              getPixelOffset: [0, -14],
+            }),
+          ]
+        : []),
     ];
 
     this.#deck.setProps({ layers });
