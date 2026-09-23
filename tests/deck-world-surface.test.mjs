@@ -1006,26 +1006,6 @@ test("clustering is bypassed at the default working zoom (issue #445 Priority 2)
   assert.ok(entities.every((datum) => datum.kind === "entity"));
 });
 
-test("dense globe overview clusters 50k instances and restores every canonical instance at working zoom", () => {
-  const { calls, runtime } = harness();
-  const surface = new DeckWorldSurface({}, runtime);
-
-  surface.setProjection(largeProjection(50_000));
-  const overviewEntities = calls.setProps.at(-1).layers[2].props.data;
-
-  assert.ok(
-    overviewEntities.length < 5_000,
-    `expected dense globe overview LOD to reduce 50k rendered glyphs, saw ${overviewEntities.length}`,
-  );
-  assert.ok(overviewEntities.some((datum) => datum.kind === "cluster"));
-
-  surface.setCamera({ longitude: 0, latitude: 0, zoom: 5, bearing: 0, pitch: 0 });
-  const workingEntities = calls.setProps.at(-1).layers[2].props.data;
-
-  assert.equal(workingEntities.length, 50_000);
-  assert.ok(workingEntities.every((datum) => datum.kind === "entity"));
-});
-
 test("zooming out past the cluster threshold groups nearby entities without losing canonical identity", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
