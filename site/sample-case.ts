@@ -3788,7 +3788,9 @@ const SAMPLE = {
             caption: "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
           },
         ],
-        relationChanges: [],
+        relationChanges: [
+          { relationshipId: "rel-red-wolf-threat", operation: "activate" },
+        ],
       },
       {
         id: "red-flower-delay",
@@ -3886,7 +3888,9 @@ const SAMPLE = {
             caption: "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
           },
         ],
-        relationChanges: [],
+        relationChanges: [
+          { relationshipId: "rel-red-wolf-threat", operation: "update", predicate: "pursues" },
+        ],
       },
       {
         id: "red-disguise",
@@ -4082,7 +4086,9 @@ const SAMPLE = {
             caption: "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
           },
         ],
-        relationChanges: [],
+        relationChanges: [
+          { relationshipId: "rel-red-wolf-threat", operation: "deactivate" },
+        ],
       },
       {
         id: "hg-family-hardship",
@@ -4433,7 +4439,9 @@ const SAMPLE = {
             caption: "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
           },
         ],
-        relationChanges: [],
+        relationChanges: [
+          { relationshipId: "rel-hg-witch-threat", operation: "activate" },
+        ],
       },
       {
         id: "hg-gretel-deceives",
@@ -4482,7 +4490,9 @@ const SAMPLE = {
             caption: "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
           },
         ],
-        relationChanges: [],
+        relationChanges: [
+          { relationshipId: "rel-hg-witch-threat", operation: "update", predicate: "guards" },
+        ],
       },
       {
         id: "hg-witch-defeated",
@@ -4531,7 +4541,9 @@ const SAMPLE = {
             caption: "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
           },
         ],
-        relationChanges: [],
+        relationChanges: [
+          { relationshipId: "rel-hg-witch-threat", operation: "deactivate" },
+        ],
       },
       {
         id: "hg-return-home",
@@ -7574,6 +7586,28 @@ const SAMPLE = {
         attributes: { storyId: "story-hansel-and-gretel" },
         placeId: "place-hg-family-cottage",
         itemIds: ["hg-return-home"],
+      },
+      {
+        id: "rel-red-wolf-threat",
+        subjectId: "red-wolf",
+        objectId: "red-riding-hood",
+        predicate: "threatens",
+        sourceIds: ["src-red-cap"],
+        initialState: "inactive",
+        placeId: "place-red-forest-path",
+        itemIds: ["red-meets-wolf", "red-grandmother-attack", "red-safe"],
+        attributes: { storyId: "story-little-red-riding-hood" },
+      },
+      {
+        id: "rel-hg-witch-threat",
+        subjectId: "hg-witch",
+        objectId: "hg-hansel",
+        predicate: "threatens",
+        sourceIds: ["src-hansel-gretel"],
+        initialState: "inactive",
+        placeId: "place-hg-gingerbread-house",
+        itemIds: ["hg-witch-captures", "hg-gretel-deceives", "hg-witch-defeated"],
+        attributes: { storyId: "story-hansel-and-gretel" },
       },
 ],
     extensions: {
