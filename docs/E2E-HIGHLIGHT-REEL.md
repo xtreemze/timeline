@@ -1,6 +1,6 @@
 # E2E highlight reel
 
-Lūm's CI can produce a short, branded visual receipt from the real browser application.
+Lūm's dedicated `E2E media showcase` CI workflow produces a branded visual receipt from the real browser application independently of the full browser-certification matrix.
 
 ## Pipeline
 
@@ -52,3 +52,8 @@ artifacts/e2e-media/gifs/05-mobile.gif
 GIFs use an infinite loop, 10 fps, a constrained palette, and Lanczos scaling. Each recorded interaction deliberately returns to its starting UI state before capture ends so the restart is visually natural rather than an arbitrary jump.
 
 The deployed URLs are `https://xtreemze.github.io/timeline/showcase/<filename>.gif`.
+
+
+## CI ownership
+
+The showcase runs in `.github/workflows/e2e-media.yml`, not in the large Timeline-view matrix. This keeps media regeneration independently cancellable, avoids blocking on unrelated certification lanes, and allows `workflow_dispatch` regeneration on demand. The media workflow runs its configuration-contract test before launching Chromium.
