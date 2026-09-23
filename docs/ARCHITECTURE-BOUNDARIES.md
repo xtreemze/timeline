@@ -179,12 +179,14 @@ Projection code is pure/deterministic where practical and does not mutate canoni
 Expected projections:
 
 - `TimelineProjection`;
-- `GraphProjection`;
-- `SpatialProjection`;
+- `WorldProjection` — unified geographic + relational scene;
 - `AccessibilityProjection`;
-- analysis/proof projections where required.
+- analysis/proof projections where required;
+- temporary `GraphProjection`/`MapProjection` compatibility projections during migration.
 
-Projection responsibilities may include significance filtering, timeline clustering, graph neighborhoods, spatial anchor derivation, accessibility summaries, and compatibility records for existing renderers.
+Projection responsibilities may include significance filtering, timeline clustering, graph neighborhoods, spatial anchor derivation, world-instance materialization, accessibility summaries, and compatibility records for existing renderers.
+
+The strategic spatial architecture is one globe-first world scene. Geography and graph topology are coordinate/constraint systems over the same `WorldProjection`; they are not independent long-term surfaces that must synchronize cameras and selection.
 
 Renderer-specific enums or objects must not leak back into projection inputs or canonical state.
 
@@ -192,21 +194,23 @@ Renderer-specific enums or objects must not leak back into projection inputs or 
 
 Lūm uses two related but separate spatial systems.
 
-### Semantic geography
+### Semantic geography and world layout
 
-Owned by #236 and spatial projection/layout services.
+Owned by #236, #247, #437 and #445.
 
 Responsibilities:
 
 - canonical `places[]`;
 - GeoJSON/source-backed coordinates;
-- map projection;
+- global geographic/Earth projection;
 - `SpatialAnchorIndex`;
-- relationship-to-place association;
-- bounded geographic influence on graph layout;
-- map/graph camera coordination.
+- occurrence-to-place association;
+- multiple rendered instances for one canonical entity when different occurrences require different places;
+- geographic, topology, collision, cluster and altitude constraints;
+- globe/world camera coordination;
+- derived visual altitude that separates interactive topology from the Earth surface.
 
-Places remain anchors and records, not graph entity nodes.
+Places remain anchors and records, not graph entity nodes. Canonical entities do not acquire one permanent coordinate merely because placed occurrences reference them. Rendered world instances and any local geographic offsets remain disposable projection/layout state.
 
 ### Workspace placement
 
@@ -236,7 +240,7 @@ CSS remains authoritative for ordinary intrinsic layout. Prefer Grid/Flexbox, lo
 
 ## 7. Interaction ownership
 
-Lūm owns gesture semantics across timeline, graph, and map.
+Lūm owns gesture semantics across the timeline and world surface. Legacy graph/map adapters participate through the same coordinator during migration.
 
 Required state model:
 
@@ -269,9 +273,12 @@ External technology must sit behind Lūm-owned interfaces.
 
 Examples:
 
-- `GraphSurface` -> Orb/Sigma;
+- `WorldSurface` -> deck.gl/luma.gl globe-first reference implementation;
+- `ForceSimulation` -> worker reference / cosmos.gl-derived GPU integration / future measured alternatives;
+- compatibility `GraphSurface` -> Orb/Sigma during migration;
+- compatibility map/editor surface -> Leaflet during migration;
 - `GraphIndex` -> Graphology;
-- `MapSurface` / spatial coordinator -> Leaflet/possible future renderer;
+- `InteractionSource` -> Pointer Events or mjolnir adapter;
 - `InferenceProvider` -> built-in/browser/remote models;
 - `ExtractionProvider` -> PDF/OCR/text;
 - `ProjectRepository` -> browser/local/future persistence;
@@ -309,8 +316,9 @@ Product-level regression fixtures should include:
 - ranged occurrences remain discoverable while intersecting the viewport;
 - no clipped year/tick labels;
 - no unreachable popovers/toolbars;
-- graph camera remains bounded;
-- long-press node acquisition cannot pan the whole graph;
+- world/globe camera remains bounded and recoverable;
+- long-press elevated-node acquisition cannot be stolen by world-camera movement;
+- derived visual altitude/local offsets never become canonical place evidence;
 - accepted inferred facts retain provenance;
 - temporal interval ordering remains valid.
 
@@ -338,7 +346,8 @@ When fixing a recurring failure, add the invariant/characterization test before 
 - #249 — interaction coordinator;
 - #250 — `app.ts` decomposition and ambient-global reduction;
 - #251 — architectural CI gates;
-- #236 — graph-first chronology, Graphology/Sigma, integrated geography;
+- #236 — occurrence-centered world projection and execution overhaul;
+- #445 — globe-first `WorldSurface` / deck.gl reference implementation and migration;
 - #243 — intrinsic/mobile-first responsive architecture.
 
 Recommended dependency order:
