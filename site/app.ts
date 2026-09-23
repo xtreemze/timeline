@@ -686,6 +686,7 @@ function closestEventTarget<T extends HTMLElement>(
       "--view-controls-bottom",
       "--view-controls-inline-size",
       "--view-controls-block-size",
+      "width",
     ]) {
       els.viewControls.style.removeProperty(property);
     }
@@ -809,14 +810,12 @@ function closestEventTarget<T extends HTMLElement>(
     const selected = snapshot.selected;
     if (!selected) return;
 
-    els.viewControls.style.setProperty(
-      "--view-controls-inline-size",
-      `${Math.floor(Math.min(availableWidth, selected.rect.width))}px`,
-    );
-    els.viewControls.style.setProperty(
-      "--view-controls-block-size",
-      `${Math.floor(Math.min(availableHeight, selected.rect.height))}px`,
-    );
+    const boundedInlineSize = Math.floor(Math.min(availableWidth, selected.rect.width));
+    const boundedBlockSize = Math.floor(Math.min(availableHeight, selected.rect.height));
+    els.viewControls.style.setProperty("--view-controls-inline-size", `${boundedInlineSize}px`);
+    els.viewControls.style.setProperty("--view-controls-block-size", `${boundedBlockSize}px`);
+    // Inline style is authoritative over orientation-specific max-content rules.
+    els.viewControls.style.width = `${boundedInlineSize}px`;
 
     els.viewControls.dataset.anchorPlacement = selected.id;
     els.viewControls.dataset.placementValid = String(snapshot.fullySatisfiesConstraints);
