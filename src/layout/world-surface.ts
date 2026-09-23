@@ -62,7 +62,7 @@ export interface WorldSurfaceCapabilities {
 
 export interface WorldSurface {
   setProjection(projection: WorldProjection): void;
-  setTemporalWindow(window: WorldTemporalWindow): void;
+  setTemporalWindow(range: WorldTemporalWindow): void;
   setSelection(selection: WorldSelection | null): void;
 
   getCamera(): WorldCameraState;
@@ -108,11 +108,11 @@ export function createWorldSpatialPosition(
   return Object.freeze({ longitude, latitude, altitudeMeters });
 }
 
-export function createWorldTemporalWindow(window: WorldTemporalWindow): WorldTemporalWindow {
-  const start = finite(window.start, "World temporal window start");
-  const end = finite(window.end, "World temporal window end");
+export function createWorldTemporalWindow(range: WorldTemporalWindow): WorldTemporalWindow {
+  const start = finite(range.start, "World temporal range start");
+  const end = finite(range.end, "World temporal range end");
   if (end < start) {
-    throw new Error("World temporal window end must be greater than or equal to start.");
+    throw new Error("World temporal range end must be greater than or equal to start.");
   }
   return Object.freeze({ start, end });
 }
