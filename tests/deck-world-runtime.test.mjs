@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { createDeckWorldRuntime } from "../site/world/deck-world-runtime.ts";
 import { createWorldViewFactory } from "../site/world/world-view-factory.ts";
+import { registerTimelineWorldView } from "../site/world/world-view-registration.ts";
 
 test("deck world runtime factory forwards every adapter construction through explicit bindings", () => {
   const calls = [];
@@ -273,4 +274,34 @@ test("destroying a scheduled world view cancels pending animation work", () => {
     harness.deckCalls.filter(([name]) => name === "finalize").length,
     1,
   );
+});
+
+
+test("world view registration publishes the composed factory without eager deck construction", () => {
+  let constructionCalls = 0;
+  const target = {};
+  const bindings = {
+    deck() {
+      constructionCalls += 1;
+      throw new Error("deck should remain lazy");
+    },
+    globeView() {
+      constructionCalls += 1;
+      throw new Error("globe should remain lazy");
+    },
+    scatterplotLayer() {
+      constructionCalls += 1;
+      throw new Error("layer should remain lazy");
+    },
+    pathLayer() {
+      constructionCalls += 1;
+      throw new Error("layer should remain lazy");
+    },
+  };
+
+  const factory = registerTimelineWorldView(bindings, {}, target);
+
+  assert.equal(target.TimelineWorldView, factory);
+  assert.equal(typeof factory.create, "function");
+  assert.equal(constructionCalls, 0);
 });
