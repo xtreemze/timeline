@@ -144,6 +144,7 @@ export type DeckWorldEntityRenderDatum = DeckWorldEntityDatum | DeckWorldCluster
  * unaffected at working zoom levels.
  */
 export const CLUSTER_ZOOM_THRESHOLD = 0.5;
+// Dense-overview LOD is certified separately from this baseline proximity threshold.
 
 /** Grid-cell size (degrees) used to bucket entities for clustering. */
 const CLUSTER_CELL_DEGREES = 6;
