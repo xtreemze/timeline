@@ -687,6 +687,8 @@ function closestEventTarget<T extends HTMLElement>(
       "--view-controls-inline-size",
       "--view-controls-block-size",
       "width",
+      "max-width",
+      "max-height",
     ]) {
       els.viewControls.style.removeProperty(property);
     }
