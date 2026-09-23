@@ -1,24 +1,24 @@
 {
-  "generatedAt": "2026-09-23T15:03:51.911Z",
+  "generatedAt": "2026-09-23T15:18:34.330Z",
   "scales": [
     {
       "label": "1k",
       "entityCount": 1000,
-      "firstUsableFrameMs": 1486.5,
+      "firstUsableFrameMs": 1388.9000000953674,
       "sustainedFrame": {
-        "p50Ms": 120.69999980926514,
-        "p95Ms": 124.10000014305115,
+        "p50Ms": 122,
+        "p95Ms": 124.5,
         "samples": 60
       },
-      "inputToPaintMs": 0.09999990463256836,
-      "pickingLatencyMs": 205.39999985694885,
+      "inputToPaintMs": 0.19999980926513672,
+      "pickingLatencyMs": 269.7999999523163,
       "incrementalUpdate": {
-        "smallDeltaMs": 16,
-        "fullSwapMs": 123.39999985694885
+        "smallDeltaMs": 9.799999952316284,
+        "fullSwapMs": 125.20000004768372
       },
       "sustainedNavigation": {
-        "durationMs": 3050.5,
-        "frames": 31,
+        "durationMs": 3035.7000000476837,
+        "frames": 30,
         "heapStartBytes": 17100000,
         "heapEndBytes": 17100000,
         "heapGrowthBytes": 0
@@ -27,20 +27,20 @@
     {
       "label": "10k",
       "entityCount": 10000,
-      "firstUsableFrameMs": 2499.2999999523163,
+      "firstUsableFrameMs": 2479.2000000476837,
       "sustainedFrame": {
-        "p50Ms": 1089.5,
-        "p95Ms": 1105,
+        "p50Ms": 1089.9000000953674,
+        "p95Ms": 1100.5,
         "samples": 60
       },
       "inputToPaintMs": 0.20000004768371582,
-      "pickingLatencyMs": 794.2000000476837,
+      "pickingLatencyMs": 803.6000001430511,
       "incrementalUpdate": {
-        "smallDeltaMs": 39.40000009536743,
-        "fullSwapMs": 1113.8999998569489
+        "smallDeltaMs": 27,
+        "fullSwapMs": 1117.8999998569489
       },
       "sustainedNavigation": {
-        "durationMs": 3263.7000000476837,
+        "durationMs": 3266.399999856949,
         "frames": 5,
         "heapStartBytes": 17100000,
         "heapEndBytes": 17100000,
@@ -50,20 +50,20 @@
     {
       "label": "50k",
       "entityCount": 50000,
-      "firstUsableFrameMs": 6915.299999952316,
+      "firstUsableFrameMs": 6912.099999904633,
       "sustainedFrame": {
-        "p50Ms": 5403.200000047684,
-        "p95Ms": 5665.400000095367,
+        "p50Ms": 5387.099999904633,
+        "p95Ms": 5414.5,
         "samples": 20
       },
-      "inputToPaintMs": 0.2999999523162842,
-      "pickingLatencyMs": 6150.600000143051,
+      "inputToPaintMs": 0.39999985694885254,
+      "pickingLatencyMs": 4138.200000047684,
       "incrementalUpdate": {
-        "smallDeltaMs": 124.40000009536743,
-        "fullSwapMs": 5544
+        "smallDeltaMs": 149.10000014305115,
+        "fullSwapMs": 5571.200000047684
       },
       "sustainedNavigation": {
-        "durationMs": 5455,
+        "durationMs": 5392.599999904633,
         "frames": 3,
         "heapStartBytes": 17100000,
         "heapEndBytes": 17100000,
@@ -73,11 +73,11 @@
     {
       "label": "150k-render-only",
       "entityCount": 150000,
-      "firstUsableFrameMs": 17782.400000095367,
+      "firstUsableFrameMs": 17819.700000047684,
       "sustainedFrame": {
-        "p50Ms": 16079,
-        "p95Ms": 16359.100000143051,
-        "samples": 20
+        "p50Ms": 15999.299999952316,
+        "p95Ms": 16024.899999856949,
+        "samples": 5
       },
       "inputToPaintMs": null,
       "pickingLatencyMs": null,

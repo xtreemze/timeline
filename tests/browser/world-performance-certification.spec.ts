@@ -260,11 +260,8 @@ function loadBaseline(): {
   }
 }
 
-declare global {
-  interface Window {
-    __worldPerfHarness?: {
-      surface: import("../../site/world/deck-world-surface.ts").DeckWorldSurface;
-      ready: boolean;
-    };
-  }
-}
+// `Window.__worldPerfHarness` is declared once, as the source of truth, in
+// `site/world-perf-harness.ts` (imported for its ambient `declare global`
+// side effect by any file in this program); redeclaring it here would
+// conflict once that shape grows (see world-interaction-coverage.spec.ts).
+import type {} from "../../site/world-perf-harness.ts";
