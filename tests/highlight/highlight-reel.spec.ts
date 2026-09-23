@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -15,7 +16,7 @@ type ReelSegment = {
 };
 
 async function recordSegment(
-  page: Parameters<Parameters<typeof test>[1]>[0]['page'],
+  page: Page,
   segment: Omit<ReelSegment, 'video' | 'screenshot'>,
   body: () => Promise<void>,
 ): Promise<ReelSegment> {
