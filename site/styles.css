@@ -877,11 +877,6 @@ geolocation {
   color: var(--map-marker-color, var(--focus));
   box-shadow: 0 2px 10px color-mix(in srgb, var(--ink) 18%, transparent);
 }
-.timeline-map-marker-shape-pin .timeline-map-marker-shell,
-.timeline-map-marker-shape-pin .timeline-map-place-icon {
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(-45deg);
-}
 
 .timeline-map-marker-shell .semantic-icon {
   width: 1.05rem;
@@ -925,6 +920,11 @@ geolocation {
   height: 2.35rem;
   flex-basis: 2.35rem;
   backdrop-filter: blur(8px);
+}
+.timeline-map-marker-shape-pin .timeline-map-marker-shell,
+.timeline-map-marker-shape-pin .timeline-map-place-icon {
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
 }
 .timeline-map-marker-shape-diamond .timeline-map-marker-shell,
 .timeline-map-marker-shape-diamond .timeline-map-place-icon {
@@ -1534,13 +1534,6 @@ geolocation {
   font-size: 1.02rem;
   letter-spacing: -0.02em;
 }
-.timeline-card p {
-  margin: 0.55rem 0 0;
-  color: var(--muted);
-  line-height: 1.55;
-  white-space: pre-wrap;
-  font-size: 0.86rem;
-}
 .card-actions {
   display: flex;
   flex: 0 0 auto;
@@ -1635,6 +1628,13 @@ footer {
 footer p {
   grid-column: 1 / span 8;
   margin: 0;
+}
+.timeline-card p {
+  margin: 0.55rem 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  font-size: 0.86rem;
 }
 .empty-state p {
   margin: 0;
@@ -2090,12 +2090,6 @@ footer > :last-child {
   display: grid;
   gap: 0.15rem;
 }
-.graph-lens > summary small,
-.graph-lens > summary [data-graph-status] {
-  color: var(--muted);
-  font-size: 0.66rem;
-  line-height: 1.4;
-}
 .temporal-graph-view {
   border-top: 1px solid var(--line);
 }
@@ -2412,10 +2406,6 @@ footer > :last-child {
   grid-template-columns: repeat(6, minmax(0, 1fr));
   grid-template-rows: repeat(6, minmax(0, 1fr));
 }
-#presentation-stage:fullscreen[data-timeline-orientation="vertical"] > .graph-lens {
-  grid-column: 1 / span 3;
-  grid-row: 1 / span 6;
-}
 #presentation-stage:fullscreen .graph-lens[open],
 #presentation-stage:fullscreen .temporal-graph-view {
   grid-template-rows: minmax(0, 1fr);
@@ -2437,16 +2427,13 @@ footer > :last-child {
 #presentation-stage:fullscreen .timeline-view {
   box-shadow: none;
 }
+#presentation-stage:fullscreen[data-timeline-orientation="vertical"] > .graph-lens {
+  grid-column: 1 / span 3;
+  grid-row: 1 / span 6;
+}
 #presentation-stage:fullscreen[data-timeline-orientation="horizontal"] > .graph-lens {
   grid-column: 1 / span 6;
   grid-row: 1 / span 3;
-}
-
-/* Timeline owns 75% of the presentation and stays attached to its temporal edge.
-   Graph and map share the complementary 25% rail at equal weight. */
-#presentation-stage:fullscreen[data-timeline-orientation="horizontal"] > .timeline-view {
-  grid-column: 1 / -1;
-  grid-row: 4 / -1;
 }
 
 @media (max-width: 760px) {
@@ -2486,12 +2473,6 @@ footer > :last-child {
 .app-shell.is-event-focused
   #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"] {
   grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
-}
-
-.app-shell.is-event-focused
-  #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"]
-  > .graph-lens {
-  grid-row: 1;
 }
 
 #presentation-stage:fullscreen {
@@ -2536,6 +2517,13 @@ footer > :last-child {
   z-index: 1;
 }
 
+/* Timeline owns 75% of the presentation and stays attached to its temporal edge.
+   Graph and map share the complementary 25% rail at equal weight. */
+#presentation-stage:fullscreen[data-timeline-orientation="horizontal"] > .timeline-view {
+  grid-column: 1 / -1;
+  grid-row: 4 / -1;
+}
+
 #presentation-stage:fullscreen[data-timeline-orientation="vertical"] > .timeline-view {
   grid-column: 4 / -1;
   grid-row: 1 / -1;
@@ -2566,6 +2554,12 @@ footer > :last-child {
 }
 
 #presentation-stage:fullscreen[data-has-context-graph="true"][data-has-context-map="true"]
+  > .graph-lens {
+  grid-row: 1;
+}
+
+.app-shell.is-event-focused
+  #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"]
   > .graph-lens {
   grid-row: 1;
 }
@@ -2900,6 +2894,12 @@ body {
   font-size: 0.64rem;
   font-weight: 520;
   line-height: 1.35;
+}
+.graph-lens > summary small,
+.graph-lens > summary [data-graph-status] {
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.4;
 }
 .optional-editor > summary small {
   color: var(--muted);
