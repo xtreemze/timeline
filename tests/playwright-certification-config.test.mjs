@@ -4,6 +4,7 @@ import test from "node:test";
 
 const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 const workflow = readFileSync(new URL("../.github/workflows/timeline-view.yml", import.meta.url), "utf8");
+const mediaWorkflow = readFileSync(new URL("../.github/workflows/e2e-media.yml", import.meta.url), "utf8");
 const config = readFileSync(new URL("../playwright.config.ts", import.meta.url), "utf8");
 const pagesConfig = readFileSync(new URL("../playwright.pages.config.ts", import.meta.url), "utf8");
 const pagesWorkflow = readFileSync(new URL("../.github/workflows/pages.yml", import.meta.url), "utf8");
@@ -142,14 +143,16 @@ test("CI produces a branded real-browser E2E highlight reel and retains raw evid
   assert.match(highlightSpec, /04-relation-graph/);
   assert.match(highlightSpec, /05-mobile/);
 
-  assert.match(workflow, /e2e-highlight-reel:/);
-  assert.match(workflow, /playwright install --with-deps chromium/);
-  assert.match(workflow, /apt-get install -y ffmpeg/);
-  assert.match(workflow, /pnpm test:e2e:highlight/);
-  assert.match(workflow, /pnpm render:e2e:highlight/);
-  assert.match(workflow, /name:\s*lum-e2e-highlight-reel/);
-  assert.match(workflow, /path:\s*artifacts\/e2e-media\//);
-  assert.match(workflow, /find artifacts\/e2e-media\/gifs/);
+  assert.match(mediaWorkflow, /showcase:/);
+  assert.match(mediaWorkflow, /Certify media-pipeline configuration/);
+  assert.match(mediaWorkflow, /pnpm test:browser-certification-config/);
+  assert.match(mediaWorkflow, /playwright install --with-deps chromium/);
+  assert.match(mediaWorkflow, /apt-get install -y ffmpeg/);
+  assert.match(mediaWorkflow, /pnpm test:e2e:highlight/);
+  assert.match(mediaWorkflow, /pnpm render:e2e:highlight/);
+  assert.match(mediaWorkflow, /name:\s*lum-e2e-showcase/);
+  assert.match(mediaWorkflow, /path:\s*artifacts\/e2e-media\//);
+  assert.match(mediaWorkflow, /find artifacts\/e2e-media\/gifs/);
   assert.match(pagesWorkflow, /pnpm test:e2e:highlight/);
   assert.match(pagesWorkflow, /pnpm render:e2e:highlight/);
   assert.match(pagesWorkflow, /dist\/showcase/);
