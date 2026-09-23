@@ -28,8 +28,6 @@ test("certification matrix includes desktop, portrait and landscape phones, tabl
     "Desktop Chrome",
     "Mobile Chrome",
     "Mobile Chrome Landscape",
-    "Mobile Safari",
-    "Mobile Safari Landscape",
     "Tablet Touch",
     "Reduced Motion",
   ]) {
@@ -39,8 +37,6 @@ test("certification matrix includes desktop, portrait and landscape phones, tabl
   for (const touchProject of [
     "Mobile Chrome",
     "Mobile Chrome Landscape",
-    "Mobile Safari",
-    "Mobile Safari Landscape",
     "Tablet Touch",
   ]) {
     const projectStart = config.indexOf(`name: '${touchProject}'`);
@@ -53,7 +49,9 @@ test("certification matrix includes desktop, portrait and landscape phones, tabl
 
 test("CI discovers core browser contracts and runs each browser lane fatally", () => {
   assert.doesNotMatch(workflow, /playwright\.config\.mjs/);
-  assert.match(workflow, /playwright install --with-deps chromium webkit/);
+  assert.match(workflow, /playwright install --with-deps chromium/);
+  assert.doesNotMatch(workflow, /playwright install --with-deps chromium webkit/);
+  assert.doesNotMatch(config, /Mobile Safari|iPhone 12|iPad Pro/);
 
   for (const spec of [
     "retained-structural-composition.spec.ts",
@@ -69,8 +67,6 @@ test("CI discovers core browser contracts and runs each browser lane fatally", (
     "[Desktop Chrome]",
     "[Mobile Chrome]",
     "[Mobile Chrome Landscape]",
-    "[Mobile Safari]",
-    "[Mobile Safari Landscape]",
     "[Tablet Touch]",
     "[Reduced Motion]",
   ]) {
@@ -106,8 +102,6 @@ test("graph touch certification covers portrait and landscape phone projects", (
   for (const project of [
     "Mobile Chrome",
     "Mobile Chrome Landscape",
-    "Mobile Safari",
-    "Mobile Safari Landscape",
     "Tablet Touch",
   ]) {
     assert.ok(command.includes(`--project="${project}"`), `graph touch missing ${project}`);
