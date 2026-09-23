@@ -38,11 +38,7 @@ test("active placed relationships compose into elevated-world-ready instances an
     relationships,
   );
 
-  const projection = projectWorldOccurrences(
-    relationships,
-    ["stockholm-meeting"],
-    spatialAnchors,
-  );
+  const projection = projectWorldOccurrences(relationships, ["stockholm-meeting"], spatialAnchors);
 
   assert.equal(projection.instances.length, 2);
   assert.equal(projection.edges.length, 1);
@@ -112,11 +108,7 @@ test("world occurrence projection consumes an explicit active set instead of fil
   ];
   const spatialAnchors = new SpatialAnchorIndex([], relationships);
 
-  const projection = projectWorldOccurrences(
-    relationships,
-    ["active"],
-    spatialAnchors,
-  );
+  const projection = projectWorldOccurrences(relationships, ["active"], spatialAnchors);
 
   assert.deepEqual(
     projection.edges.map((edge) => edge.id),
@@ -138,16 +130,11 @@ test("temporal, visual, and retained weights are projected without changing cano
   const before = JSON.stringify(canonical);
   const spatialAnchors = new SpatialAnchorIndex([], relationships);
 
-  const projection = projectWorldOccurrences(
-    relationships,
-    ["weighted"],
-    spatialAnchors,
-    {
-      temporalWeights: new Map([["weighted", 0.4]]),
-      visualWeights: new Map([["weighted", 0.7]]),
-      retainedOccurrenceIds: new Set(["weighted"]),
-    },
-  );
+  const projection = projectWorldOccurrences(relationships, ["weighted"], spatialAnchors, {
+    temporalWeights: new Map([["weighted", 0.4]]),
+    visualWeights: new Map([["weighted", 0.7]]),
+    retainedOccurrenceIds: new Set(["weighted"]),
+  });
 
   assert.ok(projection.instances.every((instance) => instance.temporalWeight === 0.4));
   assert.ok(projection.instances.every((instance) => instance.visualWeight === 0.7));
@@ -158,20 +145,12 @@ test("temporal, visual, and retained weights are projected without changing cano
 });
 
 test("unplaced active relationships remain renderable without invented geography", () => {
-  const relationships = [
-    relationship({ id: "unplaced", subjectId: "alice", objectId: "bob" }),
-  ];
+  const relationships = [relationship({ id: "unplaced", subjectId: "alice", objectId: "bob" })];
   const spatialAnchors = new SpatialAnchorIndex([], relationships);
 
-  const projection = projectWorldOccurrences(
-    relationships,
-    ["unplaced"],
-    spatialAnchors,
-  );
+  const projection = projectWorldOccurrences(relationships, ["unplaced"], spatialAnchors);
 
-  assert.ok(
-    projection.instances.every((instance) => instance.geographicAnchors.length === 0),
-  );
+  assert.ok(projection.instances.every((instance) => instance.geographicAnchors.length === 0));
 });
 
 test("unknown active occurrence IDs are rejected", () => {
@@ -179,12 +158,34 @@ test("unknown active occurrence IDs are rejected", () => {
   const spatialAnchors = new SpatialAnchorIndex([], relationships);
 
   assert.throws(
-    () =>
-      projectWorldOccurrences(
-        relationships,
-        ["missing"],
-        spatialAnchors,
-      ),
+    () => projectWorldOccurrences(relationships, ["missing"], spatialAnchors),
     /not a canonical relationship/,
   );
+});
+
+test("entity and relationship presentation metadata projects independently of identity", () => {
+  const relationships = [
+    relationship({
+      id: "meeting",
+      subjectId: "alice",
+      objectId: "bob",
+      predicate: "met",
+    }),
+  ];
+  const spatialAnchors = new SpatialAnchorIndex([], relationships);
+  const projection = projectWorldOccurrences(relationships, ["meeting"], spatialAnchors, {
+    entityPresentation: new Map([
+      ["alice", { label: "Alice", kind: "person" }],
+      ["bob", { label: "Bob", kind: "person" }],
+    ]),
+  });
+
+  assert.deepEqual(
+    projection.instances.map(({ canonicalId, label, kind }) => [canonicalId, label, kind]),
+    [
+      ["alice", "Alice", "person"],
+      ["bob", "Bob", "person"],
+    ],
+  );
+  assert.equal(projection.edges[0].label, "met");
 });
