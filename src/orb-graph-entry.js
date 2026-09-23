@@ -1543,7 +1543,8 @@ function create(container, handlers = {}) {
     nodes.forEach((node, index) => {
       const position = node.getPosition?.();
       if (position && Number.isFinite(position.x) && Number.isFinite(position.y)) return;
-      const angle = deterministicAngle(node.getData?.()?.id ?? index) + (index / count) * Math.PI * 2;
+      const angle =
+        deterministicAngle(node.getData?.()?.id ?? index) + (index / count) * Math.PI * 2;
       node.setPosition?.({
         x: Math.cos(angle) * radius,
         y: Math.sin(angle) * radius,
@@ -1750,11 +1751,7 @@ function create(container, handlers = {}) {
       const position = orb.data.getNodeById(id)?.getPosition?.();
       if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return null;
       const canvasPoint = orb.getCanvasPosition(position);
-      if (
-        !canvasPoint ||
-        !Number.isFinite(canvasPoint.x) ||
-        !Number.isFinite(canvasPoint.y)
-      ) {
+      if (!canvasPoint || !Number.isFinite(canvasPoint.x) || !Number.isFinite(canvasPoint.y)) {
         return null;
       }
       return { x: canvasPoint.x, y: canvasPoint.y };

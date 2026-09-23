@@ -1,11 +1,11 @@
-import { expect, test } from '@playwright/test';
-import type { Locator, Page, TestInfo } from '@playwright/test';
-import { mkdir, writeFile } from 'node:fs/promises';
-import path from 'node:path';
+import { expect, test } from "@playwright/test";
+import type { Locator, Page, TestInfo } from "@playwright/test";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 
-const OUTPUT_ROOT = path.resolve(process.env.E2E_MEDIA_DIR ?? 'artifacts/e2e-media');
+const OUTPUT_ROOT = path.resolve(process.env.E2E_MEDIA_DIR ?? "artifacts/e2e-media");
 
-type FormFactor = 'desktop' | 'mobile';
+type FormFactor = "desktop" | "mobile";
 
 type SceneIntent = {
   name: string;
@@ -26,51 +26,57 @@ type ShowcaseSegment = SceneIntent & {
 
 const SCENES: readonly SceneIntent[] = [
   {
-    name: '01-timeline-navigation',
-    title: 'Navigate the continuum',
-    description: 'Zoom and pan the retained chronology while the relational projection stays synchronized.',
-    expectedState: 'The retained timeline is visible and interactive with synchronized relational context.',
-    altText: 'Lūm chronology navigation with synchronized relational context',
+    name: "01-timeline-navigation",
+    title: "Navigate the continuum",
+    description:
+      "Zoom and pan the retained chronology while the relational projection stays synchronized.",
+    expectedState:
+      "The retained timeline is visible and interactive with synchronized relational context.",
+    altText: "Lūm chronology navigation with synchronized relational context",
   },
   {
-    name: '02-focused-context',
-    title: 'Read an occurrence in context',
-    description: 'Open a focused occurrence without losing the surrounding chronology and relational context.',
-    expectedState: 'Focused occurrence detail is visible while chronology and relational context remain present.',
-    altText: 'Lūm focused occurrence context beside the retained chronology',
+    name: "02-focused-context",
+    title: "Read an occurrence in context",
+    description:
+      "Open a focused occurrence without losing the surrounding chronology and relational context.",
+    expectedState:
+      "Focused occurrence detail is visible while chronology and relational context remain present.",
+    altText: "Lūm focused occurrence context beside the retained chronology",
   },
   {
-    name: '03-evidence',
-    title: 'Inspect evidence',
-    description: 'Move from contextual reading to the occurrence evidence dossier and back.',
-    expectedState: 'The evidence tab shows at least one source card for the focused occurrence.',
-    altText: 'Lūm occurrence evidence dossier with source cards',
+    name: "03-evidence",
+    title: "Inspect evidence",
+    description: "Move from contextual reading to the occurrence evidence dossier and back.",
+    expectedState: "The evidence tab shows at least one source card for the focused occurrence.",
+    altText: "Lūm occurrence evidence dossier with source cards",
   },
   {
-    name: '04-relation-graph',
-    title: 'Explore relationships',
-    description: 'Pan and zoom the relation graph without discarding timeline state.',
-    expectedState: 'The relation graph is rendered and accepts direct navigation gestures.',
-    altText: 'Lūm interactive relation graph coordinated with the timeline',
+    name: "04-relation-graph",
+    title: "Explore relationships",
+    description: "Pan and zoom the relation graph without discarding timeline state.",
+    expectedState: "The relation graph is rendered and accepts direct navigation gestures.",
+    altText: "Lūm interactive relation graph coordinated with the timeline",
   },
   {
-    name: '05-story-browser',
-    title: 'Browse narrative threads',
-    description: 'Open the story browser to inspect authored traversals through the same canonical continuum.',
-    expectedState: 'The browser exposes multiple story cards without replacing canonical chronology data.',
-    altText: 'Lūm story browser showing narrative threads through the continuum',
+    name: "05-story-browser",
+    title: "Browse narrative threads",
+    description:
+      "Open the story browser to inspect authored traversals through the same canonical continuum.",
+    expectedState:
+      "The browser exposes multiple story cards without replacing canonical chronology data.",
+    altText: "Lūm story browser showing narrative threads through the continuum",
   },
 ] as const;
 
 const PROJECTS = {
-  'Desktop Showcase': {
-    formFactor: 'desktop' as const,
+  "Desktop Showcase": {
+    formFactor: "desktop" as const,
     size: { width: 1440, height: 900 },
     gifWidth: 760,
     markdownWidth: 760,
   },
-  'Mobile Showcase': {
-    formFactor: 'mobile' as const,
+  "Mobile Showcase": {
+    formFactor: "mobile" as const,
     size: { width: 390, height: 844 },
     gifWidth: 320,
     markdownWidth: 320,
@@ -84,19 +90,17 @@ function projectSettings(testInfo: TestInfo) {
 }
 
 async function loadSample(page: Page) {
-  await page.goto('/');
-  await page.locator('#project-menu-toggle').click();
-  await page.locator('#load-sample').click();
+  await page.goto("/");
+  await page.locator("#project-menu-toggle").click();
+  await page.locator("#load-sample").click();
   await expect
-    .poll(async () =>
-      page.locator('.timeline-event .timeline-event-terminal:visible').count(),
-    )
+    .poll(async () => page.locator(".timeline-event .timeline-event-terminal:visible").count())
     .toBeGreaterThan(0);
 }
 
 async function firstVisibleOccurrence(page: Page) {
   const occurrence = page
-    .locator('.timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible')
+    .locator(".timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible")
     .first();
   await expect(occurrence).toBeVisible();
   return occurrence;
@@ -104,13 +108,13 @@ async function firstVisibleOccurrence(page: Page) {
 
 async function touchDrag(target: Locator, deltaX: number, deltaY: number) {
   const box = await target.boundingBox();
-  if (!box) throw new Error('Touch target has no layout box');
+  if (!box) throw new Error("Touch target has no layout box");
   const start = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   const end = { x: start.x + deltaX, y: start.y + deltaY };
 
-  await target.dispatchEvent('pointerdown', {
+  await target.dispatchEvent("pointerdown", {
     pointerId: 51,
-    pointerType: 'touch',
+    pointerType: "touch",
     isPrimary: true,
     button: 0,
     buttons: 1,
@@ -118,9 +122,9 @@ async function touchDrag(target: Locator, deltaX: number, deltaY: number) {
     clientY: start.y,
   });
   await target.page().waitForTimeout(120);
-  await target.dispatchEvent('pointermove', {
+  await target.dispatchEvent("pointermove", {
     pointerId: 51,
-    pointerType: 'touch',
+    pointerType: "touch",
     isPrimary: true,
     button: 0,
     buttons: 1,
@@ -128,9 +132,9 @@ async function touchDrag(target: Locator, deltaX: number, deltaY: number) {
     clientY: end.y,
   });
   await target.page().waitForTimeout(180);
-  await target.dispatchEvent('pointerup', {
+  await target.dispatchEvent("pointerup", {
     pointerId: 51,
-    pointerType: 'touch',
+    pointerType: "touch",
     isPrimary: true,
     button: 0,
     buttons: 0,
@@ -148,16 +152,16 @@ async function recordSegment(
   markdownWidth: number,
   body: () => Promise<void>,
 ): Promise<ShowcaseSegment> {
-  const rawDir = path.join(OUTPUT_ROOT, 'raw', formFactor);
+  const rawDir = path.join(OUTPUT_ROOT, "raw", formFactor);
   await mkdir(rawDir, { recursive: true });
   const videoPath = path.join(rawDir, `${scene.name}.webm`);
   const screenshotPath = path.join(rawDir, `${scene.name}.png`);
 
   await page.screencast.start({ path: videoPath, size, quality: 92 });
   const actions = await page.screencast.showActions({
-    position: formFactor === 'mobile' ? 'bottom-right' : 'top-right',
+    position: formFactor === "mobile" ? "bottom-right" : "top-right",
     duration: 500,
-    fontSize: formFactor === 'mobile' ? 13 : 18,
+    fontSize: formFactor === "mobile" ? 13 : 18,
   });
   const brand = await page.screencast.showOverlay(`
     <div style="
@@ -195,8 +199,8 @@ async function recordSegment(
     await page.waitForTimeout(450);
     await page.screenshot({
       path: screenshotPath,
-      animations: 'disabled',
-      scale: 'css',
+      animations: "disabled",
+      scale: "css",
     });
   } finally {
     await brand.dispose().catch(() => {});
@@ -211,21 +215,21 @@ async function recordSegment(
     gifWidth,
     markdownWidth,
     gifStartSeconds: 1.05,
-    gifDurationSeconds: formFactor === 'mobile' ? 5.2 : 4.8,
+    gifDurationSeconds: formFactor === "mobile" ? 5.2 : 4.8,
   };
 }
 
 async function desktopRoutine(page: Page, sceneName: string) {
-  if (sceneName === '01-timeline-navigation') {
-    const surface = page.locator('.timeline-surface');
+  if (sceneName === "01-timeline-navigation") {
+    const surface = page.locator(".timeline-surface");
     await expect(surface).toBeVisible();
-    const controls = page.locator('#timeline-view-controls-toggle');
+    const controls = page.locator("#timeline-view-controls-toggle");
     await controls.click();
-    const toolbar = page.locator('#timeline-view-toolbar:popover-open');
+    const toolbar = page.locator("#timeline-view-toolbar:popover-open");
     await expect(toolbar).toBeVisible();
-    const zoom = toolbar.locator('#timeline-zoom-level');
+    const zoom = toolbar.locator("#timeline-zoom-level");
     const initialZoom = await zoom.inputValue();
-    await page.keyboard.press('Escape');
+    await page.keyboard.press("Escape");
 
     await surface.hover();
     await page.mouse.wheel(0, -280);
@@ -233,105 +237,105 @@ async function desktopRoutine(page: Page, sceneName: string) {
     await controls.click();
     await expect(toolbar).toBeVisible();
     await zoom.fill(initialZoom);
-    await page.keyboard.press('Escape');
+    await page.keyboard.press("Escape");
     await surface.focus();
-    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press("ArrowRight");
     await page.waitForTimeout(350);
-    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press("ArrowLeft");
     return;
   }
 
-  if (sceneName === '02-focused-context') {
+  if (sceneName === "02-focused-context") {
     await (await firstVisibleOccurrence(page)).click();
-    const focus = page.locator('#timeline-focus-view');
+    const focus = page.locator("#timeline-focus-view");
     await expect(focus).toBeVisible();
-    await expect(page.locator('#timeline-focus-context-panel')).toBeVisible();
+    await expect(page.locator("#timeline-focus-context-panel")).toBeVisible();
     await page.waitForTimeout(700);
-    await focus.locator('.timeline-focus-close').click();
+    await focus.locator(".timeline-focus-close").click();
     await expect(focus).toBeHidden();
     return;
   }
 
-  if (sceneName === '03-evidence') {
+  if (sceneName === "03-evidence") {
     await (await firstVisibleOccurrence(page)).click();
-    const focus = page.locator('#timeline-focus-view');
+    const focus = page.locator("#timeline-focus-view");
     await expect(focus).toBeVisible();
-    await focus.getByRole('tab', { name: 'Evidence' }).click();
-    await expect(page.locator('#timeline-focus-evidence-panel')).toBeVisible();
-    await expect(page.locator('.timeline-focus-evidence-card').first()).toBeVisible();
+    await focus.getByRole("tab", { name: "Evidence" }).click();
+    await expect(page.locator("#timeline-focus-evidence-panel")).toBeVisible();
+    await expect(page.locator(".timeline-focus-evidence-card").first()).toBeVisible();
     await page.waitForTimeout(700);
-    await focus.getByRole('tab', { name: 'Overview' }).click();
-    await expect(page.locator('#timeline-focus-context-panel')).toBeVisible();
-    await focus.locator('.timeline-focus-close').click();
+    await focus.getByRole("tab", { name: "Overview" }).click();
+    await expect(page.locator("#timeline-focus-context-panel")).toBeVisible();
+    await focus.locator(".timeline-focus-close").click();
     return;
   }
 
-  if (sceneName === '04-relation-graph') {
-    const graph = page.locator('.temporal-graph-canvas');
+  if (sceneName === "04-relation-graph") {
+    const graph = page.locator(".temporal-graph-canvas");
     await expect(graph).toBeVisible();
     await graph.focus();
-    await page.keyboard.press('Home');
-    await page.keyboard.press('+');
+    await page.keyboard.press("Home");
+    await page.keyboard.press("+");
     await page.waitForTimeout(400);
-    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press("ArrowRight");
     await page.waitForTimeout(350);
-    await page.keyboard.press('ArrowLeft');
-    await page.keyboard.press('-');
-    await page.keyboard.press('Home');
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.press("-");
+    await page.keyboard.press("Home");
     return;
   }
 
-  const browseToggle = page.locator('#timeline-browser-toggle');
+  const browseToggle = page.locator("#timeline-browser-toggle");
   await browseToggle.click();
-  const browser = page.locator('#timeline-browser-sheet');
+  const browser = page.locator("#timeline-browser-sheet");
   await expect(browser).toBeVisible();
-  const storyCards = browser.locator('.browser-story-card');
+  const storyCards = browser.locator(".browser-story-card");
   await expect(storyCards.first()).toBeVisible();
   expect(await storyCards.count()).toBeGreaterThanOrEqual(3);
   await page.waitForTimeout(650);
-  await page.locator('#timeline-browser-close').click();
+  await page.locator("#timeline-browser-close").click();
   await expect(browser).toBeHidden();
 }
 
 async function mobileRoutine(page: Page, sceneName: string) {
-  if (sceneName === '01-timeline-navigation') {
-    const surface = page.locator('.timeline-surface');
+  if (sceneName === "01-timeline-navigation") {
+    const surface = page.locator(".timeline-surface");
     await expect(surface).toBeVisible();
     await touchDrag(surface, -48, 0);
     await page.waitForTimeout(350);
     await touchDrag(surface, 48, 0);
-    await page.locator('#timeline-view-controls-toggle').tap();
-    await expect(page.locator('#timeline-view-toolbar:popover-open')).toBeVisible();
-    await page.keyboard.press('Escape');
+    await page.locator("#timeline-view-controls-toggle").tap();
+    await expect(page.locator("#timeline-view-toolbar:popover-open")).toBeVisible();
+    await page.keyboard.press("Escape");
     return;
   }
 
-  if (sceneName === '02-focused-context') {
+  if (sceneName === "02-focused-context") {
     await (await firstVisibleOccurrence(page)).tap();
-    const focus = page.locator('#timeline-focus-view');
+    const focus = page.locator("#timeline-focus-view");
     await expect(focus).toBeVisible();
-    await expect(page.locator('#timeline-focus-context-panel')).toBeVisible();
+    await expect(page.locator("#timeline-focus-context-panel")).toBeVisible();
     await page.waitForTimeout(700);
-    await focus.locator('.timeline-focus-close').tap();
+    await focus.locator(".timeline-focus-close").tap();
     await expect(focus).toBeHidden();
     return;
   }
 
-  if (sceneName === '03-evidence') {
+  if (sceneName === "03-evidence") {
     await (await firstVisibleOccurrence(page)).tap();
-    const focus = page.locator('#timeline-focus-view');
+    const focus = page.locator("#timeline-focus-view");
     await expect(focus).toBeVisible();
-    await focus.getByRole('tab', { name: 'Evidence' }).tap();
-    await expect(page.locator('#timeline-focus-evidence-panel')).toBeVisible();
-    await expect(page.locator('.timeline-focus-evidence-card').first()).toBeVisible();
+    await focus.getByRole("tab", { name: "Evidence" }).tap();
+    await expect(page.locator("#timeline-focus-evidence-panel")).toBeVisible();
+    await expect(page.locator(".timeline-focus-evidence-card").first()).toBeVisible();
     await page.waitForTimeout(700);
-    await focus.getByRole('tab', { name: 'Overview' }).tap();
-    await focus.locator('.timeline-focus-close').tap();
+    await focus.getByRole("tab", { name: "Overview" }).tap();
+    await focus.locator(".timeline-focus-close").tap();
     return;
   }
 
-  if (sceneName === '04-relation-graph') {
-    const graph = page.locator('.temporal-graph-canvas');
+  if (sceneName === "04-relation-graph") {
+    const graph = page.locator(".temporal-graph-canvas");
     await expect(graph).toBeVisible();
     await touchDrag(graph, -42, 18);
     await page.waitForTimeout(400);
@@ -339,18 +343,18 @@ async function mobileRoutine(page: Page, sceneName: string) {
     return;
   }
 
-  await page.locator('#timeline-browser-toggle').tap();
-  const browser = page.locator('#timeline-browser-sheet');
+  await page.locator("#timeline-browser-toggle").tap();
+  const browser = page.locator("#timeline-browser-sheet");
   await expect(browser).toBeVisible();
-  const storyCards = browser.locator('.browser-story-card');
+  const storyCards = browser.locator(".browser-story-card");
   await expect(storyCards.first()).toBeVisible();
   expect(await storyCards.count()).toBeGreaterThanOrEqual(3);
   await page.waitForTimeout(650);
-  await page.locator('#timeline-browser-close').tap();
+  await page.locator("#timeline-browser-close").tap();
   await expect(browser).toBeHidden();
 }
 
-test('records five loop-safe Lūm showcase scenes per form factor', async ({ page }, testInfo) => {
+test("records five loop-safe Lūm showcase scenes per form factor", async ({ page }, testInfo) => {
   test.setTimeout(240_000);
   const settings = projectSettings(testInfo);
 
@@ -367,7 +371,7 @@ test('records five loop-safe Lūm showcase scenes per form factor', async ({ pag
           settings.gifWidth,
           settings.markdownWidth,
           async () => {
-            if (settings.formFactor === 'desktop') await desktopRoutine(page, scene.name);
+            if (settings.formFactor === "desktop") await desktopRoutine(page, scene.name);
             else await mobileRoutine(page, scene.name);
           },
         ),
@@ -378,12 +382,12 @@ test('records five loop-safe Lūm showcase scenes per form factor', async ({ pag
   expect(segments).toHaveLength(5);
   expect(segments.map((segment) => segment.name)).toEqual(SCENES.map((scene) => scene.name));
 
-  const rawDir = path.join(OUTPUT_ROOT, 'raw', settings.formFactor);
+  const rawDir = path.join(OUTPUT_ROOT, "raw", settings.formFactor);
   await writeFile(
-    path.join(rawDir, 'manifest.json'),
+    path.join(rawDir, "manifest.json"),
     JSON.stringify(
       {
-        project: 'Lūm',
+        project: "Lūm",
         formFactor: settings.formFactor,
         generatedAt: new Date().toISOString(),
         width: settings.size.width,

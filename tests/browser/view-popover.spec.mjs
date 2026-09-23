@@ -75,7 +75,10 @@ test("View remains inside the viewport in landscape and portrait", async ({ page
   await expect(page.locator("#timeline-view")).toHaveAttribute("data-orientation", "portrait");
   await expectInsideViewport();
 
-  await expect(page.locator("#timeline-zoom-level")).toHaveAttribute("aria-orientation", "vertical");
+  await expect(page.locator("#timeline-zoom-level")).toHaveAttribute(
+    "aria-orientation",
+    "vertical",
+  );
 });
 
 test("resize while open keeps View attached and state synchronized", async ({ page }) => {

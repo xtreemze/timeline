@@ -34,17 +34,21 @@ test("intersectionArea is deterministic and returns zero for edge contact", () =
 });
 
 test("viewport clamping respects safe insets without resizing a fitting rectangle", () => {
-  assert.deepEqual(
-    clampRectToViewport({ x: 360, y: 820, width: 120, height: 180 }, viewport),
-    { x: 258, y: 640, width: 120, height: 180 },
-  );
+  assert.deepEqual(clampRectToViewport({ x: 360, y: 820, width: 120, height: 180 }, viewport), {
+    x: 258,
+    y: 640,
+    width: 120,
+    height: 180,
+  });
 });
 
 test("oversize placement is reduced only to the safe viewport", () => {
-  assert.deepEqual(
-    clampRectToViewport({ x: -50, y: -50, width: 500, height: 900 }, viewport),
-    { x: 12, y: 16, width: 366, height: 804 },
-  );
+  assert.deepEqual(clampRectToViewport({ x: -50, y: -50, width: 500, height: 900 }, viewport), {
+    x: 12,
+    y: 16,
+    width: 366,
+    height: 804,
+  });
 });
 
 test("planner chooses an inward candidate that avoids protected chronology and toolbar regions", () => {
@@ -123,9 +127,7 @@ test("when every candidate conflicts, planner returns least-bad placement with e
   const snapshot = planWorkspacePlacement({
     viewport: { x: 0, y: 0, width: 200, height: 200 },
     anchor: { x: 100, y: 100 },
-    protectedRegions: [
-      { id: "timeline", rect: { x: 0, y: 0, width: 200, height: 200 } },
-    ],
+    protectedRegions: [{ id: "timeline", rect: { x: 0, y: 0, width: 200, height: 200 } }],
     candidates: [
       { id: "large", rect: { x: 0, y: 0, width: 180, height: 180 } },
       { id: "small", rect: { x: 50, y: 50, width: 40, height: 40 } },
@@ -139,9 +141,7 @@ test("when every candidate conflicts, planner returns least-bad placement with e
 test("snapshot exposes every normalized candidate and stable rejection reasons", () => {
   const snapshot = planWorkspacePlacement({
     viewport,
-    exclusionZones: [
-      { id: "menu", rect: { x: 0, y: 0, width: 100, height: 100 } },
-    ],
+    exclusionZones: [{ id: "menu", rect: { x: 0, y: 0, width: 100, height: 100 } }],
     candidates: [
       { id: "blocked", rect: { x: 20, y: 20, width: 40, height: 40 } },
       { id: "open", rect: { x: 200, y: 200, width: 40, height: 40 } },
@@ -158,7 +158,6 @@ test("snapshot exposes every normalized candidate and stable rejection reasons",
   assert.equal(snapshot.selected?.id, "open");
 });
 
-
 test("view controls consume the renderer-neutral workspace planner instead of owning a second clamping policy", async () => {
   const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
   const start = app.indexOf("function positionViewControls()");
@@ -166,7 +165,10 @@ test("view controls consume the renderer-neutral workspace planner instead of ow
   assert.ok(start >= 0 && end > start);
   const source = app.slice(start, end);
 
-  assert.match(app, /import \{ planWorkspacePlacement \} from '\.\.\/src\/layout\/workspace-layout\.ts'/);
+  assert.match(
+    app,
+    /import \{ planWorkspacePlacement \} from '\.\.\/src\/layout\/workspace-layout\.ts'/,
+  );
   assert.match(source, /planWorkspacePlacement\(/);
   assert.match(source, /exclusionZones:\s*\[[\s\S]*id:\s*"app-tool-dock"/);
   assert.match(source, /safeInsets:\s*\{ top: edge, right: edge, bottom: edge, left: edge \}/);

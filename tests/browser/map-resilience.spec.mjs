@@ -37,7 +37,9 @@ test("semantic place marker survives complete basemap tile failure", async ({ pa
   await expect(marker).toBeVisible();
 });
 
-test("place without geometry exposes an explicit state instead of a blank map", async ({ page }) => {
+test("place without geometry exposes an explicit state instead of a blank map", async ({
+  page,
+}) => {
   await page.goto("/");
 
   await page.evaluate(async () => {

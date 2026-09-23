@@ -169,7 +169,6 @@ test("committed clusters keep occurrence DOM alive and restore mature tile affor
   assert.doesNotMatch(source, /hiddenByCluster[\s\S]{0,300}removeRecord/);
 });
 
-
 test("clustering follows measured collision pressure rather than nearby event count", () => {
   const occurrences = [
     { id: "a", start: 100 },
@@ -205,7 +204,6 @@ test("clustering follows measured collision pressure rather than nearby event co
   assert.equal(wide.clusters.length, 1);
   assert.deepEqual(wide.clusters[0].itemIds, ["a", "b", "c", "d"]);
 });
-
 
 test("coincident timestamps stay separate and gain enough perpendicular lanes", () => {
   const occurrences = [

@@ -518,9 +518,7 @@ function installWeightedMapDragging(
 }
 
 function presentationZoom(location?: LocationObject | null): number {
-  const accuracy = Number(
-    location?.radiusMeters ?? location?.accuracyMeters ?? location?.accuracy,
-  );
+  const accuracy = Number(location?.radiusMeters ?? location?.accuracyMeters ?? location?.accuracy);
   if (Number.isFinite(accuracy)) {
     if (accuracy <= 50) return 16;
     if (accuracy <= 250) return 15;
@@ -808,7 +806,8 @@ class ReadOnlyLocationMap {
     placeholder.className = `timeline-map-place-placeholder timeline-map-marker-shape-${this.markerShape}`;
     const appearance = markerAppearance(this.style, this.color);
     placeholder.style.setProperty("--map-marker-color", appearance.color);
-    if (appearance.fillColor) placeholder.style.setProperty("--map-marker-fill", appearance.fillColor);
+    if (appearance.fillColor)
+      placeholder.style.setProperty("--map-marker-fill", appearance.fillColor);
     placeholder.style.setProperty("--map-marker-size", `${appearance.size}px`);
     placeholder.style.setProperty("--map-marker-weight", `${appearance.weight}px`);
     placeholder.style.opacity = String(appearance.opacity);

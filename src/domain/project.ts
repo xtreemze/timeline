@@ -1,10 +1,7 @@
 import type { CanonicalEntity } from "./entity.ts";
 import type { RelationshipId } from "./ids.ts";
 import type { CanonicalRelationship } from "./relationship.ts";
-import {
-  relationshipFactKey,
-  validateRelationship,
-} from "./relationship.ts";
+import { relationshipFactKey, validateRelationship } from "./relationship.ts";
 
 export interface CanonicalProject {
   readonly schemaVersion: number;
@@ -46,17 +43,11 @@ function mergedRelationship(
   };
 }
 
-function sameFact(
-  left: CanonicalRelationship,
-  right: CanonicalRelationship,
-): boolean {
+function sameFact(left: CanonicalRelationship, right: CanonicalRelationship): boolean {
   return relationshipFactKey(left) === relationshipFactKey(right);
 }
 
-function mirroredFact(
-  left: CanonicalRelationship,
-  right: CanonicalRelationship,
-): boolean {
+function mirroredFact(left: CanonicalRelationship, right: CanonicalRelationship): boolean {
   return (
     left.subjectId === right.objectId &&
     left.objectId === right.subjectId &&

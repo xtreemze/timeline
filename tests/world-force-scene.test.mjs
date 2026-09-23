@@ -92,10 +92,7 @@ test("force nodes preserve derived local offset and target visual altitude", () 
 test("temporal weight modulates edge and anchor influence without changing topology", () => {
   const scene = createWorldForceScene(sampleProjection());
 
-  assert.equal(
-    scene.edges[0].strength,
-    DEFAULT_WORLD_FORCE_SCENE_POLICY.edgeStrength * 0.5,
-  );
+  assert.equal(scene.edges[0].strength, DEFAULT_WORLD_FORCE_SCENE_POLICY.edgeStrength * 0.5);
   assert.equal(
     scene.anchors[0].influence,
     0.8 * DEFAULT_WORLD_FORCE_SCENE_POLICY.anchorInfluenceScale * 0.5,

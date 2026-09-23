@@ -24,12 +24,7 @@ export interface GraphNodeProjection {
   readonly kind?: string;
 }
 
-export type GraphTemporalState =
-  | "timeless"
-  | "unknown"
-  | "changed"
-  | "active"
-  | "inactive";
+export type GraphTemporalState = "timeless" | "unknown" | "changed" | "active" | "inactive";
 
 export interface GraphEdgeProjection {
   readonly id: RelationshipId;

@@ -1,6 +1,16 @@
-import type { WorldSelection, WorldSurface, WorldTemporalWindow } from "../../src/layout/world-surface.ts";
-import { applyWorldForceLayout, type WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
-import { createWorldForceScene, type WorldForceScenePolicy } from "../../src/layout/world-force-scene.ts";
+import type {
+  WorldSelection,
+  WorldSurface,
+  WorldTemporalWindow,
+} from "../../src/layout/world-surface.ts";
+import {
+  applyWorldForceLayout,
+  type WorldForceLayoutSample,
+} from "../../src/layout/world-force-layout.ts";
+import {
+  createWorldForceScene,
+  type WorldForceScenePolicy,
+} from "../../src/layout/world-force-scene.ts";
 import {
   createWorldSimulationCoordinator,
   type WorldForceSimulationBackend,
@@ -14,10 +24,7 @@ import {
   type InteractionCompletionReason,
   type InteractionCoordinator,
 } from "../../src/interaction/interaction-coordinator.ts";
-import type {
-  WorldInstanceId,
-  WorldProjection,
-} from "../../src/projection/world-projection.ts";
+import type { WorldInstanceId, WorldProjection } from "../../src/projection/world-projection.ts";
 
 export interface WorldLayoutReadback {
   read(): readonly WorldForceLayoutSample[];
@@ -131,9 +138,7 @@ export class WorldViewRuntimeController {
     return this.#drag.release(pointerId);
   }
 
-  cancelNodeDrag(
-    reason: Exclude<InteractionCompletionReason, "release">,
-  ): void {
+  cancelNodeDrag(reason: Exclude<InteractionCompletionReason, "release">): void {
     this.#assertAlive();
     this.#drag.cancel(reason);
   }

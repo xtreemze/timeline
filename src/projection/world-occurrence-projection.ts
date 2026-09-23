@@ -1,6 +1,6 @@
 import type { RelationshipId } from "../domain/ids.ts";
 import type { CanonicalRelationship } from "../domain/relationship.ts";
-import { SpatialAnchorIndex } from "./spatial-anchor-index.ts";
+import type { SpatialAnchorIndex } from "./spatial-anchor-index.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,

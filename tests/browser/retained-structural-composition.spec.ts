@@ -157,7 +157,9 @@ test("#269 focused occurrence survives an orientation transaction", async ({ pag
   await expect(root).toHaveAttribute("data-scene-state", "focused");
 });
 
-test("#269 keyboard focus identity survives a buffered camera interaction", async ({ page }, testInfo) => {
+test("#269 keyboard focus identity survives a buffered camera interaction", async ({
+  page,
+}, testInfo) => {
   const root = page.locator("#tdd-timeline-view");
   const terminal = root
     .locator(".timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible")
@@ -176,19 +178,19 @@ test("#269 keyboard focus identity survives a buffered camera interaction", asyn
     Boolean(testInfo.project.use.hasTouch),
   );
 
-  const focusedIdentity = await page.evaluate(
-    () =>
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement.dataset.tddFocusIdentity ?? null
-        : null,
+  const focusedIdentity = await page.evaluate(() =>
+    document.activeElement instanceof HTMLElement
+      ? (document.activeElement.dataset.tddFocusIdentity ?? null)
+      : null,
   );
   expect(focusedIdentity).toBe("keyboard-target");
 
   await releaseCameraDrag();
 });
 
-
-test("#271 live retained renderer reports interaction and commit metrics", async ({ page }, testInfo) => {
+test("#271 live retained renderer reports interaction and commit metrics", async ({
+  page,
+}, testInfo) => {
   const root = page.locator("#tdd-timeline-view");
   await page.evaluate(() => {
     globalThis.__retainedStructuralTddController?.resetPerformanceMetrics();

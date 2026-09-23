@@ -111,9 +111,7 @@ export function spatiotemporalViewportKey(viewport: SpatiotemporalViewport): str
     space: normalized.space
       ? {
           focusPlaceId: normalized.space.focusPlaceId ?? null,
-          geographicBounds: bounds
-            ? [bounds.south, bounds.west, bounds.north, bounds.east]
-            : null,
+          geographicBounds: bounds ? [bounds.south, bounds.west, bounds.north, bounds.east] : null,
         }
       : null,
     focus: normalized.focus

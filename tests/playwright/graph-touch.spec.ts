@@ -122,13 +122,10 @@ test("long-press touch moves an Orb node", async ({ page }, testInfo) => {
   const dragClient = { x: startClient.x + 72, y: startClient.y + 24 };
   await dispatchTouchPointer(page, "pointermove", dragClient);
 
-  await page.waitForFunction(
-    ({ x, y }) => {
-      const next = window.__touchNodeGraph?.getNodePosition(1);
-      return Boolean(next && Math.hypot(next.x - x, next.y - y) > 5);
-    },
-    beforeMove,
-  );
+  await page.waitForFunction(({ x, y }) => {
+    const next = window.__touchNodeGraph?.getNodePosition(1);
+    return Boolean(next && Math.hypot(next.x - x, next.y - y) > 5);
+  }, beforeMove);
 
   const moved = await page.evaluate(() => window.__touchNodeGraph?.getNodePosition(1));
   if (!moved) throw new Error("Graph node has no simulation position after drag");

@@ -42,12 +42,9 @@ function harness() {
 
 test("world force priorities keep drag above topology and spatial-anchor updates", () => {
   assert.ok(WORLD_SIMULATION_PRIORITY.drag > WORLD_SIMULATION_PRIORITY.topology);
+  assert.ok(WORLD_SIMULATION_PRIORITY.topology > WORLD_SIMULATION_PRIORITY["post-drop"]);
   assert.ok(
-    WORLD_SIMULATION_PRIORITY.topology > WORLD_SIMULATION_PRIORITY["post-drop"],
-  );
-  assert.ok(
-    WORLD_SIMULATION_PRIORITY["post-drop"] >
-      WORLD_SIMULATION_PRIORITY["spatial-anchor-update"],
+    WORLD_SIMULATION_PRIORITY["post-drop"] > WORLD_SIMULATION_PRIORITY["spatial-anchor-update"],
   );
   assert.ok(
     WORLD_SIMULATION_PRIORITY["spatial-anchor-update"] >
@@ -105,10 +102,7 @@ test("globe or timeline interaction suspension stops simulation until all owners
   coordinator.suspend("timeline-drag");
   coordinator.resume("globe-camera");
 
-  assert.deepEqual(calls, [
-    ["apply", "topology", 0.12, true],
-    ["stop"],
-  ]);
+  assert.deepEqual(calls, [["apply", "topology", 0.12, true], ["stop"]]);
   assert.equal(coordinator.getState().running, false);
   assert.deepEqual(coordinator.getState().suspendedReasons, ["timeline-drag"]);
 
@@ -141,7 +135,7 @@ test("world simulation backend contract keeps scene, pins, and diagnostics separ
   backend.setScene({
     nodes: [
       {
-        id: "[\"alice\",\"meeting\"]",
+        id: '["alice","meeting"]',
         canonicalId: "alice",
         mass: 2,
         collisionRadiusMeters: 100,
@@ -153,7 +147,7 @@ test("world simulation backend contract keeps scene, pins, and diagnostics separ
     edges: [],
     anchors: [
       {
-        instanceId: "[\"alice\",\"meeting\"]",
+        instanceId: '["alice","meeting"]',
         placeId: "stockholm",
         longitude: 18.0686,
         latitude: 59.3293,
@@ -164,7 +158,7 @@ test("world simulation backend contract keeps scene, pins, and diagnostics separ
     ],
   });
   backend.setPin({
-    instanceId: "[\"alice\",\"meeting\"]",
+    instanceId: '["alice","meeting"]',
     eastMeters: 20,
     northMeters: 10,
     visualAltitudeMeters: 1000,
@@ -172,7 +166,7 @@ test("world simulation backend contract keeps scene, pins, and diagnostics separ
 
   assert.deepEqual(calls, [
     ["scene", 1, 0, 1],
-    ["pin", "[\"alice\",\"meeting\"]"],
+    ["pin", '["alice","meeting"]'],
   ]);
   assert.deepEqual(backend.getDiagnostics(), {
     running: false,

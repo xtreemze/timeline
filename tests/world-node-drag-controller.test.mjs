@@ -98,13 +98,7 @@ test("drag updates accept only the owning pointer and update a transient force p
     true,
   );
 
-  assert.deepEqual(calls.at(-1), [
-    "pin",
-    '["alice","meeting"]',
-    200,
-    300,
-    1600,
-  ]);
+  assert.deepEqual(calls.at(-1), ["pin", '["alice","meeting"]', 200, 300, 1600]);
 });
 
 test("ordinary release clears the pin and enters explicit post-drop settling", () => {

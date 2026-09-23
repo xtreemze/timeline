@@ -114,9 +114,7 @@ function contextRelationshipIds(
   );
   for (const change of Array.isArray(item?.relationChanges) ? item.relationChanges : []) {
     const id = text(change?.relationshipId, 120);
-    const relationship = project.relationships.find(
-      (candidate) => String(candidate.id) === id,
-    );
+    const relationship = project.relationships.find((candidate) => String(candidate.id) === id);
     if (relationship) result.add(relationship.id);
   }
   return result;
@@ -162,9 +160,7 @@ export function projectFocusedTopology(
       for (const relationship of index.incident(entityId)) {
         if (!activeEdges.has(relationship.id)) continue;
         const neighbor =
-          relationship.subjectId === entityId
-            ? relationship.objectId
-            : relationship.subjectId;
+          relationship.subjectId === entityId ? relationship.objectId : relationship.subjectId;
         if (visibleNodes.has(neighbor) && !selected.has(neighbor)) candidates.add(neighbor);
       }
     }
@@ -188,9 +184,7 @@ export function projectFocusedTopology(
     .map((id) => activeEdges.get(id))
     .filter(
       (edge): edge is TopologyEdgeProjection =>
-        edge !== undefined &&
-        selectedSet.has(edge.sourceId) &&
-        selectedSet.has(edge.targetId),
+        edge !== undefined && selectedSet.has(edge.sourceId) && selectedSet.has(edge.targetId),
     );
 
   return Object.freeze({
