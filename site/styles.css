@@ -4163,13 +4163,19 @@ body {
   box-shadow: 0 -3px 14px color-mix(in srgb, var(--ink) 7%, transparent);
 }
 
-#app-shell .app-editor-sheet,
-#app-shell .app-browser-sheet,
 #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-editor-sheet,
 #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-browser-sheet,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-editor-sheet,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-browser-sheet {
+  position: fixed;
+  inset-block-start: max(0.4rem, env(safe-area-inset-top));
   inset-block-end: calc(var(--workspace-footer-block-size) + 0.35rem);
+  inset-inline-start: max(0.4rem, env(safe-area-inset-left));
+  inset-inline-end: max(0.4rem, env(safe-area-inset-right));
+  inline-size: auto;
+  block-size: auto;
+  max-inline-size: none;
+  max-block-size: none;
 }
 
 #app-shell .timeline-panel > .story-focus,
