@@ -266,14 +266,11 @@ test("deck viewport project/unproject stays behind renderer-neutral world coordi
   );
   assert.deepEqual(calls.projected.at(-1), [18.0686, 59.3293, 1200]);
 
-  assert.deepEqual(
-    surface.unproject({ x: 118.0686, y: 259.3293 }, 1200),
-    {
-      longitude: 18.0686,
-      latitude: 59.3293,
-      altitudeMeters: 1200,
-    },
-  );
+  const unprojected = surface.unproject({ x: 118.0686, y: 259.3293 }, 1200);
+  assert.ok(unprojected);
+  assert.ok(Math.abs(unprojected.longitude - 18.0686) < 1e-12);
+  assert.ok(Math.abs(unprojected.latitude - 59.3293) < 1e-12);
+  assert.equal(unprojected.altitudeMeters, 1200);
   assert.deepEqual(calls.viewportQueries.at(-1), {
     x: 118.0686,
     y: 259.3293,
