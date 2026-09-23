@@ -812,20 +812,35 @@ function closestEventTarget<T extends HTMLElement>(
 
     const boundedInlineSize = Math.floor(Math.min(availableWidth, selected.rect.width));
     const boundedBlockSize = Math.floor(Math.min(availableHeight, selected.rect.height));
+    const minLeft = viewport.left + edge;
+    const minTop = viewport.top + edge;
+    const maxLeft = Math.max(
+      minLeft,
+      viewport.left + viewport.width - edge - boundedInlineSize,
+    );
+    const maxTop = Math.max(
+      minTop,
+      viewport.top + viewport.height - edge - boundedBlockSize,
+    );
+    const boundedLeft = Math.min(maxLeft, Math.max(minLeft, selected.rect.x));
+    const boundedTop = Math.min(maxTop, Math.max(minTop, selected.rect.y));
+
     els.viewControls.style.setProperty("--view-controls-inline-size", `${boundedInlineSize}px`);
     els.viewControls.style.setProperty("--view-controls-block-size", `${boundedBlockSize}px`);
-    // Inline style is authoritative over orientation-specific max-content rules.
+    // Inline size is authoritative over orientation-specific max-content rules.
     els.viewControls.style.width = `${boundedInlineSize}px`;
+    els.viewControls.style.maxWidth = `${availableWidth}px`;
+    els.viewControls.style.maxHeight = `${availableHeight}px`;
 
     els.viewControls.dataset.anchorPlacement = selected.id;
     els.viewControls.dataset.placementValid = String(snapshot.fullySatisfiesConstraints);
     els.viewControls.style.setProperty(
       "--view-controls-left",
-      `${Math.round(selected.rect.x)}px`,
+      `${Math.round(boundedLeft)}px`,
     );
     els.viewControls.style.setProperty(
       "--view-controls-top",
-      `${Math.round(selected.rect.y)}px`,
+      `${Math.round(boundedTop)}px`,
     );
     els.viewControls.style.setProperty("--view-controls-right", "auto");
     els.viewControls.style.setProperty("--view-controls-bottom", "auto");
