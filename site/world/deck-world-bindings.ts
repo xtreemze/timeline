@@ -8,7 +8,7 @@
  * interface with the actual `@deck.gl/core` / `@deck.gl/layers` classes.
  */
 import { Deck, _GlobeView as GlobeView, MapView } from "@deck.gl/core";
-import { PathLayer, ScatterplotLayer } from "@deck.gl/layers";
+import { PathLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import type { DeckWorldBindings } from "./deck-world-runtime.ts";
 import type { DeckRuntimeInstance, DeckRuntimePickingInfo } from "./deck-world-surface.ts";
 
@@ -48,5 +48,8 @@ export const realDeckWorldBindings: DeckWorldBindings = Object.freeze({
   },
   pathLayer(props) {
     return new PathLayer(props as ConstructorParameters<typeof PathLayer>[0]);
+  },
+  textLayer(props) {
+    return new TextLayer(props as ConstructorParameters<typeof TextLayer>[0]);
   },
 });
