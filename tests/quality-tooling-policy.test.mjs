@@ -49,6 +49,7 @@ test("package scripts expose formatter, style lint, safe fixes, and the CI quali
   assert.equal(scripts.format, "biome format --write .");
   assert.equal(scripts["format:check"], "biome format .");
   assert.match(scripts["lint:biome"] ?? "", /^biome lint /);
+  assert.match(scripts["lint:styles"] ?? "", /--config-path=biome\.strict\.json/);
   assert.match(scripts["lint:styles"] ?? "", /\.css/);
   assert.match(
     scripts["check:quality"] ?? "",
