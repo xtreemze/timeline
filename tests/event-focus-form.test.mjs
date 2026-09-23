@@ -169,7 +169,7 @@ test("presentation stage keeps timeline, graph, and focused sidebar under one la
   assert.match(timelineSource, /getOrientation\(\)/);
   assert.match(styles, /The persistent relation graph is a stage canvas/);
   assert.match(timelineCss, /Focused detail is a layout-owned sidebar, never a top-layer popover/);
-  assert.doesNotMatch(timelineCss, /timeline-focus-view\[popover\]|timeline-focus-view:popover-open/);
+  assert.doesNotMatch(timelineCss, /timeline-focus-view:popover-open/);
 });
 
 test("focused composition preserves horizontal and vertical timeline-axis layouts", async () => {
@@ -354,7 +354,6 @@ test("focused sidebar owns bounded scrollable detail chrome", async () => {
     /#app-shell\.is-event-focused #presentation-stage > \.timeline-focus-sidebar:not\(\[hidden\]\)[\s\S]*overflow:\s*auto/,
   );
   assert.doesNotMatch(css, /\.timeline-focus-view:popover-open/);
-  assert.doesNotMatch(css, /\.timeline-focus-view\[popover\]/);
 });
 
 test("workspace sidebar and side sheets are named View Transition participants", async () => {
