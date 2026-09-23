@@ -42,6 +42,7 @@
     "test:world-projection": "node --test tests/world-projection.test.mjs",
     "test:spatial-anchor-index": "node --test tests/spatial-anchor-index.test.mjs",
     "test:world-occurrence-projection": "node --test tests/world-occurrence-projection.test.mjs",
+    "test:world-projection-delta": "node --test tests/world-projection-delta.test.mjs",
     "test:world-surface-contracts": "node --test tests/world-surface-contracts.test.mjs",
     "test:world-geographic-position": "node --test tests/world-geographic-position.test.mjs",
     "test:deck-world-surface": "node --test tests/deck-world-surface.test.mjs",
