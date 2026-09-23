@@ -248,6 +248,7 @@ test.describe('Mobile-first Timeline layout contracts', () => {
 
       await page.locator('#timeline-browser-toggle').click();
       await expectInsideViewport(page.locator('#timeline-browser-sheet'), viewport);
+      await expectInsideViewport(page.locator('#timeline-browser-close'), viewport);
       await page.locator('#timeline-browser-close').click();
 
       const projectButton = page.locator('#project-menu-toggle');
