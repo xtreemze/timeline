@@ -295,12 +295,23 @@ export type DeckWorldEntityRenderDatum = DeckWorldEntityDatum | DeckWorldCluster
  * Below this globe zoom level, nearby entities remain grouped into clusters.
  * Release them only once a 6-degree cluster cell occupies roughly 192px on
  * screen (zoom ~= 4.5 at the equator). The extra overview tier prevents a
- * freshly declustered field of 44-52px nodes, labels, and relationships from
+ * freshly declustered field of 28-34px nodes, labels, and relationships from
  * becoming dense before the camera has enough room to resolve them.
  */
 export const CLUSTER_ZOOM_THRESHOLD = 4.5;
 /** Default-sized nodes preserve the historical clustering threshold. */
 const WORLD_CLUSTER_BASE_NODE_RADIUS_PX = 28;
+/** Compact overview envelope: enough to read as a cluster without dominating its place. */
+const WORLD_CLUSTER_MARKER_MIN_RADIUS_PX = 28;
+const WORLD_CLUSTER_MARKER_MAX_RADIUS_PX = 38;
+
+function worldClusterMarkerRadiusPx(memberCount: number): number {
+  const count = Number.isFinite(memberCount) ? Math.max(1, memberCount) : 1;
+  return Math.min(
+    WORLD_CLUSTER_MARKER_MAX_RADIUS_PX,
+    WORLD_CLUSTER_MARKER_MIN_RADIUS_PX + Math.log2(count) * 2.5,
+  );
+}
 /** Arrow geometry is world-space, so refresh it on fine-grained zoom steps. */
 const WORLD_SCREEN_SCALE_ZOOM_STEPS_PER_LEVEL = 32;
 const WORLD_CAMERA_FACING_STEP_DEGREES = 2;
@@ -2347,8 +2358,11 @@ export class DeckWorldSurface implements WorldSurface {
     readonly selected: boolean;
     readonly emphasized?: boolean;
     readonly style?: WorldPresentationStyle;
+    readonly sourceInstanceId?: WorldInstanceId;
+    readonly targetInstanceId?: WorldInstanceId;
   }): WorldEdgeStyle {
-    const key = `${datum.label ?? ""}|${datum.selected}|${datum.emphasized === true}|${datum.style ? JSON.stringify(datum.style) : ""}`;
+    const fallbackColor = this.#edgeEndpointColor(datum);
+    const key = `${datum.label ?? ""}|${datum.selected}|${datum.emphasized === true}|${fallbackColor ?? ""}|${datum.style ? JSON.stringify(datum.style) : ""}`;
     let style = this.#edgeStyles.get(key);
     if (!style) {
       style = worldEdgeStyle(
@@ -2357,12 +2371,38 @@ export class DeckWorldSurface implements WorldSurface {
           attributes: datum.style ? { style: datum.style } : undefined,
           selected: datum.selected,
           emphasized: datum.emphasized,
+          ...(fallbackColor === undefined ? {} : { fallbackColor }),
         },
         this.#palette,
       );
       this.#edgeStyles.set(key, style);
     }
     return style;
+  }
+
+  #edgeEndpointColor(datum: {
+    readonly sourceInstanceId?: WorldInstanceId;
+    readonly targetInstanceId?: WorldInstanceId;
+  }): string | undefined {
+    for (const instanceId of [datum.sourceInstanceId, datum.targetInstanceId]) {
+      if (!instanceId) continue;
+      const entity = this.#entityDatumCache.get(instanceId);
+      if (!entity) continue;
+      const style = this.#entityStyle(entity);
+      if (style.fill) return style.fill;
+      if (style.border) return style.border;
+    }
+    return undefined;
+  }
+
+  #edgeRenderColor(datum: DeckWorldRelationshipDatum, expansion: number): [number, number, number, number] {
+    const hovered =
+      this.#hoverSelection?.kind === "relationship" &&
+      this.#hoverSelection.id === datum.relationshipId;
+    const directlyEmphasized = datum.selected || hovered;
+    const color = directlyEmphasized ? this.#edgeStyle(datum).color : this.#palette.muted;
+    const alpha = directlyEmphasized ? 255 : datum.emphasized ? 150 : 105;
+    return worldColorBytes(color, Math.round(alpha * expansion));
   }
 
   #loadAppFont(): void {
@@ -3641,10 +3681,9 @@ export class DeckWorldSurface implements WorldSurface {
         },
         getColor: (datum: DeckWorldTemporalRelationshipDatum) => {
           const state = this.#temporalRelationshipStateFor(datum);
-          const emphasisAlpha = state.edge.selected ? 255 : state.edge.emphasized ? 242 : 215;
-          return worldColorBytes(
-            this.#temporalEdgeStyle(datum).color,
-            state.temporalActive ? Math.round(emphasisAlpha * edgeExpansion(state.edge)) : 0,
+          return this.#edgeRenderColor(
+            state.edge,
+            state.temporalActive ? edgeExpansion(state.edge) : 0,
           );
         },
         updateTriggers: {
@@ -3685,10 +3724,7 @@ export class DeckWorldSurface implements WorldSurface {
         // as an outer neutral ring so they never cover the place marker.
         getRadius: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster"
-            ? (WORLD_ENTITY_MIN_HIT_RADIUS_PX +
-                10 +
-                Math.min(datum.clusterMembers.length, 30) * 0.5) *
-              clusterVisibility
+            ? worldClusterMarkerRadiusPx(datum.clusterMembers.length) * clusterVisibility
             : Math.max(
                 WORLD_ENTITY_MIN_HIT_RADIUS_PX,
                 this.#entityStyle(datum).radius + this.#entityStyle(datum).borderWidth,
@@ -3696,7 +3732,7 @@ export class DeckWorldSurface implements WorldSurface {
         stroked: true,
         lineWidthUnits: "pixels",
         getLineWidth: (datum: DeckWorldEntityRenderDatum) =>
-          datum.kind === "cluster" ? 2 * clusterVisibility : 0,
+          datum.kind === "cluster" ? 1.5 * clusterVisibility : 0,
         getLineColor: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster"
             ? scaleAlpha(this.#theme.clusterBorder, clusterVisibility)
@@ -3835,13 +3871,8 @@ export class DeckWorldSurface implements WorldSurface {
             edgeExpansion(datum)
           );
         },
-        getColor: (datum: DeckWorldDirectionDatum) => {
-          const emphasisAlpha = datum.edge.selected ? 255 : datum.edge.emphasized ? 242 : 215;
-          return worldColorBytes(
-            this.#edgeStyle(datum.edge).color,
-            Math.round(emphasisAlpha * edgeExpansion(datum)),
-          );
-        },
+        getColor: (datum: DeckWorldDirectionDatum) =>
+          this.#edgeRenderColor(datum.edge, edgeExpansion(datum)),
         updateTriggers: {
           getWidth: [this.#palette, placeExpansion, gridClustered],
           getColor: [this.#palette, placeExpansion, gridClustered],
