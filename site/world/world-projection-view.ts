@@ -49,6 +49,8 @@ interface InputPlace {
   readonly name?: unknown;
   readonly geometry?: unknown;
   readonly accuracyMeters?: unknown;
+  readonly icon?: unknown;
+  readonly markerShape?: unknown;
   readonly style?: unknown;
 }
 
@@ -157,13 +159,32 @@ function canonicalPlaces(input: readonly InputPlace[]): readonly SpatialPlaceRec
     if (!id || !geometry) continue;
 
     const radius = precisionRadius(raw.accuracyMeters);
+    const rawStyle = isRecord(raw.style) ? raw.style : {};
+    const rawMarker = isRecord(rawStyle["marker"]) ? rawStyle["marker"] : {};
+    const icon = text(raw.icon);
+    const markerShape = text(raw.markerShape);
+    const style =
+      Object.keys(rawStyle).length > 0 || icon || markerShape
+        ? Object.freeze({
+            ...rawStyle,
+            ...(icon || markerShape
+              ? {
+                  marker: Object.freeze({
+                    ...rawMarker,
+                    ...(icon ? { icon } : {}),
+                    ...(markerShape ? { shape: markerShape } : {}),
+                  }),
+                }
+              : {}),
+          })
+        : undefined;
     result.push(
       Object.freeze({
         id: placeId(id),
         ...(text(raw.name) ? { label: text(raw.name) } : {}),
         geometry,
         ...(radius === undefined ? {} : { precisionRadiusMeters: radius }),
-        ...(isRecord(raw.style) ? { style: Object.freeze({ ...raw.style }) } : {}),
+        ...(style === undefined ? {} : { style }),
       }),
     );
   }
