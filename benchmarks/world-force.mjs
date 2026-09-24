@@ -1,6 +1,7 @@
 import { performance } from "node:perf_hooks";
 
 import { ReferenceWorldForceSimulation } from "../src/layout/reference-world-force-simulation.ts";
+import { createWorldDagLayout } from "../src/layout/world-dag-layout.ts";
 import { createWorldForceScene } from "../src/layout/world-force-scene.ts";
 import {
   createProjectedWorldEdge,
@@ -135,6 +136,17 @@ for (const nodeCount of sizes) {
   }, iterations);
 
   forceScene = createWorldForceScene(projection);
+  const dagQuality = createWorldDagLayout(projection, {
+    nodeSizes: new Map(
+      forceScene.nodes.map((node) => [
+        node.id,
+        {
+          widthMeters: node.collisionRadiusMeters * 2,
+          heightMeters: node.collisionRadiusMeters * 2,
+        },
+      ]),
+    ),
+  }).metrics;
 
   const solverSetup = measure(() => {
     const simulation = new ReferenceWorldForceSimulation();
@@ -186,6 +198,7 @@ for (const nodeCount of sizes) {
     solveStep,
     dragStep,
     dragChangedNodes,
+    dagQuality,
     diagnostics,
   });
 }
@@ -199,7 +212,7 @@ console.log(
       platform: process.platform,
       architecture: process.arch,
       fixture:
-        "deterministic geographic groups of <=32 nodes with local topology and cross-place visual relationships",
+        "deterministic geographic groups of <=32 nodes with local topology, cross-place relationships, and DAG quality metrics",
       results,
     },
     null,
