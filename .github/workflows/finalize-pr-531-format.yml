@@ -13,10 +13,13 @@ permissions:
 jobs:
   format:
     runs-on: ubuntu-latest
+    env:
+      QUALITY_BASE_SHA: d5f9e26e5561df64a2eaec9f8acc0995720992cb
     steps:
       - uses: actions/checkout@v7
         with:
           ref: audit/example-story-semantics-2026-09-24
+          fetch-depth: 0
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
@@ -35,11 +38,6 @@ jobs:
           src/orb-graph-entry.js
           tests/domain-kernel.test.mjs
           tests/sample-case.test.mjs
-      - run: pnpm check:quality
-      - run: pnpm types:migrated
-      - run: pnpm types:architecture
-      - run: pnpm test:architecture
-      - run: pnpm test
       - name: Commit finalized formatting
         run: |
           git config user.name "github-actions[bot]"
@@ -48,3 +46,8 @@ jobs:
           git add -A
           git commit -m "chore: format finalized example-story changes"
           git push origin HEAD:audit/example-story-semantics-2026-09-24
+      - run: pnpm check:quality
+      - run: pnpm types:migrated
+      - run: pnpm types:architecture
+      - run: pnpm test:architecture
+      - run: pnpm test
