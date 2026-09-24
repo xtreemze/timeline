@@ -64,15 +64,28 @@ interface InputRelationship {
   readonly predicate?: unknown;
   readonly role?: unknown;
   readonly placeId?: unknown;
+  readonly itemIds?: unknown;
   readonly time?: unknown;
   readonly confidence?: unknown;
   readonly attributes?: unknown;
+}
+
+interface InputCategory {
+  readonly id?: unknown;
+  readonly color?: unknown;
+}
+
+interface InputItem {
+  readonly id?: unknown;
+  readonly categoryId?: unknown;
 }
 
 export interface WorldViewModel {
   readonly entities?: readonly InputEntity[];
   readonly places?: readonly InputPlace[];
   readonly relationships?: readonly InputRelationship[];
+  readonly categories?: readonly InputCategory[];
+  readonly items?: readonly InputItem[];
 }
 
 export interface WorldViewViewport {
@@ -215,6 +228,7 @@ function canonicalRelationships(
   input: readonly InputRelationship[],
   entityIds: ReadonlySet<string>,
   renderablePlaceIds: ReadonlySet<string>,
+  categoryColorByRelationshipId: ReadonlyMap<string, string> = new Map(),
 ): readonly CanonicalRelationship[] {
   const result: CanonicalRelationship[] = [];
 
@@ -227,6 +241,13 @@ function canonicalRelationships(
     if (!entityIds.has(subject) || !entityIds.has(object) || subject === object) continue;
 
     const rawPlaceId = text(raw.placeId);
+    const attributes = isRecord(raw.attributes) ? { ...raw.attributes } : {};
+    const categoryColor = categoryColorByRelationshipId.get(id);
+    if (categoryColor) {
+      const style = isRecord(attributes.style) ? { ...attributes.style } : {};
+      style.categoryColor = categoryColor;
+      attributes.style = Object.freeze(style);
+    }
     result.push(
       Object.freeze({
         id: relationshipId(id),
@@ -241,9 +262,7 @@ function canonicalRelationships(
         sourceIds: Object.freeze([]),
         confidence: confidence(raw.confidence),
         time: canonicalTime(raw.time),
-        attributes: isRecord(raw.attributes)
-          ? Object.freeze({ ...raw.attributes })
-          : Object.freeze({}),
+        attributes: Object.freeze(attributes),
       }),
     );
   }
@@ -315,10 +334,37 @@ export class WorldProjectionView {
     );
     this.#placeIds = new Set(places.map((place) => String(place.id)));
 
+    const categoryColors = new Map(
+      (Array.isArray(model.categories) ? model.categories : [])
+        .map((category) => [text(category.id), text(category.color)] as const)
+        .filter(([id, color]) => Boolean(id && color)),
+    );
+    const itemCategoryColors = new Map(
+      (Array.isArray(model.items) ? model.items : [])
+        .map((item) => {
+          const id = text(item.id);
+          const categoryColor = categoryColors.get(text(item.categoryId)) ?? "";
+          return [id, categoryColor] as const;
+        })
+        .filter(([id, color]) => Boolean(id && color)),
+    );
+    const categoryColorByRelationshipId = new Map<string, string>();
+    for (const relationship of Array.isArray(model.relationships) ? model.relationships : []) {
+      const id = text(relationship.id);
+      if (!id || !Array.isArray(relationship.itemIds)) continue;
+      for (const itemId of relationship.itemIds) {
+        const categoryColor = itemCategoryColors.get(text(itemId));
+        if (!categoryColor) continue;
+        categoryColorByRelationshipId.set(id, categoryColor);
+        break;
+      }
+    }
+
     this.#relationships = canonicalRelationships(
       Array.isArray(model.relationships) ? model.relationships : [],
       this.#entityIds,
       this.#placeIds,
+      categoryColorByRelationshipId,
     );
     this.#spatialAnchors = new SpatialAnchorIndex(places, this.#relationships);
 
