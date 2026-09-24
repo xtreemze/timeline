@@ -126,6 +126,28 @@ test("the temporal window forwarded to the renderer stays purely temporal", () =
   assert.deepEqual(windows.at(-1), window);
 });
 
+test("world temporal previews do not rebuild the spatial projection before commit", () => {
+  const { view, getProjection, windows } = harness();
+  view.setModel(model);
+  view.setWindow({ ...window, activeOccurrenceIds: ["meeting"] });
+  const committedProjection = getProjection();
+  const rendersBeforePreview = windows.length;
+
+  const preview = {
+    start: Date.parse("2026-09-24T09:00:00Z"),
+    end: Date.parse("2026-09-24T11:00:00Z"),
+    activeOccurrenceIds: ["later"],
+  };
+  view.previewWindow(preview);
+
+  assert.equal(getProjection(), committedProjection, "preview preserves expensive projection state");
+  assert.equal(windows.length, rendersBeforePreview + 1);
+  assert.deepEqual(windows.at(-1), { start: preview.start, end: preview.end });
+
+  view.setWindow(preview);
+  assert.deepEqual(edgeIds(getProjection()), ["later"]);
+});
+
 test("without a shared active set the world keeps its standalone temporal query", () => {
   const { view, getProjection } = harness();
   view.setModel(model);
@@ -170,13 +192,21 @@ test("TimelineSurface publishes activation from the logical viewport, never from
 });
 
 
-test("transient timeline viewport bursts collapse to the latest settled spatial update", () => {
+test("transient timeline viewport bursts preview cheaply and collapse to one settled spatial update", () => {
   const applied = [];
-  const sink = createSettledTemporalWindowSink((viewport) => applied.push(viewport));
+  const previews = [];
+  const sink = createSettledTemporalWindowSink(
+    (viewport) => applied.push(viewport),
+    (viewport) => previews.push(viewport),
+  );
 
-  assert.equal(sink.push({ start: 0, end: 10 }, false), false);
-  assert.equal(sink.push({ start: 5, end: 15 }, false), false);
-  assert.equal(sink.push({ start: 10, end: 20 }, false), false);
+  const first = { start: 0, end: 10 };
+  const second = { start: 5, end: 15 };
+  const third = { start: 10, end: 20 };
+  assert.equal(sink.push(first, false), false);
+  assert.equal(sink.push(second, false), false);
+  assert.equal(sink.push(third, false), false);
+  assert.deepEqual(previews, [first, second, third]);
   assert.deepEqual(applied, []);
 
   const settled = { start: 15, end: 25 };
