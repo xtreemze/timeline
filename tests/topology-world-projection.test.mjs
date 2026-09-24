@@ -72,11 +72,12 @@ test("topology edges define canonical relationships materialized into the world"
     world.edges.some((edge) => edge.id === "cd"),
     false,
   );
+  const bInstances = world.instances.filter((instance) => instance.canonicalId === "b");
+  assert.equal(bInstances.length, 1);
+  assert.deepEqual(bInstances[0].occurrenceIds, ["ab", "bc"]);
   assert.deepEqual(
-    world.instances
-      .filter((instance) => instance.canonicalId === "b")
-      .map((instance) => String(instance.occurrenceId)),
-    ["ab", "bc"],
+    bInstances[0].geographicAnchors.map((anchor) => String(anchor.placeId)),
+    ["copenhagen", "stockholm"],
   );
 });
 
