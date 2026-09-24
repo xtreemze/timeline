@@ -1034,7 +1034,8 @@ const LABEL_HALO_PX = 3;
 const APP_FONT_FAMILY = "Monaspace Krypton Timeline";
 const LABEL_FALLBACK_FONT_FAMILY = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 const GRATICULE = worldGraticule();
-const ENTITY_LABEL_OFFSET_PX = 56;
+const ENTITY_LABEL_OFFSET_PX = 32;
+const ENTITY_MIN_HIT_RADIUS_PX = 22;
 
 /** Close/detail zoom where a claimed node drag freezes the globe camera. */
 export const WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM = 6;
@@ -2561,7 +2562,10 @@ export class DeckWorldSurface implements WorldSurface {
         getRadius: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster"
             ? 12 + Math.min(datum.clusterMembers.length, 30) * 0.5
-            : this.#entityStyle(datum).radius + this.#entityStyle(datum).borderWidth,
+            : Math.max(
+                ENTITY_MIN_HIT_RADIUS_PX,
+                this.#entityStyle(datum).radius + this.#entityStyle(datum).borderWidth,
+              ),
         stroked: true,
         lineWidthUnits: "pixels",
         getLineWidth: (datum: DeckWorldEntityRenderDatum) => (datum.kind === "cluster" ? 2 : 0),
