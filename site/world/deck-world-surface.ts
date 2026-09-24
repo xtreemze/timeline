@@ -2008,6 +2008,7 @@ export class DeckWorldSurface implements WorldSurface {
     instances: Object.freeze([]),
     edges: Object.freeze([]),
   });
+  #relationshipRouteHints: ReadonlyMap<RelationshipId, WorldRelationshipRouteHint> = new Map();
   #selection: WorldSelection | null = null;
   #hoverSelection: WorldSelection | null = null;
   #camera: WorldCameraState;
@@ -2533,6 +2534,14 @@ export class DeckWorldSurface implements WorldSurface {
       this.#activeDragPointerId = null;
       this.#dragCameraLock = null;
     }
+    this.#render();
+  }
+
+  setRelationshipRoutes(routes: readonly WorldRelationshipRouteHint[]): void {
+    this.#assertAlive();
+    this.#relationshipRouteHints = new Map(
+      routes.map((route) => [route.relationshipId, route] as const),
+    );
     this.#render();
   }
 
@@ -3409,6 +3418,12 @@ export class DeckWorldSurface implements WorldSurface {
       this.#selection,
       this.#relationshipDatumCache,
       neighborhood.relationshipIds,
+      {
+        routes: this.#relationshipRouteHints,
+        offsetScale: this.#offsetScale,
+        floatMeters: this.#floatMeters,
+        activeDragInstanceId: this.#activeDragInstanceId,
+      },
     );
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
