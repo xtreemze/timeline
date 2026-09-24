@@ -7,6 +7,12 @@ import {
 } from "../../src/interaction/world-touch-hold.ts";
 import { fitWorldCamera, globeOverviewCamera } from "../../src/layout/world-camera-fit.ts";
 import {
+  WORLD_NODE_INTERACTION_DIAMETER_PX,
+  WORLD_NODE_VISIBLE_DIAMETER_PX,
+  worldEntityGraphStyle,
+  worldRelationshipGraphStyle,
+} from "./world-graph-style.ts";
+import {
   resolveWorldRenderPosition,
   type WorldRenderPosition,
 } from "../../src/layout/world-geographic-position.ts";
@@ -21,6 +27,10 @@ import {
   worldLabelTierFloor,
   worldPresentationOffsetScale,
 } from "../../src/layout/world-semantic-presentation.ts";
+import {
+  clusterWorldScreenItems,
+  type WorldScreenPoint,
+} from "../../src/layout/world-screen-clustering.ts";
 import {
   selectWorldSpatialMode,
   type WorldSpatialMode,
@@ -60,6 +70,7 @@ export const DECK_WORLD_LAYER_IDS = Object.freeze({
   relationshipDirections: "lum-world-relationship-directions",
   labels: "lum-world-labels",
   entityIcons: "lum-world-entity-icons",
+  entityShapes: "lum-world-entity-shapes",
   earth: "lum-world-earth",
   graticule: "lum-world-graticule",
   coastlines: "lum-world-coastlines",
@@ -228,71 +239,93 @@ export interface DeckWorldClusterDatum {
 export type DeckWorldEntityRenderDatum = DeckWorldEntityDatum | DeckWorldClusterDatum;
 
 /**
- * Below this globe zoom level, nearby entities are grouped into clusters.
- * The default camera (zoom 1, see `DEFAULT_CAMERA` below) sits above this
- * threshold so clustering stays fully bypassed until the viewer zooms out
- * past the initial globe overview, keeping per-entity picking/dragging
- * unaffected at working zoom levels.
+ * Below this semantic zoom, nodes are eligible for collision clustering.
+ * Eligibility does not itself hide nodes: actual clustering is decided by
+ * projected screen-space footprint overlap after semantic local-offset
+ * magnification has had a chance to spread the topology.
  */
-export const CLUSTER_ZOOM_THRESHOLD = 0.5;
+export const CLUSTER_ZOOM_THRESHOLD = 7;
 
-/**
- * Dense projections need semantic LOD earlier than sparse scenes: drawing
- * tens of thousands of individually pickable glyphs at a globe overview is
- * both unreadable and needlessly expensive. This threshold is presentation
- * only; canonical membership remains in each cluster and zooming to a
- * working scale restores the original world instances.
- */
-const DENSE_CLUSTER_ENTITY_THRESHOLD = 25_000;
-const DENSE_CLUSTER_ZOOM_THRESHOLD = 4.5;
+const CLUSTER_ZOOM_STEP = 0.5;
+const CLUSTER_GAP_PX = 4;
+
+export function worldEntityClusterTier(entityCount: number, zoom: number): number {
+  if (entityCount < 2 || !Number.isFinite(zoom) || zoom >= CLUSTER_ZOOM_THRESHOLD) return -1;
+  return Math.floor(Math.max(0, zoom) / CLUSTER_ZOOM_STEP);
+}
 
 export function shouldClusterEntityDatums(entityCount: number, zoom: number): boolean {
-  return (
-    zoom < CLUSTER_ZOOM_THRESHOLD ||
-    (entityCount >= DENSE_CLUSTER_ENTITY_THRESHOLD && zoom < DENSE_CLUSTER_ZOOM_THRESHOLD)
-  );
+  return worldEntityClusterTier(entityCount, zoom) >= 0;
 }
 
-/** Grid-cell size (degrees) used to bucket entities for clustering. */
-const CLUSTER_CELL_DEGREES = 6;
+export type WorldEntityScreenProjector = (
+  position: WorldRenderPosition,
+) => WorldScreenPoint | null;
 
-function clusterCellKey(position: WorldRenderPosition): string {
-  const cellLongitude = Math.floor(position[0] / CLUSTER_CELL_DEGREES);
-  const cellLatitude = Math.floor(position[1] / CLUSTER_CELL_DEGREES);
-  return `${cellLongitude}:${cellLatitude}`;
+function approximateScreenProjector(zoom: number): WorldEntityScreenProjector {
+  const scale = (512 / 360) * 2 ** Math.max(0, Number.isFinite(zoom) ? zoom : 0);
+  return (position) => {
+    const latitudeScale = Math.max(0.2, Math.cos((position[1] * Math.PI) / 180));
+    return Object.freeze({
+      x: position[0] * scale * latitudeScale,
+      y: -position[1] * scale,
+    });
+  };
 }
 
 /**
- * Pure function grouping entity datums into clusters by screen-proximity
- * (approximated here via a lon/lat grid, since actual pixel projection would
- * require a live viewport). Fully bypassed at/above `CLUSTER_ZOOM_THRESHOLD`
- * so per-entity picking/dragging is unaffected at working zoom levels, and
- * a place-anchor's own entities are only grouped when more than one entity
- * shares proximity — a lone entity is returned unchanged (same reference),
- * preserving the Priority 3 incremental-memoization guarantee for the
- * common case.
+ * Groups only entity footprints that actually overlap in projected screen
+ * space. The projector is renderer-neutral: deck.gl supplies its live
+ * viewport today; #571 can supply direct common-space vec3 projection later.
+ *
+ * Canonical membership is preserved in every cluster and the original datum
+ * array is returned by reference when no overlap exists.
  */
 export function clusterEntityDatums(
   entities: readonly DeckWorldEntityDatum[],
   zoom: number,
+  projector?: WorldEntityScreenProjector,
 ): readonly DeckWorldEntityRenderDatum[] {
   if (!shouldClusterEntityDatums(entities.length, zoom)) return entities;
 
-  const cells = new Map<string, DeckWorldEntityDatum[]>();
+  const project = projector ?? approximateScreenProjector(zoom);
+  const projectedById = new Map<WorldInstanceId, WorldScreenPoint>();
+  const unprojected: DeckWorldEntityDatum[] = [];
   for (const entity of entities) {
-    const key = clusterCellKey(entity.position);
-    const bucket = cells.get(key);
-    if (bucket) {
-      bucket.push(entity);
+    const point = project(entity.position);
+    if (point && Number.isFinite(point.x) && Number.isFinite(point.y)) {
+      projectedById.set(entity.worldInstanceId, point);
     } else {
-      cells.set(key, [entity]);
+      // Camera projection is presentation state, never a membership filter.
+      unprojected.push(entity);
     }
   }
 
-  const result: DeckWorldEntityRenderDatum[] = [];
-  for (const [key, members] of cells) {
-    const [onlyMember] = members;
-    if (members.length === 1 && onlyMember) {
+  const projectable = entities.filter((entity) => projectedById.has(entity.worldInstanceId));
+  if (projectable.length === 0) return entities;
+
+  const groups = clusterWorldScreenItems(projectable, {
+    project: (entity) => projectedById.get(entity.worldInstanceId) ?? null,
+    radiusPx: (entity) =>
+      Math.max(
+        WORLD_NODE_VISIBLE_DIAMETER_PX / 2,
+        WORLD_NODE_VISIBLE_DIAMETER_PX / 2 + entity.visualWeight * 2,
+      ),
+    key: (entity) => String(entity.worldInstanceId),
+    gapPx: CLUSTER_GAP_PX,
+  });
+
+  if (
+    unprojected.length + groups.length === entities.length &&
+    groups.every((group) => group.members.length === 1)
+  ) {
+    return entities;
+  }
+
+  const result: DeckWorldEntityRenderDatum[] = [...unprojected];
+  for (const group of groups) {
+    const [onlyMember] = group.members;
+    if (group.members.length === 1 && onlyMember) {
       result.push(onlyMember);
       continue;
     }
@@ -302,7 +335,7 @@ export function clusterEntityDatums(
     let sumAltitude = 0;
     let sumWeight = 0;
     const clusterMembers: DeckWorldClusterMember[] = [];
-    for (const member of members) {
+    for (const member of group.members) {
       sumLongitude += member.position[0];
       sumLatitude += member.position[1];
       sumAltitude += member.position[2];
@@ -315,14 +348,14 @@ export function clusterEntityDatums(
     result.push(
       Object.freeze({
         kind: "cluster",
-        clusterId: `cluster:${key}`,
+        clusterId: `cluster:${group.key}`,
         position: Object.freeze([
-          sumLongitude / members.length,
-          sumLatitude / members.length,
-          sumAltitude / members.length,
+          sumLongitude / group.members.length,
+          sumLatitude / group.members.length,
+          sumAltitude / group.members.length,
         ]) as WorldRenderPosition,
         clusterMembers: Object.freeze(clusterMembers),
-        visualWeight: sumWeight / members.length,
+        visualWeight: sumWeight / group.members.length,
       }),
     );
   }
@@ -554,7 +587,7 @@ function cameraFromRuntime(value: unknown, fallback: WorldCameraState): WorldCam
 
 /** Zoom a focus action settles on: at least a regional view. */
 function focusZoom(current: number): number {
-  return Math.max(current, 5);
+  return Math.max(current, 7.25);
 }
 
 function anchorPosition(
@@ -1068,7 +1101,7 @@ interface DeckWorldIconDescriptor {
   readonly url: string;
   readonly width: number;
   readonly height: number;
-  readonly mask: true;
+  readonly mask: boolean;
 }
 
 const ICON_ATLAS_PX = 48;
@@ -1094,6 +1127,41 @@ function entityIconDescriptor(name: string): DeckWorldIconDescriptor {
     mask: true,
   });
   iconDescriptors.set(name, descriptor);
+  return descriptor;
+}
+
+const entityShapeDescriptors = new Map<string, DeckWorldIconDescriptor>();
+
+function rgbaCss(color: readonly [number, number, number, number]): string {
+  return `rgba(${color[0]},${color[1]},${color[2]},${color[3] / 255})`;
+}
+
+function entityShapeDescriptor(datum: DeckWorldEntityDatum): DeckWorldIconDescriptor {
+  const style = worldEntityGraphStyle(datum.entityKind, datum.selected);
+  const key = `${style.shape}:${style.family}:${datum.selected ? "selected" : "normal"}`;
+  const cached = entityShapeDescriptors.get(key);
+  if (cached) return cached;
+
+  const fill = rgbaCss(style.fillColor);
+  const stroke = rgbaCss(style.borderColor);
+  const strokeWidth = style.borderWidthPx * 2;
+  const geometry =
+    style.shape === "square"
+      ? `<rect x="7" y="7" width="34" height="34" rx="5"/>`
+      : style.shape === "diamond"
+        ? `<path d="M24 4 44 24 24 44 4 24Z"/>`
+        : style.shape === "hexagon"
+          ? `<path d="M24 4 41 14 41 34 24 44 7 34 7 14Z"/>`
+          : `<circle cx="24" cy="24" r="19"/>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"><g fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linejoin="round">${geometry}</g></svg>`;
+  const descriptor: DeckWorldIconDescriptor = Object.freeze({
+    id: `lum-node-shape:${key}`,
+    url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+    width: 48,
+    height: 48,
+    mask: false,
+  });
+  entityShapeDescriptors.set(key, descriptor);
   return descriptor;
 }
 
@@ -1215,10 +1283,10 @@ export class DeckWorldSurface implements WorldSurface {
   // The last canonical object the camera was focused on. Presentation-only:
   // it keeps that object's label through LOD and never alters selection.
   #focus: WorldLabelFocus | null = null;
-  // Tracks which side of CLUSTER_ZOOM_THRESHOLD the last render used, so
-  // camera-only zoom changes only trigger a re-render when clustering would
-  // actually turn on/off (ordinary panning/zooming above the threshold stays
-  // as cheap as before).
+  // Quantized clustering eligibility tier. Actual membership is decided in
+  // screen space, but half-zoom tiers avoid rebuilding collision groups for
+  // every tiny wheel/pinch delta.
+  #clusterTierLastRender = -1;
   #clusteredLastRender = false;
   // Same idea for the semantic label/marker LOD tier: a tier change only
   // matters when some kind has more candidates than the smaller budget.
@@ -1382,7 +1450,7 @@ export class DeckWorldSurface implements WorldSurface {
           this.#autoFitted = false;
           this.#camera = next;
           this.#syncSpatialMode();
-          this.#reclusterIfZoomCrossedThreshold();
+          this.#refreshCameraDependentPresentation();
         }
       },
     });
@@ -1496,7 +1564,8 @@ export class DeckWorldSurface implements WorldSurface {
     this.#assertAlive();
     this.#cameraOwned = false;
     this.#autoFitCamera(mode);
-    this.#reclusterIfZoomCrossedThreshold();
+    // The render below recomputes camera-dependent screen-space clusters
+    // against the newly fitted viewport; no separate clustering pass is needed.
     this.#render();
   }
 
@@ -1573,11 +1642,17 @@ export class DeckWorldSurface implements WorldSurface {
     this.#autoFitted = false;
     this.#camera = createWorldCameraState(camera);
     this.#syncSpatialMode();
-    // When the zoom changes LOD or the offset magnification, layers and
-    // camera go to deck in one update so no frame pairs the new camera with
-    // stale positions.
-    if (this.#zoomNeedsRender()) this.#render(true);
-    else this.#deck.setProps({ viewState: this.#camera });
+    // Screen-space clusters depend on the full camera, not zoom alone. While
+    // clustering is eligible, orbit/pan/zoom all rebuild membership. Outside
+    // that tier, retain the cheaper LOD/offset-scale invalidation path.
+    if (
+      worldEntityClusterTier(this.#entityDatumCache.size, this.#camera.zoom) >= 0 ||
+      this.#zoomNeedsRender()
+    ) {
+      this.#render(true);
+    } else {
+      this.#deck.setProps({ viewState: this.#camera });
+    }
   }
 
   focusEntity(id: EntityId): void {
@@ -1691,6 +1766,7 @@ export class DeckWorldSurface implements WorldSurface {
         unproject3D: true,
         layerIds: [
           DECK_WORLD_LAYER_IDS.entityIcons,
+          DECK_WORLD_LAYER_IDS.entityShapes,
           DECK_WORLD_LAYER_IDS.entities,
           DECK_WORLD_LAYER_IDS.relationshipDirections,
           DECK_WORLD_LAYER_IDS.relationships,
@@ -1905,18 +1981,24 @@ export class DeckWorldSurface implements WorldSurface {
     });
   }
 
-  #reclusterIfZoomCrossedThreshold(): void {
+  #refreshCameraDependentPresentation(): void {
+    // Cluster membership is defined in projected screen space, so orbit/pan
+    // can change overlap even when zoom stays inside one LOD tier.
+    if (worldEntityClusterTier(this.#entityDatumCache.size, this.#camera.zoom) >= 0) {
+      this.#render();
+      return;
+    }
     if (this.#zoomNeedsRender()) this.#render();
   }
 
   #zoomNeedsRender(): boolean {
-    const clusteredNow = shouldClusterEntityDatums(this.#entityDatumCache.size, this.#camera.zoom);
+    const clusterTierNow = worldEntityClusterTier(this.#entityDatumCache.size, this.#camera.zoom);
     const budget = worldLabelBudget(this.#camera.zoom);
     const lodChanged =
       budget !== this.#labelBudgetLastRender &&
       Math.min(budget, this.#labelBudgetLastRender) < this.#lodCandidateCountLastRender;
     return (
-      clusteredNow !== this.#clusteredLastRender ||
+      clusterTierNow !== this.#clusterTierLastRender ||
       lodChanged ||
       this.#nextOffsetScale() !== this.#offsetScale
     );
@@ -1929,9 +2011,8 @@ export class DeckWorldSurface implements WorldSurface {
    */
   #nextOffsetScale(zoom = this.#camera.zoom): number {
     const instances = this.#projection.instances;
-    // Clustered overviews group true geography; magnifying offsets there
-    // would scatter one place's entities across cluster cells.
-    if (shouldClusterEntityDatums(instances.length, zoom)) return 1;
+    // Spread local topology first. Screen-space clustering is the fallback
+    // only when rendered footprints still collide after this magnification.
     return worldPresentationOffsetScale(
       zoom,
       instances.length,
@@ -2030,14 +2111,33 @@ export class DeckWorldSurface implements WorldSurface {
     );
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
-    const entities = clusterEntityDatums(entityResult.datums, this.#camera.zoom);
+    const viewport = this.#deck.getViewports()[0];
+    const screenProjector: WorldEntityScreenProjector | undefined = viewport
+      ? (position) => {
+          const projected = viewport.project(position);
+          const x = projected[0];
+          const y = projected[1];
+          return typeof x === "number" &&
+            typeof y === "number" &&
+            Number.isFinite(x) &&
+            Number.isFinite(y)
+            ? Object.freeze({ x, y })
+            : null;
+        }
+      : undefined;
+    const entities = clusterEntityDatums(
+      entityResult.datums,
+      this.#camera.zoom,
+      screenProjector,
+    );
     this.#placeDatumCache = placeResult.byId;
     this.#relationshipDatumCache = relationshipResult.byId;
     this.#entityDatumCache = entityResult.byId;
-    this.#clusteredLastRender = shouldClusterEntityDatums(
+    this.#clusterTierLastRender = worldEntityClusterTier(
       entityResult.datums.length,
       this.#camera.zoom,
     );
+    this.#clusteredLastRender = entities.some((datum) => datum.kind === "cluster");
     this.#labelBudgetLastRender = worldLabelBudget(this.#camera.zoom);
     this.#lodCandidateCountLastRender = Math.max(
       places.length,
@@ -2056,6 +2156,11 @@ export class DeckWorldSurface implements WorldSurface {
     const focus = this.#focus;
     const pinnedEntity = (entity: DeckWorldEntityDatum) =>
       entity.selected || (focus?.kind === "entity" && focus.id === entity.entityId);
+    const shapeDatums = this.#runtime.createIconLayer
+      ? this.#clusteredLastRender
+        ? entityResult.datums.filter(pinnedEntity)
+        : entities.filter((datum): datum is DeckWorldEntityDatum => datum.kind === "entity")
+      : null;
     const iconDatums = this.#runtime.createIconLayer
       ? selectPrioritizedLabels(
           entityResult.datums.filter(
@@ -2158,9 +2263,11 @@ export class DeckWorldSurface implements WorldSurface {
         pickable: true,
         widthUnits: "pixels",
         getPath: (datum: DeckWorldRelationshipDatum) => datum.path,
-        getWidth: (datum: DeckWorldRelationshipDatum) => (datum.selected ? 4 : 2),
+        widthMinPixels: 2,
+        getWidth: (datum: DeckWorldRelationshipDatum) =>
+          worldRelationshipGraphStyle(datum.label, datum.selected).widthPx,
         getColor: (datum: DeckWorldRelationshipDatum) =>
-          datum.selected ? WORLD_PALETTE.selected : WORLD_PALETTE.relationship,
+          worldRelationshipGraphStyle(datum.label, datum.selected).color,
         parameters: { cullMode: "none" },
       }),
       this.#runtime.createScatterplotLayer({
@@ -2172,17 +2279,25 @@ export class DeckWorldSurface implements WorldSurface {
         getRadius: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster"
             ? 10 + Math.min(datum.clusterMembers.length, 20) * 0.5
-            : (datum.selected ? 11 : 9) + datum.visualWeight * 2,
+            : WORLD_NODE_INTERACTION_DIAMETER_PX / 2,
         stroked: true,
         lineWidthUnits: "pixels",
-        getLineWidth: 2,
-        getLineColor: WORLD_PALETTE.outline,
+        getLineWidth: (datum: DeckWorldEntityRenderDatum) =>
+          datum.kind === "cluster"
+            ? 2
+            : this.#runtime.createIconLayer
+              ? 0
+              : worldEntityGraphStyle(datum.entityKind, datum.selected).borderWidthPx,
+        getLineColor: (datum: DeckWorldEntityRenderDatum) =>
+          datum.kind === "cluster"
+            ? WORLD_PALETTE.outline
+            : worldEntityGraphStyle(datum.entityKind, datum.selected).borderColor,
         getFillColor: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster"
             ? WORLD_PALETTE.cluster
-            : datum.selected
-              ? WORLD_PALETTE.selected
-              : WORLD_PALETTE.entity,
+            : this.#runtime.createIconLayer
+              ? [0, 0, 0, 0]
+              : worldEntityGraphStyle(datum.entityKind, datum.selected).fillColor,
         ...(this.#nodeDragSink
           ? {
               onDragStart: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
@@ -2194,6 +2309,32 @@ export class DeckWorldSurface implements WorldSurface {
             }
           : {}),
       }),
+      ...(shapeDatums && this.#runtime.createIconLayer
+        ? [
+            this.#runtime.createIconLayer({
+              id: DECK_WORLD_LAYER_IDS.entityShapes,
+              data: shapeDatums,
+              pickable: true,
+              billboard: true,
+              sizeUnits: "pixels",
+              getPosition: (datum: DeckWorldEntityDatum) => datum.position,
+              getIcon: (datum: DeckWorldEntityDatum) => entityShapeDescriptor(datum),
+              getSize: (datum: DeckWorldEntityDatum) =>
+                WORLD_NODE_VISIBLE_DIAMETER_PX + (datum.selected ? 6 : datum.visualWeight * 4),
+              parameters: { cullMode: "none" },
+              ...(this.#nodeDragSink
+                ? {
+                    onDragStart: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
+                      this.#beginEntityDrag(info, event),
+                    onDrag: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
+                      this.#updateEntityDrag(info, event),
+                    onDragEnd: (_info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
+                      this.#endEntityDrag(event),
+                  }
+                : {}),
+            }),
+          ]
+        : []),
       ...(iconDatums && this.#runtime.createIconLayer
         ? [
             this.#runtime.createIconLayer({
@@ -2232,9 +2373,10 @@ export class DeckWorldSurface implements WorldSurface {
         jointRounded: true,
         capRounded: true,
         getPath: (datum: DeckWorldDirectionDatum) => datum.path,
-        getWidth: (datum: DeckWorldDirectionDatum) => (datum.selected ? 5 : 3),
+        getWidth: (datum: DeckWorldDirectionDatum) =>
+          worldRelationshipGraphStyle(datum.edge.label, datum.selected).arrowWidthPx,
         getColor: (datum: DeckWorldDirectionDatum) =>
-          datum.selected ? WORLD_PALETTE.selected : WORLD_PALETTE.direction,
+          worldRelationshipGraphStyle(datum.edge.label, datum.selected).color,
         parameters: { cullMode: "none" },
       }),
       ...(labelResult && this.#runtime.createTextLayer

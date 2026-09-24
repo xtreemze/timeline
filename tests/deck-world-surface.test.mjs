@@ -368,6 +368,7 @@ test("deck picking translates directly to canonical world hits with a touch-size
     unproject3D: true,
     layerIds: [
       DECK_WORLD_LAYER_IDS.entityIcons,
+      DECK_WORLD_LAYER_IDS.entityShapes,
       DECK_WORLD_LAYER_IDS.entities,
       DECK_WORLD_LAYER_IDS.relationshipDirections,
       DECK_WORLD_LAYER_IDS.relationships,
@@ -394,7 +395,7 @@ test("focus moves the globe camera to a rendered canonical target", () => {
   assert.deepEqual(calls.setProps.at(-1).viewState, {
     longitude: 18.0686,
     latitude: 59.3293,
-    zoom: 5,
+    zoom: 7.25,
     bearing: 0,
     pitch: 20,
   });
@@ -432,6 +433,7 @@ test("double-click/double-tap focuses the canonical entity picked under the poin
     unproject3D: true,
     layerIds: [
       DECK_WORLD_LAYER_IDS.entityIcons,
+      DECK_WORLD_LAYER_IDS.entityShapes,
       DECK_WORLD_LAYER_IDS.entities,
       DECK_WORLD_LAYER_IDS.relationshipDirections,
       DECK_WORLD_LAYER_IDS.relationships,
@@ -441,7 +443,7 @@ test("double-click/double-tap focuses the canonical entity picked under the poin
   assert.deepEqual(calls.setProps.at(-1).viewState, {
     longitude: 18.0686,
     latitude: 59.3293,
-    zoom: 5,
+    zoom: 7.25,
     bearing: 0,
     pitch: 20,
   });
@@ -1055,7 +1057,7 @@ test("zooming back in above the cluster threshold restores per-entity picking an
   surface.setCamera({ longitude: 0, latitude: 0, zoom: 0, bearing: 0, pitch: 0 });
   assert.equal(calls.setProps.at(-1).layers[2].props.data.length, 1);
 
-  surface.setCamera({ longitude: 0, latitude: 0, zoom: 5, bearing: 0, pitch: 0 });
+  surface.setCamera({ longitude: 0, latitude: 0, zoom: 7.25, bearing: 0, pitch: 0 });
   const entities = calls.setProps.at(-1).layers[2].props.data;
   assert.equal(entities.length, 2);
   assert.ok(entities.every((datum) => datum.kind === "entity"));

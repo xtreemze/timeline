@@ -118,7 +118,7 @@ function denseProjection(count) {
 const WORKING_CAMERA = Object.freeze({
   longitude: 12,
   latitude: 41,
-  zoom: 5,
+  zoom: 7.25,
   bearing: 0,
   pitch: 20,
 });

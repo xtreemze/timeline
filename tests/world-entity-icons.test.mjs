@@ -63,7 +63,7 @@ function entity(index, kind, overrides = {}) {
   });
 }
 
-const CAMERA = Object.freeze({ longitude: 12, latitude: 41, zoom: 5, bearing: 0, pitch: 0 });
+const CAMERA = Object.freeze({ longitude: 12, latitude: 41, zoom: 7.25, bearing: 0, pitch: 0 });
 
 test("entity kinds map to the app's semantic icon vocabulary; unknown kinds get none", () => {
   assert.equal(worldEntityIconName("person"), "person");
@@ -103,8 +103,20 @@ test("kind icons render from projection metadata as tintable masks and pick as t
     }),
   );
 
-  const icons = h.lastLayers().find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons);
+  const layers = h.lastLayers();
+  const shapes = layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityShapes);
+  const icons = layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons);
+  const hitTargets = layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities);
+  assert.ok(shapes, "a semantic node shape layer is rendered");
   assert.ok(icons, "an entity icon layer is rendered");
+  assert.equal(shapes.type, "icon");
+  assert.equal(shapes.props.pickable, true);
+  const personShape = shapes.props.data.find((datum) => datum.entityId === "entity-0");
+  const objectShape = shapes.props.data.find((datum) => datum.entityId === "entity-2");
+  assert.match(shapes.props.getIcon(personShape).id, /^lum-node-shape:circle:person:/);
+  assert.match(shapes.props.getIcon(objectShape).id, /^lum-node-shape:diamond:object:/);
+  assert.equal(shapes.props.getIcon(personShape).mask, false);
+  assert.equal(hitTargets.props.getRadius(personShape), 22, "node hit target keeps a 44px diameter");
   assert.equal(icons.type, "icon");
   assert.equal(icons.props.parameters.cullMode, "none");
   assert.equal(icons.props.pickable, true);
@@ -119,6 +131,7 @@ test("kind icons render from projection metadata as tintable masks and pick as t
 
   surface.pick({ x: 1, y: 1 });
   assert.ok(h.pickOptions().layerIds.includes(DECK_WORLD_LAYER_IDS.entityIcons));
+  assert.ok(h.pickOptions().layerIds.includes(DECK_WORLD_LAYER_IDS.entityShapes));
 });
 
 test("dense icon load follows the LOD budget but keeps the selected entity", () => {
@@ -138,8 +151,15 @@ test("a runtime without icon support renders no icon layer", () => {
   const h = harness({ icons: false });
   const surface = new DeckWorldSurface({}, h.runtime, CAMERA);
   surface.setProjection(createWorldProjection({ instances: [entity(0, "person")], edges: [] }));
+  const layers = h.lastLayers();
   assert.equal(
-    h.lastLayers().find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons),
+    layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons),
     undefined,
   );
+  assert.equal(
+    layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityShapes),
+    undefined,
+  );
+  const entities = layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities);
+  assert.notDeepEqual(entities.props.getFillColor(entities.props.data[0]), [0, 0, 0, 0]);
 });
