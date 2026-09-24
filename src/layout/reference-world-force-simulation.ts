@@ -382,6 +382,8 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
   #states = new Map<WorldInstanceId, NodeState>();
   #orderedStates: readonly NodeState[] = Object.freeze([]);
   #groups = new Map<string, readonly NodeState[]>();
+  #groupBounds = new Map<string, ForceGroup>();
+  #dirtyGroupBounds = new Set<string>();
   #placeDomains = new Map<string, PlaceDomain>();
   #edges: readonly WorldForceEdge[] = Object.freeze([]);
   #edgesByGroup = new Map<string, readonly WorldForceEdge[]>();
@@ -478,6 +480,10 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#groups = new Map(
       [...mutableGroups.entries()].map(([key, states]) => [key, Object.freeze(states)]),
     );
+    this.#groupBounds = new Map(
+      [...this.#groups.entries()].map(([key, states]) => [key, forceGroup(key, states)]),
+    );
+    this.#dirtyGroupBounds.clear();
     this.#placeDomains = new Map();
     for (const [key, states] of this.#groups) {
       const domain = placeDomain(states);
@@ -533,6 +539,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       state.vy = 0;
       state.vz = 0;
       state.dirty = true;
+      this.#dirtyGroupBounds.add(state.group);
       updateStateCartesian(state);
     }
     this.#settled = false;
@@ -571,7 +578,16 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
         ? (this.#states.get(this.#interactionInstanceId)?.group ?? null)
         : null;
     const interactionGroup = activeDragGroup ?? settlingGroup;
-    const forceGroups = [...this.#groups.entries()].map(([key, states]) => forceGroup(key, states));
+    const forceGroups: ForceGroup[] = [];
+    for (const [key, states] of this.#groups) {
+      let group = this.#groupBounds.get(key);
+      if (!group || this.#dirtyGroupBounds.has(key)) {
+        group = forceGroup(key, states);
+        this.#groupBounds.set(key, group);
+        this.#dirtyGroupBounds.delete(key);
+      }
+      forceGroups.push(group);
+    }
     const crossPairs = crossGroupCandidates(forceGroups, interactionGroup);
 
     // Direct manipulation and its post-drop relaxation are one local force
@@ -661,7 +677,10 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
         state.vx = 0;
         state.vy = 0;
         state.vz = 0;
-        if (changed) state.dirty = true;
+        if (changed) {
+          state.dirty = true;
+          this.#dirtyGroupBounds.add(state.group);
+        }
         continue;
       }
 
@@ -684,6 +703,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
 
       if (state.x !== beforeX || state.y !== beforeY || state.z !== beforeZ) {
         state.dirty = true;
+        this.#dirtyGroupBounds.add(state.group);
       }
       energy += state.vx ** 2 + state.vy ** 2 + state.vz ** 2 + domainActivity;
     }
@@ -745,6 +765,8 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#states.clear();
     this.#orderedStates = Object.freeze([]);
     this.#groups.clear();
+    this.#groupBounds.clear();
+    this.#dirtyGroupBounds.clear();
     this.#placeDomains.clear();
     this.#edges = Object.freeze([]);
     this.#edgesByGroup.clear();
