@@ -142,7 +142,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightConfig, /viewport:\s*\{\s*width:\s*390,\s*height:\s*844\s*\}/);
   assert.match(highlightConfig, /hasTouch:\s*true/);
 
-  assert.match(highlightSpec, /records five loop-safe Lūm showcase scenes per form factor/);
+  assert.match(highlightSpec, /records source-native Lūm showcase media per form factor/);
   assert.match(highlightSpec, /page\.screencast\.start/);
   assert.match(highlightSpec, /page\.screencast\.showChapter/);
   assert.match(highlightSpec, /page\.screencast\.showOverlay/);
@@ -159,22 +159,24 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   }
 
   assert.match(highlightRenderer, /lum-\$\{formFactor\}-highlight\.mp4/);
-  assert.match(highlightRenderer, /path\.join\(gifsRoot, formFactor\)/);
-  assert.match(highlightRenderer, /palettegen/);
-  assert.match(highlightRenderer, /paletteuse/);
-  assert.match(highlightRenderer, /["']-loop["']\s*,\s*["']0["']/);
-  assert.match(highlightRenderer, /combinedGifBytes/);
+  assert.match(highlightRenderer, /path\.join\(showcaseRoot, formFactor\)/);
+  assert.match(highlightRenderer, /probeVisualSource/);
+  assert.match(highlightRenderer, /libwebp_anim/);
+  assert.match(highlightRenderer, /copyFile/);
+  assert.match(highlightRenderer, /mediaMode === "static"/);
+  assert.match(highlightRenderer, /combinedShowcaseBytes/);
   assert.match(highlightRenderer, /README-showcase\.md/);
+  assert.doesNotMatch(highlightRenderer, /palettegen|paletteuse|gifFps|gifWidth/);
   assert.match(highlightRenderer, /desktop/);
   assert.match(highlightRenderer, /mobile/);
 
-  assert.match(mediaWorkflow, /Record ten real-browser showcase scenes/);
+  assert.match(mediaWorkflow, /Record source-native showcase media/);
   assert.match(mediaWorkflow, /pnpm test:e2e:showcase/);
   assert.match(mediaWorkflow, /pnpm render:e2e:showcase/);
   assert.match(mediaWorkflow, /raw\/desktop/);
   assert.match(mediaWorkflow, /raw\/mobile/);
-  assert.match(mediaWorkflow, /gifs\/desktop/);
-  assert.match(mediaWorkflow, /gifs\/mobile/);
+  assert.match(mediaWorkflow, /showcase\/desktop/);
+  assert.match(mediaWorkflow, /showcase\/mobile/);
   assert.match(mediaWorkflow, /lum-desktop-highlight\.mp4/);
   assert.match(mediaWorkflow, /lum-mobile-highlight\.mp4/);
   assert.match(mediaWorkflow, /name:\s*lum-e2e-showcase/);
@@ -192,16 +194,16 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(pagesWorkflow, /dist\/showcase\/mobile/);
 
   for (const formFactor of ["desktop", "mobile"]) {
-    for (const gif of [
-      "01-timeline-navigation.gif",
-      "02-focused-context.gif",
-      "03-evidence.gif",
-      "04-relation-graph.gif",
-      "05-story-browser.gif",
+    for (const asset of [
+      "01-timeline-navigation.webp",
+      "02-focused-context.png",
+      "03-evidence.png",
+      "04-relation-graph.webp",
+      "05-story-browser.png",
     ]) {
       assert.ok(
-        readme.includes(`showcase/${formFactor}/${gif}`),
-        `README showcase missing ${formFactor}/${gif}`,
+        readme.includes(`showcase/${formFactor}/${asset}`),
+        `README showcase missing ${formFactor}/${asset}`,
       );
     }
   }
