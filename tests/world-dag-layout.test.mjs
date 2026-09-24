@@ -48,10 +48,7 @@ test("size-aware DAG layout separates large node footprints", () => {
     edges: [edge("root-left", root, left), edge("root-right", root, right)],
   });
   const nodeSizes = new Map(
-    projection.instances.map((item) => [
-      item.id,
-      { widthMeters: 1_200, heightMeters: 1_200 },
-    ]),
+    projection.instances.map((item) => [item.id, { widthMeters: 1_200, heightMeters: 1_200 }]),
   );
 
   const layout = createWorldDagLayout(projection, { nodeSizes });
@@ -122,9 +119,9 @@ test("layout quality adapts operators to neighborhood size", () => {
   const smallInstances = Array.from({ length: 6 }, (_, index) => instance(`small-${index}`));
   const small = createWorldProjection({
     instances: smallInstances,
-    edges: smallInstances.slice(1).map((item, index) =>
-      edge(`small-edge-${index}`, smallInstances[index], item),
-    ),
+    edges: smallInstances
+      .slice(1)
+      .map((item, index) => edge(`small-edge-${index}`, smallInstances[index], item)),
   });
   const smallLayout = createWorldDagLayout(small);
   assert.equal(smallLayout.metrics.algorithmCounts["longest-opt-simplex"], 1);
@@ -132,9 +129,9 @@ test("layout quality adapts operators to neighborhood size", () => {
   const largeInstances = Array.from({ length: 70 }, (_, index) => instance(`large-${index}`));
   const large = createWorldProjection({
     instances: largeInstances,
-    edges: largeInstances.slice(1).map((item, index) =>
-      edge(`large-edge-${index}`, largeInstances[index], item),
-    ),
+    edges: largeInstances
+      .slice(1)
+      .map((item, index) => edge(`large-edge-${index}`, largeInstances[index], item)),
   });
   const largeLayout = createWorldDagLayout(large);
   assert.equal(largeLayout.metrics.algorithmCounts["simplex-two-layer-greedy"], 1);
@@ -152,11 +149,7 @@ test("topology updates choose the stable horizontal orientation", () => {
   const d = instance("stable-d");
   const updated = createWorldProjection({
     instances: [a, b, c, d],
-    edges: [
-      edge("stable-ab", a, b),
-      edge("stable-ac", a, c),
-      edge("stable-ad", a, d, 0.4),
-    ],
+    edges: [edge("stable-ab", a, b), edge("stable-ac", a, c), edge("stable-ad", a, d, 0.4)],
   });
   const after = createWorldDagLayout(updated);
 
