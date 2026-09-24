@@ -313,7 +313,9 @@ test("a lone relationship remains visually straight on fixed sampled path topolo
   assert.ok(Math.abs(midpoint[1] - (source[1] + target[1]) / 2) < 1e-9);
 });
 
-test("parallel and reciprocal relationships fan into distinct curved paths with labels and arrows", () => {
+test(
+  "parallel and reciprocal relationships fan into distinct curved paths with labels and arrows",
+  () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
   surface.setProjection(parallelProjection());
@@ -321,7 +323,10 @@ test("parallel and reciprocal relationships fan into distinct curved paths with 
   const layers = h.lastLayers();
   const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
   const paths = new Map(
-    relationships.props.data.map((datum) => [datum.relationshipId, relationships.props.getPath(datum)]),
+    relationships.props.data.map((datum) => [
+      datum.relationshipId,
+      relationships.props.getPath(datum),
+    ]),
   );
   assert.equal(paths.size, 3);
   assert.equal(new Set([...paths.values()].map((path) => path.length)).size, 1);
@@ -346,7 +351,8 @@ test("parallel and reciprocal relationships fan into distinct curved paths with 
   );
   for (const midpoint of midpoints) {
     assert.ok(
-      Math.hypot(midpoint[0] - straightMidpoint[0], midpoint[1] - straightMidpoint[1]) > 1e-9,
+      Math.hypot(midpoint[0] - straightMidpoint[0], midpoint[1] - straightMidpoint[1]) >
+        1e-9,
       "no relationship remains on the overlapping straight centre line",
     );
   }
@@ -367,8 +373,9 @@ test("parallel and reciprocal relationships fan into distinct curved paths with 
     3,
     "direction markers follow the separate curve tangents",
   );
-  assert.equal(relationships.props.transitions.getPath.duration, 600);
-});
+    assert.equal(relationships.props.transitions.getPath.duration, 600);
+  },
+);
 
 test("each rendered directed relationship has a visible marker preserving source/target identity", () => {
   const h = harness();
