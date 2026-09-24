@@ -531,7 +531,7 @@ test(
       3,
       "direction markers follow the separate curve tangents",
     );
-    assert.equal(relationships.props.transitions.getPath.duration, 600);
+    assert.equal(relationships.props.transitions, undefined);
   },
 );
 
@@ -566,6 +566,28 @@ test("each rendered directed relationship has a visible marker preserving source
   assert.ok(distance(wingA, source) < distance(apex, source));
   assert.ok(distance(wingB, source) < distance(apex, source));
   assert.notDeepEqual(wingA, wingB);
+});
+
+test("direction marker length stays node-relative across camera zoom", () => {
+  const markerLength = (zoom) => {
+    const h = harness();
+    const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom });
+    surface.setProjection(directedProjection());
+    const marker = layer(
+      h.lastLayers(),
+      DECK_WORLD_LAYER_IDS.relationshipDirections,
+    ).props.data[0];
+    return marker.arrowLengthDegrees;
+  };
+
+  const zoom7 = markerLength(7);
+  const zoom8 = markerLength(8);
+  assert.ok(zoom7 > 0);
+  assert.ok(zoom8 > 0);
+  assert.ok(
+    Math.abs(zoom7 / zoom8 - 2) < 1e-9,
+    "pixel-sized nodes imply halved angular arrow length for each +1 zoom",
+  );
 });
 
 test("picking a direction marker resolves to its canonical relationship", () => {
@@ -624,7 +646,7 @@ test("clustered overview suppresses member labels even when a member is selected
   assert.ok(labels.every((datum) => datum.kind === "place-label"));
 });
 
-test("hover changes label color only and never restarts label position transitions", () => {
+test("hover changes label color only and never invokes renderer transitions", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
   surface.setProjection(directedProjection());
@@ -673,12 +695,11 @@ test("hover changes label color only and never restarts label position transitio
   }
 
   assert.notDeepEqual(afterLayer.props.getColor(hoveredAfter), colorBefore);
-  assert.deepEqual(
+  assert.equal(
     afterLayer.props.transitions,
-    { getColor: 120 },
-    "hover-capable label layer transitions color only",
+    undefined,
+    "hover emphasis must not invoke renderer transitions",
   );
-  assert.equal(afterLayer.props.transitions.getPosition, undefined);
 });
 
 test("label and marker datums keep object identity across unrelated re-renders", () => {
