@@ -3,6 +3,10 @@
  * Supports read-only display with geospatial features and interactive editing
  */
 
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { TimelineMotion as motion } from "./timeline-motion.ts";
+
 const DEFAULT_PROVIDER = Object.freeze({
   id: "osm-public-compatibility",
   url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -21,8 +25,6 @@ const PRESENTATION_FLY_DURATION_SECONDS = 7;
 const PRESENTATION_WORLD_DWELL_MS = 450;
 const MAP_DRAG_MOVE_TOLERANCE_PX = 8;
 const MAP_CLICK_SUPPRESSION_MS = 350;
-const motion = globalThis.TimelineMotion;
-
 interface PointCoord {
   lat: number;
   lng: number;
@@ -121,12 +123,7 @@ interface LocationMapControllerOptions {
 }
 
 function loadLeaflet(): Promise<any> {
-  const ready = Reflect.get(globalThis, "TimelineLeafletReady");
-  if (ready && typeof (ready as { then?: unknown }).then === "function") {
-    return ready as Promise<any>;
-  }
-  if (globalThis.L) return Promise.resolve(globalThis.L);
-  return Promise.reject(new Error("Leaflet local bundle is unavailable."));
+  return Promise.resolve(L);
 }
 
 function tileProviders(): MapProvider[] {
