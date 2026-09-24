@@ -47,7 +47,7 @@ test("media stepping updates only focused presentation state", async () => {
 test("retained event cards delegate semantic rendering to Lit without reactive geometry", async () => {
   const [view, card, css] = await Promise.all([
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-event-card.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/timeline-event-card.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
 
@@ -56,7 +56,7 @@ test("retained event cards delegate semantic rendering to Lit without reactive g
   assert.match(view, /revision !== record\.contentRevision/);
   assert.match(view, /node\.setSemanticItem\(item\)/);
   assert.match(card, /class LuumEventCardElement extends LitElement/);
-  assert.match(card, /createRenderRoot\(\): HTMLElement[\s\S]*return this\.terminal/);
+  assert.match(card, /createRenderRoot\(\): HTMLElement[\s\S]*return this/);
   assert.match(card, /timeline-event-art-image/);
   assert.match(card, /timeline-event-icon-badge/);
   assert.match(card, /iconPathData/);
@@ -68,22 +68,23 @@ test("retained event cards delegate semantic rendering to Lit without reactive g
 });
 
 
-test("timeline uses a Lit custom-element ownership boundary without reactive scene rendering", async () => {
-  const [html, view] = await Promise.all([
+test("timeline uses a bounded Lit custom-element owner without reactive scene rendering", async () => {
+  const [html, view, component, shim] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/timeline-element.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view-shim.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(html, /<luum-timeline id="timeline-view"/);
   assert.match(html, /<\/luum-timeline>/);
-  assert.match(view, /import \{ LitElement, noChange \} from "lit"/);
-  assert.match(view, /class LuumTimelineElement extends LitElement/);
-  assert.match(view, /createRenderRoot\(\): HTMLElement[\s\S]*return this/);
-  assert.match(view, /render\(\)[\s\S]*return noChange/);
-  assert.match(view, /ensureController\(\): TimelineViewController/);
-  assert.match(view, /customElements\.define\("luum-timeline", LuumTimelineElement\)/);
-  assert.match(
-    view,
-    /root instanceof LuumTimelineElement\) return root\.ensureController\(\)/,
-  );
+  assert.doesNotMatch(view, /from "lit"/);
+  assert.match(component, /import \{ LitElement, noChange \} from "lit"/);
+  assert.match(component, /class LuumTimelineElement extends LitElement/);
+  assert.match(component, /createRenderRoot\(\): HTMLElement[\s\S]*return this/);
+  assert.match(component, /render\(\)[\s\S]*return noChange/);
+  assert.match(component, /ensureTimelineController\(\): TimelineViewController/);
+  assert.match(component, /customElements\.define\("luum-timeline", LuumTimelineElement\)/);
+  assert.match(shim, /components\/timeline-element\.ts/);
+  assert.match(view, /Reflect\.get\(root, "ensureTimelineController"\)/);
 });
