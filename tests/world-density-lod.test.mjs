@@ -110,16 +110,17 @@ test("overview place merging uses proximity across cell boundaries and the datel
 });
 
 
-test("cluster transition keeps force targets retained and animates topology from the place origin", async () => {
+test("cluster presentation keeps positions force-resolved without interpolation", async () => {
   const source = await readFile(
     new URL("../site/world/deck-world-surface.ts", import.meta.url),
     "utf8",
   );
 
   assert.match(source, /instanceIndexFromEntities\(transitionEntities\)/);
-  assert.match(source, /interpolateClusterPosition\(origin, entity\.position, expansion\)/);
+  assert.match(source, /members\.push\(entity\)/);
+  assert.doesNotMatch(source, /interpolateClusterPosition/);
+  assert.doesNotMatch(source, /transitions:/);
   assert.match(source, /\.\.\.placeTransition\.clusters,[\s\S]*\.\.\.placeTransition\.members/);
   assert.match(source, /temporalWidth \* edgeExpansion\(state\.edge\)/);
   assert.match(source, /worldNodeMarker\(this\.#entityStyle\(datum\)\)\.size \* entityExpansion\(datum\)/);
-  assert.doesNotMatch(source, /transitions\s*:/);
 });
