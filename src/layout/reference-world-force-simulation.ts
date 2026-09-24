@@ -1,3 +1,17 @@
+/// <reference path="../types/d3-force.d.ts" />
+
+import {
+  forceCollide,
+  forceLink,
+  forceManyBody,
+  forceSimulation,
+  forceX,
+  forceY,
+  type Simulation,
+  type SimulationLinkDatum,
+  type SimulationNodeDatum,
+} from "d3-force";
+import type { PlaceId } from "../domain/ids.ts";
 import type { WorldInstanceId } from "../projection/world-projection.ts";
 import type {
   WorldForceAnchor,
@@ -26,7 +40,7 @@ export interface ReferenceWorldForcePosition {
   readonly visualAltitudeMeters: number;
 }
 
-interface NodeState {
+interface NodeState extends SimulationNodeDatum {
   readonly node: WorldForceNode;
   readonly group: string;
   readonly anchor: WorldForceAnchor | null;
@@ -128,8 +142,30 @@ const EARTH_RADIUS_METERS = 6_371_008.8;
 const CROSS_ANCHOR_FORCE_RADIUS_METERS = 6_000;
 const CROSS_ANCHOR_BUCKET_METERS = 100_000;
 const READABLE_SEPARATION_SCALE = 1.35;
+const D3_CLUSTER_COLLISION_STRENGTH = 0.86;
+const D3_CLUSTER_COLLISION_ITERATIONS = 3;
+const D3_CLUSTER_COLLAPSE_CHARGE = -1_400;
+const D3_CLUSTER_EXPAND_CHARGE = -3_600;
+const D3_CLUSTER_COLLAPSE_ANCHOR_STRENGTH = 0.08;
+const D3_CLUSTER_EXPAND_ANCHOR_STRENGTH = 0.004;
+const D3_CLUSTER_ALPHA = 0.18;
+const D3_CLUSTER_ALPHA_MIN = 0.003;
+const D3_CLUSTER_ALPHA_DECAY = 0.018;
 
 type Vector3 = readonly [number, number, number];
+
+type D3ClusterMode = "collapse" | "expand";
+
+interface D3ClusterLink extends SimulationLinkDatum<NodeState> {
+  readonly edge: WorldForceEdge;
+}
+
+interface D3ClusterSimulation {
+  readonly group: string;
+  readonly placeId: string;
+  readonly mode: D3ClusterMode;
+  readonly simulation: Simulation<NodeState, SimulationLinkDatum<NodeState>>;
+}
 
 interface ForceGroup {
   readonly key: string;
@@ -362,6 +398,9 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
   #edges: readonly WorldForceEdge[] = Object.freeze([]);
   #pin: WorldForcePin | null = null;
   #request: WorldSimulationRequest | null = null;
+  #clusteredPlaceIds = new Set<string>();
+  #expandingPlaceIds = new Set<string>();
+  #clusterSimulations = new Map<string, D3ClusterSimulation>();
   #running = false;
   #settled = true;
   #energy: number | null = 0;
@@ -395,6 +434,8 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
           vx: old.vx,
           vy: old.vy,
           vz: old.vz,
+          fx: old.fx ?? null,
+          fy: old.fy ?? null,
         });
         continue;
       }
@@ -410,6 +451,8 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
         vx: 0,
         vy: 0,
         vz: 0,
+        fx: null,
+        fy: null,
       });
     }
 
@@ -424,6 +467,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     );
 
     if (this.#pin && !this.#states.has(this.#pin.instanceId)) this.#pin = null;
+    this.#rebuildClusterSimulations();
     this.#settled = false;
     this.#energy = null;
     this.#iteration = 0;
@@ -449,6 +493,29 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#settled = false;
   }
 
+  setClusteredPlaceIds(placeIds: readonly PlaceId[]): void {
+    this.#assertAlive();
+    const next = new Set(placeIds.map(String));
+    const unchanged =
+      next.size === this.#clusteredPlaceIds.size &&
+      [...next].every((placeId) => this.#clusteredPlaceIds.has(placeId));
+    if (unchanged && this.#expandingPlaceIds.size === 0) return;
+
+    if (next.size > 0) {
+      this.#clusteredPlaceIds = next;
+      this.#expandingPlaceIds.clear();
+    } else {
+      this.#expandingPlaceIds = new Set(this.#clusteredPlaceIds);
+      this.#clusteredPlaceIds.clear();
+    }
+
+    this.#rebuildClusterSimulations();
+    this.#running = true;
+    this.#settled = false;
+    this.#energy = null;
+    this.#iteration = 0;
+  }
+
   apply(request: WorldSimulationRequest): void {
     this.#assertAlive();
     finiteNonNegative(request.energyTarget, "World simulation energy target");
@@ -471,6 +538,8 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const dt = normalizedTimeStep(deltaMs);
     if (!this.#running || dt === 0 || this.#states.size === 0) return;
 
+    const d3OwnedGroups = this.#stepClusterSimulations(deltaMs);
+
     const forces = new Map<WorldInstanceId, [number, number, number]>();
     for (const id of this.#states.keys()) forces.set(id, [0, 0, 0]);
 
@@ -479,7 +548,9 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       groups.set(state.group, [...(groups.get(state.group) ?? []), state]);
     }
 
-    const forceGroups = [...groups.entries()].map(([key, states]) => forceGroup(key, states));
+    const forceGroups = [...groups.entries()]
+      .filter(([key]) => !d3OwnedGroups.has(key))
+      .map(([key, states]) => forceGroup(key, states));
     const crossPairs = crossGroupCandidates(forceGroups);
 
     // During direct manipulation geography is fixed. The dragged local group
@@ -489,7 +560,10 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const activeDragGroup = this.#pin
       ? (this.#states.get(this.#pin.instanceId)?.group ?? null)
       : null;
-    const activeGroups = activeDragGroup ? new Set<string>([activeDragGroup]) : null;
+    const activeGroups =
+      activeDragGroup && !d3OwnedGroups.has(activeDragGroup)
+        ? new Set<string>([activeDragGroup])
+        : null;
 
     if (activeDragGroup && activeGroups) {
       for (const [leftGroup, rightGroup] of crossPairs) {
@@ -532,11 +606,13 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       const source = this.#states.get(edge.sourceId);
       const target = this.#states.get(edge.targetId);
       if (!source || !target || source.group !== target.group) continue;
+      if (d3OwnedGroups.has(source.group)) continue;
       if (activeGroups && !activeGroups.has(source.group)) continue;
       this.#applyEdgeForce(edge, source, target, forces);
     }
 
     for (const state of this.#states.values()) {
+      if (d3OwnedGroups.has(state.group)) continue;
       if (activeGroups && !activeGroups.has(state.group)) continue;
       // The dragged group is free from anchor tug-of-war while directly
       // manipulated. Nearby foreign groups keep their own anchor attraction,
@@ -552,6 +628,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
 
     let activeNodeCount = 0;
     for (const state of this.#states.values()) {
+      if (d3OwnedGroups.has(state.group)) continue;
       if (activeGroups && !activeGroups.has(state.group)) continue;
       activeNodeCount += 1;
       if (this.#pin?.instanceId === state.node.id) {
@@ -584,8 +661,20 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     }
 
     this.#iteration += 1;
-    this.#energy = energy / Math.max(1, activeNodeCount);
-    this.#settled = this.#energy <= this.#options.settleEnergy;
+    const referenceEnergy = energy / Math.max(1, activeNodeCount);
+    const d3Energy =
+      this.#clusterSimulations.size === 0
+        ? 0
+        : Math.max(
+            ...[...this.#clusterSimulations.values()].map(({ simulation }) => simulation.alpha()),
+          );
+    this.#energy = Math.max(referenceEnergy, d3Energy);
+    this.#settled =
+      this.#energy <= this.#options.settleEnergy &&
+      this.#expandingPlaceIds.size === 0 &&
+      [...this.#clusterSimulations.values()].every(
+        ({ mode, simulation }) => mode === "collapse" || simulation.alpha() <= simulation.alphaMin(),
+      );
   }
 
   getDiagnostics(): WorldSimulationDiagnostics {
@@ -616,11 +705,144 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
   destroy(): void {
     if (this.#destroyed) return;
     this.#destroyed = true;
+    for (const { simulation } of this.#clusterSimulations.values()) simulation.stop();
+    this.#clusterSimulations.clear();
+    this.#clusteredPlaceIds.clear();
+    this.#expandingPlaceIds.clear();
     this.#states.clear();
     this.#edges = Object.freeze([]);
     this.#pin = null;
     this.#request = null;
     this.#running = false;
+  }
+
+  #rebuildClusterSimulations(): void {
+    for (const { simulation } of this.#clusterSimulations.values()) simulation.stop();
+    this.#clusterSimulations.clear();
+
+    const grouped = new Map<string, NodeState[]>();
+    for (const state of this.#states.values()) {
+      if (!state.anchor) continue;
+      const placeId = String(state.anchor.placeId);
+      const mode: D3ClusterMode | null = this.#clusteredPlaceIds.has(placeId)
+        ? "collapse"
+        : this.#expandingPlaceIds.has(placeId)
+          ? "expand"
+          : null;
+      if (!mode) continue;
+      const bucket = grouped.get(state.group);
+      if (bucket) bucket.push(state);
+      else grouped.set(state.group, [state]);
+    }
+
+    for (const [group, nodes] of grouped) {
+      const placeId = String(nodes[0]?.anchor?.placeId ?? "");
+      const mode: D3ClusterMode = this.#clusteredPlaceIds.has(placeId) ? "collapse" : "expand";
+      const memberIds = new Set(nodes.map((state) => state.node.id));
+      const links: D3ClusterLink[] =
+        mode === "collapse"
+          ? []
+          : this.#edges
+              .filter(
+                (edge) => memberIds.has(edge.sourceId) && memberIds.has(edge.targetId),
+              )
+              .map((edge) => ({
+                edge,
+                source: edge.sourceId,
+                target: edge.targetId,
+              }));
+
+      const maximumRadius = Math.max(
+        1,
+        ...nodes.map((state) => state.node.collisionRadiusMeters),
+      );
+      const maximumRestLength = Math.max(
+        maximumRadius * 4,
+        ...links.map((link) => link.edge.restLengthMeters),
+      );
+
+      const simulation = forceSimulation<NodeState>(nodes)
+        .stop()
+        .alpha(D3_CLUSTER_ALPHA)
+        .alphaMin(D3_CLUSTER_ALPHA_MIN)
+        .alphaDecay(D3_CLUSTER_ALPHA_DECAY)
+        .alphaTarget(0);
+
+      if (links.length > 0) {
+        simulation.force(
+          "link",
+          forceLink<NodeState, D3ClusterLink>(links)
+            .id((state) => state.node.id)
+            .distance((link) => Math.max(link.edge.restLengthMeters, maximumRadius * 2))
+            .strength((link) => link.edge.strength),
+        );
+      } else {
+        simulation.force("link", null);
+      }
+
+      simulation.force(
+        "charge",
+        forceManyBody<NodeState>()
+          .strength(mode === "collapse" ? D3_CLUSTER_COLLAPSE_CHARGE : D3_CLUSTER_EXPAND_CHARGE)
+          .distanceMin(maximumRadius)
+          .distanceMax(Math.max(7_200, maximumRestLength * 4)),
+      );
+      simulation.force(
+        "collision",
+        forceCollide<NodeState>()
+          .radius((state) => state.node.collisionRadiusMeters)
+          .strength(D3_CLUSTER_COLLISION_STRENGTH)
+          .iterations(D3_CLUSTER_COLLISION_ITERATIONS),
+      );
+
+      const anchorStrength = (state: NodeState): number =>
+        mode === "collapse"
+          ? D3_CLUSTER_COLLAPSE_ANCHOR_STRENGTH
+          : D3_CLUSTER_EXPAND_ANCHOR_STRENGTH *
+            Math.max(0, Math.min(1, state.anchor?.influence ?? 0));
+      simulation.force("cluster-x", forceX<NodeState>(0).strength(anchorStrength));
+      simulation.force("cluster-y", forceY<NodeState>(0).strength(anchorStrength));
+
+      this.#clusterSimulations.set(
+        group,
+        Object.freeze({
+          group,
+          placeId,
+          mode,
+          simulation,
+        }),
+      );
+    }
+  }
+
+  #stepClusterSimulations(deltaMs: number): ReadonlySet<string> {
+    if (this.#clusterSimulations.size === 0) return new Set();
+
+    const ticks = Math.max(1, Math.min(2, Math.round(deltaMs / (1000 / 60)) || 1));
+    const owned = new Set<string>();
+    const finishedExpansions: string[] = [];
+
+    for (const [group, entry] of this.#clusterSimulations) {
+      owned.add(group);
+      if (entry.simulation.alpha() > entry.simulation.alphaMin()) {
+        entry.simulation.tick(ticks);
+      }
+      if (entry.mode === "expand" && entry.simulation.alpha() <= entry.simulation.alphaMin()) {
+        finishedExpansions.push(entry.placeId);
+      }
+    }
+
+    if (finishedExpansions.length > 0) {
+      for (const placeId of finishedExpansions) this.#expandingPlaceIds.delete(placeId);
+      for (const [group, entry] of this.#clusterSimulations) {
+        if (entry.mode === "expand" && finishedExpansions.includes(entry.placeId)) {
+          entry.simulation.stop();
+          this.#clusterSimulations.delete(group);
+        }
+      }
+    }
+
+    return owned;
   }
 
   #groupsCanInteract(
