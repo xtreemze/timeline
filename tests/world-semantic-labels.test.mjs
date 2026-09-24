@@ -188,6 +188,25 @@ test("entity and place labels come from renderer-neutral WorldProjection metadat
   assert.equal(labels.props.parameters.cullMode, "none", "globe back-face culling keeps glyphs");
 });
 
+test("relationship line and arrow share semantic type color while accessibility keeps the type", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
+  surface.setProjection(directedProjection());
+
+  const layers = h.lastLayers();
+  const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+  const directions = layer(layers, DECK_WORLD_LAYER_IDS.relationshipDirections);
+  const edge = relationships.props.data[0];
+  const direction = directions.props.data[0];
+
+  assert.equal(edge.relationshipType, "met");
+  assert.deepEqual(relationships.props.getColor(edge), edge.visual.color);
+  assert.deepEqual(directions.props.getColor(direction), edge.visual.color);
+
+  const snapshot = surface.getAccessibleSnapshot();
+  assert.equal(snapshot.relationships[0].relationshipType, "met");
+});
+
 test("each rendered directed relationship has a visible marker preserving source/target identity", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
