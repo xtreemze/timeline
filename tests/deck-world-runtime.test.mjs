@@ -55,6 +55,47 @@ test("deck world runtime factory forwards every adapter construction through exp
   ]);
 });
 
+test("deck world runtime forwards standalone globe and map viewport constructors", () => {
+  const calls = [];
+  const globeViewport = {
+    project: (position) => position,
+    unproject: (position) => position,
+  };
+  const mapViewport = {
+    project: (position) => position,
+    unproject: (position) => position,
+  };
+  const runtime = createDeckWorldRuntime({
+    deck() {
+      throw new Error("not used");
+    },
+    globeView() {
+      throw new Error("not used");
+    },
+    globeViewport(props) {
+      calls.push(["globe-viewport", props]);
+      return globeViewport;
+    },
+    mapViewport(props) {
+      calls.push(["map-viewport", props]);
+      return mapViewport;
+    },
+    scatterplotLayer() {
+      throw new Error("not used");
+    },
+    pathLayer() {
+      throw new Error("not used");
+    },
+  });
+
+  assert.equal(runtime.createGlobeViewport({ width: 320, height: 480 }), globeViewport);
+  assert.equal(runtime.createMapViewport({ width: 320, height: 480 }), mapViewport);
+  assert.deepEqual(calls, [
+    ["globe-viewport", { width: 320, height: 480 }],
+    ["map-viewport", { width: 320, height: 480 }],
+  ]);
+});
+
 test("runtime creation does not instantiate any deck resource eagerly", () => {
   let calls = 0;
   const runtime = createDeckWorldRuntime({
