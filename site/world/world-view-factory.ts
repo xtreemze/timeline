@@ -10,6 +10,7 @@ import {
   type WorldViewViewport,
 } from "./world-projection-view.ts";
 import { WorldViewRuntimeController } from "./world-view-controller.ts";
+import { LuumWorldSurfaceElement } from "./world-surface-element.ts";
 
 export interface WorldFrameScheduler {
   request(callback: (timestamp: number) => void): number;
@@ -213,6 +214,10 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
       });
       const view = new WorldProjectionView(runtime);
       const scheduledView = new ScheduledWorldProjectionView(view, runtime, scheduler);
+
+      if (root instanceof LuumWorldSurfaceElement) {
+        root.adoptView(scheduledView);
+      }
 
       surface.setNodeDragSink({
         begin(pointerId, instanceId, position) {
