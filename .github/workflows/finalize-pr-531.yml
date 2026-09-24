@@ -140,6 +140,14 @@ jobs:
 
           function isRecord(value: unknown): value is PersistedRecord {`;
           s = s.replace(anchor, replacement);
+          const optionalFields = `    role: typeof value.role === "string" ? value.role : undefined,
+            placeId: typeof value.placeId === "string" ? placeId(value.placeId) : undefined,`;
+          if (!s.includes(optionalFields)) throw new Error("ProjectRepository optional field anchor not found");
+          s = s.replace(
+            optionalFields,
+            `    ...(typeof value.role === "string" ? { role: value.role } : {}),
+            ...(typeof value.placeId === "string" ? { placeId: placeId(value.placeId) } : {}),`,
+          );
           fs.writeFileSync(file, s);
           NODE
       - name: Apply Biome fixes to PR-owned files
