@@ -345,19 +345,41 @@ const DENSE_CLUSTER_ZOOM_THRESHOLD = 5.5;
  * globe depth surface instead of being clipped through its lower half.
  */
 const WORLD_PLACE_ICON_LIFT_PX = 2;
+/** Pickup feedback is presentation-only and never feeds back into force state. */
+const WORLD_DRAG_PICKUP_LIFT_PX = 7;
+const WORLD_DRAG_PICKUP_FLASH_MS = 160;
+const WORLD_DRAG_PICKUP_FLASH_SCALE = 1.16;
 
-function liftedPlaceIconPosition(
+function liftedPositionByPixels(
   position: WorldRenderPosition,
   zoom: number,
+  liftPx: number,
 ): WorldRenderPosition {
   const quantisedZoom = Math.round(zoom * 4) / 4;
   const metersPerPixel = worldLocalRadiusPx(1, quantisedZoom, position[1]) ** -1;
-  const liftMeters = Math.max(1, Math.round(metersPerPixel * WORLD_PLACE_ICON_LIFT_PX));
+  const liftMeters = Math.max(1, Math.round(metersPerPixel * liftPx));
   return Object.freeze([
     position[0],
     position[1],
     position[2] + liftMeters,
   ]) as WorldRenderPosition;
+}
+
+function liftedPlaceIconPosition(
+  position: WorldRenderPosition,
+  zoom: number,
+): WorldRenderPosition {
+  return liftedPositionByPixels(position, zoom, WORLD_PLACE_ICON_LIFT_PX);
+}
+
+function liftedDraggedEntityPosition(
+  position: WorldRenderPosition,
+  zoom: number,
+  dragging: boolean,
+): WorldRenderPosition {
+  return dragging
+    ? liftedPositionByPixels(position, zoom, WORLD_DRAG_PICKUP_LIFT_PX)
+    : position;
 }
 
 export function shouldClusterEntityDatums(
@@ -1955,6 +1977,10 @@ export class DeckWorldSurface implements WorldSurface {
   #spatialMode: WorldSpatialMode = "globe";
   #nodeDragSink: DeckWorldNodeDragSink | null = null;
   #activeDragPointerId: number | null = null;
+  #activeDragInstanceId: WorldInstanceId | null = null;
+  #dragFlashInstanceId: WorldInstanceId | null = null;
+  #dragFlashTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+  #dragPresentationRevision = 0;
   #dragCameraLock: WorldCameraState | null = null;
   #destroyed = false;
 
@@ -2032,8 +2058,9 @@ export class DeckWorldSurface implements WorldSurface {
       this.#touchHoldTimer = null;
       if (this.#destroyed || !this.#touchHold.isArmed(touch.pointerId, Date.now())) return;
       this.#setTouchDragState("active");
+      this.#flashDragPickup(hit.worldInstanceId);
       this.setSelection(Object.freeze({ kind: "entity" as const, id: hit.entityId }));
-      void pulseHaptic("selection");
+      void pulseHaptic("drag");
     }, WORLD_TOUCH_HOLD_MS);
   };
 
@@ -2052,6 +2079,7 @@ export class DeckWorldSurface implements WorldSurface {
     if (!touch) return;
     this.#touchHold.release(touch.pointerId);
     this.#clearTouchHoldTimer();
+    this.#clearDragFlash();
     this.#setTouchDragState(null);
   };
 
@@ -2066,6 +2094,8 @@ export class DeckWorldSurface implements WorldSurface {
     }
     this.#nodeDragSink?.cancel("pointercancel");
     this.#activeDragPointerId = null;
+    this.#clearDragFlash({ render: false });
+    this.#setActiveDragInstance(null);
     this.#dragCameraLock = null;
     this.#setPointerCursor(this.#hoverSelection);
   };
@@ -2076,6 +2106,8 @@ export class DeckWorldSurface implements WorldSurface {
     }
     this.#nodeDragSink?.cancel("lostpointercapture");
     this.#activeDragPointerId = null;
+    this.#clearDragFlash({ render: false });
+    this.#setActiveDragInstance(null);
     this.#dragCameraLock = null;
     this.#setPointerCursor(this.#hoverSelection);
   };
@@ -2772,6 +2804,7 @@ export class DeckWorldSurface implements WorldSurface {
       true,
     );
     this.#clearTouchHoldTimer();
+    this.#clearDragFlash({ render: false });
     this.#touchHold.clear();
     this.#container.removeEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
     this.#container.removeEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
@@ -2827,12 +2860,14 @@ export class DeckWorldSurface implements WorldSurface {
     // frame must already bypass deck geometry interpolation so node, edges,
     // and labels all consume the same live drag position.
     this.#activeDragPointerId = pointerId;
+    this.#setActiveDragInstance(target.instanceId, { render: false });
     const claimed = sink.begin(pointerId, target.instanceId, target.position);
     if (claimed) {
       if (touch) this.#touchHold.commit(pointerId);
       const style = (this.#container as HTMLElement).style;
       if (style) style.cursor = "grabbing";
-      void pulseHaptic("tick");
+      if (!touch) void pulseHaptic("tick");
+      this.#render();
       if (this.#camera.zoom >= WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM) {
         this.#dragCameraLock = this.#camera;
       }
@@ -2841,6 +2876,7 @@ export class DeckWorldSurface implements WorldSurface {
       event.stopPropagation?.();
     } else {
       this.#activeDragPointerId = null;
+      this.#setActiveDragInstance(null);
     }
     return claimed;
   }
@@ -2870,6 +2906,8 @@ export class DeckWorldSurface implements WorldSurface {
     // label-leading/node-lagging effect at pointer-up.
     const released = sink.release(pointerId);
     this.#activeDragPointerId = null;
+    this.#clearDragFlash({ render: false });
+    this.#setActiveDragInstance(null);
     this.#dragCameraLock = null;
     this.#setPointerCursor(this.#hoverSelection);
     void pulseHaptic("release");
@@ -2880,6 +2918,44 @@ export class DeckWorldSurface implements WorldSurface {
     if (this.#touchHoldTimer === null) return;
     globalThis.clearTimeout(this.#touchHoldTimer);
     this.#touchHoldTimer = null;
+  }
+
+  #clearDragFlashTimer(): void {
+    if (this.#dragFlashTimer === null) return;
+    globalThis.clearTimeout(this.#dragFlashTimer);
+    this.#dragFlashTimer = null;
+  }
+
+  #clearDragFlash({ render = true }: { readonly render?: boolean } = {}): void {
+    this.#clearDragFlashTimer();
+    if (this.#dragFlashInstanceId === null) return;
+    this.#dragFlashInstanceId = null;
+    this.#dragPresentationRevision += 1;
+    if (render && !this.#destroyed) this.#render();
+  }
+
+  #setActiveDragInstance(
+    instanceId: WorldInstanceId | null,
+    { render = true }: { readonly render?: boolean } = {},
+  ): void {
+    if (this.#activeDragInstanceId === instanceId) return;
+    this.#activeDragInstanceId = instanceId;
+    this.#dragPresentationRevision += 1;
+    if (render && !this.#destroyed) this.#render();
+  }
+
+  #flashDragPickup(instanceId: WorldInstanceId): void {
+    this.#clearDragFlashTimer();
+    this.#dragFlashInstanceId = instanceId;
+    this.#dragPresentationRevision += 1;
+    if (!this.#destroyed) this.#render();
+    this.#dragFlashTimer = globalThis.setTimeout(() => {
+      this.#dragFlashTimer = null;
+      if (this.#dragFlashInstanceId !== instanceId) return;
+      this.#dragFlashInstanceId = null;
+      this.#dragPresentationRevision += 1;
+      if (!this.#destroyed) this.#render();
+    }, WORLD_DRAG_PICKUP_FLASH_MS);
   }
 
   #setTouchDragState(state: "holding" | "active" | null): void {
@@ -2901,6 +2977,8 @@ export class DeckWorldSurface implements WorldSurface {
     if (this.#activeDragPointerId !== null) {
       this.#nodeDragSink?.cancel("pointercancel");
       this.#activeDragPointerId = null;
+      this.#clearDragFlash({ render: false });
+      this.#setActiveDragInstance(null);
       this.#dragCameraLock = null;
     }
 
@@ -3650,7 +3728,14 @@ export class DeckWorldSurface implements WorldSurface {
         dataComparator: sameDatumSequence,
         pickable: true,
         radiusUnits: "pixels",
-        getPosition: (datum: DeckWorldEntityRenderDatum) => datum.position,
+        getPosition: (datum: DeckWorldEntityRenderDatum) =>
+          datum.kind === "entity"
+            ? liftedDraggedEntityPosition(
+                datum.position,
+                this.#camera.zoom,
+                this.#activeDragInstanceId === datum.worldInstanceId,
+              )
+            : datum.position,
         // Individual entities are drawn by the styled marker layer; this
         // layer is their (invisible) pick/drag target. Clusters render only
         // as an outer neutral ring so they never cover the place marker.
@@ -3677,6 +3762,7 @@ export class DeckWorldSurface implements WorldSurface {
             ? scaleAlpha(this.#theme.cluster, clusterVisibility)
             : this.#theme.hit,
         updateTriggers: {
+          getPosition: [this.#dragPresentationRevision, screenScaleZoomStep(this.#camera.zoom)],
           getRadius: [this.#palette, placeExpansion, gridClustered],
           getLineWidth: [placeExpansion, gridClustered],
           getLineColor: [this.#palette, placeExpansion, gridClustered],
@@ -3731,12 +3817,21 @@ export class DeckWorldSurface implements WorldSurface {
               pickable: !gridClustered,
               billboard: true,
               sizeUnits: "pixels",
-              getPosition: (datum: DeckWorldEntityDatum) => datum.position,
+              getPosition: (datum: DeckWorldEntityDatum) =>
+                liftedDraggedEntityPosition(
+                  datum.position,
+                  this.#camera.zoom,
+                  this.#activeDragInstanceId === datum.worldInstanceId,
+                ),
               // Styled node markers: shape, fill, border and icon/image from
               // the entity's own style or the type default.
               getIcon: (datum: DeckWorldEntityDatum) => worldNodeMarker(this.#entityStyle(datum)),
               getSize: (datum: DeckWorldEntityDatum) =>
-                worldNodeMarker(this.#entityStyle(datum)).size * entityExpansion(datum),
+                worldNodeMarker(this.#entityStyle(datum)).size *
+                entityExpansion(datum) *
+                (this.#dragFlashInstanceId === datum.worldInstanceId
+                  ? WORLD_DRAG_PICKUP_FLASH_SCALE
+                  : 1),
               getColor: (datum: DeckWorldEntityDatum) => {
                 // Keep the authored fill visibly distinct from the app background.
                 // 215 alpha composites the default person fill far enough toward
@@ -3750,8 +3845,17 @@ export class DeckWorldSurface implements WorldSurface {
                 ] as Rgba;
               },
               updateTriggers: {
+                getPosition: [
+                  this.#dragPresentationRevision,
+                  screenScaleZoomStep(this.#camera.zoom),
+                ],
                 getIcon: this.#palette,
-                getSize: [this.#palette, placeExpansion, gridClustered],
+                getSize: [
+                  this.#palette,
+                  placeExpansion,
+                  gridClustered,
+                  this.#dragPresentationRevision,
+                ],
                 getColor: [placeExpansion, gridClustered],
               },
               // GlobeView culls back faces; billboarded icon quads vanish

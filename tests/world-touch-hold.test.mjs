@@ -56,12 +56,18 @@ function surfaceHarness() {
     },
   };
   const scatter = [];
+  const icons = [];
   let pickResult = null;
   const runtime = {
     createGlobeView: (props) => ({ props }),
     createScatterplotLayer(props) {
       const layer = { props };
       scatter.push(layer);
+      return layer;
+    },
+    createIconLayer(props) {
+      const layer = { props };
+      icons.push(layer);
       return layer;
     },
     createPathLayer: (props) => ({ props }),
@@ -113,14 +119,20 @@ function surfaceHarness() {
   });
   const entityLayer = () =>
     scatter.filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities).at(-1);
+  const entityIconLayer = () =>
+    icons.filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons).at(-1);
   const alice = () => entityLayer().props.data.find((datum) => datum.entityId === "alice");
+  const aliceIcon = () =>
+    entityIconLayer().props.data.find((datum) => datum.entityId === "alice");
   return {
     surface,
     listeners,
     dataset,
     begins,
     alice,
+    aliceIcon,
     entityLayer,
+    entityIconLayer,
     setPickResult(value) {
       pickResult = value;
     },
@@ -136,6 +148,12 @@ function surfaceHarness() {
     },
     dragStart(pointerId, pointerType = "touch") {
       return entityLayer().props.onDragStart(
+        { object: alice(), x: 118.0786, y: 259.3393 },
+        { srcEvent: { pointerId, pointerType } },
+      );
+    },
+    dragEnd(pointerId, pointerType = "touch") {
+      return entityLayer().props.onDragEnd(
         { object: alice(), x: 118.0786, y: 259.3393 },
         { srcEvent: { pointerId, pointerType } },
       );
@@ -173,6 +191,50 @@ test("a long press on an entity then drag claims the node drag", (t) => {
 
   h.touch("pointerup", 4, 160, 280);
   assert.equal(h.dataset.worldTouchDrag, undefined);
+});
+
+
+test("long-press pickup flashes and lifts only the actively dragged node", (t) => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
+  const h = surfaceHarness();
+  h.setPickResult({ object: h.alice() });
+
+  const initialLayer = h.entityIconLayer();
+  const initialDatum = h.aliceIcon();
+  const initialSize = initialLayer.props.getSize(initialDatum);
+  const initialPosition = initialLayer.props.getPosition(initialDatum);
+
+  h.touch("pointerdown", 4, 118, 259);
+  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS);
+
+  const flashedLayer = h.entityIconLayer();
+  const flashedDatum = h.aliceIcon();
+  assert.ok(
+    flashedLayer.props.getSize(flashedDatum) > initialSize,
+    "long-press activation should visibly flash the node",
+  );
+
+  assert.equal(h.dragStart(4), true);
+  const draggedLayer = h.entityIconLayer();
+  const draggedPosition = draggedLayer.props.getPosition(h.aliceIcon());
+  assert.ok(
+    draggedPosition[2] > initialPosition[2],
+    "the active node should lift slightly while it is being dragged",
+  );
+
+  assert.equal(h.dragEnd(4), true);
+  const releasedLayer = h.entityIconLayer();
+  const releasedDatum = h.aliceIcon();
+  assert.deepEqual(
+    releasedLayer.props.getPosition(releasedDatum),
+    initialPosition,
+    "release should restore the authored force altitude",
+  );
+  assert.equal(
+    releasedLayer.props.getSize(releasedDatum),
+    initialSize,
+    "release should clear any remaining pickup flash",
+  );
 });
 
 test("a second finger during the hold cancels it and never starts a node drag", (t) => {

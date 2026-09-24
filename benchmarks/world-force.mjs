@@ -156,6 +156,26 @@ for (const nodeCount of sizes) {
   const diagnostics = simulation.getDiagnostics();
   simulation.destroy();
 
+  const dragSimulation = new ReferenceWorldForceSimulation();
+  dragSimulation.setScene(forceScene);
+  // Clear the scene-load publication so this measurement reflects only the
+  // interaction frame's changed positions.
+  dragSimulation.getChangedSnapshot();
+  const dragged = forceScene.nodes[0];
+  if (!dragged) throw new Error("World force benchmark requires at least one node.");
+  dragSimulation.setPin({
+    instanceId: dragged.id,
+    eastMeters: 10_000_000,
+    northMeters: 0,
+    visualAltitudeMeters: dragged.targetVisualAltitudeMeters,
+  });
+  dragSimulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  const dragStep = measure(() => {
+    dragSimulation.step(1000 / 60);
+  }, stepIterations);
+  const dragChangedNodes = dragSimulation.getChangedSnapshot().length;
+  dragSimulation.destroy();
+
   results.push({
     worldInstances: nodeCount,
     places: placeCount,
@@ -164,6 +184,8 @@ for (const nodeCount of sizes) {
     sceneBuild,
     solverSetup,
     solveStep,
+    dragStep,
+    dragChangedNodes,
     diagnostics,
   });
 }

@@ -232,6 +232,7 @@ export class WorldViewRuntimeController {
     this.#sinceLayoutPush = 0;
     if (this.#gpuLayoutBridge || !this.#layoutReadback || !this.#sourceProjection) return;
     const samples = this.#layoutReadback.read();
+    if (samples.length === 0) return;
     const previous = this.#renderProjection;
     const next = applyWorldForceLayout(previous ?? this.#sourceProjection, samples);
     this.#renderProjection = next;
