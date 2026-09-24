@@ -140,12 +140,23 @@ jobs:
 
           function isRecord(value: unknown): value is PersistedRecord {`;
           s = s.replace(anchor, replacement);
-          const optionalPattern = /\\s+role: typeof value\\.role === "string" \\? value\\.role : undefined,\\s+placeId: typeof value\\.placeId === "string" \\? placeId\\(value\\.placeId\\) : undefined,/;
-          if (!optionalPattern.test(s)) throw new Error("ProjectRepository optional field anchor not found");
-          s = s.replace(
-            optionalPattern,
-            '\\n    ...(typeof value.role === "string" ? { role: value.role } : {}),\\n    ...(typeof value.placeId === "string" ? { placeId: placeId(value.placeId) } : {}),',
+          const lines = s.split("\\n");
+          const roleIndex = lines.findIndex((line) =>
+            line.includes('role: typeof value.role === "string" ? value.role : undefined'),
           );
+          const placeIndex = lines.findIndex((line) =>
+            line.includes('placeId: typeof value.placeId === "string" ? placeId(value.placeId) : undefined'),
+          );
+          if (roleIndex < 0 || placeIndex !== roleIndex + 1) {
+            throw new Error("ProjectRepository optional field lines not found");
+          }
+          lines.splice(
+            roleIndex,
+            2,
+            '    ...(typeof value.role === "string" ? { role: value.role } : {}),',
+            '    ...(typeof value.placeId === "string" ? { placeId: placeId(value.placeId) } : {}),',
+          );
+          s = lines.join("\\n");
           fs.writeFileSync(file, s);
           NODE
       - name: Apply Biome fixes to PR-owned files
