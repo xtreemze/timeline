@@ -174,10 +174,7 @@ test("D3 cluster lifecycle gathers and scatters with relationship links detached
   const distance = (snapshot) => {
     const left = snapshot.find((entry) => entry.instanceId === alice);
     const right = snapshot.find((entry) => entry.instanceId === bob);
-    return Math.hypot(
-      right.eastMeters - left.eastMeters,
-      right.northMeters - left.northMeters,
-    );
+    return Math.hypot(right.eastMeters - left.eastMeters, right.northMeters - left.northMeters);
   };
 
   const expandedBefore = distance(simulation.getSnapshot());
