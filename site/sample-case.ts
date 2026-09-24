@@ -3644,7 +3644,7 @@ const SAMPLE = {
         relationChanges: [],
       },
       {
-        id: "red-basket",
+        id: "red-basket-prepared",
         kind: "event",
         start: "1000-04-12T08:10Z",
         end: null,
@@ -3991,7 +3991,7 @@ const SAMPLE = {
         relationChanges: [],
       },
       {
-        id: "red-woodcutter",
+        id: "red-woodcutter-intervenes",
         kind: "event",
         start: "1000-05-01T15:00Z",
         end: null,
@@ -4197,7 +4197,7 @@ const SAMPLE = {
         relationChanges: [],
       },
       {
-        id: "hg-breadcrumbs",
+        id: "hg-carries-breadcrumbs",
         kind: "event",
         start: "1000-04-14T08:30Z",
         end: null,
@@ -4344,7 +4344,7 @@ const SAMPLE = {
         relationChanges: [],
       },
       {
-        id: "hg-gingerbread-house",
+        id: "hg-discovers-gingerbread-house",
         kind: "event",
         start: "1000-04-19T12:40Z",
         end: null,
@@ -4703,7 +4703,7 @@ const SAMPLE = {
         id: "story-little-red-riding-hood",
         title: "Little Red Riding Hood",
         description: "A child carries a household errand through the forest, encounters a predatory wolf, is diverted from the direct route, reaches Grandmother's cottage after the wolf, recognizes the deception, and survives through intervention and reunion.",
-        itemIds: ["red-upbringing", "red-basket", "red-forest-departure", "red-meets-wolf", "red-flower-delay", "red-grandmother-attack", "red-disguise", "red-cottage-encounter", "red-woodcutter", "red-safe"],
+        itemIds: ["red-upbringing", "red-basket-prepared", "red-forest-departure", "red-meets-wolf", "red-flower-delay", "red-grandmother-attack", "red-disguise", "red-cottage-encounter", "red-woodcutter-intervenes", "red-safe"],
         extensions: {
           narrative: {
             fictional: true,
@@ -4717,7 +4717,7 @@ const SAMPLE = {
         id: "story-hansel-and-gretel",
         title: "Hansel and Gretel",
         description: "Household scarcity leads to abandonment in the forest. Hansel's breadcrumb strategy fails, the children discover the Gingerbread House, the Witch captures Hansel, Gretel reverses the trap, and the siblings return to Father.",
-        itemIds: ["hg-family-hardship", "hg-stepmother-plan", "hg-breadcrumbs", "hg-abandoned", "hg-trail-fails", "hg-gingerbread-house", "hg-witch-captures", "hg-gretel-deceives", "hg-witch-defeated", "hg-return-home"],
+        itemIds: ["hg-family-hardship", "hg-stepmother-plan", "hg-carries-breadcrumbs", "hg-abandoned", "hg-trail-fails", "hg-discovers-gingerbread-house", "hg-witch-captures", "hg-gretel-deceives", "hg-witch-defeated", "hg-return-home"],
         extensions: {
           narrative: {
             fictional: true,
@@ -6999,6 +6999,7 @@ const SAMPLE = {
         objectId: "snow-coffin-object",
         predicate: "rests",
         role: "context",
+        sourceIds: ["src-snow"],
         placeId: "snow-clearing-place",
         itemIds: ["snow-coffin", "snow-prince-arrives"],
         initialState: "active",
@@ -7117,7 +7118,7 @@ const SAMPLE = {
         },
         attributes: { storyId: "story-little-red-riding-hood" },
         placeId: "place-red-mother-cottage",
-        itemIds: ["red-basket"],
+        itemIds: ["red-basket-prepared"],
       },
       {
         id: "rel-red-mother-packs",
@@ -7140,7 +7141,7 @@ const SAMPLE = {
         },
         attributes: { storyId: "story-little-red-riding-hood" },
         placeId: "place-red-mother-cottage",
-        itemIds: ["red-basket"],
+        itemIds: ["red-basket-prepared"],
       },
       {
         id: "rel-red-carries-basket",
@@ -7301,7 +7302,7 @@ const SAMPLE = {
         },
         attributes: { storyId: "story-little-red-riding-hood" },
         placeId: "place-red-cottage-clearing",
-        itemIds: ["red-woodcutter"],
+        itemIds: ["red-woodcutter-intervenes"],
       },
       {
         id: "rel-red-grandmother-welcomes",
@@ -7401,7 +7402,7 @@ const SAMPLE = {
         },
         attributes: { storyId: "story-hansel-and-gretel" },
         placeId: "place-hg-forest-trail",
-        itemIds: ["hg-breadcrumbs"],
+        itemIds: ["hg-carries-breadcrumbs"],
       },
       {
         id: "rel-hg-father-leaves-hansel",
@@ -7470,7 +7471,7 @@ const SAMPLE = {
         },
         attributes: { storyId: "story-hansel-and-gretel" },
         placeId: "place-hg-gingerbread-house",
-        itemIds: ["hg-gingerbread-house"],
+        itemIds: ["hg-discovers-gingerbread-house"],
       },
       {
         id: "rel-hg-witch-traps",
