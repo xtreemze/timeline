@@ -1391,8 +1391,21 @@ export class TimelineViewController {
     padding: number,
     usable: number,
     incoming: boolean,
+    edgeAccentLimit: number,
   ): Set<string> {
     const keep = new Set<string>();
+    const maximumEdgeAccents = clamp(Math.trunc(edgeAccentLimit) || 1, 1, 2);
+    const orderedEdgeAccents = [...accentPlan.edgeAccents].sort(
+      (left, right) => Number(left.position) - Number(right.position),
+    );
+    const boundedEdgeAccents =
+      orderedEdgeAccents.length <= maximumEdgeAccents
+        ? orderedEdgeAccents
+        : maximumEdgeAccents === 1
+          ? orderedEdgeAccents.slice(0, 1)
+          : [orderedEdgeAccents[0], orderedEdgeAccents.at(-1)].filter(
+              (accent): accent is (typeof orderedEdgeAccents)[number] => Boolean(accent),
+            );
     const materialize = (
       accent: (typeof accentPlan.edgeAccents)[number] | (typeof accentPlan.axisMonths)[number],
       axis: boolean,
@@ -1445,7 +1458,8 @@ export class TimelineViewController {
       this.positionTemporalNode(node, Number(accent.time), padding, usable);
     };
 
-    accentPlan.edgeAccents.forEach((accent, index) => materialize(accent, false, index));
+    boundedEdgeAccents.forEach((accent, index) => materialize(accent, false, index));
+    this.stage.dataset.edgeDateCount = String(boundedEdgeAccents.length);
     for (const accent of accentPlan.axisMonths) materialize(accent, true);
     return keep;
   }
@@ -1504,6 +1518,7 @@ export class TimelineViewController {
       padding,
       usable,
       false,
+      this.retention.active ? 2 : 1,
     );
 
     if (incomingHierarchy) {
