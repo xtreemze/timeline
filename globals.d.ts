@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 // Timeline application globals
 declare global {
   var Timeline: any;
