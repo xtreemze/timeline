@@ -107,7 +107,7 @@ function text(value: unknown, max = 200): string | null {
 }
 
 function styleOf(attributes: unknown): Readonly<Record<string, unknown>> {
-  return record(record(attributes)?.style) ?? {};
+  return record(record(attributes)?.["style"]) ?? {};
 }
 
 function defaultNodeFill(type: string, palette: WorldGraphPalette): string {
@@ -156,11 +156,11 @@ function worldNodeMetrics(input: WorldNodeStyleInput): {
   // Portable marker semantics: `size` and `diameter` are visible diameters;
   // `radius` is the only radius-valued property. Explicit authored geometry
   // is authoritative and is not multiplied by the app's default node scale.
-  const authoredDiameter = number(own.size, 8, 64) ?? number(own.diameter, 8, 64);
+  const authoredDiameter = number(own["size"], 8, 64) ?? number(own["diameter"], 8, 64);
   const authoredRadius =
-    number(own.radius, 4, 32) ?? (authoredDiameter === null ? null : authoredDiameter / 2);
+    number(own["radius"], 4, 32) ?? (authoredDiameter === null ? null : authoredDiameter / 2);
   const resolvedRadius = Math.round(authoredRadius ?? baseRadius * WORLD_NODE_SCALE);
-  const authoredBorderWidth = number(own.borderWidth, 0, 8) ?? number(own.strokeWidth, 0, 8) ?? 2;
+  const authoredBorderWidth = number(own["borderWidth"], 0, 8) ?? number(own["strokeWidth"], 0, 8) ?? 2;
   return Object.freeze({
     // Interaction state is presentation-only. Never feed hover/selection into
     // visible geometry or collision/force footprints.
@@ -174,7 +174,7 @@ export function worldNodeVisualFootprintRadiusPx(input: WorldNodeStyleInput): nu
   const metrics = worldNodeMetrics(input);
   const type = (input.type ?? "").toLowerCase();
   const own = styleOf(input.attributes);
-  const ownShape = text(own.shape ?? own.markerShape, 16)?.toLowerCase();
+  const ownShape = text(own["shape"] ?? own["markerShape"], 16)?.toLowerCase();
   const shape = SHAPES.includes(ownShape as WorldNodeShape)
     ? (ownShape as WorldNodeShape)
     : defaultNodeShape(type);
@@ -195,19 +195,19 @@ export function worldNodeStyle(
 ): WorldNodeStyle {
   const type = (input.type ?? "").toLowerCase();
   const own = styleOf(input.attributes);
-  const ownShape = text(own.shape ?? own.markerShape, 16)?.toLowerCase();
+  const ownShape = text(own["shape"] ?? own["markerShape"], 16)?.toLowerCase();
   const metrics = worldNodeMetrics(input);
   const fill =
-    color(own.fillColor) ??
-    color(own.fill) ??
-    color(own.backgroundColor) ??
-    color(own.color) ??
+    color(own["fillColor"]) ??
+    color(own["fill"]) ??
+    color(own["backgroundColor"]) ??
+    color(own["color"]) ??
     defaultNodeFill(type, palette);
   const border =
-    color(own.borderColor) ??
-    color(own.border) ??
-    color(own.stroke) ??
-    color(own.strokeColor) ??
+    color(own["borderColor"]) ??
+    color(own["border"]) ??
+    color(own["stroke"]) ??
+    color(own["strokeColor"]) ??
     palette.paper;
   return Object.freeze({
     // Interaction emphasis is applied by the renderer as color/opacity only;
@@ -218,8 +218,8 @@ export function worldNodeStyle(
     shape: SHAPES.includes(ownShape as WorldNodeShape)
       ? (ownShape as WorldNodeShape)
       : defaultNodeShape(type),
-    icon: text(own.icon, 48) ?? (type || null),
-    image: text(own.image ?? own.imageUrl, 2048),
+    icon: text(own["icon"], 48) ?? (type || null),
+    image: text(own["image"] ?? own["imageUrl"], 2048),
     radius: metrics.radius,
   });
 }
@@ -232,47 +232,47 @@ export function worldPlaceStyle(
   _emphasized = false,
 ): WorldNodeStyle {
   const own = record(placeStyle) ?? {};
-  const marker = record(own.marker) ?? {};
+  const marker = record(own["marker"]) ?? {};
   const ownShape = text(
-    marker.shape ?? marker.markerShape ?? own.markerShape ?? own.shape,
+    marker["shape"] ?? marker["markerShape"] ?? own["markerShape"] ?? own["shape"],
     16,
   )?.toLowerCase();
   const fill =
-    color(marker.fillColor) ??
-    color(marker.fill) ??
-    color(own.fillColor) ??
-    color(own.fill) ??
-    color(marker.color) ??
+    color(marker["fillColor"]) ??
+    color(marker["fill"]) ??
+    color(own["fillColor"]) ??
+    color(own["fill"]) ??
+    color(marker["color"]) ??
     defaultNodeFill("place", palette);
   const border =
-    color(marker.borderColor) ??
-    color(marker.stroke) ??
-    color(own.borderColor) ??
-    color(own.stroke) ??
-    color(marker.color) ??
+    color(marker["borderColor"]) ??
+    color(marker["stroke"]) ??
+    color(own["borderColor"]) ??
+    color(own["stroke"]) ??
+    color(marker["color"]) ??
     palette.paper;
   const borderWidth =
-    number(marker.borderWidth, 0, 8) ??
-    number(marker.strokeWidth, 0, 8) ??
-    number(marker.weight, 0, 8) ??
-    number(own.borderWidth, 0, 8) ??
+    number(marker["borderWidth"], 0, 8) ??
+    number(marker["strokeWidth"], 0, 8) ??
+    number(marker["weight"], 0, 8) ??
+    number(own["borderWidth"], 0, 8) ??
     2;
   const authoredDiameter =
-    number(marker.size, 8, 64) ??
-    number(marker.diameter, 8, 64) ??
-    number(own.size, 8, 64) ??
-    number(own.diameter, 8, 64);
+    number(marker["size"], 8, 64) ??
+    number(marker["diameter"], 8, 64) ??
+    number(own["size"], 8, 64) ??
+    number(own["diameter"], 8, 64);
   const authoredRadius =
-    number(marker.radius, 4, 32) ??
-    number(own.radius, 4, 32) ??
+    number(marker["radius"], 4, 32) ??
+    number(own["radius"], 4, 32) ??
     (authoredDiameter === null ? 14 : authoredDiameter / 2);
   return Object.freeze({
     fill,
     border,
     borderWidth,
     shape: SHAPES.includes(ownShape as WorldNodeShape) ? (ownShape as WorldNodeShape) : "pin",
-    icon: text(marker.icon ?? own.icon, 48) ?? "place",
-    image: text(marker.image ?? marker.imageUrl ?? own.image ?? own.imageUrl, 2048),
+    icon: text(marker["icon"] ?? own["icon"], 48) ?? "place",
+    image: text(marker["image"] ?? marker["imageUrl"] ?? own["image"] ?? own["imageUrl"], 2048),
     // The visible marker respects authored geometry. The renderer maintains
     // the separate >=44px acquisition target, so a deliberately small marker
     // does not have to be visually inflated for touch accessibility.
@@ -309,18 +309,18 @@ export function worldEdgeStyle(
   palette: WorldGraphPalette,
 ): WorldEdgeStyle {
   const own = styleOf(input.attributes);
-  const lineStyle = text(own.lineStyle ?? own.strokeStyle, 16)?.toLowerCase();
+  const lineStyle = text(own["lineStyle"] ?? own["strokeStyle"], 16)?.toLowerCase();
   const semanticColor =
-    color(own.categoryColor) ??
+    color(own["categoryColor"]) ??
     color(input.fallbackColor) ??
-    color(own.color) ??
-    color(own.stroke) ??
-    color(own.lineColor) ??
+    color(own["color"]) ??
+    color(own["stroke"]) ??
+    color(own["lineColor"]) ??
     semanticEdgeColor(input.predicate ?? "", palette);
   const authoredWidth =
-    number(own.width, 0.5, 10) ??
-    number(own.strokeWidth, 0.5, 10) ??
-    number(own.lineWidth, 0.5, 10) ??
+    number(own["width"], 0.5, 10) ??
+    number(own["strokeWidth"], 0.5, 10) ??
+    number(own["lineWidth"], 0.5, 10) ??
     1.5;
   return Object.freeze({
     // Interaction emphasis is renderer-only so edge geometry/routing never
@@ -331,7 +331,7 @@ export function worldEdgeStyle(
       lineStyle === "dashed" ||
       lineStyle === "dash" ||
       (lineStyle === undefined && input.inactive === true),
-    arrow: own.arrow !== false,
+    arrow: own["arrow"] !== false,
   });
 }
 
