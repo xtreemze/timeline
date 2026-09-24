@@ -25,7 +25,6 @@ import {
   extendRetention,
   itemOverlapsWindow,
   occurrenceSceneKey,
-  queryOccurrences,
   relationshipBandSceneKey,
   type TemporalRetentionState,
   type TemporalWindow,
@@ -390,6 +389,8 @@ export class TimelineViewController {
   axis: HTMLDivElement;
   semanticList: HTMLOListElement;
   items: TimelineItem[] = [];
+  orderedItems: TimelineItem[] = [];
+  itemById = new Map<string, TimelineItem>();
   itemEpoch = 0;
   relationships: TimelineRelationshipBand[] = [];
   allCoordinates: number[] = [];
@@ -948,6 +949,10 @@ export class TimelineViewController {
     this.items = (items || []).filter(
       (item) => item && typeof item.id === "string" && Number.isFinite(item.start),
     );
+    this.orderedItems = [...this.items].sort(
+      (left, right) => left.start - right.start || left.id.localeCompare(right.id),
+    );
+    this.itemById = new Map(this.items.map((item) => [item.id, item]));
     this.itemEpoch += 1;
     this.relationships = Array.isArray(options.relationships)
       ? options.relationships
@@ -1068,9 +1073,8 @@ export class TimelineViewController {
   }
 
   initialViewport(): TemporalWindow {
-    const sorted = [...this.items].sort((left, right) => left.start - right.start);
-    if (!sorted.length) return { start: 0, end: DEFAULT_SPAN_MS };
-    const local = sorted.slice(0, 3);
+    if (!this.orderedItems.length) return { start: 0, end: DEFAULT_SPAN_MS };
+    const local = this.orderedItems.slice(0, 3);
     const first = local[0];
     if (!first) return { start: 0, end: DEFAULT_SPAN_MS };
     const start = first.start;
@@ -1092,7 +1096,7 @@ export class TimelineViewController {
   semanticZoomAnchorItem(): TimelineItem | null {
     if (!this.items.length) return null;
     if (this.focusedId) {
-      const focused = this.items.find((item) => item.id === this.focusedId);
+      const focused = this.itemById.get(this.focusedId);
       if (focused) return focused;
     }
     const center = this.viewport.start + (this.viewport.end - this.viewport.start) / 2;
@@ -1322,9 +1326,9 @@ export class TimelineViewController {
     );
   }
 
-  measuredQueryOccurrences(items: readonly TimelineItem[], extent: TemporalWindow): TimelineItem[] {
+  measuredQueryOccurrences(extent: TemporalWindow): TimelineItem[] {
     const started = performance.now();
-    const result = queryOccurrences(items, extent);
+    const result = this.orderedItems.filter((item) => itemOverlapsWindow(item, extent));
     this.pendingQueryDurationMs += performance.now() - started;
     return result;
   }
@@ -1583,7 +1587,7 @@ export class TimelineViewController {
       this.committedTickSpecKey = selectedKey;
     }
 
-    const contextItems = this.measuredQueryOccurrences(this.items, this.viewport);
+    const contextItems = this.measuredQueryOccurrences(this.viewport);
     const windowSpan = Math.max(
       MIN_SPAN_MS,
       this.retention.extent.end - this.retention.extent.start,
@@ -2180,10 +2184,8 @@ export class TimelineViewController {
         : rect.height || this.surface.clientHeight,
     );
     const usable = Math.max(1, primaryLength - this.axisPadding(primaryLength) * 2);
-    const occurrences = this.measuredQueryOccurrences(this.items, this.viewport);
-    const focused = this.focusedId
-      ? this.items.find((item) => item.id === this.focusedId) || null
-      : null;
+    const occurrences = this.measuredQueryOccurrences(this.viewport);
+    const focused = this.focusedId ? this.itemById.get(this.focusedId) || null : null;
     if (focused && !occurrences.some((item) => item.id === focused.id)) {
       occurrences.push(focused);
     }
@@ -2320,7 +2322,7 @@ export class TimelineViewController {
 
   updateClusterRecord(record: ClusterSceneRecord): void {
     const items = record.cluster.itemIds
-      .map((id) => this.items.find((item) => item.id === id))
+      .map((id) => this.itemById.get(id))
       .filter((item): item is TimelineItem => Boolean(item));
     if (!items.length) return;
     const first = items[0];
@@ -2464,7 +2466,7 @@ export class TimelineViewController {
 
   activateCommittedCluster(cluster: TemporalLayoutCluster, selectedId: string): void {
     const items = cluster.itemIds
-      .map((id) => this.items.find((item) => item.id === id))
+      .map((id) => this.itemById.get(id))
       .filter((item): item is TimelineItem => Boolean(item));
     if (!items.length) return;
 
@@ -2592,10 +2594,8 @@ export class TimelineViewController {
     this.renderRelationshipBands(padding, usable);
 
     const membershipWindow = this.retention.extent;
-    const candidates = this.measuredQueryOccurrences(this.items, membershipWindow);
-    const focused = this.focusedId
-      ? this.items.find((item) => item.id === this.focusedId) || null
-      : null;
+    const candidates = this.measuredQueryOccurrences(membershipWindow);
+    const focused = this.focusedId ? this.itemById.get(this.focusedId) || null : null;
     if (focused && !candidates.some((item) => item.id === focused.id)) candidates.push(focused);
 
     const keep = new Set<string>();
@@ -3401,7 +3401,7 @@ export class TimelineViewController {
 
   // Keep this signature stable while callers migrate: focusItem(id, options = {})
   focusItem(id: string, options: { moveViewport?: boolean } = {}) {
-    const item = this.items.find((candidate) => candidate.id === id);
+    const item = this.itemById.get(id);
     if (!item) return false;
     const moveViewport = options.moveViewport !== false;
     if (this.focusedId !== id) this.focusMediaIndex = 0;
