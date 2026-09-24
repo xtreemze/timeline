@@ -82,6 +82,39 @@ test("reference solver is deterministic when no explicit offset exists", () => {
   assert.deepEqual(first.getDiagnostics(), second.getDiagnostics());
 });
 
+test("sparse readback publishes only force positions dirtied since the previous read", () => {
+  const simulation = new ReferenceWorldForceSimulation();
+  const alice = '["alice","meeting"]';
+  const bob = '["bob","remote"]';
+  simulation.setScene({
+    nodes: [node(alice), node(bob)],
+    edges: [],
+    anchors: [
+      anchor(alice, "stockholm"),
+      anchor(bob, "copenhagen"),
+    ],
+  });
+
+  assert.deepEqual(
+    simulation.getChangedSnapshot().map((entry) => entry.instanceId),
+    [alice, bob],
+  );
+  assert.deepEqual(simulation.getChangedSnapshot(), []);
+
+  simulation.setPin({
+    instanceId: alice,
+    eastMeters: 250,
+    northMeters: -125,
+    visualAltitudeMeters: 1200,
+  });
+
+  assert.deepEqual(
+    simulation.getChangedSnapshot().map((entry) => entry.instanceId),
+    [alice],
+  );
+  assert.deepEqual(simulation.getChangedSnapshot(), []);
+});
+
 test("same-place topology participates in local layout", () => {
   const simulation = new ReferenceWorldForceSimulation();
   simulation.setScene({
@@ -547,6 +580,77 @@ test("drag wakes nearby foreign-anchor topology but leaves distant groups frozen
     "nearby foreign-anchor node participates in drag force",
   );
   assert.deepEqual(afterRemote, beforeRemote, "distant anchor group stays frozen");
+});
+
+test("far drag does not wake a foreign group located only between active-group members", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const dragged = '["alice","dragged"]';
+  const peer = '["bob","peer"]';
+  const middleA = '["carol","middle-a"]';
+  const middleB = '["dave","middle-b"]';
+
+  simulation.setScene({
+    nodes: [
+      node(dragged, { initialEastMeters: -10_000, collisionRadiusMeters: 120 }),
+      node(peer, { initialEastMeters: -10_000, collisionRadiusMeters: 120 }),
+      node(middleA, { initialEastMeters: -1, collisionRadiusMeters: 120 }),
+      node(middleB, { initialEastMeters: 1, collisionRadiusMeters: 120 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(dragged, "active-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(peer, "active-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(middleA, "middle-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(middleB, "middle-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+    ],
+  });
+
+  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 10_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+
+  const before = simulation.getSnapshot();
+  simulation.step(1000 / 60);
+  const after = simulation.getSnapshot();
+  const beforeMiddle = before.filter((entry) =>
+    entry.instanceId === middleA || entry.instanceId === middleB,
+  );
+  const afterMiddle = after.filter((entry) =>
+    entry.instanceId === middleA || entry.instanceId === middleB,
+  );
+
+  assert.deepEqual(
+    afterMiddle,
+    beforeMiddle,
+    "foreign group between separated active members remains asleep when no node is nearby",
+  );
 });
 
 test("place-domain constraint returns distant nodes to an annulus without centering them", () => {
