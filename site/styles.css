@@ -4220,6 +4220,12 @@ body {
 }
 
 @media (min-width: 700px) {
+  .app-browser-sheet > .app-browser-panel {
+    inline-size: min(420px, 100%);
+    border-inline-start: 1px solid color-mix(in srgb, var(--line-strong) 82%, transparent);
+    box-shadow: -8px 0 28px color-mix(in srgb, var(--ink) 12%, transparent);
+  }
+
   .app-tool-dock,
   #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock,
   #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
@@ -4262,7 +4268,6 @@ body {
   max-block-size: none;
   margin: 0;
   padding: 0;
-  overflow: hidden;
   pointer-events: auto;
   border: 0;
   border-radius: 0;
@@ -4281,7 +4286,7 @@ body {
   position: relative;
   z-index: 1;
   display: block;
-  inline-size: min(420px, 100%);
+  inline-size: 100%;
   block-size: 100%;
   min-inline-size: 0;
   min-block-size: 0;
@@ -4320,14 +4325,6 @@ body {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-@media (max-width: 699px) {
-  .app-browser-sheet > .app-browser-panel {
-    inline-size: 100%;
-    border-inline-start: 0;
-    box-shadow: none;
-  }
-}
-
 @media (min-width: 700px) {
   .app-tool-dock,
   #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock,
@@ -4359,7 +4356,7 @@ body {
     inset-block-end: calc(var(--workspace-footer-block-size) + 0.65rem);
     inset-inline-start: auto;
     inset-inline-end: max(0.65rem, env(safe-area-inset-right));
-    inline-size: clamp(360px, 34vw, 460px);
+    inline-size: clamp(360px, 34%, 460px);
     block-size: auto;
     max-inline-size: calc(100% - 1.3rem);
     max-block-size: none;
