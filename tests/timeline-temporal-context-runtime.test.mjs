@@ -28,7 +28,7 @@ test("temporal ticks are retained by stable calendar identity instead of rebuilt
   assert.doesNotMatch(source, /renderTemporalContext[\s\S]{0,4000}replaceChildren/);
 });
 
-test("active interaction retains the committed hierarchy while pre-materializing the incoming hierarchy", async () => {
+test("active interaction keeps one committed hierarchy and adopts the incoming hierarchy only on commit", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
   assert.match(source, /committedTickSpecKey/);
@@ -40,6 +40,11 @@ test("active interaction retains the committed hierarchy while pre-materializing
   assert.match(source, /generateTicksForSpec/);
   assert.match(source, /dataset\.incomingTickHierarchy/);
   assert.match(source, /positionTemporalNode/);
+  assert.match(source, /resolveTickLabelCollisions/);
+  assert.match(source, /TEMPORAL_LABEL_GAP_PX/);
+  assert.match(source, /hierarchyChangedOnCommit/);
+  assert.match(source, /if \(hierarchyChangedOnCommit\) node\.remove\(\)/);
+  assert.doesNotMatch(source, /const incomingAccentPlan =/);
 });
 
 test("ambient calendar context uses the surviving collision-aware clustering planner", async () => {
@@ -47,6 +52,10 @@ test("ambient calendar context uses the surviving collision-aware clustering pla
 
   assert.match(source, /TimelineClustering as clustering/);
   assert.match(source, /clustering\.planTemporalAccents/);
+  assert.match(
+    source,
+    /const contextItems = this\.measuredQueryOccurrences\(this\.items, this\.viewport\)/,
+  );
   assert.match(source, /clustering\.compactTickLabel/);
   assert.match(source, /timeline-month-accent timeline-year-accent/);
   assert.match(source, /timeline-axis-month-label/);
