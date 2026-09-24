@@ -551,7 +551,9 @@ export class TimelineViewController {
 
     const registerTouchTap = (event: PointerEvent, tap: TouchTapState | null): boolean => {
       if (!tap || tap.cancelled) return false;
-      const now = performance.now();
+      // Input time, not handling time: a busy main thread must not stretch a
+      // quick double-tap past its window.
+      const now = Number(event.timeStamp) || performance.now();
       const previous = this.lastTouchTap;
       const point = { x: event.clientX, y: event.clientY };
       this.touchTap = null;
@@ -576,7 +578,7 @@ export class TimelineViewController {
           end: anchor + nextSpan * (1 - ratio),
         };
         this.lastTouchTap = null;
-        this.suppressClickUntil = now + CLICK_SUPPRESSION_MS;
+        this.suppressClickUntil = performance.now() + CLICK_SUPPRESSION_MS;
         this.commitInteraction();
         return true;
       }
@@ -1762,10 +1764,7 @@ export class TimelineViewController {
     }
 
     const animation = target.animate(
-      [
-        { translate: `${deltaX}px ${deltaY}px` },
-        { translate: "0 0" },
-      ],
+      [{ translate: `${deltaX}px ${deltaY}px` }, { translate: "0 0" }],
       {
         duration: LAYOUT_CORRECTION_DURATION_MS,
         easing: "cubic-bezier(.2,.8,.2,1)",
@@ -2155,7 +2154,11 @@ export class TimelineViewController {
       }
       if (sideCorrectionStart) {
         const sideCorrectionEnd = terminal.getBoundingClientRect();
-        this.animateLayoutCorrection(terminal, sideCorrectionStart.left - sideCorrectionEnd.left, 0);
+        this.animateLayoutCorrection(
+          terminal,
+          sideCorrectionStart.left - sideCorrectionEnd.left,
+          0,
+        );
       }
 
       const connector = node.querySelector<HTMLElement>(".timeline-event-connector");
@@ -2312,7 +2315,14 @@ export class TimelineViewController {
         record.item = item;
         this.updateRecordContent(record);
       }
-      this.positionRecord(record, primaryLength, axisCross, padding, usable, this.orientation === "horizontal" ? height : width);
+      this.positionRecord(
+        record,
+        primaryLength,
+        axisCross,
+        padding,
+        usable,
+        this.orientation === "horizontal" ? height : width,
+      );
     }
 
     this.positionCommittedClusters(padding, usable, axisCross);

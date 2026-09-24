@@ -29,6 +29,37 @@ async function withSession<T>(page: Page, run: (session: CDPSession) => Promise<
   }
 }
 
+/**
+ * Waits until the page has rendered frames no more than 50 ms apart for
+ * `quietMs`, i.e. no long task is running. Synthesized gestures wait for the
+ * renderer to acknowledge each event, so a long task during a double-tap
+ * delays the second tap and its timestamp (a real touchscreen timestamps
+ * taps in hardware). Call this before timing-sensitive gestures instead of
+ * sleeping.
+ */
+export function waitForQuietMainThread(
+  page: Page,
+  { quietMs = 400, timeoutMs = 15_000 }: { quietMs?: number; timeoutMs?: number } = {},
+) {
+  return page.evaluate(
+    ({ quiet, timeout }) =>
+      new Promise<void>((resolve, reject) => {
+        const started = performance.now();
+        let previous = started;
+        let quietSince = started;
+        const tick = (now: number) => {
+          if (now - previous > 50) quietSince = now;
+          previous = now;
+          if (now - quietSince >= quiet) resolve();
+          else if (now - started > timeout) reject(new Error("Main thread never went quiet."));
+          else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }),
+    { quiet: quietMs, timeout: timeoutMs },
+  );
+}
+
 /** One finger tap; `count: 2` is a double-tap played back at native speed. */
 export function tap(page: Page, at: Point, { count = 1 }: { count?: number } = {}) {
   return withSession(page, (session) =>
