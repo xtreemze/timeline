@@ -184,6 +184,143 @@ test("cross-place relationships never collapse geographic anchors into one local
   assert.deepEqual(withEdge.getSnapshot(), withoutEdge.getSnapshot());
 });
 
+test("nearby floating nodes from different place anchors repel in shared world space", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const alice = '["alice","west"]';
+  const bob = '["bob","east"]';
+  simulation.setScene({
+    nodes: [
+      node(alice, { initialEastMeters: 1, collisionRadiusMeters: 120 }),
+      node(bob, { initialEastMeters: -1, collisionRadiusMeters: 120 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(alice, "west", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(bob, "east", {
+        longitude: 18.069,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+    ],
+  });
+
+  const before = simulation.getSnapshot();
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
+  const after = simulation.getSnapshot();
+
+  assert.ok(after[0].eastMeters < before[0].eastMeters);
+  assert.ok(after[1].eastMeters > before[1].eastMeters);
+});
+
+test("cross-anchor proximity remains continuous across the dateline", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const west = '["alice","dateline-west"]';
+  const east = '["bob","dateline-east"]';
+  simulation.setScene({
+    nodes: [
+      node(west, { initialEastMeters: 1, collisionRadiusMeters: 180 }),
+      node(east, { initialEastMeters: -1, collisionRadiusMeters: 180 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(west, "dateline-west", {
+        longitude: 179.999,
+        latitude: 0,
+        influence: 0,
+      }),
+      anchor(east, "dateline-east", {
+        longitude: -179.999,
+        latitude: 0,
+        influence: 0,
+      }),
+    ],
+  });
+
+  const before = simulation.getSnapshot();
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
+  const after = simulation.getSnapshot();
+
+  assert.notDeepEqual(after, before);
+});
+
+test("drag wakes nearby foreign-anchor topology but leaves distant groups frozen", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const alice = '["alice","west"]';
+  const bob = '["bob","east"]';
+  const remote = '["remote","other"]';
+  simulation.setScene({
+    nodes: [
+      node(alice, { initialEastMeters: 1, collisionRadiusMeters: 120 }),
+      node(bob, { initialEastMeters: -1, collisionRadiusMeters: 120 }),
+      node(remote, { initialEastMeters: 50, collisionRadiusMeters: 120 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(alice, "west", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(bob, "east", {
+        longitude: 18.069,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(remote, "copenhagen", { influence: 0 }),
+    ],
+  });
+
+  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.setPin({
+    instanceId: alice,
+    eastMeters: 20,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+
+  const before = simulation.getSnapshot();
+  for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
+  const after = simulation.getSnapshot();
+  const beforeBob = before.find((entry) => entry.instanceId === bob);
+  const afterBob = after.find((entry) => entry.instanceId === bob);
+  const beforeRemote = before.find((entry) => entry.instanceId === remote);
+  const afterRemote = after.find((entry) => entry.instanceId === remote);
+
+  assert.notDeepEqual(
+    afterBob,
+    beforeBob,
+    "nearby foreign-anchor node participates in drag force",
+  );
+  assert.deepEqual(afterRemote, beforeRemote, "distant anchor group stays frozen");
+});
+
 test("geographic anchor force pulls local displacement toward its precision radius", () => {
   const simulation = new ReferenceWorldForceSimulation({
     repulsionStrength: 0,
