@@ -390,7 +390,11 @@ jobs:
                 (title.endsWith("Mobile Chrome") || title.endsWith("Mobile Chrome Landscape"))
               ) ||
               (
-                title.includes("two-finger pinch changes the camera on mobile Chromium") &&
+                (
+                  title.includes("two-finger pinch changes the camera on mobile Chromium") ||
+                  title.includes("a quick one-finger touch drag from an entity pans the globe, not the node") ||
+                  title.includes("long-press then drag moves an elevated node on mobile touch without panning")
+                ) &&
                 (
                   title.endsWith("Desktop Chrome") ||
                   title.endsWith("Tablet Touch") ||
@@ -405,6 +409,10 @@ jobs:
             ["mouse-wheel zoom changes the camera on the desktop controller path", "Reduced Motion"],
             ["two-finger pinch changes the camera on mobile Chromium", "Mobile Chrome"],
             ["two-finger pinch changes the camera on mobile Chromium", "Mobile Chrome Landscape"],
+            ["a quick one-finger touch drag from an entity pans the globe, not the node", "Mobile Chrome"],
+            ["a quick one-finger touch drag from an entity pans the globe, not the node", "Mobile Chrome Landscape"],
+            ["long-press then drag moves an elevated node on mobile touch without panning", "Mobile Chrome"],
+            ["long-press then drag moves an elevated node on mobile touch without panning", "Mobile Chrome Landscape"],
           ];
           for (const [testTitle, project] of requiredZoomPasses) {
             const passed = results.some(
