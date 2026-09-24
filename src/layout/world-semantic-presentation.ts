@@ -378,12 +378,7 @@ export function directedEdgePathArrowhead(
   const chordX = shortestLongitudeDelta(source[0], target[0]) * chordLongitudeScale;
   const chordY = target[1] - source[1];
   const chordLength = Math.hypot(chordX, chordY);
-  if (
-    !(tangentLength > MINIMUM_EDGE_LENGTH_DEGREES) ||
-    !(chordLength > MINIMUM_EDGE_LENGTH_DEGREES)
-  ) {
-    return null;
-  }
+  if (!(chordLength > MINIMUM_EDGE_LENGTH_DEGREES)) return null;
 
   const requestedHead =
     typeof headLengthDegrees === "number" &&
@@ -419,7 +414,7 @@ export function directedEdgePathArrowhead(
   const baseY = -uy * head;
   const baseAltitude = edgePathPointAtFraction(
     path,
-    ARROW_APEX_FRACTION - ARROW_LENGTH_FRACTION,
+    Math.max(0, apexFraction - head / chordLength),
   )[2];
   const apexLongitudeScale = Math.max(
     MINIMUM_LONGITUDE_SCALE,
