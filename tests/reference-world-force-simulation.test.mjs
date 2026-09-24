@@ -285,10 +285,7 @@ test("place-anchor attraction is suspended for the active drag group until relea
   const alice = '["alice","meeting"]';
   const bob = '["bob","meeting"]';
   simulation.setScene({
-    nodes: [
-      node(alice, { initialEastMeters: 1000 }),
-      node(bob, { initialEastMeters: 800 }),
-    ],
+    nodes: [node(alice, { initialEastMeters: 1000 }), node(bob, { initialEastMeters: 800 })],
     edges: [],
     anchors: [
       anchor(alice, "stockholm", { influence: 1, precisionRadiusMeters: 0 }),
