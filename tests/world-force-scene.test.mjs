@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { createWorldDagLayoutTargets } from "../src/layout/world-dag-layout.ts";
 import {
   createWorldForceScene,
   DEFAULT_WORLD_FORCE_SCENE_POLICY,
   worldForceComponentCollisionRadiusPx,
 } from "../src/layout/world-force-scene.ts";
-import { createWorldDagLayoutTargets } from "../src/layout/world-dag-layout.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
@@ -388,4 +388,3 @@ test("force scenes keep current offsets while exposing soft DAG targets", () => 
   assert.ok((alice.layoutTargetStrength ?? 0) > 0);
   assert.notEqual(alice.initialNorthMeters, alice.layoutTargetNorthMeters);
 });
-
