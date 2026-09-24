@@ -67,10 +67,97 @@ export function isEmptyWorldProjectionDelta(delta: WorldProjectionDelta): boolea
   );
 }
 
+function isDerivedPositionOnlyUpdate(
+  previous: ProjectedWorldInstance,
+  next: ProjectedWorldInstance,
+): boolean {
+  if (
+    !Object.isFrozen(next) ||
+    (next.localOffset !== undefined && !Object.isFrozen(next.localOffset))
+  ) {
+    return false;
+  }
+
+  const topologyUnchanged =
+    previous.id === next.id &&
+    previous.canonicalId === next.canonicalId &&
+    previous.label === next.label &&
+    previous.kind === next.kind &&
+    previous.occurrenceId === next.occurrenceId &&
+    previous.occurrenceIds === next.occurrenceIds &&
+    previous.geographicAnchors === next.geographicAnchors &&
+    previous.temporalWeight === next.temporalWeight &&
+    previous.visualWeight === next.visualWeight &&
+    previous.retained === next.retained &&
+    previous.style === next.style;
+  if (!topologyUnchanged) return false;
+
+  if (
+    next.localOffset &&
+    (!Number.isFinite(next.localOffset.eastMeters) ||
+      !Number.isFinite(next.localOffset.northMeters))
+  ) {
+    return false;
+  }
+  if (
+    next.visualAltitude !== undefined &&
+    (!Number.isFinite(next.visualAltitude) || next.visualAltitude < 0)
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function applyDerivedPositionOnlyDelta(
+  previous: WorldProjection,
+  delta: WorldProjectionDelta,
+): WorldProjection | null {
+  if (
+    delta.addedInstances.length !== 0 ||
+    delta.removedInstanceIds.length !== 0 ||
+    delta.addedEdges.length !== 0 ||
+    delta.updatedEdges.length !== 0 ||
+    delta.removedEdgeIds.length !== 0
+  ) {
+    return null;
+  }
+  if (delta.updatedInstances.length === 0) return previous;
+
+  const updates = new Map<WorldInstanceId, ProjectedWorldInstance>();
+  for (const value of delta.updatedInstances) {
+    if (updates.has(value.id)) return null;
+    updates.set(value.id, value);
+  }
+
+  let matched = 0;
+  let eligible = true;
+  const instances = previous.instances.map((value) => {
+    const update = updates.get(value.id);
+    if (!update) return value;
+    matched += 1;
+    if (!isDerivedPositionOnlyUpdate(value, update)) {
+      eligible = false;
+      return value;
+    }
+    return update;
+  });
+
+  if (!eligible || matched !== updates.size) return null;
+
+  return Object.freeze({
+    instances: Object.freeze(instances),
+    edges: previous.edges,
+  });
+}
+
 export function applyWorldProjectionDelta(
   previous: WorldProjection,
   delta: WorldProjectionDelta,
 ): WorldProjection {
+  const derivedOnly = applyDerivedPositionOnlyDelta(previous, delta);
+  if (derivedOnly) return derivedOnly;
+
   const instances = new Map(previous.instances.map((value) => [value.id, value]));
   const edges = new Map(previous.edges.map((value) => [value.id, value]));
 
