@@ -59,3 +59,20 @@ export function projectActiveOccurrences<T extends ProjectableOccurrence>(
       ),
   );
 }
+
+/**
+ * The canonical logically-active occurrence set for a temporal extent.
+ *
+ * This is the single activation rule shared by TimelineSurface and
+ * WorldProjection: only the logical viewport decides membership. Renderer
+ * retention, overscan, clustering, animation and GPU state must never be
+ * passed here. The result is frozen and deterministically ordered.
+ */
+export function activeOccurrenceIds<Id extends string>(
+  occurrences: readonly ProjectableOccurrence<Id>[],
+  extent: Pick<SpatiotemporalViewport["time"], "start" | "end">,
+): readonly Id[] {
+  return Object.freeze(
+    projectActiveOccurrences(occurrences, { time: extent }).map((occurrence) => occurrence.id),
+  );
+}

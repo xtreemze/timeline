@@ -67,6 +67,18 @@ export interface WorldViewModel {
 export interface WorldViewViewport {
   readonly start: number;
   readonly end: number;
+  /**
+   * The canonical logically-active relationship occurrence set published by
+   * the authoritative temporal viewport (TimelineSurface). When present it is
+   * consumed verbatim: an empty array means nothing is active. When absent the
+   * world falls back to its own standalone temporal query.
+   */
+  readonly activeOccurrenceIds?: readonly string[];
+}
+
+interface WorldTemporalWindow {
+  readonly start: number;
+  readonly end: number;
 }
 
 interface IndexedRelationshipOccurrence extends ProjectableOccurrence {
@@ -219,8 +231,10 @@ export class WorldProjectionView {
   #spatialAnchors = new SpatialAnchorIndex([], []);
   #temporalIndex: TemporalOccurrenceIndex<IndexedRelationshipOccurrence> =
     createTemporalOccurrenceIndex([]);
+  #timedById: ReadonlyMap<RelationshipId, IndexedRelationshipOccurrence> = new Map();
   #timelessIds: readonly RelationshipId[] = Object.freeze([]);
-  #viewport: WorldViewViewport | null = null;
+  #viewport: WorldTemporalWindow | null = null;
+  #sharedActiveIds: readonly string[] | null = null;
   #focusId: string | null = null;
   #presentationMode = false;
   #entityIds = new Set<string>();
@@ -274,6 +288,7 @@ export class WorldProjectionView {
     }
 
     this.#temporalIndex = createTemporalOccurrenceIndex(timed);
+    this.#timedById = new Map(timed.map((occurrence) => [occurrence.id, occurrence]));
     this.#timelessIds = Object.freeze(
       timeless.sort((left, right) => String(left).localeCompare(String(right))),
     );
@@ -285,6 +300,9 @@ export class WorldProjectionView {
       viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end)
         ? Object.freeze({ start: viewport.start, end: viewport.end })
         : null;
+    this.#sharedActiveIds = Array.isArray(viewport?.activeOccurrenceIds)
+      ? Object.freeze(viewport.activeOccurrenceIds.map(String))
+      : null;
     this.#render();
   }
 
@@ -319,6 +337,51 @@ export class WorldProjectionView {
   }
 
   #render(): void {
+    const { activeIds, weights } = this.#sharedActiveIds
+      ? this.#sharedActivation(this.#sharedActiveIds)
+      : this.#standaloneActivation();
+
+    const projection = projectWorldOccurrences(
+      this.#relationships,
+      activeIds,
+      this.#spatialAnchors,
+      {
+        entityPresentation: this.#entityPresentation,
+        temporalWeights: weights,
+      },
+    );
+
+    this.#runtime.setProjection(projection);
+    if (this.#viewport) this.#runtime.setTemporalWindow(this.#viewport);
+    this.#focusCurrent();
+  }
+
+  #sharedActivation(ids: readonly string[]): {
+    readonly activeIds: readonly RelationshipId[];
+    readonly weights: ReadonlyMap<RelationshipId, number>;
+  } {
+    const known = new Set(this.#relationships.map((relationship) => String(relationship.id)));
+    const activeIds = Object.freeze(
+      ids.filter((id) => known.has(id)).map((id) => relationshipId(id)),
+    );
+    const weights = new Map<RelationshipId, number>();
+    for (const id of activeIds) {
+      const occurrence = this.#timedById.get(id);
+      // Weight is presentation emphasis only; it never gates membership, so an
+      // occurrence the shared set activates keeps a visible floor weight.
+      const weight =
+        occurrence && this.#viewport
+          ? occurrenceViewportWeight(occurrence, { time: this.#viewport })
+          : 1;
+      weights.set(id, weight > 0 ? weight : 1);
+    }
+    return { activeIds, weights };
+  }
+
+  #standaloneActivation(): {
+    readonly activeIds: readonly RelationshipId[];
+    readonly weights: ReadonlyMap<RelationshipId, number>;
+  } {
     const activeTimed = this.#viewport
       ? this.#temporalIndex.query({ time: this.#viewport })
       : this.#temporalIndex.query({
@@ -337,20 +400,7 @@ export class WorldProjectionView {
       }
     }
     for (const id of this.#timelessIds) weights.set(id, 1);
-
-    const projection = projectWorldOccurrences(
-      this.#relationships,
-      activeIds,
-      this.#spatialAnchors,
-      {
-        entityPresentation: this.#entityPresentation,
-        temporalWeights: weights,
-      },
-    );
-
-    this.#runtime.setProjection(projection);
-    if (this.#viewport) this.#runtime.setTemporalWindow(this.#viewport);
-    this.#focusCurrent();
+    return { activeIds, weights };
   }
 
   #focusCurrent(): void {
