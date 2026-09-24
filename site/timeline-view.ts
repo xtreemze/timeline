@@ -64,6 +64,7 @@ const LABEL_BEFORE_ENTER_RATIO = 0.64;
 const LABEL_BEFORE_EXIT_RATIO = 0.36;
 const LAYOUT_CORRECTION_DURATION_MS = 140;
 const LAYOUT_CORRECTION_EPSILON_PX = 0.75;
+const EDGE_DATE_REPLACEMENT_DURATION_MS = 180;
 
 type Orientation = "horizontal" | "vertical";
 
@@ -1339,6 +1340,63 @@ export class TimelineViewController {
     return keep;
   }
 
+  updateTemporalAccentLabel(node: HTMLElement, nextLabel: string): void {
+    const previousLabel = node.dataset.temporalAccentLabel || "";
+    if (previousLabel === nextLabel) return;
+
+    node.dataset.temporalAccentLabel = nextLabel;
+    const nextCharacters = [...nextLabel];
+    let characterNodes = [
+      ...node.querySelectorAll<HTMLElement>(".timeline-edge-date-character"),
+    ];
+
+    if (characterNodes.length !== nextCharacters.length) {
+      const fragment = document.createDocumentFragment();
+      for (const character of nextCharacters) {
+        const characterNode = document.createElement("span");
+        characterNode.className = "timeline-edge-date-character";
+        characterNode.textContent = character;
+        fragment.append(characterNode);
+      }
+      node.replaceChildren(fragment);
+      characterNodes = [
+        ...node.querySelectorAll<HTMLElement>(".timeline-edge-date-character"),
+      ];
+      return;
+    }
+
+    const previousCharacters = [...previousLabel];
+    for (let index = 0; index < nextCharacters.length; index += 1) {
+      const characterNode = characterNodes[index];
+      const nextCharacter = nextCharacters[index] || "";
+      const previousCharacter = previousCharacters[index] || "";
+      if (!characterNode || characterNode.textContent === nextCharacter) continue;
+
+      characterNode.textContent = nextCharacter;
+      if (
+        this.reducedMotionQuery?.matches ||
+        !/\\d/.test(previousCharacter) ||
+        !/\\d/.test(nextCharacter) ||
+        typeof characterNode.animate !== "function"
+      ) {
+        continue;
+      }
+
+      const direction = Number(nextCharacter) >= Number(previousCharacter) ? 1 : -1;
+      const animation = characterNode.animate(
+        [
+          { opacity: 0.2, transform: `translateY(${direction * 0.45}em)` },
+          { opacity: 1, transform: "translateY(0)" },
+        ],
+        {
+          duration: EDGE_DATE_REPLACEMENT_DURATION_MS,
+          easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+        },
+      );
+      animation.addEventListener("finish", () => animation.cancel(), { once: true });
+    }
+  }
+
   materializeTemporalAccents(
     accentPlan: ReturnType<typeof clustering.planTemporalAccents>,
     padding: number,
@@ -1349,11 +1407,14 @@ export class TimelineViewController {
     const materialize = (
       accent: (typeof accentPlan.edgeAccents)[number] | (typeof accentPlan.axisMonths)[number],
       axis: boolean,
+      slot = 0,
     ): void => {
-      const key = temporalAccentSceneKey({
-        kind: String(accent.kind || (axis ? "axis" : "edge")),
-        time: Number(accent.sceneTime ?? accent.time),
-      });
+      const key = axis
+        ? temporalAccentSceneKey({
+            kind: String(accent.kind || "axis"),
+            time: Number(accent.sceneTime ?? accent.time),
+          })
+        : `edge-slot:${slot}`;
       keep.add(key);
       let node = this.accentScene.get(key);
       const created = !node;
@@ -1361,27 +1422,34 @@ export class TimelineViewController {
         node = document.createElement("div");
         node.className = axis
           ? "timeline-axis-month-label"
-          : accent.kind === "year"
-            ? "timeline-month-accent timeline-year-accent"
-            : "timeline-month-accent";
-        node.dataset.time = String(accent.time);
-        node.dataset.temporalAccent = String(accent.kind || "");
+          : "timeline-month-accent timeline-edge-date";
         this.accentScene.set(key, node);
         this.stage.append(node);
         this.frameCreatedObjects += 1;
       }
+
+      node.dataset.time = String(accent.time);
+      node.dataset.temporalAccent = String(accent.kind || "");
+      node.dataset.count = String(accent.count || 0);
+      if (!axis) {
+        node.dataset.edgeSlot = String(slot);
+        node.classList.toggle("timeline-year-accent", accent.kind === "year");
+      }
+
       node.classList.toggle("is-incoming-hierarchy", incoming && created);
       if (incoming && created) {
         node.dataset.pendingHierarchy = "true";
         node.style.opacity = "0.35";
       }
-      node.textContent = String(accent.label || "");
-      node.dataset.count = String(accent.count || 0);
+
+      const label = String(accent.label || "");
+      if (axis) node.textContent = label;
+      else this.updateTemporalAccentLabel(node, label);
       this.positionTemporalNode(node, Number(accent.time), padding, usable);
     };
 
-    for (const accent of accentPlan.edgeAccents) materialize(accent, false);
-    for (const accent of accentPlan.axisMonths) materialize(accent, true);
+    accentPlan.edgeAccents.forEach((accent, index) => materialize(accent, false, index));
+    accentPlan.axisMonths.forEach((accent) => materialize(accent, true));
     return keep;
   }
 
@@ -1440,6 +1508,7 @@ export class TimelineViewController {
       usable,
       false,
     );
+    this.stage.dataset.edgeDateCount = String(authoritativeAccentPlan.edgeAccents.length);
 
     if (incomingHierarchy) {
       // Keep the committed hierarchy visually stable for the entire gesture.
@@ -1482,7 +1551,7 @@ export class TimelineViewController {
         }
         this.accentScene.delete(key);
         this.frameDestroyedObjects += 1;
-        if (hierarchyChangedOnCommit) node.remove();
+        if (key.startsWith("edge-slot:") || hierarchyChangedOnCommit) node.remove();
         else this.retireTemporalContextNode(node);
       }
     }
