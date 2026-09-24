@@ -78,7 +78,7 @@ const SAMPLE = {
         title: "Cinderella; or, The Little Glass Slipper — illustrated edition",
         sourceName: "Project Gutenberg",
         url: "https://www.gutenberg.org/ebooks/10830",
-        note: "Primary public-domain narrative source for the Cinderella scenes, including the mother\'s death, stepfamily, fairy godmother, ball, midnight flight, slipper search, and marriage.",
+        note: "Primary public-domain narrative source for Cinderella; story events are modeled as sourced action facts while dates and coordinates remain explicitly fictional.",
         publishedAt: "2004-01-01",
       },
       {
@@ -7035,6 +7035,7 @@ const SAMPLE = {
         objectId: "cinderella-household",
         predicate: "visits",
         role: "search",
+        sourceIds: ["src-cinderella"],
         placeId: "place-cinderella-ashenvale-village-search-route",
         itemIds: ["cinderella-search"],
         initialState: "active",
@@ -7059,7 +7060,6 @@ const SAMPLE = {
             sourceText: "Fictional narrative ordering coordinate; not a real-world date.",
           },
         },
-        sourceIds: [],
         confidence: null,
         attributes: {
           contextual: true,
