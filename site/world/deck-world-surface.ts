@@ -1798,7 +1798,7 @@ export class DeckWorldSurface implements WorldSurface {
   // camera-only zoom changes only trigger a re-render when clustering would
   // actually turn on/off (ordinary panning/zooming above the threshold stays
   // as cheap as before).
-  #clusteredLastRender = false;
+  #clusterPhaseLastRender: WorldClusterLifecyclePhase = "expanded";
   // Same idea for the semantic label/marker LOD tier: a tier change only
   // matters when some kind has more candidates than the smaller budget.
   #labelBudgetLastRender = -1;
@@ -2868,13 +2868,12 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #zoomNeedsRender(): boolean {
-    const clusteredNow = this.#clusterPhase !== "expanded";
     const budget = worldLabelBudget(this.#camera.zoom);
     const lodChanged =
       budget !== this.#labelBudgetLastRender &&
       Math.min(budget, this.#labelBudgetLastRender) < this.#lodCandidateCountLastRender;
     return (
-      clusteredNow !== this.#clusteredLastRender ||
+      this.#clusterPhase !== this.#clusterPhaseLastRender ||
       lodChanged ||
       this.#nextOffsetScale() !== this.#offsetScale ||
       this.#nextFloatMeters() !== this.#floatMeters
@@ -3171,7 +3170,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#placeDatumCache = placeResult.byId;
     this.#relationshipDatumCache = relationshipResult.byId;
     this.#entityDatumCache = entityResult.byId;
-    this.#clusteredLastRender = clusterPhase !== "expanded";
+    this.#clusterPhaseLastRender = clusterPhase;
     this.#labelBudgetLastRender = worldLabelBudget(this.#camera.zoom);
     this.#lodCandidateCountLastRender = Math.max(
       places.length,
