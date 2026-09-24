@@ -1380,14 +1380,11 @@ function labelDatums(input: {
     return a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
   });
   const placed = placeWorldLabelDatums(ordered, input.zoom);
-  const placedKeys = new Set(placed.map((datum) => datum.key));
+  const placedByKey = new Map(placed.map((datum) => [datum.key, datum] as const));
   for (const key of [...byKey.keys()]) {
-    if (!placedKeys.has(key)) {
-      byKey.delete(key);
-      continue;
-    }
-    const placedDatum = placed.find((datum) => datum.key === key);
+    const placedDatum = placedByKey.get(key);
     if (placedDatum) byKey.set(key, placedDatum);
+    else byKey.delete(key);
   }
   return { datums: placed, byKey };
 }
