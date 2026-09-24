@@ -54,8 +54,31 @@ const model = {
       name: "Stockholm",
       geometry: { type: "Point", coordinates: [18.0686, 59.3293] },
       accuracyMeters: 25,
-      icon: "place",
-      markerShape: "diamond",
+      attributes: {
+        icon: "note",
+        markerShape: "circle",
+        style: { marker: { fillColor: "#111111", color: "#222222", weight: 1 } },
+      },
+      marker: {
+        icon: "home",
+        shape: "circle",
+        fillColor: "#333333",
+        color: "#444444",
+        weight: 2,
+      },
+      mapStyle: {
+        marker: { fillColor: "#555555", color: "#666666", weight: 3 },
+      },
+      style: {
+        marker: {
+          fillColor: "#123456",
+          color: "#abcdef",
+          weight: 4,
+          size: 32,
+        },
+      },
+      icon: "crown",
+      markerShape: "square",
     },
     {
       id: "unknown-place",
@@ -111,8 +134,12 @@ test("application model projects timed and timeless relationships into one world
     meetingInstances.every((instance) => instance.geographicAnchors[0]?.placeId === "stockholm"),
   );
   assert.deepEqual(meetingInstances[0].geographicAnchors[0]?.style?.marker, {
-    icon: "place",
-    shape: "diamond",
+    fillColor: "#123456",
+    color: "#abcdef",
+    weight: 4,
+    size: 32,
+    icon: "crown",
+    shape: "square",
   });
 
   const timelessInstances = projection.instances.filter(

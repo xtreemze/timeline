@@ -51,7 +51,10 @@ interface InputPlace {
   readonly accuracyMeters?: unknown;
   readonly icon?: unknown;
   readonly markerShape?: unknown;
+  readonly marker?: unknown;
   readonly style?: unknown;
+  readonly mapStyle?: unknown;
+  readonly attributes?: unknown;
 }
 
 interface InputRelationship {
@@ -150,6 +153,38 @@ function confidence(value: unknown): number | null {
   return Number.isFinite(number) && number >= 0 && number <= 1 ? number : null;
 }
 
+function placePresentationStyle(raw: InputPlace): Readonly<Record<string, unknown>> | undefined {
+  const attributes = isRecord(raw.attributes) ? raw.attributes : {};
+  const attributeStyle = isRecord(attributes["style"]) ? attributes["style"] : {};
+  const mapStyle = isRecord(raw.mapStyle) ? raw.mapStyle : {};
+  const directStyle = isRecord(raw.style) ? raw.style : {};
+  const directMarker = isRecord(raw.marker) ? raw.marker : {};
+  const marker = Object.freeze({
+    ...(isRecord(attributeStyle["marker"]) ? attributeStyle["marker"] : {}),
+    ...directMarker,
+    ...(isRecord(mapStyle["marker"]) ? mapStyle["marker"] : {}),
+    ...(isRecord(directStyle["marker"]) ? directStyle["marker"] : {}),
+  });
+  const icon = text(raw.icon) || text(directMarker["icon"]) || text(attributes["icon"]);
+  const markerShape =
+    text(raw.markerShape) || text(directMarker["shape"]) || text(attributes["markerShape"]);
+  const resolvedMarker =
+    Object.keys(marker).length > 0 || icon || markerShape
+      ? Object.freeze({
+          ...marker,
+          ...(icon ? { icon } : {}),
+          ...(markerShape ? { shape: markerShape } : {}),
+        })
+      : undefined;
+  const style = {
+    ...attributeStyle,
+    ...mapStyle,
+    ...directStyle,
+    ...(resolvedMarker ? { marker: resolvedMarker } : {}),
+  };
+  return Object.keys(style).length > 0 ? Object.freeze(style) : undefined;
+}
+
 function canonicalPlaces(input: readonly InputPlace[]): readonly SpatialPlaceRecord[] {
   const result: SpatialPlaceRecord[] = [];
 
@@ -159,25 +194,7 @@ function canonicalPlaces(input: readonly InputPlace[]): readonly SpatialPlaceRec
     if (!id || !geometry) continue;
 
     const radius = precisionRadius(raw.accuracyMeters);
-    const rawStyle = isRecord(raw.style) ? raw.style : {};
-    const rawMarker = isRecord(rawStyle["marker"]) ? rawStyle["marker"] : {};
-    const icon = text(raw.icon);
-    const markerShape = text(raw.markerShape);
-    const style =
-      Object.keys(rawStyle).length > 0 || icon || markerShape
-        ? Object.freeze({
-            ...rawStyle,
-            ...(icon || markerShape
-              ? {
-                  marker: Object.freeze({
-                    ...rawMarker,
-                    ...(icon ? { icon } : {}),
-                    ...(markerShape ? { shape: markerShape } : {}),
-                  }),
-                }
-              : {}),
-          })
-        : undefined;
+    const style = placePresentationStyle(raw);
     result.push(
       Object.freeze({
         id: placeId(id),
