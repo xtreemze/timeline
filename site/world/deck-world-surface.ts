@@ -26,6 +26,7 @@ import {
   worldEdgeStyle,
   worldNodeFootprintRadiusPx,
   worldNodeStyle,
+  worldNodeVisualFootprintRadiusPx,
   worldPlaceStyle,
 } from "../../src/layout/world-graph-style.ts";
 import {
@@ -301,14 +302,28 @@ export type DeckWorldEntityRenderDatum = DeckWorldEntityDatum | DeckWorldCluster
 
 /**
  * Below this globe zoom level, nearby entities remain grouped into clusters.
- * Release them only once a 6-degree cluster cell occupies roughly 192px on
- * screen (zoom ~= 4.5 at the equator). The extra overview tier prevents a
- * freshly declustered field of 44-52px nodes, labels, and relationships from
- * becoming dense before the camera has enough room to resolve them.
+ * Release ordinary compact markers once a 6-degree cluster cell occupies
+ * roughly 160px on screen (zoom ~= 4.25 at the equator). Authored large
+ * markers remain clustered longer; deliberately small markers may resolve
+ * slightly sooner without changing their touch targets.
  */
-export const CLUSTER_ZOOM_THRESHOLD = 4.5;
-/** Default-sized nodes preserve the historical clustering threshold. */
-const WORLD_CLUSTER_BASE_NODE_RADIUS_PX = 28;
+export const CLUSTER_ZOOM_THRESHOLD = 4.25;
+/** Reference visible footprint radius for the compact default marker scale. */
+const WORLD_CLUSTER_BASE_NODE_RADIUS_PX = 16;
+/** Bound cluster bubbles so membership does not linearly inflate overview geometry. */
+const WORLD_CLUSTER_MARKER_MIN_RADIUS_PX = 28;
+const WORLD_CLUSTER_MARKER_MAX_RADIUS_PX = 38;
+/** Zoom distance used to resolve from cluster origins into the floating local graph. */
+const WORLD_LOCAL_GRAPH_RESOLVE_ZOOM_SPAN = 1.25;
+
+function worldClusterMarkerRadiusPx(memberRadiusPx: number, memberCount: number): number {
+  const radius = Number.isFinite(memberRadiusPx) && memberRadiusPx > 0 ? memberRadiusPx : 0;
+  const count = Number.isFinite(memberCount) ? Math.max(1, memberCount) : 1;
+  return Math.max(
+    WORLD_CLUSTER_MARKER_MIN_RADIUS_PX,
+    Math.min(WORLD_CLUSTER_MARKER_MAX_RADIUS_PX, radius + 8 + Math.log2(count) * 2),
+  );
+}
 /** Arrow geometry is world-space, so refresh it on fine-grained zoom steps. */
 const WORLD_SCREEN_SCALE_ZOOM_STEPS_PER_LEVEL = 32;
 const WORLD_CAMERA_FACING_STEP_DEGREES = 0.1;
@@ -329,9 +344,11 @@ export function clusterZoomThresholdForNodeRadius(nodeRadiusPx: number): number 
     Number.isFinite(nodeRadiusPx) && nodeRadiusPx > 0
       ? nodeRadiusPx
       : WORLD_CLUSTER_BASE_NODE_RADIUS_PX;
-  return (
-    CLUSTER_ZOOM_THRESHOLD + Math.max(0, Math.log2(radius / WORLD_CLUSTER_BASE_NODE_RADIUS_PX))
+  const sizeAdjustment = Math.max(
+    -0.5,
+    Math.min(1.5, Math.log2(radius / WORLD_CLUSTER_BASE_NODE_RADIUS_PX)),
   );
+  return CLUSTER_ZOOM_THRESHOLD + sizeAdjustment;
 }
 
 /**
@@ -3186,16 +3203,13 @@ export class DeckWorldSurface implements WorldSurface {
       return this.#clusterEntityFootprintCache.radiusPx;
     }
     const radii = projection.instances.map((instance) =>
-      worldNodeFootprintRadiusPx({
+      worldNodeVisualFootprintRadiusPx({
         ...(instance.kind === undefined ? {} : { type: instance.kind }),
         attributes: instance.style ? { style: instance.style } : undefined,
         visualWeight: instance.visualWeight,
       }),
     );
-    const radiusPx = Math.max(
-      WORLD_ENTITY_MIN_HIT_RADIUS_PX,
-      representativeWorldNodeRadiusPx(radii),
-    );
+    const radiusPx = Math.max(1, representativeWorldNodeRadiusPx(radii));
     this.#clusterEntityFootprintCache = { projection, radiusPx };
     return radiusPx;
   }
@@ -3214,18 +3228,30 @@ export class DeckWorldSurface implements WorldSurface {
    */
   #nextOffsetScale(zoom = this.#camera.zoom, latitude = 0): number {
     const instances = this.#projection.instances;
+    const footprintRadiusPx = this.#clusterEntityFootprintRadiusPx();
+    const clusterThreshold = clusterZoomThresholdForNodeRadius(footprintRadiusPx);
     // Clustered overviews group true geography; magnifying offsets there
     // would scatter one place's entities across cluster cells.
-    if (shouldClusterEntityDatums(instances.length, zoom, this.#clusterEntityFootprintRadiusPx()))
-      return 1;
+    if (shouldClusterEntityDatums(instances.length, zoom, footprintRadiusPx)) return 1;
+
     const typical = this.#typicalOffsetMeters();
-    const scale = worldPresentationOffsetScale(
+    const targetScale = worldPresentationOffsetScale(
       zoom,
       instances.length,
       typical,
       latitude,
       this.#viewportGraphRadiusLimitPx(),
     );
+    // Resolve magnification from 1x over a zoom band after the global cluster
+    // tier ends. Motion remains camera-driven and preserves anchor-local
+    // latitude scaling; no time-based interpolation is introduced.
+    const rawProgress = Math.max(
+      0,
+      Math.min(1, (zoom - clusterThreshold) / WORLD_LOCAL_GRAPH_RESOLVE_ZOOM_SPAN),
+    );
+    const progress = rawProgress * rawProgress * (3 - 2 * rawProgress);
+    const scale = 1 + (targetScale - 1) * progress;
+
     // Never let a place's magnified graph reach into its neighbours'.
     const nearest = this.#nearestPlaceMeters();
     if (nearest <= 0 || typical <= 0) return scale;
@@ -3910,10 +3936,10 @@ export class DeckWorldSurface implements WorldSurface {
           if (datum.kind === "cluster") {
             const memberRadius = datum.clusterMembers.reduce(
               (radius, member) => Math.max(radius, visibleEntityRadiusPx(member.worldInstanceId)),
-              WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+              0,
             );
             return (
-              (memberRadius + 10 + Math.min(datum.clusterMembers.length, 30) * 0.5) *
+              worldClusterMarkerRadiusPx(memberRadius, datum.clusterMembers.length) *
               clusterVisibility
             );
           }
@@ -3926,7 +3952,7 @@ export class DeckWorldSurface implements WorldSurface {
         stroked: true,
         lineWidthUnits: "pixels",
         getLineWidth: (datum: DeckWorldEntityRenderDatum) =>
-          datum.kind === "cluster" ? 2 * clusterVisibility : 0,
+          datum.kind === "cluster" ? 1.5 * clusterVisibility : 0,
         getLineColor: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster"
             ? scaleAlpha(this.#theme.clusterBorder, clusterVisibility)
