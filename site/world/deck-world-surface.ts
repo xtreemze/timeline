@@ -6,10 +6,7 @@ import {
   WORLD_TOUCH_HOLD_MS,
 } from "../../src/interaction/world-touch-hold.ts";
 import { fitWorldCamera, globeOverviewCamera } from "../../src/layout/world-camera-fit.ts";
-import {
-  interpolateClusterPosition,
-  worldClusterExpansionProgress,
-} from "../../src/layout/world-cluster-transition.ts";
+import { worldClusterExpansionProgress } from "../../src/layout/world-cluster-transition.ts";
 import {
   resolveWorldRenderPosition,
   type WorldRenderPosition,
@@ -651,14 +648,14 @@ interface PlaceClusterTransitionDatums {
 }
 
 /**
- * Retains the force-resolved target positions while moving every clustered
- * member along the exact reversible path to/from its place-cluster origin.
- * Force state is never discarded merely because the overview hides members.
+ * Retains force-resolved member positions while deriving cluster membership.
+ * Clustering may change visibility and topology, but it must never synthesize
+ * positional motion: node, edge, label, and tether coordinates come directly
+ * from the force simulation.
  */
 function placeClusterTransitionDatums(
   entities: readonly DeckWorldEntityDatum[],
   clustered: readonly DeckWorldEntityRenderDatum[],
-  expansion: number,
 ): PlaceClusterTransitionDatums {
   const originByMember = new Map<WorldInstanceId, WorldRenderPosition>();
   const clusters: DeckWorldClusterDatum[] = [];
@@ -678,15 +675,7 @@ function placeClusterTransitionDatums(
       loose.push(entity);
       continue;
     }
-    const position = interpolateClusterPosition(origin, entity.position, expansion);
-    members.push(
-      positionEquals(position, entity.position)
-        ? entity
-        : Object.freeze({
-            ...entity,
-            position,
-          }),
-    );
+    members.push(entity);
   }
 
   return Object.freeze({
@@ -3183,16 +3172,15 @@ export class DeckWorldSurface implements WorldSurface {
     const placeTransition = placeClusterTransitionDatums(
       entityResult.datums,
       placeClusterCandidates,
-      placeExpansion,
     );
     const transitionEntities = Object.freeze([
       ...placeTransition.members,
       ...placeTransition.loose,
     ]);
 
-    // Relationship geometry consumes the same interpolated positions as node
-    // rendering. When zooming out, both endpoints therefore travel back to
-    // the place origin and the edge collapses with them.
+    // Relationship geometry consumes the exact force-resolved positions used
+    // by node rendering. Cluster visibility must not create a second motion
+    // system for edge endpoints.
     const relationshipResult = relationshipDatums(
       this.#projection,
       instanceIndexFromEntities(transitionEntities),
