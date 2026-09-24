@@ -988,8 +988,8 @@ function relationshipDatums(
 
 /**
  * Arrowheads for rendered relationships with a visible (non-zero) extent.
- * Like labels they follow the zoom budget: selected/focused edges always
- * keep their marker, then the most temporally relevant ones. Every edge
+ * Like labels they follow the zoom budget: explicit focus may pin an edge,
+ * while hover/selection never changes marker membership or geometry. Every edge
  * still carries its directed source/target identity in its own datum and in
  * the accessibility snapshot. A marker is reused by reference while its
  * relationship datum is.
@@ -2871,8 +2871,8 @@ export class DeckWorldSurface implements WorldSurface {
       this.#directionDatumCache,
     );
     this.#directionDatumCache = directionResult.byId;
-    // Kind icons follow the same LOD as labels: while clustered only pinned
-    // entities keep an icon; otherwise a zoom-tier budget by visual weight.
+    // Kind icons follow the same LOD as labels. Only explicit focus may pin
+    // an icon; hover/selection stays presentation-only and cannot perturb LOD.
     const focus = this.#focus;
     const pinnedEntity = (entity: DeckWorldEntityDatum) =>
       focus?.kind === "entity" && focus.id === entity.entityId;
