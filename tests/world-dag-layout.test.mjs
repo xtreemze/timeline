@@ -234,8 +234,8 @@ test("weight-only temporal changes reuse the accepted DAG layout", () => {
   const secondProjection = createWorldProjection({
     instances: [a, b, c],
     edges: [
-      edge("cache-ab", a, b, 0.97),
-      edge("cache-bc", b, c, 0.76),
+      edge("cache-ab", a, b, 0.72),
+      edge("cache-bc", b, c, 0.98),
       edge("cache-ca", c, a, 0.08),
     ],
   });
