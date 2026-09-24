@@ -1743,6 +1743,8 @@ function syncApplicationSurfaces() {
     els.browserSheet.hidden = !ui.browserOpen;
     els.browserSheet.setAttribute("aria-hidden", String(!ui.browserOpen));
   }
+  if (els.presentationStage) els.presentationStage.inert = Boolean(ui.browserOpen || editing);
+  if (els.appToolDock) els.appToolDock.inert = Boolean(ui.browserOpen);
   if (els.title) {
     els.title.readOnly = !editing;
     els.title.tabIndex = editing ? 0 : -1;
@@ -4493,6 +4495,9 @@ els.panelOpeners.forEach((button) => {
 els.controlPanelClose?.addEventListener("click", () => setEditorSurfaceOpen(false));
 els.browserToggle?.addEventListener("click", () => setBrowserSurfaceOpen(!ui.browserOpen));
 els.browserClose?.addEventListener("click", () => setBrowserSurfaceOpen(false));
+els.browserSheet.addEventListener("click", (event) => {
+  if (event.target === els.browserSheet) setBrowserSurfaceOpen(false);
+});
 els.focusPrev.addEventListener("click", () => {
   advancePresentation(-1);
   syncTimelineContextControls();
