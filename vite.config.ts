@@ -1,9 +1,23 @@
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vite";
+
+const deckLayersSourceEntry = fileURLToPath(
+  new URL("./node_modules/@deck.gl/layers/src/index.ts", import.meta.url),
+);
 
 export default defineConfig({
   root: "site",
   // Keep production assets relative so the same build works under GitHub Pages' /timeline/ subpath.
   base: "./",
+  // deck.gl ships its TypeScript source in the package. Resolving the public layers
+  // entry to that source keeps individual layer modules visible to Rolldown, so the
+  // TextLayer graph can be split instead of collapsing behind one oversized module.
+  // This intentionally preserves the normal (including WebGPU) implementation rather
+  // than switching to the lighter visgl:webgl-only export condition.
+  resolve: {
+    alias: [{ find: /^@deck\.gl\/layers$/, replacement: deckLayersSourceEntry }],
+  },
   build: {
     emptyOutDir: true,
     outDir: "../dist",
