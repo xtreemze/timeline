@@ -2783,20 +2783,31 @@ export class DeckWorldSurface implements WorldSurface {
   pick(point: ScreenPoint, options: { readonly depth?: boolean } = {}): WorldHit | null {
     this.#assertAlive();
     let picked: DeckRuntimePickingInfo | null;
+    const depthAware = options.depth !== false;
     try {
       picked = this.#deck.pickObject({
         x: point.x,
         y: point.y,
         radius: 22,
-        unproject3D: options.depth !== false,
-        layerIds: [
-          DECK_WORLD_LAYER_IDS.entityIcons,
-          DECK_WORLD_LAYER_IDS.entities,
-          DECK_WORLD_LAYER_IDS.relationshipDirections,
-          DECK_WORLD_LAYER_IDS.relationships,
-          DECK_WORLD_LAYER_IDS.placeIcons,
-          DECK_WORLD_LAYER_IDS.places,
-        ],
+        unproject3D: depthAware,
+        layerIds: depthAware
+          ? [
+              // Presentation marker layers render with depthCompare: "always"
+              // so they stay legible over the globe. Exclude them from
+              // semantic depth acquisition and pick only real geometry here.
+              DECK_WORLD_LAYER_IDS.entities,
+              DECK_WORLD_LAYER_IDS.relationshipDirections,
+              DECK_WORLD_LAYER_IDS.relationships,
+              DECK_WORLD_LAYER_IDS.places,
+            ]
+          : [
+              DECK_WORLD_LAYER_IDS.entityIcons,
+              DECK_WORLD_LAYER_IDS.entities,
+              DECK_WORLD_LAYER_IDS.relationshipDirections,
+              DECK_WORLD_LAYER_IDS.relationships,
+              DECK_WORLD_LAYER_IDS.placeIcons,
+              DECK_WORLD_LAYER_IDS.places,
+            ],
       });
     } catch {
       // Backends without synchronous picking (deck.gl 9.4 WebGPU) throw;
