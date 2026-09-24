@@ -1583,7 +1583,8 @@ export class TimelineViewController {
     for (const [key, node] of this.accentScene) {
       if (!key.startsWith("edge-slot:") || keepAccents.has(key)) continue;
       this.accentScene.delete(key);
-      this.frameDestroyedObjects += 1;
+      // Edge-date slots are viewport reference labels, not retained chronology
+      // objects. Replace them immediately without reporting chronology destruction.
       for (const animation of node.getAnimations()) animation.cancel();
       node.remove();
     }
@@ -2436,7 +2437,6 @@ export class TimelineViewController {
     const width = Math.max(1, rect.width || this.surface.clientWidth || 800);
     const height = Math.max(1, rect.height || this.surface.clientHeight || 480);
     const primaryLength = this.orientation === "horizontal" ? width : height;
-    const _crossLength = this.orientation === "horizontal" ? height : width;
     const axisCross = this.orientation === "horizontal" ? height / 2 : width * 0.58;
     const padding = this.axisPadding(primaryLength);
     const usable = Math.max(1, primaryLength - padding * 2);
