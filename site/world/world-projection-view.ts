@@ -241,10 +241,14 @@ function canonicalRelationships(
     if (!entityIds.has(subject) || !entityIds.has(object) || subject === object) continue;
 
     const rawPlaceId = text(raw.placeId);
-    const attributes = isRecord(raw.attributes) ? { ...raw.attributes } : {};
+    const attributes: Record<string, unknown> = isRecord(raw.attributes)
+      ? { ...raw.attributes }
+      : {};
     const categoryColor = categoryColorByRelationshipId.get(id);
     if (categoryColor) {
-      const style = isRecord(attributes.style) ? { ...attributes.style } : {};
+      const style: Record<string, unknown> = isRecord(attributes.style)
+        ? { ...attributes.style }
+        : {};
       style.categoryColor = categoryColor;
       attributes.style = Object.freeze(style);
     }
