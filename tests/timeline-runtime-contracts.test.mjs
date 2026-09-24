@@ -87,7 +87,7 @@ test("retained event cards use Lit for semantic content but not interaction geom
   ]);
 
   assert.match(card, /customElements\.define\("luum-event-card", LuumEventCardElement\)/);
-  assert.match(view, /document\.createElement\("luum-event-card"\)/);
+  assert.match(view, /new LuumEventCardElement\(\)/);
   assert.match(view, /contentRevision: this\.itemContentRevision\(item\)/);
   assert.match(
     view,
@@ -112,4 +112,11 @@ test("world graph mounts behind a Lit lifecycle boundary", async () => {
   assert.match(source, /render\(\)[\s\S]*return noChange/);
   assert.match(source, /adoptView\(/);
   assert.match(source, /disconnectedCallback\(\)[\s\S]*destroy\(\)/);
+});
+
+
+test("Lit event card has no ambient Timeline globals", async () => {
+  const card = await readFile(new URL("../site/components/timeline-event-card.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(card, /globalThis\.Timeline/);
+  assert.match(card, /import \{ createIcon \} from "\.\.\/event-presentation\.ts"/);
 });
