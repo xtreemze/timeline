@@ -321,6 +321,7 @@ test("Sugiyama reduces crossings versus the former circular baseline", () => {
   const circularCrossings = crossingCountFor(projection.edges, circular);
 
   const dag = createWorldDagLayout(projection);
+  assert.equal(dag.targets.length, nodes.length, "comparison fixture must produce DAG targets");
   const dagPositions = new Map(
     dag.targets.map((target) => [target.instanceId, [target.eastMeters, target.northMeters]]),
   );
