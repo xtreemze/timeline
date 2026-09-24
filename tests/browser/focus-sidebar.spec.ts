@@ -1,8 +1,10 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 async function ensureSample(page: Page) {
   const terminal = page
-    .locator("#timeline-view .timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible")
+    .locator(
+      "#timeline-view .timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible",
+    )
     .first();
   if (await terminal.count()) return terminal;
   await page.locator("#load-sample").evaluate((button: HTMLButtonElement) => button.click());
@@ -60,11 +62,15 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("#timeline-view")).toBeVisible();
 });
 
-test("focused detail is shell-owned while contextual actions stay on the timeline", async ({ page }) => {
+test("focused detail is shell-owned while contextual actions stay on the timeline", async ({
+  page,
+}) => {
   const focus = await focusOccurrence(page);
   await expect(focus).toHaveAttribute("data-presentation-surface", "sidebar");
   await expect(focus).not.toHaveAttribute("popover", /.+/);
-  await expect.poll(() => focus.evaluate((element) => element.matches(":popover-open"))).toBe(false);
+  await expect
+    .poll(() => focus.evaluate((element) => element.matches(":popover-open")))
+    .toBe(false);
 
   await expect(focus.locator(".timeline-focus-hero")).toBeVisible();
   await expect(focus.getByRole("tab", { name: "Context" })).toBeVisible();
@@ -100,7 +106,9 @@ test("portrait keeps the timeline as a right rail and layers detail inside the g
 
   const { focusBox, graphBox, timelineBox, stageBox } = await boxes(page, focus);
   expect(timelineBox.y).toBeLessThanOrEqual(stageBox.y + 2);
-  expect(timelineBox.y + timelineBox.height).toBeGreaterThanOrEqual(stageBox.y + stageBox.height - 2);
+  expect(timelineBox.y + timelineBox.height).toBeGreaterThanOrEqual(
+    stageBox.y + stageBox.height - 2,
+  );
   expect(timelineBox.x).toBeGreaterThan(stageBox.x + stageBox.width * 0.55);
   expect(graphBox.x + graphBox.width).toBeLessThanOrEqual(timelineBox.x + 3);
   expect(focusBox.x + focusBox.width).toBeLessThanOrEqual(timelineBox.x + 3);
