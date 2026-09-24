@@ -7,7 +7,9 @@ import {
 } from "../src/layout/world-geographic-position.ts";
 import {
   typicalLocalOffsetMeters,
+  WORLD_FLOATING_GRAPH_MAX_EXPANSION,
   WORLD_LOCAL_GRAPH_RADIUS_PX,
+  worldFloatingGraphRadiusPx,
   worldPresentationOffsetScale,
 } from "../src/layout/world-semantic-presentation.ts";
 
@@ -30,15 +32,26 @@ test("magnified render positions invert back to the stored offset (drag stays ho
   }
 });
 
-test("offset scale keeps a typical local graph at a constant on-screen radius", () => {
+test("offset scale keeps overview topology readable and expands it at detail zoom", () => {
   const typical = 500;
+  const radii = [];
   for (const zoom of [6, 8, 10]) {
     const scale = worldPresentationOffsetScale(zoom, 100, typical, 0);
     const metersPerPixel = 40_075_016.686 / 512 / 2 ** zoom;
     const radiusPx = (typical * scale) / metersPerPixel;
-    // Quarter-octave quantisation: within 2^(1/8) of the target.
-    assert.ok(Math.abs(Math.log2(radiusPx / WORLD_LOCAL_GRAPH_RADIUS_PX)) <= 0.125 + 1e-9);
+    const targetPx = worldFloatingGraphRadiusPx(zoom);
+    radii.push(radiusPx);
+    // Quarter-octave quantisation: within 2^(1/8) of the semantic target.
+    assert.ok(Math.abs(Math.log2(radiusPx / targetPx)) <= 0.125 + 1e-9);
   }
+
+  assert.ok(radii[1] > radii[0], "detail zoom gives floating nodes more screen-space room");
+  assert.ok(radii[2] > radii[1], "floating topology continues to expand at higher detail");
+  assert.equal(
+    worldFloatingGraphRadiusPx(20),
+    WORLD_LOCAL_GRAPH_RADIUS_PX * WORLD_FLOATING_GRAPH_MAX_EXPANSION,
+    "detail expansion is bounded",
+  );
 });
 
 test("offset scale never shrinks and is disabled for dense or offset-free scenes", () => {
