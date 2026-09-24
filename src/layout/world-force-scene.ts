@@ -155,3 +155,18 @@ export function createWorldForceScene(
     anchors: Object.freeze(anchors),
   });
 }
+
+
+/**
+ * graph-layers D3ForceLayout currently accepts one scalar collision radius
+ * per layout. Use the largest exact rendered footprint in the component so
+ * no node receives a smaller force body than its visible marker.
+ */
+export function worldForceComponentCollisionRadiusPx(
+  nodes: readonly WorldForceNode[],
+): number {
+  return nodes.reduce(
+    (radius, node) => Math.max(radius, node.collisionRadiusPx),
+    WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+  );
+}
