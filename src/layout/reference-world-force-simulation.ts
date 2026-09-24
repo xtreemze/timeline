@@ -353,17 +353,10 @@ function placeDomain(states: readonly NodeState[]): PlaceDomain | null {
   // of every entity. Keep the authored place marker clear, then give the
   // group enough annular area to spread through collision/relationship
   // forces without assigning rigid angular slots.
-  const innerRadiusMeters = Math.max(
-    1,
-    maxCollisionRadiusMeters * PLACE_DOMAIN_INNER_RADIUS_SCALE,
-  );
+  const innerRadiusMeters = Math.max(1, maxCollisionRadiusMeters * PLACE_DOMAIN_INNER_RADIUS_SCALE);
   const packingWidthMeters =
-    maxCollisionRadiusMeters *
-    Math.max(2, Math.sqrt(anchored.length) * PLACE_DOMAIN_WIDTH_SCALE);
-  const outerRadiusMeters = Math.max(
-    innerRadiusMeters + packingWidthMeters,
-    precisionRadiusMeters,
-  );
+    maxCollisionRadiusMeters * Math.max(2, Math.sqrt(anchored.length) * PLACE_DOMAIN_WIDTH_SCALE);
+  const outerRadiusMeters = Math.max(innerRadiusMeters + packingWidthMeters, precisionRadiusMeters);
 
   return Object.freeze({ innerRadiusMeters, outerRadiusMeters });
 }
@@ -737,11 +730,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const interactionGroup = interactionState?.group ?? null;
     const activeDragGroup = this.#pin ? interactionGroup : null;
     const forceGroups = [...this.#groups.entries()].map(([key, states]) => forceGroup(key, states));
-    const crossPairs = crossGroupCandidates(
-      forceGroups,
-      interactionGroup,
-      interactionInstanceId,
-    );
+    const crossPairs = crossGroupCandidates(forceGroups, interactionGroup, interactionInstanceId);
 
     // Direct manipulation and its post-drop relaxation are one local force
     // epoch. Keep unrelated geography asleep while the released island
