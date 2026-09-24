@@ -24,17 +24,16 @@ test("Biome is the authoritative formatter and strict multi-language quality too
   assert.equal(biome.linter?.rules?.suspicious?.noShorthandPropertyOverrides, "error");
   assert.equal(biome.linter?.rules?.suspicious?.noUnknownAtRules, "error");
 
-  assert.ok(biome.files?.includes?.includes("!!dist"));
-  for (const obsolete of [
+  for (const ignored of [
+    "!!dist",
     "!!site/orb-graph.bundle.js",
     "!!site/evidence-extraction.bundle.js",
     "!!site/leaflet.bundle.js",
-    "!!site/leaflet.css",
     "!!site/pdf.worker.mjs",
   ]) {
     assert.ok(
-      !biome.files?.includes?.includes(obsolete),
-      `Removed runtime artifact must not remain exempt from quality checks: ${obsolete}`,
+      biome.files?.includes?.includes(ignored),
+      `Biome must ignore generated artifact: ${ignored}`,
     );
   }
 
