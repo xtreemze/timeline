@@ -7,7 +7,10 @@ test("retained timeline preserves weighted drag response and decaying release in
 
   assert.match(source, /TimelineMotion as motion/);
   assert.match(source, /samples:\s*Array<\{ coordinate: number; time: number \}>/);
-  assert.match(source, /motion\.appendPointerSamples\(this\.pointerDrag\.samples, event, this\.orientation\)/);
+  assert.match(
+    source,
+    /motion\.appendPointerSamples\(this\.pointerDrag\.samples, event, this\.orientation\)/,
+  );
   assert.match(source, /motion\.responseForElapsed\(now - drag\.lastTime\)/);
   assert.match(source, /motion\.estimatePointerVelocity\(drag\.samples\)/);
   assert.match(
@@ -43,7 +46,6 @@ test("focused popover emits the surviving rich presentation contract", async () 
   assert.match(source, /timelinefocusrender/);
 });
 
-
 test("empty timeline resets retained camera authority before later content loads", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
@@ -51,10 +53,7 @@ test("empty timeline resets retained camera authority before later content loads
     source,
     /setItems\(items:[\s\S]*if \(!this\.items\.length\) \{[\s\S]{0,900}this\.viewportInitialized = false/,
   );
-  assert.match(
-    source,
-    /if \(!this\.items\.length\) \{[\s\S]{0,900}this\.cancelInertia\(\)/,
-  );
+  assert.match(source, /if \(!this\.items\.length\) \{[\s\S]{0,900}this\.cancelInertia\(\)/);
   assert.match(
     source,
     /if \(!this\.items\.length\) \{[\s\S]{0,900}this\.expandedClusterItemIds\.clear\(\)/,
