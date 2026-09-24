@@ -126,7 +126,6 @@ function normalizedTimeStep(deltaMs: number): number {
 
 const EARTH_RADIUS_METERS = 6_371_008.8;
 const CROSS_ANCHOR_FORCE_RADIUS_METERS = 6_000;
-const CROSS_ANCHOR_BUCKET_METERS = 100_000;
 const READABLE_SEPARATION_SCALE = 1.35;
 
 type Vector3 = readonly [number, number, number];
@@ -136,7 +135,15 @@ interface ForceGroup {
   readonly states: readonly NodeState[];
   readonly anchor: WorldForceAnchor | null;
   readonly extentMeters: number;
-  readonly bucket: readonly [number, number, number] | null;
+  readonly center: Vector3 | null;
+}
+
+interface CrossGroupSweepEntry {
+  readonly group: ForceGroup;
+  readonly center: Vector3;
+  readonly radiusMeters: number;
+  readonly minX: number;
+  readonly maxX: number;
 }
 
 interface PairDelta {
@@ -228,83 +235,65 @@ function forceGroup(key: string, states: readonly NodeState[]): ForceGroup {
     0,
   );
   if (!anchor) {
-    return Object.freeze({ key, states, anchor: null, extentMeters, bucket: null });
+    return Object.freeze({ key, states, anchor: null, extentMeters, center: null });
   }
 
-  const [x, y, z] = anchorCartesian(anchor);
   return Object.freeze({
     key,
     states,
     anchor,
     extentMeters,
-    bucket: Object.freeze([
-      Math.floor(x / CROSS_ANCHOR_BUCKET_METERS),
-      Math.floor(y / CROSS_ANCHOR_BUCKET_METERS),
-      Math.floor(z / CROSS_ANCHOR_BUCKET_METERS),
-    ]),
+    center: anchorCartesian(anchor),
   });
 }
 
 function crossGroupCandidates(
   groups: readonly ForceGroup[],
 ): readonly (readonly [ForceGroup, ForceGroup])[] {
-  const buckets = new Map<string, number[]>();
-  const keyFor = (x: number, y: number, z: number) => `${x}:${y}:${z}`;
-  const maxExtentMeters = groups.reduce(
-    (extent, group) => Math.max(extent, group.extentMeters),
-    0,
-  );
-
-  for (let index = 0; index < groups.length; index += 1) {
-    const bucket = groups[index]?.bucket;
-    if (!bucket) continue;
-    const key = keyFor(bucket[0], bucket[1], bucket[2]);
-    buckets.set(key, [...(buckets.get(key) ?? []), index]);
-  }
-
-  const pairs: Array<readonly [ForceGroup, ForceGroup]> = [];
-  for (let index = 0; index < groups.length; index += 1) {
-    const group = groups[index];
-    const bucket = group?.bucket;
-    if (!group || !bucket || !group.anchor) continue;
-
-    // A group's floating topology can extend well beyond its geographic
-    // anchor. Search as many broad-phase buckets as its current world-space
-    // extent can actually reach instead of assuming anchors must themselves
-    // occupy adjacent buckets.
-    const bucketReach = Math.max(
-      1,
-      Math.ceil(
-        (group.extentMeters + maxExtentMeters + CROSS_ANCHOR_FORCE_RADIUS_METERS) /
-          CROSS_ANCHOR_BUCKET_METERS,
-      ),
+  const entries: CrossGroupSweepEntry[] = groups
+    .filter(
+      (group): group is ForceGroup & { readonly center: Vector3 } =>
+        group.anchor !== null && group.center !== null,
+    )
+    .map((group) => {
+      // Give each group half of the cross-anchor interaction padding. Two
+      // expanded spheres overlap exactly when their anchor distance is within
+      // both floating extents plus the shared interaction radius.
+      const radiusMeters = group.extentMeters + CROSS_ANCHOR_FORCE_RADIUS_METERS / 2;
+      return Object.freeze({
+        group,
+        center: group.center,
+        radiusMeters,
+        minX: group.center[0] - radiusMeters,
+        maxX: group.center[0] + radiusMeters,
+      });
+    })
+    .sort(
+      (left, right) =>
+        left.minX - right.minX || left.group.key.localeCompare(right.group.key),
     );
 
-    for (let x = bucket[0] - bucketReach; x <= bucket[0] + bucketReach; x += 1) {
-      for (let y = bucket[1] - bucketReach; y <= bucket[1] + bucketReach; y += 1) {
-        for (let z = bucket[2] - bucketReach; z <= bucket[2] + bucketReach; z += 1) {
-          for (const otherIndex of buckets.get(keyFor(x, y, z)) ?? []) {
-            if (otherIndex <= index) continue;
-            const other = groups[otherIndex];
-            if (!other?.anchor) continue;
+  const active: CrossGroupSweepEntry[] = [];
+  const pairs: Array<readonly [ForceGroup, ForceGroup]> = [];
 
-            const anchorDistance = cartesianDistance(
-              anchorCartesian(group.anchor),
-              anchorCartesian(other.anchor),
-            );
-            if (
-              anchorDistance >
-              group.extentMeters +
-                other.extentMeters +
-                CROSS_ANCHOR_FORCE_RADIUS_METERS
-            ) {
-              continue;
-            }
-            pairs.push(Object.freeze([group, other]));
-          }
-        }
-      }
+  for (const current of entries) {
+    // A far drag increases one group's extent. The previous bucket search
+    // expanded a three-dimensional cube from that extent, making one frame
+    // proportional to drag distance cubed. Sweep-and-prune only keeps groups
+    // whose expanded X ranges can still overlap.
+    for (let index = active.length - 1; index >= 0; index -= 1) {
+      if (active[index].maxX < current.minX) active.splice(index, 1);
     }
+
+    for (const other of active) {
+      const interactionRadius = current.radiusMeters + other.radiusMeters;
+      if (Math.abs(current.center[1] - other.center[1]) > interactionRadius) continue;
+      if (Math.abs(current.center[2] - other.center[2]) > interactionRadius) continue;
+      if (cartesianDistance(current.center, other.center) > interactionRadius) continue;
+      pairs.push(Object.freeze([other.group, current.group]));
+    }
+
+    active.push(current);
   }
 
   return Object.freeze(pairs);
