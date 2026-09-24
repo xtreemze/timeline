@@ -354,7 +354,9 @@ test("cross-anchor rejection maintains breathing room beyond hard collision radi
         influence: 0,
       }),
       anchor(right, "readable-right", {
-        longitude: 18.069,
+        // Distinct provenance, same geographic origin: this isolates the
+        // cross-anchor force rule from ordinary anchor-to-anchor distance.
+        longitude: 18.0686,
         latitude: 59.3293,
         influence: 0,
       }),
