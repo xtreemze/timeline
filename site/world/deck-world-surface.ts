@@ -3520,6 +3520,7 @@ export class DeckWorldSurface implements WorldSurface {
         })
       : null;
     this.#labelDatumCache = labelResult?.byKey ?? new Map();
+    const visibleLabels = labelResult ? this.#cameraFacingLabels(labelResult.datums) : [];
 
     // Tethers remain in the retained data set during collapse so their width
     // and alpha can reach zero at the exact place origin before disappearing.
@@ -3884,11 +3885,11 @@ export class DeckWorldSurface implements WorldSurface {
         },
         parameters: { cullMode: "none" },
       }),
-      ...(labelResult && this.#runtime.createTextLayer
+      ...(visibleLabels.length > 0 && this.#runtime.createTextLayer
         ? [
             this.#runtime.createTextLayer({
               id: DECK_WORLD_LAYER_IDS.labels,
-              data: this.#cameraFacingLabels(labelResult.datums),
+              data: visibleLabels,
               dataComparator: sameDatumSequence,
               pickable: false,
               billboard: true,
