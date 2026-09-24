@@ -69,6 +69,11 @@ export interface WorldSimulationDiagnostics {
 export interface WorldForceSimulationBackend {
   setScene(scene: WorldForceScene): void;
   setPin(pin: WorldForcePin | null): void;
+  /**
+   * Presentation-only place clustering. Canonical anchors stay immutable;
+   * D3 may temporarily gather/scatter only these local groups.
+   */
+  setClusteredPlaceIds?(placeIds: readonly PlaceId[]): void;
   apply(request: WorldSimulationRequest): void;
   stop(): void;
   step?(deltaMs: number): void;
