@@ -165,13 +165,17 @@ function edgePathPointAtFraction(
   if (path.length === 0) {
     return Object.freeze([0, 0, 0]) as WorldRenderPosition;
   }
-  if (path.length === 1) return path[0]!;
+  if (path.length === 1) {
+    const [onlyPoint] = path;
+    if (onlyPoint) return onlyPoint;
+  }
   const clamped = Math.max(0, Math.min(1, fraction));
   const scaled = clamped * (path.length - 1);
   const index = Math.min(path.length - 2, Math.floor(scaled));
   const local = scaled - index;
-  const left = path[index]!;
-  const right = path[index + 1]!;
+  const left = path[index];
+  const right = path[index + 1];
+  if (!left || !right) return Object.freeze([0, 0, 0]) as WorldRenderPosition;
   return Object.freeze([
     wrapLongitude(left[0] + shortestLongitudeDelta(left[0], right[0]) * local),
     left[1] + (right[1] - left[1]) * local,
@@ -234,8 +238,9 @@ export function directedEdgePathArrowhead(
   headLengthDegrees?: number,
 ): readonly [WorldRenderPosition, WorldRenderPosition, WorldRenderPosition] | null {
   if (path.length < 2) return null;
-  const source = path[0]!;
-  const target = path[path.length - 1]!;
+  const source = path[0];
+  const target = path[path.length - 1];
+  if (!source || !target) return null;
   const apex = edgePathPointAtFraction(path, ARROW_APEX_FRACTION);
   const before = edgePathPointAtFraction(path, ARROW_APEX_FRACTION - 0.06);
   const after = edgePathPointAtFraction(path, ARROW_APEX_FRACTION + 0.06);
