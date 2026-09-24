@@ -183,6 +183,7 @@ interface TouchTapState {
   startX: number;
   startY: number;
   cancelled: boolean;
+  interactive: boolean;
 }
 
 interface LastTouchTap {
@@ -626,13 +627,25 @@ export class TimelineViewController {
     };
 
     const registerTouchTap = (event: PointerEvent, tap: TouchTapState | null): boolean => {
-      if (!tap || tap.cancelled) return false;
+      if (!tap) return false;
+      this.touchTap = null;
+      // Event-card/range taps belong to the occurrence, never to the background
+      // camera double-tap recognizer. Cancelled taps also must not survive into
+      // the next pointer sequence.
+      if (tap.cancelled || tap.interactive) {
+        if (tap.interactive) {
+          this.lastTouchTap = null;
+          if (tap.cancelled) {
+            this.suppressClickUntil = performance.now() + CLICK_SUPPRESSION_MS;
+          }
+        }
+        return false;
+      }
       // Input time, not handling time: a busy main thread must not stretch a
       // quick double-tap past its window.
       const now = Number(event.timeStamp) || performance.now();
       const previous = this.lastTouchTap;
       const point = { x: event.clientX, y: event.clientY };
-      this.touchTap = null;
 
       if (
         previous &&
@@ -699,6 +712,13 @@ export class TimelineViewController {
         event.target instanceof Element
           ? event.target.closest("button, a, input, select, textarea")
           : null;
+      const timelineInteractionTarget =
+        interactiveTarget instanceof HTMLElement &&
+        interactiveTarget.matches(
+          ".timeline-event-terminal, .timeline-range-segment, .timeline-cluster-terminal",
+        )
+          ? interactiveTarget
+          : null;
 
       if (event.pointerType === "touch") {
         this.touchPointers.set(event.pointerId, {
@@ -711,6 +731,7 @@ export class TimelineViewController {
           startX: event.clientX,
           startY: event.clientY,
           cancelled: false,
+          interactive: Boolean(timelineInteractionTarget),
         };
         if (this.touchPointers.size >= 2) {
           beginPinch();
@@ -754,8 +775,18 @@ export class TimelineViewController {
             event.clientY - this.touchTap.startY,
           );
           if (distance > TOUCH_TAP_MOVE_TOLERANCE_PX) {
-            this.touchTap.cancelled = true;
+            const tap = this.touchTap;
+            tap.cancelled = true;
             this.lastTouchTap = null;
+            if (tap.interactive && !this.pointerDrag && !this.pinch) {
+              // A finger may start on a large occurrence target and still mean
+              // to move the chronology. Promote the pending tap to a camera
+              // drag only after the tap tolerance is crossed, and suppress the
+              // synthetic click generated when that contact is released.
+              event.preventDefault();
+              this.suppressClickUntil = performance.now() + CLICK_SUPPRESSION_MS;
+              beginSurfaceDrag(event.pointerId, { x: tap.startX, y: tap.startY });
+            }
           }
         }
       }
@@ -960,9 +991,7 @@ export class TimelineViewController {
           )
           .sort(
             (left, right) =>
-              left.start - right.start ||
-              left.end - right.end ||
-              left.id.localeCompare(right.id),
+              left.start - right.start || left.end - right.end || left.id.localeCompare(right.id),
           )
       : [];
     this.rebuildRelationshipBandPresentation();
@@ -2109,9 +2138,13 @@ export class TimelineViewController {
           invalidated = true;
           continue;
         }
-        const rect = terminal.getBoundingClientRect();
-        const inlineSize = this.orientation === "horizontal" ? rect.width : rect.height;
-        const blockSize = this.orientation === "horizontal" ? rect.height : rect.width;
+        const borderBox = Array.isArray(entry.borderBoxSize)
+          ? entry.borderBoxSize[0]
+          : entry.borderBoxSize;
+        const width = borderBox?.inlineSize ?? entry.contentRect.width;
+        const height = borderBox?.blockSize ?? entry.contentRect.height;
+        const inlineSize = this.orientation === "horizontal" ? width : height;
+        const blockSize = this.orientation === "horizontal" ? height : width;
         if (
           Math.abs(cached.measurement.inlineSize - inlineSize) <= GEOMETRY_EPSILON_PX &&
           Math.abs(cached.measurement.blockSize - blockSize) <= GEOMETRY_EPSILON_PX
