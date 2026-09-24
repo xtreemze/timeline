@@ -293,12 +293,12 @@ export type DeckWorldEntityRenderDatum = DeckWorldEntityDatum | DeckWorldCluster
 
 /**
  * Below this globe zoom level, nearby entities remain grouped into clusters.
- * Release them only once a 6-degree cluster cell occupies roughly 96px on
- * screen (zoom ~= 3.5 at the equator). This keeps the overview legible and
- * avoids revealing a dense field of 44-52px nodes before there is enough
- * screen-space separation for nodes, labels, and relationships.
+ * Release them only once a 6-degree cluster cell occupies roughly 192px on
+ * screen (zoom ~= 4.5 at the equator). The extra overview tier prevents a
+ * freshly declustered field of 44-52px nodes, labels, and relationships from
+ * becoming dense before the camera has enough room to resolve them.
  */
-export const CLUSTER_ZOOM_THRESHOLD = 3.5;
+export const CLUSTER_ZOOM_THRESHOLD = 4.5;
 
 /**
  * Dense projections need semantic LOD earlier than sparse scenes: drawing
@@ -621,8 +621,12 @@ function worldThemeColors(palette: WorldGraphPalette): WorldThemeColors {
     graticule: worldColorBytes(palette.muted, 60),
     coastline: worldColorBytes(palette.muted, 210),
     border: worldColorBytes(palette.muted, 110),
-    cluster: worldColorBytes(palette.story, 235),
-    clusterBorder: worldColorBytes(palette.paper),
+    // Clusters are an interaction/LOD envelope around a place, not a
+    // replacement glyph. Keep their interior transparent so the authored
+    // place marker remains visible, and use a neutral outline rather than
+    // the story-purple fill that previously covered places.
+    cluster: [0, 0, 0, 0] as Rgba,
+    clusterBorder: worldColorBytes(palette.muted, 150),
     hit: [0, 0, 0, 0] as Rgba,
     tether: worldColorBytes(palette.muted, 90),
     labelText: worldColorBytes(palette.ink),
@@ -3057,7 +3061,11 @@ export class DeckWorldSurface implements WorldSurface {
         : placeTransition.memberIds.has(entity.worldInstanceId)
           ? placeExpansion
           : 1;
-    const clusterVisibility = placeExpansion < 1 ? 1 - placeExpansion : 1;
+    // Grid clusters are the active low-zoom representation. Place-local
+    // cluster envelopes instead disappear continuously as their retained
+    // members resolve outward; they must never snap back to full visibility
+    // at expansion=1.
+    const clusterVisibility = gridClustered ? 1 : 1 - placeExpansion;
 
     // Fully clustered place members are retained in force/layout state but
     // not exposed as glyphs or hit targets. Loose/unclustered entities remain.
@@ -3296,10 +3304,14 @@ export class DeckWorldSurface implements WorldSurface {
         radiusUnits: "pixels",
         getPosition: (datum: DeckWorldEntityRenderDatum) => datum.position,
         // Individual entities are drawn by the styled marker layer; this
-        // layer is their (invisible) pick/drag target and draws clusters.
+        // layer is their (invisible) pick/drag target. Clusters render only
+        // as an outer neutral ring so they never cover the place marker.
         getRadius: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster"
-            ? (12 + Math.min(datum.clusterMembers.length, 30) * 0.5) * clusterVisibility
+            ? (WORLD_ENTITY_MIN_HIT_RADIUS_PX +
+                10 +
+                Math.min(datum.clusterMembers.length, 30) * 0.5) *
+              clusterVisibility
             : Math.max(
                 WORLD_ENTITY_MIN_HIT_RADIUS_PX,
                 this.#entityStyle(datum).radius + this.#entityStyle(datum).borderWidth,
