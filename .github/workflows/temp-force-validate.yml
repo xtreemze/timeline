@@ -18,8 +18,8 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - name: Check changed-file quality
-        run: pnpm check:quality
+      - name: Run lint gates
+        run: pnpm lint
       - name: Run focused force tests
         run: |
           pnpm test:reference-world-force-simulation
