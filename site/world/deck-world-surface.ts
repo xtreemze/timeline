@@ -176,6 +176,21 @@ interface DeckWorldRelationshipDatum {
   readonly style?: WorldPresentationStyle;
 }
 
+/**
+ * Stable renderer row used only to preserve deck.gl attribute identity across
+ * temporal activation changes. Canonical relationship truth stays in
+ * WorldProjection; the state map below owns the temporary presentation value.
+ */
+interface DeckWorldTemporalRelationshipDatum {
+  readonly kind: "relationship";
+  readonly relationshipId: RelationshipId;
+}
+
+interface DeckWorldTemporalRelationshipState {
+  readonly edge: DeckWorldRelationshipDatum;
+  readonly temporalActive: boolean;
+}
+
 interface DeckWorldTether {
   readonly path: readonly [WorldRenderPosition, WorldRenderPosition];
 }
@@ -1042,6 +1057,17 @@ const ENTITY_MIN_HIT_RADIUS_PX = 22;
 /** Close/detail zoom where a claimed node drag freezes the globe camera. */
 export const WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM = 6;
 
+/**
+ * Temporal relationship changes are deliberately slow enough to explain why
+ * topology joins/leaves as the TimelineSurface logical window changes.
+ * Presentation only: logical activation remains immediate.
+ */
+export const WORLD_TEMPORAL_RELATION_TRANSITION_MS = 3_000;
+
+function temporalRelationEasing(t: number): number {
+  return t * t * (3 - 2 * t);
+}
+
 export function worldGraphLabelSize(
   datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">,
 ): number {
@@ -1514,6 +1540,21 @@ export class DeckWorldSurface implements WorldSurface {
   #placeDatumCache: ReadonlyMap<PlaceId, DeckWorldPlaceDatum> = new Map();
   #entityDatumCache: ReadonlyMap<WorldInstanceId, DeckWorldEntityDatum> = new Map();
   #relationshipDatumCache: ReadonlyMap<RelationshipId, DeckWorldRelationshipDatum> = new Map();
+  // Stable slots preserve row identity across temporal activation changes so
+  // deck.gl interpolates a relation against itself instead of another edge
+  // after the active set is reordered.
+  readonly #temporalRelationshipSlots = new Map<
+    RelationshipId,
+    { readonly slot: number; readonly datum: DeckWorldTemporalRelationshipDatum }
+  >();
+  readonly #temporalRelationshipState = new Map<
+    RelationshipId,
+    DeckWorldTemporalRelationshipState
+  >();
+  #nextTemporalRelationshipSlot = 0;
+  #temporalRelationshipRevision = 0;
+  #relationshipPathRevision = 0;
+  #relationshipStyleRevision = 0;
   #directionDatumCache: ReadonlyMap<RelationshipId, DeckWorldDirectionDatum> = new Map();
   #labelDatumCache: ReadonlyMap<string, DeckWorldLabelDatum> = new Map();
   // The last canonical object the camera was focused on. Presentation-only:
@@ -2140,7 +2181,14 @@ export class DeckWorldSurface implements WorldSurface {
       // treat as "nothing under the pointer" instead of breaking input.
       picked = null;
     }
-    return worldHitFromPicking(picked);
+    const hit = worldHitFromPicking(picked);
+    if (
+      hit?.kind === "relationship" &&
+      !this.#projection.edges.some((edge) => edge.id === hit.relationshipId)
+    ) {
+      return null;
+    }
+    return hit;
   }
 
   /**
@@ -2519,6 +2567,95 @@ export class DeckWorldSurface implements WorldSurface {
     return { positions, entityIds };
   }
 
+  #temporalRelationshipDatums(
+    activeRelationships: readonly DeckWorldRelationshipDatum[],
+  ): readonly DeckWorldTemporalRelationshipDatum[] {
+    const activeIds = new Set<RelationshipId>();
+    let temporalChanged = false;
+    let pathChanged = false;
+    let styleChanged = false;
+
+    for (const relationship of activeRelationships) {
+      activeIds.add(relationship.relationshipId);
+
+      if (!this.#temporalRelationshipSlots.has(relationship.relationshipId)) {
+        this.#temporalRelationshipSlots.set(
+          relationship.relationshipId,
+          Object.freeze({
+            slot: this.#nextTemporalRelationshipSlot++,
+            datum: Object.freeze({
+              kind: "relationship" as const,
+              relationshipId: relationship.relationshipId,
+            }),
+          }),
+        );
+        temporalChanged = true;
+      }
+
+      const previous = this.#temporalRelationshipState.get(relationship.relationshipId);
+      if (!previous || !previous.temporalActive) temporalChanged = true;
+      if (
+        !previous ||
+        !positionEquals(previous.edge.path[0], relationship.path[0]) ||
+        !positionEquals(previous.edge.path[1], relationship.path[1])
+      ) {
+        pathChanged = true;
+      }
+      if (
+        !previous ||
+        previous.edge.label !== relationship.label ||
+        previous.edge.selected !== relationship.selected ||
+        !styleEqual(previous.edge.style, relationship.style)
+      ) {
+        styleChanged = true;
+      }
+
+      this.#temporalRelationshipState.set(
+        relationship.relationshipId,
+        Object.freeze({ edge: relationship, temporalActive: true }),
+      );
+    }
+
+    for (const [relationshipId, state] of this.#temporalRelationshipState) {
+      if (activeIds.has(relationshipId) || !state.temporalActive) continue;
+      this.#temporalRelationshipState.set(
+        relationshipId,
+        Object.freeze({ edge: state.edge, temporalActive: false }),
+      );
+      temporalChanged = true;
+      if (state.edge.selected) styleChanged = true;
+    }
+
+    if (temporalChanged) this.#temporalRelationshipRevision += 1;
+    if (pathChanged) this.#relationshipPathRevision += 1;
+    if (styleChanged) this.#relationshipStyleRevision += 1;
+
+    return Object.freeze(
+      [...this.#temporalRelationshipSlots.values()]
+        .sort((left, right) => left.slot - right.slot)
+        .map((record) => record.datum),
+    );
+  }
+
+  #temporalRelationshipStateFor(
+    datum: DeckWorldTemporalRelationshipDatum,
+  ): DeckWorldTemporalRelationshipState {
+    const state = this.#temporalRelationshipState.get(datum.relationshipId);
+    if (!state) {
+      throw new Error(`Missing temporal relationship state for ${datum.relationshipId}`);
+    }
+    return state;
+  }
+
+  #temporalEdgeStyle(datum: DeckWorldTemporalRelationshipDatum): WorldEdgeStyle {
+    const state = this.#temporalRelationshipStateFor(datum);
+    return this.#edgeStyle({
+      ...(state.edge.label === undefined ? {} : { label: state.edge.label }),
+      ...(state.edge.style === undefined ? {} : { style: state.edge.style }),
+      selected: state.temporalActive && state.edge.selected,
+    });
+  }
+
   #setLabelFocus(kind: WorldSelection["kind"], id: string): void {
     this.#assertAlive();
     if (this.#focus?.kind === kind && this.#focus.id === id) return;
@@ -2550,6 +2687,7 @@ export class DeckWorldSurface implements WorldSurface {
     );
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
+    const temporalRelationships = this.#temporalRelationshipDatums(relationships);
     const placeClustered = this.#placeClustered();
     const entities = placeClustered
       ? clusterEntityDatumsByPlace(
@@ -2692,17 +2830,57 @@ export class DeckWorldSurface implements WorldSurface {
       }),
       this.#runtime.createPathLayer({
         id: DECK_WORLD_LAYER_IDS.relationships,
-        data: relationships,
+        data: temporalRelationships,
         dataComparator: sameDatumSequence,
         pickable: true,
         widthUnits: "pixels",
-        getPath: (datum: DeckWorldRelationshipDatum) => datum.path,
+        getPath: (datum: DeckWorldTemporalRelationshipDatum) =>
+          this.#temporalRelationshipStateFor(datum).edge.path,
         // Colour/width by relationship type (Orb semantics) unless the
-        // relationship carries its own style.
-        getWidth: (datum: DeckWorldRelationshipDatum) => this.#edgeStyle(datum).width,
-        getColor: (datum: DeckWorldRelationshipDatum) =>
-          worldColorBytes(this.#edgeStyle(datum).color, 215),
-        updateTriggers: { getWidth: this.#palette, getColor: this.#palette },
+        // relationship carries its own style. Temporal membership is only
+        // presentation state here; WorldProjection already contains truth.
+        getWidth: (datum: DeckWorldTemporalRelationshipDatum) => {
+          const state = this.#temporalRelationshipStateFor(datum);
+          const width = this.#temporalEdgeStyle(datum).width;
+          return prefersReducedMotion() ? width : state.temporalActive ? width : 0;
+        },
+        getColor: (datum: DeckWorldTemporalRelationshipDatum) => {
+          const state = this.#temporalRelationshipStateFor(datum);
+          return worldColorBytes(
+            this.#temporalEdgeStyle(datum).color,
+            state.temporalActive ? 215 : 0,
+          );
+        },
+        transitions: {
+          getWidth: {
+            duration: WORLD_TEMPORAL_RELATION_TRANSITION_MS,
+            easing: temporalRelationEasing,
+            enter: (width: number) => (prefersReducedMotion() ? width : 0),
+          },
+          getColor: {
+            duration: WORLD_TEMPORAL_RELATION_TRANSITION_MS,
+            easing: temporalRelationEasing,
+            enter: (color: readonly [number, number, number, number]) => [
+              color[0],
+              color[1],
+              color[2],
+              0,
+            ],
+          },
+        },
+        updateTriggers: {
+          getPath: this.#relationshipPathRevision,
+          getWidth: [
+            this.#palette,
+            this.#temporalRelationshipRevision,
+            this.#relationshipStyleRevision,
+          ],
+          getColor: [
+            this.#palette,
+            this.#temporalRelationshipRevision,
+            this.#relationshipStyleRevision,
+          ],
+        },
         parameters: { cullMode: "none" },
       }),
       this.#runtime.createScatterplotLayer({
