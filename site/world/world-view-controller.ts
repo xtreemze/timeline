@@ -9,8 +9,8 @@ import {
 } from "../../src/interaction/world-node-drag-controller.ts";
 import {
   applyWorldForceLayoutUpdate,
-  type WorldForceLayoutSample,
   updateWorldForceLayoutInstance,
+  type WorldForceLayoutSample,
 } from "../../src/layout/world-force-layout.ts";
 import {
   createWorldForceScene,
@@ -257,9 +257,7 @@ export class WorldViewRuntimeController {
 
       for (const sample of samples) {
         if (seen.has(sample.instanceId)) {
-          throw new Error(
-            `Duplicate world force layout sample for ${String(sample.instanceId)}.`,
-          );
+          throw new Error(`Duplicate world force layout sample for ${String(sample.instanceId)}.`);
         }
         seen.add(sample.instanceId);
 
