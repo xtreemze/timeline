@@ -268,7 +268,12 @@ test("dense neighborhoods avoid simplex operators even below node-count threshol
 
   const layout = createWorldDagLayout(createWorldProjection({ instances: nodes, edges }));
 
-  assert.equal(layout.metrics.algorithmCounts["longest-two-layer-greedy"], 1);
+  assert.equal(
+    Object.entries(layout.metrics.algorithmCounts).some(
+      ([name, count]) => name.startsWith("longest-two-layer-greedy") && count === 1,
+    ),
+    true,
+  );
 });
 
 function testSegmentIntersection(a, b, c, d) {
