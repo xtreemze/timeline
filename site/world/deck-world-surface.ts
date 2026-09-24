@@ -3180,6 +3180,14 @@ export class DeckWorldSurface implements WorldSurface {
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
     const temporalRelationships = this.#temporalRelationshipDatums(relationships);
+    const activeTemporalRelationships = temporalRelationships.filter((datum) => {
+      const edge = this.#temporalRelationshipStateFor(datum).edge;
+      return !edgeIsClusterAffected(edge) || showActiveClusterEdges;
+    });
+    const releasingRelationships = showReleasingClusterEdges
+      ? relationships.filter(edgeIsClusterAffected)
+      : Object.freeze([] as DeckWorldRelationshipDatum[]);
+    const releasingSegments = releasingRelationshipSegments(releasingRelationships);
 
     const entities: readonly DeckWorldEntityRenderDatum[] = Object.freeze(
       entityResult.datums.filter(
@@ -3405,9 +3413,9 @@ export class DeckWorldSurface implements WorldSurface {
         : []),
       this.#runtime.createPathLayer({
         id: DECK_WORLD_LAYER_IDS.relationships,
-        data: temporalRelationships,
+        data: activeTemporalRelationships,
         dataComparator: sameDatumSequence,
-        pickable: !gridClustered,
+        pickable: true,
         widthUnits: "pixels",
         getPath: (datum: DeckWorldTemporalRelationshipDatum) =>
           this.#temporalRelationshipStateFor(datum).edge.path,
@@ -3417,8 +3425,7 @@ export class DeckWorldSurface implements WorldSurface {
         getWidth: (datum: DeckWorldTemporalRelationshipDatum) => {
           const state = this.#temporalRelationshipStateFor(datum);
           const width = this.#temporalEdgeStyle(datum).width;
-          const temporalWidth = prefersReducedMotion() ? width : state.temporalActive ? width : 0;
-          return temporalWidth * edgeExpansion(state.edge);
+          return prefersReducedMotion() ? width : state.temporalActive ? width : 0;
         },
         getColor: (datum: DeckWorldTemporalRelationshipDatum) => {
           const state = this.#temporalRelationshipStateFor(datum);
@@ -3429,51 +3436,69 @@ export class DeckWorldSurface implements WorldSurface {
               : 215;
           return worldColorBytes(
             this.#temporalEdgeStyle(datum).color,
-            state.temporalActive
-              ? Math.round(emphasisAlpha * edgeExpansion(state.edge))
-              : 0,
+            state.temporalActive ? emphasisAlpha : 0,
           );
         },
-        transitions: {
-          getPath: {
-            duration: WORLD_RELATION_PATH_TRANSITION_MS,
-            easing: temporalRelationEasing,
-          },
-          getWidth: {
-            duration: WORLD_TEMPORAL_RELATION_TRANSITION_MS,
-            easing: temporalRelationEasing,
-            enter: (width: number) => (prefersReducedMotion() ? width : 0),
-          },
-          getColor: {
-            duration: WORLD_TEMPORAL_RELATION_TRANSITION_MS,
-            easing: temporalRelationEasing,
-            enter: (color: readonly [number, number, number, number]) => [
-              color[0],
-              color[1],
-              color[2],
-              0,
-            ],
-          },
-        },
+        // Path geometry is always the live D3 result. Temporal activation may
+        // still fade an edge once the cluster lifecycle is fully expanded,
+        // but no renderer transition is allowed to move topology.
+        transitions:
+          clusterPhase === "expanded" && !prefersReducedMotion()
+            ? {
+                getWidth: {
+                  duration: WORLD_TEMPORAL_RELATION_TRANSITION_MS,
+                  easing: temporalRelationEasing,
+                  enter: (width: number) => width === 0 ? 0 : 0,
+                },
+                getColor: {
+                  duration: WORLD_TEMPORAL_RELATION_TRANSITION_MS,
+                  easing: temporalRelationEasing,
+                  enter: (color: readonly [number, number, number, number]) => [
+                    color[0],
+                    color[1],
+                    color[2],
+                    0,
+                  ],
+                },
+              }
+            : undefined,
         updateTriggers: {
           getPath: this.#relationshipPathRevision,
           getWidth: [
             this.#palette,
             this.#temporalRelationshipRevision,
             this.#relationshipStyleRevision,
-            placeExpansion,
-            gridClustered,
+            clusterPhase,
           ],
           getColor: [
             this.#palette,
             this.#temporalRelationshipRevision,
             this.#relationshipStyleRevision,
-            placeExpansion,
-            gridClustered,
+            clusterPhase,
           ],
         },
         parameters: { cullMode: "none" },
       }),
+      ...(releasingSegments.length > 0
+        ? [
+            this.#runtime.createPathLayer({
+              id: DECK_WORLD_LAYER_IDS.releasingRelationships,
+              data: releasingSegments,
+              pickable: false,
+              widthUnits: "pixels",
+              getPath: (segment: DeckWorldReleasingRelationshipSegment) => segment.path,
+              getWidth: (segment: DeckWorldReleasingRelationshipSegment) =>
+                Math.max(1, this.#edgeStyle(segment.edge, true).width * 0.7),
+              getColor: (segment: DeckWorldReleasingRelationshipSegment) =>
+                worldColorBytes(this.#edgeStyle(segment.edge, true).color, 180),
+              updateTriggers: {
+                getWidth: [this.#palette, clusterPhase],
+                getColor: [this.#palette, clusterPhase],
+              },
+              parameters: { cullMode: "none" },
+            }),
+          ]
+        : []),
       this.#runtime.createScatterplotLayer({
         id: DECK_WORLD_LAYER_IDS.entities,
         data: entities,
