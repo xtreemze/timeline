@@ -30,7 +30,7 @@ function anchor(instanceId, placeId, overrides = {}) {
 }
 
 function topologyRequest() {
-  return { reason: "topology", energyTarget: 0.12, reheat: true };
+  return { reason: "topology", excitation: 0.12, reheat: true };
 }
 
 test("reference solver starts from explicit local offsets and visual altitude", () => {
@@ -121,7 +121,10 @@ test("secondary anchors bias local layout without replacing the primary geograph
   for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
   const after = simulation.getSnapshot()[0];
 
-  assert.ok(after.eastMeters > before.eastMeters, "secondary east anchor should bias local layout east");
+  assert.ok(
+    after.eastMeters > before.eastMeters,
+    "secondary east anchor should bias local layout east",
+  );
   assert.ok(
     after.eastMeters < 550,
     "secondary anchors should steer inside the primary place domain instead of relocating globally",
@@ -444,7 +447,7 @@ test("post-drop settling stays responsive after an extreme drag displacement", (
     ],
   });
 
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.setPin({
     instanceId: dragged,
     eastMeters: 10_000_000,
@@ -453,7 +456,7 @@ test("post-drop settling stays responsive after an extreme drag displacement", (
   });
   simulation.step(1000 / 60);
   simulation.setPin(null);
-  simulation.apply({ reason: "post-drop", energyTarget: 0.035, reheat: true });
+  simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
 
   const before = simulation.getSnapshot().find((entry) => entry.instanceId === dragged);
   const startedAt = performance.now();
@@ -594,7 +597,7 @@ test("drag wakes nearby foreign-anchor topology but leaves distant groups frozen
     ],
   });
 
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.setPin({
     instanceId: alice,
     eastMeters: 20,
@@ -660,7 +663,7 @@ test("far drag does not wake a foreign group located only between active-group m
     ],
   });
 
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.setPin({
     instanceId: dragged,
     eastMeters: 10_000,
@@ -731,7 +734,7 @@ test("drag cross-place interaction is specific to the grabbed node, not its whol
     ],
   });
 
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.setPin({
     instanceId: dragged,
     eastMeters: 10_000,
@@ -791,7 +794,7 @@ test("post-drop settling stays localized to the released node's force island", (
     ],
   });
 
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.setPin({
     instanceId: dragged,
     eastMeters: 10_000_000,
@@ -805,7 +808,7 @@ test("post-drop settling stays localized to the released node's force island", (
     .filter((entry) => entry.instanceId === remoteA || entry.instanceId === remoteB);
 
   simulation.setPin(null);
-  simulation.apply({ reason: "post-drop", energyTarget: 0.035, reheat: true });
+  simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
   for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
 
   const after = simulation.getSnapshot();
@@ -880,7 +883,7 @@ test("place-domain constraint pushes a released node away from the exact place c
     visualAltitudeMeters: 1000,
   });
   simulation.setPin(null);
-  simulation.apply({ reason: "post-drop", energyTarget: 0.035, reheat: true });
+  simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
 
   for (let index = 0; index < 40; index += 1) simulation.step(1000 / 60);
   const settled = simulation.getSnapshot()[0];
@@ -912,7 +915,7 @@ test("pinning hard-locks local layout position and altitude", () => {
       visualAltitudeMeters: 1750,
     },
   ]);
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
 
   for (let index = 0; index < 10; index += 1) simulation.step(1000 / 60);
 
@@ -961,7 +964,7 @@ test("drag force is localized to the pinned node's geographic group", () => {
       anchor(remote, "copenhagen", { influence: 0 }),
     ],
   });
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.setPin({
     instanceId: alice,
     eastMeters: -250,
@@ -998,7 +1001,7 @@ test("place-domain constraint is suspended for the active drag group until relea
       anchor(bob, "stockholm", { influence: 1, precisionRadiusMeters: 0 }),
     ],
   });
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.setPin({
     instanceId: alice,
     eastMeters: 1200,
@@ -1016,7 +1019,7 @@ test("place-domain constraint is suspended for the active drag group until relea
   );
 
   simulation.setPin(null);
-  simulation.apply({ reason: "settle", energyTarget: 0.08, reheat: true });
+  simulation.apply({ reason: "settle", excitation: 0.08, reheat: true });
   for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
   const bobAfter = simulation.getSnapshot().find((entry) => entry.instanceId === bob);
   assert.ok(
@@ -1168,4 +1171,107 @@ test("updated DAG targets preserve position and converge through force only", ()
     simulation.getSnapshot()[0].eastMeters > 100,
     "the force solver should move toward the new DAG target after a tick",
   );
+});
+
+test("dense same-place spatial indexing stays deterministic and resolves hard overlap", () => {
+  const ids = Array.from({ length: 120 }, (_, index) => `["dense","node-${index}"]`);
+  const nodes = ids.map((id, index) =>
+    node(id, {
+      initialEastMeters: 1 + (index % 12) * 8,
+      initialNorthMeters: 1 + Math.floor(index / 12) * 8,
+      collisionRadiusMeters: 20,
+      targetVisualAltitudeMeters: 0,
+    }),
+  );
+  const anchors = ids.map((id) =>
+    anchor(id, "dense-place", {
+      influence: 0,
+      precisionRadiusMeters: 0,
+    }),
+  );
+  const options = {
+    repulsionStrength: 48_000,
+    collisionStrength: 0.5,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.84,
+    settleEnergy: 0,
+  };
+  const scene = { nodes, edges: [], anchors };
+  const first = new ReferenceWorldForceSimulation(options);
+  const second = new ReferenceWorldForceSimulation(options);
+  first.setScene(scene);
+  second.setScene({
+    nodes: [...nodes].reverse(),
+    edges: [],
+    anchors: [...anchors].reverse(),
+  });
+
+  first.apply(topologyRequest());
+  second.apply(topologyRequest());
+  for (let index = 0; index < 180; index += 1) {
+    first.step(1000 / 60);
+    second.step(1000 / 60);
+  }
+
+  assert.deepEqual(first.getSnapshot(), second.getSnapshot());
+
+  const positions = first.getSnapshot();
+  let minimum = Number.POSITIVE_INFINITY;
+  for (let left = 0; left < positions.length; left += 1) {
+    for (let right = left + 1; right < positions.length; right += 1) {
+      const a = positions[left];
+      const b = positions[right];
+      minimum = Math.min(
+        minimum,
+        Math.hypot(
+          a.eastMeters - b.eastMeters,
+          a.northMeters - b.northMeters,
+          a.visualAltitudeMeters - b.visualAltitudeMeters,
+        ),
+      );
+    }
+  }
+
+  assert.ok(minimum >= 39, `dense minimum separation was ${minimum}`);
+});
+
+test("world excitation is a force-gain control rather than a cooling target", () => {
+  const scene = {
+    nodes: [
+      node('["alice","excitation-left"]', {
+        initialEastMeters: -120,
+        collisionRadiusMeters: 100,
+        targetVisualAltitudeMeters: 0,
+      }),
+      node('["bob","excitation-right"]', {
+        initialEastMeters: 120,
+        collisionRadiusMeters: 100,
+        targetVisualAltitudeMeters: 0,
+      }),
+    ],
+    edges: [],
+    anchors: [
+      anchor('["alice","excitation-left"]', "stockholm", { influence: 0 }),
+      anchor('["bob","excitation-right"]', "stockholm", { influence: 0 }),
+    ],
+  };
+  const baseline = new ReferenceWorldForceSimulation();
+  const excited = new ReferenceWorldForceSimulation();
+  baseline.setScene(scene);
+  excited.setScene(scene);
+
+  baseline.apply({ reason: "topology", excitation: 0, reheat: true });
+  excited.apply({ reason: "topology", excitation: 0.2, reheat: true });
+  baseline.step(1000 / 60);
+  excited.step(1000 / 60);
+
+  const baselineLeft = baseline.getSnapshot()[0];
+  const excitedLeft = excited.getSnapshot()[0];
+  assert.ok(
+    Math.abs(excitedLeft.eastMeters + 120) > Math.abs(baselineLeft.eastMeters + 120),
+    "higher excitation should increase one-step force response",
+  );
+  assert.equal(baseline.getDiagnostics().running, true);
+  assert.equal(excited.getDiagnostics().running, true);
 });

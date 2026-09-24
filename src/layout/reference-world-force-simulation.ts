@@ -146,6 +146,9 @@ function normalizedTimeStep(deltaMs: number): number {
 const EARTH_RADIUS_METERS = 6_371_008.8;
 const CROSS_ANCHOR_FORCE_RADIUS_METERS = 6_000;
 const READABLE_SEPARATION_SCALE = 1.35;
+const SAME_PLACE_SPATIAL_INDEX_THRESHOLD = 96;
+const SAME_PLACE_NEIGHBORHOOD_SCALE = 4;
+const SAME_PLACE_PRECISION_SCALE = 8;
 const PLACE_DOMAIN_INNER_RADIUS_SCALE = 2.25;
 const PLACE_DOMAIN_WIDTH_SCALE = 2.4;
 const PLACE_DOMAIN_CORRECTION_SQRT_SCALE = 20;
@@ -350,17 +353,10 @@ function placeDomain(states: readonly NodeState[]): PlaceDomain | null {
   // of every entity. Keep the authored place marker clear, then give the
   // group enough annular area to spread through collision/relationship
   // forces without assigning rigid angular slots.
-  const innerRadiusMeters = Math.max(
-    1,
-    maxCollisionRadiusMeters * PLACE_DOMAIN_INNER_RADIUS_SCALE,
-  );
+  const innerRadiusMeters = Math.max(1, maxCollisionRadiusMeters * PLACE_DOMAIN_INNER_RADIUS_SCALE);
   const packingWidthMeters =
-    maxCollisionRadiusMeters *
-    Math.max(2, Math.sqrt(anchored.length) * PLACE_DOMAIN_WIDTH_SCALE);
-  const outerRadiusMeters = Math.max(
-    innerRadiusMeters + packingWidthMeters,
-    precisionRadiusMeters,
-  );
+    maxCollisionRadiusMeters * Math.max(2, Math.sqrt(anchored.length) * PLACE_DOMAIN_WIDTH_SCALE);
+  const outerRadiusMeters = Math.max(innerRadiusMeters + packingWidthMeters, precisionRadiusMeters);
 
   return Object.freeze({ innerRadiusMeters, outerRadiusMeters });
 }
@@ -442,6 +438,86 @@ function readableSeparationDistance(left: NodeState, right: NodeState): number {
   return (
     (left.node.collisionRadiusMeters + right.node.collisionRadiusMeters) * READABLE_SEPARATION_SCALE
   );
+}
+
+function samePlaceNeighborhoodRadius(state: NodeState): number {
+  const readableDiameter = state.node.collisionRadiusMeters * 2 * READABLE_SEPARATION_SCALE;
+  const precisionRadius = state.anchor?.precisionRadiusMeters ?? 0;
+  return Math.max(
+    readableDiameter * SAME_PLACE_NEIGHBORHOOD_SCALE,
+    Math.min(precisionRadius, readableDiameter * SAME_PLACE_PRECISION_SCALE),
+  );
+}
+
+function samePlacePairRadius(left: NodeState, right: NodeState): number {
+  return Math.max(
+    samePlaceNeighborhoodRadius(left),
+    samePlaceNeighborhoodRadius(right),
+    readableSeparationDistance(left, right) * SAME_PLACE_NEIGHBORHOOD_SCALE,
+  );
+}
+
+function visitSamePlacePairs(
+  states: readonly NodeState[],
+  visit: (left: NodeState, right: NodeState) => void,
+): void {
+  if (states.length < SAME_PLACE_SPATIAL_INDEX_THRESHOLD) {
+    for (let leftIndex = 0; leftIndex < states.length; leftIndex += 1) {
+      const left = states[leftIndex];
+      if (!left) continue;
+      for (let rightIndex = leftIndex + 1; rightIndex < states.length; rightIndex += 1) {
+        const right = states[rightIndex];
+        if (right) visit(left, right);
+      }
+    }
+    return;
+  }
+
+  // Dense place groups use a deterministic local spatial hash. The cell size is
+  // derived from rendered collision footprints and bounded place precision, so
+  // hard collision/readability neighbors remain exact while distant inverse-square
+  // repulsion is intentionally omitted. Link springs are evaluated separately.
+  let cellSize = 1;
+  for (const state of states) {
+    cellSize = Math.max(cellSize, samePlaceNeighborhoodRadius(state));
+  }
+
+  const buckets = new Map<string, number[]>();
+  const cells: Array<readonly [number, number]> = [];
+  const cellKey = (x: number, y: number) => `${x}:${y}`;
+
+  for (let index = 0; index < states.length; index += 1) {
+    const state = states[index];
+    if (!state) continue;
+    const cellX = Math.floor(state.x / cellSize);
+    const cellY = Math.floor(state.y / cellSize);
+    cells[index] = [cellX, cellY];
+    const key = cellKey(cellX, cellY);
+    const bucket = buckets.get(key);
+    if (bucket) bucket.push(index);
+    else buckets.set(key, [index]);
+  }
+
+  for (let leftIndex = 0; leftIndex < states.length; leftIndex += 1) {
+    const left = states[leftIndex];
+    const cell = cells[leftIndex];
+    if (!left || !cell) continue;
+
+    for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+      for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+        const bucket = buckets.get(cellKey(cell[0] + offsetX, cell[1] + offsetY));
+        if (!bucket) continue;
+
+        for (const rightIndex of bucket) {
+          if (rightIndex <= leftIndex) continue;
+          const right = states[rightIndex];
+          if (!right) continue;
+          const distance = Math.hypot(right.x - left.x, right.y - left.y, right.z - left.z);
+          if (distance <= samePlacePairRadius(left, right)) visit(left, right);
+        }
+      }
+    }
+  }
 }
 
 function crossAnchorInteractionRadius(left: NodeState, right: NodeState): number {
@@ -623,7 +699,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
 
   apply(request: WorldSimulationRequest): void {
     this.#assertAlive();
-    finiteNonNegative(request.energyTarget, "World simulation energy target");
+    finiteNonNegative(request.excitation, "World simulation excitation");
     this.#request = Object.freeze({ ...request });
     this.#running = request.reason !== "idle";
     if (request.reason !== "drag" && request.reason !== "post-drop") {
@@ -654,11 +730,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const interactionGroup = interactionState?.group ?? null;
     const activeDragGroup = this.#pin ? interactionGroup : null;
     const forceGroups = [...this.#groups.entries()].map(([key, states]) => forceGroup(key, states));
-    const crossPairs = crossGroupCandidates(
-      forceGroups,
-      interactionGroup,
-      interactionInstanceId,
-    );
+    const crossPairs = crossGroupCandidates(forceGroups, interactionGroup, interactionInstanceId);
 
     // Direct manipulation and its post-drop relaxation are one local force
     // epoch. Keep unrelated geography asleep while the released island
@@ -685,16 +757,9 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
 
     for (const group of forceGroups) {
       if (activeGroups && !activeGroups.has(group.key)) continue;
-      const states = group.states;
-      for (let leftIndex = 0; leftIndex < states.length; leftIndex += 1) {
-        const left = states[leftIndex];
-        if (!left) continue;
-        for (let rightIndex = leftIndex + 1; rightIndex < states.length; rightIndex += 1) {
-          const right = states[rightIndex];
-          if (!right) continue;
-          this.#applyPairForces(left, right, false);
-        }
-      }
+      visitSamePlacePairs(group.states, (left, right) => {
+        this.#applyPairForces(left, right, false);
+      });
     }
 
     for (const [leftGroup, rightGroup] of crossPairs) {
@@ -740,7 +805,10 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       this.#applyAltitudeForce(state);
     }
 
-    const energyScale = 1 + (this.#request?.energyTarget ?? 0) * 4;
+    // Excitation is a dimensionless backend-neutral force gain, not d3 alpha.
+    // Zero preserves baseline forces; interaction requests may temporarily increase
+    // acceleration while damping and settle-energy continue to define convergence.
+    const excitationScale = 1 + (this.#request?.excitation ?? 0) * 4;
     const damping = this.#options.damping ** dt;
     let energy = 0;
     let activeNodeCount = 0;
@@ -768,9 +836,9 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       const beforeY = state.y;
       const beforeZ = state.z;
       const inverseMass = 1 / Math.max(0.001, state.node.mass);
-      state.vx = (state.vx + state.forceX * inverseMass * dt * energyScale) * damping;
-      state.vy = (state.vy + state.forceY * inverseMass * dt * energyScale) * damping;
-      state.vz = (state.vz + state.forceZ * inverseMass * dt * energyScale) * damping;
+      state.vx = (state.vx + state.forceX * inverseMass * dt * excitationScale) * damping;
+      state.vy = (state.vy + state.forceY * inverseMass * dt * excitationScale) * damping;
+      state.vz = (state.vz + state.forceZ * inverseMass * dt * excitationScale) * damping;
 
       state.x += state.vx * dt;
       state.y += state.vy * dt;

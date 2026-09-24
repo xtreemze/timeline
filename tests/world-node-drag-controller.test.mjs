@@ -19,7 +19,7 @@ function harness() {
       ]);
     },
     apply(request) {
-      calls.push(["apply", request.reason, request.energyTarget, request.reheat]);
+      calls.push(["apply", request.reason, request.excitation, request.reheat]);
     },
     stop() {
       calls.push(["stop"]);

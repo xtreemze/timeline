@@ -166,6 +166,19 @@ F(instance) =
 
 Exact/direct place evidence may strongly constrain the entity node. When several placed occurrences are active for the same entity, their anchors jointly constrain that one node. Approximate evidence may use a softer radius/influence. Unlocated material has no invented canonical coordinates and may be positioned by topology around related anchored nodes.
 
+### Force execution semantics
+
+The renderer-neutral simulation request uses **excitation**, a dimensionless temporary force-gain control. It is not a d3-force `alpha` or `alphaTarget`. A value of `0` means baseline backend force gain; larger values may accelerate response during topology changes, dragging, or post-drop settling. Backend-specific adapters may translate excitation to their own heat/iteration controls, but must preserve the request priority and settling semantics.
+
+Reference-solver dimensions are explicit:
+
+- local east/north offsets, collision radii, place precision, link rest lengths, and geographic neighborhood distances are metres;
+- visual altitude is metres of presentation offset, not source elevation evidence;
+- mass, anchor influence, edge strength, damping, and excitation are dimensionless;
+- settle energy is the reference backend's mean squared per-node velocity/activity criterion and must not be interpreted as d3 alpha.
+
+Small same-place groups use exact pair evaluation. Dense same-place groups use a deterministic spatial-neighbor index whose radius is derived from rendered collision footprint and bounded place precision. Hard collision/readability neighbors remain exact, while distant inverse-square repulsion may be omitted in the dense path. Same-place relationship springs are evaluated independently of that neighbor index. Cross-place interaction retains its separate world-space broad phase and is not widened by the dense-local optimization.
+
 Places remain anchors/records, not semantic graph nodes.
 
 ## WorldProjection

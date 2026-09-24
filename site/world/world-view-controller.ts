@@ -119,7 +119,7 @@ export class WorldViewRuntimeController {
     this.#surface.setRelationshipRoutes?.(forceScene.relationshipRoutes ?? Object.freeze([]));
     this.#simulation.request({
       reason: "projection-update",
-      energyTarget: 0.08,
+      excitation: 0.08,
       reheat: true,
     });
 

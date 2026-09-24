@@ -55,7 +55,7 @@ function measure(fn, iterations) {
 function settleTicks(scene, maxTicks = 480) {
   const simulation = new ReferenceWorldForceSimulation();
   simulation.setScene(scene);
-  simulation.apply({ reason: "topology", energyTarget: 0.12, reheat: true });
+  simulation.apply({ reason: "topology", excitation: 0.12, reheat: true });
 
   let ticks = 0;
   while (ticks < maxTicks && !simulation.getDiagnostics().settled) {
@@ -197,7 +197,7 @@ for (const nodeCount of sizes) {
         : 6;
   const simulation = new ReferenceWorldForceSimulation();
   simulation.setScene(forceScene);
-  simulation.apply({ reason: "topology", energyTarget: 0.12, reheat: true });
+  simulation.apply({ reason: "topology", excitation: 0.12, reheat: true });
 
   const solveStep = measure(() => {
     simulation.step(1000 / 60);
@@ -220,7 +220,7 @@ for (const nodeCount of sizes) {
     northMeters: 0,
     visualAltitudeMeters: dragged.targetVisualAltitudeMeters,
   });
-  dragSimulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  dragSimulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   const dragStep = measure(() => {
     dragSimulation.step(1000 / 60);
   }, stepIterations);
