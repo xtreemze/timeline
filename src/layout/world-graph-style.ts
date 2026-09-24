@@ -122,6 +122,8 @@ export interface WorldNodeStyleInput {
   readonly type?: string;
   readonly attributes?: unknown;
   readonly selected?: boolean;
+  /** Connected-neighborhood emphasis without changing canonical selection. */
+  readonly emphasized?: boolean;
   readonly visualWeight?: number;
 }
 
@@ -242,6 +244,8 @@ export interface WorldEdgeStyleInput {
   readonly predicate?: string;
   readonly attributes?: unknown;
   readonly selected?: boolean;
+  /** Incident-edge emphasis without changing canonical selection. */
+  readonly emphasized?: boolean;
   readonly inactive?: boolean;
 }
 
