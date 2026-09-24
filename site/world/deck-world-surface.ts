@@ -1989,6 +1989,8 @@ export class DeckWorldSurface implements WorldSurface {
   // as cheap as before).
   #clusteredLastRender = false;
   #clusterExpansionLastRender = 1;
+  #screenScaleZoomLastRender = Number.NaN;
+  #cameraFacingStepLastRender = "";
   // Same idea for the semantic label/marker LOD tier: a tier change only
   // matters when some kind has more candidates than the smaller budget.
   #labelBudgetLastRender = -1;
@@ -2398,7 +2400,7 @@ export class DeckWorldSurface implements WorldSurface {
     if (typical <= 0) return fitted;
     const readableAt = (zoom: number) =>
       worldLocalRadiusPx(typical * this.#nextOffsetScale(zoom), zoom, fitted.latitude) >=
-      WORLD_READABLE_LOCAL_RADIUS_PX;
+      this.#clusterRadiusPx();
     if (readableAt(fitted.zoom)) return fitted;
     let zoom = fitted.zoom;
     while (zoom < 18 && !readableAt(zoom)) zoom += 0.25;
@@ -2920,21 +2922,70 @@ export class DeckWorldSurface implements WorldSurface {
 
   #zoomNeedsRender(): boolean {
     const clusterExpansion = this.#placeClusterExpansion();
+    const maxNodeRadiusPx = this.#maxEntityFootprintRadiusPx();
     const clusteredNow =
-      shouldClusterEntityDatums(this.#entityDatumCache.size, this.#camera.zoom) ||
-      clusterExpansion < 1;
+      shouldClusterEntityDatums(
+        this.#entityDatumCache.size,
+        this.#camera.zoom,
+        maxNodeRadiusPx,
+      ) || clusterExpansion < 1;
     const clusterMotionChanged =
       Math.abs(clusterExpansion - this.#clusterExpansionLastRender) > 0.002;
     const budget = worldLabelBudget(this.#camera.zoom);
     const lodChanged =
       budget !== this.#labelBudgetLastRender &&
       Math.min(budget, this.#labelBudgetLastRender) < this.#lodCandidateCountLastRender;
+    const screenScaleChanged =
+      screenScaleZoomStep(this.#camera.zoom) !== this.#screenScaleZoomLastRender;
+    const cameraFacingChanged =
+      cameraFacingStep(this.#camera) !== this.#cameraFacingStepLastRender;
     return (
       clusteredNow !== this.#clusteredLastRender ||
       clusterMotionChanged ||
       lodChanged ||
+      screenScaleChanged ||
+      cameraFacingChanged ||
       this.#nextOffsetScale() !== this.#offsetScale ||
       this.#nextFloatMeters() !== this.#floatMeters
+    );
+  }
+
+  #viewportGraphRadiusLimitPx(): number {
+    const width = Number(this.#container.clientWidth) || 1024;
+    const height = Number(this.#container.clientHeight) || 768;
+    const shortSide = Math.min(width, height);
+    return Math.max(120, Math.min(WORLD_LOCAL_GRAPH_RADIUS_PX * 2, shortSide * 0.42));
+  }
+
+  #maxEntityFootprintCache: {
+    readonly projection: WorldProjection;
+    readonly radiusPx: number;
+  } | null = null;
+
+  #maxEntityFootprintRadiusPx(): number {
+    const projection = this.#projection;
+    if (this.#maxEntityFootprintCache?.projection === projection) {
+      return this.#maxEntityFootprintCache.radiusPx;
+    }
+    let radiusPx = WORLD_ENTITY_MIN_HIT_RADIUS_PX;
+    for (const instance of projection.instances) {
+      radiusPx = Math.max(
+        radiusPx,
+        worldNodeFootprintRadiusPx({
+          ...(instance.kind === undefined ? {} : { type: instance.kind }),
+          attributes: instance.style ? { style: instance.style } : undefined,
+          visualWeight: instance.visualWeight,
+        }),
+      );
+    }
+    this.#maxEntityFootprintCache = { projection, radiusPx };
+    return radiusPx;
+  }
+
+  #clusterRadiusPx(): number {
+    return worldPlaceClusterRadiusPx(
+      this.#maxEntityFootprintRadiusPx(),
+      this.#viewportGraphRadiusLimitPx(),
     );
   }
 
@@ -2947,13 +2998,20 @@ export class DeckWorldSurface implements WorldSurface {
     const instances = this.#projection.instances;
     // Clustered overviews group true geography; magnifying offsets there
     // would scatter one place's entities across cluster cells.
-    if (shouldClusterEntityDatums(instances.length, zoom)) return 1;
+    if (
+      shouldClusterEntityDatums(
+        instances.length,
+        zoom,
+        this.#maxEntityFootprintRadiusPx(),
+      )
+    ) return 1;
     const typical = this.#typicalOffsetMeters();
     const scale = worldPresentationOffsetScale(
       zoom,
       instances.length,
       typical,
       this.#camera.latitude,
+      this.#viewportGraphRadiusLimitPx(),
     );
     // Never let a place's magnified graph reach into its neighbours'.
     const nearest = this.#nearestPlaceMeters();
@@ -2999,7 +3057,7 @@ export class DeckWorldSurface implements WorldSurface {
       zoom,
       this.#camera.latitude,
     );
-    return worldClusterExpansionProgress(radius, WORLD_PLACE_CLUSTER_RADIUS_PX);
+    return worldClusterExpansionProgress(radius, this.#clusterRadiusPx());
   }
 
   /**
@@ -3010,7 +3068,14 @@ export class DeckWorldSurface implements WorldSurface {
    */
   #nextFloatMeters(zoom = this.#camera.zoom): number {
     const instances = this.#projection.instances;
-    if (instances.length === 0 || shouldClusterEntityDatums(instances.length, zoom)) return 0;
+    if (
+      instances.length === 0 ||
+      shouldClusterEntityDatums(
+        instances.length,
+        zoom,
+        this.#maxEntityFootprintRadiusPx(),
+      )
+    ) return 0;
     if (this.#typicalOffsetMeters() <= 0) return 0;
     const quantised = Math.round(zoom * 4) / 4;
     return Math.round(worldLocalRadiusPx(1, quantised, 0) ** -1 * WORLD_ENTITY_FLOAT_PX);
