@@ -25,8 +25,7 @@ export default defineConfig({
             },
             {
               name: "world-rendering",
-              test:
-                /node_modules[\\/](?:@deck\\.gl|@luma\\.gl|@math\\.gl|@loaders\\.gl|@probe\\.gl)[\\/]/,
+              test: /node_modules[\\/](?:@deck\\.gl|@luma\\.gl|@math\\.gl|@loaders\\.gl|@probe\\.gl)[\\/]/,
               maxSize: 400_000,
               priority: 25,
             },
