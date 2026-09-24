@@ -2,16 +2,19 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("timeline controller implements every focus command used by app orchestration", async () => {
-  const [app, view] = await Promise.all([
+test("Lit timeline boundary exposes every focus command used by app orchestration", async () => {
+  const [app, view, component] = await Promise.all([
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/luum-timeline.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(app, /timelineView\?\.focusAdjacent\(/);
   assert.match(app, /timelineView\?\.stepFocusMedia\(/);
   assert.match(view, /focusAdjacent\(delta: number/);
   assert.match(view, /stepFocusMedia\(delta: number\)/);
+  assert.match(component, /focusAdjacent\(/);
+  assert.match(component, /stepFocusMedia\(/);
 });
 
 test("focused ranges recover duration and retained media controls", async () => {
@@ -59,4 +62,27 @@ test("retained event terminals preserve semantic media, tag icons, and connector
   assert.match(view, /connectorWeight === "fine" \? 1 : item\.connectorWeight === "strong" \? 4 : 2/);
   assert.match(css, /\.timeline-event-art-image/);
   assert.match(css, /\.timeline-event-icon-badge/);
+});
+
+
+test("timeline is a Lit lifecycle boundary without Lit-owned retained-scene rendering", async () => {
+  const [app, view, component, html] = await Promise.all([
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/luum-timeline.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(component, /ReactiveElement/);
+  assert.match(component, /createRenderRoot\(\)[\s\S]*return this/);
+  assert.match(component, /TimelineView\.create\(this\)/);
+  assert.match(component, /ResizeObserver[\s\S]*refreshLayout/);
+  assert.doesNotMatch(component, /\bhtml\s*`/);
+  assert.doesNotMatch(component, /document\.createElement/);
+  assert.match(view, /new WeakMap<HTMLElement, TimelineViewController>/);
+  assert.match(view, /const existing = timelineControllers\.get\(root\)/);
+  assert.match(app, /import \{ LuumTimelineElement \} from "\.\/components\/luum-timeline\.ts"/);
+  assert.match(app, /const timelineView = els\.timelineViewRoot/);
+  assert.match(html, /<luum-timeline id="timeline-view"/);
+  assert.match(html, /<\/luum-timeline>/);
 });
