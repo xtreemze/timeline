@@ -2595,10 +2595,14 @@ export class DeckWorldSurface implements WorldSurface {
       return false;
     }
 
+    // Mark the gesture active before handing the first pin to the layout.
+    // The drag sink may synchronously publish a projection update; that first
+    // frame must already bypass deck geometry interpolation so node, edges,
+    // and labels all consume the same live drag position.
+    this.#activeDragPointerId = pointerId;
     const claimed = sink.begin(pointerId, target.instanceId, target.position);
     if (claimed) {
       if (touch) this.#touchHold.commit(pointerId);
-      this.#activeDragPointerId = pointerId;
       const style = (this.#container as HTMLElement).style;
       if (style) style.cursor = "grabbing";
       void pulseHaptic("tick");
@@ -2608,6 +2612,8 @@ export class DeckWorldSurface implements WorldSurface {
       // deck.gl ignores the layer handler's return value; only a handled
       // event stops its controller from turning the same gesture into a pan.
       event.stopPropagation?.();
+    } else {
+      this.#activeDragPointerId = null;
     }
     return claimed;
   }
@@ -2631,11 +2637,16 @@ export class DeckWorldSurface implements WorldSurface {
     }
 
     event.stopPropagation?.();
+    // Keep direct-manipulation mode active through release because the sink
+    // may synchronously publish the final pinned frame. Clearing it first
+    // would re-enable geometry transitions for that frame and recreate the
+    // label-leading/node-lagging effect at pointer-up.
+    const released = sink.release(pointerId);
     this.#activeDragPointerId = null;
     this.#dragCameraLock = null;
     this.#setPointerCursor(this.#hoverSelection);
     void pulseHaptic("release");
-    return sink.release(pointerId);
+    return released;
   }
 
   #clearTouchHoldTimer(): void {
@@ -3064,6 +3075,11 @@ export class DeckWorldSurface implements WorldSurface {
     // members resolve outward; they must never snap back to full visibility
     // at expansion=1.
     const clusterVisibility = gridClustered ? 1 : 1 - placeExpansion;
+    // Direct manipulation is already an explicit per-frame motion source.
+    // Never layer deck.gl position/path interpolation on top of those live
+    // coordinates: labels have always consumed the current geometry directly,
+    // so interpolating only nodes/edges makes the label visibly lead them.
+    const directNodeDrag = this.#activeDragPointerId !== null;
 
     // Fully clustered place members are retained in force/layout state but
     // not exposed as glyphs or hit targets. Loose/unclustered entities remain.
@@ -3283,10 +3299,14 @@ export class DeckWorldSurface implements WorldSurface {
           );
         },
         transitions: {
-          getPath: {
-            duration: WORLD_RELATION_PATH_TRANSITION_MS,
-            easing: temporalRelationEasing,
-          },
+          ...(directNodeDrag
+            ? {}
+            : {
+                getPath: {
+                  duration: WORLD_RELATION_PATH_TRANSITION_MS,
+                  easing: temporalRelationEasing,
+                },
+              }),
           getWidth: {
             duration: WORLD_TEMPORAL_RELATION_TRANSITION_MS,
             easing: temporalRelationEasing,
@@ -3363,10 +3383,14 @@ export class DeckWorldSurface implements WorldSurface {
         transitions: prefersReducedMotion()
           ? undefined
           : {
-              getPosition: {
-                duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
-                easing: temporalRelationEasing,
-              },
+              ...(directNodeDrag
+                ? {}
+                : {
+                    getPosition: {
+                      duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
+                      easing: temporalRelationEasing,
+                    },
+                  }),
               getRadius: 120,
               getLineWidth: 120,
               getLineColor: 120,
@@ -3410,10 +3434,14 @@ export class DeckWorldSurface implements WorldSurface {
               transitions: prefersReducedMotion()
                 ? undefined
                 : {
-                    getPath: {
-                      duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
-                      easing: temporalRelationEasing,
-                    },
+                    ...(directNodeDrag
+                      ? {}
+                      : {
+                          getPath: {
+                            duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
+                            easing: temporalRelationEasing,
+                          },
+                        }),
                     getWidth: 120,
                     getColor: 120,
                   },
@@ -3453,10 +3481,14 @@ export class DeckWorldSurface implements WorldSurface {
               transitions: prefersReducedMotion()
                 ? undefined
                 : {
-                    getPosition: {
-                      duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
-                      easing: temporalRelationEasing,
-                    },
+                    ...(directNodeDrag
+                      ? {}
+                      : {
+                          getPosition: {
+                            duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
+                            easing: temporalRelationEasing,
+                          },
+                        }),
                     getSize: 120,
                     getColor: 120,
                   },
@@ -3504,10 +3536,14 @@ export class DeckWorldSurface implements WorldSurface {
         transitions: prefersReducedMotion()
           ? undefined
           : {
-              getPath: {
-                duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
-                easing: temporalRelationEasing,
-              },
+              ...(directNodeDrag
+                ? {}
+                : {
+                    getPath: {
+                      duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
+                      easing: temporalRelationEasing,
+                    },
+                  }),
               getWidth: 120,
               getColor: 120,
             },
