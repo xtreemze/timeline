@@ -3148,16 +3148,25 @@ export class DeckWorldSurface implements WorldSurface {
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
 
+    const maxEntityFootprintRadiusPx = this.#maxEntityFootprintRadiusPx();
     const gridClustered =
       placeExpansion >= 1 &&
-      shouldClusterEntityDatums(entityResult.datums.length, this.#camera.zoom);
+      shouldClusterEntityDatums(
+        entityResult.datums.length,
+        this.#camera.zoom,
+        maxEntityFootprintRadiusPx,
+      );
     const temporalRelationships = this.#temporalRelationshipDatums(relationships);
     // Keep place-cluster and member rows alive at both endpoints. Clusters
     // reach zero radius/alpha at full expansion; members reach zero size/alpha
     // at full collapse. Geometry is supplied directly by force/cluster state,
     // without deck.gl interpolation.
     const entities: readonly DeckWorldEntityRenderDatum[] = gridClustered
-      ? clusterEntityDatums(entityResult.datums, this.#camera.zoom)
+      ? clusterEntityDatums(
+          entityResult.datums,
+          this.#camera.zoom,
+          maxEntityFootprintRadiusPx,
+        )
       : Object.freeze([
           ...placeTransition.clusters,
           ...placeTransition.loose,
@@ -3169,6 +3178,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#entityDatumCache = entityResult.byId;
     this.#clusteredLastRender = placeExpansion < 1 || gridClustered;
     this.#clusterExpansionLastRender = rawPlaceExpansion;
+    this.#screenScaleZoomLastRender = screenScaleZoomStep(this.#camera.zoom);
     this.#labelBudgetLastRender = worldLabelBudget(this.#camera.zoom);
     this.#lodCandidateCountLastRender = Math.max(
       places.length,
@@ -3179,10 +3189,7 @@ export class DeckWorldSurface implements WorldSurface {
       const entity = entityResult.byId.get(instanceId);
       if (!entity) return WORLD_ENTITY_MIN_HIT_RADIUS_PX;
       const style = this.#entityStyle(entity);
-      return Math.max(
-        WORLD_ENTITY_MIN_HIT_RADIUS_PX,
-        style.radius + style.borderWidth,
-      );
+      return worldNodeMarker(style).size / 2;
     };
     const directionResult = directionDatums(
       relationships,
@@ -3285,6 +3292,11 @@ export class DeckWorldSurface implements WorldSurface {
           zoom: this.#camera.zoom,
           focus: this.#focus,
           previous: this.#labelDatumCache,
+          entityMarkerRadiusPx: visibleEntityRadiusPx,
+          placeMarkerRadiusPx: (placeId) => {
+            const place = placeResult.byId.get(placeId);
+            return place ? worldNodeMarker(this.#placeStyle(place)).size / 2 : 0;
+          },
         })
       : null;
     this.#labelDatumCache = labelResult?.byKey ?? new Map();
@@ -3316,7 +3328,9 @@ export class DeckWorldSurface implements WorldSurface {
               getPath: (path: unknown) => path,
               getWidth: 1,
               getColor: this.#theme.graticule,
-              parameters: { cullMode: "none" },
+              // Like entity markers, draw near-side place icons above the
+              // globe depth surface after explicitly filtering the far side.
+              parameters: { cullMode: "none", depthCompare: "always" },
             }),
             ...(this.#basemap
               ? [
@@ -3388,7 +3402,7 @@ export class DeckWorldSurface implements WorldSurface {
         ? [
             this.#runtime.createIconLayer({
               id: DECK_WORLD_LAYER_IDS.placeIcons,
-              data: places,
+              data: this.#cameraFacingPlaces(places),
               dataComparator: sameDatumSequence,
               pickable: true,
               billboard: true,
@@ -3598,8 +3612,18 @@ export class DeckWorldSurface implements WorldSurface {
         jointRounded: true,
         capRounded: true,
         getPath: (datum: DeckWorldDirectionDatum) => datum.path,
-        getWidth: (datum: DeckWorldDirectionDatum) =>
-          (this.#edgeStyle(datum.edge).width + 1) * edgeExpansion(datum),
+        getWidth: (datum: DeckWorldDirectionDatum) => {
+          const nodeRadiusPx =
+            (visibleEntityRadiusPx(datum.sourceInstanceId) +
+              visibleEntityRadiusPx(datum.targetInstanceId)) /
+            2;
+          return (
+            worldArrowStrokeWidthPxForNodeRadius(
+              nodeRadiusPx,
+              this.#edgeStyle(datum.edge).width,
+            ) * edgeExpansion(datum)
+          );
+        },
         getColor: (datum: DeckWorldDirectionDatum) => {
           const emphasisAlpha = datum.edge.selected
             ? 255
