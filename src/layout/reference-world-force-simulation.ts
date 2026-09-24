@@ -472,7 +472,20 @@ function samePlacePairRadius(left: NodeState, right: NodeState): number {
 function visitSamePlacePairs(
   states: readonly NodeState[],
   visit: (left: NodeState, right: NodeState) => void,
+  focus: NodeState | null = null,
 ): void {
+  if (focus) {
+    for (const other of states) {
+      if (other === focus) continue;
+      if (states.length >= SAME_PLACE_SPATIAL_INDEX_THRESHOLD) {
+        const distance = Math.hypot(other.x - focus.x, other.y - focus.y, other.z - focus.z);
+        if (distance > samePlacePairRadius(focus, other)) continue;
+      }
+      visit(focus, other);
+    }
+    return;
+  }
+
   if (states.length < SAME_PLACE_SPATIAL_INDEX_THRESHOLD) {
     for (let leftIndex = 0; leftIndex < states.length; leftIndex += 1) {
       const left = states[leftIndex];
@@ -799,9 +812,15 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     }
 
     for (const group of activeForceGroups) {
-      visitSamePlacePairs(group.states, (left, right) => {
-        this.#applyPairForces(left, right, false);
-      });
+      const dragFocus =
+        this.#pin && interactionState && group.key === interactionGroup ? interactionState : null;
+      visitSamePlacePairs(
+        group.states,
+        (left, right) => {
+          this.#applyPairForces(left, right, false);
+        },
+        dragFocus,
+      );
     }
 
     for (const [leftGroup, rightGroup] of crossPairs) {
