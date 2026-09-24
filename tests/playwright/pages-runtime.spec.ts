@@ -44,7 +44,6 @@ test("built Pages shell boots application runtime on mobile", async ({ page }) =
   expect(pageErrors).toEqual([]);
 });
 
-
 test("project load and clear mutate persisted state from view mode", async ({ page }) => {
   const response = await page.goto("/timeline/", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
