@@ -37,6 +37,7 @@ import type {
   WorldInstanceId,
   WorldProjection,
 } from "../../src/projection/world-projection.ts";
+import { buildWorldAccessibleOutline, WorldAccessibleMirror } from "./world-accessible-mirror.ts";
 
 export const DECK_WORLD_LAYER_IDS = Object.freeze({
   places: "lum-world-places",
@@ -1014,6 +1015,10 @@ export class DeckWorldSurface implements WorldSurface {
   // (as used by this file's own tests) simply leaves this null and the
   // surface still functions without it.
   readonly #liveRegion: HTMLElement | null;
+  // Navigable non-WebGL outline of the same snapshot (issue #445): lists
+  // places, directed relationships and canonical entities as buttons that
+  // select/focus the canonical object on this surface.
+  readonly #accessibleMirror: WorldAccessibleMirror | null;
 
   // Touch long-press gate (issue #445): on touch a one-finger drag pans the
   // globe unless the finger first rests on an entity for the hold threshold.
@@ -1107,6 +1112,9 @@ export class DeckWorldSurface implements WorldSurface {
   // Tab/Shift+Tab cycle through renderable places/relationships/entities and
   // Enter "confirms" the current selection by focusing the camera on it.
   readonly #handleKeyDown = (event: KeyboardEvent): void => {
+    // The accessible outline owns its own keyboard semantics (native button
+    // activation and Tab order); globe selection cycling must not hijack it.
+    if (this.#accessibleMirror?.contains(event.target)) return;
     if (event.key === "Tab") {
       const candidates = this.#selectionCandidates();
       if (candidates.length === 0) return;
@@ -1179,6 +1187,16 @@ export class DeckWorldSurface implements WorldSurface {
     this.#container.addEventListener?.("keydown", this.#handleKeyDown as EventListener);
 
     this.#liveRegion = this.#createLiveRegion();
+    this.#accessibleMirror = this.#liveRegion
+      ? WorldAccessibleMirror.create(this.#container, {
+          setSelection: (selection) => this.setSelection(selection),
+          focusSelection: (selection) => {
+            if (selection.kind === "entity") this.focusEntity(selection.id);
+            else if (selection.kind === "relationship") this.focusOccurrence(selection.id);
+            else this.focusPlace(selection.id);
+          },
+        })
+      : null;
   }
 
   #createLiveRegion(): HTMLElement | null {
@@ -1441,6 +1459,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#container.removeEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
     this.#container.removeEventListener?.("keydown", this.#handleKeyDown as EventListener);
     this.#liveRegion?.remove?.();
+    this.#accessibleMirror?.destroy();
     this.#deck.finalize();
   }
 
@@ -1773,7 +1792,9 @@ export class DeckWorldSurface implements WorldSurface {
 
   #updateLiveRegion(): void {
     if (!this.#liveRegion) return;
-    this.#liveRegion.textContent = accessibleSnapshotSummary(this.getAccessibleSnapshot());
+    const snapshot = this.getAccessibleSnapshot();
+    this.#liveRegion.textContent = accessibleSnapshotSummary(snapshot);
+    this.#accessibleMirror?.sync(buildWorldAccessibleOutline(snapshot));
   }
 
   #focusPosition(position: WorldRenderPosition | null): void {
