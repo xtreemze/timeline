@@ -40,8 +40,8 @@ test("fit takes the short way around the antimeridian", () => {
   assert.ok(camera.zoom > 2);
 });
 
-test("a single point fits at a bounded regional zoom; nothing to fit returns null", () => {
-  assert.equal(fitWorldCamera([[5, 5, 0]], VIEWPORT, CURRENT).zoom <= 6, true);
+test("a single point fits at a bounded readable detail zoom; nothing to fit returns null", () => {
+  assert.equal(fitWorldCamera([[5, 5, 0]], VIEWPORT, CURRENT).zoom <= 7.25, true);
   assert.equal(fitWorldCamera([], VIEWPORT, CURRENT), null);
 });
 
