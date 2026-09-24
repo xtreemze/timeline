@@ -254,7 +254,7 @@ export function declutterWorldLabels<T>(
  * quantised to quarter octaves so positions only rebuild on real zoom
  * changes. Dense scenes (already clustered) keep 1.
  */
-export const WORLD_LOCAL_GRAPH_RADIUS_PX = 110;
+export const WORLD_LOCAL_GRAPH_RADIUS_PX = 260;
 const WORLD_METERS_PER_PIXEL_AT_ZOOM_0 = 40_075_016.686 / 512;
 
 export function worldPresentationOffsetScale(
@@ -334,16 +334,16 @@ export function medianNearestPlaceMeters(
  */
 export const WORLD_LOCAL_GRAPH_MAX_PLACE_SHARE = 3;
 /** Clusters closer than this on screen merge into one bubble. */
-export const WORLD_CLUSTER_MERGE_PX = 36;
+export const WORLD_CLUSTER_MERGE_PX = 96;
 /** Local graphs at least this large on screen count as readable. */
-export const WORLD_READABLE_LOCAL_RADIUS_PX = 60;
+export const WORLD_READABLE_LOCAL_RADIUS_PX = 160;
 
 /** Degrees of longitude spanned by `pixels` at `zoom` (GlobeView scale). */
 export function worldPixelsToDegrees(pixels: number, zoom: number): number {
   return (pixels * 360) / (512 * 2 ** zoom);
 }
 /** Below this on-screen local radius a place's entities cluster. */
-export const WORLD_PLACE_CLUSTER_RADIUS_PX = 28;
+export const WORLD_PLACE_CLUSTER_RADIUS_PX = 96;
 
 /** On-screen radius (pixels) of a local graph of `meters` at `zoom`. */
 export function worldLocalRadiusPx(meters: number, zoom: number, latitude = 0): number {
@@ -353,4 +353,4 @@ export function worldLocalRadiusPx(meters: number, zoom: number, latitude = 0): 
 }
 
 /** On-screen height (pixels) entities float above their place's terrain. */
-export const WORLD_ENTITY_FLOAT_PX = 36;
+export const WORLD_ENTITY_FLOAT_PX = 64;
