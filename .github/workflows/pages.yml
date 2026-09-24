@@ -97,13 +97,15 @@ jobs:
       - name: Certify built Pages runtime
         run: pnpm exec playwright test --config=playwright.pages.config.ts
 
-      - name: Publish certified showcase GIFs into Pages artifact
+      - name: Publish certified showcase media into Pages artifact
         run: |
-          test "$(find artifacts/e2e-media/gifs/desktop -type f -name '*.gif' | wc -l)" -eq 5
-          test "$(find artifacts/e2e-media/gifs/mobile -type f -name '*.gif' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/showcase/desktop -type f -name '*.webp' | wc -l)" -eq 2
+          test "$(find artifacts/e2e-media/showcase/mobile -type f -name '*.webp' | wc -l)" -eq 2
+          test "$(find artifacts/e2e-media/showcase/desktop -type f -name '*.png' | wc -l)" -eq 3
+          test "$(find artifacts/e2e-media/showcase/mobile -type f -name '*.png' | wc -l)" -eq 3
           mkdir -p dist/showcase/desktop dist/showcase/mobile
-          cp artifacts/e2e-media/gifs/desktop/*.gif dist/showcase/desktop/
-          cp artifacts/e2e-media/gifs/mobile/*.gif dist/showcase/mobile/
+          cp artifacts/e2e-media/showcase/desktop/* dist/showcase/desktop/
+          cp artifacts/e2e-media/showcase/mobile/* dist/showcase/mobile/
 
       - name: Upload Playwright report
         if: always()
@@ -118,8 +120,10 @@ jobs:
           test -d dist/assets
           test "$(find dist/assets -type f -name '*.js' | wc -l)" -gt 0
           test "$(find dist/assets -type f | wc -l)" -gt 1
-          test "$(find dist/showcase/desktop -type f -name '*.gif' | wc -l)" -eq 5
-          test "$(find dist/showcase/mobile -type f -name '*.gif' | wc -l)" -eq 5
+          test "$(find dist/showcase/desktop -type f -name '*.webp' | wc -l)" -eq 2
+          test "$(find dist/showcase/mobile -type f -name '*.webp' | wc -l)" -eq 2
+          test "$(find dist/showcase/desktop -type f -name '*.png' | wc -l)" -eq 3
+          test "$(find dist/showcase/mobile -type f -name '*.png' | wc -l)" -eq 3
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
