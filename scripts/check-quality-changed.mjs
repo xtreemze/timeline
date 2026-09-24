@@ -14,14 +14,6 @@ const supportedExtensions = new Set([
   ".tsx",
 ]);
 
-const ignoredPaths = new Set([
-  "site/evidence-extraction.bundle.js",
-  "site/leaflet.bundle.js",
-  "site/leaflet.css",
-  "site/orb-graph.bundle.js",
-  "site/pdf.worker.mjs",
-]);
-
 function git(args, { allowFailure = false } = {}) {
   const result = spawnSync("git", args, { encoding: "utf8" });
   if (!allowFailure && result.status !== 0) {
@@ -66,7 +58,6 @@ function changedFiles(base) {
 
   return [...paths]
     .filter((path) => supportedExtensions.has(extname(path)))
-    .filter((path) => !ignoredPaths.has(path))
     .filter((path) => existsSync(path));
 }
 
