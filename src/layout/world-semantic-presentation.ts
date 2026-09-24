@@ -150,6 +150,141 @@ export function edgeMidpoint(
   ]) as WorldRenderPosition;
 }
 
+/** Fixed topology lets deck interpolate straight<->curved relationship paths. */
+const WORLD_RELATIONSHIP_PATH_SEGMENTS = 8;
+/**
+ * Quadratic control-point displacement relative to endpoint distance. The
+ * visible maximum bend is half this value at t=.5 (14% for lane 1).
+ */
+const WORLD_PARALLEL_EDGE_CONTROL_OFFSET_RATIO = 0.28;
+
+function edgePathPointAtFraction(
+  path: readonly WorldRenderPosition[],
+  fraction: number,
+): WorldRenderPosition {
+  if (path.length === 0) {
+    return Object.freeze([0, 0, 0]) as WorldRenderPosition;
+  }
+  if (path.length === 1) return path[0]!;
+  const clamped = Math.max(0, Math.min(1, fraction));
+  const scaled = clamped * (path.length - 1);
+  const index = Math.min(path.length - 2, Math.floor(scaled));
+  const local = scaled - index;
+  const left = path[index]!;
+  const right = path[index + 1]!;
+  return Object.freeze([
+    wrapLongitude(left[0] + shortestLongitudeDelta(left[0], right[0]) * local),
+    left[1] + (right[1] - left[1]) * local,
+    left[2] + (right[2] - left[2]) * local,
+  ]) as WorldRenderPosition;
+}
+
+/**
+ * Stable world-space relationship geometry. lane=0 is visually straight;
+ * non-zero lanes bend in the tangent plane while preserving both endpoints.
+ * All paths contain the same point count so renderer transitions can morph
+ * between straight and curved states when parallel topology changes.
+ */
+export function relationshipEdgePath(
+  source: WorldRenderPosition,
+  target: WorldRenderPosition,
+  lane = 0,
+): readonly WorldRenderPosition[] {
+  const midLatitude = ((source[1] + target[1]) / 2) * (Math.PI / 180);
+  const longitudeScale = Math.max(MINIMUM_LONGITUDE_SCALE, Math.cos(midLatitude));
+  const dx = shortestLongitudeDelta(source[0], target[0]) * longitudeScale;
+  const dy = target[1] - source[1];
+  const length = Math.hypot(dx, dy);
+  const finiteLane = Number.isFinite(lane) ? lane : 0;
+  const perpendicularX = length > MINIMUM_EDGE_LENGTH_DEGREES ? -dy / length : 0;
+  const perpendicularY = length > MINIMUM_EDGE_LENGTH_DEGREES ? dx / length : 0;
+  const controlOffset = length * WORLD_PARALLEL_EDGE_CONTROL_OFFSET_RATIO * finiteLane;
+  const controlX = dx / 2 + perpendicularX * controlOffset;
+  const controlY = dy / 2 + perpendicularY * controlOffset;
+  const points: WorldRenderPosition[] = [];
+
+  for (let index = 0; index <= WORLD_RELATIONSHIP_PATH_SEGMENTS; index += 1) {
+    const t = index / WORLD_RELATIONSHIP_PATH_SEGMENTS;
+    const oneMinusT = 1 - t;
+    const x = 2 * oneMinusT * t * controlX + t * t * dx;
+    const y = 2 * oneMinusT * t * controlY + t * t * dy;
+    points.push(
+      Object.freeze([
+        wrapLongitude(source[0] + x / longitudeScale),
+        clampLatitude(source[1] + y),
+        source[2] + (target[2] - source[2]) * t,
+      ]) as WorldRenderPosition,
+    );
+  }
+
+  return Object.freeze(points);
+}
+
+/** Midpoint on the rendered path, used by relationship labels. */
+export function edgePathMidpoint(path: readonly WorldRenderPosition[]): WorldRenderPosition {
+  return edgePathPointAtFraction(path, 0.5);
+}
+
+/**
+ * Direction chevron aligned to the local tangent of a rendered path, so
+ * parallel curved relationships retain unambiguous source→target direction.
+ */
+export function directedEdgePathArrowhead(
+  path: readonly WorldRenderPosition[],
+): readonly [WorldRenderPosition, WorldRenderPosition, WorldRenderPosition] | null {
+  if (path.length < 2) return null;
+  const source = path[0]!;
+  const target = path[path.length - 1]!;
+  const apex = edgePathPointAtFraction(path, ARROW_APEX_FRACTION);
+  const before = edgePathPointAtFraction(path, ARROW_APEX_FRACTION - 0.06);
+  const after = edgePathPointAtFraction(path, ARROW_APEX_FRACTION + 0.06);
+
+  const tangentLatitude = ((before[1] + after[1]) / 2) * (Math.PI / 180);
+  const tangentLongitudeScale = Math.max(MINIMUM_LONGITUDE_SCALE, Math.cos(tangentLatitude));
+  const tangentX = shortestLongitudeDelta(before[0], after[0]) * tangentLongitudeScale;
+  const tangentY = after[1] - before[1];
+  const tangentLength = Math.hypot(tangentX, tangentY);
+
+  const chordLatitude = ((source[1] + target[1]) / 2) * (Math.PI / 180);
+  const chordLongitudeScale = Math.max(MINIMUM_LONGITUDE_SCALE, Math.cos(chordLatitude));
+  const chordX = shortestLongitudeDelta(source[0], target[0]) * chordLongitudeScale;
+  const chordY = target[1] - source[1];
+  const chordLength = Math.hypot(chordX, chordY);
+  if (
+    !(tangentLength > MINIMUM_EDGE_LENGTH_DEGREES) ||
+    !(chordLength > MINIMUM_EDGE_LENGTH_DEGREES)
+  ) {
+    return null;
+  }
+
+  const ux = tangentX / tangentLength;
+  const uy = tangentY / tangentLength;
+  const head = chordLength * ARROW_LENGTH_FRACTION;
+  const halfWidth = head * ARROW_HALF_WIDTH_RATIO;
+  const baseX = -ux * head;
+  const baseY = -uy * head;
+  const baseAltitude = edgePathPointAtFraction(
+    path,
+    ARROW_APEX_FRACTION - ARROW_LENGTH_FRACTION,
+  )[2];
+  const apexLongitudeScale = Math.max(
+    MINIMUM_LONGITUDE_SCALE,
+    Math.cos((apex[1] * Math.PI) / 180),
+  );
+  const point = (x: number, y: number): WorldRenderPosition =>
+    Object.freeze([
+      wrapLongitude(apex[0] + x / apexLongitudeScale),
+      clampLatitude(apex[1] + y),
+      baseAltitude,
+    ]) as WorldRenderPosition;
+
+  return Object.freeze([
+    point(baseX - uy * halfWidth, baseY + ux * halfWidth),
+    apex,
+    point(baseX + uy * halfWidth, baseY - ux * halfWidth),
+  ]) as readonly [WorldRenderPosition, WorldRenderPosition, WorldRenderPosition];
+}
+
 /** Most zoomed-out zoom of the LOD tier containing `zoom`. */
 export function worldLabelTierFloor(zoom: number): number {
   if (!Number.isFinite(zoom)) return 0;

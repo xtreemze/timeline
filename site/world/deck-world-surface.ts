@@ -7,6 +7,11 @@ import {
 } from "../../src/interaction/world-touch-hold.ts";
 import { fitWorldCamera, globeOverviewCamera } from "../../src/layout/world-camera-fit.ts";
 import {
+  interpolateClusterPosition,
+  WORLD_CLUSTER_FORCE_TRANSITION_MS,
+  worldClusterExpansionProgress,
+} from "../../src/layout/world-cluster-transition.ts";
+import {
   resolveWorldRenderPosition,
   type WorldRenderPosition,
 } from "../../src/layout/world-geographic-position.ts";
@@ -23,9 +28,10 @@ import {
   worldPlaceStyle,
 } from "../../src/layout/world-graph-style.ts";
 import {
-  directedEdgeArrowhead,
-  edgeMidpoint,
+  directedEdgePathArrowhead,
+  edgePathMidpoint,
   medianNearestPlaceMeters,
+  relationshipEdgePath,
   selectPrioritizedLabels,
   typicalLocalOffsetMeters,
   WORLD_CLUSTER_MERGE_PX,
@@ -176,7 +182,7 @@ interface DeckWorldRelationshipDatum {
   readonly targetInstanceId: WorldInstanceId;
   readonly sourceEntityId: EntityId;
   readonly targetEntityId: EntityId;
-  readonly path: readonly [WorldRenderPosition, WorldRenderPosition];
+  readonly path: readonly WorldRenderPosition[];
   readonly selected: boolean;
   /** Incident to the selected/hovered node, or endpoint of the selected edge. */
   readonly emphasized: boolean;
@@ -200,6 +206,7 @@ interface DeckWorldTemporalRelationshipState {
 }
 
 interface DeckWorldTether {
+  readonly worldInstanceId: WorldInstanceId;
   readonly path: readonly [WorldRenderPosition, WorldRenderPosition];
 }
 
@@ -455,6 +462,75 @@ export function clusterEntityDatumsByPlace(
     );
   }
   return Object.freeze(result);
+}
+
+interface PlaceClusterTransitionDatums {
+  readonly clusters: readonly DeckWorldClusterDatum[];
+  readonly members: readonly DeckWorldEntityDatum[];
+  readonly loose: readonly DeckWorldEntityDatum[];
+  readonly memberIds: ReadonlySet<WorldInstanceId>;
+}
+
+/**
+ * Retains the force-resolved target positions while moving every clustered
+ * member along the exact reversible path to/from its place-cluster origin.
+ * Force state is never discarded merely because the overview hides members.
+ */
+function placeClusterTransitionDatums(
+  entities: readonly DeckWorldEntityDatum[],
+  clustered: readonly DeckWorldEntityRenderDatum[],
+  expansion: number,
+): PlaceClusterTransitionDatums {
+  const originByMember = new Map<WorldInstanceId, WorldRenderPosition>();
+  const clusters: DeckWorldClusterDatum[] = [];
+  for (const datum of clustered) {
+    if (datum.kind !== "cluster") continue;
+    clusters.push(datum);
+    for (const member of datum.clusterMembers) {
+      originByMember.set(member.worldInstanceId, datum.position);
+    }
+  }
+
+  const members: DeckWorldEntityDatum[] = [];
+  const loose: DeckWorldEntityDatum[] = [];
+  for (const entity of entities) {
+    const origin = originByMember.get(entity.worldInstanceId);
+    if (!origin) {
+      loose.push(entity);
+      continue;
+    }
+    const position = interpolateClusterPosition(origin, entity.position, expansion);
+    members.push(
+      positionEquals(position, entity.position)
+        ? entity
+        : Object.freeze({
+            ...entity,
+            position,
+          }),
+    );
+  }
+
+  return Object.freeze({
+    clusters: Object.freeze(clusters),
+    members: Object.freeze(members),
+    loose: Object.freeze(loose),
+    memberIds: new Set(originByMember.keys()),
+  });
+}
+
+function instanceIndexFromEntities(entities: readonly DeckWorldEntityDatum[]): WorldInstanceIndex {
+  const positions = new Map<WorldInstanceId, WorldRenderPosition>();
+  const entityIds = new Map<WorldInstanceId, EntityId>();
+  for (const entity of entities) {
+    positions.set(entity.worldInstanceId, entity.position);
+    entityIds.set(entity.worldInstanceId, entity.entityId);
+  }
+  return { positions, entityIds };
+}
+
+function scaleAlpha(color: Rgba, factor: number): Rgba {
+  const alpha = Math.max(0, Math.min(1, factor));
+  return [color[0], color[1], color[2], Math.round(color[3] * alpha)];
 }
 
 /**
@@ -903,11 +979,20 @@ function entityDatums(
   };
 }
 
+function worldPathEquals(
+  left: readonly WorldRenderPosition[],
+  right: readonly WorldRenderPosition[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((position, index) => positionEquals(position, right[index]!))
+  );
+}
+
 function relationshipDatumUnchanged(
   previous: DeckWorldRelationshipDatum,
   edge: WorldProjection["edges"][number],
-  source: WorldRenderPosition,
-  target: WorldRenderPosition,
+  path: readonly WorldRenderPosition[],
   selected: boolean,
   emphasized: boolean,
 ): boolean {
@@ -919,8 +1004,7 @@ function relationshipDatumUnchanged(
     previous.label === edge.label &&
     previous.sourceInstanceId === edge.sourceInstanceId &&
     previous.targetInstanceId === edge.targetInstanceId &&
-    positionEquals(previous.path[0], source) &&
-    positionEquals(previous.path[1], target)
+    worldPathEquals(previous.path, path)
   );
 }
 
@@ -941,6 +1025,30 @@ function relationshipDatums(
 } {
   const byId = new Map<RelationshipId, DeckWorldRelationshipDatum>();
   const result: DeckWorldRelationshipDatum[] = [];
+  const groups = new Map<string, WorldProjection["edges"][number][]>();
+  for (const edge of projection.edges) {
+    const sourceKey = String(edge.sourceInstanceId);
+    const targetKey = String(edge.targetInstanceId);
+    const pair =
+      sourceKey.localeCompare(targetKey) <= 0
+        ? JSON.stringify([sourceKey, targetKey])
+        : JSON.stringify([targetKey, sourceKey]);
+    const group = groups.get(pair);
+    if (group) group.push(edge);
+    else groups.set(pair, [edge]);
+  }
+  const lanes = new Map<RelationshipId, number>();
+  for (const group of groups.values()) {
+    group.sort((left, right) => String(left.id).localeCompare(String(right.id)));
+    if (group.length === 1) {
+      lanes.set(group[0]!.id, 0);
+      continue;
+    }
+    group.forEach((edge, index) => {
+      const magnitude = Math.floor(index / 2) + 1;
+      lanes.set(edge.id, index % 2 === 0 ? -magnitude : magnitude);
+    });
+  }
 
   for (const edge of projection.edges) {
     const source = index.positions.get(edge.sourceInstanceId);
@@ -951,9 +1059,18 @@ function relationshipDatums(
 
     const selected = selection?.kind === "relationship" && selection.id === edge.id;
     const emphasized = emphasizedRelationshipIds?.has(edge.id) === true;
+    const lane = lanes.get(edge.id) ?? 0;
+    const canonicalForward =
+      String(edge.sourceInstanceId).localeCompare(String(edge.targetInstanceId)) <= 0;
+    const canonicalPath = relationshipEdgePath(
+      canonicalForward ? source : target,
+      canonicalForward ? target : source,
+      lane,
+    );
+    const path = canonicalForward ? canonicalPath : Object.freeze([...canonicalPath].reverse());
     const prior = previous.get(edge.id);
     const datum =
-      prior && relationshipDatumUnchanged(prior, edge, source, target, selected, emphasized)
+      prior && relationshipDatumUnchanged(prior, edge, path, selected, emphasized)
         ? prior
         : Object.freeze({
             kind: "relationship" as const,
@@ -963,10 +1080,7 @@ function relationshipDatums(
             targetInstanceId: edge.targetInstanceId,
             sourceEntityId,
             targetEntityId,
-            path: Object.freeze([source, target]) as readonly [
-              WorldRenderPosition,
-              WorldRenderPosition,
-            ],
+            path,
             selected,
             emphasized,
             temporalWeight: edge.temporalWeight,
@@ -988,8 +1102,8 @@ function relationshipDatums(
 
 /**
  * Arrowheads for rendered relationships with a visible (non-zero) extent.
- * Like labels they follow the zoom budget: explicit focus may pin an edge,
- * while hover/selection never changes marker membership or geometry. Every edge
+ * Like labels they follow the zoom budget: selected/focused edges always
+ * keep their marker, then the most temporally relevant ones. Every edge
  * still carries its directed source/target identity in its own datum and in
  * the accessibility snapshot. A marker is reused by reference while its
  * relationship datum is.
@@ -1020,7 +1134,7 @@ function directionDatums(
       result.push(prior);
       continue;
     }
-    const path = directedEdgeArrowhead(edge.path[0], edge.path[1]);
+    const path = directedEdgePathArrowhead(edge.path);
     if (!path) continue;
     const datum: DeckWorldDirectionDatum = Object.freeze({
       kind: "relationship-direction",
@@ -1087,6 +1201,8 @@ export const WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM = 6;
  * Presentation only: logical activation remains immediate.
  */
 export const WORLD_TEMPORAL_RELATION_TRANSITION_MS = 3_000;
+/** Path topology moves quickly enough to explain parallel-edge fan-out without snapping. */
+export const WORLD_RELATION_PATH_TRANSITION_MS = 600;
 
 function temporalRelationEasing(t: number): number {
   return t * t * (3 - 2 * t);
@@ -1095,8 +1211,8 @@ function temporalRelationEasing(t: number): number {
 export function worldGraphLabelSize(
   _datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">,
 ): number {
-  // Interaction state may change color/opacity only. Text metrics must remain
-  // stable so hover/selection cannot trigger declutter relocation.
+  // Interaction state may change color/opacity only. Text metrics stay stable
+  // so hover/selection cannot trigger declutter relocation.
   return 18;
 }
 
@@ -1316,7 +1432,7 @@ function labelDatums(input: {
       prior && labelDatumUnchanged(prior, text, position, emphasized) ? prior : create();
     byKey.set(key, datum);
     result.push(datum);
-    // Interaction emphasis must never affect label ordering or placement.
+    // Interaction emphasis must not affect label ordering or placement.
     priority.set(datum, [1, -importance, group]);
   };
 
@@ -1394,11 +1510,11 @@ function labelDatums(input: {
   const relationships = selectPrioritizedLabels(
     input.relationships.filter((relationship) => relationship.label && !input.clustered),
     {
-      // Clustered topology is represented by its geographic anchor. Keep the
-      // place label as the sole visual label until the cluster expands again.
+      // Relationship predicates are semantic graph content, but a fully
+      // collapsed place cluster has no visible edge geometry. Hide ordinary
+      // predicates with those edges; selected/focused context may remain.
       budget: input.zoom >= LABEL_DETAIL_KEEP_ALL_ZOOM ? Number.POSITIVE_INFINITY : budget,
-      isPinned: (relationship) =>
-        focused("relationship", relationship.relationshipId),
+      isPinned: (relationship) => focused("relationship", relationship.relationshipId),
       importance: (relationship) => relationship.temporalWeight,
       key: (relationship) => relationship.relationshipId,
     },
@@ -1406,7 +1522,7 @@ function labelDatums(input: {
   for (const relationship of relationships) {
     const text = relationship.label ?? "";
     const emphasized = pinnedRelationship(relationship);
-    const position = edgeMidpoint(relationship.path[0], relationship.path[1]);
+    const position = edgePathMidpoint(relationship.path);
     const key = `relationship:${relationship.relationshipId}`;
     emit(
       key,
@@ -1645,6 +1761,7 @@ export class DeckWorldSurface implements WorldSurface {
   // actually turn on/off (ordinary panning/zooming above the threshold stays
   // as cheap as before).
   #clusteredLastRender = false;
+  #clusterExpansionLastRender = 1;
   // Same idea for the semantic label/marker LOD tier: a tier change only
   // matters when some kind has more candidates than the smaller budget.
   #labelBudgetLastRender = -1;
@@ -1770,8 +1887,7 @@ export class DeckWorldSurface implements WorldSurface {
   readonly #handleDeckClick = (info: DeckRuntimePickingInfo): void => {
     if (this.#activeDragPointerId !== null) return;
     const next = this.#selectionFromPickingInfo(info);
-    const toggled =
-      next !== null && selectionEquals(next, this.#selection) ? null : next;
+    const toggled = next !== null && selectionEquals(next, this.#selection) ? null : next;
     const changed =
       toggled === null
         ? this.#selection !== null
@@ -2564,15 +2680,19 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #zoomNeedsRender(): boolean {
+    const clusterExpansion = this.#placeClusterExpansion();
     const clusteredNow =
       shouldClusterEntityDatums(this.#entityDatumCache.size, this.#camera.zoom) ||
-      this.#placeClustered();
+      clusterExpansion < 1;
+    const clusterMotionChanged =
+      Math.abs(clusterExpansion - this.#clusterExpansionLastRender) > 0.002;
     const budget = worldLabelBudget(this.#camera.zoom);
     const lodChanged =
       budget !== this.#labelBudgetLastRender &&
       Math.min(budget, this.#labelBudgetLastRender) < this.#lodCandidateCountLastRender;
     return (
       clusteredNow !== this.#clusteredLastRender ||
+      clusterMotionChanged ||
       lodChanged ||
       this.#nextOffsetScale() !== this.#offsetScale ||
       this.#nextFloatMeters() !== this.#floatMeters
@@ -2604,21 +2724,43 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   /**
-   * True when places' local graphs would be too small on screen to tell
-   * entities apart: each place's entities then show as one cluster bubble
-   * (labelled by the place), freeing the globe for rotation and picking.
+   * Continuous place-cluster expansion. At 0 only the place cluster is
+   * visible; at 1 the active force backend owns the full node positions.
+   * Intermediate zooms blend between those endpoints instead of swapping
+   * representations at a threshold.
    */
-  #placeClustered(zoom = this.#camera.zoom): boolean {
+  #placeClusterExpansion(zoom = this.#camera.zoom): number {
     const instances = this.#projection.instances;
-    if (instances.length === 0 || shouldClusterEntityDatums(instances.length, zoom)) return false;
+    if (instances.length === 0) return 1;
+
+    // Only multi-member place groups participate. A lone anchored entity has
+    // nothing to collapse into, so ordinary camera zoom must not trigger
+    // continuous re-renders for it.
+    const placeCounts = new Map<PlaceId, number>();
+    let hasClusterablePlace = false;
+    for (const instance of instances) {
+      const placeId = instance.geographicAnchors[0]?.placeId;
+      if (!placeId) continue;
+      const count = (placeCounts.get(placeId) ?? 0) + 1;
+      placeCounts.set(placeId, count);
+      if (count > 1) {
+        hasClusterablePlace = true;
+        break;
+      }
+    }
+    if (!hasClusterablePlace) return 1;
+
+    // Before the force backend has emitted local displacement, the
+    // logical origin is exactly the place cluster. This makes the first
+    // solved layout expand from that origin instead of popping into view.
     const typical = this.#typicalOffsetMeters();
-    if (typical <= 0) return false;
+    if (typical <= 0) return 0;
     const radius = worldLocalRadiusPx(
       typical * this.#nextOffsetScale(zoom),
       zoom,
       this.#camera.latitude,
     );
-    return radius < WORLD_PLACE_CLUSTER_RADIUS_PX;
+    return worldClusterExpansionProgress(radius, WORLD_PLACE_CLUSTER_RADIUS_PX);
   }
 
   /**
@@ -2742,11 +2884,7 @@ export class DeckWorldSurface implements WorldSurface {
 
       const previous = this.#temporalRelationshipState.get(relationship.relationshipId);
       if (!previous || !previous.temporalActive) temporalChanged = true;
-      if (
-        !previous ||
-        !positionEquals(previous.edge.path[0], relationship.path[0]) ||
-        !positionEquals(previous.edge.path[1], relationship.path[1])
-      ) {
+      if (!previous || !worldPathEquals(previous.edge.path, relationship.path)) {
         pathChanged = true;
       }
       if (
@@ -2816,7 +2954,6 @@ export class DeckWorldSurface implements WorldSurface {
   #render(withCamera = false): void {
     this.#offsetScale = this.#nextOffsetScale();
     this.#floatMeters = this.#nextFloatMeters();
-    const index = this.#instanceIndex();
     const neighborhood = interactionNeighborhood(this.#projection, [
       this.#selection,
       this.#hoverSelection,
@@ -2827,13 +2964,6 @@ export class DeckWorldSurface implements WorldSurface {
       this.#placeDatumCache,
       neighborhood.placeIds,
     );
-    const relationshipResult = relationshipDatums(
-      this.#projection,
-      index,
-      this.#selection,
-      this.#relationshipDatumCache,
-      neighborhood.relationshipIds,
-    );
     const entityResult = entityDatums(
       this.#projection.instances,
       this.#selection,
@@ -2842,22 +2972,59 @@ export class DeckWorldSurface implements WorldSurface {
       this.#floatMeters,
       neighborhood.entityIds,
     );
+
+    const rawPlaceExpansion = this.#placeClusterExpansion();
+    const placeClusterCandidates = clusterEntityDatumsByPlace(
+      entityResult.datums,
+      this.#projection.instances,
+      worldPixelsToDegrees(WORLD_CLUSTER_MERGE_PX, this.#camera.zoom),
+    );
+    const hasPlaceClusters = placeClusterCandidates.some((datum) => datum.kind === "cluster");
+    const placeExpansion = hasPlaceClusters ? rawPlaceExpansion : 1;
+    const placeTransition = placeClusterTransitionDatums(
+      entityResult.datums,
+      placeClusterCandidates,
+      placeExpansion,
+    );
+    const transitionEntities = Object.freeze([
+      ...placeTransition.members,
+      ...placeTransition.loose,
+    ]);
+
+    // Relationship geometry consumes the same interpolated positions as node
+    // rendering. When zooming out, both endpoints therefore travel back to
+    // the place origin and the edge collapses with them.
+    const relationshipResult = relationshipDatums(
+      this.#projection,
+      instanceIndexFromEntities(transitionEntities),
+      this.#selection,
+      this.#relationshipDatumCache,
+      neighborhood.relationshipIds,
+    );
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
+
+    const gridClustered =
+      placeExpansion >= 1 &&
+      shouldClusterEntityDatums(entityResult.datums.length, this.#camera.zoom);
     const temporalRelationships = this.#temporalRelationshipDatums(relationships);
-    const placeClustered = this.#placeClustered();
-    const entities = placeClustered
-      ? clusterEntityDatumsByPlace(
-          entityResult.datums,
-          this.#projection.instances,
-          worldPixelsToDegrees(WORLD_CLUSTER_MERGE_PX, this.#camera.zoom),
-        )
-      : clusterEntityDatums(entityResult.datums, this.#camera.zoom);
+    // Keep place-cluster and member rows alive at both endpoints. Clusters
+    // reach zero radius/alpha at full expansion; members reach zero size/alpha
+    // at full collapse. Stable rows give deck a prior value to interpolate
+    // when an asynchronous force backend publishes a solved target at once.
+    const entities: readonly DeckWorldEntityRenderDatum[] = gridClustered
+      ? clusterEntityDatums(entityResult.datums, this.#camera.zoom)
+      : Object.freeze([
+          ...placeTransition.clusters,
+          ...placeTransition.loose,
+          ...placeTransition.members,
+        ]);
+
     this.#placeDatumCache = placeResult.byId;
     this.#relationshipDatumCache = relationshipResult.byId;
     this.#entityDatumCache = entityResult.byId;
-    this.#clusteredLastRender =
-      placeClustered || shouldClusterEntityDatums(entityResult.datums.length, this.#camera.zoom);
+    this.#clusteredLastRender = placeExpansion < 1 || gridClustered;
+    this.#clusterExpansionLastRender = rawPlaceExpansion;
     this.#labelBudgetLastRender = worldLabelBudget(this.#camera.zoom);
     this.#lodCandidateCountLastRender = Math.max(
       places.length,
@@ -2871,34 +3038,50 @@ export class DeckWorldSurface implements WorldSurface {
       this.#directionDatumCache,
     );
     this.#directionDatumCache = directionResult.byId;
-    // Kind icons follow the same LOD as labels. Only explicit focus may pin
-    // an icon; hover/selection stays presentation-only and cannot perturb LOD.
     const focus = this.#focus;
     const pinnedEntity = (entity: DeckWorldEntityDatum) =>
       focus?.kind === "entity" && focus.id === entity.entityId;
+    const edgeExpansion = (edge: Pick<
+      DeckWorldRelationshipDatum,
+      "sourceInstanceId" | "targetInstanceId"
+    >): number => {
+      if (gridClustered) return 0;
+      return placeTransition.memberIds.has(edge.sourceInstanceId) ||
+        placeTransition.memberIds.has(edge.targetInstanceId)
+        ? placeExpansion
+        : 1;
+    };
+    const entityExpansion = (entity: DeckWorldEntityDatum): number =>
+      gridClustered
+        ? 0
+        : placeTransition.memberIds.has(entity.worldInstanceId)
+          ? placeExpansion
+          : 1;
+    const clusterVisibility = placeExpansion < 1 ? 1 - placeExpansion : 1;
+
+    // Fully clustered place members are retained in force/layout state but
+    // not exposed as glyphs or hit targets. Loose/unclustered entities remain.
+    const iconSource = gridClustered
+      ? Object.freeze([] as DeckWorldEntityDatum[])
+      : transitionEntities;
     const iconDatums = this.#runtime.createIconLayer
-      ? selectPrioritizedLabels(
-          entityResult.datums.filter(
-            (entity) => !this.#clusteredLastRender || pinnedEntity(entity),
-          ),
-          {
-            // Markers are the node bodies, so every entity gets one; only
-            // dense scenes fall back to the label budget.
-            budget:
-              entityResult.datums.length >= DENSE_CLUSTER_ENTITY_THRESHOLD
-                ? worldLabelBudget(this.#camera.zoom)
-                : Number.POSITIVE_INFINITY,
-            isPinned: pinnedEntity,
-            importance: (entity) => entity.visualWeight,
-            key: (entity) => entity.worldInstanceId,
-          },
-        )
+      ? selectPrioritizedLabels(iconSource, {
+          budget:
+            iconSource.length >= DENSE_CLUSTER_ENTITY_THRESHOLD
+              ? worldLabelBudget(this.#camera.zoom)
+              : Number.POSITIVE_INFINITY,
+          isPinned: pinnedEntity,
+          importance: (entity) => entity.visualWeight,
+          key: (entity) => entity.worldInstanceId,
+        })
       : null;
+    const labelEntities = iconSource;
+    const labelRelationships = relationships.filter((relationship) => edgeExpansion(relationship) > 0);
     const labelResult = this.#runtime.createTextLayer
       ? labelDatums({
           places,
-          relationships,
-          entities: entityResult.datums,
+          relationships: labelRelationships,
+          entities: labelEntities,
           clustered: this.#clusteredLastRender,
           zoom: this.#camera.zoom,
           focus: this.#focus,
@@ -2907,7 +3090,9 @@ export class DeckWorldSurface implements WorldSurface {
       : null;
     this.#labelDatumCache = labelResult?.byKey ?? new Map();
 
-    const tethers = this.#tethers(this.#clusteredLastRender ? [] : entityResult.datums);
+    // Tethers remain in the retained data set during collapse so their width
+    // and alpha can reach zero at the exact place origin before disappearing.
+    const tethers = gridClustered ? [] : this.#tethers(transitionEntities);
     const layers = [
       // Earth base: orientation on light and dark hosts, and depth-occludes
       // the far side of the globe. Never pickable.
@@ -2965,9 +3150,9 @@ export class DeckWorldSurface implements WorldSurface {
         data: places,
         dataComparator: sameDatumSequence,
         pickable: true,
-        // Screen-constant pick target. When IconLayer is available the visible
-        // shape/icon/border/fill comes from the same marker renderer as graph
-        // nodes; ScatterplotLayer remains the >=44px acquisition fallback.
+        // Screen-constant acquisition target. IconLayer owns the visible
+        // node-like marker when available; ScatterplotLayer remains the
+        // >=44px fallback and pick body.
         radiusUnits: "pixels",
         getPosition: (datum: DeckWorldPlaceDatum) => datum.position,
         getRadius: (datum: DeckWorldPlaceDatum) =>
@@ -3036,7 +3221,7 @@ export class DeckWorldSurface implements WorldSurface {
         id: DECK_WORLD_LAYER_IDS.relationships,
         data: temporalRelationships,
         dataComparator: sameDatumSequence,
-        pickable: true,
+        pickable: !gridClustered,
         widthUnits: "pixels",
         getPath: (datum: DeckWorldTemporalRelationshipDatum) =>
           this.#temporalRelationshipStateFor(datum).edge.path,
@@ -3046,7 +3231,8 @@ export class DeckWorldSurface implements WorldSurface {
         getWidth: (datum: DeckWorldTemporalRelationshipDatum) => {
           const state = this.#temporalRelationshipStateFor(datum);
           const width = this.#temporalEdgeStyle(datum).width;
-          return prefersReducedMotion() ? width : state.temporalActive ? width : 0;
+          const temporalWidth = prefersReducedMotion() ? width : state.temporalActive ? width : 0;
+          return temporalWidth * edgeExpansion(state.edge);
         },
         getColor: (datum: DeckWorldTemporalRelationshipDatum) => {
           const state = this.#temporalRelationshipStateFor(datum);
@@ -3057,10 +3243,16 @@ export class DeckWorldSurface implements WorldSurface {
               : 215;
           return worldColorBytes(
             this.#temporalEdgeStyle(datum).color,
-            state.temporalActive ? emphasisAlpha : 0,
+            state.temporalActive
+              ? Math.round(emphasisAlpha * edgeExpansion(state.edge))
+              : 0,
           );
         },
         transitions: {
+          getPath: {
+            duration: WORLD_RELATION_PATH_TRANSITION_MS,
+            easing: temporalRelationEasing,
+          },
           getWidth: {
             duration: WORLD_TEMPORAL_RELATION_TRANSITION_MS,
             easing: temporalRelationEasing,
@@ -3083,11 +3275,15 @@ export class DeckWorldSurface implements WorldSurface {
             this.#palette,
             this.#temporalRelationshipRevision,
             this.#relationshipStyleRevision,
+            placeExpansion,
+            gridClustered,
           ],
           getColor: [
             this.#palette,
             this.#temporalRelationshipRevision,
             this.#relationshipStyleRevision,
+            placeExpansion,
+            gridClustered,
           ],
         },
         parameters: { cullMode: "none" },
@@ -3103,22 +3299,41 @@ export class DeckWorldSurface implements WorldSurface {
         // layer is their (invisible) pick/drag target and draws clusters.
         getRadius: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster"
-            ? 12 + Math.min(datum.clusterMembers.length, 30) * 0.5
+            ? (12 + Math.min(datum.clusterMembers.length, 30) * 0.5) * clusterVisibility
             : Math.max(
                 WORLD_ENTITY_MIN_HIT_RADIUS_PX,
                 this.#entityStyle(datum).radius + this.#entityStyle(datum).borderWidth,
-              ),
+              ) * entityExpansion(datum),
         stroked: true,
         lineWidthUnits: "pixels",
-        getLineWidth: (datum: DeckWorldEntityRenderDatum) => (datum.kind === "cluster" ? 2 : 0),
-        getLineColor: this.#theme.clusterBorder,
+        getLineWidth: (datum: DeckWorldEntityRenderDatum) =>
+          datum.kind === "cluster" ? 2 * clusterVisibility : 0,
+        getLineColor: (datum: DeckWorldEntityRenderDatum) =>
+          datum.kind === "cluster"
+            ? scaleAlpha(this.#theme.clusterBorder, clusterVisibility)
+            : this.#theme.clusterBorder,
         getFillColor: (datum: DeckWorldEntityRenderDatum) =>
-          datum.kind === "cluster" ? this.#theme.cluster : this.#theme.hit,
+          datum.kind === "cluster"
+            ? scaleAlpha(this.#theme.cluster, clusterVisibility)
+            : this.#theme.hit,
         updateTriggers: {
-          getRadius: this.#palette,
-          getLineColor: this.#palette,
-          getFillColor: this.#palette,
+          getRadius: [this.#palette, placeExpansion, gridClustered],
+          getLineWidth: [placeExpansion, gridClustered],
+          getLineColor: [this.#palette, placeExpansion, gridClustered],
+          getFillColor: [this.#palette, placeExpansion, gridClustered],
         },
+        transitions: prefersReducedMotion()
+          ? undefined
+          : {
+              getPosition: {
+                duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
+                easing: temporalRelationEasing,
+              },
+              getRadius: 120,
+              getLineWidth: 120,
+              getLineColor: 120,
+              getFillColor: 120,
+            },
         ...(this.#nodeDragSink
           ? {
               onDragStart: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
@@ -3143,9 +3358,27 @@ export class DeckWorldSurface implements WorldSurface {
               pickable: false,
               widthUnits: "pixels",
               getPath: (tether: DeckWorldTether) => tether.path,
-              getWidth: 1,
-              getColor: this.#theme.tether,
-              updateTriggers: { getColor: this.#palette },
+              getWidth: (tether: DeckWorldTether) =>
+                placeTransition.memberIds.has(tether.worldInstanceId) ? placeExpansion : 1,
+              getColor: (tether: DeckWorldTether) =>
+                scaleAlpha(
+                  this.#theme.tether,
+                  placeTransition.memberIds.has(tether.worldInstanceId) ? placeExpansion : 1,
+                ),
+              updateTriggers: {
+                getWidth: [placeExpansion],
+                getColor: [this.#palette, placeExpansion],
+              },
+              transitions: prefersReducedMotion()
+                ? undefined
+                : {
+                    getPath: {
+                      duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
+                      easing: temporalRelationEasing,
+                    },
+                    getWidth: 120,
+                    getColor: 120,
+                  },
               parameters: { cullMode: "none" },
             }),
           ]
@@ -3156,7 +3389,7 @@ export class DeckWorldSurface implements WorldSurface {
               id: DECK_WORLD_LAYER_IDS.entityIcons,
               data: this.#cameraFacingEntities(iconDatums),
               dataComparator: sameDatumSequence,
-              pickable: true,
+              pickable: !gridClustered,
               billboard: true,
               sizeUnits: "pixels",
               getPosition: (datum: DeckWorldEntityDatum) => datum.position,
@@ -3164,19 +3397,31 @@ export class DeckWorldSurface implements WorldSurface {
               // the entity's own style or the type default.
               getIcon: (datum: DeckWorldEntityDatum) => worldNodeMarker(this.#entityStyle(datum)),
               getSize: (datum: DeckWorldEntityDatum) =>
-                worldNodeMarker(this.#entityStyle(datum)).size,
-              getColor: (datum: DeckWorldEntityDatum) => [
-                255,
-                255,
-                255,
-                datum.selected ? 255 : datum.emphasized ? 242 : 215,
-              ],
+                worldNodeMarker(this.#entityStyle(datum)).size * entityExpansion(datum),
+              getColor: (datum: DeckWorldEntityDatum) => {
+                const emphasisAlpha = datum.selected ? 255 : datum.emphasized ? 242 : 215;
+                return [
+                  255,
+                  255,
+                  255,
+                  Math.round(emphasisAlpha * entityExpansion(datum)),
+                ] as Rgba;
+              },
               updateTriggers: {
                 getIcon: this.#palette,
-                getSize: this.#palette,
-                getColor: this.#palette,
+                getSize: [this.#palette, placeExpansion, gridClustered],
+                getColor: [placeExpansion, gridClustered],
               },
-              transitions: prefersReducedMotion() ? undefined : { getColor: 120 },
+              transitions: prefersReducedMotion()
+                ? undefined
+                : {
+                    getPosition: {
+                      duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
+                      easing: temporalRelationEasing,
+                    },
+                    getSize: 120,
+                    getColor: 120,
+                  },
               // GlobeView culls back faces; billboarded icon quads vanish
               // without this (same as the label TextLayer). Markers draw
               // without depth testing so the invisible earth never clips
@@ -3199,21 +3444,38 @@ export class DeckWorldSurface implements WorldSurface {
         id: DECK_WORLD_LAYER_IDS.relationshipDirections,
         data: directionResult.datums.filter((datum) => this.#edgeStyle(datum.edge).arrow),
         dataComparator: sameDatumSequence,
-        pickable: true,
+        pickable: !gridClustered,
         widthUnits: "pixels",
-        widthMinPixels: 2,
+        widthMinPixels: 0,
         jointRounded: true,
         capRounded: true,
         getPath: (datum: DeckWorldDirectionDatum) => datum.path,
-        getWidth: (datum: DeckWorldDirectionDatum) => this.#edgeStyle(datum.edge).width + 1,
-        getColor: (datum: DeckWorldDirectionDatum) =>
-          worldColorBytes(
+        getWidth: (datum: DeckWorldDirectionDatum) =>
+          (this.#edgeStyle(datum.edge).width + 1) * edgeExpansion(datum),
+        getColor: (datum: DeckWorldDirectionDatum) => {
+          const emphasisAlpha = datum.edge.selected
+            ? 255
+            : datum.edge.emphasized
+              ? 242
+              : 215;
+          return worldColorBytes(
             this.#edgeStyle(datum.edge).color,
-            datum.edge.selected ? 255 : datum.edge.emphasized ? 242 : 215,
-          ),
+            Math.round(emphasisAlpha * edgeExpansion(datum)),
+          );
+        },
+        transitions: prefersReducedMotion()
+          ? undefined
+          : {
+              getPath: {
+                duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
+                easing: temporalRelationEasing,
+              },
+              getWidth: 120,
+              getColor: 120,
+            },
         updateTriggers: {
-          getWidth: this.#palette,
-          getColor: [this.#palette, this.#relationshipStyleRevision],
+          getWidth: [this.#palette, placeExpansion, gridClustered],
+          getColor: [this.#palette, placeExpansion, gridClustered],
         },
         parameters: { cullMode: "none" },
       }),
@@ -3235,18 +3497,37 @@ export class DeckWorldSurface implements WorldSurface {
               getText: (datum: DeckWorldLabelDatum) => datum.text,
               getPosition: (datum: DeckWorldLabelDatum) => datum.position,
               getSize: worldGraphLabelSize,
-              getColor: (datum: DeckWorldLabelDatum) =>
-                datum.emphasized
+              getColor: (datum: DeckWorldLabelDatum) => {
+                const base = datum.emphasized
                   ? this.#theme.labelEmphasis
                   : datum.kind === "place-label"
                     ? this.#theme.labelPlace
                     : datum.kind === "relationship-label"
                       ? this.#theme.labelRelationship
-                      : this.#theme.labelText,
+                      : this.#theme.labelText;
+                if (datum.kind === "place-label") return base;
+                if (datum.kind === "relationship-label") {
+                  const edge = relationshipResult.byId.get(datum.relationshipId);
+                  return scaleAlpha(base, edge ? edgeExpansion(edge) : 0);
+                }
+                const entity = entityResult.byId.get(datum.worldInstanceId);
+                return scaleAlpha(base, entity ? entityExpansion(entity) : 0);
+              },
               getTextAnchor: "middle",
               getAlignmentBaseline: "center",
               getPixelOffset: labelPixelOffset,
-              transitions: prefersReducedMotion() ? undefined : { getColor: 120 },
+              updateTriggers: {
+                getColor: [this.#palette, placeExpansion, gridClustered],
+              },
+              transitions: prefersReducedMotion()
+                ? undefined
+                : {
+                    getPosition: {
+                      duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
+                      easing: temporalRelationEasing,
+                    },
+                    getColor: 120,
+                  },
               // GlobeView culls back faces; billboarded glyph quads are
               // wound the other way and vanish without this. Labels draw
               // over marks (far-side labels are filtered out above) so
@@ -3382,6 +3663,7 @@ export class DeckWorldSurface implements WorldSurface {
       const anchor = anchors.get(entity.worldInstanceId);
       if (!anchor) continue;
       const tether: DeckWorldTether = Object.freeze({
+        worldInstanceId: entity.worldInstanceId,
         path: Object.freeze([anchor, entity.position]) as readonly [
           WorldRenderPosition,
           WorldRenderPosition,
