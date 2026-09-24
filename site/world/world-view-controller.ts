@@ -1,3 +1,4 @@
+import type { PlaceId } from "../../src/domain/ids.ts";
 import {
   createInteractionCoordinator,
   type InteractionCompletionReason,
@@ -137,6 +138,16 @@ export class WorldViewRuntimeController {
     this.#surface.setTemporalWindow(window);
   }
 
+  setClusteredPlaceIds(placeIds: readonly PlaceId[]): void {
+    this.#assertAlive();
+    this.#forceBackend.setClusteredPlaceIds?.(placeIds);
+    this.#simulation.request({
+      reason: "topology",
+      energyTarget: 0.12,
+      reheat: true,
+    });
+  }
+
   setSelection(selection: WorldSelection | null): void {
     this.#assertAlive();
     this.#surface.setSelection(selection);
@@ -207,6 +218,7 @@ export class WorldViewRuntimeController {
     if (diagnostics.settled) {
       this.#simulation.release("projection-update");
       this.#simulation.release("spatial-anchor-update");
+      this.#simulation.release("topology");
       if (this.#drag.state().settling) this.#drag.commit();
     }
 
