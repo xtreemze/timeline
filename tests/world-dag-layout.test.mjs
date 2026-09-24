@@ -225,11 +225,7 @@ test("weight-only temporal changes reuse the accepted DAG layout", () => {
   const c = instance("cache-c");
   const firstProjection = createWorldProjection({
     instances: [a, b, c],
-    edges: [
-      edge("cache-ab", a, b, 1),
-      edge("cache-bc", b, c, 0.8),
-      edge("cache-ca", c, a, 0.1),
-    ],
+    edges: [edge("cache-ab", a, b, 1), edge("cache-bc", b, c, 0.8), edge("cache-ca", c, a, 0.1)],
   });
   const secondProjection = createWorldProjection({
     instances: [a, b, c],
@@ -277,8 +273,7 @@ test("dense neighborhoods avoid simplex operators even below node-count threshol
 });
 
 function testSegmentIntersection(a, b, c, d) {
-  const orient = (p, q, r) =>
-    (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+  const orient = (p, q, r) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
   return orient(a, b, c) * orient(a, b, d) < 0 && orient(c, d, a) * orient(c, d, b) < 0;
 }
 
@@ -337,4 +332,3 @@ test("Sugiyama reduces crossings versus the former circular baseline", () => {
     `expected Sugiyama crossings ${dagCrossings} to beat circular baseline ${circularCrossings}`,
   );
 });
-
