@@ -1,6 +1,6 @@
 /**
  * Temporary compatibility shim for time-scale ESM migration
- * Sets TimelineScale on globalThis for legacy global consumers
+ * Sets TimelineScale on globalThis for backward compatibility with IIFE code
  * This shim can be removed after app.ts conversion (Phase 4d)
  */
 
