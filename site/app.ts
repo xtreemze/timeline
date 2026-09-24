@@ -4388,11 +4388,9 @@ function closeProjectMenu() {
 }
 
 els.importJsonTrigger?.addEventListener("click", () => {
-  if (ui.mode !== "edit") return;
   els.importJson?.click();
 });
 els.importInterchangeTrigger?.addEventListener("click", () => {
-  if (ui.mode !== "edit") return;
   els.importInterchange?.click();
 });
 function projectMenuViewport() {
@@ -5373,7 +5371,6 @@ els.title.addEventListener("input", () => {
 });
 
 els.loadSample.addEventListener("click", () => {
-  if (ui.mode !== "edit") return;
   if (
     (state.items.length || state.stories.length) &&
     !window.confirm("Replace the current timeline with the example dataset?")
@@ -5396,6 +5393,7 @@ els.loadSample.addEventListener("click", () => {
   resetStoryForm();
   resetCategoryForm();
   resetGraphNodeForm();
+  resetGraphPlaceForm();
   resetGraphEdgeForm();
   persist();
   renderAll();
@@ -5414,6 +5412,7 @@ function applyImportedTimeline(imported, statusPrefix = "Imported", warningCount
   resetStoryForm();
   resetCategoryForm();
   resetGraphNodeForm();
+  resetGraphPlaceForm();
   resetGraphEdgeForm();
   persist();
   renderAll();
@@ -5541,7 +5540,6 @@ const agentApi = Object.freeze({
 globalThis.TimelineAgentAPI = agentApi;
 
 els.importJson.addEventListener("change", async () => {
-  if (ui.mode !== "edit") return;
   const file = els.importJson.files?.[0];
   if (!file) return;
   try {
@@ -5569,7 +5567,6 @@ els.importJson.addEventListener("change", async () => {
 });
 
 els.importInterchange.addEventListener("change", async () => {
-  if (ui.mode !== "edit") return;
   const file = els.importInterchange.files?.[0];
   if (!file) return;
   try {
@@ -5622,7 +5619,6 @@ els.exportMarkdown.addEventListener("click", () => {
 });
 
 els.clear.addEventListener("click", () => {
-  if (ui.mode !== "edit") return;
   if (
     (state.items.length || state.stories.length || state.title) &&
     !window.confirm("Clear this timeline? This removes its locally stored items and stories.")
@@ -5640,6 +5636,7 @@ els.clear.addEventListener("click", () => {
   resetStoryForm();
   resetCategoryForm();
   resetGraphNodeForm();
+  resetGraphPlaceForm();
   resetGraphEdgeForm();
   persist();
   renderAll();
@@ -5651,6 +5648,7 @@ resetItemForm();
 resetStoryForm();
 resetCategoryForm();
 resetGraphNodeForm();
+resetGraphPlaceForm();
 resetGraphEdgeForm();
 setActivePanel("items", { open: false });
 syncApplicationSurfaces();
