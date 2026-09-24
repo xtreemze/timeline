@@ -1,11 +1,11 @@
 import { spawn } from "node:child_process";
-import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const workspace = process.cwd();
 const outputRoot = path.resolve(process.env.E2E_MEDIA_DIR ?? "artifacts/e2e-media");
 const workDir = path.join(outputRoot, ".render");
-const gifsRoot = path.join(outputRoot, "gifs");
+const showcaseRoot = path.join(outputRoot, "showcase");
 const reelsDir = path.join(outputRoot, "reels");
 const markdownPath = path.join(outputRoot, "README-showcase.md");
 const manifestPath = path.join(outputRoot, "manifest.json");
@@ -28,35 +28,73 @@ function run(command, args) {
   });
 }
 
-async function probeDuration(filePath) {
+function capture(command, args) {
   return new Promise((resolve, reject) => {
-    const child = spawn(
-      ffprobe,
-      [
-        "-v",
-        "error",
-        "-show_entries",
-        "format=duration",
-        "-of",
-        "default=noprint_wrappers=1:nokey=1",
-        filePath,
-      ],
-      { cwd: workspace, stdio: ["ignore", "pipe", "inherit"], env: process.env },
-    );
+    const child = spawn(command, args, {
+      cwd: workspace,
+      stdio: ["ignore", "pipe", "inherit"],
+      env: process.env,
+    });
     let stdout = "";
     child.stdout.on("data", (chunk) => {
       stdout += chunk;
     });
     child.on("error", reject);
     child.on("exit", (code, signal) => {
-      if (code !== 0) return reject(new Error(`${ffprobe} exited with ${code ?? signal}`));
-      const duration = Number.parseFloat(stdout.trim());
-      if (!Number.isFinite(duration) || duration <= 0) {
-        return reject(new Error(`Could not determine duration for ${filePath}`));
-      }
-      resolve(duration);
+      if (code === 0) return resolve(stdout);
+      reject(new Error(`${command} exited with ${code ?? signal}`));
     });
   });
+}
+
+async function probeDuration(filePath) {
+  const stdout = await capture(ffprobe, [
+    "-v",
+    "error",
+    "-show_entries",
+    "format=duration",
+    "-of",
+    "default=noprint_wrappers=1:nokey=1",
+    filePath,
+  ]);
+  const duration = Number.parseFloat(stdout.trim());
+  if (!Number.isFinite(duration) || duration <= 0) {
+    throw new Error(`Could not determine duration for ${filePath}`);
+  }
+  return duration;
+}
+
+function usableFrameRate(value) {
+  return typeof value === "string" && value.length > 0 && value !== "0/0";
+}
+
+async function probeVisualSource(filePath) {
+  const stdout = await capture(ffprobe, [
+    "-v",
+    "error",
+    "-select_streams",
+    "v:0",
+    "-show_entries",
+    "stream=width,height,avg_frame_rate,r_frame_rate",
+    "-of",
+    "json",
+    filePath,
+  ]);
+  const parsed = JSON.parse(stdout);
+  const stream = parsed.streams?.[0];
+  if (!stream || !Number.isFinite(stream.width) || !Number.isFinite(stream.height)) {
+    throw new Error(`Could not determine dimensions for ${filePath}`);
+  }
+  const fps = usableFrameRate(stream.avg_frame_rate)
+    ? stream.avg_frame_rate
+    : usableFrameRate(stream.r_frame_rate)
+      ? stream.r_frame_rate
+      : null;
+  return {
+    width: stream.width,
+    height: stream.height,
+    fps,
+  };
 }
 
 function assertManifest(manifest, formFactor) {
@@ -64,39 +102,151 @@ function assertManifest(manifest, formFactor) {
   if (!Array.isArray(manifest.segments) || manifest.segments.length !== 5) {
     throw new Error(`${formFactor} manifest must contain exactly five showcase scenes`);
   }
+
+  const motion = manifest.segments.filter((segment) => segment.mediaMode === "motion");
+  const still = manifest.segments.filter((segment) => segment.mediaMode === "static");
+  if (motion.length !== 2 || still.length !== 3) {
+    throw new Error(
+      `${formFactor} showcase must contain two motion scenes and three static scenes`,
+    );
+  }
+  for (const segment of motion) {
+    if (!segment.video) throw new Error(`Motion scene ${segment.name} is missing its WebM source`);
+  }
 }
+
 
 async function renderFormFactor(formFactor, manifest) {
   const factorWorkDir = path.join(workDir, formFactor);
-  const gifsDir = path.join(gifsRoot, formFactor);
+  const factorShowcaseDir = path.join(showcaseRoot, formFactor);
   await mkdir(factorWorkDir, { recursive: true });
-  await mkdir(gifsDir, { recursive: true });
+  await mkdir(factorShowcaseDir, { recursive: true });
   await mkdir(reelsDir, { recursive: true });
 
-  const normalizeFilter = [
-    `scale=${manifest.width}:${manifest.height}:force_original_aspect_ratio=decrease`,
-    `pad=${manifest.width}:${manifest.height}:(ow-iw)/2:(oh-ih)/2:color=0x0b0c10`,
-    "setsar=1",
-    `fps=${manifest.fps}`,
-    "format=yuv420p",
-  ].join(",");
+  const sources = [];
+  for (const segment of manifest.segments) {
+    const screenshotPath = path.resolve(workspace, segment.screenshot);
+    const screenshot = await probeVisualSource(screenshotPath);
+    if (segment.mediaMode === "motion") {
+      const videoPath = path.resolve(workspace, segment.video);
+      const video = await probeVisualSource(videoPath);
+      if (!video.fps) throw new Error(`Could not determine source FPS for ${videoPath}`);
+      sources.push({ segment, screenshotPath, screenshot, videoPath, video });
+    } else {
+      sources.push({ segment, screenshotPath, screenshot, videoPath: null, video: null });
+    }
+  }
+
+  const firstMotion = sources.find((entry) => entry.video);
+  if (!firstMotion) throw new Error(`${formFactor} showcase has no motion source`);
+  const reelProfile = {
+    width: firstMotion.video.width,
+    height: firstMotion.video.height,
+    fps: firstMotion.video.fps,
+  };
 
   const sequence = [];
-  const gifRecords = [];
+  const mediaRecords = [];
 
-  for (const [index, segment] of manifest.segments.entries()) {
-    const clipInput = path.resolve(workspace, segment.video);
-    const stillInput = path.resolve(workspace, segment.screenshot);
-    const clipOutput = path.join(factorWorkDir, `${String(index).padStart(2, "0")}-clip.mp4`);
-    const stillOutput = path.join(factorWorkDir, `${String(index).padStart(2, "0")}-still.mp4`);
-    const gifOutput = path.join(gifsDir, `${segment.name}.gif`);
+  for (const [index, entry] of sources.entries()) {
+    const { segment, screenshotPath, screenshot, videoPath, video } = entry;
+    const stem = `${String(index).padStart(2, "0")}-${segment.name}`;
 
+    if (segment.mediaMode === "static") {
+      const output = path.join(factorShowcaseDir, `${segment.name}.png`);
+      await copyFile(screenshotPath, output);
+      const outputStat = await stat(output);
+      mediaRecords.push({
+        name: segment.name,
+        mediaMode: "static",
+        path: path.relative(workspace, output),
+        bytes: outputStat.size,
+        source: {
+          width: screenshot.width,
+          height: screenshot.height,
+          fps: null,
+        },
+      });
+
+      const stillOutput = path.join(factorWorkDir, `${stem}-still.mp4`);
+      await run(ffmpeg, [
+        "-y",
+        "-loop",
+        "1",
+        "-framerate",
+        reelProfile.fps,
+        "-i",
+        screenshotPath,
+        "-t",
+        String(manifest.stillSeconds ?? 0.9),
+        "-vf",
+        `scale=${reelProfile.width}:${reelProfile.height}:force_original_aspect_ratio=decrease,pad=${reelProfile.width}:${reelProfile.height}:(ow-iw)/2:(oh-ih)/2:color=0x0b0c10,setsar=1,fps=${reelProfile.fps},format=yuv420p`,
+        "-an",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "20",
+        "-pix_fmt",
+        "yuv420p",
+        stillOutput,
+      ]);
+      sequence.push(stillOutput);
+      continue;
+    }
+
+    const startSeconds = segment.motionStartSeconds ?? 1.05;
+    const durationSeconds = segment.motionDurationSeconds ?? 4.8;
+    const webpOutput = path.join(factorShowcaseDir, `${segment.name}.webp`);
     await run(ffmpeg, [
       "-y",
+      "-ss",
+      String(startSeconds),
+      "-t",
+      String(durationSeconds),
       "-i",
-      clipInput,
+      videoPath,
+      "-an",
+      "-c:v",
+      "libwebp_anim",
+      "-lossless",
+      "0",
+      "-q:v",
+      "82",
+      "-compression_level",
+      "4",
+      "-loop",
+      "0",
+      "-r",
+      video.fps,
+      webpOutput,
+    ]);
+
+    const webpStat = await stat(webpOutput);
+    mediaRecords.push({
+      name: segment.name,
+      mediaMode: "motion",
+      path: path.relative(workspace, webpOutput),
+      bytes: webpStat.size,
+      source: {
+        width: video.width,
+        height: video.height,
+        fps: video.fps,
+      },
+    });
+
+    const clipOutput = path.join(factorWorkDir, `${stem}-motion.mp4`);
+    await run(ffmpeg, [
+      "-y",
+      "-ss",
+      String(startSeconds),
+      "-t",
+      String(durationSeconds),
+      "-i",
+      videoPath,
       "-vf",
-      normalizeFilter,
+      `scale=${reelProfile.width}:${reelProfile.height}:force_original_aspect_ratio=decrease,pad=${reelProfile.width}:${reelProfile.height}:(ow-iw)/2:(oh-ih)/2:color=0x0b0c10,setsar=1,fps=${reelProfile.fps},format=yuv420p`,
       "-an",
       "-c:v",
       "libx264",
@@ -110,55 +260,7 @@ async function renderFormFactor(formFactor, manifest) {
       "+faststart",
       clipOutput,
     ]);
-
-    await run(ffmpeg, [
-      "-y",
-      "-loop",
-      "1",
-      "-framerate",
-      String(manifest.fps),
-      "-i",
-      stillInput,
-      "-t",
-      String(manifest.stillSeconds),
-      "-vf",
-      normalizeFilter,
-      "-an",
-      "-c:v",
-      "libx264",
-      "-preset",
-      "veryfast",
-      "-crf",
-      "20",
-      "-pix_fmt",
-      "yuv420p",
-      stillOutput,
-    ]);
-
-    await run(ffmpeg, [
-      "-y",
-      "-ss",
-      String(segment.gifStartSeconds ?? 1.05),
-      "-t",
-      String(segment.gifDurationSeconds ?? 4.8),
-      "-i",
-      clipInput,
-      "-filter_complex",
-      `[0:v]fps=${manifest.gifFps},scale=${segment.gifWidth}:-2:flags=lanczos,split[gif][pal];[pal]palettegen=max_colors=${manifest.gifColors}:stats_mode=diff[palette];[gif][palette]paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle[out]`,
-      "-map",
-      "[out]",
-      "-loop",
-      "0",
-      gifOutput,
-    ]);
-
-    const gifStat = await stat(gifOutput);
-    gifRecords.push({
-      name: segment.name,
-      path: path.relative(workspace, gifOutput),
-      bytes: gifStat.size,
-    });
-    sequence.push(clipOutput, stillOutput);
+    sequence.push(clipOutput);
   }
 
   const durations = [];
@@ -203,16 +305,22 @@ async function renderFormFactor(formFactor, manifest) {
   );
   await run(ffmpeg, args);
 
+  const mediaByName = new Map(mediaRecords.map((record) => [record.name, record]));
   return {
     ...manifest,
     reel: path.relative(workspace, reelPath),
-    gifs: gifRecords,
-    totalGifBytes: gifRecords.reduce((sum, gif) => sum + gif.bytes, 0),
+    reelProfile,
+    segments: manifest.segments.map((segment) => ({
+      ...segment,
+      published: mediaByName.get(segment.name),
+    })),
+    media: mediaRecords,
+    totalShowcaseBytes: mediaRecords.reduce((sum, record) => sum + record.bytes, 0),
   };
 }
 
 await rm(workDir, { recursive: true, force: true });
-await rm(gifsRoot, { recursive: true, force: true });
+await rm(showcaseRoot, { recursive: true, force: true });
 await rm(reelsDir, { recursive: true, force: true });
 await mkdir(workDir, { recursive: true });
 
@@ -237,8 +345,8 @@ for (const formFactor of formFactors) {
   rendered[formFactor] = await renderFormFactor(formFactor, sourceManifests[formFactor]);
 }
 
-const combinedGifBytes = formFactors.reduce(
-  (sum, formFactor) => sum + rendered[formFactor].totalGifBytes,
+const combinedShowcaseBytes = formFactors.reduce(
+  (sum, formFactor) => sum + rendered[formFactor].totalShowcaseBytes,
   0,
 );
 
@@ -247,15 +355,15 @@ const manifest = {
   generatedAt: new Date().toISOString(),
   desktop: rendered.desktop,
   mobile: rendered.mobile,
-  combinedGifBytes,
+  combinedShowcaseBytes,
 };
 await writeFile(manifestPath, JSON.stringify(manifest, null, 2));
 
 const pagesBase = process.env.SHOWCASE_BASE_URL ?? "https://xtreemze.github.io/timeline/showcase";
 const markdown = [
-  "## Lūm in motion",
+  "## Lūm showcase",
   "",
-  "These showcases are generated from the real Chromium application exercised by CI. Desktop and mobile demonstrate the same five product capabilities with form-factor-appropriate interaction.",
+  "These assets are generated from the real Chromium application exercised by CI. Motion stays at the source recording dimensions and frame rate as animated WebP; static states use source-resolution PNG screenshots.",
   "",
   ...formFactors.flatMap((formFactor) => [
     `### ${formFactor === "desktop" ? "Desktop" : "Mobile"}`,
@@ -265,7 +373,7 @@ const markdown = [
       "",
       segment.description,
       "",
-      `<img src="${pagesBase}/${formFactor}/${segment.name}.gif" alt="${segment.altText}" width="${segment.markdownWidth}">`,
+      `<img src="${pagesBase}/${formFactor}/${path.basename(segment.published.path)}" alt="${segment.altText}">`,
       "",
     ]),
   ]),
@@ -275,13 +383,15 @@ await writeFile(markdownPath, markdown);
 await rm(workDir, { recursive: true, force: true });
 
 for (const formFactor of formFactors) {
-  console.log(`\n${formFactor.toUpperCase()} GIF sizes`);
-  for (const gif of rendered[formFactor].gifs) {
-    console.log(`${gif.name}: ${gif.bytes} bytes`);
+  console.log(`\n${formFactor.toUpperCase()} showcase sizes`);
+  for (const media of rendered[formFactor].media) {
+    const dimensions = `${media.source.width}x${media.source.height}`;
+    const rate = media.source.fps ? ` @ ${media.source.fps} fps` : "";
+    console.log(`${media.name} (${media.mediaMode}): ${media.bytes} bytes, ${dimensions}${rate}`);
   }
-  console.log(`${formFactor} total: ${rendered[formFactor].totalGifBytes} bytes`);
+  console.log(`${formFactor} total: ${rendered[formFactor].totalShowcaseBytes} bytes`);
 }
-console.log(`combined GIF payload: ${combinedGifBytes} bytes`);
+console.log(`combined showcase payload: ${combinedShowcaseBytes} bytes`);
 console.log(`Rendered ${rendered.desktop.reel}`);
 console.log(`Rendered ${rendered.mobile.reel}`);
 console.log(`Rendered README snippet at ${markdownPath}`);
