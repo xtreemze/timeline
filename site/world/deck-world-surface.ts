@@ -3094,66 +3094,64 @@ export class DeckWorldSurface implements WorldSurface {
       neighborhood.entityIds,
     );
 
-    const rawPlaceExpansion = this.#placeClusterExpansion();
     const placeClusterCandidates = clusterEntityDatumsByPlace(
       entityResult.datums,
       this.#projection.instances,
       worldPixelsToDegrees(WORLD_CLUSTER_MERGE_PX, this.#camera.zoom),
     );
-    const hasPlaceClusters = placeClusterCandidates.some((datum) => datum.kind === "cluster");
-    const placeExpansion = hasPlaceClusters ? rawPlaceExpansion : 1;
-    const placeTransition = placeClusterTransitionDatums(
-      entityResult.datums,
+    const clusterMembership = placeClusterMembership(
       placeClusterCandidates,
-      placeExpansion,
+      this.#projection.instances,
     );
-    const transitionEntities = Object.freeze([
-      ...placeTransition.members,
-      ...placeTransition.loose,
-    ]);
+    const memberIds = clusterMembership.memberIds;
+    const clusterPhase: WorldClusterLifecyclePhase =
+      clusterMembership.placeIds.length > 0 ? this.#clusterPhase : "expanded";
+    const showMembers = worldClusterShowsMembers(clusterPhase);
+    const muteMembers = worldClusterMutesMembers(clusterPhase);
+    const showActiveClusterEdges = worldClusterShowsActiveEdges(clusterPhase);
+    const showReleasingClusterEdges = worldClusterShowsReleasingEdges(clusterPhase);
+    const edgeIsClusterAffected = (
+      edge: Pick<DeckWorldRelationshipDatum, "sourceInstanceId" | "targetInstanceId">,
+    ): boolean =>
+      memberIds.has(edge.sourceInstanceId) || memberIds.has(edge.targetInstanceId);
 
-    // Relationship geometry consumes the same interpolated positions as node
-    // rendering. When zooming out, both endpoints therefore travel back to
-    // the place origin and the edge collapses with them.
+    // Relationship paths always consume the actual force-resolved positions.
+    // There is no renderer interpolation between a place and a solved target.
     const relationshipResult = relationshipDatums(
       this.#projection,
-      instanceIndexFromEntities(transitionEntities),
+      instanceIndexFromEntities(entityResult.datums),
       this.#selection,
       this.#relationshipDatumCache,
       neighborhood.relationshipIds,
     );
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
-
-    const gridClustered =
-      placeExpansion >= 1 &&
-      shouldClusterEntityDatums(entityResult.datums.length, this.#camera.zoom);
     const temporalRelationships = this.#temporalRelationshipDatums(relationships);
-    // Keep place-cluster and member rows alive at both endpoints. Clusters
-    // reach zero radius/alpha at full expansion; members reach zero size/alpha
-    // at full collapse. Stable rows give deck a prior value to interpolate
-    // when an asynchronous force backend publishes a solved target at once.
-    const entities: readonly DeckWorldEntityRenderDatum[] = gridClustered
-      ? clusterEntityDatums(entityResult.datums, this.#camera.zoom)
-      : Object.freeze([
-          ...placeTransition.clusters,
-          ...placeTransition.loose,
-          ...placeTransition.members,
-        ]);
+
+    const entities: readonly DeckWorldEntityRenderDatum[] = Object.freeze(
+      entityResult.datums.filter(
+        (entity) => !memberIds.has(entity.worldInstanceId) || showMembers,
+      ),
+    );
 
     this.#placeDatumCache = placeResult.byId;
     this.#relationshipDatumCache = relationshipResult.byId;
     this.#entityDatumCache = entityResult.byId;
-    this.#clusteredLastRender = placeExpansion < 1 || gridClustered;
-    this.#clusterExpansionLastRender = rawPlaceExpansion;
+    this.#clusteredLastRender = clusterPhase !== "expanded";
+    this.#clusterExpansionLastRender = clusterPhase === "collapsed" ? 0 : 1;
     this.#labelBudgetLastRender = worldLabelBudget(this.#camera.zoom);
     this.#lodCandidateCountLastRender = Math.max(
       places.length,
       relationships.length,
       entityResult.datums.length,
     );
+
+    const visibleDirectionRelationships = relationships.filter(
+      (relationship) =>
+        !edgeIsClusterAffected(relationship) || showActiveClusterEdges,
+    );
     const directionResult = directionDatums(
-      relationships,
+      visibleDirectionRelationships,
       this.#camera.zoom,
       this.#focus,
       this.#directionDatumCache,
@@ -3162,33 +3160,10 @@ export class DeckWorldSurface implements WorldSurface {
     const focus = this.#focus;
     const pinnedEntity = (entity: DeckWorldEntityDatum) =>
       focus?.kind === "entity" && focus.id === entity.entityId;
-    const edgeExpansion = (edge: Pick<
-      DeckWorldRelationshipDatum,
-      "sourceInstanceId" | "targetInstanceId"
-    >): number => {
-      if (gridClustered) return 0;
-      return placeTransition.memberIds.has(edge.sourceInstanceId) ||
-        placeTransition.memberIds.has(edge.targetInstanceId)
-        ? placeExpansion
-        : 1;
-    };
-    const entityExpansion = (entity: DeckWorldEntityDatum): number =>
-      gridClustered
-        ? 0
-        : placeTransition.memberIds.has(entity.worldInstanceId)
-          ? placeExpansion
-          : 1;
-    // Grid clusters are the active low-zoom representation. Place-local
-    // cluster envelopes instead disappear continuously as their retained
-    // members resolve outward; they must never snap back to full visibility
-    // at expansion=1.
-    const clusterVisibility = gridClustered ? 1 : 1 - placeExpansion;
 
-    // Fully clustered place members are retained in force/layout state but
-    // not exposed as glyphs or hit targets. Loose/unclustered entities remain.
-    const iconSource = gridClustered
-      ? Object.freeze([] as DeckWorldEntityDatum[])
-      : transitionEntities;
+    const iconSource = entities.filter(
+      (datum): datum is DeckWorldEntityDatum => datum.kind === "entity",
+    );
 
     const labelInteractionKey = [
       this.#selection?.kind ?? "",
