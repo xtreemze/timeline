@@ -233,7 +233,7 @@ export class WorldViewRuntimeController {
     if (this.#gpuLayoutBridge || !this.#layoutReadback || !this.#sourceProjection) return;
     const samples = this.#layoutReadback.read();
     const previous = this.#renderProjection;
-    const next = applyWorldForceLayout(this.#sourceProjection, samples);
+    const next = applyWorldForceLayout(previous ?? this.#sourceProjection, samples);
     this.#renderProjection = next;
 
     // Force animation should not replace the whole deck data graph every
