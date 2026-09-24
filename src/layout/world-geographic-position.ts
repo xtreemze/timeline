@@ -42,7 +42,10 @@ function validateRenderPosition(position: WorldRenderPosition): void {
   }
 }
 
-function primaryAnchor(anchors: readonly SpatialAnchor[]): SpatialAnchor | null {
+export function worldPrimarySpatialAnchor(
+  instance: Pick<ProjectedWorldInstance, "geographicAnchors">,
+): SpatialAnchor | null {
+  const anchors = instance.geographicAnchors;
   if (!anchors.length) return null;
 
   return (
@@ -68,7 +71,7 @@ export function resolveWorldRenderPosition(
   offsetScale = 1,
   floatMeters = 0,
 ): WorldRenderPosition | null {
-  const anchor = primaryAnchor(instance.geographicAnchors);
+  const anchor = worldPrimarySpatialAnchor(instance);
   if (!anchor) return null;
 
   const eastMeters = (instance.localOffset?.eastMeters ?? 0) * offsetScale;
@@ -104,7 +107,7 @@ export function resolveWorldLocalLayoutPosition(
   offsetScale = 1,
   floatMeters = 0,
 ): WorldLocalLayoutPosition | null {
-  const anchor = primaryAnchor(instance.geographicAnchors);
+  const anchor = worldPrimarySpatialAnchor(instance);
   if (!anchor) return null;
   validateRenderPosition(position);
 

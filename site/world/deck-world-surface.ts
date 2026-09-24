@@ -12,6 +12,7 @@ import {
   resolveWorldLocalLayoutPosition,
   resolveWorldRenderPosition,
   type WorldRenderPosition,
+  worldPrimarySpatialAnchor,
 } from "../../src/layout/world-geographic-position.ts";
 import {
   WORLD_DARK_PALETTE,
@@ -41,10 +42,10 @@ import {
   WORLD_PLACE_LABEL_FLOOR,
   worldArrowLengthDegreesForNodeRadius,
   worldArrowStrokeWidthPxForNodeRadius,
-  worldNodeClearanceDegreesForRadius,
   worldLabelBudget,
   worldLabelTierFloor,
   worldLocalRadiusPx,
+  worldNodeClearanceDegreesForRadius,
   worldPixelsToDegrees,
   worldPlaceClusterRadiusPx,
   worldPresentationOffsetScale,
@@ -1147,8 +1148,8 @@ function entityDatums(
   instances: readonly ProjectedWorldInstance[],
   selection: WorldSelection | null,
   previous: ReadonlyMap<WorldInstanceId, DeckWorldEntityDatum>,
-  offsetScale = 1,
-  floatMeters = 0,
+  offsetScaleForInstance: (instance: ProjectedWorldInstance) => number = () => 1,
+  floatMetersForInstance: (instance: ProjectedWorldInstance) => number = () => 0,
   emphasizedEntityIds?: ReadonlySet<EntityId>,
 ): {
   readonly datums: readonly DeckWorldEntityDatum[];
@@ -1158,7 +1159,11 @@ function entityDatums(
   const result: DeckWorldEntityDatum[] = [];
 
   for (const instance of instances) {
-    const position = anchorPosition(instance, offsetScale, floatMeters);
+    const position = anchorPosition(
+      instance,
+      offsetScaleForInstance(instance),
+      floatMetersForInstance(instance),
+    );
     if (!position) continue;
     const selected = selection?.kind === "entity" && selection.id === instance.canonicalId;
     const emphasized = emphasizedEntityIds?.has(instance.canonicalId) === true;
@@ -1241,8 +1246,8 @@ interface WorldInstanceIndex {
 
 interface RelationshipRoutingContext {
   readonly routes: ReadonlyMap<RelationshipId, WorldRelationshipRouteHint>;
-  readonly offsetScale: number;
-  readonly floatMeters: number;
+  offsetScaleForInstance(instance: ProjectedWorldInstance): number;
+  floatMetersForInstance(instance: ProjectedWorldInstance): number;
   readonly activeDragInstanceId: WorldInstanceId | null;
 }
 
@@ -1262,18 +1267,20 @@ function routedRelationshipPath(
   }
   const sourceInstance = instanceById.get(route.sourceId);
   if (!sourceInstance) return null;
+  const offsetScale = context.offsetScaleForInstance(sourceInstance);
+  const floatMeters = context.floatMetersForInstance(sourceInstance);
 
   const liveSource = resolveWorldLocalLayoutPosition(
     sourceInstance,
     source,
-    context.offsetScale,
-    context.floatMeters,
+    offsetScale,
+    floatMeters,
   );
   const liveTarget = resolveWorldLocalLayoutPosition(
     sourceInstance,
     target,
-    context.offsetScale,
-    context.floatMeters,
+    offsetScale,
+    floatMeters,
   );
   const desiredSource = route.points[0];
   const desiredTarget = route.points[route.points.length - 1];
@@ -1292,12 +1299,14 @@ function routedRelationshipPath(
       {
         ...sourceInstance,
         localOffset: Object.freeze({
-          eastMeters: point.eastMeters + sourceDeltaEast * oneMinusFraction + targetDeltaEast * fraction,
-          northMeters: point.northMeters + sourceDeltaNorth * oneMinusFraction + targetDeltaNorth * fraction,
+          eastMeters:
+            point.eastMeters + sourceDeltaEast * oneMinusFraction + targetDeltaEast * fraction,
+          northMeters:
+            point.northMeters + sourceDeltaNorth * oneMinusFraction + targetDeltaNorth * fraction,
         }),
       },
-      context.offsetScale,
-      context.floatMeters,
+      offsetScale,
+      floatMeters,
     );
     if (!projected) return null;
     points.push(
@@ -2055,6 +2064,8 @@ export class DeckWorldSurface implements WorldSurface {
   // it since; a resize then re-fits (the first fit can run before layout).
   #autoFitted = false;
   #autoFitMode: "globe" | "content" = "globe";
+  // Equatorial reference values used only to detect zoom-driven presentation changes.
+  // Actual node geometry derives its scale/float from each instance's primary anchor latitude.
   #offsetScale = 1;
   #floatMeters = 0;
   #spatialMode: WorldSpatialMode = "globe";
@@ -2662,13 +2673,17 @@ export class DeckWorldSurface implements WorldSurface {
 
   focusEntity(id: EntityId): void {
     this.#setLabelFocus("entity", id);
-    // Aim at where the entity is drawn at the destination zoom, since local
-    // offsets are magnified per zoom.
-    const scale = this.#nextOffsetScale(focusZoom(this.#camera.zoom));
+    // Aim at where the entity is drawn at the destination zoom, using the
+    // same anchor-local presentation metrics as ordinary rendering.
+    const destinationZoom = focusZoom(this.#camera.zoom);
     const instance = this.#projection.instances.find((candidate) => candidate.canonicalId === id);
     this.#focusPosition(
       instance
-        ? anchorPosition(instance, scale, this.#nextFloatMeters(focusZoom(this.#camera.zoom)))
+        ? anchorPosition(
+            instance,
+            this.#offsetScaleForInstance(instance, destinationZoom),
+            this.#floatMetersForInstance(instance, destinationZoom),
+          )
         : null,
     );
   }
@@ -2836,8 +2851,8 @@ export class DeckWorldSurface implements WorldSurface {
       this.#projection.instances,
       this.#selection,
       this.#entityDatumCache,
-      this.#offsetScale,
-      this.#floatMeters,
+      (instance) => this.#offsetScaleForInstance(instance),
+      (instance) => this.#floatMetersForInstance(instance),
     ).datums.map((datum) =>
       Object.freeze({
         entityId: datum.entityId,
@@ -2920,8 +2935,8 @@ export class DeckWorldSurface implements WorldSurface {
       this,
       instance,
       point,
-      this.#offsetScale,
-      this.#floatMeters,
+      this.#offsetScaleForInstance(instance),
+      this.#floatMetersForInstance(instance),
     );
     return position
       ? Object.freeze({
@@ -3156,7 +3171,7 @@ export class DeckWorldSurface implements WorldSurface {
    * `worldPresentationOffsetScale`). Scenes without local offsets keep 1 so
    * zooming them never invalidates memoized datums.
    */
-  #nextOffsetScale(zoom = this.#camera.zoom): number {
+  #nextOffsetScale(zoom = this.#camera.zoom, latitude = 0): number {
     const instances = this.#projection.instances;
     // Clustered overviews group true geography; magnifying offsets there
     // would scatter one place's entities across cluster cells.
@@ -3167,7 +3182,7 @@ export class DeckWorldSurface implements WorldSurface {
       zoom,
       instances.length,
       typical,
-      this.#camera.latitude,
+      latitude,
       this.#viewportGraphRadiusLimitPx(),
     );
     // Never let a place's magnified graph reach into its neighbours'.
@@ -3209,11 +3224,7 @@ export class DeckWorldSurface implements WorldSurface {
     // solved layout expand from that origin instead of popping into view.
     const typical = this.#typicalOffsetMeters();
     if (typical <= 0) return 0;
-    const radius = worldLocalRadiusPx(
-      typical * this.#nextOffsetScale(zoom),
-      zoom,
-      this.#camera.latitude,
-    );
+    const radius = worldLocalRadiusPx(typical * this.#nextOffsetScale(zoom, 0), zoom, 0);
     return worldClusterExpansionProgress(radius, this.#clusterRadiusPx());
   }
 
@@ -3223,7 +3234,7 @@ export class DeckWorldSurface implements WorldSurface {
    * controls update frequency without introducing quarter-zoom position jumps.
    * Returns 0 while entities cluster or in scenes without local layout.
    */
-  #nextFloatMeters(zoom = this.#camera.zoom): number {
+  #nextFloatMeters(zoom = this.#camera.zoom, latitude = 0): number {
     const instances = this.#projection.instances;
     if (
       instances.length === 0 ||
@@ -3231,7 +3242,19 @@ export class DeckWorldSurface implements WorldSurface {
     )
       return 0;
     if (this.#typicalOffsetMeters() <= 0) return 0;
-    return worldLocalRadiusPx(1, zoom, this.#camera.latitude) ** -1 * WORLD_ENTITY_FLOAT_PX;
+    return worldLocalRadiusPx(1, zoom, latitude) ** -1 * WORLD_ENTITY_FLOAT_PX;
+  }
+
+  #instanceLatitude(instance: ProjectedWorldInstance): number {
+    return worldPrimarySpatialAnchor(instance)?.latitude ?? 0;
+  }
+
+  #offsetScaleForInstance(instance: ProjectedWorldInstance, zoom = this.#camera.zoom): number {
+    return this.#nextOffsetScale(zoom, this.#instanceLatitude(instance));
+  }
+
+  #floatMetersForInstance(instance: ProjectedWorldInstance, zoom = this.#camera.zoom): number {
+    return this.#nextFloatMeters(zoom, this.#instanceLatitude(instance));
   }
 
   #nearestPlaceCache: { readonly projection: WorldProjection; readonly meters: number } | null =
@@ -3272,8 +3295,8 @@ export class DeckWorldSurface implements WorldSurface {
       this.#projection.instances,
       this.#selection,
       this.#entityDatumCache,
-      this.#offsetScale,
-      this.#floatMeters,
+      (instance) => this.#offsetScaleForInstance(instance),
+      (instance) => this.#floatMetersForInstance(instance),
     ).datums;
     const relationships = relationshipDatums(
       this.#projection,
@@ -3306,7 +3329,11 @@ export class DeckWorldSurface implements WorldSurface {
     const positions = new Map<WorldInstanceId, WorldRenderPosition>();
     const entityIds = new Map<WorldInstanceId, EntityId>();
     for (const instance of this.#projection.instances) {
-      const position = anchorPosition(instance, this.#offsetScale, this.#floatMeters);
+      const position = anchorPosition(
+        instance,
+        this.#offsetScaleForInstance(instance),
+        this.#floatMetersForInstance(instance),
+      );
       if (!position) continue;
       positions.set(instance.id, position);
       entityIds.set(instance.id, instance.canonicalId);
@@ -3431,8 +3458,8 @@ export class DeckWorldSurface implements WorldSurface {
       this.#projection.instances,
       this.#selection,
       this.#entityDatumCache,
-      this.#offsetScale,
-      this.#floatMeters,
+      (instance) => this.#offsetScaleForInstance(instance),
+      (instance) => this.#floatMetersForInstance(instance),
       neighborhood.entityIds,
     );
 
@@ -3466,8 +3493,8 @@ export class DeckWorldSurface implements WorldSurface {
       neighborhood.relationshipIds,
       {
         routes: this.#relationshipRouteHints,
-        offsetScale: this.#offsetScale,
-        floatMeters: this.#floatMeters,
+        offsetScaleForInstance: (instance) => this.#offsetScaleForInstance(instance),
+        floatMetersForInstance: (instance) => this.#floatMetersForInstance(instance),
         activeDragInstanceId: this.#activeDragInstanceId,
       },
     );

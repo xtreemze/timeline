@@ -12,6 +12,7 @@ import {
   WORLD_LOCAL_GRAPH_RADIUS_PX,
   WORLD_PLACE_CLUSTER_RADIUS_PX,
   worldFloatingGraphRadiusPx,
+  worldLocalRadiusPx,
   worldPlaceClusterRadiusPx,
   worldPresentationOffsetScale,
 } from "../src/layout/world-semantic-presentation.ts";
@@ -57,6 +58,18 @@ test("offset scale keeps overview topology readable and expands it at detail zoo
     WORLD_LOCAL_GRAPH_RADIUS_PX * WORLD_FLOATING_GRAPH_MAX_EXPANSION,
     "detail expansion is bounded",
   );
+});
+
+test("latitude-local scaling produces the same apparent radius at distant anchors", () => {
+  const zoom = 7;
+  const typical = 500;
+  const equatorScale = worldPresentationOffsetScale(zoom, 100, typical, 0);
+  const highLatitudeScale = worldPresentationOffsetScale(zoom, 100, typical, 60);
+
+  const equatorRadius = worldLocalRadiusPx(typical * equatorScale, zoom, 0);
+  const highLatitudeRadius = worldLocalRadiusPx(typical * highLatitudeScale, zoom, 60);
+
+  assert.ok(Math.abs(equatorRadius - highLatitudeRadius) < 1e-9);
 });
 
 test("offset scale respects the available viewport radius", () => {
