@@ -171,10 +171,6 @@ interface LastTouchTap {
  * do not enqueue reactive updates for every visible occurrence.
  */
 export class LuumEventCardElement extends LitElement {
-  static override properties = {
-    item: { attribute: false },
-  };
-
   item: TimelineItem | null = null;
 
   override createRenderRoot(): HTMLElement {
@@ -2286,7 +2282,7 @@ class TimelineViewController {
       node,
       terminal,
       range,
-      contentRevision: this.itemContentRevision(item),
+      contentRevision: "",
     };
     this.bindRecordInteractionTarget(record, terminal);
     if (range) this.bindRecordInteractionTarget(record, range);
