@@ -5,6 +5,7 @@ import {
   decrossOpt,
   decrossTwoLayer,
   graphConnect,
+  type GraphNode,
   layeringLongestPath,
   layeringSimplex,
   sugiyama,
@@ -685,7 +686,7 @@ function runLayoutCandidate(
     .layering(layering === "longest" ? layeringLongestPath() : layeringSimplex())
     .decross(decross === "opt" ? decrossOpt() : twoLayer)
     .coord(coord === "simplex" ? coordSimplex() : coordGreedy())
-    .nodeSize((node) => sizes.get(node.data) ?? [1, 1])
+    .nodeSize((node: GraphNode<string, DagLinkData>) => sizes.get(node.data) ?? [1, 1])
     .gap(gap);
   const dimensions = layout(graph);
 
