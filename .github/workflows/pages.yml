@@ -67,20 +67,11 @@ jobs:
       - name: Enforce architecture TypeScript
         run: pnpm types:architecture
 
-      - name: Build worker-backed relation graph and site
+      - name: Build Vite application
         run: |
           pnpm build
-          test -s site/orb-graph.bundle.js
-          test -s site/leaflet.bundle.js
-          test -s site/leaflet.css
-          test -s site/evidence-extraction.bundle.js
-          test -s site/pdf.worker.mjs
-          node --check src/orb-graph-entry.js
-          node --check src/evidence-extraction-core.js
-          node --check src/evidence-extraction-entry.js
-          node --check site/orb-graph.bundle.js
-          node --check site/evidence-extraction.bundle.js
           test -s dist/index.html
+          test -d dist/assets
           if grep -Eq 'src="[^"]+\.ts([?#][^"]*)?"' dist/index.html; then
             echo "Built entry point still references raw TypeScript modules"
             exit 1
@@ -117,10 +108,6 @@ jobs:
         run: |
           test -s dist/index.html
           test -d dist/assets
-          test -s dist/orb-graph.bundle.js
-          test -s dist/leaflet.bundle.js
-          test -s dist/evidence-extraction.bundle.js
-          test -s dist/pdf.worker.mjs
           test "$(find dist/showcase/desktop -type f -name '*.gif' | wc -l)" -eq 5
           test "$(find dist/showcase/mobile -type f -name '*.gif' | wc -l)" -eq 5
 
