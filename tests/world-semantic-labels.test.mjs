@@ -186,7 +186,11 @@ test("production bindings and runtime expose a real deck.gl TextLayer path", asy
     "utf8",
   );
   assert.match(bindings, /import \{[^}]*\bTextLayer\b[^}]*\} from "@deck\.gl\/layers"/);
+  assert.match(bindings, /_GlobeViewport as GlobeViewport/);
+  assert.match(bindings, /\bWebMercatorViewport\b/);
   assert.match(bindings, /textLayer\(props\)[\s\S]*new TextLayer\(/);
+  assert.match(bindings, /globeViewport\(props\)[\s\S]*new GlobeViewport\(/);
+  assert.match(bindings, /mapViewport\(props\)[\s\S]*new WebMercatorViewport\(/);
 
   const created = [];
   const runtime = createDeckWorldRuntime({
@@ -332,8 +336,8 @@ test("label collisions use the active viewport projection instead of geographic 
     geographicAnchors: [
       {
         placeId: "west",
-        longitude: -120,
-        latitude: 10,
+        longitude: 10,
+        latitude: 40,
         influence: 1,
       },
     ],
@@ -342,8 +346,8 @@ test("label collisions use the active viewport projection instead of geographic 
     geographicAnchors: [
       {
         placeId: "east",
-        longitude: 120,
-        latitude: 60,
+        longitude: 30,
+        latitude: 50,
         influence: 1,
       },
     ],
@@ -364,6 +368,35 @@ test("label collisions use the active viewport projection instead of geographic 
     labels.props.getPixelOffset(entityLabels[1]),
     "geographically distant labels still avoid one another when they collide on screen",
   );
+});
+
+test("camera orbit and resize rebuild viewport-projected label placement", () => {
+  const h = harness();
+  const viewportProps = [];
+  h.runtime.createGlobeViewport = (props) => {
+    viewportProps.push(props);
+    return {
+      project() {
+        return [160, 240, 0];
+      },
+      unproject(position) {
+        return position;
+      },
+    };
+  };
+  const container = { clientWidth: 320, clientHeight: 480 };
+  const surface = new DeckWorldSurface(container, h.runtime, { ...WORKING_CAMERA, bearing: 0 });
+  surface.setProjection(directedProjection());
+
+  const initialCount = viewportProps.length;
+  surface.setCamera({ ...WORKING_CAMERA, bearing: 30 });
+  assert.ok(viewportProps.length > initialCount);
+  assert.equal(viewportProps.at(-1).bearing, 30);
+
+  container.clientWidth = 480;
+  h.getDeckProps().onResize();
+  assert.equal(viewportProps.at(-1).width, 480);
+  assert.equal(viewportProps.at(-1).height, 480);
 });
 
 test("viewport label placement keeps edge labels inside the visible canvas", () => {
