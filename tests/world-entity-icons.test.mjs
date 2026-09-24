@@ -140,11 +140,13 @@ test("every entity renders as a styled node marker that picks as the entity", ()
 
 test("markers fade toward the globe horizon instead of popping at a hard cutoff", () => {
   const h = harness();
-  const surface = new DeckWorldSurface(
-    {},
-    h.runtime,
-    { longitude: 0, latitude: 0, zoom: 5, bearing: 0, pitch: 0 },
-  );
+  const surface = new DeckWorldSurface({}, h.runtime, {
+    longitude: 0,
+    latitude: 0,
+    zoom: 5,
+    bearing: 0,
+    pitch: 0,
+  });
   surface.setProjection(
     createWorldProjection({
       instances: [
