@@ -49,16 +49,23 @@ test("sparse scenes retain individual detail at the default globe camera", () =>
 });
 
 
-test("cluster transition keeps force targets retained and animates topology from the place origin", async () => {
+test("cluster topology is staged by force and never renderer-interpolated", async () => {
   const source = await readFile(
     new URL("../site/world/deck-world-surface.ts", import.meta.url),
     "utf8",
   );
 
-  assert.match(source, /instanceIndexFromEntities\(transitionEntities\)/);
-  assert.match(source, /interpolateClusterPosition\(origin, entity\.position, expansion\)/);
-  assert.match(source, /\.\.\.placeTransition\.clusters,[\s\S]*\.\.\.placeTransition\.members/);
-  assert.match(source, /temporalWidth \* edgeExpansion\(state\.edge\)/);
-  assert.match(source, /worldNodeMarker\(this\.#entityStyle\(datum\)\)\.size \* entityExpansion\(datum\)/);
-  assert.match(source, /WORLD_CLUSTER_FORCE_TRANSITION_MS/);
+  assert.match(source, /setClusteredPlaceIds/);
+  assert.match(source, /WORLD_CLUSTER_EDGE_RELEASE_MS/);
+  assert.match(source, /WORLD_CLUSTER_SETTLE_MS/);
+  assert.match(source, /releasingRelationshipSegments/);
+  assert.match(source, /clusterPhase = "releasing"/);
+  assert.match(source, /clusterPhase = "collapsing"/);
+  assert.match(source, /clusterPhase = "collapsed"/);
+  assert.match(source, /clusterPhase = "expanding"/);
+
+  assert.doesNotMatch(source, /interpolateClusterPosition/);
+  assert.doesNotMatch(source, /WORLD_CLUSTER_FORCE_TRANSITION_MS/);
+  assert.doesNotMatch(source, /transitions:[\\s\\S]{0,300}getPosition/);
+  assert.doesNotMatch(source, /transitions:[\\s\\S]{0,300}getPath/);
 });
