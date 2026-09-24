@@ -1,7 +1,7 @@
 import { performance } from "node:perf_hooks";
 
-import { createWorldForceScene } from "../src/layout/world-force-scene.ts";
 import { ReferenceWorldForceSimulation } from "../src/layout/reference-world-force-simulation.ts";
+import { createWorldForceScene } from "../src/layout/world-force-scene.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
