@@ -129,6 +129,7 @@ function create(container, handlers = {}) {
 
   let currentMode = "worker-cpu";
   let lastSizeClass = "";
+  let lastRendererType = "";
   let firstRender = true;
   let touchHold = null;
   let touchTap = null;
@@ -539,7 +540,7 @@ function create(container, handlers = {}) {
     const next = transform.translate(deltaX / transform.k, deltaY / transform.k);
     canvas.__zoom = next;
     if (orb._renderer) orb._renderer.transform = next;
-    scheduleGraphRender();
+    orb.render();
     return true;
   }
 
@@ -1053,9 +1054,7 @@ function create(container, handlers = {}) {
       event.preventDefault();
       event.stopPropagation();
       const geometry = touchGeometry(event);
-      if (geometry && touchDragSimulator()) {
-        scheduleTouchDrag(touchHold.node.getId(), geometry.localPoint);
-      }
+      if (geometry) scheduleTouchDrag(touchHold.node.getId(), geometry.localPoint);
       return;
     }
 
@@ -1442,14 +1441,18 @@ function create(container, handlers = {}) {
     const labelsEnabled = nodeCount < GRAPH_LABEL_NODE_THRESHOLD;
     const wantsWebGL = nodeCount >= LARGE_GRAPH_NODE_THRESHOLD && supportsWebGL2();
     const wantsGPU = nodeCount >= GPU_LAYOUT_NODE_THRESHOLD && wantsWebGL;
-    const sizeClass = `${wantsWebGL ? "webgl" : "canvas"}:${wantsGPU ? "gpu" : "worker"}:${forceDense ? "force-dense" : "force-normal"}:${labelsEnabled ? "labels" : "no-labels"}`;
+    const rendererType = wantsWebGL ? "webgl" : "canvas";
+    const sizeClass = `${rendererType}:${wantsGPU ? "gpu" : "worker"}:${forceDense ? "force-dense" : "force-normal"}:${labelsEnabled ? "labels" : "no-labels"}`;
     if (sizeClass === lastSizeClass) return;
     lastSizeClass = sizeClass;
     currentMode = wantsGPU ? "gpu-main-force" : "worker-cpu";
-    orb.setRenderer(wantsWebGL ? "webgl" : "canvas");
-    // Renderer switches recreate the canvas and re-register Orb's D3 handlers.
-    removeOrbTouchDragListeners();
-    removeOrbNativeCameraDragListeners();
+    if (rendererType !== lastRendererType) {
+      lastRendererType = rendererType;
+      orb.setRenderer(rendererType);
+      // Renderer switches recreate the canvas and re-register Orb's D3 handlers.
+      removeOrbTouchDragListeners();
+      removeOrbNativeCameraDragListeners();
+    }
     orb.setSettings({
       render: {
         labelsIsEnabled: labelsEnabled,
