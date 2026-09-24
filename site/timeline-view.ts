@@ -57,6 +57,8 @@ const CONNECTOR_ROUTE_EDGE_INSET_PX = 32;
 const MAX_COMMITTED_LANES = 3;
 const CLUSTER_ENTER_PX = 80;
 const CLUSTER_EXIT_PX = 120;
+const LABEL_BEFORE_ENTER_RATIO = 0.64;
+const LABEL_BEFORE_EXIT_RATIO = 0.36;
 
 type Orientation = "horizontal" | "vertical";
 
@@ -116,12 +118,15 @@ interface SceneRecord {
   range: HTMLButtonElement | null;
   visual: HTMLSpanElement;
   copy: HTMLSpanElement;
+  contentRevision: string;
+  labelBefore: boolean | null;
 }
 
 interface ClusterSceneRecord {
   cluster: TemporalLayoutCluster;
   node: HTMLDivElement;
   terminal: HTMLButtonElement;
+  labelBefore: boolean | null;
 }
 
 interface CachedGeometryMeasurement {
@@ -232,6 +237,19 @@ function wheelZoomFactor(deltaPixels: number): number {
     MAX_WHEEL_EXPONENT,
   );
   return Math.exp(exponent);
+}
+
+function labelBeforeForPosition(
+  previous: boolean | null,
+  primary: number,
+  primaryLength: number,
+  interacting: boolean,
+): boolean {
+  const ratio = clamp(primary / Math.max(1, primaryLength), 0, 1);
+  if (previous !== null && interacting) return previous;
+  if (previous === true) return ratio > LABEL_BEFORE_EXIT_RATIO;
+  if (previous === false) return ratio >= LABEL_BEFORE_ENTER_RATIO;
+  return ratio > 0.5;
 }
 
 function itemOverlapsViewport(
@@ -1675,12 +1693,21 @@ class TimelineViewController {
     const media = (item.media || [])
       .map((entry) => [entry.src || "", entry.alt || "", entry.caption || ""].join("\u0001"))
       .join("\u0002");
+    const primaryTag = item.tags?.[0];
+    const iconName =
+      typeof primaryTag === "object" && primaryTag?.icon ? primaryTag.icon : "milestone";
     return [
       item.title || "",
       item.startLabel || "",
       item.endLabel || "",
       item.layoutVariant || "",
       item.terminalShape || "",
+      item.color || "",
+      item.connectorStyle || "",
+      item.connectorRouting || "",
+      item.connectorWeight || "",
+      item.connectorEndpoint || "",
+      iconName,
       media,
     ].join("\u0003");
   }
@@ -1837,7 +1864,7 @@ class TimelineViewController {
     this.stage.append(node);
     this.frameCreatedObjects += 1;
 
-    const record: ClusterSceneRecord = { cluster, node, terminal };
+    const record: ClusterSceneRecord = { cluster, node, terminal, labelBefore: null };
     terminal.setAttribute("data-cluster-id", cluster.id);
 
     // Add click handler directly to button
@@ -1913,7 +1940,12 @@ class TimelineViewController {
     record.terminal.replaceChildren(tiles, copy);
   }
 
-  positionCommittedClusters(padding: number, usable: number, axisCross: number): void {
+  positionCommittedClusters(
+    padding: number,
+    usable: number,
+    primaryLength: number,
+    axisCross: number,
+  ): void {
     for (const record of this.clusterScene.values()) {
       const { cluster, node, terminal } = record;
       const visible = itemOverlapsWindow({ start: cluster.start, end: cluster.end }, this.viewport);
@@ -1931,7 +1963,16 @@ class TimelineViewController {
       const terminalCross = axisCross + (lane < 0 ? -laneDistance : laneDistance);
       const segment = connectorSegment(axisCross, terminalCross);
 
-      const labelBefore = this.orientation === "horizontal" ? primary > usable / 2 : lane < 0;
+      const labelBefore =
+        this.orientation === "horizontal"
+          ? labelBeforeForPosition(
+              record.labelBefore,
+              primary,
+              primaryLength,
+              this.retention.active,
+            )
+          : lane < 0;
+      record.labelBefore = labelBefore;
       node.dataset.side = labelBefore ? "before" : "after";
       node.classList.toggle("label-before", labelBefore);
       if (this.orientation === "horizontal") {
@@ -2047,6 +2088,7 @@ class TimelineViewController {
     const width = Math.max(1, rect.width || this.surface.clientWidth || 800);
     const height = Math.max(1, rect.height || this.surface.clientHeight || 480);
     const primaryLength = this.orientation === "horizontal" ? width : height;
+    const crossLength = this.orientation === "horizontal" ? height : width;
     const axisCross = this.orientation === "horizontal" ? height / 2 : width * 0.58;
     const padding = this.axisPadding(primaryLength);
     const usable = Math.max(1, primaryLength - padding * 2);
@@ -2093,10 +2135,10 @@ class TimelineViewController {
         record.item = item;
         this.updateRecordContent(record);
       }
-      this.positionRecord(record, primaryLength, axisCross);
+      this.positionRecord(record, primaryLength, crossLength, axisCross);
     }
 
-    this.positionCommittedClusters(padding, usable, axisCross);
+    this.positionCommittedClusters(padding, usable, primaryLength, axisCross);
 
     if (!this.retention.active) {
       for (const [key, record] of this.scene) {
@@ -2166,7 +2208,16 @@ class TimelineViewController {
 
     this.stage.append(node);
     this.frameCreatedObjects += range ? 2 : 1;
-    const record = { item, node, terminal, range, visual, copy };
+    const record: SceneRecord = {
+      item,
+      node,
+      terminal,
+      range,
+      visual,
+      copy,
+      contentRevision: "",
+      labelBefore: null,
+    };
     this.bindRecordInteractionTarget(record, terminal);
     if (range) this.bindRecordInteractionTarget(record, range);
     this.updateRecordContent(record);
@@ -2208,14 +2259,19 @@ class TimelineViewController {
 
   updateRecordContent(record: SceneRecord): void {
     const { item, node, terminal, range, visual, copy } = record;
+    const selected = item.id === this.focusedId;
+    node.classList.toggle("is-selected", selected);
+    range?.classList.toggle("is-selected", selected);
+
+    const revision = this.itemContentRevision(item);
+    if (record.contentRevision === revision) return;
+    record.contentRevision = revision;
+
     node.style.setProperty("--event-color", item.color || "var(--accent)");
     node.dataset.terminalShape = item.terminalShape || "rounded";
     node.dataset.connectorStyle = item.connectorStyle || "solid";
     node.dataset.connectorRouting = item.connectorRouting || "straight";
     node.dataset.connectorEndpoint = item.connectorEndpoint || "none";
-    const selected = item.id === this.focusedId;
-    node.classList.toggle("is-selected", selected);
-    range?.classList.toggle("is-selected", selected);
 
     const primaryTag = item.tags?.[0];
     const iconName =
@@ -2279,7 +2335,12 @@ class TimelineViewController {
     }
   }
 
-  positionRecord(record: SceneRecord, primaryLength: number, axisCross: number): void {
+  positionRecord(
+    record: SceneRecord,
+    primaryLength: number,
+    crossLength: number,
+    axisCross: number,
+  ): void {
     const { item, node, terminal, range } = record;
     const span = Math.max(MIN_SPAN_MS, this.viewport.end - this.viewport.start);
     const coordinate = (time: number): number =>
@@ -2300,14 +2361,21 @@ class TimelineViewController {
     const routeOffset = connectorRouteOffset(
       item.connectorRouting || "straight",
       terminalCross,
-      this.orientation === "horizontal"
-        ? Math.max(1, this.surface.getBoundingClientRect().height)
-        : Math.max(1, this.surface.getBoundingClientRect().width),
+      Math.max(1, crossLength),
       Math.abs(lane),
     );
     const shiftedCross = terminalCross + routeOffset;
 
-    const labelBefore = this.orientation === "horizontal" ? primary > primaryLength / 2 : lane < 0;
+    const labelBefore =
+      this.orientation === "horizontal"
+        ? labelBeforeForPosition(
+            record.labelBefore,
+            primary,
+            primaryLength,
+            this.retention.active,
+          )
+        : lane < 0;
+    record.labelBefore = labelBefore;
     node.dataset.side = labelBefore ? "before" : "after";
     node.classList.toggle("label-before", labelBefore);
     node.classList.toggle("is-buffered", !itemOverlapsWindow(item, this.viewport));
@@ -2978,5 +3046,6 @@ export const TimelineView = Object.freeze({
     visibleIntervalAnchor,
     itemOverlapsViewport,
     wheelZoomFactor,
+    labelBeforeForPosition,
   }),
 });
