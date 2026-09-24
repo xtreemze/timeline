@@ -348,7 +348,11 @@ export function worldDashedEdgeSegments(
       }
       remaining -= segment.length;
     }
-    return path[path.length - 1] ?? path[0]!;
+    return (
+      path[path.length - 1] ??
+      path[0] ??
+      (Object.freeze([0, 0, 0]) as WorldRenderPosition)
+    );
   };
 
   const result: (readonly [WorldRenderPosition, WorldRenderPosition])[] = [];
@@ -536,9 +540,9 @@ export function declutterWorldLabels<T>(
  * the stored offsets stay untouched. At detail zoom, the floating topology
  * intentionally grows in screen space instead of treating zoom as globe-only:
  * geography remains anchored while the graph gains room for direct
- * manipulation. Never shrinks (scale >= 1), and is quantised to quarter
- * octaves so positions only rebuild on meaningful zoom changes. Dense scenes
- * (already clustered) keep 1.
+ * manipulation. Never shrinks (scale >= 1). The scale itself is continuous;
+ * the renderer separately rate-limits geometry refreshes to fine zoom steps.
+ * Dense scenes (already clustered) keep 1.
  */
 export const WORLD_LOCAL_GRAPH_RADIUS_PX = 320;
 export const WORLD_FLOATING_GRAPH_DETAIL_ZOOM = 7;
