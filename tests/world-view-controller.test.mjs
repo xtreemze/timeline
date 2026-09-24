@@ -116,6 +116,9 @@ function harness({ settled = false, readback = false, delta = false, gpuBridge =
       pin = value;
       calls.push(["force:pin", value]);
     },
+    setClusteredPlaceIds(value) {
+      calls.push(["force:cluster", value]);
+    },
     apply(request) {
       diagnostics.running = request.reason !== "idle";
       if (request.reason === "idle") diagnostics.settled = true;
@@ -185,6 +188,17 @@ test("projection updates feed force scene and WorldSurface from one revision", (
   assert.equal(calls[0][0], "force:scene");
   assert.equal(calls[1][0], "force:apply");
   assert.deepEqual(calls[2], ["surface:projection", input]);
+});
+
+test("place cluster commands reheat the D3 force backend", () => {
+  const { calls, controller } = harness();
+
+  controller.setClusteredPlaceIds(["stockholm"]);
+
+  assert.deepEqual(calls[0], ["force:cluster", ["stockholm"]]);
+  assert.equal(calls[1][0], "force:apply");
+  assert.equal(calls[1][1].reason, "topology");
+  assert.equal(calls[1][1].reheat, true);
 });
 
 test("runtime delegates temporal window and canonical selection to WorldSurface", () => {
