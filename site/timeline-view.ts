@@ -1978,7 +1978,12 @@ class TimelineViewController {
 
       const labelBefore =
         this.orientation === "horizontal"
-          ? labelBeforeForPosition(record.labelBefore, primary, primaryLength, this.retention.active)
+          ? labelBeforeForPosition(
+              record.labelBefore,
+              primary,
+              primaryLength,
+              this.retention.active,
+            )
           : lane < 0;
       record.labelBefore = labelBefore;
       node.dataset.side = labelBefore ? "before" : "after";
@@ -2376,12 +2381,7 @@ class TimelineViewController {
 
     const labelBefore =
       this.orientation === "horizontal"
-        ? labelBeforeForPosition(
-            record.labelBefore,
-            primary,
-            primaryLength,
-            this.retention.active,
-          )
+        ? labelBeforeForPosition(record.labelBefore, primary, primaryLength, this.retention.active)
         : lane < 0;
     record.labelBefore = labelBefore;
     node.dataset.side = labelBefore ? "before" : "after";
