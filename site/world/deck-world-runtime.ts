@@ -1,9 +1,13 @@
-import type { DeckRuntimeInstance, DeckWorldRuntime } from "./deck-world-surface.ts";
+import type {
+  DeckRuntimeInstance,
+  DeckRuntimeViewport,
+  DeckWorldRuntime,
+} from "./deck-world-surface.ts";
 
 export interface DeckWorldBindings {
   readonly deck: (props: Readonly<Record<string, unknown>>) => DeckRuntimeInstance;
   readonly globeView: (props: Readonly<Record<string, unknown>>) => unknown;
-  readonly globeViewport?: (props: Readonly<Record<string, unknown>>) => DeckRuntimeInstance["getViewports"] extends (...args: never[]) => readonly (infer V)[] ? V : never;
+  readonly globeViewport?: (props: Readonly<Record<string, unknown>>) => DeckRuntimeViewport;
   readonly mapView?: (props: Readonly<Record<string, unknown>>) => unknown;
   readonly scatterplotLayer: (props: Readonly<Record<string, unknown>>) => unknown;
   readonly pathLayer: (props: Readonly<Record<string, unknown>>) => unknown;
