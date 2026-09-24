@@ -224,6 +224,45 @@ test("nearby floating nodes from different place anchors repel in shared world s
   assert.ok(after[1].eastMeters > before[1].eastMeters);
 });
 
+test("cross-anchor proximity remains continuous across the dateline", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const west = '["alice","dateline-west"]';
+  const east = '["bob","dateline-east"]';
+  simulation.setScene({
+    nodes: [
+      node(west, { initialEastMeters: 1, collisionRadiusMeters: 180 }),
+      node(east, { initialEastMeters: -1, collisionRadiusMeters: 180 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(west, "dateline-west", {
+        longitude: 179.999,
+        latitude: 0,
+        influence: 0,
+      }),
+      anchor(east, "dateline-east", {
+        longitude: -179.999,
+        latitude: 0,
+        influence: 0,
+      }),
+    ],
+  });
+
+  const before = simulation.getSnapshot();
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
+  const after = simulation.getSnapshot();
+
+  assert.notDeepEqual(after, before);
+});
+
 test("drag wakes nearby foreign-anchor topology but leaves distant groups frozen", () => {
   const simulation = new ReferenceWorldForceSimulation({
     repulsionStrength: 0,
@@ -274,7 +313,11 @@ test("drag wakes nearby foreign-anchor topology but leaves distant groups frozen
   const beforeRemote = before.find((entry) => entry.instanceId === remote);
   const afterRemote = after.find((entry) => entry.instanceId === remote);
 
-  assert.notDeepEqual(afterBob, beforeBob, "nearby foreign-anchor node participates in drag force");
+  assert.notDeepEqual(
+    afterBob,
+    beforeBob,
+    "nearby foreign-anchor node participates in drag force",
+  );
   assert.deepEqual(afterRemote, beforeRemote, "distant anchor group stays frozen");
 });
 
