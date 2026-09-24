@@ -39,7 +39,7 @@ interface NodeState {
 }
 
 export const DEFAULT_REFERENCE_WORLD_FORCE_OPTIONS: ReferenceWorldForceOptions = Object.freeze({
-  repulsionStrength: 32_000,
+  repulsionStrength: 48_000,
   collisionStrength: 0.28,
   anchorStrength: 0.009,
   altitudeStrength: 0.04,
@@ -127,6 +127,9 @@ function normalizedTimeStep(deltaMs: number): number {
 const EARTH_RADIUS_METERS = 6_371_008.8;
 const CROSS_ANCHOR_FORCE_RADIUS_METERS = 6_000;
 const CROSS_ANCHOR_BUCKET_METERS = 100_000;
+const READABLE_SEPARATION_SCALE = 1.35;
+
+type Vector3 = readonly [number, number, number];
 
 interface ForceGroup {
   readonly key: string;
@@ -136,42 +139,92 @@ interface ForceGroup {
   readonly bucket: readonly [number, number, number] | null;
 }
 
-function anchorCartesian(anchor: WorldForceAnchor): readonly [number, number, number] {
+interface PairDelta {
+  /** Vector from left -> right expressed in the left node's local ENU frame. */
+  readonly leftLocal: Vector3;
+  /** Same world vector expressed in the right node's local ENU frame. */
+  readonly rightLocal: Vector3;
+  readonly distanceMeters: number;
+}
+
+function anchorBasis(anchor: WorldForceAnchor): Readonly<{
+  east: Vector3;
+  north: Vector3;
+  up: Vector3;
+}> {
   const latitude = (anchor.latitude * Math.PI) / 180;
   const longitude = (anchor.longitude * Math.PI) / 180;
-  const horizontal = Math.cos(latitude) * EARTH_RADIUS_METERS;
+  const sinLatitude = Math.sin(latitude);
+  const cosLatitude = Math.cos(latitude);
+  const sinLongitude = Math.sin(longitude);
+  const cosLongitude = Math.cos(longitude);
+
+  return Object.freeze({
+    east: Object.freeze([-sinLongitude, cosLongitude, 0]) as Vector3,
+    north: Object.freeze([
+      -sinLatitude * cosLongitude,
+      -sinLatitude * sinLongitude,
+      cosLatitude,
+    ]) as Vector3,
+    up: Object.freeze([
+      cosLatitude * cosLongitude,
+      cosLatitude * sinLongitude,
+      sinLatitude,
+    ]) as Vector3,
+  });
+}
+
+function anchorCartesian(anchor: WorldForceAnchor): Vector3 {
+  const basis = anchorBasis(anchor);
+  const radius = EARTH_RADIUS_METERS + anchor.sourceAltitudeMeters;
   return Object.freeze([
-    horizontal * Math.cos(longitude),
-    horizontal * Math.sin(longitude),
-    Math.sin(latitude) * EARTH_RADIUS_METERS,
+    basis.up[0] * radius,
+    basis.up[1] * radius,
+    basis.up[2] * radius,
   ]);
 }
 
-function anchorDeltaMeters(
-  left: WorldForceAnchor,
-  right: WorldForceAnchor,
-): readonly [number, number] {
-  const leftPosition = anchorCartesian(left);
-  const rightPosition = anchorCartesian(right);
-  const dx = rightPosition[0] - leftPosition[0];
-  const dy = rightPosition[1] - leftPosition[1];
-  const dz = rightPosition[2] - leftPosition[2];
-  const latitude = (left.latitude * Math.PI) / 180;
-  const longitude = (left.longitude * Math.PI) / 180;
+function localVectorToCartesian(anchor: WorldForceAnchor, vector: Vector3): Vector3 {
+  const basis = anchorBasis(anchor);
+  return Object.freeze([
+    basis.east[0] * vector[0] + basis.north[0] * vector[1] + basis.up[0] * vector[2],
+    basis.east[1] * vector[0] + basis.north[1] * vector[1] + basis.up[1] * vector[2],
+    basis.east[2] * vector[0] + basis.north[2] * vector[1] + basis.up[2] * vector[2],
+  ]);
+}
 
-  const eastMeters = -Math.sin(longitude) * dx + Math.cos(longitude) * dy;
-  const northMeters =
-    -Math.sin(latitude) * Math.cos(longitude) * dx -
-    Math.sin(latitude) * Math.sin(longitude) * dy +
-    Math.cos(latitude) * dz;
-  return Object.freeze([eastMeters, northMeters]);
+function cartesianVectorToLocal(anchor: WorldForceAnchor, vector: Vector3): Vector3 {
+  const basis = anchorBasis(anchor);
+  return Object.freeze([
+    basis.east[0] * vector[0] + basis.east[1] * vector[1] + basis.east[2] * vector[2],
+    basis.north[0] * vector[0] + basis.north[1] * vector[1] + basis.north[2] * vector[2],
+    basis.up[0] * vector[0] + basis.up[1] * vector[1] + basis.up[2] * vector[2],
+  ]);
+}
+
+function stateCartesian(state: NodeState): Vector3 | null {
+  if (!state.anchor) return null;
+  const origin = anchorCartesian(state.anchor);
+  const local = localVectorToCartesian(state.anchor, [state.x, state.y, state.z]);
+  return Object.freeze([
+    origin[0] + local[0],
+    origin[1] + local[1],
+    origin[2] + local[2],
+  ]);
+}
+
+function cartesianDistance(left: Vector3, right: Vector3): number {
+  return Math.hypot(right[0] - left[0], right[1] - left[1], right[2] - left[2]);
 }
 
 function forceGroup(key: string, states: readonly NodeState[]): ForceGroup {
   const anchor = states.find((state) => state.anchor)?.anchor ?? null;
   const extentMeters = states.reduce(
     (extent, state) =>
-      Math.max(extent, Math.hypot(state.x, state.y) + state.node.collisionRadiusMeters),
+      Math.max(
+        extent,
+        Math.hypot(state.x, state.y, state.z) + state.node.collisionRadiusMeters,
+      ),
     0,
   );
   if (!anchor) {
@@ -197,6 +250,10 @@ function crossGroupCandidates(
 ): readonly (readonly [ForceGroup, ForceGroup])[] {
   const buckets = new Map<string, number[]>();
   const keyFor = (x: number, y: number, z: number) => `${x}:${y}:${z}`;
+  const maxExtentMeters = groups.reduce(
+    (extent, group) => Math.max(extent, group.extentMeters),
+    0,
+  );
 
   for (let index = 0; index < groups.length; index += 1) {
     const bucket = groups[index]?.bucket;
@@ -209,18 +266,32 @@ function crossGroupCandidates(
   for (let index = 0; index < groups.length; index += 1) {
     const group = groups[index];
     const bucket = group?.bucket;
-    if (!group || !bucket) continue;
+    if (!group || !bucket || !group.anchor) continue;
 
-    for (let x = bucket[0] - 1; x <= bucket[0] + 1; x += 1) {
-      for (let y = bucket[1] - 1; y <= bucket[1] + 1; y += 1) {
-        for (let z = bucket[2] - 1; z <= bucket[2] + 1; z += 1) {
+    // A group's floating topology can extend well beyond its geographic
+    // anchor. Search as many broad-phase buckets as its current world-space
+    // extent can actually reach instead of assuming anchors must themselves
+    // occupy adjacent buckets.
+    const bucketReach = Math.max(
+      1,
+      Math.ceil(
+        (group.extentMeters + maxExtentMeters + CROSS_ANCHOR_FORCE_RADIUS_METERS) /
+          CROSS_ANCHOR_BUCKET_METERS,
+      ),
+    );
+
+    for (let x = bucket[0] - bucketReach; x <= bucket[0] + bucketReach; x += 1) {
+      for (let y = bucket[1] - bucketReach; y <= bucket[1] + bucketReach; y += 1) {
+        for (let z = bucket[2] - bucketReach; z <= bucket[2] + bucketReach; z += 1) {
           for (const otherIndex of buckets.get(keyFor(x, y, z)) ?? []) {
             if (otherIndex <= index) continue;
             const other = groups[otherIndex];
-            if (!other || !group.anchor || !other.anchor) continue;
+            if (!other?.anchor) continue;
 
-            const [eastMeters, northMeters] = anchorDeltaMeters(group.anchor, other.anchor);
-            const anchorDistance = Math.hypot(eastMeters, northMeters);
+            const anchorDistance = cartesianDistance(
+              anchorCartesian(group.anchor),
+              anchorCartesian(other.anchor),
+            );
             if (
               anchorDistance >
               group.extentMeters +
@@ -239,22 +310,49 @@ function crossGroupCandidates(
   return Object.freeze(pairs);
 }
 
-function pairDeltaMeters(left: NodeState, right: NodeState): readonly [number, number] | null {
+function pairDeltaMeters(left: NodeState, right: NodeState): PairDelta | null {
   if (left.group === right.group) {
-    return Object.freeze([right.x - left.x, right.y - left.y]);
+    const delta = Object.freeze([
+      right.x - left.x,
+      right.y - left.y,
+      right.z - left.z,
+    ]) as Vector3;
+    return Object.freeze({
+      leftLocal: delta,
+      rightLocal: delta,
+      distanceMeters: Math.hypot(delta[0], delta[1], delta[2]),
+    });
   }
+
   if (!left.anchor || !right.anchor) return null;
-  const [anchorEastMeters, anchorNorthMeters] = anchorDeltaMeters(left.anchor, right.anchor);
-  return Object.freeze([
-    anchorEastMeters + right.x - left.x,
-    anchorNorthMeters + right.y - left.y,
-  ]);
+  const leftPosition = stateCartesian(left);
+  const rightPosition = stateCartesian(right);
+  if (!leftPosition || !rightPosition) return null;
+
+  const worldDelta = Object.freeze([
+    rightPosition[0] - leftPosition[0],
+    rightPosition[1] - leftPosition[1],
+    rightPosition[2] - leftPosition[2],
+  ]) as Vector3;
+
+  return Object.freeze({
+    leftLocal: cartesianVectorToLocal(left.anchor, worldDelta),
+    rightLocal: cartesianVectorToLocal(right.anchor, worldDelta),
+    distanceMeters: Math.hypot(worldDelta[0], worldDelta[1], worldDelta[2]),
+  });
+}
+
+function readableSeparationDistance(left: NodeState, right: NodeState): number {
+  return (
+    (left.node.collisionRadiusMeters + right.node.collisionRadiusMeters) *
+    READABLE_SEPARATION_SCALE
+  );
 }
 
 function crossAnchorInteractionRadius(left: NodeState, right: NodeState): number {
   return Math.max(
     CROSS_ANCHOR_FORCE_RADIUS_METERS,
-    (left.node.collisionRadiusMeters + right.node.collisionRadiusMeters) * 4,
+    readableSeparationDistance(left, right) * 4,
   );
 }
 
@@ -533,7 +631,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       for (const right of rightStates) {
         const delta = pairDeltaMeters(left, right);
         if (!delta) continue;
-        if (Math.hypot(delta[0], delta[1]) <= crossAnchorInteractionRadius(left, right)) {
+        if (delta.distanceMeters <= crossAnchorInteractionRadius(left, right)) {
           return true;
         }
       }
@@ -550,30 +648,63 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const delta = pairDeltaMeters(left, right);
     if (!delta) return;
 
-    let [dx, dy] = delta;
-    let distance = Math.hypot(dx, dy);
-    const minimumDistance = left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
-
+    let distance = delta.distanceMeters;
     if (crossAnchor && distance > crossAnchorInteractionRadius(left, right)) return;
 
+    let leftUnit: Vector3;
+    let rightUnit: Vector3;
     if (distance < 0.001) {
       const [seedX, seedY] = seededOffset(right.node.id);
-      dx = seedX;
-      dy = seedY;
-      distance = Math.max(0.001, Math.hypot(dx, dy));
+      const seedDistance = Math.max(0.001, Math.hypot(seedX, seedY));
+      leftUnit = Object.freeze([seedX / seedDistance, seedY / seedDistance, 0]);
+      if (crossAnchor && left.anchor && right.anchor) {
+        const worldUnit = localVectorToCartesian(left.anchor, leftUnit);
+        rightUnit = cartesianVectorToLocal(right.anchor, worldUnit);
+      } else {
+        rightUnit = leftUnit;
+      }
+      distance = 0.001;
+    } else {
+      leftUnit = Object.freeze([
+        delta.leftLocal[0] / distance,
+        delta.leftLocal[1] / distance,
+        delta.leftLocal[2] / distance,
+      ]);
+      rightUnit = Object.freeze([
+        delta.rightLocal[0] / distance,
+        delta.rightLocal[1] / distance,
+        delta.rightLocal[2] / distance,
+      ]);
     }
 
-    const unitX = dx / distance;
-    const unitY = dy / distance;
+    const hardMinimumDistance =
+      left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
+    const readableDistance = readableSeparationDistance(left, right);
     const repulsion = this.#options.repulsionStrength / Math.max(100, distance ** 2);
-    const collision =
-      distance < minimumDistance
-        ? (minimumDistance - distance) * this.#options.collisionStrength
+    const readableCollision =
+      distance < readableDistance
+        ? (readableDistance - distance) * this.#options.collisionStrength
         : 0;
-    const magnitude = repulsion + collision;
+    const overlapBoost =
+      distance < hardMinimumDistance
+        ? (hardMinimumDistance - distance) * this.#options.collisionStrength
+        : 0;
+    const magnitude = repulsion + readableCollision + overlapBoost;
 
-    this.#addForce(forces, left.node.id, -unitX * magnitude, -unitY * magnitude, 0);
-    this.#addForce(forces, right.node.id, unitX * magnitude, unitY * magnitude, 0);
+    this.#addForce(
+      forces,
+      left.node.id,
+      -leftUnit[0] * magnitude,
+      -leftUnit[1] * magnitude,
+      -leftUnit[2] * magnitude,
+    );
+    this.#addForce(
+      forces,
+      right.node.id,
+      rightUnit[0] * magnitude,
+      rightUnit[1] * magnitude,
+      rightUnit[2] * magnitude,
+    );
   }
 
   #applyEdgeForce(
