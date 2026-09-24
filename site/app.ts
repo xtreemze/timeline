@@ -5,6 +5,7 @@
 
 import { planWorkspacePlacement } from "../src/layout/workspace-layout.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
+import { LuumTimelineElement } from "./components/luum-timeline.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
@@ -552,7 +553,7 @@ const els = {
   search: requiredElement<HTMLInputElement>("#timeline-search"),
   categoryFilter: requiredElement<HTMLSelectElement>("#category-filter"),
   clearFilters: requiredElement<HTMLButtonElement>("#clear-filters"),
-  timelineViewRoot: requiredElement<HTMLElement>("#timeline-view"),
+  timelineViewRoot: requiredElement<LuumTimelineElement>("#timeline-view"),
   autoToggle: requiredElement<HTMLButtonElement>("#timeline-auto-toggle"),
   autoSeconds: requiredElement<HTMLInputElement>("#timeline-auto-seconds"),
   autoStatus: requiredElement<HTMLElement>("#timeline-auto-status"),
@@ -612,7 +613,7 @@ function setSemanticControlIcon(element, iconName, label) {
 
 decorateSemanticControls();
 
-const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
+const timelineView = els.timelineViewRoot;
 let temporalGraphView: ReturnType<typeof temporalGraphFactory.create> | null = null;
 try {
   temporalGraphView = temporalGraphFactory.create(els.graphViewRoot);
