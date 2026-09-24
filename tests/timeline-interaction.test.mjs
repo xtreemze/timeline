@@ -423,6 +423,15 @@ test("pointer velocity uses recent samples and clamps extreme release speed", ()
   assert.ok(velocity <= 3.2);
 });
 
+test("pointer velocity is zero when the pointer rested before release", () => {
+  const velocity = motion.estimatePointerVelocity([
+    { coordinate: 0, time: 0 },
+    { coordinate: 400, time: 40 },
+    { coordinate: 400, time: 1_500 },
+  ]);
+  assert.equal(velocity, 0);
+});
+
 test("Orb adapter keeps chronology, stories, and places out of the canonical node graph", () => {
   const input = {
     entities: [
@@ -579,4 +588,3 @@ test("focused event popover keeps event semantics compact and image controls dot
   );
   assert.match(architectureDocs, /explicit duration for ranged events/);
 });
-
