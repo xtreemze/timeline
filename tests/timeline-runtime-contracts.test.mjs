@@ -37,47 +37,54 @@ test("media stepping updates only focused presentation state", async () => {
     view,
     /stepFocusMedia\(delta: number\)[\s\S]*this\.focusMediaIndex[\s\S]*this\.renderFocus\(item\)/,
   );
-  assert.doesNotMatch(
-    view,
-    /stepFocusMedia\(delta: number\)[\s\S]{0,600}this\.render\(\)/,
-  );
+  assert.doesNotMatch(view, /stepFocusMedia\(delta: number\)[\s\S]{0,600}this\.render\(\)/);
 });
 
-
-test("retained event terminals preserve semantic media, tag icons, and connector weight", async () => {
-  const [view, css] = await Promise.all([
+test("retained event cards delegate semantic rendering to Lit without reactive geometry", async () => {
+  const [view, card, css] = await Promise.all([
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/timeline-event-card.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
 
-  assert.match(view, /timeline-event-art-image/);
-  assert.match(view, /timeline-event-icon-badge/);
-  assert.match(view, /primaryTag[\s\S]*iconName/);
-  assert.match(view, /visual\.dataset\.signature/);
-  assert.match(view, /visual\.replaceChildren\(\)/);
-  assert.match(view, /node\.dataset\.connectorWeight/);
-  assert.match(view, /connectorWeight === "fine" \? 1 : item\.connectorWeight === "strong" \? 4 : 2/);
+  assert.match(view, /import "\.\/components\/timeline-event-card\.ts"/);
+  assert.match(view, /import type \{ LuumEventCardElement \}/);
+  assert.match(view, /document\.createElement\("luum-event-card"\)/);
+  assert.match(view, /contentRevision/);
+  assert.match(view, /revision !== record\.contentRevision/);
+  assert.match(view, /node\.setSemanticItem\(item\)/);
+  assert.match(card, /class LuumEventCardElement extends LitElement/);
+  assert.match(card, /createRenderRoot\(\): HTMLElement[\s\S]*return this/);
+  assert.match(card, /timeline-event-art-image/);
+  assert.match(card, /timeline-event-icon-badge/);
+  assert.match(card, /iconPathData/);
+  assert.match(card, /requestUpdate\(\)/);
+  assert.doesNotMatch(card, /style\.transform/);
+  assert.match(
+    view,
+    /connectorWeight === "fine" \? 1 : item\.connectorWeight === "strong" \? 4 : 2/,
+  );
   assert.match(css, /\.timeline-event-art-image/);
   assert.match(css, /\.timeline-event-icon-badge/);
 });
 
-
-test("timeline uses a Lit custom-element ownership boundary without reactive scene rendering", async () => {
-  const [html, view] = await Promise.all([
+test("timeline uses a bounded Lit custom-element owner without reactive scene rendering", async () => {
+  const [html, view, component, shim] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/timeline-element.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view-shim.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(html, /<luum-timeline id="timeline-view"/);
   assert.match(html, /<\/luum-timeline>/);
-  assert.match(view, /import \{ LitElement, noChange \} from "lit"/);
-  assert.match(view, /class LuumTimelineElement extends LitElement/);
-  assert.match(view, /createRenderRoot\(\): HTMLElement[\s\S]*return this/);
-  assert.match(view, /render\(\)[\s\S]*return noChange/);
-  assert.match(view, /ensureController\(\): TimelineViewController/);
-  assert.match(view, /customElements\.define\("luum-timeline", LuumTimelineElement\)/);
-  assert.match(
-    view,
-    /root instanceof LuumTimelineElement\) return root\.ensureController\(\)/,
-  );
+  assert.doesNotMatch(view, /from "lit"/);
+  assert.match(component, /import \{ LitElement, noChange \} from "lit"/);
+  assert.match(component, /class LuumTimelineElement extends LitElement/);
+  assert.match(component, /createRenderRoot\(\): HTMLElement[\s\S]*return this/);
+  assert.match(component, /render\(\)[\s\S]*return noChange/);
+  assert.match(component, /ensureTimelineController\(\): TimelineViewController/);
+  assert.match(component, /customElements\.define\("luum-timeline", LuumTimelineElement\)/);
+  assert.match(shim, /components\/timeline-element\.ts/);
+  assert.match(view, /Reflect\.get\(root, "ensureTimelineController"\)/);
 });

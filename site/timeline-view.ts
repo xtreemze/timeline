@@ -6,8 +6,6 @@
  * alive across pan/zoom so rendering does not become a destructive per-frame rebuild.
  */
 
-import { LitElement, noChange } from "lit";
-
 import {
   geometryMeasurementKey,
   planCommittedTemporalLayout,
@@ -35,6 +33,8 @@ import {
   tickSceneKey,
   visibleIntervalAnchor,
 } from "../src/projection/temporal-scene.ts";
+import "./components/timeline-event-card.ts";
+import type { LuumEventCardElement } from "./components/timeline-event-card.ts";
 import { TimelineClustering as clustering } from "./timeline-clustering.ts";
 import { TimelineMotion as motion } from "./timeline-motion.ts";
 
@@ -113,11 +113,11 @@ interface SetItemsOptions {
 
 interface SceneRecord {
   item: TimelineItem;
-  node: HTMLDivElement;
+  node: LuumEventCardElement;
   terminal: HTMLButtonElement;
   range: HTMLButtonElement | null;
-  visual: HTMLSpanElement;
-  copy: HTMLSpanElement;
+  contentRevision: string;
+  selected: boolean;
 }
 
 interface ClusterSceneRecord {
@@ -291,7 +291,7 @@ function formatElapsedDuration(durationMs: number): string {
   return parts.length ? parts.join(" ") : "0 seconds";
 }
 
-class TimelineViewController {
+export class TimelineViewController {
   root: HTMLElement;
   surface: HTMLElement;
   focusView: HTMLElement;
@@ -1677,13 +1677,28 @@ class TimelineViewController {
     const media = (item.media || [])
       .map((entry) => [entry.src || "", entry.alt || "", entry.caption || ""].join("\u0001"))
       .join("\u0002");
+    const tags = (item.tags || [])
+      .map((tag) =>
+        typeof tag === "string"
+          ? tag
+          : [tag.label || "", tag.icon || "", String(tag.hue ?? "")].join("\u0001"),
+      )
+      .join("\u0002");
     return [
       item.title || "",
+      String(item.start),
+      String(item.end ?? ""),
       item.startLabel || "",
       item.endLabel || "",
+      item.color || "",
       item.layoutVariant || "",
       item.terminalShape || "",
+      item.connectorStyle || "",
+      item.connectorRouting || "",
+      item.connectorWeight || "",
+      item.connectorEndpoint || "",
       media,
+      tags,
     ].join("\u0003");
   }
 
@@ -2118,14 +2133,12 @@ class TimelineViewController {
   }
 
   createRecord(item: TimelineItem): SceneRecord {
-    const node = document.createElement("div");
+    const node = document.createElement("luum-event-card") as LuumEventCardElement;
     node.className = "timeline-event";
-    node.dataset.id = item.id;
-
-    const terminal = document.createElement("button");
-    terminal.type = "button";
-    terminal.className = "timeline-event-terminal";
-    terminal.dataset.id = item.id;
+    this.stage.append(node);
+    node.setSemanticItem(item);
+    const terminal = node.terminal;
+    if (!terminal) throw new Error("Lit event card did not render its terminal.");
     terminal.addEventListener("click", () => {
       if (this.focusedId === item.id) {
         this.closeFocus();
@@ -2134,20 +2147,6 @@ class TimelineViewController {
         void motion.pulseHaptic("selection");
       }
     });
-
-    const visual = document.createElement("span");
-    visual.className = "timeline-event-dot";
-    visual.setAttribute("aria-hidden", "true");
-
-    const copy = document.createElement("span");
-    copy.className = "timeline-event-copy";
-    terminal.append(visual, copy);
-
-    const connector = document.createElement("span");
-    connector.className = "timeline-event-connector";
-    const connectorTurn = document.createElement("span");
-    connectorTurn.className = "timeline-event-connector-turn";
-    node.append(connector, connectorTurn, terminal);
 
     let range: HTMLButtonElement | null = null;
     if (Number.isFinite(item.end)) {
@@ -2166,9 +2165,15 @@ class TimelineViewController {
       this.stage.append(range);
     }
 
-    this.stage.append(node);
     this.frameCreatedObjects += range ? 2 : 1;
-    const record = { item, node, terminal, range, visual, copy };
+    const record: SceneRecord = {
+      item,
+      node,
+      terminal,
+      range,
+      contentRevision: "",
+      selected: false,
+    };
     this.bindRecordInteractionTarget(record, terminal);
     if (range) this.bindRecordInteractionTarget(record, range);
     this.updateRecordContent(record);
@@ -2209,75 +2214,26 @@ class TimelineViewController {
   }
 
   updateRecordContent(record: SceneRecord): void {
-    const { item, node, terminal, range, visual, copy } = record;
-    node.style.setProperty("--event-color", item.color || "var(--accent)");
-    node.dataset.terminalShape = item.terminalShape || "rounded";
-    node.dataset.connectorStyle = item.connectorStyle || "solid";
-    node.dataset.connectorRouting = item.connectorRouting || "straight";
-    node.dataset.connectorEndpoint = item.connectorEndpoint || "none";
-    const selected = item.id === this.focusedId;
-    node.classList.toggle("is-selected", selected);
-    range?.classList.toggle("is-selected", selected);
+    const { item, node, range } = record;
+    const revision = this.itemContentRevision(item);
+    if (revision !== record.contentRevision) {
+      record.contentRevision = revision;
+      node.setSemanticItem(item);
 
-    const primaryTag = item.tags?.[0];
-    const iconName =
-      typeof primaryTag === "object" && primaryTag?.icon ? primaryTag.icon : "milestone";
-    const media = item.media?.[0];
-    const mediaSignature = [media?.src || "", iconName].join("\u0001");
-    if (visual.dataset.signature !== mediaSignature) {
-      visual.dataset.signature = mediaSignature;
-      visual.className = media?.src ? "timeline-event-art" : "timeline-event-dot";
-      visual.replaceChildren();
-      if (media?.src) {
-        const image = document.createElement("img");
-        image.className = "timeline-event-art-image";
-        image.src = media.src;
-        image.alt = "";
-        image.decoding = "async";
-        image.loading = "lazy";
-        visual.append(image);
-
-        const badge = document.createElement("span");
-        badge.className = "timeline-event-icon-badge";
-        const badgeIcon =
-          presentation && typeof presentation.createIcon === "function"
-            ? presentation.createIcon(iconName, { size: 18 })
-            : null;
-        if (badgeIcon) badge.append(badgeIcon);
-        visual.append(badge);
-      } else {
-        const icon =
-          presentation && typeof presentation.createIcon === "function"
-            ? presentation.createIcon(iconName, { size: 24 })
-            : null;
-        if (icon) visual.append(icon);
-        else visual.textContent = "•";
+      if (range) {
+        range.style.setProperty("--event-color", item.color || "var(--accent)");
+        const rangeLabel = `${item.title || item.id} · ${item.startLabel || item.start} → ${item.endLabel || item.end}`;
+        range.dataset.tooltip = rangeLabel;
+        range.title = rangeLabel;
+        range.setAttribute("aria-label", rangeLabel);
       }
     }
 
-    node.dataset.connectorWeight = item.connectorWeight || "normal";
-
-    const strong = copy.querySelector("strong") || document.createElement("strong");
-    strong.textContent = item.title || item.id;
-    const detail = copy.querySelector("span") || document.createElement("span");
-    detail.textContent =
-      Number.isFinite(item.end) && item.endLabel
-        ? `${item.startLabel || ""} → ${item.endLabel}`
-        : item.startLabel || "";
-    if (!strong.parentNode) copy.append(strong);
-    if (!detail.parentNode) copy.append(detail);
-
-    terminal.setAttribute(
-      "aria-label",
-      [item.title || item.id, detail.textContent].filter(Boolean).join(", "),
-    );
-
-    if (range) {
-      range.style.setProperty("--event-color", item.color || "var(--accent)");
-      const rangeLabel = `${item.title || item.id} · ${item.startLabel || item.start} → ${item.endLabel || item.end}`;
-      range.dataset.tooltip = rangeLabel;
-      range.title = rangeLabel;
-      range.setAttribute("aria-label", rangeLabel);
+    const selected = item.id === this.focusedId;
+    if (selected !== record.selected) {
+      record.selected = selected;
+      node.setSelected(selected);
+      range?.classList.toggle("is-selected", selected);
     }
   }
 
@@ -2969,62 +2925,13 @@ class TimelineViewController {
   }
 }
 
-/**
- * Lit owns the timeline component lifecycle and stable light-DOM boundary.
- *
- * The retained scene intentionally stays imperative: pointer/wheel/pinch frames update
- * keyed DOM records directly instead of asking Lit to diff the occurrence collection.
- * This keeps reactive component work out of the high-frequency interaction path while
- * still giving the timeline one explicit custom-element owner.
- */
-export class LuumTimelineElement extends LitElement {
-  private timelineController: TimelineViewController | null = null;
-
-  override createRenderRoot(): HTMLElement {
-    // Existing application markup and CSS remain authoritative during migration.
-    // Returning the host preserves light DOM and avoids a shadow-boundary rewrite.
-    return this;
-  }
-
-  override render() {
-    // The controller owns the retained scene. Lit must never reconcile its keyed
-    // occurrence DOM or replace the application-provided timeline structure.
-    return noChange;
-  }
-
-  ensureController(): TimelineViewController {
-    if (!this.timelineController) {
-      this.timelineController = new TimelineViewController(this);
-    }
-    return this.timelineController;
-  }
-
-  get controller(): TimelineViewController | null {
-    return this.timelineController;
-  }
-
-  override connectedCallback(): void {
-    super.connectedCallback();
-    // Parser-created custom elements may connect before all light-DOM children exist.
-    // Deferring initialization also lets the legacy factory initialize synchronously
-    // when app orchestration runs after document parsing.
-    queueMicrotask(() => {
-      if (this.isConnected) this.ensureController();
-    });
-  }
-}
-
-if (
-  typeof customElements !== "undefined" &&
-  !customElements.get("luum-timeline")
-) {
-  customElements.define("luum-timeline", LuumTimelineElement);
-}
-
 export const TimelineView = Object.freeze({
   create(root: HTMLElement): TimelineViewController | null {
     if (!(root instanceof HTMLElement)) return null;
-    if (root instanceof LuumTimelineElement) return root.ensureController();
+    const ensureController = Reflect.get(root, "ensureTimelineController");
+    if (typeof ensureController === "function") {
+      return Reflect.apply(ensureController, root, []) as TimelineViewController;
+    }
     return new TimelineViewController(root);
   },
   geometry: Object.freeze({

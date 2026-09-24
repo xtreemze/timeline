@@ -51,3 +51,27 @@ test("registerTimelineWorldView wires real deck.gl constructors without invoking
     registerTimelineWorldView(realDeckWorldBindings, {}, target);
   });
 });
+
+test("production world surface uses a Lit lifecycle boundary while deck remains imperative", async () => {
+  const [html, factory, element] = await Promise.all([
+    import("node:fs/promises").then(({ readFile }) =>
+      readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    ),
+    import("node:fs/promises").then(({ readFile }) =>
+      readFile(new URL("../site/world/world-view-factory.ts", import.meta.url), "utf8"),
+    ),
+    import("node:fs/promises").then(({ readFile }) =>
+      readFile(new URL("../site/components/world-surface-element.ts", import.meta.url), "utf8"),
+    ),
+  ]);
+
+  assert.match(html, /<luum-world-surface id="temporal-graph-view"/);
+  assert.match(html, /<\/luum-world-surface>/);
+  assert.match(element, /class LuumWorldSurfaceElement extends LitElement/);
+  assert.match(element, /render\(\)[\s\S]*return noChange/);
+  assert.match(element, /attachView/);
+  assert.match(element, /disconnectedCallback/);
+  assert.match(factory, /root instanceof LuumWorldSurfaceElement/);
+  assert.match(factory, /owner\?\.attachView\(scheduledView\)/);
+  assert.doesNotMatch(element, /DeckWorldSurface|createScatterplotLayer|createPathLayer/);
+});
