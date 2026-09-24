@@ -66,7 +66,7 @@ export interface WorldViewRuntimeState {
 }
 
 /** Minimum simulated time between layout pushes to the surface. */
-export const WORLD_LAYOUT_PUSH_INTERVAL_MS = 100;
+export const WORLD_LAYOUT_PUSH_INTERVAL_MS = 50;
 
 export class WorldViewRuntimeController {
   readonly #surface: WorldSurface;
@@ -232,8 +232,20 @@ export class WorldViewRuntimeController {
     this.#sinceLayoutPush = 0;
     if (this.#gpuLayoutBridge || !this.#layoutReadback || !this.#sourceProjection) return;
     const samples = this.#layoutReadback.read();
-    this.#renderProjection = applyWorldForceLayout(this.#sourceProjection, samples);
-    this.#surface.setProjection(this.#renderProjection);
+    const previous = this.#renderProjection;
+    const next = applyWorldForceLayout(this.#sourceProjection, samples);
+    this.#renderProjection = next;
+
+    // Force animation should not replace the whole deck data graph every
+    // frame. Reuse WorldSurface's incremental path so only nodes/edges whose
+    // derived positions changed invalidate renderer attributes.
+    if (previous && this.#surface.applyProjectionDelta) {
+      const delta = diffWorldProjection(previous, next);
+      if (!isEmptyWorldProjectionDelta(delta)) this.#surface.applyProjectionDelta(delta);
+      return;
+    }
+
+    this.#surface.setProjection(next);
   }
 
   refresh(): void {
