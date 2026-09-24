@@ -309,6 +309,46 @@ test("world view registration publishes the composed factory without eager deck 
   assert.equal(constructionCalls, 0);
 });
 
+test("deck world runtime exposes collision filtering only when the binding is supplied", () => {
+  const extension = { kind: "collision-filter" };
+  const runtime = createDeckWorldRuntime({
+    deck() {
+      throw new Error("not used");
+    },
+    globeView() {
+      throw new Error("not used");
+    },
+    scatterplotLayer() {
+      throw new Error("not used");
+    },
+    pathLayer() {
+      throw new Error("not used");
+    },
+    collisionFilterExtension() {
+      return extension;
+    },
+  });
+
+  assert.equal(typeof runtime.createCollisionFilterExtension, "function");
+  assert.equal(runtime.createCollisionFilterExtension(), extension);
+
+  const withoutExtension = createDeckWorldRuntime({
+    deck() {
+      throw new Error("not used");
+    },
+    globeView() {
+      throw new Error("not used");
+    },
+    scatterplotLayer() {
+      throw new Error("not used");
+    },
+    pathLayer() {
+      throw new Error("not used");
+    },
+  });
+  assert.equal(withoutExtension.createCollisionFilterExtension, undefined);
+});
+
 test("deck world runtime exposes MapView only when the binding is supplied", () => {
   const calls = [];
   const runtime = createDeckWorldRuntime({

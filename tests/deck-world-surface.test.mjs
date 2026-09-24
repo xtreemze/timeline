@@ -9,6 +9,7 @@ import {
   shouldClusterEntityDatums,
   WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM,
   worldGraphLabelSize,
+  worldLabelCollisionPriority,
 } from "../site/world/deck-world-surface.ts";
 import { selectWorldSpatialMode } from "../src/layout/world-spatial-mode.ts";
 import {
@@ -173,6 +174,81 @@ test("world graph label scale matches sidebar reading typography", () => {
   assert.equal(worldGraphLabelSize({ kind: "place-label", emphasized: false }), 18);
   assert.equal(worldGraphLabelSize({ kind: "relationship-label", emphasized: false }), 18);
   assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: true }), 18);
+});
+
+test("world label collision priority preserves semantic order and interaction emphasis", () => {
+  const relationship = worldLabelCollisionPriority({
+    kind: "relationship-label",
+    emphasized: false,
+  });
+  const entity = worldLabelCollisionPriority({ kind: "entity-label", emphasized: false });
+  const place = worldLabelCollisionPriority({ kind: "place-label", emphasized: false });
+  const emphasizedRelationship = worldLabelCollisionPriority({
+    kind: "relationship-label",
+    emphasized: true,
+  });
+
+  assert.ok(place > entity);
+  assert.ok(entity > relationship);
+  assert.ok(emphasizedRelationship > place);
+});
+
+test("optional deck collision filtering is attached only to the text label layer", () => {
+  const { calls, runtime } = harness();
+  const textLayers = [];
+  const extension = { kind: "collision-filter" };
+  const collisionRuntime = {
+    ...runtime,
+    createTextLayer(props) {
+      const layer = { type: "text", props };
+      textLayers.push(layer);
+      return layer;
+    },
+    createCollisionFilterExtension() {
+      return extension;
+    },
+  };
+  const surface = new DeckWorldSurface({}, collisionRuntime, {
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 6,
+    bearing: 0,
+    pitch: 0,
+  });
+  const input = projection();
+  surface.setProjection(
+    createWorldProjection({
+      instances: input.instances.map((instance) =>
+        Object.freeze({
+          ...instance,
+          label: instance.canonicalId === "alice" ? "Alice" : "Bob",
+        }),
+      ),
+      edges: input.edges,
+    }),
+  );
+
+  const labelLayer = calls.setProps
+    .at(-1)
+    .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.labels);
+  assert.ok(labelLayer);
+  assert.deepEqual(labelLayer.props.extensions, [extension]);
+  assert.equal(labelLayer.props.collisionGroup, "lum-world-labels");
+
+  const placeLabel = labelLayer.props.data.find((datum) => datum.kind === "place-label");
+  const entityLabel = labelLayer.props.data.find((datum) => datum.kind === "entity-label");
+  if (placeLabel && entityLabel) {
+    assert.ok(
+      labelLayer.props.getCollisionPriority(placeLabel) >
+        labelLayer.props.getCollisionPriority(entityLabel),
+    );
+  }
+
+  for (const layer of calls.setProps.at(-1).layers) {
+    if (layer === labelLayer) continue;
+    assert.equal(layer.props.extensions, undefined);
+  }
+  assert.ok(textLayers.length >= 1);
 });
 
 test("DeckWorldSurface constructs one globe view and controlled deck runtime", () => {
@@ -1376,6 +1452,52 @@ test("close-zoom node drag locks the globe camera until release", () => {
     bearing: 5,
     pitch: 25,
   });
+});
+
+test("completed node drag suppresses only the immediately following click", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+  surface.setNodeDragSink({
+    begin() {
+      return true;
+    },
+    update() {
+      return true;
+    },
+    release() {
+      return true;
+    },
+    cancel() {},
+  });
+
+  const entityLayer = calls.scatterLayers
+    .filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities)
+    .at(-1);
+  const alice = entityLayer.props.data.find((datum) => datum.entityId === "alice");
+  const dragEvent = {
+    srcEvent: { pointerId: 29, pointerType: "mouse", button: 0, ctrlKey: false },
+    stopPropagation() {},
+  };
+
+  assert.equal(
+    entityLayer.props.onDragStart({ object: alice, x: 118.0786, y: 259.3393 }, dragEvent),
+    true,
+  );
+  assert.equal(
+    entityLayer.props.onDragEnd({ object: alice, x: 118.0886, y: 259.3493 }, dragEvent),
+    true,
+  );
+
+  calls.deckProps.onClick({ object: alice, x: 118.0886, y: 259.3493 });
+  assert.equal(
+    surface.getAccessibleSnapshot().selection,
+    null,
+    "the click synthesized by pointer-up must not toggle selection",
+  );
+
+  calls.deckProps.onClick({ object: alice, x: 118.0886, y: 259.3493 });
+  assert.deepEqual(surface.getAccessibleSnapshot().selection, { kind: "entity", id: "alice" });
 });
 
 test("pointer cancellation reaches the active Lūm world drag owner", () => {
