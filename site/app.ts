@@ -6,6 +6,7 @@
 import { planWorkspacePlacement } from "../src/layout/workspace-layout.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import { createAuthoringContext, type AuthoringCreateKind } from "./authoring-context.ts";
+import { LuumAuthoringContextIndicatorElement } from "./components/authoring-context-indicator.ts";
 import { LuumAuthoringMenuElement, type AuthoringMenuAction } from "./components/authoring-menu.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
@@ -271,6 +272,7 @@ interface TimelineInputRecord {
 const VERSION = 2;
 const STORAGE_KEY = "timeline:v2";
 const LEGACY_STORAGE_KEY = "timeline:v1";
+const AUTHORING_GUIDE_DISMISSED_KEY = "timeline:authoring-guide-dismissed:v1";
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 const DEFAULT_CATEGORIES: ReadonlyArray<CategoryRecord> = Object.freeze([
   { id: "incident", name: "Incident", color: "#b42318" },
@@ -371,6 +373,7 @@ const els = {
   browserStoryCount: requiredElement<HTMLElement>("#browser-story-count"),
   viewControls: requiredElement<HTMLElement>("#timeline-view-toolbar"),
   viewControlsToggle: requiredElement<HTMLButtonElement>("#timeline-view-controls-toggle"),
+  newEmptyProject: requiredElement<HTMLButtonElement>("#new-empty-project"),
   loadSample: requiredElement<HTMLButtonElement>("#load-sample"),
   importJson: requiredElement<HTMLInputElement>("#import-json"),
   importInterchange: requiredElement<HTMLInputElement>("#import-interchange"),
@@ -599,7 +602,12 @@ const ui = {
 
 const authoring = createAuthoringContext();
 const authoringMenu = document.createElement("luum-authoring-menu") as LuumAuthoringMenuElement;
-document.body.append(authoringMenu);
+const authoringContextIndicator = document.createElement(
+  "luum-authoring-context-indicator",
+) as LuumAuthoringContextIndicatorElement;
+document.body.append(authoringMenu, authoringContextIndicator);
+let authoringGuideDismissed = readAuthoringGuideDismissed();
+let authoringGuideWasVisible = false;
 
 function decorateSemanticControls() {
   for (const element of els.semanticIconTargets) {
@@ -1930,6 +1938,7 @@ function renderTimelineList(visible: TimelineItemRecord[], activeStory: StoryRec
 }
 
 function renderTimeline() {
+  syncAuthoringContextIndicator();
   renderBrowserStories();
   const activeStory = getStory(ui.activeStoryId);
   const visible = getVisibleItems();
@@ -3654,9 +3663,57 @@ function authoringPlaceLabel(placeId: string | null): string | null {
   return getPlace(placeId)?.name || placeId;
 }
 
+function readAuthoringGuideDismissed(): boolean {
+  try {
+    return localStorage.getItem(AUTHORING_GUIDE_DISMISSED_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function dismissAuthoringGuide(): void {
+  authoringGuideDismissed = true;
+  try {
+    localStorage.setItem(AUTHORING_GUIDE_DISMISSED_KEY, "true");
+  } catch (error) {
+    console.warn("Authoring guide preference could not be saved:", error);
+  }
+}
+
+function projectIsAuthoringEmpty(): boolean {
+  return (
+    state.items.length === 0 &&
+    state.stories.length === 0 &&
+    state.entities.length === 0 &&
+    state.places.length === 0 &&
+    state.relationships.length === 0
+  );
+}
+
+function syncAuthoringContextIndicator(): void {
+  const empty = projectIsAuthoringEmpty();
+  if (authoringGuideWasVisible && !empty && !authoringGuideDismissed) {
+    dismissAuthoringGuide();
+  }
+  const showGuide = empty && !authoringGuideDismissed;
+  authoringGuideWasVisible = showGuide;
+  const selectedPlaceId =
+    authoring.selection?.kind === "place"
+      ? authoring.selection.id
+      : authoring.spatialContext.placeId;
+  authoringContextIndicator.setContext({
+    date: authoring.date,
+    place: authoringPlaceLabel(selectedPlaceId),
+    story: getStory(ui.activeStoryId)?.title ?? null,
+    empty,
+    showGuide,
+  });
+}
+
 function syncAuthoringSelection(detail: unknown): void {
   if (!detail || typeof detail !== "object") {
     authoring.setSelection(null);
+    syncAuthoringContextIndicator();
     return;
   }
   const record = detail as { kind?: unknown; id?: unknown };
@@ -3667,9 +3724,11 @@ function syncAuthoringSelection(detail: unknown): void {
     (typeof id !== "string" && typeof id !== "number")
   ) {
     authoring.setSelection(null);
+    syncAuthoringContextIndicator();
     return;
   }
   authoring.setSelection({ kind, id: String(id) });
+  syncAuthoringContextIndicator();
 }
 
 function beginAuthoringSelectionEdit(): boolean {
@@ -4581,6 +4640,11 @@ authoringMenu.addEventListener("authoringaction", (event) => {
   handleAuthoringAction((event as CustomEvent<{ action: AuthoringMenuAction }>).detail.action);
 });
 
+authoringContextIndicator.addEventListener("authoringguidedismiss", () => {
+  dismissAuthoringGuide();
+  syncAuthoringContextIndicator();
+});
+
 document.addEventListener("pointerdown", (event) => {
   if (!authoringMenu.open) return;
   if (event.target instanceof Node && authoringMenu.contains(event.target)) return;
@@ -5363,6 +5427,7 @@ els.timelineViewRoot.addEventListener("timelineviewportchange", (event) => {
   const viewport = event.detail?.viewport || null;
   const committed = Boolean(event.detail?.committed);
   authoring.setTimelineViewport(viewport, committed);
+  if (committed) syncAuthoringContextIndicator();
   settledSpatialWindow.push(viewport, committed);
 });
 
@@ -5430,6 +5495,7 @@ els.graphViewRoot.addEventListener("worldcontextrequest", (event) => {
       : null;
   const placeId = authoring.selection?.kind === "place" ? authoring.selection.id : null;
   authoring.setSpatialContext({ position, placeId });
+  syncAuthoringContextIndicator();
   request.preventDefault();
   showAuthoringMenuAt(clientX, clientY, position);
 });
@@ -5441,6 +5507,7 @@ els.graphViewRoot.addEventListener("contextmenu", (event) => {
   event.preventDefault();
   const placeId = authoring.selection?.kind === "place" ? authoring.selection.id : null;
   authoring.setSpatialContext({ position: null, placeId });
+  syncAuthoringContextIndicator();
   showAuthoringMenuAt(event.clientX, event.clientY);
 });
 
@@ -5473,6 +5540,50 @@ els.title.addEventListener("input", () => {
   state.title = els.title.value.slice(0, 120);
   els.heading.textContent = state.title.trim() || "Untitled timeline";
   persist();
+});
+
+function projectHasReplaceableContent(): boolean {
+  return Boolean(
+    state.title ||
+      state.items.length ||
+      state.stories.length ||
+      state.entities.length ||
+      state.places.length ||
+      state.relationships.length ||
+      state.evidence.length,
+  );
+}
+
+function resetToEmptyProject(status: string): void {
+  timelineView?.closeFocus();
+  state = blankTimeline();
+  collapseAllCategories();
+  ui.search = "";
+  ui.categoryFilter = "all";
+  ui.activeStoryId = null;
+  ui.storyCursor = 0;
+  authoring.setSelection(null);
+  authoring.clearSpatialContext();
+  els.search.value = "";
+  resetItemForm();
+  resetStoryForm();
+  resetCategoryForm();
+  resetGraphNodeForm();
+  resetGraphEdgeForm();
+  persist();
+  renderAll();
+  showStatus(status);
+}
+
+els.newEmptyProject.addEventListener("click", () => {
+  if (ui.mode !== "edit") return;
+  if (
+    projectHasReplaceableContent() &&
+    !window.confirm("Start a new empty project? This replaces the current local project.")
+  ) {
+    return;
+  }
+  resetToEmptyProject("Empty project ready.");
 });
 
 els.loadSample.addEventListener("click", () => {
@@ -5727,26 +5838,12 @@ els.exportMarkdown.addEventListener("click", () => {
 els.clear.addEventListener("click", () => {
   if (ui.mode !== "edit") return;
   if (
-    (state.items.length || state.stories.length || state.title) &&
-    !window.confirm("Clear this timeline? This removes its locally stored items and stories.")
-  )
+    projectHasReplaceableContent() &&
+    !window.confirm("Clear this project? This removes its locally stored project data.")
+  ) {
     return;
-  timelineView?.closeFocus();
-  state = blankTimeline();
-  collapseAllCategories();
-  ui.search = "";
-  ui.categoryFilter = "all";
-  ui.activeStoryId = null;
-  ui.storyCursor = 0;
-  els.search.value = "";
-  resetItemForm();
-  resetStoryForm();
-  resetCategoryForm();
-  resetGraphNodeForm();
-  resetGraphEdgeForm();
-  persist();
-  renderAll();
-  showStatus("Timeline cleared.");
+  }
+  resetToEmptyProject("Project cleared.");
 });
 
 fillTimeZoneOptions();
