@@ -522,6 +522,57 @@ function scaleAlpha(color: Rgba, factor: number): Rgba {
   return [color[0], color[1], color[2], Math.round(color[3] * alpha)];
 }
 
+interface DeckWorldReleasingRelationshipSegment {
+  readonly relationshipId: RelationshipId;
+  readonly edge: DeckWorldRelationshipDatum;
+  readonly path: readonly [WorldRenderPosition, WorldRenderPosition];
+}
+
+function interpolateWorldPathPoint(
+  source: WorldRenderPosition,
+  target: WorldRenderPosition,
+  progress: number,
+): WorldRenderPosition {
+  const t = Math.max(0, Math.min(1, progress));
+  const longitudeDelta = ((((target[0] - source[0] + 180) % 360) + 360) % 360) - 180;
+  const longitude = source[0] + longitudeDelta * t;
+  return Object.freeze([
+    ((((longitude + 180) % 360) + 360) % 360) - 180,
+    source[1] + (target[1] - source[1]) * t,
+    source[2] + (target[2] - source[2]) * t,
+  ]) as WorldRenderPosition;
+}
+
+/** Geometry-only dashed release cue. It does not interpolate or move topology. */
+function releasingRelationshipSegments(
+  edges: readonly DeckWorldRelationshipDatum[],
+): readonly DeckWorldReleasingRelationshipSegment[] {
+  const result: DeckWorldReleasingRelationshipSegment[] = [];
+  for (const edge of edges) {
+    for (let index = 0; index < edge.path.length - 1; index += 1) {
+      const source = edge.path[index];
+      const target = edge.path[index + 1];
+      if (!source || !target) continue;
+      const divisions = 6;
+      for (let part = 0; part < divisions; part += 2) {
+        const start = interpolateWorldPathPoint(source, target, part / divisions);
+        const end = interpolateWorldPathPoint(source, target, (part + 1) / divisions);
+        result.push(
+          Object.freeze({
+            relationshipId: edge.relationshipId,
+            edge,
+            path: Object.freeze([start, end]) as readonly [
+              WorldRenderPosition,
+              WorldRenderPosition,
+            ],
+          }),
+        );
+      }
+    }
+  }
+  return Object.freeze(result);
+}
+
 /**
  * Renderer-neutral, non-visual description of the currently active
  * projection (issue #445 Priority 6). Derived purely from `#projection`/
