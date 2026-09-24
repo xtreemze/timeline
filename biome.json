@@ -40,28 +40,10 @@
       "suspicious": {
         "noExplicitAny": "off",
         "noShorthandPropertyOverrides": "error",
-        "noUnknownAtRules": "error",
-        "noConsole": {
-          "level": "error",
-          "options": {
-            "allow": [
-              "warn",
-              "error"
-            ]
-          }
-        },
-        "noDoubleEquals": {
-          "level": "error",
-          "options": {
-            "ignoreNull": false
-          }
-        },
-        "noUnusedExpressions": "error"
+        "noUnknownAtRules": "error"
       },
       "style": {
-        "noNonNullAssertion": "off",
-        "noParameterAssign": "error",
-        "useConst": "error"
+        "noNonNullAssertion": "off"
       },
       "nursery": {
         "noReturnInFinally": "error",
@@ -71,18 +53,53 @@
         "useGenericFontNames": "error"
       },
       "complexity": {
-        "noImportantStyles": "error",
-        "noImplicitCoercions": "error",
-        "useArrowFunction": "error"
-      },
-      "correctness": {
-        "noUndeclaredVariables": "error",
-        "noUnusedImports": "error",
-        "noUnusedVariables": "error"
+        "noImportantStyles": "error"
       }
     }
   },
   "overrides": [
+    {
+      "includes": [
+        "src/**/*.js",
+        "site/**/*.js",
+        "tests/**/*.mjs",
+        "benchmarks/**/*.mjs"
+      ],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUndeclaredVariables": "error",
+            "noUnusedVariables": "error"
+          },
+          "complexity": {
+            "noImplicitCoercions": "error",
+            "useArrowFunction": "error"
+          },
+          "style": {
+            "noParameterAssign": "error",
+            "useConst": "error"
+          },
+          "suspicious": {
+            "noConsole": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  "warn",
+                  "error"
+                ]
+              }
+            },
+            "noDoubleEquals": {
+              "level": "error",
+              "options": {
+                "ignoreNull": false
+              }
+            },
+            "noUnusedExpressions": "error"
+          }
+        }
+      }
+    },
     {
       "includes": [
         "site/ui/**",
