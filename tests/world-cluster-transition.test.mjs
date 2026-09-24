@@ -1,30 +1,40 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { worldClusterExpansionProgress } from "../src/layout/world-cluster-transition.ts";
+import {
+  WORLD_CLUSTER_COLLAPSED_RADIUS_RATIO,
+  WORLD_CLUSTER_EXPANDED_RADIUS_RATIO,
+  worldClusterTarget,
+} from "../src/layout/world-cluster-transition.ts";
 import {
   WORLD_PLACE_CLUSTER_RADIUS_PX,
   WORLD_READABLE_LOCAL_RADIUS_PX,
 } from "../src/layout/world-semantic-presentation.ts";
 
-test("cluster expansion is continuous across the semantic zoom band", () => {
-  assert.equal(worldClusterExpansionProgress(50, 100), 0);
-  assert.equal(worldClusterExpansionProgress(140, 100), 1);
-  const middle = worldClusterExpansionProgress(100, 100);
-  assert.ok(middle > 0 && middle < 1);
+test("cluster LOD uses hysteresis rather than interpolation", () => {
+  assert.equal(worldClusterTarget(60, 100, false), true);
+  assert.equal(worldClusterTarget(80, 100, false), false);
 
-  const before = worldClusterExpansionProgress(99, 100);
-  const after = worldClusterExpansionProgress(101, 100);
-  assert.ok(Math.abs(after - before) < 0.1, "no threshold-sized jump is introduced");
+  assert.equal(worldClusterTarget(120, 100, true), true);
+  assert.equal(worldClusterTarget(140, 100, true), false);
+
+  assert.ok(WORLD_CLUSTER_COLLAPSED_RADIUS_RATIO < 1);
+  assert.ok(WORLD_CLUSTER_EXPANDED_RADIUS_RATIO > 1);
 });
 
-test("place clusters do not resolve before the local graph readability floor", () => {
+test("place clusters stay collapsed until force layout has clear readable room", () => {
   assert.equal(WORLD_PLACE_CLUSTER_RADIUS_PX, WORLD_READABLE_LOCAL_RADIUS_PX);
-  assert.ok(
-    worldClusterExpansionProgress(
+  assert.equal(
+    worldClusterTarget(
       WORLD_READABLE_LOCAL_RADIUS_PX,
       WORLD_PLACE_CLUSTER_RADIUS_PX,
-    ) < 1,
-    "the readability floor is still inside the transition band; full expansion requires more room",
+      true,
+    ),
+    true,
   );
+});
+
+test("invalid or unresolved local radius stays safely clustered", () => {
+  assert.equal(worldClusterTarget(0, 100, false), true);
+  assert.equal(worldClusterTarget(Number.NaN, 100, false), true);
 });
