@@ -43,8 +43,10 @@ test("offset scale keeps overview topology readable and expands it at detail zoo
     const radiusPx = (typical * scale) / metersPerPixel;
     const targetPx = worldFloatingGraphRadiusPx(zoom);
     radii.push(radiusPx);
-    // Quarter-octave quantisation: within 2^(1/8) of the semantic target.
-    assert.ok(Math.abs(Math.log2(radiusPx / targetPx)) <= 0.125 + 1e-9);
+    assert.ok(
+      Math.abs(radiusPx - targetPx) <= 1e-9,
+      "screen-space radius follows the semantic target continuously",
+    );
   }
 
   assert.ok(radii[1] > radii[0], "detail zoom gives floating nodes more screen-space room");
@@ -66,9 +68,18 @@ test("offset scale respects the available viewport radius", () => {
 
   assert.ok(capped < uncapped);
   assert.ok(
-    Math.abs(Math.log2(cappedRadiusPx / 140)) <= 0.125 + 1e-9,
-    "quarter-octave quantisation stays close to the viewport-constrained target",
+    Math.abs(cappedRadiusPx - 140) <= 1e-9,
+    "viewport-constrained scale resolves exactly without quantized jumps",
   );
+});
+
+test("offset scale changes continuously across small zoom deltas", () => {
+  const typical = 500;
+  const lower = worldPresentationOffsetScale(7, 100, typical, 0);
+  const upper = worldPresentationOffsetScale(7.01, 100, typical, 0);
+
+  assert.notEqual(upper, lower);
+  assert.ok(Math.abs(upper - lower) < 0.02 * Math.max(lower, upper));
 });
 
 test("decluster readability grows with node footprint but is capped by the viewport", () => {
