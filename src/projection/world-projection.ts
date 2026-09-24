@@ -1,4 +1,10 @@
 import type { EntityId, PlaceId, RelationshipId } from "../domain/ids.ts";
+import {
+  type WorldEntityVisualEncoding,
+  type WorldRelationshipVisualEncoding,
+  worldEntityVisualEncoding,
+  worldRelationshipVisualEncoding,
+} from "./world-visual-encoding.ts";
 
 export type WorldInstanceId = string & { readonly __worldInstanceId: unique symbol };
 
@@ -23,6 +29,7 @@ export interface ProjectedWorldInstance {
   readonly canonicalId: EntityId;
   readonly label?: string;
   readonly kind?: string;
+  readonly visual?: WorldEntityVisualEncoding;
   readonly occurrenceId?: RelationshipId;
   readonly geographicAnchors: readonly SpatialAnchor[];
   readonly temporalWeight: number;
@@ -35,6 +42,8 @@ export interface ProjectedWorldInstance {
 export interface ProjectedWorldEdge {
   readonly id: RelationshipId;
   readonly label?: string;
+  readonly type?: string;
+  readonly visual?: WorldRelationshipVisualEncoding;
   readonly sourceInstanceId: WorldInstanceId;
   readonly targetInstanceId: WorldInstanceId;
   readonly temporalWeight: number;
@@ -133,6 +142,7 @@ export function createProjectedWorldInstance(
   const id = instance.id ?? worldInstanceId(canonicalId, occurrenceId);
   const label = optionalText(instance.label, 180);
   const kind = optionalText(instance.kind, 80);
+  const visual = instance.visual ?? worldEntityVisualEncoding(kind);
 
   const localOffset = instance.localOffset
     ? Object.freeze({
@@ -151,6 +161,7 @@ export function createProjectedWorldInstance(
     canonicalId,
     ...(label === undefined ? {} : { label }),
     ...(kind === undefined ? {} : { kind }),
+    visual,
     ...(occurrenceId === undefined ? {} : { occurrenceId }),
     geographicAnchors: Object.freeze(instance.geographicAnchors.map(createSpatialAnchor)),
     temporalWeight: unitInterval(instance.temporalWeight, "Temporal weight"),
@@ -163,9 +174,13 @@ export function createProjectedWorldInstance(
 
 export function createProjectedWorldEdge(edge: ProjectedWorldEdge): ProjectedWorldEdge {
   const label = optionalText(edge.label, 120);
+  const type = optionalText(edge.type, 120) ?? label ?? nonEmpty(edge.id, "Relationship ID");
+  const visual = edge.visual ?? worldRelationshipVisualEncoding(type);
   return Object.freeze({
     id: nonEmpty(edge.id, "Relationship ID") as RelationshipId,
     ...(label === undefined ? {} : { label }),
+    type,
+    visual,
     sourceInstanceId: nonEmpty(
       edge.sourceInstanceId,
       "Source world instance ID",
