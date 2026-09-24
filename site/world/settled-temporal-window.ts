@@ -16,17 +16,20 @@ export function createSettledTemporalWindowSink<T>(
   let pending: T | undefined;
   let hasPending = false;
 
+  function flush(): boolean {
+    if (!hasPending) return false;
+    const settled = pending as T;
+    pending = undefined;
+    hasPending = false;
+    apply(settled);
+    return true;
+  }
+
   return Object.freeze({
     push(viewport: T, committed: boolean): boolean {
       pending = viewport;
       hasPending = true;
-      if (!committed) return false;
-
-      const settled = pending;
-      pending = undefined;
-      hasPending = false;
-      apply(settled as T);
-      return true;
+      return committed ? flush() : false;
     },
     clear(): void {
       pending = undefined;
