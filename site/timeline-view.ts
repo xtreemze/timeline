@@ -133,6 +133,9 @@ interface SceneRecord {
   connectorTurn: HTMLElement | null;
   range: HTMLButtonElement | null;
   contentRevision: string;
+  contentEpoch: number;
+  selected: boolean | null;
+  connectorGeometryDirty: boolean;
   labelBefore: boolean | null;
   crossPosition: number | null;
 }
@@ -143,6 +146,8 @@ interface ClusterSceneRecord {
   terminal: HTMLButtonElement;
   connector: HTMLElement;
   connectorTurn: HTMLElement;
+  lane: number;
+  connectorGeometryDirty: boolean;
   labelBefore: boolean | null;
   crossPosition: number | null;
 }
@@ -385,6 +390,7 @@ export class TimelineViewController {
   axis: HTMLDivElement;
   semanticList: HTMLOListElement;
   items: TimelineItem[] = [];
+  itemEpoch = 0;
   relationships: TimelineRelationshipBand[] = [];
   allCoordinates: number[] = [];
   viewport: TemporalWindow = { start: 0, end: DEFAULT_SPAN_MS };
@@ -942,6 +948,7 @@ export class TimelineViewController {
     this.items = (items || []).filter(
       (item) => item && typeof item.id === "string" && Number.isFinite(item.start),
     );
+    this.itemEpoch += 1;
     this.relationships = Array.isArray(options.relationships)
       ? options.relationships
           .filter(
@@ -2289,6 +2296,8 @@ export class TimelineViewController {
       terminal,
       connector,
       connectorTurn,
+      lane: -1,
+      connectorGeometryDirty: true,
       labelBefore: null,
       crossPosition: null,
     };
@@ -2316,6 +2325,8 @@ export class TimelineViewController {
     if (!items.length) return;
     const first = items[0];
     if (!first) return;
+    record.lane = this.visualLaneFor(first);
+    record.connectorGeometryDirty = true;
     record.node.style.setProperty("--event-color", first.color || "var(--accent)");
     record.terminal.setAttribute(
       "aria-label",
@@ -2371,16 +2382,14 @@ export class TimelineViewController {
     for (const record of this.clusterScene.values()) {
       const { cluster, node, terminal } = record;
       const visible = itemOverlapsWindow({ start: cluster.start, end: cluster.end }, this.viewport);
-      node.hidden = !visible;
-      terminal.tabIndex = visible ? 0 : -1;
+      if (node.hidden === visible) node.hidden = !visible;
+      const terminalTabIndex = visible ? 0 : -1;
+      if (terminal.tabIndex !== terminalTabIndex) terminal.tabIndex = terminalTabIndex;
       if (!visible) continue;
 
       const anchor = cluster.start + (cluster.end - cluster.start) / 2;
       const primary = padding + scale.coordinateFor(anchor, this.viewport, usable);
-      const representative =
-        cluster.itemIds.map((id) => this.items.find((item) => item.id === id)).find(Boolean) ||
-        null;
-      const lane = representative ? this.visualLaneFor(representative) : -1;
+      const lane = record.lane;
       const laneDistance = 72 + Math.max(0, Math.abs(lane) - 1) * 62;
       const terminalCross = axisCross + (lane < 0 ? -laneDistance : laneDistance);
       const segment = connectorSegment(axisCross, terminalCross);
@@ -2404,20 +2413,21 @@ export class TimelineViewController {
         previousLabelBefore !== labelBefore
           ? terminal.getBoundingClientRect()
           : null;
+      const crossGeometryChanged =
+        previousCrossPosition === null ||
+        Math.abs(previousCrossPosition - terminalCross) > LAYOUT_CORRECTION_EPSILON_PX;
       record.labelBefore = labelBefore;
       record.crossPosition = terminalCross;
-      node.dataset.side = labelBefore ? "before" : "after";
-      node.classList.toggle("label-before", labelBefore);
+      if (previousLabelBefore !== labelBefore) {
+        node.dataset.side = labelBefore ? "before" : "after";
+        node.classList.toggle("label-before", labelBefore);
+      }
       if (this.orientation === "horizontal") {
         node.style.transform = `translate3d(${primary}px, ${terminalCross}px, 0)`;
       } else {
         node.style.transform = `translate3d(${terminalCross}px, ${primary}px, 0)`;
       }
-      if (
-        !this.retention.active &&
-        previousCrossPosition !== null &&
-        Math.abs(previousCrossPosition - terminalCross) > LAYOUT_CORRECTION_EPSILON_PX
-      ) {
+      if (!this.retention.active && previousCrossPosition !== null && crossGeometryChanged) {
         const crossDelta = previousCrossPosition - terminalCross;
         this.animateLayoutCorrection(
           node,
@@ -2435,7 +2445,7 @@ export class TimelineViewController {
       }
 
       const connector = record.connector;
-      if (connector) {
+      if (connector && (record.connectorGeometryDirty || crossGeometryChanged)) {
         if (this.orientation === "horizontal") {
           connector.style.left = "0";
           connector.style.top = `${segment.offset}px`;
@@ -2447,6 +2457,7 @@ export class TimelineViewController {
           connector.style.width = `${Math.max(1, segment.length)}px`;
           connector.style.height = "2px";
         }
+        record.connectorGeometryDirty = false;
       }
     }
   }
@@ -2598,7 +2609,8 @@ export class TimelineViewController {
         this.animateEntry(record);
       } else {
         record.item = item;
-        this.updateRecordContent(record);
+        if (record.contentEpoch !== this.itemEpoch) this.updateRecordContent(record);
+        else this.syncRecordSelection(record);
       }
       this.positionRecord(
         record,
@@ -2678,6 +2690,9 @@ export class TimelineViewController {
       connectorTurn,
       range,
       contentRevision: "",
+      contentEpoch: -1,
+      selected: null,
+      connectorGeometryDirty: true,
       labelBefore: null,
       crossPosition: null,
     };
@@ -2726,6 +2741,7 @@ export class TimelineViewController {
     if (record.contentRevision !== revision) {
       node.setSemanticItem(item);
       record.contentRevision = revision;
+      record.connectorGeometryDirty = true;
       if (range) {
         range.style.setProperty("--event-color", item.color || "var(--accent)");
         const rangeLabel = `${item.title || item.id} · ${item.startLabel || item.start} → ${item.endLabel || item.end}`;
@@ -2734,10 +2750,16 @@ export class TimelineViewController {
         range.setAttribute("aria-label", rangeLabel);
       }
     }
+    record.contentEpoch = this.itemEpoch;
+    this.syncRecordSelection(record);
+  }
 
-    const selected = item.id === this.focusedId;
-    node.setSelected(selected);
-    range?.classList.toggle("is-selected", selected);
+  syncRecordSelection(record: SceneRecord): void {
+    const selected = record.item.id === this.focusedId;
+    if (record.selected === selected) return;
+    record.selected = selected;
+    record.node.setSelected(selected);
+    record.range?.classList.toggle("is-selected", selected);
   }
 
   positionRecord(
@@ -2760,8 +2782,8 @@ export class TimelineViewController {
     const lane = this.visualLaneFor(item);
     const clusterId = this.committedClusterByItem.get(item.id);
     const hiddenByCluster = Boolean(clusterId) && item.id !== this.focusedId;
-    node.hidden = hiddenByCluster;
-    if (range) range.hidden = hiddenByCluster;
+    if (node.hidden !== hiddenByCluster) node.hidden = hiddenByCluster;
+    if (range && range.hidden !== hiddenByCluster) range.hidden = hiddenByCluster;
     const laneDistance = 72 + Math.max(0, Math.abs(lane) - 1) * 62;
     const terminalCross = axisCross + (lane < 0 ? -laneDistance : laneDistance);
     const routeOffset = connectorRouteOffset(
@@ -2791,22 +2813,27 @@ export class TimelineViewController {
       previousLabelBefore !== labelBefore
         ? terminal.getBoundingClientRect()
         : null;
+    const crossGeometryChanged =
+      previousCrossPosition === null ||
+      Math.abs(previousCrossPosition - shiftedCross) > LAYOUT_CORRECTION_EPSILON_PX;
     record.labelBefore = labelBefore;
     record.crossPosition = shiftedCross;
-    node.dataset.side = labelBefore ? "before" : "after";
-    node.classList.toggle("label-before", labelBefore);
-    node.classList.toggle("is-buffered", !itemOverlapsWindow(item, this.viewport));
+    if (previousLabelBefore !== labelBefore) {
+      node.dataset.side = labelBefore ? "before" : "after";
+      node.classList.toggle("label-before", labelBefore);
+    }
+    const visible = itemOverlapsWindow(item, this.viewport);
+    const buffered = !visible;
+    if (node.classList.contains("is-buffered") !== buffered) {
+      node.classList.toggle("is-buffered", buffered);
+    }
 
     if (this.orientation === "horizontal") {
       node.style.transform = `translate3d(${primary}px, ${shiftedCross}px, 0)`;
     } else {
       node.style.transform = `translate3d(${shiftedCross}px, ${primary}px, 0)`;
     }
-    if (
-      !this.retention.active &&
-      previousCrossPosition !== null &&
-      Math.abs(previousCrossPosition - shiftedCross) > LAYOUT_CORRECTION_EPSILON_PX
-    ) {
+    if (!this.retention.active && previousCrossPosition !== null && crossGeometryChanged) {
       const crossDelta = previousCrossPosition - shiftedCross;
       this.animateLayoutCorrection(
         node,
@@ -2819,9 +2846,10 @@ export class TimelineViewController {
       this.animateLayoutCorrection(terminal, sideCorrectionStart.left - sideCorrectionEnd.left, 0);
     }
 
-    terminal.tabIndex = itemOverlapsWindow(item, this.viewport) ? 0 : -1;
+    const terminalTabIndex = visible ? 0 : -1;
+    if (terminal.tabIndex !== terminalTabIndex) terminal.tabIndex = terminalTabIndex;
 
-    if (connector && connectorTurn) {
+    if (connector && connectorTurn && (record.connectorGeometryDirty || crossGeometryChanged)) {
       const segment = connectorSegment(axisCross, shiftedCross);
       const connectorThickness =
         item.connectorWeight === "fine" ? 1 : item.connectorWeight === "strong" ? 4 : 2;
@@ -2844,6 +2872,7 @@ export class TimelineViewController {
         connectorTurn.style.width = `${connectorThickness}px`;
         connectorTurn.style.height = `${Math.max(1, Math.abs(routeOffset))}px`;
       }
+      record.connectorGeometryDirty = false;
     }
 
     if (range && Number.isFinite(item.end)) {
@@ -2852,8 +2881,10 @@ export class TimelineViewController {
       const startPosition = coordinate(clippedStart);
       const endPosition = coordinate(clippedEnd);
       const length = Math.max(2, endPosition - startPosition);
-      range.classList.toggle("is-buffered", !itemOverlapsWindow(item, this.viewport));
-      range.tabIndex = itemOverlapsWindow(item, this.viewport) ? 0 : -1;
+      if (range.classList.contains("is-buffered") !== buffered) {
+        range.classList.toggle("is-buffered", buffered);
+      }
+      if (range.tabIndex !== terminalTabIndex) range.tabIndex = terminalTabIndex;
       if (this.orientation === "horizontal") {
         range.style.transform = `translate3d(${startPosition}px, 0, 0)`;
         range.style.width = `${length}px`;
@@ -2948,10 +2979,12 @@ export class TimelineViewController {
       for (const record of this.scene.values()) {
         record.labelBefore = null;
         record.crossPosition = null;
+        record.connectorGeometryDirty = true;
       }
       for (const record of this.clusterScene.values()) {
         record.labelBefore = null;
         record.crossPosition = null;
+        record.connectorGeometryDirty = true;
       }
       this.applyOrientation();
       this.root.dispatchEvent(

@@ -64,6 +64,48 @@ test("interaction positioning performs no per-card layout read and freezes label
   assert.match(clusterBody, /record\.labelBefore = labelBefore/);
 });
 
+test("retained card semantic work is dataset-scoped and cross geometry is cached", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  assert.match(source, /itemEpoch = 0/);
+  assert.match(source, /this\.itemEpoch \+= 1/);
+  assert.match(source, /contentEpoch: number/);
+  assert.match(source, /connectorGeometryDirty: boolean/);
+
+  const sceneStart = source.indexOf("  renderScene(): void {");
+  const createStart = source.indexOf("  createRecord(", sceneStart);
+  const sceneBody = source.slice(sceneStart, createStart);
+  assert.match(sceneBody, /record\.contentEpoch !== this\.itemEpoch/);
+  assert.match(sceneBody, /else this\.syncRecordSelection\(record\)/);
+
+  const updateStart = source.indexOf("  updateRecordContent(");
+  const positionStart = source.indexOf("  positionRecord(", updateStart);
+  const updateBody = source.slice(updateStart, positionStart);
+  assert.match(updateBody, /record\.contentEpoch = this\.itemEpoch/);
+  assert.match(updateBody, /record\.connectorGeometryDirty = true/);
+  assert.match(updateBody, /syncRecordSelection\(record: SceneRecord\)/);
+  assert.match(updateBody, /if \(record\.selected === selected\) return/);
+
+  const positionEnd = source.indexOf("  animateEntry(", positionStart);
+  const positionBody = source.slice(positionStart, positionEnd);
+  assert.match(positionBody, /node\.hidden !== hiddenByCluster/);
+  assert.match(positionBody, /previousLabelBefore !== labelBefore/);
+  assert.match(positionBody, /classList\.contains\("is-buffered"\) !== buffered/);
+  assert.match(positionBody, /terminal\.tabIndex !== terminalTabIndex/);
+  assert.match(
+    positionBody,
+    /record\.connectorGeometryDirty \|\| crossGeometryChanged/,
+  );
+  assert.match(positionBody, /record\.connectorGeometryDirty = false/);
+
+  const clusterStart = source.indexOf("  positionCommittedClusters(");
+  const clusterEnd = source.indexOf("  activateCommittedCluster(", clusterStart);
+  const clusterBody = source.slice(clusterStart, clusterEnd);
+  assert.match(clusterBody, /const lane = record\.lane/);
+  assert.doesNotMatch(clusterBody, /this\.items\.find/);
+  assert.match(clusterBody, /record\.connectorGeometryDirty \|\| crossGeometryChanged/);
+});
+
 test("continuous input publishes viewport state only from the rendered animation frame", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
