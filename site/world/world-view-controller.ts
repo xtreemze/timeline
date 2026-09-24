@@ -118,7 +118,9 @@ export class WorldViewRuntimeController {
     const previous = this.#sourceProjection;
     this.#sourceProjection = projection;
     this.#renderProjection = projection;
-    this.#sourceInstances = new Map(projection.instances.map((instance) => [instance.id, instance]));
+    this.#sourceInstances = new Map(
+      projection.instances.map((instance) => [instance.id, instance] as const),
+    );
     this.#renderOverrides.clear();
     this.#renderProjectionDirty = false;
     this.#projectionRevision += 1;
@@ -324,6 +326,9 @@ export class WorldViewRuntimeController {
     this.#destroyed = true;
     this.#simulation.clear();
     this.#gpuLayoutBridge?.destroy();
+    this.#sourceInstances.clear();
+    this.#renderOverrides.clear();
+    this.#renderProjectionDirty = false;
     this.#forceBackend.destroy();
     this.#surface.destroy();
   }
