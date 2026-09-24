@@ -266,6 +266,28 @@ test("timeline interaction uses one padded coordinate system and direct pointer 
   assert.doesNotMatch(positionBody, /getBoundingClientRect/);
 });
 
+test("timeline caches tick labels instead of querying descendants every frame", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  assert.match(source, /tickLabelScene = new Map<string, HTMLSpanElement>\(\)/);
+
+  const materializeStart = source.indexOf("  materializeTickHierarchy(");
+  const materializeEnd = source.indexOf("  materializeTemporalAccents(", materializeStart);
+  const materializeBody = source.slice(materializeStart, materializeEnd);
+  assert.match(materializeBody, /let label = this\.tickLabelScene\.get\(key\)/);
+  assert.match(materializeBody, /this\.tickLabelScene\.set\(key, label\)/);
+  assert.doesNotMatch(materializeBody, /querySelector/);
+
+  const collisionStart = source.indexOf("  resolveTickLabelCollisions(");
+  const collisionEnd = source.indexOf("  retainedObjectCount(", collisionStart);
+  const collisionBody = source.slice(collisionStart, collisionEnd);
+  assert.match(collisionBody, /const label = this\.tickLabelScene\.get\(key\)/);
+  assert.doesNotMatch(collisionBody, /querySelector/);
+
+  assert.match(source, /this\.tickLabelScene\.clear\(\)/);
+  assert.match(source, /this\.tickLabelScene\.delete\(key\)/);
+});
+
 test("timeline keeps one semantic date hierarchy during an active zoom gesture", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   const start = source.indexOf("  renderTemporalContext(");
@@ -336,7 +358,10 @@ test("timeline retains obsolete edge-year slots during gestures, suppresses over
     /for \(const animation of node\.getAnimations\(\)\) animation\.cancel\(\);[\s\S]*node\.hidden = true/,
   );
   const interactionCleanupStart = renderBody.indexOf("if (this.retention.active)");
-  const committedCleanupStart = renderBody.indexOf("if (!this.retention.active)", interactionCleanupStart);
+  const committedCleanupStart = renderBody.indexOf(
+    "if (!this.retention.active)",
+    interactionCleanupStart,
+  );
   const interactionCleanup = renderBody.slice(interactionCleanupStart, committedCleanupStart);
   assert.doesNotMatch(interactionCleanup, /accentScene\.delete/);
   assert.doesNotMatch(interactionCleanup, /node\.remove\(\)/);

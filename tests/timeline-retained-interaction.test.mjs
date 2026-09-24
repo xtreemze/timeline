@@ -177,6 +177,37 @@ test("committed lane and side corrections are short, cancelable, and reduced-mot
   assert.match(source, /!this\.retention\.active/);
 });
 
+test("stable interaction-frame metadata writes are coalesced", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  assert.match(source, /lastAxisCrossCss = ""/);
+  assert.match(source, /lastReadoutKey = ""/);
+
+  const sceneStart = source.indexOf("  renderScene(): void {");
+  const sceneEnd = source.indexOf("  createRecord(", sceneStart);
+  const sceneBody = source.slice(sceneStart, sceneEnd);
+  assert.match(sceneBody, /this\.root\.dataset\.empty !== emptyState/);
+  assert.match(sceneBody, /this\.lastAxisCrossCss !== axisCrossCss/);
+  assert.match(sceneBody, /this\.stage\.dataset\.sceneState !== sceneState/);
+
+  const zoomStart = source.indexOf("  syncZoomSlider(): void {");
+  const zoomEnd = source.indexOf("  positionTemporalNode(", zoomStart);
+  const zoomBody = source.slice(zoomStart, zoomEnd);
+  assert.match(zoomBody, /!this\.zoomSlider \|\| this\.retention\.active/);
+  assert.match(zoomBody, /this\.zoomSlider\.disabled !== disabled/);
+  assert.match(zoomBody, /getAttribute\("aria-orientation"\) !== orientation/);
+  assert.match(zoomBody, /this\.zoomSlider\.value !== nextValue/);
+  assert.match(zoomBody, /getAttribute\("aria-valuetext"\) !== label/);
+
+  const readoutStart = source.indexOf("  updateReadout(): void {");
+  const readoutBody = source.slice(readoutStart);
+  assert.match(readoutBody, /if \(key === this\.lastReadoutKey\) return/);
+  assert.ok(
+    readoutBody.indexOf("if (key === this.lastReadoutKey) return") <
+      readoutBody.indexOf("toLocaleDateString"),
+  );
+});
+
 test("structural axis relocation keeps the retained scene visually continuous", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
