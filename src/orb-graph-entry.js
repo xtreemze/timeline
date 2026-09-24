@@ -27,7 +27,6 @@ const GRAPH_MAX_ZOOM = 2.5;
 const GRAPH_KEYBOARD_PAN_PX = 72;
 const DRAG_FEEDBACK_FLASH_MS = 150;
 const DRAG_Z_INDEX_OFFSET = 3;
-const DRAG_GLOBAL_REPULSION_DISTANCE = 1_000_000_000;
 const INTERACTION_SETTLE_MS = 4400;
 const DRAG_ALPHA_TARGET = 0.034;
 const RELEASE_ALPHA_TARGET = 0.009;
@@ -266,12 +265,7 @@ function create(container, handlers = {}) {
     };
   }
 
-  function forceLayoutOptions(
-    nodeCount = forceNodeCount,
-    alphaTarget = 0,
-    reheat = true,
-    { globalDrag = false } = {},
-  ) {
+  function forceLayoutOptions(nodeCount = forceNodeCount, alphaTarget = 0, reheat = true) {
     const dense = nodeCount >= 1000;
     const useGPU = currentMode === "gpu-main-force";
     return {
@@ -280,10 +274,11 @@ function create(container, handlers = {}) {
         strength: dense ? -125 : -190,
         theta: 0.84,
         distanceMin: 24,
-        // D3 many-body already operates across the full simulator node set.
-        // Remove its distance cutoff while dragging so disconnected graph
-        // components and nodes tied to other spatial anchors still react.
-        distanceMax: globalDrag ? DRAG_GLOBAL_REPULSION_DISTANCE : dense ? 1800 : 3200,
+        // Keep legacy Orb's many-body field local even during drag. The
+        // strategic world solver owns geographic cross-place interaction;
+        // globally expanding this cutoff makes every node repel every other
+        // node and causes unrelated components to drift.
+        distanceMax: dense ? 1800 : 3200,
       },
       collision: {
         radius: dense ? 30 : 42,
@@ -332,9 +327,7 @@ function create(container, handlers = {}) {
   function applySimulationRequest(request) {
     const layout = {
       type: "force",
-      options: forceLayoutOptions(forceNodeCount, request.alphaTarget, request.reheat, {
-        globalDrag: request.reason === "drag",
-      }),
+      options: forceLayoutOptions(forceNodeCount, request.alphaTarget, request.reheat),
     };
     const simulator = forceSimulator();
     if (simulator) {
