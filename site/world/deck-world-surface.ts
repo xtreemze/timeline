@@ -24,7 +24,6 @@ import {
   type WorldNodeStyle,
   worldColorBytes,
   worldEdgeStyle,
-  worldNodeFootprintRadiusPx,
   worldNodeStyle,
   worldNodeVisualFootprintRadiusPx,
   worldPlaceStyle,
