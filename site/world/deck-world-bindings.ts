@@ -69,12 +69,15 @@ const webgpuOrWebgl2Adapter: typeof webgpuAdapter = Object.assign(Object.create(
 });
 
 /**
- * WebGPU where the browser grants an adapter, WebGL2 otherwise.
- * `?renderer=webgl` forces the fallback for debugging.
+ * WebGL2 by default. deck.gl 9.4's WebGPU backend renders the globe but
+ * cannot pick yet (synchronous readback is "not implemented" and async
+ * readback returns empty), which would break clicking and dragging nodes.
+ * `?renderer=webgpu` opts in to WebGPU (falling back to WebGL2 when no
+ * adapter is granted) for evaluation until deck supports WebGPU picking.
  */
 function worldDeviceProps() {
-  const forced = new URLSearchParams(globalThis.location?.search ?? "").get("renderer");
-  if (forced === "webgl") return { type: "webgl" as const };
+  const requested = new URLSearchParams(globalThis.location?.search ?? "").get("renderer");
+  if (requested !== "webgpu") return { type: "webgl" as const };
   return {
     type: "best-available" as const,
     adapters: [webgpuOrWebgl2Adapter],

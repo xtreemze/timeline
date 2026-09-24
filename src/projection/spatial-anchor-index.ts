@@ -10,6 +10,7 @@ export interface SpatialPlaceRecord {
   readonly certainty?: number;
   readonly precisionRadiusMeters?: number;
   readonly sourceAltitude?: number;
+  readonly style?: Readonly<Record<string, unknown>>;
 }
 
 export interface EntitySpatialAnchor {
@@ -102,6 +103,7 @@ function anchorFromPlace(place: SpatialPlaceRecord): SpatialAnchor {
       ? {}
       : { precisionRadiusMeters: place.precisionRadiusMeters }),
     ...(place.sourceAltitude === undefined ? {} : { sourceAltitude: place.sourceAltitude }),
+    ...(place.style === undefined ? {} : { style: place.style }),
   });
 }
 

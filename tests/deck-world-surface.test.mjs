@@ -200,20 +200,29 @@ test("DeckWorldSurface renders places, globe-visible paths, and elevated entity 
 
   const render = calls.setProps.at(-1);
   assert.ok(render);
-  // Geometry layers plus the directed-relationship marker layer; this fake
-  // runtime has no text support, so no label layer is created.
-  assert.equal(render.layers.length, 4);
+  // Geometry layers, place-to-entity tethers and the directed-relationship
+  // marker layer; this fake runtime has no text support, so no label layer.
+  assert.equal(render.layers.length, 5);
 
-  const [places, relationships, entities, directions] = render.layers;
+  const [places, relationships, entities, tethers, directions] = render.layers;
+  assert.equal(tethers.props.id, DECK_WORLD_LAYER_IDS.tethers);
+  assert.equal(tethers.props.pickable, false);
+  assert.ok(tethers.props.data.length > 0, "floating entities hang from their place");
   assert.equal(directions.props.id, DECK_WORLD_LAYER_IDS.relationshipDirections);
   assert.equal(places.props.id, DECK_WORLD_LAYER_IDS.places);
   assert.equal(relationships.props.id, DECK_WORLD_LAYER_IDS.relationships);
   assert.equal(entities.props.id, DECK_WORLD_LAYER_IDS.entities);
 
   assert.deepEqual(places.props.data[0].position, [18.0686, 59.3293, 20]);
-  assert.deepEqual(entities.props.data[0].position, [18.0686, 59.3293, 1020]);
-  assert.ok(entities.props.data[1].position[0] > 18.0686);
-  assert.equal(entities.props.data[1].position[2], 1220);
+  // Places sit on the terrain (20 m); entities float clearly above it at a
+  // constant on-screen height, with only a damped share of their simulated
+  // altitude (1000 m vs 1200 m) so heights stay similar.
+  const [alice, bob] = entities.props.data;
+  assert.deepEqual(alice.position.slice(0, 2), [18.0686, 59.3293]);
+  assert.ok(alice.position[2] > 1020, `entity floats above the place (${alice.position[2]})`);
+  assert.ok(bob.position[0] > 18.0686);
+  assert.ok(bob.position[2] > alice.position[2], "higher simulated altitude stays higher");
+  assert.ok(bob.position[2] - alice.position[2] <= 200 * 0.15 + 1e-6, "altitude variety is damped");
 
   assert.equal(relationships.props.data.length, 1);
   assert.equal(relationships.props.parameters.cullMode, "none");
@@ -1270,4 +1279,20 @@ test("an off-screen live region mirrors the accessible snapshot when the contain
 
   surface.destroy();
   assert.equal(region.removed, true);
+});
+
+test("user camera moves are handed back to the controlled deck so the globe rotates", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime, OVERVIEW_CAMERA);
+  surface.setProjection(projection());
+  const before = calls.setProps.length;
+
+  calls.deckProps.onViewStateChange({
+    viewState: { longitude: 40, latitude: 10, zoom: OVERVIEW_CAMERA.zoom, bearing: 0, pitch: 0 },
+  });
+
+  const pushed = calls.setProps.slice(before).at(-1);
+  assert.ok(pushed?.viewState, "the new camera is pushed back to deck");
+  assert.equal(pushed.viewState.longitude, 40);
+  assert.equal(surface.getCamera().longitude, 40);
 });

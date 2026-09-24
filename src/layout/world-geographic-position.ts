@@ -60,9 +60,13 @@ function primaryAnchor(anchors: readonly SpatialAnchor[]): SpatialAnchor | null 
  * presentation only (semantic zoom keeps a place's local graph legible);
  * the stored offset and the anchor are never changed.
  */
+/** Share of the simulated altitude kept when entities float (see below). */
+export const WORLD_FLOAT_ALTITUDE_SHARE = 0.15;
+
 export function resolveWorldRenderPosition(
   instance: ProjectedWorldInstance,
   offsetScale = 1,
+  floatMeters = 0,
 ): WorldRenderPosition | null {
   const anchor = primaryAnchor(instance.geographicAnchors);
   if (!anchor) return null;
@@ -83,7 +87,12 @@ export function resolveWorldRenderPosition(
       : degrees(eastMeters / (EARTH_RADIUS_METERS * cosine));
 
   const longitude = wrapLongitude(anchor.longitude + longitudeDelta);
-  const altitude = (anchor.sourceAltitude ?? 0) + (instance.visualAltitude ?? 0);
+  // Places sit on the terrain; entities float `floatMeters` above it, with
+  // only a damped share of the simulated altitude so heights stay similar.
+  const altitude =
+    (anchor.sourceAltitude ?? 0) +
+    floatMeters +
+    (instance.visualAltitude ?? 0) * (floatMeters > 0 ? WORLD_FLOAT_ALTITUDE_SHARE : 1);
 
   return Object.freeze([longitude, latitude, altitude]);
 }
@@ -93,6 +102,7 @@ export function resolveWorldLocalLayoutPosition(
   instance: ProjectedWorldInstance,
   position: WorldRenderPosition,
   offsetScale = 1,
+  floatMeters = 0,
 ): WorldLocalLayoutPosition | null {
   const anchor = primaryAnchor(instance.geographicAnchors);
   if (!anchor) return null;
@@ -108,7 +118,11 @@ export function resolveWorldLocalLayoutPosition(
       ? 0
       : radians(longitudeDelta) * EARTH_RADIUS_METERS * cosine;
   const northMeters = radians(latitude - anchor.latitude) * EARTH_RADIUS_METERS;
-  const visualAltitudeMeters = Math.max(0, altitude - (anchor.sourceAltitude ?? 0));
+  const aboveFloat = altitude - (anchor.sourceAltitude ?? 0) - floatMeters;
+  const visualAltitudeMeters = Math.max(
+    0,
+    floatMeters > 0 ? aboveFloat / WORLD_FLOAT_ALTITUDE_SHARE : aboveFloat,
+  );
 
   const scale = Number.isFinite(offsetScale) && offsetScale > 0 ? offsetScale : 1;
   return Object.freeze({

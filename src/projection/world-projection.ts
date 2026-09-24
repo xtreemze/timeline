@@ -11,6 +11,16 @@ export interface SpatialAnchor {
   readonly certainty?: number;
   readonly precisionRadiusMeters?: number;
   readonly influence: number;
+  /** The place's own presentation style (e.g. map marker), passed through. */
+  readonly style?: WorldPresentationStyle;
+}
+
+/** Opaque, frozen presentation style carried from the model to renderers. */
+export type WorldPresentationStyle = Readonly<Record<string, unknown>>;
+
+function presentationStyle(value: unknown): WorldPresentationStyle | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  return Object.freeze({ ...(value as Record<string, unknown>) });
 }
 
 export interface WorldLocalOffset {
@@ -30,6 +40,8 @@ export interface ProjectedWorldInstance {
   readonly retained: boolean;
   readonly visualAltitude?: number;
   readonly localOffset?: WorldLocalOffset;
+  /** The entity's own presentation style (`attributes.style`). */
+  readonly style?: WorldPresentationStyle;
 }
 
 export interface ProjectedWorldEdge {
@@ -40,6 +52,8 @@ export interface ProjectedWorldEdge {
   readonly temporalWeight: number;
   readonly visible: boolean;
   readonly retained: boolean;
+  /** The relationship's own presentation style (`attributes.style`). */
+  readonly style?: WorldPresentationStyle;
 }
 
 export interface WorldProjection {
@@ -110,9 +124,11 @@ export function createSpatialAnchor(anchor: SpatialAnchor): SpatialAnchor {
       : nonNegative(anchor.precisionRadiusMeters, "Precision radius");
   const label = optionalText(anchor.label, 180);
 
+  const style = presentationStyle(anchor.style);
   return Object.freeze({
     placeId: nonEmpty(anchor.placeId, "Place ID") as PlaceId,
     ...(label === undefined ? {} : { label }),
+    ...(style === undefined ? {} : { style }),
     longitude,
     latitude,
     influence: unitInterval(anchor.influence, "Anchor influence"),
@@ -133,6 +149,7 @@ export function createProjectedWorldInstance(
   const id = instance.id ?? worldInstanceId(canonicalId, occurrenceId);
   const label = optionalText(instance.label, 180);
   const kind = optionalText(instance.kind, 80);
+  const instanceStyle = presentationStyle(instance.style);
 
   const localOffset = instance.localOffset
     ? Object.freeze({
@@ -150,6 +167,7 @@ export function createProjectedWorldInstance(
     id: nonEmpty(id, "World instance ID") as WorldInstanceId,
     canonicalId,
     ...(label === undefined ? {} : { label }),
+    ...(instanceStyle === undefined ? {} : { style: instanceStyle }),
     ...(kind === undefined ? {} : { kind }),
     ...(occurrenceId === undefined ? {} : { occurrenceId }),
     geographicAnchors: Object.freeze(instance.geographicAnchors.map(createSpatialAnchor)),
@@ -163,9 +181,11 @@ export function createProjectedWorldInstance(
 
 export function createProjectedWorldEdge(edge: ProjectedWorldEdge): ProjectedWorldEdge {
   const label = optionalText(edge.label, 120);
+  const style = presentationStyle(edge.style);
   return Object.freeze({
     id: nonEmpty(edge.id, "Relationship ID") as RelationshipId,
     ...(label === undefined ? {} : { label }),
+    ...(style === undefined ? {} : { style }),
     sourceInstanceId: nonEmpty(
       edge.sourceInstanceId,
       "Source world instance ID",

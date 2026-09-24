@@ -23,6 +23,7 @@ interface WorldTouchPress {
   readonly startedAt: number;
   cancelled: boolean;
   armed: boolean;
+  committed: boolean;
 }
 
 export function createWorldTouchHoldGate() {
@@ -38,6 +39,7 @@ export function createWorldTouchHoldGate() {
       startedAt: now,
       cancelled: false,
       armed: false,
+      committed: false,
     };
     if (presses.size > 0) {
       // Multi-touch: every pending hold yields to the camera gesture.
@@ -49,15 +51,27 @@ export function createWorldTouchHoldGate() {
     presses.set(pointerId, next);
   }
 
+  /**
+   * A move past the tolerance before the hold elapsed cancels the press,
+   * even if the hold timer already armed it (timers can fire before queued
+   * moves are handled on a busy thread), unless a node drag was committed.
+   */
   function move(pointerId: number, point: WorldTouchPoint, now: number): void {
     const current = presses.get(pointerId);
-    if (!current || current.cancelled || current.armed) return;
-    if (heldLongEnough(current, now)) {
-      current.armed = true;
+    if (!current || current.cancelled || current.committed) return;
+    const distance = Math.hypot(point.x - current.origin.x, point.y - current.origin.y);
+    if (distance > WORLD_TOUCH_HOLD_TOLERANCE_PX && !heldLongEnough(current, now)) {
+      current.cancelled = true;
+      current.armed = false;
       return;
     }
-    const distance = Math.hypot(point.x - current.origin.x, point.y - current.origin.y);
-    if (distance > WORLD_TOUCH_HOLD_TOLERANCE_PX) current.cancelled = true;
+    if (heldLongEnough(current, now)) current.armed = true;
+  }
+
+  /** The node drag started: later moves belong to it and never cancel. */
+  function commit(pointerId: number): void {
+    const current = presses.get(pointerId);
+    if (current?.armed && !current.cancelled) current.committed = true;
   }
 
   function isArmed(pointerId: number, now: number): boolean {
@@ -80,7 +94,7 @@ export function createWorldTouchHoldGate() {
     presses.clear();
   }
 
-  return Object.freeze({ press, move, isArmed, isPending, release, clear });
+  return Object.freeze({ press, move, isArmed, isPending, commit, release, clear });
 }
 
 export type WorldTouchHoldGate = ReturnType<typeof createWorldTouchHoldGate>;

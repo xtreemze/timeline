@@ -1,6 +1,7 @@
 import { ReferenceWorldForceSimulation } from "../../src/layout/reference-world-force-simulation.ts";
 import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
 import type { WorldForceSimulationBackend } from "../../src/layout/world-force-simulation.ts";
+import { LuumWorldSurfaceElement } from "../components/world-surface-element.ts";
 import { createDeckWorldRuntime, type DeckWorldBindings } from "./deck-world-runtime.ts";
 import { DeckWorldSurface } from "./deck-world-surface.ts";
 import { loadWorldBasemap } from "./world-basemap.ts";
@@ -10,7 +11,6 @@ import {
   type WorldViewViewport,
 } from "./world-projection-view.ts";
 import { WorldViewRuntimeController } from "./world-view-controller.ts";
-import { LuumWorldSurfaceElement } from "../components/world-surface-element.ts";
 
 export interface WorldFrameScheduler {
   request(callback: (timestamp: number) => void): number;
@@ -72,6 +72,7 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
   #lastFrameAt = 0;
   #runStartedAt: number | null = null;
   #runTicks = 0;
+  #wasDragging = false;
   #destroyed = false;
 
   constructor(
@@ -161,6 +162,10 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
       state.simulationRunning || !state.simulationSettled || state.dragging || state.settlingDrag;
     if (!wantsFrames) return;
 
+    // Dropping a node starts a fresh run so its neighbours keep relaxing
+    // around the new position, however long the drag itself took.
+    if (this.#wasDragging && !state.dragging) this.#restartBudget();
+    this.#wasDragging = state.dragging;
     this.#runStartedAt ??= timestamp;
     this.#runTicks += 1;
     const budgetSpent =

@@ -238,3 +238,22 @@ test("a claimed node drag stops deck event propagation so the controller never p
   );
   assert.equal(stopped, 1);
 });
+
+test("a quick swipe processed late on a busy thread still pans instead of claiming the node", () => {
+  const gate = createWorldTouchHoldGate();
+  gate.press(1, { x: 0, y: 0 }, 1_000);
+  // The hold timer fires late and arms before the queued move is handled...
+  assert.equal(gate.isArmed(1, 1_000 + WORLD_TOUCH_HOLD_MS + 50), true);
+  // ...but the move itself happened 40 ms after touch-down, beyond tolerance.
+  gate.move(1, { x: 60, y: 0 }, 1_040);
+  assert.equal(gate.isArmed(1, 1_000 + WORLD_TOUCH_HOLD_MS + 60), false);
+});
+
+test("once the node drag is committed later moves never cancel it", () => {
+  const gate = createWorldTouchHoldGate();
+  gate.press(1, { x: 0, y: 0 }, 1_000);
+  assert.equal(gate.isArmed(1, 1_000 + WORLD_TOUCH_HOLD_MS), true);
+  gate.commit(1);
+  gate.move(1, { x: 80, y: 0 }, 1_010);
+  assert.equal(gate.isArmed(1, 1_000 + WORLD_TOUCH_HOLD_MS + 20), true);
+});
