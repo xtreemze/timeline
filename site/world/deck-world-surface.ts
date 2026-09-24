@@ -3415,11 +3415,16 @@ export class DeckWorldSurface implements WorldSurface {
     const clusterFullyCollapsed = clusterPhase === "collapsed";
     const clusterTransitioning = clusterPhase !== "expanded" && clusterPhase !== "collapsed";
     const showClusterEnvelope = clusterFullyCollapsed || clusterTransitioning;
-    const entities: readonly DeckWorldEntityRenderDatum[] = overviewClusters
-      ? overviewClusters
-      : clusterFullyCollapsed
-        ? Object.freeze([...placeTransition.clusters, ...placeTransition.loose])
-        : Object.freeze([...(showClusterEnvelope ? placeTransition.clusters : []), ...placeTransition.loose, ...placeTransition.members]);
+    const entities: readonly DeckWorldEntityRenderDatum[] =
+      overviewClusters && clusterFullyCollapsed
+        ? overviewClusters
+        : clusterFullyCollapsed
+          ? Object.freeze([...placeTransition.clusters, ...placeTransition.loose])
+          : Object.freeze([
+              ...(showClusterEnvelope ? placeTransition.clusters : []),
+              ...placeTransition.loose,
+              ...placeTransition.members,
+            ]);
 
     this.#placeDatumCache = placeResult.byId;
     this.#relationshipDatumCache = relationshipResult.byId;
@@ -3468,19 +3473,27 @@ export class DeckWorldSurface implements WorldSurface {
     const retiringClusterEdges = clusterPhase === "retiring";
     const clusterEdgesDetached = clusterPhase === "collapsing" || clusterPhase === "collapsed" || clusterPhase === "revealing";
     const edgeExpansion = (edge: Pick<DeckWorldRelationshipDatum, "sourceInstanceId" | "targetInstanceId">): number => {
-      if (gridClustered) return 0;
-      if ((retiringClusterEdges || clusterEdgesDetached) && (clusterMember(edge.sourceInstanceId) || clusterMember(edge.targetInstanceId))) return 0;
+      if (
+        (retiringClusterEdges || clusterEdgesDetached) &&
+        (clusterMember(edge.sourceInstanceId) || clusterMember(edge.targetInstanceId))
+      ) return 0;
+      if (gridClustered && clusterFullyCollapsed) return 0;
       return 1;
     };
     const entityExpansion = (entity: DeckWorldEntityDatum): number =>
-      gridClustered || clusterFullyCollapsed ? (clusterMember(entity.worldInstanceId) ? 0 : 1) : 1;
+      clusterFullyCollapsed && clusterMember(entity.worldInstanceId) ? 0 : 1;
     const entityMuted = (entity: DeckWorldEntityDatum): boolean => clusterTransitioning && clusterMember(entity.worldInstanceId);
     const retiringRelationships = retiringClusterEdges
       ? relationships.filter((relationship) => clusterMember(relationship.sourceInstanceId) || clusterMember(relationship.targetInstanceId))
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const retiringDots = retiringRelationshipDots(retiringRelationships);
     const clusterVisibility = gridClustered || showClusterEnvelope ? 1 : 0;
-    const iconSource = gridClustered ? Object.freeze([] as DeckWorldEntityDatum[]) : clusterFullyCollapsed ? placeTransition.loose : transitionEntities;
+    const iconSource =
+      gridClustered && clusterFullyCollapsed
+        ? Object.freeze([] as DeckWorldEntityDatum[])
+        : clusterFullyCollapsed
+          ? placeTransition.loose
+          : transitionEntities;
 
     const labelInteractionKey = [
       this.#selection?.kind ?? "",
