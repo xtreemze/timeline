@@ -1733,7 +1733,9 @@ export class DeckWorldSurface implements WorldSurface {
         radius: 22,
         unproject3D: true,
         layerIds: [
+          DECK_WORLD_LAYER_IDS.entityImages,
           DECK_WORLD_LAYER_IDS.entityIcons,
+          DECK_WORLD_LAYER_IDS.entityShapes,
           DECK_WORLD_LAYER_IDS.entities,
           DECK_WORLD_LAYER_IDS.relationshipDirections,
           DECK_WORLD_LAYER_IDS.relationships,
