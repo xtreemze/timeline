@@ -9,6 +9,7 @@
  * specs need. Not part of the production build input (see `vite.config.ts`
  * `rollupOptions.input`).
  */
+export { resolveWorldRenderPosition } from "../src/layout/world-geographic-position.ts";
 export { directedEdgeArrowhead } from "../src/layout/world-semantic-presentation.ts";
 export {
   createProjectedWorldEdge,
