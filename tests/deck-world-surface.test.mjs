@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -333,6 +334,18 @@ test("d3-dag route hints guide relationship geometry while preserving live endpo
   );
 });
 
+test("basemap support lines do not use subpixel visible widths", async () => {
+  const source = await readFile(
+    new URL("../site/world/deck-world-surface.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /id: DECK_WORLD_LAYER_IDS\.graticule[\s\S]*getWidth: 1/);
+  assert.match(
+    source,
+    /id: DECK_WORLD_LAYER_IDS\.borders[\s\S]*getWidth: WORLD_MIN_VISIBLE_STROKE_PX/,
+  );
+});
+
 test("reduced motion uses the same immediate relationship geometry", (t) => {
   const originalMatchMedia = globalThis.matchMedia;
   globalThis.matchMedia = (query) => ({ matches: query === "(prefers-reduced-motion: reduce)" });
@@ -380,6 +393,7 @@ test("DeckWorldSurface renders places, globe-visible paths, and elevated entity 
   assert.ok(tethers.props.data.length > 0, "floating entities hang from their place");
   const tether = tethers.props.data[0];
   const relationship = relationships.props.data[0];
+  assert.equal(tethers.props.getWidth(tether), 1, "visible tethers keep a full CSS-pixel stroke");
   assert.ok(
     tethers.props.getWidth(tether) < relationships.props.getWidth(relationship),
     "geographic tethers are thinner than semantic relationship edges",
