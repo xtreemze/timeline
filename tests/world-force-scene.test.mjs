@@ -370,10 +370,13 @@ test("multi-anchor entities remain unique and cross-place edges do not distort l
   });
 
   const targets = createWorldDagLayoutTargets(projection);
-  assert.equal(targets.length, 2);
-  assert.equal(new Set(targets.map((target) => target.instanceId)).size, 2);
-  assert.equal(targets.find((target) => target.instanceId === alice)?.placeId, "stockholm");
-  assert.equal(targets.find((target) => target.instanceId === bob)?.placeId, "copenhagen");
+  assert.deepEqual(targets, []);
+
+  const scene = createWorldForceScene(projection);
+  assert.equal(scene.nodes.length, 2);
+  assert.equal(new Set(scene.nodes.map((node) => node.id)).size, 2);
+  assert.equal(scene.anchors.length, 3);
+  assert.equal(scene.relationshipRoutes.length, 0);
 });
 
 test("force scenes keep current offsets while exposing soft DAG targets", () => {
