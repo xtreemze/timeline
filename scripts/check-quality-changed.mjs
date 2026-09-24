@@ -96,9 +96,6 @@ const result = spawnSync(
 );
 
 const capturePaths = [
-  "site/world/deck-world-surface.ts",
-  "src/layout/world-semantic-presentation.ts",
-  "tests/deck-world-surface.test.mjs",
   "tests/world-offset-scale.test.mjs",
   "tests/world-semantic-labels.test.mjs",
 ];
