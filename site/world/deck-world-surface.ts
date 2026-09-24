@@ -1027,7 +1027,7 @@ const ENTITY_LABEL_OFFSET_PX = 56;
 /** Close/detail zoom where a claimed node drag freezes the globe camera. */
 export const WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM = 6;
 
-function labelSize(datum: DeckWorldLabelDatum): number {
+export function worldGraphLabelSize(datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">): number {
   if (datum.emphasized) return 19;
   if (datum.kind === "relationship-label") return 15;
   return 16;
@@ -1041,7 +1041,7 @@ function labelSize(datum: DeckWorldLabelDatum): number {
  */
 function labelPixelOffset(datum: DeckWorldLabelDatum): [number, number] {
   if (datum.kind === "entity-label") return [ENTITY_LABEL_OFFSET_PX, 0];
-  const gap = labelSize(datum) / 2 + 6;
+  const gap = worldGraphLabelSize(datum) / 2 + 6;
   return datum.kind === "relationship-label" ? [0, gap] : [0, -gap];
 }
 
@@ -1201,7 +1201,7 @@ function labelDatums(input: {
     // Mirrors the TextLayer anchoring below; footprints approximate glyph
     // ink (0.6em monospace advance per character, 0.9em tall) plus the halo.
     measure: (datum) => {
-      const size = labelSize(datum);
+      const size = worldGraphLabelSize(datum);
       const width = datum.text.length * size * 0.6 + LABEL_HALO_PX * 2;
       const [offsetX, offsetY] = labelPixelOffset(datum);
       return {
@@ -2644,7 +2644,7 @@ export class DeckWorldSurface implements WorldSurface {
               outlineColor: this.#theme.labelHalo,
               getText: (datum: DeckWorldLabelDatum) => datum.text,
               getPosition: (datum: DeckWorldLabelDatum) => datum.position,
-              getSize: labelSize,
+              getSize: worldGraphLabelSize,
               getColor: (datum: DeckWorldLabelDatum) =>
                 datum.emphasized
                   ? this.#theme.labelEmphasis
