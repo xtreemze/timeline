@@ -319,24 +319,34 @@ test("picking a direction marker resolves to its canonical relationship", () => 
   assert.ok(h.pickOptions.at(-1).layerIds.includes(DECK_WORLD_LAYER_IDS.relationshipDirections));
 });
 
-test("label LOD reduces dense entity text but retains important, selected, and focused labels", () => {
+test("selection leaves dense label LOD geometry stable while focus can still pin a label", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 2 });
   surface.setProjection(denseProjection(1_000));
-  surface.setSelection({ kind: "entity", id: "entity-777" });
-  surface.focusEntity("entity-555");
 
-  const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
-  const entityIds = labels
+  const before = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  const beforeGeometry = before.map((datum) => ({
+    key: datum.key,
+    pixelOffset: datum.pixelOffset ?? null,
+  }));
+
+  surface.setSelection({ kind: "entity", id: "entity-777" });
+  const selected = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.deepEqual(
+    selected.map((datum) => ({ key: datum.key, pixelOffset: datum.pixelOffset ?? null })),
+    beforeGeometry,
+    "selection may recolor labels but must not add, remove, or relocate them",
+  );
+
+  surface.focusEntity("entity-555");
+  const focused = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  const entityIds = focused
     .filter((datum) => datum.kind === "entity-label")
     .map((datum) => datum.entityId);
   assert.ok(entityIds.length > 0);
   assert.ok(entityIds.length < 1_000, "dense label load is reduced");
-  assert.ok(entityIds.includes("entity-0"), "high-importance label survives LOD");
-  assert.ok(entityIds.includes("entity-777"), "selected label survives LOD");
-  assert.ok(entityIds.includes("entity-555"), "focused label survives LOD");
+  assert.ok(entityIds.includes("entity-555"), "explicit focus may pin its label");
 });
-
 test("clustered overview suppresses member labels even when a member is selected", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
@@ -477,56 +487,62 @@ function chainProjection(count) {
   return createWorldProjection({ instances, edges });
 }
 
-test("selected entity pins immediate neighbor and incident relationship labels through LOD", () => {
+test("selection emphasizes an existing neighborhood without changing label membership or placement", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 1 });
   surface.setProjection(chainProjection(2_000));
-  surface.setSelection({ kind: "entity", id: "entity-1000" });
 
-  const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
-  const entityLabels = labels.filter((datum) => datum.kind === "entity-label");
-  const relationshipLabels = labels.filter((datum) => datum.kind === "relationship-label");
+  const before = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  const beforeGeometry = before.map((datum) => ({
+    key: datum.key,
+    pixelOffset: datum.pixelOffset ?? null,
+  }));
 
-  for (const entityId of ["entity-999", "entity-1000", "entity-1001"]) {
-    const datum = entityLabels.find((candidate) => candidate.entityId === entityId);
-    assert.ok(datum, `${entityId} label stays visible despite dense LOD`);
-    assert.equal(datum.emphasized, true);
-  }
+  surface.setSelection({ kind: "entity", id: "entity-0" });
 
-  for (const relationshipId of ["edge-1000", "edge-1001"]) {
-    const datum = relationshipLabels.find(
-      (candidate) => candidate.relationshipId === relationshipId,
-    );
-    assert.ok(datum, `${relationshipId} label stays visible despite dense LOD`);
-    assert.equal(datum.emphasized, true);
-  }
-
-  assert.ok(
-    entityLabels.length < 2_000,
-    "the rest of the dense graph remains subject to ordinary label LOD",
+  const after = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.deepEqual(
+    after.map((datum) => ({ key: datum.key, pixelOffset: datum.pixelOffset ?? null })),
+    beforeGeometry,
+    "selection must not perturb label LOD or declutter geometry",
   );
-});
 
-test("dense direction markers follow LOD but keep important, selected, and focused edges", () => {
+  const selectedLabel = after.find(
+    (datum) => datum.kind === "entity-label" && datum.entityId === "entity-0",
+  );
+  assert.ok(selectedLabel);
+  assert.equal(selectedLabel.emphasized, true);
+
+  const incidentLabel = after.find(
+    (datum) => datum.kind === "relationship-label" && datum.relationshipId === "edge-1",
+  );
+  assert.ok(incidentLabel);
+  assert.equal(incidentLabel.emphasized, true);
+});
+test("dense direction-marker LOD is selection-stable while explicit focus may pin an edge", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 1 });
   surface.setProjection(chainProjection(2_000));
-  surface.setSelection({ kind: "relationship", id: "edge-1500" });
 
+  const before = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections).props.data;
+  const beforeIds = before.map((marker) => marker.relationshipId);
+  assert.ok(beforeIds.length < 1_999, "dense marker load is reduced at overview");
+  assert.ok(beforeIds.includes("edge-1"), "high-importance edge keeps its marker");
+
+  surface.setSelection({ kind: "relationship", id: "edge-1500" });
   let markers = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections).props.data;
-  const ids = markers.map((marker) => marker.relationshipId);
-  assert.ok(ids.length < 1_999, "dense marker load is reduced at overview");
-  assert.ok(ids.includes("edge-1"), "high-importance edge keeps its marker");
-  assert.ok(ids.includes("edge-1500"), "selected edge keeps its marker");
+  assert.deepEqual(
+    markers.map((marker) => marker.relationshipId),
+    beforeIds,
+    "selection must not add, remove, or reorder direction markers",
+  );
 
   surface.focusOccurrence("edge-900");
   markers = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections).props.data;
   assert.ok(markers.some((marker) => marker.relationshipId === "edge-900"));
 
-  // Every rendered edge still carries its directed identity for non-visual use.
   assert.equal(surface.getAccessibleSnapshot().relationships.length, 1_999);
 });
-
 test("zooming across a LOD tier re-renders labels and markers, zooming within one does not", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 1 });
