@@ -116,6 +116,12 @@ test("opening Browse or View does not discard the focused occurrence", async ({ 
   await page.locator("#timeline-browser-close").click();
 
   await page.locator("#timeline-view-controls-toggle").click();
-  await expect(page.locator("#timeline-view-toolbar")).toMatchAriaSnapshot(`- toolbar "View controls"`);
+  await expect
+    .poll(() =>
+      page
+        .locator("#timeline-view-toolbar")
+        .evaluate((element) => element.matches(":popover-open")),
+    )
+    .toBe(true);
   await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
 });
