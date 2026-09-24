@@ -424,9 +424,11 @@ export function clusterEntityDatums(
 }
 
 /**
- * One cluster bubble per anchor place (Sigma-style cluster labelling: the
- * place label names the group). Used when local graphs are too small on
- * screen to tell entities apart. Membership stays canonical.
+ * Anchor-first clustering. With no merge radius, each authored place owns
+ * its local cluster. At overview zoom, nearby place groups can be merged by
+ * true proximity using a neighbouring-cell broad phase, so cluster membership
+ * is stable under force movement and across ordinary grid-cell boundaries.
+ * Membership stays canonical.
  */
 export function clusterEntityDatumsByPlace(
   entities: readonly DeckWorldEntityDatum[],
@@ -3152,10 +3154,12 @@ export class DeckWorldSurface implements WorldSurface {
     );
 
     const rawPlaceExpansion = this.#placeClusterExpansion();
+    // Place-local collapse always uses the exact authored place. Nearby-place
+    // merging belongs only to the low-zoom overview tier; otherwise a member
+    // could appear to decluster from a neighbour's centroid.
     const placeClusterCandidates = clusterEntityDatumsByPlace(
       entityResult.datums,
       this.#projection.instances,
-      worldPixelsToDegrees(WORLD_CLUSTER_MERGE_PX, this.#camera.zoom),
     );
     const hasPlaceClusters = placeClusterCandidates.some((datum) => datum.kind === "cluster");
     const placeExpansion = hasPlaceClusters ? rawPlaceExpansion : 1;
@@ -3185,13 +3189,20 @@ export class DeckWorldSurface implements WorldSurface {
     const gridClustered =
       placeExpansion >= 1 &&
       shouldClusterEntityDatums(entityResult.datums.length, this.#camera.zoom);
+    const overviewClusters = gridClustered
+      ? clusterEntityDatumsByPlace(
+          entityResult.datums,
+          this.#projection.instances,
+          worldPixelsToDegrees(WORLD_CLUSTER_MERGE_PX, this.#camera.zoom),
+        )
+      : null;
     const temporalRelationships = this.#temporalRelationshipDatums(relationships);
     // Keep place-cluster and member rows alive at both endpoints. Clusters
     // reach zero radius/alpha at full expansion; members reach zero size/alpha
     // at full collapse. Geometry is supplied directly by force/cluster state,
     // without deck.gl interpolation.
-    const entities: readonly DeckWorldEntityRenderDatum[] = gridClustered
-      ? placeClusterCandidates
+    const entities: readonly DeckWorldEntityRenderDatum[] = overviewClusters
+      ? overviewClusters
       : Object.freeze([
           ...placeTransition.clusters,
           ...placeTransition.loose,
