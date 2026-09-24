@@ -1331,9 +1331,7 @@ export class TimelineViewController {
 
   updateEdgeAccentLabel(node: HTMLElement, label: string, animateChanges: boolean): void {
     const target = String(label || "");
-    const slots = Array.from(
-      node.querySelectorAll<HTMLElement>(".timeline-edge-date-character"),
-    );
+    const slots = Array.from(node.querySelectorAll<HTMLElement>(".timeline-edge-date-character"));
 
     while (slots.length < target.length) {
       const slot = document.createElement("span");
