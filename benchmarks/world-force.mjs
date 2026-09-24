@@ -1,6 +1,7 @@
 import { performance } from "node:perf_hooks";
 
 import { ReferenceWorldForceSimulation } from "../src/layout/reference-world-force-simulation.ts";
+import { applyWorldForceLayoutUpdate } from "../src/layout/world-force-layout.ts";
 import { createWorldForceScene } from "../src/layout/world-force-scene.ts";
 import {
   createProjectedWorldEdge,
@@ -146,6 +147,22 @@ for (const nodeCount of sizes) {
   }, iterations);
 
   const stepIterations = nodeCount >= 50_000 ? 2 : nodeCount >= 10_000 ? 3 : 6;
+  const firstInstance = projection.instances[0];
+  if (!firstInstance) throw new Error("World force benchmark requires at least one instance.");
+  const sparseLayoutApply = measure(() => {
+    const update = applyWorldForceLayoutUpdate(projection, [
+      {
+        instanceId: firstInstance.id,
+        eastMeters: 1234,
+        northMeters: -567,
+        visualAltitudeMeters: (firstInstance.visualAltitude ?? 0) + 25,
+      },
+    ]);
+    if (update.updatedInstances.length !== 1) {
+      throw new Error("Sparse force-layout update should report exactly one changed instance.");
+    }
+  }, stepIterations);
+
   const simulation = new ReferenceWorldForceSimulation();
   simulation.setScene(forceScene);
   simulation.apply({ reason: "topology", energyTarget: 0.12, reheat: true });
@@ -174,6 +191,13 @@ for (const nodeCount of sizes) {
     dragSimulation.step(1000 / 60);
   }, stepIterations);
   const dragChangedNodes = dragSimulation.getChangedSnapshot().length;
+
+  dragSimulation.setPin(null);
+  dragSimulation.apply({ reason: "post-drop", energyTarget: 0.035, reheat: true });
+  const postDropStep = measure(() => {
+    dragSimulation.step(1000 / 60);
+  }, stepIterations);
+  const postDropChangedNodes = dragSimulation.getChangedSnapshot().length;
   dragSimulation.destroy();
 
   results.push({
@@ -186,6 +210,9 @@ for (const nodeCount of sizes) {
     solveStep,
     dragStep,
     dragChangedNodes,
+    postDropStep,
+    postDropChangedNodes,
+    sparseLayoutApply,
     diagnostics,
   });
 }
