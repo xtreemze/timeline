@@ -1233,18 +1233,75 @@ interface WorldInstanceIndex {
   readonly entityIds: ReadonlyMap<WorldInstanceId, EntityId>;
 }
 
+interface RelationshipRoutingContext {
+  readonly routes: ReadonlyMap<RelationshipId, WorldRelationshipRouteHint>;
+  readonly offsetScale: number;
+  readonly floatMeters: number;
+  readonly activeDragInstanceId: WorldInstanceId | null;
+}
+
+function routedRelationshipPath(
+  route: WorldRelationshipRouteHint,
+  source: WorldRenderPosition,
+  target: WorldRenderPosition,
+  instanceById: ReadonlyMap<WorldInstanceId, ProjectedWorldInstance>,
+  context: RelationshipRoutingContext,
+): readonly WorldRenderPosition[] | null {
+  if (
+    route.points.length < 2 ||
+    context.activeDragInstanceId === route.sourceId ||
+    context.activeDragInstanceId === route.targetId
+  ) {
+    return null;
+  }
+  const sourceInstance = instanceById.get(route.sourceId);
+  if (!sourceInstance) return null;
+
+  const points: WorldRenderPosition[] = [];
+  for (const [index, point] of route.points.entries()) {
+    const projected = resolveWorldRenderPosition(
+      {
+        ...sourceInstance,
+        localOffset: Object.freeze({
+          eastMeters: point.eastMeters,
+          northMeters: point.northMeters,
+        }),
+      },
+      context.offsetScale,
+      context.floatMeters,
+    );
+    if (!projected) return null;
+    const fraction = route.points.length <= 1 ? 0 : index / (route.points.length - 1);
+    points.push(
+      Object.freeze([
+        projected[0],
+        projected[1],
+        source[2] + (target[2] - source[2]) * fraction,
+      ]) as WorldRenderPosition,
+    );
+  }
+
+  points[0] = source;
+  points[points.length - 1] = target;
+  return Object.freeze(points);
+}
+
 function relationshipDatums(
   projection: WorldProjection,
   index: WorldInstanceIndex,
   selection: WorldSelection | null,
   previous: ReadonlyMap<RelationshipId, DeckWorldRelationshipDatum>,
   emphasizedRelationshipIds?: ReadonlySet<RelationshipId>,
+  routing?: RelationshipRoutingContext,
 ): {
   readonly datums: readonly DeckWorldRelationshipDatum[];
   readonly byId: Map<RelationshipId, DeckWorldRelationshipDatum>;
 } {
   const byId = new Map<RelationshipId, DeckWorldRelationshipDatum>();
   const result: DeckWorldRelationshipDatum[] = [];
+  const instanceById = new Map(
+    projection.instances.map((instance) => [instance.id, instance] as const),
+  );
   const groups = new Map<string, WorldProjection["edges"][number][]>();
   for (const edge of projection.edges) {
     const sourceKey = String(edge.sourceInstanceId);
@@ -1281,14 +1338,28 @@ function relationshipDatums(
     const selected = selection?.kind === "relationship" && selection.id === edge.id;
     const emphasized = emphasizedRelationshipIds?.has(edge.id) === true;
     const lane = lanes.get(edge.id) ?? 0;
+    const route = routing?.routes.get(edge.id);
+    const routedPath =
+      route &&
+      route.sourceId === edge.sourceInstanceId &&
+      route.targetId === edge.targetInstanceId &&
+      routing
+        ? routedRelationshipPath(route, source, target, instanceById, routing)
+        : null;
     const canonicalForward =
       String(edge.sourceInstanceId).localeCompare(String(edge.targetInstanceId)) <= 0;
-    const canonicalPath = relationshipEdgePath(
-      canonicalForward ? source : target,
-      canonicalForward ? target : source,
-      lane,
-    );
-    const path = canonicalForward ? canonicalPath : Object.freeze([...canonicalPath].reverse());
+    const canonicalPath = routedPath
+      ? routedPath
+      : relationshipEdgePath(
+          canonicalForward ? source : target,
+          canonicalForward ? target : source,
+          lane,
+        );
+    const path = routedPath
+      ? routedPath
+      : canonicalForward
+        ? canonicalPath
+        : Object.freeze([...canonicalPath].reverse());
     const prior = previous.get(edge.id);
     const datum =
       prior && relationshipDatumUnchanged(prior, edge, path, selected, emphasized)
