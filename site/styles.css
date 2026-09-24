@@ -2091,6 +2091,9 @@ footer > :last-child {
   gap: 0.15rem;
 }
 .temporal-graph-view {
+  display: block;
+  min-width: 0;
+  min-height: 0;
   border-top: 1px solid var(--line);
 }
 .temporal-graph-toolbar {
