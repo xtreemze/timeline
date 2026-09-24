@@ -44,7 +44,32 @@ interface PersistedProjectEnvelope {
   readonly project: CanonicalProject;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+interface PersistedRecord extends Record<string, unknown> {
+  readonly alternateNames?: unknown;
+  readonly attributes?: unknown;
+  readonly confidence?: unknown;
+  readonly entities?: unknown;
+  readonly format?: unknown;
+  readonly id?: unknown;
+  readonly itemIds?: unknown;
+  readonly name?: unknown;
+  readonly objectId?: unknown;
+  readonly placeId?: unknown;
+  readonly predicate?: unknown;
+  readonly project?: unknown;
+  readonly projectKey?: unknown;
+  readonly relationships?: unknown;
+  readonly revision?: unknown;
+  readonly role?: unknown;
+  readonly savedAt?: unknown;
+  readonly schemaVersion?: unknown;
+  readonly sourceIds?: unknown;
+  readonly subjectId?: unknown;
+  readonly time?: unknown;
+  readonly type?: unknown;
+}
+
+function isRecord(value: unknown): value is PersistedRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -143,8 +168,8 @@ function assertRelationshipShape(
     subjectId: entityId(requireNonEmptyString(value.subjectId, "Relationship subject ID")),
     objectId: entityId(requireNonEmptyString(value.objectId, "Relationship object ID")),
     predicate: requireNonEmptyString(value.predicate, "Relationship predicate"),
-    role: typeof value.role === "string" ? value.role : undefined,
-    placeId: typeof value.placeId === "string" ? placeId(value.placeId) : undefined,
+    ...(typeof value.role === "string" ? { role: value.role } : {}),
+    ...(typeof value.placeId === "string" ? { placeId: placeId(value.placeId) } : {}),
     itemIds: value.itemIds as readonly TimelineId<"occurrence">[],
     sourceIds: value.sourceIds.map(sourceId),
     confidence: value.confidence as number | null,
