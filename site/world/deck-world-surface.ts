@@ -3201,9 +3201,14 @@ export class DeckWorldSurface implements WorldSurface {
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
 
-    const gridClustered =
-      placeExpansion >= 1 &&
-      shouldClusterEntityDatums(entityResult.datums.length, this.#camera.zoom);
+    // Overview semantic LOD takes precedence over local place expansion.
+    // Otherwise a dense scene with many members per place could retain
+    // thousands of place-local bubbles at globe scale and never reach the
+    // cheaper nearby-place merge path.
+    const gridClustered = shouldClusterEntityDatums(
+      entityResult.datums.length,
+      this.#camera.zoom,
+    );
     const overviewClusters = gridClustered
       ? clusterEntityDatumsByPlace(
           entityResult.datums,
