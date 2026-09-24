@@ -1,4 +1,5 @@
-import type { ProjectedWorldInstance, WorldProjection } from "../projection/world-projection.ts";\nimport { WORLD_NODE_SCALE } from "./world-graph-style.ts";
+import type { ProjectedWorldInstance, WorldProjection } from "../projection/world-projection.ts";
+import { WORLD_NODE_SCALE } from "./world-graph-style.ts";
 import type {
   WorldForceAnchor,
   WorldForceEdge,
