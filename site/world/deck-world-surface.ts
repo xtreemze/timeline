@@ -308,6 +308,7 @@ export const CLUSTER_ZOOM_THRESHOLD = 4.5;
  * only; canonical membership remains in each cluster and zooming to a
  * working scale restores the original world instances.
  */
+const OVERVIEW_CLUSTER_MIN_ENTITY_COUNT = 3;
 const DENSE_CLUSTER_ENTITY_THRESHOLD = 25_000;
 const DENSE_CLUSTER_ZOOM_THRESHOLD = 5.5;
 
@@ -334,6 +335,7 @@ function liftedPlaceIconPosition(
 }
 
 export function shouldClusterEntityDatums(entityCount: number, zoom: number): boolean {
+  if (entityCount < OVERVIEW_CLUSTER_MIN_ENTITY_COUNT) return false;
   return (
     zoom < CLUSTER_ZOOM_THRESHOLD ||
     (entityCount >= DENSE_CLUSTER_ENTITY_THRESHOLD && zoom < DENSE_CLUSTER_ZOOM_THRESHOLD)
