@@ -293,7 +293,7 @@ Timeline preserves reusable `entities[]`, `places[]`, and `relationships[]` alon
 
 Events can change an existing relationship without rewriting its history. `item.relationChanges[]` records `activate`, `deactivate`, or `update` operations whose effective time is the event timestamp. An update can change the effective edge label, role, or properties from that event onward. The graph reconstructs effective relation state for the visible timeline window and marks an edge as changed when its lifecycle changes inside that window.
 
-The graph adapter emits Orb-compatible `{ nodes, edges }` data while keeping the canonical model renderer-independent. `@memgraph/orb` is bundled at build time so its worker-backed force simulation is available; temporal-only edge-state changes update styles/data without restarting the force simulation.
+The graph adapter emits Orb-compatible `{ nodes, edges }` data while keeping the canonical model renderer-independent. `@memgraph/orb` is imported through the Vite module graph so its worker-backed force simulation is available; temporal-only edge-state changes update styles/data without restarting the force simulation.
 
 See `docs/TEMPORAL-GRAPH-ARCHITECTURE.md`.
 
