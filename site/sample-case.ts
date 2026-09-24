@@ -3637,7 +3637,7 @@ const SAMPLE = {
           },
           {
             src: "https://commons.wikimedia.org/wiki/Special:FilePath/Little%20Red%20Riding%20Hood%20Knocking%20at%20Her%20Grandmother%E2%80%99s%20Door.jpg",
-            alt: "Public-domain illustration of Little Red Riding Hood at Grandmother's door",
+            alt: "Public-domain Little Red Riding Hood cottage illustration",
             caption: "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
           },
         ],
@@ -3686,7 +3686,7 @@ const SAMPLE = {
           },
           {
             src: "https://commons.wikimedia.org/wiki/Special:FilePath/Little%20Red%20Riding%20Hood%20Knocking%20at%20Her%20Grandmother%E2%80%99s%20Door.jpg",
-            alt: "Public-domain illustration of Little Red Riding Hood at Grandmother's door",
+            alt: "Public-domain Little Red Riding Hood cottage illustration",
             caption: "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
           },
         ],
@@ -3735,7 +3735,7 @@ const SAMPLE = {
           },
           {
             src: "https://commons.wikimedia.org/wiki/Special:FilePath/Little%20Red%20Riding%20Hood%20Knocking%20at%20Her%20Grandmother%E2%80%99s%20Door.jpg",
-            alt: "Public-domain illustration of Little Red Riding Hood at Grandmother's door",
+            alt: "Public-domain Little Red Riding Hood cottage illustration",
             caption: "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
           },
         ],
@@ -3784,7 +3784,7 @@ const SAMPLE = {
           },
           {
             src: "https://commons.wikimedia.org/wiki/Special:FilePath/Little%20Red%20Riding%20Hood%20Knocking%20at%20Her%20Grandmother%E2%80%99s%20Door.jpg",
-            alt: "Public-domain illustration of Little Red Riding Hood at Grandmother's door",
+            alt: "Public-domain Little Red Riding Hood cottage illustration",
             caption: "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
           },
         ],
@@ -3835,7 +3835,7 @@ const SAMPLE = {
           },
           {
             src: "https://commons.wikimedia.org/wiki/Special:FilePath/Little%20Red%20Riding%20Hood%20Knocking%20at%20Her%20Grandmother%E2%80%99s%20Door.jpg",
-            alt: "Public-domain illustration of Little Red Riding Hood at Grandmother's door",
+            alt: "Public-domain Little Red Riding Hood cottage illustration",
             caption: "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
           },
         ],
@@ -3884,7 +3884,7 @@ const SAMPLE = {
           },
           {
             src: "https://commons.wikimedia.org/wiki/Special:FilePath/Little%20Red%20Riding%20Hood%20Knocking%20at%20Her%20Grandmother%E2%80%99s%20Door.jpg",
-            alt: "Public-domain illustration of Little Red Riding Hood at Grandmother's door",
+            alt: "Public-domain Little Red Riding Hood cottage illustration",
             caption: "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
           },
         ],
@@ -3935,7 +3935,7 @@ const SAMPLE = {
           },
           {
             src: "https://commons.wikimedia.org/wiki/Special:FilePath/Little%20Red%20Riding%20Hood%20Knocking%20at%20Her%20Grandmother%E2%80%99s%20Door.jpg",
-            alt: "Public-domain illustration of Little Red Riding Hood at Grandmother's door",
+            alt: "Public-domain Little Red Riding Hood cottage illustration",
             caption: "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
           },
         ],
@@ -3984,7 +3984,7 @@ const SAMPLE = {
           },
           {
             src: "https://commons.wikimedia.org/wiki/Special:FilePath/Little%20Red%20Riding%20Hood%20Knocking%20at%20Her%20Grandmother%E2%80%99s%20Door.jpg",
-            alt: "Public-domain illustration of Little Red Riding Hood at Grandmother's door",
+            alt: "Public-domain Little Red Riding Hood cottage illustration",
             caption: "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
           },
         ],
@@ -4033,7 +4033,7 @@ const SAMPLE = {
           },
           {
             src: "https://commons.wikimedia.org/wiki/Special:FilePath/Little%20Red%20Riding%20Hood%20Knocking%20at%20Her%20Grandmother%E2%80%99s%20Door.jpg",
-            alt: "Public-domain illustration of Little Red Riding Hood at Grandmother's door",
+            alt: "Public-domain Little Red Riding Hood cottage illustration",
             caption: "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
           },
         ],
@@ -4082,7 +4082,7 @@ const SAMPLE = {
           },
           {
             src: "https://commons.wikimedia.org/wiki/Special:FilePath/Little%20Red%20Riding%20Hood%20Knocking%20at%20Her%20Grandmother%E2%80%99s%20Door.jpg",
-            alt: "Public-domain illustration of Little Red Riding Hood at Grandmother's door",
+            alt: "Public-domain Little Red Riding Hood cottage illustration",
             caption: "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
           },
         ],
