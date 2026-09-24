@@ -492,7 +492,7 @@ test("activated touch long press directly drives the Orb simulator instead of de
   assert.match(bridge, /container\.setPointerCapture\?\.\(touchHold\.pointerId\)/);
   assert.match(
     bridge,
-    /touchHold\?\.activated[\s\S]*touchHold\.pointerId === event\.pointerId[\s\S]*touchGeometry\(event\)[\s\S]*simulator\.dragNode\(touchHold\.node\.getId\(\), geometry\.localPoint\)/,
+    /touchHold\?\.activated[\s\S]*touchHold\.pointerId === event\.pointerId[\s\S]*touchGeometry\(event\)[\s\S]*scheduleTouchDrag\(touchHold\.node\.getId\(\), geometry\.localPoint\)/,
   );
   assert.match(
     bridge,
@@ -751,7 +751,7 @@ test("graph interaction work is coalesced to the display frame", async () => {
   );
   assert.match(
     bridge,
-    /function applyCameraPan\([\s\S]*scheduleGraphRender\(\)[\s\S]*return true/,
+    /function applyCameraPan\([\s\S]*orb\.render\(\)[\s\S]*return true/,
   );
   assert.match(
     bridge,
@@ -778,7 +778,11 @@ test("graph performance mode invalidates at the force and label thresholds", asy
   );
   assert.match(
     bridge,
-    /sizeClass = `\$\{wantsWebGL[\s\S]*\$\{forceDense \? "force-dense" : "force-normal"\}[\s\S]*\$\{labelsEnabled \? "labels" : "no-labels"\}/,
+    /const rendererType = wantsWebGL \? "webgl" : "canvas"[\s\S]*sizeClass = [\s\S]*forceDense \? "force-dense" : "force-normal"[\s\S]*labelsEnabled \? "labels" : "no-labels"/,
+  );
+  assert.match(
+    bridge,
+    /if \(rendererType !== lastRendererType\)[\s\S]*orb\.setRenderer\(rendererType\)/,
   );
   assert.match(bridge, /labelsIsEnabled:\s*labelsEnabled/);
 });
