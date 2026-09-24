@@ -290,7 +290,8 @@ function selectEdgeAccents<T extends { label?: string; position?: number }>(
           ? EDGE_ACCENT_HORIZONTAL_MIN_GAP_PX
           : EDGE_ACCENT_VERTICAL_MIN_GAP_PX;
       const glyphGap = labelLength * (orientation === "horizontal" ? 11 : 8);
-      if (Math.abs(Number(last.position) - Number(first.position)) < Math.max(baseGap, glyphGap)) {
+      const projectedGap = Math.abs(Number(last.position) - Number(first.position));
+      if (projectedGap < Math.max(baseGap, glyphGap)) {
         selected = [first];
       }
     }
@@ -1928,10 +1929,14 @@ export class TimelineViewController {
 
     const axisShift = axisCross - previous;
     for (const record of this.scene.values()) {
-      if (record.crossPosition !== null) record.crossPosition += axisShift;
+      if (record.crossPosition !== null) {
+        record.crossPosition = record.crossPosition + axisShift;
+      }
     }
     for (const record of this.clusterScene.values()) {
-      if (record.crossPosition !== null) record.crossPosition += axisShift;
+      if (record.crossPosition !== null) {
+        record.crossPosition = record.crossPosition + axisShift;
+      }
     }
 
     const correction = previous - axisCross;
