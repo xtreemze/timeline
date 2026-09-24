@@ -92,6 +92,10 @@ test("interaction surface geometry is cached for the epoch and invalidated at co
   assert.match(source, /interactionSurfaceRect: DOMRect \| null = null/);
   assert.match(
     source,
+    /interactionRect\(\): DOMRect \{[\s\S]{0,240}if \(!this\.interactionSurfaceRect\)[\s\S]{0,180}this\.interactionSurfaceRect = this\.surface\.getBoundingClientRect\(\)/,
+  );
+  assert.match(
+    source,
     /beginInteraction\(\): void \{[\s\S]{0,220}this\.interactionSurfaceRect = this\.surface\.getBoundingClientRect\(\)/,
   );
   assert.match(
