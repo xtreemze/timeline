@@ -42,9 +42,6 @@ export class LuumWorldSurfaceElement extends LitElement {
   }
 }
 
-if (
-  typeof customElements !== "undefined" &&
-  !customElements.get("luum-world-surface")
-) {
+if (typeof customElements !== "undefined" && !customElements.get("luum-world-surface")) {
   customElements.define("luum-world-surface", LuumWorldSurfaceElement);
 }
