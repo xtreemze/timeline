@@ -4,7 +4,7 @@ Lūm generates durable product-demonstration media from the real application in 
 
 ## What the pipeline produces
 
-The dedicated `E2E media showcase` workflow records five desktop scenes and five mobile scenes that express the same five feature intents with form-factor-appropriate interactions:
+The dedicated `E2E media showcase` workflow captures five desktop scenes and five mobile scenes that express the same five feature intents with form-factor-appropriate interactions:
 
 1. Navigate the continuum.
 2. Read an occurrence in context.
@@ -12,9 +12,11 @@ The dedicated `E2E media showcase` workflow records five desktop scenes and five
 4. Explore relationships.
 5. Browse narrative threads.
 
-Desktop uses the 1440×900 product layout with pointer, wheel, hover, and keyboard interactions where appropriate. Mobile uses an explicit touch-capable 390×844 portrait project and the actual responsive UI rather than a scaled desktop recording.
+Desktop uses the 1440×900 product layout. Mobile uses the explicit touch-capable 390×844 portrait project and the real responsive UI rather than a scaled desktop recording.
 
-Each scene asserts that the demonstrated state was reached, records a raw WebM, captures a final PNG, and intentionally returns as close as practical to its starting state so the resulting GIF loops naturally.
+The showcase distinguishes motion from static presentation. Timeline navigation and relation-graph navigation are motion scenes. Focused context, evidence, and story browsing are static scenes.
+
+Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes capture WebM from Chromium, then publish animated WebP without scaling or a synthetic showcase-wide frame-rate override. The renderer probes the WebM stream and uses its own width, height, and frame rate for the published animation.
 
 ## Output contract
 
@@ -25,34 +27,36 @@ artifacts/e2e-media/
 ├── reels/
 │   ├── lum-desktop-highlight.mp4
 │   └── lum-mobile-highlight.mp4
-├── gifs/
+├── showcase/
 │   ├── desktop/
-│   │   ├── 01-timeline-navigation.gif
-│   │   ├── 02-focused-context.gif
-│   │   ├── 03-evidence.gif
-│   │   ├── 04-relation-graph.gif
-│   │   └── 05-story-browser.gif
+│   │   ├── 01-timeline-navigation.webp
+│   │   ├── 02-focused-context.png
+│   │   ├── 03-evidence.png
+│   │   ├── 04-relation-graph.webp
+│   │   └── 05-story-browser.png
 │   └── mobile/
-│       ├── 01-timeline-navigation.gif
-│       ├── 02-focused-context.gif
-│       ├── 03-evidence.gif
-│       ├── 04-relation-graph.gif
-│       └── 05-story-browser.gif
+│       ├── 01-timeline-navigation.webp
+│       ├── 02-focused-context.png
+│       ├── 03-evidence.png
+│       ├── 04-relation-graph.webp
+│       └── 05-story-browser.png
 ├── raw/
 │   ├── desktop/
 │   │   ├── manifest.json
 │   │   ├── 01-timeline-navigation.webm
 │   │   ├── 01-timeline-navigation.png
+│   │   ├── 02-focused-context.png
 │   │   └── ...
 │   └── mobile/
 │       ├── manifest.json
 │       ├── 01-timeline-navigation.webm
 │       ├── 01-timeline-navigation.png
+│       ├── 02-focused-context.png
 │       └── ...
 └── playwright/
 ```
 
-The root manifest merges both capture manifests and records individual GIF byte sizes, desktop and mobile totals, and the combined GIF payload.
+Each form factor publishes two animated WebP motion assets and three PNG stills. Raw WebM exists only for motion scenes; every scene keeps a raw PNG capture. The root manifest records each published asset's byte size plus the source dimensions and, for motion, the probed source frame rate.
 
 ## Capture architecture
 
@@ -63,43 +67,49 @@ The showcase config contains two structural projects:
 - `Desktop Showcase`
 - `Mobile Showcase`
 
-The shared scene metadata defines feature title, explanation, expected state, alt text, and stable output stem. Desktop and mobile interaction routines remain separate so touch UI is not forced to mimic desktop input mechanics.
+The shared scene metadata defines feature title, explanation, expected state, alt text, stable output stem, and whether the scene is `motion` or `static`. Desktop and mobile interaction routines remain separate so touch UI is not forced to mimic desktop input mechanics.
 
-Playwright native screencast overlays provide restrained Lūm branding and feature chapters without modifying production UI only for recording.
+Motion capture does not pass a separate output size to the screencast API. Chromium therefore remains the source of the captured geometry. Static capture uses a CSS-pixel Playwright screenshot of the real reached state.
+
+Playwright native screencast overlays provide restrained Lūm branding and feature chapters for motion capture without modifying production UI only for recording. Static screenshots remain product-state captures rather than chapter cards.
 
 ## Rendering architecture
 
 `scripts/render-e2e-highlight.mjs` uses FFmpeg rather than adding a second browser/video framework. It:
 
-- normalizes each form factor independently;
-- keeps the mobile reel portrait;
-- composes a separate H.264 desktop reel and mobile reel;
-- renders ten palette-optimized infinite-loop GIFs;
-- uses Lanczos scaling, 10 fps, and a constrained 96-color palette by default;
+- probes every visual source with FFprobe;
+- preserves each published asset independently at its own source dimensions;
+- copies static PNG captures directly into the published showcase;
+- renders motion scenes as animated WebP with the source WebM dimensions and source frame rate;
+- keeps the mobile showcase portrait;
+- composes separate H.264 desktop and mobile reels;
+- derives reel geometry and frame rate from the first motion source for that form factor, normalizing only reel inputs as required for composition;
 - emits README-ready markup from the same manifest metadata;
-- measures each GIF and aggregate payloads.
+- measures individual and aggregate showcase payloads.
 
-The dependency policy remains intentionally small: Playwright captures the real browser, and FFmpeg performs deterministic media processing. Remotion or native OpenGL editing dependencies are not justified for this pipeline.
+There is no GIF palette stage, no reduced GIF frame rate, and no fixed GIF width. Primary showcase media now preserves the source visual cadence and geometry.
 
 ## CI and publication
 
 `.github/workflows/e2e-media.yml` owns capture, rendering, verification, size reporting, and artifact upload. It runs for relevant pull requests and `main` changes, supports `workflow_dispatch`, has its own concurrency group, and can be rerun independently of the broader browser matrix.
 
-The Pages deployment does not re-record showcase footage. After a successful media run on `main`, `.github/workflows/pages.yml` downloads the certified `lum-e2e-showcase` artifact, runs the normal build/certification process, then publishes:
+The Pages deployment does not re-record showcase footage. After a successful media run on `main`, `.github/workflows/pages.yml` downloads the certified `lum-e2e-showcase` artifact, runs the normal build/certification process, then publishes the mixed media under:
 
 ```text
-dist/showcase/desktop/*.gif
-dist/showcase/mobile/*.gif
+dist/showcase/desktop/*.webp
+dist/showcase/desktop/*.png
+dist/showcase/mobile/*.webp
+dist/showcase/mobile/*.png
 ```
 
-Stable README URLs therefore use:
+Stable README URLs therefore use the actual asset extension:
 
 ```text
-https://xtreemze.github.io/timeline/showcase/desktop/<scene>.gif
-https://xtreemze.github.io/timeline/showcase/mobile/<scene>.gif
+https://xtreemze.github.io/timeline/showcase/desktop/01-timeline-navigation.webp
+https://xtreemze.github.io/timeline/showcase/desktop/02-focused-context.png
 ```
 
-Generated GIF binaries are not committed to source control.
+Generated media binaries are not committed to source control.
 
 ## Local use
 
@@ -114,4 +124,4 @@ The renderer expects both Playwright projects to have completed successfully.
 
 ## Presentation use
 
-The two MP4 reels are the preferred presentation assets when video playback is available. The desktop and mobile GIF collections are the durable README/documentation form and can also be embedded in lightweight slide or web presentations. Product showcase media demonstrates application behavior; it is not evidence, provenance, or case material inside a Lūm project.
+The two MP4 reels remain convenient presentation assets when conventional video playback is preferred. For README, documentation, and web embedding, use PNG for static product states and animated WebP only where motion carries information. Product showcase media demonstrates application behavior; it is not evidence, provenance, or case material inside a Lūm project.
