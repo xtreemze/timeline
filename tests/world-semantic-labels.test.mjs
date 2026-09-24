@@ -204,6 +204,43 @@ test("place anchors render through the node marker path", () => {
   assert.ok(placeIcons.props.getSize(datum) >= 44);
 });
 
+test("place marker rendering uses the authored icon, fill, border, width, and shape", () => {
+  const h = harness();
+  const styled = instance(0, {
+    geographicAnchors: [
+      {
+        placeId: "styled-place",
+        label: "Styled place",
+        longitude: 12,
+        latitude: 41,
+        influence: 1,
+        style: {
+          marker: {
+            fillColor: "#123456",
+            color: "#abcdef",
+            weight: 4,
+            size: 32,
+            shape: "square",
+            icon: "crown",
+          },
+        },
+      },
+    ],
+  });
+  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
+  surface.setProjection(createWorldProjection({ instances: [styled], edges: [] }));
+
+  const placeIcons = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.placeIcons);
+  assert.ok(placeIcons);
+  const datum = placeIcons.props.data.find((candidate) => candidate.placeId === "styled-place");
+  assert.ok(datum);
+  const marker = placeIcons.props.getIcon(datum);
+  assert.ok(
+    marker.id.startsWith("lum-node:square|#123456|#abcdef|4|22|crown|"),
+    `authored marker visual tuple must remain authoritative: ${marker.id}`,
+  );
+});
+
 test("entity and place labels come from renderer-neutral WorldProjection metadata", () => {
   const h = harness();
   // Close zoom: these fixtures sit 0.5 degrees apart, which screen-space
