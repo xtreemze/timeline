@@ -52,7 +52,6 @@ test("registerTimelineWorldView wires real deck.gl constructors without invoking
   });
 });
 
-
 test("production world surface uses a Lit lifecycle boundary while deck remains imperative", async () => {
   const [html, factory, element] = await Promise.all([
     import("node:fs/promises").then(({ readFile }) =>
