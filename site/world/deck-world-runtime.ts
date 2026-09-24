@@ -9,6 +9,7 @@ export interface DeckWorldBindings {
   readonly textLayer?: (props: Readonly<Record<string, unknown>>) => unknown;
   readonly iconLayer?: (props: Readonly<Record<string, unknown>>) => unknown;
   readonly solidPolygonLayer?: (props: Readonly<Record<string, unknown>>) => unknown;
+  readonly collisionFilterExtension?: () => unknown;
 }
 
 export function createDeckWorldRuntime(bindings: DeckWorldBindings): DeckWorldRuntime {
@@ -50,6 +51,13 @@ export function createDeckWorldRuntime(bindings: DeckWorldBindings): DeckWorldRu
       ? {
           createTextLayer(props: Readonly<Record<string, unknown>>) {
             return bindings.textLayer?.(props) ?? null;
+          },
+        }
+      : {}),
+    ...(bindings.collisionFilterExtension
+      ? {
+          createCollisionFilterExtension() {
+            return bindings.collisionFilterExtension?.() ?? null;
           },
         }
       : {}),
