@@ -93,3 +93,20 @@ test("contextual authoring menu has compact touch-safe actions", async () => {
   assert.match(source, /min-block-size:\s*44px/);
   assert.match(source, /max-block-size:\s*min\(24rem, calc\(100dvh - 1rem\)\)/);
 });
+
+
+test("contextual authoring has keyboard context-menu parity and roving menu focus", async () => {
+  const [world, menu, app] = await Promise.all([
+    readFile(new URL("../site/world/deck-world-surface.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/authoring-menu.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(world, /event\.key === "ContextMenu"/);
+  assert.match(world, /event\.shiftKey && event\.key === "F10"/);
+  assert.match(world, /"keyboard"[\s\S]*requireEmpty: false/);
+  assert.match(menu, /"ArrowDown", "ArrowUp", "Home", "End"/);
+  assert.match(menu, /"authoringdismiss"/);
+  assert.match(menu, /#returnFocus/);
+  assert.match(app, /authoringdismiss[\s\S]*clearSpatialContext/);
+});
