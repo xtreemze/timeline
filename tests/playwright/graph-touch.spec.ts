@@ -1,4 +1,5 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { touchscreen } from "../support/touch-gestures.ts";
 
 type GraphPosition = { x: number; y: number };
 type GraphData = {
@@ -18,34 +19,6 @@ declare global {
   interface Window {
     __touchNodeGraph?: TouchGraphController;
   }
-}
-
-function dispatchTouchPointer(
-  page: Page,
-  type: "pointerdown" | "pointermove" | "pointerup",
-  point: GraphPosition,
-) {
-  return page.evaluate(
-    ({ eventType, x, y }) => {
-      const canvas = document.querySelector<HTMLCanvasElement>("#touch-node-drag-fixture canvas");
-      if (!canvas) throw new Error("Graph canvas not found");
-      canvas.dispatchEvent(
-        new PointerEvent(eventType, {
-          pointerId: 41,
-          pointerType: "touch",
-          isPrimary: true,
-          button: 0,
-          buttons: eventType === "pointerup" ? 0 : 1,
-          clientX: x,
-          clientY: y,
-          bubbles: true,
-          cancelable: true,
-          composed: true,
-        }),
-      );
-    },
-    { eventType: type, ...point },
-  );
 }
 
 test("long-press touch moves an Orb node", async ({ page }, testInfo) => {
@@ -110,7 +83,8 @@ test("long-press touch moves an Orb node", async ({ page }, testInfo) => {
     y: box.y + nodeCanvas.y,
   };
 
-  await dispatchTouchPointer(page, "pointerdown", startClient);
+  const finger = await touchscreen(page);
+  await finger.move([startClient]);
   await expect(fixture).toHaveAttribute("data-touch-drag", "holding");
   await expect(fixture).toHaveAttribute("data-touch-drag", "active");
 
@@ -118,7 +92,7 @@ test("long-press touch moves an Orb node", async ({ page }, testInfo) => {
   if (!beforeMove) throw new Error("Graph node has no simulation position before drag");
 
   const dragClient = { x: startClient.x + 72, y: startClient.y + 24 };
-  await dispatchTouchPointer(page, "pointermove", dragClient);
+  await finger.move([dragClient]);
 
   await page.waitForFunction(({ x, y }) => {
     const next = window.__touchNodeGraph?.getNodePosition(1);
@@ -129,7 +103,7 @@ test("long-press touch moves an Orb node", async ({ page }, testInfo) => {
   if (!moved) throw new Error("Graph node has no simulation position after drag");
   expect(Math.hypot(moved.x - beforeMove.x, moved.y - beforeMove.y)).toBeGreaterThan(5);
 
-  await dispatchTouchPointer(page, "pointerup", dragClient);
+  await finger.end();
   await expect(fixture).not.toHaveAttribute("data-touch-drag");
 
   await page.evaluate(() => {
