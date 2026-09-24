@@ -388,10 +388,8 @@ test("story previous and next navigation use the same directional focus travel",
     app,
     /timelineView\?\.focusItem\(currentId, \{[\s\S]*direction: Number\(options\.direction \?\? 1\) < 0 \? -1 : 1/,
   );
-  assert.match(
-    app,
-    /focusCurrentStoryItem\(Boolean\(options\.focusEvent\), \{[\s\S]*direction: delta < 0 \? -1 : 1/,
-  );
+  assert.match(app, /focusCurrentStoryItem\(Boolean\(options\.focusEvent\)\)/);
+  assert.doesNotMatch(app, /focusItem\([^)]*,\s*\{\s*direction:/);
 });
 
 test("focused popover content remains bounded while Relations halo can stay visually unclipped", async () => {
