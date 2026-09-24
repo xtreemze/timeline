@@ -312,7 +312,7 @@ test("long-press node drag flashes, elevates, haptically confirms, and restores 
   const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
   assert.match(source, /DRAG_FEEDBACK_FLASH_MS\s*=\s*150/);
-  assert.match(source, /DRAG_Z_INDEX_OFFSET\s*=\s*2/);
+  assert.match(source, /DRAG_Z_INDEX_OFFSET\s*=\s*3/);
   assert.match(
     source,
     /function beginDragFeedback\(node,[\s\S]*activeDragNodeId = nodeId[\s\S]*dragFlashNodeId = nodeId[\s\S]*DRAG_FEEDBACK_FLASH_MS/,
