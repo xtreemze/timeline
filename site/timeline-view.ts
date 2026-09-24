@@ -2130,7 +2130,7 @@ export class TimelineViewController {
   }
 
   createRecord(item: TimelineItem): SceneRecord {
-    const node = document.createElement("luum-event-card") as LuumEventCardElement;
+    const node = new LuumEventCardElement();
     node.className = "timeline-event";
     node.dataset.id = item.id;
     this.stage.append(node);
