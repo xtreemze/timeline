@@ -1,10 +1,6 @@
-import { LitElement, css, html, nothing } from "lit";
+import { css, html, LitElement, nothing } from "lit";
 
-export type AuthoringMenuAction =
-  | "add-place"
-  | "add-node"
-  | "add-relationship"
-  | "edit-selection";
+export type AuthoringMenuAction = "add-place" | "add-node" | "add-relationship" | "edit-selection";
 
 export interface AuthoringMenuOpenOptions {
   readonly clientX: number;
@@ -180,15 +176,21 @@ export class LuumAuthoringMenuElement extends LitElement {
           hasContext
             ? html`
                 <div class="context" aria-label="Authoring context">
-                  ${this.contextDate
-                    ? html`<span class="chip" title="Selected time">${this.contextDate}</span>`
-                    : nothing}
-                  ${this.contextPlace
-                    ? html`<span class="chip" title="Selected place">${this.contextPlace}</span>`
-                    : nothing}
-                  ${coordinate
-                    ? html`<span class="chip" title="World position">${coordinate}</span>`
-                    : nothing}
+                  ${
+                    this.contextDate
+                      ? html`<span class="chip" title="Selected time">${this.contextDate}</span>`
+                      : nothing
+                  }
+                  ${
+                    this.contextPlace
+                      ? html`<span class="chip" title="Selected place">${this.contextPlace}</span>`
+                      : nothing
+                  }
+                  ${
+                    coordinate
+                      ? html`<span class="chip" title="World position">${coordinate}</span>`
+                      : nothing
+                  }
                 </div>
               `
             : nothing
@@ -227,9 +229,6 @@ export class LuumAuthoringMenuElement extends LitElement {
   }
 }
 
-if (
-  typeof customElements !== "undefined" &&
-  !customElements.get("luum-authoring-menu")
-) {
+if (typeof customElements !== "undefined" && !customElements.get("luum-authoring-menu")) {
   customElements.define("luum-authoring-menu", LuumAuthoringMenuElement);
 }
