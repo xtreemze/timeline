@@ -308,10 +308,10 @@ export function worldEdgeStyle(
   const lineStyle = text(own.lineStyle ?? own.strokeStyle, 16)?.toLowerCase();
   const semanticColor =
     color(own.categoryColor) ??
+    color(input.fallbackColor) ??
     color(own.color) ??
     color(own.stroke) ??
     color(own.lineColor) ??
-    color(input.fallbackColor) ??
     semanticEdgeColor(input.predicate ?? "", palette);
   const authoredWidth =
     number(own.width, 0.5, 10) ??
