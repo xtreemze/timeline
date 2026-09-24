@@ -2,6 +2,7 @@ import { performance } from "node:perf_hooks";
 
 import { ReferenceWorldForceSimulation } from "../src/layout/reference-world-force-simulation.ts";
 import { createWorldDagLayout } from "../src/layout/world-dag-layout.ts";
+import { applyWorldForceLayoutUpdate } from "../src/layout/world-force-layout.ts";
 import { createWorldForceScene } from "../src/layout/world-force-scene.ts";
 import {
   createProjectedWorldEdge,
@@ -195,6 +196,22 @@ for (const nodeCount of sizes) {
       : nodeCount >= 10_000
         ? 3
         : 6;
+  const firstInstance = projection.instances[0];
+  if (!firstInstance) throw new Error("World force benchmark requires at least one instance.");
+  const sparseLayoutApply = measure(() => {
+    const update = applyWorldForceLayoutUpdate(projection, [
+      {
+        instanceId: firstInstance.id,
+        eastMeters: 1_234,
+        northMeters: -567,
+        visualAltitudeMeters: (firstInstance.visualAltitude ?? 0) + 25,
+      },
+    ]);
+    if (update.updatedInstances.length !== 1) {
+      throw new Error("Sparse force-layout update should report exactly one changed instance.");
+    }
+  }, stepIterations);
+
   const simulation = new ReferenceWorldForceSimulation();
   simulation.setScene(forceScene);
   simulation.apply({ reason: "topology", excitation: 0.12, reheat: true });
@@ -237,6 +254,7 @@ for (const nodeCount of sizes) {
     solveStep,
     dragStep,
     dragChangedNodes,
+    sparseLayoutApply,
     dagQuality,
     settling,
     diagnostics,

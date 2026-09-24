@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { applyWorldForceLayout } from "../src/layout/world-force-layout.ts";
+import {
+  applyWorldForceLayout,
+  applyWorldForceLayoutUpdate,
+} from "../src/layout/world-force-layout.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
@@ -222,4 +225,45 @@ test("layout samples reject non-finite offsets and negative visual altitude", ()
       ]),
     /visual altitude/,
   );
+});
+
+test("sparse layout updates report exact changed instances and preserve static topology identity", () => {
+  const input = projection();
+  const alice = input.instances.find((instance) => instance.canonicalId === "alice");
+  const bob = input.instances.find((instance) => instance.canonicalId === "bob");
+
+  const update = applyWorldForceLayoutUpdate(input, [
+    {
+      instanceId: alice.id,
+      eastMeters: 250,
+      northMeters: -125,
+      visualAltitudeMeters: 1750,
+    },
+  ]);
+
+  assert.deepEqual(
+    update.updatedInstances.map((instance) => instance.id),
+    [alice.id],
+  );
+  assert.equal(update.projection.edges, input.edges);
+  assert.equal(
+    update.projection.instances.find((instance) => instance.canonicalId === "bob"),
+    bob,
+  );
+  assert.equal(
+    update.projection.instances.find((instance) => instance.canonicalId === "alice")
+      .geographicAnchors,
+    alice.geographicAnchors,
+  );
+
+  const noChange = applyWorldForceLayoutUpdate(update.projection, [
+    {
+      instanceId: alice.id,
+      eastMeters: 250,
+      northMeters: -125,
+      visualAltitudeMeters: 1750,
+    },
+  ]);
+  assert.equal(noChange.projection, update.projection);
+  assert.deepEqual(noChange.updatedInstances, []);
 });
