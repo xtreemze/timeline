@@ -1039,7 +1039,9 @@ const ENTITY_LABEL_OFFSET_PX = 56;
 /** Close/detail zoom where a claimed node drag freezes the globe camera. */
 export const WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM = 6;
 
-export function worldGraphLabelSize(datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">): number {
+export function worldGraphLabelSize(
+  datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">,
+): number {
   return datum.emphasized ? 19 : 16;
 }
 
