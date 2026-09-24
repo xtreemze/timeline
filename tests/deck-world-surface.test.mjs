@@ -515,6 +515,42 @@ test("WorldSurface applies force deltas without reframing and skips unchanged la
   );
 });
 
+test("panning camera latitude does not rescale anchored local graph geometry", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime, {
+    longitude: 18.0686,
+    latitude: 0,
+    zoom: 7,
+    bearing: 0,
+    pitch: 20,
+  });
+  surface.setProjection(projection());
+
+  const beforeLayer = calls.setProps
+    .at(-1)
+    .layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities);
+  const beforeBob = beforeLayer.props.data.find((datum) => datum.entityId === "bob");
+
+  surface.setCamera({
+    longitude: 18.0686,
+    latitude: 60,
+    zoom: 7,
+    bearing: 0,
+    pitch: 20,
+  });
+
+  const afterLayer = calls.setProps
+    .at(-1)
+    .layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities);
+  const afterBob = afterLayer.props.data.find((datum) => datum.entityId === "bob");
+
+  assert.deepEqual(
+    afterBob.position,
+    beforeBob.position,
+    "camera panning must not change anchor-local presentation geometry",
+  );
+});
+
 test("selection updates presentation data while preserving canonical IDs", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
