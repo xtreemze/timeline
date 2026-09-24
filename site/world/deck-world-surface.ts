@@ -517,11 +517,6 @@ function instanceIndexFromEntities(entities: readonly DeckWorldEntityDatum[]): W
   return { positions, entityIds };
 }
 
-function scaleAlpha(color: Rgba, factor: number): Rgba {
-  const alpha = Math.max(0, Math.min(1, factor));
-  return [color[0], color[1], color[2], Math.round(color[3] * alpha)];
-}
-
 interface DeckWorldReleasingRelationshipSegment {
   readonly relationshipId: RelationshipId;
   readonly edge: DeckWorldRelationshipDatum;
@@ -2473,6 +2468,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#autoFitted = false;
     this.#camera = createWorldCameraState(camera);
     this.#syncSpatialMode();
+    this.#syncClusterLifecycle();
     // When the zoom changes LOD or the offset magnification, layers and
     // camera go to deck in one update so no frame pairs the new camera with
     // stale positions.
@@ -2846,6 +2842,7 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #reclusterIfZoomCrossedThreshold(): void {
+    this.#syncClusterLifecycle();
     if (this.#zoomNeedsRender()) this.#render();
   }
 
@@ -3222,7 +3219,7 @@ export class DeckWorldSurface implements WorldSurface {
           places,
           relationships: labelRelationships,
           entities: labelEntities,
-          clustered: this.#clusteredLastRender,
+          clustered: clusterPhase === "collapsed",
           zoom: this.#camera.zoom,
           focus: this.#focus,
           previous: this.#labelDatumCache,
