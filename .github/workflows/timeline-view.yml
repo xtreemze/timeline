@@ -72,6 +72,7 @@ on:
       - 'vite.config.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'tests/browser/retained-performance.spec.ts'
+      - 'tests/browser/timeline-geometric-continuity.spec.ts'
       - 'tests/browser/world-interaction-coverage.spec.ts'
       - 'tests/browser/world-app-visibility.spec.ts'
       - 'tests/browser/world-webgpu.spec.ts'
@@ -167,6 +168,7 @@ on:
       - 'tests/playwright/layout.spec.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'tests/browser/retained-performance.spec.ts'
+      - 'tests/browser/timeline-geometric-continuity.spec.ts'
       - 'tests/browser/world-interaction-coverage.spec.ts'
       - 'tests/browser/world-app-visibility.spec.ts'
       - 'tests/browser/world-webgpu.spec.ts'
@@ -338,6 +340,27 @@ jobs:
           pnpm exec playwright test --config=playwright.config.ts tests/browser/retained-performance.spec.ts --list | tee /tmp/retained-performance-list.txt
           grep -F 'retained-performance.spec.ts' /tmp/retained-performance-list.txt
       - run: pnpm test:retained-performance-browser
+
+  timeline-continuity-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Verify timeline continuity browser discovery
+        run: |
+          pnpm exec playwright test --config=playwright.config.ts tests/browser/timeline-geometric-continuity.spec.ts --list | tee /tmp/timeline-continuity-list.txt
+          grep -F 'timeline-geometric-continuity.spec.ts' /tmp/timeline-continuity-list.txt
+          grep -F '[Desktop Chrome]' /tmp/timeline-continuity-list.txt
+          grep -F '[Mobile Chrome]' /tmp/timeline-continuity-list.txt
+          grep -F '[Mobile Chrome Landscape]' /tmp/timeline-continuity-list.txt
+          grep -F '[Tablet Touch]' /tmp/timeline-continuity-list.txt
+          grep -F '[Reduced Motion]' /tmp/timeline-continuity-list.txt
+      - run: pnpm test:timeline-continuity-browser
 
   world-surface-certification-browser:
     runs-on: ubuntu-latest
