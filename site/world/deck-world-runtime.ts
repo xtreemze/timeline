@@ -9,6 +9,7 @@ export interface DeckWorldBindings {
   readonly globeView: (props: Readonly<Record<string, unknown>>) => unknown;
   readonly globeViewport?: (props: Readonly<Record<string, unknown>>) => DeckRuntimeViewport;
   readonly mapView?: (props: Readonly<Record<string, unknown>>) => unknown;
+  readonly mapViewport?: (props: Readonly<Record<string, unknown>>) => DeckRuntimeViewport;
   readonly scatterplotLayer: (props: Readonly<Record<string, unknown>>) => unknown;
   readonly pathLayer: (props: Readonly<Record<string, unknown>>) => unknown;
   readonly textLayer?: (props: Readonly<Record<string, unknown>>) => unknown;
@@ -35,6 +36,13 @@ export function createDeckWorldRuntime(bindings: DeckWorldBindings): DeckWorldRu
       ? {
           createMapView(props: Readonly<Record<string, unknown>>) {
             return bindings.mapView?.(props) ?? null;
+          },
+        }
+      : {}),
+    ...(bindings.mapViewport
+      ? {
+          createMapViewport(props: Readonly<Record<string, unknown>>) {
+            return bindings.mapViewport?.(props);
           },
         }
       : {}),
