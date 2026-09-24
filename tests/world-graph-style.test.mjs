@@ -43,7 +43,7 @@ test("an entity's own style overrides the defaults; invalid values fall back", (
   assert.equal(styled.shape, "square");
   assert.equal(styled.icon, "object");
   assert.equal(styled.image, "https://example.test/a.png");
-  assert.equal(styled.radius, 56);
+  assert.equal(styled.radius, 28);
 
   const invalid = worldNodeStyle(
     { type: "person", attributes: { style: { fillColor: "red; x", shape: "star" } } },
@@ -114,11 +114,11 @@ test("node radii are whole pixels so a scene shares a few marker textures", () =
   );
   assert.deepEqual(
     [...radii].sort((a, b) => a - b),
-    [36, 40, 44],
+    [18, 20, 22],
   );
   assert.equal(
     worldNodeStyle({ type: "person", attributes: { style: { size: 12.7 } } }, WORLD_LIGHT_PALETTE)
       .radius,
-    52,
+    26,
   );
 });
