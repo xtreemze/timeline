@@ -307,6 +307,7 @@ export function worldEdgeStyle(
   const own = styleOf(input.attributes);
   const lineStyle = text(own.lineStyle ?? own.strokeStyle, 16)?.toLowerCase();
   const semanticColor =
+    color(own.categoryColor) ??
     color(own.color) ??
     color(own.stroke) ??
     color(own.lineColor) ??
