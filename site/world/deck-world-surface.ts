@@ -2059,17 +2059,16 @@ export class DeckWorldSurface implements WorldSurface {
       this.#directionDatumCache,
     );
     this.#directionDatumCache = directionResult.byId;
-    // Kind icons follow the same LOD as labels: while clustered only pinned
-    // entities keep an icon; otherwise a zoom-tier budget by visual weight.
+    // Semantic node overlays follow the same LOD as labels. While clustered,
+    // only explicitly selected/focused canonical entities remain individually
+    // represented; the cluster glyph itself keeps a distinct aggregate style.
     const focus = this.#focus;
     const pinnedEntity = (entity: DeckWorldEntityDatum) =>
       entity.selected || (focus?.kind === "entity" && focus.id === entity.entityId);
-    const iconDatums = this.#runtime.createIconLayer
+    const semanticEntityDatums = this.#runtime.createIconLayer
       ? selectPrioritizedLabels(
           entityResult.datums.filter(
-            (entity) =>
-              worldEntityIconName(entity.entityKind) !== null &&
-              (!this.#clusteredLastRender || pinnedEntity(entity)),
+            (entity) => !this.#clusteredLastRender || pinnedEntity(entity),
           ),
           {
             budget: worldLabelBudget(this.#camera.zoom),
@@ -2079,6 +2078,10 @@ export class DeckWorldSurface implements WorldSurface {
           },
         )
       : null;
+    const imageDatums =
+      semanticEntityDatums && this.#camera.zoom >= 6.5
+        ? semanticEntityDatums.filter((entity) => entity.visual.imageUrl)
+        : null;
     const labelResult = this.#runtime.createTextLayer
       ? labelDatums({
           places,
@@ -2129,9 +2132,9 @@ export class DeckWorldSurface implements WorldSurface {
         pickable: true,
         widthUnits: "pixels",
         getPath: (datum: DeckWorldRelationshipDatum) => datum.path,
+        widthMinPixels: 2,
         getWidth: (datum: DeckWorldRelationshipDatum) => (datum.selected ? 4 : 2),
-        getColor: (datum: DeckWorldRelationshipDatum) =>
-          datum.selected ? WORLD_PALETTE.selected : WORLD_PALETTE.relationship,
+        getColor: (datum: DeckWorldRelationshipDatum) => datum.visual.color,
         parameters: { cullMode: "none" },
       }),
       this.#runtime.createScatterplotLayer({
@@ -2148,14 +2151,16 @@ export class DeckWorldSurface implements WorldSurface {
             : 80 + datum.visualWeight * 120,
         stroked: true,
         lineWidthUnits: "pixels",
-        getLineWidth: 1.5,
-        getLineColor: WORLD_PALETTE.outline,
-        getFillColor: (datum: DeckWorldEntityRenderDatum) =>
+        getLineWidth: (datum: DeckWorldEntityRenderDatum) =>
+          datum.kind === "entity" && datum.selected ? 3 : 1.5,
+        getLineColor: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster"
-            ? WORLD_PALETTE.cluster
+            ? WORLD_PALETTE.outline
             : datum.selected
               ? WORLD_PALETTE.selected
-              : WORLD_PALETTE.entity,
+              : datum.visual.outlineColor,
+        getFillColor: (datum: DeckWorldEntityRenderDatum) =>
+          datum.kind === "cluster" ? WORLD_PALETTE.cluster : datum.visual.fillColor,
         ...(this.#nodeDragSink
           ? {
               onDragStart: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
@@ -2167,21 +2172,68 @@ export class DeckWorldSurface implements WorldSurface {
             }
           : {}),
       }),
-      ...(iconDatums && this.#runtime.createIconLayer
+      ...(semanticEntityDatums && this.#runtime.createIconLayer
         ? [
             this.#runtime.createIconLayer({
-              id: DECK_WORLD_LAYER_IDS.entityIcons,
-              data: iconDatums,
+              id: DECK_WORLD_LAYER_IDS.entityShapes,
+              data: semanticEntityDatums,
               pickable: true,
               billboard: true,
               sizeUnits: "pixels",
               getPosition: (datum: DeckWorldEntityDatum) => datum.position,
               getIcon: (datum: DeckWorldEntityDatum) =>
-                entityIconDescriptor(worldEntityIconName(datum.entityKind) ?? "note"),
-              getSize: (datum: DeckWorldEntityDatum) => (datum.selected ? 22 : 16),
+                entityShapeDescriptor(datum.visual, datum.selected),
+              getSize: (datum: DeckWorldEntityDatum) => (datum.selected ? 30 : 24),
               getColor: () => WORLD_PALETTE.icon,
-              // GlobeView culls back faces; billboarded icon quads vanish
-              // without this (same as the label TextLayer).
+              parameters: { cullMode: "none" },
+              ...(this.#nodeDragSink
+                ? {
+                    onDragStart: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
+                      this.#beginEntityDrag(info, event),
+                    onDrag: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
+                      this.#updateEntityDrag(info, event),
+                    onDragEnd: (_info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
+                      this.#endEntityDrag(event),
+                  }
+                : {}),
+            }),
+            this.#runtime.createIconLayer({
+              id: DECK_WORLD_LAYER_IDS.entityIcons,
+              data: semanticEntityDatums,
+              pickable: true,
+              billboard: true,
+              sizeUnits: "pixels",
+              getPosition: (datum: DeckWorldEntityDatum) => datum.position,
+              getIcon: (datum: DeckWorldEntityDatum) => entityIconDescriptor(datum.visual.icon),
+              getSize: (datum: DeckWorldEntityDatum) => (datum.selected ? 18 : 14),
+              getColor: () => WORLD_PALETTE.icon,
+              parameters: { cullMode: "none" },
+              ...(this.#nodeDragSink
+                ? {
+                    onDragStart: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
+                      this.#beginEntityDrag(info, event),
+                    onDrag: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
+                      this.#updateEntityDrag(info, event),
+                    onDragEnd: (_info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
+                      this.#endEntityDrag(event),
+                  }
+                : {}),
+            }),
+          ]
+        : []),
+      ...(imageDatums && imageDatums.length > 0 && this.#runtime.createIconLayer
+        ? [
+            this.#runtime.createIconLayer({
+              id: DECK_WORLD_LAYER_IDS.entityImages,
+              data: imageDatums,
+              pickable: true,
+              billboard: true,
+              sizeUnits: "pixels",
+              getPosition: (datum: DeckWorldEntityDatum) => datum.position,
+              getIcon: (datum: DeckWorldEntityDatum) =>
+                entityImageDescriptor(datum.visual.imageUrl ?? ""),
+              getSize: (datum: DeckWorldEntityDatum) => (datum.selected ? 15 : 12),
+              getColor: () => WORLD_PALETTE.icon,
               parameters: { cullMode: "none" },
               ...(this.#nodeDragSink
                 ? {
@@ -2206,8 +2258,7 @@ export class DeckWorldSurface implements WorldSurface {
         capRounded: true,
         getPath: (datum: DeckWorldDirectionDatum) => datum.path,
         getWidth: (datum: DeckWorldDirectionDatum) => (datum.selected ? 5 : 3),
-        getColor: (datum: DeckWorldDirectionDatum) =>
-          datum.selected ? WORLD_PALETTE.selected : WORLD_PALETTE.direction,
+        getColor: (datum: DeckWorldDirectionDatum) => datum.edge.visual.color,
         parameters: { cullMode: "none" },
       }),
       ...(labelResult && this.#runtime.createTextLayer
