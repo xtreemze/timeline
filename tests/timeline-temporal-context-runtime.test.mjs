@@ -68,7 +68,7 @@ test("outer edge dates reuse stable slots and replace changed digits in place", 
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
 
-  assert.match(source, /minimumEdgeAccents: this\.retention\.active \? 2 : 1/);
+  assert.match(source, /minimumEdgeAccents: this\.retention\.active \? 3 : 1/);
   assert.match(source, /`edge-slot:\$\{slot\}`/);
   assert.match(source, /dataset\.edgeSlot = String\(slot\)/);
   assert.match(source, /updateTemporalAccentLabel\(node, label\)/);
@@ -77,5 +77,6 @@ test("outer edge dates reuse stable slots and replace changed digits in place", 
   assert.match(source, /EDGE_DATE_REPLACEMENT_DURATION_MS/);
   assert.match(source, /key\.startsWith\("edge-slot:"\)/);
   assert.match(source, /dataset\.edgeDateCount/);
+  assert.match(source, /if \(!text\) \{[\s\S]*label\.hidden = true/);
   assert.match(css, /\.timeline-edge-date-character/);
 });
