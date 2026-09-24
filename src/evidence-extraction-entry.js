@@ -1,9 +1,12 @@
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { createEvidenceExtraction } from "./evidence-extraction-core.js";
 
-const api = createEvidenceExtraction({
-  pdfjs: { getDocument, GlobalWorkerOptions },
-  root: globalThis
-});
+GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-globalThis.TimelineEvidenceExtraction = api;
+export const TimelineEvidenceExtraction = Object.freeze(
+  createEvidenceExtraction({
+    pdfjs: { getDocument, GlobalWorkerOptions },
+    root: globalThis,
+  }),
+);
