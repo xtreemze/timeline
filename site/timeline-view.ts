@@ -361,6 +361,8 @@ class TimelineViewController {
   interactionVelocity = 0;
   inertiaAnimationFrame = 0;
   renderFrame = 0;
+  pendingViewportEmit = false;
+  interactionSurfaceRect: DOMRect | null = null;
   wheelCommitTimer: ReturnType<typeof globalThis.setTimeout> | 0 = 0;
   viewportInitialized = false;
   reducedMotionQuery: MediaQueryList | null =
@@ -421,7 +423,9 @@ class TimelineViewController {
       (event) => {
         if (!this.items.length) return;
         event.preventDefault();
-        const rect = this.surface.getBoundingClientRect();
+        this.cancelInertia();
+        this.beginInteraction();
+        const rect = this.interactionSurfaceRect || this.surface.getBoundingClientRect();
         const primary =
           this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
         const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
@@ -435,13 +439,10 @@ class TimelineViewController {
           end: anchor + span * (1 - ratio),
         };
 
-        this.cancelInertia();
-        this.beginInteraction();
         this.viewport = next;
         this.interactionVelocity = 0;
         this.markInputForNextRender();
-        this.scheduleRender();
-        this.emitViewport(false);
+        this.scheduleInteractionRender();
 
         globalThis.clearTimeout(this.wheelCommitTimer);
         this.wheelCommitTimer = globalThis.setTimeout(
@@ -466,11 +467,11 @@ class TimelineViewController {
       point: { x: number; y: number },
       sourceEvent: PointerEvent | null = null,
     ): void => {
-      const rect = this.surface.getBoundingClientRect();
-      const coordinate =
-        this.orientation === "horizontal" ? point.x - rect.left : point.y - rect.top;
       this.cancelInertia();
       this.beginInteraction();
+      const rect = this.interactionSurfaceRect || this.surface.getBoundingClientRect();
+      const coordinate =
+        this.orientation === "horizontal" ? point.x - rect.left : point.y - rect.top;
       this.pointerDrag = {
         pointerId,
         coordinate,
@@ -494,7 +495,7 @@ class TimelineViewController {
       if (this.touchPointers.size < 2) return null;
       const [first, second] = Array.from(this.touchPointers.values()).slice(0, 2);
       if (!first || !second) return null;
-      const rect = this.surface.getBoundingClientRect();
+      const rect = this.interactionSurfaceRect || this.surface.getBoundingClientRect();
       const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
       const primary =
         this.orientation === "horizontal"
@@ -679,14 +680,13 @@ class TimelineViewController {
         this.viewport = { start, end: start + nextSpan };
         this.interactionVelocity = 0;
         this.markInputForNextRender();
-        this.scheduleRender();
-        this.emitViewport(false);
+        this.scheduleInteractionRender();
         return;
       }
 
       const drag = this.pointerDrag;
       if (!drag || drag.pointerId !== event.pointerId) return;
-      const rect = this.surface.getBoundingClientRect();
+      const rect = this.interactionSurfaceRect || this.surface.getBoundingClientRect();
       const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
       const coordinate =
         this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
@@ -710,8 +710,7 @@ class TimelineViewController {
       const pointerVelocity = motion.estimatePointerVelocity(drag.samples);
       this.interactionVelocity = -((pointerVelocity / usable) * span);
       this.markInputForNextRender();
-      this.scheduleRender();
-      this.emitViewport(false);
+      this.scheduleInteractionRender();
     });
 
     const finishPointer = (event: PointerEvent): void => {
@@ -1108,8 +1107,7 @@ class TimelineViewController {
     if (commit) {
       this.commitInteraction();
     } else {
-      this.scheduleRender();
-      this.emitViewport(false);
+      this.scheduleInteractionRender();
     }
   }
 
@@ -1639,8 +1637,7 @@ class TimelineViewController {
         start: this.viewport.start + deltaTemporal,
         end: this.viewport.end + deltaTemporal,
       };
-      this.scheduleRender();
-      this.emitViewport(false);
+      this.scheduleInteractionRender();
 
       if (Math.abs(velocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
         this.inertiaAnimationFrame = requestAnimationFrame(step);
@@ -1656,6 +1653,7 @@ class TimelineViewController {
   beginInteraction(): void {
     if (this.retention.active) return;
     this.clearHoverStates();
+    this.interactionSurfaceRect = this.surface.getBoundingClientRect();
     this.renderWindow = createRenderWindow(this.viewport, {
       overscanRatio: OVERSCAN_RATIO,
       velocityTemporalPerMs: this.interactionVelocity,
@@ -1667,6 +1665,12 @@ class TimelineViewController {
 
   commitInteraction(): void {
     this.cancelInertia();
+    if (this.renderFrame) {
+      cancelAnimationFrame(this.renderFrame);
+      this.renderFrame = 0;
+    }
+    this.pendingViewportEmit = false;
+    this.interactionSurfaceRect = null;
     this.renderWindow = createRenderWindow(this.viewport, { overscanRatio: OVERSCAN_RATIO });
     this.retention = commitRetention(this.renderWindow);
     this.root.dataset.sceneState = this.focusedId
@@ -1681,11 +1685,20 @@ class TimelineViewController {
     this.emitViewport(true);
   }
 
+  scheduleInteractionRender(): void {
+    this.pendingViewportEmit = true;
+    this.scheduleRender();
+  }
+
   scheduleRender(): void {
     if (this.renderFrame) return;
     this.renderFrame = requestAnimationFrame(() => {
       this.renderFrame = 0;
       this.render();
+      if (this.pendingViewportEmit) {
+        this.pendingViewportEmit = false;
+        this.emitViewport(false);
+      }
     });
   }
 
