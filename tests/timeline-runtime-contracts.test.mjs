@@ -37,12 +37,8 @@ test("media stepping updates only focused presentation state", async () => {
     view,
     /stepFocusMedia\(delta: number\)[\s\S]*this\.focusMediaIndex[\s\S]*this\.renderFocus\(item\)/,
   );
-  assert.doesNotMatch(
-    view,
-    /stepFocusMedia\(delta: number\)[\s\S]{0,600}this\.render\(\)/,
-  );
+  assert.doesNotMatch(view, /stepFocusMedia\(delta: number\)[\s\S]{0,600}this\.render\(\)/);
 });
-
 
 test("retained event terminals preserve semantic media, tag icons, and connector weight", async () => {
   const [view, css] = await Promise.all([
@@ -56,11 +52,13 @@ test("retained event terminals preserve semantic media, tag icons, and connector
   assert.match(view, /visual\.dataset\.signature/);
   assert.match(view, /visual\.replaceChildren\(\)/);
   assert.match(view, /node\.dataset\.connectorWeight/);
-  assert.match(view, /connectorWeight === "fine" \? 1 : item\.connectorWeight === "strong" \? 4 : 2/);
+  assert.match(
+    view,
+    /connectorWeight === "fine" \? 1 : item\.connectorWeight === "strong" \? 4 : 2/,
+  );
   assert.match(css, /\.timeline-event-art-image/);
   assert.match(css, /\.timeline-event-icon-badge/);
 });
-
 
 test("timeline uses a bounded Lit custom-element owner without reactive scene rendering", async () => {
   const [html, view, component] = await Promise.all([
