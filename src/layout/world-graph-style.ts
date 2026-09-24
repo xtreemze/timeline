@@ -37,11 +37,11 @@ export const WORLD_DARK_PALETTE: WorldGraphPalette = Object.freeze({
 });
 
 /**
- * Ordinary nodes render at roughly 28-34px visible diameter before authored
- * sizing. Picking remains a separate >=44px target in WorldSurface, so the
- * graph can be visually quieter without shrinking touch acquisition.
+ * Ordinary nodes render at roughly 30-34px including their normal border and
+ * marker padding. Picking remains a separate >=44px target in WorldSurface,
+ * so the graph can be visually quieter without shrinking touch acquisition.
  */
-export const WORLD_NODE_SCALE = 1.3;
+export const WORLD_NODE_SCALE = 1.1;
 /** Minimum radius of the mobile interaction footprint (44px diameter). */
 export const WORLD_ENTITY_MIN_HIT_RADIUS_PX = 22;
 
@@ -263,7 +263,7 @@ export function worldPlaceStyle(
   const authoredRadius =
     number(marker.radius, 4, 32) ??
     number(own.radius, 4, 32) ??
-    (authoredDiameter === null ? 17 : authoredDiameter / 2);
+    (authoredDiameter === null ? 14 : authoredDiameter / 2);
   return Object.freeze({
     fill,
     border,
