@@ -395,7 +395,8 @@ test("each rendered directed relationship has a visible marker preserving source
   surface.setProjection(directedProjection());
 
   const layers = h.lastLayers();
-  const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships).props.data;
+  const relationshipLayer = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+  const relationships = relationshipLayer.props.data;
   const markers = layer(layers, DECK_WORLD_LAYER_IDS.relationshipDirections);
   assert.ok(markers, "a relationship direction layer is rendered");
   assert.equal(markers.props.data.length, relationships.length);
@@ -410,7 +411,7 @@ test("each rendered directed relationship has a visible marker preserving source
 
   // The arrowhead apex points at the target: it lies closer to the target
   // than to the source, and both wings trail behind it toward the source.
-  const edgePath = relationships[0].path;
+  const edgePath = relationshipLayer.props.getPath(relationships[0]);
   const source = edgePath[0];
   const target = edgePath.at(-1);
   const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
