@@ -37,9 +37,9 @@ export const WORLD_DARK_PALETTE: WorldGraphPalette = Object.freeze({
 });
 
 /**
- * The legacy 9-11px radius becomes a 36-44px visible diameter, comparable
- * with a mobile icon button without turning each graph node into an 80px blob.
- * Picking keeps a separate >=44px target in WorldSurface.
+ * Ordinary nodes render at roughly 44-52px visible diameter before authored
+ * sizing, comparable with a mobile icon button. Picking keeps a separate
+ * >=44px target in WorldSurface.
  */
 export const WORLD_NODE_SCALE = 2;
 
@@ -133,10 +133,11 @@ export function worldNodeStyle(
   // Keep ordinary nodes at least icon-button scale visibly, not merely as
   // hit targets. Quantized radii still keep the marker atlas bounded.
   const baseRadius = Math.round(11 + Math.min(1, Math.max(0, input.visualWeight ?? 0)) * 2);
+  const authoredDiameter = number(own["diameter"], 8, 56);
   const authoredRadius =
     number(own["size"], 4, 28) ??
     number(own["radius"], 4, 28) ??
-    (number(own["diameter"], 8, 56) === null ? null : number(own["diameter"], 8, 56)! / 2);
+    (authoredDiameter === null ? null : authoredDiameter / 2);
   const resolvedRadius = Math.round(authoredRadius ?? baseRadius) + (input.selected ? 2 : 0);
   const fill =
     color(own["fillColor"]) ??
