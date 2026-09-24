@@ -82,6 +82,52 @@ test("reference solver is deterministic when no explicit offset exists", () => {
   assert.deepEqual(first.getDiagnostics(), second.getDiagnostics());
 });
 
+test("secondary anchors bias local layout without replacing the primary geographic frame", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0,
+    anchorStrength: 0.02,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const instanceId = '["alice","multi-anchor"]';
+
+  simulation.setScene({
+    nodes: [
+      node(instanceId, {
+        initialEastMeters: 300,
+        initialNorthMeters: 0,
+        collisionRadiusMeters: 100,
+      }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(instanceId, "stockholm", {
+        influence: 1,
+        precisionRadiusMeters: 500,
+      }),
+      anchor(instanceId, "nearby-east", {
+        longitude: 18.0786,
+        latitude: 59.3293,
+        influence: 0.8,
+        precisionRadiusMeters: 500,
+      }),
+    ],
+  });
+
+  const before = simulation.getSnapshot()[0];
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
+  const after = simulation.getSnapshot()[0];
+
+  assert.ok(after.eastMeters > before.eastMeters, "secondary east anchor should bias local layout east");
+  assert.ok(
+    after.eastMeters < 550,
+    "secondary anchors should steer inside the primary place domain instead of relocating globally",
+  );
+});
+
 test("sparse readback publishes only force positions dirtied since the previous read", () => {
   const simulation = new ReferenceWorldForceSimulation();
   const alice = '["alice","meeting"]';
@@ -636,6 +682,77 @@ test("far drag does not wake a foreign group located only between active-group m
     afterMiddle,
     beforeMiddle,
     "foreign group between separated active members remains asleep when no node is nearby",
+  );
+});
+
+test("drag cross-place interaction is specific to the grabbed node, not its whole place group", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const dragged = '["alice","dragged-specific"]';
+  const peer = '["bob","same-place-peer"]';
+  const foreignA = '["carol","foreign-a"]';
+  const foreignB = '["dave","foreign-b"]';
+
+  simulation.setScene({
+    nodes: [
+      node(dragged, { initialEastMeters: -10_000, collisionRadiusMeters: 120 }),
+      node(peer, { initialEastMeters: 0, collisionRadiusMeters: 120 }),
+      node(foreignA, { initialEastMeters: -1, collisionRadiusMeters: 120 }),
+      node(foreignB, { initialEastMeters: 1, collisionRadiusMeters: 120 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(dragged, "active-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(peer, "active-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(foreignA, "foreign-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(foreignB, "foreign-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+    ],
+  });
+
+  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 10_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+
+  const before = simulation.getSnapshot();
+  simulation.step(1000 / 60);
+  const after = simulation.getSnapshot();
+  const beforeForeign = before.filter(
+    (entry) => entry.instanceId === foreignA || entry.instanceId === foreignB,
+  );
+  const afterForeign = after.filter(
+    (entry) => entry.instanceId === foreignA || entry.instanceId === foreignB,
+  );
+
+  assert.deepEqual(
+    afterForeign,
+    beforeForeign,
+    "a nearby peer in the dragged node's place must not wake unrelated foreign topology",
   );
 });
 
