@@ -1,11 +1,27 @@
 /**
- * Temporary compatibility shim for temporal-graph-view ESM migration
- * Sets TemporalGraphView on globalThis for backward compatibility with IIFE code
+ * Compatibility registration for the legacy Orb graph renderer.
+ *
+ * Keep the factory available synchronously for fallback selection, but defer
+ * importing Orb and the legacy graph implementation until the fallback is
+ * actually instantiated.
  */
+import { createDeferredSpatialViewFactory } from "./deferred-spatial-view.ts";
 
-import { TimelineOrbGraph } from "../src/orb-graph-entry.js";
-import { TemporalGraphView } from "./temporal-graph-view.ts";
+export async function loadTimelineOrbGraph() {
+  const { TimelineOrbGraph } = await import("../src/orb-graph-entry.js");
+  return TimelineOrbGraph;
+}
 
-globalThis.TemporalGraphView = TemporalGraphView;
+const lazyTemporalGraphView = createDeferredSpatialViewFactory(
+  async () => {
+    const { TemporalGraphView } = await import("./temporal-graph-view.ts");
+    return TemporalGraphView;
+  },
+  {
+    onError(error) {
+      console.error("Failed to initialize the legacy Orb graph renderer.", error);
+    },
+  },
+);
 
-export { TimelineOrbGraph };
+globalThis.TemporalGraphView = lazyTemporalGraphView;
