@@ -102,9 +102,24 @@ test("interaction surface geometry is cached for the epoch and invalidated at co
     source,
     /commitInteraction\(\): void \{[\s\S]{0,360}this\.interactionSurfaceRect = null/,
   );
+  const refreshStart = source.indexOf("  refreshLayout(): void {");
+  const refreshEnd = source.indexOf("  runStructuralTransaction(", refreshStart);
+  const refreshBody = source.slice(refreshStart, refreshEnd);
+  assert.match(refreshBody, /if \(this\.retention\.active\)/);
+  assert.match(refreshBody, /this\.geometryReflowPending = true/);
+  assert.match(refreshBody, /this\.interactionSurfaceRect = null/);
+  assert.match(refreshBody, /this\.scheduleCommittedGeometryReflow\(\)/);
+  assert.ok(
+    refreshBody.indexOf("this.geometryReflowPending = true") <
+      refreshBody.indexOf("this.interactionSurfaceRect = null"),
+  );
+
+  const sceneStart = source.indexOf("  renderScene(): void {");
+  const sceneEnd = source.indexOf("  createRecord(", sceneStart);
+  const sceneBody = source.slice(sceneStart, sceneEnd);
   assert.match(
-    source,
-    /refreshLayout\(\): void \{[\s\S]{0,120}this\.interactionSurfaceRect = null/,
+    sceneBody,
+    /const rect = this\.retention\.active[\s\S]{0,120}\? this\.interactionRect\(\)[\s\S]{0,80}: this\.surface\.getBoundingClientRect\(\)/,
   );
 });
 
@@ -126,4 +141,31 @@ test("committed lane and side corrections are short, cancelable, and reduced-mot
   assert.match(source, /previousCrossPosition/);
   assert.match(source, /sideCorrectionStart/);
   assert.match(source, /!this\.retention\.active/);
+});
+
+
+test("structural axis relocation keeps the retained scene visually continuous", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  assert.match(source, /lastRenderedAxisCross: number \| null = null/);
+  assert.match(source, /lastRenderedAxisOrientation: Orientation \| null = null/);
+
+  const stabilizeStart = source.indexOf("  stabilizeStructuralAxisCross(");
+  const stabilizeEnd = source.indexOf("  itemContentRevision(", stabilizeStart);
+  const stabilizeBody = source.slice(stabilizeStart, stabilizeEnd);
+  assert.match(stabilizeBody, /this\.retention\.active/);
+  assert.match(stabilizeBody, /const axisShift = axisCross - previous/);
+  assert.match(stabilizeBody, /record\.crossPosition = record\.crossPosition \+ axisShift/);
+  assert.match(stabilizeBody, /this\.animateLayoutCorrection\([\s\S]*this\.stage/);
+
+  const sceneStart = source.indexOf("  renderScene(): void {");
+  const sceneEnd = source.indexOf("  createRecord(", sceneStart);
+  const sceneBody = source.slice(sceneStart, sceneEnd);
+  assert.match(sceneBody, /this\.stabilizeStructuralAxisCross\(axisCross\)/);
+
+  const orientationStart = source.indexOf("  setOrientation(");
+  const orientationEnd = source.indexOf("  getOrientation(", orientationStart);
+  const orientationBody = source.slice(orientationStart, orientationEnd);
+  assert.match(orientationBody, /this\.lastRenderedAxisCross = null/);
+  assert.match(orientationBody, /this\.lastRenderedAxisOrientation = null/);
 });

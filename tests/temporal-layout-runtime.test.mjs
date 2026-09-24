@@ -296,7 +296,7 @@ test("timeline edge date context keeps retained slots and rolls changed digits i
   assert.doesNotMatch(updateBody, /replaceChildren/);
 });
 
-test("timeline replaces obsolete edge years during drag and preserves a resting reference", async () => {
+test("timeline replaces obsolete edge years, suppresses overlap, and preserves a resting reference", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   const materializeStart = source.indexOf("  materializeTemporalAccents(");
   const renderStart = source.indexOf("  renderTemporalContext(", materializeStart);
@@ -304,14 +304,22 @@ test("timeline replaces obsolete edge years during drag and preserves a resting 
   const renderEnd = source.indexOf("  relationshipBandLane(", renderStart);
   const renderBody = source.slice(renderStart, renderEnd);
 
-  assert.match(materializeBody, /maximumEdgeAccents = clamp\(Math\.trunc\(edgeAccentLimit\) \|\| 1, 1, 2\)/);
+  assert.match(
+    materializeBody,
+    /selectEdgeAccents\([\s\S]*accentPlan\.edgeAccents,[\s\S]*edgeAccentLimit,[\s\S]*this\.orientation/,
+  );
   assert.match(materializeBody, /const boundedEdgeAccents =/);
-  assert.match(materializeBody, /maximumEdgeAccents === 1/);
-  assert.match(materializeBody, /orderedEdgeAccents\.slice\(0, 1\)/);
-  assert.match(materializeBody, /orderedEdgeAccents\.at\(-1\)/);
   assert.match(materializeBody, /boundedEdgeAccents\.forEach/);
   assert.doesNotMatch(materializeBody, /accentPlan\.edgeAccents\.forEach/);
   assert.match(materializeBody, /dataset\.edgeDateCount = String\(boundedEdgeAccents\.length\)/);
+
+  const helperStart = source.indexOf("function selectEdgeAccents");
+  const helperEnd = source.indexOf("function itemOverlapsViewport", helperStart);
+  const helperBody = source.slice(helperStart, helperEnd);
+  assert.match(helperBody, /EDGE_ACCENT_HORIZONTAL_MIN_GAP_PX/);
+  assert.match(helperBody, /EDGE_ACCENT_VERTICAL_MIN_GAP_PX/);
+  assert.match(helperBody, /const projectedGap = Math\.abs/);
+  assert.match(helperBody, /selected = \[first\]/);
 
   assert.match(renderBody, /minimumEdgeAccents:\s*this\.retention\.active \? 2 : 1/);
   assert.match(renderBody, /this\.retention\.active \? 2 : 1/);
