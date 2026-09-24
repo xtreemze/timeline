@@ -139,6 +139,27 @@ test("timeline window controls world activation through the shared temporal inde
   );
 });
 
+test("re-publishing an unchanged window does not re-render the world", () => {
+  const { calls, view } = harness();
+  view.setModel(model);
+  const window = {
+    start: Date.parse("2026-09-23T09:00:00Z"),
+    end: Date.parse("2026-09-23T11:00:00Z"),
+    activeOccurrenceIds: ["meeting"],
+  };
+  assert.equal(view.setWindow(window), true);
+  const rendered = calls.length;
+
+  // The timeline commits the same viewport again after a stationary tap.
+  assert.equal(view.setWindow({ ...window, activeOccurrenceIds: ["meeting"] }), false);
+  assert.equal(calls.length, rendered, "no projection or window push");
+
+  assert.equal(view.setWindow({ ...window, activeOccurrenceIds: [] }), true);
+  assert.equal(view.setWindow({ ...window, end: window.end + 1, activeOccurrenceIds: [] }), true);
+  assert.equal(view.setWindow(null), true);
+  assert.equal(view.setWindow(null), false);
+});
+
 test("timed projection receives viewport weight while timeless relationships stay fully active", () => {
   const { view, getProjection } = harness();
   view.setModel(model);

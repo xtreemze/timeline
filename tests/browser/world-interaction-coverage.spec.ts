@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { pinch, swipe, touchscreen } from "../support/touch-gestures.ts";
 
 /**
  * Issue #445 Priority 8: real-browser Playwright interaction coverage for
@@ -14,82 +15,11 @@ import { expect, test } from "@playwright/test";
  * to the harness for this spec).
  *
  * Playwright's high-level touch API is single-point only, so Chromium mobile
- * certification uses the public CDP session API to dispatch a real two-contact
- * touch sequence. Desktop certification separately exercises wheel/trackpad
+ * certification plays trusted touch gestures through CDP
+ * (tests/support/touch-gestures.ts): native pinch and swipe synthesis, and
+ * step-by-step contacts for long-press drags. Desktop certification separately exercises wheel/trackpad
  * zoom. Both must move deck.gl's real controller-backed camera.
  */
-
-async function dispatchPinchZoom(page: import("@playwright/test").Page) {
-  const viewport = page.viewportSize();
-  if (!viewport) throw new Error("WorldSurface pinch certification requires a viewport.");
-
-  const centerX = Math.round(viewport.width / 2);
-  const centerY = Math.round(viewport.height / 2);
-  const session = await page.context().newCDPSession(page);
-
-  const points = (distance: number) => [
-    {
-      x: centerX - distance,
-      y: centerY,
-      radiusX: 8,
-      radiusY: 8,
-      force: 1,
-      id: 1,
-    },
-    {
-      x: centerX + distance,
-      y: centerY,
-      radiusX: 8,
-      radiusY: 8,
-      force: 1,
-      id: 2,
-    },
-  ];
-
-  try {
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchStart",
-      touchPoints: points(28),
-    });
-    for (const distance of [40, 54, 70, 88]) {
-      await session.send("Input.dispatchTouchEvent", {
-        type: "touchMove",
-        touchPoints: points(distance),
-      });
-      await page.waitForTimeout(32);
-    }
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchEnd",
-      touchPoints: [],
-    });
-  } finally {
-    await session.detach();
-  }
-}
-
-async function touchSequence(
-  page: import("@playwright/test").Page,
-  steps: readonly {
-    readonly type: "touchStart" | "touchMove" | "touchEnd";
-    readonly x?: number;
-    readonly y?: number;
-  }[],
-) {
-  const session = await page.context().newCDPSession(page);
-  try {
-    for (const step of steps) {
-      await session.send("Input.dispatchTouchEvent", {
-        type: step.type,
-        touchPoints:
-          step.type === "touchEnd"
-            ? []
-            : [{ x: step.x ?? 0, y: step.y ?? 0, radiusX: 6, radiusY: 6, force: 1, id: 1 }],
-      });
-    }
-  } finally {
-    await session.detach();
-  }
-}
 
 async function placeTouchTarget(page: import("@playwright/test").Page) {
   return page.evaluate(async () => {
@@ -161,15 +91,16 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     test.skip(browserName !== "chromium", "CDP multi-touch certification is Chromium-only.");
     test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
 
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error("WorldSurface pinch certification requires a viewport.");
     const before = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
-    await dispatchPinchZoom(page);
-    await page.waitForTimeout(300);
-    const after = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+    await pinch(page, { x: viewport.width / 2, y: viewport.height / 2 }, 2);
 
-    expect(after.zoom, "two-finger pinch should change the camera zoom level").not.toBeCloseTo(
-      before.zoom,
-      5,
-    );
+    await expect
+      .poll(() => page.evaluate(() => window.__worldPerfHarness.surface.getCamera().zoom), {
+        message: "two-finger pinch should change the camera zoom level",
+      })
+      .not.toBeCloseTo(before.zoom, 5);
   });
 
   test("picking resolves a click at a known entity's projected screen point", async ({ page }) => {
@@ -561,13 +492,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     if (!point) throw new Error("Touch target did not project to a screen point.");
     const before = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
 
-    await touchSequence(page, [
-      { type: "touchStart", x: point.x, y: point.y },
-      { type: "touchMove", x: point.x + 30, y: point.y },
-      { type: "touchMove", x: point.x + 70, y: point.y + 10 },
-      { type: "touchMove", x: point.x + 110, y: point.y + 20 },
-      { type: "touchEnd" },
-    ]);
+    await swipe(page, point, { dx: 110, dy: 20 });
 
     await expect
       .poll(() => page.evaluate(() => window.__worldPerfHarness.surface.getCamera().longitude))
@@ -593,14 +518,9 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     const beforeProjection = await page.evaluate(() => window.__worldPerfHarness.getProjection());
     const container = page.locator("#world-container");
 
-    const session = await page.context().newCDPSession(page);
-    const touch = (type: "touchStart" | "touchMove" | "touchEnd", x = 0, y = 0) =>
-      session.send("Input.dispatchTouchEvent", {
-        type,
-        touchPoints: type === "touchEnd" ? [] : [{ x, y, radiusX: 6, radiusY: 6, force: 1, id: 1 }],
-      });
+    const finger = await touchscreen(page);
     try {
-      await touch("touchStart", point.x, point.y);
+      await finger.move([point]);
       await expect(container).toHaveAttribute("data-world-touch-drag", "holding");
       await expect(container).toHaveAttribute("data-world-touch-drag", "active");
       for (const [dx, dy] of [
@@ -609,14 +529,13 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
         [70, 28],
         [90, 36],
       ] as const) {
-        await touch("touchMove", point.x + dx, point.y + dy);
+        await finger.move([{ x: point.x + dx, y: point.y + dy }]);
       }
       await expect
         .poll(() => page.evaluate(() => window.__worldPerfHarness.dragSinkCalls.update))
         .toBeGreaterThan(0);
-      await touch("touchEnd");
     } finally {
-      await session.detach();
+      await finger.end();
     }
 
     const calls = await page.evaluate(() => window.__worldPerfHarness.dragSinkCalls);

@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, test } from "@playwright/test";
+import { doubleTap, touchscreen } from "../support/touch-gestures.ts";
 
 async function installViewportRecorder(page) {
   await page.evaluate(() => {
@@ -40,82 +41,74 @@ async function settleTimeline(page) {
     .not.toBe("interacting");
 }
 
-async function performPan(surface, testInfo) {
-  const box = await surface.boundingBox();
-  if (!box) throw new Error("Timeline surface has no bounding box.");
+/**
+ * Real input is hit-tested with Chromium's touch adjustment, which snaps a
+ * fingertip to a nearby control inside its contact area, and presses that start
+ * on an event, range bar or other control activate it instead of moving the
+ * camera. Finds a row where the gesture's first point (the first of
+ * `xFractions`, all shifted together if needed) has a finger-sized radius of
+ * open background; later points only need to stay on the surface, since
+ * pans and pinches keep going across controls once started.
+ */
+async function openSurfaceRow<const Fractions extends readonly number[]>(
+  surface: Locator,
+  xFractions: Fractions,
+): Promise<{ xs: { readonly [Index in keyof Fractions]: number }; y: number }> {
+  const row = await surface.evaluate((element, fractions) => {
+    const FINGER_RADIUS_PX = 28;
+    const rect = element.getBoundingClientRect();
+    const open = (x: number, y: number) => {
+      if (x < rect.left || x > rect.right) return false;
+      for (let dx = -FINGER_RADIUS_PX; dx <= FINGER_RADIUS_PX; dx += 7) {
+        for (let dy = -FINGER_RADIUS_PX; dy <= FINGER_RADIUS_PX; dy += 7) {
+          if (dx * dx + dy * dy > FINGER_RADIUS_PX ** 2) continue;
+          const hit = document.elementFromPoint(x + dx, y + dy);
+          if (!hit || !element.contains(hit)) return false;
+          if (hit.closest("button, a, input, select, textarea")) return false;
+        }
+      }
+      return true;
+    };
+    // Scan outwards from the middle so gestures stay central.
+    const outwards = (limit: number, step: number) =>
+      Array.from({ length: Math.floor(limit / step) * 2 + 1 }, (_, index) => {
+        const distance = Math.ceil(index / 2) * step;
+        return index % 2 ? distance : -distance;
+      });
+    for (const dy of outwards(0.45, 0.03)) {
+      const y = rect.top + rect.height * (0.5 + dy);
+      for (const shift of outwards(0.2, 0.02)) {
+        const shifted = fractions.map((fraction) => fraction + shift);
+        if (shifted.some((fraction) => fraction < 0.03 || fraction > 0.97)) continue;
+        const xs = shifted.map((fraction) => rect.left + rect.width * fraction);
+        const [first] = xs;
+        if (first !== undefined && open(first, y)) return { xs, y };
+      }
+    }
+    return null;
+  }, xFractions);
+  if (!row) throw new Error("Timeline surface has no open background row for the gesture.");
+  // One x per requested fraction, in order.
+  return row as { xs: { readonly [Index in keyof Fractions]: number }; y: number };
+}
 
-  const startX = box.x + box.width * 0.72;
-  const middleX = box.x + box.width * 0.52;
-  const endX = box.x + box.width * 0.32;
-  const y = box.y + box.height * 0.5;
+async function performPan(surface, testInfo) {
+  const {
+    xs: [startX, middleX, endX],
+    y,
+  } = await openSurfaceRow(surface, [0.72, 0.52, 0.32]);
 
   if (testInfo.project.use.hasTouch) {
-    const pointerId = 31;
-    await surface.dispatchEvent("pointerdown", {
-      pointerId,
-      pointerType: "touch",
-      isPrimary: true,
-      button: 0,
-      buttons: 1,
-      clientX: startX,
-      clientY: y,
-    });
-    for (const clientX of [middleX, endX]) {
-      await surface.dispatchEvent("pointermove", {
-        pointerId,
-        pointerType: "touch",
-        isPrimary: true,
-        button: 0,
-        buttons: 1,
-        clientX,
-        clientY: y,
-      });
-    }
-    return async () => {
-      await surface.dispatchEvent("pointerup", {
-        pointerId,
-        pointerType: "touch",
-        isPrimary: true,
-        button: 0,
-        buttons: 0,
-        clientX: endX,
-        clientY: y,
-      });
-    };
+    const finger = await touchscreen(surface.page());
+    for (const x of [startX, middleX, endX]) await finger.move([{ x, y }]);
+    return () => finger.end();
   }
 
-  const pointerId = 31;
-  await surface.dispatchEvent("pointerdown", {
-    pointerId,
-    pointerType: "mouse",
-    isPrimary: true,
-    button: 0,
-    buttons: 1,
-    clientX: startX,
-    clientY: y,
-  });
-  for (const clientX of [middleX, endX]) {
-    await surface.dispatchEvent("pointermove", {
-      pointerId,
-      pointerType: "mouse",
-      isPrimary: true,
-      button: 0,
-      buttons: 1,
-      clientX,
-      clientY: y,
-    });
-  }
-  return async () => {
-    await surface.dispatchEvent("pointerup", {
-      pointerId,
-      pointerType: "mouse",
-      isPrimary: true,
-      button: 0,
-      buttons: 0,
-      clientX: endX,
-      clientY: y,
-    });
-  };
+  const mouse = surface.page().mouse;
+  await mouse.move(startX, y);
+  await mouse.down();
+  for (const x of [middleX, endX]) await mouse.move(x, y);
+  return () => mouse.up();
 }
 
 test.describe("Timeline interaction contracts", () => {
@@ -255,29 +248,12 @@ test.describe("Timeline interaction contracts", () => {
     if (!baseline) throw new Error("Home fit emitted no viewport event.");
     await clearViewportEvents(page);
 
-    const box = await surface.boundingBox();
-    if (!box) throw new Error("Timeline surface has no bounding box.");
-    const x = box.x + box.width * 0.5;
-    const y = box.y + box.height * 0.5;
+    const {
+      xs: [x],
+      y,
+    } = await openSurfaceRow(surface, [0.5]);
 
-    for (const pointerId of [41, 42]) {
-      await surface.dispatchEvent("pointerdown", {
-        pointerId,
-        pointerType: "touch",
-        isPrimary: true,
-        button: 0,
-        clientX: x,
-        clientY: y,
-      });
-      await surface.dispatchEvent("pointerup", {
-        pointerId,
-        pointerType: "touch",
-        isPrimary: true,
-        button: 0,
-        clientX: x,
-        clientY: y,
-      });
-    }
+    await doubleTap(page, { x, y });
 
     await waitForViewportEvents(page, 2);
     const finalEvent = (await viewportEvents(page)).at(-1);
@@ -297,37 +273,21 @@ test.describe("Timeline interaction contracts", () => {
     if (!baseline) throw new Error("Home fit emitted no viewport event.");
     await clearViewportEvents(page);
 
-    const box = await surface.boundingBox();
-    if (!box) throw new Error("Timeline surface has no bounding box.");
-    const y = box.y + box.height * 0.5;
-    const left = box.x + box.width * 0.4;
-    const right = box.x + box.width * 0.6;
-    const expandedRight = box.x + box.width * 0.82;
+    const {
+      xs: [left, right, expandedRight],
+      y,
+    } = await openSurfaceRow(surface, [0.4, 0.6, 0.82]);
 
-    await surface.dispatchEvent("pointerdown", {
-      pointerId: 51,
-      pointerType: "touch",
-      isPrimary: true,
-      button: 0,
-      clientX: left,
-      clientY: y,
-    });
-    await surface.dispatchEvent("pointerdown", {
-      pointerId: 52,
-      pointerType: "touch",
-      isPrimary: false,
-      button: 0,
-      clientX: right,
-      clientY: y,
-    });
-    await surface.dispatchEvent("pointermove", {
-      pointerId: 52,
-      pointerType: "touch",
-      isPrimary: false,
-      buttons: 1,
-      clientX: expandedRight,
-      clientY: y,
-    });
+    const fingers = await touchscreen(page);
+    await fingers.move([{ x: left, y }]);
+    await fingers.move([
+      { x: left, y },
+      { x: right, y },
+    ]);
+    await fingers.move([
+      { x: left, y },
+      { x: expandedRight, y },
+    ]);
 
     await waitForViewportEvents(page);
     const pinched = (await viewportEvents(page)).at(-1);
@@ -335,22 +295,7 @@ test.describe("Timeline interaction contracts", () => {
     expect(span(pinched)).toBeLessThan(span(baseline));
     expect(pinched.committed).toBeFalsy();
 
-    await surface.dispatchEvent("pointerup", {
-      pointerId: 52,
-      pointerType: "touch",
-      isPrimary: false,
-      button: 0,
-      clientX: expandedRight,
-      clientY: y,
-    });
-    await surface.dispatchEvent("pointerup", {
-      pointerId: 51,
-      pointerType: "touch",
-      isPrimary: true,
-      button: 0,
-      clientX: left,
-      clientY: y,
-    });
+    await fingers.end();
 
     await settleTimeline(page);
     await expect
@@ -360,37 +305,17 @@ test.describe("Timeline interaction contracts", () => {
 
   test("pointer cancellation cannot leave the retained scene interacting", async ({ page }) => {
     const surface = page.locator(".timeline-surface");
-    const box = await surface.boundingBox();
-    if (!box) throw new Error("Timeline surface has no bounding box.");
-    const x = box.x + box.width * 0.6;
-    const y = box.y + box.height * 0.5;
+    const {
+      xs: [x],
+      y,
+    } = await openSurfaceRow(surface, [0.6]);
 
-    await surface.dispatchEvent("pointerdown", {
-      pointerId: 61,
-      pointerType: "touch",
-      isPrimary: true,
-      button: 0,
-      clientX: x,
-      clientY: y,
-    });
-    await surface.dispatchEvent("pointermove", {
-      pointerId: 61,
-      pointerType: "touch",
-      isPrimary: true,
-      buttons: 1,
-      clientX: x - 60,
-      clientY: y,
-    });
+    const finger = await touchscreen(page);
+    await finger.move([{ x, y }]);
+    await finger.move([{ x: x - 60, y }]);
     await waitForViewportEvents(page);
 
-    await surface.dispatchEvent("pointercancel", {
-      pointerId: 61,
-      pointerType: "touch",
-      isPrimary: true,
-      button: 0,
-      clientX: x - 60,
-      clientY: y,
-    });
+    await finger.cancel();
 
     await settleTimeline(page);
     await expect
@@ -410,34 +335,10 @@ test.describe("Timeline interaction contracts", () => {
     await clearViewportEvents(page);
 
     if (testInfo.project.use.hasTouch) {
-      const pointerId = 81;
-      await graphCanvas.dispatchEvent("pointerdown", {
-        pointerId,
-        pointerType: "touch",
-        isPrimary: true,
-        button: 0,
-        buttons: 1,
-        clientX: startX,
-        clientY: y,
-      });
-      await graphCanvas.dispatchEvent("pointermove", {
-        pointerId,
-        pointerType: "touch",
-        isPrimary: true,
-        button: 0,
-        buttons: 1,
-        clientX: endX,
-        clientY: y,
-      });
-      await graphCanvas.dispatchEvent("pointerup", {
-        pointerId,
-        pointerType: "touch",
-        isPrimary: true,
-        button: 0,
-        buttons: 0,
-        clientX: endX,
-        clientY: y,
-      });
+      const finger = await touchscreen(page);
+      await finger.move([{ x: startX, y }]);
+      await finger.move([{ x: endX, y }]);
+      await finger.end();
     } else {
       await page.mouse.move(startX, y);
       await page.mouse.down();

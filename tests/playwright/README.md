@@ -18,6 +18,25 @@ These tests verify browser-specific behavior that Node unit tests cannot:
 - **Keyboard navigation** — Arrow keys, +/- zoom, Home center
 - **Popover/modal behavior** — Native HTML Popover state management
 
+### Touch input
+
+Use `tests/support/touch-gestures.ts` for touch, never `locator.dispatchEvent`
+or hand-built `PointerEvent`s. Those skip hit testing, `touch-action` and
+Chromium's touch adjustment, and every event costs a round trip, so timing
+recognisers (double-tap, fling) fail when the renderer is busy.
+`@testing-library/user-event` has the same limits: its events are untrusted
+and it never produces `TouchEvent`s.
+
+- `tap`, `doubleTap`, `longPress`, `swipe`, `pinch`: a single CDP call each.
+  Chromium plays the gesture back itself as trusted touch input.
+- `touchscreen(page)`: step-by-step multi-finger contacts. Use it for gestures
+  that need an assertion partway through, such as long-press then drag. Wait
+  on page state between steps, not on fixed timeouts.
+
+Real input lands on whatever is under the finger. Start a gesture on open
+background, with no control within a fingertip's radius, unless the test is
+about that control.
+
 ### Visual Regression
 - Baseline screenshots captured for recurring composition issues
 - Playwright compares future runs; reports visual diffs
