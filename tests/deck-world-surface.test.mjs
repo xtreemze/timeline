@@ -14,6 +14,7 @@ import {
   createWorldProjection,
   worldInstanceId,
 } from "../src/projection/world-projection.ts";
+import { diffWorldProjection } from "../src/projection/world-projection-delta.ts";
 
 function harness() {
   const calls = {
@@ -285,6 +286,65 @@ test("unplaced instances remain outside globe layers rather than receiving inven
   const render = calls.setProps.at(-1);
   assert.equal(render.layers[1].props.data.length, 0);
   assert.equal(render.layers[2].props.data.length, 0);
+});
+
+test("WorldSurface applies force deltas without reframing and skips unchanged layer data", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime, {
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 7,
+    bearing: 0,
+    pitch: 20,
+  });
+  const initial = projection();
+  surface.setProjection(initial);
+  const beforeCamera = surface.getCamera();
+  const beforeRender = calls.setProps.at(-1);
+  const beforePlaces = beforeRender.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.places,
+  );
+  const beforeEntities = beforeRender.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities,
+  );
+
+  const next = createWorldProjection({
+    instances: initial.instances.map((instance) =>
+      instance.canonicalId === "bob"
+        ? createProjectedWorldInstance({
+            ...instance,
+            localOffset: { eastMeters: 600, northMeters: 0 },
+          })
+        : instance,
+    ),
+    edges: initial.edges,
+  });
+
+  surface.applyProjectionDelta(diffWorldProjection(initial, next));
+
+  assert.deepEqual(surface.getCamera(), beforeCamera);
+  const afterRender = calls.setProps.at(-1);
+  const afterPlaces = afterRender.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.places,
+  );
+  const afterEntities = afterRender.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities,
+  );
+  const beforeBob = beforeEntities.props.data.find((datum) => datum.entityId === "bob");
+  const afterBob = afterEntities.props.data.find((datum) => datum.entityId === "bob");
+
+  assert.notDeepEqual(afterBob.position, beforeBob.position);
+  assert.equal(typeof afterPlaces.props.dataComparator, "function");
+  assert.equal(
+    afterPlaces.props.dataComparator(afterPlaces.props.data, beforePlaces.props.data),
+    true,
+    "unchanged geographic place data stays GPU-stable during force deltas",
+  );
+  assert.equal(
+    afterEntities.props.dataComparator(afterEntities.props.data, beforeEntities.props.data),
+    false,
+    "changed entity geometry invalidates only the dynamic topology layer",
+  );
 });
 
 test("selection updates presentation data while preserving canonical IDs", () => {
