@@ -298,22 +298,34 @@ test("timeline edge date context keeps retained slots and rolls changed digits i
 
 test("timeline replaces obsolete edge years during drag and preserves a resting reference", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
-  const start = source.indexOf("  renderTemporalContext(");
-  const end = source.indexOf("  relationshipBandLane(", start);
-  const body = source.slice(start, end);
+  const materializeStart = source.indexOf("  materializeTemporalAccents(");
+  const renderStart = source.indexOf("  renderTemporalContext(", materializeStart);
+  const materializeBody = source.slice(materializeStart, renderStart);
+  const renderEnd = source.indexOf("  relationshipBandLane(", renderStart);
+  const renderBody = source.slice(renderStart, renderEnd);
 
-  assert.match(body, /minimumEdgeAccents:\s*this\.retention\.active \? 2 : 1/);
+  assert.match(materializeBody, /maximumEdgeAccents = clamp\(Math\.trunc\(edgeAccentLimit\) \|\| 1, 1, 2\)/);
+  assert.match(materializeBody, /const boundedEdgeAccents =/);
+  assert.match(materializeBody, /maximumEdgeAccents === 1/);
+  assert.match(materializeBody, /orderedEdgeAccents\.slice\(0, 1\)/);
+  assert.match(materializeBody, /orderedEdgeAccents\.at\(-1\)/);
+  assert.match(materializeBody, /boundedEdgeAccents\.forEach/);
+  assert.doesNotMatch(materializeBody, /accentPlan\.edgeAccents\.forEach/);
+  assert.match(materializeBody, /dataset\.edgeDateCount = String\(boundedEdgeAccents\.length\)/);
+
+  assert.match(renderBody, /minimumEdgeAccents:\s*this\.retention\.active \? 2 : 1/);
+  assert.match(renderBody, /this\.retention\.active \? 2 : 1/);
   assert.match(
-    body,
+    renderBody,
     /if \(!key\.startsWith\("edge-slot:"\) \|\| keepAccents\.has\(key\)\) continue;/,
   );
-  assert.match(body, /for \(const animation of node\.getAnimations\(\)\) animation\.cancel\(\);/);
+  assert.match(renderBody, /for \(const animation of node\.getAnimations\(\)\) animation\.cancel\(\);/);
   assert.match(
-    body,
+    renderBody,
     /resolveTickLabelCollisions[\s\S]*key\.startsWith\("edge-slot:"\)[\s\S]*if \(!this\.retention\.active\) \{/,
   );
   assert.match(
-    body,
+    renderBody,
     /if \(key\.startsWith\("edge-slot:"\) \|\| hierarchyChangedOnCommit\) node\.remove\(\);/,
   );
 });
