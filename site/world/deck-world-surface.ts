@@ -589,8 +589,19 @@ export function clusterEntityDatumsByPlace(
       );
     }
 
+    const [singlePlace] = component;
     const longitude =
-      Math.atan2(longitudeSin, longitudeCos) * (180 / Math.PI);
+      component.length === 1 && singlePlace
+        ? singlePlace.anchor.longitude
+        : Math.atan2(longitudeSin, longitudeCos) * (180 / Math.PI);
+    const latitude =
+      component.length === 1 && singlePlace
+        ? singlePlace.anchor.latitude
+        : weightedLatitude / totalWeight;
+    const altitude =
+      component.length === 1 && singlePlace
+        ? singlePlace.anchor.sourceAltitude ?? 0
+        : weightedAltitude / totalWeight;
     const placeIds = component.map((group) => String(group.placeId)).sort();
     const clusterMembers = members
       .map((member) =>
@@ -612,8 +623,8 @@ export function clusterEntityDatumsByPlace(
             : `cluster:places:${placeIds.join("|")}`,
         position: Object.freeze([
           longitude,
-          weightedLatitude / totalWeight,
-          weightedAltitude / totalWeight,
+          latitude,
+          altitude,
         ]) as WorldRenderPosition,
         clusterMembers: Object.freeze(clusterMembers),
         visualWeight: totalVisualWeight / totalWeight,
