@@ -66,11 +66,12 @@ test("retained event terminals preserve semantic media, tag icons, and connector
 
 
 test("timeline is a Lit lifecycle boundary without Lit-owned retained-scene rendering", async () => {
-  const [app, view, component, html] = await Promise.all([
+  const [app, view, component, html, css] = await Promise.all([
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/components/luum-timeline.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
 
   assert.match(component, /ReactiveElement/);
@@ -88,4 +89,5 @@ test("timeline is a Lit lifecycle boundary without Lit-owned retained-scene rend
   assert.match(app, /const timelineView = els\.timelineViewRoot/);
   assert.match(html, /<luum-timeline id="timeline-view"/);
   assert.match(html, /<\/luum-timeline>/);
+  assert.match(css, /\.timeline-view\s*\{[\s\S]*display:\s*block/);
 });
