@@ -1,5 +1,5 @@
 import { expect, type Locator, test } from "@playwright/test";
-import { doubleTap, touchscreen } from "../support/touch-gestures.ts";
+import { doubleTap, touchscreen, waitForQuietMainThread } from "../support/touch-gestures.ts";
 
 async function installViewportRecorder(page) {
   await page.evaluate(() => {
@@ -53,42 +53,52 @@ async function settleTimeline(page) {
 async function openSurfaceRow<const Fractions extends readonly number[]>(
   surface: Locator,
   xFractions: Fractions,
+  { clearStart = true }: { clearStart?: boolean } = {},
 ): Promise<{ xs: { readonly [Index in keyof Fractions]: number }; y: number }> {
-  const row = await surface.evaluate((element, fractions) => {
-    const FINGER_RADIUS_PX = 28;
-    const rect = element.getBoundingClientRect();
-    const open = (x: number, y: number) => {
-      if (x < rect.left || x > rect.right) return false;
-      for (let dx = -FINGER_RADIUS_PX; dx <= FINGER_RADIUS_PX; dx += 7) {
-        for (let dy = -FINGER_RADIUS_PX; dy <= FINGER_RADIUS_PX; dy += 7) {
-          if (dx * dx + dy * dy > FINGER_RADIUS_PX ** 2) continue;
-          const hit = document.elementFromPoint(x + dx, y + dy);
-          if (!hit || !element.contains(hit)) return false;
-          if (hit.closest("button, a, input, select, textarea")) return false;
+  const row = await surface.evaluate(
+    (element, { fractions, clear }) => {
+      const FINGER_RADIUS_PX = 28;
+      const rect = element.getBoundingClientRect();
+      const onSurface = (x: number, y: number) => {
+        const hit = document.elementFromPoint(x, y);
+        return hit !== null && element.contains(hit);
+      };
+      const open = (x: number, y: number) => {
+        if (x < rect.left || x > rect.right) return false;
+        for (let dx = -FINGER_RADIUS_PX; dx <= FINGER_RADIUS_PX; dx += 7) {
+          for (let dy = -FINGER_RADIUS_PX; dy <= FINGER_RADIUS_PX; dy += 7) {
+            if (dx * dx + dy * dy > FINGER_RADIUS_PX ** 2) continue;
+            const hit = document.elementFromPoint(x + dx, y + dy);
+            if (!hit || !element.contains(hit)) return false;
+            if (hit.closest("button, a, input, select, textarea")) return false;
+          }
+        }
+        return true;
+      };
+      const outwards = (limit: number, step: number) =>
+        Array.from({ length: Math.floor(limit / step) * 2 + 1 }, (_, index) => {
+          const distance = Math.ceil(index / 2) * step;
+          return index % 2 ? distance : -distance;
+        });
+      for (const dy of outwards(0.45, 0.03)) {
+        const y = rect.top + rect.height * (0.5 + dy);
+        for (const shift of outwards(0.2, 0.02)) {
+          const shifted = fractions.map((fraction) => fraction + shift);
+          if (shifted.some((fraction) => fraction < 0.03 || fraction > 0.97)) continue;
+          const xs = shifted.map((fraction) => rect.left + rect.width * fraction);
+          if (!clear) {
+            if (xs.every((x) => onSurface(x, y))) return { xs, y };
+            continue;
+          }
+          const [first] = xs;
+          if (first !== undefined && open(first, y)) return { xs, y };
         }
       }
-      return true;
-    };
-    // Scan outwards from the middle so gestures stay central.
-    const outwards = (limit: number, step: number) =>
-      Array.from({ length: Math.floor(limit / step) * 2 + 1 }, (_, index) => {
-        const distance = Math.ceil(index / 2) * step;
-        return index % 2 ? distance : -distance;
-      });
-    for (const dy of outwards(0.45, 0.03)) {
-      const y = rect.top + rect.height * (0.5 + dy);
-      for (const shift of outwards(0.2, 0.02)) {
-        const shifted = fractions.map((fraction) => fraction + shift);
-        if (shifted.some((fraction) => fraction < 0.03 || fraction > 0.97)) continue;
-        const xs = shifted.map((fraction) => rect.left + rect.width * fraction);
-        const [first] = xs;
-        if (first !== undefined && open(first, y)) return { xs, y };
-      }
-    }
-    return null;
-  }, xFractions);
+      return null;
+    },
+    { fractions: xFractions, clear: clearStart },
+  );
   if (!row) throw new Error("Timeline surface has no open background row for the gesture.");
-  // One x per requested fraction, in order.
   return row as { xs: { readonly [Index in keyof Fractions]: number }; y: number };
 }
 
@@ -244,6 +254,7 @@ test.describe("Timeline interaction contracts", () => {
     await surface.focus();
     await page.keyboard.press("Home");
     await waitForViewportEvents(page);
+    await settleTimeline(page);
     const baseline = (await viewportEvents(page)).at(-1);
     if (!baseline) throw new Error("Home fit emitted no viewport event.");
     await clearViewportEvents(page);
@@ -253,13 +264,16 @@ test.describe("Timeline interaction contracts", () => {
       y,
     } = await openSurfaceRow(surface, [0.5]);
 
+    await waitForQuietMainThread(page);
     await doubleTap(page, { x, y });
 
-    await waitForViewportEvents(page, 2);
-    const finalEvent = (await viewportEvents(page)).at(-1);
-    if (!finalEvent) throw new Error("Double-tap emitted no viewport event.");
-    expect(span(finalEvent)).toBeLessThan(span(baseline));
-    expect(finalEvent.committed).toBeTruthy();
+    await expect
+      .poll(async () => {
+        const committed = (await viewportEvents(page)).filter((event) => event.committed);
+        const latest = committed.at(-1);
+        return latest ? span(latest) : Number.POSITIVE_INFINITY;
+      })
+      .toBeLessThan(span(baseline));
   });
 
   test("touch pinch changes temporal span and commits after both pointers release", async ({
@@ -269,6 +283,7 @@ test.describe("Timeline interaction contracts", () => {
     await surface.focus();
     await page.keyboard.press("Home");
     await waitForViewportEvents(page);
+    await settleTimeline(page);
     const baseline = (await viewportEvents(page)).at(-1);
     if (!baseline) throw new Error("Home fit emitted no viewport event.");
     await clearViewportEvents(page);
@@ -276,7 +291,7 @@ test.describe("Timeline interaction contracts", () => {
     const {
       xs: [left, right, expandedRight],
       y,
-    } = await openSurfaceRow(surface, [0.4, 0.6, 0.82]);
+    } = await openSurfaceRow(surface, [0.4, 0.6, 0.82], { clearStart: false });
 
     const fingers = await touchscreen(page);
     await fingers.move([{ x: left, y }]);
