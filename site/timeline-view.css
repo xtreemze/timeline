@@ -5416,3 +5416,301 @@
   > .timeline-surface {
   inset-block-end: var(--workspace-footer-block-size, 64px);
 }
+
+
+/* Spatial timeline chrome and content-first focused detail. */
+.timeline-local-toolbar {
+  position: absolute;
+  z-index: 14;
+  display: flex;
+  align-items: center;
+  gap: 0.18rem;
+  padding: 0.22rem;
+  pointer-events: auto;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 0.78rem;
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 7%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.timeline-local-button {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  inline-size: 40px;
+  block-size: 40px;
+  min-inline-size: 40px;
+  min-block-size: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 0.58rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.timeline-local-button:hover,
+.timeline-local-button:focus-visible,
+#app-shell[data-view-controls-open="true"] .timeline-local-button.app-view-tool {
+  background: var(--paper-2);
+  color: var(--ink);
+  outline: none;
+}
+
+.timeline-local-button:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+
+.timeline-local-button:disabled {
+  opacity: 0.34;
+  cursor: default;
+}
+
+.timeline-local-button .semantic-icon {
+  inline-size: 21px;
+  block-size: 21px;
+  stroke-width: 1.9;
+}
+
+.timeline-view[data-orientation="landscape"] > .timeline-local-toolbar {
+  inset-block-start: max(0.5rem, env(safe-area-inset-top));
+  inset-inline-end: max(0.5rem, env(safe-area-inset-right));
+}
+
+.timeline-view[data-orientation="portrait"] > .timeline-local-toolbar {
+  inset-block-start: 50%;
+  inset-inline-end: max(0.25rem, env(safe-area-inset-right));
+  flex-direction: column;
+  transform: translateY(-50%);
+}
+
+#app-shell.is-event-focused #presentation-stage {
+  --focus-timeline-block-size: clamp(112px, 24%, 184px);
+  --focus-timeline-inline-size: clamp(92px, 18%, 132px);
+  position: relative;
+  display: block;
+  min-inline-size: 0;
+  min-block-size: 0;
+  overflow: hidden;
+}
+
+#app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar:not([hidden]) {
+  position: absolute;
+  z-index: 12;
+  inset: auto;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-rows: auto auto auto;
+  align-content: start;
+  gap: 0.5rem;
+  inline-size: min(560px, calc(100% - 1.1rem));
+  block-size: auto;
+  min-inline-size: 0;
+  min-block-size: 0;
+  max-inline-size: calc(100% - 1.1rem);
+  margin: 0;
+  padding: 0.5rem;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 82%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--paper) 96%, transparent);
+  box-shadow: 0 12px 38px color-mix(in srgb, var(--ink) 14%, transparent);
+  backdrop-filter: blur(18px);
+  container-type: inline-size;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="horizontal"]
+  > .timeline-focus-sidebar:not([hidden]) {
+  inset-block-start: max(0.55rem, env(safe-area-inset-top));
+  inset-inline-start: max(0.55rem, env(safe-area-inset-left));
+  max-block-size: calc(100% - var(--focus-timeline-block-size) - 1.1rem);
+}
+
+#app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="vertical"]
+  > .timeline-focus-sidebar:not([hidden]) {
+  inset-block-start: 50%;
+  inset-inline-start: max(0.55rem, env(safe-area-inset-left));
+  inline-size: min(
+    560px,
+    calc(100% - var(--focus-timeline-inline-size) - 1.1rem)
+  );
+  max-inline-size: calc(100% - var(--focus-timeline-inline-size) - 1.1rem);
+  max-block-size: calc(100% - 1.1rem);
+  transform: translateY(-50%);
+}
+
+#app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="horizontal"]
+  > .timeline-view {
+  position: absolute;
+  inset: auto 0 0;
+  inline-size: 100%;
+  block-size: var(--focus-timeline-block-size);
+  min-inline-size: 0;
+  min-block-size: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="vertical"]
+  > .timeline-view {
+  position: absolute;
+  inset: 0 0 0 auto;
+  inline-size: var(--focus-timeline-inline-size);
+  block-size: 100%;
+  min-inline-size: 0;
+  min-block-size: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="horizontal"]
+  > .graph-lens:not([hidden]) {
+  position: absolute;
+  inset: 0 0 var(--focus-timeline-block-size);
+  inline-size: auto;
+  block-size: auto;
+  margin: 0;
+  border-width: 0 0 1px;
+  border-radius: 0;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="vertical"]
+  > .graph-lens:not([hidden]) {
+  position: absolute;
+  inset: 0 var(--focus-timeline-inline-size) 0 0;
+  inline-size: auto;
+  block-size: auto;
+  margin: 0;
+  border-width: 0 1px 0 0;
+  border-radius: 0;
+}
+
+#app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar .timeline-focus-tabs {
+  position: sticky;
+  z-index: 5;
+  top: -0.5rem;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  margin: -0.5rem -0.5rem 0;
+  padding: 0.42rem 0.5rem;
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+#app-shell.is-event-focused
+  #presentation-stage
+  > .timeline-focus-sidebar[data-layout]
+  > .timeline-focus-hero {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-block-size: clamp(210px, 30vh, 340px);
+  max-block-size: 42vh;
+  border-radius: 0.78rem;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage
+  > .timeline-focus-sidebar[data-layout]
+  > .timeline-focus-summary {
+  grid-column: 1 / span 4;
+  grid-row: 3;
+  min-block-size: 0;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage
+  > .timeline-focus-sidebar[data-layout]
+  > .timeline-focus-place {
+  grid-column: 5 / -1;
+  grid-row: 3;
+  min-block-size: 0;
+  max-block-size: 240px;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage
+  > .timeline-focus-sidebar[data-layout]
+  > .timeline-focus-evidence {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  min-block-size: 0;
+  max-block-size: none;
+}
+
+#app-shell.is-event-focused .timeline-focus-description {
+  max-inline-size: 66ch;
+}
+
+#app-shell.is-event-focused .timeline-focus-actions {
+  display: none;
+}
+
+@container (max-width: 460px) {
+  #app-shell.is-event-focused
+    #presentation-stage
+    > .timeline-focus-sidebar[data-layout]
+    > .timeline-focus-summary,
+  #app-shell.is-event-focused
+    #presentation-stage
+    > .timeline-focus-sidebar[data-layout]
+    > .timeline-focus-place {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  #app-shell.is-event-focused
+    #presentation-stage
+    > .timeline-focus-sidebar[data-layout]
+    > .timeline-focus-hero {
+    min-block-size: clamp(190px, 28vh, 280px);
+  }
+}
+
+@media (pointer: coarse) {
+  .timeline-local-button {
+    inline-size: 44px;
+    block-size: 44px;
+    min-inline-size: 44px;
+    min-block-size: 44px;
+  }
+}
+
+@media (max-width: 699px) {
+  #app-shell.is-event-focused #presentation-stage {
+    --focus-timeline-block-size: clamp(104px, 22%, 144px);
+    --focus-timeline-inline-size: clamp(84px, 22%, 104px);
+  }
+
+  #app-shell.is-event-focused
+    #presentation-stage[data-timeline-orientation="horizontal"]
+    > .timeline-focus-sidebar:not([hidden]) {
+    inset-inline-start: max(0.35rem, env(safe-area-inset-left));
+    inline-size: calc(100% - 0.7rem);
+    max-inline-size: calc(100% - 0.7rem);
+    max-block-size: calc(100% - var(--focus-timeline-block-size) - 0.7rem);
+  }
+
+  #app-shell.is-event-focused
+    #presentation-stage[data-timeline-orientation="vertical"]
+    > .timeline-focus-sidebar:not([hidden]) {
+    inset-inline-start: max(0.35rem, env(safe-area-inset-left));
+    inline-size: calc(100% - var(--focus-timeline-inline-size) - 0.7rem);
+    max-inline-size: calc(100% - var(--focus-timeline-inline-size) - 0.7rem);
+    max-block-size: calc(100% - 0.7rem);
+  }
+
+  .timeline-view[data-orientation="landscape"] > .timeline-local-toolbar {
+    inset-block-start: max(0.35rem, env(safe-area-inset-top));
+    inset-inline-end: max(0.35rem, env(safe-area-inset-right));
+  }
+}
