@@ -4,7 +4,7 @@ import type { WorldForceSimulationBackend } from "../../src/layout/world-force-s
 import { createDeckWorldRuntime, type DeckWorldBindings } from "./deck-world-runtime.ts";
 import { DeckWorldSurface } from "./deck-world-surface.ts";
 import { loadWorldBasemap } from "./world-basemap.ts";
-import { LuumWorldSurfaceElement } from "./world-surface-element.ts";
+import { LuumWorldSurfaceElement } from "../components/world-surface-element.ts";
 import {
   WorldProjectionView,
   type WorldViewModel,
