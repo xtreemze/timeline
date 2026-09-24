@@ -2427,11 +2427,7 @@ export class TimelineViewController {
       } else {
         node.style.transform = `translate3d(${terminalCross}px, ${primary}px, 0)`;
       }
-      if (
-        !this.retention.active &&
-        previousCrossPosition !== null &&
-        crossGeometryChanged
-      ) {
+      if (!this.retention.active && previousCrossPosition !== null && crossGeometryChanged) {
         const crossDelta = previousCrossPosition - terminalCross;
         this.animateLayoutCorrection(
           node,
@@ -2837,11 +2833,7 @@ export class TimelineViewController {
     } else {
       node.style.transform = `translate3d(${shiftedCross}px, ${primary}px, 0)`;
     }
-    if (
-      !this.retention.active &&
-      previousCrossPosition !== null &&
-      crossGeometryChanged
-    ) {
+    if (!this.retention.active && previousCrossPosition !== null && crossGeometryChanged) {
       const crossDelta = previousCrossPosition - shiftedCross;
       this.animateLayoutCorrection(
         node,
