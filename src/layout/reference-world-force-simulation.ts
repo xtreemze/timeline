@@ -381,8 +381,6 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
   #states = new Map<WorldInstanceId, NodeState>();
   #orderedStates: readonly NodeState[] = Object.freeze([]);
   #groups = new Map<string, readonly NodeState[]>();
-  #groupBounds = new Map<string, ForceGroup>();
-  #dirtyGroups = new Set<string>();
   #placeDomains = new Map<string, PlaceDomain>();
   #edges: readonly WorldForceEdge[] = Object.freeze([]);
   #edgesByGroup = new Map<string, readonly WorldForceEdge[]>();
@@ -478,8 +476,6 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#groups = new Map(
       [...mutableGroups.entries()].map(([key, states]) => [key, Object.freeze(states)]),
     );
-    this.#groupBounds = new Map();
-    this.#dirtyGroups = new Set(this.#groups.keys());
     this.#placeDomains = new Map();
     for (const [key, states] of this.#groups) {
       const domain = placeDomain(states);
@@ -531,7 +527,6 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       state.vy = 0;
       state.vz = 0;
       state.dirty = true;
-      this.#dirtyGroups.add(state.group);
       updateStateCartesian(state);
     }
     this.#settled = false;
@@ -562,16 +557,9 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const activeDragGroup = this.#pin
       ? (this.#states.get(this.#pin.instanceId)?.group ?? null)
       : null;
-    const forceGroups: ForceGroup[] = [];
-    for (const [key, states] of this.#groups) {
-      let group = this.#groupBounds.get(key);
-      if (!group || this.#dirtyGroups.has(key)) {
-        group = forceGroup(key, states);
-        this.#groupBounds.set(key, group);
-        this.#dirtyGroups.delete(key);
-      }
-      forceGroups.push(group);
-    }
+    const forceGroups = [...this.#groups.entries()].map(([key, states]) =>
+      forceGroup(key, states),
+    );
     const crossPairs = crossGroupCandidates(forceGroups, activeDragGroup);
 
     // During direct manipulation geography is fixed. Only the dragged island
@@ -663,10 +651,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
         state.vx = 0;
         state.vy = 0;
         state.vz = 0;
-        if (changed) {
-          state.dirty = true;
-          this.#dirtyGroups.add(state.group);
-        }
+        if (changed) state.dirty = true;
         continue;
       }
 
@@ -696,7 +681,6 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
 
       if (state.x !== beforeX || state.y !== beforeY || state.z !== beforeZ) {
         state.dirty = true;
-        this.#dirtyGroups.add(state.group);
       }
       energy += state.vx ** 2 + state.vy ** 2 + state.vz ** 2 + domainActivity;
     }
@@ -758,8 +742,6 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#states.clear();
     this.#orderedStates = Object.freeze([]);
     this.#groups.clear();
-    this.#groupBounds.clear();
-    this.#dirtyGroups.clear();
     this.#placeDomains.clear();
     this.#edges = Object.freeze([]);
     this.#edgesByGroup.clear();
