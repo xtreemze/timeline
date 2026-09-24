@@ -1,5 +1,5 @@
 name: Finalize PR 531
-# rerun after provenance deduplication
+# rerun after Cinderella context repair
 
 on:
   push:
