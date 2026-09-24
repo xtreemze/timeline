@@ -51,3 +51,14 @@ test("registerTimelineWorldView wires real deck.gl constructors without invoking
     registerTimelineWorldView(realDeckWorldBindings, {}, target);
   });
 });
+
+
+test("production world view defaults to the live D3 force backend", async () => {
+  const source = await readFile(
+    new URL("../site/world/world-view-factory.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /import \{ D3WorldForceSimulation \}/);
+  assert.match(source, /new D3WorldForceSimulation\(\)/);
+  assert.doesNotMatch(source, /new ReferenceWorldForceSimulation\(\)/);
+});
