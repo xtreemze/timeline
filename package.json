@@ -99,6 +99,8 @@
     "@deck.gl/core": "9.4.0",
     "@deck.gl/layers": "9.4.0",
     "@luma.gl/core": "9.4.2",
+    "@luma.gl/webgl": "9.4.2",
+    "@luma.gl/webgpu": "9.4.2",
     "leaflet": "1.9.4",
     "lit": "3.3.3",
     "pdfjs-dist": "6.3.289",

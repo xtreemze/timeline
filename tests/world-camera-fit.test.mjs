@@ -135,3 +135,16 @@ test("fit keeps each axis inside its own viewport side at high latitude", () => 
     );
   }
 });
+
+test("globe overview faces the content and stays valid on tiny viewports", async () => {
+  const { globeOverviewCamera } = await import("../src/layout/world-camera-fit.ts");
+  const content = [
+    [8, 49, 0],
+    [11, 52, 0],
+  ];
+  const overview = globeOverviewCamera(content, { width: 1280, height: 430 }, CURRENT);
+  assert.ok(Math.abs(overview.longitude - 9.5) < 1e-9);
+  assert.ok(overview.zoom > 0 && overview.zoom < 3, `zoom ${overview.zoom}`);
+  const tiny = globeOverviewCamera(content, { width: 320, height: 90 }, CURRENT);
+  assert.ok(tiny.zoom >= 0, `zoom ${tiny.zoom}`);
+});

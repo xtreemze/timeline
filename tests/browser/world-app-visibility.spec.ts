@@ -90,6 +90,11 @@ test.describe("production WorldSurface in the app", () => {
     const box = await graphCanvasBox(page);
     const clip = { x: box.x, y: box.y, width: box.width, height: box.height };
 
+    // Opens on the whole rotatable globe turned towards the content; the
+    // content fit is one control away.
+    await expect(page.getByRole("button", { name: "Show whole globe" })).toBeVisible();
+    await page.getByRole("button", { name: "Fit to content" }).click();
+
     await expect
       .poll(async () => (await entityPixels(page, clip)).count, {
         message: "entity marks must be drawn in a colour visible on the app background",

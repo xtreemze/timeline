@@ -5,7 +5,7 @@ import {
   createWorldTouchHoldGate,
   WORLD_TOUCH_HOLD_MS,
 } from "../../src/interaction/world-touch-hold.ts";
-import { fitWorldCamera } from "../../src/layout/world-camera-fit.ts";
+import { fitWorldCamera, globeOverviewCamera } from "../../src/layout/world-camera-fit.ts";
 import {
   resolveWorldRenderPosition,
   type WorldRenderPosition,
@@ -1187,6 +1187,7 @@ export class DeckWorldSurface implements WorldSurface {
   // True while the camera is the automatic content fit and nobody has moved
   // it since; a resize then re-fits (the first fit can run before layout).
   #autoFitted = false;
+  #autoFitMode: "globe" | "content" = "globe";
   #spatialMode: WorldSpatialMode = "globe";
   #nodeDragSink: DeckWorldNodeDragSink | null = null;
   #activeDragPointerId: number | null = null;
@@ -1360,7 +1361,7 @@ export class DeckWorldSurface implements WorldSurface {
       layers: [],
       onResize: () => {
         if (!this.#autoFitted || this.#destroyed) return;
-        this.fitToContent();
+        this.#reframe(this.#autoFitMode);
       },
       onViewStateChange: ({ viewState }: { readonly viewState: DeckRuntimeViewState }) => {
         const next = cameraFromRuntime(viewState, this.#camera);
@@ -1439,6 +1440,7 @@ export class DeckWorldSurface implements WorldSurface {
       button("Zoom in", "+", () => this.#zoomBy(1)),
       button("Zoom out", "\u2212", () => this.#zoomBy(-1)),
       button("Fit to content", "\u2922", () => this.fitToContent()),
+      button("Show whole globe", "\u25CB", () => this.showWholeGlobe()),
     );
     this.#container.appendChild?.(bar);
     return bar;
@@ -1470,9 +1472,18 @@ export class DeckWorldSurface implements WorldSurface {
 
   /** Re-frames the camera on everything in the current projection. */
   fitToContent(): void {
+    this.#reframe("content");
+  }
+
+  /** Shows the whole rotatable globe, turned towards the content. */
+  showWholeGlobe(): void {
+    this.#reframe("globe");
+  }
+
+  #reframe(mode: "globe" | "content"): void {
     this.#assertAlive();
     this.#cameraOwned = false;
-    this.#autoFitCamera();
+    this.#autoFitCamera(mode);
     this.#reclusterIfZoomCrossedThreshold();
     this.#render();
   }
@@ -1503,16 +1514,24 @@ export class DeckWorldSurface implements WorldSurface {
     this.#render();
   }
 
-  #autoFitCamera(): void {
+  /**
+   * Automatic framing when the host supplied no camera: the whole globe,
+   * turned so the content faces the viewer. "Fit to content" zooms in.
+   */
+  #autoFitCamera(mode: "globe" | "content" = "globe"): void {
     if (this.#cameraOwned) return;
     const positions = [...this.#instanceIndex().positions.values()];
     if (positions.length === 0) return;
     const width = Number(this.#container.clientWidth) || 1024;
     const height = Number(this.#container.clientHeight) || 768;
-    const fitted = fitWorldCamera(positions, { width, height }, this.#camera);
+    const fitted =
+      mode === "content"
+        ? fitWorldCamera(positions, { width, height }, this.#camera)
+        : globeOverviewCamera(positions, { width, height }, this.#camera);
     if (!fitted) return;
     this.#cameraOwned = true;
     this.#autoFitted = true;
+    this.#autoFitMode = mode;
     this.#camera = fitted;
     this.#syncSpatialMode();
     this.#deck.setProps({ viewState: this.#camera });
