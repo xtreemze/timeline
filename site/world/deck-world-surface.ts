@@ -3313,9 +3313,11 @@ export class DeckWorldSurface implements WorldSurface {
     // Otherwise a dense scene with many members per place could retain
     // thousands of place-local bubbles at globe scale and never reach the
     // cheaper nearby-place merge path.
+    const maxEntityFootprintRadiusPx = this.#maxEntityFootprintRadiusPx();
     const gridClustered = shouldClusterEntityDatums(
       entityResult.datums.length,
       this.#camera.zoom,
+      maxEntityFootprintRadiusPx,
     );
     const overviewClusters = gridClustered
       ? clusterEntityDatumsByPlace(
@@ -3342,6 +3344,8 @@ export class DeckWorldSurface implements WorldSurface {
     this.#entityDatumCache = entityResult.byId;
     this.#clusteredLastRender = placeExpansion < 1 || gridClustered;
     this.#clusterExpansionLastRender = rawPlaceExpansion;
+    this.#screenScaleZoomLastRender = screenScaleZoomStep(this.#camera.zoom);
+    this.#cameraFacingStepLastRender = cameraFacingStep(this.#camera);
     this.#labelBudgetLastRender = worldLabelBudget(this.#camera.zoom);
     this.#lodCandidateCountLastRender = Math.max(
       places.length,
@@ -3352,10 +3356,7 @@ export class DeckWorldSurface implements WorldSurface {
       const entity = entityResult.byId.get(instanceId);
       if (!entity) return WORLD_ENTITY_MIN_HIT_RADIUS_PX;
       const style = this.#entityStyle(entity);
-      return Math.max(
-        WORLD_ENTITY_MIN_HIT_RADIUS_PX,
-        style.radius + style.borderWidth,
-      );
+      return worldNodeMarker(style).size / 2;
     };
     const directionResult = directionDatums(
       relationships,
@@ -3458,6 +3459,11 @@ export class DeckWorldSurface implements WorldSurface {
           zoom: this.#camera.zoom,
           focus: this.#focus,
           previous: this.#labelDatumCache,
+          entityMarkerRadiusPx: visibleEntityRadiusPx,
+          placeMarkerRadiusPx: (placeId) => {
+            const place = placeResult.byId.get(placeId);
+            return place ? worldNodeMarker(this.#placeStyle(place)).size / 2 : 0;
+          },
         })
       : null;
     this.#labelDatumCache = labelResult?.byKey ?? new Map();
@@ -3561,7 +3567,7 @@ export class DeckWorldSurface implements WorldSurface {
         ? [
             this.#runtime.createIconLayer({
               id: DECK_WORLD_LAYER_IDS.placeIcons,
-              data: places,
+              data: this.#cameraFacingPlaces(places),
               dataComparator: sameDatumSequence,
               pickable: true,
               billboard: true,
@@ -3583,7 +3589,9 @@ export class DeckWorldSurface implements WorldSurface {
                 getSize: this.#palette,
                 getColor: this.#palette,
               },
-              parameters: { cullMode: "none" },
+              // Far-side markers are filtered explicitly, so visible place
+              // billboards can share entity-marker depth behavior safely.
+              parameters: { cullMode: "none", depthCompare: "always" },
             }),
           ]
         : []),
@@ -3774,8 +3782,18 @@ export class DeckWorldSurface implements WorldSurface {
         jointRounded: true,
         capRounded: true,
         getPath: (datum: DeckWorldDirectionDatum) => datum.path,
-        getWidth: (datum: DeckWorldDirectionDatum) =>
-          (this.#edgeStyle(datum.edge).width + 1) * edgeExpansion(datum),
+        getWidth: (datum: DeckWorldDirectionDatum) => {
+          const nodeRadiusPx =
+            (visibleEntityRadiusPx(datum.sourceInstanceId) +
+              visibleEntityRadiusPx(datum.targetInstanceId)) /
+            2;
+          return (
+            worldArrowStrokeWidthPxForNodeRadius(
+              nodeRadiusPx,
+              this.#edgeStyle(datum.edge).width,
+            ) * edgeExpansion(datum)
+          );
+        },
         getColor: (datum: DeckWorldDirectionDatum) => {
           const emphasisAlpha = datum.edge.selected
             ? 255
@@ -3953,6 +3971,7 @@ export class DeckWorldSurface implements WorldSurface {
     return clipped;
   }
 
+  #visiblePlaceCache: readonly DeckWorldPlaceDatum[] = [];
   #visibleEntityCache: readonly DeckWorldEntityDatum[] = [];
   #tetherCache = new WeakMap<DeckWorldEntityDatum, DeckWorldTether>();
 
@@ -3986,6 +4005,20 @@ export class DeckWorldSurface implements WorldSurface {
       result.push(tether);
     }
     return result;
+  }
+
+  /** Near-side places only (markers skip depth testing), reusing the array. */
+  #cameraFacingPlaces(datums: readonly DeckWorldPlaceDatum[]): readonly DeckWorldPlaceDatum[] {
+    const visible = datums.filter((datum) => this.#facesCamera(datum.position));
+    const previous = this.#visiblePlaceCache;
+    if (
+      previous.length === visible.length &&
+      previous.every((datum, index) => datum === visible[index])
+    ) {
+      return previous;
+    }
+    this.#visiblePlaceCache = visible;
+    return visible;
   }
 
   /** Near-side entities only (markers skip depth testing), reusing the array. */
