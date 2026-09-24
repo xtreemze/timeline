@@ -250,7 +250,10 @@ export function directedEdgePathArrowhead(
   const chordX = shortestLongitudeDelta(source[0], target[0]) * chordLongitudeScale;
   const chordY = target[1] - source[1];
   const chordLength = Math.hypot(chordX, chordY);
-  if (!(tangentLength > MINIMUM_EDGE_LENGTH_DEGREES) || !(chordLength > MINIMUM_EDGE_LENGTH_DEGREES)) {
+  if (
+    !(tangentLength > MINIMUM_EDGE_LENGTH_DEGREES) ||
+    !(chordLength > MINIMUM_EDGE_LENGTH_DEGREES)
+  ) {
     return null;
   }
 
