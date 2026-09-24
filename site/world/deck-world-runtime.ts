@@ -8,6 +8,7 @@ export interface DeckWorldBindings {
   readonly pathLayer: (props: Readonly<Record<string, unknown>>) => unknown;
   readonly textLayer?: (props: Readonly<Record<string, unknown>>) => unknown;
   readonly iconLayer?: (props: Readonly<Record<string, unknown>>) => unknown;
+  readonly solidPolygonLayer?: (props: Readonly<Record<string, unknown>>) => unknown;
 }
 
 export function createDeckWorldRuntime(bindings: DeckWorldBindings): DeckWorldRuntime {
@@ -31,6 +32,13 @@ export function createDeckWorldRuntime(bindings: DeckWorldBindings): DeckWorldRu
     createPathLayer(props) {
       return bindings.pathLayer(props);
     },
+    ...(bindings.solidPolygonLayer
+      ? {
+          createSolidPolygonLayer(props: Readonly<Record<string, unknown>>) {
+            return bindings.solidPolygonLayer?.(props) ?? null;
+          },
+        }
+      : {}),
     ...(bindings.iconLayer
       ? {
           createIconLayer(props: Readonly<Record<string, unknown>>) {

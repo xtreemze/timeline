@@ -376,9 +376,17 @@ test("deck picking translates directly to canonical world hits with a touch-size
   });
 });
 
+const OVERVIEW_CAMERA = Object.freeze({
+  longitude: 0,
+  latitude: 20,
+  zoom: 1,
+  bearing: 0,
+  pitch: 20,
+});
+
 test("focus moves the globe camera to a rendered canonical target", () => {
   const { calls, runtime } = harness();
-  const surface = new DeckWorldSurface({}, runtime);
+  const surface = new DeckWorldSurface({}, runtime, OVERVIEW_CAMERA);
   surface.setProjection(projection());
 
   surface.focusEntity("alice");
@@ -403,7 +411,7 @@ test("double-click/double-tap focuses the canonical entity picked under the poin
       if (listeners.get(type) === listener) listeners.delete(type);
     },
   };
-  const surface = new DeckWorldSurface(container, runtime);
+  const surface = new DeckWorldSurface(container, runtime, OVERVIEW_CAMERA);
   surface.setProjection(projection());
 
   setPickResult({

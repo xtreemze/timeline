@@ -5,15 +5,19 @@ import {
   createWorldTouchHoldGate,
   WORLD_TOUCH_HOLD_MS,
 } from "../../src/interaction/world-touch-hold.ts";
+import { fitWorldCamera } from "../../src/layout/world-camera-fit.ts";
 import {
   resolveWorldRenderPosition,
   type WorldRenderPosition,
 } from "../../src/layout/world-geographic-position.ts";
 import {
+  declutterWorldLabels,
   directedEdgeArrowhead,
   edgeMidpoint,
   selectPrioritizedLabels,
+  WORLD_PLACE_LABEL_FLOOR,
   worldLabelBudget,
+  worldLabelTierFloor,
 } from "../../src/layout/world-semantic-presentation.ts";
 import {
   selectWorldSpatialMode,
@@ -48,6 +52,7 @@ export const DECK_WORLD_LAYER_IDS = Object.freeze({
   relationshipDirections: "lum-world-relationship-directions",
   labels: "lum-world-labels",
   entityIcons: "lum-world-entity-icons",
+  earth: "lum-world-earth",
 });
 
 interface DeckRuntimeViewState {
@@ -107,6 +112,7 @@ export interface DeckWorldRuntime {
   createPathLayer(props: Readonly<Record<string, unknown>>): unknown;
   createTextLayer?(props: Readonly<Record<string, unknown>>): unknown;
   createIconLayer?(props: Readonly<Record<string, unknown>>): unknown;
+  createSolidPolygonLayer?(props: Readonly<Record<string, unknown>>): unknown;
   createDeck(props: Readonly<Record<string, unknown>>): DeckRuntimeInstance;
 }
 
@@ -379,6 +385,40 @@ const BASE_CAPABILITIES = Object.freeze({
   depthPicking: true,
   gpuFiltering: false,
 });
+
+/**
+ * Colours chosen to read on the app's light paper background and on dark
+ * hosts alike: saturated marks with a light outline, dark text with a light
+ * halo. Selection uses one accent across every kind.
+ */
+const WORLD_PALETTE = Object.freeze({
+  earth: [196, 214, 228, 255],
+  place: [120, 113, 108, 220],
+  relationship: [71, 85, 105, 200],
+  direction: [51, 65, 85, 235],
+  entity: [37, 99, 235, 240],
+  cluster: [124, 58, 237, 235],
+  outline: [255, 255, 255, 230],
+  selected: [217, 119, 6, 255],
+  labelText: [15, 23, 42, 255],
+  labelPlace: [68, 64, 60, 255],
+  labelRelationship: [71, 85, 105, 255],
+  labelEmphasis: [146, 64, 14, 255],
+  labelHalo: [255, 255, 255, 220],
+  icon: [255, 255, 255, 255],
+} as const);
+
+/** A single world-covering polygon slightly below the surface. */
+const EARTH_POLYGON = Object.freeze([
+  [
+    [-180, 90, -2_000],
+    [0, 90, -2_000],
+    [180, 90, -2_000],
+    [180, -90, -2_000],
+    [0, -90, -2_000],
+    [-180, -90, -2_000],
+  ],
+]);
 
 const DEFAULT_CAMERA = createWorldCameraState({
   longitude: 0,
@@ -796,6 +836,24 @@ function labelDatumUnchanged(
  * entity labels are drawn, because individual positions are presentation-
  * merged into cluster glyphs.
  */
+const LABEL_HALO_PX = 2;
+
+function labelSize(datum: DeckWorldLabelDatum): number {
+  return datum.emphasized ? 15 : datum.kind === "place-label" ? 13 : 12;
+}
+
+/**
+ * Entity labels start 10px right of their dot, place labels sit above their
+ * anchor and relationship labels below the edge midpoint, so the three kinds
+ * do not contend for the same space around a shared anchor. The vertical gap
+ * grows with the label so an emphasized label does not evict its neighbours.
+ */
+function labelPixelOffset(datum: DeckWorldLabelDatum): [number, number] {
+  if (datum.kind === "entity-label") return [10, 0];
+  const gap = labelSize(datum) / 2 + 6;
+  return datum.kind === "relationship-label" ? [0, gap] : [0, -gap];
+}
+
 function labelDatums(input: {
   readonly places: readonly DeckWorldPlaceDatum[];
   readonly relationships: readonly DeckWorldRelationshipDatum[];
@@ -813,24 +871,31 @@ function labelDatums(input: {
     input.focus?.kind === kind && input.focus.id === id;
   const byKey = new Map<string, DeckWorldLabelDatum>();
   const result: DeckWorldLabelDatum[] = [];
+  // Declutter priority: pinned first, then importance across kinds (entity
+  // visual weight; places fixed mid-importance; relationships down-weighted),
+  // with places, entities, relationships as the tie-break order.
+  const priority = new Map<DeckWorldLabelDatum, readonly [number, number, number]>();
   const emit = (
     key: string,
     text: string,
     position: WorldRenderPosition,
     emphasized: boolean,
     create: () => DeckWorldLabelDatum,
+    group = 0,
+    importance = 0,
   ) => {
     const prior = input.previous.get(key);
     const datum =
       prior && labelDatumUnchanged(prior, text, position, emphasized) ? prior : create();
     byKey.set(key, datum);
     result.push(datum);
+    priority.set(datum, [emphasized ? 0 : 1, -importance, group]);
   };
 
   const places = selectPrioritizedLabels(
     input.places.filter((place) => place.label),
     {
-      budget,
+      budget: Math.max(budget, WORLD_PLACE_LABEL_FLOOR),
       isPinned: (place) => place.selected || focused("place", place.placeId),
       importance: () => 0,
       key: (place) => place.placeId,
@@ -840,15 +905,22 @@ function labelDatums(input: {
     const text = place.label ?? "";
     const emphasized = place.selected || focused("place", place.placeId);
     const key = `place:${place.placeId}`;
-    emit(key, text, place.position, emphasized, () =>
-      Object.freeze({
-        kind: "place-label",
-        key,
-        placeId: place.placeId,
-        text,
-        position: place.position,
-        emphasized,
-      }),
+    emit(
+      key,
+      text,
+      place.position,
+      emphasized,
+      () =>
+        Object.freeze({
+          kind: "place-label",
+          key,
+          placeId: place.placeId,
+          text,
+          position: place.position,
+          emphasized,
+        }),
+      0,
+      0.5,
     );
   }
 
@@ -867,16 +939,23 @@ function labelDatums(input: {
     const text = entity.label ?? "";
     const emphasized = pinnedEntity(entity);
     const key = `entity:${entity.worldInstanceId}`;
-    emit(key, text, entity.position, emphasized, () =>
-      Object.freeze({
-        kind: "entity-label",
-        key,
-        entityId: entity.entityId,
-        worldInstanceId: entity.worldInstanceId,
-        text,
-        position: entity.position,
-        emphasized,
-      }),
+    emit(
+      key,
+      text,
+      entity.position,
+      emphasized,
+      () =>
+        Object.freeze({
+          kind: "entity-label",
+          key,
+          entityId: entity.entityId,
+          worldInstanceId: entity.worldInstanceId,
+          text,
+          position: entity.position,
+          emphasized,
+        }),
+      1,
+      entity.visualWeight,
     );
   }
 
@@ -899,21 +978,56 @@ function labelDatums(input: {
     const emphasized = pinnedRelationship(relationship);
     const position = edgeMidpoint(relationship.path[0], relationship.path[1]);
     const key = `relationship:${relationship.relationshipId}`;
-    emit(key, text, position, emphasized, () =>
-      Object.freeze({
-        kind: "relationship-label",
-        key,
-        relationshipId: relationship.relationshipId,
-        sourceInstanceId: relationship.sourceInstanceId,
-        targetInstanceId: relationship.targetInstanceId,
-        text,
-        position,
-        emphasized,
-      }),
+    emit(
+      key,
+      text,
+      position,
+      emphasized,
+      () =>
+        Object.freeze({
+          kind: "relationship-label",
+          key,
+          relationshipId: relationship.relationshipId,
+          sourceInstanceId: relationship.sourceInstanceId,
+          targetInstanceId: relationship.targetInstanceId,
+          text,
+          position,
+          emphasized,
+        }),
+      2,
+      relationship.temporalWeight * 0.4,
     );
   }
 
-  return { datums: Object.freeze(result), byKey };
+  const ordered = [...result].sort((left, right) => {
+    const a = priority.get(left) ?? [1, 3, 0];
+    const b = priority.get(right) ?? [1, 3, 0];
+    return a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+  });
+  const kept = declutterWorldLabels(ordered, {
+    zoom: worldLabelTierFloor(input.zoom),
+    isPinned: (datum) => datum.emphasized,
+    // Mirrors the TextLayer anchoring below; footprints approximate glyph
+    // ink (about 0.6em per character, 0.9em tall) plus the halo.
+    measure: (datum) => {
+      const size = labelSize(datum);
+      const width = datum.text.length * size * 0.6 + LABEL_HALO_PX * 2;
+      const [offsetX, offsetY] = labelPixelOffset(datum);
+      return {
+        longitude: datum.position[0],
+        latitude: datum.position[1],
+        width,
+        height: size * 0.9,
+        offsetX: datum.kind === "entity-label" ? offsetX + width / 2 : offsetX,
+        offsetY,
+      };
+    },
+  });
+  const keptKeys = new Set(kept.map((datum) => datum.key));
+  for (const key of [...byKey.keys()]) {
+    if (!keptKeys.has(key)) byKey.delete(key);
+  }
+  return { datums: kept, byKey };
 }
 
 interface DeckWorldIconDescriptor {
@@ -1033,6 +1147,9 @@ export class DeckWorldSurface implements WorldSurface {
   });
   #selection: WorldSelection | null = null;
   #camera: WorldCameraState;
+  // True once the camera was chosen explicitly (constructor, setCamera,
+  // focus, or user navigation); until then content auto-fits once.
+  #cameraOwned = false;
   #spatialMode: WorldSpatialMode = "globe";
   #nodeDragSink: DeckWorldNodeDragSink | null = null;
   #activeDragPointerId: number | null = null;
@@ -1188,14 +1305,13 @@ export class DeckWorldSurface implements WorldSurface {
     }
   };
 
-  constructor(
-    container: HTMLElement,
-    runtime: DeckWorldRuntime,
-    initialCamera: WorldCameraState = DEFAULT_CAMERA,
-  ) {
+  constructor(container: HTMLElement, runtime: DeckWorldRuntime, initialCamera?: WorldCameraState) {
     this.#runtime = runtime;
     this.#container = container;
-    this.#camera = createWorldCameraState(initialCamera);
+    // A caller-chosen camera is authoritative; otherwise the first projected
+    // content fits the camera once (see #autoFitCamera).
+    this.#cameraOwned = initialCamera !== undefined;
+    this.#camera = createWorldCameraState(initialCamera ?? DEFAULT_CAMERA);
 
     this.#globeView = runtime.createGlobeView({ id: "lum-world" });
     this.#localView = runtime.createMapView?.({ id: "lum-world-local" }) ?? null;
@@ -1208,6 +1324,7 @@ export class DeckWorldSurface implements WorldSurface {
       onViewStateChange: ({ viewState }: { readonly viewState: DeckRuntimeViewState }) => {
         const next = cameraFromRuntime(viewState, this.#camera);
         if (next) {
+          this.#cameraOwned = true;
           this.#camera = next;
           this.#syncSpatialMode();
           this.#reclusterIfZoomCrossedThreshold();
@@ -1270,7 +1387,22 @@ export class DeckWorldSurface implements WorldSurface {
   setProjection(projection: WorldProjection): void {
     this.#assertAlive();
     this.#projection = projection;
+    this.#autoFitCamera();
     this.#render();
+  }
+
+  #autoFitCamera(): void {
+    if (this.#cameraOwned) return;
+    const positions = [...this.#instanceIndex().positions.values()];
+    if (positions.length === 0) return;
+    const width = Number(this.#container.clientWidth) || 1024;
+    const height = Number(this.#container.clientHeight) || 768;
+    const fitted = fitWorldCamera(positions, { width, height }, this.#camera);
+    if (!fitted) return;
+    this.#cameraOwned = true;
+    this.#camera = fitted;
+    this.#syncSpatialMode();
+    this.#deck.setProps({ viewState: this.#camera });
   }
 
   setTemporalWindow(window: WorldTemporalWindow): void {
@@ -1290,6 +1422,7 @@ export class DeckWorldSurface implements WorldSurface {
 
   setCamera(camera: WorldCameraState): void {
     this.#assertAlive();
+    this.#cameraOwned = true;
     this.#camera = createWorldCameraState(camera);
     this.#syncSpatialMode();
     this.#deck.setProps({ viewState: this.#camera });
@@ -1754,6 +1887,21 @@ export class DeckWorldSurface implements WorldSurface {
     this.#labelDatumCache = labelResult?.byKey ?? new Map();
 
     const layers = [
+      // Earth base: orientation on light and dark hosts, and depth-occludes
+      // the far side of the globe. Never pickable.
+      ...(this.#runtime.createSolidPolygonLayer
+        ? [
+            this.#runtime.createSolidPolygonLayer({
+              id: DECK_WORLD_LAYER_IDS.earth,
+              data: EARTH_POLYGON,
+              getPolygon: (polygon: unknown) => polygon,
+              filled: true,
+              stroked: false,
+              pickable: false,
+              getFillColor: WORLD_PALETTE.earth,
+            }),
+          ]
+        : []),
       this.#runtime.createScatterplotLayer({
         id: DECK_WORLD_LAYER_IDS.places,
         data: places,
@@ -1762,8 +1910,12 @@ export class DeckWorldSurface implements WorldSurface {
         radiusMinPixels: 3,
         getPosition: (datum: DeckWorldPlaceDatum) => datum.position,
         getRadius: 60,
+        stroked: true,
+        lineWidthUnits: "pixels",
+        getLineWidth: 1,
+        getLineColor: WORLD_PALETTE.outline,
         getFillColor: (datum: DeckWorldPlaceDatum) =>
-          datum.selected ? [255, 255, 255, 255] : [160, 160, 160, 190],
+          datum.selected ? WORLD_PALETTE.selected : WORLD_PALETTE.place,
       }),
       this.#runtime.createPathLayer({
         id: DECK_WORLD_LAYER_IDS.relationships,
@@ -1773,7 +1925,7 @@ export class DeckWorldSurface implements WorldSurface {
         getPath: (datum: DeckWorldRelationshipDatum) => datum.path,
         getWidth: (datum: DeckWorldRelationshipDatum) => (datum.selected ? 4 : 2),
         getColor: (datum: DeckWorldRelationshipDatum) =>
-          datum.selected ? [255, 255, 255, 255] : [190, 190, 190, 190],
+          datum.selected ? WORLD_PALETTE.selected : WORLD_PALETTE.relationship,
         parameters: { cullMode: "none" },
       }),
       this.#runtime.createScatterplotLayer({
@@ -1781,19 +1933,23 @@ export class DeckWorldSurface implements WorldSurface {
         data: entities,
         pickable: true,
         radiusUnits: "meters",
-        radiusMinPixels: 5,
+        radiusMinPixels: 6,
         radiusMaxPixels: 24,
         getPosition: (datum: DeckWorldEntityRenderDatum) => datum.position,
         getRadius: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster"
             ? 120 + datum.visualWeight * 120 + Math.min(datum.clusterMembers.length, 20) * 15
             : 80 + datum.visualWeight * 120,
+        stroked: true,
+        lineWidthUnits: "pixels",
+        getLineWidth: 1.5,
+        getLineColor: WORLD_PALETTE.outline,
         getFillColor: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster"
-            ? [120, 170, 255, 235]
+            ? WORLD_PALETTE.cluster
             : datum.selected
-              ? [255, 255, 255, 255]
-              : [220, 220, 220, 235],
+              ? WORLD_PALETTE.selected
+              : WORLD_PALETTE.entity,
         ...(this.#nodeDragSink
           ? {
               onDragStart: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
@@ -1817,8 +1973,7 @@ export class DeckWorldSurface implements WorldSurface {
               getIcon: (datum: DeckWorldEntityDatum) =>
                 entityIconDescriptor(worldEntityIconName(datum.entityKind) ?? "note"),
               getSize: (datum: DeckWorldEntityDatum) => (datum.selected ? 22 : 16),
-              getColor: (datum: DeckWorldEntityDatum) =>
-                datum.selected ? [20, 24, 32, 255] : [40, 48, 60, 235],
+              getColor: () => WORLD_PALETTE.icon,
               // GlobeView culls back faces; billboarded icon quads vanish
               // without this (same as the label TextLayer).
               parameters: { cullMode: "none" },
@@ -1846,7 +2001,7 @@ export class DeckWorldSurface implements WorldSurface {
         getPath: (datum: DeckWorldDirectionDatum) => datum.path,
         getWidth: (datum: DeckWorldDirectionDatum) => (datum.selected ? 5 : 3),
         getColor: (datum: DeckWorldDirectionDatum) =>
-          datum.selected ? [255, 255, 255, 255] : [235, 235, 235, 230],
+          datum.selected ? WORLD_PALETTE.selected : WORLD_PALETTE.direction,
         parameters: { cullMode: "none" },
       }),
       ...(labelResult && this.#runtime.createTextLayer
@@ -1859,25 +2014,23 @@ export class DeckWorldSurface implements WorldSurface {
               characterSet: "auto",
               sizeUnits: "pixels",
               fontSettings: { sdf: true },
-              outlineWidth: 2,
-              outlineColor: [12, 14, 20, 230],
+              outlineWidth: LABEL_HALO_PX,
+              outlineColor: WORLD_PALETTE.labelHalo,
               getText: (datum: DeckWorldLabelDatum) => datum.text,
               getPosition: (datum: DeckWorldLabelDatum) => datum.position,
-              getSize: (datum: DeckWorldLabelDatum) =>
-                datum.emphasized ? 15 : datum.kind === "place-label" ? 13 : 12,
+              getSize: labelSize,
               getColor: (datum: DeckWorldLabelDatum) =>
                 datum.emphasized
-                  ? [255, 255, 255, 255]
+                  ? WORLD_PALETTE.labelEmphasis
                   : datum.kind === "place-label"
-                    ? [200, 215, 235, 235]
+                    ? WORLD_PALETTE.labelPlace
                     : datum.kind === "relationship-label"
-                      ? [190, 190, 190, 220]
-                      : [235, 235, 235, 235],
+                      ? WORLD_PALETTE.labelRelationship
+                      : WORLD_PALETTE.labelText,
               getTextAnchor: (datum: DeckWorldLabelDatum) =>
                 datum.kind === "entity-label" ? "start" : "middle",
               getAlignmentBaseline: "center",
-              getPixelOffset: (datum: DeckWorldLabelDatum) =>
-                datum.kind === "entity-label" ? [10, 0] : [0, -12],
+              getPixelOffset: labelPixelOffset,
               // GlobeView culls back faces; billboarded glyph quads are
               // wound the other way and vanish without this.
               parameters: { cullMode: "none" },
