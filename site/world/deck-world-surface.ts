@@ -1202,7 +1202,7 @@ export class DeckWorldSurface implements WorldSurface {
   #focus: WorldLabelFocus | null = null;
   // Tracks the quantized semantic clustering tier so fractional camera motion
   // within one tier does not rebuild presentation clusters. The boolean tracks
-  // whether the previous render produced any actual multi-member cluster.
+  // whether the previous render produced a multi-member cluster.
   #clusterTierLastRender: number | null = null;
   #clusteredLastRender = false;
   // Same idea for the semantic label/marker LOD tier: a tier change only
