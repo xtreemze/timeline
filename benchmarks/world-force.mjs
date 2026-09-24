@@ -14,8 +14,13 @@ function positiveInteger(value) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+const denseMode = process.argv.includes("--dense");
 const requestedSizes = process.argv.slice(2).map(positiveInteger).filter(Boolean);
-const sizes = requestedSizes.length ? requestedSizes : [1_000, 10_000, 50_000];
+const sizes = requestedSizes.length
+  ? requestedSizes
+  : denseMode
+    ? [1_000, 5_000]
+    : [1_000, 10_000, 50_000];
 
 function percentile(sorted, fraction) {
   if (!sorted.length) return 0;
@@ -123,8 +128,17 @@ function fixture(nodeCount, groupSize = 32) {
 const results = [];
 
 for (const nodeCount of sizes) {
-  const { projection, placeCount } = fixture(nodeCount);
-  const iterations = nodeCount >= 50_000 ? 1 : nodeCount >= 10_000 ? 2 : 4;
+  const groupSize = denseMode ? nodeCount : 32;
+  const { projection, placeCount } = fixture(nodeCount, groupSize);
+  const iterations = denseMode
+    ? nodeCount >= 5_000
+      ? 1
+      : 2
+    : nodeCount >= 50_000
+      ? 1
+      : nodeCount >= 10_000
+        ? 2
+        : 4;
 
   let forceScene;
   const sceneBuild = measure(() => {
@@ -145,7 +159,15 @@ for (const nodeCount of sizes) {
     simulation.destroy();
   }, iterations);
 
-  const stepIterations = nodeCount >= 50_000 ? 2 : nodeCount >= 10_000 ? 3 : 6;
+  const stepIterations = denseMode
+    ? nodeCount >= 5_000
+      ? 1
+      : 2
+    : nodeCount >= 50_000
+      ? 2
+      : nodeCount >= 10_000
+        ? 3
+        : 6;
   const simulation = new ReferenceWorldForceSimulation();
   simulation.setScene(forceScene);
   simulation.apply({ reason: "topology", energyTarget: 0.12, reheat: true });
@@ -180,7 +202,7 @@ for (const nodeCount of sizes) {
     worldInstances: nodeCount,
     places: placeCount,
     relationships: projection.edges.length,
-    groupSize: 32,
+    groupSize,
     sceneBuild,
     solverSetup,
     solveStep,
@@ -198,8 +220,9 @@ console.log(
       runtime: process.version,
       platform: process.platform,
       architecture: process.arch,
-      fixture:
-        "deterministic geographic groups of <=32 nodes with local topology and cross-place visual relationships",
+      fixture: denseMode
+        ? "pathological single-place dense groups for same-anchor pair-force scaling"
+        : "deterministic geographic groups of <=32 nodes with local topology and cross-place visual relationships",
       results,
     },
     null,
