@@ -77,6 +77,9 @@ test("timeline is a Lit lifecycle boundary without Lit-owned retained-scene rend
   assert.match(component, /createRenderRoot\(\)[\s\S]*return this/);
   assert.match(component, /TimelineView\.create\(this\)/);
   assert.match(component, /ResizeObserver[\s\S]*refreshLayout/);
+  assert.match(component, /disconnectedCallback\(\)[\s\S]*controller\?\.destroy\(\)/);
+  assert.match(view, /lifecycleAbortController = new AbortController\(\)/);
+  assert.match(view, /destroy\(\): void[\s\S]*lifecycleAbortController\.abort\(\)/);
   assert.doesNotMatch(component, /\bhtml\s*`/);
   assert.doesNotMatch(component, /document\.createElement/);
   assert.match(view, /new WeakMap<HTMLElement, TimelineViewController>/);
