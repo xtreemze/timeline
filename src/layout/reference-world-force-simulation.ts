@@ -38,15 +38,14 @@ interface NodeState {
   vz: number;
 }
 
-export const DEFAULT_REFERENCE_WORLD_FORCE_OPTIONS: ReferenceWorldForceOptions =
-  Object.freeze({
-    repulsionStrength: 18_000,
-    collisionStrength: 0.18,
-    anchorStrength: 0.012,
-    altitudeStrength: 0.04,
-    damping: 0.84,
-    settleEnergy: 0.0005,
-  });
+export const DEFAULT_REFERENCE_WORLD_FORCE_OPTIONS: ReferenceWorldForceOptions = Object.freeze({
+  repulsionStrength: 18_000,
+  collisionStrength: 0.18,
+  anchorStrength: 0.012,
+  altitudeStrength: 0.04,
+  damping: 0.84,
+  settleEnergy: 0.0005,
+});
 
 function finiteNonNegative(value: number, label: string): number {
   if (!Number.isFinite(value) || value < 0) {
@@ -64,19 +63,10 @@ function finiteUnit(value: number, label: string): number {
 
 function validateOptions(options: ReferenceWorldForceOptions): ReferenceWorldForceOptions {
   return Object.freeze({
-    repulsionStrength: finiteNonNegative(
-      options.repulsionStrength,
-      "Reference repulsion strength",
-    ),
-    collisionStrength: finiteNonNegative(
-      options.collisionStrength,
-      "Reference collision strength",
-    ),
+    repulsionStrength: finiteNonNegative(options.repulsionStrength, "Reference repulsion strength"),
+    collisionStrength: finiteNonNegative(options.collisionStrength, "Reference collision strength"),
     anchorStrength: finiteNonNegative(options.anchorStrength, "Reference anchor strength"),
-    altitudeStrength: finiteNonNegative(
-      options.altitudeStrength,
-      "Reference altitude strength",
-    ),
+    altitudeStrength: finiteNonNegative(options.altitudeStrength, "Reference altitude strength"),
     damping: finiteUnit(options.damping, "Reference damping"),
     settleEnergy: finiteNonNegative(options.settleEnergy, "Reference settle energy"),
   });
@@ -146,9 +136,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
   #iteration = 0;
   #destroyed = false;
 
-  constructor(
-    options: ReferenceWorldForceOptions = DEFAULT_REFERENCE_WORLD_FORCE_OPTIONS,
-  ) {
+  constructor(options: ReferenceWorldForceOptions = DEFAULT_REFERENCE_WORLD_FORCE_OPTIONS) {
     this.#options = validateOptions(options);
   }
 
@@ -388,8 +376,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const unitX = dx / distance;
     const unitY = dy / distance;
     const repulsion = this.#options.repulsionStrength / Math.max(100, distance ** 2);
-    const minimumDistance =
-      left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
+    const minimumDistance = left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
     const collision =
       distance < minimumDistance
         ? (minimumDistance - distance) * this.#options.collisionStrength
@@ -426,8 +413,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const excess = Math.max(0, radius - state.anchor.precisionRadiusMeters);
     if (excess === 0 || radius < 0.001) return;
 
-    const magnitude =
-      excess * state.anchor.influence * this.#options.anchorStrength;
+    const magnitude = excess * state.anchor.influence * this.#options.anchorStrength;
     this.#addForce(
       forces,
       state.node.id,
@@ -442,13 +428,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     forces: Map<WorldInstanceId, [number, number, number]>,
   ): void {
     const delta = state.node.targetVisualAltitudeMeters - state.z;
-    this.#addForce(
-      forces,
-      state.node.id,
-      0,
-      0,
-      delta * this.#options.altitudeStrength,
-    );
+    this.#addForce(forces, state.node.id, 0, 0, delta * this.#options.altitudeStrength);
   }
 
   #addForce(
