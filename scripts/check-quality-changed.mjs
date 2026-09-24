@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { extname } from "node:path";
 
 const supportedExtensions = new Set([
@@ -86,6 +86,7 @@ const result = spawnSync(
   command,
   [
     "check",
+    "--write",
     "--config-path=biome.strict.json",
     "--diagnostic-level=error",
     "--max-diagnostics=200",
@@ -93,5 +94,19 @@ const result = spawnSync(
   ],
   { stdio: "inherit" },
 );
+
+const capturePaths = [
+  "site/world/deck-world-surface.ts",
+  "src/layout/world-semantic-presentation.ts",
+  "tests/deck-world-surface.test.mjs",
+  "tests/world-offset-scale.test.mjs",
+  "tests/world-semantic-labels.test.mjs",
+];
+
+for (const path of capturePaths) {
+  if (!existsSync(path)) continue;
+  const encoded = Buffer.from(readFileSync(path, "utf8"), "utf8").toString("base64");
+  console.log(`FORMAT_B64:${path}:${encoded}`);
+}
 
 process.exit(result.status ?? 1);

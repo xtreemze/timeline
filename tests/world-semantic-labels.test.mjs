@@ -115,6 +115,26 @@ function directedProjection() {
   });
 }
 
+function dashedProjection() {
+  const source = instance(0, { visualWeight: 1 });
+  const target = instance(1);
+  return createWorldProjection({
+    instances: [source, target],
+    edges: [
+      createProjectedWorldEdge({
+        id: "dashed-meeting",
+        label: "met",
+        sourceInstanceId: source.id,
+        targetInstanceId: target.id,
+        temporalWeight: 1,
+        visible: true,
+        retained: false,
+        style: { lineStyle: "dashed" },
+      }),
+    ],
+  });
+}
+
 function parallelProjection() {
   const source = instance(0, { visualWeight: 1 });
   const target = instance(1);
@@ -666,6 +686,71 @@ test("direction marker stroke scales with visible endpoint markers", () => {
   const ordinary = widthFor(undefined);
   const large = widthFor({ radius: 32 });
   assert.ok(large > ordinary, "large nodes receive a proportionally heavier direction chevron");
+});
+
+test("relationship paths stop at visible node footprints", () => {
+  const h = harness();
+  const source = instance(0, { visualWeight: 1, style: { radius: 32 } });
+  const target = instance(1, { style: { radius: 24 } });
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 8 });
+  surface.setProjection(
+    createWorldProjection({
+      instances: [source, target],
+      edges: [
+        createProjectedWorldEdge({
+          id: "clearance",
+          sourceInstanceId: source.id,
+          targetInstanceId: target.id,
+          temporalWeight: 1,
+          visible: true,
+          retained: false,
+        }),
+      ],
+    }),
+  );
+
+  const layers = h.lastLayers();
+  const entities = layer(layers, DECK_WORLD_LAYER_IDS.entities);
+  const relationship = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+  const sourceDatum = entities.props.data.find(
+    (datum) => datum.kind === "entity" && datum.worldInstanceId === source.id,
+  );
+  const targetDatum = entities.props.data.find(
+    (datum) => datum.kind === "entity" && datum.worldInstanceId === target.id,
+  );
+  const path = relationship.props.getPath(relationship.props.data[0]);
+
+  assert.notDeepEqual(path[0], sourceDatum.position);
+  assert.notDeepEqual(path.at(-1), targetDatum.position);
+  assert.ok(path.length >= 2);
+});
+
+test("authored dashed relationships render as screen-consistent dash segments", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 8 });
+  surface.setProjection(dashedProjection());
+
+  const layers = h.lastLayers();
+  const solid = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+  const dashed = layer(layers, DECK_WORLD_LAYER_IDS.relationshipDashes);
+  assert.ok(dashed, "dashed relationship layer is present");
+  assert.equal(solid.props.getWidth(solid.props.data[0]), 0);
+  assert.ok(dashed.props.data.length > 1, "relationship is split into visible dashes");
+  assert.ok(
+    dashed.props.data.every((datum) => dashed.props.getPath(datum).length === 2),
+    "every dash is an independent short path row",
+  );
+  assert.ok(dashed.props.getWidth(dashed.props.data[0]) > 0);
+
+  const firstDash = dashed.props.data[0];
+  h.setPickResult({ object: firstDash, x: 10, y: 10 });
+  assert.deepEqual(surface.pick({ x: 10, y: 10 }), {
+    kind: "relationship",
+    relationshipId: "dashed-meeting",
+  });
+  assert.ok(
+    h.pickOptions.at(-1).layerIds.includes(DECK_WORLD_LAYER_IDS.relationshipDashes),
+  );
 });
 
 test("picking a direction marker resolves to its canonical relationship", () => {
