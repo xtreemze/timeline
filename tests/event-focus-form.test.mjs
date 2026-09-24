@@ -66,15 +66,20 @@ test("the custom calendar keeps keyboard navigation while Lit owns declarative c
   assert.match(html, /id="item-calendar-year"/);
 });
 
-test("focused events expose three distinct grid composition variants and evidence sections", async () => {
-  const [source, css] = await Promise.all([
+test("focused detail prioritizes Context and Evidence while navigation stays on the timeline", async () => {
+  const [source, css, html] = await Promise.all([
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
   ]);
   assert.match(source, /layoutVariant/);
   assert.match(source, /timeline-focus-evidence/);
-  assert.match(source, /Previous event/);
-  assert.match(source, /Next event/);
+  assert.match(source, /overviewTab\.textContent = "Context"/);
+  assert.match(source, /focusNavigationState\(\)/);
+  assert.doesNotMatch(source, /timeline-focus-nav-prev|timeline-focus-nav-next|Edit event/);
+  assert.match(html, /id="timeline-focus-prev"/);
+  assert.match(html, /id="timeline-focus-next"/);
+  assert.match(html, /id="timeline-focus-edit"/);
   assert.match(css, /data-layout="hero-split"/);
   assert.match(css, /data-layout="evidence-dossier"/);
   assert.match(css, /data-layout="editorial-mosaic"/);
@@ -281,18 +286,27 @@ test("fullscreen restores the focused event popover after the browser changes to
   assert.match(app, /active && timelineView\?\.hasFocusedItem\?\.\(\)[\s\S]*ensureFocusPopover/);
 });
 
-test("utility surfaces remain coordinated while the relation graph stays persistent", async () => {
+test("utility surfaces stay coordinated without dismissing focused viewing for Browse or View", async () => {
   const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
   assert.match(app, /closeLargeUtilitySurfaces\(except = ""\)[\s\S]*closeViewControls\(\)/);
   assert.match(
     app,
-    /setBrowserSurfaceOpen[\s\S]*closeLargeUtilitySurfaces\("browser"\)[\s\S]*closeFocusedEventForUtility/,
+    /function setBrowserSurfaceOpen[\s\S]*closeLargeUtilitySurfaces\("browser"\)[\s\S]*syncApplicationSurfaces/,
   );
   assert.match(
     app,
-    /viewControlsToggle\?\.addEventListener\("click",[\s\S]*closeLargeUtilitySurfaces\("view"\)[\s\S]*closeFocusedEventForUtility/,
+    /viewControlsToggle\?\.addEventListener\("click",[\s\S]*closeLargeUtilitySurfaces\("view"\)[\s\S]*syncApplicationSurfaces/,
+  );
+  assert.doesNotMatch(
+    app,
+    /function setBrowserSurfaceOpen[\s\S]{0,700}closeFocusedEventForUtility/,
+  );
+  assert.doesNotMatch(
+    app,
+    /viewControlsToggle\?\.addEventListener\("click",[\s\S]{0,500}closeFocusedEventForUtility/,
   );
   assert.match(app, /timelinefocuschange[\s\S]*closeLargeUtilitySurfaces\("focus"\)/);
+  assert.match(app, /function syncTimelineContextControls\(\)/);
   assert.match(app, /els\.graphLens\.hidden = false/);
   assert.doesNotMatch(app, /setGraphSurfaceOpen|ui\.graphOpen/);
 });
