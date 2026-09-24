@@ -178,11 +178,11 @@ function targetsForPlace(
 
   for (const id of nodeIds) {
     if ((indegree.get(id) ?? 0) === 0) {
-      links.push(Object.freeze([rootId, String(id)]));
+      links.push([rootId, String(id)]);
     }
   }
   for (const edge of edges) {
-    links.push(Object.freeze([String(edge.sourceId), String(edge.targetId)]));
+    links.push([String(edge.sourceId), String(edge.targetId)]);
   }
 
   const graph = graphConnect()(links);
