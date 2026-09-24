@@ -8,6 +8,7 @@ import {
   type ProjectedWorldEdge,
   type ProjectedWorldInstance,
   type SpatialAnchor,
+  worldInstanceId,
   type WorldInstanceId,
   type WorldProjection,
 } from "./world-projection.ts";
@@ -35,30 +36,47 @@ function relationshipStyle(
 }
 
 /**
- * Render identity is canonical entity + spatial context, not canonical entity
- * + every occurrence. Repeated active facts at one place therefore reuse one
- * visible node, while genuinely different place contexts remain separate
- * world instances. Unplaced facts share one unplaced instance per entity.
+ * Render identity follows canonical entity identity. An entity is represented
+ * by exactly one world node even when active occurrences connect it to several
+ * places. Those spatial contexts become multiple anchors on that one node
+ * rather than cloned entity instances.
  */
-function worldSpatialInstanceId(
-  canonicalId: EntityId,
-  anchor: SpatialAnchor | undefined,
-): WorldInstanceId {
-  return JSON.stringify([
-    String(canonicalId),
-    anchor ? `place:${String(anchor.placeId)}` : "unplaced",
-  ]) as WorldInstanceId;
+function canonicalWorldInstanceId(canonicalId: EntityId): WorldInstanceId {
+  return worldInstanceId(canonicalId);
 }
 
 interface WorldInstanceAccumulator {
   readonly id: WorldInstanceId;
   readonly canonicalId: EntityId;
   readonly presentation?: WorldEntityPresentation;
-  readonly geographicAnchors: readonly SpatialAnchor[];
+  readonly geographicAnchors: SpatialAnchor[];
   readonly occurrenceIds: RelationshipId[];
   temporalWeight: number;
   visualWeight: number;
   retained: boolean;
+}
+
+function mergeGeographicAnchors(
+  target: SpatialAnchor[],
+  incoming: readonly SpatialAnchor[],
+): void {
+  for (const anchor of incoming) {
+    const existingIndex = target.findIndex((candidate) => candidate.placeId === anchor.placeId);
+    if (existingIndex < 0) {
+      target.push(anchor);
+      continue;
+    }
+
+    const existing = target[existingIndex];
+    const existingCertainty = existing.certainty ?? -1;
+    const incomingCertainty = anchor.certainty ?? -1;
+    if (
+      anchor.influence > existing.influence ||
+      (anchor.influence === existing.influence && incomingCertainty > existingCertainty)
+    ) {
+      target[existingIndex] = anchor;
+    }
+  }
 }
 
 function accumulateInstance(
@@ -71,10 +89,11 @@ function accumulateInstance(
   retained: boolean,
   presentation: WorldEntityPresentation | undefined,
 ): WorldInstanceId {
-  const id = worldSpatialInstanceId(canonicalId, geographicAnchors[0]);
+  const id = canonicalWorldInstanceId(canonicalId);
   const existing = instances.get(id);
   if (existing) {
     if (!existing.occurrenceIds.includes(occurrenceId)) existing.occurrenceIds.push(occurrenceId);
+    mergeGeographicAnchors(existing.geographicAnchors, geographicAnchors);
     existing.temporalWeight = Math.max(existing.temporalWeight, temporalWeight);
     existing.visualWeight = Math.max(existing.visualWeight, visualWeight);
     existing.retained ||= retained;
@@ -85,7 +104,7 @@ function accumulateInstance(
     id,
     canonicalId,
     ...(presentation ? { presentation } : {}),
-    geographicAnchors,
+    geographicAnchors: [...geographicAnchors],
     occurrenceIds: [occurrenceId],
     temporalWeight,
     visualWeight,
@@ -170,6 +189,9 @@ export function projectWorldOccurrences(
     const occurrenceIds = [...instance.occurrenceIds].sort((left, right) =>
       String(left).localeCompare(String(right)),
     );
+    const geographicAnchors = [...instance.geographicAnchors].sort((left, right) =>
+      String(left.placeId).localeCompare(String(right.placeId)),
+    );
     const presentation = instance.presentation;
     return createProjectedWorldInstance({
       id: instance.id,
@@ -179,7 +201,7 @@ export function projectWorldOccurrences(
       ...(presentation?.style ? { style: presentation.style } : {}),
       ...(occurrenceIds.length === 1 ? { occurrenceId: occurrenceIds[0] } : {}),
       occurrenceIds,
-      geographicAnchors: instance.geographicAnchors,
+      geographicAnchors,
       temporalWeight: instance.temporalWeight,
       visualWeight: instance.visualWeight,
       retained: instance.retained,
