@@ -1,6 +1,19 @@
+/// <reference path="../types/d3-force.d.ts" />
+
+import {
+  forceCollide,
+  forceLink,
+  forceManyBody,
+  forceSimulation,
+  forceX,
+  forceY,
+  type Simulation,
+  type SimulationLinkDatum,
+  type SimulationNodeDatum,
+} from "d3-force";
+import type { PlaceId } from "../domain/ids.ts";
 import type { WorldInstanceId } from "../projection/world-projection.ts";
 import type {
-  WorldClusterForceDirective,
   WorldForceAnchor,
   WorldForceEdge,
   WorldForceNode,
@@ -27,7 +40,7 @@ export interface ReferenceWorldForcePosition {
   readonly visualAltitudeMeters: number;
 }
 
-interface NodeState {
+interface NodeState extends SimulationNodeDatum {
   readonly node: WorldForceNode;
   readonly group: string;
   readonly anchor: WorldForceAnchor | null;
@@ -127,16 +140,31 @@ function normalizedTimeStep(deltaMs: number): number {
 
 const EARTH_RADIUS_METERS = 6_371_008.8;
 const CROSS_ANCHOR_FORCE_RADIUS_METERS = 6_000;
+const CROSS_ANCHOR_BUCKET_METERS = 100_000;
 const READABLE_SEPARATION_SCALE = 1.35;
-const PLACE_DOMAIN_INNER_RADIUS_SCALE = 2.25;
-const PLACE_DOMAIN_WIDTH_SCALE = 2.4;
-const PLACE_DOMAIN_CORRECTION_SQRT_SCALE = 20;
+const D3_CLUSTER_COLLISION_STRENGTH = 0.86;
+const D3_CLUSTER_COLLISION_ITERATIONS = 3;
+const D3_CLUSTER_COLLAPSE_CHARGE = -1_400;
+const D3_CLUSTER_EXPAND_CHARGE = -3_600;
+const D3_CLUSTER_COLLAPSE_ANCHOR_STRENGTH = 0.08;
+const D3_CLUSTER_EXPAND_ANCHOR_STRENGTH = 0.004;
+const D3_CLUSTER_ALPHA = 0.18;
+const D3_CLUSTER_ALPHA_MIN = 0.003;
+const D3_CLUSTER_ALPHA_DECAY = 0.018;
 
 type Vector3 = readonly [number, number, number];
 
-interface PlaceDomain {
-  readonly innerRadiusMeters: number;
-  readonly outerRadiusMeters: number;
+type D3ClusterMode = "collapse" | "expand";
+
+interface D3ClusterLink extends SimulationLinkDatum<NodeState> {
+  readonly edge: WorldForceEdge;
+}
+
+interface D3ClusterSimulation {
+  readonly group: string;
+  readonly placeId: string;
+  readonly mode: D3ClusterMode;
+  readonly simulation: Simulation<NodeState, SimulationLinkDatum<NodeState>>;
 }
 
 interface ForceGroup {
@@ -144,15 +172,7 @@ interface ForceGroup {
   readonly states: readonly NodeState[];
   readonly anchor: WorldForceAnchor | null;
   readonly extentMeters: number;
-  readonly center: Vector3 | null;
-}
-
-interface CrossGroupSweepEntry {
-  readonly group: ForceGroup;
-  readonly center: Vector3;
-  readonly radiusMeters: number;
-  readonly minX: number;
-  readonly maxX: number;
+  readonly bucket: readonly [number, number, number] | null;
 }
 
 interface PairDelta {
@@ -244,98 +264,83 @@ function forceGroup(key: string, states: readonly NodeState[]): ForceGroup {
     0,
   );
   if (!anchor) {
-    return Object.freeze({ key, states, anchor: null, extentMeters, center: null });
+    return Object.freeze({ key, states, anchor: null, extentMeters, bucket: null });
   }
 
+  const [x, y, z] = anchorCartesian(anchor);
   return Object.freeze({
     key,
     states,
     anchor,
     extentMeters,
-    center: anchorCartesian(anchor),
+    bucket: Object.freeze([
+      Math.floor(x / CROSS_ANCHOR_BUCKET_METERS),
+      Math.floor(y / CROSS_ANCHOR_BUCKET_METERS),
+      Math.floor(z / CROSS_ANCHOR_BUCKET_METERS),
+    ]),
   });
-}
-
-function placeDomain(states: readonly NodeState[]): PlaceDomain | null {
-  const anchored = states.filter((state) => state.anchor !== null);
-  if (anchored.length === 0) return null;
-
-  const maxCollisionRadiusMeters = anchored.reduce(
-    (radius, state) => Math.max(radius, state.node.collisionRadiusMeters),
-    0,
-  );
-  const precisionRadiusMeters = anchored.reduce(
-    (radius, state) => Math.max(radius, state.anchor?.precisionRadiusMeters ?? 0),
-    0,
-  );
-
-  // A place is the centre of a local layout domain, not the target position
-  // of every entity. Keep the authored place marker clear, then give the
-  // group enough annular area to spread through collision/relationship
-  // forces without assigning rigid angular slots.
-  const innerRadiusMeters = Math.max(
-    1,
-    maxCollisionRadiusMeters * PLACE_DOMAIN_INNER_RADIUS_SCALE,
-  );
-  const packingWidthMeters =
-    maxCollisionRadiusMeters *
-    Math.max(2, Math.sqrt(anchored.length) * PLACE_DOMAIN_WIDTH_SCALE);
-  const outerRadiusMeters = Math.max(
-    innerRadiusMeters + packingWidthMeters,
-    precisionRadiusMeters,
-  );
-
-  return Object.freeze({ innerRadiusMeters, outerRadiusMeters });
 }
 
 function crossGroupCandidates(
   groups: readonly ForceGroup[],
 ): readonly (readonly [ForceGroup, ForceGroup])[] {
-  const entries: CrossGroupSweepEntry[] = groups
-    .filter(
-      (group): group is ForceGroup & { readonly center: Vector3 } =>
-        group.anchor !== null && group.center !== null,
-    )
-    .map((group) => {
-      // Give each group half of the cross-anchor interaction padding. Two
-      // expanded spheres overlap exactly when their anchor distance is within
-      // both floating extents plus the shared interaction radius.
-      const radiusMeters = group.extentMeters + CROSS_ANCHOR_FORCE_RADIUS_METERS / 2;
-      return Object.freeze({
-        group,
-        center: group.center,
-        radiusMeters,
-        minX: group.center[0] - radiusMeters,
-        maxX: group.center[0] + radiusMeters,
-      });
-    })
-    .sort(
-      (left, right) =>
-        left.minX - right.minX || left.group.key.localeCompare(right.group.key),
+  const buckets = new Map<string, number[]>();
+  const keyFor = (x: number, y: number, z: number) => `${x}:${y}:${z}`;
+  const maxExtentMeters = groups.reduce(
+    (extent, group) => Math.max(extent, group.extentMeters),
+    0,
+  );
+
+  for (let index = 0; index < groups.length; index += 1) {
+    const bucket = groups[index]?.bucket;
+    if (!bucket) continue;
+    const key = keyFor(bucket[0], bucket[1], bucket[2]);
+    buckets.set(key, [...(buckets.get(key) ?? []), index]);
+  }
+
+  const pairs: Array<readonly [ForceGroup, ForceGroup]> = [];
+  for (let index = 0; index < groups.length; index += 1) {
+    const group = groups[index];
+    const bucket = group?.bucket;
+    if (!group || !bucket || !group.anchor) continue;
+
+    // A group's floating topology can extend well beyond its geographic
+    // anchor. Search as many broad-phase buckets as its current world-space
+    // extent can actually reach instead of assuming anchors must themselves
+    // occupy adjacent buckets.
+    const bucketReach = Math.max(
+      1,
+      Math.ceil(
+        (group.extentMeters + maxExtentMeters + CROSS_ANCHOR_FORCE_RADIUS_METERS) /
+          CROSS_ANCHOR_BUCKET_METERS,
+      ),
     );
 
-  const active: CrossGroupSweepEntry[] = [];
-  const pairs: Array<readonly [ForceGroup, ForceGroup]> = [];
+    for (let x = bucket[0] - bucketReach; x <= bucket[0] + bucketReach; x += 1) {
+      for (let y = bucket[1] - bucketReach; y <= bucket[1] + bucketReach; y += 1) {
+        for (let z = bucket[2] - bucketReach; z <= bucket[2] + bucketReach; z += 1) {
+          for (const otherIndex of buckets.get(keyFor(x, y, z)) ?? []) {
+            if (otherIndex <= index) continue;
+            const other = groups[otherIndex];
+            if (!other?.anchor) continue;
 
-  for (const current of entries) {
-    // A far drag increases one group's extent. The previous bucket search
-    // expanded a three-dimensional cube from that extent, making one frame
-    // proportional to drag distance cubed. Sweep-and-prune only keeps groups
-    // whose expanded X ranges can still overlap.
-    for (let index = active.length - 1; index >= 0; index -= 1) {
-      const candidate = active[index];
-      if (candidate && candidate.maxX < current.minX) active.splice(index, 1);
+            const anchorDistance = cartesianDistance(
+              anchorCartesian(group.anchor),
+              anchorCartesian(other.anchor),
+            );
+            if (
+              anchorDistance >
+              group.extentMeters +
+                other.extentMeters +
+                CROSS_ANCHOR_FORCE_RADIUS_METERS
+            ) {
+              continue;
+            }
+            pairs.push(Object.freeze([group, other]));
+          }
+        }
+      }
     }
-
-    for (const other of active) {
-      const interactionRadius = current.radiusMeters + other.radiusMeters;
-      if (Math.abs(current.center[1] - other.center[1]) > interactionRadius) continue;
-      if (Math.abs(current.center[2] - other.center[2]) > interactionRadius) continue;
-      if (cartesianDistance(current.center, other.center) > interactionRadius) continue;
-      pairs.push(Object.freeze([other.group, current.group]));
-    }
-
-    active.push(current);
   }
 
   return Object.freeze(pairs);
@@ -391,10 +396,11 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
   readonly #options: ReferenceWorldForceOptions;
   #states = new Map<WorldInstanceId, NodeState>();
   #edges: readonly WorldForceEdge[] = Object.freeze([]);
-  #collapsing = new Set<WorldInstanceId>();
-  #detached = new Set<WorldInstanceId>();
   #pin: WorldForcePin | null = null;
   #request: WorldSimulationRequest | null = null;
+  #clusteredPlaceIds = new Set<string>();
+  #expandingPlaceIds = new Set<string>();
+  #clusterSimulations = new Map<string, D3ClusterSimulation>();
   #running = false;
   #settled = true;
   #energy: number | null = 0;
@@ -428,6 +434,8 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
           vx: old.vx,
           vy: old.vy,
           vz: old.vz,
+          fx: old.fx ?? null,
+          fy: old.fy ?? null,
         });
         continue;
       }
@@ -443,6 +451,8 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
         vx: 0,
         vy: 0,
         vz: 0,
+        fx: null,
+        fy: null,
       });
     }
 
@@ -457,38 +467,10 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     );
 
     if (this.#pin && !this.#states.has(this.#pin.instanceId)) this.#pin = null;
+    this.#rebuildClusterSimulations();
     this.#settled = false;
     this.#energy = null;
     this.#iteration = 0;
-  }
-
-  applyClusterDirective(directive: WorldClusterForceDirective): void {
-    this.#assertAlive();
-    const ids = new Set(directive.instanceIds);
-    if (directive.mode === "collapse") {
-      this.#collapsing = ids;
-      for (const id of ids) this.#detached.add(id);
-    } else if (directive.mode === "expand") {
-      for (const id of ids) {
-        const state = this.#states.get(id);
-        if (!state) continue;
-        const [seedX, seedY] = seededOffset(id);
-        const seedLength = Math.max(1, Math.hypot(seedX, seedY));
-        const radius = Math.max(12, state.node.collisionRadiusMeters * 0.18);
-        state.x = (seedX / seedLength) * radius;
-        state.y = (seedY / seedLength) * radius;
-        state.z = state.node.targetVisualAltitudeMeters;
-        state.vx = 0;
-        state.vy = 0;
-        state.vz = 0;
-        this.#detached.add(id);
-      }
-      for (const id of ids) this.#collapsing.delete(id);
-    } else {
-      for (const id of ids) this.#detached.delete(id);
-    }
-    this.#settled = false;
-    this.#energy = null;
   }
 
   setPin(pin: WorldForcePin | null): void {
@@ -509,6 +491,30 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       state.vz = 0;
     }
     this.#settled = false;
+  }
+
+  setClusteredPlaceIds(placeIds: readonly PlaceId[]): void {
+    this.#assertAlive();
+    const next = new Set(placeIds.map(String));
+    const unchanged =
+      next.size === this.#clusteredPlaceIds.size &&
+      [...next].every((placeId) => this.#clusteredPlaceIds.has(placeId));
+    if (unchanged && this.#expandingPlaceIds.size === 0) return;
+    if (next.size === 0 && this.#clusteredPlaceIds.size === 0) return;
+
+    if (next.size > 0) {
+      this.#clusteredPlaceIds = next;
+      this.#expandingPlaceIds.clear();
+    } else {
+      this.#expandingPlaceIds = new Set(this.#clusteredPlaceIds);
+      this.#clusteredPlaceIds.clear();
+    }
+
+    this.#rebuildClusterSimulations();
+    this.#running = true;
+    this.#settled = false;
+    this.#energy = null;
+    this.#iteration = 0;
   }
 
   apply(request: WorldSimulationRequest): void {
@@ -533,6 +539,8 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const dt = normalizedTimeStep(deltaMs);
     if (!this.#running || dt === 0 || this.#states.size === 0) return;
 
+    const d3OwnedGroups = this.#stepClusterSimulations(deltaMs);
+
     const forces = new Map<WorldInstanceId, [number, number, number]>();
     for (const id of this.#states.keys()) forces.set(id, [0, 0, 0]);
 
@@ -541,7 +549,9 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       groups.set(state.group, [...(groups.get(state.group) ?? []), state]);
     }
 
-    const forceGroups = [...groups.entries()].map(([key, states]) => forceGroup(key, states));
+    const forceGroups = [...groups.entries()]
+      .filter(([key]) => !d3OwnedGroups.has(key))
+      .map(([key, states]) => forceGroup(key, states));
     const crossPairs = crossGroupCandidates(forceGroups);
 
     // During direct manipulation geography is fixed. The dragged local group
@@ -551,7 +561,10 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const activeDragGroup = this.#pin
       ? (this.#states.get(this.#pin.instanceId)?.group ?? null)
       : null;
-    const activeGroups = activeDragGroup ? new Set<string>([activeDragGroup]) : null;
+    const activeGroups =
+      activeDragGroup && !d3OwnedGroups.has(activeDragGroup)
+        ? new Set<string>([activeDragGroup])
+        : null;
 
     if (activeDragGroup && activeGroups) {
       for (const [leftGroup, rightGroup] of crossPairs) {
@@ -571,7 +584,6 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
         for (let rightIndex = leftIndex + 1; rightIndex < states.length; rightIndex += 1) {
           const right = states[rightIndex];
           if (!right) continue;
-          if (this.#collapsing.has(left.node.id) || this.#collapsing.has(right.node.id)) continue;
           this.#applyPairForces(left, right, forces, false);
         }
       }
@@ -586,7 +598,6 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       }
       for (const left of leftGroup.states) {
         for (const right of rightGroup.states) {
-          if (this.#collapsing.has(left.node.id) || this.#collapsing.has(right.node.id)) continue;
           this.#applyPairForces(left, right, forces, true);
         }
       }
@@ -596,27 +607,19 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       const source = this.#states.get(edge.sourceId);
       const target = this.#states.get(edge.targetId);
       if (!source || !target || source.group !== target.group) continue;
+      if (d3OwnedGroups.has(source.group)) continue;
       if (activeGroups && !activeGroups.has(source.group)) continue;
-      if (this.#detached.has(source.node.id) || this.#detached.has(target.node.id)) continue;
       this.#applyEdgeForce(edge, source, target, forces);
     }
 
-    const placeDomains = new Map<string, PlaceDomain>();
-    for (const group of forceGroups) {
-      const domain = placeDomain(group.states);
-      if (domain) placeDomains.set(group.key, domain);
-    }
-
     for (const state of this.#states.values()) {
+      if (d3OwnedGroups.has(state.group)) continue;
       if (activeGroups && !activeGroups.has(state.group)) continue;
-      if (this.#collapsing.has(state.node.id)) {
-        const force = forces.get(state.node.id);
-        if (force) {
-          force[0] += -state.x * 0.08;
-          force[1] += -state.y * 0.08;
-          force[2] += -state.z * 0.06;
-        }
-        continue;
+      // The dragged group is free from anchor tug-of-war while directly
+      // manipulated. Nearby foreign groups keep their own anchor attraction,
+      // so they can yield to collision without losing geographic provenance.
+      if (!activeDragGroup || state.group !== activeDragGroup) {
+        this.#applyAnchorForce(state, forces);
       }
       this.#applyAltitudeForce(state, forces);
     }
@@ -626,6 +629,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
 
     let activeNodeCount = 0;
     for (const state of this.#states.values()) {
+      if (d3OwnedGroups.has(state.group)) continue;
       if (activeGroups && !activeGroups.has(state.group)) continue;
       activeNodeCount += 1;
       if (this.#pin?.instanceId === state.node.id) {
@@ -654,25 +658,26 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       state.y += state.vy * dt;
       state.z = Math.max(0, state.z + state.vz * dt);
 
-      // Geographic membership is a positional annulus constraint rather than
-      // a spring to the exact place coordinate. Tangential motion stays free
-      // for collision/relationship forces, while only radial violations are
-      // corrected. The whole dragged group remains unconstrained until drop.
-      const domainActivity =
-        !this.#collapsing.has(state.node.id) && (!activeDragGroup || state.group !== activeDragGroup)
-          ? this.#applyPlaceDomainConstraint(
-              state,
-              placeDomains.get(state.group) ?? null,
-              dt,
-            )
-          : 0;
-
-      energy += state.vx ** 2 + state.vy ** 2 + state.vz ** 2 + domainActivity;
+      energy += state.vx ** 2 + state.vy ** 2 + state.vz ** 2;
     }
 
     this.#iteration += 1;
-    this.#energy = energy / Math.max(1, activeNodeCount);
-    this.#settled = this.#energy <= this.#options.settleEnergy;
+    const referenceEnergy = energy / Math.max(1, activeNodeCount);
+    const d3Energy =
+      this.#clusterSimulations.size === 0
+        ? 0
+        : Math.max(
+            ...[...this.#clusterSimulations.values()].map(({ simulation }) =>
+              simulation.alpha() > simulation.alphaMin() ? simulation.alpha() : 0,
+            ),
+          );
+    this.#energy = Math.max(referenceEnergy, d3Energy);
+    this.#settled =
+      this.#energy <= this.#options.settleEnergy &&
+      this.#expandingPlaceIds.size === 0 &&
+      [...this.#clusterSimulations.values()].every(
+        ({ mode, simulation }) => mode === "collapse" || simulation.alpha() <= simulation.alphaMin(),
+      );
   }
 
   getDiagnostics(): WorldSimulationDiagnostics {
@@ -703,13 +708,133 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
   destroy(): void {
     if (this.#destroyed) return;
     this.#destroyed = true;
+    for (const { simulation } of this.#clusterSimulations.values()) simulation.stop();
+    this.#clusterSimulations.clear();
+    this.#clusteredPlaceIds.clear();
+    this.#expandingPlaceIds.clear();
     this.#states.clear();
     this.#edges = Object.freeze([]);
-    this.#collapsing.clear();
-    this.#detached.clear();
     this.#pin = null;
     this.#request = null;
     this.#running = false;
+  }
+
+  #rebuildClusterSimulations(): void {
+    for (const { simulation } of this.#clusterSimulations.values()) simulation.stop();
+    this.#clusterSimulations.clear();
+
+    const grouped = new Map<string, NodeState[]>();
+    for (const state of this.#states.values()) {
+      if (!state.anchor) continue;
+      const placeId = String(state.anchor.placeId);
+      const mode: D3ClusterMode | null = this.#clusteredPlaceIds.has(placeId)
+        ? "collapse"
+        : this.#expandingPlaceIds.has(placeId)
+          ? "expand"
+          : null;
+      if (!mode) continue;
+      const bucket = grouped.get(state.group);
+      if (bucket) bucket.push(state);
+      else grouped.set(state.group, [state]);
+    }
+
+    for (const [group, nodes] of grouped) {
+      const placeId = String(nodes[0]?.anchor?.placeId ?? "");
+      const mode: D3ClusterMode = this.#clusteredPlaceIds.has(placeId) ? "collapse" : "expand";
+      const memberIds = new Set(nodes.map((state) => state.node.id));
+      const links: D3ClusterLink[] = [];
+
+      const maximumRadius = Math.max(
+        1,
+        ...nodes.map((state) => state.node.collisionRadiusMeters),
+      );
+      const maximumRestLength = Math.max(
+        maximumRadius * 4,
+        ...links.map((link) => link.edge.restLengthMeters),
+      );
+
+      const simulation = forceSimulation<NodeState>(nodes)
+        .stop()
+        .alpha(D3_CLUSTER_ALPHA)
+        .alphaMin(D3_CLUSTER_ALPHA_MIN)
+        .alphaDecay(D3_CLUSTER_ALPHA_DECAY)
+        .alphaTarget(0);
+
+      if (links.length > 0) {
+        simulation.force(
+          "link",
+          forceLink<NodeState, D3ClusterLink>(links)
+            .id((state) => state.node.id)
+            .distance((link) => Math.max(link.edge.restLengthMeters, maximumRadius * 2))
+            .strength((link) => link.edge.strength),
+        );
+      } else {
+        simulation.force("link", null);
+      }
+
+      simulation.force(
+        "charge",
+        forceManyBody<NodeState>()
+          .strength(mode === "collapse" ? D3_CLUSTER_COLLAPSE_CHARGE : D3_CLUSTER_EXPAND_CHARGE)
+          .distanceMin(maximumRadius)
+          .distanceMax(Math.max(7_200, maximumRestLength * 4)),
+      );
+      simulation.force(
+        "collision",
+        forceCollide<NodeState>()
+          .radius((state) => state.node.collisionRadiusMeters)
+          .strength(D3_CLUSTER_COLLISION_STRENGTH)
+          .iterations(D3_CLUSTER_COLLISION_ITERATIONS),
+      );
+
+      const anchorStrength = (state: NodeState): number =>
+        mode === "collapse"
+          ? D3_CLUSTER_COLLAPSE_ANCHOR_STRENGTH
+          : D3_CLUSTER_EXPAND_ANCHOR_STRENGTH *
+            Math.max(0, Math.min(1, state.anchor?.influence ?? 0));
+      simulation.force("cluster-x", forceX<NodeState>(0).strength(anchorStrength));
+      simulation.force("cluster-y", forceY<NodeState>(0).strength(anchorStrength));
+
+      this.#clusterSimulations.set(
+        group,
+        Object.freeze({
+          group,
+          placeId,
+          mode,
+          simulation,
+        }),
+      );
+    }
+  }
+
+  #stepClusterSimulations(deltaMs: number): ReadonlySet<string> {
+    if (this.#clusterSimulations.size === 0) return new Set();
+
+    const ticks = Math.max(1, Math.min(2, Math.round(deltaMs / (1000 / 60)) || 1));
+    const owned = new Set<string>();
+    const finishedExpansions: string[] = [];
+
+    for (const [group, entry] of this.#clusterSimulations) {
+      owned.add(group);
+      if (entry.simulation.alpha() > entry.simulation.alphaMin()) {
+        entry.simulation.tick(ticks);
+      }
+      if (entry.mode === "expand" && entry.simulation.alpha() <= entry.simulation.alphaMin()) {
+        finishedExpansions.push(entry.placeId);
+      }
+    }
+
+    if (finishedExpansions.length > 0) {
+      for (const placeId of finishedExpansions) this.#expandingPlaceIds.delete(placeId);
+      for (const [group, entry] of this.#clusterSimulations) {
+        if (entry.mode === "expand" && finishedExpansions.includes(entry.placeId)) {
+          entry.simulation.stop();
+          this.#clusterSimulations.delete(group);
+        }
+      }
+    }
+
+    return owned;
   }
 
   #groupsCanInteract(
@@ -813,71 +938,23 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#addForce(forces, target.node.id, -unitX * magnitude, -unitY * magnitude, 0);
   }
 
-  #applyPlaceDomainConstraint(
+  #applyAnchorForce(
     state: NodeState,
-    domain: PlaceDomain | null,
-    dt: number,
-  ): number {
-    const anchor = state.anchor;
-    if (!anchor || !domain || anchor.influence <= 0 || dt <= 0) return 0;
-
+    forces: Map<WorldInstanceId, [number, number, number]>,
+  ): void {
+    if (!state.anchor) return;
     const radius = Math.hypot(state.x, state.y);
-    let unitX: number;
-    let unitY: number;
-    if (radius < 0.001) {
-      const [seedX, seedY] = seededOffset(state.node.id);
-      const seedRadius = Math.max(0.001, Math.hypot(seedX, seedY));
-      unitX = seedX / seedRadius;
-      unitY = seedY / seedRadius;
-    } else {
-      unitX = state.x / radius;
-      unitY = state.y / radius;
-    }
+    const excess = Math.max(0, radius - state.anchor.precisionRadiusMeters);
+    if (excess === 0 || radius < 0.001) return;
 
-    let radialError = 0;
-    if (radius < domain.innerRadiusMeters) {
-      radialError = domain.innerRadiusMeters - radius;
-    } else if (radius > domain.outerRadiusMeters) {
-      radialError = domain.outerRadiusMeters - radius;
-    } else {
-      return 0;
-    }
-
-    // Position-based radial relaxation avoids the oscillation of a long
-    // anchor spring. Correction is deliberately bounded, with a sqrt(error)
-    // catch-up term so a very long drag returns promptly without a single
-    // large snap. anchorStrength remains the backend softness control.
-    const relaxation = Math.min(
-      0.45,
-      this.#options.anchorStrength * anchor.influence * 24,
+    const magnitude = excess * state.anchor.influence * this.#options.anchorStrength;
+    this.#addForce(
+      forces,
+      state.node.id,
+      -(state.x / radius) * magnitude,
+      -(state.y / radius) * magnitude,
+      0,
     );
-    if (relaxation <= 0) return 0;
-    const desiredCorrection =
-      radialError * (1 - Math.pow(1 - relaxation, dt));
-    const maxCorrection =
-      Math.max(
-        state.node.collisionRadiusMeters * 2,
-        Math.sqrt(Math.abs(radialError)) * PLACE_DOMAIN_CORRECTION_SQRT_SCALE,
-      ) * dt;
-    const correction =
-      Math.sign(desiredCorrection) *
-      Math.min(Math.abs(desiredCorrection), maxCorrection);
-
-    state.x += unitX * correction;
-    state.y += unitY * correction;
-
-    // Remove only velocity that is driving farther out of the allowed band.
-    // Tangential velocity and velocity returning toward the band are retained.
-    const radialVelocity = state.vx * unitX + state.vy * unitY;
-    const movingFartherOut =
-      (radius < domain.innerRadiusMeters && radialVelocity < 0) ||
-      (radius > domain.outerRadiusMeters && radialVelocity > 0);
-    if (movingFartherOut) {
-      state.vx -= unitX * radialVelocity;
-      state.vy -= unitY * radialVelocity;
-    }
-
-    return correction ** 2;
   }
 
   #applyAltitudeForce(
