@@ -1460,8 +1460,8 @@ export class DeckWorldSurface implements WorldSurface {
     this.#cameraOwned = true;
     this.#camera = createWorldCameraState(camera);
     this.#syncSpatialMode();
-    this.#deck.setProps({ viewState: this.#camera });
     this.#reclusterIfZoomCrossedThreshold();
+    this.#deck.setProps({ viewState: this.#camera });
   }
 
   focusEntity(id: EntityId): void {
