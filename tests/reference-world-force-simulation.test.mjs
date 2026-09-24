@@ -142,6 +142,58 @@ test("default repulsion spreads a dense same-anchor group beyond label-scale cro
   assert.ok(minimum >= 200, `minimum same-anchor spacing was ${minimum}`);
 });
 
+test("cluster directives collapse to the place origin and expand through force rejection", () => {
+  const simulation = new ReferenceWorldForceSimulation();
+  const alice = '["alice","cluster"]';
+  const bob = '["bob","cluster"]';
+  simulation.setScene({
+    nodes: [
+      node(alice, { initialEastMeters: -800, collisionRadiusMeters: 180 }),
+      node(bob, { initialEastMeters: 800, collisionRadiusMeters: 180 }),
+    ],
+    edges: [
+      {
+        id: "cluster-link",
+        sourceId: alice,
+        targetId: bob,
+        strength: 0.4,
+        restLengthMeters: 900,
+      },
+    ],
+    anchors: [
+      anchor(alice, "stockholm", { influence: 1 }),
+      anchor(bob, "stockholm", { influence: 1 }),
+    ],
+  });
+
+  simulation.applyClusterDirective({ mode: "collapse", instanceIds: [alice, bob] });
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 120; index += 1) simulation.step(1000 / 60);
+
+  const collapsed = simulation.getSnapshot();
+  assert.ok(Math.abs(collapsed[0].eastMeters) < 100);
+  assert.ok(Math.abs(collapsed[1].eastMeters) < 100);
+
+  simulation.applyClusterDirective({ mode: "expand", instanceIds: [alice, bob] });
+  simulation.apply(topologyRequest());
+  const seeded = simulation.getSnapshot();
+  const seededDistance = Math.hypot(
+    seeded[1].eastMeters - seeded[0].eastMeters,
+    seeded[1].northMeters - seeded[0].northMeters,
+  );
+  for (let index = 0; index < 120; index += 1) simulation.step(1000 / 60);
+  const expanded = simulation.getSnapshot();
+  const expandedDistance = Math.hypot(
+    expanded[1].eastMeters - expanded[0].eastMeters,
+    expanded[1].northMeters - expanded[0].northMeters,
+  );
+
+  assert.ok(
+    expandedDistance > seededDistance,
+    "node separation must be produced by force rejection after declustering",
+  );
+});
+
 test("cross-place relationships never collapse geographic anchors into one local force group", () => {
   const commonNodes = [
     node('["alice","travel"]', { initialEastMeters: 100 }),
