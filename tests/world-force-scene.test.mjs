@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   createWorldForceScene,
   DEFAULT_WORLD_FORCE_SCENE_POLICY,
+  worldForceComponentCollisionRadiusPx,
 } from "../src/layout/world-force-scene.ts";
 import {
   createProjectedWorldEdge,
@@ -190,4 +191,16 @@ test("custom visible node size expands the force body instead of clipping throug
     node.collisionRadiusMeters,
     DEFAULT_WORLD_FORCE_SCENE_POLICY.baseCollisionRadiusMeters * (54 / 22),
   );
+});
+
+
+test("D3 component collision radius uses the largest rendered footprint", () => {
+  const scene = createWorldForceScene(sampleProjection());
+  assert.equal(
+    worldForceComponentCollisionRadiusPx(scene.nodes),
+    Math.max(...scene.nodes.map((node) => node.collisionRadiusPx)),
+  );
+
+  const tiny = scene.nodes.map((node) => ({ ...node, collisionRadiusPx: 1 }));
+  assert.equal(worldForceComponentCollisionRadiusPx(tiny), 22);
 });
