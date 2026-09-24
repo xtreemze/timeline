@@ -16,7 +16,6 @@ import {
   TextLayer,
 } from "@deck.gl/layers";
 import { webgl2Adapter } from "@luma.gl/webgl";
-import { webgpuAdapter } from "@luma.gl/webgpu";
 import type { DeckWorldBindings } from "./deck-world-runtime.ts";
 import type { DeckRuntimeInstance, DeckRuntimePickingInfo } from "./deck-world-surface.ts";
 
@@ -41,85 +40,87 @@ function wrapDeckInstance(deck: InstanceType<typeof Deck>): DeckRuntimeInstance 
   });
 }
 
-/**
- * Resolves true once the browser actually grants a WebGPU adapter. luma's
- * "best-available" only checks that `navigator.gpu` exists and then fails
- * outright when no adapter is granted (blocklisted GPU, headless, policy).
- */
-const webgpuUsable: Promise<boolean> = (async () => {
-  try {
-    const gpu = (
-      globalThis.navigator as { gpu?: { requestAdapter(): Promise<unknown> } } | undefined
-    )?.gpu;
-    return Boolean(await gpu?.requestAdapter());
-  } catch {
-    return false;
-  }
-})();
+type WebGpuAdapter = (typeof import("@luma.gl/webgpu"))["webgpuAdapter"];
 
 /**
- * WebGPU adapter that falls back to WebGL2 when no WebGPU adapter is
- * granted, so device selection never fails the world view (Orb would then
- * take over).
+ * WebGPU stays out of the default production graph. deck.gl 9.4 cannot pick
+ * on its WebGPU backend yet, so the app remains WebGL2-first and loads the
+ * experimental adapter only for the explicit `?renderer=webgpu` path.
  */
-const webgpuOrWebgl2Adapter: typeof webgpuAdapter = Object.assign(Object.create(webgpuAdapter), {
-  async create(props: Parameters<typeof webgpuAdapter.create>[0]) {
-    return (await webgpuUsable) ? webgpuAdapter.create(props) : webgl2Adapter.create(props);
-  },
-});
+function createWebgpuOrWebgl2Adapter(webgpuAdapter: WebGpuAdapter): WebGpuAdapter {
+  const webgpuUsable: Promise<boolean> = (async () => {
+    try {
+      const gpu = (
+        globalThis.navigator as { gpu?: { requestAdapter(): Promise<unknown> } } | undefined
+      )?.gpu;
+      return Boolean(await gpu?.requestAdapter());
+    } catch {
+      return false;
+    }
+  })();
 
-/**
- * WebGL2 by default. deck.gl 9.4's WebGPU backend renders the globe but
- * cannot pick yet (synchronous readback is "not implemented" and async
- * readback returns empty), which would break clicking and dragging nodes.
- * `?renderer=webgpu` opts in to WebGPU (falling back to WebGL2 when no
- * adapter is granted) for evaluation until deck supports WebGPU picking.
- */
-function worldDeviceProps() {
-  const requested = new URLSearchParams(globalThis.location?.search ?? "").get("renderer");
-  if (requested !== "webgpu") return { type: "webgl" as const };
+  return Object.assign(Object.create(webgpuAdapter), {
+    async create(props: Parameters<WebGpuAdapter["create"]>[0]) {
+      return (await webgpuUsable) ? webgpuAdapter.create(props) : webgl2Adapter.create(props);
+    },
+  });
+}
+
+function worldDeviceProps(webgpuAdapter?: WebGpuAdapter) {
+  if (!webgpuAdapter) return { type: "webgl" as const };
   return {
     type: "best-available" as const,
-    adapters: [webgpuOrWebgl2Adapter],
+    adapters: [createWebgpuOrWebgl2Adapter(webgpuAdapter)],
     // Deck only defaults to a premultiplied (transparent) canvas when the
     // type is exactly "webgpu"; without it WebGPU composites over black.
     createCanvasContext: { alphaMode: "premultiplied" as const },
   };
 }
 
-export const realDeckWorldBindings: DeckWorldBindings = Object.freeze({
-  deck(props) {
-    return wrapDeckInstance(
-      new Deck({
-        ...(props as ConstructorParameters<typeof Deck>[0]),
-        deviceProps: worldDeviceProps(),
-        // Exposes the negotiated backend ("webgpu" | "webgl") to CSS/tests.
-        onDeviceInitialized: (device) => {
-          const parent = (props as { parent?: HTMLElement }).parent;
-          parent?.setAttribute?.("data-world-renderer", device.type);
-        },
-      }),
-    );
-  },
-  globeView(props) {
-    return new GlobeView(props as ConstructorParameters<typeof GlobeView>[0]);
-  },
-  mapView(props) {
-    return new MapView(props as ConstructorParameters<typeof MapView>[0]);
-  },
-  scatterplotLayer(props) {
-    return new ScatterplotLayer(props as ConstructorParameters<typeof ScatterplotLayer>[0]);
-  },
-  pathLayer(props) {
-    return new PathLayer(props as ConstructorParameters<typeof PathLayer>[0]);
-  },
-  solidPolygonLayer(props) {
-    return new SolidPolygonLayer(props as ConstructorParameters<typeof SolidPolygonLayer>[0]);
-  },
-  iconLayer(props) {
-    return new IconLayer(props as ConstructorParameters<typeof IconLayer>[0]);
-  },
-  textLayer(props) {
-    return new TextLayer(props as ConstructorParameters<typeof TextLayer>[0]);
-  },
-});
+function createRealDeckWorldBindings(webgpuAdapter?: WebGpuAdapter): DeckWorldBindings {
+  return Object.freeze({
+    deck(props) {
+      return wrapDeckInstance(
+        new Deck({
+          ...(props as ConstructorParameters<typeof Deck>[0]),
+          deviceProps: worldDeviceProps(webgpuAdapter),
+          // Exposes the negotiated backend ("webgpu" | "webgl") to CSS/tests.
+          onDeviceInitialized: (device) => {
+            const parent = (props as { parent?: HTMLElement }).parent;
+            parent?.setAttribute?.("data-world-renderer", device.type);
+          },
+        }),
+      );
+    },
+    globeView(props) {
+      return new GlobeView(props as ConstructorParameters<typeof GlobeView>[0]);
+    },
+    mapView(props) {
+      return new MapView(props as ConstructorParameters<typeof MapView>[0]);
+    },
+    scatterplotLayer(props) {
+      return new ScatterplotLayer(props as ConstructorParameters<typeof ScatterplotLayer>[0]);
+    },
+    pathLayer(props) {
+      return new PathLayer(props as ConstructorParameters<typeof PathLayer>[0]);
+    },
+    solidPolygonLayer(props) {
+      return new SolidPolygonLayer(props as ConstructorParameters<typeof SolidPolygonLayer>[0]);
+    },
+    iconLayer(props) {
+      return new IconLayer(props as ConstructorParameters<typeof IconLayer>[0]);
+    },
+    textLayer(props) {
+      return new TextLayer(props as ConstructorParameters<typeof TextLayer>[0]);
+    },
+  });
+}
+
+export const realDeckWorldBindings = createRealDeckWorldBindings();
+
+export async function loadRealDeckWorldBindings(): Promise<DeckWorldBindings> {
+  const requested = new URLSearchParams(globalThis.location?.search ?? "").get("renderer");
+  if (requested !== "webgpu") return realDeckWorldBindings;
+  const { webgpuAdapter } = await import("@luma.gl/webgpu");
+  return createRealDeckWorldBindings(webgpuAdapter);
+}
