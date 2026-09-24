@@ -224,6 +224,158 @@ test("nearby floating nodes from different place anchors repel in shared world s
   assert.ok(after[1].eastMeters > before[1].eastMeters);
 });
 
+test("cross-anchor collision uses true 3D altitude separation", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const low = '["alice","low"]';
+  const high = '["bob","high"]';
+  simulation.setScene({
+    nodes: [
+      node(low, {
+        collisionRadiusMeters: 220,
+        targetVisualAltitudeMeters: 900,
+      }),
+      node(high, {
+        collisionRadiusMeters: 220,
+        targetVisualAltitudeMeters: 1100,
+      }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(low, "low-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(high, "high-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+    ],
+  });
+
+  const before = simulation.getSnapshot();
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
+  const after = simulation.getSnapshot();
+
+  const beforeLow = before.find((entry) => entry.instanceId === low);
+  const beforeHigh = before.find((entry) => entry.instanceId === high);
+  const afterLow = after.find((entry) => entry.instanceId === low);
+  const afterHigh = after.find((entry) => entry.instanceId === high);
+
+  assert.ok(afterLow.visualAltitudeMeters < beforeLow.visualAltitudeMeters);
+  assert.ok(afterHigh.visualAltitudeMeters > beforeHigh.visualAltitudeMeters);
+  assert.ok(
+    afterHigh.visualAltitudeMeters - afterLow.visualAltitudeMeters >
+      beforeHigh.visualAltitudeMeters - beforeLow.visualAltitudeMeters,
+    "cross-place nodes separate along altitude when that is their collision axis",
+  );
+});
+
+test("broad phase finds floating nodes that meet far from their different anchors", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const west = '["alice","far-west-anchor"]';
+  const east = '["bob","far-east-anchor"]';
+
+  simulation.setScene({
+    nodes: [
+      node(west, {
+        initialEastMeters: 110_000,
+        collisionRadiusMeters: 3_000,
+      }),
+      node(east, {
+        initialEastMeters: -110_000,
+        collisionRadiusMeters: 3_000,
+      }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(west, "far-west-anchor", {
+        longitude: 0,
+        latitude: 0,
+        influence: 0,
+      }),
+      anchor(east, "far-east-anchor", {
+        longitude: 2,
+        latitude: 0,
+        influence: 0,
+      }),
+    ],
+  });
+
+  const before = simulation.getSnapshot();
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
+  const after = simulation.getSnapshot();
+
+  assert.notDeepEqual(
+    after,
+    before,
+    "floating nodes must interact even when their anchors are more than one broad-phase bucket apart",
+  );
+});
+
+test("cross-anchor rejection maintains breathing room beyond hard collision radii", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 48_000,
+    collisionStrength: 0.28,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.84,
+    settleEnergy: 0,
+  });
+  const left = '["alice","readable-left"]';
+  const right = '["bob","readable-right"]';
+  simulation.setScene({
+    nodes: [
+      node(left, { initialEastMeters: 0, collisionRadiusMeters: 180 }),
+      node(right, { initialEastMeters: 0, collisionRadiusMeters: 180 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(left, "readable-left", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(right, "readable-right", {
+        longitude: 18.069,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+    ],
+  });
+
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 120; index += 1) simulation.step(1000 / 60);
+  const [a, b] = simulation.getSnapshot();
+  const localDistance = Math.hypot(
+    b.eastMeters - a.eastMeters,
+    b.northMeters - a.northMeters,
+    b.visualAltitudeMeters - a.visualAltitudeMeters,
+  );
+
+  assert.ok(
+    localDistance > 360,
+    `expected readable gap beyond hard 360m collision diameter, got ${localDistance}`,
+  );
+});
+
 test("cross-anchor proximity remains continuous across the dateline", () => {
   const simulation = new ReferenceWorldForceSimulation({
     repulsionStrength: 0,
