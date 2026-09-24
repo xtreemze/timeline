@@ -192,11 +192,7 @@ function anchorBasis(anchor: WorldForceAnchor): Readonly<{
 function anchorCartesian(anchor: WorldForceAnchor): Vector3 {
   const basis = anchorBasis(anchor);
   const radius = EARTH_RADIUS_METERS + anchor.sourceAltitudeMeters;
-  return Object.freeze([
-    basis.up[0] * radius,
-    basis.up[1] * radius,
-    basis.up[2] * radius,
-  ]);
+  return Object.freeze([basis.up[0] * radius, basis.up[1] * radius, basis.up[2] * radius]);
 }
 
 function localVectorToCartesian(anchor: WorldForceAnchor, vector: Vector3): Vector3 {
@@ -221,11 +217,7 @@ function stateCartesian(state: NodeState): Vector3 | null {
   if (!state.anchor) return null;
   const origin = anchorCartesian(state.anchor);
   const local = localVectorToCartesian(state.anchor, [state.x, state.y, state.z]);
-  return Object.freeze([
-    origin[0] + local[0],
-    origin[1] + local[1],
-    origin[2] + local[2],
-  ]);
+  return Object.freeze([origin[0] + local[0], origin[1] + local[1], origin[2] + local[2]]);
 }
 
 function cartesianDistance(left: Vector3, right: Vector3): number {
@@ -236,10 +228,7 @@ function forceGroup(key: string, states: readonly NodeState[]): ForceGroup {
   const anchor = states.find((state) => state.anchor)?.anchor ?? null;
   const extentMeters = states.reduce(
     (extent, state) =>
-      Math.max(
-        extent,
-        Math.hypot(state.x, state.y, state.z) + state.node.collisionRadiusMeters,
-      ),
+      Math.max(extent, Math.hypot(state.x, state.y, state.z) + state.node.collisionRadiusMeters),
     0,
   );
   if (!anchor) {
@@ -272,17 +261,10 @@ function placeDomain(states: readonly NodeState[]): PlaceDomain | null {
   // of every entity. Keep the authored place marker clear, then give the
   // group enough annular area to spread through collision/relationship
   // forces without assigning rigid angular slots.
-  const innerRadiusMeters = Math.max(
-    1,
-    maxCollisionRadiusMeters * PLACE_DOMAIN_INNER_RADIUS_SCALE,
-  );
+  const innerRadiusMeters = Math.max(1, maxCollisionRadiusMeters * PLACE_DOMAIN_INNER_RADIUS_SCALE);
   const packingWidthMeters =
-    maxCollisionRadiusMeters *
-    Math.max(2, Math.sqrt(anchored.length) * PLACE_DOMAIN_WIDTH_SCALE);
-  const outerRadiusMeters = Math.max(
-    innerRadiusMeters + packingWidthMeters,
-    precisionRadiusMeters,
-  );
+    maxCollisionRadiusMeters * Math.max(2, Math.sqrt(anchored.length) * PLACE_DOMAIN_WIDTH_SCALE);
+  const outerRadiusMeters = Math.max(innerRadiusMeters + packingWidthMeters, precisionRadiusMeters);
 
   return Object.freeze({ innerRadiusMeters, outerRadiusMeters });
 }
@@ -308,10 +290,7 @@ function crossGroupCandidates(
         maxX: group.center[0] + radiusMeters,
       });
     })
-    .sort(
-      (left, right) =>
-        left.minX - right.minX || left.group.key.localeCompare(right.group.key),
-    );
+    .sort((left, right) => left.minX - right.minX || left.group.key.localeCompare(right.group.key));
 
   const active: CrossGroupSweepEntry[] = [];
   const pairs: Array<readonly [ForceGroup, ForceGroup]> = [];
@@ -342,11 +321,7 @@ function crossGroupCandidates(
 
 function pairDeltaMeters(left: NodeState, right: NodeState): PairDelta | null {
   if (left.group === right.group) {
-    const delta = Object.freeze([
-      right.x - left.x,
-      right.y - left.y,
-      right.z - left.z,
-    ]) as Vector3;
+    const delta = Object.freeze([right.x - left.x, right.y - left.y, right.z - left.z]) as Vector3;
     return Object.freeze({
       leftLocal: delta,
       rightLocal: delta,
@@ -374,16 +349,12 @@ function pairDeltaMeters(left: NodeState, right: NodeState): PairDelta | null {
 
 function readableSeparationDistance(left: NodeState, right: NodeState): number {
   return (
-    (left.node.collisionRadiusMeters + right.node.collisionRadiusMeters) *
-    READABLE_SEPARATION_SCALE
+    (left.node.collisionRadiusMeters + right.node.collisionRadiusMeters) * READABLE_SEPARATION_SCALE
   );
 }
 
 function crossAnchorInteractionRadius(left: NodeState, right: NodeState): number {
-  return Math.max(
-    CROSS_ANCHOR_FORCE_RADIUS_METERS,
-    readableSeparationDistance(left, right) * 4,
-  );
+  return Math.max(CROSS_ANCHOR_FORCE_RADIUS_METERS, readableSeparationDistance(left, right) * 4);
 }
 
 export class ReferenceWorldForceSimulation implements WorldForceSimulationBackend {
@@ -545,10 +516,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     }
 
     for (const [leftGroup, rightGroup] of crossPairs) {
-      if (
-        activeGroups &&
-        (!activeGroups.has(leftGroup.key) || !activeGroups.has(rightGroup.key))
-      ) {
+      if (activeGroups && (!activeGroups.has(leftGroup.key) || !activeGroups.has(rightGroup.key))) {
         continue;
       }
       for (const left of leftGroup.states) {
@@ -617,11 +585,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       // corrected. The whole dragged group remains unconstrained until drop.
       const domainActivity =
         !activeDragGroup || state.group !== activeDragGroup
-          ? this.#applyPlaceDomainConstraint(
-              state,
-              placeDomains.get(state.group) ?? null,
-              dt,
-            )
+          ? this.#applyPlaceDomainConstraint(state, placeDomains.get(state.group) ?? null, dt)
           : 0;
 
       energy += state.vx ** 2 + state.vy ** 2 + state.vz ** 2 + domainActivity;
@@ -667,10 +631,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#running = false;
   }
 
-  #groupsCanInteract(
-    leftStates: readonly NodeState[],
-    rightStates: readonly NodeState[],
-  ): boolean {
+  #groupsCanInteract(leftStates: readonly NodeState[], rightStates: readonly NodeState[]): boolean {
     for (const left of leftStates) {
       for (const right of rightStates) {
         const delta = pairDeltaMeters(left, right);
@@ -721,8 +682,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       ]);
     }
 
-    const hardMinimumDistance =
-      left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
+    const hardMinimumDistance = left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
     const readableDistance = readableSeparationDistance(left, right);
     const repulsion = this.#options.repulsionStrength / Math.max(100, distance ** 2);
     const readableCollision =
@@ -768,11 +728,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#addForce(forces, target.node.id, -unitX * magnitude, -unitY * magnitude, 0);
   }
 
-  #applyPlaceDomainConstraint(
-    state: NodeState,
-    domain: PlaceDomain | null,
-    dt: number,
-  ): number {
+  #applyPlaceDomainConstraint(state: NodeState, domain: PlaceDomain | null, dt: number): number {
     const anchor = state.anchor;
     if (!anchor || !domain || anchor.influence <= 0 || dt <= 0) return 0;
 
@@ -802,21 +758,16 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     // anchor spring. Correction is deliberately bounded, with a sqrt(error)
     // catch-up term so a very long drag returns promptly without a single
     // large snap. anchorStrength remains the backend softness control.
-    const relaxation = Math.min(
-      0.45,
-      this.#options.anchorStrength * anchor.influence * 24,
-    );
+    const relaxation = Math.min(0.45, this.#options.anchorStrength * anchor.influence * 24);
     if (relaxation <= 0) return 0;
-    const desiredCorrection =
-      radialError * (1 - Math.pow(1 - relaxation, dt));
+    const desiredCorrection = radialError * (1 - Math.pow(1 - relaxation, dt));
     const maxCorrection =
       Math.max(
         state.node.collisionRadiusMeters * 2,
         Math.sqrt(Math.abs(radialError)) * PLACE_DOMAIN_CORRECTION_SQRT_SCALE,
       ) * dt;
     const correction =
-      Math.sign(desiredCorrection) *
-      Math.min(Math.abs(desiredCorrection), maxCorrection);
+      Math.sign(desiredCorrection) * Math.min(Math.abs(desiredCorrection), maxCorrection);
 
     state.x += unitX * correction;
     state.y += unitY * correction;
