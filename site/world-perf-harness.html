@@ -1,11 +1,25 @@
 <!doctype html>
 <html>
   <head>
+    <link rel="icon" href="data:," />
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>World performance certification harness</title>
     <style>
       html, body { margin: 0; padding: 0; background: #111; height: 100%; overflow: hidden; }
+      /* Same visually-hidden rule as site/styles.css so accessibility
+         surfaces behave here exactly as in the app. */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
       /* Fills the viewport rather than a fixed 1024x768 so this harness can
          also be driven at mobile portrait/landscape sizes (issue #445
          Priority 8, item 7) without introducing page-level scroll. The

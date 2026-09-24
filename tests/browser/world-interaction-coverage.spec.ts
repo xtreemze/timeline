@@ -602,6 +602,117 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     expect(result.afterExitLocal).toEqual(expected);
   });
 
+  test("a navigable non-WebGL outline mirrors the world and drives canonical selection", async ({
+    page,
+  }) => {
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const setScene = (extraEntity: boolean) =>
+      page.evaluate(async (withExtra) => {
+        const helpersModulePath = "/world-test-helpers.mjs";
+        const { createProjectedWorldEdge, createProjectedWorldInstance, createWorldProjection } =
+          await import(helpersModulePath);
+        const endpoint = (name: string, longitude: number) =>
+          createProjectedWorldInstance({
+            id: `${name}::meeting`,
+            canonicalId: name,
+            label: `Label ${name}`,
+            occurrenceId: "meeting",
+            geographicAnchors: [
+              {
+                placeId: `place-${name}`,
+                label: `Place ${name}`,
+                longitude,
+                latitude: 20,
+                influence: 1,
+              },
+            ],
+            temporalWeight: 1,
+            visualWeight: 1,
+            retained: false,
+          });
+        const source = endpoint("source", -8);
+        const target = endpoint("target", 8);
+        const instances = withExtra ? [source, target, endpoint("extra", 0)] : [source, target];
+        window.__worldPerfHarness.surface.setProjection(
+          createWorldProjection({
+            instances,
+            edges: [
+              createProjectedWorldEdge({
+                id: "meeting",
+                label: "met",
+                sourceInstanceId: source.id,
+                targetInstanceId: target.id,
+                temporalWeight: 1,
+                visible: true,
+                retained: false,
+              }),
+            ],
+          }),
+        );
+      }, extraEntity);
+
+    await setScene(false);
+    const outline = page.getByRole("navigation", { name: "World objects" });
+    await expect(outline).toHaveCount(1);
+    await expect(
+      outline.getByRole("button", { name: "met: Label source → Label target" }),
+    ).toHaveCount(1);
+    const targetButton = outline.getByRole("button", { name: "Label target", exact: true });
+    await expect(targetButton).toHaveAttribute("aria-pressed", "false");
+
+    // Keyboard activation selects the canonical entity on the WebGL surface.
+    await targetButton.focus();
+    const revealed = await outline.boundingBox();
+    expect(
+      (revealed?.width ?? 0) > 100 && (revealed?.height ?? 0) > 40,
+      "the outline is revealed while a keyboard user is inside it",
+    ).toBe(true);
+    await page.keyboard.press("Enter");
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.__worldPerfHarness.surface.getAccessibleSnapshot().selection),
+      )
+      .toEqual({ kind: "entity", id: "target" });
+    await expect(targetButton).toHaveAttribute("aria-pressed", "true");
+
+    // Surface-side selection changes are mirrored back.
+    await page.evaluate(() =>
+      window.__worldPerfHarness.surface.setSelection({
+        kind: "relationship",
+        id: "meeting",
+      } as Parameters<typeof window.__worldPerfHarness.surface.setSelection>[0]),
+    );
+    await expect(
+      outline.getByRole("button", { name: "met: Label source → Label target" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(targetButton).toHaveAttribute("aria-pressed", "false");
+
+    // With a selection already active, Enter on another entry still activates
+    // it, and Tab moves between outline entries instead of cycling the globe.
+    const sourceButton = outline.getByRole("button", { name: "Label source", exact: true });
+    await sourceButton.focus();
+    await page.keyboard.press("Enter");
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.__worldPerfHarness.surface.getAccessibleSnapshot().selection),
+      )
+      .toEqual({ kind: "entity", id: "source" });
+    await page.keyboard.press("Tab");
+    await expect(targetButton).toBeFocused();
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.__worldPerfHarness.surface.getAccessibleSnapshot().selection),
+      )
+      .toEqual({ kind: "entity", id: "source" });
+
+    // A projection update keeps keyboard focus on the same canonical object.
+    await targetButton.focus();
+    await setScene(true);
+    await expect(outline.getByRole("button", { name: "Label extra", exact: true })).toHaveCount(1);
+    await expect(targetButton).toBeFocused();
+  });
+
   test("the role=status live region text tracks selection and projection changes", async ({
     page,
   }) => {
