@@ -50,5 +50,5 @@
     }
   },
   "include": ["globals.d.ts", "src/**/*.js", "site/**/*.js", "tests/**/*.mjs", "benchmarks/**/*.mjs"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "site/orb-graph.bundle.js"]
 }
