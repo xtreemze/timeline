@@ -1,7 +1,7 @@
-import type { WorldInstanceId, WorldProjection } from "../projection/world-projection.ts";
-import {
-  createProjectedWorldInstance,
-  createWorldProjection,
+import type {
+  ProjectedWorldInstance,
+  WorldInstanceId,
+  WorldProjection,
 } from "../projection/world-projection.ts";
 
 export interface WorldForceLayoutSample {
@@ -9,6 +9,11 @@ export interface WorldForceLayoutSample {
   readonly eastMeters: number;
   readonly northMeters: number;
   readonly visualAltitudeMeters: number;
+}
+
+export interface WorldForceLayoutUpdate {
+  readonly projection: WorldProjection;
+  readonly updatedInstances: readonly ProjectedWorldInstance[];
 }
 
 function finite(value: number, label: string): number {
@@ -22,19 +27,13 @@ function nonNegative(value: number, label: string): number {
   return result;
 }
 
-export function applyWorldForceLayout(
+export function applyWorldForceLayoutUpdate(
   projection: WorldProjection,
   samples: readonly WorldForceLayoutSample[],
-): WorldProjection {
-  const knownIds = new Set(projection.instances.map((instance) => instance.id));
+): WorldForceLayoutUpdate {
   const byId = new Map<WorldInstanceId, WorldForceLayoutSample>();
 
   for (const sample of samples) {
-    if (!knownIds.has(sample.instanceId)) {
-      throw new Error(
-        `World force layout sample references unknown instance ${String(sample.instanceId)}.`,
-      );
-    }
     if (byId.has(sample.instanceId)) {
       throw new Error(`Duplicate world force layout sample for ${String(sample.instanceId)}.`);
     }
@@ -53,27 +52,72 @@ export function applyWorldForceLayout(
     );
   }
 
-  return createWorldProjection({
-    instances: projection.instances.map((instance) => {
-      const sample = byId.get(instance.id);
-      if (!sample) return instance;
-      if (
-        instance.localOffset?.eastMeters === sample.eastMeters &&
-        instance.localOffset?.northMeters === sample.northMeters &&
-        instance.visualAltitude === sample.visualAltitudeMeters
-      ) {
-        return instance;
-      }
+  if (byId.size === 0) {
+    return Object.freeze({
+      projection,
+      updatedInstances: Object.freeze([]),
+    });
+  }
 
-      return createProjectedWorldInstance({
-        ...instance,
-        localOffset: {
-          eastMeters: sample.eastMeters,
-          northMeters: sample.northMeters,
-        },
-        visualAltitude: sample.visualAltitudeMeters,
-      });
-    }),
-    edges: projection.edges,
+  const matchedIds = new Set<WorldInstanceId>();
+  const updatedInstances: ProjectedWorldInstance[] = [];
+  const instances = projection.instances.map((instance) => {
+    const sample = byId.get(instance.id);
+    if (!sample) return instance;
+    matchedIds.add(instance.id);
+
+    if (
+      instance.localOffset?.eastMeters === sample.eastMeters &&
+      instance.localOffset?.northMeters === sample.northMeters &&
+      instance.visualAltitude === sample.visualAltitudeMeters
+    ) {
+      return instance;
+    }
+
+    // This is a renderer-derived position update over an already validated,
+    // immutable projection. Preserve static topology/presentation objects
+    // instead of revalidating/cloning anchors and edges on every force frame.
+    const updated = Object.freeze({
+      ...instance,
+      localOffset: Object.freeze({
+        eastMeters: sample.eastMeters,
+        northMeters: sample.northMeters,
+      }),
+      visualAltitude: sample.visualAltitudeMeters,
+    }) as ProjectedWorldInstance;
+    updatedInstances.push(updated);
+    return updated;
   });
+
+  if (matchedIds.size !== byId.size) {
+    for (const instanceId of byId.keys()) {
+      if (!matchedIds.has(instanceId)) {
+        throw new Error(
+          `World force layout sample references unknown instance ${String(instanceId)}.`,
+        );
+      }
+    }
+  }
+
+  if (updatedInstances.length === 0) {
+    return Object.freeze({
+      projection,
+      updatedInstances: Object.freeze([]),
+    });
+  }
+
+  return Object.freeze({
+    projection: Object.freeze({
+      instances: Object.freeze(instances),
+      edges: projection.edges,
+    }),
+    updatedInstances: Object.freeze(updatedInstances),
+  });
+}
+
+export function applyWorldForceLayout(
+  projection: WorldProjection,
+  samples: readonly WorldForceLayoutSample[],
+): WorldProjection {
+  return applyWorldForceLayoutUpdate(projection, samples).projection;
 }
