@@ -6,7 +6,7 @@
  * defaults; anything invalid or missing falls back to them.
  */
 
-export type WorldNodeShape = "circle" | "square" | "diamond" | "hexagon";
+export type WorldNodeShape = "circle" | "square" | "diamond" | "hexagon" | "pin";
 
 /** Theme colours, resolved by the host from its light/dark tokens. */
 export interface WorldGraphPalette {
@@ -66,7 +66,7 @@ export interface WorldEdgeStyle {
 }
 
 const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
-const SHAPES: readonly WorldNodeShape[] = ["circle", "square", "diamond", "hexagon"];
+const SHAPES: readonly WorldNodeShape[] = ["circle", "square", "diamond", "hexagon", "pin"];
 
 function record(value: unknown): Readonly<Record<string, unknown>> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -194,36 +194,62 @@ export function worldNodeStyle(
   });
 }
 
-/** Place anchors honour the place's own map marker style. */
+/** Place anchors use the same marker grammar as graph nodes without becoming semantic graph nodes. */
 export function worldPlaceStyle(
   placeStyle: unknown,
   selected: boolean,
   palette: WorldGraphPalette,
+  emphasized = false,
 ): WorldNodeStyle {
-  const marker = record(record(placeStyle)?.["marker"]) ?? {};
+  const own = record(placeStyle) ?? {};
+  const marker = record(own["marker"]) ?? {};
+  const ownShape = text(
+    marker["shape"] ?? marker["markerShape"] ?? own["markerShape"] ?? own["shape"],
+    16,
+  )?.toLowerCase();
   const fill =
     color(marker["fillColor"]) ??
     color(marker["fill"]) ??
+    color(own["fillColor"]) ??
+    color(own["fill"]) ??
     color(marker["color"]) ??
     defaultNodeFill("place", palette);
   const border =
     color(marker["borderColor"]) ??
     color(marker["stroke"]) ??
+    color(own["borderColor"]) ??
+    color(own["stroke"]) ??
     color(marker["color"]) ??
     palette.paper;
   const borderWidth =
     number(marker["borderWidth"], 0, 8) ??
     number(marker["strokeWidth"], 0, 8) ??
     number(marker["weight"], 0, 8) ??
+    number(own["borderWidth"], 0, 8) ??
     2;
+  const authoredRadius =
+    number(marker["radius"], 4, 32) ??
+    number(own["radius"], 4, 32) ??
+    (number(marker["size"], 8, 64) ?? number(own["size"], 8, 64) ?? 44) / 2;
   return Object.freeze({
     fill,
     border,
-    borderWidth: selected ? Math.max(4, borderWidth + 1) : borderWidth,
-    shape: "circle",
-    icon: null,
-    image: null,
-    radius: Math.round((number(marker["size"], 8, 48) ?? 12) / 2) + (selected ? 2 : 0),
+    borderWidth: selected
+      ? Math.max(4, borderWidth + 1)
+      : emphasized
+        ? Math.max(3, borderWidth + 1)
+        : borderWidth,
+    shape: SHAPES.includes(ownShape as WorldNodeShape)
+      ? (ownShape as WorldNodeShape)
+      : "pin",
+    icon: text(marker["icon"] ?? own["icon"], 48) ?? "place",
+    image: text(
+      marker["image"] ?? marker["imageUrl"] ?? own["image"] ?? own["imageUrl"],
+      2048,
+    ),
+    radius:
+      Math.max(WORLD_ENTITY_MIN_HIT_RADIUS_PX, Math.round(authoredRadius)) +
+      (selected ? 2 : emphasized ? 1 : 0),
   });
 }
 
