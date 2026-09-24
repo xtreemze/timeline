@@ -19,7 +19,10 @@ import {
   createTemporalOccurrenceIndex,
   type TemporalOccurrenceIndex,
 } from "../../src/projection/temporal-occurrence-index.ts";
-import { projectWorldOccurrences } from "../../src/projection/world-occurrence-projection.ts";
+import {
+  projectWorldOccurrences,
+  type WorldEntityPresentation,
+} from "../../src/projection/world-occurrence-projection.ts";
 import type { WorldProjection } from "../../src/projection/world-projection.ts";
 import { TimelineTemporal } from "../temporal-standards.ts";
 
@@ -38,6 +41,7 @@ interface InputEntity {
   readonly id?: unknown;
   readonly name?: unknown;
   readonly type?: unknown;
+  readonly attributes?: unknown;
 }
 
 interface InputPlace {
@@ -45,6 +49,7 @@ interface InputPlace {
   readonly name?: unknown;
   readonly geometry?: unknown;
   readonly accuracyMeters?: unknown;
+  readonly style?: unknown;
 }
 
 interface InputRelationship {
@@ -158,6 +163,7 @@ function canonicalPlaces(input: readonly InputPlace[]): readonly SpatialPlaceRec
         ...(text(raw.name) ? { label: text(raw.name) } : {}),
         geometry,
         ...(radius === undefined ? {} : { precisionRadiusMeters: radius }),
+        ...(isRecord(raw.style) ? { style: Object.freeze({ ...raw.style }) } : {}),
       }),
     );
   }
@@ -238,7 +244,7 @@ export class WorldProjectionView {
   #focusId: string | null = null;
   #presentationMode = false;
   #entityIds = new Set<string>();
-  #entityPresentation = new Map<EntityId, Readonly<{ label?: string; kind?: string }>>();
+  #entityPresentation = new Map<EntityId, WorldEntityPresentation>();
   #placeIds = new Set<string>();
 
   constructor(runtime: WorldProjectionRuntime) {
@@ -257,18 +263,17 @@ export class WorldProjectionView {
           if (!id) return null;
           const label = text(entity.name);
           const kind = text(entity.type);
+          const style = isRecord(entity.attributes) ? entity.attributes.style : undefined;
           return [
             entityId(id),
             Object.freeze({
               ...(label ? { label } : {}),
               ...(kind ? { kind } : {}),
+              ...(isRecord(style) ? { style: Object.freeze({ ...style }) } : {}),
             }),
           ] as const;
         })
-        .filter(
-          (entry): entry is readonly [EntityId, Readonly<{ label?: string; kind?: string }>] =>
-            entry !== null,
-        ),
+        .filter((entry): entry is readonly [EntityId, WorldEntityPresentation] => entry !== null),
     );
     this.#placeIds = new Set(places.map((place) => String(place.id)));
 

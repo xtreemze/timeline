@@ -289,3 +289,65 @@ export function typicalLocalOffsetMeters(
   if (distances.length === 0) return 0;
   return distances[Math.min(distances.length - 1, Math.floor(distances.length * 0.9))] ?? 0;
 }
+
+const EARTH_RADIUS_M = 6_371_008.8;
+
+function haversineMeters(a: readonly [number, number], b: readonly [number, number]): number {
+  const toRad = Math.PI / 180;
+  const dLat = (b[1] - a[1]) * toRad;
+  const dLon = (b[0] - a[0]) * toRad;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(a[1] * toRad) * Math.cos(b[1] * toRad) * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/**
+ * Median distance from a place to its nearest other place (metres), from up
+ * to `sample` places so very large projects stay cheap. 0 for < 2 places.
+ */
+export function medianNearestPlaceMeters(
+  places: readonly (readonly [number, number])[],
+  sample = 400,
+): number {
+  if (places.length < 2) return 0;
+  const step = Math.max(1, Math.floor(places.length / sample));
+  const nearest: number[] = [];
+  for (let index = 0; index < places.length; index += step) {
+    const origin = places[index] as readonly [number, number];
+    let best = Number.POSITIVE_INFINITY;
+    for (let other = 0; other < places.length; other += 1) {
+      if (other === index) continue;
+      const distance = haversineMeters(origin, places[other] as readonly [number, number]);
+      if (distance > 0 && distance < best) best = distance;
+    }
+    if (Number.isFinite(best)) nearest.push(best);
+  }
+  nearest.sort((left, right) => left - right);
+  return nearest[Math.floor(nearest.length / 2)] ?? 0;
+}
+
+/**
+ * Multiple of the median nearest-place distance a magnified local graph may
+ * span: neighbouring places' graphs may overlap a little (as in one planar
+ * graph), but a place's entities never spread across a region.
+ */
+export const WORLD_LOCAL_GRAPH_MAX_PLACE_SHARE = 3;
+/** Clusters closer than this on screen merge into one bubble. */
+export const WORLD_CLUSTER_MERGE_PX = 36;
+/** Local graphs at least this large on screen count as readable. */
+export const WORLD_READABLE_LOCAL_RADIUS_PX = 60;
+
+/** Degrees of longitude spanned by `pixels` at `zoom` (GlobeView scale). */
+export function worldPixelsToDegrees(pixels: number, zoom: number): number {
+  return (pixels * 360) / (512 * 2 ** zoom);
+}
+/** Below this on-screen local radius a place's entities cluster. */
+export const WORLD_PLACE_CLUSTER_RADIUS_PX = 28;
+
+/** On-screen radius (pixels) of a local graph of `meters` at `zoom`. */
+export function worldLocalRadiusPx(meters: number, zoom: number, latitude = 0): number {
+  const cosine = Math.max(0.05, Math.cos((latitude * Math.PI) / 180));
+  const metersPerPixel = (WORLD_METERS_PER_PIXEL_AT_ZOOM_0 * cosine) / 2 ** zoom;
+  return meters / metersPerPixel;
+}

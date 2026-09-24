@@ -52,7 +52,8 @@ function entity(index, kind, overrides = {}) {
       {
         placeId: `place-${index}`,
         longitude: 10 + (index % 60) * 0.5,
-        latitude: 40 + Math.floor(index / 60) * 0.5,
+        // Wraps so large fixtures stay on valid latitudes.
+        latitude: 40 + (Math.floor(index / 60) % 80) * 0.5,
         influence: 1,
       },
     ],
@@ -93,7 +94,7 @@ test("production bindings supply a real deck.gl IconLayer", async () => {
   assert.equal(typeof runtime.createIconLayer, "function");
 });
 
-test("kind icons render from projection metadata as tintable masks and pick as the entity", () => {
+test("every entity renders as a styled node marker that picks as the entity", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, CAMERA);
   surface.setProjection(
@@ -104,34 +105,45 @@ test("kind icons render from projection metadata as tintable masks and pick as t
   );
 
   const icons = h.lastLayers().find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons);
-  assert.ok(icons, "an entity icon layer is rendered");
+  assert.ok(icons, "an entity marker layer is rendered");
   assert.equal(icons.type, "icon");
   assert.equal(icons.props.parameters.cullMode, "none");
   assert.equal(icons.props.pickable, true);
 
+  // The marker is the node body, so unknown kinds get one too (no glyph).
   const byEntity = new Map(icons.props.data.map((datum) => [datum.entityId, datum]));
-  assert.deepEqual([...byEntity.keys()].sort(), ["entity-0", "entity-2"]);
-  const personIcon = icons.props.getIcon(byEntity.get("entity-0"));
-  assert.equal(personIcon.id, "lum-icon:person");
-  assert.equal(personIcon.mask, true);
-  assert.match(personIcon.url, /^data:image\/svg\+xml/);
-  assert.equal(byEntity.get("entity-0").kind, "entity", "icons pick as the canonical entity");
+  assert.deepEqual([...byEntity.keys()].sort(), ["entity-0", "entity-1", "entity-2"]);
+  const person = icons.props.getIcon(byEntity.get("entity-0"));
+  assert.match(person.id, /^lum-node:circle\|/);
+  assert.equal(person.mask, false, "markers carry their own colours");
+  assert.match(person.url, /^data:image\/svg\+xml/);
+  assert.match(decodeURIComponent(person.url), /<path d=/, "known kinds draw their glyph");
+  const unknown = icons.props.getIcon(byEntity.get("entity-1"));
+  assert.doesNotMatch(
+    decodeURIComponent(unknown.url),
+    /<g transform/,
+    "unknown kinds draw no glyph",
+  );
+  assert.ok(icons.props.getSize(byEntity.get("entity-0")) > 0);
+  assert.equal(byEntity.get("entity-0").kind, "entity", "markers pick as the canonical entity");
 
   surface.pick({ x: 1, y: 1 });
   assert.ok(h.pickOptions().layerIds.includes(DECK_WORLD_LAYER_IDS.entityIcons));
 });
 
-test("dense icon load follows the LOD budget but keeps the selected entity", () => {
+test("dense marker load follows the LOD budget but keeps the selected entity", () => {
   const h = harness();
-  const surface = new DeckWorldSurface({}, h.runtime, { ...CAMERA, zoom: 1 });
-  const instances = Array.from({ length: 2_000 }, (_, index) => entity(index, "person"));
+  // Dense (clustering) scale: markers fall back to the label budget there.
+  const count = 26_000;
+  const surface = new DeckWorldSurface({}, h.runtime, { ...CAMERA, zoom: 5 });
+  const instances = Array.from({ length: count }, (_, index) => entity(index, "person"));
   surface.setProjection(createWorldProjection({ instances, edges: [] }));
-  surface.setSelection({ kind: "entity", id: "entity-1999" });
+  surface.setSelection({ kind: "entity", id: `entity-${count - 1}` });
 
   const icons = h.lastLayers().find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons);
   const ids = icons.props.data.map((datum) => datum.entityId);
-  assert.ok(ids.length < 2_000);
-  assert.ok(ids.includes("entity-1999"));
+  assert.ok(ids.length < count);
+  assert.ok(ids.includes(`entity-${count - 1}`));
 });
 
 test("a runtime without icon support renders no icon layer", () => {

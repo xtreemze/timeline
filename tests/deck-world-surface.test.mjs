@@ -1271,3 +1271,19 @@ test("an off-screen live region mirrors the accessible snapshot when the contain
   surface.destroy();
   assert.equal(region.removed, true);
 });
+
+test("user camera moves are handed back to the controlled deck so the globe rotates", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime, OVERVIEW_CAMERA);
+  surface.setProjection(projection());
+  const before = calls.setProps.length;
+
+  calls.deckProps.onViewStateChange({
+    viewState: { longitude: 40, latitude: 10, zoom: OVERVIEW_CAMERA.zoom, bearing: 0, pitch: 0 },
+  });
+
+  const pushed = calls.setProps.slice(before).at(-1);
+  assert.ok(pushed?.viewState, "the new camera is pushed back to deck");
+  assert.equal(pushed.viewState.longitude, 40);
+  assert.equal(surface.getCamera().longitude, 40);
+});

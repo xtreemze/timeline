@@ -8,8 +8,8 @@ import { expect, type Page, test } from "@playwright/test";
  * camera left at a fixed overview instead of fitting the content.
  */
 
-// WORLD_PALETTE.entity in site/world/deck-world-surface.ts.
-const ENTITY_RGB = [37, 99, 235] as const;
+// Default person fill (src/layout/world-graph-style.ts, light theme).
+const ENTITY_RGB = [75, 95, 134] as const;
 
 async function graphCanvasBox(page: Page) {
   const canvas = page.locator(".temporal-graph-canvas canvas").first();

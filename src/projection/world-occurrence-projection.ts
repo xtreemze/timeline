@@ -14,6 +14,7 @@ import {
 export interface WorldEntityPresentation {
   readonly label?: string;
   readonly kind?: string;
+  readonly style?: Readonly<Record<string, unknown>>;
 }
 
 export interface WorldOccurrenceProjectionOptions {
@@ -21,6 +22,15 @@ export interface WorldOccurrenceProjectionOptions {
   readonly temporalWeights?: ReadonlyMap<RelationshipId, number>;
   readonly visualWeights?: ReadonlyMap<RelationshipId, number>;
   readonly retainedOccurrenceIds?: ReadonlySet<RelationshipId>;
+}
+
+function relationshipStyle(
+  relationship: CanonicalRelationship,
+): Readonly<Record<string, unknown>> | undefined {
+  const style = relationship.attributes?.["style"];
+  return typeof style === "object" && style !== null && !Array.isArray(style)
+    ? (style as Readonly<Record<string, unknown>>)
+    : undefined;
 }
 
 export function projectWorldOccurrences(
@@ -68,6 +78,7 @@ export function projectWorldOccurrences(
         canonicalId: relationship.subjectId,
         ...(subjectPresentation?.label ? { label: subjectPresentation.label } : {}),
         ...(subjectPresentation?.kind ? { kind: subjectPresentation.kind } : {}),
+        ...(subjectPresentation?.style ? { style: subjectPresentation.style } : {}),
         occurrenceId,
         geographicAnchors,
         temporalWeight,
@@ -79,6 +90,7 @@ export function projectWorldOccurrences(
         canonicalId: relationship.objectId,
         ...(objectPresentation?.label ? { label: objectPresentation.label } : {}),
         ...(objectPresentation?.kind ? { kind: objectPresentation.kind } : {}),
+        ...(objectPresentation?.style ? { style: objectPresentation.style } : {}),
         occurrenceId,
         geographicAnchors,
         temporalWeight,
@@ -91,6 +103,7 @@ export function projectWorldOccurrences(
       createProjectedWorldEdge({
         id: relationship.id,
         label: relationship.predicate,
+        ...(relationshipStyle(relationship) ? { style: relationshipStyle(relationship) } : {}),
         sourceInstanceId: subjectInstanceId,
         targetInstanceId: objectInstanceId,
         temporalWeight,
