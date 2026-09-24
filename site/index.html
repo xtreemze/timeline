@@ -1286,12 +1286,12 @@
         <section id="timeline-focus-view" class="timeline-focus-view timeline-focus-sidebar" data-presentation-surface="sidebar" aria-live="polite" aria-label="Focused occurrence details" hidden></section>
 
         <section id="graph-lens" class="graph-lens graph-surface" aria-label="Persistent temporal relation graph">
-          <div id="temporal-graph-view" class="temporal-graph-view">
+          <luum-world-surface id="temporal-graph-view" class="temporal-graph-view">
             <span class="sr-only" data-graph-window>All time</span>
             <span class="sr-only" data-graph-status aria-live="polite">0 relations in window</span>
             <p id="graph-surface-help" class="sr-only">Touch: drag empty graph space to pan, pinch to zoom, double tap to zoom in, and long press then drag a node to reposition it. Keyboard: arrow keys pan, plus and minus zoom, and Home recenters the graph.</p>
             <div class="temporal-graph-canvas" role="application" tabindex="0" aria-describedby="graph-surface-help" aria-label="Node and edge graph synchronized to the visible timeline window"></div>
-          </div>
+          </luum-world-surface>
         </section>
 
         <section id="presentation-map-panel" class="presentation-map-panel" aria-labelledby="presentation-map-heading" hidden>
