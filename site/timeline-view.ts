@@ -1609,14 +1609,15 @@ class TimelineViewController {
         return;
       }
 
-      const elapsed = lastFrame ? clamp(now - lastFrame, 1, 48) : 16;
+      const decayElapsed = lastFrame ? Math.max(1, now - lastFrame) : 16;
+      const movementElapsed = clamp(decayElapsed, 1, 48);
       lastFrame = now;
-      velocity = motion.decayVelocity(velocity, elapsed);
+      velocity = motion.decayVelocity(velocity, decayElapsed);
       const usable = Math.max(1, pixelLength - this.axisPadding(pixelLength) * 2);
       const span = this.viewport.end - this.viewport.start;
-      const deltaPixels = velocity * elapsed;
+      const deltaPixels = velocity * movementElapsed;
       const deltaTemporal = -(deltaPixels / usable) * span;
-      this.interactionVelocity = deltaTemporal / elapsed;
+      this.interactionVelocity = deltaTemporal / movementElapsed;
       this.viewport = {
         start: this.viewport.start + deltaTemporal,
         end: this.viewport.end + deltaTemporal,
