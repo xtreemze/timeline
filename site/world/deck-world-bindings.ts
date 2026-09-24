@@ -15,6 +15,7 @@ import {
   SolidPolygonLayer,
   TextLayer,
 } from "@deck.gl/layers";
+import { CollisionFilterExtension } from "@deck.gl/extensions";
 import { webgl2Adapter } from "@luma.gl/webgl";
 import type { DeckWorldBindings } from "./deck-world-runtime.ts";
 import type { DeckRuntimeInstance, DeckRuntimePickingInfo } from "./deck-world-surface.ts";
@@ -113,6 +114,16 @@ function createRealDeckWorldBindings(webgpuAdapter?: WebGpuAdapter): DeckWorldBi
     textLayer(props) {
       return new TextLayer(props as ConstructorParameters<typeof TextLayer>[0]);
     },
+    // CollisionFilterExtension currently relies on WebGL picking passes.
+    // Keep WebGPU on the existing CPU semantic/declutter fallback until the
+    // deck backend supports the same extension behavior there.
+    ...(webgpuAdapter
+      ? {}
+      : {
+          collisionFilterExtension() {
+            return new CollisionFilterExtension();
+          },
+        }),
   });
 }
 
