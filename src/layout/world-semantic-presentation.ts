@@ -494,8 +494,12 @@ export const WORLD_READABLE_LOCAL_RADIUS_PX = 200;
 export function worldPixelsToDegrees(pixels: number, zoom: number): number {
   return (pixels * 360) / (512 * 2 ** zoom);
 }
-/** Below this on-screen local radius a place's entities cluster. */
-export const WORLD_PLACE_CLUSTER_RADIUS_PX = 112;
+/**
+ * Below this on-screen local radius a place's entities remain clustered.
+ * Align the cluster gate with the readability floor so local topology does
+ * not begin resolving before it has enough screen space to be legible.
+ */
+export const WORLD_PLACE_CLUSTER_RADIUS_PX = WORLD_READABLE_LOCAL_RADIUS_PX;
 
 /** On-screen radius (pixels) of a local graph of `meters` at `zoom`. */
 export function worldLocalRadiusPx(meters: number, zoom: number, latitude = 0): number {
