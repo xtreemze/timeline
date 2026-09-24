@@ -3061,7 +3061,11 @@ export class DeckWorldSurface implements WorldSurface {
         : placeTransition.memberIds.has(entity.worldInstanceId)
           ? placeExpansion
           : 1;
-    const clusterVisibility = placeExpansion < 1 ? 1 - placeExpansion : 1;
+    // Grid clusters are the active low-zoom representation. Place-local
+    // cluster envelopes instead disappear continuously as their retained
+    // members resolve outward; they must never snap back to full visibility
+    // at expansion=1.
+    const clusterVisibility = gridClustered ? 1 : 1 - placeExpansion;
 
     // Fully clustered place members are retained in force/layout state but
     // not exposed as glyphs or hit targets. Loose/unclustered entities remain.
