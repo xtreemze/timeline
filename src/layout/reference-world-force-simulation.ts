@@ -574,6 +574,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
 
     for (const state of this.#states.values()) {
       if (activeGroups && !activeGroups.has(state.group)) continue;
+      this.#applyLayoutTargetForce(state, forces);
       this.#applyAltitudeForce(state, forces);
     }
 
@@ -832,6 +833,33 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     }
 
     return correction ** 2;
+  }
+
+  #applyLayoutTargetForce(
+    state: NodeState,
+    forces: Map<WorldInstanceId, [number, number, number]>,
+  ): void {
+    const east = state.node.layoutTargetEastMeters;
+    const north = state.node.layoutTargetNorthMeters;
+    const strength = state.node.layoutTargetStrength ?? 0;
+    if (
+      east === undefined ||
+      north === undefined ||
+      !Number.isFinite(east) ||
+      !Number.isFinite(north) ||
+      !Number.isFinite(strength) ||
+      strength <= 0
+    ) {
+      return;
+    }
+
+    this.#addForce(
+      forces,
+      state.node.id,
+      (east - state.x) * strength,
+      (north - state.y) * strength,
+      0,
+    );
   }
 
   #applyAltitudeForce(
