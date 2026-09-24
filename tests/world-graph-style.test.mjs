@@ -179,7 +179,8 @@ test("places use node-like shape, icon, border, fill, and readable footprint", (
   const fallback = worldPlaceStyle({}, false, WORLD_LIGHT_PALETTE);
   assert.equal(fallback.shape, "pin");
   assert.equal(fallback.icon, "place");
-  assert.ok(fallback.radius >= WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+  assert.equal(fallback.radius, 17);
+  assert.ok(fallback.radius < WORLD_ENTITY_MIN_HIT_RADIUS_PX);
 });
 
 test("marker shape scales normalize filled area and collision extent", () => {
@@ -244,6 +245,23 @@ test("edges colour by relationship type unless they carry their own style, inclu
   );
   assert.equal(aliased.color, "#abcdef");
   assert.equal(aliased.width, 3);
+
+  const category = worldEdgeStyle(
+    {
+      predicate: "visits",
+      fallbackColor: "#334455",
+      attributes: { style: { categoryColor: "#aabbcc", color: "#010203" } },
+    },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(category.color, "#aabbcc", "category color is the semantic first choice");
+
+  const nodeFallback = worldEdgeStyle(
+    { predicate: "visits", fallbackColor: "#334455" },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(nodeFallback.color, "#334455");
+  assert.equal(nodeFallback.width, 1.5);
 });
 
 test("colour bytes parse short, long and alpha hex", () => {
@@ -262,7 +280,7 @@ test("node radii are whole pixels so a scene shares a few marker textures", () =
   );
   assert.deepEqual(
     [...radii].sort((a, b) => a - b),
-    [22, 24, 26],
+    [14, 16, 17],
   );
   assert.equal(
     worldNodeStyle({ type: "person", attributes: { style: { size: 12.7 } } }, WORLD_LIGHT_PALETTE)
