@@ -80,6 +80,57 @@ test("selection preserves semantic colours and increases emphasis instead", () =
   );
 });
 
+test("selection and connected-neighborhood emphasis preserve semantic colours", () => {
+  const ordinary = worldNodeStyle({ type: "person" }, WORLD_LIGHT_PALETTE);
+  const neighbor = worldNodeStyle(
+    { type: "person", emphasized: true },
+    WORLD_LIGHT_PALETTE,
+  );
+  const selected = worldNodeStyle(
+    { type: "person", selected: true, emphasized: true },
+    WORLD_LIGHT_PALETTE,
+  );
+
+  assert.equal(neighbor.fill, ordinary.fill);
+  assert.equal(neighbor.border, ordinary.border);
+  assert.ok(neighbor.borderWidth > ordinary.borderWidth);
+  assert.ok(neighbor.radius > ordinary.radius);
+  assert.equal(selected.fill, ordinary.fill);
+  assert.equal(selected.border, ordinary.border);
+  assert.ok(selected.borderWidth > neighbor.borderWidth);
+  assert.ok(selected.radius > neighbor.radius);
+
+  const ordinaryEdge = worldEdgeStyle({ predicate: "met" }, WORLD_LIGHT_PALETTE);
+  const emphasizedEdge = worldEdgeStyle(
+    { predicate: "met", emphasized: true },
+    WORLD_LIGHT_PALETTE,
+  );
+  const selectedEdge = worldEdgeStyle(
+    { predicate: "met", selected: true, emphasized: true },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(emphasizedEdge.color, ordinaryEdge.color);
+  assert.ok(emphasizedEdge.width > ordinaryEdge.width);
+  assert.equal(selectedEdge.color, ordinaryEdge.color);
+  assert.ok(selectedEdge.width > emphasizedEdge.width);
+
+  const ordinaryPlace = worldPlaceStyle(
+    { marker: { fillColor: "#123456", color: "#abcdef" } },
+    false,
+    WORLD_LIGHT_PALETTE,
+  );
+  const emphasizedPlace = worldPlaceStyle(
+    { marker: { fillColor: "#123456", color: "#abcdef" } },
+    false,
+    WORLD_LIGHT_PALETTE,
+    true,
+  );
+  assert.equal(emphasizedPlace.fill, ordinaryPlace.fill);
+  assert.equal(emphasizedPlace.border, ordinaryPlace.border);
+  assert.ok(emphasizedPlace.borderWidth > ordinaryPlace.borderWidth);
+  assert.ok(emphasizedPlace.radius > ordinaryPlace.radius);
+});
+
 test("portable fill, border, stroke, and radius aliases override defaults", () => {
   const styled = worldNodeStyle(
     {

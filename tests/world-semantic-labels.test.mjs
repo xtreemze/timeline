@@ -458,6 +458,36 @@ function chainProjection(count) {
   return createWorldProjection({ instances, edges });
 }
 
+test("selected entity pins immediate neighbor and incident relationship labels through LOD", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 1 });
+  surface.setProjection(chainProjection(2_000));
+  surface.setSelection({ kind: "entity", id: "entity-1000" });
+
+  const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  const entityLabels = labels.filter((datum) => datum.kind === "entity-label");
+  const relationshipLabels = labels.filter((datum) => datum.kind === "relationship-label");
+
+  for (const entityId of ["entity-999", "entity-1000", "entity-1001"]) {
+    const datum = entityLabels.find((candidate) => candidate.entityId === entityId);
+    assert.ok(datum, `${entityId} label stays visible despite dense LOD`);
+    assert.equal(datum.emphasized, true);
+  }
+
+  for (const relationshipId of ["edge-1000", "edge-1001"]) {
+    const datum = relationshipLabels.find(
+      (candidate) => candidate.relationshipId === relationshipId,
+    );
+    assert.ok(datum, `${relationshipId} label stays visible despite dense LOD`);
+    assert.equal(datum.emphasized, true);
+  }
+
+  assert.ok(
+    entityLabels.length < 2_000,
+    "the rest of the dense graph remains subject to ordinary label LOD",
+  );
+});
+
 test("dense direction markers follow LOD but keep important, selected, and focused edges", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 1 });

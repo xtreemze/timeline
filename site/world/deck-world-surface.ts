@@ -48,6 +48,7 @@ import {
   createWorldCameraState,
   createWorldSpatialPosition,
   createWorldTemporalWindow,
+  worldSelectionFromHit,
   type ScreenPoint,
   type WorldCameraState,
   type WorldHit,
@@ -67,6 +68,7 @@ import {
   applyWorldProjectionDelta,
   type WorldProjectionDelta,
 } from "../../src/projection/world-projection-delta.ts";
+import { pulseHaptic } from "../timeline-motion.ts";
 import { buildWorldAccessibleOutline, WorldAccessibleMirror } from "./world-accessible-mirror.ts";
 import {
   clipWorldLines,
@@ -159,6 +161,8 @@ interface DeckWorldEntityDatum {
   readonly entityKind?: string;
   readonly position: WorldRenderPosition;
   readonly selected: boolean;
+  /** Transient selection/hover neighborhood emphasis; never canonical state. */
+  readonly emphasized: boolean;
   readonly visualWeight: number;
   readonly style?: WorldPresentationStyle;
 }
@@ -173,6 +177,8 @@ interface DeckWorldRelationshipDatum {
   readonly targetEntityId: EntityId;
   readonly path: readonly [WorldRenderPosition, WorldRenderPosition];
   readonly selected: boolean;
+  /** Incident to the selected/hovered node, or endpoint of the selected edge. */
+  readonly emphasized: boolean;
   readonly temporalWeight: number;
   readonly style?: WorldPresentationStyle;
 }
@@ -202,6 +208,7 @@ interface DeckWorldPlaceDatum {
   readonly label?: string;
   readonly position: WorldRenderPosition;
   readonly selected: boolean;
+  readonly emphasized: boolean;
   readonly style?: WorldPresentationStyle;
 }
 
@@ -744,11 +751,13 @@ function placeDatumUnchanged(
   previous: DeckWorldPlaceDatum,
   position: WorldRenderPosition,
   selected: boolean,
+  emphasized: boolean,
   label: string | undefined,
   style?: WorldPresentationStyle,
 ): boolean {
   return (
     previous.selected === selected &&
+    previous.emphasized === emphasized &&
     previous.label === label &&
     styleEqual(previous.style, style) &&
     positionEquals(previous.position, position)
@@ -767,6 +776,7 @@ function placeDatums(
   instances: readonly ProjectedWorldInstance[],
   selection: WorldSelection | null,
   previous: ReadonlyMap<PlaceId, DeckWorldPlaceDatum>,
+  emphasizedPlaceIds?: ReadonlySet<PlaceId>,
 ): {
   readonly datums: readonly DeckWorldPlaceDatum[];
   readonly byId: Map<PlaceId, DeckWorldPlaceDatum>;
@@ -782,11 +792,12 @@ function placeDatums(
         anchor.sourceAltitude ?? 0,
       ]) as WorldRenderPosition;
       const selected = selection?.kind === "place" && selection.id === anchor.placeId;
+      const emphasized = emphasizedPlaceIds?.has(anchor.placeId) === true;
       const label = anchor.label;
       const prior = previous.get(anchor.placeId);
       byPlace.set(
         anchor.placeId,
-        prior && placeDatumUnchanged(prior, position, selected, label, anchor.style)
+        prior && placeDatumUnchanged(prior, position, selected, emphasized, label, anchor.style)
           ? prior
           : Object.freeze({
               kind: "place",
@@ -794,6 +805,7 @@ function placeDatums(
               ...(label === undefined ? {} : { label }),
               position,
               selected,
+              emphasized,
               ...(anchor.style === undefined ? {} : { style: anchor.style }),
             }),
       );
@@ -814,6 +826,7 @@ function entityDatumUnchanged(
   previous: DeckWorldEntityDatum,
   position: WorldRenderPosition,
   selected: boolean,
+  emphasized: boolean,
   visualWeight: number,
   label: string | undefined,
   entityKind: string | undefined,
@@ -822,6 +835,7 @@ function entityDatumUnchanged(
   return (
     styleEqual(previous.style, style) &&
     previous.selected === selected &&
+    previous.emphasized === emphasized &&
     previous.visualWeight === visualWeight &&
     previous.label === label &&
     previous.entityKind === entityKind &&
@@ -835,6 +849,7 @@ function entityDatums(
   previous: ReadonlyMap<WorldInstanceId, DeckWorldEntityDatum>,
   offsetScale = 1,
   floatMeters = 0,
+  emphasizedEntityIds?: ReadonlySet<EntityId>,
 ): {
   readonly datums: readonly DeckWorldEntityDatum[];
   readonly byId: Map<WorldInstanceId, DeckWorldEntityDatum>;
@@ -846,6 +861,7 @@ function entityDatums(
     const position = anchorPosition(instance, offsetScale, floatMeters);
     if (!position) continue;
     const selected = selection?.kind === "entity" && selection.id === instance.canonicalId;
+    const emphasized = emphasizedEntityIds?.has(instance.canonicalId) === true;
     const prior = previous.get(instance.id);
     const datum =
       prior &&
@@ -853,6 +869,7 @@ function entityDatums(
         prior,
         position,
         selected,
+        emphasized,
         instance.visualWeight,
         instance.label,
         instance.kind,
@@ -867,6 +884,7 @@ function entityDatums(
             ...(instance.kind === undefined ? {} : { entityKind: instance.kind }),
             position,
             selected,
+            emphasized,
             visualWeight: instance.visualWeight,
             ...(instance.style === undefined ? {} : { style: instance.style }),
           });
@@ -890,10 +908,12 @@ function relationshipDatumUnchanged(
   source: WorldRenderPosition,
   target: WorldRenderPosition,
   selected: boolean,
+  emphasized: boolean,
 ): boolean {
   return (
     styleEqual(previous.style, edge.style) &&
     previous.selected === selected &&
+    previous.emphasized === emphasized &&
     previous.temporalWeight === edge.temporalWeight &&
     previous.label === edge.label &&
     previous.sourceInstanceId === edge.sourceInstanceId &&
@@ -913,6 +933,7 @@ function relationshipDatums(
   index: WorldInstanceIndex,
   selection: WorldSelection | null,
   previous: ReadonlyMap<RelationshipId, DeckWorldRelationshipDatum>,
+  emphasizedRelationshipIds?: ReadonlySet<RelationshipId>,
 ): {
   readonly datums: readonly DeckWorldRelationshipDatum[];
   readonly byId: Map<RelationshipId, DeckWorldRelationshipDatum>;
@@ -928,9 +949,10 @@ function relationshipDatums(
     if (!source || !target || !sourceEntityId || !targetEntityId) continue;
 
     const selected = selection?.kind === "relationship" && selection.id === edge.id;
+    const emphasized = emphasizedRelationshipIds?.has(edge.id) === true;
     const prior = previous.get(edge.id);
     const datum =
-      prior && relationshipDatumUnchanged(prior, edge, source, target, selected)
+      prior && relationshipDatumUnchanged(prior, edge, source, target, selected, emphasized)
         ? prior
         : Object.freeze({
             kind: "relationship" as const,
@@ -945,6 +967,7 @@ function relationshipDatums(
               WorldRenderPosition,
             ],
             selected,
+            emphasized,
             temporalWeight: edge.temporalWeight,
             ...(edge.style === undefined ? {} : { style: edge.style }),
           });
@@ -984,7 +1007,9 @@ function directionDatums(
   const marked = selectPrioritizedLabels(relationships, {
     budget: worldLabelBudget(zoom),
     isPinned: (edge) =>
-      edge.selected || (focus?.kind === "relationship" && focus.id === edge.relationshipId),
+      edge.selected ||
+      edge.emphasized ||
+      (focus?.kind === "relationship" && focus.id === edge.relationshipId),
     importance: (edge) => edge.temporalWeight,
     key: (edge) => edge.relationshipId,
   });
@@ -1297,14 +1322,14 @@ function labelDatums(input: {
     input.places.filter((place) => place.label),
     {
       budget: Math.max(budget, WORLD_PLACE_LABEL_FLOOR),
-      isPinned: (place) => place.selected || focused("place", place.placeId),
+      isPinned: (place) => place.selected || place.emphasized || focused("place", place.placeId),
       importance: () => 0,
       key: (place) => place.placeId,
     },
   );
   for (const place of places) {
     const text = place.label ?? "";
-    const emphasized = place.selected || focused("place", place.placeId);
+    const emphasized = place.selected || place.emphasized || focused("place", place.placeId);
     const key = `place:${place.placeId}`;
     emit(
       key,
@@ -1326,7 +1351,7 @@ function labelDatums(input: {
   }
 
   const pinnedEntity = (entity: DeckWorldEntityDatum) =>
-    entity.selected || focused("entity", entity.entityId);
+    entity.selected || entity.emphasized || focused("entity", entity.entityId);
   const entities = selectPrioritizedLabels(
     input.entities.filter((entity) => entity.label && (!input.clustered || pinnedEntity(entity))),
     {
@@ -1361,7 +1386,9 @@ function labelDatums(input: {
   }
 
   const pinnedRelationship = (relationship: DeckWorldRelationshipDatum) =>
-    relationship.selected || focused("relationship", relationship.relationshipId);
+    relationship.selected ||
+    relationship.emphasized ||
+    focused("relationship", relationship.relationshipId);
   const relationships = selectPrioritizedLabels(
     input.relationships.filter((relationship) => relationship.label),
     {
@@ -1431,6 +1458,56 @@ function screenPointFromDoubleClickEvent(event: DoubleClickEvent): ScreenPoint |
 
 function selectionEquals(left: WorldSelection, right: WorldSelection | null): boolean {
   return right !== null && left.kind === right.kind && left.id === right.id;
+}
+
+interface WorldInteractionNeighborhood {
+  readonly entityIds: ReadonlySet<EntityId>;
+  readonly relationshipIds: ReadonlySet<RelationshipId>;
+  readonly placeIds: ReadonlySet<PlaceId>;
+}
+
+function interactionNeighborhood(
+  projection: WorldProjection,
+  selections: readonly (WorldSelection | null)[],
+): WorldInteractionNeighborhood {
+  const entityIds = new Set<EntityId>();
+  const relationshipIds = new Set<RelationshipId>();
+  const placeIds = new Set<PlaceId>();
+  const entityByInstance = new Map<WorldInstanceId, EntityId>(
+    projection.instances.map((instance) => [instance.id, instance.canonicalId] as const),
+  );
+
+  for (const selection of selections) {
+    if (!selection) continue;
+
+    if (selection.kind === "place") {
+      placeIds.add(selection.id);
+      continue;
+    }
+
+    if (selection.kind === "relationship") {
+      relationshipIds.add(selection.id);
+      const edge = projection.edges.find((candidate) => candidate.id === selection.id);
+      if (!edge) continue;
+      const source = entityByInstance.get(edge.sourceInstanceId);
+      const target = entityByInstance.get(edge.targetInstanceId);
+      if (source) entityIds.add(source);
+      if (target) entityIds.add(target);
+      continue;
+    }
+
+    entityIds.add(selection.id);
+    for (const edge of projection.edges) {
+      const source = entityByInstance.get(edge.sourceInstanceId);
+      const target = entityByInstance.get(edge.targetInstanceId);
+      if (source !== selection.id && target !== selection.id) continue;
+      relationshipIds.add(edge.id);
+      if (source) entityIds.add(source);
+      if (target) entityIds.add(target);
+    }
+  }
+
+  return Object.freeze({ entityIds, relationshipIds, placeIds });
 }
 
 function worldHitFromPicking(info: DeckRuntimePickingInfo | null): WorldHit | null {
@@ -1519,6 +1596,7 @@ export class DeckWorldSurface implements WorldSurface {
     edges: Object.freeze([]),
   });
   #selection: WorldSelection | null = null;
+  #hoverSelection: WorldSelection | null = null;
   #camera: WorldCameraState;
   // True once the camera was chosen explicitly (constructor, setCamera,
   // focus, or user navigation); until then content auto-fits once.
@@ -1607,6 +1685,7 @@ export class DeckWorldSurface implements WorldSurface {
       if (this.#destroyed || !this.#touchHold.isArmed(touch.pointerId, Date.now())) return;
       this.#setTouchDragState("active");
       this.setSelection(Object.freeze({ kind: "entity" as const, id: hit.entityId }));
+      void pulseHaptic("selection");
     }, WORLD_TOUCH_HOLD_MS);
   };
 
@@ -1640,6 +1719,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#nodeDragSink?.cancel("pointercancel");
     this.#activeDragPointerId = null;
     this.#dragCameraLock = null;
+    this.#setPointerCursor(this.#hoverSelection);
   };
 
   readonly #handleLostPointerCapture = (event: PointerEvent): void => {
@@ -1649,6 +1729,49 @@ export class DeckWorldSurface implements WorldSurface {
     this.#nodeDragSink?.cancel("lostpointercapture");
     this.#activeDragPointerId = null;
     this.#dragCameraLock = null;
+    this.#setPointerCursor(this.#hoverSelection);
+  };
+
+  #setPointerCursor(selection: WorldSelection | null): void {
+    const style = (this.#container as HTMLElement).style;
+    if (!style) return;
+    style.cursor =
+      selection?.kind === "entity" && this.#nodeDragSink
+        ? "grab"
+        : selection
+          ? "pointer"
+          : "";
+  }
+
+  #selectionFromPickingInfo(info: DeckRuntimePickingInfo): WorldSelection | null {
+    const hit = worldHitFromPicking(info);
+    if (
+      hit?.kind === "relationship" &&
+      !this.#projection.edges.some((edge) => edge.id === hit.relationshipId)
+    ) {
+      return null;
+    }
+    return worldSelectionFromHit(hit);
+  }
+
+  readonly #handleDeckHover = (info: DeckRuntimePickingInfo): void => {
+    if (this.#activeDragPointerId !== null) return;
+    const next = this.#selectionFromPickingInfo(info);
+    const unchanged =
+      next === null ? this.#hoverSelection === null : selectionEquals(next, this.#hoverSelection);
+    this.#setPointerCursor(next);
+    if (unchanged) return;
+    this.#hoverSelection = next;
+    this.#render();
+  };
+
+  readonly #handleDeckClick = (info: DeckRuntimePickingInfo): void => {
+    if (this.#activeDragPointerId !== null) return;
+    const next = this.#selectionFromPickingInfo(info);
+    const changed =
+      next === null ? this.#selection !== null : !selectionEquals(next, this.#selection);
+    this.setSelection(next);
+    if (changed && next) void pulseHaptic("selection");
   };
 
   // Double-tap/double-click focus (issue #445 Priority 4). deck.gl's own
@@ -1721,6 +1844,8 @@ export class DeckWorldSurface implements WorldSurface {
       controller: deckControllerOptions(),
       initialViewState: this.#camera,
       layers: [],
+      onHover: (info: DeckRuntimePickingInfo) => this.#handleDeckHover(info),
+      onClick: (info: DeckRuntimePickingInfo) => this.#handleDeckClick(info),
       onAfterRender: () => this.#afterRender(),
       onResize: () => {
         if (!this.#autoFitted || this.#destroyed) return;
@@ -1838,7 +1963,7 @@ export class DeckWorldSurface implements WorldSurface {
 
   #entityStyle(datum: DeckWorldEntityDatum): WorldNodeStyle {
     const styleKey = datum.style ? JSON.stringify(datum.style) : "";
-    const key = `${datum.entityKind ?? ""}|${datum.selected}|${datum.visualWeight}|${styleKey}`;
+    const key = `${datum.entityKind ?? ""}|${datum.selected}|${datum.emphasized}|${datum.visualWeight}|${styleKey}`;
     let style = this.#nodeStyles.get(key);
     if (!style) {
       style = worldNodeStyle(
@@ -1846,6 +1971,7 @@ export class DeckWorldSurface implements WorldSurface {
           ...(datum.entityKind === undefined ? {} : { type: datum.entityKind }),
           attributes: datum.style ? { style: datum.style } : undefined,
           selected: datum.selected,
+          emphasized: datum.emphasized,
           visualWeight: datum.visualWeight,
         },
         this.#palette,
@@ -1856,10 +1982,10 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #placeStyle(datum: DeckWorldPlaceDatum): WorldNodeStyle {
-    const key = `place|${datum.selected}|${datum.style ? JSON.stringify(datum.style) : ""}`;
+    const key = `place|${datum.selected}|${datum.emphasized}|${datum.style ? JSON.stringify(datum.style) : ""}`;
     let style = this.#nodeStyles.get(key);
     if (!style) {
-      style = worldPlaceStyle(datum.style, datum.selected, this.#palette);
+      style = worldPlaceStyle(datum.style, datum.selected, this.#palette, datum.emphasized);
       this.#nodeStyles.set(key, style);
     }
     return style;
@@ -1868,9 +1994,10 @@ export class DeckWorldSurface implements WorldSurface {
   #edgeStyle(datum: {
     readonly label?: string;
     readonly selected: boolean;
+    readonly emphasized?: boolean;
     readonly style?: WorldPresentationStyle;
   }): WorldEdgeStyle {
-    const key = `${datum.label ?? ""}|${datum.selected}|${datum.style ? JSON.stringify(datum.style) : ""}`;
+    const key = `${datum.label ?? ""}|${datum.selected}|${datum.emphasized === true}|${datum.style ? JSON.stringify(datum.style) : ""}`;
     let style = this.#edgeStyles.get(key);
     if (!style) {
       style = worldEdgeStyle(
@@ -1878,6 +2005,7 @@ export class DeckWorldSurface implements WorldSurface {
           ...(datum.label === undefined ? {} : { predicate: datum.label }),
           attributes: datum.style ? { style: datum.style } : undefined,
           selected: datum.selected,
+          emphasized: datum.emphasized,
         },
         this.#palette,
       );
@@ -2033,6 +2161,13 @@ export class DeckWorldSurface implements WorldSurface {
 
   setSelection(selection: WorldSelection | null): void {
     this.#assertAlive();
+    if (
+      selection === null
+        ? this.#selection === null
+        : selectionEquals(selection, this.#selection)
+    ) {
+      return;
+    }
     this.#selection = selection;
     this.#render();
   }
@@ -2291,6 +2426,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#container.removeEventListener?.("keydown", this.#handleKeyDown as EventListener);
     this.#liveRegion?.remove?.();
     this.#accessibleMirror?.destroy();
+    this.#setPointerCursor(null);
     this.#deck.finalize();
   }
 
@@ -2338,6 +2474,9 @@ export class DeckWorldSurface implements WorldSurface {
     if (claimed) {
       if (touch) this.#touchHold.commit(pointerId);
       this.#activeDragPointerId = pointerId;
+      const style = (this.#container as HTMLElement).style;
+      if (style) style.cursor = "grabbing";
+      void pulseHaptic("tick");
       if (this.#camera.zoom >= WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM) {
         this.#dragCameraLock = this.#camera;
       }
@@ -2369,6 +2508,8 @@ export class DeckWorldSurface implements WorldSurface {
     event.stopPropagation?.();
     this.#activeDragPointerId = null;
     this.#dragCameraLock = null;
+    this.#setPointerCursor(this.#hoverSelection);
+    void pulseHaptic("release");
     return sink.release(pointerId);
   }
 
@@ -2605,6 +2746,7 @@ export class DeckWorldSurface implements WorldSurface {
         !previous ||
         previous.edge.label !== relationship.label ||
         previous.edge.selected !== relationship.selected ||
+        previous.edge.emphasized !== relationship.emphasized ||
         !styleEqual(previous.edge.style, relationship.style)
       ) {
         styleChanged = true;
@@ -2623,7 +2765,7 @@ export class DeckWorldSurface implements WorldSurface {
         Object.freeze({ edge: state.edge, temporalActive: false }),
       );
       temporalChanged = true;
-      if (state.edge.selected) styleChanged = true;
+      if (state.edge.selected || state.edge.emphasized) styleChanged = true;
     }
 
     if (temporalChanged) this.#temporalRelationshipRevision += 1;
@@ -2653,6 +2795,7 @@ export class DeckWorldSurface implements WorldSurface {
       ...(state.edge.label === undefined ? {} : { label: state.edge.label }),
       ...(state.edge.style === undefined ? {} : { style: state.edge.style }),
       selected: state.temporalActive && state.edge.selected,
+      emphasized: state.temporalActive && state.edge.emphasized,
     });
   }
 
@@ -2667,16 +2810,22 @@ export class DeckWorldSurface implements WorldSurface {
     this.#offsetScale = this.#nextOffsetScale();
     this.#floatMeters = this.#nextFloatMeters();
     const index = this.#instanceIndex();
+    const neighborhood = interactionNeighborhood(this.#projection, [
+      this.#selection,
+      this.#hoverSelection,
+    ]);
     const placeResult = placeDatums(
       this.#projection.instances,
       this.#selection,
       this.#placeDatumCache,
+      neighborhood.placeIds,
     );
     const relationshipResult = relationshipDatums(
       this.#projection,
       index,
       this.#selection,
       this.#relationshipDatumCache,
+      neighborhood.relationshipIds,
     );
     const entityResult = entityDatums(
       this.#projection.instances,
@@ -2684,6 +2833,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#entityDatumCache,
       this.#offsetScale,
       this.#floatMeters,
+      neighborhood.entityIds,
     );
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
@@ -2718,7 +2868,9 @@ export class DeckWorldSurface implements WorldSurface {
     // entities keep an icon; otherwise a zoom-tier budget by visual weight.
     const focus = this.#focus;
     const pinnedEntity = (entity: DeckWorldEntityDatum) =>
-      entity.selected || (focus?.kind === "entity" && focus.id === entity.entityId);
+      entity.selected ||
+      entity.emphasized ||
+      (focus?.kind === "entity" && focus.id === entity.entityId);
     const iconDatums = this.#runtime.createIconLayer
       ? selectPrioritizedLabels(
           entityResult.datums.filter(
@@ -2827,6 +2979,9 @@ export class DeckWorldSurface implements WorldSurface {
           getLineColor: this.#palette,
           getFillColor: this.#palette,
         },
+        transitions: prefersReducedMotion()
+          ? undefined
+          : { getRadius: 120, getLineWidth: 120, getLineColor: 120, getFillColor: 120 },
       }),
       this.#runtime.createPathLayer({
         id: DECK_WORLD_LAYER_IDS.relationships,
@@ -2957,6 +3112,7 @@ export class DeckWorldSurface implements WorldSurface {
               getSize: (datum: DeckWorldEntityDatum) =>
                 worldNodeMarker(this.#entityStyle(datum)).size,
               updateTriggers: { getIcon: this.#palette, getSize: this.#palette },
+              transitions: prefersReducedMotion() ? undefined : { getSize: 120 },
               // GlobeView culls back faces; billboarded icon quads vanish
               // without this (same as the label TextLayer). Markers draw
               // without depth testing so the invisible earth never clips
@@ -3020,6 +3176,9 @@ export class DeckWorldSurface implements WorldSurface {
               getTextAnchor: "middle",
               getAlignmentBaseline: "center",
               getPixelOffset: labelPixelOffset,
+              transitions: prefersReducedMotion()
+                ? undefined
+                : { getSize: 120, getColor: 120, getPixelOffset: 120 },
               // GlobeView culls back faces; billboarded glyph quads are
               // wound the other way and vanish without this. Labels draw
               // over marks (far-side labels are filtered out above) so

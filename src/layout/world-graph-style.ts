@@ -122,6 +122,8 @@ export interface WorldNodeStyleInput {
   readonly type?: string;
   readonly attributes?: unknown;
   readonly selected?: boolean;
+  /** Connected-neighborhood emphasis without changing canonical selection. */
+  readonly emphasized?: boolean;
   readonly visualWeight?: number;
 }
 
@@ -138,12 +140,18 @@ function worldNodeMetrics(input: WorldNodeStyleInput): {
     number(own["size"], 4, 28) ??
     number(own["radius"], 4, 28) ??
     (authoredDiameter === null ? null : authoredDiameter / 2);
-  const resolvedRadius = Math.round(authoredRadius ?? baseRadius) + (input.selected ? 2 : 0);
+  const emphasized = input.emphasized === true && input.selected !== true;
+  const resolvedRadius =
+    Math.round(authoredRadius ?? baseRadius) + (input.selected ? 2 : emphasized ? 1 : 0);
   const authoredBorderWidth =
     number(own["borderWidth"], 0, 8) ?? number(own["strokeWidth"], 0, 8) ?? 2;
   return Object.freeze({
     radius: resolvedRadius * WORLD_NODE_SCALE,
-    borderWidth: input.selected ? Math.max(4, authoredBorderWidth + 1) : authoredBorderWidth,
+    borderWidth: input.selected
+      ? Math.max(4, authoredBorderWidth + 1)
+      : emphasized
+        ? Math.max(3, authoredBorderWidth + 1)
+        : authoredBorderWidth,
   });
 }
 
@@ -199,6 +207,7 @@ export function worldPlaceStyle(
   placeStyle: unknown,
   selected: boolean,
   palette: WorldGraphPalette,
+  emphasized = false,
 ): WorldNodeStyle {
   const marker = record(record(placeStyle)?.["marker"]) ?? {};
   const fill =
@@ -219,11 +228,17 @@ export function worldPlaceStyle(
   return Object.freeze({
     fill,
     border,
-    borderWidth: selected ? Math.max(4, borderWidth + 1) : borderWidth,
+    borderWidth: selected
+      ? Math.max(4, borderWidth + 1)
+      : emphasized
+        ? Math.max(3, borderWidth + 1)
+        : borderWidth,
     shape: "circle",
     icon: null,
     image: null,
-    radius: Math.round((number(marker["size"], 8, 48) ?? 12) / 2) + (selected ? 2 : 0),
+    radius:
+      Math.round((number(marker["size"], 8, 48) ?? 12) / 2) +
+      (selected ? 2 : emphasized ? 1 : 0),
   });
 }
 
@@ -242,6 +257,8 @@ export interface WorldEdgeStyleInput {
   readonly predicate?: string;
   readonly attributes?: unknown;
   readonly selected?: boolean;
+  /** Incident-edge emphasis without changing canonical selection. */
+  readonly emphasized?: boolean;
   readonly inactive?: boolean;
 }
 
@@ -261,10 +278,16 @@ export function worldEdgeStyle(
     number(own["strokeWidth"], 0.5, 10) ??
     number(own["lineWidth"], 0.5, 10) ??
     2.5;
+  const emphasized = input.emphasized === true && input.selected !== true;
   return Object.freeze({
-    // Selection increases prominence but preserves authored/type colour.
+    // Selection/neighborhood emphasis increases prominence but preserves
+    // authored/type colour.
     color: input.inactive && !input.selected ? palette.muted : semanticColor,
-    width: input.selected ? Math.max(4, authoredWidth + 1) : authoredWidth,
+    width: input.selected
+      ? Math.max(4, authoredWidth + 1)
+      : emphasized
+        ? Math.max(3, authoredWidth + 0.5)
+        : authoredWidth,
     dashed:
       lineStyle === "dashed" ||
       lineStyle === "dash" ||

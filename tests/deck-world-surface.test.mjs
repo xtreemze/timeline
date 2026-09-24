@@ -206,6 +206,38 @@ test("deck controller disables inertia when prefers-reduced-motion is set", (t) 
   assert.equal(calls.deckProps.controller.inertia, false);
 });
 
+test("short interaction feedback transitions respect reduced motion", (t) => {
+  const originalMatchMedia = globalThis.matchMedia;
+  t.after(() => {
+    globalThis.matchMedia = originalMatchMedia;
+  });
+
+  globalThis.matchMedia = () => ({ matches: false });
+  const animatedHarness = harness();
+  const animated = new DeckWorldSurface({}, animatedHarness.runtime);
+  animated.setProjection(projection());
+  const animatedPlaces = animatedHarness.calls.setProps
+    .at(-1)
+    .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.places);
+  assert.deepEqual(animatedPlaces.props.transitions, {
+    getRadius: 120,
+    getLineWidth: 120,
+    getLineColor: 120,
+    getFillColor: 120,
+  });
+
+  globalThis.matchMedia = (query) => ({
+    matches: query === "(prefers-reduced-motion: reduce)",
+  });
+  const reducedHarness = harness();
+  const reduced = new DeckWorldSurface({}, reducedHarness.runtime);
+  reduced.setProjection(projection());
+  const reducedPlaces = reducedHarness.calls.setProps
+    .at(-1)
+    .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.places);
+  assert.equal(reducedPlaces.props.transitions, undefined);
+});
+
 test("temporal relationship joins and disconnects remain perceptible for at least three seconds", () => {
   assert.ok(WORLD_TEMPORAL_RELATION_TRANSITION_MS >= 3_000);
 
@@ -456,6 +488,78 @@ test("selection updates presentation data while preserving canonical IDs", () =>
 
   assert.equal(entities.find((datum) => datum.entityId === "alice").selected, true);
   assert.equal(entities.find((datum) => datum.entityId === "bob").selected, false);
+});
+
+test("hover and click emphasize a node's immediate neighborhood without changing hover into canonical selection", () => {
+  const { calls, runtime } = harness();
+  const container = { style: {} };
+  const surface = new DeckWorldSurface(container, runtime);
+  surface.setProjection(projection());
+
+  const aliceId = worldInstanceId("alice", "meeting");
+  const entityPick = {
+    object: {
+      kind: "entity",
+      entityId: "alice",
+      worldInstanceId: aliceId,
+    },
+  };
+
+  calls.deckProps.onHover(entityPick);
+
+  let render = calls.setProps.at(-1);
+  let entities = render.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities,
+  ).props.data;
+  let relationships = render.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.relationships,
+  );
+  const relationship = relationships.props.data.find(
+    (datum) => datum.relationshipId === "meeting",
+  );
+
+  assert.equal(entities.find((datum) => datum.entityId === "alice").emphasized, true);
+  assert.equal(entities.find((datum) => datum.entityId === "bob").emphasized, true);
+  assert.equal(relationships.props.getWidth(relationship), 3);
+  assert.equal(container.style.cursor, "pointer");
+  assert.equal(surface.getAccessibleSnapshot().selection, null);
+
+  calls.deckProps.onClick(entityPick);
+
+  render = calls.setProps.at(-1);
+  entities = render.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities,
+  ).props.data;
+  relationships = render.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.relationships,
+  );
+  const selectedRelationship = relationships.props.data.find(
+    (datum) => datum.relationshipId === "meeting",
+  );
+
+  const alice = entities.find((datum) => datum.entityId === "alice");
+  const bob = entities.find((datum) => datum.entityId === "bob");
+  assert.equal(alice.selected, true);
+  assert.equal(alice.emphasized, true);
+  assert.equal(bob.selected, false);
+  assert.equal(bob.emphasized, true);
+  assert.equal(relationships.props.getWidth(selectedRelationship), 3);
+  assert.deepEqual(surface.getAccessibleSnapshot().selection, {
+    kind: "entity",
+    id: "alice",
+  });
+
+  calls.deckProps.onHover({});
+  render = calls.setProps.at(-1);
+  entities = render.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities,
+  ).props.data;
+  assert.equal(container.style.cursor, "");
+  assert.equal(
+    entities.find((datum) => datum.entityId === "bob").emphasized,
+    true,
+    "canonical selection keeps the selected node's neighborhood emphasized after hover leaves",
+  );
 });
 
 test("relationship and place selection are also reflected in their render datums (issue #445 Priority 4)", () => {
