@@ -44,7 +44,6 @@ test("connector and point emphasis follows the retained occurrence state", async
   assert.doesNotMatch(css, /transition:\s*all/);
 });
 
-
 test("interaction positioning reads geometry once and freezes label topology", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
