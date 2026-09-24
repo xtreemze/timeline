@@ -358,6 +358,17 @@ test("DeckWorldSurface renders places, globe-visible paths, and elevated entity 
   assert.equal(tethers.props.id, DECK_WORLD_LAYER_IDS.tethers);
   assert.equal(tethers.props.pickable, false);
   assert.ok(tethers.props.data.length > 0, "floating entities hang from their place");
+  const tether = tethers.props.data[0];
+  const relationship = relationships.props.data[0];
+  assert.ok(
+    tethers.props.getWidth(tether) < relationships.props.getWidth(relationship),
+    "geographic tethers are thinner than semantic relationship edges",
+  );
+  assert.ok(
+    tethers.props.getColor(tether)[3] < relationships.props.getColor(relationship)[3],
+    "geographic tethers are lower-alpha than semantic relationship edges",
+  );
+  assert.ok(tethers.props.getColor(tether)[3] <= 48, "tethers remain visually muted");
   assert.equal(directions.props.id, DECK_WORLD_LAYER_IDS.relationshipDirections);
   assert.equal(places.props.id, DECK_WORLD_LAYER_IDS.places);
   assert.equal(relationships.props.id, DECK_WORLD_LAYER_IDS.relationships);
@@ -547,7 +558,7 @@ test("hover and selection emphasize without changing graph geometry, and repeate
   let relationshipsLayer = render.layers.find(
     (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.relationships,
   );
-  let placesLayer = render.layers.find(
+  const placesLayer = render.layers.find(
     (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.places,
   );
   let entities = entitiesLayer.props.data;
