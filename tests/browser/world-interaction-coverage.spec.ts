@@ -271,7 +271,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       // draw-order or first-match pick would return the wrong one.
       const ground = stacked("a-ground", 0);
       const elevated = stacked("b-elevated", 150_000);
-      harness.surface.setCamera({ longitude: 12, latitude: 30, zoom: 5, bearing: 0, pitch: 0 });
+      harness.surface.setCamera({ longitude: 12, latitude: 30, zoom: 7.25, bearing: 0, pitch: 0 });
       harness.surface.setProjection(
         createWorldProjection({ instances: [ground, elevated], edges: [] }),
       );
@@ -320,7 +320,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
           retained: false,
           visualAltitude,
         });
-      harness.surface.setCamera({ longitude: 12, latitude: 30, zoom: 5, bearing: 0, pitch: 55 });
+      harness.surface.setCamera({ longitude: 12, latitude: 30, zoom: 7.25, bearing: 0, pitch: 55 });
       const elevated = node("z-elevated", 12, 30, 60_000);
       harness.surface.setProjection(createWorldProjection({ instances: [elevated], edges: [] }));
       await new Promise<void>((resolve) =>
