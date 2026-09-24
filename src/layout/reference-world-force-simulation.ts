@@ -348,15 +348,27 @@ function placeDomain(states: readonly NodeState[]): PlaceDomain | null {
     (radius, state) => Math.max(radius, state.anchor?.precisionRadiusMeters ?? 0),
     0,
   );
+  const layoutTargetRadiusMeters = anchored.reduce((radius, state) => {
+    const east = state.node.layoutTargetEastMeters;
+    const north = state.node.layoutTargetNorthMeters;
+    return east === undefined || north === undefined
+      ? radius
+      : Math.max(radius, Math.hypot(east, north) + state.node.collisionRadiusMeters);
+  }, 0);
 
   // A place is the centre of a local layout domain, not the target position
   // of every entity. Keep the authored place marker clear, then give the
   // group enough annular area to spread through collision/relationship
-  // forces without assigning rigid angular slots.
+  // forces. A feasible Sugiyama target must fit inside the same domain so the
+  // anchor constraint never fights the structural target.
   const innerRadiusMeters = Math.max(1, maxCollisionRadiusMeters * PLACE_DOMAIN_INNER_RADIUS_SCALE);
   const packingWidthMeters =
     maxCollisionRadiusMeters * Math.max(2, Math.sqrt(anchored.length) * PLACE_DOMAIN_WIDTH_SCALE);
-  const outerRadiusMeters = Math.max(innerRadiusMeters + packingWidthMeters, precisionRadiusMeters);
+  const outerRadiusMeters = Math.max(
+    innerRadiusMeters + packingWidthMeters,
+    precisionRadiusMeters,
+    layoutTargetRadiusMeters,
+  );
 
   return Object.freeze({ innerRadiusMeters, outerRadiusMeters });
 }
