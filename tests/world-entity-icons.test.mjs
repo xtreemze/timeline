@@ -125,6 +125,11 @@ test("every entity renders as a styled node marker that picks as the entity", ()
     "unknown kinds draw no glyph",
   );
   assert.ok(icons.props.getSize(byEntity.get("entity-0")) > 0);
+  assert.equal(
+    icons.props.getColor(byEntity.get("entity-0"))[3],
+    230,
+    "ordinary markers keep enough opacity to remain visible against the app background",
+  );
   assert.equal(byEntity.get("entity-0").kind, "entity", "markers pick as the canonical entity");
 
   surface.pick({ x: 1, y: 1 });
