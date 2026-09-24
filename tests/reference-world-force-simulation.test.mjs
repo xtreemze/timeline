@@ -412,6 +412,64 @@ test("broad phase finds floating nodes that meet far from their different anchor
   );
 });
 
+test("direct drag only disturbs same-place pairs incident to the pinned node", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const dragged = '["alice","drag-focus"]';
+  const left = '["bob","drag-focus-left"]';
+  const right = '["carol","drag-focus-right"]';
+
+  simulation.setScene({
+    nodes: [
+      node(dragged, { initialEastMeters: 1, collisionRadiusMeters: 100 }),
+      node(left, { initialEastMeters: -10, collisionRadiusMeters: 100 }),
+      node(right, { initialEastMeters: 10, collisionRadiusMeters: 100 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(dragged, "stockholm", { influence: 0 }),
+      anchor(left, "stockholm", { influence: 0 }),
+      anchor(right, "stockholm", { influence: 0 }),
+    ],
+  });
+
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 10_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+
+  const beforeDrag = simulation.getSnapshot();
+  simulation.step(1000 / 60);
+  const duringDrag = simulation.getSnapshot();
+
+  const beforeLeft = beforeDrag.find((entry) => entry.instanceId === left);
+  const beforeRight = beforeDrag.find((entry) => entry.instanceId === right);
+  const duringLeft = duringDrag.find((entry) => entry.instanceId === left);
+  const duringRight = duringDrag.find((entry) => entry.instanceId === right);
+
+  assert.deepEqual(duringLeft, beforeLeft);
+  assert.deepEqual(duringRight, beforeRight);
+
+  simulation.setPin(null);
+  simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
+  simulation.step(1000 / 60);
+  const afterDrop = simulation.getSnapshot();
+  const afterLeft = afterDrop.find((entry) => entry.instanceId === left);
+  const afterRight = afterDrop.find((entry) => entry.instanceId === right);
+
+  assert.notDeepEqual(afterLeft, duringLeft);
+  assert.notDeepEqual(afterRight, duringRight);
+});
+
 test("post-drop settling stays responsive after an extreme drag displacement", () => {
   const simulation = new ReferenceWorldForceSimulation({
     repulsionStrength: 0,
