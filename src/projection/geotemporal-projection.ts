@@ -75,13 +75,13 @@ function endpointTime(
     return null;
   }
 
-  const direct = parseCanonicalTime(endpoint.value);
+  const direct = parseCanonicalTime(endpoint["value"]);
   if (direct !== null) {
     return direct;
   }
 
-  const earliest = parseCanonicalTime(endpoint.earliest);
-  const latest = parseCanonicalTime(endpoint.latest);
+  const earliest = parseCanonicalTime(endpoint["earliest"]);
+  const latest = parseCanonicalTime(endpoint["latest"]);
   if (earliest !== null && latest !== null) {
     return earliest + (latest - earliest) / 2;
   }
