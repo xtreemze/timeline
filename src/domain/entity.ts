@@ -108,7 +108,9 @@ export function validateEntity(entity: {
   }
 
   if (entity.attributes) {
-    const nonCanonicalKey = Object.keys(entity.attributes).find((key) => !PROPERTY_KEY_PATTERN.test(key));
+    const nonCanonicalKey = Object.keys(entity.attributes).find(
+      (key) => !PROPERTY_KEY_PATTERN.test(key),
+    );
     if (nonCanonicalKey) {
       return {
         valid: false,

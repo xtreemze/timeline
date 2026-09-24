@@ -63,7 +63,11 @@ const ICON_PATHS = Object.freeze({
   organization: ["M4 21h16", "M6 21V8l6-5 6 5v13", "M9 11h1", "M14 11h1", "M9 15h1", "M14 15h1"],
   device: ["M5 4h14v12H5z", "M9 20h6", "M12 16v4"],
   account: ["M4 7h16v12H4z", "M4 10h16", "M8 15h4"],
-  animal: ["M8 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z", "M16 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z", "M7 16c2-3 8-3 10 0 1 2-1 5-5 5s-6-3-5-5z"],
+  animal: [
+    "M8 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
+    "M16 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
+    "M7 16c2-3 8-3 10 0 1 2-1 5-5 5s-6-3-5-5z",
+  ],
   structure: ["M3 11.5 12 3l9 8.5", "M5.5 10.5V21h13V10.5", "M9.5 21v-6h5v6"],
   artifact: ["M12 3 20 7 12 11 4 7z", "M4 7v10l8 4 8-4V7", "M12 11v10"],
   vehicle: ["M4 14 6 8h12l2 6v4H4z", "M7 18a2 2 0 1 0 0 4", "M17 18a2 2 0 1 0 0 4"],
@@ -85,7 +89,12 @@ function semanticType(data) {
   if (type === "chronology-item") return "event";
   if (type === "story") return "story";
   if (/pig|wolf|animal/.test(type)) return "animal";
-  if (type.includes("person") || type.includes("group") || /princess|prince|queen|king|huntsman|fairy|mother|father|stepmother|herald/.test(type)) return "person";
+  if (
+    type.includes("person") ||
+    type.includes("group") ||
+    /princess|prince|queen|king|huntsman|fairy|mother|father|stepmother|herald/.test(type)
+  )
+    return "person";
   if (/dwelling|house|cottage|structure|building/.test(type)) return "structure";
   if (/vehicle|coach|carriage/.test(type)) return "vehicle";
   if (/material/.test(type)) return "material";

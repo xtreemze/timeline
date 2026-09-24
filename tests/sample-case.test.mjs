@@ -32,7 +32,13 @@ function storySpan(story) {
 test("sample is a five-story fictional anthology with strict logical consistency", () => {
   assert.deepEqual(
     sample.stories.map((story) => story.title),
-    ["The Three Little Pigs", "Snow White", "Cinderella", "Little Red Riding Hood", "Hansel and Gretel"],
+    [
+      "The Three Little Pigs",
+      "Snow White",
+      "Cinderella",
+      "Little Red Riding Hood",
+      "Hansel and Gretel",
+    ],
   );
   assert.equal(sample.extensions?.narrative?.mode, "fictional");
   assert.equal(sample.extensions?.narrative?.validationProfile, "narrative");
@@ -143,7 +149,9 @@ test("sample exercises focus compositions, media, source surfaces, and tags", ()
   assert.ok(sample.items.every((item) => item.tags?.length));
   const evidenceTypes = new Set(sample.evidence.map((record) => record.type));
   assert.deepEqual([...evidenceTypes].sort(), ["document", "note", "pdf"]);
-  const narrativeSources = sample.evidence.filter((record) => record.sourceName === "Project Gutenberg");
+  const narrativeSources = sample.evidence.filter(
+    (record) => record.sourceName === "Project Gutenberg",
+  );
   assert.ok(narrativeSources.length >= sample.stories.length);
   assert.ok(
     narrativeSources.every(
@@ -154,7 +162,6 @@ test("sample exercises focus compositions, media, source surfaces, and tags", ()
   );
   assert.ok(sample.evidence.some((record) => record.sourceName === "Timeline demo"));
 });
-
 
 test("sample entities, relationships, places, and evidence satisfy the strict semantic quality profile", () => {
   const genericTypes = new Set(["entity", "object", "thing", "item", "resource", "agent"]);
@@ -176,7 +183,8 @@ test("sample entities, relationships, places, and evidence satisfy the strict se
     assert.ok(relationship.sourceIds?.length, `${relationship.id}: provenance`);
     for (const sourceId of relationship.sourceIds) assert.ok(evidenceIds.has(sourceId), sourceId);
     if (relationship.placeId) assert.ok(placeIds.has(relationship.placeId), relationship.id);
-    for (const itemId of relationship.itemIds || []) assert.ok(itemIds.has(itemId), relationship.id);
+    for (const itemId of relationship.itemIds || [])
+      assert.ok(itemIds.has(itemId), relationship.id);
     for (const key of Object.keys(relationship.attributes || {}))
       assert.ok(lowerCamel.test(key), `${relationship.id}: property ${key}`);
   }
@@ -188,9 +196,20 @@ test("sample entities, relationships, places, and evidence satisfy the strict se
 
   for (const place of sample.places) {
     assert.ok(presentation.ICON_NAMES.includes(place.icon), `${place.id}: semantic icon`);
-    assert.ok(spatial.PLACE_MARKER_SHAPES.includes(place.markerShape), `${place.id}: semantic shape`);
-    assert.match(place.style?.marker?.color || "", /^#[0-9a-f]{6}$/i, `${place.id}: semantic color`);
-    assert.match(place.style?.marker?.fillColor || "", /^#[0-9a-f]{6}$/i, `${place.id}: semantic fill`);
+    assert.ok(
+      spatial.PLACE_MARKER_SHAPES.includes(place.markerShape),
+      `${place.id}: semantic shape`,
+    );
+    assert.match(
+      place.style?.marker?.color || "",
+      /^#[0-9a-f]{6}$/i,
+      `${place.id}: semantic color`,
+    );
+    assert.match(
+      place.style?.marker?.fillColor || "",
+      /^#[0-9a-f]{6}$/i,
+      `${place.id}: semantic fill`,
+    );
   }
 });
 
@@ -201,10 +220,24 @@ test("the expanded anthology includes sourced classic narratives beyond the orig
   assert.equal(hansel?.title, "Hansel and Gretel");
   assert.ok(red.itemIds.length >= 10);
   assert.ok(hansel.itemIds.length >= 10);
-  assert.ok(sample.entities.some((entity) => entity.id === "red-wolf" && entity.type === "anthropomorphicWolf"));
-  assert.ok(sample.entities.some((entity) => entity.id === "hg-gingerbread-house" && entity.type === "dwelling"));
-  assert.ok(sample.evidence.some((record) => record.id === "src-red-cap" && /11027/.test(record.url || "")));
-  assert.ok(sample.evidence.some((record) => record.id === "src-hansel-gretel" && /11027/.test(record.url || "")));
+  assert.ok(
+    sample.entities.some(
+      (entity) => entity.id === "red-wolf" && entity.type === "anthropomorphicWolf",
+    ),
+  );
+  assert.ok(
+    sample.entities.some(
+      (entity) => entity.id === "hg-gingerbread-house" && entity.type === "dwelling",
+    ),
+  );
+  assert.ok(
+    sample.evidence.some((record) => record.id === "src-red-cap" && /11027/.test(record.url || "")),
+  );
+  assert.ok(
+    sample.evidence.some(
+      (record) => record.id === "src-hansel-gretel" && /11027/.test(record.url || ""),
+    ),
+  );
 });
 
 test("the anthology keeps tales separate through narrative membership, not graph topology", () => {

@@ -118,7 +118,6 @@ test("recordRelationship rejects self loops, missing endpoints, and mirrored dup
   );
 });
 
-
 test("relationship matrix preserves directed topology and deterministic entity ordering", () => {
   const project = {
     schemaVersion: 3,
@@ -149,9 +148,15 @@ test("relationship matrix preserves directed topology and deterministic entity o
   );
 
   assert.equal(aliceToBob.state, "visible");
-  assert.deepEqual(aliceToBob.relationships.map((relationship) => relationship.id), ["rel-1"]);
+  assert.deepEqual(
+    aliceToBob.relationships.map((relationship) => relationship.id),
+    ["rel-1"],
+  );
   assert.equal(bobToAlice.state, "visible");
-  assert.deepEqual(bobToAlice.relationships.map((relationship) => relationship.id), ["rel-reply"]);
+  assert.deepEqual(
+    bobToAlice.relationships.map((relationship) => relationship.id),
+    ["rel-reply"],
+  );
 });
 
 test("relationship matrix distinguishes filtered relationships from absent relationships", () => {
@@ -200,9 +205,10 @@ test("relationship matrix filters source coverage without mutating canonical rel
   );
 
   assert.equal(aliceToBob.state, "visible");
-  assert.deepEqual(aliceToBob.relationships.map((relationship) => relationship.id), [
-    "rel-no-source",
-  ]);
+  assert.deepEqual(
+    aliceToBob.relationships.map((relationship) => relationship.id),
+    ["rel-no-source"],
+  );
   assert.equal(aliceToBob.hiddenRelationshipCount, 1);
   assert.equal(JSON.stringify(project), before);
 });

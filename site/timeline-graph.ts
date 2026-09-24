@@ -948,11 +948,7 @@ export function validateGraphInput(
   };
 
   rawItems.forEach((item, index) => {
-    const id = registerId(
-      item?.id,
-      `chronology item ${index + 1}`,
-      `Chronology item ${index + 1}`,
-    );
+    const id = registerId(item?.id, `chronology item ${index + 1}`, `Chronology item ${index + 1}`);
     if (id) itemIds.add(id);
   });
   rawEvidence.forEach((record, index) => {
