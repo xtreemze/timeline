@@ -327,7 +327,12 @@ test("detail zoom repositions co-located semantic labels before hiding them", ()
       },
     ],
   });
-  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, longitude: 10, latitude: 50, zoom: 9 });
+  const surface = new DeckWorldSurface({}, h.runtime, {
+    ...WORKING_CAMERA,
+    longitude: 10,
+    latitude: 50,
+    zoom: 9,
+  });
   surface.setProjection(
     createWorldProjection({
       instances: [source, target],
@@ -387,10 +392,10 @@ test("clustered overview shows only place labels", () => {
   const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
   assert.ok(labels.props.data.length > 0);
   assert.ok(labels.props.data.every((datum) => datum.kind === "place-label"));
-  assert.deepEqual(
-    labels.props.data.map((datum) => labels.props.getText(datum)).sort(),
-    ["Place 0", "Place 1"],
-  );
+  assert.deepEqual(labels.props.data.map((datum) => labels.props.getText(datum)).sort(), [
+    "Place 0",
+    "Place 1",
+  ]);
 });
 
 test("same-place overview retains members at the cluster origin while hiding member topology", () => {
@@ -462,9 +467,18 @@ test("same-place overview retains members at the cluster origin while hiding mem
   assert.deepEqual(path[0], path.at(-1), "edge endpoints collapse to the shared place origin");
 
   const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data;
-  assert.equal(labels.some((datum) => datum.kind === "entity-label"), false);
-  assert.equal(labels.some((datum) => datum.kind === "relationship-label"), false);
-  assert.equal(labels.some((datum) => datum.kind === "place-label"), true);
+  assert.equal(
+    labels.some((datum) => datum.kind === "entity-label"),
+    false,
+  );
+  assert.equal(
+    labels.some((datum) => datum.kind === "relationship-label"),
+    false,
+  );
+  assert.equal(
+    labels.some((datum) => datum.kind === "place-label"),
+    true,
+  );
 });
 
 test("a lone relationship remains visually straight on fixed sampled path topology", () => {
@@ -487,81 +501,65 @@ test("a lone relationship remains visually straight on fixed sampled path topolo
   assert.ok(Math.abs(midpoint[1] - (source[1] + target[1]) / 2) < 1e-9);
 });
 
-test(
-  "parallel and reciprocal relationships fan into distinct curved paths with labels and arrows",
-  () => {
-    const h = harness();
-    const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
-    surface.setProjection(parallelProjection());
+test("parallel and reciprocal relationships fan into distinct curved paths with labels and arrows", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
+  surface.setProjection(parallelProjection());
 
-    const layers = h.lastLayers();
-    const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
-    const paths = new Map(
-      relationships.props.data.map((datum) => [
-        datum.relationshipId,
-        relationships.props.getPath(datum),
-      ]),
-    );
-    assert.equal(paths.size, 3);
-    assert.equal(new Set([...paths.values()].map((path) => path.length)).size, 1);
-    assert.equal(paths.get("alpha").length, 9);
+  const layers = h.lastLayers();
+  const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+  const paths = new Map(
+    relationships.props.data.map((datum) => [
+      datum.relationshipId,
+      relationships.props.getPath(datum),
+    ]),
+  );
+  assert.equal(paths.size, 3);
+  assert.equal(new Set([...paths.values()].map((path) => path.length)).size, 1);
+  assert.equal(paths.get("alpha").length, 9);
 
-    const alpha = paths.get("alpha");
-    const beta = paths.get("beta");
-    const gamma = paths.get("gamma");
-    assert.ok(alpha && beta && gamma);
-    assert.deepEqual(
-      gamma[0],
-      alpha.at(-1),
-      "reciprocal edge starts at its canonical source",
-    );
-    assert.deepEqual(
-      gamma.at(-1),
-      alpha[0],
-      "reciprocal edge ends at its canonical target",
-    );
+  const alpha = paths.get("alpha");
+  const beta = paths.get("beta");
+  const gamma = paths.get("gamma");
+  assert.ok(alpha && beta && gamma);
+  assert.deepEqual(gamma[0], alpha.at(-1), "reciprocal edge starts at its canonical source");
+  assert.deepEqual(gamma.at(-1), alpha[0], "reciprocal edge ends at its canonical target");
 
-    const straightMidpoint = [
-      (alpha[0][0] + alpha.at(-1)[0]) / 2,
-      (alpha[0][1] + alpha.at(-1)[1]) / 2,
-    ];
-    const midpoints = [alpha[4], beta[4], gamma[4]];
-    assert.equal(
-      new Set(midpoints.map((point) => `${point[0].toFixed(9)}:${point[1].toFixed(9)}`)).size,
-      3,
-      "every parallel relationship owns a distinct curve lane",
+  const straightMidpoint = [
+    (alpha[0][0] + alpha.at(-1)[0]) / 2,
+    (alpha[0][1] + alpha.at(-1)[1]) / 2,
+  ];
+  const midpoints = [alpha[4], beta[4], gamma[4]];
+  assert.equal(
+    new Set(midpoints.map((point) => `${point[0].toFixed(9)}:${point[1].toFixed(9)}`)).size,
+    3,
+    "every parallel relationship owns a distinct curve lane",
+  );
+  for (const midpoint of midpoints) {
+    assert.ok(
+      Math.hypot(midpoint[0] - straightMidpoint[0], midpoint[1] - straightMidpoint[1]) > 1e-9,
+      "no relationship remains on the overlapping straight centre line",
     );
-    for (const midpoint of midpoints) {
-      assert.ok(
-        Math.hypot(midpoint[0] - straightMidpoint[0], midpoint[1] - straightMidpoint[1]) >
-          1e-9,
-        "no relationship remains on the overlapping straight centre line",
-      );
-    }
+  }
 
-    const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.filter(
-      (datum) => datum.kind === "relationship-label",
-    );
-    for (const labelDatum of labels) {
-      const path = paths.get(labelDatum.relationshipId);
-      assert.ok(path);
-      assert.deepEqual(
-        labelDatum.position,
-        path[4],
-        "label follows its own curved edge midpoint",
-      );
-    }
+  const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.filter(
+    (datum) => datum.kind === "relationship-label",
+  );
+  for (const labelDatum of labels) {
+    const path = paths.get(labelDatum.relationshipId);
+    assert.ok(path);
+    assert.deepEqual(labelDatum.position, path[4], "label follows its own curved edge midpoint");
+  }
 
-    const directions = layer(layers, DECK_WORLD_LAYER_IDS.relationshipDirections);
-    const arrowApexes = directions.props.data.map((datum) => directions.props.getPath(datum)[1]);
-    assert.equal(
-      new Set(arrowApexes.map((point) => `${point[0].toFixed(9)}:${point[1].toFixed(9)}`)).size,
-      3,
-      "direction markers follow the separate curve tangents",
-    );
-    assert.equal(relationships.props.transitions, undefined);
-  },
-);
+  const directions = layer(layers, DECK_WORLD_LAYER_IDS.relationshipDirections);
+  const arrowApexes = directions.props.data.map((datum) => directions.props.getPath(datum)[1]);
+  assert.equal(
+    new Set(arrowApexes.map((point) => `${point[0].toFixed(9)}:${point[1].toFixed(9)}`)).size,
+    3,
+    "direction markers follow the separate curve tangents",
+  );
+  assert.equal(relationships.props.transitions, undefined);
+});
 
 test("each rendered directed relationship has a visible marker preserving source/target identity", () => {
   const h = harness();
@@ -620,10 +618,7 @@ test("direction marker length stays node-relative across camera zoom", () => {
     const h = harness();
     const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom });
     surface.setProjection(directedProjection());
-    const marker = layer(
-      h.lastLayers(),
-      DECK_WORLD_LAYER_IDS.relationshipDirections,
-    ).props.data[0];
+    const marker = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections).props.data[0];
     return marker.arrowLengthDegrees;
   };
 
@@ -718,8 +713,14 @@ test("clustered overview suppresses member labels even when a member is selected
   surface.setSelection({ kind: "entity", id: "entity-150" });
 
   const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
-  assert.equal(labels.some((datum) => datum.kind === "entity-label"), false);
-  assert.equal(labels.some((datum) => datum.kind === "relationship-label"), false);
+  assert.equal(
+    labels.some((datum) => datum.kind === "entity-label"),
+    false,
+  );
+  assert.equal(
+    labels.some((datum) => datum.kind === "relationship-label"),
+    false,
+  );
   assert.ok(labels.length > 0);
   assert.ok(labels.every((datum) => datum.kind === "place-label"));
 });
@@ -761,14 +762,14 @@ test("hover changes label color only and never invokes renderer transitions", ()
   assert.equal(hoveredAfter, hoveredBefore, "hover preserves label datum identity");
 
   for (const datum of afterLayer.props.data) {
-    assert.equal(datum, beforeByKey.get(datum.key), datum.key + " datum identity stays stable");
+    assert.equal(datum, beforeByKey.get(datum.key), `${datum.key} datum identity stays stable`);
     assert.deepEqual(
       {
         position: afterLayer.props.getPosition(datum),
         pixelOffset: afterLayer.props.getPixelOffset(datum),
       },
       beforeGeometry.get(datum.key),
-      datum.key + " label geometry stays stable on hover",
+      `${datum.key} label geometry stays stable on hover`,
     );
   }
 

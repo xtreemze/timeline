@@ -140,7 +140,11 @@ test("world temporal previews do not rebuild the spatial projection before commi
   };
   view.previewWindow(preview);
 
-  assert.equal(getProjection(), committedProjection, "preview preserves expensive projection state");
+  assert.equal(
+    getProjection(),
+    committedProjection,
+    "preview preserves expensive projection state",
+  );
   assert.equal(windows.length, rendersBeforePreview + 1);
   assert.deepEqual(windows.at(-1), { start: preview.start, end: preview.end });
 
@@ -190,7 +194,6 @@ test("TimelineSurface publishes activation from the logical viewport, never from
     /timelineviewportchange[\s\S]{0,260}settledSpatialWindow\.push\([\s\S]*event\.detail\?\.viewport \|\| null[\s\S]*Boolean\(event\.detail\?\.committed\)/,
   );
 });
-
 
 test("transient timeline viewport bursts preview cheaply and collapse to one settled spatial update", () => {
   const applied = [];

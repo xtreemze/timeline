@@ -1,7 +1,7 @@
 import { LitElement, noChange } from "lit";
 
 export interface WorldSurfaceOwnedView {
-  destroy(): void;
+  destroy: () => void;
 }
 
 /**
@@ -22,7 +22,9 @@ export class LuumWorldSurfaceElement extends LitElement {
   }
 
   adoptView(view: WorldSurfaceOwnedView): void {
-    if (this.#ownedView === view) return;
+    if (this.#ownedView === view) {
+      return;
+    }
     this.#ownedView?.destroy();
     this.#ownedView = view;
   }
@@ -38,9 +40,6 @@ export class LuumWorldSurfaceElement extends LitElement {
   }
 }
 
-if (
-  typeof customElements !== "undefined" &&
-  !customElements.get("luum-world-surface")
-) {
+if (typeof customElements !== "undefined" && !customElements.get("luum-world-surface")) {
   customElements.define("luum-world-surface", LuumWorldSurfaceElement);
 }

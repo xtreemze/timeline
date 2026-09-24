@@ -22,7 +22,9 @@ export function occurrenceIntersectsViewport(
   occurrence: ProjectableOccurrence,
   viewport: Pick<SpatiotemporalViewport, "time">,
 ): boolean {
-  if (!validOccurrence(occurrence)) return false;
+  if (!validOccurrence(occurrence)) {
+    return false;
+  }
   const end = effectiveEnd(occurrence);
   return occurrence.start <= viewport.time.end && end >= viewport.time.start;
 }
@@ -31,13 +33,19 @@ export function occurrenceViewportWeight(
   occurrence: ProjectableOccurrence,
   viewport: Pick<SpatiotemporalViewport, "time">,
 ): number {
-  if (!occurrenceIntersectsViewport(occurrence, viewport)) return 0;
+  if (!occurrenceIntersectsViewport(occurrence, viewport)) {
+    return 0;
+  }
 
   const viewportSpan = viewport.time.end - viewport.time.start;
-  if (viewportSpan <= 0) return 1;
+  if (viewportSpan <= 0) {
+    return 1;
+  }
 
   const end = effectiveEnd(occurrence);
-  if (end === occurrence.start) return 1 / viewportSpan;
+  if (end === occurrence.start) {
+    return 1 / viewportSpan;
+  }
 
   const overlapStart = Math.max(occurrence.start, viewport.time.start);
   const overlapEnd = Math.min(end, viewport.time.end);
@@ -94,16 +102,22 @@ export function relationshipOccurrenceExtent(
   time: unknown,
   sortKey: (endpoint: unknown) => number,
 ): { readonly start: number; readonly end: number } | null {
-  if (typeof time !== "object" || time === null) return null;
+  if (typeof time !== "object" || time === null) {
+    return null;
+  }
   const extent = time as {
     readonly type?: unknown;
     readonly start?: unknown;
     readonly end?: unknown;
   };
-  if (extent.start === null || extent.start === undefined) return null;
+  if (extent.start === null || extent.start === undefined) {
+    return null;
+  }
 
   const start = sortKey(extent.start);
-  if (!Number.isFinite(start)) return null;
+  if (!Number.isFinite(start)) {
+    return null;
+  }
 
   const rawEnd =
     extent.type !== "instant" && extent.end !== null && extent.end !== undefined

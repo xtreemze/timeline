@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  compactTickLabel,
-  planTemporalAccents,
-} from "../site/timeline-clustering.ts";
+import { compactTickLabel, planTemporalAccents } from "../site/timeline-clustering.ts";
 
 function utc(year, month, day, hour = 0) {
   const date = new Date(0);

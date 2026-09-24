@@ -54,12 +54,7 @@
   },
   "overrides": [
     {
-      "includes": [
-        "src/**/*.js",
-        "site/**/*.js",
-        "tests/**/*.mjs",
-        "benchmarks/**/*.mjs"
-      ],
+      "includes": ["src/**/*.js", "site/**/*.js", "tests/**/*.mjs", "benchmarks/**/*.mjs"],
       "linter": {
         "rules": {
           "correctness": {
@@ -78,10 +73,7 @@
             "noConsole": {
               "level": "error",
               "options": {
-                "allow": [
-                  "warn",
-                  "error"
-                ]
+                "allow": ["warn", "error"]
               }
             },
             "noDoubleEquals": {

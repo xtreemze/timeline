@@ -13,10 +13,10 @@ import {
 } from "../src/projection/temporal-scene.ts";
 
 test("render window overscans both sides of the logical viewport", () => {
-  assert.deepEqual(
-    createRenderWindow({ start: 100, end: 200 }, { overscanRatio: 0.5 }),
-    { start: 50, end: 250 },
-  );
+  assert.deepEqual(createRenderWindow({ start: 100, end: 200 }, { overscanRatio: 0.5 }), {
+    start: 50,
+    end: 250,
+  });
 });
 
 test("render window biases overscan toward predicted pan travel", () => {

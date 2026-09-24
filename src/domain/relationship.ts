@@ -1,11 +1,5 @@
 import type { CanonicalEntity, ValidationResult } from "./entity.ts";
-import type {
-  EntityId,
-  PlaceId,
-  RelationshipId,
-  SourceId,
-  TimelineId,
-} from "./ids.ts";
+import type { EntityId, PlaceId, RelationshipId, SourceId, TimelineId } from "./ids.ts";
 
 export interface CanonicalTemporalExtent {
   readonly type: "instant" | "interval";
@@ -164,15 +158,14 @@ export function validateRelationship(
 }
 
 function temporalFactKey(time: CanonicalTemporalExtent | null): string {
-  if (!time) return "timeless";
+  if (!time) {
+    return "timeless";
+  }
   return JSON.stringify(time);
 }
 
 export function relationshipFactKey(
-  relationship: Pick<
-    CanonicalRelationship,
-    "subjectId" | "objectId" | "predicate" | "time"
-  >,
+  relationship: Pick<CanonicalRelationship, "subjectId" | "objectId" | "predicate" | "time">,
 ): string {
   return JSON.stringify([
     relationship.subjectId,

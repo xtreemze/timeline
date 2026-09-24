@@ -48,20 +48,26 @@ const TEMPORAL_WIDTHS = Object.freeze([
 ]);
 
 function finite(value: number, label: string): number {
-  if (!Number.isFinite(value)) throw new Error(`${label} must be finite.`);
+  if (!Number.isFinite(value)) {
+    throw new Error(`${label} must be finite.`);
+  }
   return value;
 }
 
 function positive(value: number, label: string): number {
   const normalized = finite(value, label);
-  if (normalized <= 0) throw new Error(`${label} must be greater than zero.`);
+  if (normalized <= 0) {
+    throw new Error(`${label} must be greater than zero.`);
+  }
   return normalized;
 }
 
 export function chooseTemporalBinWidth(start: number, end: number, targetBins = 30): number {
   const first = finite(start, "Temporal histogram start");
   const last = finite(end, "Temporal histogram end");
-  if (last < first) throw new Error("Temporal histogram end must be >= start.");
+  if (last < first) {
+    throw new Error("Temporal histogram end must be >= start.");
+  }
   const target = Math.max(1, Math.trunc(positive(targetBins, "Temporal target bin count")));
   const ideal = Math.max(1, (last - first) / target);
   return TEMPORAL_WIDTHS.find((width) => width >= ideal) ?? TEMPORAL_WIDTHS.at(-1) ?? ideal;
@@ -72,20 +78,26 @@ export function buildNumericHistogram(
   options: { readonly bins?: number; readonly min?: number; readonly max?: number } = {},
 ): readonly HistogramBin[] {
   const finiteValues = values.filter(Number.isFinite);
-  if (!finiteValues.length) return Object.freeze([]);
+  if (finiteValues.length === 0) {
+    return Object.freeze([]);
+  }
 
   const min =
     options.min === undefined ? Math.min(...finiteValues) : finite(options.min, "Histogram min");
   const max =
     options.max === undefined ? Math.max(...finiteValues) : finite(options.max, "Histogram max");
-  if (max < min) throw new Error("Histogram max must be >= min.");
+  if (max < min) {
+    throw new Error("Histogram max must be >= min.");
+  }
 
   const binCount = Math.max(1, Math.min(512, Math.trunc(options.bins ?? 20)));
   const width = max === min ? 1 : (max - min) / binCount;
   const counts = Array.from({ length: binCount }, () => 0);
 
   for (const value of finiteValues) {
-    if (value < min || value > max) continue;
+    if (value < min || value > max) {
+      continue;
+    }
     const index = max === min ? 0 : Math.min(binCount - 1, Math.floor((value - min) / width));
     counts[index] = (counts[index] ?? 0) + 1;
   }
@@ -107,7 +119,9 @@ export function buildCategoryCounts(
   const counts = new Map<string, number>();
   for (const raw of values) {
     const value = raw?.trim();
-    if (!value) continue;
+    if (!value) {
+      continue;
+    }
     counts.set(value, (counts.get(value) ?? 0) + 1);
   }
 
@@ -128,17 +142,23 @@ export function buildTemporalHistogram(
   const timed = occurrences
     .map((occurrence) => {
       const start = occurrence.start;
-      if (start === null || start === undefined || !Number.isFinite(start)) return null;
+      if (start === null || start === undefined || !Number.isFinite(start)) {
+        return null;
+      }
       const end =
         occurrence.end === null || occurrence.end === undefined || !Number.isFinite(occurrence.end)
           ? start
           : occurrence.end;
-      if (end < start) return null;
+      if (end < start) {
+        return null;
+      }
       return Object.freeze({ start, end });
     })
     .filter((value): value is { readonly start: number; readonly end: number } => value !== null);
 
-  if (!timed.length) return Object.freeze([]);
+  if (timed.length === 0) {
+    return Object.freeze([]);
+  }
 
   const start = Math.min(...timed.map((value) => value.start));
   const end = Math.max(...timed.map((value) => value.end));
@@ -163,7 +183,9 @@ export function buildTemporalHistogram(
     );
     for (let index = first; index <= last; index += 1) {
       const bin = bins[index];
-      if (bin) bin.count += 1;
+      if (bin) {
+        bin.count += 1;
+      }
     }
   }
 
@@ -178,7 +200,9 @@ export function withAnalyticalTimeWindow(
 ): AnalyticalLens {
   const first = finite(start, "Analytical brush start");
   const last = finite(end, "Analytical brush end");
-  if (last < first) throw new Error("Analytical brush end must be >= start.");
+  if (last < first) {
+    throw new Error("Analytical brush end must be >= start.");
+  }
 
   return Object.freeze({
     ...lens,
@@ -206,7 +230,7 @@ export function withAnalyticalCategoryFilter(
       ...lens,
       filters: Object.freeze({
         ...rest,
-        ...(normalized.length ? { categoryIds: normalized } : {}),
+        ...(normalized.length > 0 ? { categoryIds: normalized } : {}),
       }),
     });
   }
@@ -216,7 +240,7 @@ export function withAnalyticalCategoryFilter(
       ...lens,
       filters: Object.freeze({
         ...rest,
-        ...(normalized.length ? { placeIds: normalized } : {}),
+        ...(normalized.length > 0 ? { placeIds: normalized } : {}),
       }),
     });
   }
@@ -226,7 +250,7 @@ export function withAnalyticalCategoryFilter(
     ...lens,
     filters: Object.freeze({
       ...rest,
-      ...(normalized.length ? { relationshipPredicates: normalized } : {}),
+      ...(normalized.length > 0 ? { relationshipPredicates: normalized } : {}),
     }),
   });
 }
@@ -247,9 +271,10 @@ export function createCrossFilterProjection(
     occurrenceIds.has(occurrence.id),
   );
 
-  const placeValues = occurrences.length
-    ? occurrences.map((occurrence) => occurrence.placeId)
-    : relationships.map((relationship) => relationship.placeId);
+  const placeValues =
+    occurrences.length > 0
+      ? occurrences.map((occurrence) => occurrence.placeId)
+      : relationships.map((relationship) => relationship.placeId);
 
   return Object.freeze({
     evaluation,

@@ -431,7 +431,10 @@ function utcBucketTime(year: number, month: number, day: number): number {
   return date.getTime();
 }
 
-function ambientContextForUnit(timeMs: number, unit: string | null): {
+function ambientContextForUnit(
+  timeMs: number,
+  unit: string | null,
+): {
   kind: string;
   label: string;
   sceneTime: number;
@@ -450,11 +453,7 @@ function ambientContextForUnit(timeMs: number, unit: string | null): {
     return { kind: "month-year", label: formatMonthYear(sceneTime), sceneTime };
   }
 
-  const sceneTime = utcBucketTime(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
-  );
+  const sceneTime = utcBucketTime(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
   return {
     kind: "day-month-year",
     label: formatDayMonthYear(sceneTime),
@@ -783,9 +782,7 @@ export function clusterExpansionViewport(
     return null;
   }
 
-  const uniqueStarts = starts.filter(
-    (value, index) => index === 0 || value !== starts[index - 1],
-  );
+  const uniqueStarts = starts.filter((value, index) => index === 0 || value !== starts[index - 1]);
   if (uniqueStarts.length < 2) {
     return {
       viewport: { start, end },
@@ -870,12 +867,7 @@ export function focusContextViewport(
     .slice()
     .sort((a: any, b: any) => a.start - b.start || String(a.id).localeCompare(String(b.id)));
   const focused = source.find((item: any) => String(item.id) === String(focusedId));
-  if (
-    !focused ||
-    !viewport ||
-    !Number.isFinite(viewport.start) ||
-    !Number.isFinite(viewport.end)
-  ) {
+  if (!focused || !viewport || !Number.isFinite(viewport.start) || !Number.isFinite(viewport.end)) {
     return null;
   }
 
@@ -902,10 +894,7 @@ export function focusContextViewport(
   );
 
   const coincidentIds = source
-    .filter(
-      (item: any) =>
-        String(item.id) !== String(focused.id) && item.start === focused.start,
-    )
+    .filter((item: any) => String(item.id) !== String(focused.id) && item.start === focused.start)
     .map((item: any) => String(item.id));
 
   if ((representation as any)?.kind === "cluster") {
@@ -962,13 +951,13 @@ export function focusContextViewport(
   if (after[0] && selected.length < targetContextCount) selected.push(after[0]);
 
   const remaining = distinctOthers
-    .filter((item: any) => !selected.some((candidate: any) => String(candidate.id) === String(item.id)))
+    .filter(
+      (item: any) => !selected.some((candidate: any) => String(candidate.id) === String(item.id)),
+    )
     .sort(
-      (a: any, b: any) =>
-        Math.abs(a.start - focused.start) - Math.abs(b.start - focused.start),
+      (a: any, b: any) => Math.abs(a.start - focused.start) - Math.abs(b.start - focused.start),
     );
-  while (selected.length < targetContextCount && remaining.length)
-    selected.push(remaining.shift());
+  while (selected.length < targetContextCount && remaining.length) selected.push(remaining.shift());
 
   const values = [focused.start, focusedEnd];
   for (const item of selected) {
@@ -980,10 +969,7 @@ export function focusContextViewport(
   const rawLocalSpan = Math.max(0, max - min);
   const localSpan = rawLocalSpan > 0 ? rawLocalSpan / availableRatio : 0;
 
-  const minimumFocusSpan = Math.min(
-    span,
-    Math.max(minSpanMs, span * 0.18, focusedContainingSpan),
-  );
+  const minimumFocusSpan = Math.min(span, Math.max(minSpanMs, span * 0.18, focusedContainingSpan));
   const maximumFocusSpan = Math.max(minimumFocusSpan, span * 0.6);
   const targetSpan = Math.min(
     span,
@@ -1022,7 +1008,7 @@ export function compactTickLabel(
   spec: TemporalSpec | null,
   hasAmbientMonth: boolean,
 ): string | null {
-  if (!spec || !spec.unit) return null;
+  if (!spec?.unit) return null;
   const date = new Date(Number(timeMs));
   if (!Number.isFinite(date.getTime())) return null;
 

@@ -64,10 +64,7 @@ function integer(value: number): number {
   return Math.trunc(nonNegative(value));
 }
 
-export function percentileNearestRank(
-  values: readonly number[],
-  percentile: number,
-): number {
+export function percentileNearestRank(values: readonly number[], percentile: number): number {
   if (!values.length) return 0;
   const normalized = Math.max(0, Math.min(1, Number(percentile) || 0));
   const sorted = [...values].filter(Number.isFinite).sort((a, b) => a - b);

@@ -243,7 +243,6 @@ test("coincident timestamps stay separate and gain enough perpendicular lanes", 
   assert.equal(new Set(Object.values(plan.lanes)).size, 4);
 });
 
-
 test("timeline interaction uses one padded coordinate system and direct pointer tracking", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
@@ -276,7 +275,6 @@ test("timeline keeps one semantic date hierarchy during an active zoom gesture",
   assert.match(body, /const incomingHierarchy = false/);
   assert.match(body, /selected hierarchy becomes authoritative on commit/);
 });
-
 
 test("timeline edge date context keeps retained slots and rolls changed digits in place", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
@@ -327,7 +325,10 @@ test("timeline replaces obsolete edge years, suppresses overlap, and preserves a
     renderBody,
     /if \(!key\.startsWith\("edge-slot:"\) \|\| keepAccents\.has\(key\)\) continue;/,
   );
-  assert.match(renderBody, /for \(const animation of node\.getAnimations\(\)\) animation\.cancel\(\);/);
+  assert.match(
+    renderBody,
+    /for \(const animation of node\.getAnimations\(\)\) animation\.cancel\(\);/,
+  );
   assert.match(
     renderBody,
     /resolveTickLabelCollisions[\s\S]*key\.startsWith\("edge-slot:"\)[\s\S]*if \(!this\.retention\.active\) \{/,

@@ -136,7 +136,9 @@ test("repeated active relationships at one place reuse one canonical rendered no
   );
 
   const projection = projectWorldOccurrences(relationships, ["first", "second"], spatialAnchors);
-  const aliceInstances = projection.instances.filter((instance) => instance.canonicalId === "alice");
+  const aliceInstances = projection.instances.filter(
+    (instance) => instance.canonicalId === "alice",
+  );
 
   assert.equal(aliceInstances.length, 1);
   assert.deepEqual(aliceInstances[0].occurrenceIds, ["first", "second"]);

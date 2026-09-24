@@ -63,8 +63,12 @@ function text(value: unknown, max = 240): string {
 }
 
 function endpointLabel(endpoint: TimelineProjectionEndpoint | string | null | undefined): string {
-  if (typeof endpoint === "string") return text(endpoint, 120);
-  if (!endpoint || typeof endpoint !== "object") return "";
+  if (typeof endpoint === "string") {
+    return text(endpoint, 120);
+  }
+  if (!endpoint || typeof endpoint !== "object") {
+    return "";
+  }
   return text(endpoint.value, 120) || text(endpoint.sourceText, 120);
 }
 
@@ -85,37 +89,53 @@ function utcDate(
 
 function parseCanonicalTime(value: unknown): number {
   const source = text(value, 160);
-  if (!source) return Number.NaN;
+  if (!source) {
+    return Number.NaN;
+  }
 
   const year = /^([+-]?\d{1,6})$/.exec(source);
-  if (year) return utcDate(Number(year[1]), 0, 1);
+  if (year) {
+    return utcDate(Number(year[1]), 0, 1);
+  }
 
   const month = /^([+-]?\d{1,6})-(\d{2})$/.exec(source);
-  if (month) return utcDate(Number(month[1]), Number(month[2]) - 1, 1);
+  if (month) {
+    return utcDate(Number(month[1]), Number(month[2]) - 1, 1);
+  }
 
   const day = /^([+-]?\d{1,6})-(\d{2})-(\d{2})$/.exec(source);
-  if (day) return utcDate(Number(day[1]), Number(day[2]) - 1, Number(day[3]));
+  if (day) {
+    return utcDate(Number(day[1]), Number(day[2]) - 1, Number(day[3]));
+  }
 
   const timestamp = Date.parse(source);
   return Number.isFinite(timestamp) ? timestamp : Number.NaN;
 }
 
-function endpointTime(
-  endpoint: TimelineProjectionEndpoint | string | null | undefined,
-): number {
-  if (typeof endpoint === "string") return parseCanonicalTime(endpoint);
-  if (!endpoint || typeof endpoint !== "object") return Number.NaN;
+function endpointTime(endpoint: TimelineProjectionEndpoint | string | null | undefined): number {
+  if (typeof endpoint === "string") {
+    return parseCanonicalTime(endpoint);
+  }
+  if (!endpoint || typeof endpoint !== "object") {
+    return Number.NaN;
+  }
 
   const exact = parseCanonicalTime(endpoint.value);
-  if (Number.isFinite(exact)) return exact;
+  if (Number.isFinite(exact)) {
+    return exact;
+  }
 
   const earliest = parseCanonicalTime(endpoint.earliest);
   const latest = parseCanonicalTime(endpoint.latest);
   if (Number.isFinite(earliest) && Number.isFinite(latest)) {
     return earliest + (latest - earliest) / 2;
   }
-  if (Number.isFinite(earliest)) return earliest;
-  if (Number.isFinite(latest)) return latest;
+  if (Number.isFinite(earliest)) {
+    return earliest;
+  }
+  if (Number.isFinite(latest)) {
+    return latest;
+  }
   return Number.NaN;
 }
 
@@ -132,19 +152,29 @@ function occurrenceFor(
   const subjectId = text(relationship.subjectId, 120);
   const objectId = text(relationship.objectId, 120);
   const predicate = text(relationship.predicate, 120);
-  if (!((((id && subjectId ) && objectId ) && predicate ) && relationship.time)) return null;
-  if (relationship.time.openStart) return null;
+  if (!(id && subjectId && objectId && predicate && relationship.time)) {
+    return null;
+  }
+  if (relationship.time.openStart) {
+    return null;
+  }
 
   const start = endpointTime(relationship.time.start);
-  if (!Number.isFinite(start)) return null;
+  if (!Number.isFinite(start)) {
+    return null;
+  }
 
   const isInterval = relationship.time.type === "interval";
   let end: number | null = null;
   if (isInterval && !relationship.time.openEnd) {
     const parsedEnd = endpointTime(relationship.time.end);
-    if (Number.isFinite(parsedEnd)) end = parsedEnd;
+    if (Number.isFinite(parsedEnd)) {
+      end = parsedEnd;
+    }
   }
-  if (end !== null && end < start) return null;
+  if (end !== null && end < start) {
+    return null;
+  }
 
   const subjectName = entityNames.get(subjectId) || subjectId;
   const objectName = entityNames.get(objectId) || objectId;
@@ -196,9 +226,7 @@ export function projectTimelineOccurrences(
   return Object.freeze(
     (Array.isArray(project?.relationships) ? project.relationships : [])
       .map((relationship) => occurrenceFor(relationship, entityNames))
-      .filter(
-        (occurrence): occurrence is TimelineOccurrenceProjection => occurrence !== null,
-      )
+      .filter((occurrence): occurrence is TimelineOccurrenceProjection => occurrence !== null)
       .sort(
         (left, right) =>
           left.start - right.start ||

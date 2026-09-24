@@ -8,9 +8,9 @@ import {
   type ProjectedWorldEdge,
   type ProjectedWorldInstance,
   type SpatialAnchor,
-  worldInstanceId,
   type WorldInstanceId,
   type WorldProjection,
+  worldInstanceId,
 } from "./world-projection.ts";
 
 export interface WorldEntityPresentation {
@@ -29,7 +29,7 @@ export interface WorldOccurrenceProjectionOptions {
 function relationshipStyle(
   relationship: CanonicalRelationship,
 ): Readonly<Record<string, unknown>> | undefined {
-  const style = relationship.attributes?.["style"];
+  const style = relationship.attributes?.style;
   return typeof style === "object" && style !== null && !Array.isArray(style)
     ? (style as Readonly<Record<string, unknown>>)
     : undefined;
@@ -56,10 +56,7 @@ interface WorldInstanceAccumulator {
   retained: boolean;
 }
 
-function mergeGeographicAnchors(
-  target: SpatialAnchor[],
-  incoming: readonly SpatialAnchor[],
-): void {
+function mergeGeographicAnchors(target: SpatialAnchor[], incoming: readonly SpatialAnchor[]): void {
   for (const anchor of incoming) {
     const existingIndex = target.findIndex((candidate) => candidate.placeId === anchor.placeId);
     if (existingIndex < 0) {
@@ -92,7 +89,9 @@ function accumulateInstance(
   const id = canonicalWorldInstanceId(canonicalId);
   const existing = instances.get(id);
   if (existing) {
-    if (!existing.occurrenceIds.includes(occurrenceId)) existing.occurrenceIds.push(occurrenceId);
+    if (!existing.occurrenceIds.includes(occurrenceId)) {
+      existing.occurrenceIds.push(occurrenceId);
+    }
     mergeGeographicAnchors(existing.geographicAnchors, geographicAnchors);
     existing.temporalWeight = Math.max(existing.temporalWeight, temporalWeight);
     existing.visualWeight = Math.max(existing.visualWeight, visualWeight);

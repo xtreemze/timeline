@@ -143,7 +143,6 @@ test("committed lane and side corrections are short, cancelable, and reduced-mot
   assert.match(source, /!this\.retention\.active/);
 });
 
-
 test("structural axis relocation keeps the retained scene visually continuous", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 

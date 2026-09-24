@@ -40,7 +40,7 @@ function wrapDeckInstance(deck: InstanceType<typeof Deck>): DeckRuntimeInstance 
   });
 }
 
-type WebGpuAdapter = (typeof import("@luma.gl/webgpu"))["webgpuAdapter"];
+type WebGpuAdapter = typeof import("@luma.gl/webgpu")["webgpuAdapter"];
 
 /**
  * WebGPU stays out of the default production graph. deck.gl 9.4 cannot pick

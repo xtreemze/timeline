@@ -120,5 +120,8 @@ test("cluster presentation keeps positions force-resolved without interpolation"
   assert.doesNotMatch(source, /transitions:/);
   assert.match(source, /\.\.\.placeTransition\.clusters,[\s\S]*\.\.\.placeTransition\.members/);
   assert.match(source, /\(state\.temporalActive \? width : 0\) \* edgeExpansion\(state\.edge\)/);
-  assert.match(source, /worldNodeMarker\(this\.#entityStyle\(datum\)\)\.size \* entityExpansion\(datum\)/);
+  assert.match(
+    source,
+    /worldNodeMarker\(this\.#entityStyle\(datum\)\)\.size \* entityExpansion\(datum\)/,
+  );
 });

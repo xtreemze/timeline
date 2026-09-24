@@ -30,7 +30,6 @@ function boundedClone(value: unknown): unknown {
   };
 }
 
-
 function clonedArray(value: unknown): unknown[] {
   const cloned = boundedClone(value);
   return Array.isArray(cloned) ? cloned : [];
@@ -91,7 +90,11 @@ function canonicalDateFromDate(date: Date, includeTime: boolean = true): string 
   return `${day}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
 }
 
-function normalizeTemporalValue(value: unknown, warnings: string[], fieldName: string): string | null {
+function normalizeTemporalValue(
+  value: unknown,
+  warnings: string[],
+  fieldName: string,
+): string | null {
   if (value === undefined || value === null || value === "") return null;
 
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -336,8 +339,7 @@ function importObject(payload: unknown): ImportResult {
   const usedCategoryIds = new Set<string>();
 
   const addCategory = (reference: unknown, raw: Record<string, unknown> = {}): string => {
-    const sourceId =
-      reference ?? firstDefined(raw, ["id", "_id", "uid", "name", "title", "label"]);
+    const sourceId = reference ?? firstDefined(raw, ["id", "_id", "uid", "name", "title", "label"]);
     const sourceName = firstDefined(raw, ["name", "title", "label"]) ?? sourceId ?? "Interchange";
     let id = `ext-group-${safeToken(sourceId, safeToken(sourceName, String(categories.length + 1)))}`;
     let suffix = 2;
@@ -346,7 +348,9 @@ function importObject(payload: unknown): ImportResult {
     const category = {
       id,
       name: text(String(sourceName), 60) || "Interchange",
-      color: normalizeColor(firstDefined(raw, ["color", "backgroundColor", "background_color", "hex"])),
+      color: normalizeColor(
+        firstDefined(raw, ["color", "backgroundColor", "background_color", "hex"]),
+      ),
       extensions: {
         externalInterchange: {
           sourceId: sourceId === undefined || sourceId === null ? null : String(sourceId),
@@ -611,8 +615,7 @@ function exportItem(item: any, categoriesById: Map<string, ExportCategory>): Exp
     id: extension.sourceId ?? item.id,
     title: item.title,
     description: item.description || "",
-    group:
-      category?.extensions?.externalInterchange?.sourceId ?? category?.name ?? item.categoryId,
+    group: category?.extensions?.externalInterchange?.sourceId ?? category?.name ?? item.categoryId,
   };
   if (item.time) base.time = cloneJson(item.time);
   if (item.location) base.location = cloneJson(item.location);
@@ -673,10 +676,7 @@ export function exportData(timeline: any): ExportResult {
     : [];
   const items = Array.isArray(timeline.items) ? timeline.items : [];
   const categoriesById = new Map<string, ExportCategory>(
-    categories.map((category): [string, ExportCategory] => [
-      String(category.id),
-      category,
-    ]),
+    categories.map((category): [string, ExportCategory] => [String(category.id), category]),
   );
 
   const groups = categories.map((category) => {
@@ -714,9 +714,7 @@ export function exportData(timeline: any): ExportResult {
       stories: cloneJson(Array.isArray(timeline.stories) ? timeline.stories : []),
       entities: cloneJson(Array.isArray(timeline.entities) ? timeline.entities : []),
       places: cloneJson(Array.isArray(timeline.places) ? timeline.places : []),
-      relationships: cloneJson(
-        Array.isArray(timeline.relationships) ? timeline.relationships : [],
-      ),
+      relationships: cloneJson(Array.isArray(timeline.relationships) ? timeline.relationships : []),
       evidence: cloneJson(Array.isArray(timeline.evidence) ? timeline.evidence : []),
       reasoning: cloneJson(
         timeline.reasoning && typeof timeline.reasoning === "object" ? timeline.reasoning : {},

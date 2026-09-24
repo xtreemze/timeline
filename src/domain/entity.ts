@@ -73,7 +73,9 @@ export function validateEntity(entity: {
   const type = entity.type?.trim().slice(0, 60) || "entity";
   const typeKey = semanticKey(type);
 
-  if (!name) return { valid: false, message: "An entity name is required." };
+  if (!name) {
+    return { valid: false, message: "An entity name is required." };
+  }
 
   if (NON_ENTITY_NODE_TYPES.has(typeKey)) {
     return {

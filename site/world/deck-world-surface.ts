@@ -53,7 +53,6 @@ import {
   createWorldCameraState,
   createWorldSpatialPosition,
   createWorldTemporalWindow,
-  worldSelectionFromHit,
   type ScreenPoint,
   type WorldCameraState,
   type WorldHit,
@@ -62,6 +61,7 @@ import {
   type WorldSurface,
   type WorldSurfaceCapabilities,
   type WorldTemporalWindow,
+  worldSelectionFromHit,
 } from "../../src/layout/world-surface.ts";
 import type {
   ProjectedWorldInstance,
@@ -322,8 +322,7 @@ export function clusterZoomThresholdForNodeRadius(nodeRadiusPx: number): number 
       ? nodeRadiusPx
       : WORLD_CLUSTER_BASE_NODE_RADIUS_PX;
   return (
-    CLUSTER_ZOOM_THRESHOLD +
-    Math.max(0, Math.log2(radius / WORLD_CLUSTER_BASE_NODE_RADIUS_PX))
+    CLUSTER_ZOOM_THRESHOLD + Math.max(0, Math.log2(radius / WORLD_CLUSTER_BASE_NODE_RADIUS_PX))
   );
 }
 
@@ -550,10 +549,7 @@ export function clusterEntityDatumsByPlace(
     const cellFor = (anchor: Anchor): readonly [number, number] => {
       const longitude = (((anchor.longitude + 180) % 360) + 360) % 360;
       return Object.freeze([
-        Math.min(
-          longitudeCellCount - 1,
-          Math.floor(longitude / mergeCellDegrees),
-        ),
+        Math.min(longitudeCellCount - 1, Math.floor(longitude / mergeCellDegrees)),
         Math.floor((anchor.latitude + 90) / mergeCellDegrees),
       ]);
     };
@@ -611,9 +607,7 @@ export function clusterEntityDatumsByPlace(
       }
     }
     components.push(
-      component.sort((left, right) =>
-        String(left.placeId).localeCompare(String(right.placeId)),
-      ),
+      component.sort((left, right) => String(left.placeId).localeCompare(String(right.placeId))),
     );
   }
 
@@ -640,10 +634,7 @@ export function clusterEntityDatumsByPlace(
       weightedLatitude += group.anchor.latitude * weight;
       weightedAltitude += (group.anchor.sourceAltitude ?? 0) * weight;
       totalWeight += weight;
-      totalVisualWeight += group.members.reduce(
-        (sum, member) => sum + member.visualWeight,
-        0,
-      );
+      totalVisualWeight += group.members.reduce((sum, member) => sum + member.visualWeight, 0);
     }
 
     const [singlePlace] = component;
@@ -657,7 +648,7 @@ export function clusterEntityDatumsByPlace(
         : weightedLatitude / totalWeight;
     const altitude =
       component.length === 1 && singlePlace
-        ? singlePlace.anchor.sourceAltitude ?? 0
+        ? (singlePlace.anchor.sourceAltitude ?? 0)
         : weightedAltitude / totalWeight;
     const placeIds = component.map((group) => String(group.placeId)).sort();
     const clusterMembers = members
@@ -678,11 +669,7 @@ export function clusterEntityDatumsByPlace(
           placeIds.length === 1
             ? `cluster:place:${placeIds[0]}`
             : `cluster:places:${placeIds.join("|")}`,
-        position: Object.freeze([
-          longitude,
-          latitude,
-          altitude,
-        ]) as WorldRenderPosition,
+        position: Object.freeze([longitude, latitude, altitude]) as WorldRenderPosition,
         clusterMembers: Object.freeze(clusterMembers),
         visualWeight: totalVisualWeight / totalWeight,
       }),
@@ -935,7 +922,9 @@ function prefersReducedMotion(): boolean {
  * left off (deck.gl's own default) because this surface wires its own
  * double-tap/double-click focus gesture (see `#handleDoubleClick`) instead.
  */
-function deckControllerOptions(mode: WorldSpatialMode = "globe"): Readonly<Record<string, unknown>> {
+function deckControllerOptions(
+  mode: WorldSpatialMode = "globe",
+): Readonly<Record<string, unknown>> {
   return Object.freeze({
     dragPan: true,
     dragRotate: true,
@@ -975,7 +964,7 @@ function numberField(
 
 function pointerTypeFromRuntimeEvent(event: DeckRuntimePointerEvent): string | null {
   const source = isRecord(event.srcEvent) ? event.srcEvent : null;
-  const value = source?.["pointerType"];
+  const value = source?.pointerType;
   return typeof value === "string" ? value : null;
 }
 
@@ -1000,7 +989,7 @@ function touchPointer(
 
 function pointerIdFromRuntimeEvent(event: DeckRuntimePointerEvent): number | null {
   const source = isRecord(event.srcEvent) ? event.srcEvent : null;
-  const value = source?.["pointerId"] ?? event.pointerId;
+  const value = source?.pointerId ?? event.pointerId;
   const number = Number(value);
   return Number.isInteger(number) && number >= 0 ? number : null;
 }
@@ -1362,8 +1351,7 @@ function directionDatums(
   const result: DeckWorldDirectionDatum[] = [];
   const marked = selectPrioritizedLabels(relationships, {
     budget: worldLabelBudget(zoom),
-    isPinned: (edge) =>
-      focus?.kind === "relationship" && focus.id === edge.relationshipId,
+    isPinned: (edge) => focus?.kind === "relationship" && focus.id === edge.relationshipId,
     importance: (edge) => edge.temporalWeight,
     key: (edge) => edge.relationshipId,
   });
@@ -1371,11 +1359,7 @@ function directionDatums(
   for (const edge of marked) {
     const arrowLengthDegrees = arrowLengthDegreesForEdge(edge);
     const prior = previous.get(edge.relationshipId);
-    if (
-      prior &&
-      prior.edge === edge &&
-      prior.arrowLengthDegrees === arrowLengthDegrees
-    ) {
+    if (prior && prior.edge === edge && prior.arrowLengthDegrees === arrowLengthDegrees) {
       byId.set(edge.relationshipId, prior);
       result.push(prior);
       continue;
@@ -1714,8 +1698,7 @@ function labelDatums(input: {
     );
   }
 
-  const pinnedEntity = (entity: DeckWorldEntityDatum) =>
-    focused("entity", entity.entityId);
+  const pinnedEntity = (entity: DeckWorldEntityDatum) => focused("entity", entity.entityId);
   const entities = selectPrioritizedLabels(
     input.entities.filter((entity) => entity.label && !input.clustered),
     {
@@ -1882,40 +1865,40 @@ function worldHitFromPicking(info: DeckRuntimePickingInfo | null): WorldHit | nu
   const object = info.object;
 
   if (
-    object["kind"] === "entity" &&
-    typeof object["entityId"] === "string" &&
-    typeof object["worldInstanceId"] === "string"
+    object.kind === "entity" &&
+    typeof object.entityId === "string" &&
+    typeof object.worldInstanceId === "string"
   ) {
     return Object.freeze({
       kind: "entity",
-      entityId: object["entityId"] as EntityId,
-      worldInstanceId: object["worldInstanceId"] as WorldInstanceId,
+      entityId: object.entityId as EntityId,
+      worldInstanceId: object.worldInstanceId as WorldInstanceId,
     });
   }
 
   if (
-    (object["kind"] === "relationship" || object["kind"] === "relationship-direction") &&
-    typeof object["relationshipId"] === "string"
+    (object.kind === "relationship" || object.kind === "relationship-direction") &&
+    typeof object.relationshipId === "string"
   ) {
     return Object.freeze({
       kind: "relationship",
-      relationshipId: object["relationshipId"] as RelationshipId,
+      relationshipId: object.relationshipId as RelationshipId,
     });
   }
 
-  if (object["kind"] === "place" && typeof object["placeId"] === "string") {
+  if (object.kind === "place" && typeof object.placeId === "string") {
     return Object.freeze({
       kind: "place",
-      placeId: object["placeId"] as PlaceId,
+      placeId: object.placeId as PlaceId,
     });
   }
 
-  if (object["kind"] === "cluster" && Array.isArray(object["clusterMembers"])) {
+  if (object.kind === "cluster" && Array.isArray(object.clusterMembers)) {
     // Clusters are a presentation-only grouping (issue #445 Priority 2):
     // picking one resolves back to its first real canonical member rather
     // than exposing the cluster as its own selectable identity, so the
     // renderer-neutral WorldHit contract never needs a "cluster" variant.
-    const first = object["clusterMembers"][0] as
+    const first = object.clusterMembers[0] as
       | { readonly entityId?: unknown; readonly worldInstanceId?: unknown }
       | undefined;
     if (first && typeof first.entityId === "string" && typeof first.worldInstanceId === "string") {
@@ -2116,11 +2099,7 @@ export class DeckWorldSurface implements WorldSurface {
     const style = (this.#container as HTMLElement).style;
     if (!style) return;
     style.cursor =
-      selection?.kind === "entity" && this.#nodeDragSink
-        ? "grab"
-        : selection
-          ? "pointer"
-          : "";
+      selection?.kind === "entity" && this.#nodeDragSink ? "grab" : selection ? "pointer" : "";
   }
 
   #selectionFromPickingInfo(info: DeckRuntimePickingInfo): WorldSelection | null {
@@ -2150,9 +2129,7 @@ export class DeckWorldSurface implements WorldSurface {
     const next = this.#selectionFromPickingInfo(info);
     const toggled = next !== null && selectionEquals(next, this.#selection) ? null : next;
     const changed =
-      toggled === null
-        ? this.#selection !== null
-        : !selectionEquals(toggled, this.#selection);
+      toggled === null ? this.#selection !== null : !selectionEquals(toggled, this.#selection);
     this.setSelection(toggled);
     if (changed) void pulseHaptic("selection");
   };
@@ -2545,9 +2522,7 @@ export class DeckWorldSurface implements WorldSurface {
   setSelection(selection: WorldSelection | null): void {
     this.#assertAlive();
     if (
-      selection === null
-        ? this.#selection === null
-        : selectionEquals(selection, this.#selection)
+      selection === null ? this.#selection === null : selectionEquals(selection, this.#selection)
     ) {
       return;
     }
@@ -2818,8 +2793,8 @@ export class DeckWorldSurface implements WorldSurface {
   #dragTarget(
     info: DeckRuntimePickingInfo,
   ): { readonly instanceId: WorldInstanceId; readonly position: WorldNodeDragPosition } | null {
-    if (!isRecord(info.object) || info.object["kind"] !== "entity") return null;
-    const worldInstanceId = info.object["worldInstanceId"];
+    if (!isRecord(info.object) || info.object.kind !== "entity") return null;
+    const worldInstanceId = info.object.worldInstanceId;
     if (typeof worldInstanceId !== "string") return null;
 
     const instance = this.#projection.instances.find(
@@ -2961,8 +2936,8 @@ export class DeckWorldSurface implements WorldSurface {
   #setTouchDragState(state: "holding" | "active" | null): void {
     const dataset = (this.#container as { dataset?: DOMStringMap }).dataset;
     if (!dataset) return;
-    if (state === null) delete dataset["worldTouchDrag"];
-    else dataset["worldTouchDrag"] = state;
+    if (state === null) delete dataset.worldTouchDrag;
+    else dataset.worldTouchDrag = state;
   }
 
   #syncSpatialMode(): void {
@@ -3002,11 +2977,8 @@ export class DeckWorldSurface implements WorldSurface {
     const clusterExpansion = this.#placeClusterExpansion();
     const maxNodeRadiusPx = this.#maxEntityFootprintRadiusPx();
     const clusteredNow =
-      shouldClusterEntityDatums(
-        this.#entityDatumCache.size,
-        this.#camera.zoom,
-        maxNodeRadiusPx,
-      ) || clusterExpansion < 1;
+      shouldClusterEntityDatums(this.#entityDatumCache.size, this.#camera.zoom, maxNodeRadiusPx) ||
+      clusterExpansion < 1;
     const clusterMotionChanged =
       Math.abs(clusterExpansion - this.#clusterExpansionLastRender) > 0.002;
     const budget = worldLabelBudget(this.#camera.zoom);
@@ -3015,8 +2987,7 @@ export class DeckWorldSurface implements WorldSurface {
       Math.min(budget, this.#labelBudgetLastRender) < this.#lodCandidateCountLastRender;
     const screenScaleChanged =
       screenScaleZoomStep(this.#camera.zoom) !== this.#screenScaleZoomLastRender;
-    const cameraFacingChanged =
-      cameraFacingStep(this.#camera) !== this.#cameraFacingStepLastRender;
+    const cameraFacingChanged = cameraFacingStep(this.#camera) !== this.#cameraFacingStepLastRender;
     return (
       clusteredNow !== this.#clusteredLastRender ||
       clusterMotionChanged ||
@@ -3076,13 +3047,8 @@ export class DeckWorldSurface implements WorldSurface {
     const instances = this.#projection.instances;
     // Clustered overviews group true geography; magnifying offsets there
     // would scatter one place's entities across cluster cells.
-    if (
-      shouldClusterEntityDatums(
-        instances.length,
-        zoom,
-        this.#maxEntityFootprintRadiusPx(),
-      )
-    ) return 1;
+    if (shouldClusterEntityDatums(instances.length, zoom, this.#maxEntityFootprintRadiusPx()))
+      return 1;
     const typical = this.#typicalOffsetMeters();
     const scale = worldPresentationOffsetScale(
       zoom,
@@ -3148,12 +3114,9 @@ export class DeckWorldSurface implements WorldSurface {
     const instances = this.#projection.instances;
     if (
       instances.length === 0 ||
-      shouldClusterEntityDatums(
-        instances.length,
-        zoom,
-        this.#maxEntityFootprintRadiusPx(),
-      )
-    ) return 0;
+      shouldClusterEntityDatums(instances.length, zoom, this.#maxEntityFootprintRadiusPx())
+    )
+      return 0;
     if (this.#typicalOffsetMeters() <= 0) return 0;
     const quantised = Math.round(zoom * 4) / 4;
     return Math.round(worldLocalRadiusPx(1, quantised, 0) ** -1 * WORLD_ENTITY_FLOAT_PX);
@@ -3265,7 +3228,7 @@ export class DeckWorldSurface implements WorldSurface {
       }
 
       const previous = this.#temporalRelationshipState.get(relationship.relationshipId);
-      if (!previous || !previous.temporalActive) temporalChanged = true;
+      if (!previous?.temporalActive) temporalChanged = true;
       if (!previous || !worldPathEquals(previous.edge.path, relationship.path)) {
         pathChanged = true;
       }
@@ -3448,23 +3411,17 @@ export class DeckWorldSurface implements WorldSurface {
           2;
         const source = edge.path[0];
         const target = edge.path[edge.path.length - 1];
-        const latitude =
-          source && target ? (source[1] + target[1]) / 2 : this.#camera.latitude;
-        return worldArrowLengthDegreesForNodeRadius(
-          nodeRadiusPx,
-          this.#camera.zoom,
-          latitude,
-        );
+        const latitude = source && target ? (source[1] + target[1]) / 2 : this.#camera.latitude;
+        return worldArrowLengthDegreesForNodeRadius(nodeRadiusPx, this.#camera.zoom, latitude);
       },
     );
     this.#directionDatumCache = directionResult.byId;
     const focus = this.#focus;
     const pinnedEntity = (entity: DeckWorldEntityDatum) =>
       focus?.kind === "entity" && focus.id === entity.entityId;
-    const edgeExpansion = (edge: Pick<
-      DeckWorldRelationshipDatum,
-      "sourceInstanceId" | "targetInstanceId"
-    >): number => {
+    const edgeExpansion = (
+      edge: Pick<DeckWorldRelationshipDatum, "sourceInstanceId" | "targetInstanceId">,
+    ): number => {
       if (gridClustered) return 0;
       return placeTransition.memberIds.has(edge.sourceInstanceId) ||
         placeTransition.memberIds.has(edge.targetInstanceId)
@@ -3527,7 +3484,9 @@ export class DeckWorldSurface implements WorldSurface {
         })
       : null;
     const labelEntities = iconSource;
-    const labelRelationships = relationships.filter((relationship) => edgeExpansion(relationship) > 0);
+    const labelRelationships = relationships.filter(
+      (relationship) => edgeExpansion(relationship) > 0,
+    );
     const labelResult = this.#runtime.createTextLayer
       ? labelDatums({
           places,
@@ -3691,16 +3650,10 @@ export class DeckWorldSurface implements WorldSurface {
         },
         getColor: (datum: DeckWorldTemporalRelationshipDatum) => {
           const state = this.#temporalRelationshipStateFor(datum);
-          const emphasisAlpha = state.edge.selected
-            ? 255
-            : state.edge.emphasized
-              ? 242
-              : 215;
+          const emphasisAlpha = state.edge.selected ? 255 : state.edge.emphasized ? 242 : 215;
           return worldColorBytes(
             this.#temporalEdgeStyle(datum).color,
-            state.temporalActive
-              ? Math.round(emphasisAlpha * edgeExpansion(state.edge))
-              : 0,
+            state.temporalActive ? Math.round(emphasisAlpha * edgeExpansion(state.edge)) : 0,
           );
         },
         updateTriggers: {
@@ -3837,12 +3790,7 @@ export class DeckWorldSurface implements WorldSurface {
                 // 215 alpha composites the default person fill far enough toward
                 // paper that real-app visibility becomes marginal on antialiased pixels.
                 const emphasisAlpha = datum.selected ? 255 : datum.emphasized ? 245 : 230;
-                return [
-                  255,
-                  255,
-                  255,
-                  Math.round(emphasisAlpha * entityExpansion(datum)),
-                ] as Rgba;
+                return [255, 255, 255, Math.round(emphasisAlpha * entityExpansion(datum))] as Rgba;
               },
               updateTriggers: {
                 getPosition: [
@@ -3892,18 +3840,12 @@ export class DeckWorldSurface implements WorldSurface {
               visibleEntityRadiusPx(datum.targetInstanceId)) /
             2;
           return (
-            worldArrowStrokeWidthPxForNodeRadius(
-              nodeRadiusPx,
-              this.#edgeStyle(datum.edge).width,
-            ) * edgeExpansion(datum)
+            worldArrowStrokeWidthPxForNodeRadius(nodeRadiusPx, this.#edgeStyle(datum.edge).width) *
+            edgeExpansion(datum)
           );
         },
         getColor: (datum: DeckWorldDirectionDatum) => {
-          const emphasisAlpha = datum.edge.selected
-            ? 255
-            : datum.edge.emphasized
-              ? 242
-              : 215;
+          const emphasisAlpha = datum.edge.selected ? 255 : datum.edge.emphasized ? 242 : 215;
           return worldColorBytes(
             this.#edgeStyle(datum.edge).color,
             Math.round(emphasisAlpha * edgeExpansion(datum)),
@@ -3956,12 +3898,7 @@ export class DeckWorldSurface implements WorldSurface {
                 // Interaction updates invalidate color only. Position is
                 // already supplied by explicit cluster interpolation and must
                 // never get a second deck transition on hover/selection.
-                getColor: [
-                  this.#palette,
-                  placeExpansion,
-                  gridClustered,
-                  labelInteractionKey,
-                ],
+                getColor: [this.#palette, placeExpansion, gridClustered, labelInteractionKey],
               },
               // GlobeView culls back faces; billboarded glyph quads are
               // wound the other way and vanish without this. Labels draw

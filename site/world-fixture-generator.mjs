@@ -10,9 +10,9 @@
  * runs so certification numbers are comparable run-to-run.
  */
 import {
-  createWorldProjection,
-  createProjectedWorldInstance,
   createProjectedWorldEdge,
+  createProjectedWorldInstance,
+  createWorldProjection,
 } from "../src/projection/world-projection.ts";
 
 function mulberry32(seed) {
@@ -91,9 +91,7 @@ export function generateWorldProjectionFixture({
  * measures the Priority 3 incremental-memoization path rather than a full
  * fixture swap. */
 export function generateSmallDeltaFixture(base, changedCount = 25) {
-  const changed = new Set(
-    base.instances.slice(0, changedCount).map((instance) => instance.id),
-  );
+  const changed = new Set(base.instances.slice(0, changedCount).map((instance) => instance.id));
   const instances = base.instances.map((instance) =>
     changed.has(instance.id)
       ? createProjectedWorldInstance({

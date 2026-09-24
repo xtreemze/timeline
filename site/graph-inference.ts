@@ -32,14 +32,17 @@ function semanticKey(value: unknown): string {
 
 function uniqueTextList(value: unknown, maxItems: number = 24, maxLength: number = 240): string[] {
   if (!Array.isArray(value)) return [];
-  return [...new Set(value.map((entry) => text(entry, maxLength)).filter(Boolean))].slice(0, maxItems);
+  return [...new Set(value.map((entry) => text(entry, maxLength)).filter(Boolean))].slice(
+    0,
+    maxItems,
+  );
 }
 
 export function responseSchema(): Record<string, any> {
   const sourceRefs = {
     type: "array",
     maxItems: 16,
-    items: { type: "string", maxLength: 160 }
+    items: { type: "string", maxLength: 160 },
   };
   return {
     type: "object",
@@ -58,14 +61,14 @@ export function responseSchema(): Record<string, any> {
             alternateNames: {
               type: "array",
               maxItems: 12,
-              items: { type: "string", maxLength: 180 }
+              items: { type: "string", maxLength: 180 },
             },
             confidence: { type: "number", minimum: 0, maximum: 1 },
             sourceRefs,
-            rationale: { type: "string", maxLength: 400 }
+            rationale: { type: "string", maxLength: 400 },
           },
-          required: ["key", "name", "type", "confidence", "sourceRefs", "rationale"]
-        }
+          required: ["key", "name", "type", "confidence", "sourceRefs", "rationale"],
+        },
       },
       places: {
         type: "array",
@@ -83,10 +86,10 @@ export function responseSchema(): Record<string, any> {
             coordinatesExplicit: { type: "boolean" },
             confidence: { type: "number", minimum: 0, maximum: 1 },
             sourceRefs,
-            rationale: { type: "string", maxLength: 400 }
+            rationale: { type: "string", maxLength: 400 },
           },
-          required: ["key", "name", "coordinatesExplicit", "confidence", "sourceRefs", "rationale"]
-        }
+          required: ["key", "name", "coordinatesExplicit", "confidence", "sourceRefs", "rationale"],
+        },
       },
       relationships: {
         type: "array",
@@ -102,10 +105,18 @@ export function responseSchema(): Record<string, any> {
             placeKey: { type: "string", maxLength: 80 },
             confidence: { type: "number", minimum: 0, maximum: 1 },
             sourceRefs,
-            rationale: { type: "string", maxLength: 400 }
+            rationale: { type: "string", maxLength: 400 },
           },
-          required: ["key", "subjectKey", "predicate", "objectKey", "confidence", "sourceRefs", "rationale"]
-        }
+          required: [
+            "key",
+            "subjectKey",
+            "predicate",
+            "objectKey",
+            "confidence",
+            "sourceRefs",
+            "rationale",
+          ],
+        },
       },
       unresolved: {
         type: "array",
@@ -117,13 +128,13 @@ export function responseSchema(): Record<string, any> {
             kind: { type: "string", enum: ["entity", "place", "relationship", "evidence"] },
             label: { type: "string", maxLength: 200 },
             reason: { type: "string", maxLength: 500 },
-            sourceRefs
+            sourceRefs,
           },
-          required: ["kind", "label", "reason", "sourceRefs"]
-        }
-      }
+          required: ["kind", "label", "reason", "sourceRefs"],
+        },
+      },
     },
-    required: ["entities", "places", "relationships", "unresolved"]
+    required: ["entities", "places", "relationships", "unresolved"],
   };
 }
 
@@ -146,7 +157,7 @@ export const SYSTEM_PROMPT = [
   "- sourceRefs must cite the supplied fragment refs that support each candidate;",
   "- confidence reflects how directly the supplied fragments support the extraction.",
   "",
-  "Prefer concise lower-camel action predicates such as called, warned, attacked, transferredTo, searchedFor, or dancesWith."
+  "Prefer concise lower-camel action predicates such as called, warned, attacked, transferredTo, searchedFor, or dancesWith.",
 ].join("\n");
 
 interface Fragment {
@@ -232,7 +243,7 @@ export function inferenceInput(input: any = {}): Record<string, any> {
       start: text(input.event?.start, 120),
       end: text(input.event?.end, 120),
       time: clone(input.event?.time || null),
-      storyIds: uniqueTextList(input.event?.storyIds, 12, 120)
+      storyIds: uniqueTextList(input.event?.storyIds, 12, 120),
     },
     fragments: normalizeFragments(input.fragments),
     existingEntities: (Array.isArray(input.existingEntities) ? input.existingEntities : [])
@@ -242,7 +253,7 @@ export function inferenceInput(input: any = {}): Record<string, any> {
         name: text(entity?.name, 180),
         type: text(entity?.type, 60),
         alternateNames: uniqueTextList(entity?.alternateNames || entity?.aliases, 24, 180),
-        storyId: text(entity?.attributes?.storyId, 120)
+        storyId: text(entity?.attributes?.storyId, 120),
       }))
       .filter((entity: any) => entity.id && entity.name),
     existingPlaces: (Array.isArray(input.existingPlaces) ? input.existingPlaces : [])
@@ -251,29 +262,39 @@ export function inferenceInput(input: any = {}): Record<string, any> {
         id: text(place?.id, 120),
         name: text(place?.name, 180),
         geographicIdentifier: text(place?.geographicIdentifier, 300),
-        address: text(place?.address, 500)
+        address: text(place?.address, 500),
       }))
       .filter((place: any) => place.id && place.name),
-    instruction: "Extract durable entities, reusable places, and directly supported directed action relationships. Reuse concepts already present in existingEntities/existingPlaces when names clearly match; the application will perform final reconciliation."
+    instruction:
+      "Extract durable entities, reusable places, and directly supported directed action relationships. Reuse concepts already present in existingEntities/existingPlaces when names clearly match; the application will perform final reconciliation.",
   };
 }
 
-export async function availability(languageModel: any = (globalThis as any).LanguageModel): Promise<Record<string, any>> {
+export async function availability(
+  languageModel: any = (globalThis as any).LanguageModel,
+): Promise<Record<string, any>> {
   if (!languageModel || typeof languageModel.availability !== "function") {
-    return { available: false, state: "unavailable", reason: "LanguageModel API is unavailable in this browser." };
+    return {
+      available: false,
+      state: "unavailable",
+      reason: "LanguageModel API is unavailable in this browser.",
+    };
   }
   try {
     const state = await languageModel.availability();
     return {
       available: state !== "unavailable",
       state: String(state || "unknown"),
-      reason: state === "unavailable" ? "The built-in language model cannot run on this device/browser." : ""
+      reason:
+        state === "unavailable"
+          ? "The built-in language model cannot run on this device/browser."
+          : "",
     };
   } catch (error) {
     return {
       available: false,
       state: "error",
-      reason: error instanceof Error ? error.message : "Could not check built-in AI availability."
+      reason: error instanceof Error ? error.message : "Could not check built-in AI availability.",
     };
   }
 }
@@ -284,7 +305,8 @@ export async function infer(input: any, options: any = {}): Promise<Record<strin
     throw new Error("Built-in LanguageModel is unavailable in this browser.");
   }
   const source = inferenceInput(input);
-  if (!source.fragments.length) throw new Error("Add event context or evidence notes before running inference.");
+  if (!source.fragments.length)
+    throw new Error("Add event context or evidence notes before running inference.");
 
   const session = await languageModel.create({
     initialPrompts: [{ role: "system", content: SYSTEM_PROMPT }],
@@ -295,20 +317,18 @@ export async function infer(input: any, options: any = {}): Promise<Record<strin
           options.onDownloadProgress(Number(event.loaded) || 0);
         }
       });
-    }
+    },
   });
 
   try {
-    const response = await session.prompt(
-      JSON.stringify(source),
-      {
-        responseConstraint: responseSchema(),
-        omitResponseConstraintInput: true,
-        signal: options.signal
-      }
-    );
+    const response = await session.prompt(JSON.stringify(source), {
+      responseConstraint: responseSchema(),
+      omitResponseConstraintInput: true,
+      signal: options.signal,
+    });
     const parsed = JSON.parse(response);
-    if (!parsed || typeof parsed !== "object") throw new Error("Built-in AI returned an invalid inference result.");
+    if (!parsed || typeof parsed !== "object")
+      throw new Error("Built-in AI returned an invalid inference result.");
     return parsed;
   } finally {
     session.destroy?.();
@@ -404,11 +424,18 @@ function placeLookup(places: any) {
   };
 }
 
-export function reconcileProposal(raw: any, context: any = {}, dependencies: any = {}): Record<string, any> {
+export function reconcileProposal(
+  raw: any,
+  context: any = {},
+  dependencies: any = {},
+): Record<string, any> {
   const graph = dependencies.graph || (globalThis as any).TimelineGraph;
   const spatial = dependencies.spatial || (globalThis as any).TimelineSpatial;
-  const idFactory = dependencies.idFactory || ((prefix: string) => `${prefix}-inferred-${Math.random().toString(36).slice(2, 10)}`);
-  if (!graph || !spatial) throw new Error("Timeline graph/spatial APIs are required for inference reconciliation.");
+  const idFactory =
+    dependencies.idFactory ||
+    ((prefix: string) => `${prefix}-inferred-${Math.random().toString(36).slice(2, 10)}`);
+  if (!graph || !spatial)
+    throw new Error("Timeline graph/spatial APIs are required for inference reconciliation.");
 
   const normalizeFragments = (fragments: any) => {
     const result: Fragment[] = [];
@@ -428,7 +455,7 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
   };
 
   const allowedSourceRefs = new Set(
-    normalizeFragments(context.fragments).map((fragment: any) => fragment.ref)
+    normalizeFragments(context.fragments).map((fragment: any) => fragment.ref),
   );
   const storyIds = uniqueTextList(context.event?.storyIds, 12, 120);
   const findEntity = entityLookup(context.existingEntities, storyIds);
@@ -449,27 +476,31 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
       continue;
     }
     const existing = findEntity(name, alternateNames);
-    const record: Record<string, unknown> | null = existing ? null : {
-      id: idFactory("entity"),
-      type,
-      name,
-      alternateNames,
-      identifiers: [],
-      sourceIds: [],
-      attributes: storyIds.length === 1 ? { storyId: storyIds[0] } : {}
-    };
+    const record: Record<string, unknown> | null = existing
+      ? null
+      : {
+          id: idFactory("entity"),
+          type,
+          name,
+          alternateNames,
+          identifiers: [],
+          sourceIds: [],
+          attributes: storyIds.length === 1 ? { storyId: storyIds[0] } : {},
+        };
     const normalized: ReconciledEntityCandidate = {
       key,
       name,
       type,
       alternateNames,
       confidence: confidence(candidate?.confidence),
-      sourceRefs: uniqueTextList(candidate?.sourceRefs, 16, 160).filter((ref: string) => allowedSourceRefs.has(ref)),
+      sourceRefs: uniqueTextList(candidate?.sourceRefs, 16, 160).filter((ref: string) =>
+        allowedSourceRefs.has(ref),
+      ),
       rationale: text(candidate?.rationale, 400),
       status: existing ? "existing" : "new",
       entityId: String(existing?.id ?? record?.id ?? ""),
       existingEntityId: String(existing?.id ?? ""),
-      record
+      record,
     };
     entities.push(normalized);
     entityByKey.set(key, normalized);
@@ -486,9 +517,7 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
     let status = "needs-geometry";
     if (existing) {
       status = "existing";
-    } else if (
-      coordinatesExplicitInSources(candidate, context.fragments, candidate?.sourceRefs)
-    ) {
+    } else if (coordinatesExplicitInSources(candidate, context.fragments, candidate?.sourceRefs)) {
       try {
         record = spatial.normalizePlace({
           id: idFactory("place"),
@@ -497,11 +526,11 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
           address: text(candidate?.address, 500),
           geometry: {
             type: "Point",
-            coordinates: [Number(candidate.longitude), Number(candidate.latitude)]
+            coordinates: [Number(candidate.longitude), Number(candidate.latitude)],
           },
           icon: "place",
           markerShape: "pin",
-          attributes: { inferenceSource: "explicit-coordinates" }
+          attributes: { inferenceSource: "explicit-coordinates" },
         });
         if (record?.geometry) status = "new";
       } catch {
@@ -514,13 +543,15 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
       geographicIdentifier: text(candidate?.geographicIdentifier, 300),
       address: text(candidate?.address, 500),
       confidence: confidence(candidate?.confidence),
-      sourceRefs: uniqueTextList(candidate?.sourceRefs, 16, 160).filter((ref: string) => allowedSourceRefs.has(ref)),
+      sourceRefs: uniqueTextList(candidate?.sourceRefs, 16, 160).filter((ref: string) =>
+        allowedSourceRefs.has(ref),
+      ),
       rationale: text(candidate?.rationale, 400),
       coordinatesExplicit: candidate?.coordinatesExplicit === true,
       status,
       placeId: String(existing?.id ?? record?.id ?? ""),
       existingPlaceId: String(existing?.id ?? ""),
-      record
+      record,
     };
     places.push(normalized);
     placeByKey.set(key, normalized);
@@ -535,11 +566,19 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
     if (!key || relationshipKeys.has(key)) continue;
     relationshipKeys.add(key);
     if (!subject || !object) {
-      rejected.push({ kind: "relationship", label: key, reason: "Relationship endpoints must reference extracted entity candidates." });
+      rejected.push({
+        kind: "relationship",
+        label: key,
+        reason: "Relationship endpoints must reference extracted entity candidates.",
+      });
       continue;
     }
     if (subject.entityId === object.entityId) {
-      rejected.push({ kind: "relationship", label: key, reason: "Inference produced a self-loop; source and target must be different entities." });
+      rejected.push({
+        kind: "relationship",
+        label: key,
+        reason: "Inference produced a self-loop; source and target must be different entities.",
+      });
       continue;
     }
     const predicate = text(candidate?.predicate, 120);
@@ -549,13 +588,14 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
       continue;
     }
     const place = placeByKey.get(text(candidate?.placeKey, 80)) || null;
-    const allowedRelationshipSourceRefs = uniqueTextList(candidate?.sourceRefs, 16, 160)
-      .filter((ref: string) => allowedSourceRefs.has(ref));
+    const allowedRelationshipSourceRefs = uniqueTextList(candidate?.sourceRefs, 16, 160).filter(
+      (ref: string) => allowedSourceRefs.has(ref),
+    );
     if (!allowedRelationshipSourceRefs.length) {
       rejected.push({
         kind: "relationship",
         label: key,
-        reason: "Inferred relationships require at least one valid source fragment reference."
+        reason: "Inferred relationships require at least one valid source fragment reference.",
       });
       continue;
     }
@@ -571,10 +611,16 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
       time: clone(context.event?.time || null),
       sourceIds: [],
       confidence: confidence(candidate?.confidence),
-      attributes: {}
+      attributes: {},
     };
-    const duplicate = graph.findDuplicateRelationship(relationship, context.existingRelationships || []);
-    const mirrored = graph.findMirroredRelationship(relationship, context.existingRelationships || []);
+    const duplicate = graph.findDuplicateRelationship(
+      relationship,
+      context.existingRelationships || [],
+    );
+    const mirrored = graph.findMirroredRelationship(
+      relationship,
+      context.existingRelationships || [],
+    );
     const relStatus = duplicate ? "merge" : mirrored ? "mirrored" : "new";
     relationships.push({
       key,
@@ -589,18 +635,22 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
       mergeIntoRelationshipId: duplicate?.id || "",
       mirroredRelationshipId: mirrored?.id || "",
       relationship,
-      selectedByDefault: !mirrored && confidence(candidate?.confidence) >= 0.55
+      selectedByDefault: !mirrored && confidence(candidate?.confidence) >= 0.55,
     });
   }
 
   const unresolved = [
-    ...(Array.isArray(raw?.unresolved) ? raw.unresolved : []).map((entry: any) => ({
-      kind: text(entry?.kind, 40) || "relationship",
-      label: text(entry?.label, 200),
-      reason: text(entry?.reason, 500),
-      sourceRefs: uniqueTextList(entry?.sourceRefs, 16, 160).filter((ref: string) => allowedSourceRefs.has(ref))
-    })).filter((entry: any) => entry.label || entry.reason),
-    ...rejected
+    ...(Array.isArray(raw?.unresolved) ? raw.unresolved : [])
+      .map((entry: any) => ({
+        kind: text(entry?.kind, 40) || "relationship",
+        label: text(entry?.label, 200),
+        reason: text(entry?.reason, 500),
+        sourceRefs: uniqueTextList(entry?.sourceRefs, 16, 160).filter((ref: string) =>
+          allowedSourceRefs.has(ref),
+        ),
+      }))
+      .filter((entry: any) => entry.label || entry.reason),
+    ...rejected,
   ];
 
   return {
@@ -608,7 +658,7 @@ export function reconcileProposal(raw: any, context: any = {}, dependencies: any
     entities,
     places,
     relationships,
-    unresolved
+    unresolved,
   };
 }
 
@@ -621,7 +671,13 @@ function sourceEvidenceIds(sourceRefs: any): string[] {
   return ids;
 }
 
-export function applyProposal(project: any, item: any, proposal: any, selectedRelationshipKeys: any = [], dependencies: any = {}): Record<string, any> {
+export function applyProposal(
+  project: any,
+  item: any,
+  proposal: any,
+  selectedRelationshipKeys: any = [],
+  dependencies: any = {},
+): Record<string, any> {
   const graph = dependencies.graph || (globalThis as any).TimelineGraph;
   if (!graph) throw new Error("Timeline graph API is required to apply inference.");
   const draft = clone(project) as any;
@@ -654,7 +710,8 @@ export function applyProposal(project: any, item: any, proposal: any, selectedRe
 
   for (const key of requiredEntityKeys) {
     const candidate = entityByKey.get(key);
-    if (!candidate) throw new Error(`Inference relationship references unknown entity candidate "${key}".`);
+    if (!candidate)
+      throw new Error(`Inference relationship references unknown entity candidate "${key}".`);
     const record = candidate.record;
     if (candidate.status === "new" && record) {
       if (!draft.entities.some((entity: any) => String(entity.id) === String(record.id))) {
@@ -678,9 +735,11 @@ export function applyProposal(project: any, item: any, proposal: any, selectedRe
     const sourceIds = sourceEvidenceIds(candidate.sourceRefs);
     if (candidate.status === "merge" && candidate.mergeIntoRelationshipId) {
       const index = draft.relationships.findIndex(
-        (relationship: any) => String(relationship.id) === String(candidate.mergeIntoRelationshipId)
+        (relationship: any) =>
+          String(relationship.id) === String(candidate.mergeIntoRelationshipId),
       );
-      if (index < 0) throw new Error("The relationship selected for inference merge no longer exists.");
+      if (index < 0)
+        throw new Error("The relationship selected for inference merge no longer exists.");
       const current = draft.relationships[index];
       draft.relationships[index] = {
         ...current,
@@ -689,7 +748,7 @@ export function applyProposal(project: any, item: any, proposal: any, selectedRe
         placeId: current.placeId || candidate.relationship.placeId || "",
         confidence: Number.isFinite(current.confidence)
           ? Math.max(current.confidence, candidate.confidence)
-          : candidate.confidence
+          : candidate.confidence,
       };
       continue;
     }
@@ -700,10 +759,9 @@ export function applyProposal(project: any, item: any, proposal: any, selectedRe
         ? (clonedRelationship as Record<string, unknown>)
         : {}),
       itemIds: [item.id],
-      sourceIds
+      sourceIds,
     };
-    const relationshipId =
-      "id" in relationship ? String(relationship.id ?? "") : "";
+    const relationshipId = "id" in relationship ? String(relationship.id ?? "") : "";
     if (!draft.relationships.some((current: any) => String(current.id) === relationshipId)) {
       draft.relationships.push(relationship);
     }
@@ -720,7 +778,7 @@ export function fingerprint(input: any): string {
   const normalized = inferenceInput(input);
   return JSON.stringify({
     event: normalized.event,
-    fragments: normalized.fragments
+    fragments: normalized.fragments,
   });
 }
 
@@ -733,7 +791,7 @@ const TimelineGraphInferenceObj = {
   infer,
   reconcileProposal,
   applyProposal,
-  fingerprint
+  fingerprint,
 } as const;
 
 export const TimelineGraphInference = Object.freeze(TimelineGraphInferenceObj);

@@ -58,10 +58,16 @@ function isFiniteNumber(value: unknown): value is number {
 }
 
 function isPosition(value: unknown): value is GeoPosition {
-  if (!Array.isArray(value) || value.length < 2) return false;
-  if (!value.every(isFiniteNumber)) return false;
+  if (!Array.isArray(value) || value.length < 2) {
+    return false;
+  }
+  if (!value.every(isFiniteNumber)) {
+    return false;
+  }
   const [longitude, latitude] = value;
-  if (!(isFiniteNumber(longitude) && isFiniteNumber(latitude))) return false;
+  if (!(isFiniteNumber(longitude) && isFiniteNumber(latitude))) {
+    return false;
+  }
   return longitude >= -180 && longitude <= 180 && latitude >= -90 && latitude <= 90;
 }
 
@@ -74,10 +80,14 @@ function polygonRings(value: unknown): value is readonly (readonly GeoPosition[]
     Array.isArray(value) &&
     value.length > 0 &&
     value.every((ring) => {
-      if (!positions(ring, 4)) return false;
+      if (!positions(ring, 4)) {
+        return false;
+      }
       const first = ring.at(0);
       const last = ring.at(-1);
-      if (!(first && last)) return false;
+      if (!(first && last)) {
+        return false;
+      }
       return first[0] === last[0] && first[1] === last[1];
     })
   );
@@ -89,12 +99,14 @@ export function validateSpatialGeometry(geometry: unknown): readonly string[] {
   }
 
   const record = geometry as Readonly<Record<string, unknown>>;
-  const type = record["type"];
-  const coordinates = record["coordinates"];
+  const type = record.type;
+  const coordinates = record.coordinates;
 
   if (type === "Point") {
     return Object.freeze(
-      isPosition(coordinates) ? [] : ["Point coordinates must contain valid longitude and latitude."],
+      isPosition(coordinates)
+        ? []
+        : ["Point coordinates must contain valid longitude and latitude."],
     );
   }
 
@@ -140,16 +152,22 @@ export function validateSpatialGeometry(geometry: unknown): readonly string[] {
 }
 
 function endpointValue(endpoint: Readonly<Record<string, unknown>> | null | undefined): string {
-  if (!endpoint) return "";
-  const value = endpoint["value"];
+  if (!endpoint) {
+    return "";
+  }
+  const value = endpoint.value;
   return typeof value === "string" ? value.trim() : "";
 }
 
 function temporalOrderingFindings(time: CanonicalTemporalExtent): readonly string[] {
-  if (time.type !== "interval" || time.openStart || time.openEnd) return Object.freeze([]);
+  if (time.type !== "interval" || time.openStart || time.openEnd) {
+    return Object.freeze([]);
+  }
   const startValue = endpointValue(time.start);
   const endValue = endpointValue(time.end);
-  if (!(startValue && endValue)) return Object.freeze([]);
+  if (!(startValue && endValue)) {
+    return Object.freeze([]);
+  }
 
   const start = Date.parse(startValue);
   const end = Date.parse(endValue);
@@ -165,7 +183,9 @@ export function validateGeotemporalState(
 ): readonly string[] {
   const findings: string[] = [];
 
-  if (!state.id.trim()) findings.push("Geotemporal state ID is required.");
+  if (!state.id.trim()) {
+    findings.push("Geotemporal state ID is required.");
+  }
   if (!entities.some((entity) => entity.id === state.entityId)) {
     findings.push("Geotemporal state must reference an existing canonical entity.");
   }
@@ -213,7 +233,9 @@ export function recordGeotemporalState(
   entities: readonly CanonicalEntity[],
 ): GeotemporalLedger {
   const findings = validateGeotemporalState(state, entities);
-  if (findings.length) throw new Error(findings.join(" "));
+  if (findings.length > 0) {
+    throw new Error(findings.join(" "));
+  }
   if (ledger.states.some((existing) => existing.id === state.id)) {
     throw new Error("Geotemporal state ID already exists.");
   }

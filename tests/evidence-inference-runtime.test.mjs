@@ -58,7 +58,10 @@ test("visible extraction and inference controls are wired to application handler
 
   assert.match(html, /id="item-inference-run"/);
   assert.match(html, /class="button secondary evidence-extract-text"/);
-  assert.match(app, /itemInferenceRun:\s*requiredElement<HTMLButtonElement>\("#item-inference-run"\)/);
+  assert.match(
+    app,
+    /itemInferenceRun:\s*requiredElement<HTMLButtonElement>\("#item-inference-run"\)/,
+  );
   assert.match(app, /extractText:\s*row\.querySelector\("\.evidence-extract-text"\)/);
   assert.match(app, /parts\.extractText\?\.addEventListener\("click"/);
   assert.match(app, /itemInferenceRun\?\.addEventListener\("click"/);
@@ -76,12 +79,8 @@ test("inference remains reviewable and stale proposals cannot mutate canonical s
   assert.match(app, /itemInferenceDraft\.fingerprint !== currentFingerprint/);
   assert.match(app, /graphInference\.applyProposal\(/);
   assert.match(app, /state = normalizeTimeline\(draft, \{ strictGraph: true \}\)/);
-  assert.doesNotMatch(
-    app,
-    /graphInference\.infer[\s\S]{0,1800}state\.relationships\.push/,
-  );
+  assert.doesNotMatch(app, /graphInference\.infer[\s\S]{0,1800}state\.relationships\.push/);
 });
-
 
 test("app migration preserves the established default category fallback", async () => {
   const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");

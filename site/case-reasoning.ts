@@ -215,7 +215,11 @@ export function normalizeCitationLocator(raw: any): Record<string, any> | null {
   return locator;
 }
 
-export function normalizeRecord(raw: any, type: string, index: number = 0): Record<string, any> | null {
+export function normalizeRecord(
+  raw: any,
+  type: string,
+  index: number = 0,
+): Record<string, any> | null {
   if (!raw || typeof raw !== "object") return null;
   const id = text(raw.id, 160) || `${type}-${index + 1}`;
   const record: Record<string, any> = {
@@ -707,9 +711,7 @@ export function orderedRecords(reasoning: any): Record<string, any>[] {
   while (ready.length) {
     const record = ready.shift()!;
     ordered.push(record);
-    const dependents = [...outgoing.get(record.id)!]
-      .map((id) => recordById.get(id)!)
-      .sort(compare);
+    const dependents = [...outgoing.get(record.id)!].map((id) => recordById.get(id)!).sort(compare);
     for (const dependent of dependents) {
       const next = indegree.get(dependent.id)! - 1;
       indegree.set(dependent.id, next);

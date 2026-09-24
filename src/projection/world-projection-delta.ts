@@ -74,8 +74,12 @@ export function applyWorldProjectionDelta(
   const instances = new Map(previous.instances.map((value) => [value.id, value]));
   const edges = new Map(previous.edges.map((value) => [value.id, value]));
 
-  for (const id of delta.removedInstanceIds) instances.delete(id);
-  for (const id of delta.removedEdgeIds) edges.delete(id);
+  for (const id of delta.removedInstanceIds) {
+    instances.delete(id);
+  }
+  for (const id of delta.removedEdgeIds) {
+    edges.delete(id);
+  }
 
   for (const value of delta.updatedInstances) {
     if (!instances.has(value.id)) {
