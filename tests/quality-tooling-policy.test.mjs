@@ -20,20 +20,9 @@ test("Biome is the authoritative formatter and strict multi-language quality too
 
   assert.equal(biome.linter?.rules?.a11y?.useGenericFontNames, "error");
   assert.equal(biome.linter?.rules?.complexity?.noImportantStyles, "error");
-  assert.equal(biome.linter?.rules?.complexity?.noImplicitCoercions, "error");
-  assert.equal(biome.linter?.rules?.complexity?.useArrowFunction, "error");
-  assert.equal(biome.linter?.rules?.correctness?.noUndeclaredVariables, "error");
-  assert.equal(biome.linter?.rules?.correctness?.noUnusedImports, "error");
-  assert.equal(biome.linter?.rules?.correctness?.noUnusedVariables, "error");
   assert.equal(biome.linter?.rules?.nursery?.noExcessiveSelectorClasses, "error");
-  assert.equal(biome.linter?.rules?.style?.noParameterAssign, "error");
-  assert.equal(biome.linter?.rules?.style?.useConst, "error");
-  assert.equal(biome.linter?.rules?.suspicious?.noConsole?.level, "error");
-  assert.deepEqual(biome.linter?.rules?.suspicious?.noConsole?.options?.allow, ["warn", "error"]);
-  assert.equal(biome.linter?.rules?.suspicious?.noDoubleEquals?.options?.ignoreNull, false);
   assert.equal(biome.linter?.rules?.suspicious?.noShorthandPropertyOverrides, "error");
   assert.equal(biome.linter?.rules?.suspicious?.noUnknownAtRules, "error");
-  assert.equal(biome.linter?.rules?.suspicious?.noUnusedExpressions, "error");
 
   for (const ignored of [
     "!!dist",
@@ -42,8 +31,34 @@ test("Biome is the authoritative formatter and strict multi-language quality too
     "!!site/leaflet.bundle.js",
     "!!site/pdf.worker.mjs",
   ]) {
-    assert.ok(biome.files?.includes?.includes(ignored), `Biome must ignore generated artifact: ${ignored}`);
+    assert.ok(
+      biome.files?.includes?.includes(ignored),
+      `Biome must ignore generated artifact: ${ignored}`,
+    );
   }
+
+  const parityOverride = biome.overrides?.find((override) =>
+    override.includes?.includes("src/**/*.js"),
+  );
+  assert.deepEqual(parityOverride?.includes, [
+    "src/**/*.js",
+    "site/**/*.js",
+    "tests/**/*.mjs",
+    "benchmarks/**/*.mjs",
+  ]);
+  assert.equal(parityOverride?.linter?.rules?.correctness?.noUndeclaredVariables, "error");
+  assert.equal(parityOverride?.linter?.rules?.correctness?.noUnusedVariables, "error");
+  assert.equal(parityOverride?.linter?.rules?.complexity?.noImplicitCoercions, "error");
+  assert.equal(parityOverride?.linter?.rules?.complexity?.useArrowFunction, "error");
+  assert.equal(parityOverride?.linter?.rules?.style?.noParameterAssign, "error");
+  assert.equal(parityOverride?.linter?.rules?.style?.useConst, "error");
+  assert.equal(parityOverride?.linter?.rules?.suspicious?.noConsole?.level, "error");
+  assert.deepEqual(parityOverride?.linter?.rules?.suspicious?.noConsole?.options?.allow, [
+    "warn",
+    "error",
+  ]);
+  assert.equal(parityOverride?.linter?.rules?.suspicious?.noDoubleEquals?.options?.ignoreNull, false);
+  assert.equal(parityOverride?.linter?.rules?.suspicious?.noUnusedExpressions, "error");
 
   const strictOverride = biome.overrides?.find((override) =>
     override.includes?.includes("src/domain/**"),
@@ -73,14 +88,10 @@ test("package scripts expose one Biome quality pipeline plus architecture policy
   assert.equal(scripts.lint, "pnpm lint:biome && pnpm lint:architecture");
   assert.equal(scripts["lint:fix"], "biome lint --write .");
   assert.match(scripts["lint:biome"] ?? "", /^biome lint /);
-  assert.match(scripts["check:biome"] ?? "", /^biome check /);
   assert.equal(scripts.fix, "biome check --write . && pnpm lint:architecture");
   assert.match(scripts["lint:styles"] ?? "", /--config-path=biome\.strict\.json/);
   assert.match(scripts["lint:styles"] ?? "", /\.css/);
-  assert.equal(
-    scripts["check:quality"],
-    "pnpm check:biome && pnpm lint:architecture && node scripts/check-quality-changed.mjs",
-  );
+  assert.equal(scripts["check:quality"], "pnpm lint && node scripts/check-quality-changed.mjs");
   assert.doesNotMatch(Object.values(scripts).join("\n"), /eslint/i);
   assert.equal(pkg.devDependencies?.eslint, undefined);
   assert.equal(pkg.devDependencies?.["@eslint/js"], undefined);
