@@ -1045,12 +1045,12 @@ export const WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM = 6;
 export function worldGraphLabelSize(
   datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">,
 ): number {
-  return datum.emphasized ? 19 : 16;
+  return datum.emphasized ? 21 : 18;
 }
 
 const LABEL_PLACEMENT_CELL_PX = 128;
 const LABEL_PLACEMENT_PADDING_PX = 4;
-const LABEL_DETAIL_KEEP_ALL_ZOOM = 7;
+const LABEL_DETAIL_KEEP_ALL_ZOOM = 5;
 
 function labelFootprint(datum: DeckWorldLabelDatum): {
   readonly width: number;
@@ -1337,12 +1337,11 @@ function labelDatums(input: {
   const pinnedRelationship = (relationship: DeckWorldRelationshipDatum) =>
     relationship.selected || focused("relationship", relationship.relationshipId);
   const relationships = selectPrioritizedLabels(
-    input.relationships.filter(
-      (relationship) =>
-        relationship.label && (!input.clustered || pinnedRelationship(relationship)),
-    ),
+    input.relationships.filter((relationship) => relationship.label),
     {
-      budget,
+      // Relationship predicates are the graph's semantic verbs. At working
+      // zoom they are required labels, not optional decoration.
+      budget: input.zoom >= LABEL_DETAIL_KEEP_ALL_ZOOM ? Number.POSITIVE_INFINITY : budget,
       isPinned: pinnedRelationship,
       importance: (relationship) => relationship.temporalWeight,
       key: (relationship) => relationship.relationshipId,
