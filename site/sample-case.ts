@@ -7024,7 +7024,6 @@ const SAMPLE = {
             sourceText: "Fictional narrative ordering coordinate; not a real-world date.",
           },
         },
-        sourceIds: [],
         confidence: null,
         attributes: {
           contextual: true,
