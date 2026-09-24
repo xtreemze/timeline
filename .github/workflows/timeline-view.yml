@@ -240,6 +240,9 @@ jobs:
       - run: pnpm benchmark:retained-timeline
       - run: pnpm benchmark:graph-data
       - run: pnpm benchmark:world-force
+      - name: Certify dense world-force scaling
+        run: pnpm benchmark:world-force:dense
+        timeout-minutes: 2
       - run: pnpm test:touch-runtime-contracts
       - run: pnpm test:temporal-context-runtime
       - run: pnpm test:semantic-hierarchy-runtime
