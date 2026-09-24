@@ -35,6 +35,7 @@ export interface WorldViewFactory {
 
 export interface WorldViewFactoryForceBackend extends WorldForceSimulationBackend {
   getSnapshot?(): readonly WorldForceLayoutSample[];
+  getChangedSnapshot?(): readonly WorldForceLayoutSample[];
 }
 
 export interface WorldViewFactoryOptions {
@@ -220,10 +221,14 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
       const runtime = new WorldViewRuntimeController({
         surface,
         forceBackend,
-        ...(typeof forceBackend.getSnapshot === "function"
+        ...(typeof forceBackend.getChangedSnapshot === "function" ||
+        typeof forceBackend.getSnapshot === "function"
           ? {
               layoutReadback: {
-                read: () => forceBackend.getSnapshot?.() ?? Object.freeze([]),
+                read: () =>
+                  forceBackend.getChangedSnapshot?.() ??
+                  forceBackend.getSnapshot?.() ??
+                  Object.freeze([]),
               },
             }
           : {}),
