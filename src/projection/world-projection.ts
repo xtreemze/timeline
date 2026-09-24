@@ -96,12 +96,9 @@ function optionalText(value: string | undefined, max: number): string | undefine
 
 export function worldInstanceId(
   canonicalId: EntityId,
-  occurrenceId?: RelationshipId,
+  _occurrenceId?: RelationshipId,
 ): WorldInstanceId {
-  return JSON.stringify([
-    nonEmpty(canonicalId, "Canonical entity ID"),
-    occurrenceId === undefined ? null : nonEmpty(occurrenceId, "Occurrence ID"),
-  ]) as WorldInstanceId;
+  return JSON.stringify([nonEmpty(canonicalId, "Canonical entity ID"), null]) as WorldInstanceId;
 }
 
 export function createSpatialAnchor(anchor: SpatialAnchor): SpatialAnchor {
@@ -216,11 +213,18 @@ export function createWorldProjection(projection: WorldProjection): WorldProject
     .sort((left, right) => left.id.localeCompare(right.id));
 
   const instanceIds = new Set<WorldInstanceId>();
+  const canonicalEntityIds = new Set<EntityId>();
   for (const instance of instances) {
     if (instanceIds.has(instance.id)) {
       throw new Error(`Duplicate world instance ID: ${instance.id}`);
     }
+    if (canonicalEntityIds.has(instance.canonicalId)) {
+      throw new Error(
+        `Duplicate canonical entity in world projection: ${String(instance.canonicalId)}`,
+      );
+    }
     instanceIds.add(instance.id);
+    canonicalEntityIds.add(instance.canonicalId);
   }
 
   const edges = projection.edges
