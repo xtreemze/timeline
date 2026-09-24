@@ -3328,9 +3328,7 @@ export class DeckWorldSurface implements WorldSurface {
               getPath: (path: unknown) => path,
               getWidth: 1,
               getColor: this.#theme.graticule,
-              // Like entity markers, draw near-side place icons above the
-              // globe depth surface after explicitly filtering the far side.
-              parameters: { cullMode: "none", depthCompare: "always" },
+              parameters: { cullMode: "none" },
             }),
             ...(this.#basemap
               ? [
@@ -3424,7 +3422,10 @@ export class DeckWorldSurface implements WorldSurface {
                 getSize: this.#palette,
                 getColor: this.#palette,
               },
-              parameters: { cullMode: "none" },
+              // Far-side markers are filtered explicitly below, so the
+              // visible place marker can share the entity marker's stable
+              // screen-space depth behavior without clipping into the globe.
+              parameters: { cullMode: "none", depthCompare: "always" },
             }),
           ]
         : []),
@@ -3801,6 +3802,7 @@ export class DeckWorldSurface implements WorldSurface {
     return clipped;
   }
 
+  #visiblePlaceCache: readonly DeckWorldPlaceDatum[] = [];
   #visibleEntityCache: readonly DeckWorldEntityDatum[] = [];
   #tetherCache = new WeakMap<DeckWorldEntityDatum, DeckWorldTether>();
 
@@ -3834,6 +3836,20 @@ export class DeckWorldSurface implements WorldSurface {
       result.push(tether);
     }
     return result;
+  }
+
+  /** Near-side places only (markers skip depth testing), reusing the array. */
+  #cameraFacingPlaces(datums: readonly DeckWorldPlaceDatum[]): readonly DeckWorldPlaceDatum[] {
+    const visible = datums.filter((datum) => this.#facesCamera(datum.position));
+    const previous = this.#visiblePlaceCache;
+    if (
+      previous.length === visible.length &&
+      previous.every((datum, index) => datum === visible[index])
+    ) {
+      return previous;
+    }
+    this.#visiblePlaceCache = visible;
+    return visible;
   }
 
   /** Near-side entities only (markers skip depth testing), reusing the array. */
