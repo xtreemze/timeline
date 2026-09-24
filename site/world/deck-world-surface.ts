@@ -3617,26 +3617,24 @@ export class DeckWorldSurface implements WorldSurface {
                 if (datum.kind === "place-label") return base;
                 if (datum.kind === "relationship-label") {
                   const edge = relationshipResult.byId.get(datum.relationshipId);
-                  return scaleAlpha(base, edge ? edgeExpansion(edge) : 0);
+                  return edge && edgeIsClusterAffected(edge) && showReleasingClusterEdges
+                    ? this.#theme.labelRelationship
+                    : base;
                 }
-                const entity = entityResult.byId.get(datum.worldInstanceId);
-                return scaleAlpha(base, entity ? entityExpansion(entity) : 0);
+                return muteMembers && memberIds.has(datum.worldInstanceId)
+                  ? this.#theme.labelPlace
+                  : base;
               },
               getTextAnchor: "middle",
               getAlignmentBaseline: "center",
               getPixelOffset: labelPixelOffset,
               updateTriggers: {
-                // Interaction updates invalidate color only. Position is
-                // already supplied by explicit cluster interpolation and must
-                // never get a second deck transition on hover/selection.
-                getColor: [
-                  this.#palette,
-                  placeExpansion,
-                  gridClustered,
-                  labelInteractionKey,
-                ],
+                getColor: [this.#palette, clusterPhase, labelInteractionKey],
               },
-              transitions: prefersReducedMotion() ? undefined : { getColor: 120 },
+              transitions:
+                clusterPhase === "expanded" && !prefersReducedMotion()
+                  ? { getColor: 120 }
+                  : undefined,
               // GlobeView culls back faces; billboarded glyph quads are
               // wound the other way and vanish without this. Labels draw
               // over marks (far-side labels are filtered out above) so
