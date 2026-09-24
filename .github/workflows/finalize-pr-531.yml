@@ -105,60 +105,6 @@ jobs:
           git add site/timeline-graph.ts
           git commit --no-edit
       - run: pnpm install --frozen-lockfile
-      - name: Repair strict ProjectRepository record typing
-        run: |
-          node <<'NODE'
-          const fs = require("node:fs");
-          const file = "src/application/project-repository.ts";
-          let s = fs.readFileSync(file, "utf8");
-          const anchor = 'function isRecord(value: unknown): value is Record<string, unknown> {';
-          if (!s.includes(anchor)) throw new Error("ProjectRepository record type anchor not found");
-          const replacement = `interface PersistedRecord extends Record<string, unknown> {
-            readonly alternateNames?: unknown;
-            readonly attributes?: unknown;
-            readonly confidence?: unknown;
-            readonly entities?: unknown;
-            readonly format?: unknown;
-            readonly id?: unknown;
-            readonly itemIds?: unknown;
-            readonly name?: unknown;
-            readonly objectId?: unknown;
-            readonly placeId?: unknown;
-            readonly predicate?: unknown;
-            readonly project?: unknown;
-            readonly projectKey?: unknown;
-            readonly relationships?: unknown;
-            readonly revision?: unknown;
-            readonly role?: unknown;
-            readonly savedAt?: unknown;
-            readonly schemaVersion?: unknown;
-            readonly sourceIds?: unknown;
-            readonly subjectId?: unknown;
-            readonly time?: unknown;
-            readonly type?: unknown;
-          }
-
-          function isRecord(value: unknown): value is PersistedRecord {`;
-          s = s.replace(anchor, replacement);
-          const lines = s.split("\\n");
-          const roleIndex = lines.findIndex((line) =>
-            line.includes('role: typeof value.role === "string" ? value.role : undefined'),
-          );
-          const placeIndex = lines.findIndex((line) =>
-            line.includes('placeId: typeof value.placeId === "string" ? placeId(value.placeId) : undefined'),
-          );
-          if (roleIndex < 0 || placeIndex !== roleIndex + 1) {
-            throw new Error("ProjectRepository optional field lines not found");
-          }
-          lines.splice(
-            roleIndex,
-            2,
-            '    ...(typeof value.role === "string" ? { role: value.role } : {}),',
-            '    ...(typeof value.placeId === "string" ? { placeId: placeId(value.placeId) } : {}),',
-          );
-          s = lines.join("\\n");
-          fs.writeFileSync(file, s);
-          NODE
       - name: Apply Biome fixes to PR-owned files
         run: >
           pnpm exec biome check --write
@@ -171,7 +117,6 @@ jobs:
           src/orb-graph-entry.js
           tests/domain-kernel.test.mjs
           tests/sample-case.test.mjs
-          src/application/project-repository.ts
       - run: pnpm check:quality
       - run: pnpm types:migrated
       - run: pnpm types:architecture
