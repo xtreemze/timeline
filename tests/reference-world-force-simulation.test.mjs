@@ -191,6 +191,38 @@ test("D3 cluster lifecycle detaches links, gathers, then scatters before reconne
   assert.ok(expandedAfter > collapsed, "D3 rejection scatters members before normal links resume");
 });
 
+test("D3 cluster ownership leaves unrelated geographic groups under the ordinary 3D solver", () => {
+  const simulation = new ReferenceWorldForceSimulation();
+  const alice = '["alice","cluster-a"]';
+  const bob = '["bob","cluster-b"]';
+  const remote = '["remote","other"]';
+  simulation.setScene({
+    nodes: [
+      node(alice, { initialEastMeters: -500 }),
+      node(bob, { initialEastMeters: 500 }),
+      node(remote, { initialEastMeters: 700 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(alice, "stockholm", { influence: 1 }),
+      anchor(bob, "stockholm", { influence: 1 }),
+      anchor(remote, "copenhagen", { influence: 0 }),
+    ],
+  });
+
+  const before = simulation.getSnapshot().find((entry) => entry.instanceId === remote);
+  simulation.setClusteredPlaceIds(["stockholm"]);
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 120; index += 1) simulation.step(1000 / 60);
+  const after = simulation.getSnapshot().find((entry) => entry.instanceId === remote);
+
+  assert.deepEqual(
+    after,
+    before,
+    "D3-owned clustering must not replace ordinary force ownership for unrelated places",
+  );
+});
+
 test("cross-place relationships never collapse geographic anchors into one local force group", () => {
   const commonNodes = [
     node('["alice","travel"]', { initialEastMeters: 100 }),
