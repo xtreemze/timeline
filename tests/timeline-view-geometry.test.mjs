@@ -38,22 +38,10 @@ test("wheel zoom is deliberately capped and symmetric enough for fine control", 
 });
 
 test("trackpad pinch keeps wheel units but amplifies Ctrl-modified deltas like d3-zoom", () => {
-  assert.equal(
-    geometry.normalizeWheelDelta({ deltaY: 2, deltaMode: 0, ctrlKey: false }, 800),
-    2,
-  );
-  assert.equal(
-    geometry.normalizeWheelDelta({ deltaY: 2, deltaMode: 0, ctrlKey: true }, 800),
-    20,
-  );
-  assert.equal(
-    geometry.normalizeWheelDelta({ deltaY: 1, deltaMode: 1, ctrlKey: true }, 800),
-    160,
-  );
-  assert.equal(
-    geometry.normalizeWheelDelta({ deltaY: 1, deltaMode: 2, ctrlKey: false }, 800),
-    800,
-  );
+  assert.equal(geometry.normalizeWheelDelta({ deltaY: 2, deltaMode: 0, ctrlKey: false }, 800), 2);
+  assert.equal(geometry.normalizeWheelDelta({ deltaY: 2, deltaMode: 0, ctrlKey: true }, 800), 20);
+  assert.equal(geometry.normalizeWheelDelta({ deltaY: 1, deltaMode: 1, ctrlKey: true }, 800), 160);
+  assert.equal(geometry.normalizeWheelDelta({ deltaY: 1, deltaMode: 2, ctrlKey: false }, 800), 800);
 });
 
 test("selected events use a shell-owned six-column detail surface with timeline-owned controls", async () => {
@@ -155,4 +143,3 @@ test("Browse overlays without workspace reflow and Edit becomes a bounded deskto
   assert.match(architecture, /Edit is fullscreen on compact\/mobile viewports/);
   assert.match(architecture, /Horizontal overflow is a layout defect/);
 });
-
