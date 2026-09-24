@@ -131,7 +131,7 @@ for (const nodeCount of sizes) {
   });
 }
 
-// eslint-disable-next-line no-console -- benchmark emits its machine-readable JSON report to stdout
+// biome-ignore lint/suspicious/noConsole: benchmark emits its machine-readable JSON report to stdout
 console.log(
   JSON.stringify(
     {

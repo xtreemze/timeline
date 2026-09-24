@@ -252,17 +252,6 @@ main > * {
 .app-shell.is-event-focused .control-panel {
   display: none;
 }
-.app-shell.is-event-focused .timeline-panel {
-  grid-column: 1 / -1;
-  padding: 0;
-}
-.app-shell.is-event-focused .timeline-heading-row,
-.app-shell.is-event-focused .timeline-toolbar,
-.app-shell.is-event-focused .empty-state,
-.app-shell.is-event-focused .timeline-list-heading,
-.app-shell.is-event-focused .timeline-list {
-  display: none;
-}
 
 .presentation-stage {
   display: grid;
@@ -275,10 +264,6 @@ main > * {
 }
 .presentation-stage > .timeline-view {
   grid-column: 1 / -1;
-  min-width: 0;
-}
-.presentation-stage > .graph-lens,
-.presentation-stage > .presentation-map-panel {
   min-width: 0;
 }
 .app-shell.is-event-focused .presentation-stage {
@@ -478,11 +463,6 @@ a:focus-visible {
   font-size: 0.82rem;
   font-weight: 800;
 }
-.temporal-editor legend small {
-  margin-inline-start: 0.25rem;
-  color: var(--muted);
-  font-weight: 500;
-}
 .date-range-field {
   margin-bottom: 0.7rem;
 }
@@ -623,9 +603,6 @@ a:focus-visible {
   border-radius: 0.65rem;
   background: var(--paper);
 }
-.temporal-clock-section .subheading-row {
-  margin-top: 0;
-}
 
 .temporal-range-grid {
   display: grid;
@@ -637,9 +614,6 @@ a:focus-visible {
   border: 1px solid var(--line);
   border-radius: 0.65rem;
   background: var(--paper);
-}
-.temporal-endpoint .subheading-row {
-  margin-top: 0;
 }
 .temporal-fields {
   display: grid;
@@ -669,10 +643,6 @@ a:focus-visible {
   font-size: 0.82rem;
   font-weight: 800;
 }
-.optional-editor > summary small {
-  color: var(--muted);
-  font-weight: 500;
-}
 .map-style-editor {
   margin-top: 0.15rem;
 }
@@ -701,9 +671,6 @@ a:focus-visible {
   .map-style-group {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
-.optional-editor[open] > summary {
-  border-bottom: 1px solid var(--line);
 }
 .location-fields {
   display: grid;
@@ -790,15 +757,6 @@ geolocation {
   border-radius: 0.62rem;
   background: var(--paper);
 }
-.media-editor-row > p {
-  grid-column: 1 / -1;
-  margin: 0 0 0.45rem;
-  color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
 .tag-editor-row {
   grid-template-columns: minmax(0, 1.4fr) minmax(110px, 0.8fr);
   position: relative;
@@ -838,16 +796,16 @@ geolocation {
     color: contrast-color(var(--tag-color));
   }
 }
-.event-tag .semantic-icon {
-  flex: 0 0 auto;
-  width: 1.12rem;
-  height: 1.12rem;
-}
 .semantic-icon {
   display: block;
   min-width: 1rem;
   min-height: 1rem;
   overflow: visible;
+}
+.event-tag .semantic-icon {
+  flex: 0 0 auto;
+  width: 1.12rem;
+  height: 1.12rem;
 }
 
 .leaflet-container {
@@ -915,38 +873,9 @@ geolocation {
   flex: 0 0 var(--map-marker-size, 2rem);
   border: var(--map-marker-weight, 2px) solid var(--map-marker-color, var(--focus));
   border-radius: 50%;
-  background: var(
-    --map-marker-fill,
-    color-mix(in srgb, var(--paper) 92%, transparent)
-  );
+  background: var(--map-marker-fill, color-mix(in srgb, var(--paper) 92%, transparent));
   color: var(--map-marker-color, var(--focus));
   box-shadow: 0 2px 10px color-mix(in srgb, var(--ink) 18%, transparent);
-}
-.timeline-map-marker-shape-circle .timeline-map-marker-shell,
-.timeline-map-marker-shape-circle .timeline-map-place-icon {
-  border-radius: 50%;
-}
-.timeline-map-marker-shape-square .timeline-map-marker-shell,
-.timeline-map-marker-shape-square .timeline-map-place-icon {
-  border-radius: 0.28rem;
-}
-.timeline-map-marker-shape-diamond .timeline-map-marker-shell,
-.timeline-map-marker-shape-diamond .timeline-map-place-icon {
-  border-radius: 0.25rem;
-  transform: rotate(45deg);
-}
-.timeline-map-marker-shape-diamond .timeline-map-marker-shell .semantic-icon,
-.timeline-map-marker-shape-diamond .timeline-map-place-icon .semantic-icon {
-  transform: rotate(-45deg);
-}
-.timeline-map-marker-shape-pin .timeline-map-marker-shell,
-.timeline-map-marker-shape-pin .timeline-map-place-icon {
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(-45deg);
-}
-.timeline-map-marker-shape-pin .timeline-map-marker-shell .semantic-icon,
-.timeline-map-marker-shape-pin .timeline-map-place-icon .semantic-icon {
-  transform: rotate(45deg);
 }
 
 .timeline-map-marker-shell .semantic-icon {
@@ -992,6 +921,24 @@ geolocation {
   flex-basis: 2.35rem;
   backdrop-filter: blur(8px);
 }
+.timeline-map-marker-shape-pin .timeline-map-marker-shell,
+.timeline-map-marker-shape-pin .timeline-map-place-icon {
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+}
+.timeline-map-marker-shape-diamond .timeline-map-marker-shell,
+.timeline-map-marker-shape-diamond .timeline-map-place-icon {
+  border-radius: 0.25rem;
+  transform: rotate(45deg);
+}
+.timeline-map-marker-shape-square .timeline-map-marker-shell,
+.timeline-map-marker-shape-square .timeline-map-place-icon {
+  border-radius: 0.28rem;
+}
+.timeline-map-marker-shape-circle .timeline-map-marker-shell,
+.timeline-map-marker-shape-circle .timeline-map-place-icon {
+  border-radius: 50%;
+}
 .timeline-map-place-icon .semantic-icon {
   width: 1.3rem;
   height: 1.3rem;
@@ -1036,6 +983,12 @@ geolocation {
   align-items: baseline;
   gap: 1rem;
   margin: 0.2rem 0 0.65rem;
+}
+.temporal-endpoint .subheading-row {
+  margin-top: 0;
+}
+.temporal-clock-section .subheading-row {
+  margin-top: 0;
 }
 .subheading-row h3 {
   margin: 0;
@@ -1162,12 +1115,6 @@ geolocation {
   margin: 0;
   font-size: 0.9rem;
   letter-spacing: -0.02em;
-}
-.story-card p {
-  margin: 0.4rem 0 0;
-  color: var(--muted);
-  font-size: 0.74rem;
-  line-height: 1.45;
 }
 .story-meta {
   display: flex;
@@ -1336,6 +1283,10 @@ geolocation {
   padding: clamp(1.2rem, 2.7vw, 2.4rem);
   position: relative;
 }
+.app-shell.is-event-focused .timeline-panel {
+  grid-column: 1 / -1;
+  padding: 0;
+}
 .timeline-panel > * {
   grid-column: 1 / -1;
 }
@@ -1474,10 +1425,6 @@ geolocation {
   color: var(--ink);
   font-size: 1.3rem;
 }
-.empty-state p {
-  margin: 0;
-  line-height: 1.55;
-}
 .empty-symbol {
   margin-bottom: 1.2rem;
   color: var(--accent);
@@ -1576,14 +1523,6 @@ geolocation {
   border-radius: 0.75rem;
   background: var(--paper);
 }
-.timeline-item.is-current .timeline-card {
-  border-color: color-mix(in srgb, var(--story) 45%, var(--line));
-  border-inline-start-color: var(--story);
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--story) 6%, transparent);
-}
-.timeline-item.story-dimmed .timeline-card {
-  opacity: 0.58;
-}
 .timeline-card-top {
   display: flex;
   align-items: flex-start;
@@ -1594,13 +1533,6 @@ geolocation {
   margin: 0.15rem 0 0;
   font-size: 1.02rem;
   letter-spacing: -0.02em;
-}
-.timeline-card p {
-  margin: 0.55rem 0 0;
-  color: var(--muted);
-  line-height: 1.55;
-  white-space: pre-wrap;
-  font-size: 0.86rem;
 }
 .card-actions {
   display: flex;
@@ -1696,6 +1628,32 @@ footer {
 footer p {
   grid-column: 1 / span 8;
   margin: 0;
+}
+.timeline-card p {
+  margin: 0.55rem 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  font-size: 0.86rem;
+}
+.empty-state p {
+  margin: 0;
+  line-height: 1.55;
+}
+.story-card p {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+.media-editor-row > p {
+  grid-column: 1 / -1;
+  margin: 0 0 0.45rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 footer > :last-child {
   grid-column: 9 / -1;
@@ -2132,15 +2090,6 @@ footer > :last-child {
   display: grid;
   gap: 0.15rem;
 }
-.graph-lens > summary strong {
-  font-size: 0.82rem;
-}
-.graph-lens > summary small,
-.graph-lens > summary [data-graph-status] {
-  color: var(--muted);
-  font-size: 0.66rem;
-  line-height: 1.4;
-}
 .temporal-graph-view {
   border-top: 1px solid var(--line);
 }
@@ -2199,7 +2148,6 @@ footer > :last-child {
   transform: scale(0.78);
 }
 
-
 .presentation-stage:fullscreen {
   inline-size: 100%;
   block-size: 100%;
@@ -2227,36 +2175,15 @@ footer > :last-child {
 .presentation-stage:fullscreen[data-stage-shape="tall"][data-timeline-orientation="vertical"] {
   grid-template-columns: minmax(0, 44fr) minmax(0, 56fr);
 }
-.presentation-stage:fullscreen > .timeline-view,
-.presentation-stage:fullscreen > .graph-lens {
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-  margin: 0;
-  border-radius: 0.72rem;
-  overflow: hidden;
-}
 .presentation-stage:fullscreen .graph-lens[open] {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-}
-.presentation-stage:fullscreen .graph-lens > summary {
-  min-height: 44px;
-  padding: 0.5rem 0.65rem;
-  pointer-events: none;
-}
-.presentation-stage:fullscreen .graph-lens > summary small {
-  display: none;
 }
 .presentation-stage:fullscreen .temporal-graph-view {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-height: 0;
   overflow: hidden;
-}
-.presentation-stage:fullscreen .temporal-graph-toolbar {
-  min-height: 38px;
-  padding: 0.35rem 0.55rem;
 }
 .presentation-stage:fullscreen .temporal-graph-canvas {
   height: auto;
@@ -2423,6 +2350,19 @@ footer > :last-child {
   border-radius: 0.9rem;
   background: var(--paper);
 }
+.presentation-stage > .graph-lens,
+.presentation-stage > .presentation-map-panel {
+  min-width: 0;
+}
+.presentation-stage:fullscreen > .timeline-view,
+.presentation-stage:fullscreen > .graph-lens {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  margin: 0;
+  border-radius: 0.72rem;
+  overflow: hidden;
+}
 .presentation-map-heading {
   display: flex;
   align-items: center;
@@ -2466,60 +2406,6 @@ footer > :last-child {
   grid-template-columns: repeat(6, minmax(0, 1fr));
   grid-template-rows: repeat(6, minmax(0, 1fr));
 }
-
-/* Timeline owns 75% of the presentation and stays attached to its temporal edge.
-   Graph and map share the complementary 25% rail at equal weight. */
-#presentation-stage:fullscreen[data-timeline-orientation="horizontal"] > .timeline-view {
-  grid-column: 1 / -1;
-  grid-row: 4 / -1;
-}
-#presentation-stage:fullscreen[data-timeline-orientation="horizontal"] > .graph-lens {
-  grid-column: 1 / span 6;
-  grid-row: 1 / span 3;
-}
-#presentation-stage:fullscreen[data-timeline-orientation="horizontal"]
-  > .presentation-map-panel:not([hidden]) {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  grid-column: 7 / -1;
-  grid-row: 1 / span 3;
-}
-
-#presentation-stage:fullscreen[data-timeline-orientation="vertical"] > .timeline-view {
-  grid-column: 4 / -1;
-  grid-row: 1 / -1;
-}
-#presentation-stage:fullscreen[data-timeline-orientation="vertical"] > .graph-lens {
-  grid-column: 1 / span 3;
-  grid-row: 1 / span 6;
-}
-#presentation-stage:fullscreen[data-timeline-orientation="vertical"]
-  > .presentation-map-panel:not([hidden]) {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  grid-column: 1 / span 3;
-  grid-row: 7 / -1;
-}
-
-#presentation-stage:fullscreen:has(
-    > .presentation-map-panel[hidden]
-  )[data-timeline-orientation="horizontal"]
-  > .graph-lens {
-  grid-column: 1 / -1;
-  grid-row: 1 / span 3;
-}
-#presentation-stage:fullscreen:has(
-    > .presentation-map-panel[hidden]
-  )[data-timeline-orientation="vertical"]
-  > .graph-lens {
-  grid-column: 1 / span 3;
-  grid-row: 1 / -1;
-}
-
-#presentation-stage:fullscreen .graph-lens > summary,
-#presentation-stage:fullscreen .temporal-graph-toolbar {
-  display: none;
-}
 #presentation-stage:fullscreen .graph-lens[open],
 #presentation-stage:fullscreen .temporal-graph-view {
   grid-template-rows: minmax(0, 1fr);
@@ -2541,6 +2427,14 @@ footer > :last-child {
 #presentation-stage:fullscreen .timeline-view {
   box-shadow: none;
 }
+#presentation-stage:fullscreen[data-timeline-orientation="vertical"] > .graph-lens {
+  grid-column: 1 / span 3;
+  grid-row: 1 / span 6;
+}
+#presentation-stage:fullscreen[data-timeline-orientation="horizontal"] > .graph-lens {
+  grid-column: 1 / span 6;
+  grid-row: 1 / span 3;
+}
 
 @media (max-width: 760px) {
   .presentation-map {
@@ -2550,13 +2444,6 @@ footer > :last-child {
 
 #presentation-stage:fullscreen:has(> .presentation-map-panel[hidden]) > .graph-lens {
   grid-row: 1 / -1;
-}
-#presentation-stage:fullscreen[data-stage-shape="stacked"]:has(> .presentation-map-panel[hidden])
-  > .graph-lens,
-#presentation-stage:fullscreen[data-stage-shape="tall"]:has(> .presentation-map-panel[hidden])
-  > .graph-lens {
-  grid-column: 1 / -1;
-  grid-row: 8 / -1;
 }
 
 /* Canonical page/presentation grid contract.
@@ -2578,45 +2465,9 @@ footer > :last-child {
   grid-template-rows: minmax(0, 1fr);
 }
 
-.app-shell.is-event-focused #presentation-stage > .timeline-view {
-  grid-column: 1 / -1;
-  grid-row: 1;
-}
-
-.app-shell.is-event-focused #presentation-stage[data-has-context-graph="true"] > .timeline-view,
-.app-shell.is-event-focused #presentation-stage[data-has-context-map="true"] > .timeline-view {
-  grid-column: 1 / span 9;
-}
-
-.app-shell.is-event-focused #presentation-stage > .graph-lens:not([hidden]),
-.app-shell.is-event-focused #presentation-stage > .presentation-map-panel:not([hidden]) {
-  grid-column: 10 / -1;
-  min-width: 0;
-  max-height: 100dvh;
-  margin: 0;
-}
-
 .app-shell.is-event-focused
   #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"] {
   grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
-}
-
-.app-shell.is-event-focused
-  #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"]
-  > .timeline-view {
-  grid-row: 1 / -1;
-}
-
-.app-shell.is-event-focused
-  #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"]
-  > .graph-lens {
-  grid-row: 1;
-}
-
-.app-shell.is-event-focused
-  #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"]
-  > .presentation-map-panel {
-  grid-row: 2;
 }
 
 #presentation-stage:fullscreen {
@@ -2639,11 +2490,6 @@ footer > :last-child {
   height: 100%;
 }
 
-#presentation-stage:fullscreen[data-has-context-graph="true"] > .timeline-view,
-#presentation-stage:fullscreen[data-has-context-map="true"] > .timeline-view {
-  grid-column: 1 / span 9;
-}
-
 #presentation-stage:fullscreen > .graph-lens:not([hidden]),
 #presentation-stage:fullscreen > .presentation-map-panel:not([hidden]) {
   grid-column: 10 / -1;
@@ -2661,6 +2507,33 @@ footer > :last-child {
   z-index: 1;
 }
 
+#presentation-stage:fullscreen[data-has-context-graph="true"] > .timeline-view,
+#presentation-stage:fullscreen[data-has-context-map="true"] > .timeline-view {
+  grid-column: 1 / span 9;
+}
+
+.app-shell.is-event-focused #presentation-stage > .timeline-view {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+
+/* Timeline owns 75% of the presentation and stays attached to its temporal edge.
+   Graph and map share the complementary 25% rail at equal weight. */
+#presentation-stage:fullscreen[data-timeline-orientation="horizontal"] > .timeline-view {
+  grid-column: 1 / -1;
+  grid-row: 4 / -1;
+}
+
+#presentation-stage:fullscreen[data-timeline-orientation="vertical"] > .timeline-view {
+  grid-column: 4 / -1;
+  grid-row: 1 / -1;
+}
+
+.app-shell.is-event-focused #presentation-stage[data-has-context-graph="true"] > .timeline-view,
+.app-shell.is-event-focused #presentation-stage[data-has-context-map="true"] > .timeline-view {
+  grid-column: 1 / span 9;
+}
+
 #presentation-stage:fullscreen .temporal-graph-view {
   z-index: -1;
 }
@@ -2674,9 +2547,43 @@ footer > :last-child {
   grid-row: 1 / -1;
 }
 
+.app-shell.is-event-focused
+  #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"]
+  > .timeline-view {
+  grid-row: 1 / -1;
+}
+
 #presentation-stage:fullscreen[data-has-context-graph="true"][data-has-context-map="true"]
   > .graph-lens {
   grid-row: 1;
+}
+
+.app-shell.is-event-focused
+  #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"]
+  > .graph-lens {
+  grid-row: 1;
+}
+#presentation-stage:fullscreen[data-stage-shape="stacked"]:has(> .presentation-map-panel[hidden])
+  > .graph-lens,
+#presentation-stage:fullscreen[data-stage-shape="tall"]:has(> .presentation-map-panel[hidden])
+  > .graph-lens {
+  grid-column: 1 / -1;
+  grid-row: 8 / -1;
+}
+#presentation-stage:fullscreen:has(
+    > .presentation-map-panel[hidden]
+  )[data-timeline-orientation="vertical"]
+  > .graph-lens {
+  grid-column: 1 / span 3;
+  grid-row: 1 / -1;
+}
+
+#presentation-stage:fullscreen:has(
+    > .presentation-map-panel[hidden]
+  )[data-timeline-orientation="horizontal"]
+  > .graph-lens {
+  grid-column: 1 / -1;
+  grid-row: 1 / span 3;
 }
 
 #presentation-stage:fullscreen[data-has-context-graph="true"][data-has-context-map="true"]
@@ -2684,9 +2591,37 @@ footer > :last-child {
   grid-row: 2;
 }
 
+.app-shell.is-event-focused
+  #presentation-stage[data-has-context-graph="true"][data-has-context-map="true"]
+  > .presentation-map-panel {
+  grid-row: 2;
+}
+
 #presentation-stage:fullscreen .graph-lens[open],
 #presentation-stage:fullscreen .presentation-map-panel:not([hidden]) {
   height: 100%;
+}
+
+.app-shell.is-event-focused #presentation-stage > .graph-lens:not([hidden]),
+.app-shell.is-event-focused #presentation-stage > .presentation-map-panel:not([hidden]) {
+  grid-column: 10 / -1;
+  min-width: 0;
+  max-height: 100dvh;
+  margin: 0;
+}
+#presentation-stage:fullscreen[data-timeline-orientation="vertical"]
+  > .presentation-map-panel:not([hidden]) {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-column: 1 / span 3;
+  grid-row: 7 / -1;
+}
+#presentation-stage:fullscreen[data-timeline-orientation="horizontal"]
+  > .presentation-map-panel:not([hidden]) {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-column: 7 / -1;
+  grid-row: 1 / span 3;
 }
 
 #presentation-stage:fullscreen .temporal-graph-canvas,
@@ -2960,14 +2895,28 @@ body {
   font-weight: 520;
   line-height: 1.35;
 }
+.graph-lens > summary small,
+.graph-lens > summary [data-graph-status] {
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+.optional-editor > summary small {
+  color: var(--muted);
+  font-weight: 500;
+}
+.temporal-editor legend small {
+  margin-inline-start: 0.25rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+.presentation-stage:fullscreen .graph-lens > summary small {
+  display: none;
+}
 .project-menu-action:hover,
 .project-menu-action:focus-visible {
   background: var(--paper-2);
   outline: none;
-}
-.project-menu-action.is-danger > span,
-.project-menu-action.is-danger .semantic-icon {
-  color: var(--danger);
 }
 #app-shell {
   position: fixed;
@@ -2996,20 +2945,6 @@ body {
   border: 0;
   border-radius: 0;
   background: transparent;
-  overflow: hidden;
-}
-
-#app-shell #presentation-stage,
-#app-shell.is-event-focused #presentation-stage {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
   overflow: hidden;
 }
 
@@ -3076,6 +3011,18 @@ body {
   width: 22px;
   height: 22px;
   stroke-width: 1.9;
+}
+.project-menu-action.is-danger > span,
+.project-menu-action.is-danger .semantic-icon {
+  color: var(--danger);
+}
+.timeline-map-marker-shape-pin .timeline-map-marker-shell .semantic-icon,
+.timeline-map-marker-shape-pin .timeline-map-place-icon .semantic-icon {
+  transform: rotate(45deg);
+}
+.timeline-map-marker-shape-diamond .timeline-map-marker-shell .semantic-icon,
+.timeline-map-marker-shape-diamond .timeline-map-place-icon .semantic-icon {
+  transform: rotate(-45deg);
 }
 
 .app-view-tool {
@@ -3163,6 +3110,9 @@ body {
   margin: 0;
   font-size: 0.95rem;
   line-height: 1.1;
+}
+.graph-lens > summary strong {
+  font-size: 0.82rem;
 }
 .app-surface-header-actions {
   display: flex;
@@ -3366,13 +3316,6 @@ body {
   min-height: 40px;
   padding-inline: 0.55rem;
 }
-#app-shell:is([data-editor-open="true"], [data-browser-open="true"])
-  .timeline-panel
-  > .story-focus {
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(0.4rem);
-}
 
 @media (min-width: 900px) {
   .app-tool .semantic-icon {
@@ -3393,6 +3336,20 @@ body {
   display: block;
   grid-template-columns: none;
   grid-template-rows: none;
+}
+
+#app-shell #presentation-stage,
+#app-shell.is-event-focused #presentation-stage {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 /* Keep the footer application bar structurally stable in Edit mode.
@@ -3419,10 +3376,22 @@ body {
 .temporal-graph-detail {
   display: none;
 }
+.optional-editor[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+.presentation-stage:fullscreen .graph-lens > summary {
+  min-height: 44px;
+  padding: 0.5rem 0.65rem;
+  pointer-events: none;
+}
+.presentation-stage:fullscreen .temporal-graph-toolbar {
+  min-height: 38px;
+  padding: 0.35rem 0.55rem;
+}
 
-#app-shell #presentation-stage:not(:fullscreen) > .graph-lens:not([hidden]) {
-  position: absolute;
-  z-index: 1050;
+#presentation-stage:fullscreen .graph-lens > summary,
+#presentation-stage:fullscreen .temporal-graph-toolbar {
+  display: none;
 }
 
 #app-shell #presentation-stage > .graph-lens:not([hidden]) {
@@ -3444,6 +3413,11 @@ body {
   backdrop-filter: none;
 }
 
+#app-shell #presentation-stage:not(:fullscreen) > .graph-lens:not([hidden]) {
+  position: absolute;
+  z-index: 1050;
+}
+
 #app-shell #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-view,
 #app-shell #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-canvas {
   width: 100%;
@@ -3459,25 +3433,6 @@ body {
 #app-shell #presentation-stage > .graph-lens:not([hidden]) .temporal-graph-canvas canvas {
   pointer-events: auto;
   touch-action: none;
-}
-
-/* Fullscreen preserves the same bottom app bar so controls do not jump between edges. */
-#presentation-stage:fullscreen .app-tool-dock {
-  pointer-events: auto;
-  z-index: 2200;
-  inset-block-start: auto;
-  inset-inline-end: auto;
-  inset-block-end: max(0.5rem, env(safe-area-inset-bottom));
-  inset-inline-start: 50%;
-  flex-direction: row;
-  inline-size: min(26rem, calc(100% - 1rem));
-  max-inline-size: calc(100% - 1rem);
-  max-block-size: none;
-  overflow-x: auto;
-  overflow-y: hidden;
-  transform: translateX(-50%);
-  box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 6%, transparent);
-  backdrop-filter: blur(14px);
 }
 
 #presentation-stage:fullscreen .app-tool {
@@ -3506,12 +3461,38 @@ body {
   view-transition-name: timeline-workspace-sidebar;
 }
 
+/* Fullscreen preserves the same bottom app bar so controls do not jump between edges. */
+#presentation-stage:fullscreen .app-tool-dock {
+  pointer-events: auto;
+  z-index: 2200;
+  inset-block-start: auto;
+  inset-inline-end: auto;
+  inset-block-end: max(0.5rem, env(safe-area-inset-bottom));
+  inset-inline-start: 50%;
+  flex-direction: row;
+  inline-size: min(26rem, calc(100% - 1rem));
+  max-inline-size: calc(100% - 1rem);
+  max-block-size: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  transform: translateX(-50%);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 6%, transparent);
+  backdrop-filter: blur(14px);
+}
+
 .app-view-controls {
   view-transition-name: timeline-view-controls;
 }
 
 #app-shell .timeline-panel > .story-focus {
   view-transition-name: timeline-story-controls;
+}
+#app-shell:is([data-editor-open="true"], [data-browser-open="true"])
+  .timeline-panel
+  > .story-focus {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(0.4rem);
 }
 
 ::view-transition-group(timeline-command-bar),
@@ -3863,6 +3844,13 @@ body {
 .app-browser-sheet .timeline-toolbar {
   grid-template-columns: minmax(0, 1fr);
 }
+.app-shell.is-event-focused .timeline-heading-row,
+.app-shell.is-event-focused .timeline-toolbar,
+.app-shell.is-event-focused .empty-state,
+.app-shell.is-event-focused .timeline-list-heading,
+.app-shell.is-event-focused .timeline-list {
+  display: none;
+}
 
 .app-browser-sheet .browser-story-description {
   max-width: 100%;
@@ -3917,6 +3905,14 @@ body {
   grid-row: auto;
   margin: 0 0 0.65rem;
   padding: 0.7rem 0.75rem 0.8rem;
+}
+.timeline-item.story-dimmed .timeline-card {
+  opacity: 0.58;
+}
+.timeline-item.is-current .timeline-card {
+  border-color: color-mix(in srgb, var(--story) 45%, var(--line));
+  border-inline-start-color: var(--story);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--story) 6%, transparent);
 }
 
 .app-browser-sheet .timeline-card-top > :first-child {
@@ -4091,126 +4087,120 @@ body {
   display: none;
 }
 
-/* Responsive reserved workspace chrome: title and controls share one anchored zone. */
+/* Conventional application footer: navigation stays on the physical bottom edge in every
+   timeline orientation. Timeline orientation changes chronology, never application chrome. */
 #app-shell {
-  --workspace-chrome-gap: 0.35rem;
-  --workspace-title-block-size: 38px;
-  --workspace-tool-block-size: 52px;
-  --workspace-title-inline-size: 42px;
-  --workspace-tool-inline-size: 62px;
-  --workspace-landscape-chrome-block: calc(
-    max(0.4rem, env(safe-area-inset-bottom)) +
-    var(--workspace-title-block-size) +
-    var(--workspace-tool-block-size) +
-    (var(--workspace-chrome-gap) * 2)
+  --workspace-footer-content-block-size: 64px;
+  --workspace-footer-block-size: calc(
+    var(--workspace-footer-content-block-size) +
+    env(safe-area-inset-bottom)
   );
-  --workspace-portrait-chrome-inline: calc(
-    max(0.4rem, env(safe-area-inset-right)) +
-    var(--workspace-title-inline-size) +
-    var(--workspace-tool-inline-size) +
-    (var(--workspace-chrome-gap) * 2)
-  );
+  --workspace-title-block-size: 42px;
+
+  /* Compatibility aliases for geometry owned by timeline-view.css. There is no side chrome. */
+  --workspace-portrait-chrome-inline: 0px;
+  --workspace-landscape-chrome-block: var(--workspace-footer-block-size);
 }
 
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock {
-  inset-block-start: auto;
-  inset-inline-end: auto;
-  inset-block-end: calc(
-    max(0.4rem, env(safe-area-inset-bottom)) +
-    var(--workspace-title-block-size) +
-    var(--workspace-chrome-gap)
-  );
-  inset-inline-start: 50%;
-  flex-direction: row;
-  inline-size: min(22rem, calc(100% - 1rem));
-  max-inline-size: calc(100% - 1rem);
-  max-block-size: var(--workspace-tool-block-size);
-  overflow-inline: auto;
-  overflow-block: clip;
-  transform: translateX(-50%);
-}
-
+#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
-  inset-block-start: 50%;
-  inset-inline-end: calc(
-    max(0.4rem, env(safe-area-inset-right)) +
-    var(--workspace-title-inline-size) +
-    var(--workspace-chrome-gap)
-  );
-  inset-block-end: auto;
-  inset-inline-start: auto;
-  flex-direction: column;
-  inline-size: var(--workspace-tool-inline-size);
-  max-inline-size: var(--workspace-tool-inline-size);
-  max-block-size: calc(
-    100dvh -
-    max(0.8rem, env(safe-area-inset-top)) -
-    max(0.8rem, env(safe-area-inset-bottom))
-  );
-  overflow-inline: auto;
-  overflow-block: auto;
-  transform: translateY(-50%);
+  inset-block-start: auto;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  inset-block-end: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  justify-content: stretch;
+  inline-size: 100%;
+  max-inline-size: none;
+  block-size: var(--workspace-footer-block-size);
+  min-block-size: var(--workspace-footer-block-size);
+  max-block-size: none;
+  padding: 0.3rem max(0.4rem, env(safe-area-inset-right)) max(0.3rem, env(safe-area-inset-bottom))
+    max(0.4rem, env(safe-area-inset-left));
+  gap: 0.12rem;
+  transform: none;
+  border: 0;
+  border-block-start: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  border-radius: 0;
+  background: color-mix(in srgb, var(--paper) 96%, transparent);
+  box-shadow: 0 -3px 14px color-mix(in srgb, var(--ink) 7%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool,
+#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool {
+  min-inline-size: 0;
+  min-block-size: 52px;
+  padding: 0.34rem 0.3rem;
+  border-radius: 0.7rem;
+  touch-action: manipulation;
 }
 
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool {
-  flex: 0 0 auto;
-  inline-size: 100%;
+  inline-size: auto;
   min-inline-size: 0;
-  min-block-size: 50px;
-  padding: 0.34rem 0.25rem;
+  min-block-size: 52px;
+  padding: 0.34rem 0.3rem;
+}
+
+#presentation-stage:fullscreen:has(#timeline-view) .app-tool-dock {
+  inset-block-start: auto;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  inset-block-end: 0;
+  inline-size: 100%;
+  max-inline-size: none;
+  block-size: var(--workspace-footer-block-size);
+  max-block-size: none;
+  overflow: hidden;
+  transform: none;
+  border-radius: 0;
+  box-shadow: 0 -3px 14px color-mix(in srgb, var(--ink) 7%, transparent);
 }
 
 #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-editor-sheet,
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-browser-sheet {
-  position: fixed;
-  inset-block-start: max(0.4rem, env(safe-area-inset-top));
-  inset-block-end: calc(var(--workspace-landscape-chrome-block) + 0.35rem);
-  inset-inline-start: max(0.4rem, env(safe-area-inset-left));
-  inset-inline-end: max(0.4rem, env(safe-area-inset-right));
-  inline-size: auto;
-  block-size: auto;
-  max-block-size: none;
-}
-
+#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-browser-sheet,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-editor-sheet,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-browser-sheet {
   position: fixed;
   inset-block-start: max(0.4rem, env(safe-area-inset-top));
-  inset-block-end: max(0.4rem, env(safe-area-inset-bottom));
+  inset-block-end: calc(var(--workspace-footer-block-size) + 0.35rem);
   inset-inline-start: max(0.4rem, env(safe-area-inset-left));
-  inset-inline-end: calc(var(--workspace-portrait-chrome-inline) + 0.35rem);
+  inset-inline-end: max(0.4rem, env(safe-area-inset-right));
   inline-size: auto;
   block-size: auto;
-  max-inline-size: calc(100% - var(--workspace-portrait-chrome-inline) - 0.75rem);
+  max-inline-size: none;
   max-block-size: none;
 }
 
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .timeline-panel > .story-focus {
-  inset-block-end: calc(var(--workspace-landscape-chrome-block) + 0.35rem);
-}
-
+#app-shell:has(#timeline-view[data-orientation="landscape"]) .timeline-panel > .story-focus,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .timeline-panel > .story-focus {
-  inset-inline-end: calc(var(--workspace-portrait-chrome-inline) + 0.35rem);
+  inset-block-end: calc(var(--workspace-footer-block-size) + 0.35rem);
+  inset-inline-end: max(0.45rem, env(safe-area-inset-right));
 }
 
 @media (min-width: 700px) {
-  #app-shell {
-    --workspace-title-block-size: 42px;
-    --workspace-tool-block-size: 58px;
+  .app-tool-dock,
+  #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock,
+  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
+    grid-template-columns: repeat(4, minmax(72px, 112px));
+    justify-content: center;
   }
 }
 
 @media (max-height: 520px) {
-  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
-    gap: 0.1rem;
-    padding: 0.2rem;
+  #app-shell {
+    --workspace-footer-content-block-size: 58px;
   }
 
+  .app-tool,
   #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool {
-    min-block-size: 44px;
+    min-block-size: 46px;
   }
 
-  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-label {
+  .app-tool-label {
     font-size: 0.6rem;
   }
 }

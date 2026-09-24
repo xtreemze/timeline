@@ -1,13 +1,8 @@
 import { ReferenceWorldForceSimulation } from "../../src/layout/reference-world-force-simulation.ts";
-import type {
-  WorldForceSimulationBackend,
-} from "../../src/layout/world-force-simulation.ts";
 import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
+import type { WorldForceSimulationBackend } from "../../src/layout/world-force-simulation.ts";
+import { createDeckWorldRuntime, type DeckWorldBindings } from "./deck-world-runtime.ts";
 import { DeckWorldSurface } from "./deck-world-surface.ts";
-import {
-  createDeckWorldRuntime,
-  type DeckWorldBindings,
-} from "./deck-world-runtime.ts";
 import {
   WorldProjectionView,
   type WorldViewModel,
@@ -110,6 +105,11 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
     this.#view.refreshLayout();
   }
 
+  wake(): void {
+    this.#assertAlive();
+    this.#schedule();
+  }
+
   destroy(): void {
     if (this.#destroyed) return;
     this.#destroyed = true;
@@ -130,8 +130,7 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
     if (this.#destroyed) return;
 
     const elapsed = timestamp - this.#lastFrameAt;
-    const deltaMs =
-      Number.isFinite(elapsed) && elapsed > 0 ? Math.min(64, elapsed) : 1000 / 60;
+    const deltaMs = Number.isFinite(elapsed) && elapsed > 0 ? Math.min(64, elapsed) : 1000 / 60;
     this.#lastFrameAt = timestamp;
 
     const state = this.#runtime.step(deltaMs);
@@ -150,9 +149,7 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
   }
 }
 
-export function createWorldViewFactory(
-  options: WorldViewFactoryOptions,
-): WorldViewFactory {
+export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldViewFactory {
   const scheduler = options.scheduler ?? browserScheduler();
   const deckRuntime = createDeckWorldRuntime(options.bindings);
 
@@ -160,11 +157,9 @@ export function createWorldViewFactory(
     create(root: HTMLElement | null): WorldApplicationView | null {
       if (!root) return null;
 
-      const container =
-        root.querySelector<HTMLElement>(".temporal-graph-canvas") ?? root;
+      const container = root.querySelector<HTMLElement>(".temporal-graph-canvas") ?? root;
       const surface = new DeckWorldSurface(container, deckRuntime);
-      const forceBackend =
-        options.createForceBackend?.() ?? new ReferenceWorldForceSimulation();
+      const forceBackend = options.createForceBackend?.() ?? new ReferenceWorldForceSimulation();
       const runtime = new WorldViewRuntimeController({
         surface,
         forceBackend,
@@ -177,8 +172,31 @@ export function createWorldViewFactory(
           : {}),
       });
       const view = new WorldProjectionView(runtime);
+      const scheduledView = new ScheduledWorldProjectionView(view, runtime, scheduler);
 
-      return new ScheduledWorldProjectionView(view, runtime, scheduler);
+      surface.setNodeDragSink({
+        begin(pointerId, instanceId, position) {
+          const claimed = runtime.beginNodeDrag(pointerId, instanceId, position);
+          if (claimed) scheduledView.wake();
+          return claimed;
+        },
+        update(pointerId, position) {
+          const changed = runtime.updateNodeDrag(pointerId, position);
+          if (changed) scheduledView.wake();
+          return changed;
+        },
+        release(pointerId) {
+          const released = runtime.releaseNodeDrag(pointerId);
+          if (released) scheduledView.wake();
+          return released;
+        },
+        cancel(reason) {
+          runtime.cancelNodeDrag(reason);
+          scheduledView.wake();
+        },
+      });
+
+      return scheduledView;
     },
   });
 }

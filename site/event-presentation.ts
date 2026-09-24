@@ -11,6 +11,7 @@ const ICON_NAMES = Object.freeze([
   "decision",
   "evidence",
   "person",
+  "group",
   "place",
   "media",
   "relation",
@@ -32,6 +33,12 @@ const ICON_PATHS: Record<string, string[]> = Object.freeze({
   decision: ["M12 3 4 8v8l8 5 8-5V8z", "m8 12 2.5 2.5L16 9"],
   evidence: ["M5 3h10l4 4v14H5z", "M15 3v5h5", "M8 13h8", "M8 17h6"],
   person: ["M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z", "M4 21a8 8 0 0 1 16 0"],
+  group: [
+    "M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
+    "M3 20a6 6 0 0 1 12 0",
+    "M16 11a3 3 0 1 0 0-6",
+    "M21 20a6 6 0 0 0-4.5-5.8",
+  ],
   place: [
     "M12 22s7-6.1 7-13a7 7 0 1 0-14 0c0 6.9 7 13 7 13z",
     "M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
@@ -56,7 +63,11 @@ const ICON_PATHS: Record<string, string[]> = Object.freeze({
   crown: ["m3 7 4 4 5-7 5 7 4-4-2 11H5z", "M6 21h12"],
   object: ["M12 3 20 7 12 11 4 7z", "M4 7v10l8 4 8-4V7", "M12 11v10"],
   route: ["M5 21c0-5 6-5 6-10s8-5 8-10", "M5 21h.01", "M19 3h.01"],
-  nature: ["M12 3c-4 3-6 6-6 9a6 6 0 0 0 12 0c0-3-2-6-6-9z", "M12 10v11", "m8 17 4-4 4 4"],
+  nature: [
+    "M12 3c-4 3-6 6-6 9a6 6 0 0 0 12 0c0-3-2-6-6-9z",
+    "M12 10v11",
+    "m8 17 4-4 4 4",
+  ],
   market: ["M4 10h16", "M5 10 7-6 7 6", "M6 10v10", "M18 10v10", "M9 14h6v6"],
   workshop: ["M4 20h16", "M6 20V9l6-5 6 5v11", "m9 14 6-6", "m11 8 5 5"],
   landscape: ["M3 5h18v14H3z", "M8 16h8"],
@@ -104,9 +115,7 @@ export function normalizeMedia(value: unknown): Media[] {
       src,
       alt: typeof (raw as any).alt === "string" ? (raw as any).alt.trim().slice(0, 240) : "",
       caption:
-        typeof (raw as any).caption === "string"
-          ? (raw as any).caption.trim().slice(0, 320)
-          : "",
+        typeof (raw as any).caption === "string" ? (raw as any).caption.trim().slice(0, 320) : "",
     });
   }
   return media;
@@ -129,7 +138,8 @@ export function normalizeTags(value: unknown): Tag[] {
   const tags: Tag[] = [];
   for (const raw of source.slice(0, MAX_TAGS)) {
     if (!raw || typeof raw !== "object") continue;
-    const label = typeof (raw as any).label === "string" ? (raw as any).label.trim().slice(0, 48) : "";
+    const label =
+      typeof (raw as any).label === "string" ? (raw as any).label.trim().slice(0, 48) : "";
     if (!label) continue;
     tags.push({
       label,
@@ -142,6 +152,11 @@ export function normalizeTags(value: unknown): Tag[] {
 
 interface IconOptions {
   size?: number;
+}
+
+/** Path data of a semantic icon (24x24 viewBox, stroked), for non-DOM renderers. */
+export function iconPathData(name: string): readonly string[] {
+  return ICON_PATHS[Object.hasOwn(ICON_PATHS, name) ? name : "note"] ?? [];
 }
 
 export function createIcon(name: string, options?: IconOptions): SVGSVGElement {

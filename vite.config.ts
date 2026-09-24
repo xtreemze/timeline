@@ -1,22 +1,43 @@
-import { copyFileSync, mkdirSync } from 'node:fs';
-import { defineConfig } from 'vite';
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { defineConfig } from "vite";
 
 const runtimeFiles = [
-  'orb-graph.bundle.js',
-  'leaflet.bundle.js',
-  'evidence-extraction.bundle.js',
-  'pdf.worker.mjs',
+  "orb-graph.bundle.js",
+  "leaflet.bundle.js",
+  "evidence-extraction.bundle.js",
+  "pdf.worker.mjs",
 ] as const;
 
 export default defineConfig({
-  root: 'site',
+  root: "site",
   // Keep production assets relative so the same build works under GitHub Pages' /timeline/ subpath.
-  base: './',
+  base: "./",
   plugins: [
     {
-      name: 'copy-static-runtime-bundles',
+      // The runtime bundles are prebuilt esbuild IIFEs loaded as classic
+      // scripts. Vite's dev transform would rewrite pdf.js' dynamic import()
+      // into module syntax and break the classic script, so serve them verbatim.
+      name: "serve-static-runtime-bundles",
+      apply: "serve",
+      configureServer(server) {
+        server.middlewares.use((request, response, next) => {
+          const path = (request.url ?? "").split("?")[0]?.replace(/^\//, "");
+          const file = new URL(`./site/${path}`, import.meta.url);
+          // Unbuilt bundles fall through to Vite's ordinary 404 handling.
+          if (!runtimeFiles.includes(path as (typeof runtimeFiles)[number]) || !existsSync(file)) {
+            next();
+            return;
+          }
+          response.setHeader("Content-Type", "text/javascript; charset=utf-8");
+          response.setHeader("Cache-Control", "no-cache");
+          response.end(readFileSync(file));
+        });
+      },
+    },
+    {
+      name: "copy-static-runtime-bundles",
       closeBundle() {
-        const outputDirectory = new URL('./dist/', import.meta.url);
+        const outputDirectory = new URL("./dist/", import.meta.url);
         mkdirSync(outputDirectory, { recursive: true });
         for (const file of runtimeFiles) {
           copyFileSync(
@@ -29,12 +50,12 @@ export default defineConfig({
   ],
   build: {
     emptyOutDir: true,
-    outDir: '../dist',
+    outDir: "../dist",
     sourcemap: false,
-    target: 'chrome155',
+    target: "chrome155",
     rollupOptions: {
       input: {
-        main: new URL('./site/index.html', import.meta.url).pathname,
+        main: new URL("./site/index.html", import.meta.url).pathname,
       },
     },
   },
@@ -42,7 +63,7 @@ export default defineConfig({
     port: 5173,
     open: true,
     watch: {
-      include: ['site/**', 'src/**'],
+      include: ["site/**", "src/**"],
     },
   },
   preview: {

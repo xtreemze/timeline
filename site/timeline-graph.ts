@@ -3,6 +3,8 @@
  * Enforces one-entity-per-node, one-action-per-edge semantics with spatiotemporal properties
  */
 
+import { relationshipOccurrenceExtent } from "../src/projection/spatiotemporal-projection.ts";
+
 const GRAPH_CONTRACT_VERSION = "2026-09-24.1";
 const GRAPH_MODEL_RULES = Object.freeze({
   nodeIdentity: "one-durable-entity",
@@ -191,10 +193,7 @@ function text(value: unknown, max = 180): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
-function textList(
-  value: unknown,
-  { maxItems = 48, maxLength = 180 } = {},
-): string[] {
+function textList(value: unknown, { maxItems = 48, maxLength = 180 } = {}): string[] {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.map((entry) => text(entry, maxLength)).filter(Boolean))].slice(
     0,
@@ -203,40 +202,122 @@ function textList(
 }
 
 const NON_ENTITY_NODE_TYPES = new Set([
-  "action", "activity", "event", "occurrence", "process", "operation", "transaction",
-  "interaction", "communication", "decision", "movement", "meeting", "visit",
-  "place", "location", "date", "time", "period", "geometry", "coordinate",
+  "action",
+  "activity",
+  "event",
+  "occurrence",
+  "process",
+  "operation",
+  "transaction",
+  "interaction",
+  "communication",
+  "decision",
+  "movement",
+  "meeting",
+  "visit",
+  "place",
+  "location",
+  "date",
+  "time",
+  "period",
+  "geometry",
+  "coordinate",
 ]);
 
 const GENERIC_ENTITY_NODE_TYPES = new Set([
-  "entity", "object", "thing", "item", "resource", "agent",
+  "entity",
+  "object",
+  "thing",
+  "item",
+  "resource",
+  "agent",
 ]);
 
 const PROPERTY_KEY_PATTERN = /^[a-z][A-Za-z0-9]*$/;
 
 const ENTITY_CONTEXT_KEYS = new Set([
-  "time", "date", "period", "start", "end", "location", "place", "placeid",
-  "geometry", "coordinates", "latitude", "longitude", "radius", "radiusmeters",
+  "time",
+  "date",
+  "period",
+  "start",
+  "end",
+  "location",
+  "place",
+  "placeid",
+  "geometry",
+  "coordinates",
+  "latitude",
+  "longitude",
+  "radius",
+  "radiusmeters",
 ]);
 
 const GENERIC_RELATION_KEYS = new Set([
-  "relatedto", "relationto", "associatedwith", "associationwith", "connectedto", "linkedto",
-  "linksto", "involvedin", "involves", "involvesobject", "participatesin", "participatedin",
-  "participantof", "tookpartin", "partof", "partofstory", "memberof", "belongsto", "belongto",
-  "haspart", "contains", "containsstory", "includes", "includesstory", "features",
-  "protagonistof", "presentat", "locatedat", "occursat", "is", "was", "were", "has",
+  "relatedto",
+  "relationto",
+  "associatedwith",
+  "associationwith",
+  "connectedto",
+  "linkedto",
+  "linksto",
+  "involvedin",
+  "involves",
+  "involvesobject",
+  "participatesin",
+  "participatedin",
+  "participantof",
+  "tookpartin",
+  "partof",
+  "partofstory",
+  "memberof",
+  "belongsto",
+  "belongto",
+  "haspart",
+  "contains",
+  "containsstory",
+  "includes",
+  "includesstory",
+  "features",
+  "protagonistof",
+  "presentat",
+  "locatedat",
+  "occursat",
+  "is",
+  "was",
+  "were",
+  "has",
 ]);
 
 const ACTION_NAME_PATTERN =
   /^(?:called|calls|met|meets|sent|sends|transferred|transfers|paid|pays|visited|visits|arrived|arrives|departed|departs|left|leaves|built|builds|created|creates|attacked|attacks|ordered|orders|warned|warns|approved|approves|authorized|authorizes|signed|signs|moved|moves|travelled|traveled|travels|fled|flees|married|marries|danced|dances|consulted|consults|poisoned|poisons|searched|searches|found|finds|lost|loses|gave|gives|took|takes|received|receives)\b/i;
 
 const ACTION_PREDICATE_PARTICLES = new Set([
-  "for", "with", "to", "over", "under", "through", "across", "up", "down", "out",
-  "off", "away", "back", "forth", "against", "around",
+  "for",
+  "with",
+  "to",
+  "over",
+  "under",
+  "through",
+  "across",
+  "up",
+  "down",
+  "out",
+  "off",
+  "away",
+  "back",
+  "forth",
+  "against",
+  "around",
 ]);
 
 const FORBIDDEN_GRAPH_TAXONOMY_KEYS = new Set([
-  "category", "categoryid", "categoryids", "categories", "group", "groupid", "groupids",
+  "category",
+  "categoryid",
+  "categoryids",
+  "categories",
+  "group",
+  "groupid",
+  "groupids",
 ]);
 
 function semanticKey(value: unknown): string {
@@ -286,7 +367,11 @@ function itemNarrativeContext(item: any, evidenceById: Map<string, any> | null =
     .join(" ");
 }
 
-function namedEntityMentions(item: any, entities: any[], evidenceById: Map<string, any> | null = null): any[] {
+function namedEntityMentions(
+  item: any,
+  entities: any[],
+  evidenceById: Map<string, any> | null = null,
+): any[] {
   const context = entityMentionKey(itemNarrativeContext(item, evidenceById));
   if (!context) return [];
   const padded = ` ${context} `;
@@ -475,7 +560,8 @@ function auditGraphStructure(input: any): GraphAudit {
     else endpointPairs.set(endpointKey, [endpointRecord]);
   }
 
-  const reciprocalActionPairs: Array<{ entityIds: [string, string]; relationshipIds: string[] }> = [];
+  const reciprocalActionPairs: Array<{ entityIds: [string, string]; relationshipIds: string[] }> =
+    [];
   for (const [endpointKey, records] of endpointPairs) {
     const [first = "", second = ""] = endpointKey.split(" ");
     const forward = records.some(
@@ -596,8 +682,7 @@ export function validateActionPredicate(value: unknown): ValidationResult {
   const particle = terms[1];
   if (
     terms.length > 2 ||
-    (terms.length === 2 &&
-      (!particle || !ACTION_PREDICATE_PARTICLES.has(particle.toLowerCase())))
+    (terms.length === 2 && (!particle || !ACTION_PREDICATE_PARTICLES.has(particle.toLowerCase())))
   ) {
     return {
       valid: false,
@@ -718,7 +803,10 @@ function normalizeRelationChanges(value: unknown): RelationChangeRecord[] {
     .filter(Boolean) as RelationChangeRecord[];
 }
 
-function relationChangeIndex(input: any, temporal: any = globalThis.TimelineTemporal): Map<string, any[]> {
+function relationChangeIndex(
+  input: any,
+  temporal: any = globalThis.TimelineTemporal,
+): Map<string, any[]> {
   const index = new Map();
   for (const item of Array.isArray(input?.items) ? input.items : []) {
     const time = temporal?.sortKey(item.time?.start || item.start);
@@ -741,7 +829,11 @@ function relationChangeIndex(input: any, temporal: any = globalThis.TimelineTemp
   return index;
 }
 
-function relationChangesFor(input: any, relationshipId: string, temporal: any = globalThis.TimelineTemporal): any[] {
+function relationChangesFor(
+  input: any,
+  relationshipId: string,
+  temporal: any = globalThis.TimelineTemporal,
+): any[] {
   return relationChangeIndex(input, temporal).get(String(relationshipId)) || [];
 }
 
@@ -753,8 +845,7 @@ export function relationshipStateAt(
   indexedChanges: any[] | null = null,
 ): RelationshipState {
   const changes = indexedChanges || relationChangesFor(input, relationship.id, temporal);
-  const hasViewport =
-    viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end);
+  const hasViewport = viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end);
   const snapshotTime = hasViewport
     ? viewport.start + (viewport.end - viewport.start) / 2
     : Number.POSITIVE_INFINITY;
@@ -820,7 +911,10 @@ export function normalizeGraphData(
   return { entities, places, relationships };
 }
 
-export function validateGraphInput(input: any, spatial: any = globalThis.TimelineSpatial): string[] {
+export function validateGraphInput(
+  input: any,
+  spatial: any = globalThis.TimelineSpatial,
+): string[] {
   const errors: string[] = [];
   const rawEntities = Array.isArray(input?.entities) ? input.entities : [];
   const rawRelationships = Array.isArray(input?.relationships) ? input.relationships : [];
@@ -854,21 +948,30 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
   };
 
   rawItems.forEach((item, index) => {
-    const id = registerId(item?.id, `chronology item ${index + 1}`, `Chronology item ${index + 1}`);
+    const id = registerId(
+      item?.id,
+      `chronology item ${index + 1}`,
+      `Chronology item ${index + 1}`,
+    );
     if (id) itemIds.add(id);
   });
   rawEvidence.forEach((record, index) => {
-    const id = registerId(record?.id, `evidence record ${index + 1}`, `Evidence record ${index + 1}`);
+    const id = registerId(
+      record?.id,
+      `evidence record ${index + 1}`,
+      `Evidence record ${index + 1}`,
+    );
     if (id) evidenceIds.add(id);
   });
   for (const item of rawItems) {
     for (const sourceId of textList(item?.evidenceIds, { maxItems: 96, maxLength: 120 })) {
       if (!evidenceIds.has(sourceId)) {
-        errors.push(`Chronology item ${text(item?.id, 120) || "unknown"}: evidenceId "${sourceId}" must reference an evidence record.`);
+        errors.push(
+          `Chronology item ${text(item?.id, 120) || "unknown"}: evidenceId "${sourceId}" must reference an evidence record.`,
+        );
       }
     }
   }
-
   rawStories.forEach((story, index) => {
     registerId(story?.id, `story ${index + 1}`, `Story ${index + 1}`);
   });
@@ -912,7 +1015,8 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
     const result = validateEntityNode(raw);
     if (!result.valid) errors.push(`${label}: ${result.message}`);
     for (const sourceId of textList(raw?.sourceIds, { maxItems: 96, maxLength: 120 })) {
-      if (!evidenceIds.has(sourceId)) errors.push(`${label}: sourceId "${sourceId}" must reference an evidence record.`);
+      if (!evidenceIds.has(sourceId))
+        errors.push(`${label}: sourceId "${sourceId}" must reference an evidence record.`);
     }
     const taxonomyKeys = graphTaxonomyKeys(raw);
     if (taxonomyKeys.length) {
@@ -947,20 +1051,28 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
     if (placeId && !placeIds.has(placeId)) {
       errors.push(`${label}: placeId "${placeId}" must reference a canonical place.`);
     }
-    for (const itemId of textList(raw.itemIds || raw.contextItemIds || raw.eventIds, { maxItems: 96, maxLength: 120 })) {
-      if (!itemIds.has(itemId)) errors.push(`${label}: itemId "${itemId}" must reference a chronology item.`);
+    for (const itemId of textList(raw.itemIds || raw.contextItemIds || raw.eventIds, {
+      maxItems: 96,
+      maxLength: 120,
+    })) {
+      if (!itemIds.has(itemId))
+        errors.push(`${label}: itemId "${itemId}" must reference a chronology item.`);
     }
     for (const sourceId of textList(raw.sourceIds, { maxItems: 96, maxLength: 120 })) {
-      if (!evidenceIds.has(sourceId)) errors.push(`${label}: sourceId "${sourceId}" must reference an evidence record.`);
+      if (!evidenceIds.has(sourceId))
+        errors.push(`${label}: sourceId "${sourceId}" must reference an evidence record.`);
     }
     const attributes = raw.attributes || raw.properties;
     if (attributes && typeof attributes === "object" && !Array.isArray(attributes)) {
       const badKey = Object.keys(attributes).find((key) => !PROPERTY_KEY_PATTERN.test(key));
-      if (badKey) errors.push(`${label}: relationship property "${badKey}" must use lowerCamelCase.`);
+      if (badKey)
+        errors.push(`${label}: relationship property "${badKey}" must use lowerCamelCase.`);
       const contextKey = Object.keys(attributes).find(contextPropertyKey);
-      if (contextKey) errors.push(`${label}: relationship property "${contextKey}" is spatiotemporal context; use time/placeId.`);
+      if (contextKey)
+        errors.push(
+          `${label}: relationship property "${contextKey}" is spatiotemporal context; use time/placeId.`,
+        );
     }
-
   });
 
   const audit = auditGraphStructure(input);
@@ -975,7 +1087,9 @@ export function validateGraphInput(input: any, spatial: any = globalThis.Timelin
     );
   }
   for (const id of audit.orphanEntityIds) {
-    errors.push(`Node ${id}: canonical entity is orphaned and must participate in at least one meaningful action edge.`);
+    errors.push(
+      `Node ${id}: canonical entity is orphaned and must participate in at least one meaningful action edge.`,
+    );
   }
 
   return errors;
@@ -989,8 +1103,7 @@ export function relationshipWindowState(
   if (!relationship) return "inactive";
   if (!relationship.time) return "timeless";
   const temporalAdapter =
-    temporal ??
-    (Reflect.get(globalThis, "TimelineTemporal") as TemporalAdapter | undefined);
+    temporal ?? (Reflect.get(globalThis, "TimelineTemporal") as TemporalAdapter | undefined);
   if (!temporalAdapter) return "unknown";
 
   const bounds = temporalAdapter.extentBounds?.(relationship.time);
@@ -1002,7 +1115,11 @@ export function relationshipWindowState(
   return bounds.end >= viewport.start && bounds.start <= viewport.end ? "active" : "inactive";
 }
 
-export function graphForWindow(input: any, viewport: any, temporal: any = globalThis.TimelineTemporal): OrbGraph {
+export function graphForWindow(
+  input: any,
+  viewport: any,
+  temporal: any = globalThis.TimelineTemporal,
+): OrbGraph {
   const entities: EntityNode[] = Array.isArray(input?.entities) ? input.entities : [];
   const relationships: Relationship[] = Array.isArray(input?.relationships)
     ? input.relationships
@@ -1034,10 +1151,7 @@ export function graphForWindow(input: any, viewport: any, temporal: any = global
       const state = states.get(String(edge.id));
       if (!relationship || !state) return { ...edge, temporalState: "inactive" };
 
-      const structurallyTimeless =
-        !relationship.time &&
-        state.changes.length === 0 &&
-        state.active;
+      const structurallyTimeless = !relationship.time && state.changes.length === 0 && state.active;
       const explicitWindowState = relationshipWindowState(
         relationship,
         viewport,
@@ -1072,8 +1186,7 @@ export function graphForWindow(input: any, viewport: any, temporal: any = global
     })
     .filter((edge) => edge.temporalState !== "inactive");
 
-  const hasViewport =
-    viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end);
+  const hasViewport = viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end);
   if (!hasViewport) return { ...graphData, edges };
 
   const visibleNodeIds = new Set<string>();
@@ -1101,8 +1214,7 @@ export function neighborhoodGraph(
   const root = String(rootId || "");
   if (!root) return { nodes: [], edges: [] };
 
-  const inputRecord =
-    input && typeof input === "object" ? (input as Record<string, unknown>) : {};
+  const inputRecord = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
   const items = Array.isArray(inputRecord.items) ? inputRecord.items : [];
   const rootItem = items.find((item) => {
     if (!item || typeof item !== "object") return false;
@@ -1180,11 +1292,11 @@ export function temporalRelationProjection(
       relationship.time && typeof relationship.time === "object"
         ? (relationship.time as Record<string, unknown>)
         : null;
-    if (!time?.start || !temporal) continue;
+    if (!time || !temporal) continue;
 
-    const start = temporal.sortKey(time.start);
-    const end = time.end ? temporal.sortKey(time.end) : start;
-    if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+    const extent = relationshipOccurrenceExtent(time, (endpoint) => temporal.sortKey(endpoint));
+    if (!extent) continue;
+    const { start, end } = extent;
 
     projected.push({
       id: String(relationship.id || ""),
@@ -1202,12 +1314,13 @@ export function temporalRelationProjection(
   return projected;
 }
 
-export function toOrbGraph(
-  {
-    entities = [],
-    relationships = [],
-  }: { entities?: EntityNode[]; relationships?: Relationship[] } = {},
-): OrbGraph {
+export function toOrbGraph({
+  entities = [],
+  relationships = [],
+}: {
+  entities?: EntityNode[];
+  relationships?: Relationship[];
+} = {}): OrbGraph {
   const nodes: OrbGraphNode[] = [];
   const seen = new Set();
 
@@ -1255,7 +1368,10 @@ export function toOrbGraph(
   return { nodes, edges };
 }
 
-export function migrateLegacySpatialModel(input: any, spatial: any = globalThis.TimelineSpatial): any {
+export function migrateLegacySpatialModel(
+  input: any,
+  spatial: any = globalThis.TimelineSpatial,
+): any {
   const migrated = cloneJson(input) || {};
   const rawEntities = Array.isArray(migrated.entities) ? migrated.entities : [];
   const legacyPlaceEntities = rawEntities.filter((entity) =>

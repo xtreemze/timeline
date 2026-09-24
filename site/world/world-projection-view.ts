@@ -1,27 +1,27 @@
-import { entityId, placeId, relationshipId } from "../../src/domain/ids.ts";
 import type { CanonicalSpatialGeometry } from "../../src/domain/geotemporal.ts";
 import { validateSpatialGeometry } from "../../src/domain/geotemporal.ts";
+import type { EntityId, PlaceId, RelationshipId } from "../../src/domain/ids.ts";
+import { entityId, placeId, relationshipId } from "../../src/domain/ids.ts";
 import type {
   CanonicalRelationship,
   CanonicalTemporalExtent,
 } from "../../src/domain/relationship.ts";
 import {
+  SpatialAnchorIndex,
+  type SpatialPlaceRecord,
+} from "../../src/projection/spatial-anchor-index.ts";
+import {
   occurrenceViewportWeight,
   type ProjectableOccurrence,
+  relationshipOccurrenceExtent,
 } from "../../src/projection/spatiotemporal-projection.ts";
 import {
   createTemporalOccurrenceIndex,
   type TemporalOccurrenceIndex,
 } from "../../src/projection/temporal-occurrence-index.ts";
-import {
-  SpatialAnchorIndex,
-  type SpatialPlaceRecord,
-} from "../../src/projection/spatial-anchor-index.ts";
 import { projectWorldOccurrences } from "../../src/projection/world-occurrence-projection.ts";
-import type { RelationshipId } from "../../src/domain/ids.ts";
-import { TimelineTemporal } from "../temporal-standards.ts";
-import type { EntityId, PlaceId } from "../../src/domain/ids.ts";
 import type { WorldProjection } from "../../src/projection/world-projection.ts";
+import { TimelineTemporal } from "../temporal-standards.ts";
 
 export interface WorldProjectionRuntime {
   setProjection(projection: WorldProjection): void;
@@ -36,10 +36,13 @@ export interface WorldProjectionRuntime {
 
 interface InputEntity {
   readonly id?: unknown;
+  readonly name?: unknown;
+  readonly type?: unknown;
 }
 
 interface InputPlace {
   readonly id?: unknown;
+  readonly name?: unknown;
   readonly geometry?: unknown;
   readonly accuracyMeters?: unknown;
 }
@@ -65,6 +68,18 @@ export interface WorldViewModel {
 export interface WorldViewViewport {
   readonly start: number;
   readonly end: number;
+  /**
+   * The canonical logically-active relationship occurrence set published by
+   * the authoritative temporal viewport (TimelineSurface). When present it is
+   * consumed verbatim: an empty array means nothing is active. When absent the
+   * world falls back to its own standalone temporal query.
+   */
+  readonly activeOccurrenceIds?: readonly string[];
+}
+
+interface WorldTemporalWindow {
+  readonly start: number;
+  readonly end: number;
 }
 
 interface IndexedRelationshipOccurrence extends ProjectableOccurrence {
@@ -84,9 +99,7 @@ function canonicalGeometry(value: unknown): CanonicalSpatialGeometry | null {
   return value as CanonicalSpatialGeometry;
 }
 
-function temporalEndpoint(
-  value: unknown,
-): Readonly<Record<string, unknown>> | null {
+function temporalEndpoint(value: unknown): Readonly<Record<string, unknown>> | null {
   if (value === null || value === undefined) return null;
   return isRecord(value) ? Object.freeze({ ...value }) : null;
 }
@@ -142,6 +155,7 @@ function canonicalPlaces(input: readonly InputPlace[]): readonly SpatialPlaceRec
     result.push(
       Object.freeze({
         id: placeId(id),
+        ...(text(raw.name) ? { label: text(raw.name) } : {}),
         geometry,
         ...(radius === undefined ? {} : { precisionRadiusMeters: radius }),
       }),
@@ -183,7 +197,9 @@ function canonicalRelationships(
         sourceIds: Object.freeze([]),
         confidence: confidence(raw.confidence),
         time: canonicalTime(raw.time),
-        attributes: isRecord(raw.attributes) ? Object.freeze({ ...raw.attributes }) : Object.freeze({}),
+        attributes: isRecord(raw.attributes)
+          ? Object.freeze({ ...raw.attributes })
+          : Object.freeze({}),
       }),
     );
   }
@@ -193,20 +209,19 @@ function canonicalRelationships(
   );
 }
 
+/**
+ * Uses the same extent rule as TimelineSurface relationship bands, applied to
+ * the raw input time so an untyped-but-dated relationship is timed in both
+ * views rather than timeless in one of them.
+ */
 function indexedOccurrence(
-  relationship: CanonicalRelationship,
+  id: RelationshipId,
+  rawTime: unknown,
 ): IndexedRelationshipOccurrence | null {
-  if (!relationship.time?.start) return null;
-  const start = TimelineTemporal.sortKey(relationship.time.start);
-  if (!Number.isFinite(start)) return null;
-
-  const rawEnd =
-    relationship.time.type === "interval" && relationship.time.end
-      ? TimelineTemporal.sortKey(relationship.time.end)
-      : start;
-  const end = Number.isFinite(rawEnd) ? rawEnd : start;
-
-  return Object.freeze({ id: relationship.id, start, end });
+  const extent = relationshipOccurrenceExtent(rawTime, (endpoint) =>
+    TimelineTemporal.sortKey(endpoint),
+  );
+  return extent ? Object.freeze({ id, start: extent.start, end: extent.end }) : null;
 }
 
 export class WorldProjectionView {
@@ -216,11 +231,14 @@ export class WorldProjectionView {
   #spatialAnchors = new SpatialAnchorIndex([], []);
   #temporalIndex: TemporalOccurrenceIndex<IndexedRelationshipOccurrence> =
     createTemporalOccurrenceIndex([]);
+  #timedById: ReadonlyMap<RelationshipId, IndexedRelationshipOccurrence> = new Map();
   #timelessIds: readonly RelationshipId[] = Object.freeze([]);
-  #viewport: WorldViewViewport | null = null;
+  #viewport: WorldTemporalWindow | null = null;
+  #sharedActiveIds: readonly string[] | null = null;
   #focusId: string | null = null;
   #presentationMode = false;
   #entityIds = new Set<string>();
+  #entityPresentation = new Map<EntityId, Readonly<{ label?: string; kind?: string }>>();
   #placeIds = new Set<string>();
 
   constructor(runtime: WorldProjectionRuntime) {
@@ -231,8 +249,26 @@ export class WorldProjectionView {
     const entities = Array.isArray(model.entities) ? model.entities : [];
     const places = canonicalPlaces(Array.isArray(model.places) ? model.places : []);
 
-    this.#entityIds = new Set(
-      entities.map((entity) => text(entity.id)).filter(Boolean),
+    this.#entityIds = new Set(entities.map((entity) => text(entity.id)).filter(Boolean));
+    this.#entityPresentation = new Map(
+      entities
+        .map((entity) => {
+          const id = text(entity.id);
+          if (!id) return null;
+          const label = text(entity.name);
+          const kind = text(entity.type);
+          return [
+            entityId(id),
+            Object.freeze({
+              ...(label ? { label } : {}),
+              ...(kind ? { kind } : {}),
+            }),
+          ] as const;
+        })
+        .filter(
+          (entry): entry is readonly [EntityId, Readonly<{ label?: string; kind?: string }>] =>
+            entry !== null,
+        ),
     );
     this.#placeIds = new Set(places.map((place) => String(place.id)));
 
@@ -243,15 +279,21 @@ export class WorldProjectionView {
     );
     this.#spatialAnchors = new SpatialAnchorIndex(places, this.#relationships);
 
+    const rawTimes = new Map<string, unknown>();
+    for (const raw of Array.isArray(model.relationships) ? model.relationships : []) {
+      const id = text(raw.id);
+      if (id && !rawTimes.has(id)) rawTimes.set(id, raw.time);
+    }
     const timed: IndexedRelationshipOccurrence[] = [];
     const timeless: RelationshipId[] = [];
     for (const relationship of this.#relationships) {
-      const indexed = indexedOccurrence(relationship);
+      const indexed = indexedOccurrence(relationship.id, rawTimes.get(String(relationship.id)));
       if (indexed) timed.push(indexed);
       else timeless.push(relationship.id);
     }
 
     this.#temporalIndex = createTemporalOccurrenceIndex(timed);
+    this.#timedById = new Map(timed.map((occurrence) => [occurrence.id, occurrence]));
     this.#timelessIds = Object.freeze(
       timeless.sort((left, right) => String(left).localeCompare(String(right))),
     );
@@ -263,6 +305,9 @@ export class WorldProjectionView {
       viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end)
         ? Object.freeze({ start: viewport.start, end: viewport.end })
         : null;
+    this.#sharedActiveIds = Array.isArray(viewport?.activeOccurrenceIds)
+      ? Object.freeze(viewport.activeOccurrenceIds.map(String))
+      : null;
     this.#render();
   }
 
@@ -278,8 +323,10 @@ export class WorldProjectionView {
   hasContext(): boolean {
     const projection = this.#runtime.getRenderProjection();
     if (!this.#focusId || !projection) return false;
-    return projection.edges.some((edge) => String(edge.id) === this.#focusId) ||
-      projection.instances.some((instance) => String(instance.canonicalId) === this.#focusId);
+    return (
+      projection.edges.some((edge) => String(edge.id) === this.#focusId) ||
+      projection.instances.some((instance) => String(instance.canonicalId) === this.#focusId)
+    );
   }
 
   refreshLayout(): void {
@@ -295,6 +342,51 @@ export class WorldProjectionView {
   }
 
   #render(): void {
+    const { activeIds, weights } = this.#sharedActiveIds
+      ? this.#sharedActivation(this.#sharedActiveIds)
+      : this.#standaloneActivation();
+
+    const projection = projectWorldOccurrences(
+      this.#relationships,
+      activeIds,
+      this.#spatialAnchors,
+      {
+        entityPresentation: this.#entityPresentation,
+        temporalWeights: weights,
+      },
+    );
+
+    this.#runtime.setProjection(projection);
+    if (this.#viewport) this.#runtime.setTemporalWindow(this.#viewport);
+    this.#focusCurrent();
+  }
+
+  #sharedActivation(ids: readonly string[]): {
+    readonly activeIds: readonly RelationshipId[];
+    readonly weights: ReadonlyMap<RelationshipId, number>;
+  } {
+    const known = new Set(this.#relationships.map((relationship) => String(relationship.id)));
+    const activeIds = Object.freeze(
+      ids.filter((id) => known.has(id)).map((id) => relationshipId(id)),
+    );
+    const weights = new Map<RelationshipId, number>();
+    for (const id of activeIds) {
+      const occurrence = this.#timedById.get(id);
+      // Weight is presentation emphasis only; it never gates membership, so an
+      // occurrence the shared set activates keeps a visible floor weight.
+      const weight =
+        occurrence && this.#viewport
+          ? occurrenceViewportWeight(occurrence, { time: this.#viewport })
+          : 1;
+      weights.set(id, weight > 0 ? weight : 1);
+    }
+    return { activeIds, weights };
+  }
+
+  #standaloneActivation(): {
+    readonly activeIds: readonly RelationshipId[];
+    readonly weights: ReadonlyMap<RelationshipId, number>;
+  } {
     const activeTimed = this.#viewport
       ? this.#temporalIndex.query({ time: this.#viewport })
       : this.#temporalIndex.query({
@@ -309,24 +401,11 @@ export class WorldProjectionView {
     const weights = new Map<RelationshipId, number>();
     if (this.#viewport) {
       for (const occurrence of activeTimed) {
-        weights.set(
-          occurrence.id,
-          occurrenceViewportWeight(occurrence, { time: this.#viewport }),
-        );
+        weights.set(occurrence.id, occurrenceViewportWeight(occurrence, { time: this.#viewport }));
       }
     }
     for (const id of this.#timelessIds) weights.set(id, 1);
-
-    const projection = projectWorldOccurrences(
-      this.#relationships,
-      activeIds,
-      this.#spatialAnchors,
-      { temporalWeights: weights },
-    );
-
-    this.#runtime.setProjection(projection);
-    if (this.#viewport) this.#runtime.setTemporalWindow(this.#viewport);
-    this.#focusCurrent();
+    return { activeIds, weights };
   }
 
   #focusCurrent(): void {

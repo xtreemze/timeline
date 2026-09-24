@@ -1,6 +1,6 @@
-import type { RelationshipId } from "../domain/ids.ts";
+import type { EntityId, RelationshipId } from "../domain/ids.ts";
 import type { CanonicalRelationship } from "../domain/relationship.ts";
-import { SpatialAnchorIndex } from "./spatial-anchor-index.ts";
+import type { SpatialAnchorIndex } from "./spatial-anchor-index.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
@@ -11,7 +11,13 @@ import {
   worldInstanceId,
 } from "./world-projection.ts";
 
+export interface WorldEntityPresentation {
+  readonly label?: string;
+  readonly kind?: string;
+}
+
 export interface WorldOccurrenceProjectionOptions {
+  readonly entityPresentation?: ReadonlyMap<EntityId, WorldEntityPresentation>;
   readonly temporalWeights?: ReadonlyMap<RelationshipId, number>;
   readonly visualWeights?: ReadonlyMap<RelationshipId, number>;
   readonly retainedOccurrenceIds?: ReadonlySet<RelationshipId>;
@@ -53,11 +59,15 @@ export function projectWorldOccurrences(
 
     const subjectInstanceId = worldInstanceId(relationship.subjectId, occurrenceId);
     const objectInstanceId = worldInstanceId(relationship.objectId, occurrenceId);
+    const subjectPresentation = options.entityPresentation?.get(relationship.subjectId);
+    const objectPresentation = options.entityPresentation?.get(relationship.objectId);
 
     instances.push(
       createProjectedWorldInstance({
         id: subjectInstanceId,
         canonicalId: relationship.subjectId,
+        ...(subjectPresentation?.label ? { label: subjectPresentation.label } : {}),
+        ...(subjectPresentation?.kind ? { kind: subjectPresentation.kind } : {}),
         occurrenceId,
         geographicAnchors,
         temporalWeight,
@@ -67,6 +77,8 @@ export function projectWorldOccurrences(
       createProjectedWorldInstance({
         id: objectInstanceId,
         canonicalId: relationship.objectId,
+        ...(objectPresentation?.label ? { label: objectPresentation.label } : {}),
+        ...(objectPresentation?.kind ? { kind: objectPresentation.kind } : {}),
         occurrenceId,
         geographicAnchors,
         temporalWeight,
@@ -78,6 +90,7 @@ export function projectWorldOccurrences(
     edges.push(
       createProjectedWorldEdge({
         id: relationship.id,
+        label: relationship.predicate,
         sourceInstanceId: subjectInstanceId,
         targetInstanceId: objectInstanceId,
         temporalWeight,

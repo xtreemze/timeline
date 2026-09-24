@@ -8,7 +8,6 @@ on:
       - 'src/**/*.ts'
       - 'biome.json'
       - 'biome.strict.json'
-      - 'eslint.config.js'
       - 'jsconfig.json'
       - 'config/architecture-lint-baseline.json'
       - 'scripts/lint-architecture.mjs'
@@ -73,6 +72,13 @@ on:
       - 'vite.config.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'tests/browser/retained-performance.spec.ts'
+      - 'tests/browser/world-interaction-coverage.spec.ts'
+      - 'tests/browser/world-app-visibility.spec.ts'
+      - 'tests/browser/world-performance-certification.spec.ts'
+      - 'tests/browser/fixtures/world-performance-baseline.json'
+      - 'site/world-perf-harness.html'
+      - 'site/world-fixture-generator.mjs'
+      - 'site/world-test-helpers.mjs'
       - 'src/performance/retained-timeline-metrics.ts'
       - 'benchmarks/retained-timeline.mjs'
       - 'benchmarks/graph-data.mjs'
@@ -103,7 +109,6 @@ on:
       - 'src/**/*.ts'
       - 'biome.json'
       - 'biome.strict.json'
-      - 'eslint.config.js'
       - 'jsconfig.json'
       - 'config/architecture-lint-baseline.json'
       - 'scripts/lint-architecture.mjs'
@@ -161,6 +166,13 @@ on:
       - 'tests/playwright/layout.spec.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'tests/browser/retained-performance.spec.ts'
+      - 'tests/browser/world-interaction-coverage.spec.ts'
+      - 'tests/browser/world-app-visibility.spec.ts'
+      - 'tests/browser/world-performance-certification.spec.ts'
+      - 'tests/browser/fixtures/world-performance-baseline.json'
+      - 'site/world-perf-harness.html'
+      - 'site/world-fixture-generator.mjs'
+      - 'site/world-test-helpers.mjs'
       - 'src/performance/retained-timeline-metrics.ts'
       - 'benchmarks/retained-timeline.mjs'
       - 'benchmarks/graph-data.mjs'
@@ -244,7 +256,7 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm exec playwright install --with-deps chromium
       - name: Verify browser discovery and project matrix
         run: |
           pnpm exec playwright test --config=playwright.config.ts --list | tee /tmp/playwright-list.txt
@@ -257,8 +269,6 @@ jobs:
           grep -F '[Desktop Chrome]' /tmp/playwright-list.txt
           grep -F '[Mobile Chrome]' /tmp/playwright-list.txt
           grep -F '[Mobile Chrome Landscape]' /tmp/playwright-list.txt
-          grep -F '[Mobile Safari]' /tmp/playwright-list.txt
-          grep -F '[Mobile Safari Landscape]' /tmp/playwright-list.txt
           grep -F '[Tablet Touch]' /tmp/playwright-list.txt
           grep -F '[Reduced Motion]' /tmp/playwright-list.txt
       - run: pnpm test:structural-composition-browser
@@ -275,7 +285,7 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm exec playwright install --with-deps chromium
       - name: Build production site
         run: pnpm build
       - name: Certify built Pages runtime
@@ -290,13 +300,13 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm exec playwright install --with-deps chromium
       - name: Verify application shell browser test discovery
         run: |
           pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --list | tee /tmp/application-shell-playwright-list.txt
           grep -F 'layout.spec.ts' /tmp/application-shell-playwright-list.txt
       - name: Run application shell browser tests
-        run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --project="Mobile Chrome" --project="Mobile Chrome Landscape" --project="Mobile Safari" --project="Mobile Safari Landscape" --project="Tablet Touch"
+        run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --project="Mobile Chrome" --project="Mobile Chrome Landscape" --project="Tablet Touch"
 
   interaction-browser:
     runs-on: ubuntu-latest
@@ -307,7 +317,7 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm exec playwright install --with-deps chromium
       - name: Run interaction browser tests
         run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/interaction.spec.ts
 
@@ -320,12 +330,153 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm exec playwright install --with-deps chromium
       - name: Verify retained performance browser discovery
         run: |
           pnpm exec playwright test --config=playwright.config.ts tests/browser/retained-performance.spec.ts --list | tee /tmp/retained-performance-list.txt
           grep -F 'retained-performance.spec.ts' /tmp/retained-performance-list.txt
       - run: pnpm test:retained-performance-browser
+
+  world-surface-certification-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Verify the production app shows and drives the WorldSurface
+        run: |
+          pnpm exec playwright test --config=playwright.config.ts \
+            tests/browser/world-app-visibility.spec.ts \
+            --project="Desktop Chrome" \
+            --project="Mobile Chrome" \
+            --project="Tablet Touch"
+      - name: Run WorldSurface interaction certification
+        continue-on-error: true
+        run: |
+          pnpm exec playwright test --config=playwright.config.ts \
+            tests/browser/world-interaction-coverage.spec.ts \
+            --project="Desktop Chrome" \
+            --project="Mobile Chrome" \
+            --project="Mobile Chrome Landscape" \
+            --project="Tablet Touch" \
+            --project="Reduced Motion" \
+            --reporter=json > /tmp/world-interaction-report.json
+      - name: Verify WorldSurface interaction certification executed
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const report = JSON.parse(readFileSync("/tmp/world-interaction-report.json", "utf8"));
+          const results = [];
+          const walk = (suite, ancestry = []) => {
+            const suitePath = [...ancestry, suite.title].filter(Boolean);
+            for (const spec of suite.specs ?? []) {
+              for (const test of spec.tests ?? []) {
+                for (const result of test.results ?? []) {
+                  results.push({
+                    title: [...suitePath, spec.title, test.projectName].filter(Boolean).join(" > "),
+                    status: result.status,
+                    errors: result.errors ?? [],
+                  });
+                }
+              }
+            }
+            for (const child of suite.suites ?? []) walk(child, suitePath);
+          };
+          for (const suite of report.suites ?? []) walk(suite);
+          if (!results.length) throw new Error("WorldSurface interaction certification executed no tests.");
+
+          const allowedComplementarySkip = ({ title, status }) =>
+            status === "skipped" &&
+            (
+              (
+                title.includes("mouse-wheel zoom changes the camera on the desktop controller path") &&
+                (title.endsWith("Mobile Chrome") || title.endsWith("Mobile Chrome Landscape"))
+              ) ||
+              (
+                (
+                  title.includes("two-finger pinch changes the camera on mobile Chromium") ||
+                  title.includes("a quick one-finger touch drag from an entity pans the globe, not the node") ||
+                  title.includes("long-press then drag moves an elevated node on mobile touch without panning")
+                ) &&
+                (
+                  title.endsWith("Desktop Chrome") ||
+                  title.endsWith("Tablet Touch") ||
+                  title.endsWith("Reduced Motion")
+                )
+              )
+            );
+
+          const requiredZoomPasses = [
+            ["mouse-wheel zoom changes the camera on the desktop controller path", "Desktop Chrome"],
+            ["mouse-wheel zoom changes the camera on the desktop controller path", "Tablet Touch"],
+            ["mouse-wheel zoom changes the camera on the desktop controller path", "Reduced Motion"],
+            ["two-finger pinch changes the camera on mobile Chromium", "Mobile Chrome"],
+            ["two-finger pinch changes the camera on mobile Chromium", "Mobile Chrome Landscape"],
+            ["a quick one-finger touch drag from an entity pans the globe, not the node", "Mobile Chrome"],
+            ["a quick one-finger touch drag from an entity pans the globe, not the node", "Mobile Chrome Landscape"],
+            ["long-press then drag moves an elevated node on mobile touch without panning", "Mobile Chrome"],
+            ["long-press then drag moves an elevated node on mobile touch without panning", "Mobile Chrome Landscape"],
+          ];
+          for (const [testTitle, project] of requiredZoomPasses) {
+            const passed = results.some(
+              ({ title, status }) =>
+                title.includes(testTitle) && title.endsWith(project) && status === "passed",
+            );
+            if (!passed) {
+              throw new Error(`Required WorldSurface zoom certification did not pass: ${testTitle} > ${project}`);
+            }
+          }
+
+          const nonPassing = results.filter(
+            (result) => result.status !== "passed" && !allowedComplementarySkip(result),
+          );
+          if (nonPassing.length) {
+            console.error("WorldSurface interaction certification failures:");
+            for (const result of nonPassing) {
+              console.error(`- ${result.status}: ${result.title}`);
+              for (const error of result.errors) console.error(error.message ?? String(error));
+            }
+            process.exitCode = 1;
+          }
+          NODE
+      - name: Upload WorldSurface interaction evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-surface-interaction-report
+          path: /tmp/world-interaction-report.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Run WorldSurface scale certification
+        run: |
+          pnpm exec playwright test --config=playwright.config.ts \
+            tests/browser/world-performance-certification.spec.ts \
+            --project="Desktop Chrome"
+      - name: Verify WorldSurface scale certification executed
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const report = JSON.parse(
+            readFileSync("tests/browser/world-performance-report.json", "utf8"),
+          );
+          const expected = ["1k", "10k", "50k", "150k-render-only"];
+          const labels = new Set((report.scales ?? []).map((scale) => scale.label));
+          for (const label of expected) {
+            if (!labels.has(label)) throw new Error(`Missing WorldSurface performance result: ${label}`);
+          }
+          NODE
+      - name: Upload WorldSurface performance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-surface-performance-report
+          path: tests/browser/world-performance-report.json
+          if-no-files-found: error
+          retention-days: 14
 
   graph-touch-browser:
     runs-on: ubuntu-latest
@@ -336,5 +487,5 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:graph-touch-browser

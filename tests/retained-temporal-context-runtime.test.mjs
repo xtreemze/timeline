@@ -28,10 +28,7 @@ test("temporal accent identity ignores mutable display labels", () => {
 
 test("relationship band identity is the canonical relationship identity", () => {
   assert.equal(relationshipBandSceneKey(" rel-17 "), "relationship-band:rel-17");
-  assert.throws(
-    () => relationshipBandSceneKey(""),
-    /stable canonical relationship id/i,
-  );
+  assert.throws(() => relationshipBandSceneKey(""), /stable canonical relationship id/i);
 });
 
 test("retained renderer keys context nodes and bands rather than recreating them", async () => {
@@ -43,10 +40,7 @@ test("retained renderer keys context nodes and bands rather than recreating them
   assert.match(source, /relationshipBandSceneKey\(relationship\.id\)/);
   assert.match(source, /itemOverlapsWindow\(relationship, this\.retention\.extent\)/);
   assert.match(source, /segment\.hidden = !visible/);
-  assert.doesNotMatch(
-    source,
-    /renderRelationshipBands[\s\S]{0,3000}replaceChildren/,
-  );
+  assert.doesNotMatch(source, /renderRelationshipBands[\s\S]{0,3000}replaceChildren/);
 });
 
 test("offscreen relationship endpoints are clipped without destroying retained identity", async () => {
@@ -54,11 +48,11 @@ test("offscreen relationship endpoints are clipped without destroying retained i
 
   assert.match(
     source,
-    /Math\.max\(this\.viewport\.start, Math\.min\(relationship\.start, relationship\.end\)\)/,
+    /Math\.max\(\s*this\.viewport\.start,\s*Math\.min\(relationship\.start, relationship\.end\),?\s*\)/,
   );
   assert.match(
     source,
-    /Math\.min\(this\.viewport\.end, Math\.max\(relationship\.start, relationship\.end\)\)/,
+    /Math\.min\(\s*this\.viewport\.end,\s*Math\.max\(relationship\.start, relationship\.end\),?\s*\)/,
   );
   assert.match(source, /if \(!this\.retention\.active\)[\s\S]*relationshipBandScene/);
 });
