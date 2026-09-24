@@ -15,7 +15,10 @@ test("retained timeline preserves weighted drag response and decaying release in
     /Math\.abs\(releaseVelocity\) >= motion\.STOP_VELOCITY_PX_PER_MS[\s\S]*this\.startInertia\(releaseVelocity, length\)/,
   );
   assert.match(source, /startInertia\(initialVelocityPxPerMs: number, pixelLength: number\)/);
-  assert.match(source, /motion\.decayVelocity\(velocity, elapsed\)/);
+  assert.match(source, /const decayElapsed = lastFrame \? Math\.max\(1, now - lastFrame\) : 16/);
+  assert.match(source, /const movementElapsed = clamp\(decayElapsed, 1, 48\)/);
+  assert.match(source, /motion\.decayVelocity\(velocity, decayElapsed\)/);
+  assert.match(source, /const deltaPixels = velocity \* movementElapsed/);
   assert.match(source, /this\.emitViewport\(false\)/);
   assert.match(source, /this\.inertiaAnimationFrame = requestAnimationFrame\(step\)/);
   assert.match(
