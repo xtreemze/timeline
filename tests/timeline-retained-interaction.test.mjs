@@ -45,7 +45,8 @@ test("interaction positioning performs no per-card layout read and freezes label
   const positionEnd = source.indexOf("  animateEntry(", positionStart);
   const positionBody = source.slice(positionStart, positionEnd);
   assert.doesNotMatch(positionBody, /getBoundingClientRect/);
-  assert.match(positionBody, /crossLength/);
+  assert.doesNotMatch(positionBody, /querySelector/);
+  assert.match(positionBody, /_primaryLength/);
   assert.match(positionBody, /labelBeforeForPosition/);
   assert.match(positionBody, /record\.labelBefore = labelBefore/);
 
@@ -123,16 +124,49 @@ test("interaction surface geometry is cached for the epoch and invalidated at co
   );
 });
 
+test("retained commits flush the final interaction frame and replan before their only committed paint", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+  const commitStart = source.indexOf("  commitInteraction(): void {");
+  const commitEnd = source.indexOf("  scheduleInteractionRender(): void {", commitStart);
+  const commitBody = source.slice(commitStart, commitEnd);
+
+  assert.match(commitBody, /const hadRetainedScene = this\.retention\.active/);
+  assert.match(
+    commitBody,
+    /const hadPendingInteractionRender = hadRetainedScene && Boolean\(this\.renderFrame\)/,
+  );
+  assert.match(
+    commitBody,
+    /if \(hadPendingInteractionRender\) \{[\s\S]*this\.render\(\);[\s\S]*this\.retention = commitRetention/,
+  );
+  assert.match(
+    commitBody,
+    /if \(hadRetainedScene\) \{[\s\S]*this\.measureCommittedGeometry\(\);[\s\S]*this\.reconcileCommittedLayout\(\);[\s\S]*this\.render\(\);/,
+  );
+  const retainedBranchStart = commitBody.indexOf(
+    "if (hadRetainedScene)",
+    commitBody.indexOf("this.retention = commitRetention"),
+  );
+  const retainedBranch = commitBody.slice(
+    retainedBranchStart,
+    commitBody.indexOf("} else {", retainedBranchStart),
+  );
+  assert.equal((retainedBranch.match(/this\.render\(\)/g) || []).length, 1);
+});
+
 test("committed lane and side corrections are short, cancelable, and reduced-motion aware", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
   assert.match(source, /LAYOUT_CORRECTION_DURATION_MS = 140/);
-  assert.match(source, /layoutCorrectionAnimations = new Set<Animation>\(\)/);
+  assert.match(source, /layoutCorrectionAnimations = new Map</);
   assert.match(
     source,
-    /animateLayoutCorrection\(target: HTMLElement, deltaX: number, deltaY: number\): void \{[\s\S]{0,260}this\.reducedMotionQuery\?\.matches/,
+    /animateLayoutCorrection\(target: HTMLElement, deltaX: number, deltaY: number\): void \{[\s\S]{0,900}this\.reducedMotionQuery\?\.matches/,
   );
-  assert.match(source, /\{ translate: `\$\{deltaX\}px \$\{deltaY\}px` \}/);
+  assert.match(source, /const existing = this\.layoutCorrectionAnimations\.get\(target\)/);
+  assert.match(source, /getComputedTiming\(\)\.progress/);
+  assert.match(source, /startX \+= existing\.deltaX \* \(1 - progress\)/);
+  assert.match(source, /\{ translate: `\$\{startX\}px \$\{startY\}px` \}/);
   assert.match(source, /cancelLayoutCorrections\(\): void/);
   assert.match(
     source,

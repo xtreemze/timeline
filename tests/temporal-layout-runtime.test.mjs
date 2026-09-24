@@ -294,7 +294,7 @@ test("timeline edge date context keeps retained slots and rolls changed digits i
   assert.doesNotMatch(updateBody, /replaceChildren/);
 });
 
-test("timeline replaces obsolete edge years, suppresses overlap, and preserves a resting reference", async () => {
+test("timeline retains obsolete edge-year slots during gestures, suppresses overlap, and cleans them on commit", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   const materializeStart = source.indexOf("  materializeTemporalAccents(");
   const renderStart = source.indexOf("  renderTemporalContext(", materializeStart);
@@ -304,11 +304,13 @@ test("timeline replaces obsolete edge years, suppresses overlap, and preserves a
 
   assert.match(
     materializeBody,
-    /selectEdgeAccents\([\s\S]*accentPlan\.edgeAccents,[\s\S]*edgeAccentLimit,[\s\S]*this\.orientation/,
+    /selectEdgeAccents\([\s\S]*accentPlan\.edgeAccents,[\s\S]*edgeAccentLimit,[\s\S]*this\.orientation,[\s\S]*this\.edgeAccentCount/,
   );
   assert.match(materializeBody, /const boundedEdgeAccents =/);
+  assert.match(materializeBody, /this\.edgeAccentCount = boundedEdgeAccents\.length/);
   assert.match(materializeBody, /boundedEdgeAccents\.forEach/);
   assert.doesNotMatch(materializeBody, /accentPlan\.edgeAccents\.forEach/);
+  assert.match(materializeBody, /node\.hidden = false/);
   assert.match(materializeBody, /dataset\.edgeDateCount = String\(boundedEdgeAccents\.length\)/);
 
   const helperStart = source.indexOf("function selectEdgeAccents");
@@ -316,7 +318,10 @@ test("timeline replaces obsolete edge years, suppresses overlap, and preserves a
   const helperBody = source.slice(helperStart, helperEnd);
   assert.match(helperBody, /EDGE_ACCENT_HORIZONTAL_MIN_GAP_PX/);
   assert.match(helperBody, /EDGE_ACCENT_VERTICAL_MIN_GAP_PX/);
+  assert.match(helperBody, /EDGE_ACCENT_HYSTERESIS_PX/);
+  assert.match(helperBody, /previousCount >= 2/);
   assert.match(helperBody, /const projectedGap = Math\.abs/);
+  assert.match(helperBody, /const requiredGap =/);
   assert.match(helperBody, /selected = \[first\]/);
 
   assert.match(renderBody, /minimumEdgeAccents:\s*this\.retention\.active \? 2 : 1/);
@@ -325,18 +330,41 @@ test("timeline replaces obsolete edge years, suppresses overlap, and preserves a
     renderBody,
     /if \(!key\.startsWith\("edge-slot:"\) \|\| keepAccents\.has\(key\)\) continue;/,
   );
+  assert.match(renderBody, /if \(this\.retention\.active\) \{/);
   assert.match(
     renderBody,
-    /for \(const animation of node\.getAnimations\(\)\) animation\.cancel\(\);/,
+    /for \(const animation of node\.getAnimations\(\)\) animation\.cancel\(\);[\s\S]*node\.hidden = true/,
   );
+  const interactionCleanupStart = renderBody.indexOf("if (this.retention.active)");
+  const committedCleanupStart = renderBody.indexOf("if (!this.retention.active)", interactionCleanupStart);
+  const interactionCleanup = renderBody.slice(interactionCleanupStart, committedCleanupStart);
+  assert.doesNotMatch(interactionCleanup, /accentScene\.delete/);
+  assert.doesNotMatch(interactionCleanup, /node\.remove\(\)/);
   assert.match(
     renderBody,
-    /resolveTickLabelCollisions[\s\S]*key\.startsWith\("edge-slot:"\)[\s\S]*if \(!this\.retention\.active\) \{/,
+    /resolveTickLabelCollisions[\s\S]*if \(this\.retention\.active\)[\s\S]*if \(!this\.retention\.active\) \{/,
   );
   assert.match(
     renderBody,
     /if \(key\.startsWith\("edge-slot:"\) \|\| hierarchyChangedOnCommit\) node\.remove\(\);/,
   );
+});
+
+test("tick collision packing keeps offscreen retained ticks in the phase calculation", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+  const start = source.indexOf("  resolveTickLabelCollisions(");
+  const end = source.indexOf("  retainedObjectCount(", start);
+  const body = source.slice(start, end);
+
+  assert.match(body, /inViewport: boolean/);
+  assert.match(body, /inViewport: position >= minimum && position <= maximum/);
+  assert.match(body, /const start = candidate\.position - candidate\.extent \/ 2/);
+  assert.match(body, /const end = candidate\.position \+ candidate\.extent \/ 2/);
+  assert.match(body, /candidate\.label\.hidden = !collisionVisible \|\| !candidate\.inViewport/);
+  assert.match(body, /if \(collisionVisible\) lastEnd = end/);
+  assert.doesNotMatch(body, /position < minimum \|\| position > maximum/);
+  assert.doesNotMatch(body, /Math\.max\(minimum/);
+  assert.doesNotMatch(body, /Math\.min\(maximum/);
 });
 
 test("portrait edge dates live on the outer rail rather than beside the timeline axis", async () => {
