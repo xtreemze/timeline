@@ -10,6 +10,7 @@
 }
 
 .timeline-view {
+  display: block;
   position: relative;
   margin: 1rem 0 0;
   border: 1px solid var(--line);
