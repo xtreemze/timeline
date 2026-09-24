@@ -8,8 +8,8 @@ test("semantic zoom again maps whole context through local context to isolation"
   assert.match(source, /semanticZoomTargets\(\)/);
   assert.match(source, /interpolateSemanticViewport/);
   assert.match(source, /normalized <= 50/);
-  assert.match(source, /targets\.all, targets\.context/);
-  assert.match(source, /targets\.context, targets\.isolated/);
+  assert.match(source, /targets\.all,\s*targets\.context/);
+  assert.match(source, /targets\.context,\s*targets\.isolated/);
   assert.match(source, /semanticZoomValueForSpan/);
   assert.match(source, /aria-valuetext/);
   assert.match(source, /zoomSlider\?\.addEventListener\("input"/);

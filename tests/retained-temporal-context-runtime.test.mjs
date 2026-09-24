@@ -54,11 +54,11 @@ test("offscreen relationship endpoints are clipped without destroying retained i
 
   assert.match(
     source,
-    /Math\.max\(this\.viewport\.start, Math\.min\(relationship\.start, relationship\.end\)\)/,
+    /Math\.max\(\s*this\.viewport\.start,\s*Math\.min\(relationship\.start, relationship\.end\),?\s*\)/,
   );
   assert.match(
     source,
-    /Math\.min\(this\.viewport\.end, Math\.max\(relationship\.start, relationship\.end\)\)/,
+    /Math\.min\(\s*this\.viewport\.end,\s*Math\.max\(relationship\.start, relationship\.end\),?\s*\)/,
   );
   assert.match(source, /if \(!this\.retention\.active\)[\s\S]*relationshipBandScene/);
 });
