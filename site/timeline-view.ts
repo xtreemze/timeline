@@ -389,6 +389,7 @@ export class TimelineViewController {
   orientation: Orientation = loadViewPreferences().orientation;
   scene = new Map<string, SceneRecord>();
   tickScene = new Map<string, HTMLDivElement>();
+  tickLabelScene = new Map<string, HTMLSpanElement>();
   accentScene = new Map<string, HTMLDivElement>();
   relationshipBandScene = new Map<string, HTMLDivElement>();
   relationshipBandZone: HTMLDivElement | null = null;
@@ -430,6 +431,8 @@ export class TimelineViewController {
   interactionSurfaceRect: DOMRect | null = null;
   lastRenderedAxisCross: number | null = null;
   lastRenderedAxisOrientation: Orientation | null = null;
+  lastAxisCrossCss = "";
+  lastReadoutKey = "";
   layoutCorrectionAnimations = new Map<
     HTMLElement,
     { animation: Animation; deltaX: number; deltaY: number }
@@ -1202,22 +1205,30 @@ export class TimelineViewController {
   }
 
   syncZoomSlider(): void {
-    if (!this.zoomSlider) return;
-    this.zoomSlider.disabled = !this.items.length;
-    this.zoomSlider.setAttribute(
-      "aria-orientation",
-      this.orientation === "vertical" ? "vertical" : "horizontal",
-    );
-    if (this.zoomSlider.disabled || this.retention.active) return;
+    if (!this.zoomSlider || this.retention.active) return;
+
+    const disabled = !this.items.length;
+    if (this.zoomSlider.disabled !== disabled) this.zoomSlider.disabled = disabled;
+
+    const orientation = this.orientation === "vertical" ? "vertical" : "horizontal";
+    if (this.zoomSlider.getAttribute("aria-orientation") !== orientation) {
+      this.zoomSlider.setAttribute("aria-orientation", orientation);
+    }
+
+    if (disabled) return;
     const targets = this.semanticZoomTargets();
     if (!targets) return;
     const value = Math.round(
       this.semanticZoomValueForSpan(this.viewport.end - this.viewport.start, targets),
     );
-    this.zoomSlider.value = String(value);
+    const nextValue = String(value);
+    if (this.zoomSlider.value !== nextValue) this.zoomSlider.value = nextValue;
+
     const label = this.semanticZoomValueText(value);
-    this.zoomSlider.setAttribute("aria-valuetext", label);
-    this.zoomSlider.title = label;
+    if (this.zoomSlider.getAttribute("aria-valuetext") !== label) {
+      this.zoomSlider.setAttribute("aria-valuetext", label);
+    }
+    if (this.zoomSlider.title !== label) this.zoomSlider.title = label;
   }
 
   positionTemporalNode(node: HTMLElement, time: number, padding: number, usable: number): void {
@@ -1245,7 +1256,7 @@ export class TimelineViewController {
 
     for (const key of keep) {
       const node = this.tickScene.get(key);
-      const label = node?.querySelector<HTMLElement>(".timeline-tick-label");
+      const label = this.tickLabelScene.get(key);
       if (!node || !label) continue;
       const time = Number(node.dataset.time);
       const position = padding + scale.coordinateFor(time, this.viewport, usable);
@@ -1413,15 +1424,17 @@ export class TimelineViewController {
       const key = tickSceneKey({ unit: tick.spec.unit, value: tick.value });
       keep.add(key);
       let node = this.tickScene.get(key);
+      let label = this.tickLabelScene.get(key);
       const created = !node;
       if (!node) {
         node = document.createElement("div");
         node.className = "timeline-tick";
         node.dataset.time = String(tick.value);
-        const label = document.createElement("span");
+        label = document.createElement("span");
         label.className = "timeline-tick-label";
         node.append(label);
         this.tickScene.set(key, node);
+        this.tickLabelScene.set(key, label);
         this.stage.append(node);
         this.frameCreatedObjects += 1;
       }
@@ -1440,11 +1453,11 @@ export class TimelineViewController {
         node.style.opacity = "0.35";
       }
 
-      const label = node.querySelector(".timeline-tick-label");
       if (label) {
-        label.textContent =
+        const nextLabel =
           clustering.compactTickLabel(tick.value, tick.spec, accentPlan.hasAmbientContext) ??
           tick.label;
+        if (label.textContent !== nextLabel) label.textContent = nextLabel;
       }
       this.positionTemporalNode(node, tick.value, padding, usable);
     }
@@ -1622,6 +1635,7 @@ export class TimelineViewController {
           continue;
         }
         this.tickScene.delete(key);
+        this.tickLabelScene.delete(key);
         this.frameDestroyedObjects += 1;
         if (hierarchyChangedOnCommit) node.remove();
         else this.retireTemporalContextNode(node);
@@ -2456,10 +2470,14 @@ export class TimelineViewController {
 
   renderScene(): void {
     const empty = !this.items.length;
-    this.root.dataset.empty = empty ? "true" : "false";
+    const emptyState = empty ? "true" : "false";
+    if (this.root.dataset.empty !== emptyState) this.root.dataset.empty = emptyState;
     if (empty) {
-      this.stage.dataset.sceneState = "empty";
-      this.readout.textContent = "No visible events";
+      if (this.stage.dataset.sceneState !== "empty") this.stage.dataset.sceneState = "empty";
+      if (this.readout.textContent !== "No visible events") {
+        this.readout.textContent = "No visible events";
+      }
+      this.lastReadoutKey = "";
       for (const record of this.scene.values()) this.removeRecord(record);
       this.scene.clear();
       this.frameDestroyedObjects +=
@@ -2470,6 +2488,7 @@ export class TimelineViewController {
       for (const node of this.tickScene.values()) node.remove();
       for (const node of this.accentScene.values()) node.remove();
       this.tickScene.clear();
+      this.tickLabelScene.clear();
       this.accentScene.clear();
       for (const node of this.relationshipBandScene.values()) node.remove();
       this.relationshipBandScene.clear();
@@ -2501,7 +2520,11 @@ export class TimelineViewController {
     const padding = this.axisPadding(primaryLength);
     const usable = Math.max(1, primaryLength - padding * 2);
     this.stabilizeStructuralAxisCross(axisCross);
-    this.surface.style.setProperty("--timeline-axis-cross", `${axisCross}px`);
+    const axisCrossCss = `${axisCross}px`;
+    if (this.lastAxisCrossCss !== axisCrossCss) {
+      this.surface.style.setProperty("--timeline-axis-cross", axisCrossCss);
+      this.lastAxisCrossCss = axisCrossCss;
+    }
 
     this.renderWindow = createRenderWindow(this.viewport, {
       overscanRatio: OVERSCAN_RATIO,
@@ -2564,11 +2587,12 @@ export class TimelineViewController {
       }
     }
 
-    this.stage.dataset.sceneState = this.retention.active
+    const sceneState = this.retention.active
       ? "interacting"
       : this.focusedId
         ? "focused"
         : "populated";
+    if (this.stage.dataset.sceneState !== sceneState) this.stage.dataset.sceneState = sceneState;
     this.syncZoomSlider();
     this.updateReadout();
   }
@@ -3401,7 +3425,19 @@ export class TimelineViewController {
   updateReadout(): void {
     const start = new Date(this.viewport.start);
     const end = new Date(this.viewport.end);
-    this.readout.textContent = `${start.toLocaleDateString()} — ${end.toLocaleDateString()}`;
+    const key = [
+      start.getFullYear(),
+      start.getMonth(),
+      start.getDate(),
+      end.getFullYear(),
+      end.getMonth(),
+      end.getDate(),
+    ].join(":");
+    if (key === this.lastReadoutKey) return;
+
+    this.lastReadoutKey = key;
+    const text = `${start.toLocaleDateString()} — ${end.toLocaleDateString()}`;
+    if (this.readout.textContent !== text) this.readout.textContent = text;
   }
 }
 
