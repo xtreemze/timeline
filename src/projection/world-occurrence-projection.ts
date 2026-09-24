@@ -2,6 +2,10 @@ import type { EntityId, RelationshipId } from "../domain/ids.ts";
 import type { CanonicalRelationship } from "../domain/relationship.ts";
 import type { SpatialAnchorIndex } from "./spatial-anchor-index.ts";
 import {
+  type WorldEntityVisualOverride,
+  worldEntityVisualEncoding,
+} from "./world-visual-encoding.ts";
+import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
   createWorldProjection,
@@ -14,6 +18,7 @@ import {
 export interface WorldEntityPresentation {
   readonly label?: string;
   readonly kind?: string;
+  readonly visual?: WorldEntityVisualOverride;
 }
 
 export interface WorldOccurrenceProjectionOptions {
@@ -68,6 +73,7 @@ export function projectWorldOccurrences(
         canonicalId: relationship.subjectId,
         ...(subjectPresentation?.label ? { label: subjectPresentation.label } : {}),
         ...(subjectPresentation?.kind ? { kind: subjectPresentation.kind } : {}),
+        visual: worldEntityVisualEncoding(subjectPresentation?.kind, subjectPresentation?.visual),
         occurrenceId,
         geographicAnchors,
         temporalWeight,
@@ -79,6 +85,7 @@ export function projectWorldOccurrences(
         canonicalId: relationship.objectId,
         ...(objectPresentation?.label ? { label: objectPresentation.label } : {}),
         ...(objectPresentation?.kind ? { kind: objectPresentation.kind } : {}),
+        visual: worldEntityVisualEncoding(objectPresentation?.kind, objectPresentation?.visual),
         occurrenceId,
         geographicAnchors,
         temporalWeight,
@@ -91,6 +98,7 @@ export function projectWorldOccurrences(
       createProjectedWorldEdge({
         id: relationship.id,
         label: relationship.predicate,
+        type: relationship.predicate,
         sourceInstanceId: subjectInstanceId,
         targetInstanceId: objectInstanceId,
         temporalWeight,
