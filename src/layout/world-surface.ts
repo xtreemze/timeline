@@ -1,7 +1,7 @@
 import type { EntityId, PlaceId, RelationshipId } from "../domain/ids.ts";
 import type { WorldInstanceId, WorldProjection } from "../projection/world-projection.ts";
-import type { WorldRelationshipRouteHint } from "./world-force-simulation.ts";
 import type { WorldProjectionDelta } from "../projection/world-projection-delta.ts";
+import type { WorldRelationshipRouteHint } from "./world-force-simulation.ts";
 
 export interface WorldTemporalWindow {
   readonly start: number;
