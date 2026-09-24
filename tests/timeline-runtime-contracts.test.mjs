@@ -37,12 +37,8 @@ test("media stepping updates only focused presentation state", async () => {
     view,
     /stepFocusMedia\(delta: number\)[\s\S]*this\.focusMediaIndex[\s\S]*this\.renderFocus\(item\)/,
   );
-  assert.doesNotMatch(
-    view,
-    /stepFocusMedia\(delta: number\)[\s\S]{0,600}this\.render\(\)/,
-  );
+  assert.doesNotMatch(view, /stepFocusMedia\(delta: number\)[\s\S]{0,600}this\.render\(\)/);
 });
-
 
 test("retained event cards delegate semantic rendering to Lit without reactive geometry", async () => {
   const [view, card, css] = await Promise.all([
@@ -62,11 +58,13 @@ test("retained event cards delegate semantic rendering to Lit without reactive g
   assert.match(card, /iconPathData/);
   assert.match(card, /requestUpdate\(\)/);
   assert.doesNotMatch(card, /style\.transform/);
-  assert.match(view, /connectorWeight === "fine" \? 1 : item\.connectorWeight === "strong" \? 4 : 2/);
+  assert.match(
+    view,
+    /connectorWeight === "fine" \? 1 : item\.connectorWeight === "strong" \? 4 : 2/,
+  );
   assert.match(css, /\.timeline-event-art-image/);
   assert.match(css, /\.timeline-event-icon-badge/);
 });
-
 
 test("timeline uses a bounded Lit custom-element owner without reactive scene rendering", async () => {
   const [html, view, component, shim] = await Promise.all([
