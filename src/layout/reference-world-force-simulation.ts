@@ -277,7 +277,12 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
 
     for (const state of this.#states.values()) {
       if (activeDragGroup && state.group !== activeDragGroup) continue;
-      this.#applyAnchorForce(state, forces);
+      // A claimed drag temporarily turns the active local topology into a
+      // free floating component. The canonical place remains fixed, but its
+      // attraction must not pull the dragged node's neighbours back toward
+      // the anchor while the user is arranging them. Restore anchor force as
+      // soon as the pin is released.
+      if (!activeDragGroup) this.#applyAnchorForce(state, forces);
       this.#applyAltitudeForce(state, forces);
     }
 
