@@ -107,6 +107,43 @@ function directedProjection() {
   });
 }
 
+function parallelProjection() {
+  const source = instance(0, { visualWeight: 1 });
+  const target = instance(1);
+  return createWorldProjection({
+    instances: [source, target],
+    edges: [
+      createProjectedWorldEdge({
+        id: "alpha",
+        label: "knows",
+        sourceInstanceId: source.id,
+        targetInstanceId: target.id,
+        temporalWeight: 1,
+        visible: true,
+        retained: false,
+      }),
+      createProjectedWorldEdge({
+        id: "beta",
+        label: "supports",
+        sourceInstanceId: source.id,
+        targetInstanceId: target.id,
+        temporalWeight: 1,
+        visible: true,
+        retained: false,
+      }),
+      createProjectedWorldEdge({
+        id: "gamma",
+        label: "reports to",
+        sourceInstanceId: target.id,
+        targetInstanceId: source.id,
+        temporalWeight: 1,
+        visible: true,
+        retained: false,
+      }),
+    ],
+  });
+}
+
 function denseProjection(count) {
   const instances = [];
   for (let index = 0; index < count; index += 1) {
@@ -256,13 +293,110 @@ test("relationship predicate labels survive clustered overview presentation", ()
   );
 });
 
+test("a lone relationship remains visually straight on fixed sampled path topology", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
+  surface.setProjection(directedProjection());
+
+  const relationships = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationships);
+  const [datum] = relationships.props.data;
+  const path = relationships.props.getPath(datum);
+  assert.equal(path.length, 9, "straight and curved paths share interpolation topology");
+
+  const source = path[0];
+  const midpoint = path[4];
+  const target = path.at(-1);
+  assert.ok(source);
+  assert.ok(midpoint);
+  assert.ok(target);
+  assert.ok(Math.abs(midpoint[0] - (source[0] + target[0]) / 2) < 1e-9);
+  assert.ok(Math.abs(midpoint[1] - (source[1] + target[1]) / 2) < 1e-9);
+});
+
+test(
+  "parallel and reciprocal relationships fan into distinct curved paths with labels and arrows",
+  () => {
+    const h = harness();
+    const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
+    surface.setProjection(parallelProjection());
+
+    const layers = h.lastLayers();
+    const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+    const paths = new Map(
+      relationships.props.data.map((datum) => [
+        datum.relationshipId,
+        relationships.props.getPath(datum),
+      ]),
+    );
+    assert.equal(paths.size, 3);
+    assert.equal(new Set([...paths.values()].map((path) => path.length)).size, 1);
+    assert.equal(paths.get("alpha").length, 9);
+
+    const alpha = paths.get("alpha");
+    const beta = paths.get("beta");
+    const gamma = paths.get("gamma");
+    assert.ok(alpha && beta && gamma);
+    assert.deepEqual(
+      gamma[0],
+      alpha.at(-1),
+      "reciprocal edge starts at its canonical source",
+    );
+    assert.deepEqual(
+      gamma.at(-1),
+      alpha[0],
+      "reciprocal edge ends at its canonical target",
+    );
+
+    const straightMidpoint = [
+      (alpha[0][0] + alpha.at(-1)[0]) / 2,
+      (alpha[0][1] + alpha.at(-1)[1]) / 2,
+    ];
+    const midpoints = [alpha[4], beta[4], gamma[4]];
+    assert.equal(
+      new Set(midpoints.map((point) => `${point[0].toFixed(9)}:${point[1].toFixed(9)}`)).size,
+      3,
+      "every parallel relationship owns a distinct curve lane",
+    );
+    for (const midpoint of midpoints) {
+      assert.ok(
+        Math.hypot(midpoint[0] - straightMidpoint[0], midpoint[1] - straightMidpoint[1]) >
+          1e-9,
+        "no relationship remains on the overlapping straight centre line",
+      );
+    }
+
+    const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.filter(
+      (datum) => datum.kind === "relationship-label",
+    );
+    for (const labelDatum of labels) {
+      const path = paths.get(labelDatum.relationshipId);
+      assert.ok(path);
+      assert.deepEqual(
+        labelDatum.position,
+        path[4],
+        "label follows its own curved edge midpoint",
+      );
+    }
+
+    const directions = layer(layers, DECK_WORLD_LAYER_IDS.relationshipDirections);
+    const arrowApexes = directions.props.data.map((datum) => directions.props.getPath(datum)[1]);
+    assert.equal(
+      new Set(arrowApexes.map((point) => `${point[0].toFixed(9)}:${point[1].toFixed(9)}`)).size,
+      3,
+      "direction markers follow the separate curve tangents",
+    );
+    assert.equal(relationships.props.transitions.getPath.duration, 600);
+  },
+);
+
 test("each rendered directed relationship has a visible marker preserving source/target identity", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
   surface.setProjection(directedProjection());
 
   const layers = h.lastLayers();
-  const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships).props.data;
+  const relationshipLayer = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+  const relationships = relationshipLayer.props.data;
   const markers = layer(layers, DECK_WORLD_LAYER_IDS.relationshipDirections);
   assert.ok(markers, "a relationship direction layer is rendered");
   assert.equal(markers.props.data.length, relationships.length);
@@ -277,7 +411,9 @@ test("each rendered directed relationship has a visible marker preserving source
 
   // The arrowhead apex points at the target: it lies closer to the target
   // than to the source, and both wings trail behind it toward the source.
-  const [source, target] = relationships[0].path;
+  const edgePath = relationshipLayer.props.getPath(relationships[0]);
+  const source = edgePath[0];
+  const target = edgePath.at(-1);
   const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   const [wingA, apex, wingB] = markers.props.getPath(marker);
   assert.ok(distance(apex, target) < distance(apex, source));
