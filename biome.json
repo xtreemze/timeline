@@ -40,10 +40,28 @@
       "suspicious": {
         "noExplicitAny": "off",
         "noShorthandPropertyOverrides": "error",
-        "noUnknownAtRules": "error"
+        "noUnknownAtRules": "error",
+        "noConsole": {
+          "level": "error",
+          "options": {
+            "allow": [
+              "warn",
+              "error"
+            ]
+          }
+        },
+        "noDoubleEquals": {
+          "level": "error",
+          "options": {
+            "ignoreNull": false
+          }
+        },
+        "noUnusedExpressions": "error"
       },
       "style": {
-        "noNonNullAssertion": "off"
+        "noNonNullAssertion": "off",
+        "noParameterAssign": "error",
+        "useConst": "error"
       },
       "nursery": {
         "noReturnInFinally": "error",
@@ -53,7 +71,14 @@
         "useGenericFontNames": "error"
       },
       "complexity": {
-        "noImportantStyles": "error"
+        "noImportantStyles": "error",
+        "noImplicitCoercions": "error",
+        "useArrowFunction": "error"
+      },
+      "correctness": {
+        "noUndeclaredVariables": "error",
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error"
       }
     }
   },
@@ -81,5 +106,70 @@
     "clientKind": "git",
     "useIgnoreFile": true,
     "defaultBranch": "main"
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "javascript": {
+    "globals": [
+      "document",
+      "window",
+      "navigator",
+      "fetch",
+      "WebSocket",
+      "Worker",
+      "EventTarget",
+      "Event",
+      "CustomEvent",
+      "localStorage",
+      "sessionStorage",
+      "indexedDB",
+      "requestAnimationFrame",
+      "cancelAnimationFrame",
+      "setTimeout",
+      "clearTimeout",
+      "setInterval",
+      "clearInterval",
+      "queueMicrotask",
+      "Promise",
+      "AbortController",
+      "AbortSignal",
+      "URL",
+      "URLSearchParams",
+      "Blob",
+      "File",
+      "FileReader",
+      "FormData",
+      "ResizeObserver",
+      "IntersectionObserver",
+      "MutationObserver",
+      "PerformanceObserver",
+      "CSS",
+      "Element",
+      "HTMLElement",
+      "HTMLInputElement",
+      "HTMLTextAreaElement",
+      "HTMLSelectElement",
+      "HTMLButtonElement",
+      "HTMLAnchorElement",
+      "DOMParser",
+      "performance",
+      "getComputedStyle",
+      "structuredClone",
+      "WheelEvent",
+      "Temporal",
+      "L",
+      "console",
+      "process",
+      "Buffer",
+      "__dirname",
+      "__filename",
+      "global"
+    ]
   }
 }
