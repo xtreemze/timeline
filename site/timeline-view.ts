@@ -64,6 +64,8 @@ const LABEL_BEFORE_ENTER_RATIO = 0.64;
 const LABEL_BEFORE_EXIT_RATIO = 0.36;
 const LAYOUT_CORRECTION_DURATION_MS = 140;
 const LAYOUT_CORRECTION_EPSILON_PX = 0.75;
+const EDGE_ACCENT_HORIZONTAL_MIN_GAP_PX = 96;
+const EDGE_ACCENT_VERTICAL_MIN_GAP_PX = 72;
 
 type Orientation = "horizontal" | "vertical";
 
@@ -259,6 +261,44 @@ function labelBeforeForPosition(
   return ratio > 0.5;
 }
 
+function selectEdgeAccents<T extends { label?: string; position?: number }>(
+  accents: readonly T[],
+  limit: number,
+  orientation: Orientation,
+): T[] {
+  const maximum = clamp(Math.trunc(limit) || 1, 1, 2);
+  const ordered = [...accents].sort(
+    (left, right) => Number(left.position) - Number(right.position),
+  );
+  let selected =
+    ordered.length <= maximum
+      ? ordered
+      : maximum === 1
+        ? ordered.slice(0, 1)
+        : [ordered[0], ordered.at(-1)].filter((accent): accent is T => Boolean(accent));
+
+  if (selected.length === 2) {
+    const first = selected[0];
+    const last = selected[1];
+    if (first && last) {
+      const labelLength = Math.max(
+        String(first.label || "").length,
+        String(last.label || "").length,
+      );
+      const baseGap =
+        orientation === "horizontal"
+          ? EDGE_ACCENT_HORIZONTAL_MIN_GAP_PX
+          : EDGE_ACCENT_VERTICAL_MIN_GAP_PX;
+      const glyphGap = labelLength * (orientation === "horizontal" ? 11 : 8);
+      if (Math.abs(Number(last.position) - Number(first.position)) < Math.max(baseGap, glyphGap)) {
+        selected = [first];
+      }
+    }
+  }
+
+  return selected;
+}
+
 function itemOverlapsViewport(
   item: Pick<TimelineItem, "start" | "end">,
   viewport: TemporalWindow,
@@ -373,6 +413,8 @@ export class TimelineViewController {
   geometryObserver: ResizeObserver | null = null;
   pendingViewportEmit = false;
   interactionSurfaceRect: DOMRect | null = null;
+  lastRenderedAxisCross: number | null = null;
+  lastRenderedAxisOrientation: Orientation | null = null;
   layoutCorrectionAnimations = new Set<Animation>();
   wheelCommitTimer: ReturnType<typeof globalThis.setTimeout> | 0 = 0;
   viewportInitialized = false;
@@ -1396,18 +1438,11 @@ export class TimelineViewController {
     edgeAccentLimit: number,
   ): Set<string> {
     const keep = new Set<string>();
-    const maximumEdgeAccents = clamp(Math.trunc(edgeAccentLimit) || 1, 1, 2);
-    const orderedEdgeAccents = [...accentPlan.edgeAccents].sort(
-      (left, right) => Number(left.position) - Number(right.position),
+    const boundedEdgeAccents = selectEdgeAccents(
+      accentPlan.edgeAccents,
+      edgeAccentLimit,
+      this.orientation,
     );
-    const boundedEdgeAccents =
-      orderedEdgeAccents.length <= maximumEdgeAccents
-        ? orderedEdgeAccents
-        : maximumEdgeAccents === 1
-          ? orderedEdgeAccents.slice(0, 1)
-          : [orderedEdgeAccents[0], orderedEdgeAccents.at(-1)].filter(
-              (accent): accent is (typeof orderedEdgeAccents)[number] => Boolean(accent),
-            );
     const materialize = (
       accent: (typeof accentPlan.edgeAccents)[number] | (typeof accentPlan.axisMonths)[number],
       axis: boolean,
@@ -1875,6 +1910,36 @@ export class TimelineViewController {
   cancelLayoutCorrections(): void {
     for (const animation of this.layoutCorrectionAnimations) animation.cancel();
     this.layoutCorrectionAnimations.clear();
+  }
+
+  stabilizeStructuralAxisCross(axisCross: number): void {
+    const previous =
+      this.lastRenderedAxisOrientation === this.orientation ? this.lastRenderedAxisCross : null;
+    this.lastRenderedAxisCross = axisCross;
+    this.lastRenderedAxisOrientation = this.orientation;
+
+    if (
+      this.retention.active ||
+      previous === null ||
+      Math.abs(previous - axisCross) <= LAYOUT_CORRECTION_EPSILON_PX
+    ) {
+      return;
+    }
+
+    const axisShift = axisCross - previous;
+    for (const record of this.scene.values()) {
+      if (record.crossPosition !== null) record.crossPosition += axisShift;
+    }
+    for (const record of this.clusterScene.values()) {
+      if (record.crossPosition !== null) record.crossPosition += axisShift;
+    }
+
+    const correction = previous - axisCross;
+    this.animateLayoutCorrection(
+      this.stage,
+      this.orientation === "horizontal" ? 0 : correction,
+      this.orientation === "horizontal" ? correction : 0,
+    );
   }
 
   itemContentRevision(item: TimelineItem): string {
@@ -2358,7 +2423,9 @@ export class TimelineViewController {
       return;
     }
 
-    const rect = this.surface.getBoundingClientRect();
+    const rect = this.retention.active
+      ? this.interactionRect()
+      : this.surface.getBoundingClientRect();
     const width = Math.max(1, rect.width || this.surface.clientWidth || 800);
     const height = Math.max(1, rect.height || this.surface.clientHeight || 480);
     const primaryLength = this.orientation === "horizontal" ? width : height;
@@ -2366,6 +2433,7 @@ export class TimelineViewController {
     const axisCross = this.orientation === "horizontal" ? height / 2 : width * 0.58;
     const padding = this.axisPadding(primaryLength);
     const usable = Math.max(1, primaryLength - padding * 2);
+    this.stabilizeStructuralAxisCross(axisCross);
     this.surface.style.setProperty("--timeline-axis-cross", `${axisCross}px`);
 
     this.renderWindow = createRenderWindow(this.viewport, {
@@ -2735,6 +2803,8 @@ export class TimelineViewController {
         saveViewPreferences({ orientation: normalized });
       }
       this.geometryMeasurements.clear();
+      this.lastRenderedAxisCross = null;
+      this.lastRenderedAxisOrientation = null;
       for (const record of this.scene.values()) {
         record.labelBefore = null;
         record.crossPosition = null;
@@ -2774,8 +2844,14 @@ export class TimelineViewController {
   }
 
   refreshLayout(): void {
+    if (this.retention.active) {
+      // A gesture owns one geometry epoch. Defer container resize/reflow until commit
+      // so pointer deltas and rendered projection never use different surface metrics.
+      this.geometryReflowPending = true;
+      return;
+    }
     this.interactionSurfaceRect = null;
-    this.scheduleRender();
+    this.scheduleCommittedGeometryReflow();
   }
 
   runStructuralTransaction(update: () => void): void {
@@ -3297,5 +3373,6 @@ export const TimelineView = Object.freeze({
     visibleIntervalAnchor,
     itemOverlapsViewport,
     wheelZoomFactor,
+    selectEdgeAccents,
   }),
 });
