@@ -392,6 +392,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
   #states = new Map<WorldInstanceId, NodeState>();
   #edges: readonly WorldForceEdge[] = Object.freeze([]);
   #collapsing = new Set<WorldInstanceId>();
+  #detached = new Set<WorldInstanceId>();
   #pin: WorldForcePin | null = null;
   #request: WorldSimulationRequest | null = null;
   #running = false;
@@ -466,7 +467,8 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const ids = new Set(directive.instanceIds);
     if (directive.mode === "collapse") {
       this.#collapsing = ids;
-    } else {
+      for (const id of ids) this.#detached.add(id);
+    } else if (directive.mode === "expand") {
       for (const id of ids) {
         const state = this.#states.get(id);
         if (!state) continue;
@@ -479,8 +481,11 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
         state.vx = 0;
         state.vy = 0;
         state.vz = 0;
+        this.#detached.add(id);
       }
       for (const id of ids) this.#collapsing.delete(id);
+    } else {
+      for (const id of ids) this.#detached.delete(id);
     }
     this.#settled = false;
     this.#energy = null;
@@ -592,7 +597,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       const target = this.#states.get(edge.targetId);
       if (!source || !target || source.group !== target.group) continue;
       if (activeGroups && !activeGroups.has(source.group)) continue;
-      if (this.#collapsing.has(source.node.id) || this.#collapsing.has(target.node.id)) continue;
+      if (this.#detached.has(source.node.id) || this.#detached.has(target.node.id)) continue;
       this.#applyEdgeForce(edge, source, target, forces);
     }
 
@@ -701,6 +706,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#states.clear();
     this.#edges = Object.freeze([]);
     this.#collapsing.clear();
+    this.#detached.clear();
     this.#pin = null;
     this.#request = null;
     this.#running = false;
