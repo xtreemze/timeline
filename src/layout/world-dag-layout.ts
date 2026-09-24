@@ -1,7 +1,7 @@
 import {
+  type Coord,
   coordGreedy,
   coordSimplex,
-  type Coord,
   type Decross,
   decrossOpt,
   decrossTwoLayer,
