@@ -1405,6 +1405,52 @@ test("close-zoom node drag locks the globe camera until release", () => {
   });
 });
 
+test("completed node drag suppresses only the immediately following click", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+  surface.setNodeDragSink({
+    begin() {
+      return true;
+    },
+    update() {
+      return true;
+    },
+    release() {
+      return true;
+    },
+    cancel() {},
+  });
+
+  const entityLayer = calls.scatterLayers
+    .filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities)
+    .at(-1);
+  const alice = entityLayer.props.data.find((datum) => datum.entityId === "alice");
+  const dragEvent = {
+    srcEvent: { pointerId: 29, pointerType: "mouse", button: 0, ctrlKey: false },
+    stopPropagation() {},
+  };
+
+  assert.equal(
+    entityLayer.props.onDragStart({ object: alice, x: 118.0786, y: 259.3393 }, dragEvent),
+    true,
+  );
+  assert.equal(
+    entityLayer.props.onDragEnd({ object: alice, x: 118.0886, y: 259.3493 }, dragEvent),
+    true,
+  );
+
+  calls.deckProps.onClick({ object: alice, x: 118.0886, y: 259.3493 });
+  assert.equal(
+    surface.getAccessibleSnapshot().selection,
+    null,
+    "the click synthesized by pointer-up must not toggle selection",
+  );
+
+  calls.deckProps.onClick({ object: alice, x: 118.0886, y: 259.3493 });
+  assert.deepEqual(surface.getAccessibleSnapshot().selection, { kind: "entity", id: "alice" });
+});
+
 test("pointer cancellation reaches the active Lūm world drag owner", () => {
   const { calls, runtime } = harness();
   const listeners = new Map();
