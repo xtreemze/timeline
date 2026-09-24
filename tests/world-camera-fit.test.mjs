@@ -109,3 +109,29 @@ test("a caller-chosen or explicitly set camera is never overridden by fitting", 
   later.setProjection(placed(30, 40));
   assert.equal(later.getCamera().longitude, 5);
 });
+
+test("fit keeps each axis inside its own viewport side at high latitude", () => {
+  // GlobeView matches Web Mercator at the camera latitude: one degree of
+  // longitude spans 512/360·2^zoom px, one of latitude that over cos(lat).
+  const positions = [
+    [8, 49, 0],
+    [11, 52, 0],
+  ];
+  for (const viewport of [
+    { width: 390, height: 340 },
+    { width: 1440, height: 555 },
+  ]) {
+    const camera = fitWorldCamera(positions, viewport, CURRENT);
+    if (!camera) throw new Error("expected a fitted camera");
+    const perDegree = (512 / 360) * 2 ** camera.zoom;
+    const cos = Math.cos((camera.latitude * Math.PI) / 180);
+    const width = 3 * perDegree;
+    const height = (3 * perDegree) / cos;
+    assert.ok(width <= viewport.width * 0.7 + 1e-6, `width ${width} in ${viewport.width}`);
+    assert.ok(height <= viewport.height * 0.7 + 1e-6, `height ${height} in ${viewport.height}`);
+    assert.ok(
+      Math.max(width / viewport.width, height / viewport.height) > 0.69,
+      "the limiting axis fills the fit share",
+    );
+  }
+});

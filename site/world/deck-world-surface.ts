@@ -43,6 +43,12 @@ import type {
 } from "../../src/projection/world-projection.ts";
 import { iconPathData } from "../event-presentation.ts";
 import { buildWorldAccessibleOutline, WorldAccessibleMirror } from "./world-accessible-mirror.ts";
+import {
+  clipWorldLines,
+  type WorldBasemap,
+  type WorldLineBounds,
+  worldGraticule,
+} from "./world-basemap.ts";
 import { worldEntityIconName } from "./world-entity-icon.ts";
 
 export const DECK_WORLD_LAYER_IDS = Object.freeze({
@@ -53,6 +59,9 @@ export const DECK_WORLD_LAYER_IDS = Object.freeze({
   labels: "lum-world-labels",
   entityIcons: "lum-world-entity-icons",
   earth: "lum-world-earth",
+  graticule: "lum-world-graticule",
+  coastlines: "lum-world-coastlines",
+  borders: "lum-world-borders",
 });
 
 interface DeckRuntimeViewState {
@@ -392,7 +401,11 @@ const BASE_CAPABILITIES = Object.freeze({
  * halo. Selection uses one accent across every kind.
  */
 const WORLD_PALETTE = Object.freeze({
-  earth: [196, 214, 228, 255],
+  // Half-opacity earth so the host page shows through; geography is lines.
+  earth: [214, 226, 236, 128],
+  graticule: [100, 116, 139, 46],
+  coastline: [71, 85, 105, 150],
+  border: [100, 116, 139, 80],
   place: [120, 113, 108, 220],
   relationship: [71, 85, 105, 200],
   direction: [51, 65, 85, 235],
@@ -836,7 +849,16 @@ function labelDatumUnchanged(
  * entity labels are drawn, because individual positions are presentation-
  * merged into cluster glyphs.
  */
-const LABEL_HALO_PX = 2;
+const LABEL_HALO_PX = 3;
+/** Same family as the app shell (site/styles.css) instead of deck's monospace default. */
+/**
+ * The app's own face (site/timeline-view.css). deck bakes glyphs into an
+ * atlas once per family, so the surface uses the fallback stack until the
+ * web font has loaded and then switches, instead of caching a fallback.
+ */
+const APP_FONT_FAMILY = "Monaspace Krypton Timeline";
+const LABEL_FALLBACK_FONT_FAMILY = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+const GRATICULE = worldGraticule();
 
 function labelSize(datum: DeckWorldLabelDatum): number {
   return datum.emphasized ? 15 : datum.kind === "place-label" ? 13 : 12;
@@ -1008,7 +1030,7 @@ function labelDatums(input: {
     zoom: worldLabelTierFloor(input.zoom),
     isPinned: (datum) => datum.emphasized,
     // Mirrors the TextLayer anchoring below; footprints approximate glyph
-    // ink (about 0.6em per character, 0.9em tall) plus the halo.
+    // ink (0.6em monospace advance per character, 0.9em tall) plus the halo.
     measure: (datum) => {
       const size = labelSize(datum);
       const width = datum.text.length * size * 0.6 + LABEL_HALO_PX * 2;
@@ -1141,6 +1163,18 @@ export class DeckWorldSurface implements WorldSurface {
   readonly #globeView: unknown;
   readonly #localView: unknown | null;
   readonly #container: HTMLElement;
+  #controls: HTMLElement | null = null;
+  #basemap: WorldBasemap | null = null;
+  #visibleLabelCache: readonly DeckWorldLabelDatum[] = [];
+  readonly #lineClipCache = new Map<
+    string,
+    {
+      readonly key: string;
+      readonly source: unknown;
+      readonly lines: readonly (readonly WorldRenderPosition[])[];
+    }
+  >();
+  #labelFontFamily = LABEL_FALLBACK_FONT_FAMILY;
   #projection: WorldProjection = Object.freeze({
     instances: Object.freeze([]),
     edges: Object.freeze([]),
@@ -1150,6 +1184,9 @@ export class DeckWorldSurface implements WorldSurface {
   // True once the camera was chosen explicitly (constructor, setCamera,
   // focus, or user navigation); until then content auto-fits once.
   #cameraOwned = false;
+  // True while the camera is the automatic content fit and nobody has moved
+  // it since; a resize then re-fits (the first fit can run before layout).
+  #autoFitted = false;
   #spatialMode: WorldSpatialMode = "globe";
   #nodeDragSink: DeckWorldNodeDragSink | null = null;
   #activeDragPointerId: number | null = null;
@@ -1321,10 +1358,15 @@ export class DeckWorldSurface implements WorldSurface {
       controller: deckControllerOptions(),
       initialViewState: this.#camera,
       layers: [],
+      onResize: () => {
+        if (!this.#autoFitted || this.#destroyed) return;
+        this.fitToContent();
+      },
       onViewStateChange: ({ viewState }: { readonly viewState: DeckRuntimeViewState }) => {
         const next = cameraFromRuntime(viewState, this.#camera);
         if (next) {
           this.#cameraOwned = true;
+          this.#autoFitted = false;
           this.#camera = next;
           this.#syncSpatialMode();
           this.#reclusterIfZoomCrossedThreshold();
@@ -1353,6 +1395,8 @@ export class DeckWorldSurface implements WorldSurface {
     this.#container.addEventListener?.("keydown", this.#handleKeyDown as EventListener);
 
     this.#liveRegion = this.#createLiveRegion();
+    this.#controls = this.#createControls();
+    this.#loadAppFont();
     this.#accessibleMirror = this.#liveRegion
       ? WorldAccessibleMirror.create(this.#container, {
           setSelection: (selection) => this.setSelection(selection),
@@ -1363,6 +1407,74 @@ export class DeckWorldSurface implements WorldSurface {
           },
         })
       : null;
+  }
+
+  /**
+   * Visible camera controls (zoom in, zoom out, fit to content). Plain DOM
+   * buttons so pointer, touch and keyboard users all get them; they only
+   * change the derived camera.
+   */
+  #createControls(): HTMLElement | null {
+    const doc = this.#container.ownerDocument;
+    if (typeof doc?.createElement !== "function") return null;
+    const bar = doc.createElement("div");
+    if (typeof bar.append !== "function") return null;
+    bar.className = "world-camera-controls";
+    bar.setAttribute("role", "toolbar");
+    bar.setAttribute("aria-label", "Globe camera");
+    const button = (label: string, text: string, action: () => void) => {
+      const element = doc.createElement("button");
+      element.type = "button";
+      element.className = "world-camera-control";
+      element.setAttribute("aria-label", label);
+      element.title = label;
+      element.textContent = text;
+      element.addEventListener("click", (event) => {
+        event.stopPropagation();
+        action();
+      });
+      return element;
+    };
+    bar.append(
+      button("Zoom in", "+", () => this.#zoomBy(1)),
+      button("Zoom out", "\u2212", () => this.#zoomBy(-1)),
+      button("Fit to content", "\u2922", () => this.fitToContent()),
+    );
+    this.#container.appendChild?.(bar);
+    return bar;
+  }
+
+  #loadAppFont(): void {
+    const fonts = this.#container.ownerDocument?.fonts;
+    if (typeof fonts?.load !== "function") return;
+    fonts
+      .load(`700 16px "${APP_FONT_FAMILY}"`)
+      .then((faces) => {
+        if (this.#destroyed || faces.length === 0) return;
+        this.#labelFontFamily = `"${APP_FONT_FAMILY}", ${LABEL_FALLBACK_FONT_FAMILY}`;
+        this.#render();
+      })
+      .catch(() => {});
+  }
+
+  /** Vector reference geography (coastlines, borders) drawn under the graph. */
+  setBasemap(basemap: WorldBasemap | null): void {
+    this.#assertAlive();
+    this.#basemap = basemap;
+    this.#render();
+  }
+
+  #zoomBy(delta: number): void {
+    this.setCamera({ ...this.#camera, zoom: this.#camera.zoom + delta });
+  }
+
+  /** Re-frames the camera on everything in the current projection. */
+  fitToContent(): void {
+    this.#assertAlive();
+    this.#cameraOwned = false;
+    this.#autoFitCamera();
+    this.#reclusterIfZoomCrossedThreshold();
+    this.#render();
   }
 
   #createLiveRegion(): HTMLElement | null {
@@ -1400,6 +1512,7 @@ export class DeckWorldSurface implements WorldSurface {
     const fitted = fitWorldCamera(positions, { width, height }, this.#camera);
     if (!fitted) return;
     this.#cameraOwned = true;
+    this.#autoFitted = true;
     this.#camera = fitted;
     this.#syncSpatialMode();
     this.#deck.setProps({ viewState: this.#camera });
@@ -1423,6 +1536,7 @@ export class DeckWorldSurface implements WorldSurface {
   setCamera(camera: WorldCameraState): void {
     this.#assertAlive();
     this.#cameraOwned = true;
+    this.#autoFitted = false;
     this.#camera = createWorldCameraState(camera);
     this.#syncSpatialMode();
     this.#deck.setProps({ viewState: this.#camera });
@@ -1620,6 +1734,8 @@ export class DeckWorldSurface implements WorldSurface {
   destroy(): void {
     if (this.#destroyed) return;
     this.#destroyed = true;
+    this.#controls?.remove();
+    this.#controls = null;
     this.#container.removeEventListener?.("pointercancel", this.#handlePointerCancel);
     this.#container.removeEventListener?.(
       "pointerdown",
@@ -1900,19 +2016,56 @@ export class DeckWorldSurface implements WorldSurface {
               pickable: false,
               getFillColor: WORLD_PALETTE.earth,
             }),
+            // Vector geography lives on the earth base; without one there
+            // is nothing to orient against.
+            this.#runtime.createPathLayer({
+              id: DECK_WORLD_LAYER_IDS.graticule,
+              data: this.#visibleLines("graticule", GRATICULE),
+              pickable: false,
+              widthUnits: "pixels",
+              getPath: (path: unknown) => path,
+              getWidth: 1,
+              getColor: WORLD_PALETTE.graticule,
+              parameters: { cullMode: "none" },
+            }),
+            ...(this.#basemap
+              ? [
+                  this.#runtime.createPathLayer({
+                    id: DECK_WORLD_LAYER_IDS.borders,
+                    data: this.#visibleLines("borders", this.#basemap.borders),
+                    pickable: false,
+                    widthUnits: "pixels",
+                    getPath: (path: unknown) => path,
+                    getWidth: 0.75,
+                    getColor: WORLD_PALETTE.border,
+                    parameters: { cullMode: "none" },
+                  }),
+                  this.#runtime.createPathLayer({
+                    id: DECK_WORLD_LAYER_IDS.coastlines,
+                    data: this.#visibleLines("coastlines", this.#basemap.coastlines),
+                    pickable: false,
+                    widthUnits: "pixels",
+                    getPath: (path: unknown) => path,
+                    getWidth: 1.25,
+                    getColor: WORLD_PALETTE.coastline,
+                    parameters: { cullMode: "none" },
+                  }),
+                ]
+              : []),
           ]
         : []),
       this.#runtime.createScatterplotLayer({
         id: DECK_WORLD_LAYER_IDS.places,
         data: places,
         pickable: true,
-        radiusUnits: "meters",
-        radiusMinPixels: 3,
+        // Screen-constant marks: metre radii shrank to specks at overview
+        // zoom and ballooned into blobs close up.
+        radiusUnits: "pixels",
         getPosition: (datum: DeckWorldPlaceDatum) => datum.position,
-        getRadius: 60,
+        getRadius: (datum: DeckWorldPlaceDatum) => (datum.selected ? 7 : 5),
         stroked: true,
         lineWidthUnits: "pixels",
-        getLineWidth: 1,
+        getLineWidth: 2,
         getLineColor: WORLD_PALETTE.outline,
         getFillColor: (datum: DeckWorldPlaceDatum) =>
           datum.selected ? WORLD_PALETTE.selected : WORLD_PALETTE.place,
@@ -1932,17 +2085,15 @@ export class DeckWorldSurface implements WorldSurface {
         id: DECK_WORLD_LAYER_IDS.entities,
         data: entities,
         pickable: true,
-        radiusUnits: "meters",
-        radiusMinPixels: 6,
-        radiusMaxPixels: 24,
+        radiusUnits: "pixels",
         getPosition: (datum: DeckWorldEntityRenderDatum) => datum.position,
         getRadius: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster"
-            ? 120 + datum.visualWeight * 120 + Math.min(datum.clusterMembers.length, 20) * 15
-            : 80 + datum.visualWeight * 120,
+            ? 10 + Math.min(datum.clusterMembers.length, 20) * 0.5
+            : (datum.selected ? 11 : 9) + datum.visualWeight * 2,
         stroked: true,
         lineWidthUnits: "pixels",
-        getLineWidth: 1.5,
+        getLineWidth: 2,
         getLineColor: WORLD_PALETTE.outline,
         getFillColor: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster"
@@ -1972,7 +2123,7 @@ export class DeckWorldSurface implements WorldSurface {
               getPosition: (datum: DeckWorldEntityDatum) => datum.position,
               getIcon: (datum: DeckWorldEntityDatum) =>
                 entityIconDescriptor(worldEntityIconName(datum.entityKind) ?? "note"),
-              getSize: (datum: DeckWorldEntityDatum) => (datum.selected ? 22 : 16),
+              getSize: (datum: DeckWorldEntityDatum) => (datum.selected ? 14 : 11),
               getColor: () => WORLD_PALETTE.icon,
               // GlobeView culls back faces; billboarded icon quads vanish
               // without this (same as the label TextLayer).
@@ -2008,12 +2159,14 @@ export class DeckWorldSurface implements WorldSurface {
         ? [
             this.#runtime.createTextLayer({
               id: DECK_WORLD_LAYER_IDS.labels,
-              data: labelResult.datums,
+              data: this.#cameraFacingLabels(labelResult.datums),
               pickable: false,
               billboard: true,
               characterSet: "auto",
               sizeUnits: "pixels",
-              fontSettings: { sdf: true },
+              fontFamily: this.#labelFontFamily,
+              fontWeight: 700,
+              fontSettings: { sdf: true, fontSize: 64, buffer: 8, radius: 16 },
               outlineWidth: LABEL_HALO_PX,
               outlineColor: WORLD_PALETTE.labelHalo,
               getText: (datum: DeckWorldLabelDatum) => datum.text,
@@ -2032,8 +2185,10 @@ export class DeckWorldSurface implements WorldSurface {
               getAlignmentBaseline: "center",
               getPixelOffset: labelPixelOffset,
               // GlobeView culls back faces; billboarded glyph quads are
-              // wound the other way and vanish without this.
-              parameters: { cullMode: "none" },
+              // wound the other way and vanish without this. Labels draw
+              // over marks (far-side labels are filtered out above) so
+              // entity dots never bite chunks out of the text.
+              parameters: { cullMode: "none", depthCompare: "always" },
             }),
           ]
         : []),
@@ -2060,6 +2215,73 @@ export class DeckWorldSurface implements WorldSurface {
       latitude: position[1],
       zoom: Math.max(this.#camera.zoom, 5),
     });
+  }
+
+  /**
+   * Far-side labels are dropped (labels draw without depth testing). The
+   * previous array is reused while the visible set is unchanged so the
+   * TextLayer is not rebuilt on every force-simulation frame.
+   */
+  #cameraFacingLabels(datums: readonly DeckWorldLabelDatum[]): readonly DeckWorldLabelDatum[] {
+    const visible = datums.filter((datum) => this.#facesCamera(datum.position));
+    const previous = this.#visibleLabelCache;
+    if (
+      previous.length === visible.length &&
+      previous.every((datum, index) => datum === visible[index])
+    ) {
+      return previous;
+    }
+    this.#visibleLabelCache = visible;
+    return visible;
+  }
+
+  /**
+   * Reference lines limited to the neighbourhood of the view. The window is
+   * quantised (to a quarter of its own size) so panning reuses the same
+   * arrays and deck only re-uploads when the view has moved noticeably.
+   */
+  #visibleLines(
+    id: string,
+    lines: readonly (readonly WorldRenderPosition[])[],
+  ): readonly (readonly WorldRenderPosition[])[] {
+    const zoom = this.#camera.zoom;
+    if (zoom < 3) return lines;
+    const width = Number(this.#container.clientWidth) || 1024;
+    const height = Number(this.#container.clientHeight) || 768;
+    const degreesPerPixel = 360 / (512 * 2 ** zoom);
+    const halfSpan = Math.max(width, height) * degreesPerPixel * 0.75;
+    const quantum = Math.max(halfSpan / 4, 1e-3);
+    const centerLongitude = Math.round(this.#camera.longitude / quantum) * quantum;
+    const centerLatitude = Math.round(this.#camera.latitude / quantum) * quantum;
+    const key = `${Math.round(zoom * 2)}:${centerLongitude}:${centerLatitude}`;
+    const cached = this.#lineClipCache.get(id);
+    if (cached && cached.key === key && cached.source === lines) return cached.lines;
+    const wrap = (longitude: number) => ((((longitude + 180) % 360) + 360) % 360) - 180;
+    const bounds: WorldLineBounds =
+      halfSpan >= 180
+        ? { west: -180, east: 180, south: -90, north: 90 }
+        : {
+            west: wrap(centerLongitude - halfSpan),
+            east: wrap(centerLongitude + halfSpan),
+            south: Math.max(-90, centerLatitude - halfSpan),
+            north: Math.min(90, centerLatitude + halfSpan),
+          };
+    const clipped = clipWorldLines(lines, bounds);
+    this.#lineClipCache.set(id, { key, source: lines, lines: clipped });
+    return clipped;
+  }
+
+  /** True when a position lies on the camera-facing hemisphere. */
+  #facesCamera(position: WorldRenderPosition): boolean {
+    const radians = Math.PI / 180;
+    const latitude = position[1] * radians;
+    const cameraLatitude = this.#camera.latitude * radians;
+    const deltaLongitude = (position[0] - this.#camera.longitude) * radians;
+    return (
+      Math.sin(latitude) * Math.sin(cameraLatitude) +
+        Math.cos(latitude) * Math.cos(cameraLatitude) * Math.cos(deltaLongitude) >
+      0.05
+    );
   }
 
   #assertAlive(): void {

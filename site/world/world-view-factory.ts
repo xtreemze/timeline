@@ -3,6 +3,7 @@ import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout
 import type { WorldForceSimulationBackend } from "../../src/layout/world-force-simulation.ts";
 import { createDeckWorldRuntime, type DeckWorldBindings } from "./deck-world-runtime.ts";
 import { DeckWorldSurface } from "./deck-world-surface.ts";
+import { loadWorldBasemap } from "./world-basemap.ts";
 import {
   WorldProjectionView,
   type WorldViewModel,
@@ -159,6 +160,15 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
 
       const container = root.querySelector<HTMLElement>(".temporal-graph-canvas") ?? root;
       const surface = new DeckWorldSurface(container, deckRuntime);
+      loadWorldBasemap()
+        .then((basemap) => {
+          try {
+            surface.setBasemap(basemap);
+          } catch {
+            // Surface destroyed before the geography arrived.
+          }
+        })
+        .catch(() => {});
       const forceBackend = options.createForceBackend?.() ?? new ReferenceWorldForceSimulation();
       const runtime = new WorldViewRuntimeController({
         surface,
