@@ -1,4 +1,4 @@
-import type { ProjectedWorldInstance, WorldProjection } from "../projection/world-projection.ts";
+import type { ProjectedWorldInstance, WorldProjection } from "../projection/world-projection.ts";\nimport { WORLD_NODE_SCALE } from "./world-graph-style.ts";
 import type {
   WorldForceAnchor,
   WorldForceEdge,
@@ -18,9 +18,9 @@ export interface WorldForceScenePolicy {
 export const DEFAULT_WORLD_FORCE_SCENE_POLICY: WorldForceScenePolicy = Object.freeze({
   baseMass: 1,
   visualWeightMassScale: 1,
-  baseCollisionRadiusMeters: 120,
-  edgeStrength: 0.08,
-  edgeRestLengthMeters: 600,
+  baseCollisionRadiusMeters: 120 * WORLD_NODE_SCALE,
+  edgeStrength: 0.05,
+  edgeRestLengthMeters: 600 * WORLD_NODE_SCALE,
   anchorInfluenceScale: 1,
 });
 
