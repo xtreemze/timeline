@@ -230,6 +230,4 @@ export function createWorldSimulationCoordinator(backend: WorldForceSimulationBa
   });
 }
 
-export type WorldSimulationCoordinator = ReturnType<
-  typeof createWorldSimulationCoordinator
->;
+export type WorldSimulationCoordinator = ReturnType<typeof createWorldSimulationCoordinator>;
