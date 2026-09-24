@@ -496,34 +496,13 @@ function lintScriptSafety(file, source) {
   }
 }
 
-function lintDisableComments(file, source) {
-  if (/eslint-disable(?!-next-line|-line)/.test(source)) {
-    report(
-      file,
-      "no-broad-eslint-disable",
-      "file/block-wide eslint-disable is forbidden; suppress one line only and explain why",
-    );
-  }
-
-  const eslintPattern = /\/\/\s*eslint-disable(?:-next-line|-line)\s+([^\n]+)/g;
-  let match = eslintPattern.exec(source);
-  while (match) {
-    if (!match[1].includes("--") || !/--\s*\S/.test(match[1])) {
-      report(
-        file,
-        "eslint-disable-needs-rationale",
-        "eslint-disable comments must include a '-- reason' explanation",
-      );
-    }
-    match = eslintPattern.exec(source);
-  }
-
+function lintSuppressionComments(file, source) {
   if (/biome-ignore-all\b/.test(source)) {
     report(file, "no-broad-biome-ignore", "biome-ignore-all is forbidden");
   }
 
   const biomePattern = /biome-ignore\s+[^\n*]+/g;
-  match = biomePattern.exec(source);
+  let match = biomePattern.exec(source);
   while (match) {
     if (!/:\s*\S/.test(match[0])) {
       report(
@@ -553,7 +532,7 @@ for (const file of files) {
     lintScriptSafety(file, source);
   }
   if (/\.(?:css|js|mjs|ts)$/.test(file)) {
-    lintDisableComments(file, source);
+    lintSuppressionComments(file, source);
   }
 }
 
