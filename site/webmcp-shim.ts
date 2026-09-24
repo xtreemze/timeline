@@ -1,6 +1,6 @@
 /**
  * Temporary compatibility shim for webmcp ESM migration
- * Sets TimelineWebMCP on globalThis for legacy global consumers
+ * Sets TimelineWebMCP on globalThis for backward compatibility with IIFE code
  */
 
 import { TimelineWebMCP } from './webmcp.ts';
