@@ -2516,6 +2516,7 @@ class TimelineViewController {
       image.src = active.src;
       image.alt = active.alt || "";
       image.decoding = "async";
+      image.loading = "lazy";
       hero.append(image);
     } else {
       hero.classList.add("has-no-media");
