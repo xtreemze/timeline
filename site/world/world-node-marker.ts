@@ -1,5 +1,5 @@
 import type { WorldNodeStyle } from "../../src/layout/world-graph-style.ts";
-import { iconPathData } from "../event-presentation.ts";
+import { iconPathData, TimelinePresentation } from "../event-presentation.ts";
 import { worldEntityIconName } from "./world-entity-icon.ts";
 
 /**
@@ -66,7 +66,11 @@ export function worldNodeMarker(style: WorldNodeStyle): WorldNodeMarker {
   const pixels = size * SUPERSAMPLE;
   const center = size / 2;
   const body = shapePath(style.shape, center, style.radius);
-  const iconName = style.icon ? worldEntityIconName(style.icon) : null;
+  const authoredIcon =
+    style.icon && TimelinePresentation.ICON_NAMES.some((name) => name === style.icon)
+      ? style.icon
+      : null;
+  const iconName = authoredIcon ?? (style.icon ? worldEntityIconName(style.icon) : null);
   const glyphSize = style.radius * 1.15;
   const glyphOrigin = center - glyphSize / 2;
   const inner = style.image
