@@ -68,6 +68,25 @@ export interface WorldEdgeStyle {
 const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const SHAPES: readonly WorldNodeShape[] = ["circle", "square", "diamond", "hexagon", "pin"];
 
+/**
+ * Radius multiplier that gives the common geometric shapes approximately the
+ * same filled area for one authored semantic radius. Collision and marker
+ * atlases use the same multiplier, so perceptual normalization never clips.
+ */
+export function worldNodeShapeVisualRadiusScale(shape: WorldNodeShape): number {
+  switch (shape) {
+    case "square":
+      return Math.sqrt(Math.PI) / 2;
+    case "diamond":
+      return Math.sqrt(Math.PI / 2);
+    case "hexagon":
+      return Math.sqrt(Math.PI / ((3 * Math.sqrt(3)) / 2));
+    default:
+      return 1;
+  }
+}
+
+
 function record(value: unknown): Readonly<Record<string, unknown>> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Readonly<Record<string, unknown>>)
@@ -161,10 +180,15 @@ function worldNodeMetrics(input: WorldNodeStyleInput): {
  */
 export function worldNodeFootprintRadiusPx(input: WorldNodeStyleInput): number {
   const metrics = worldNodeMetrics(input);
-  return Math.max(
-    WORLD_ENTITY_MIN_HIT_RADIUS_PX,
-    metrics.radius + metrics.borderWidth,
-  );
+  const type = (input.type ?? "").toLowerCase();
+  const own = styleOf(input.attributes);
+  const ownShape = text(own["shape"] ?? own["markerShape"], 16)?.toLowerCase();
+  const shape = SHAPES.includes(ownShape as WorldNodeShape)
+    ? (ownShape as WorldNodeShape)
+    : defaultNodeShape(type);
+  const visibleRadius =
+    metrics.radius * worldNodeShapeVisualRadiusScale(shape) + metrics.borderWidth;
+  return Math.max(WORLD_ENTITY_MIN_HIT_RADIUS_PX, visibleRadius);
 }
 
 export function worldNodeStyle(
