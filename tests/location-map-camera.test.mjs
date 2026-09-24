@@ -148,9 +148,9 @@ test("map runtime is local and basemap failure cannot remove semantic geometry",
   ]);
   const pkg = JSON.parse(packageSource);
   assert.equal(pkg.dependencies.leaflet, "1.9.4");
-  assert.match(pkg.scripts["build:leaflet"], /src\/leaflet-entry\.js/);
-  assert.match(html, /href="\.\/leaflet\.css"/);
-  assert.match(html, /src="\.\/leaflet\.bundle\.js"/);
+  assert.match(mapSource, /import L from "leaflet"/);
+  assert.match(mapSource, /import "leaflet\/dist\/leaflet\.css"/);
+  assert.doesNotMatch(html, /leaflet\.bundle\.js|href="\.\/leaflet\.css"/);
   assert.doesNotMatch(mapSource, /unpkg\.com\/leaflet/);
   assert.match(mapSource, /function attachBasemap\(/);
   assert.match(mapSource, /(?:nextLayer|layer)\.on\("tileerror"/);
