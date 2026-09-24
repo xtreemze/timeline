@@ -1,11 +1,11 @@
 import type { EntityId, PlaceId, RelationshipId } from "../../src/domain/ids.ts";
 import type { WorldNodeDragPosition } from "../../src/interaction/world-node-drag-controller.ts";
 import { resolveWorldNodeDragPosition } from "../../src/interaction/world-node-drag-geometry.ts";
+import { worldPointerDragMayStart } from "../../src/interaction/world-pointer-policy.ts";
 import {
   createWorldTouchHoldGate,
   WORLD_TOUCH_HOLD_MS,
 } from "../../src/interaction/world-touch-hold.ts";
-import { worldPointerDragMayStart } from "../../src/interaction/world-pointer-policy.ts";
 import { fitWorldCamera, globeOverviewCamera } from "../../src/layout/world-camera-fit.ts";
 import { worldClusterExpansionProgress } from "../../src/layout/world-cluster-transition.ts";
 import type { WorldRelationshipRouteHint } from "../../src/layout/world-force-simulation.ts";
@@ -42,10 +42,10 @@ import {
   WORLD_PLACE_LABEL_FLOOR,
   worldArrowLengthDegreesForNodeRadius,
   worldArrowStrokeWidthPxForNodeRadius,
-  worldNodeClearanceDegreesForRadius,
   worldLabelBudget,
   worldLabelTierFloor,
   worldLocalRadiusPx,
+  worldNodeClearanceDegreesForRadius,
   worldPixelsToDegrees,
   worldPlaceClusterRadiusPx,
   worldPresentationOffsetScale,
@@ -1294,8 +1294,10 @@ function routedRelationshipPath(
       {
         ...sourceInstance,
         localOffset: Object.freeze({
-          eastMeters: point.eastMeters + sourceDeltaEast * oneMinusFraction + targetDeltaEast * fraction,
-          northMeters: point.northMeters + sourceDeltaNorth * oneMinusFraction + targetDeltaNorth * fraction,
+          eastMeters:
+            point.eastMeters + sourceDeltaEast * oneMinusFraction + targetDeltaEast * fraction,
+          northMeters:
+            point.northMeters + sourceDeltaNorth * oneMinusFraction + targetDeltaNorth * fraction,
         }),
       },
       context.offsetScale,
