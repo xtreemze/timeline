@@ -5,6 +5,7 @@ import {
   WORLD_DARK_PALETTE,
   WORLD_ENTITY_MIN_HIT_RADIUS_PX,
   WORLD_LIGHT_PALETTE,
+  WORLD_MIN_VISIBLE_STROKE_PX,
   worldColorBytes,
   worldEdgeStyle,
   worldNodeFootprintRadiusPx,
@@ -277,6 +278,15 @@ test("subdued edges mute while emphasized edges restore endpoint or authored col
     WORLD_LIGHT_PALETTE,
   );
   assert.equal(authored.color, "#abcdef");
+});
+
+test("visible relationship strokes keep a full CSS-pixel floor", () => {
+  const hairline = worldEdgeStyle(
+    { attributes: { style: { width: 0.5 } } },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(WORLD_MIN_VISIBLE_STROKE_PX, 1);
+  assert.equal(hairline.width, WORLD_MIN_VISIBLE_STROKE_PX);
 });
 
 test("colour bytes parse short, long and alpha hex", () => {
