@@ -11,7 +11,7 @@ Check each invariant and cite `file:line` evidence for any violation:
 
 1. Places stay canonical geography and never become graph nodes.
 2. Entities never get permanent coordinates; positions are derived from occurrences anchored to places.
-3. An entity may have multiple world instances (one per occurrence); canonical IDs remain the cross-view identity.
+3. Each active canonical entity has exactly one world node; multiple occurrences and places contribute occurrence IDs and spatial anchors to that node.
 4. Altitude, camera and GPU state are derived only; nothing persists them into canonical data.
 5. Dragging never rewrites evidence or canonical geography.
 6. deck.gl / luma.gl types and imports stay inside `site/world/`; `src/` is renderer-neutral and pure. The architecture lint also rejects the words `document`, `window` and `any` in core layers.

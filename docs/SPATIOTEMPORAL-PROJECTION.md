@@ -70,18 +70,18 @@ Rendering may retain entering/leaving material for continuity and may ramp physi
 
 Canonical entities do not acquire one permanent location merely because their occurrences happen at places.
 
-One canonical entity may have multiple simultaneous or historical world instances:
+Each active canonical entity has exactly one rendered world node. If its active occurrences reference several places, that one node carries several geographic anchors:
 
 ```
-canonical entity Alice
-  ├─ occurrence instance near Stockholm
-  ├─ occurrence instance near Copenhagen
-  └─ occurrence instance near Malmö
+canonical entity Alice ●
+  ├─ anchor → Stockholm
+  ├─ anchor → Copenhagen
+  └─ anchor → Malmö
 ```
 
-Every rendered instance carries the canonical entity ID plus the occurrence/context that caused the instance to exist. Selection, evidence, neighborhood queries and editing resolve through canonical IDs.
+The node carries the canonical entity ID plus the active occurrence IDs and spatial anchors that currently constrain it. Selection, evidence, neighborhood queries and editing resolve through that single canonical identity.
 
-Instance multiplicity is derived rendering state and must never duplicate canonical identity.
+Spatial multiplicity belongs to anchors and occurrence context, never to replicated entity nodes.
 
 ## Coordinate model
 
@@ -164,7 +164,7 @@ F(instance) =
 + F_user
 ```
 
-Exact/direct place evidence may strongly constrain a local occurrence instance. Approximate evidence may use a softer radius/influence. Unlocated material has no invented canonical coordinates and may be positioned by topology around related anchored instances.
+Exact/direct place evidence may strongly constrain the entity node. When several placed occurrences are active for the same entity, their anchors jointly constrain that one node. Approximate evidence may use a softer radius/influence. Unlocated material has no invented canonical coordinates and may be positioned by topology around related anchored nodes.
 
 Places remain anchors/records, not semantic graph nodes.
 
