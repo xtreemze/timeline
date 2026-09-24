@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DECK_WORLD_LAYER_IDS, DeckWorldSurface } from "../site/world/deck-world-surface.ts";
+import {
+  DECK_WORLD_LAYER_IDS,
+  DeckWorldSurface,
+  WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM,
+  worldGraphLabelSize,
+} from "../site/world/deck-world-surface.ts";
 import { selectWorldSpatialMode } from "../src/layout/world-spatial-mode.ts";
 import {
   createProjectedWorldEdge,
@@ -143,6 +148,13 @@ function projection() {
     ],
   });
 }
+
+test("world graph label scale matches sidebar reading typography", () => {
+  assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: false }), 16);
+  assert.equal(worldGraphLabelSize({ kind: "place-label", emphasized: false }), 16);
+  assert.equal(worldGraphLabelSize({ kind: "relationship-label", emphasized: false }), 15);
+  assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: true }), 19);
+});
 
 test("DeckWorldSurface constructs one globe view and controlled deck runtime", () => {
   const { calls, runtime } = harness();
@@ -813,6 +825,99 @@ test("deck entity drag callbacks resolve screen motion into world-local drag int
     true,
   );
   assert.deepEqual(dragCalls.at(-1), ["release", 7]);
+});
+
+test("close-zoom node drag locks the globe camera until release", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+  surface.setCamera({
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM + 1,
+    bearing: 0,
+    pitch: 20,
+  });
+
+  surface.setNodeDragSink({
+    begin() {
+      return true;
+    },
+    update() {
+      return true;
+    },
+    release() {
+      return true;
+    },
+    cancel() {},
+  });
+
+  const entityLayer = calls.scatterLayers
+    .filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities)
+    .at(-1);
+  const alice = entityLayer.props.data.find((datum) => datum.entityId === "alice");
+  const stopped = [];
+  const dragEvent = {
+    srcEvent: { pointerId: 17 },
+    stopPropagation() {
+      stopped.push(true);
+    },
+  };
+
+  assert.equal(
+    entityLayer.props.onDragStart(
+      { object: alice, x: 118.0786, y: 259.3393 },
+      dragEvent,
+    ),
+    true,
+  );
+  const locked = surface.getCamera();
+
+  calls.deckProps.onViewStateChange({
+    viewState: {
+      longitude: 40,
+      latitude: 10,
+      zoom: WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM + 2,
+      bearing: 35,
+      pitch: 30,
+    },
+  });
+  assert.deepEqual(surface.getCamera(), locked);
+  assert.deepEqual(calls.setProps.at(-1).viewState, locked);
+
+  assert.equal(
+    entityLayer.props.onDrag(
+      { object: alice, x: 118.0886, y: 259.3493 },
+      dragEvent,
+    ),
+    true,
+  );
+  assert.ok(stopped.length >= 2, "drag start and moves suppress globe-controller propagation");
+
+  assert.equal(
+    entityLayer.props.onDragEnd(
+      { object: alice, x: 118.0886, y: 259.3493 },
+      dragEvent,
+    ),
+    true,
+  );
+
+  calls.deckProps.onViewStateChange({
+    viewState: {
+      longitude: 20,
+      latitude: 30,
+      zoom: WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM + 1,
+      bearing: 5,
+      pitch: 25,
+    },
+  });
+  assert.deepEqual(surface.getCamera(), {
+    longitude: 20,
+    latitude: 30,
+    zoom: WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM + 1,
+    bearing: 5,
+    pitch: 25,
+  });
 });
 
 test("pointer cancellation reaches the active Lūm world drag owner", () => {
