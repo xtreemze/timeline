@@ -63,7 +63,6 @@ test("retained event terminals preserve semantic media, tag icons, and connector
   assert.match(css, /\.timeline-event-icon-badge/);
 });
 
-
 test("timeline is a Lit lifecycle boundary without Lit-owned retained-scene rendering", async () => {
   const [app, view, component, html, css] = await Promise.all([
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
