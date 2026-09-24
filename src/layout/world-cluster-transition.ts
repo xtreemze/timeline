@@ -2,6 +2,8 @@ import type { WorldRenderPosition } from "./world-geographic-position.ts";
 
 export const WORLD_CLUSTER_COLLAPSED_RADIUS_RATIO = 0.7;
 export const WORLD_CLUSTER_EXPANDED_RADIUS_RATIO = 1.35;
+/** Visual continuity fallback when a worker publishes a solved target in one update. */
+export const WORLD_CLUSTER_FORCE_TRANSITION_MS = 650;
 
 function clampUnit(value: number): number {
   return Math.max(0, Math.min(1, value));
