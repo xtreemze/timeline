@@ -195,3 +195,141 @@ test("quality metrics report crossings, edge length and separation", () => {
   assert.ok(layout.metrics.meanEdgeLengthMeters > 0);
   assert.ok((layout.metrics.minSeparationMeters ?? 0) > 0);
 });
+
+test("deep size-aware DAGs fall back instead of compressing nodes into overlap", () => {
+  const nodes = Array.from({ length: 12 }, (_, index) => instance(`deep-${index}`));
+  const projection = createWorldProjection({
+    instances: nodes,
+    edges: nodes.slice(1).map((item, index) => edge(`deep-edge-${index}`, nodes[index], item)),
+  });
+  const nodeSizes = new Map(
+    nodes.map((item) => [item.id, { widthMeters: 1_200, heightMeters: 1_200 }]),
+  );
+
+  const layout = createWorldDagLayout(projection, { nodeSizes });
+
+  assert.equal(layout.targets.length, 0);
+  assert.equal(layout.routes.length, 0);
+  assert.equal(layout.metrics.nodeCount, 12);
+  assert.equal(
+    Object.entries(layout.metrics.algorithmCounts).some(
+      ([name, count]) => name.endsWith("-force-only") && count === 1,
+    ),
+    true,
+  );
+});
+
+test("weight-only temporal changes reuse the accepted DAG layout", () => {
+  const a = instance("cache-a");
+  const b = instance("cache-b");
+  const c = instance("cache-c");
+  const firstProjection = createWorldProjection({
+    instances: [a, b, c],
+    edges: [
+      edge("cache-ab", a, b, 1),
+      edge("cache-bc", b, c, 0.8),
+      edge("cache-ca", c, a, 0.1),
+    ],
+  });
+  const secondProjection = createWorldProjection({
+    instances: [a, b, c],
+    edges: [
+      edge("cache-ab", a, b, 0.97),
+      edge("cache-bc", b, c, 0.76),
+      edge("cache-ca", c, a, 0.08),
+    ],
+  });
+
+  const first = createWorldDagLayout(firstProjection);
+  const second = createWorldDagLayout(secondProjection);
+
+  assert.deepEqual(
+    first.routes.map((route) => route.relationshipId),
+    second.routes.map((route) => route.relationshipId),
+  );
+  assert.equal(first.targets.length, second.targets.length);
+  for (let index = 0; index < first.targets.length; index += 1) {
+    assert.equal(
+      first.targets[index],
+      second.targets[index],
+      "unchanged accepted topology should reuse cached target objects",
+    );
+  }
+});
+
+test("dense neighborhoods avoid simplex operators even below node-count thresholds", () => {
+  const nodes = Array.from({ length: 32 }, (_, index) => instance(`dense-${index}`));
+  const edges = [];
+  for (let source = 0; source < nodes.length; source += 1) {
+    for (let target = source + 1; target < nodes.length; target += 1) {
+      edges.push(edge(`dense-${source}-${target}`, nodes[source], nodes[target]));
+    }
+  }
+
+  const layout = createWorldDagLayout(createWorldProjection({ instances: nodes, edges }));
+
+  assert.equal(layout.metrics.algorithmCounts["longest-two-layer-greedy"], 1);
+});
+
+function testSegmentIntersection(a, b, c, d) {
+  const orient = (p, q, r) =>
+    (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+  return orient(a, b, c) * orient(a, b, d) < 0 && orient(c, d, a) * orient(c, d, b) < 0;
+}
+
+function crossingCountFor(edges, positions) {
+  let crossings = 0;
+  for (let left = 0; left < edges.length; left += 1) {
+    for (let right = left + 1; right < edges.length; right += 1) {
+      const a = edges[left];
+      const b = edges[right];
+      if (
+        a.sourceInstanceId === b.sourceInstanceId ||
+        a.sourceInstanceId === b.targetInstanceId ||
+        a.targetInstanceId === b.sourceInstanceId ||
+        a.targetInstanceId === b.targetInstanceId
+      ) {
+        continue;
+      }
+      const a0 = positions.get(a.sourceInstanceId);
+      const a1 = positions.get(a.targetInstanceId);
+      const b0 = positions.get(b.sourceInstanceId);
+      const b1 = positions.get(b.targetInstanceId);
+      if (a0 && a1 && b0 && b1 && testSegmentIntersection(a0, a1, b0, b1)) crossings += 1;
+    }
+  }
+  return crossings;
+}
+
+test("Sugiyama reduces crossings versus the former circular baseline", () => {
+  const a = instance("compare-a");
+  const b = instance("compare-b");
+  const c = instance("compare-c");
+  const x = instance("compare-x");
+  const y = instance("compare-y");
+  const z = instance("compare-z");
+  const nodes = [a, b, c, x, y, z];
+  const edges = [edge("compare-ax", a, x), edge("compare-by", b, y), edge("compare-cz", c, z)];
+  const projection = createWorldProjection({ instances: nodes, edges });
+  const radius = 2_000;
+  const circular = new Map(
+    nodes.map((item, index) => {
+      const angle = (index / nodes.length) * Math.PI * 2;
+      return [item.id, [Math.cos(angle) * radius, Math.sin(angle) * radius]];
+    }),
+  );
+  const circularCrossings = crossingCountFor(projection.edges, circular);
+
+  const dag = createWorldDagLayout(projection);
+  const dagPositions = new Map(
+    dag.targets.map((target) => [target.instanceId, [target.eastMeters, target.northMeters]]),
+  );
+  const dagCrossings = crossingCountFor(projection.edges, dagPositions);
+
+  assert.ok(circularCrossings > 0);
+  assert.ok(
+    dagCrossings < circularCrossings,
+    `expected Sugiyama crossings ${dagCrossings} to beat circular baseline ${circularCrossings}`,
+  );
+});
+
