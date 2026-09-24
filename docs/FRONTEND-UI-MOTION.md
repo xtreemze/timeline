@@ -10,15 +10,19 @@ Lit is not the owner of the chronology engine, graph engine, map engine, input p
 
 Use Lit where it materially reduces imperative UI complexity. The first pilot is the date/range calendar in `site/date-range-picker.ts`: its public `TimelineDateRangePicker` contract and native Popover/keyboard behavior remain intact while its calendar cell rendering becomes declarative and keyed.
 
-Good follow-up candidates include editor/property forms, evidence cards/tabs, story/category controls, view/presentation toolbars, and focused-event controls.
+Current bounded Lit surfaces now include the date/range calendar, the timeline host lifecycle, retained event-card semantic content, and the world/graph host lifecycle. Event-card geometry stays imperative and graph topology stays GPU-rendered.
+
+Good follow-up candidates include editor/property forms, focused-event detail/evidence tabs, story/category browsing controls, view/presentation toolbars, project/action menus, and read-only map host lifecycle.
 
 Keep framework-independent:
 
-- temporal geometry, semantic zoom, clustering, retained-scene behavior, and viewport calculations;
-- Pointer Events, pointer capture, weighted drag, pinch, inertia, haptics, and other continuous interaction physics;
-- Orb graph simulation/rendering;
+- canonical entities, occurrences, relationships, places, evidence, stories, indexes and persistence;
+- spatiotemporal, timeline and world projections;
+- temporal geometry, semantic zoom, clustering, retained-scene behavior, force simulation and viewport calculations;
+- Pointer Events, pointer capture, weighted drag, pinch, inertia, haptics and other continuous interaction physics;
+- deck.gl/luma.gl graph/world drawing, picking, camera motion and GPU resource state;
 - Leaflet/map camera and gesture integration;
-- canonical model, validation, interchange, evidence extraction/inference, and WebMCP.
+- validation, interchange, evidence extraction/inference, analytics and WebMCP.
 
 A migration is useful only when it removes meaningful imperative DOM/lifecycle complexity. Wrapping an existing imperative controller in `LitElement` without simplifying ownership is not a goal.
 
@@ -75,7 +79,10 @@ Reviewed 2026-09-21:
 
 1. Measure the Lit calendar bundle/runtime delta and browser regressions.
 2. Complete responsive audit #243 and continue reducing the `max-width` baseline.
-3. Convert one additional bounded DOM-heavy surface only if the pilot materially simplifies ownership.
-4. Add a shared scoped/document View Transition helper only once at least two surfaces require identical lifecycle handling.
-5. Add WAAPI only where cancellation/reversal provides concrete value.
-6. Re-evaluate Lit after two or three migrations; do not set a target percentage of framework-owned UI.
+3. Convert the editor/property surface next, preserving canonical validation and commands outside Lit.
+4. Move focused-event detail/evidence rendering out of the timeline engine into a bounded component.
+5. Convert story/category browser lists and presentation/view controls where declarative keyed rendering removes manual DOM assembly.
+6. Consider a Lit lifecycle host for read-only Leaflet views, while keeping map camera/gesture state inside the map adapter.
+7. Add a shared scoped/document View Transition helper only once at least two surfaces require identical lifecycle handling.
+8. Add WAAPI only where cancellation/reversal provides concrete value.
+9. Re-evaluate Lit after these bounded migrations; do not set a target percentage of framework-owned UI.
