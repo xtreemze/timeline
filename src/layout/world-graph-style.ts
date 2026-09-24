@@ -42,6 +42,8 @@ export const WORLD_DARK_PALETTE: WorldGraphPalette = Object.freeze({
  * Picking keeps a separate >=44px target in WorldSurface.
  */
 export const WORLD_NODE_SCALE = 2;
+/** Minimum radius of the mobile interaction footprint (44px diameter). */
+export const WORLD_ENTITY_MIN_HIT_RADIUS_PX = 22;
 
 export interface WorldNodeStyle {
   readonly fill: string;
@@ -123,6 +125,33 @@ export interface WorldNodeStyleInput {
   readonly visualWeight?: number;
 }
 
+function worldNodeBodyRadiusPx(input: WorldNodeStyleInput): number {
+  const own = styleOf(input.attributes);
+  // Whole-pixel radii: every distinct radius is its own marker texture, so
+  // a continuous weight would give each node its own atlas entry.
+  const baseRadius = Math.round(9 + Math.min(1, Math.max(0, input.visualWeight ?? 0)) * 2);
+  const resolvedRadius =
+    Math.round(number(own["size"], 4, 24) ?? baseRadius) + (input.selected ? 2 : 0);
+  return resolvedRadius * WORLD_NODE_SCALE;
+}
+
+function worldNodeBorderWidthPx(input: WorldNodeStyleInput): number {
+  const own = styleOf(input.attributes);
+  return input.selected ? 4 : (number(own["borderWidth"], 0, 6) ?? 2);
+}
+
+/**
+ * Full on-screen radius that collision/picking must reserve. The force body
+ * must never be smaller than what is visibly rendered, and it also respects
+ * the 44px minimum mobile interaction target.
+ */
+export function worldNodeFootprintRadiusPx(input: WorldNodeStyleInput): number {
+  return Math.max(
+    WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+    worldNodeBodyRadiusPx(input) + worldNodeBorderWidthPx(input),
+  );
+}
+
 export function worldNodeStyle(
   input: WorldNodeStyleInput,
   palette: WorldGraphPalette,
@@ -130,24 +159,20 @@ export function worldNodeStyle(
   const type = (input.type ?? "").toLowerCase();
   const own = styleOf(input.attributes);
   const ownShape = text(own["shape"], 16)?.toLowerCase();
-  // Whole-pixel radii: every distinct radius is its own marker texture, so
-  // a continuous weight would give each node its own atlas entry. The graph
-  // uses a deliberately larger reading scale than geographic place markers.
-  const baseRadius = Math.round(9 + Math.min(1, Math.max(0, input.visualWeight ?? 0)) * 2);
-  const resolvedRadius =
-    Math.round(number(own["size"], 4, 24) ?? baseRadius) + (input.selected ? 2 : 0);
+  const radius = worldNodeBodyRadiusPx(input);
+  const borderWidth = worldNodeBorderWidthPx(input);
   return Object.freeze({
     fill: input.selected
       ? palette.focus
       : (color(own["fillColor"]) ?? color(own["color"]) ?? defaultNodeFill(type, palette)),
     border: color(own["borderColor"]) ?? palette.paper,
-    borderWidth: input.selected ? 4 : (number(own["borderWidth"], 0, 6) ?? 2),
+    borderWidth,
     shape: SHAPES.includes(ownShape as WorldNodeShape)
       ? (ownShape as WorldNodeShape)
       : defaultNodeShape(type),
     icon: text(own["icon"], 48) ?? (type || null),
     image: text(own["image"] ?? own["imageUrl"], 2048),
-    radius: resolvedRadius * WORLD_NODE_SCALE,
+    radius,
   });
 }
 
