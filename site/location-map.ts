@@ -122,7 +122,7 @@ interface LocationMapControllerOptions {
   clearButton?: HTMLElement;
 }
 
-let leafletRuntime: any = null;
+let leafletRuntime = null;
 let leafletPromise: Promise<any> | null = null;
 
 function loadLeaflet(): Promise<any> {
