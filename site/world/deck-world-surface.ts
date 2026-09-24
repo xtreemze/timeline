@@ -732,7 +732,9 @@ function prefersReducedMotion(): boolean {
  * left off (deck.gl's own default) because this surface wires its own
  * double-tap/double-click focus gesture (see `#handleDoubleClick`) instead.
  */
-function deckControllerOptions(): Readonly<Record<string, unknown>> {
+function deckControllerOptions(
+  mode: WorldSpatialMode = "globe",
+): Readonly<Record<string, unknown>> {
   return Object.freeze({
     dragPan: true,
     dragRotate: true,
@@ -741,7 +743,7 @@ function deckControllerOptions(): Readonly<Record<string, unknown>> {
     multiTouchDrag: "rotate",
     keyboard: true,
     doubleClickZoom: false,
-    zoomAround: "pointer",
+    ...(mode === "globe" ? { zoomAround: "pointer" } : {}),
     inertia: !prefersReducedMotion(),
   });
 }
@@ -2704,6 +2706,7 @@ export class DeckWorldSurface implements WorldSurface {
     // setProps call.
     this.#deck.setProps({
       views: [nextMode === "local" ? this.#localView : this.#globeView],
+      controller: deckControllerOptions(nextMode),
       viewState: this.#camera,
     });
   }
