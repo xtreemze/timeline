@@ -35,10 +35,10 @@ test("active traversal can keep two or more distinct edge dates without duplicat
     padding: 64,
     orientation: "horizontal",
     spec: { unit: "hour" },
-    minimumEdgeAccents: 2,
+    minimumEdgeAccents: 3,
   });
 
-  assert.ok(plan.edgeAccents.length >= 2);
+  assert.ok(plan.edgeAccents.length >= 3);
   assert.equal(
     new Set(plan.edgeAccents.map((accent) => accent.label)).size,
     plan.edgeAccents.length,
@@ -67,6 +67,7 @@ test("ambient edge identities stay stable while panning inside one calendar buck
 
 test("tick labels defer repeated calendar context to ambient edge dates", () => {
   const sample = utc(2026, 0, 15, 12);
+  assert.equal(compactTickLabel(sample, { unit: "year" }, true), "");
   assert.equal(compactTickLabel(sample, { unit: "month" }, true), "");
   assert.equal(compactTickLabel(sample, { unit: "day" }, true), "15");
   assert.equal(compactTickLabel(sample, { unit: "week" }, true), "15");
