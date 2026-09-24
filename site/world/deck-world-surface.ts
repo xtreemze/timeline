@@ -5,6 +5,7 @@ import {
   createWorldTouchHoldGate,
   WORLD_TOUCH_HOLD_MS,
 } from "../../src/interaction/world-touch-hold.ts";
+import { worldPointerDragMayStart } from "../../src/interaction/world-pointer-policy.ts";
 import { fitWorldCamera, globeOverviewCamera } from "../../src/layout/world-camera-fit.ts";
 import { worldClusterExpansionProgress } from "../../src/layout/world-cluster-transition.ts";
 import type { WorldRelationshipRouteHint } from "../../src/layout/world-force-simulation.ts";
@@ -2935,7 +2936,7 @@ export class DeckWorldSurface implements WorldSurface {
     const sink = this.#nodeDragSink;
     const pointerId = pointerIdFromRuntimeEvent(event);
     const target = this.#dragTarget(info);
-    if (!sink || pointerId === null || !target) return false;
+    if (!sink || pointerId === null || !target || !worldPointerDragMayStart(event)) return false;
     // Touch drags only claim the node after the long-press gate armed;
     // otherwise deck's controller keeps the gesture as a globe pan.
     const touch = pointerTypeFromRuntimeEvent(event) === "touch";
