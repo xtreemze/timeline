@@ -6,12 +6,12 @@ export interface SettledTemporalWindowSink<T> {
 /**
  * Coalesces the timeline's high-frequency transient viewport changes into the
  * latest value and forwards it only when the timeline declares the interaction
- * committed. This keeps temporal dragging responsive without repeatedly
- * rebuilding spatial projections / force-layout inputs for states that exist
- * for only a frame or two.
+ * committed. An optional preview sink may consume each transient viewport for
+ * cheap presentation-only updates that must not rebuild spatial projections.
  */
 export function createSettledTemporalWindowSink<T>(
   apply: (viewport: T) => void,
+  preview?: (viewport: T) => void,
 ): SettledTemporalWindowSink<T> {
   let pending: T | undefined;
   let hasPending = false;
@@ -29,7 +29,11 @@ export function createSettledTemporalWindowSink<T>(
     push(viewport: T, committed: boolean): boolean {
       pending = viewport;
       hasPending = true;
-      return committed ? flush() : false;
+      if (!committed) {
+        preview?.(viewport);
+        return false;
+      }
+      return flush();
     },
     clear(): void {
       pending = undefined;
