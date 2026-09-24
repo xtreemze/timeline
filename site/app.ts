@@ -3721,7 +3721,7 @@ function beginContextualGraphCreate(kind: AuthoringCreateKind): void {
 }
 
 function handleAuthoringAction(action: AuthoringMenuAction): void {
-  authoringMenu.close();
+  authoringMenu.close({ restoreFocus: false });
   if (action === "edit-selection") {
     beginAuthoringSelectionEdit();
     return;
@@ -4591,10 +4591,14 @@ authoringMenu.addEventListener("authoringaction", (event) => {
   handleAuthoringAction((event as CustomEvent<{ action: AuthoringMenuAction }>).detail.action);
 });
 
+authoringMenu.addEventListener("authoringdismiss", () => {
+  authoring.clearSpatialContext();
+});
+
 document.addEventListener("pointerdown", (event) => {
   if (!authoringMenu.open) return;
   if (event.target instanceof Node && authoringMenu.contains(event.target)) return;
-  authoringMenu.close();
+  authoringMenu.close({ restoreFocus: false });
 });
 
 document.addEventListener("keydown", (event) => {
