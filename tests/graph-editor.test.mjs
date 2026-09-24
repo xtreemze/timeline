@@ -57,16 +57,8 @@ test("timeline includes an interactive temporal node-edge graph lens", async () 
   assert.match(source, /graphselectionchange/);
   assert.doesNotMatch(source, /graphnodefocus|graphstoryfocus|graphentityfocus|graphedgefocus/);
   assert.match(source, /updateTemporalEdges/);
-  const orbRuntimeIndex = html.indexOf('<script src="./orb-graph.bundle.js"></script>');
-  const temporalGraphModuleIndex = html.indexOf(
-    '<script type="module" src="./temporal-graph-view-shim.ts" defer></script>',
-  );
-  assert.ok(orbRuntimeIndex >= 0, "Orb runtime must load as a blocking classic script");
-  assert.ok(
-    temporalGraphModuleIndex > orbRuntimeIndex,
-    "Orb runtime must execute before graph modules",
-  );
-  assert.doesNotMatch(html, /orb-graph\.bundle\.js" defer/);
+  assert.match(source, /import \{ TimelineOrbGraph \} from "\.\.\/src\/orb-graph-entry\.js"/);
+  assert.doesNotMatch(html, /orb-graph\.bundle\.js/);
   assert.match(css, /\.temporal-graph-canvas canvas/);
 });
 
@@ -112,7 +104,7 @@ test("application provides CRUD handlers for entity nodes, places, and structure
   assert.match(source, /temporalGraphView\?\.setWindow/);
 });
 
-test("bundled graph bridge uses Memgraph Orb worker-backed force simulation with dense-graph GPU escalation", async () => {
+test("ESM graph adapter uses Memgraph Orb worker-backed force simulation with dense-graph GPU escalation", async () => {
   const [pkgText, source] = await Promise.all([
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8"),
