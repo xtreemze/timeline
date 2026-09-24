@@ -3506,49 +3506,21 @@ export class DeckWorldSurface implements WorldSurface {
         pickable: true,
         radiusUnits: "pixels",
         getPosition: (datum: DeckWorldEntityRenderDatum) => datum.position,
-        // Individual entities are drawn by the styled marker layer; this
-        // layer is their (invisible) pick/drag target. Clusters render only
-        // as an outer neutral ring so they never cover the place marker.
+        // Invisible acquisition body only. Cluster bubbles are never rendered;
+        // fully clustered members are absent from this data set.
         getRadius: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster"
-            ? (WORLD_ENTITY_MIN_HIT_RADIUS_PX +
-                10 +
-                Math.min(datum.clusterMembers.length, 30) * 0.5) *
-              clusterVisibility
+            ? 0
             : Math.max(
                 WORLD_ENTITY_MIN_HIT_RADIUS_PX,
                 this.#entityStyle(datum).radius + this.#entityStyle(datum).borderWidth,
-              ) * entityExpansion(datum),
-        stroked: true,
-        lineWidthUnits: "pixels",
-        getLineWidth: (datum: DeckWorldEntityRenderDatum) =>
-          datum.kind === "cluster" ? 2 * clusterVisibility : 0,
-        getLineColor: (datum: DeckWorldEntityRenderDatum) =>
-          datum.kind === "cluster"
-            ? scaleAlpha(this.#theme.clusterBorder, clusterVisibility)
-            : this.#theme.clusterBorder,
-        getFillColor: (datum: DeckWorldEntityRenderDatum) =>
-          datum.kind === "cluster"
-            ? scaleAlpha(this.#theme.cluster, clusterVisibility)
-            : this.#theme.hit,
+              ),
+        stroked: false,
+        getFillColor: this.#theme.hit,
         updateTriggers: {
-          getRadius: [this.#palette, placeExpansion, gridClustered],
-          getLineWidth: [placeExpansion, gridClustered],
-          getLineColor: [this.#palette, placeExpansion, gridClustered],
-          getFillColor: [this.#palette, placeExpansion, gridClustered],
+          getRadius: this.#palette,
+          getFillColor: this.#palette,
         },
-        transitions: prefersReducedMotion()
-          ? undefined
-          : {
-              getPosition: {
-                duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
-                easing: temporalRelationEasing,
-              },
-              getRadius: 120,
-              getLineWidth: 120,
-              getLineColor: 120,
-              getFillColor: 120,
-            },
         ...(this.#nodeDragSink
           ? {
               onDragStart: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
@@ -3573,27 +3545,11 @@ export class DeckWorldSurface implements WorldSurface {
               pickable: false,
               widthUnits: "pixels",
               getPath: (tether: DeckWorldTether) => tether.path,
-              getWidth: (tether: DeckWorldTether) =>
-                placeTransition.memberIds.has(tether.worldInstanceId) ? placeExpansion : 1,
-              getColor: (tether: DeckWorldTether) =>
-                scaleAlpha(
-                  this.#theme.tether,
-                  placeTransition.memberIds.has(tether.worldInstanceId) ? placeExpansion : 1,
-                ),
+              getWidth: 1,
+              getColor: this.#theme.tether,
               updateTriggers: {
-                getWidth: [placeExpansion],
-                getColor: [this.#palette, placeExpansion],
+                getColor: this.#palette,
               },
-              transitions: prefersReducedMotion()
-                ? undefined
-                : {
-                    getPath: {
-                      duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
-                      easing: temporalRelationEasing,
-                    },
-                    getWidth: 120,
-                    getColor: 120,
-                  },
               parameters: { cullMode: "none" },
             }),
           ]
@@ -3604,39 +3560,40 @@ export class DeckWorldSurface implements WorldSurface {
               id: DECK_WORLD_LAYER_IDS.entityIcons,
               data: this.#cameraFacingEntities(iconDatums),
               dataComparator: sameDatumSequence,
-              pickable: !gridClustered,
+              pickable: true,
               billboard: true,
               sizeUnits: "pixels",
               getPosition: (datum: DeckWorldEntityDatum) => datum.position,
               // Styled node markers: shape, fill, border and icon/image from
               // the entity's own style or the type default.
-              getIcon: (datum: DeckWorldEntityDatum) => worldNodeMarker(this.#entityStyle(datum)),
+              getIcon: (datum: DeckWorldEntityDatum) =>
+                worldNodeMarker(
+                  this.#entityStyle(
+                    datum,
+                    muteMembers && memberIds.has(datum.worldInstanceId),
+                  ),
+                ),
               getSize: (datum: DeckWorldEntityDatum) =>
-                worldNodeMarker(this.#entityStyle(datum)).size * entityExpansion(datum),
+                worldNodeMarker(
+                  this.#entityStyle(
+                    datum,
+                    muteMembers && memberIds.has(datum.worldInstanceId),
+                  ),
+                ).size,
               getColor: (datum: DeckWorldEntityDatum) => {
                 const emphasisAlpha = datum.selected ? 255 : datum.emphasized ? 242 : 215;
-                return [
-                  255,
-                  255,
-                  255,
-                  Math.round(emphasisAlpha * entityExpansion(datum)),
-                ] as Rgba;
+                return [255, 255, 255, emphasisAlpha] as Rgba;
               },
               updateTriggers: {
-                getIcon: this.#palette,
-                getSize: [this.#palette, placeExpansion, gridClustered],
-                getColor: [placeExpansion, gridClustered],
+                getIcon: [this.#palette, clusterPhase],
+                getSize: [this.#palette, clusterPhase],
+                getColor: [clusterPhase],
               },
-              transitions: prefersReducedMotion()
-                ? undefined
-                : {
-                    getPosition: {
-                      duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
-                      easing: temporalRelationEasing,
-                    },
-                    getSize: 120,
-                    getColor: 120,
-                  },
+              // D3 owns position continuity. Never interpolate node geometry.
+              transitions:
+                clusterPhase === "expanded" && !prefersReducedMotion()
+                  ? { getColor: 120 }
+                  : undefined,
               // GlobeView culls back faces; billboarded icon quads vanish
               // without this (same as the label TextLayer). Markers draw
               // without depth testing so the invisible earth never clips
@@ -3659,38 +3616,29 @@ export class DeckWorldSurface implements WorldSurface {
         id: DECK_WORLD_LAYER_IDS.relationshipDirections,
         data: directionResult.datums.filter((datum) => this.#edgeStyle(datum.edge).arrow),
         dataComparator: sameDatumSequence,
-        pickable: !gridClustered,
+        pickable: true,
         widthUnits: "pixels",
         widthMinPixels: 0,
         jointRounded: true,
         capRounded: true,
         getPath: (datum: DeckWorldDirectionDatum) => datum.path,
         getWidth: (datum: DeckWorldDirectionDatum) =>
-          (this.#edgeStyle(datum.edge).width + 1) * edgeExpansion(datum),
+          this.#edgeStyle(datum.edge).width + 1,
         getColor: (datum: DeckWorldDirectionDatum) => {
           const emphasisAlpha = datum.edge.selected
             ? 255
             : datum.edge.emphasized
               ? 242
               : 215;
-          return worldColorBytes(
-            this.#edgeStyle(datum.edge).color,
-            Math.round(emphasisAlpha * edgeExpansion(datum)),
-          );
+          return worldColorBytes(this.#edgeStyle(datum.edge).color, emphasisAlpha);
         },
-        transitions: prefersReducedMotion()
-          ? undefined
-          : {
-              getPath: {
-                duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
-                easing: temporalRelationEasing,
-              },
-              getWidth: 120,
-              getColor: 120,
-            },
+        transitions:
+          clusterPhase === "expanded" && !prefersReducedMotion()
+            ? { getWidth: 120, getColor: 120 }
+            : undefined,
         updateTriggers: {
-          getWidth: [this.#palette, placeExpansion, gridClustered],
-          getColor: [this.#palette, placeExpansion, gridClustered],
+          getWidth: [this.#palette, clusterPhase],
+          getColor: [this.#palette, clusterPhase],
         },
         parameters: { cullMode: "none" },
       }),
