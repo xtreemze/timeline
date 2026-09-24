@@ -295,6 +295,44 @@ test("temporal relationship joins and disconnects update immediately without ren
   assert.ok(rejoinedLayer.props.getWidth(rejoinedLayer.props.data[0]) > 0);
 });
 
+test("d3-dag route hints guide relationship geometry while preserving live endpoints", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  const input = projection();
+  const [source, target] = input.instances;
+
+  surface.setRelationshipRoutes([
+    {
+      relationshipId: "meeting",
+      placeId: "stockholm",
+      sourceId: source.id,
+      targetId: target.id,
+      points: [
+        { eastMeters: 0, northMeters: 0 },
+        { eastMeters: 0, northMeters: 900 },
+        { eastMeters: 150, northMeters: 0 },
+      ],
+    },
+  ]);
+  surface.setProjection(input);
+
+  const relationshipLayer = calls.setProps
+    .at(-1)
+    .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships);
+  assert.ok(relationshipLayer);
+  const relationship = relationshipLayer.props.data[0];
+  assert.equal(relationship.path.length, 3);
+  assert.deepEqual(relationship.path[0].slice(0, 2), [18.0686, 59.3293]);
+  assert.ok(
+    relationship.path[1][1] > relationship.path[0][1],
+    "intermediate route point follows the DAG northing hint",
+  );
+  assert.ok(
+    relationship.path.at(-1)[0] > relationship.path[0][0],
+    "live target endpoint remains force/geography-derived",
+  );
+});
+
 test("reduced motion uses the same immediate relationship geometry", (t) => {
   const originalMatchMedia = globalThis.matchMedia;
   globalThis.matchMedia = (query) => ({ matches: query === "(prefers-reduced-motion: reduce)" });
