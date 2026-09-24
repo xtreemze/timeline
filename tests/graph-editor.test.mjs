@@ -330,21 +330,15 @@ test("long-press node drag flashes, elevates, haptically confirms, and restores 
   assert.match(source, /motion\?\.pulseHaptic\?\.\("release"\)/);
 });
 
-test("drag force uses global repulsion across disconnected and differently anchored node groups", async () => {
+test("legacy Orb drag keeps many-body repulsion local", async () => {
   const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
-  assert.match(source, /DRAG_GLOBAL_REPULSION_DISTANCE\s*=\s*1_000_000_000/);
+  assert.doesNotMatch(source, /DRAG_GLOBAL_REPULSION_DISTANCE/);
+  assert.doesNotMatch(source, /globalDrag/);
+  assert.match(source, /distanceMax: dense \? 1800 : 3200/);
   assert.match(
     source,
-    /function forceLayoutOptions\([\s\S]*\{ globalDrag = false \} = \{\}[\s\S]*manyBody:/,
-  );
-  assert.match(
-    source,
-    /distanceMax: globalDrag[\s\S]*DRAG_GLOBAL_REPULSION_DISTANCE[\s\S]*dense[\s\S]*1800[\s\S]*3200/,
-  );
-  assert.match(
-    source,
-    /forceLayoutOptions\(forceNodeCount, request\.alphaTarget, request\.reheat, \{[\s\S]*globalDrag: request\.reason === "drag"/,
+    /forceLayoutOptions\(forceNodeCount, request\.alphaTarget, request\.reheat\)/,
   );
   assert.match(source, /collision:[\s\S]*radius: dense \? 30 : 42/);
 });
