@@ -23,9 +23,10 @@ import {
   worldPlaceStyle,
 } from "../../src/layout/world-graph-style.ts";
 import {
-  directedEdgeArrowhead,
-  edgeMidpoint,
+  directedEdgePathArrowhead,
+  edgePathMidpoint,
   medianNearestPlaceMeters,
+  relationshipEdgePath,
   selectPrioritizedLabels,
   typicalLocalOffsetMeters,
   WORLD_CLUSTER_MERGE_PX,
@@ -175,7 +176,7 @@ interface DeckWorldRelationshipDatum {
   readonly targetInstanceId: WorldInstanceId;
   readonly sourceEntityId: EntityId;
   readonly targetEntityId: EntityId;
-  readonly path: readonly [WorldRenderPosition, WorldRenderPosition];
+  readonly path: readonly WorldRenderPosition[];
   readonly selected: boolean;
   /** Incident to the selected/hovered node, or endpoint of the selected edge. */
   readonly emphasized: boolean;
@@ -902,11 +903,20 @@ function entityDatums(
   };
 }
 
+function worldPathEquals(
+  left: readonly WorldRenderPosition[],
+  right: readonly WorldRenderPosition[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((position, index) => positionEquals(position, right[index]!))
+  );
+}
+
 function relationshipDatumUnchanged(
   previous: DeckWorldRelationshipDatum,
   edge: WorldProjection["edges"][number],
-  source: WorldRenderPosition,
-  target: WorldRenderPosition,
+  path: readonly WorldRenderPosition[],
   selected: boolean,
   emphasized: boolean,
 ): boolean {
@@ -918,8 +928,7 @@ function relationshipDatumUnchanged(
     previous.label === edge.label &&
     previous.sourceInstanceId === edge.sourceInstanceId &&
     previous.targetInstanceId === edge.targetInstanceId &&
-    positionEquals(previous.path[0], source) &&
-    positionEquals(previous.path[1], target)
+    worldPathEquals(previous.path, path)
   );
 }
 
@@ -940,6 +949,30 @@ function relationshipDatums(
 } {
   const byId = new Map<RelationshipId, DeckWorldRelationshipDatum>();
   const result: DeckWorldRelationshipDatum[] = [];
+  const groups = new Map<string, WorldProjection["edges"][number][]>();
+  for (const edge of projection.edges) {
+    const sourceKey = String(edge.sourceInstanceId);
+    const targetKey = String(edge.targetInstanceId);
+    const pair =
+      sourceKey.localeCompare(targetKey) <= 0
+        ? JSON.stringify([sourceKey, targetKey])
+        : JSON.stringify([targetKey, sourceKey]);
+    const group = groups.get(pair);
+    if (group) group.push(edge);
+    else groups.set(pair, [edge]);
+  }
+  const lanes = new Map<RelationshipId, number>();
+  for (const group of groups.values()) {
+    group.sort((left, right) => String(left.id).localeCompare(String(right.id)));
+    if (group.length === 1) {
+      lanes.set(group[0]!.id, 0);
+      continue;
+    }
+    group.forEach((edge, index) => {
+      const magnitude = Math.floor(index / 2) + 1;
+      lanes.set(edge.id, index % 2 === 0 ? -magnitude : magnitude);
+    });
+  }
 
   for (const edge of projection.edges) {
     const source = index.positions.get(edge.sourceInstanceId);
@@ -950,9 +983,18 @@ function relationshipDatums(
 
     const selected = selection?.kind === "relationship" && selection.id === edge.id;
     const emphasized = emphasizedRelationshipIds?.has(edge.id) === true;
+    const lane = lanes.get(edge.id) ?? 0;
+    const canonicalForward =
+      String(edge.sourceInstanceId).localeCompare(String(edge.targetInstanceId)) <= 0;
+    const canonicalPath = relationshipEdgePath(
+      canonicalForward ? source : target,
+      canonicalForward ? target : source,
+      lane,
+    );
+    const path = canonicalForward ? canonicalPath : Object.freeze([...canonicalPath].reverse());
     const prior = previous.get(edge.id);
     const datum =
-      prior && relationshipDatumUnchanged(prior, edge, source, target, selected, emphasized)
+      prior && relationshipDatumUnchanged(prior, edge, path, selected, emphasized)
         ? prior
         : Object.freeze({
             kind: "relationship" as const,
@@ -962,10 +1004,7 @@ function relationshipDatums(
             targetInstanceId: edge.targetInstanceId,
             sourceEntityId,
             targetEntityId,
-            path: Object.freeze([source, target]) as readonly [
-              WorldRenderPosition,
-              WorldRenderPosition,
-            ],
+            path,
             selected,
             emphasized,
             temporalWeight: edge.temporalWeight,
@@ -1021,7 +1060,7 @@ function directionDatums(
       result.push(prior);
       continue;
     }
-    const path = directedEdgeArrowhead(edge.path[0], edge.path[1]);
+    const path = directedEdgePathArrowhead(edge.path);
     if (!path) continue;
     const datum: DeckWorldDirectionDatum = Object.freeze({
       kind: "relationship-direction",
@@ -1088,6 +1127,8 @@ export const WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM = 6;
  * Presentation only: logical activation remains immediate.
  */
 export const WORLD_TEMPORAL_RELATION_TRANSITION_MS = 3_000;
+/** Path topology moves quickly enough to explain parallel-edge fan-out without snapping. */
+export const WORLD_RELATION_PATH_TRANSITION_MS = 600;
 
 function temporalRelationEasing(t: number): number {
   return t * t * (3 - 2 * t);
@@ -1404,7 +1445,7 @@ function labelDatums(input: {
   for (const relationship of relationships) {
     const text = relationship.label ?? "";
     const emphasized = pinnedRelationship(relationship);
-    const position = edgeMidpoint(relationship.path[0], relationship.path[1]);
+    const position = edgePathMidpoint(relationship.path);
     const key = `relationship:${relationship.relationshipId}`;
     emit(
       key,
@@ -2736,9 +2777,7 @@ export class DeckWorldSurface implements WorldSurface {
       const previous = this.#temporalRelationshipState.get(relationship.relationshipId);
       if (!previous || !previous.temporalActive) temporalChanged = true;
       if (
-        !previous ||
-        !positionEquals(previous.edge.path[0], relationship.path[0]) ||
-        !positionEquals(previous.edge.path[1], relationship.path[1])
+        !previous || !worldPathEquals(previous.edge.path, relationship.path)
       ) {
         pathChanged = true;
       }
@@ -3007,6 +3046,14 @@ export class DeckWorldSurface implements WorldSurface {
           );
         },
         transitions: {
+          ...(prefersReducedMotion()
+            ? {}
+            : {
+                getPath: {
+                  duration: WORLD_RELATION_PATH_TRANSITION_MS,
+                  easing: temporalRelationEasing,
+                },
+              }),
           getWidth: {
             duration: WORLD_TEMPORAL_RELATION_TRANSITION_MS,
             easing: temporalRelationEasing,
