@@ -536,7 +536,7 @@ test("coarse-pointer timeline controls and ranges retain a 44 CSS px interaction
   );
   assert.match(
     css,
-    /@media \(pointer: coarse\)[\s\S]*timeline-focus-actions \.button[\s\S]*min-height:\s*44px/,
+    /@media \(pointer: coarse\)[\s\S]*\.timeline-local-button[\s\S]*inline-size:\s*44px[\s\S]*block-size:\s*44px/,
   );
   assert.match(
     css,
@@ -560,7 +560,7 @@ test("coarse-pointer timeline controls and ranges retain a 44 CSS px interaction
   );
 });
 
-test("focused event popover keeps event semantics compact and image controls dot-only", async () => {
+test("focused event detail keeps event semantics compact and image controls dot-only", async () => {
   const [source, cssSource, fictionDocs, architectureDocs] = await Promise.all([
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
