@@ -239,13 +239,28 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       await page.goto("/");
       await ensureTimelineOrientation(page, orientation);
 
+      const stage = page.locator("#presentation-stage");
+      const baselineStage = await stage.boundingBox();
+      expect(baselineStage).not.toBeNull();
+      if (!baselineStage) throw new Error("Presentation stage has no live bounds.");
+
       await page.locator("#editor-toggle").click();
-      await expectInsideViewport(page.locator("#control-panel"), viewport);
+      const editorBox = await expectInsideViewport(page.locator("#control-panel"), viewport);
+      if (viewport.width >= 760) {
+        expect(editorBox.width).toBeLessThan(viewport.width * 0.6);
+      } else {
+        expect(editorBox.width).toBeGreaterThan(viewport.width * 0.9);
+      }
       await page.locator("#control-panel-close").click();
 
       await page.locator("#timeline-browser-toggle").click();
       await expectInsideViewport(page.locator("#timeline-browser-sheet"), viewport);
       await expectInsideViewport(page.locator("#timeline-browser-close"), viewport);
+      const browserStage = await stage.boundingBox();
+      expect(browserStage).not.toBeNull();
+      if (!browserStage) throw new Error("Presentation stage disappeared under Browse.");
+      expect(Math.abs(browserStage.width - baselineStage.width)).toBeLessThanOrEqual(2);
+      expect(Math.abs(browserStage.height - baselineStage.height)).toBeLessThanOrEqual(2);
       await page.locator("#timeline-browser-close").click();
 
       const projectButton = page.locator("#project-menu-toggle");
@@ -261,12 +276,25 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       await viewButton.click();
       const viewControls = page.locator("#timeline-view-toolbar:popover-open");
       const viewControlsBox = await expectInsideViewport(viewControls, viewport);
-      await expect(viewControls).toHaveAttribute("data-anchor-placement", "above");
+      await expect(viewControls).toHaveAttribute(
+        "data-anchor-placement",
+        /timeline-(?:below|left)/,
+      );
 
-      const dockBox = await page.locator(".app-tool-dock").boundingBox();
-      expect(dockBox).not.toBeNull();
-      if (!dockBox) throw new Error("App tool dock has no live bounds.");
-      expect(viewControlsBox.y + viewControlsBox.height).toBeLessThanOrEqual(dockBox.y - 4);
+      const viewButtonBox = await viewButton.boundingBox();
+      expect(viewButtonBox).not.toBeNull();
+      if (!viewButtonBox) throw new Error("Timeline View invoker has no live bounds.");
+      const inlineGap = Math.max(
+        0,
+        viewButtonBox.x - (viewControlsBox.x + viewControlsBox.width),
+        viewControlsBox.x - (viewButtonBox.x + viewButtonBox.width),
+      );
+      const blockGap = Math.max(
+        0,
+        viewButtonBox.y - (viewControlsBox.y + viewControlsBox.height),
+        viewControlsBox.y - (viewButtonBox.y + viewButtonBox.height),
+      );
+      expect(Math.min(inlineGap, blockGap)).toBeLessThanOrEqual(12);
 
       await page.keyboard.press("Escape");
       await expect(viewButton).toHaveAttribute("aria-expanded", "false");
