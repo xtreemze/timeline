@@ -369,6 +369,9 @@ const els = {
   browserStoryCount: requiredElement<HTMLElement>("#browser-story-count"),
   viewControls: requiredElement<HTMLElement>("#timeline-view-toolbar"),
   viewControlsToggle: requiredElement<HTMLButtonElement>("#timeline-view-controls-toggle"),
+  focusPrev: requiredElement<HTMLButtonElement>("#timeline-focus-prev"),
+  focusNext: requiredElement<HTMLButtonElement>("#timeline-focus-next"),
+  focusEdit: requiredElement<HTMLButtonElement>("#timeline-focus-edit"),
   loadSample: requiredElement<HTMLButtonElement>("#load-sample"),
   importJson: requiredElement<HTMLInputElement>("#import-json"),
   importInterchange: requiredElement<HTMLInputElement>("#import-interchange"),
@@ -1733,6 +1736,7 @@ function syncApplicationSurfaces() {
 
   temporalGraphView?.setPresentationMode?.(presentationModeActive());
   syncContextualPresentationPanels();
+  syncTimelineContextControls();
   schedulePresentationGeometryRefresh({ recenterGraph: true });
 }
 
@@ -1744,6 +1748,17 @@ function closeLargeUtilitySurfaces(except = "") {
 
 function closeFocusedEventForUtility() {
   if (timelineView?.hasFocusedItem?.()) timelineView.closeFocus();
+}
+
+function syncTimelineContextControls() {
+  const focused = Boolean(timelineView?.hasFocusedItem?.());
+  const navigation = focused ? timelineView?.focusNavigationState?.() : null;
+  els.focusPrev.hidden = !focused;
+  els.focusNext.hidden = !focused;
+  els.focusEdit.hidden = !focused;
+  els.focusPrev.disabled = !focused || navigation?.previous !== true;
+  els.focusNext.disabled = !focused || navigation?.next !== true;
+  els.focusEdit.disabled = !focused || navigation?.editable !== true;
 }
 
 function setEditorSurfaceOpen(open) {
@@ -1764,7 +1779,6 @@ function setBrowserSurfaceOpen(open) {
   if (ui.browserOpen) {
     closeLargeUtilitySurfaces("browser");
     closeProjectMenu();
-    closeFocusedEventForUtility();
   }
   syncApplicationSurfaces();
   if (ui.browserOpen) {
@@ -4448,11 +4462,24 @@ els.panelOpeners.forEach((button) => {
 els.controlPanelClose?.addEventListener("click", () => setEditorSurfaceOpen(false));
 els.browserToggle?.addEventListener("click", () => setBrowserSurfaceOpen(!ui.browserOpen));
 els.browserClose?.addEventListener("click", () => setBrowserSurfaceOpen(false));
+els.focusPrev.addEventListener("click", () => {
+  advancePresentation(-1);
+  syncTimelineContextControls();
+});
+els.focusNext.addEventListener("click", () => {
+  advancePresentation(1);
+  syncTimelineContextControls();
+});
+els.focusEdit.addEventListener("click", () => {
+  const id = timelineView?.focusedItemId?.();
+  if (!id) return;
+  setEditorSurfaceOpen(true);
+  beginItemEdit(id);
+});
 els.viewControlsToggle?.addEventListener("click", () => {
   if (viewControlsAreOpen()) return;
   closeLargeUtilitySurfaces("view");
   closeProjectMenu();
-  closeFocusedEventForUtility();
   syncApplicationSurfaces();
 });
 els.viewControls?.addEventListener("beforetoggle", (event) => {
@@ -5265,11 +5292,13 @@ els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
   focusedGraphContextAvailable = focused && Boolean(temporalGraphView?.hasContext?.());
   temporalGraphView?.setPresentationMode?.(presentationModeActive());
   syncContextualPresentationPanels();
+  syncTimelineContextControls();
   schedulePresentationGeometryRefresh({ recenterGraph: true });
 });
 
 els.timelineViewRoot.addEventListener("timelinefocusrender", () => {
   syncContextualPresentationPanels();
+  syncTimelineContextControls();
   schedulePresentationGeometryRefresh({ recenterGraph: true });
 });
 
