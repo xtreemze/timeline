@@ -7,9 +7,14 @@ import {
 } from "../../src/interaction/world-touch-hold.ts";
 import { fitWorldCamera, globeOverviewCamera } from "../../src/layout/world-camera-fit.ts";
 import {
-  interpolateClusterPosition,
-  WORLD_CLUSTER_FORCE_TRANSITION_MS,
-  worldClusterExpansionProgress,
+  WORLD_CLUSTER_EDGE_RELEASE_MS,
+  WORLD_CLUSTER_SETTLE_MS,
+  type WorldClusterLifecyclePhase,
+  worldClusterMutesMembers,
+  worldClusterShowsActiveEdges,
+  worldClusterShowsMembers,
+  worldClusterShowsReleasingEdges,
+  worldClusterWantsCollapsed,
 } from "../../src/layout/world-cluster-transition.ts";
 import {
   resolveWorldRenderPosition,
@@ -464,57 +469,36 @@ export function clusterEntityDatumsByPlace(
   return Object.freeze(result);
 }
 
-interface PlaceClusterTransitionDatums {
-  readonly clusters: readonly DeckWorldClusterDatum[];
-  readonly members: readonly DeckWorldEntityDatum[];
-  readonly loose: readonly DeckWorldEntityDatum[];
+interface PlaceClusterMembership {
   readonly memberIds: ReadonlySet<WorldInstanceId>;
+  readonly placeIds: readonly PlaceId[];
 }
 
 /**
- * Retains the force-resolved target positions while moving every clustered
- * member along the exact reversible path to/from its place-cluster origin.
- * Force state is never discarded merely because the overview hides members.
+ * Identifies the canonical members owned by multi-entity place groups.
+ * Positions are intentionally untouched: D3 force is the only mechanism
+ * allowed to move members into or out of the place cluster.
  */
-function placeClusterTransitionDatums(
-  entities: readonly DeckWorldEntityDatum[],
+function placeClusterMembership(
   clustered: readonly DeckWorldEntityRenderDatum[],
-  expansion: number,
-): PlaceClusterTransitionDatums {
-  const originByMember = new Map<WorldInstanceId, WorldRenderPosition>();
-  const clusters: DeckWorldClusterDatum[] = [];
+  instances: readonly ProjectedWorldInstance[],
+): PlaceClusterMembership {
+  const memberIds = new Set<WorldInstanceId>();
   for (const datum of clustered) {
     if (datum.kind !== "cluster") continue;
-    clusters.push(datum);
-    for (const member of datum.clusterMembers) {
-      originByMember.set(member.worldInstanceId, datum.position);
-    }
+    for (const member of datum.clusterMembers) memberIds.add(member.worldInstanceId);
   }
 
-  const members: DeckWorldEntityDatum[] = [];
-  const loose: DeckWorldEntityDatum[] = [];
-  for (const entity of entities) {
-    const origin = originByMember.get(entity.worldInstanceId);
-    if (!origin) {
-      loose.push(entity);
-      continue;
-    }
-    const position = interpolateClusterPosition(origin, entity.position, expansion);
-    members.push(
-      positionEquals(position, entity.position)
-        ? entity
-        : Object.freeze({
-            ...entity,
-            position,
-          }),
-    );
+  const placeIds = new Set<PlaceId>();
+  for (const instance of instances) {
+    if (!memberIds.has(instance.id)) continue;
+    const placeId = instance.geographicAnchors[0]?.placeId;
+    if (placeId) placeIds.add(placeId);
   }
 
   return Object.freeze({
-    clusters: Object.freeze(clusters),
-    members: Object.freeze(members),
-    loose: Object.freeze(loose),
-    memberIds: new Set(originByMember.keys()),
+    memberIds,
+    placeIds: Object.freeze([...placeIds].sort((a, b) => String(a).localeCompare(String(b)))),
   });
 }
 
