@@ -2667,7 +2667,6 @@ export class DeckWorldSurface implements WorldSurface {
           targetEntityId: datum.targetEntityId,
         }),
       );
-    const hiddenInstances = this.#hiddenClusterInstanceIds();
     const entities = entityDatums(
       this.#projection.instances,
       this.#selection,
