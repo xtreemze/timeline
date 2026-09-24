@@ -1983,6 +1983,7 @@ export class DeckWorldSurface implements WorldSurface {
           this.#autoFitted = false;
           this.#camera = next;
           this.#syncSpatialMode();
+          this.#syncClusterLifecycle();
           // The camera is controlled (`viewState` prop): hand deck the new
           // state or the globe snaps back and cannot be rotated or panned.
           if (this.#zoomNeedsRender()) this.#render(true);
@@ -2221,6 +2222,127 @@ export class DeckWorldSurface implements WorldSurface {
     return region;
   }
 
+  setClusterForceSink(sink: DeckWorldClusterForceSink | null): void {
+    this.#assertAlive();
+    this.#clusterForceSink = sink;
+    this.#syncClusterLifecycle();
+    if (!sink) return;
+    sink.setClusteredPlaceIds(
+      this.#clusterPhase === "collapsing" || this.#clusterPhase === "collapsed"
+        ? this.#clusterPlaceIds
+        : Object.freeze([]),
+    );
+  }
+
+  #clearClusterTimers(): void {
+    if (this.#clusterEdgeReleaseTimer !== null) {
+      globalThis.clearTimeout(this.#clusterEdgeReleaseTimer);
+      this.#clusterEdgeReleaseTimer = null;
+    }
+    if (this.#clusterSettleTimer !== null) {
+      globalThis.clearTimeout(this.#clusterSettleTimer);
+      this.#clusterSettleTimer = null;
+    }
+  }
+
+  #clusterablePlaceIds(): readonly PlaceId[] {
+    const counts = new Map<PlaceId, number>();
+    for (const instance of this.#projection.instances) {
+      const placeId = instance.geographicAnchors[0]?.placeId;
+      if (!placeId) continue;
+      counts.set(placeId, (counts.get(placeId) ?? 0) + 1);
+    }
+    return Object.freeze(
+      [...counts]
+        .filter(([, count]) => count > 1)
+        .map(([placeId]) => placeId)
+        .sort((left, right) => String(left).localeCompare(String(right))),
+    );
+  }
+
+  #sameClusterPlaces(placeIds: readonly PlaceId[]): boolean {
+    return (
+      placeIds.length === this.#clusterPlaceIds.length &&
+      placeIds.every((placeId, index) => placeId === this.#clusterPlaceIds[index])
+    );
+  }
+
+  #beginClusterCollapse(placeIds: readonly PlaceId[]): void {
+    this.#clearClusterTimers();
+    this.#clusterPlaceIds = Object.freeze([...placeIds]);
+    this.#clusterPhase = "releasing";
+
+    // Orb's topology contract: edges announce release before they stop
+    // constraining nodes. This timer stages topology; it never moves geometry.
+    this.#clusterEdgeReleaseTimer = globalThis.setTimeout(() => {
+      this.#clusterEdgeReleaseTimer = null;
+      if (this.#destroyed || this.#clusterPhase !== "releasing") return;
+      this.#clusterPhase = "collapsing";
+      this.#clusterForceSink?.setClusteredPlaceIds(this.#clusterPlaceIds);
+      this.#render();
+
+      this.#clusterSettleTimer = globalThis.setTimeout(
+        () => {
+          this.#clusterSettleTimer = null;
+          if (this.#destroyed || this.#clusterPhase !== "collapsing") return;
+          this.#clusterPhase = "collapsed";
+          this.#render();
+        },
+        Math.max(0, WORLD_CLUSTER_SETTLE_MS - WORLD_CLUSTER_EDGE_RELEASE_MS),
+      );
+    }, WORLD_CLUSTER_EDGE_RELEASE_MS);
+  }
+
+  #beginClusterExpansion(): void {
+    this.#clearClusterTimers();
+    this.#clusterPhase = "expanding";
+    this.#clusterForceSink?.setClusteredPlaceIds(Object.freeze([]));
+    this.#clusterSettleTimer = globalThis.setTimeout(() => {
+      this.#clusterSettleTimer = null;
+      if (this.#destroyed || this.#clusterPhase !== "expanding") return;
+      this.#clusterPhase = "expanded";
+      this.#clusterPlaceIds = Object.freeze([]);
+      this.#render();
+    }, WORLD_CLUSTER_EDGE_RELEASE_MS);
+  }
+
+  #syncClusterLifecycle(): void {
+    const placeIds = this.#clusterablePlaceIds();
+    if (placeIds.length === 0) {
+      if (this.#clusterPhase !== "expanded" && this.#clusterPhase !== "expanding") {
+        this.#beginClusterExpansion();
+      }
+      return;
+    }
+
+    const wantsCollapsed = worldClusterWantsCollapsed(
+      this.#camera.zoom,
+      CLUSTER_ZOOM_THRESHOLD,
+      this.#clusterPhase,
+    );
+
+    if (wantsCollapsed) {
+      if (
+        this.#clusterPhase === "expanded" ||
+        this.#clusterPhase === "expanding"
+      ) {
+        this.#beginClusterCollapse(placeIds);
+        return;
+      }
+      if (!this.#sameClusterPlaces(placeIds)) {
+        this.#clusterPlaceIds = Object.freeze([...placeIds]);
+        if (this.#clusterPhase === "collapsing" || this.#clusterPhase === "collapsed") {
+          this.#clusterForceSink?.setClusteredPlaceIds(this.#clusterPlaceIds);
+        }
+      }
+      return;
+    }
+
+    if (this.#clusterPhase !== "expanded" && this.#clusterPhase !== "expanding") {
+      this.#beginClusterExpansion();
+    }
+  }
+
   setNodeDragSink(sink: DeckWorldNodeDragSink | null): void {
     this.#assertAlive();
     this.#nodeDragSink = sink;
@@ -2235,6 +2357,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#assertAlive();
     this.#projection = projection;
     this.#autoFitCamera();
+    this.#syncClusterLifecycle();
     this.#render();
   }
 
@@ -2243,6 +2366,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#projection = applyWorldProjectionDelta(this.#projection, delta);
     // Force/layout deltas are derived presentation updates. Do not re-run
     // content fit or move the camera while nodes relax.
+    this.#syncClusterLifecycle();
     this.#render();
   }
 
@@ -2539,6 +2663,7 @@ export class DeckWorldSurface implements WorldSurface {
       true,
     );
     this.#clearTouchHoldTimer();
+    this.#clearClusterTimers();
     this.#touchHold.clear();
     this.#container.removeEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
     this.#container.removeEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
