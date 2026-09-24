@@ -18,10 +18,10 @@ test("world instance identity separates occurrence context from canonical entity
   assert.equal(stockholm, worldInstanceId("alice", "alice-in-stockholm"));
 });
 
-test("one canonical entity may have multiple immutable world instances", () => {
-  const stockholm = createProjectedWorldInstance({
+test("one canonical entity may carry multiple immutable geographic anchors", () => {
+  const alice = createProjectedWorldInstance({
     canonicalId: "alice",
-    occurrenceId: "alice-in-stockholm",
+    occurrenceIds: ["alice-in-stockholm", "alice-in-copenhagen"],
     geographicAnchors: [
       {
         placeId: "stockholm",
@@ -30,18 +30,6 @@ test("one canonical entity may have multiple immutable world instances", () => {
         certainty: 1,
         influence: 1,
       },
-    ],
-    temporalWeight: 1,
-    visualWeight: 0.8,
-    retained: false,
-    visualAltitude: 1200,
-    localOffset: { eastMeters: 20, northMeters: -10 },
-  });
-
-  const copenhagen = createProjectedWorldInstance({
-    canonicalId: "alice",
-    occurrenceId: "alice-in-copenhagen",
-    geographicAnchors: [
       {
         placeId: "copenhagen",
         longitude: 12.5683,
@@ -51,20 +39,23 @@ test("one canonical entity may have multiple immutable world instances", () => {
         influence: 0.85,
       },
     ],
-    temporalWeight: 0.75,
+    temporalWeight: 1,
     visualWeight: 1,
     retained: true,
+    visualAltitude: 1200,
+    localOffset: { eastMeters: 20, northMeters: -10 },
   });
 
-  assert.equal(stockholm.canonicalId, copenhagen.canonicalId);
-  assert.notEqual(stockholm.id, copenhagen.id);
-  assert.equal(stockholm.geographicAnchors[0].placeId, "stockholm");
-  assert.equal(copenhagen.geographicAnchors[0].placeId, "copenhagen");
-  assert.equal(Object.isFrozen(stockholm), true);
-  assert.equal(Object.isFrozen(stockholm.geographicAnchors), true);
-  assert.equal(Object.isFrozen(stockholm.geographicAnchors[0]), true);
+  assert.equal(alice.canonicalId, "alice");
+  assert.deepEqual(alice.occurrenceIds, ["alice-in-copenhagen", "alice-in-stockholm"]);
+  assert.deepEqual(
+    alice.geographicAnchors.map((anchor) => anchor.placeId),
+    ["stockholm", "copenhagen"],
+  );
+  assert.equal(Object.isFrozen(alice), true);
+  assert.equal(Object.isFrozen(alice.geographicAnchors), true);
+  assert.equal(Object.isFrozen(alice.geographicAnchors[0]), true);
 });
-
 test("spatial anchors validate geographic and evidentiary bounds", () => {
   assert.throws(
     () =>
