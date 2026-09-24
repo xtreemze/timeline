@@ -37,31 +37,30 @@ test("media stepping updates only focused presentation state", async () => {
     view,
     /stepFocusMedia\(delta: number\)[\s\S]*this\.focusMediaIndex[\s\S]*this\.renderFocus\(item\)/,
   );
-  assert.doesNotMatch(
-    view,
-    /stepFocusMedia\(delta: number\)[\s\S]{0,600}this\.render\(\)/,
-  );
+  assert.doesNotMatch(view, /stepFocusMedia\(delta: number\)[\s\S]{0,600}this\.render\(\)/);
 });
 
-
 test("retained event terminals preserve semantic media, tag icons, and connector weight", async () => {
-  const [view, css] = await Promise.all([
+  const [view, card, css] = await Promise.all([
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/timeline-event-card.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
 
-  assert.match(view, /timeline-event-art-image/);
-  assert.match(view, /timeline-event-icon-badge/);
-  assert.match(view, /primaryTag[\s\S]*iconName/);
-  assert.match(view, /class LuumEventCardElement extends LitElement/);
-  assert.match(view, /setSemanticItem\(item: TimelineItem\)/);
-  assert.match(view, /data-timeline-icon/);
-  assert.match(view, /this\.dataset\.connectorWeight/);
-  assert.match(view, /connectorWeight === "fine" \? 1 : item\.connectorWeight === "strong" \? 4 : 2/);
+  assert.match(card, /timeline-event-art-image/);
+  assert.match(card, /timeline-event-icon-badge/);
+  assert.match(card, /primaryTag[\s\S]*iconName/);
+  assert.match(card, /class LuumEventCardElement extends LitElement/);
+  assert.match(card, /setSemanticItem\(item: TimelineEventCardItem\)/);
+  assert.match(card, /data-timeline-icon/);
+  assert.match(card, /this\.dataset\.connectorWeight/);
+  assert.match(
+    view,
+    /connectorWeight === "fine" \? 1 : item\.connectorWeight === "strong" \? 4 : 2/,
+  );
   assert.match(css, /\.timeline-event-art-image/);
   assert.match(css, /\.timeline-event-icon-badge/);
 });
-
 
 test("timeline uses a Lit custom-element ownership boundary without reactive scene rendering", async () => {
   const [html, view] = await Promise.all([
@@ -79,7 +78,6 @@ test("timeline uses a Lit custom-element ownership boundary without reactive sce
   assert.match(view, /customElements\.define\("luum-timeline", LuumTimelineElement\)/);
 });
 
-
 test("retained event cards use Lit for semantic content but not interaction geometry", async () => {
   const [view, card] = await Promise.all([
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
@@ -88,7 +86,8 @@ test("retained event cards use Lit for semantic content but not interaction geom
 
   assert.match(card, /customElements\.define\("luum-event-card", LuumEventCardElement\)/);
   assert.match(view, /new LuumEventCardElement\(\)/);
-  assert.match(view, /contentRevision: this\.itemContentRevision\(item\)/);
+  assert.match(view, /contentRevision: ""/);
+  assert.match(view, /this\.updateRecordContent\(record\)/);
   assert.match(
     view,
     /if \(record\.contentRevision !== revision\)[\s\S]*node\.setSemanticItem\(item\)/,
@@ -114,9 +113,11 @@ test("world graph mounts behind a Lit lifecycle boundary", async () => {
   assert.match(source, /disconnectedCallback\(\)[\s\S]*destroy\(\)/);
 });
 
-
 test("Lit event card has no ambient Timeline globals", async () => {
-  const card = await readFile(new URL("../site/components/timeline-event-card.ts", import.meta.url), "utf8");
+  const card = await readFile(
+    new URL("../site/components/timeline-event-card.ts", import.meta.url),
+    "utf8",
+  );
   assert.doesNotMatch(card, /globalThis\.Timeline/);
   assert.match(card, /import \{ createIcon \} from "\.\.\/event-presentation\.ts"/);
 });
