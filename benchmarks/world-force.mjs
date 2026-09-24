@@ -47,6 +47,21 @@ function measure(fn, iterations) {
   };
 }
 
+function settleTicks(scene, maxTicks = 480) {
+  const simulation = new ReferenceWorldForceSimulation();
+  simulation.setScene(scene);
+  simulation.apply({ reason: "topology", energyTarget: 0.12, reheat: true });
+
+  let ticks = 0;
+  while (ticks < maxTicks && !simulation.getDiagnostics().settled) {
+    simulation.step(1000 / 60);
+    ticks += 1;
+  }
+  const settled = simulation.getDiagnostics().settled;
+  simulation.destroy();
+  return { ticks, settled, maxTicks };
+}
+
 function fixture(nodeCount, groupSize = 32) {
   const instances = [];
   const edges = [];
@@ -168,6 +183,8 @@ for (const nodeCount of sizes) {
   const diagnostics = simulation.getDiagnostics();
   simulation.destroy();
 
+  const settling = nodeCount <= 1_000 ? settleTicks(forceScene) : null;
+
   const dragSimulation = new ReferenceWorldForceSimulation();
   dragSimulation.setScene(forceScene);
   // Clear the scene-load publication so this measurement reflects only the
@@ -199,6 +216,7 @@ for (const nodeCount of sizes) {
     dragStep,
     dragChangedNodes,
     dagQuality,
+    settling,
     diagnostics,
   });
 }
