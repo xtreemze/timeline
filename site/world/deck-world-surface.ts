@@ -1624,16 +1624,23 @@ function withLabelPixelOffset(
   }) as DeckWorldLabelDatum;
 }
 
+interface WorldLabelPlacementViewport {
+  readonly width: number;
+  readonly height: number;
+  project(position: WorldRenderPosition): readonly [number, number] | null;
+}
+
 /**
- * Collision-aware screen-space placement. At working/overview zoom, labels
- * that cannot fit after trying eight positions may still be suppressed. At
- * detail zoom the semantic labels remain visible even when the scene is
- * intrinsically too dense to find a collision-free slot.
+ * Collision-aware screen-space placement. Production uses the active deck
+ * viewport projection so bearing, pitch, globe curvature, altitude and bounds
+ * all participate. Renderer-light test runtimes fall back to the deterministic
+ * lon/lat approximation.
  */
 function placeWorldLabelDatums(
   datums: readonly DeckWorldLabelDatum[],
   zoom: number,
   markerRadiusPx: (datum: DeckWorldLabelDatum) => number,
+  viewport?: WorldLabelPlacementViewport,
 ): readonly DeckWorldLabelDatum[] {
   const tierZoom = worldLabelTierFloor(zoom);
   const scale = (512 / 360) * 2 ** Math.max(0, tierZoom);
@@ -1671,26 +1678,51 @@ function placeWorldLabelDatums(
   for (const datum of datums) {
     const footprint = labelFootprint(datum);
     const latitudeScale = Math.max(0.2, Math.cos((datum.position[1] * Math.PI) / 180));
-    const anchorX = datum.position[0] * scale * latitudeScale;
-    const anchorY = -datum.position[1] * scale;
+    const fallbackAnchorX = datum.position[0] * scale * latitudeScale;
+    const fallbackAnchorY = -datum.position[1] * scale;
+    const projected = viewport?.project(datum.position) ?? null;
+    const anchorX = projected?.[0] ?? fallbackAnchorX;
+    const anchorY = projected?.[1] ?? fallbackAnchorY;
+    if (
+      viewport &&
+      (anchorX < 0 || anchorX > viewport.width || anchorY < 0 || anchorY > viewport.height)
+    ) {
+      continue;
+    }
     const candidates = labelOffsetCandidates(
       datum,
       footprint.width,
       footprint.height,
       markerRadiusPx(datum),
     );
+    const fittedOffset = (offset: readonly [number, number]): readonly [number, number] => {
+      if (!viewport) return offset;
+      const halfWidth = footprint.width / 2 + LABEL_PLACEMENT_PADDING_PX;
+      const halfHeight = footprint.height / 2 + LABEL_PLACEMENT_PADDING_PX;
+      const minX = Math.min(halfWidth, viewport.width / 2);
+      const maxX = Math.max(viewport.width - halfWidth, viewport.width / 2);
+      const minY = Math.min(halfHeight, viewport.height / 2);
+      const maxY = Math.max(viewport.height - halfHeight, viewport.height / 2);
+      const centerX = Math.max(minX, Math.min(maxX, anchorX + offset[0]));
+      const centerY = Math.max(minY, Math.min(maxY, anchorY + offset[1]));
+      return Object.freeze([centerX - anchorX, centerY - anchorY]);
+    };
+    const boxFor = (offset: readonly [number, number], padding = LABEL_PLACEMENT_PADDING_PX): Box => {
+      const centerX = anchorX + offset[0];
+      const centerY = anchorY + offset[1];
+      return {
+        left: centerX - footprint.width / 2 - padding,
+        right: centerX + footprint.width / 2 + padding,
+        top: centerY - footprint.height / 2 - padding,
+        bottom: centerY + footprint.height / 2 + padding,
+      };
+    };
     let chosen: readonly [number, number] | null = null;
     let chosenBox: Box | null = null;
 
-    for (const offset of candidates) {
-      const centerX = anchorX + offset[0];
-      const centerY = anchorY + offset[1];
-      const box: Box = {
-        left: centerX - footprint.width / 2 - LABEL_PLACEMENT_PADDING_PX,
-        right: centerX + footprint.width / 2 + LABEL_PLACEMENT_PADDING_PX,
-        top: centerY - footprint.height / 2 - LABEL_PLACEMENT_PADDING_PX,
-        bottom: centerY + footprint.height / 2 + LABEL_PLACEMENT_PADDING_PX,
-      };
+    for (const candidate of candidates) {
+      const offset = fittedOffset(candidate);
+      const box = boxFor(offset);
       const keys = cells(box);
       if (!keys.some((key) => grid.get(key)?.some((other) => overlaps(box, other)))) {
         chosen = offset;
@@ -1701,15 +1733,8 @@ function placeWorldLabelDatums(
 
     if (!chosen || !chosenBox) {
       if (zoom < LABEL_DETAIL_KEEP_ALL_ZOOM) continue;
-      chosen = candidates[0] ?? [0, 0];
-      const centerX = anchorX + chosen[0];
-      const centerY = anchorY + chosen[1];
-      chosenBox = {
-        left: centerX - footprint.width / 2,
-        right: centerX + footprint.width / 2,
-        top: centerY - footprint.height / 2,
-        bottom: centerY + footprint.height / 2,
-      };
+      chosen = fittedOffset(candidates[0] ?? [0, 0]);
+      chosenBox = boxFor(chosen, 0);
     }
 
     const placedDatum = withLabelPixelOffset(datum, chosen);
@@ -1734,6 +1759,7 @@ function labelDatums(input: {
   readonly previous: ReadonlyMap<string, DeckWorldLabelDatum>;
   readonly entityMarkerRadiusPx: (instanceId: WorldInstanceId) => number;
   readonly placeMarkerRadiusPx: (placeId: PlaceId) => number;
+  readonly viewport?: WorldLabelPlacementViewport;
 }): {
   readonly datums: readonly DeckWorldLabelDatum[];
   readonly byKey: Map<string, DeckWorldLabelDatum>;
@@ -1883,6 +1909,7 @@ function labelDatums(input: {
     ordered,
     input.zoom,
     (datum) => markerRadiusByKey.get(datum.key) ?? 0,
+    input.viewport,
   );
   const placedByKey = new Map(placed.map((datum) => [datum.key, datum] as const));
   for (const key of [...byKey.keys()]) {
