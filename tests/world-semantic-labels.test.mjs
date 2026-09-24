@@ -241,6 +241,21 @@ test("detail zoom repositions co-located semantic labels before hiding them", ()
   assert.equal(labels.props.getTextAnchor, "middle");
 });
 
+test("relationship predicate labels survive clustered overview presentation", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
+  surface.setProjection(directedProjection());
+
+  const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const relationshipLabels = labels.props.data.filter(
+    (datum) => datum.kind === "relationship-label",
+  );
+  assert.deepEqual(
+    relationshipLabels.map((datum) => labels.props.getText(datum)),
+    ["met"],
+  );
+});
+
 test("each rendered directed relationship has a visible marker preserving source/target identity", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
