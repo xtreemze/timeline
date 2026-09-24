@@ -153,7 +153,7 @@ export function validateRelationship(
   }
 
   const entityIds = new Set(entities.map((entity) => entity.id));
-  if (!entityIds.has(relationship.subjectId) || !entityIds.has(relationship.objectId)) {
+  if (!(entityIds.has(relationship.subjectId) && entityIds.has(relationship.objectId))) {
     return {
       valid: false,
       message: "Both relationship endpoints must reference existing canonical entities.",

@@ -6,5 +6,3 @@
 import { TimelineDateRangePicker } from './date-range-picker.ts';
 
 globalThis.TimelineDateRangePicker = TimelineDateRangePicker;
-
-export {};

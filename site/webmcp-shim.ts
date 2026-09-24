@@ -6,5 +6,3 @@
 import { TimelineWebMCP } from './webmcp.ts';
 
 globalThis.TimelineWebMCP = TimelineWebMCP;
-
-export {};

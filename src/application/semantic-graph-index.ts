@@ -69,7 +69,7 @@ function buildState(project: CanonicalProject): IndexState {
     if (relationship.subjectId === relationship.objectId) {
       throw new Error("A canonical relationship cannot target its source entity.");
     }
-    if (!entities.has(relationship.subjectId) || !entities.has(relationship.objectId)) {
+    if (!(entities.has(relationship.subjectId) && entities.has(relationship.objectId))) {
       throw new Error("Both relationship endpoints must reference existing canonical entities.");
     }
     const predicateValidation = validateActionPredicate(relationship.predicate);

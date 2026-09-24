@@ -6,5 +6,3 @@
 import { TimelinePresentation } from './event-presentation.ts';
 
 globalThis.TimelinePresentation = TimelinePresentation;
-
-export {};

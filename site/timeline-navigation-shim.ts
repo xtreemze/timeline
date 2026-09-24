@@ -6,5 +6,3 @@
 import { TimelineNavigation } from './timeline-navigation.ts';
 
 globalThis.TimelineNavigation = TimelineNavigation;
-
-export {};

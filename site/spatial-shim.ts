@@ -7,5 +7,3 @@
 import { TimelineSpatial } from './spatial.ts';
 
 globalThis.TimelineSpatial = TimelineSpatial;
-
-export {};
