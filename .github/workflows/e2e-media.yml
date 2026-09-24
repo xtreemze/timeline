@@ -40,7 +40,9 @@ on:
 
 concurrency:
   group: e2e-media-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Cancel stale PR evidence, but never cancel the active main run that Pages depends on.
+  # GitHub still keeps only the newest pending run in this concurrency group.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
