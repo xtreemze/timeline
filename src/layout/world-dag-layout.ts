@@ -617,6 +617,7 @@ function scaledCandidate(
 }
 
 function candidateScore(candidate: CandidateLayout): number {
+  if (candidate.targets.length === 0) return Number.POSITIVE_INFINITY;
   const crossings = candidate.crossingCount ?? 0;
   const aspect =
     Math.max(candidate.width, candidate.height) /
@@ -1008,7 +1009,7 @@ export function createWorldDagLayout(
     ),
     metrics: Object.freeze({
       placeCount: index.instancesByPlace.size,
-      nodeCount: targets.length,
+      nodeCount: stableNodeWeight,
       localEdgeCount,
       routedEdgeCount,
       crossingCount: hasUnknownCrossings ? null : totalCrossings,
