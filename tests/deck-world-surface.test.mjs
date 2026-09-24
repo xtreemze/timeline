@@ -151,10 +151,10 @@ function projection() {
 }
 
 test("world graph label scale matches sidebar reading typography", () => {
-  assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: false }), 16);
-  assert.equal(worldGraphLabelSize({ kind: "place-label", emphasized: false }), 16);
-  assert.equal(worldGraphLabelSize({ kind: "relationship-label", emphasized: false }), 16);
-  assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: true }), 19);
+  assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: false }), 18);
+  assert.equal(worldGraphLabelSize({ kind: "place-label", emphasized: false }), 18);
+  assert.equal(worldGraphLabelSize({ kind: "relationship-label", emphasized: false }), 18);
+  assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: true }), 21);
 });
 
 test("DeckWorldSurface constructs one globe view and controlled deck runtime", () => {
