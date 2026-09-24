@@ -1175,10 +1175,10 @@ function labelDatumUnchanged(
 /**
  * Semantic label LOD. Text comes only from renderer-neutral projection
  * metadata (instance/anchor/edge labels). A zoom-dependent budget limits
- * optional labels per kind, preferring higher visual weight; selected and
- * focused labels are always kept. While entities are clustered only pinned
- * entity labels are drawn, because individual positions are presentation-
- * merged into cluster glyphs.
+ * optional labels per kind, preferring higher visual weight; explicit focus
+ * may pin a label. Hover and selection are visual-only and never alter label
+ * membership or geometry. While entities are clustered individual labels are
+ * suppressed because their positions are presentation-merged into clusters.
  */
 const LABEL_HALO_PX = 3;
 /** Same family as the app shell (site/styles.css) instead of deck's monospace default. */
@@ -1447,7 +1447,7 @@ function labelDatums(input: {
   );
   for (const place of places) {
     const text = place.label ?? "";
-    const emphasized = place.selected || place.emphasized || focused("place", place.placeId);
+    const emphasized = focused("place", place.placeId);
     const key = `place:${place.placeId}`;
     emit(
       key,
@@ -1469,7 +1469,7 @@ function labelDatums(input: {
   }
 
   const pinnedEntity = (entity: DeckWorldEntityDatum) =>
-    entity.selected || entity.emphasized || focused("entity", entity.entityId);
+    focused("entity", entity.entityId);
   const entities = selectPrioritizedLabels(
     input.entities.filter((entity) => entity.label && !input.clustered),
     {
@@ -1504,8 +1504,6 @@ function labelDatums(input: {
   }
 
   const pinnedRelationship = (relationship: DeckWorldRelationshipDatum) =>
-    relationship.selected ||
-    relationship.emphasized ||
     focused("relationship", relationship.relationshipId);
   const relationships = selectPrioritizedLabels(
     input.relationships.filter((relationship) => relationship.label && !input.clustered),
@@ -3064,6 +3062,34 @@ export class DeckWorldSurface implements WorldSurface {
     const iconSource = gridClustered
       ? Object.freeze([] as DeckWorldEntityDatum[])
       : transitionEntities;
+
+    const labelInteractionKey = [
+      this.#selection?.kind ?? "",
+      this.#selection?.id ?? "",
+      this.#hoverSelection?.kind ?? "",
+      this.#hoverSelection?.id ?? "",
+      this.#focus?.kind ?? "",
+      this.#focus?.id ?? "",
+    ].join(":");
+    const labelInteractionEmphasized = (datum: DeckWorldLabelDatum): boolean => {
+      if (datum.kind === "place-label") {
+        return (
+          neighborhood.placeIds.has(datum.placeId) ||
+          (this.#focus?.kind === "place" && this.#focus.id === datum.placeId)
+        );
+      }
+      if (datum.kind === "relationship-label") {
+        return (
+          neighborhood.relationshipIds.has(datum.relationshipId) ||
+          (this.#focus?.kind === "relationship" && this.#focus.id === datum.relationshipId)
+        );
+      }
+      return (
+        neighborhood.entityIds.has(datum.entityId) ||
+        (this.#focus?.kind === "entity" && this.#focus.id === datum.entityId)
+      );
+    };
+
     const iconDatums = this.#runtime.createIconLayer
       ? selectPrioritizedLabels(iconSource, {
           budget:
@@ -3498,7 +3524,7 @@ export class DeckWorldSurface implements WorldSurface {
               getPosition: (datum: DeckWorldLabelDatum) => datum.position,
               getSize: worldGraphLabelSize,
               getColor: (datum: DeckWorldLabelDatum) => {
-                const base = datum.emphasized
+                const base = labelInteractionEmphasized(datum)
                   ? this.#theme.labelEmphasis
                   : datum.kind === "place-label"
                     ? this.#theme.labelPlace
@@ -3517,17 +3543,17 @@ export class DeckWorldSurface implements WorldSurface {
               getAlignmentBaseline: "center",
               getPixelOffset: labelPixelOffset,
               updateTriggers: {
-                getColor: [this.#palette, placeExpansion, gridClustered],
+                // Interaction updates invalidate color only. Position is
+                // already supplied by explicit cluster interpolation and must
+                // never get a second deck transition on hover/selection.
+                getColor: [
+                  this.#palette,
+                  placeExpansion,
+                  gridClustered,
+                  labelInteractionKey,
+                ],
               },
-              transitions: prefersReducedMotion()
-                ? undefined
-                : {
-                    getPosition: {
-                      duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
-                      easing: temporalRelationEasing,
-                    },
-                    getColor: 120,
-                  },
+              transitions: prefersReducedMotion() ? undefined : { getColor: 120 },
               // GlobeView culls back faces; billboarded glyph quads are
               // wound the other way and vanish without this. Labels draw
               // over marks (far-side labels are filtered out above) so
