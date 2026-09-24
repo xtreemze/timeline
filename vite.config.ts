@@ -16,6 +16,7 @@ export default defineConfig({
       },
       output: {
         codeSplitting: {
+          maxSize: 400_000,
           groups: [
             {
               name: "pdf-runtime",
