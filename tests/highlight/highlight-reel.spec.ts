@@ -264,7 +264,7 @@ async function desktopRoutine(page: Page, sceneName: string) {
     await expect(page.locator("#timeline-focus-evidence-panel")).toBeVisible();
     await expect(page.locator(".timeline-focus-evidence-card").first()).toBeVisible();
     await page.waitForTimeout(700);
-    await focus.getByRole("tab", { name: "Overview" }).click();
+    await focus.getByRole("tab", { name: "Context" }).click();
     await expect(page.locator("#timeline-focus-context-panel")).toBeVisible();
     await focus.locator(".timeline-focus-close").click();
     return;
@@ -329,7 +329,7 @@ async function mobileRoutine(page: Page, sceneName: string) {
     await expect(page.locator("#timeline-focus-evidence-panel")).toBeVisible();
     await expect(page.locator(".timeline-focus-evidence-card").first()).toBeVisible();
     await page.waitForTimeout(700);
-    await focus.getByRole("tab", { name: "Overview" }).tap();
+    await focus.getByRole("tab", { name: "Context" }).tap();
     await focus.locator(".timeline-focus-close").tap();
     return;
   }

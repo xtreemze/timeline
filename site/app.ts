@@ -369,6 +369,9 @@ const els = {
   browserStoryCount: requiredElement<HTMLElement>("#browser-story-count"),
   viewControls: requiredElement<HTMLElement>("#timeline-view-toolbar"),
   viewControlsToggle: requiredElement<HTMLButtonElement>("#timeline-view-controls-toggle"),
+  focusPrev: requiredElement<HTMLButtonElement>("#timeline-focus-prev"),
+  focusNext: requiredElement<HTMLButtonElement>("#timeline-focus-next"),
+  focusEdit: requiredElement<HTMLButtonElement>("#timeline-focus-edit"),
   loadSample: requiredElement<HTMLButtonElement>("#load-sample"),
   importJson: requiredElement<HTMLInputElement>("#import-json"),
   importInterchange: requiredElement<HTMLInputElement>("#import-interchange"),
@@ -716,6 +719,7 @@ function positionViewControls() {
     .querySelector<HTMLElement>(".timeline-project-heading")
     ?.getBoundingClientRect();
   const viewport = workspaceToolViewport();
+  const orientation = timelineView?.getOrientation?.() || "horizontal";
   const gap = 8;
   const edge = 8;
   const availableWidth = Math.max(1, viewport.width - edge * 2);
@@ -733,17 +737,48 @@ function positionViewControls() {
     y: triggerRect.top + triggerRect.height / 2,
   };
 
-  const candidates = [
-    {
-      id: "above",
-      rect: {
-        x: anchor.x - measuredWidth / 2,
-        y: dockRect.top - gap - measuredHeight,
-        width: Math.min(measuredWidth, Math.max(1, viewport.width - edge * 2)),
-        height: Math.min(measuredHeight, Math.max(1, dockRect.top - gap - (viewport.top + edge))),
-      },
-    },
-  ];
+  const candidates =
+    orientation === "vertical"
+      ? [
+          {
+            id: "timeline-left",
+            rect: {
+              x: triggerRect.left - gap - measuredWidth,
+              y: anchor.y - measuredHeight / 2,
+              width: measuredWidth,
+              height: measuredHeight,
+            },
+          },
+          {
+            id: "timeline-below",
+            rect: {
+              x: triggerRect.right - measuredWidth,
+              y: triggerRect.bottom + gap,
+              width: measuredWidth,
+              height: measuredHeight,
+            },
+          },
+        ]
+      : [
+          {
+            id: "timeline-below",
+            rect: {
+              x: triggerRect.right - measuredWidth,
+              y: triggerRect.bottom + gap,
+              width: measuredWidth,
+              height: measuredHeight,
+            },
+          },
+          {
+            id: "timeline-left",
+            rect: {
+              x: triggerRect.left - gap - measuredWidth,
+              y: triggerRect.top,
+              width: measuredWidth,
+              height: measuredHeight,
+            },
+          },
+        ];
 
   const snapshot = planWorkspacePlacement({
     viewport: {
@@ -782,27 +817,18 @@ function positionViewControls() {
   });
   const selected = snapshot.selected;
   if (!selected) return;
+  const selectedCandidate = candidates.find((candidate) => candidate.id === selected.id);
+  if (!selectedCandidate) return;
 
-  const primaryCandidate = candidates[0];
-  if (!primaryCandidate) return;
-
-  const boundedInlineSize = Math.floor(
-    Math.min(availableWidth, Math.max(1, primaryCandidate.rect.width)),
-  );
-  const boundedBlockSize = Math.floor(
-    Math.min(availableHeight, Math.max(1, primaryCandidate.rect.height)),
-  );
+  const boundedInlineSize = Math.floor(Math.min(availableWidth, Math.max(1, measuredWidth)));
+  const boundedBlockSize = Math.floor(Math.min(availableHeight, Math.max(1, measuredHeight)));
 
   els.viewControls.style.setProperty("--view-controls-inline-size", `${boundedInlineSize}px`);
   els.viewControls.style.setProperty("--view-controls-block-size", `${boundedBlockSize}px`);
-  // Inline size is authoritative over orientation-specific max-content rules.
   els.viewControls.style.width = `${boundedInlineSize}px`;
   els.viewControls.style.maxWidth = `${availableWidth}px`;
   els.viewControls.style.maxHeight = `${availableHeight}px`;
 
-  // Measure the actual border box after applying constraints. Flex content and
-  // native top-layer sizing may otherwise make the final box larger than the
-  // candidate rect used by the placement planner.
   const constrainedRect = els.viewControls.getBoundingClientRect();
   const actualInlineSize = Math.min(availableWidth, Math.max(1, constrainedRect.width));
   const actualBlockSize = Math.min(availableHeight, Math.max(1, constrainedRect.height));
@@ -810,8 +836,16 @@ function positionViewControls() {
   const minTop = viewport.top + edge;
   const maxLeft = Math.max(minLeft, viewport.left + viewport.width - edge - actualInlineSize);
   const maxTop = Math.max(minTop, viewport.top + viewport.height - edge - actualBlockSize);
-  const boundedLeft = Math.min(maxLeft, Math.max(minLeft, anchor.x - actualInlineSize / 2));
-  const boundedTop = Math.min(maxTop, Math.max(minTop, dockRect.top - gap - actualBlockSize));
+  const preferredLeft =
+    selectedCandidate.id === "timeline-left"
+      ? triggerRect.left - gap - actualInlineSize
+      : triggerRect.right - actualInlineSize;
+  const preferredTop =
+    selectedCandidate.id === "timeline-left"
+      ? anchor.y - actualBlockSize / 2
+      : triggerRect.bottom + gap;
+  const boundedLeft = Math.min(maxLeft, Math.max(minLeft, preferredLeft));
+  const boundedTop = Math.min(maxTop, Math.max(minTop, preferredTop));
 
   els.viewControls.dataset.anchorPlacement = selected.id;
   els.viewControls.dataset.placementValid = String(snapshot.fullySatisfiesConstraints);
@@ -1709,6 +1743,8 @@ function syncApplicationSurfaces() {
     els.browserSheet.hidden = !ui.browserOpen;
     els.browserSheet.setAttribute("aria-hidden", String(!ui.browserOpen));
   }
+  if (els.presentationStage) els.presentationStage.inert = Boolean(ui.browserOpen || editing);
+  if (els.appToolDock) els.appToolDock.inert = Boolean(ui.browserOpen);
   if (els.title) {
     els.title.readOnly = !editing;
     els.title.tabIndex = editing ? 0 : -1;
@@ -1733,6 +1769,7 @@ function syncApplicationSurfaces() {
 
   temporalGraphView?.setPresentationMode?.(presentationModeActive());
   syncContextualPresentationPanels();
+  syncTimelineContextControls();
   schedulePresentationGeometryRefresh({ recenterGraph: true });
 }
 
@@ -1744,6 +1781,17 @@ function closeLargeUtilitySurfaces(except = "") {
 
 function closeFocusedEventForUtility() {
   if (timelineView?.hasFocusedItem?.()) timelineView.closeFocus();
+}
+
+function syncTimelineContextControls() {
+  const focused = Boolean(timelineView?.hasFocusedItem?.());
+  const navigation = focused ? timelineView?.focusNavigationState?.() : null;
+  els.focusPrev.hidden = !focused;
+  els.focusNext.hidden = !focused;
+  els.focusEdit.hidden = !focused;
+  els.focusPrev.disabled = !focused || navigation?.previous !== true;
+  els.focusNext.disabled = !focused || navigation?.next !== true;
+  els.focusEdit.disabled = !focused || navigation?.editable !== true;
 }
 
 function setEditorSurfaceOpen(open) {
@@ -1764,7 +1812,6 @@ function setBrowserSurfaceOpen(open) {
   if (ui.browserOpen) {
     closeLargeUtilitySurfaces("browser");
     closeProjectMenu();
-    closeFocusedEventForUtility();
   }
   syncApplicationSurfaces();
   if (ui.browserOpen) {
@@ -4448,11 +4495,27 @@ els.panelOpeners.forEach((button) => {
 els.controlPanelClose?.addEventListener("click", () => setEditorSurfaceOpen(false));
 els.browserToggle?.addEventListener("click", () => setBrowserSurfaceOpen(!ui.browserOpen));
 els.browserClose?.addEventListener("click", () => setBrowserSurfaceOpen(false));
+els.browserSheet.addEventListener("click", (event) => {
+  if (event.target === els.browserSheet) setBrowserSurfaceOpen(false);
+});
+els.focusPrev.addEventListener("click", () => {
+  advancePresentation(-1);
+  syncTimelineContextControls();
+});
+els.focusNext.addEventListener("click", () => {
+  advancePresentation(1);
+  syncTimelineContextControls();
+});
+els.focusEdit.addEventListener("click", () => {
+  const id = timelineView?.focusedItemId?.();
+  if (!id) return;
+  setEditorSurfaceOpen(true);
+  beginItemEdit(id);
+});
 els.viewControlsToggle?.addEventListener("click", () => {
   if (viewControlsAreOpen()) return;
   closeLargeUtilitySurfaces("view");
   closeProjectMenu();
-  closeFocusedEventForUtility();
   syncApplicationSurfaces();
 });
 els.viewControls?.addEventListener("beforetoggle", (event) => {
@@ -5262,11 +5325,13 @@ els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
   focusedGraphContextAvailable = focused && Boolean(temporalGraphView?.hasContext?.());
   temporalGraphView?.setPresentationMode?.(presentationModeActive());
   syncContextualPresentationPanels();
+  syncTimelineContextControls();
   schedulePresentationGeometryRefresh({ recenterGraph: true });
 });
 
 els.timelineViewRoot.addEventListener("timelinefocusrender", () => {
   syncContextualPresentationPanels();
+  syncTimelineContextControls();
   schedulePresentationGeometryRefresh({ recenterGraph: true });
 });
 

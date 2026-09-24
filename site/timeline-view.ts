@@ -2796,6 +2796,19 @@ export class TimelineViewController {
     return this.focusedId;
   }
 
+  focusNavigationState(): { previous: boolean; next: boolean; editable: boolean } {
+    const ordered = [...this.items].sort(
+      (left, right) => left.start - right.start || left.id.localeCompare(right.id),
+    );
+    const currentIndex = ordered.findIndex((item) => item.id === this.focusedId);
+    const current = currentIndex >= 0 ? ordered[currentIndex] : null;
+    return {
+      previous: currentIndex > 0,
+      next: currentIndex >= 0 && currentIndex < ordered.length - 1,
+      editable: Boolean(current && current.editable !== false),
+    };
+  }
+
   setOrientation(orientation: string, options: { persist?: boolean; focus?: boolean } = {}): void {
     const normalized: Orientation =
       orientation === "vertical" || orientation === "portrait" ? "vertical" : "horizontal";
@@ -2987,42 +3000,6 @@ export class TimelineViewController {
       item.description || "No narrative description has been recorded for this event.";
     summary.append(description);
 
-    const ordered = [...this.items].sort(
-      (left, right) => left.start - right.start || left.id.localeCompare(right.id),
-    );
-    const currentIndex = ordered.findIndex((candidate) => candidate.id === item.id);
-    const actions = document.createElement("div");
-    actions.className = "timeline-focus-actions";
-    const previous = document.createElement("button");
-    previous.type = "button";
-    previous.className = "button icon-only timeline-focus-nav-prev";
-    previous.setAttribute("aria-label", "Previous event");
-    previous.setAttribute("title", "Previous event");
-    previous.textContent = "←";
-    previous.disabled = currentIndex <= 0;
-    previous.addEventListener("click", () => this.focusAdjacent(-1));
-    const next = document.createElement("button");
-    next.type = "button";
-    next.className = "button icon-only timeline-focus-nav-next";
-    next.setAttribute("aria-label", "Next event");
-    next.setAttribute("title", "Next event");
-    next.textContent = "→";
-    next.disabled = currentIndex < 0 || currentIndex >= ordered.length - 1;
-    next.addEventListener("click", () => this.focusAdjacent(1));
-    const edit = document.createElement("button");
-    edit.type = "button";
-    edit.className = "button secondary";
-    edit.textContent = "Edit event";
-    edit.addEventListener("click", () => {
-      this.root.dispatchEvent(
-        new CustomEvent("timelinefocusedit", { bubbles: true, detail: { id: item.id } }),
-      );
-      this.closeFocus();
-    });
-    actions.append(previous, next);
-    if (item.editable !== false) actions.append(edit);
-    summary.append(actions);
-
     const place = document.createElement("section");
     place.id = "timeline-focus-place-panel";
     place.className = "timeline-focus-section timeline-focus-place";
@@ -3169,7 +3146,7 @@ export class TimelineViewController {
     const overviewTab = document.createElement("button");
     overviewTab.type = "button";
     overviewTab.className = "timeline-focus-tab is-active";
-    overviewTab.textContent = "Overview";
+    overviewTab.textContent = "Context";
     overviewTab.setAttribute("role", "tab");
     overviewTab.setAttribute("aria-selected", "true");
     overviewTab.setAttribute(

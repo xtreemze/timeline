@@ -347,25 +347,20 @@ Collapsed chronology state:
 - minimal temporal label;
 - optional category/status affordance.
 
-Selecting one item is a deliberate viewing operation. The timeline remains the full viewport canvas and the event enters a bounded six-column top-layer composition. The editor is not part of this state. A horizontal timeline shifts toward the lower edge so detail can occupy the upper/opposite region; a vertical timeline shifts toward the right edge so detail can occupy the left/opposite region.
+Selecting one item is a deliberate viewing operation. Focus never replaces the spatial shell. Instead, the chronology becomes a persistent edge rail, the relation graph remains mounted in the remaining canvas, and focused detail becomes a bounded shell-owned surface placed opposite the timeline: above the graph when time is horizontal and to the left of the graph when time is vertical. The focused detail is not a browser top-layer popover, so DOM/top-layer order cannot make the graph or application chrome unexpectedly steal its interactions.
 
-Focus also owns a viewport contract. Opening focused detail zooms the chronology inward around the selected event instead of preserving a broad overview. The nearest preceding/following chronology items may remain as relative context when they fit inside that local frame, but distant neighbours never cause focus to zoom out. If the selected event is inside a collision cluster, the viewport zooms further until its projected terminal is unique when temporal separation permits it. Equal timestamps are a degenerate case: zoom may tighten their surrounding context, but coincident records remain lane-separated rather than pretending equal temporal coordinates can diverge. Previous/Next focus navigation carries the established local scale forward unless the next target needs additional collision separation.
+Focus owns a viewport contract. Opening focused detail zooms the chronology inward around the selected event instead of preserving a broad overview. The nearest preceding/following chronology items may remain as relative context when they fit inside that local frame, but distant neighbours never cause focus to zoom out. If the selected event is inside a collision cluster, the viewport zooms further until its projected terminal is unique when temporal separation permits it. Equal timestamps remain lane-separated rather than pretending equal temporal coordinates can diverge.
 
-Focused composition should be asymmetric and may include:
-- a dominant hero title representing the selected timeline event;
-- up to three photographs with compact pagination-dot slideshow controls and accessible alternative text; image captions/provenance remain metadata and do not overlay the hero;
-- the event's compact time/range label, with an explicit duration for ranged events, while the timeline itself remains the chronology;
-- semantic tags using icon + text + hue;
-- description/context;
-- place/location;
-- people/entities and relationship roles;
-- linked evidence and provenance;
-- integrity/custody/analysis data where relevant;
-- story memberships;
-- an explicit Edit action that is the only transition from focused viewing into mutation mode;
-- return-to-timeline navigation.
+Focused composition is content-first:
+- images and the hero title receive the strongest visual emphasis;
+- Context is the first detail tab and contains the narrative description plus compact place context;
+- Evidence is the second detail tab and can replace the contextual region without moving the timeline rail;
+- semantic tags, compact time/range information and provenance remain available without competing with the image/content hierarchy;
+- relationship exploration remains in the persistent graph rather than duplicating a second graph inside detail.
 
-The focused item must not mutate its temporal coordinate or chronology order. Escape, an explicit return control, or clicking the exposed timeline background outside the detail composition restores the chronology. Entering browser fullscreen can reorder the browser top layer, so a focused event's popover is explicitly restored after the fullscreen transition; fullscreen must never silently discard focused detail.
+Previous, Next, Edit and View are timeline-owned controls. They live with the chronology rather than inside the detail composition. Previous/Next preserve the focused local scale unless the next target requires additional collision separation. Edit remains the only transition from focused viewing into mutation mode. Moving these actions out of detail keeps the detail surface dedicated to understanding the selected occurrence and keeps navigation available in a consistent place even as Context/Evidence content changes.
+
+The focused item must not mutate its temporal coordinate or chronology order. Escape or an explicit return action restores the ordinary chronology. Fullscreen may recompose the same shell for the physical viewport, but it must preserve focused detail, timeline context, and graph continuity rather than depending on browser top-layer restoration.
 
 ## Stories and analytical layers
 
@@ -487,30 +482,21 @@ Physical screen orientation never rewrites the timeline orientation.
 
 ### Application-shell ownership
 
-Normal application mode distinguishes presentation overlays from workspace utilities. Event focus and compact View controls may overlay the presentation. Browse and Edit are viewport-contained utility surfaces: constrained screens temporarily layer them over the canvas, while wider screens progressively reserve workspace geometry.
+Normal application mode separates persistent application actions, timeline-owned controls, and temporary utility surfaces. None of these may silently resize the presentation merely because a panel opens.
 
-- On constrained screens, Browse and Edit are fixed, safe-area-aware panels bounded on every side by the visual viewport and the persistent footer app bar. Their content scrolls internally; the panel itself must never extend beyond the reachable viewport.
-- From the wider workspace breakpoint onward, Browse and Edit become vertical right-side workspace columns. Opening either column reduces the presentation-stage width and lets the existing resize pipeline reflow both timeline and graph geometry.
-- Utility content scrolls vertically only. Horizontal overflow is a layout defect: descendants must shrink, wrap, or switch to a narrower internal grid. Editor forms use their six-column grid when space permits and collapse to one-column field rows when the utility surface itself becomes narrow.
-- Closing Browse or Edit removes that reserved region and returns the full workspace to the presentation without discarding filter, tab or form state.
+- The global bottom app bar contains Project, Edit and Browse. These are application-level actions and remain in a stable physical footer regardless of chronology orientation.
+- View belongs to the timeline because orientation, semantic zoom, auto-advance and fullscreen primarily modify chronology/presentation behavior. Its invoker lives in a timeline-local toolbar and its popover is positioned from that invoker, not from the footer.
+- Focused Previous, Next and Edit actions join the timeline-local toolbar. They appear only while an occurrence is focused and remain outside the Context/Evidence detail surface.
+- Browse is always an overlay utility surface. Opening it never reserves a sidebar column or changes timeline/graph geometry. On phones it occupies the reachable viewport; on wider screens it provides a constrained right-side panel over a scrim. The overlay owns its stacking context and pointer interactions so content beneath cannot intercept input.
+- Edit is fullscreen on compact/mobile viewports because form density benefits from the available area. On wider viewports it becomes a bounded right-side sheet over the unchanged presentation rather than a full-width workspace or a layout-reserving column.
+- Utility content scrolls vertically inside its own surface. Horizontal overflow is a layout defect: descendants must shrink, wrap, or switch to a narrower internal grid.
 - Browse owns search, category filtering, empty-state explanation and the chronology list. Those are not repeated on the primary canvas.
-- Active Story navigation is a compact contextual mode overlay outside Browse, so story position/previous/next/exit remain available while the timeline is being read.
-- Item, Story, Category and Graph forms reuse the existing data model inside one editor surface with internal tabs; the global tool dock therefore exposes one Edit entry rather than duplicating editor tabs.
-- Viewing is the default application paradigm. Browse, Relations, View, event focus, graph inspection and fullscreen presentation are non-mutating.
-- Edit is the only supported transition into item/story/category/graph form mutation mode. Entering it closes event focus and other large viewing surfaces. The footer app bar keeps its stable four-action structure: Edit becomes Done, Browse and View remain visible but disabled, and Project remains fully available in either mode. Project-level lifecycle commands such as load, import, export and clear are not editor-form operations and must not require entering Edit first. Graph clicks cannot enter an editor while viewing.
-- The global application dock contains Project, Edit, Browse and View, using semantic icon + text pairs for recognition at touch and desktop distances.
-- Project/Edit/Browse/View share one persistent bottom footer app bar at every ordinary viewport size and in both view and edit modes; timeline orientation never moves or splits those application actions. Project and View popovers may recompose around their invokers, but both must remain clamped to the visual viewport.
-- The relation graph is a permanent workspace surface rather than a mode. It remains mounted opposite the edge-docked timeline in both ordinary and fullscreen presentation, including while focused event detail is open. Docking constrains only timeline thickness: a horizontal timeline always spans the full available width, and a vertical timeline always spans the full available height.
-- Timeline orientation, zoom, auto-advance and presentation controls are progressively disclosed in a compact View surface.
-- Initial presentation starts at the semantic isolated zoom target anchored to the first timeline item, keeping chronology legible while leaving the relation graph as much visual room as the docked layout permits. User-driven pan and zoom are preserved after initialization rather than being reapplied on rerender.
-- The semantic zoom slider follows the timeline axis: horizontal in landscape mode and vertically oriented in portrait mode, including matching pointer/touch direction and `aria-orientation`.
-- Project identity remains visible on the timeline rail as the title heading, while the Project action itself lives with Edit, Browse and View in the common footer app bar. Its native grouped Project popover opens inward from the footer action, remains in the top layer above any open editor surface, is constrained to the current Visual Viewport, and scrolls internally when vertical room is limited. Every Project menu command—load example, import, export, source navigation and clear project—remains available in both view and edit modes; destructive replacement/clear flows retain their explicit confirmation safeguards. Project-title mutation remains an editor concern. Import actions remain explicit buttons wired to hidden file inputs so every visible enabled menu command is keyboard-operable.
-- Edit, Browse, View controls, and focused event detail are mutually coordinated utility/overlay surfaces, but none owns relation-graph visibility. Browse and Edit overlay on constrained screens and reflow the workspace on wider screens; focused detail may still layer above the persistent graph.
-- With no events the timeline still renders its neutral axis; guidance for the empty project lives in Browse rather than replacing the workspace.
-
-Fullscreen targets `#presentation-stage`, not editor/browser/project surfaces. Browser fullscreen therefore naturally excludes application chrome and preserves the timeline-plus-focused-event presentation.
-
-Focus/unfocus changes use named Web View Transitions for both chronology and detail, and the transition update must synchronously render the post-focus timeline geometry before the new snapshot is captured. Transition types encode focus opening, closing, adjacent navigation, and timeline orientation: a horizontal/landscape chronology yields toward the lower edge while detail expands above it; a vertical/portrait chronology yields toward the right edge while detail expands to its left. Adjacent focus navigation follows the chronology axis (horizontal travel for landscape, vertical travel for portrait). Reduced-motion preferences bypass animated transitions.
+- Item, Story, Category and Graph forms reuse the existing data model inside one editor surface with internal tabs; the global app bar therefore exposes one Edit entry rather than duplicating editor tabs.
+- Viewing is the default application paradigm. Browse, View, event focus, graph inspection and fullscreen presentation are non-mutating.
+- Edit is the only supported transition into item/story/category/graph mutation mode. Entering it closes focused viewing and other large utilities, while Project lifecycle commands such as load, import, export and clear remain available without entering Edit first.
+- The relation graph is a permanent workspace surface rather than a mode. It remains mounted next to the edge-docked timeline in ordinary and fullscreen presentation, including while focused detail is open.
+- Project identity remains visible on the timeline rail. Project actions remain in the application footer; chronology controls remain on the chronology.
+- Every interactive mobile control follows the 44 CSS px coarse-pointer target floor, and utility/detail surfaces remain safe-area aware with no primary-document scrolling.
 
 ### Focused event presentation
 
