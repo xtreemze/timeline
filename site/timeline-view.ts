@@ -33,8 +33,8 @@ import {
   tickSceneKey,
   visibleIntervalAnchor,
 } from "../src/projection/temporal-scene.ts";
-import { TimelineClustering as clustering } from "./timeline-clustering.ts";
 import { LuumEventCardElement } from "./components/timeline-event-card.ts";
+import { TimelineClustering as clustering } from "./timeline-clustering.ts";
 import { TimelineMotion as motion } from "./timeline-motion.ts";
 
 const scale = globalThis.TimelineScale;
@@ -165,7 +165,6 @@ interface LastTouchTap {
   x: number;
   y: number;
 }
-
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
