@@ -492,7 +492,7 @@ test("activated touch long press directly drives the Orb simulator instead of de
   assert.match(bridge, /container\.setPointerCapture\?\.\(touchHold\.pointerId\)/);
   assert.match(
     bridge,
-    /touchHold\?\.activated[\s\S]*touchHold\.pointerId === event\.pointerId[\s\S]*touchGeometry\(event\)[\s\S]*simulator\.dragNode\(touchHold\.node\.getId\(\), geometry\.localPoint\)/,
+    /touchHold\?\.activated[\s\S]*touchHold\.pointerId === event\.pointerId[\s\S]*touchGeometry\(event\)[\s\S]*scheduleTouchDrag\(touchHold\.node\.getId\(\), geometry\.localPoint\)/,
   );
   assert.match(
     bridge,
@@ -607,7 +607,10 @@ test("touch camera navigation is not intercepted by Orb's D3 node-drag recognize
     bridge,
     /orb\.setRenderer\([\s\S]*removeOrbTouchDragListeners\(\);[\s\S]*orb\.setSettings/,
   );
-  assert.match(bridge, /simulator\.dragNode\(touchHold\.node\.getId\(\), geometry\.localPoint\)/);
+  assert.match(
+    bridge,
+    /function scheduleTouchDrag\(nodeId, localPoint\)[\s\S]*requestAnimationFrame\([\s\S]*flushPendingTouchDrag\(\)/,
+  );
 });
 
 test("active touch node drag blocks Orb camera movement at the event boundary", async () => {
@@ -615,7 +618,7 @@ test("active touch node drag blocks Orb camera movement at the event boundary", 
 
   assert.match(
     bridge,
-    /function onPointerMove\(event\)[\s\S]*touchHold\?\.activated[\s\S]*touchHold\.pointerId === event\.pointerId[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*simulator\.dragNode\(touchHold\.node\.getId\(\), geometry\.localPoint\)[\s\S]*return;[\s\S]*updateCameraGesture\(event\)/,
+    /function onPointerMove\(event\)[\s\S]*touchHold\?\.activated[\s\S]*touchHold\.pointerId === event\.pointerId[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*scheduleTouchDrag\(touchHold\.node\.getId\(\), geometry\.localPoint\)[\s\S]*return;[\s\S]*updateCameraGesture\(event\)/,
   );
   assert.match(
     bridge,
@@ -736,4 +739,57 @@ test("legacy Orb fallback keeps data synchronization enabled before manual force
     /Orb 1\.1\.0 only rebinds freshly loaded graph data into d3-force[\s\S]*isSimulatingOnDataUpdate:\s*true/,
   );
   assert.match(source, /isSimulatingOnSettingsUpdate:\s*false/);
+});
+
+
+test("graph interaction work is coalesced to the display frame", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(
+    bridge,
+    /function scheduleGraphRender\(\)[\s\S]*if \(graphRenderAnimationFrame\) return[\s\S]*requestAnimationFrame\([\s\S]*orb\.render\(\)/,
+  );
+  assert.match(bridge, /function applyCameraPan\([\s\S]*orb\.render\(\)[\s\S]*return true/);
+  assert.match(
+    bridge,
+    /function updateCameraGesture\([\s\S]*scheduleGraphRender\(\)[\s\S]*return true/,
+  );
+  assert.match(
+    bridge,
+    /function scheduleTouchDrag\(nodeId, localPoint\)[\s\S]*pendingTouchDrag = \{ nodeId, localPoint \}[\s\S]*if \(touchDragAnimationFrame\) return[\s\S]*requestAnimationFrame/,
+  );
+  assert.match(
+    bridge,
+    /function finishActiveTouchNodeDrag[\s\S]*cancelAnimationFrame\(touchDragAnimationFrame\)[\s\S]*flushPendingTouchDrag\(\)[\s\S]*simulator\.endDragNode/,
+  );
+});
+
+test("graph performance mode invalidates at the force and label thresholds", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(bridge, /FORCE_DENSE_NODE_THRESHOLD\s*=\s*1000/);
+  assert.match(bridge, /GRAPH_LABEL_NODE_THRESHOLD\s*=\s*1800/);
+  assert.match(
+    bridge,
+    /const forceDense = nodeCount >= FORCE_DENSE_NODE_THRESHOLD[\s\S]*const labelsEnabled = nodeCount < GRAPH_LABEL_NODE_THRESHOLD/,
+  );
+  assert.match(
+    bridge,
+    /const rendererType = wantsWebGL \? "webgl" : "canvas"[\s\S]*sizeClass = [\s\S]*forceDense \? "force-dense" : "force-normal"[\s\S]*labelsEnabled \? "labels" : "no-labels"/,
+  );
+  assert.match(
+    bridge,
+    /if \(rendererType !== lastRendererType\)[\s\S]*orb\.setRenderer\(rendererType\)/,
+  );
+  assert.match(bridge, /labelsIsEnabled:\s*labelsEnabled/);
+});
+
+test("WebGL capability probing is cached across graph performance updates", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(bridge, /let webGL2Support/);
+  assert.match(
+    bridge,
+    /function supportsWebGL2\(\)[\s\S]*webGL2Support !== undefined[\s\S]*canvas\.getContext\("webgl2"\)[\s\S]*return webGL2Support/,
+  );
 });
