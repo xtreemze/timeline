@@ -2746,7 +2746,7 @@ export class DeckWorldSurface implements WorldSurface {
     }
     if (!hasClusterablePlace) return 1;
 
-    // Before the force backend has emitted any local displacement, the
+    // Before the force backend has emitted local displacement, the
     // logical origin is exactly the place cluster. This makes the first
     // solved layout expand from that origin instead of popping into view.
     const typical = this.#typicalOffsetMeters();
