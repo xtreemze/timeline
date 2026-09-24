@@ -1,12 +1,31 @@
-import { coordSimplex, decrossTwoLayer, graphConnect, layeringLongestPath, sugiyama } from "d3-dag";
+import {
+  coordGreedy,
+  coordSimplex,
+  decrossOpt,
+  decrossTwoLayer,
+  graphConnect,
+  layeringLongestPath,
+  layeringSimplex,
+  sugiyama,
+} from "d3-dag";
 
-import type { PlaceId } from "../domain/ids.ts";
+import type { PlaceId, RelationshipId } from "../domain/ids.ts";
 import type {
+  ProjectedWorldEdge,
   ProjectedWorldInstance,
   SpatialAnchor,
   WorldInstanceId,
   WorldProjection,
 } from "../projection/world-projection.ts";
+
+export interface WorldDagLayoutNodeSize {
+  readonly widthMeters: number;
+  readonly heightMeters: number;
+}
+
+export interface WorldDagLayoutOptions {
+  readonly nodeSizes?: ReadonlyMap<WorldInstanceId, WorldDagLayoutNodeSize>;
+}
 
 export interface WorldDagLayoutTarget {
   readonly instanceId: WorldInstanceId;
@@ -15,24 +34,109 @@ export interface WorldDagLayoutTarget {
   readonly northMeters: number;
 }
 
-/**
- * A weak positional preference. Collision, semantic links, drag, and place
- * constraints remain free to move nodes away from the DAG target.
- */
-export const WORLD_DAG_TARGET_STRENGTH = 0.002;
-
-const DAG_COORDINATE_UNIT_METERS = 650;
-const DAG_TARGET_BASE_RADIUS_METERS = 900;
-const DAG_TARGET_RADIUS_PER_SQRT_NODE_METERS = 600;
-const DAG_TARGET_MAX_RADIUS_METERS = 6_000;
-const DAG_CACHE_LIMIT = 64;
-
-interface LocalDagEdge {
-  readonly sourceId: WorldInstanceId;
-  readonly targetId: WorldInstanceId;
+export interface WorldDagRoutePoint {
+  readonly eastMeters: number;
+  readonly northMeters: number;
 }
 
-const targetCache = new Map<string, readonly WorldDagLayoutTarget[]>();
+export interface WorldDagLayoutRoute {
+  readonly relationshipId: RelationshipId;
+  readonly placeId: PlaceId;
+  readonly sourceId: WorldInstanceId;
+  readonly targetId: WorldInstanceId;
+  readonly points: readonly WorldDagRoutePoint[];
+}
+
+export interface WorldDagLayoutMetrics {
+  readonly placeCount: number;
+  readonly nodeCount: number;
+  readonly localEdgeCount: number;
+  readonly routedEdgeCount: number;
+  readonly crossingCount: number | null;
+  readonly meanEdgeLengthMeters: number;
+  readonly minSeparationMeters: number | null;
+  readonly meanStableDisplacementMeters: number;
+  readonly algorithmCounts: Readonly<Record<string, number>>;
+}
+
+export interface WorldDagLayoutResult {
+  readonly targets: readonly WorldDagLayoutTarget[];
+  readonly routes: readonly WorldDagLayoutRoute[];
+  readonly metrics: WorldDagLayoutMetrics;
+}
+
+/**
+ * A structural positional preference. Geographic anchors, collision, semantic
+ * links and drag still own final motion; this force only biases the local
+ * equilibrium toward the layered organization.
+ */
+export const WORLD_DAG_TARGET_STRENGTH = 0.00125;
+
+const DAG_FALLBACK_NODE_SIZE_METERS = 720;
+const DAG_MIN_GAP_METERS = 180;
+const DAG_MAX_GAP_METERS = 900;
+const DAG_TARGET_BASE_RADIUS_METERS = 1_500;
+const DAG_TARGET_RADIUS_PER_SQRT_NODE_METERS = 900;
+const DAG_TARGET_MAX_RADIUS_METERS = 12_000;
+const DAG_CACHE_RETENTION_REVISIONS = 8;
+const EXACT_DECROSS_MAX_NODES = 8;
+const COMPARE_LAYERING_MAX_NODES = 24;
+const SIMPLEX_COORD_MAX_NODES = 64;
+const PAIRWISE_METRIC_MAX_NODES = 256;
+
+interface LocalDagEdge {
+  readonly relationshipId: RelationshipId;
+  readonly sourceId: WorldInstanceId;
+  readonly targetId: WorldInstanceId;
+  readonly temporalWeight: number;
+  readonly retained: boolean;
+}
+
+interface LayoutIndex {
+  readonly instancesByPlace: ReadonlyMap<PlaceId, readonly ProjectedWorldInstance[]>;
+  readonly edgesByPlace: ReadonlyMap<PlaceId, readonly ProjectedWorldEdge[]>;
+}
+
+interface RawTarget {
+  readonly id: string;
+  readonly eastMeters: number;
+  readonly northMeters: number;
+}
+
+interface RawRoute {
+  readonly relationshipId: RelationshipId;
+  readonly sourceId: WorldInstanceId;
+  readonly targetId: WorldInstanceId;
+  readonly points: readonly WorldDagRoutePoint[];
+}
+
+interface CandidateLayout {
+  readonly name: string;
+  readonly targets: readonly RawTarget[];
+  readonly routes: readonly RawRoute[];
+  readonly width: number;
+  readonly height: number;
+  readonly crossingCount: number | null;
+  readonly meanEdgeLengthMeters: number;
+  readonly minSeparationMeters: number | null;
+  readonly meanStableDisplacementMeters: number;
+}
+
+interface PlaceLayoutCache {
+  readonly topologyKey: string;
+  readonly result: {
+    readonly targets: readonly WorldDagLayoutTarget[];
+    readonly routes: readonly WorldDagLayoutRoute[];
+    readonly metrics: Omit<WorldDagLayoutMetrics, "placeCount" | "nodeCount" | "algorithmCounts"> & {
+      readonly algorithm: string;
+      readonly nodeCount: number;
+    };
+  };
+  readonly lastSeenRevision: number;
+}
+
+const placeCache = new Map<string, PlaceLayoutCache>();
+let layoutRevision = 0;
 
 function primaryAnchor(instance: ProjectedWorldInstance): SpatialAnchor | null {
   if (!instance.geographicAnchors.length) return null;
@@ -45,6 +149,64 @@ function primaryAnchor(instance: ProjectedWorldInstance): SpatialAnchor | null {
         String(left.placeId).localeCompare(String(right.placeId)),
     )[0] ?? null
   );
+}
+
+function buildLayoutIndex(projection: WorldProjection): LayoutIndex {
+  const mutableInstancesByPlace = new Map<PlaceId, ProjectedWorldInstance[]>();
+  const primaryPlaceByInstance = new Map<WorldInstanceId, PlaceId>();
+
+  for (const instance of projection.instances) {
+    const anchor = primaryAnchor(instance);
+    if (!anchor) continue;
+    primaryPlaceByInstance.set(instance.id, anchor.placeId);
+    const group = mutableInstancesByPlace.get(anchor.placeId);
+    if (group) group.push(instance);
+    else mutableInstancesByPlace.set(anchor.placeId, [instance]);
+  }
+
+  const mutableEdgesByPlace = new Map<PlaceId, ProjectedWorldEdge[]>();
+  for (const edge of projection.edges) {
+    if (
+      !edge.visible ||
+      edge.temporalWeight <= 0 ||
+      edge.sourceInstanceId === edge.targetInstanceId
+    ) {
+      continue;
+    }
+    const sourcePlace = primaryPlaceByInstance.get(edge.sourceInstanceId);
+    const targetPlace = primaryPlaceByInstance.get(edge.targetInstanceId);
+    if (!sourcePlace || sourcePlace !== targetPlace) continue;
+    const group = mutableEdgesByPlace.get(sourcePlace);
+    if (group) group.push(edge);
+    else mutableEdgesByPlace.set(sourcePlace, [edge]);
+  }
+
+  const instancesByPlace = new Map<PlaceId, readonly ProjectedWorldInstance[]>();
+  for (const [placeId, instances] of mutableInstancesByPlace) {
+    instancesByPlace.set(
+      placeId,
+      Object.freeze(
+        [...instances].sort((left, right) => String(left.id).localeCompare(String(right.id))),
+      ),
+    );
+  }
+
+  const edgesByPlace = new Map<PlaceId, readonly ProjectedWorldEdge[]>();
+  for (const [placeId, edges] of mutableEdgesByPlace) {
+    edgesByPlace.set(
+      placeId,
+      Object.freeze(
+        [...edges].sort(
+          (left, right) =>
+            right.temporalWeight - left.temporalWeight ||
+            Number(right.retained) - Number(left.retained) ||
+            String(left.id).localeCompare(String(right.id)),
+        ),
+      ),
+    );
+  }
+
+  return { instancesByPlace, edgesByPlace };
 }
 
 function reaches(
@@ -70,9 +232,14 @@ function reaches(
   return false;
 }
 
+/**
+ * Preserve the most temporally relevant directed relationships when a local
+ * semantic graph contains cycles. Lower-weight cycle-closing edges stay in
+ * the semantic/force graph; they are omitted only from this temporary DAG.
+ */
 function localAcyclicEdges(
-  projection: WorldProjection,
   nodeIds: ReadonlySet<WorldInstanceId>,
+  candidates: readonly ProjectedWorldEdge[],
 ): readonly LocalDagEdge[] {
   const adjacency = new Map<WorldInstanceId, Set<WorldInstanceId>>();
   const accepted: LocalDagEdge[] = [];
@@ -80,23 +247,8 @@ function localAcyclicEdges(
 
   for (const id of nodeIds) adjacency.set(id, new Set());
 
-  const candidates = projection.edges
-    .filter(
-      (edge) =>
-        edge.visible &&
-        edge.temporalWeight > 0 &&
-        edge.sourceInstanceId !== edge.targetInstanceId &&
-        nodeIds.has(edge.sourceInstanceId) &&
-        nodeIds.has(edge.targetInstanceId),
-    )
-    .sort(
-      (left, right) =>
-        String(left.sourceInstanceId).localeCompare(String(right.sourceInstanceId)) ||
-        String(left.targetInstanceId).localeCompare(String(right.targetInstanceId)) ||
-        String(left.id).localeCompare(String(right.id)),
-    );
-
   for (const edge of candidates) {
+    if (!nodeIds.has(edge.sourceInstanceId) || !nodeIds.has(edge.targetInstanceId)) continue;
     const pairKey = JSON.stringify([String(edge.sourceInstanceId), String(edge.targetInstanceId)]);
     if (acceptedPairs.has(pairKey)) continue;
     if (reaches(adjacency, edge.targetInstanceId, edge.sourceInstanceId)) continue;
@@ -105,8 +257,11 @@ function localAcyclicEdges(
     adjacency.get(edge.sourceInstanceId)?.add(edge.targetInstanceId);
     accepted.push(
       Object.freeze({
+        relationshipId: edge.id,
         sourceId: edge.sourceInstanceId,
         targetId: edge.targetInstanceId,
+        temporalWeight: edge.temporalWeight,
+        retained: edge.retained,
       }),
     );
   }
@@ -114,149 +269,653 @@ function localAcyclicEdges(
   return Object.freeze(accepted);
 }
 
-function targetCacheKey(
-  placeId: PlaceId,
-  nodeIds: readonly WorldInstanceId[],
-  edges: readonly LocalDagEdge[],
-): string {
-  return JSON.stringify([
-    String(placeId),
-    nodeIds.map(String),
-    edges.map((edge) => [String(edge.sourceId), String(edge.targetId)]),
+function finitePositiveSize(
+  size: WorldDagLayoutNodeSize | undefined,
+): readonly [number, number] {
+  const width = size?.widthMeters;
+  const height = size?.heightMeters;
+  return Object.freeze([
+    typeof width === "number" && Number.isFinite(width) && width > 0
+      ? width
+      : DAG_FALLBACK_NODE_SIZE_METERS,
+    typeof height === "number" && Number.isFinite(height) && height > 0
+      ? height
+      : DAG_FALLBACK_NODE_SIZE_METERS,
   ]);
 }
 
-function cacheTargets(
-  key: string,
-  targets: readonly WorldDagLayoutTarget[],
-): readonly WorldDagLayoutTarget[] {
-  if (targetCache.has(key)) targetCache.delete(key);
-  if (targetCache.size >= DAG_CACHE_LIMIT) {
-    const oldest = targetCache.keys().next().value;
-    if (oldest !== undefined) targetCache.delete(oldest);
-  }
-  targetCache.set(key, targets);
-  return targets;
+function nodeSizeMap(
+  nodeIds: readonly WorldInstanceId[],
+  sizes: ReadonlyMap<WorldInstanceId, WorldDagLayoutNodeSize> | undefined,
+): ReadonlyMap<string, readonly [number, number]> {
+  return new Map(
+    nodeIds.map((id) => [String(id), finitePositiveSize(sizes?.get(id))] as const),
+  );
 }
 
-function targetsForPlace(
+function layoutGap(sizes: ReadonlyMap<string, readonly [number, number]>): readonly [number, number] {
+  const diameters = [...sizes.values()]
+    .map(([width, height]) => Math.max(width, height))
+    .sort((left, right) => left - right);
+  const median = diameters[Math.floor(diameters.length / 2)] ?? DAG_FALLBACK_NODE_SIZE_METERS;
+  const horizontal = Math.max(
+    DAG_MIN_GAP_METERS,
+    Math.min(DAG_MAX_GAP_METERS, median * 0.45),
+  );
+  return Object.freeze([horizontal, horizontal * 1.15]);
+}
+
+function topologyKey(
   placeId: PlaceId,
-  instances: readonly ProjectedWorldInstance[],
-  projection: WorldProjection,
-): readonly WorldDagLayoutTarget[] {
-  const nodeIds = instances
-    .map((instance) => instance.id)
-    .sort((left, right) => String(left).localeCompare(String(right)));
-  const nodeIdSet = new Set(nodeIds);
-  const edges = localAcyclicEdges(projection, nodeIdSet);
-  const key = targetCacheKey(placeId, nodeIds, edges);
-  const cached = targetCache.get(key);
-  if (cached) {
-    targetCache.delete(key);
-    targetCache.set(key, cached);
-    return cached;
-  }
+  nodeIds: readonly WorldInstanceId[],
+  edges: readonly LocalDagEdge[],
+  sizes: ReadonlyMap<string, readonly [number, number]>,
+): string {
+  return JSON.stringify([
+    String(placeId),
+    nodeIds.map((id) => {
+      const [width, height] = sizes.get(String(id)) ?? [
+        DAG_FALLBACK_NODE_SIZE_METERS,
+        DAG_FALLBACK_NODE_SIZE_METERS,
+      ];
+      return [String(id), Math.round(width), Math.round(height)];
+    }),
+    edges.map((edge) => [
+      String(edge.relationshipId),
+      String(edge.sourceId),
+      String(edge.targetId),
+      Math.round(edge.temporalWeight * 1_000),
+      edge.retained ? 1 : 0,
+    ]),
+  ]);
+}
 
-  const indegree = new Map<WorldInstanceId, number>(nodeIds.map((id) => [id, 0] as const));
+function properSegmentIntersection(
+  a: readonly [number, number],
+  b: readonly [number, number],
+  c: readonly [number, number],
+  d: readonly [number, number],
+): boolean {
+  const orient = (
+    p: readonly [number, number],
+    q: readonly [number, number],
+    r: readonly [number, number],
+  ) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+  const abC = orient(a, b, c);
+  const abD = orient(a, b, d);
+  const cdA = orient(c, d, a);
+  const cdB = orient(c, d, b);
+  return abC * abD < 0 && cdA * cdB < 0;
+}
+
+function candidateMetrics(
+  targets: readonly RawTarget[],
+  edges: readonly LocalDagEdge[],
+  previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
+): Pick<
+  CandidateLayout,
+  "crossingCount" | "meanEdgeLengthMeters" | "minSeparationMeters" | "meanStableDisplacementMeters"
+> {
+  const positions = new Map(
+    targets.map(
+      (target) =>
+        [target.id, [target.eastMeters, target.northMeters] as const] as const,
+    ),
+  );
+
+  let totalLength = 0;
+  let measuredEdges = 0;
   for (const edge of edges) {
-    indegree.set(edge.targetId, (indegree.get(edge.targetId) ?? 0) + 1);
+    const source = positions.get(String(edge.sourceId));
+    const target = positions.get(String(edge.targetId));
+    if (!source || !target) continue;
+    totalLength += Math.hypot(target[0] - source[0], target[1] - source[1]);
+    measuredEdges += 1;
   }
 
-  const rootId = `__lum-place-root__:${String(placeId)}`;
-  const links: Array<readonly [string, string]> = [];
-
-  for (const id of nodeIds) {
-    if ((indegree.get(id) ?? 0) === 0) {
-      links.push([rootId, String(id)]);
+  let crossingCount: number | null = 0;
+  if (edges.length > 256) {
+    crossingCount = null;
+  } else {
+    for (let leftIndex = 0; leftIndex < edges.length; leftIndex += 1) {
+      const left = edges[leftIndex];
+      if (!left) continue;
+      const leftSource = positions.get(String(left.sourceId));
+      const leftTarget = positions.get(String(left.targetId));
+      if (!leftSource || !leftTarget) continue;
+      for (let rightIndex = leftIndex + 1; rightIndex < edges.length; rightIndex += 1) {
+        const right = edges[rightIndex];
+        if (
+          !right ||
+          left.sourceId === right.sourceId ||
+          left.sourceId === right.targetId ||
+          left.targetId === right.sourceId ||
+          left.targetId === right.targetId
+        ) {
+          continue;
+        }
+        const rightSource = positions.get(String(right.sourceId));
+        const rightTarget = positions.get(String(right.targetId));
+        if (
+          rightSource &&
+          rightTarget &&
+          properSegmentIntersection(leftSource, leftTarget, rightSource, rightTarget)
+        ) {
+          crossingCount += 1;
+        }
+      }
     }
   }
-  for (const edge of edges) {
-    links.push([String(edge.sourceId), String(edge.targetId)]);
+
+  let minSeparationMeters: number | null =
+    targets.length <= 1 ? null : Number.POSITIVE_INFINITY;
+  if (targets.length > PAIRWISE_METRIC_MAX_NODES) {
+    minSeparationMeters = null;
+  } else {
+    for (let leftIndex = 0; leftIndex < targets.length; leftIndex += 1) {
+      const left = targets[leftIndex];
+      if (!left) continue;
+      for (let rightIndex = leftIndex + 1; rightIndex < targets.length; rightIndex += 1) {
+        const right = targets[rightIndex];
+        if (!right) continue;
+        minSeparationMeters = Math.min(
+          minSeparationMeters ?? Number.POSITIVE_INFINITY,
+          Math.hypot(
+            right.eastMeters - left.eastMeters,
+            right.northMeters - left.northMeters,
+          ),
+        );
+      }
+    }
+    if (minSeparationMeters === Number.POSITIVE_INFINITY) minSeparationMeters = null;
   }
 
-  const graph = graphConnect()(links);
-  const layout = sugiyama()
-    .layering(layeringLongestPath())
-    .decross(decrossTwoLayer())
-    .coord(coordSimplex())
-    .gap([1, 1]);
-  layout(graph);
-
-  const graphNodes = [...graph.nodes()];
-  const root = graphNodes.find((node) => node.data === rootId);
-  if (!root) return Object.freeze([]);
-
-  const rawTargets = graphNodes
-    .filter((node) => node.data !== rootId)
-    .map((node) =>
-      Object.freeze({
-        id: node.data,
-        x: node.x - root.x,
-        y: node.y - root.y,
-      }),
+  let stableDisplacement = 0;
+  let stableCount = 0;
+  for (const target of targets) {
+    const previous = previousTargets.get(target.id);
+    if (!previous) continue;
+    stableDisplacement += Math.hypot(
+      target.eastMeters - previous.eastMeters,
+      target.northMeters - previous.northMeters,
     );
+    stableCount += 1;
+  }
 
-  const maxRawRadius = rawTargets.reduce(
-    (radius, target) => Math.max(radius, Math.hypot(target.x, target.y)),
+  return {
+    crossingCount,
+    meanEdgeLengthMeters: measuredEdges > 0 ? totalLength / measuredEdges : 0,
+    minSeparationMeters,
+    meanStableDisplacementMeters: stableCount > 0 ? stableDisplacement / stableCount : 0,
+  };
+}
+
+function mirrorForStability(
+  targets: readonly RawTarget[],
+  routes: readonly RawRoute[],
+  previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
+): { readonly targets: readonly RawTarget[]; readonly routes: readonly RawRoute[] } {
+  let directCost = 0;
+  let mirroredCost = 0;
+  let comparisons = 0;
+
+  for (const target of targets) {
+    const previous = previousTargets.get(target.id);
+    if (!previous) continue;
+    directCost +=
+      (target.eastMeters - previous.eastMeters) ** 2 +
+      (target.northMeters - previous.northMeters) ** 2;
+    mirroredCost +=
+      (-target.eastMeters - previous.eastMeters) ** 2 +
+      (target.northMeters - previous.northMeters) ** 2;
+    comparisons += 1;
+  }
+
+  if (comparisons === 0 || directCost <= mirroredCost) {
+    return { targets, routes };
+  }
+
+  return {
+    targets: Object.freeze(
+      targets.map((target) =>
+        Object.freeze({ ...target, eastMeters: -target.eastMeters }),
+      ),
+    ),
+    routes: Object.freeze(
+      routes.map((route) =>
+        Object.freeze({
+          ...route,
+          points: Object.freeze(
+            route.points.map((point) =>
+              Object.freeze({
+                eastMeters: -point.eastMeters,
+                northMeters: point.northMeters,
+              }),
+            ),
+          ),
+        }),
+      ),
+    ),
+  };
+}
+
+function scaledCandidate(
+  candidate: Omit<
+    CandidateLayout,
+    "crossingCount" | "meanEdgeLengthMeters" | "minSeparationMeters" | "meanStableDisplacementMeters"
+  >,
+  nodeCount: number,
+  edges: readonly LocalDagEdge[],
+  previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
+): CandidateLayout {
+  const maxRawRadius = candidate.targets.reduce(
+    (radius, target) =>
+      Math.max(radius, Math.hypot(target.eastMeters, target.northMeters)),
     0,
   );
   const maxTargetRadius = Math.min(
     DAG_TARGET_MAX_RADIUS_METERS,
     DAG_TARGET_BASE_RADIUS_METERS +
-      Math.sqrt(Math.max(1, nodeIds.length)) * DAG_TARGET_RADIUS_PER_SQRT_NODE_METERS,
+      Math.sqrt(Math.max(1, nodeCount)) * DAG_TARGET_RADIUS_PER_SQRT_NODE_METERS,
   );
-  const coordinateScale =
-    maxRawRadius > 0
-      ? Math.min(DAG_COORDINATE_UNIT_METERS, maxTargetRadius / maxRawRadius)
-      : DAG_COORDINATE_UNIT_METERS;
+  const scale =
+    maxRawRadius > maxTargetRadius && maxRawRadius > 0 ? maxTargetRadius / maxRawRadius : 1;
+
+  const targets =
+    scale === 1
+      ? candidate.targets
+      : Object.freeze(
+          candidate.targets.map((target) =>
+            Object.freeze({
+              ...target,
+              eastMeters: target.eastMeters * scale,
+              northMeters: target.northMeters * scale,
+            }),
+          ),
+        );
+  const routes =
+    scale === 1
+      ? candidate.routes
+      : Object.freeze(
+          candidate.routes.map((route) =>
+            Object.freeze({
+              ...route,
+              points: Object.freeze(
+                route.points.map((point) =>
+                  Object.freeze({
+                    eastMeters: point.eastMeters * scale,
+                    northMeters: point.northMeters * scale,
+                  }),
+                ),
+              ),
+            }),
+          ),
+        );
+
+  const stable = mirrorForStability(targets, routes, previousTargets);
+  return Object.freeze({
+    ...candidate,
+    targets: stable.targets,
+    routes: stable.routes,
+    ...candidateMetrics(stable.targets, edges, previousTargets),
+  });
+}
+
+function candidateScore(candidate: CandidateLayout): number {
+  const crossings = candidate.crossingCount ?? 0;
+  const aspect = Math.max(candidate.width, candidate.height) / Math.max(1, Math.min(candidate.width, candidate.height));
+  return (
+    crossings * 100_000 +
+    candidate.meanEdgeLengthMeters +
+    Math.max(0, aspect - 3) * 500 +
+    candidate.meanStableDisplacementMeters * 0.5
+  );
+}
+
+function runLayoutCandidate(
+  name: string,
+  nodeIds: readonly WorldInstanceId[],
+  edges: readonly LocalDagEdge[],
+  sizes: ReadonlyMap<string, readonly [number, number]>,
+  gap: readonly [number, number],
+  previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
+  layering: "longest" | "simplex",
+  decross: "opt" | "two-layer",
+  coord: "simplex" | "greedy",
+): CandidateLayout {
+  const rootId = "__lum-place-root__";
+  type LinkData = readonly [source: string, target: string, relationshipId: RelationshipId | null];
+  const indegree = new Map<WorldInstanceId, number>(nodeIds.map((id) => [id, 0] as const));
+  for (const edge of edges) {
+    indegree.set(edge.targetId, (indegree.get(edge.targetId) ?? 0) + 1);
+  }
+
+  const links: LinkData[] = [];
+  for (const id of nodeIds) {
+    if ((indegree.get(id) ?? 0) === 0) links.push([rootId, String(id), null]);
+  }
+  for (const edge of edges) {
+    links.push([String(edge.sourceId), String(edge.targetId), edge.relationshipId]);
+  }
+
+  const graph = graphConnect()(links);
+  let layout = sugiyama()
+    .layering(layering === "longest" ? layeringLongestPath() : layeringSimplex())
+    .decross(decross === "opt" ? decrossOpt() : decrossTwoLayer())
+    .coord(coord === "simplex" ? coordSimplex() : coordGreedy())
+    .nodeSize((node) => sizes.get(node.data) ?? [1, 1])
+    .gap(gap);
+  const dimensions = layout(graph);
+
+  const graphNodes = [...graph.nodes()];
+  const root = graphNodes.find((node) => node.data === rootId);
+  if (!root) {
+    return Object.freeze({
+      name,
+      targets: Object.freeze([]),
+      routes: Object.freeze([]),
+      width: dimensions.width,
+      height: dimensions.height,
+      crossingCount: 0,
+      meanEdgeLengthMeters: 0,
+      minSeparationMeters: null,
+      meanStableDisplacementMeters: 0,
+    });
+  }
+
+  const originalIds = new Map(nodeIds.map((id) => [String(id), id] as const));
+  const targets = Object.freeze(
+    graphNodes
+      .filter((node) => node.data !== rootId && originalIds.has(node.data))
+      .map((node) =>
+        Object.freeze({
+          id: node.data,
+          eastMeters: node.x - root.x,
+          // Sugiyama is top-to-bottom in screen coordinates; local north is
+          // positive upward, so invert Y while keeping geography authoritative.
+          northMeters: -(node.y - root.y),
+        }),
+      )
+      .sort((left, right) => left.id.localeCompare(right.id)),
+  );
+
+  const edgeByRelationship = new Map(
+    edges.map((edge) => [String(edge.relationshipId), edge] as const),
+  );
+  const routes: RawRoute[] = [];
+  for (const link of graph.links()) {
+    const relationshipId = link.data[2];
+    if (!relationshipId) continue;
+    const semantic = edgeByRelationship.get(String(relationshipId));
+    if (!semantic) continue;
+    routes.push(
+      Object.freeze({
+        relationshipId,
+        sourceId: semantic.sourceId,
+        targetId: semantic.targetId,
+        points: Object.freeze(
+          link.points.map(([x, y]) =>
+            Object.freeze({
+              eastMeters: x - root.x,
+              northMeters: -(y - root.y),
+            }),
+          ),
+        ),
+      }),
+    );
+  }
+
+  return scaledCandidate(
+    {
+      name,
+      targets,
+      routes: Object.freeze(
+        routes.sort((left, right) =>
+          String(left.relationshipId).localeCompare(String(right.relationshipId)),
+        ),
+      ),
+      width: dimensions.width,
+      height: dimensions.height,
+    },
+    nodeIds.length,
+    edges,
+    previousTargets,
+  );
+}
+
+function chooseCandidate(
+  nodeIds: readonly WorldInstanceId[],
+  edges: readonly LocalDagEdge[],
+  sizes: ReadonlyMap<string, readonly [number, number]>,
+  previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
+): CandidateLayout {
+  const gap = layoutGap(sizes);
+
+  if (nodeIds.length <= EXACT_DECROSS_MAX_NODES) {
+    return runLayoutCandidate(
+      "longest-opt-simplex",
+      nodeIds,
+      edges,
+      sizes,
+      gap,
+      previousTargets,
+      "longest",
+      "opt",
+      "simplex",
+    );
+  }
+
+  if (nodeIds.length <= COMPARE_LAYERING_MAX_NODES) {
+    const longest = runLayoutCandidate(
+      "longest-two-layer-simplex",
+      nodeIds,
+      edges,
+      sizes,
+      gap,
+      previousTargets,
+      "longest",
+      "two-layer",
+      "simplex",
+    );
+    const simplex = runLayoutCandidate(
+      "simplex-two-layer-simplex",
+      nodeIds,
+      edges,
+      sizes,
+      gap,
+      previousTargets,
+      "simplex",
+      "two-layer",
+      "simplex",
+    );
+    return candidateScore(longest) <= candidateScore(simplex) ? longest : simplex;
+  }
+
+  return runLayoutCandidate(
+    nodeIds.length <= SIMPLEX_COORD_MAX_NODES
+      ? "simplex-two-layer-simplex"
+      : "simplex-two-layer-greedy",
+    nodeIds,
+    edges,
+    sizes,
+    gap,
+    previousTargets,
+    "simplex",
+    "two-layer",
+    nodeIds.length <= SIMPLEX_COORD_MAX_NODES ? "simplex" : "greedy",
+  );
+}
+
+function layoutPlace(
+  placeId: PlaceId,
+  instances: readonly ProjectedWorldInstance[],
+  candidateEdges: readonly ProjectedWorldEdge[],
+  options: WorldDagLayoutOptions,
+  revision: number,
+): PlaceLayoutCache["result"] {
+  const nodeIds = instances.map((instance) => instance.id);
+  const nodeIdSet = new Set(nodeIds);
+  const sizes = nodeSizeMap(nodeIds, options.nodeSizes);
+  const edges = localAcyclicEdges(nodeIdSet, candidateEdges);
+  const key = topologyKey(placeId, nodeIds, edges, sizes);
+  const cacheKey = String(placeId);
+  const cached = placeCache.get(cacheKey);
+
+  if (cached?.topologyKey === key) {
+    placeCache.set(cacheKey, { ...cached, lastSeenRevision: revision });
+    return cached.result;
+  }
+
+  const previousTargets = new Map(
+    (cached?.result.targets ?? []).map((target) => [String(target.instanceId), target] as const),
+  );
+  const candidate = chooseCandidate(nodeIds, edges, sizes, previousTargets);
   const originalIds = new Map(nodeIds.map((id) => [String(id), id] as const));
 
-  const targets = rawTargets
-    .map((raw): WorldDagLayoutTarget | null => {
-      const instanceId = originalIds.get(raw.id);
-      if (instanceId === undefined) return null;
-      return Object.freeze({
-        instanceId,
-        placeId,
-        eastMeters: raw.x * coordinateScale,
-        // Sugiyama is top-to-bottom in screen space; local north is positive
-        // upward, so invert the vertical coordinate to preserve that reading.
-        northMeters: -raw.y * coordinateScale,
-      });
-    })
-    .filter((target): target is WorldDagLayoutTarget => target !== null)
-    .sort((left, right) => String(left.instanceId).localeCompare(String(right.instanceId)));
+  const targets = Object.freeze(
+    candidate.targets
+      .map((target): WorldDagLayoutTarget | null => {
+        const instanceId = originalIds.get(target.id);
+        if (!instanceId) return null;
+        return Object.freeze({
+          instanceId,
+          placeId,
+          eastMeters: target.eastMeters,
+          northMeters: target.northMeters,
+        });
+      })
+      .filter((target): target is WorldDagLayoutTarget => target !== null)
+      .sort((left, right) => String(left.instanceId).localeCompare(String(right.instanceId))),
+  );
 
-  return cacheTargets(key, Object.freeze(targets));
+  const routes = Object.freeze(
+    candidate.routes
+      .map((route) =>
+        Object.freeze({
+          relationshipId: route.relationshipId,
+          placeId,
+          sourceId: route.sourceId,
+          targetId: route.targetId,
+          points: route.points,
+        }),
+      )
+      .sort((left, right) =>
+        String(left.relationshipId).localeCompare(String(right.relationshipId)),
+      ),
+  );
+
+  const result: PlaceLayoutCache["result"] = Object.freeze({
+    targets,
+    routes,
+    metrics: Object.freeze({
+      localEdgeCount: edges.length,
+      routedEdgeCount: routes.length,
+      crossingCount: candidate.crossingCount,
+      meanEdgeLengthMeters: candidate.meanEdgeLengthMeters,
+      minSeparationMeters: candidate.minSeparationMeters,
+      meanStableDisplacementMeters: candidate.meanStableDisplacementMeters,
+      algorithm: candidate.name,
+      nodeCount: nodeIds.length,
+    }),
+  });
+  placeCache.set(cacheKey, { topologyKey: key, result, lastSeenRevision: revision });
+  return result;
+}
+
+function prunePlaceCache(revision: number): void {
+  for (const [key, cached] of placeCache) {
+    if (revision - cached.lastSeenRevision > DAG_CACHE_RETENTION_REVISIONS) {
+      placeCache.delete(key);
+    }
+  }
 }
 
 /**
- * Derive deterministic local Sugiyama targets around each primary geographic
- * anchor. The semantic graph itself is never rewritten: cycles are removed
- * only from this temporary layout graph, cross-place edges stay out of the
- * local DAG, and multi-anchor entities remain single world instances.
+ * Derive deterministic, size-aware local Sugiyama organization around each
+ * primary geographic anchor. The semantic graph itself is never rewritten:
+ * cross-place edges remain semantic/force edges, and lower-priority
+ * cycle-closing edges are omitted only from the temporary layout DAG.
  */
-export function createWorldDagLayoutTargets(
+export function createWorldDagLayout(
   projection: WorldProjection,
-): readonly WorldDagLayoutTarget[] {
-  const groups = new Map<PlaceId, ProjectedWorldInstance[]>();
-
-  for (const instance of [...projection.instances].sort((left, right) =>
-    String(left.id).localeCompare(String(right.id)),
-  )) {
-    const anchor = primaryAnchor(instance);
-    if (!anchor) continue;
-    groups.set(anchor.placeId, [...(groups.get(anchor.placeId) ?? []), instance]);
-  }
-
+  options: WorldDagLayoutOptions = {},
+): WorldDagLayoutResult {
+  const revision = ++layoutRevision;
+  const index = buildLayoutIndex(projection);
   const targets: WorldDagLayoutTarget[] = [];
-  for (const [placeId, instances] of [...groups.entries()].sort(([left], [right]) =>
+  const routes: WorldDagLayoutRoute[] = [];
+  const algorithms: Record<string, number> = {};
+
+  let localEdgeCount = 0;
+  let routedEdgeCount = 0;
+  let totalCrossings = 0;
+  let hasUnknownCrossings = false;
+  let weightedEdgeLength = 0;
+  let edgeLengthWeight = 0;
+  let minSeparationMeters: number | null = null;
+  let weightedStableDisplacement = 0;
+  let stableNodeWeight = 0;
+
+  for (const [placeId, instances] of [...index.instancesByPlace.entries()].sort(([left], [right]) =>
     String(left).localeCompare(String(right)),
   )) {
-    targets.push(...targetsForPlace(placeId, instances, projection));
+    const result = layoutPlace(
+      placeId,
+      instances,
+      index.edgesByPlace.get(placeId) ?? Object.freeze([]),
+      options,
+      revision,
+    );
+    targets.push(...result.targets);
+    routes.push(...result.routes);
+    localEdgeCount += result.metrics.localEdgeCount;
+    routedEdgeCount += result.metrics.routedEdgeCount;
+    if (result.metrics.crossingCount === null) hasUnknownCrossings = true;
+    else totalCrossings += result.metrics.crossingCount;
+    weightedEdgeLength += result.metrics.meanEdgeLengthMeters * result.metrics.localEdgeCount;
+    edgeLengthWeight += result.metrics.localEdgeCount;
+    if (result.metrics.minSeparationMeters !== null) {
+      minSeparationMeters =
+        minSeparationMeters === null
+          ? result.metrics.minSeparationMeters
+          : Math.min(minSeparationMeters, result.metrics.minSeparationMeters);
+    }
+    weightedStableDisplacement +=
+      result.metrics.meanStableDisplacementMeters * result.metrics.nodeCount;
+    stableNodeWeight += result.metrics.nodeCount;
+    algorithms[result.metrics.algorithm] = (algorithms[result.metrics.algorithm] ?? 0) + 1;
   }
 
-  return Object.freeze(
-    targets.sort((left, right) => String(left.instanceId).localeCompare(String(right.instanceId))),
-  );
+  prunePlaceCache(revision);
+
+  return Object.freeze({
+    targets: Object.freeze(
+      targets.sort((left, right) => String(left.instanceId).localeCompare(String(right.instanceId))),
+    ),
+    routes: Object.freeze(
+      routes.sort((left, right) =>
+        String(left.relationshipId).localeCompare(String(right.relationshipId)),
+      ),
+    ),
+    metrics: Object.freeze({
+      placeCount: index.instancesByPlace.size,
+      nodeCount: targets.length,
+      localEdgeCount,
+      routedEdgeCount,
+      crossingCount: hasUnknownCrossings ? null : totalCrossings,
+      meanEdgeLengthMeters: edgeLengthWeight > 0 ? weightedEdgeLength / edgeLengthWeight : 0,
+      minSeparationMeters,
+      meanStableDisplacementMeters:
+        stableNodeWeight > 0 ? weightedStableDisplacement / stableNodeWeight : 0,
+      algorithmCounts: Object.freeze({ ...algorithms }),
+    }),
+  });
+}
+
+/** Compatibility helper for call sites that only need node targets. */
+export function createWorldDagLayoutTargets(
+  projection: WorldProjection,
+  options: WorldDagLayoutOptions = {},
+): readonly WorldDagLayoutTarget[] {
+  return createWorldDagLayout(projection, options).targets;
 }
