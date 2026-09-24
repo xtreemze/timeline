@@ -53,9 +53,10 @@ test("retained event terminals preserve semantic media, tag icons, and connector
   assert.match(view, /timeline-event-art-image/);
   assert.match(view, /timeline-event-icon-badge/);
   assert.match(view, /primaryTag[\s\S]*iconName/);
-  assert.match(view, /visual\.dataset\.signature/);
-  assert.match(view, /visual\.replaceChildren\(\)/);
-  assert.match(view, /node\.dataset\.connectorWeight/);
+  assert.match(view, /class LuumEventCardElement extends LitElement/);
+  assert.match(view, /setSemanticItem\(item: TimelineItem\)/);
+  assert.match(view, /data-timeline-icon/);
+  assert.match(view, /this\.dataset\.connectorWeight/);
   assert.match(view, /connectorWeight === "fine" \? 1 : item\.connectorWeight === "strong" \? 4 : 2/);
   assert.match(css, /\.timeline-event-art-image/);
   assert.match(css, /\.timeline-event-icon-badge/);
@@ -65,7 +66,7 @@ test("retained event terminals preserve semantic media, tag icons, and connector
 test("timeline uses a Lit custom-element ownership boundary without reactive scene rendering", async () => {
   const [html, view] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/timeline-element.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(html, /<luum-timeline id="timeline-view"/);
@@ -74,10 +75,48 @@ test("timeline uses a Lit custom-element ownership boundary without reactive sce
   assert.match(view, /class LuumTimelineElement extends LitElement/);
   assert.match(view, /createRenderRoot\(\): HTMLElement[\s\S]*return this/);
   assert.match(view, /render\(\)[\s\S]*return noChange/);
-  assert.match(view, /ensureController\(\): TimelineViewController/);
+  assert.match(view, /ensureTimelineController\(\): TimelineViewController/);
   assert.match(view, /customElements\.define\("luum-timeline", LuumTimelineElement\)/);
+});
+
+
+test("retained event cards use Lit for semantic content but not interaction geometry", async () => {
+  const [view, card] = await Promise.all([
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/timeline-event-card.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(card, /customElements\.define\("luum-event-card", LuumEventCardElement\)/);
+  assert.match(view, /new LuumEventCardElement\(\)/);
+  assert.match(view, /contentRevision: this\.itemContentRevision\(item\)/);
   assert.match(
     view,
-    /root instanceof LuumTimelineElement\) return root\.ensureController\(\)/,
+    /if \(record\.contentRevision !== revision\)[\s\S]*node\.setSemanticItem\(item\)/,
   );
+  const positionStart = view.indexOf("  positionRecord(record: SceneRecord");
+  const positionEnd = view.indexOf("\n  animateEntry(", positionStart);
+  const positionBody = view.slice(positionStart, positionEnd);
+  assert.match(positionBody, /node\.style\.transform/);
+  assert.doesNotMatch(positionBody, /requestUpdate|setSemanticItem/);
+});
+
+test("world graph mounts behind a Lit lifecycle boundary", async () => {
+  const [html, source] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/world-surface-element.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(html, /<luum-world-surface id="temporal-graph-view"/);
+  assert.match(html, /<\/luum-world-surface>/);
+  assert.match(source, /class LuumWorldSurfaceElement extends LitElement/);
+  assert.match(source, /render\(\)[\s\S]*return noChange/);
+  assert.match(source, /adoptView\(/);
+  assert.match(source, /disconnectedCallback\(\)[\s\S]*destroy\(\)/);
+});
+
+
+test("Lit event card has no ambient Timeline globals", async () => {
+  const card = await readFile(new URL("../site/components/timeline-event-card.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(card, /globalThis\.Timeline/);
+  assert.match(card, /import \{ createIcon \} from "\.\.\/event-presentation\.ts"/);
 });
