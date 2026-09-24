@@ -289,8 +289,7 @@ export function worldPresentationOffsetScale(
   }
   const cosine = Math.max(0.05, Math.cos((latitude * Math.PI) / 180));
   const metersPerPixel = (WORLD_METERS_PER_PIXEL_AT_ZOOM_0 * cosine) / 2 ** zoom;
-  const wanted =
-    (worldFloatingGraphRadiusPx(zoom) * metersPerPixel) / typicalOffsetMeters;
+  const wanted = (worldFloatingGraphRadiusPx(zoom) * metersPerPixel) / typicalOffsetMeters;
   if (wanted <= 1) return 1;
   return 2 ** (Math.round(Math.log2(wanted) * 4) / 4);
 }
