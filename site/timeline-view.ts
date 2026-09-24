@@ -3000,7 +3000,6 @@ export class TimelineViewController {
       item.description || "No narrative description has been recorded for this event.";
     summary.append(description);
 
-
     const place = document.createElement("section");
     place.id = "timeline-focus-place-panel";
     place.className = "timeline-focus-section timeline-focus-place";
