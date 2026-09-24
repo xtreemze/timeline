@@ -33,7 +33,8 @@ import {
   tickSceneKey,
   visibleIntervalAnchor,
 } from "../src/projection/temporal-scene.ts";
-import { LuumEventCardElement } from "./components/timeline-event-card.ts";
+import "./components/timeline-event-card.ts";
+import type { LuumEventCardElement } from "./components/timeline-event-card.ts";
 import { TimelineClustering as clustering } from "./timeline-clustering.ts";
 import { TimelineMotion as motion } from "./timeline-motion.ts";
 
