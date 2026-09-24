@@ -10,6 +10,7 @@ import {
 import {
   applyWorldForceLayoutUpdate,
   type WorldForceLayoutSample,
+  updateWorldForceLayoutInstance,
 } from "../../src/layout/world-force-layout.ts";
 import {
   createWorldForceScene,
@@ -24,7 +25,11 @@ import type {
   WorldSurface,
   WorldTemporalWindow,
 } from "../../src/layout/world-surface.ts";
-import type { WorldInstanceId, WorldProjection } from "../../src/projection/world-projection.ts";
+import type {
+  ProjectedWorldInstance,
+  WorldInstanceId,
+  WorldProjection,
+} from "../../src/projection/world-projection.ts";
 import {
   diffWorldProjection,
   isEmptyWorldProjectionDelta,
@@ -80,6 +85,9 @@ export class WorldViewRuntimeController {
 
   #sourceProjection: WorldProjection | null = null;
   #renderProjection: WorldProjection | null = null;
+  #sourceInstances = new Map<WorldInstanceId, ProjectedWorldInstance>();
+  #renderOverrides = new Map<WorldInstanceId, ProjectedWorldInstance>();
+  #renderProjectionDirty = false;
   #projectionRevision = 0;
   #sinceLayoutPush = Number.POSITIVE_INFINITY;
   #destroyed = false;
@@ -110,6 +118,9 @@ export class WorldViewRuntimeController {
     const previous = this.#sourceProjection;
     this.#sourceProjection = projection;
     this.#renderProjection = projection;
+    this.#sourceInstances = new Map(projection.instances.map((instance) => [instance.id, instance]));
+    this.#renderOverrides.clear();
+    this.#renderProjectionDirty = false;
     this.#projectionRevision += 1;
 
     const forceScene = this.#forcePolicy
@@ -233,20 +244,44 @@ export class WorldViewRuntimeController {
     if (this.#gpuLayoutBridge || !this.#layoutReadback || !this.#sourceProjection) return;
     const samples = this.#layoutReadback.read();
     if (samples.length === 0) return;
-    const previous = this.#renderProjection;
-    const update = applyWorldForceLayoutUpdate(previous ?? this.#sourceProjection, samples);
-    this.#renderProjection = update.projection;
 
-    // Sparse force readback already identifies exactly which instances moved.
-    // Avoid the generic projection diff here: it rebuilds maps and deep-compares
-    // every node/edge even though interactive force frames only change derived
-    // node positions.
-    if (previous && this.#surface.applyProjectionDelta) {
-      if (update.updatedInstances.length > 0) {
+    // Production WorldSurface implementations support sparse projection deltas.
+    // Keep this interaction path O(changed nodes): materializing the immutable
+    // projection array here would otherwise copy tens of thousands of instances
+    // for every drag frame even when only one local island moved.
+    if (this.#surface.applyProjectionDelta) {
+      const updatedInstances: ProjectedWorldInstance[] = [];
+      const seen = new Set<WorldInstanceId>();
+
+      for (const sample of samples) {
+        if (seen.has(sample.instanceId)) {
+          throw new Error(
+            `Duplicate world force layout sample for ${String(sample.instanceId)}.`,
+          );
+        }
+        seen.add(sample.instanceId);
+
+        const current =
+          this.#renderOverrides.get(sample.instanceId) ??
+          this.#sourceInstances.get(sample.instanceId);
+        if (!current) {
+          throw new Error(
+            `World force layout sample references unknown instance ${String(sample.instanceId)}.`,
+          );
+        }
+
+        const updated = updateWorldForceLayoutInstance(current, sample);
+        if (updated === current) continue;
+        this.#renderOverrides.set(sample.instanceId, updated);
+        updatedInstances.push(updated);
+      }
+
+      if (updatedInstances.length > 0) {
+        this.#renderProjectionDirty = true;
         this.#surface.applyProjectionDelta(
           Object.freeze({
             addedInstances: Object.freeze([]),
-            updatedInstances: update.updatedInstances,
+            updatedInstances: Object.freeze(updatedInstances),
             removedInstanceIds: Object.freeze([]),
             addedEdges: Object.freeze([]),
             updatedEdges: Object.freeze([]),
@@ -257,6 +292,11 @@ export class WorldViewRuntimeController {
       return;
     }
 
+    // Compatibility surfaces that only accept complete projections retain the
+    // original immutable reconstruction path.
+    const previous = this.#renderProjection ?? this.#sourceProjection;
+    const update = applyWorldForceLayoutUpdate(previous, samples);
+    this.#renderProjection = update.projection;
     this.#surface.setProjection(update.projection);
   }
 
@@ -293,6 +333,21 @@ export class WorldViewRuntimeController {
   }
 
   getRenderProjection(): WorldProjection | null {
+    if (!this.#sourceProjection) return null;
+    if (!this.#renderProjectionDirty) return this.#renderProjection ?? this.#sourceProjection;
+
+    // Materialize only for consumers that explicitly need a complete snapshot.
+    // High-frequency rendering consumes sparse deltas and never pays this O(N)
+    // copy during ordinary drag/settle frames.
+    this.#renderProjection = Object.freeze({
+      instances: Object.freeze(
+        this.#sourceProjection.instances.map(
+          (instance) => this.#renderOverrides.get(instance.id) ?? instance,
+        ),
+      ),
+      edges: this.#sourceProjection.edges,
+    });
+    this.#renderProjectionDirty = false;
     return this.#renderProjection;
   }
 
