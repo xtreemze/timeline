@@ -1763,10 +1763,6 @@ export class DeckWorldSurface implements WorldSurface {
         placeId: datum.placeId,
         selected: datum.selected,
         ...(datum.label === undefined ? {} : { label: datum.label }),
-        ...(datum.entityKind === undefined ? {} : { entityKind: datum.entityKind }),
-        shape: datum.visual.shape,
-        icon: datum.visual.icon,
-        ...(datum.visual.imageUrl === undefined ? {} : { imageUrl: datum.visual.imageUrl }),
       }),
     );
     const relationships = relationshipDatums(
@@ -1794,6 +1790,10 @@ export class DeckWorldSurface implements WorldSurface {
         worldInstanceId: datum.worldInstanceId,
         selected: datum.selected,
         ...(datum.label === undefined ? {} : { label: datum.label }),
+        ...(datum.entityKind === undefined ? {} : { entityKind: datum.entityKind }),
+        shape: datum.visual.shape,
+        icon: datum.visual.icon,
+        ...(datum.visual.imageUrl === undefined ? {} : { imageUrl: datum.visual.imageUrl }),
       }),
     );
 
