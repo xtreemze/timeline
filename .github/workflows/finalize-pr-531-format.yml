@@ -1,0 +1,50 @@
+name: Finalize PR 531 formatting
+
+on:
+  push:
+    branches:
+      - audit/example-story-semantics-2026-09-24
+    paths:
+      - .github/workflows/finalize-pr-531-format.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: audit/example-story-semantics-2026-09-24
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Format PR-owned files
+        run: >
+          pnpm exec biome check --write
+          site/event-presentation.ts
+          site/graph-inference.ts
+          site/sample-case.ts
+          site/spatial.ts
+          site/timeline-graph.ts
+          src/domain/entity.ts
+          src/orb-graph-entry.js
+          tests/domain-kernel.test.mjs
+          tests/sample-case.test.mjs
+      - run: pnpm check:quality
+      - run: pnpm types:migrated
+      - run: pnpm types:architecture
+      - run: pnpm test:architecture
+      - run: pnpm test
+      - name: Commit finalized formatting
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm .github/workflows/finalize-pr-531-format.yml
+          git add -A
+          git commit -m "chore: format finalized example-story changes"
+          git push origin HEAD:audit/example-story-semantics-2026-09-24
