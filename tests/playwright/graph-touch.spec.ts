@@ -55,7 +55,8 @@ test("long-press touch moves an Orb node", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.evaluate(async () => {
     const moduleUrl = "/temporal-graph-view-shim.ts";
-    const { TimelineOrbGraph } = await import(moduleUrl);
+    const { loadTimelineOrbGraph } = await import(moduleUrl);
+    const TimelineOrbGraph = await loadTimelineOrbGraph();
     const fixture = document.createElement("div");
     fixture.id = "touch-node-drag-fixture";
     Object.assign(fixture.style, {
