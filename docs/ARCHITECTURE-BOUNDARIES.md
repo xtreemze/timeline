@@ -210,7 +210,7 @@ Responsibilities:
 - globe/world camera coordination;
 - derived visual altitude that separates interactive topology from the Earth surface.
 
-Places remain anchors and records, not graph entity nodes. Canonical entities do not acquire one permanent coordinate merely because placed occurrences reference them. Rendered world instances and any local geographic offsets remain disposable projection/layout state.
+Places remain anchors and records, not graph entity nodes. Canonical entities do not acquire one permanent coordinate merely because placed occurrences reference them. Each active canonical entity is projected as one world node; multiple placed occurrences contribute multiple spatial anchors to that node. Local geographic offsets remain disposable projection/layout state.
 
 ### Workspace placement
 
