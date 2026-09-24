@@ -114,6 +114,34 @@ test("same-place topology participates in local layout", () => {
   assert.ok(afterDistance < beforeDistance);
 });
 
+test("default repulsion spreads a dense same-anchor group beyond label-scale crowding", () => {
+  const simulation = new ReferenceWorldForceSimulation();
+  const ids = [
+    '["alice","dense-a"]',
+    '["bob","dense-b"]',
+    '["carol","dense-c"]',
+    '["dave","dense-d"]',
+  ];
+  simulation.setScene({
+    nodes: ids.map((id) => node(id, { collisionRadiusMeters: 120 })),
+    edges: [],
+    anchors: ids.map((id) => anchor(id, "stockholm", { influence: 0 })),
+  });
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 120; index += 1) simulation.step(1000 / 60);
+
+  const positions = simulation.getSnapshot();
+  let minimum = Number.POSITIVE_INFINITY;
+  for (let left = 0; left < positions.length; left += 1) {
+    for (let right = left + 1; right < positions.length; right += 1) {
+      const a = positions[left];
+      const b = positions[right];
+      minimum = Math.min(minimum, Math.hypot(a.eastMeters - b.eastMeters, a.northMeters - b.northMeters));
+    }
+  }
+  assert.ok(minimum >= 200, `minimum same-anchor spacing was ${minimum}`);
+});
+
 test("cross-place relationships never collapse geographic anchors into one local force group", () => {
   const commonNodes = [
     node('["alice","travel"]', { initialEastMeters: 100 }),
