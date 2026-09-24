@@ -310,6 +310,28 @@ export const CLUSTER_ZOOM_THRESHOLD = 4.5;
 const DENSE_CLUSTER_ENTITY_THRESHOLD = 25_000;
 const DENSE_CLUSTER_ZOOM_THRESHOLD = 4.5;
 
+/**
+ * Presentation-only radial clearance for billboarded place markers. The
+ * canonical/source altitude remains untouched; this converts a small,
+ * screen-consistent lift into meters so the icon quad sits just above the
+ * globe depth surface instead of being clipped through its lower half.
+ */
+const WORLD_PLACE_ICON_LIFT_PX = 2;
+
+function liftedPlaceIconPosition(
+  position: WorldRenderPosition,
+  zoom: number,
+): WorldRenderPosition {
+  const quantisedZoom = Math.round(zoom * 4) / 4;
+  const metersPerPixel = worldLocalRadiusPx(1, quantisedZoom, position[1]) ** -1;
+  const liftMeters = Math.max(1, Math.round(metersPerPixel * WORLD_PLACE_ICON_LIFT_PX));
+  return Object.freeze([
+    position[0],
+    position[1],
+    position[2] + liftMeters,
+  ]) as WorldRenderPosition;
+}
+
 export function shouldClusterEntityDatums(entityCount: number, zoom: number): boolean {
   return (
     zoom < CLUSTER_ZOOM_THRESHOLD ||
@@ -3247,7 +3269,8 @@ export class DeckWorldSurface implements WorldSurface {
               pickable: true,
               billboard: true,
               sizeUnits: "pixels",
-              getPosition: (datum: DeckWorldPlaceDatum) => datum.position,
+              getPosition: (datum: DeckWorldPlaceDatum) =>
+                liftedPlaceIconPosition(datum.position, this.#camera.zoom),
               getIcon: (datum: DeckWorldPlaceDatum) => worldNodeMarker(this.#placeStyle(datum)),
               getSize: (datum: DeckWorldPlaceDatum) =>
                 worldNodeMarker(this.#placeStyle(datum)).size,
@@ -3258,6 +3281,7 @@ export class DeckWorldSurface implements WorldSurface {
                 datum.selected ? 255 : datum.emphasized ? 242 : 215,
               ],
               updateTriggers: {
+                getPosition: [Math.round(this.#camera.zoom * 4) / 4],
                 getIcon: this.#palette,
                 getSize: this.#palette,
                 getColor: this.#palette,
