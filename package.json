@@ -67,6 +67,7 @@
     "test:graph-touch-browser": "playwright test --config=playwright.config.ts tests/playwright/graph-touch.spec.ts --project=\"Mobile Chrome\" --project=\"Mobile Chrome Landscape\" --project=\"Tablet Touch\"",
     "test:browser-certification-config": "node --test tests/playwright-certification-config.test.mjs",
     "test:retained-performance-browser": "playwright test --config=playwright.config.ts tests/browser/retained-performance.spec.ts",
+    "test:timeline-continuity-browser": "playwright test --config=playwright.config.ts tests/browser/timeline-geometric-continuity.spec.ts",
     "test:graph-surface-contracts": "node --test tests/graph-surface-contracts.test.mjs",
     "test:workspace-layout": "node --test tests/workspace-layout.test.mjs",
     "test:interaction-coordinator": "node --test tests/interaction-coordinator.test.mjs",
