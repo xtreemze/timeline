@@ -22,11 +22,7 @@ test("cluster LOD uses hysteresis rather than interpolation", () => {
 
 test("place clusters stay collapsed until force layout has clear readable room", () => {
   assert.equal(
-    worldClusterTarget(
-      WORLD_READABLE_LOCAL_RADIUS_PX,
-      WORLD_PLACE_CLUSTER_RADIUS_PX,
-      true,
-    ),
+    worldClusterTarget(WORLD_READABLE_LOCAL_RADIUS_PX, WORLD_PLACE_CLUSTER_RADIUS_PX, true),
     true,
   );
 });
