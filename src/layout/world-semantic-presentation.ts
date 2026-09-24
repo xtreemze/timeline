@@ -8,13 +8,18 @@ import type { WorldRenderPosition } from "./world-geographic-position.ts";
  */
 
 /** Minimum Mercator-like zoom at which each label budget applies. */
+// Tuned on real projects: co-located occurrences stack their labels at one
+// anchor, so regional zooms keep only a handful of the most important ones.
 const LABEL_BUDGETS: readonly (readonly [minimumZoom: number, budget: number])[] = [
-  [6, 2_000],
-  [4, 600],
-  [2, 150],
-  [1, 60],
+  [7, 1_000],
+  [5, 120],
+  [3, 24],
+  [1.5, 12],
 ];
-const OVERVIEW_LABEL_BUDGET = 25;
+const OVERVIEW_LABEL_BUDGET = 8;
+
+/** Places are sparse canonical geography; their labels get a higher floor. */
+export const WORLD_PLACE_LABEL_FLOOR = 40;
 
 /**
  * How many optional labels of one kind may be drawn at a zoom level. Pinned
@@ -142,4 +147,100 @@ export function edgeMidpoint(
     (source[1] + target[1]) / 2,
     (source[2] + target[2]) / 2,
   ]) as WorldRenderPosition;
+}
+
+/** Most zoomed-out zoom of the LOD tier containing `zoom`. */
+export function worldLabelTierFloor(zoom: number): number {
+  if (!Number.isFinite(zoom)) return 0;
+  for (const [minimumZoom] of LABEL_BUDGETS) {
+    if (zoom >= minimumZoom) return minimumZoom;
+  }
+  return 0;
+}
+
+export interface WorldLabelFootprint {
+  readonly longitude: number;
+  readonly latitude: number;
+  /** Estimated on-screen size in pixels. */
+  readonly width: number;
+  readonly height: number;
+  /** Pixel offset of the label box centre from its anchor (y down). */
+  readonly offsetX?: number;
+  readonly offsetY?: number;
+}
+
+export interface WorldLabelDeclutterOptions<T> {
+  readonly zoom: number;
+  measure(candidate: T): WorldLabelFootprint;
+  isPinned(candidate: T): boolean;
+}
+
+const WORLD_PIXELS_PER_DEGREE_AT_ZOOM_0 = 512 / 360;
+const DECLUTTER_CELL_PX = 96;
+
+/**
+ * Greedy screen-space declutter: walks candidates in priority order and
+ * drops a label whose estimated screen box would overlap one already kept.
+ * Pinned (selected/focused) labels are always kept. Screen positions are
+ * approximated from geography at `zoom` (callers pass the LOD tier floor so
+ * labels cannot collide anywhere within the tier). A spatial grid keeps the
+ * pass near-linear for large label sets.
+ */
+export function declutterWorldLabels<T>(
+  candidates: readonly T[],
+  options: WorldLabelDeclutterOptions<T>,
+): readonly T[] {
+  const scale = WORLD_PIXELS_PER_DEGREE_AT_ZOOM_0 * 2 ** Math.max(0, options.zoom);
+  interface Box {
+    readonly left: number;
+    readonly right: number;
+    readonly top: number;
+    readonly bottom: number;
+  }
+  const grid = new Map<string, Box[]>();
+  const cells = (box: Box) => {
+    const keys: string[] = [];
+    for (
+      let x = Math.floor(box.left / DECLUTTER_CELL_PX);
+      x <= Math.floor(box.right / DECLUTTER_CELL_PX);
+      x += 1
+    ) {
+      for (
+        let y = Math.floor(box.top / DECLUTTER_CELL_PX);
+        y <= Math.floor(box.bottom / DECLUTTER_CELL_PX);
+        y += 1
+      ) {
+        keys.push(`${x}:${y}`);
+      }
+    }
+    return keys;
+  };
+  const overlaps = (a: Box, b: Box) =>
+    a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
+  const kept: T[] = [];
+  for (const candidate of candidates) {
+    const footprint = options.measure(candidate);
+    const latitudeScale = Math.max(0.2, Math.cos((footprint.latitude * Math.PI) / 180));
+    const x = footprint.longitude * scale * latitudeScale + (footprint.offsetX ?? 0);
+    const y = -footprint.latitude * scale + (footprint.offsetY ?? 0);
+    const box: Box = {
+      left: x - footprint.width / 2,
+      right: x + footprint.width / 2,
+      top: y - footprint.height / 2,
+      bottom: y + footprint.height / 2,
+    };
+    const keys = cells(box);
+    const pinned = options.isPinned(candidate);
+    if (!pinned && keys.some((key) => grid.get(key)?.some((other) => overlaps(box, other)))) {
+      continue;
+    }
+    kept.push(candidate);
+    for (const key of keys) {
+      const bucket = grid.get(key);
+      if (bucket) bucket.push(box);
+      else grid.set(key, [box]);
+    }
+  }
+  return Object.freeze(kept);
 }

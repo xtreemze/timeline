@@ -4036,6 +4036,9 @@ function renderGraphEditor() {
   }
   temporalGraphView?.setModel({
     entities: state.entities,
+    // Places carry the canonical geography the WorldSurface anchors
+    // occurrences to; without them nothing can be placed on the globe.
+    places: state.places,
     relationships: state.relationships,
     items: state.items,
   });

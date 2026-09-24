@@ -149,7 +149,9 @@ test("production bindings and runtime expose a real deck.gl TextLayer path", asy
 
 test("entity and place labels come from renderer-neutral WorldProjection metadata", () => {
   const h = harness();
-  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
+  // Close zoom: these fixtures sit 0.5 degrees apart, which screen-space
+  // declutter would (correctly) merge at regional zooms.
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
   surface.setProjection(directedProjection());
 
   const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
@@ -416,7 +418,7 @@ test("zooming across a LOD tier re-renders labels and markers, zooming within on
     .data.length;
   const renders = h.setProps.filter((props) => props.layers).length;
 
-  surface.setCamera({ ...WORKING_CAMERA, zoom: 1.5 });
+  surface.setCamera({ ...WORKING_CAMERA, zoom: 1.3 });
   assert.equal(h.setProps.filter((props) => props.layers).length, renders);
 
   surface.setCamera({ ...WORKING_CAMERA, zoom: 6.5 });

@@ -73,6 +73,7 @@ on:
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'tests/browser/retained-performance.spec.ts'
       - 'tests/browser/world-interaction-coverage.spec.ts'
+      - 'tests/browser/world-app-visibility.spec.ts'
       - 'tests/browser/world-performance-certification.spec.ts'
       - 'tests/browser/fixtures/world-performance-baseline.json'
       - 'site/world-perf-harness.html'
@@ -166,6 +167,7 @@ on:
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'tests/browser/retained-performance.spec.ts'
       - 'tests/browser/world-interaction-coverage.spec.ts'
+      - 'tests/browser/world-app-visibility.spec.ts'
       - 'tests/browser/world-performance-certification.spec.ts'
       - 'tests/browser/fixtures/world-performance-baseline.json'
       - 'site/world-perf-harness.html'
@@ -345,6 +347,13 @@ jobs:
           node-version: 24
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
+      - name: Verify the production app shows and drives the WorldSurface
+        run: |
+          pnpm exec playwright test --config=playwright.config.ts \
+            tests/browser/world-app-visibility.spec.ts \
+            --project="Desktop Chrome" \
+            --project="Mobile Chrome" \
+            --project="Tablet Touch"
       - name: Run WorldSurface interaction certification
         continue-on-error: true
         run: |
