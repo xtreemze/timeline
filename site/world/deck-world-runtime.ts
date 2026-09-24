@@ -18,6 +18,9 @@ export interface DeckWorldBindings {
 }
 
 export function createDeckWorldRuntime(bindings: DeckWorldBindings): DeckWorldRuntime {
+  const globeViewport = bindings.globeViewport;
+  const mapView = bindings.mapView;
+  const mapViewport = bindings.mapViewport;
   return Object.freeze({
     createDeck(props) {
       return bindings.deck(props);
@@ -25,24 +28,24 @@ export function createDeckWorldRuntime(bindings: DeckWorldBindings): DeckWorldRu
     createGlobeView(props) {
       return bindings.globeView(props);
     },
-    ...(bindings.globeViewport
+    ...(globeViewport
       ? {
           createGlobeViewport(props: Readonly<Record<string, unknown>>) {
-            return bindings.globeViewport?.(props);
+            return globeViewport(props);
           },
         }
       : {}),
-    ...(bindings.mapView
+    ...(mapView
       ? {
           createMapView(props: Readonly<Record<string, unknown>>) {
-            return bindings.mapView?.(props) ?? null;
+            return mapView(props);
           },
         }
       : {}),
-    ...(bindings.mapViewport
+    ...(mapViewport
       ? {
           createMapViewport(props: Readonly<Record<string, unknown>>) {
-            return bindings.mapViewport?.(props);
+            return mapViewport(props);
           },
         }
       : {}),
