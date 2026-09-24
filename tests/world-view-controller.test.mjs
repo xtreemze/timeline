@@ -254,6 +254,24 @@ test("CPU force readback applies incremental WorldSurface deltas", () => {
   assert.deepEqual(deltaCall[1].removedEdgeIds, []);
 });
 
+test("delta-capable CPU readback materializes a full render snapshot only on demand", () => {
+  const { calls, controller } = harness({ readback: true, delta: true });
+  controller.setProjection(projection());
+
+  controller.step(16);
+  const deltasAfterFirstPush = calls.filter(([name]) => name === "surface:delta").length;
+  const output = controller.getRenderProjection();
+  const alice = output.instances.find((instance) => instance.canonicalId === "alice");
+
+  assert.deepEqual(alice.localOffset, { eastMeters: 100, northMeters: 50 });
+  assert.equal(alice.visualAltitude, 1500);
+
+  // The harness intentionally returns the same sparse sample again. A second
+  // eligible push must be a no-op instead of invalidating the renderer.
+  controller.step(50);
+  assert.equal(calls.filter(([name]) => name === "surface:delta").length, deltasAfterFirstPush);
+});
+
 test("empty sparse CPU readback skips projection rebuild and renderer invalidation", () => {
   const { calls, controller } = harness({
     readback: true,

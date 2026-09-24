@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   applyWorldForceLayout,
   applyWorldForceLayoutUpdate,
+  updateWorldForceLayoutInstance,
 } from "../src/layout/world-force-layout.ts";
 import {
   createProjectedWorldEdge,
@@ -93,6 +94,24 @@ test("force layout samples update only derived local offset and visual altitude"
   assert.equal(updatedAlice.occurrenceId, "meeting");
   assert.equal(bob.localOffset, undefined);
   assert.equal(JSON.stringify(input), before);
+});
+
+test("one force layout sample can update an instance without rebuilding its projection", () => {
+  const input = projection();
+  const alice = input.instances.find((instance) => instance.canonicalId === "alice");
+  const sample = {
+    instanceId: alice.id,
+    eastMeters: 25,
+    northMeters: -10,
+    visualAltitudeMeters: 1100,
+  };
+
+  const updated = updateWorldForceLayoutInstance(alice, sample);
+  assert.notEqual(updated, alice);
+  assert.deepEqual(updated.localOffset, { eastMeters: 25, northMeters: -10 });
+  assert.equal(updated.visualAltitude, 1100);
+  assert.equal(updated.geographicAnchors, alice.geographicAnchors);
+  assert.equal(updateWorldForceLayoutInstance(updated, sample), updated);
 });
 
 test("partial force snapshots preserve untouched world instances and edges", () => {
