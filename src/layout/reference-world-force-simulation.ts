@@ -388,6 +388,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
   #edges: readonly WorldForceEdge[] = Object.freeze([]);
   #edgesByGroup = new Map<string, readonly WorldForceEdge[]>();
   #pin: WorldForcePin | null = null;
+  #lastDragGroup: string | null = null;
   #request: WorldSimulationRequest | null = null;
   #running = false;
   #settled = true;
@@ -525,6 +526,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     }
     this.#pin = pin ? Object.freeze({ ...pin }) : null;
     if (pin && state) {
+      this.#lastDragGroup = state.group;
       // Direct manipulation owns the dragged node: publish the pin
       // immediately instead of waiting for a global physics tick.
       state.x = pin.eastMeters;
@@ -549,6 +551,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     if (request.reason === "idle") {
       this.#settled = true;
       this.#energy = 0;
+      this.#lastDragGroup = null;
     }
   }
 
@@ -565,6 +568,8 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const activeDragGroup = this.#pin
       ? (this.#states.get(this.#pin.instanceId)?.group ?? null)
       : null;
+    const localizedGroup =
+      activeDragGroup ?? (this.#request?.reason === "post-drop" ? this.#lastDragGroup : null);
     const forceGroups: ForceGroup[] = [];
     for (const [key, states] of this.#groups) {
       let group = this.#groupBounds.get(key);
@@ -575,11 +580,13 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       }
       forceGroups.push(group);
     }
-    const crossPairs = crossGroupCandidates(forceGroups, activeDragGroup);
+    const crossPairs = crossGroupCandidates(forceGroups, localizedGroup);
 
-    // During direct manipulation geography is fixed. Only the dragged island
-    // and world-space neighbours that can actually overlap are integrated.
-    const activeGroups = activeDragGroup ? new Set<string>([activeDragGroup]) : null;
+    // During direct manipulation and post-drop settling, geography is fixed.
+    // Keep work localized to the manipulated island and world-space neighbours
+    // that can actually overlap. Post-drop still restores the place-domain
+    // constraint because only an actively pinned drag suspends that force.
+    const activeGroups = localizedGroup ? new Set<string>([localizedGroup]) : null;
     if (activeGroups) {
       for (const [leftGroup, rightGroup] of crossPairs) {
         if (!this.#groupsCanInteract(leftGroup.states, rightGroup.states)) continue;
@@ -757,6 +764,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#edges = Object.freeze([]);
     this.#edgesByGroup.clear();
     this.#pin = null;
+    this.#lastDragGroup = null;
     this.#request = null;
     this.#running = false;
   }
