@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  CLUSTER_ZOOM_THRESHOLD,
   DECK_WORLD_LAYER_IDS,
   DeckWorldSurface,
   WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM,
   WORLD_TEMPORAL_RELATION_TRANSITION_MS,
+  shouldClusterEntityDatums,
   worldGraphLabelSize,
 } from "../site/world/deck-world-surface.ts";
 import { selectWorldSpatialMode } from "../src/layout/world-spatial-mode.ts";
@@ -16,6 +18,13 @@ import {
   worldInstanceId,
 } from "../src/projection/world-projection.ts";
 import { diffWorldProjection } from "../src/projection/world-projection-delta.ts";
+
+test("sparse world topology stays clustered until a readable working zoom", () => {
+  assert.equal(CLUSTER_ZOOM_THRESHOLD, 3.5);
+  assert.equal(shouldClusterEntityDatums(100, 3), true);
+  assert.equal(shouldClusterEntityDatums(100, 3.49), true);
+  assert.equal(shouldClusterEntityDatums(100, 3.5), false);
+});
 
 function harness() {
   const calls = {
