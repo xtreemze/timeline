@@ -62,7 +62,13 @@ function projection() {
   });
 }
 
-function harness({ settled = false, readback = false, delta = false, gpuBridge = false } = {}) {
+function harness({
+  settled = false,
+  readback = false,
+  emptyReadback = false,
+  delta = false,
+  gpuBridge = false,
+} = {}) {
   const calls = [];
   const diagnostics = { running: false, settled, energy: 0, iteration: 0 };
   let pin = null;
@@ -141,6 +147,7 @@ function harness({ settled = false, readback = false, delta = false, gpuBridge =
   if (readback) {
     options.layoutReadback = {
       read() {
+        if (emptyReadback) return [];
         const id = worldInstanceId("alice", "meeting");
         return [
           {
@@ -234,6 +241,24 @@ test("CPU force readback applies incremental WorldSurface deltas", () => {
   assert.deepEqual(
     deltaCall[1].updatedInstances.map((instance) => instance.canonicalId),
     ["alice"],
+  );
+});
+
+test("empty sparse CPU readback skips projection rebuild and renderer invalidation", () => {
+  const { calls, controller } = harness({
+    readback: true,
+    emptyReadback: true,
+    delta: true,
+  });
+  controller.setProjection(projection());
+
+  const before = calls.length;
+  controller.step(16);
+  const afterStepCalls = calls.slice(before);
+
+  assert.deepEqual(
+    afterStepCalls.map(([name]) => name),
+    ["force:step"],
   );
 });
 
