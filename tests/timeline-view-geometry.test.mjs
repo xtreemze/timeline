@@ -60,9 +60,13 @@ test("selected events use a shell-owned six-column detail surface with timeline-
   assert.doesNotMatch(css, /\.timeline-focus-sidebar:not\(\[hidden\]\)\s*\{[\s\S]*grid-template-columns:\s*repeat\(12,/);
   assert.match(
     css,
-    /#app-shell\.is-event-focused[\s\S]*timeline-focus-sidebar:not\(\[hidden\]\)[\s\S]*position:\s*absolute[\s\S]*inline-size:\s*min\(560px/,
+    /#app-shell\.is-event-focused[\s\S]*timeline-focus-sidebar:not\(\[hidden\]\)[\s\S]*position:\s*absolute[\s\S]*z-index:\s*1080[\s\S]*inline-size:\s*min\(560px/,
   );
   assert.match(css, /#presentation-stage > \.timeline-local-toolbar[\s\S]*z-index:\s*1100/);
+  assert.match(
+    css,
+    /data-timeline-orientation="horizontal"[\s\S]*timeline-local-toolbar[\s\S]*inset-block-end:\s*calc\(var\(--workspace-footer-block-size,\s*64px\)\s*\+\s*0\.35rem\)/,
+  );
   assert.match(css, /--focus-timeline-block-size/);
   assert.match(css, /--focus-timeline-inline-size/);
   assert.doesNotMatch(css, /position-anchor:\s*--timeline-detail-anchor/);
