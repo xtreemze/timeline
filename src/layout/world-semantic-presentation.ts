@@ -244,3 +244,48 @@ export function declutterWorldLabels<T>(
   }
   return Object.freeze(kept);
 }
+
+/**
+ * Semantic-zoom magnification of local layout offsets. Local graphs are laid
+ * out in metres around a place, which is sub-pixel at city or country zoom;
+ * magnifying offsets so a place's typical local radius spans a constant
+ * on-screen size keeps each place's graph legible, like a planar graph view,
+ * while the stored offsets stay untouched. Never shrinks (scale >= 1), and is
+ * quantised to quarter octaves so positions only rebuild on real zoom
+ * changes. Dense scenes (already clustered) keep 1.
+ */
+export const WORLD_LOCAL_GRAPH_RADIUS_PX = 110;
+const WORLD_METERS_PER_PIXEL_AT_ZOOM_0 = 40_075_016.686 / 512;
+
+export function worldPresentationOffsetScale(
+  zoom: number,
+  entityCount: number,
+  typicalOffsetMeters: number,
+  latitude = 0,
+): number {
+  if (
+    !Number.isFinite(zoom) ||
+    entityCount >= 25_000 ||
+    !Number.isFinite(typicalOffsetMeters) ||
+    typicalOffsetMeters <= 0
+  ) {
+    return 1;
+  }
+  const cosine = Math.max(0.05, Math.cos((latitude * Math.PI) / 180));
+  const metersPerPixel = (WORLD_METERS_PER_PIXEL_AT_ZOOM_0 * cosine) / 2 ** zoom;
+  const wanted = (WORLD_LOCAL_GRAPH_RADIUS_PX * metersPerPixel) / typicalOffsetMeters;
+  if (wanted <= 1) return 1;
+  return 2 ** (Math.round(Math.log2(wanted) * 4) / 4);
+}
+
+/** 90th-percentile distance of local offsets from their anchors, in metres. */
+export function typicalLocalOffsetMeters(
+  offsets: readonly { readonly eastMeters: number; readonly northMeters: number }[],
+): number {
+  const distances = offsets
+    .map((offset) => Math.hypot(offset.eastMeters, offset.northMeters))
+    .filter((distance) => Number.isFinite(distance) && distance > 0)
+    .sort((left, right) => left - right);
+  if (distances.length === 0) return 0;
+  return distances[Math.min(distances.length - 1, Math.floor(distances.length * 0.9))] ?? 0;
+}

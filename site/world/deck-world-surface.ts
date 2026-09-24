@@ -15,9 +15,11 @@ import {
   directedEdgeArrowhead,
   edgeMidpoint,
   selectPrioritizedLabels,
+  typicalLocalOffsetMeters,
   WORLD_PLACE_LABEL_FLOOR,
   worldLabelBudget,
   worldLabelTierFloor,
+  worldPresentationOffsetScale,
 } from "../../src/layout/world-semantic-presentation.ts";
 import {
   selectWorldSpatialMode,
@@ -550,8 +552,16 @@ function cameraFromRuntime(value: unknown, fallback: WorldCameraState): WorldCam
   }
 }
 
-function anchorPosition(instance: ProjectedWorldInstance): WorldRenderPosition | null {
-  return resolveWorldRenderPosition(instance);
+/** Zoom a focus action settles on: at least a regional view. */
+function focusZoom(current: number): number {
+  return Math.max(current, 5);
+}
+
+function anchorPosition(
+  instance: ProjectedWorldInstance,
+  offsetScale = 1,
+): WorldRenderPosition | null {
+  return resolveWorldRenderPosition(instance, offsetScale);
 }
 
 function positionEquals(left: WorldRenderPosition, right: WorldRenderPosition): boolean {
@@ -646,6 +656,7 @@ function entityDatums(
   instances: readonly ProjectedWorldInstance[],
   selection: WorldSelection | null,
   previous: ReadonlyMap<WorldInstanceId, DeckWorldEntityDatum>,
+  offsetScale = 1,
 ): {
   readonly datums: readonly DeckWorldEntityDatum[];
   readonly byId: Map<WorldInstanceId, DeckWorldEntityDatum>;
@@ -654,7 +665,7 @@ function entityDatums(
   const result: DeckWorldEntityDatum[] = [];
 
   for (const instance of instances) {
-    const position = anchorPosition(instance);
+    const position = anchorPosition(instance, offsetScale);
     if (!position) continue;
     const selected = selection?.kind === "entity" && selection.id === instance.canonicalId;
     const prior = previous.get(instance.id);
@@ -1188,6 +1199,7 @@ export class DeckWorldSurface implements WorldSurface {
   // it since; a resize then re-fits (the first fit can run before layout).
   #autoFitted = false;
   #autoFitMode: "globe" | "content" = "globe";
+  #offsetScale = 1;
   #spatialMode: WorldSpatialMode = "globe";
   #nodeDragSink: DeckWorldNodeDragSink | null = null;
   #activeDragPointerId: number | null = null;
@@ -1520,7 +1532,10 @@ export class DeckWorldSurface implements WorldSurface {
    */
   #autoFitCamera(mode: "globe" | "content" = "globe"): void {
     if (this.#cameraOwned) return;
-    const positions = [...this.#instanceIndex().positions.values()];
+    // Frame the true geography, not the magnified presentation offsets.
+    const positions = this.#projection.instances
+      .map((instance) => anchorPosition(instance))
+      .filter((position): position is WorldRenderPosition => position !== null);
     if (positions.length === 0) return;
     const width = Number(this.#container.clientWidth) || 1024;
     const height = Number(this.#container.clientHeight) || 768;
@@ -1558,17 +1573,20 @@ export class DeckWorldSurface implements WorldSurface {
     this.#autoFitted = false;
     this.#camera = createWorldCameraState(camera);
     this.#syncSpatialMode();
-    this.#deck.setProps({ viewState: this.#camera });
-    this.#reclusterIfZoomCrossedThreshold();
+    // When the zoom changes LOD or the offset magnification, layers and
+    // camera go to deck in one update so no frame pairs the new camera with
+    // stale positions.
+    if (this.#zoomNeedsRender()) this.#render(true);
+    else this.#deck.setProps({ viewState: this.#camera });
   }
 
   focusEntity(id: EntityId): void {
     this.#setLabelFocus("entity", id);
-    this.#focusPosition(
-      entityDatums(this.#projection.instances, this.#selection, this.#entityDatumCache).datums.find(
-        (datum) => datum.entityId === id,
-      )?.position ?? null,
-    );
+    // Aim at where the entity is drawn at the destination zoom, since local
+    // offsets are magnified per zoom.
+    const scale = this.#nextOffsetScale(focusZoom(this.#camera.zoom));
+    const instance = this.#projection.instances.find((candidate) => candidate.canonicalId === id);
+    this.#focusPosition(instance ? anchorPosition(instance, scale) : null);
   }
 
   focusOccurrence(id: RelationshipId): void {
@@ -1720,6 +1738,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#projection.instances,
       this.#selection,
       this.#entityDatumCache,
+      this.#offsetScale,
     ).datums.map((datum) =>
       Object.freeze({
         entityId: datum.entityId,
@@ -1794,7 +1813,7 @@ export class DeckWorldSurface implements WorldSurface {
     const point = screenPointFromPicking(info);
     if (!instance || !point) return null;
 
-    const position = resolveWorldNodeDragPosition(this, instance, point);
+    const position = resolveWorldNodeDragPosition(this, instance, point, this.#offsetScale);
     return position
       ? Object.freeze({
           instanceId: instance.id,
@@ -1887,12 +1906,53 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #reclusterIfZoomCrossedThreshold(): void {
+    if (this.#zoomNeedsRender()) this.#render();
+  }
+
+  #zoomNeedsRender(): boolean {
     const clusteredNow = shouldClusterEntityDatums(this.#entityDatumCache.size, this.#camera.zoom);
     const budget = worldLabelBudget(this.#camera.zoom);
     const lodChanged =
       budget !== this.#labelBudgetLastRender &&
       Math.min(budget, this.#labelBudgetLastRender) < this.#lodCandidateCountLastRender;
-    if (clusteredNow !== this.#clusteredLastRender || lodChanged) this.#render();
+    return (
+      clusteredNow !== this.#clusteredLastRender ||
+      lodChanged ||
+      this.#nextOffsetScale() !== this.#offsetScale
+    );
+  }
+
+  /**
+   * Presentation magnification of local offsets for the current zoom (see
+   * `worldPresentationOffsetScale`). Scenes without local offsets keep 1 so
+   * zooming them never invalidates memoized datums.
+   */
+  #nextOffsetScale(zoom = this.#camera.zoom): number {
+    const instances = this.#projection.instances;
+    // Clustered overviews group true geography; magnifying offsets there
+    // would scatter one place's entities across cluster cells.
+    if (shouldClusterEntityDatums(instances.length, zoom)) return 1;
+    return worldPresentationOffsetScale(
+      zoom,
+      instances.length,
+      this.#typicalOffsetMeters(),
+      this.#camera.latitude,
+    );
+  }
+
+  #typicalOffsetCache: { readonly projection: WorldProjection; readonly meters: number } | null =
+    null;
+
+  #typicalOffsetMeters(): number {
+    const projection = this.#projection;
+    if (this.#typicalOffsetCache?.projection === projection) return this.#typicalOffsetCache.meters;
+    const meters = typicalLocalOffsetMeters(
+      projection.instances.flatMap((instance) =>
+        instance.localOffset ? [instance.localOffset] : [],
+      ),
+    );
+    this.#typicalOffsetCache = { projection, meters };
+    return meters;
   }
 
   #selectionCandidates(): readonly WorldSelection[] {
@@ -1900,6 +1960,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#projection.instances,
       this.#selection,
       this.#entityDatumCache,
+      this.#offsetScale,
     ).datums;
     const relationships = relationshipDatums(
       this.#projection,
@@ -1932,7 +1993,7 @@ export class DeckWorldSurface implements WorldSurface {
     const positions = new Map<WorldInstanceId, WorldRenderPosition>();
     const entityIds = new Map<WorldInstanceId, EntityId>();
     for (const instance of this.#projection.instances) {
-      const position = anchorPosition(instance);
+      const position = anchorPosition(instance, this.#offsetScale);
       if (!position) continue;
       positions.set(instance.id, position);
       entityIds.set(instance.id, instance.canonicalId);
@@ -1947,7 +2008,8 @@ export class DeckWorldSurface implements WorldSurface {
     this.#render();
   }
 
-  #render(): void {
+  #render(withCamera = false): void {
+    this.#offsetScale = this.#nextOffsetScale();
     const index = this.#instanceIndex();
     const placeResult = placeDatums(
       this.#projection.instances,
@@ -1964,6 +2026,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#projection.instances,
       this.#selection,
       this.#entityDatumCache,
+      this.#offsetScale,
     );
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
@@ -2213,7 +2276,7 @@ export class DeckWorldSurface implements WorldSurface {
         : []),
     ];
 
-    this.#deck.setProps({ layers });
+    this.#deck.setProps(withCamera ? { layers, viewState: this.#camera } : { layers });
     this.#updateLiveRegion();
   }
 
@@ -2232,7 +2295,7 @@ export class DeckWorldSurface implements WorldSurface {
       ...this.#camera,
       longitude: position[0],
       latitude: position[1],
-      zoom: Math.max(this.#camera.zoom, 5),
+      zoom: focusZoom(this.#camera.zoom),
     });
   }
 

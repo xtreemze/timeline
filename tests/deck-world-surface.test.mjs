@@ -1157,6 +1157,11 @@ test("a spatial-mode crossing alone does not re-render or invalidate memoized da
   const surface = new DeckWorldSurface({}, runtime);
   surface.setProjection(projection());
   surface.setSelection({ kind: "entity", id: "alice" });
+  // Start just below the local-entry zoom (11.5). Local offsets are
+  // magnified in quarter-octave bands of zoom; for this fixture (one 150 m
+  // offset at 59.3°N) zooms 11.463–11.713 share a band, so 11.49 and 11.5
+  // differ only by the spatial-mode crossing under test.
+  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 11.49, bearing: 0, pitch: 20 });
 
   const beforeEntities = calls.setProps.filter((props) => props.layers).at(-1).layers[2].props.data;
   const renderCallCountBefore = calls.setProps.filter((props) => props.layers).length;

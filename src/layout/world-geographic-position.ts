@@ -1,7 +1,4 @@
-import type {
-  ProjectedWorldInstance,
-  SpatialAnchor,
-} from "../projection/world-projection.ts";
+import type { ProjectedWorldInstance, SpatialAnchor } from "../projection/world-projection.ts";
 
 export type WorldRenderPosition = readonly [longitude: number, latitude: number, altitude: number];
 
@@ -24,7 +21,7 @@ function radians(value: number): number {
 
 function wrapLongitude(value: number): number {
   if (value >= -180 && value <= 180) return Object.is(value, -0) ? 0 : value;
-  const wrapped = ((value + 180) % 360 + 360) % 360 - 180;
+  const wrapped = ((((value + 180) % 360) + 360) % 360) - 180;
   return Object.is(wrapped, -0) ? 0 : wrapped;
 }
 
@@ -48,22 +45,30 @@ function validateRenderPosition(position: WorldRenderPosition): void {
 function primaryAnchor(anchors: readonly SpatialAnchor[]): SpatialAnchor | null {
   if (!anchors.length) return null;
 
-  return [...anchors].sort(
-    (left, right) =>
-      right.influence - left.influence ||
-      (right.certainty ?? -1) - (left.certainty ?? -1) ||
-      String(left.placeId).localeCompare(String(right.placeId)),
-  )[0] ?? null;
+  return (
+    [...anchors].sort(
+      (left, right) =>
+        right.influence - left.influence ||
+        (right.certainty ?? -1) - (left.certainty ?? -1) ||
+        String(left.placeId).localeCompare(String(right.placeId)),
+    )[0] ?? null
+  );
 }
 
+/**
+ * `offsetScale` magnifies the local layout offset from the anchor for
+ * presentation only (semantic zoom keeps a place's local graph legible);
+ * the stored offset and the anchor are never changed.
+ */
 export function resolveWorldRenderPosition(
   instance: ProjectedWorldInstance,
+  offsetScale = 1,
 ): WorldRenderPosition | null {
   const anchor = primaryAnchor(instance.geographicAnchors);
   if (!anchor) return null;
 
-  const eastMeters = instance.localOffset?.eastMeters ?? 0;
-  const northMeters = instance.localOffset?.northMeters ?? 0;
+  const eastMeters = (instance.localOffset?.eastMeters ?? 0) * offsetScale;
+  const northMeters = (instance.localOffset?.northMeters ?? 0) * offsetScale;
 
   const anchorLatitudeRadians = radians(anchor.latitude);
   const latitude = Math.max(
@@ -83,10 +88,11 @@ export function resolveWorldRenderPosition(
   return Object.freeze([longitude, latitude, altitude]);
 }
 
-
+/** Inverse of `resolveWorldRenderPosition`, including its `offsetScale`. */
 export function resolveWorldLocalLayoutPosition(
   instance: ProjectedWorldInstance,
   position: WorldRenderPosition,
+  offsetScale = 1,
 ): WorldLocalLayoutPosition | null {
   const anchor = primaryAnchor(instance.geographicAnchors);
   if (!anchor) return null;
@@ -101,16 +107,13 @@ export function resolveWorldLocalLayoutPosition(
     Math.abs(cosine) <= POLAR_COSINE_EPSILON
       ? 0
       : radians(longitudeDelta) * EARTH_RADIUS_METERS * cosine;
-  const northMeters =
-    radians(latitude - anchor.latitude) * EARTH_RADIUS_METERS;
-  const visualAltitudeMeters = Math.max(
-    0,
-    altitude - (anchor.sourceAltitude ?? 0),
-  );
+  const northMeters = radians(latitude - anchor.latitude) * EARTH_RADIUS_METERS;
+  const visualAltitudeMeters = Math.max(0, altitude - (anchor.sourceAltitude ?? 0));
 
+  const scale = Number.isFinite(offsetScale) && offsetScale > 0 ? offsetScale : 1;
   return Object.freeze({
-    eastMeters,
-    northMeters,
+    eastMeters: eastMeters / scale,
+    northMeters: northMeters / scale,
     visualAltitudeMeters,
   });
 }
