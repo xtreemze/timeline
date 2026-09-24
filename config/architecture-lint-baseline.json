@@ -330,7 +330,7 @@
   },
   "architecture": {
     "ambientTimelineGlobals": {
-      "site/app.ts": 15,
+      "site/app.ts": 14,
       "site/case-reasoning-shim.ts": 1,
       "site/date-range-picker-shim.ts": 1,
       "site/event-presentation-shim.ts": 1,
