@@ -43,8 +43,7 @@
   block-size: 100%;
   min-inline-size: 0;
   min-block-size: 0;
-  padding: max(0.35rem, env(safe-area-inset-top)) 0.7rem
-    max(0.7rem, env(safe-area-inset-bottom));
+  padding: max(0.35rem, env(safe-area-inset-top)) 0.7rem max(0.7rem, env(safe-area-inset-bottom));
   overflow-x: clip;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -403,8 +402,6 @@
     min-block-size: 44px;
   }
 }
-
-
 
 @media (min-width: 700px) {
   #app-shell.is-event-focused #presentation-stage {
