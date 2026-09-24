@@ -101,16 +101,32 @@ test("portable fill, border, stroke, and radius aliases override defaults", () =
   assert.equal(styled.radius, 30);
 });
 
-test("places honour their map marker style", () => {
+test("places use node-like shape, icon, border, fill, and readable footprint", () => {
   const place = worldPlaceStyle(
-    { marker: { fillColor: "#123456", color: "#abcdef", size: 24, weight: 3 } },
+    {
+      marker: {
+        fillColor: "#123456",
+        color: "#abcdef",
+        size: 24,
+        weight: 3,
+        shape: "square",
+        icon: "place",
+      },
+    },
     false,
     WORLD_LIGHT_PALETTE,
   );
   assert.equal(place.fill, "#123456");
   assert.equal(place.border, "#abcdef");
   assert.equal(place.borderWidth, 3);
-  assert.equal(place.radius, 12);
+  assert.equal(place.shape, "square");
+  assert.equal(place.icon, "place");
+  assert.equal(place.radius, WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+
+  const fallback = worldPlaceStyle({}, false, WORLD_LIGHT_PALETTE);
+  assert.equal(fallback.shape, "pin");
+  assert.equal(fallback.icon, "place");
+  assert.ok(fallback.radius >= WORLD_ENTITY_MIN_HIT_RADIUS_PX);
 });
 
 test("edges colour by relationship type unless they carry their own style, including style aliases", () => {
