@@ -161,7 +161,7 @@ test("places use node-like shape, icon, border, fill, and readable footprint", (
         size: 24,
         weight: 3,
         shape: "square",
-        icon: "place",
+        icon: "crown",
       },
     },
     false,
@@ -171,7 +171,7 @@ test("places use node-like shape, icon, border, fill, and readable footprint", (
   assert.equal(place.border, "#abcdef");
   assert.equal(place.borderWidth, 3);
   assert.equal(place.shape, "square");
-  assert.equal(place.icon, "place");
+  assert.equal(place.icon, "crown");
   assert.equal(place.radius, WORLD_ENTITY_MIN_HIT_RADIUS_PX);
 
   const fallback = worldPlaceStyle({}, false, WORLD_LIGHT_PALETTE);
