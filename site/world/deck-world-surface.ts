@@ -291,13 +291,13 @@ export interface DeckWorldClusterDatum {
 export type DeckWorldEntityRenderDatum = DeckWorldEntityDatum | DeckWorldClusterDatum;
 
 /**
- * Below this globe zoom level, nearby entities are grouped into clusters.
- * The default camera (zoom 1, see `DEFAULT_CAMERA` below) sits above this
- * threshold so clustering stays fully bypassed until the viewer zooms out
- * past the initial globe overview, keeping per-entity picking/dragging
- * unaffected at working zoom levels.
+ * Below this globe zoom level, nearby entities remain grouped into clusters.
+ * Release them only once a 6-degree cluster cell occupies roughly 96px on
+ * screen (zoom ~= 3.5 at the equator). This keeps the overview legible and
+ * avoids revealing a dense field of 44-52px nodes before there is enough
+ * screen-space separation for nodes, labels, and relationships.
  */
-export const CLUSTER_ZOOM_THRESHOLD = 0.5;
+export const CLUSTER_ZOOM_THRESHOLD = 3.5;
 
 /**
  * Dense projections need semantic LOD earlier than sparse scenes: drawing
