@@ -5419,9 +5419,9 @@
 
 
 /* Spatial timeline chrome and content-first focused detail. */
-.timeline-local-toolbar {
+#presentation-stage > .timeline-local-toolbar {
   position: absolute;
-  z-index: 14;
+  z-index: 1100;
   display: flex;
   align-items: center;
   gap: 0.18rem;
@@ -5474,12 +5474,12 @@
   stroke-width: 1.9;
 }
 
-.timeline-view[data-orientation="landscape"] > .timeline-local-toolbar {
+#presentation-stage[data-timeline-orientation="horizontal"] > .timeline-local-toolbar {
   inset-block-start: max(0.35rem, env(safe-area-inset-top));
   inset-inline-end: max(0.35rem, env(safe-area-inset-right));
 }
 
-.timeline-view[data-orientation="portrait"] > .timeline-local-toolbar {
+#presentation-stage[data-timeline-orientation="vertical"] > .timeline-local-toolbar {
   inset-block-start: 50%;
   inset-inline-end: max(0.25rem, env(safe-area-inset-right));
   flex-direction: column;
@@ -5727,7 +5727,7 @@
     max-block-size: calc(100% - 1.1rem);
   }
 
-  .timeline-view[data-orientation="landscape"] > .timeline-local-toolbar {
+  #presentation-stage[data-timeline-orientation="horizontal"] > .timeline-local-toolbar {
     inset-block-start: max(0.5rem, env(safe-area-inset-top));
     inset-inline-end: max(0.5rem, env(safe-area-inset-right));
   }
