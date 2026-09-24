@@ -1,3 +1,4 @@
+// biome-ignore-all format: compact declarative fixture matrix is easier to audit in aligned tuples
 const SOURCE_TEXT = "Fictional narrative ordering coordinate; not a real-world date.";
 const MEDIA_CAPTION =
   "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction.";
