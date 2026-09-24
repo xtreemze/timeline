@@ -21,6 +21,13 @@ import {
 } from "../../src/projection/temporal-occurrence-index.ts";
 import { projectWorldOccurrences } from "../../src/projection/world-occurrence-projection.ts";
 import type { WorldProjection } from "../../src/projection/world-projection.ts";
+import {
+  type WorldEntityVisualOverride,
+  type WorldNodeShape,
+  type WorldSemanticIconName,
+  type WorldVisualColor,
+  WORLD_NODE_SHAPES,
+} from "../../src/projection/world-visual-encoding.ts";
 import { TimelineTemporal } from "../temporal-standards.ts";
 
 export interface WorldProjectionRuntime {
@@ -38,6 +45,7 @@ interface InputEntity {
   readonly id?: unknown;
   readonly name?: unknown;
   readonly type?: unknown;
+  readonly attributes?: unknown;
 }
 
 interface InputPlace {
@@ -143,6 +151,54 @@ function confidence(value: unknown): number | null {
   return Number.isFinite(number) && number >= 0 && number <= 1 ? number : null;
 }
 
+const WORLD_ICONS = new Set<WorldSemanticIconName>([
+  "person",
+  "group",
+  "object",
+  "evidence",
+  "place",
+]);
+
+function visualColor(value: unknown): WorldVisualColor | undefined {
+  if (typeof value !== "string") return undefined;
+  const match = /^#([0-9a-f]{6})$/i.exec(value.trim());
+  if (!match?.[1]) return undefined;
+  const hex = match[1];
+  return Object.freeze([
+    Number.parseInt(hex.slice(0, 2), 16),
+    Number.parseInt(hex.slice(2, 4), 16),
+    Number.parseInt(hex.slice(4, 6), 16),
+    240,
+  ]) as WorldVisualColor;
+}
+
+function entityVisualOverride(attributes: unknown): WorldEntityVisualOverride | undefined {
+  if (!isRecord(attributes)) return undefined;
+  const presentation = isRecord(attributes["presentation"])
+    ? attributes["presentation"]
+    : attributes;
+  const shapeValue = text(presentation["shape"]);
+  const shape = WORLD_NODE_SHAPES.includes(shapeValue as WorldNodeShape)
+    ? (shapeValue as WorldNodeShape)
+    : undefined;
+  const iconValue = text(presentation["icon"]);
+  const icon = WORLD_ICONS.has(iconValue as WorldSemanticIconName)
+    ? (iconValue as WorldSemanticIconName)
+    : undefined;
+  const fillColor = visualColor(presentation["fillColor"] ?? presentation["color"]);
+  const outlineColor = visualColor(presentation["outlineColor"]);
+  const imageUrl = text(presentation["imageUrl"] ?? attributes["imageUrl"]);
+
+  if (!shape && !icon && !fillColor && !outlineColor && !imageUrl) return undefined;
+  return Object.freeze({
+    ...(shape ? { shape } : {}),
+    ...(icon ? { icon } : {}),
+    ...(fillColor ? { fillColor } : {}),
+    ...(outlineColor ? { outlineColor } : {}),
+    ...(imageUrl ? { imageUrl } : {}),
+  });
+}
+
 function canonicalPlaces(input: readonly InputPlace[]): readonly SpatialPlaceRecord[] {
   const result: SpatialPlaceRecord[] = [];
 
@@ -238,7 +294,10 @@ export class WorldProjectionView {
   #focusId: string | null = null;
   #presentationMode = false;
   #entityIds = new Set<string>();
-  #entityPresentation = new Map<EntityId, Readonly<{ label?: string; kind?: string }>>();
+  #entityPresentation = new Map<
+    EntityId,
+    Readonly<{ label?: string; kind?: string; visual?: WorldEntityVisualOverride }>
+  >();
   #placeIds = new Set<string>();
 
   constructor(runtime: WorldProjectionRuntime) {
@@ -257,17 +316,23 @@ export class WorldProjectionView {
           if (!id) return null;
           const label = text(entity.name);
           const kind = text(entity.type);
+          const visual = entityVisualOverride(entity.attributes);
           return [
             entityId(id),
             Object.freeze({
               ...(label ? { label } : {}),
               ...(kind ? { kind } : {}),
+              ...(visual ? { visual } : {}),
             }),
           ] as const;
         })
         .filter(
-          (entry): entry is readonly [EntityId, Readonly<{ label?: string; kind?: string }>] =>
-            entry !== null,
+          (
+            entry,
+          ): entry is readonly [
+            EntityId,
+            Readonly<{ label?: string; kind?: string; visual?: WorldEntityVisualOverride }>,
+          ] => entry !== null,
         ),
     );
     this.#placeIds = new Set(places.map((place) => String(place.id)));
