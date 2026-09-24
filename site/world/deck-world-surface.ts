@@ -2079,6 +2079,7 @@ export class DeckWorldSurface implements WorldSurface {
     if (!touch) return;
     this.#touchHold.release(touch.pointerId);
     this.#clearTouchHoldTimer();
+    this.#clearDragFlash();
     this.#setTouchDragState(null);
   };
 
@@ -2093,6 +2094,7 @@ export class DeckWorldSurface implements WorldSurface {
     }
     this.#nodeDragSink?.cancel("pointercancel");
     this.#activeDragPointerId = null;
+    this.#clearDragFlash({ render: false });
     this.#setActiveDragInstance(null);
     this.#dragCameraLock = null;
     this.#setPointerCursor(this.#hoverSelection);
@@ -2104,6 +2106,7 @@ export class DeckWorldSurface implements WorldSurface {
     }
     this.#nodeDragSink?.cancel("lostpointercapture");
     this.#activeDragPointerId = null;
+    this.#clearDragFlash({ render: false });
     this.#setActiveDragInstance(null);
     this.#dragCameraLock = null;
     this.#setPointerCursor(this.#hoverSelection);
@@ -2801,7 +2804,7 @@ export class DeckWorldSurface implements WorldSurface {
       true,
     );
     this.#clearTouchHoldTimer();
-    this.#clearDragFlashTimer();
+    this.#clearDragFlash({ render: false });
     this.#touchHold.clear();
     this.#container.removeEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
     this.#container.removeEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
@@ -2903,6 +2906,7 @@ export class DeckWorldSurface implements WorldSurface {
     // label-leading/node-lagging effect at pointer-up.
     const released = sink.release(pointerId);
     this.#activeDragPointerId = null;
+    this.#clearDragFlash({ render: false });
     this.#setActiveDragInstance(null);
     this.#dragCameraLock = null;
     this.#setPointerCursor(this.#hoverSelection);
@@ -2920,6 +2924,14 @@ export class DeckWorldSurface implements WorldSurface {
     if (this.#dragFlashTimer === null) return;
     globalThis.clearTimeout(this.#dragFlashTimer);
     this.#dragFlashTimer = null;
+  }
+
+  #clearDragFlash({ render = true }: { readonly render?: boolean } = {}): void {
+    this.#clearDragFlashTimer();
+    if (this.#dragFlashInstanceId === null) return;
+    this.#dragFlashInstanceId = null;
+    this.#dragPresentationRevision += 1;
+    if (render && !this.#destroyed) this.#render();
   }
 
   #setActiveDragInstance(
@@ -2965,6 +2977,7 @@ export class DeckWorldSurface implements WorldSurface {
     if (this.#activeDragPointerId !== null) {
       this.#nodeDragSink?.cancel("pointercancel");
       this.#activeDragPointerId = null;
+      this.#clearDragFlash({ render: false });
       this.#setActiveDragInstance(null);
       this.#dragCameraLock = null;
     }
