@@ -3,6 +3,7 @@ import type { DeckRuntimeInstance, DeckWorldRuntime } from "./deck-world-surface
 export interface DeckWorldBindings {
   readonly deck: (props: Readonly<Record<string, unknown>>) => DeckRuntimeInstance;
   readonly globeView: (props: Readonly<Record<string, unknown>>) => unknown;
+  readonly globeViewport?: (props: Readonly<Record<string, unknown>>) => DeckRuntimeInstance["getViewports"] extends (...args: never[]) => readonly (infer V)[] ? V : never;
   readonly mapView?: (props: Readonly<Record<string, unknown>>) => unknown;
   readonly scatterplotLayer: (props: Readonly<Record<string, unknown>>) => unknown;
   readonly pathLayer: (props: Readonly<Record<string, unknown>>) => unknown;
@@ -19,6 +20,13 @@ export function createDeckWorldRuntime(bindings: DeckWorldBindings): DeckWorldRu
     createGlobeView(props) {
       return bindings.globeView(props);
     },
+    ...(bindings.globeViewport
+      ? {
+          createGlobeViewport(props: Readonly<Record<string, unknown>>) {
+            return bindings.globeViewport?.(props);
+          },
+        }
+      : {}),
     ...(bindings.mapView
       ? {
           createMapView(props: Readonly<Record<string, unknown>>) {
