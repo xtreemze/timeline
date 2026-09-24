@@ -567,6 +567,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const activeGroups = activeDragGroup ? new Set<string>([activeDragGroup]) : null;
     if (activeGroups) {
       for (const [leftGroup, rightGroup] of crossPairs) {
+        if (!this.#groupsCanInteract(leftGroup.states, rightGroup.states)) continue;
         activeGroups.add(leftGroup.key);
         activeGroups.add(rightGroup.key);
       }
@@ -746,6 +747,25 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#pin = null;
     this.#request = null;
     this.#running = false;
+  }
+
+  #groupsCanInteract(
+    leftStates: readonly NodeState[],
+    rightStates: readonly NodeState[],
+  ): boolean {
+    for (const left of leftStates) {
+      if (!left.anchorFrame) continue;
+      for (const right of rightStates) {
+        if (!right.anchorFrame) continue;
+        const distance = Math.hypot(
+          right.worldX - left.worldX,
+          right.worldY - left.worldY,
+          right.worldZ - left.worldZ,
+        );
+        if (distance <= crossAnchorInteractionRadius(left, right)) return true;
+      }
+    }
+    return false;
   }
 
   #applyPairForces(
