@@ -1028,9 +1028,7 @@ const ENTITY_LABEL_OFFSET_PX = 56;
 export const WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM = 6;
 
 export function worldGraphLabelSize(datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">): number {
-  if (datum.emphasized) return 19;
-  if (datum.kind === "relationship-label") return 15;
-  return 16;
+  return datum.emphasized ? 19 : 16;
 }
 
 /**
