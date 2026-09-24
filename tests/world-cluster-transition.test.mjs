@@ -5,6 +5,10 @@ import {
   interpolateClusterPosition,
   worldClusterExpansionProgress,
 } from "../src/layout/world-cluster-transition.ts";
+import {
+  WORLD_PLACE_CLUSTER_RADIUS_PX,
+  WORLD_READABLE_LOCAL_RADIUS_PX,
+} from "../src/layout/world-semantic-presentation.ts";
 
 test("cluster expansion is continuous across the semantic zoom band", () => {
   assert.equal(worldClusterExpansionProgress(50, 100), 0);
@@ -28,4 +32,16 @@ test("cluster interpolation is reversible and follows the shortest longitude pat
   assert.ok(Math.abs(Math.abs(half[0]) - 180) < 1e-9);
   assert.equal(half[1], 12);
   assert.equal(half[2], 500);
+});
+
+
+test("place clusters do not resolve before the local graph readability floor", () => {
+  assert.equal(WORLD_PLACE_CLUSTER_RADIUS_PX, WORLD_READABLE_LOCAL_RADIUS_PX);
+  assert.ok(
+    worldClusterExpansionProgress(
+      WORLD_READABLE_LOCAL_RADIUS_PX,
+      WORLD_PLACE_CLUSTER_RADIUS_PX,
+    ) < 1,
+    "the readability floor is still inside the transition band; full expansion requires more room",
+  );
 });
