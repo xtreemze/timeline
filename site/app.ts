@@ -5299,10 +5299,7 @@ const settledSpatialWindow = createSettledTemporalWindowSink<unknown>(
 );
 
 els.timelineViewRoot.addEventListener("timelineviewportchange", (event) => {
-  settledSpatialWindow.push(
-    event.detail?.viewport || null,
-    Boolean(event.detail?.committed),
-  );
+  settledSpatialWindow.push(event.detail?.viewport || null, Boolean(event.detail?.committed));
 });
 
 els.timelineViewRoot.addEventListener("timelineorientationchange", (event) => {
