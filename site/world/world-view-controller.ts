@@ -25,7 +25,6 @@ import type {
   WorldSurface,
   WorldTemporalWindow,
 } from "../../src/layout/world-surface.ts";
-import type { PlaceId } from "../../src/domain/ids.ts";
 import type { WorldInstanceId, WorldProjection } from "../../src/projection/world-projection.ts";
 import {
   diffWorldProjection,
