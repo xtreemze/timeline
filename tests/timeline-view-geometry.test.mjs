@@ -56,8 +56,14 @@ test("selected events use a shell-owned six-column detail surface with timeline-
   assert.match(js, /focusNavigationState\(\)/);
   assert.doesNotMatch(js, /timeline-focus-nav-prev|timeline-focus-nav-next|Edit event/);
   assert.match(css, /Spatial timeline chrome and content-first focused detail/);
-  assert.match(css, /\.timeline-focus-sidebar:not\(\[hidden\]\)\s*\{[\s\S]*grid-template-columns:\s*repeat\(6,/);
-  assert.doesNotMatch(css, /\.timeline-focus-sidebar:not\(\[hidden\]\)\s*\{[\s\S]*grid-template-columns:\s*repeat\(12,/);
+  assert.match(
+    css,
+    /\.timeline-focus-sidebar:not\(\[hidden\]\)\s*\{[\s\S]*grid-template-columns:\s*repeat\(6,/,
+  );
+  assert.doesNotMatch(
+    css,
+    /\.timeline-focus-sidebar:not\(\[hidden\]\)\s*\{[\s\S]*grid-template-columns:\s*repeat\(12,/,
+  );
   assert.match(
     css,
     /#app-shell\.is-event-focused[\s\S]*timeline-focus-sidebar:not\(\[hidden\]\)[\s\S]*position:\s*absolute[\s\S]*z-index:\s*1080[\s\S]*inline-size:\s*min\(560px/,
