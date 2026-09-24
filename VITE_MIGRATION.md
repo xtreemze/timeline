@@ -1,141 +1,45 @@
-# Vite Migration Guide
+# Vite build architecture
 
-This document outlines the staged migration from esbuild + manual bundling to Vite with ESM modules.
+Lūm's browser build is fully owned by Vite 8 and native ES modules.
 
-## Current State
+## Current state
 
-- **Dev**: esbuild in CI only, no dev server
-- **Build**: esbuild IIFE bundle for graph (`site/orb-graph.bundle.js`)
-- **Modules**: IIFE closures assigning to `globalThis.Timeline*`
-- **No HMR**: Changes require full rebuild and page reload
+- **Development:** `vite` provides the development server and HMR.
+- **Production:** `vite build` is the only browser build command.
+- **Bundling:** Vite 8 uses Rolldown for the production module graph.
+- **Modules:** application and renderer integration use native ESM imports/exports.
+- **Graph:** `@memgraph/orb` is imported through `src/orb-graph-entry.js`; no prebuilt graph script is generated.
+- **Maps:** `site/location-map.ts` dynamically imports Leaflet and imports its CSS through the module graph.
+- **Evidence:** `src/evidence-extraction-entry.js` is loaded on demand; Vite emits the PDF.js worker asset from the `?url` import.
+- **Static output:** generated browser assets live only in `dist/`.
+- **Tooling:** there is no direct esbuild dependency, manual browser bundle command, or IIFE build step.
 
-## Target State
+## Build commands
 
-- **Dev**: Vite dev server with HMR on localhost:5173
-- **Build**: Vite handles site HTML, esbuild still used for graph bundle initially
-- **Modules**: ESM imports/exports, no globalThis pollution
-- **HMR**: Edit → save → hot reload (no full page reload)
-
-## Migration Phases
-
-### Phase 4a: Infrastructure (Completed)
-- [x] Vite installed and configured
-- [x] `pnpm dev` → Vite dev server
-- [x] `pnpm build` → Vite + esbuild
-- [x] `pnpm preview` → Build output preview
-
-### Phase 4b: Proof of Concept (Next)
-Convert one high-value, low-risk module to ESM:
-
-**Candidate: `site/temporal-standards.ts`**
-
-Why this module?
-- Pure utility functions (no DOM)
-- No dependencies on other Timeline modules
-- Used by many downstream modules (high value to unlock)
-- No external side effects
-- Closest to TypeScript-ready (already type-checkable via JSDoc)
-
-**Conversion process:**
-
-1. Rename `site/temporal-standards.js` → `site/temporal-standards.ts`
-2. Remove IIFE wrapper:
-   ```typescript
-   // Before: (() => { ... globalThis.TimelineTemporal = {...}; })();
-   // After: export const TimelineTemporal = {...} as const;
-   ```
-3. Update imports in dependent modules:
-   ```javascript
-   // Before: const temporal = globalThis.TimelineTemporal;
-   // After: import { TimelineTemporal } from './temporal-standards.ts';
-   ```
-4. Verify no TypeScript errors: `pnpm types`
-5. Test in Vite dev server: `pnpm dev`
-
-### Phase 4c: Batch Conversions (Subsequent)
-Once temporal-standards works, convert related modules in order:
-1. `site/spatial.ts` (depends on temporal-standards)
-2. `site/interchange-adapter.ts` (depends on both above)
-3. `src/time-scale.ts` (high-value, used by timeline view)
-
-Each conversion:
-- Rename to `.ts`
-- Remove IIFE, add `export`
-- Update importing files
-- Verify types
-- Test dev server
-
-### Phase 4d: App Entry Point (Final)
-Last step: `site/app.ts`
-- Import all modules via ESM
-- Remove globalThis checks
-- Clean initialization order
-- Final Vite build optimization
-
-## Module Conversion Template
-
-```typescript
-// Before (IIFE)
-(() => {
-  function helper(x) { return x * 2; }
-  globalThis.MyModule = Object.freeze({ helper });
-})();
-
-// After (ESM)
-export const MyModule = Object.freeze({
-  helper: (x: number) => x * 2,
-}) as const;
-```
-
-## Vite Configuration Notes
-
-**Current config** (vite.config.ts):
-- Root: `site/`
-- Build output: `dist/`
-- Target: Chrome 155 (matches esbuild)
-- Modules: .js + .ts support
-
-**Env handling:**
-Vite exposes `import.meta.env.*` at build time. Use it for:
-- `import.meta.env.DEV` → check if dev mode
-- `import.meta.env.PROD` → check if production
-
-**CSS handling:**
-Vite extracts CSS automatically. Currently all CSS is in `site/styles.css` and linked in HTML—no changes needed yet.
-
-## What Stays the Same
-
-- `esbuild` still bundles graph (`src/orb-graph-entry.js` → `site/orb-graph.bundle.js`)
-- HTML template (`site/index.html`) unchanged
-- Node tests (`tests/*.mjs`) unchanged
-- Biome + TypeScript checking unchanged
-
-## Building Without Vite
-
-If you need to build without Vite during migration:
 ```bash
-pnpm build:graph
-# Manually serve site/ or copy to dist/
+pnpm dev
+pnpm build
+pnpm preview
 ```
 
-## Rollback Plan
+The build target remains Chrome 155. GitHub Pages uses relative asset URLs through `base: "./"`.
 
-If Vite causes issues:
-1. `git revert` commits 4b, 4c, 4d
-2. Run: `pnpm build:graph` (esbuild still available)
-3. Restore IIFE patterns from git history
+## Vite configuration
 
-## Timeline
+`vite.config.ts` owns the application HTML entry and uses Vite 8's `build.rolldownOptions` API. Runtime dependencies are not copied into `site/` and are not served through custom middleware.
 
-- **Phase 4a**: ✅ Complete (foundation setup)
-- **Phase 4b**: ~2-3 hours (first ESM module)
-- **Phase 4c**: ~3-5 hours (batches of 2-3 modules)
-- **Phase 4d**: ~1-2 hours (app entry point)
-- **Total Phase 4**: ~6-10 hours
+This keeps development and production on the same module graph: imports define initialization order, dynamic imports define lazy boundaries, and Vite owns chunking and worker/assets emission.
 
-## Related Issues
+## Compatibility globals
 
-- #194: Year overflow → solved by Playwright + Vite HMR (fast iteration)
-- #125: Touch routing → solved by Playwright tests + ESM clarity
-- Type safety → improved by .ts adoption
-- DX: HMR + proper error messages in dev server
+A limited number of temporary `globalThis.Timeline*` compatibility facades remain while the broader ESM migration finishes. They are ordinary ESM side effects, not classic scripts or IIFE bundles. New architecture code must use imports/contracts rather than adding ambient dependencies.
+
+## Quality policy
+
+Repository tests enforce that:
+
+- `pnpm build` remains `vite build`;
+- direct esbuild and `--format=iife` build commands do not return;
+- old `*.bundle.js` runtime tags do not return to `site/index.html`;
+- Vite uses `rolldownOptions`, not the deprecated `rollupOptions` compatibility alias;
+- Leaflet and PDF.js remain part of the Vite module/asset graph.
