@@ -58,6 +58,8 @@ const CONNECTOR_ROUTE_EDGE_INSET_PX = 32;
 const MAX_COMMITTED_LANES = 3;
 const CLUSTER_ENTER_PX = 80;
 const CLUSTER_EXIT_PX = 120;
+const LABEL_BEFORE_ENTER_RATIO = 0.64;
+const LABEL_BEFORE_EXIT_RATIO = 0.36;
 
 type Orientation = "horizontal" | "vertical";
 
@@ -116,12 +118,14 @@ interface SceneRecord {
   terminal: HTMLButtonElement;
   range: HTMLButtonElement | null;
   contentRevision: string;
+  labelBefore: boolean | null;
 }
 
 interface ClusterSceneRecord {
   cluster: TemporalLayoutCluster;
   node: HTMLDivElement;
   terminal: HTMLButtonElement;
+  labelBefore: boolean | null;
 }
 
 interface CachedGeometryMeasurement {
@@ -235,6 +239,19 @@ function wheelZoomFactor(deltaPixels: number): number {
   return Math.exp(exponent);
 }
 
+function labelBeforeForPosition(
+  previous: boolean | null,
+  primary: number,
+  primaryLength: number,
+  interacting: boolean,
+): boolean {
+  const ratio = clamp(primary / Math.max(1, primaryLength), 0, 1);
+  if (previous !== null && interacting) return previous;
+  if (previous === true) return ratio > LABEL_BEFORE_EXIT_RATIO;
+  if (previous === false) return ratio >= LABEL_BEFORE_ENTER_RATIO;
+  return ratio > 0.5;
+}
+
 function itemOverlapsViewport(
   item: Pick<TimelineItem, "start" | "end">,
   viewport: TemporalWindow,
@@ -344,6 +361,8 @@ export class TimelineViewController {
   interactionVelocity = 0;
   inertiaAnimationFrame = 0;
   renderFrame = 0;
+  pendingViewportEmit = false;
+  interactionSurfaceRect: DOMRect | null = null;
   wheelCommitTimer: ReturnType<typeof globalThis.setTimeout> | 0 = 0;
   viewportInitialized = false;
   reducedMotionQuery: MediaQueryList | null =
@@ -404,7 +423,9 @@ export class TimelineViewController {
       (event) => {
         if (!this.items.length) return;
         event.preventDefault();
-        const rect = this.surface.getBoundingClientRect();
+        this.cancelInertia();
+        this.beginInteraction();
+        const rect = this.interactionSurfaceRect || this.surface.getBoundingClientRect();
         const primary =
           this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
         const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
@@ -418,13 +439,10 @@ export class TimelineViewController {
           end: anchor + span * (1 - ratio),
         };
 
-        this.cancelInertia();
-        this.beginInteraction();
         this.viewport = next;
         this.interactionVelocity = 0;
         this.markInputForNextRender();
-        this.scheduleRender();
-        this.emitViewport(false);
+        this.scheduleInteractionRender();
 
         globalThis.clearTimeout(this.wheelCommitTimer);
         this.wheelCommitTimer = globalThis.setTimeout(
@@ -449,11 +467,11 @@ export class TimelineViewController {
       point: { x: number; y: number },
       sourceEvent: PointerEvent | null = null,
     ): void => {
-      const rect = this.surface.getBoundingClientRect();
-      const coordinate =
-        this.orientation === "horizontal" ? point.x - rect.left : point.y - rect.top;
       this.cancelInertia();
       this.beginInteraction();
+      const rect = this.interactionSurfaceRect || this.surface.getBoundingClientRect();
+      const coordinate =
+        this.orientation === "horizontal" ? point.x - rect.left : point.y - rect.top;
       this.pointerDrag = {
         pointerId,
         coordinate,
@@ -477,7 +495,7 @@ export class TimelineViewController {
       if (this.touchPointers.size < 2) return null;
       const [first, second] = Array.from(this.touchPointers.values()).slice(0, 2);
       if (!first || !second) return null;
-      const rect = this.surface.getBoundingClientRect();
+      const rect = this.interactionSurfaceRect || this.surface.getBoundingClientRect();
       const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
       const primary =
         this.orientation === "horizontal"
@@ -662,14 +680,13 @@ export class TimelineViewController {
         this.viewport = { start, end: start + nextSpan };
         this.interactionVelocity = 0;
         this.markInputForNextRender();
-        this.scheduleRender();
-        this.emitViewport(false);
+        this.scheduleInteractionRender();
         return;
       }
 
       const drag = this.pointerDrag;
       if (!drag || drag.pointerId !== event.pointerId) return;
-      const rect = this.surface.getBoundingClientRect();
+      const rect = this.interactionSurfaceRect || this.surface.getBoundingClientRect();
       const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
       const coordinate =
         this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
@@ -693,8 +710,7 @@ export class TimelineViewController {
       const pointerVelocity = motion.estimatePointerVelocity(drag.samples);
       this.interactionVelocity = -((pointerVelocity / usable) * span);
       this.markInputForNextRender();
-      this.scheduleRender();
-      this.emitViewport(false);
+      this.scheduleInteractionRender();
     });
 
     const finishPointer = (event: PointerEvent): void => {
@@ -1091,8 +1107,7 @@ export class TimelineViewController {
     if (commit) {
       this.commitInteraction();
     } else {
-      this.scheduleRender();
-      this.emitViewport(false);
+      this.scheduleInteractionRender();
     }
   }
 
@@ -1622,8 +1637,7 @@ export class TimelineViewController {
         start: this.viewport.start + deltaTemporal,
         end: this.viewport.end + deltaTemporal,
       };
-      this.scheduleRender();
-      this.emitViewport(false);
+      this.scheduleInteractionRender();
 
       if (Math.abs(velocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
         this.inertiaAnimationFrame = requestAnimationFrame(step);
@@ -1639,6 +1653,7 @@ export class TimelineViewController {
   beginInteraction(): void {
     if (this.retention.active) return;
     this.clearHoverStates();
+    this.interactionSurfaceRect = this.surface.getBoundingClientRect();
     this.renderWindow = createRenderWindow(this.viewport, {
       overscanRatio: OVERSCAN_RATIO,
       velocityTemporalPerMs: this.interactionVelocity,
@@ -1650,6 +1665,12 @@ export class TimelineViewController {
 
   commitInteraction(): void {
     this.cancelInertia();
+    if (this.renderFrame) {
+      cancelAnimationFrame(this.renderFrame);
+      this.renderFrame = 0;
+    }
+    this.pendingViewportEmit = false;
+    this.interactionSurfaceRect = null;
     this.renderWindow = createRenderWindow(this.viewport, { overscanRatio: OVERSCAN_RATIO });
     this.retention = commitRetention(this.renderWindow);
     this.root.dataset.sceneState = this.focusedId
@@ -1664,11 +1685,20 @@ export class TimelineViewController {
     this.emitViewport(true);
   }
 
+  scheduleInteractionRender(): void {
+    this.pendingViewportEmit = true;
+    this.scheduleRender();
+  }
+
   scheduleRender(): void {
     if (this.renderFrame) return;
     this.renderFrame = requestAnimationFrame(() => {
       this.renderFrame = 0;
       this.render();
+      if (this.pendingViewportEmit) {
+        this.pendingViewportEmit = false;
+        this.emitViewport(false);
+      }
     });
   }
 
@@ -1851,7 +1881,7 @@ export class TimelineViewController {
     this.stage.append(node);
     this.frameCreatedObjects += 1;
 
-    const record: ClusterSceneRecord = { cluster, node, terminal };
+    const record: ClusterSceneRecord = { cluster, node, terminal, labelBefore: null };
     terminal.setAttribute("data-cluster-id", cluster.id);
 
     // Add click handler directly to button
@@ -1927,7 +1957,12 @@ export class TimelineViewController {
     record.terminal.replaceChildren(tiles, copy);
   }
 
-  positionCommittedClusters(padding: number, usable: number, axisCross: number): void {
+  positionCommittedClusters(
+    padding: number,
+    usable: number,
+    primaryLength: number,
+    axisCross: number,
+  ): void {
     for (const record of this.clusterScene.values()) {
       const { cluster, node, terminal } = record;
       const visible = itemOverlapsWindow({ start: cluster.start, end: cluster.end }, this.viewport);
@@ -1945,7 +1980,16 @@ export class TimelineViewController {
       const terminalCross = axisCross + (lane < 0 ? -laneDistance : laneDistance);
       const segment = connectorSegment(axisCross, terminalCross);
 
-      const labelBefore = this.orientation === "horizontal" ? primary > usable / 2 : lane < 0;
+      const labelBefore =
+        this.orientation === "horizontal"
+          ? labelBeforeForPosition(
+              record.labelBefore,
+              primary,
+              primaryLength,
+              this.retention.active,
+            )
+          : lane < 0;
+      record.labelBefore = labelBefore;
       node.dataset.side = labelBefore ? "before" : "after";
       node.classList.toggle("label-before", labelBefore);
       if (this.orientation === "horizontal") {
@@ -2061,6 +2105,7 @@ export class TimelineViewController {
     const width = Math.max(1, rect.width || this.surface.clientWidth || 800);
     const height = Math.max(1, rect.height || this.surface.clientHeight || 480);
     const primaryLength = this.orientation === "horizontal" ? width : height;
+    const crossLength = this.orientation === "horizontal" ? height : width;
     const axisCross = this.orientation === "horizontal" ? height / 2 : width * 0.58;
     const padding = this.axisPadding(primaryLength);
     const usable = Math.max(1, primaryLength - padding * 2);
@@ -2107,10 +2152,10 @@ export class TimelineViewController {
         record.item = item;
         this.updateRecordContent(record);
       }
-      this.positionRecord(record, primaryLength, axisCross);
+      this.positionRecord(record, primaryLength, crossLength, axisCross);
     }
 
-    this.positionCommittedClusters(padding, usable, axisCross);
+    this.positionCommittedClusters(padding, usable, primaryLength, axisCross);
 
     if (!this.retention.active) {
       for (const [key, record] of this.scene) {
@@ -2165,12 +2210,13 @@ export class TimelineViewController {
     }
 
     this.frameCreatedObjects += range ? 2 : 1;
-    const record = {
+    const record: SceneRecord = {
       item,
       node,
       terminal,
       range,
       contentRevision: "",
+      labelBefore: null,
     };
     this.bindRecordInteractionTarget(record, terminal);
     if (range) this.bindRecordInteractionTarget(record, range);
@@ -2231,7 +2277,12 @@ export class TimelineViewController {
     range?.classList.toggle("is-selected", selected);
   }
 
-  positionRecord(record: SceneRecord, primaryLength: number, axisCross: number): void {
+  positionRecord(
+    record: SceneRecord,
+    primaryLength: number,
+    crossLength: number,
+    axisCross: number,
+  ): void {
     const { item, node, terminal, range } = record;
     const span = Math.max(MIN_SPAN_MS, this.viewport.end - this.viewport.start);
     const coordinate = (time: number): number =>
@@ -2252,14 +2303,16 @@ export class TimelineViewController {
     const routeOffset = connectorRouteOffset(
       item.connectorRouting || "straight",
       terminalCross,
-      this.orientation === "horizontal"
-        ? Math.max(1, this.surface.getBoundingClientRect().height)
-        : Math.max(1, this.surface.getBoundingClientRect().width),
+      Math.max(1, crossLength),
       Math.abs(lane),
     );
     const shiftedCross = terminalCross + routeOffset;
 
-    const labelBefore = this.orientation === "horizontal" ? primary > primaryLength / 2 : lane < 0;
+    const labelBefore =
+      this.orientation === "horizontal"
+        ? labelBeforeForPosition(record.labelBefore, primary, primaryLength, this.retention.active)
+        : lane < 0;
+    record.labelBefore = labelBefore;
     node.dataset.side = labelBefore ? "before" : "after";
     node.classList.toggle("label-before", labelBefore);
     node.classList.toggle("is-buffered", !itemOverlapsWindow(item, this.viewport));
