@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { applyWorldForceLayout } from "../src/layout/world-force-layout.ts";
+import {
+  applyWorldForceLayout,
+  applyWorldForceLayoutUpdate,
+} from "../src/layout/world-force-layout.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
@@ -90,6 +93,47 @@ test("force layout samples update only derived local offset and visual altitude"
   assert.equal(updatedAlice.occurrenceId, "meeting");
   assert.equal(bob.localOffset, undefined);
   assert.equal(JSON.stringify(input), before);
+});
+
+test("force layout update reports exact changed instances without cloning static topology", () => {
+  const input = projection();
+  const alice = input.instances.find((instance) => instance.canonicalId === "alice");
+  const bob = input.instances.find((instance) => instance.canonicalId === "bob");
+
+  const update = applyWorldForceLayoutUpdate(input, [
+    {
+      instanceId: alice.id,
+      eastMeters: 250,
+      northMeters: -125,
+      visualAltitudeMeters: 1750,
+    },
+  ]);
+
+  assert.deepEqual(
+    update.updatedInstances.map((instance) => instance.id),
+    [alice.id],
+  );
+  assert.equal(update.projection.edges, input.edges);
+  assert.equal(
+    update.projection.instances.find((instance) => instance.canonicalId === "bob"),
+    bob,
+  );
+  assert.equal(
+    update.projection.instances.find((instance) => instance.canonicalId === "alice")
+      .geographicAnchors,
+    alice.geographicAnchors,
+  );
+
+  const noChange = applyWorldForceLayoutUpdate(update.projection, [
+    {
+      instanceId: alice.id,
+      eastMeters: 250,
+      northMeters: -125,
+      visualAltitudeMeters: 1750,
+    },
+  ]);
+  assert.equal(noChange.projection, update.projection);
+  assert.deepEqual(noChange.updatedInstances, []);
 });
 
 test("partial force snapshots preserve untouched world instances and edges", () => {
