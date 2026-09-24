@@ -3,9 +3,11 @@ import test from "node:test";
 
 import {
   WORLD_DARK_PALETTE,
+  WORLD_ENTITY_MIN_HIT_RADIUS_PX,
   WORLD_LIGHT_PALETTE,
   worldColorBytes,
   worldEdgeStyle,
+  worldNodeFootprintRadiusPx,
   worldNodeStyle,
   worldPlaceStyle,
 } from "../src/layout/world-graph-style.ts";
@@ -121,4 +123,24 @@ test("node radii are whole pixels so a scene shares a few marker textures", () =
       .radius,
     26,
   );
+});
+
+
+test("force footprint is never smaller than the rendered node or mobile target", () => {
+  for (const visualWeight of [0, 0.25, 0.5, 1]) {
+    const input = { type: "person", visualWeight };
+    const rendered = worldNodeStyle(input, WORLD_LIGHT_PALETTE);
+    const footprint = worldNodeFootprintRadiusPx(input);
+    assert.ok(footprint >= rendered.radius + rendered.borderWidth);
+    assert.ok(footprint >= WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+  }
+
+  const custom = {
+    type: "person",
+    attributes: { style: { size: 24, borderWidth: 6 } },
+    visualWeight: 0,
+  };
+  const rendered = worldNodeStyle(custom, WORLD_LIGHT_PALETTE);
+  assert.equal(rendered.radius, 48);
+  assert.equal(worldNodeFootprintRadiusPx(custom), 54);
 });
