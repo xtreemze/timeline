@@ -44,6 +44,8 @@ export const WORLD_DARK_PALETTE: WorldGraphPalette = Object.freeze({
 export const WORLD_NODE_SCALE = 2;
 /** Minimum radius of the mobile interaction footprint (44px diameter). */
 export const WORLD_ENTITY_MIN_HIT_RADIUS_PX = 22;
+/** Full CSS-pixel floor for visible world strokes across device pixel ratios. */
+export const WORLD_MIN_VISIBLE_STROKE_PX = 1;
 
 export interface WorldNodeStyle {
   readonly fill: string;
@@ -315,9 +317,9 @@ export function worldEdgeStyle(
     color(input.fallbackColor) ??
     semanticEdgeColor(input.predicate ?? "", palette);
   const authoredWidth =
-    number(own.width, 0.5, 10) ??
-    number(own.strokeWidth, 0.5, 10) ??
-    number(own.lineWidth, 0.5, 10) ??
+    number(own.width, WORLD_MIN_VISIBLE_STROKE_PX, 10) ??
+    number(own.strokeWidth, WORLD_MIN_VISIBLE_STROKE_PX, 10) ??
+    number(own.lineWidth, WORLD_MIN_VISIBLE_STROKE_PX, 10) ??
     2.5;
   return Object.freeze({
     // Interaction emphasis is renderer-only so edge geometry/routing never
