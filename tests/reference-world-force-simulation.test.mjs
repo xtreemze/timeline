@@ -204,6 +204,14 @@ test("pinning hard-locks local layout position and altitude", () => {
     northMeters: -125,
     visualAltitudeMeters: 1750,
   });
+  assert.deepEqual(simulation.getSnapshot(), [
+    {
+      instanceId,
+      eastMeters: 250,
+      northMeters: -125,
+      visualAltitudeMeters: 1750,
+    },
+  ]);
   simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
 
   for (let index = 0; index < 10; index += 1) simulation.step(1000 / 60);
@@ -225,6 +233,50 @@ test("pinning hard-locks local layout position and altitude", () => {
     northMeters: -125,
     visualAltitudeMeters: 1750,
   });
+});
+
+test("drag force is localized to the pinned node's geographic group", () => {
+  const simulation = new ReferenceWorldForceSimulation();
+  const alice = '["alice","meeting"]';
+  const bob = '["bob","meeting"]';
+  const remote = '["remote","other"]';
+  simulation.setScene({
+    nodes: [
+      node(alice, { initialEastMeters: -500 }),
+      node(bob, { initialEastMeters: 500 }),
+      node(remote, { initialEastMeters: 700 }),
+    ],
+    edges: [
+      {
+        id: "meeting",
+        sourceId: alice,
+        targetId: bob,
+        strength: 0.2,
+        restLengthMeters: 300,
+      },
+    ],
+    anchors: [
+      anchor(alice, "stockholm", { influence: 0 }),
+      anchor(bob, "stockholm", { influence: 0 }),
+      anchor(remote, "copenhagen", { influence: 0 }),
+    ],
+  });
+  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.setPin({
+    instanceId: alice,
+    eastMeters: -250,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+
+  const remoteBefore = simulation.getSnapshot().find((entry) => entry.instanceId === remote);
+  const bobBefore = simulation.getSnapshot().find((entry) => entry.instanceId === bob);
+  for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
+  const remoteAfter = simulation.getSnapshot().find((entry) => entry.instanceId === remote);
+  const bobAfter = simulation.getSnapshot().find((entry) => entry.instanceId === bob);
+
+  assert.deepEqual(remoteAfter, remoteBefore, "unrelated place groups stay frozen during drag");
+  assert.notDeepEqual(bobAfter, bobBefore, "same-anchor floating topology still relaxes");
 });
 
 test("hot scene replacement preserves unchanged local state within the same geographic group", () => {
