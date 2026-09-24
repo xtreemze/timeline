@@ -66,20 +66,13 @@ export interface WorldSimulationDiagnostics {
   readonly iteration: number | null;
 }
 
-export type WorldClusterForceMode = "expand" | "collapse" | "connect";
-
-export interface WorldClusterForceDirective {
-  readonly mode: WorldClusterForceMode;
-  readonly instanceIds: readonly WorldInstanceId[];
-}
-
 export interface WorldForceSimulationBackend {
   setScene(scene: WorldForceScene): void;
   /**
-   * Optional local-topology LOD hook. Backends that support it must move
-   * clustered members through force state, never renderer interpolation.
+   * Presentation-only place clustering. Canonical anchors stay immutable;
+   * D3 owns gather/scatter for these local groups.
    */
-  applyClusterDirective?(directive: WorldClusterForceDirective): void;
+  setClusteredPlaceIds?(placeIds: readonly PlaceId[]): void;
   setPin(pin: WorldForcePin | null): void;
   apply(request: WorldSimulationRequest): void;
   stop(): void;
