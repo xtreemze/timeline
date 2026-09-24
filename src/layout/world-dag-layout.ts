@@ -79,6 +79,7 @@ const DAG_MAX_GAP_METERS = 900;
 const DAG_TARGET_BASE_RADIUS_METERS = 1_500;
 const DAG_TARGET_RADIUS_PER_SQRT_NODE_METERS = 900;
 const DAG_TARGET_MAX_RADIUS_METERS = 12_000;
+const DAG_TARGET_HARD_MAX_RADIUS_METERS = 36_000;
 const DAG_CACHE_RETENTION_REVISIONS = 8;
 const EXACT_DECROSS_MAX_NODES = 8;
 const EXACT_DECROSS_MAX_EDGES = 32;
@@ -561,11 +562,12 @@ function scaledCandidate(
   const safeScale = minimumNonOverlappingScale(candidate.targets, sizes);
   const scale = Math.min(1, Math.max(desiredScale, safeScale));
 
-  // If the size-aware layout still cannot fit the local presentation radius
-  // without overlap, do not feed contradictory positional targets/routes to
-  // the force solver. Dense neighborhoods remain owned by collision + LOD.
+  // The preferred radius is soft: modest deep DAGs may expand their place
+  // domain rather than lose size-aware separation. The hard bound prevents a
+  // pathological local hierarchy from stretching across geographic scales;
+  // those neighborhoods remain owned by collision + LOD.
   const safeRadius = maxRawRadius * scale;
-  if (safeRadius > maxTargetRadius + 1e-6) {
+  if (safeRadius > DAG_TARGET_HARD_MAX_RADIUS_METERS + 1e-6) {
     return Object.freeze({
       ...candidate,
       name: `${candidate.name}-force-only`,
