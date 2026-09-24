@@ -338,9 +338,8 @@ export function extendSampleCase(sample) {
     const itemIds = [];
     story.scenes.forEach((scene, index) => {
       const sequence = index + 1;
-      const item = makeItem(story, scene, sequence);
-      const edge = item._edge;
-      delete item._edge;
+      const generated = makeItem(story, scene, sequence);
+      const { _edge: edge, ...item } = generated;
       sample.items.push(item);
       itemIds.push(item.id);
       sample.relationships.push({
