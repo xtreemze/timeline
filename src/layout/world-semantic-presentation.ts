@@ -150,7 +150,7 @@ export function edgeMidpoint(
   ]) as WorldRenderPosition;
 }
 
-/** Fixed topology lets deck interpolate straight<->curved relationship paths. */
+/** Fixed topology keeps straight/curved relationship lanes structurally stable. */
 const WORLD_RELATIONSHIP_PATH_SEGMENTS = 8;
 /**
  * Quadratic control-point displacement relative to endpoint distance. The
@@ -182,8 +182,8 @@ function edgePathPointAtFraction(
 /**
  * Stable world-space relationship geometry. lane=0 is visually straight;
  * non-zero lanes bend in the tangent plane while preserving both endpoints.
- * All paths contain the same point count so renderer transitions can morph
- * between straight and curved states when parallel topology changes.
+ * All paths contain the same point count so downstream geometry stays stable
+ * when parallel topology changes.
  */
 export function relationshipEdgePath(
   source: WorldRenderPosition,
@@ -231,6 +231,7 @@ export function edgePathMidpoint(path: readonly WorldRenderPosition[]): WorldRen
  */
 export function directedEdgePathArrowhead(
   path: readonly WorldRenderPosition[],
+  headLengthDegrees?: number,
 ): readonly [WorldRenderPosition, WorldRenderPosition, WorldRenderPosition] | null {
   if (path.length < 2) return null;
   const source = path[0]!;
@@ -259,7 +260,15 @@ export function directedEdgePathArrowhead(
 
   const ux = tangentX / tangentLength;
   const uy = tangentY / tangentLength;
-  const head = chordLength * ARROW_LENGTH_FRACTION;
+  const requestedHead =
+    typeof headLengthDegrees === "number" &&
+    Number.isFinite(headLengthDegrees) &&
+    headLengthDegrees > 0
+      ? headLengthDegrees
+      : chordLength * ARROW_LENGTH_FRACTION;
+  // Short edges cap the marker before its wings can overrun the endpoints.
+  // Otherwise the renderer supplies a node-relative screen-space length.
+  const head = Math.min(requestedHead, chordLength * 0.4);
   const halfWidth = head * ARROW_HALF_WIDTH_RATIO;
   const baseX = -ux * head;
   const baseY = -uy * head;
@@ -493,6 +502,31 @@ export const WORLD_READABLE_LOCAL_RADIUS_PX = 200;
 /** Degrees of longitude spanned by `pixels` at `zoom` (GlobeView scale). */
 export function worldPixelsToDegrees(pixels: number, zoom: number): number {
   return (pixels * 360) / (512 * 2 ** zoom);
+}
+
+/** Arrow length as a fraction of the average visible endpoint-node radius. */
+export const WORLD_EDGE_ARROW_NODE_RADIUS_RATIO = 0.85;
+
+/**
+ * Converts a node-relative screen-pixel arrow length into the local angular
+ * metric used by relationship geometry. This keeps arrowheads visually tied
+ * to pixel-sized nodes instead of growing or shrinking with the edge chord.
+ */
+export function worldArrowLengthDegreesForNodeRadius(
+  nodeRadiusPx: number,
+  zoom: number,
+  latitude = 0,
+): number {
+  const radiusPx =
+    Number.isFinite(nodeRadiusPx) && nodeRadiusPx > 0 ? nodeRadiusPx : 1;
+  const latitudeScale = Math.max(
+    0.2,
+    Math.cos((Math.max(-89.9, Math.min(89.9, latitude)) * Math.PI) / 180),
+  );
+  return (
+    worldPixelsToDegrees(radiusPx * WORLD_EDGE_ARROW_NODE_RADIUS_RATIO, zoom) *
+    latitudeScale
+  );
 }
 /**
  * Below this on-screen local radius a place's entities remain clustered.

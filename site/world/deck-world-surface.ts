@@ -8,7 +8,6 @@ import {
 import { fitWorldCamera, globeOverviewCamera } from "../../src/layout/world-camera-fit.ts";
 import {
   interpolateClusterPosition,
-  WORLD_CLUSTER_FORCE_TRANSITION_MS,
   worldClusterExpansionProgress,
 } from "../../src/layout/world-cluster-transition.ts";
 import {
@@ -40,6 +39,7 @@ import {
   WORLD_PLACE_CLUSTER_RADIUS_PX,
   WORLD_PLACE_LABEL_FLOOR,
   WORLD_READABLE_LOCAL_RADIUS_PX,
+  worldArrowLengthDegreesForNodeRadius,
   worldLabelBudget,
   worldLabelTierFloor,
   worldLocalRadiusPx,
@@ -233,6 +233,7 @@ interface DeckWorldDirectionDatum {
   readonly sourceEntityId: EntityId;
   readonly targetEntityId: EntityId;
   readonly edge: DeckWorldRelationshipDatum;
+  readonly arrowLengthDegrees: number;
   readonly path: readonly [WorldRenderPosition, WorldRenderPosition, WorldRenderPosition];
   readonly selected: boolean;
 }
@@ -1142,6 +1143,7 @@ function directionDatums(
   zoom: number,
   focus: WorldLabelFocus | null,
   previous: ReadonlyMap<RelationshipId, DeckWorldDirectionDatum>,
+  arrowLengthDegreesForEdge: (edge: DeckWorldRelationshipDatum) => number,
 ): {
   readonly datums: readonly DeckWorldDirectionDatum[];
   readonly byId: Map<RelationshipId, DeckWorldDirectionDatum>;
@@ -1157,13 +1159,18 @@ function directionDatums(
   });
 
   for (const edge of marked) {
+    const arrowLengthDegrees = arrowLengthDegreesForEdge(edge);
     const prior = previous.get(edge.relationshipId);
-    if (prior && prior.edge === edge) {
+    if (
+      prior &&
+      prior.edge === edge &&
+      prior.arrowLengthDegrees === arrowLengthDegrees
+    ) {
       byId.set(edge.relationshipId, prior);
       result.push(prior);
       continue;
     }
-    const path = directedEdgePathArrowhead(edge.path);
+    const path = directedEdgePathArrowhead(edge.path, arrowLengthDegrees);
     if (!path) continue;
     const datum: DeckWorldDirectionDatum = Object.freeze({
       kind: "relationship-direction",
@@ -1173,6 +1180,7 @@ function directionDatums(
       sourceEntityId: edge.sourceEntityId,
       targetEntityId: edge.targetEntityId,
       edge,
+      arrowLengthDegrees,
       path,
       selected: edge.selected,
     });
@@ -1223,19 +1231,6 @@ const ENTITY_LABEL_OFFSET_PX = 32;
 
 /** Close/detail zoom where a claimed node drag freezes the globe camera. */
 export const WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM = 6;
-
-/**
- * Temporal relationship changes are deliberately slow enough to explain why
- * topology joins/leaves as the TimelineSurface logical window changes.
- * Presentation only: logical activation remains immediate.
- */
-export const WORLD_TEMPORAL_RELATION_TRANSITION_MS = 3_000;
-/** Path topology moves quickly enough to explain parallel-edge fan-out without snapping. */
-export const WORLD_RELATION_PATH_TRANSITION_MS = 600;
-
-function temporalRelationEasing(t: number): number {
-  return t * t * (3 - 2 * t);
-}
 
 export function worldGraphLabelSize(
   _datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">,
@@ -1764,8 +1759,8 @@ export class DeckWorldSurface implements WorldSurface {
   #entityDatumCache: ReadonlyMap<WorldInstanceId, DeckWorldEntityDatum> = new Map();
   #relationshipDatumCache: ReadonlyMap<RelationshipId, DeckWorldRelationshipDatum> = new Map();
   // Stable slots preserve row identity across temporal activation changes so
-  // deck.gl interpolates a relation against itself instead of another edge
-  // after the active set is reordered.
+  // retained rows never get reassigned to another relationship after the
+  // active set is reordered.
   readonly #temporalRelationshipSlots = new Map<
     RelationshipId,
     { readonly slot: number; readonly datum: DeckWorldTemporalRelationshipDatum }
@@ -3048,8 +3043,8 @@ export class DeckWorldSurface implements WorldSurface {
     const temporalRelationships = this.#temporalRelationshipDatums(relationships);
     // Keep place-cluster and member rows alive at both endpoints. Clusters
     // reach zero radius/alpha at full expansion; members reach zero size/alpha
-    // at full collapse. Stable rows give deck a prior value to interpolate
-    // when an asynchronous force backend publishes a solved target at once.
+    // at full collapse. Geometry is supplied directly by force/cluster state,
+    // without deck.gl interpolation.
     const entities: readonly DeckWorldEntityRenderDatum[] = gridClustered
       ? clusterEntityDatums(entityResult.datums, this.#camera.zoom)
       : Object.freeze([
@@ -3069,11 +3064,35 @@ export class DeckWorldSurface implements WorldSurface {
       relationships.length,
       entityResult.datums.length,
     );
+    const visibleEntityRadiusPx = (instanceId: WorldInstanceId): number => {
+      const entity = entityResult.byId.get(instanceId);
+      if (!entity) return WORLD_ENTITY_MIN_HIT_RADIUS_PX;
+      const style = this.#entityStyle(entity);
+      return Math.max(
+        WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+        style.radius + style.borderWidth,
+      );
+    };
     const directionResult = directionDatums(
       relationships,
       this.#camera.zoom,
       this.#focus,
       this.#directionDatumCache,
+      (edge) => {
+        const nodeRadiusPx =
+          (visibleEntityRadiusPx(edge.sourceInstanceId) +
+            visibleEntityRadiusPx(edge.targetInstanceId)) /
+          2;
+        const source = edge.path[0];
+        const target = edge.path[edge.path.length - 1];
+        const latitude =
+          source && target ? (source[1] + target[1]) / 2 : this.#camera.latitude;
+        return worldArrowLengthDegreesForNodeRadius(
+          nodeRadiusPx,
+          this.#camera.zoom,
+          latitude,
+        );
+      },
     );
     this.#directionDatumCache = directionResult.byId;
     const focus = this.#focus;
@@ -3100,12 +3119,6 @@ export class DeckWorldSurface implements WorldSurface {
     // members resolve outward; they must never snap back to full visibility
     // at expansion=1.
     const clusterVisibility = gridClustered ? 1 : 1 - placeExpansion;
-    // Direct manipulation is already an explicit per-frame motion source.
-    // Never layer deck.gl position/path interpolation on top of those live
-    // coordinates: labels have always consumed the current geometry directly,
-    // so interpolating only nodes/edges makes the label visibly lead them.
-    const directNodeDrag = this.#activeDragPointerId !== null;
-
     // Fully clustered place members are retained in force/layout state but
     // not exposed as glyphs or hit targets. Loose/unclustered entities remain.
     const iconSource = gridClustered
@@ -3259,9 +3272,6 @@ export class DeckWorldSurface implements WorldSurface {
           getLineColor: this.#palette,
           getFillColor: this.#palette,
         },
-        transitions: prefersReducedMotion()
-          ? undefined
-          : { getLineColor: 120, getFillColor: 120 },
       }),
       ...(this.#runtime.createIconLayer
         ? [
@@ -3289,7 +3299,6 @@ export class DeckWorldSurface implements WorldSurface {
                 getSize: this.#palette,
                 getColor: this.#palette,
               },
-              transitions: prefersReducedMotion() ? undefined : { getColor: 120 },
               parameters: { cullMode: "none" },
             }),
           ]
@@ -3308,8 +3317,7 @@ export class DeckWorldSurface implements WorldSurface {
         getWidth: (datum: DeckWorldTemporalRelationshipDatum) => {
           const state = this.#temporalRelationshipStateFor(datum);
           const width = this.#temporalEdgeStyle(datum).width;
-          const temporalWidth = prefersReducedMotion() ? width : state.temporalActive ? width : 0;
-          return temporalWidth * edgeExpansion(state.edge);
+          return (state.temporalActive ? width : 0) * edgeExpansion(state.edge);
         },
         getColor: (datum: DeckWorldTemporalRelationshipDatum) => {
           const state = this.#temporalRelationshipStateFor(datum);
@@ -3324,31 +3332,6 @@ export class DeckWorldSurface implements WorldSurface {
               ? Math.round(emphasisAlpha * edgeExpansion(state.edge))
               : 0,
           );
-        },
-        transitions: {
-          ...(directNodeDrag
-            ? {}
-            : {
-                getPath: {
-                  duration: WORLD_RELATION_PATH_TRANSITION_MS,
-                  easing: temporalRelationEasing,
-                },
-              }),
-          getWidth: {
-            duration: WORLD_TEMPORAL_RELATION_TRANSITION_MS,
-            easing: temporalRelationEasing,
-            enter: (width: number) => (prefersReducedMotion() ? width : 0),
-          },
-          getColor: {
-            duration: WORLD_TEMPORAL_RELATION_TRANSITION_MS,
-            easing: temporalRelationEasing,
-            enter: (color: readonly [number, number, number, number]) => [
-              color[0],
-              color[1],
-              color[2],
-              0,
-            ],
-          },
         },
         updateTriggers: {
           getPath: this.#relationshipPathRevision,
@@ -3407,22 +3390,6 @@ export class DeckWorldSurface implements WorldSurface {
           getLineColor: [this.#palette, placeExpansion, gridClustered],
           getFillColor: [this.#palette, placeExpansion, gridClustered],
         },
-        transitions: prefersReducedMotion()
-          ? undefined
-          : {
-              ...(directNodeDrag
-                ? {}
-                : {
-                    getPosition: {
-                      duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
-                      easing: temporalRelationEasing,
-                    },
-                  }),
-              getRadius: 120,
-              getLineWidth: 120,
-              getLineColor: 120,
-              getFillColor: 120,
-            },
         ...(this.#nodeDragSink
           ? {
               onDragStart: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
@@ -3459,20 +3426,6 @@ export class DeckWorldSurface implements WorldSurface {
                 getWidth: [placeExpansion],
                 getColor: [this.#palette, placeExpansion],
               },
-              transitions: prefersReducedMotion()
-                ? undefined
-                : {
-                    ...(directNodeDrag
-                      ? {}
-                      : {
-                          getPath: {
-                            duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
-                            easing: temporalRelationEasing,
-                          },
-                        }),
-                    getWidth: 120,
-                    getColor: 120,
-                  },
               parameters: { cullMode: "none" },
             }),
           ]
@@ -3506,20 +3459,6 @@ export class DeckWorldSurface implements WorldSurface {
                 getSize: [this.#palette, placeExpansion, gridClustered],
                 getColor: [placeExpansion, gridClustered],
               },
-              transitions: prefersReducedMotion()
-                ? undefined
-                : {
-                    ...(directNodeDrag
-                      ? {}
-                      : {
-                          getPosition: {
-                            duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
-                            easing: temporalRelationEasing,
-                          },
-                        }),
-                    getSize: 120,
-                    getColor: 120,
-                  },
               // GlobeView culls back faces; billboarded icon quads vanish
               // without this (same as the label TextLayer). Markers draw
               // without depth testing so the invisible earth never clips
@@ -3561,20 +3500,6 @@ export class DeckWorldSurface implements WorldSurface {
             Math.round(emphasisAlpha * edgeExpansion(datum)),
           );
         },
-        transitions: prefersReducedMotion()
-          ? undefined
-          : {
-              ...(directNodeDrag
-                ? {}
-                : {
-                    getPath: {
-                      duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
-                      easing: temporalRelationEasing,
-                    },
-                  }),
-              getWidth: 120,
-              getColor: 120,
-            },
         updateTriggers: {
           getWidth: [this.#palette, placeExpansion, gridClustered],
           getColor: [this.#palette, placeExpansion, gridClustered],
@@ -3629,7 +3554,6 @@ export class DeckWorldSurface implements WorldSurface {
                   labelInteractionKey,
                 ],
               },
-              transitions: prefersReducedMotion() ? undefined : { getColor: 120 },
               // GlobeView culls back faces; billboarded glyph quads are
               // wound the other way and vanish without this. Labels draw
               // over marks (far-side labels are filtered out above) so

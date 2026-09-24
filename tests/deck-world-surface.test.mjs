@@ -6,7 +6,6 @@ import {
   DECK_WORLD_LAYER_IDS,
   DeckWorldSurface,
   WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM,
-  WORLD_TEMPORAL_RELATION_TRANSITION_MS,
   shouldClusterEntityDatums,
   worldGraphLabelSize,
 } from "../site/world/deck-world-surface.ts";
@@ -215,39 +214,33 @@ test("deck controller disables inertia when prefers-reduced-motion is set", (t) 
   assert.equal(calls.deckProps.controller.inertia, false);
 });
 
-test("short interaction feedback transitions respect reduced motion", (t) => {
-  const originalMatchMedia = globalThis.matchMedia;
-  t.after(() => {
-    globalThis.matchMedia = originalMatchMedia;
-  });
+test("world graph layers do not configure deck transitions", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
 
-  globalThis.matchMedia = () => ({ matches: false });
-  const animatedHarness = harness();
-  const animated = new DeckWorldSurface({}, animatedHarness.runtime);
-  animated.setProjection(projection());
-  const animatedPlaces = animatedHarness.calls.setProps
+  const graphLayerIds = new Set([
+    DECK_WORLD_LAYER_IDS.places,
+    DECK_WORLD_LAYER_IDS.relationships,
+    DECK_WORLD_LAYER_IDS.entities,
+    DECK_WORLD_LAYER_IDS.tethers,
+    DECK_WORLD_LAYER_IDS.relationshipDirections,
+  ]);
+  const graphLayers = calls.setProps
     .at(-1)
-    .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.places);
-  assert.deepEqual(animatedPlaces.props.transitions, {
-    getLineColor: 120,
-    getFillColor: 120,
-  });
+    .layers.filter((candidate) => graphLayerIds.has(candidate.props.id));
 
-  globalThis.matchMedia = (query) => ({
-    matches: query === "(prefers-reduced-motion: reduce)",
-  });
-  const reducedHarness = harness();
-  const reduced = new DeckWorldSurface({}, reducedHarness.runtime);
-  reduced.setProjection(projection());
-  const reducedPlaces = reducedHarness.calls.setProps
-    .at(-1)
-    .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.places);
-  assert.equal(reducedPlaces.props.transitions, undefined);
+  assert.ok(graphLayers.length > 0);
+  for (const graphLayer of graphLayers) {
+    assert.equal(
+      graphLayer.props.transitions,
+      undefined,
+      graphLayer.props.id + " must update directly without deck interpolation",
+    );
+  }
 });
 
-test("temporal relationship joins and disconnects remain perceptible for at least three seconds", () => {
-  assert.ok(WORLD_TEMPORAL_RELATION_TRANSITION_MS >= 3_000);
-
+test("temporal relationship joins and disconnects update immediately without renderer transitions", () => {
   const { calls, runtime, setPickResult } = harness();
   const surface = new DeckWorldSurface({}, runtime);
   surface.setProjection(projection());
@@ -256,32 +249,20 @@ test("temporal relationship joins and disconnects remain perceptible for at leas
     (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships,
   );
   assert.ok(joinedLayer);
-  assert.equal(
-    joinedLayer.props.transitions.getColor.duration,
-    WORLD_TEMPORAL_RELATION_TRANSITION_MS,
-  );
-  assert.equal(
-    joinedLayer.props.transitions.getWidth.duration,
-    WORLD_TEMPORAL_RELATION_TRANSITION_MS,
-  );
-
+  assert.equal(joinedLayer.props.transitions, undefined);
   const joined = joinedLayer.props.data[0];
-  const joinedColor = joinedLayer.props.getColor(joined);
-  const joinedWidth = joinedLayer.props.getWidth(joined);
   assert.equal(joined.kind, "relationship");
   assert.equal(joined.relationshipId, "meeting");
-  assert.equal(joinedColor[3], 215);
-  assert.ok(joinedWidth > 0);
-  assert.equal(joinedLayer.props.transitions.getColor.enter(joinedColor)[3], 0);
-  assert.equal(joinedLayer.props.transitions.getWidth.enter(joinedWidth), 0);
+  assert.equal(joinedLayer.props.getColor(joined)[3], 215);
+  assert.ok(joinedLayer.props.getWidth(joined) > 0);
 
   surface.setProjection(createWorldProjection({ instances: [], edges: [] }));
-
   const disconnectedLayer = calls.setProps.at(-1).layers.find(
     (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships,
   );
   assert.ok(disconnectedLayer);
-  assert.equal(disconnectedLayer.props.data.length, 1, "departing relation is retained visually");
+  assert.equal(disconnectedLayer.props.transitions, undefined);
+  assert.equal(disconnectedLayer.props.data.length, 1, "departing relation row is retained");
   const disconnected = disconnectedLayer.props.data[0];
   assert.equal(disconnected, joined, "temporal row identity is retained across disconnection");
   assert.equal(disconnectedLayer.props.getColor(disconnected)[3], 0);
@@ -294,22 +275,18 @@ test("temporal relationship joins and disconnects remain perceptible for at leas
     x: 0,
     y: 0,
   });
-  assert.equal(
-    surface.pick({ x: 0, y: 0 }),
-    null,
-    "departing ghost is never logically pickable",
-  );
+  assert.equal(surface.pick({ x: 0, y: 0 }), null, "departing ghost is never logically pickable");
 
   surface.setProjection(projection());
   const rejoinedLayer = calls.setProps.at(-1).layers.find(
     (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships,
   );
   assert.equal(rejoinedLayer.props.data.length, 1);
-  assert.equal(rejoinedLayer.props.data[0], joined, "rejoining reuses the same transition slot");
-  assert.equal(rejoinedLayer.props.getColor(rejoinedLayer.props.data[0])[3], 215);
+  assert.equal(rejoinedLayer.props.data[0], joined, "rejoin keeps the stable temporal row");
+  assert.ok(rejoinedLayer.props.getWidth(rejoinedLayer.props.data[0]) > 0);
 });
 
-test("reduced motion keeps the three-second temporal fade without line-width motion", (t) => {
+test("reduced motion uses the same immediate relationship geometry", (t) => {
   const originalMatchMedia = globalThis.matchMedia;
   globalThis.matchMedia = (query) => ({ matches: query === "(prefers-reduced-motion: reduce)" });
   t.after(() => {
@@ -324,21 +301,17 @@ test("reduced motion keeps the three-second temporal fade without line-width mot
     (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships,
   );
   assert.ok(joinedLayer);
-  const joined = joinedLayer.props.data[0];
-  const width = joinedLayer.props.getWidth(joined);
-  assert.equal(joinedLayer.props.transitions.getWidth.enter(width), width);
-  assert.equal(
-    joinedLayer.props.transitions.getColor.duration,
-    WORLD_TEMPORAL_RELATION_TRANSITION_MS,
-  );
+  assert.equal(joinedLayer.props.transitions, undefined);
+  assert.ok(joinedLayer.props.getWidth(joinedLayer.props.data[0]) > 0);
 
   surface.setProjection(createWorldProjection({ instances: [], edges: [] }));
   const disconnectedLayer = calls.setProps.at(-1).layers.find(
     (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships,
   );
   assert.ok(disconnectedLayer);
+  assert.equal(disconnectedLayer.props.transitions, undefined);
   const disconnected = disconnectedLayer.props.data[0];
-  assert.ok(disconnectedLayer.props.getWidth(disconnected) > 0);
+  assert.equal(disconnectedLayer.props.getWidth(disconnected), 0);
   assert.equal(disconnectedLayer.props.getColor(disconnected)[3], 0);
 });
 
@@ -1154,7 +1127,7 @@ test("deck entity drag callbacks resolve screen motion into world-local drag int
   assert.deepEqual(dragCalls.at(-1), ["release", 7]);
 });
 
-test("direct node drag keeps node, edge, and label geometry in lockstep", () => {
+test("node, edge, arrow, icon, tether, and label geometry always update without transitions", () => {
   const { calls, runtime } = harness();
   runtime.createIconLayer = (props) => ({ type: "icon", props });
   runtime.createTextLayer = (props) => ({ type: "text", props });
@@ -1174,8 +1147,6 @@ test("direct node drag keeps node, edge, and label geometry in lockstep", () => 
 
   surface.setNodeDragSink({
     begin() {
-      // Exercise the synchronous first-frame case: drag mode must already be
-      // active before the sink publishes a new projection.
       surface.setProjection(projection());
       return true;
     },
@@ -1184,12 +1155,29 @@ test("direct node drag keeps node, edge, and label geometry in lockstep", () => 
       return true;
     },
     release() {
-      // The final pinned frame must also remain transition-free.
       surface.setProjection(projection());
       return true;
     },
     cancel() {},
   });
+
+  const assertTransitionFree = () => {
+    for (const id of [
+      DECK_WORLD_LAYER_IDS.entities,
+      DECK_WORLD_LAYER_IDS.relationships,
+      DECK_WORLD_LAYER_IDS.relationshipDirections,
+      DECK_WORLD_LAYER_IDS.entityIcons,
+      DECK_WORLD_LAYER_IDS.labels,
+    ]) {
+      const current = latestLayer(id);
+      assert.ok(current, id + " is rendered");
+      assert.equal(current.props.transitions, undefined, id + " has no deck transitions");
+    }
+    const tethers = latestLayer(DECK_WORLD_LAYER_IDS.tethers);
+    if (tethers) assert.equal(tethers.props.transitions, undefined);
+  };
+
+  assertTransitionFree();
 
   const entityLayer = calls.scatterLayers
     .filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities)
@@ -1201,31 +1189,7 @@ test("direct node drag keeps node, edge, and label geometry in lockstep", () => 
     entityLayer.props.onDragStart({ object: alice, x: 118.0786, y: 259.3393 }, dragEvent),
     true,
   );
-
-  const assertGeometryIsImmediate = () => {
-    assert.equal(latestLayer(DECK_WORLD_LAYER_IDS.entities).props.transitions.getPosition, undefined);
-    assert.equal(
-      latestLayer(DECK_WORLD_LAYER_IDS.relationships).props.transitions.getPath,
-      undefined,
-    );
-    assert.equal(
-      latestLayer(DECK_WORLD_LAYER_IDS.relationshipDirections).props.transitions.getPath,
-      undefined,
-    );
-
-    const tethers = latestLayer(DECK_WORLD_LAYER_IDS.tethers);
-    if (tethers) assert.equal(tethers.props.transitions.getPath, undefined);
-
-    const icons = latestLayer(DECK_WORLD_LAYER_IDS.entityIcons);
-    assert.ok(icons);
-    assert.equal(icons.props.transitions.getPosition, undefined);
-
-    const labels = latestLayer(DECK_WORLD_LAYER_IDS.labels);
-    assert.ok(labels);
-    assert.equal(labels.props.transitions.getPosition, undefined);
-  };
-
-  assertGeometryIsImmediate();
+  assertTransitionFree();
 
   assert.equal(
     latestLayer(DECK_WORLD_LAYER_IDS.entities).props.onDrag(
@@ -1234,7 +1198,7 @@ test("direct node drag keeps node, edge, and label geometry in lockstep", () => 
     ),
     true,
   );
-  assertGeometryIsImmediate();
+  assertTransitionFree();
 
   assert.equal(
     latestLayer(DECK_WORLD_LAYER_IDS.entities).props.onDragEnd(
@@ -1243,14 +1207,10 @@ test("direct node drag keeps node, edge, and label geometry in lockstep", () => 
     ),
     true,
   );
-  assertGeometryIsImmediate();
+  assertTransitionFree();
 
-  // Ordinary non-drag layout/cluster motion still keeps its continuity
-  // transitions after direct manipulation is over.
   surface.setProjection(projection());
-  assert.ok(latestLayer(DECK_WORLD_LAYER_IDS.entities).props.transitions.getPosition);
-  assert.ok(latestLayer(DECK_WORLD_LAYER_IDS.relationships).props.transitions.getPath);
-  assert.ok(latestLayer(DECK_WORLD_LAYER_IDS.entityIcons).props.transitions.getPosition);
+  assertTransitionFree();
 });
 
 test("close-zoom node drag locks the globe camera until release", () => {
