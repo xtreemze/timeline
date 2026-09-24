@@ -53,7 +53,6 @@ import {
   createWorldCameraState,
   createWorldSpatialPosition,
   createWorldTemporalWindow,
-  worldSelectionFromHit,
   type ScreenPoint,
   type WorldCameraState,
   type WorldHit,
@@ -62,6 +61,7 @@ import {
   type WorldSurface,
   type WorldSurfaceCapabilities,
   type WorldTemporalWindow,
+  worldSelectionFromHit,
 } from "../../src/layout/world-surface.ts";
 import type {
   ProjectedWorldInstance,
@@ -327,8 +327,7 @@ export function clusterZoomThresholdForNodeRadius(nodeRadiusPx: number): number 
       ? nodeRadiusPx
       : WORLD_CLUSTER_BASE_NODE_RADIUS_PX;
   return (
-    CLUSTER_ZOOM_THRESHOLD +
-    Math.max(0, Math.log2(radius / WORLD_CLUSTER_BASE_NODE_RADIUS_PX))
+    CLUSTER_ZOOM_THRESHOLD + Math.max(0, Math.log2(radius / WORLD_CLUSTER_BASE_NODE_RADIUS_PX))
   );
 }
 
@@ -351,18 +350,11 @@ const DENSE_CLUSTER_ZOOM_THRESHOLD = 5.5;
  */
 const WORLD_PLACE_ICON_LIFT_PX = 2;
 
-function liftedPlaceIconPosition(
-  position: WorldRenderPosition,
-  zoom: number,
-): WorldRenderPosition {
+function liftedPlaceIconPosition(position: WorldRenderPosition, zoom: number): WorldRenderPosition {
   const quantisedZoom = Math.round(zoom * 4) / 4;
   const metersPerPixel = worldLocalRadiusPx(1, quantisedZoom, position[1]) ** -1;
   const liftMeters = Math.max(1, Math.round(metersPerPixel * WORLD_PLACE_ICON_LIFT_PX));
-  return Object.freeze([
-    position[0],
-    position[1],
-    position[2] + liftMeters,
-  ]) as WorldRenderPosition;
+  return Object.freeze([position[0], position[1], position[2] + liftMeters]) as WorldRenderPosition;
 }
 
 export function shouldClusterEntityDatums(
@@ -533,10 +525,7 @@ export function clusterEntityDatumsByPlace(
     const cellFor = (anchor: Anchor): readonly [number, number] => {
       const longitude = (((anchor.longitude + 180) % 360) + 360) % 360;
       return Object.freeze([
-        Math.min(
-          longitudeCellCount - 1,
-          Math.floor(longitude / mergeCellDegrees),
-        ),
+        Math.min(longitudeCellCount - 1, Math.floor(longitude / mergeCellDegrees)),
         Math.floor((anchor.latitude + 90) / mergeCellDegrees),
       ]);
     };
@@ -594,9 +583,7 @@ export function clusterEntityDatumsByPlace(
       }
     }
     components.push(
-      component.sort((left, right) =>
-        String(left.placeId).localeCompare(String(right.placeId)),
-      ),
+      component.sort((left, right) => String(left.placeId).localeCompare(String(right.placeId))),
     );
   }
 
@@ -623,10 +610,7 @@ export function clusterEntityDatumsByPlace(
       weightedLatitude += group.anchor.latitude * weight;
       weightedAltitude += (group.anchor.sourceAltitude ?? 0) * weight;
       totalWeight += weight;
-      totalVisualWeight += group.members.reduce(
-        (sum, member) => sum + member.visualWeight,
-        0,
-      );
+      totalVisualWeight += group.members.reduce((sum, member) => sum + member.visualWeight, 0);
     }
 
     const [singlePlace] = component;
@@ -640,7 +624,7 @@ export function clusterEntityDatumsByPlace(
         : weightedLatitude / totalWeight;
     const altitude =
       component.length === 1 && singlePlace
-        ? singlePlace.anchor.sourceAltitude ?? 0
+        ? (singlePlace.anchor.sourceAltitude ?? 0)
         : weightedAltitude / totalWeight;
     const placeIds = component.map((group) => String(group.placeId)).sort();
     const clusterMembers = members
@@ -661,11 +645,7 @@ export function clusterEntityDatumsByPlace(
           placeIds.length === 1
             ? `cluster:place:${placeIds[0]}`
             : `cluster:places:${placeIds.join("|")}`,
-        position: Object.freeze([
-          longitude,
-          latitude,
-          altitude,
-        ]) as WorldRenderPosition,
+        position: Object.freeze([longitude, latitude, altitude]) as WorldRenderPosition,
         clusterMembers: Object.freeze(clusterMembers),
         visualWeight: totalVisualWeight / totalWeight,
       }),
@@ -729,22 +709,38 @@ function placeClusterTransitionDatums(
 
 const WORLD_CLUSTER_EDGE_RELEASE_MS = 420;
 const WORLD_CLUSTER_FORCE_SETTLE_MS = 1500;
-type WorldClusterLifecyclePhase = "expanded" | "retiring" | "collapsing" | "collapsed" | "revealing";
-interface DeckWorldRetiringDot { readonly relationshipId: RelationshipId; readonly position: WorldRenderPosition; }
-function retiringRelationshipDots(relationships: readonly DeckWorldRelationshipDatum[]): readonly DeckWorldRetiringDot[] {
+type WorldClusterLifecyclePhase =
+  | "expanded"
+  | "retiring"
+  | "collapsing"
+  | "collapsed"
+  | "revealing";
+interface DeckWorldRetiringDot {
+  readonly relationshipId: RelationshipId;
+  readonly position: WorldRenderPosition;
+}
+function retiringRelationshipDots(
+  relationships: readonly DeckWorldRelationshipDatum[],
+): readonly DeckWorldRetiringDot[] {
   const dots: DeckWorldRetiringDot[] = [];
   for (const relationship of relationships) {
     const path = relationship.path;
     for (let segment = 0; segment < path.length - 1; segment += 1) {
-      const start = path[segment]; const end = path[segment + 1];
+      const start = path[segment];
+      const end = path[segment + 1];
       if (!start || !end) continue;
       for (let step = 1; step < 8; step += 2) {
         const t = step / 8;
-        dots.push(Object.freeze({ relationshipId: relationship.relationshipId, position: Object.freeze([
-          start[0] + (end[0] - start[0]) * t,
-          start[1] + (end[1] - start[1]) * t,
-          start[2] + (end[2] - start[2]) * t,
-        ]) as WorldRenderPosition }));
+        dots.push(
+          Object.freeze({
+            relationshipId: relationship.relationshipId,
+            position: Object.freeze([
+              start[0] + (end[0] - start[0]) * t,
+              start[1] + (end[1] - start[1]) * t,
+              start[2] + (end[2] - start[2]) * t,
+            ]) as WorldRenderPosition,
+          }),
+        );
       }
     }
   }
@@ -941,7 +937,9 @@ function prefersReducedMotion(): boolean {
  * left off (deck.gl's own default) because this surface wires its own
  * double-tap/double-click focus gesture (see `#handleDoubleClick`) instead.
  */
-function deckControllerOptions(mode: WorldSpatialMode = "globe"): Readonly<Record<string, unknown>> {
+function deckControllerOptions(
+  mode: WorldSpatialMode = "globe",
+): Readonly<Record<string, unknown>> {
   return Object.freeze({
     dragPan: true,
     dragRotate: true,
@@ -1368,8 +1366,7 @@ function directionDatums(
   const result: DeckWorldDirectionDatum[] = [];
   const marked = selectPrioritizedLabels(relationships, {
     budget: worldLabelBudget(zoom),
-    isPinned: (edge) =>
-      focus?.kind === "relationship" && focus.id === edge.relationshipId,
+    isPinned: (edge) => focus?.kind === "relationship" && focus.id === edge.relationshipId,
     importance: (edge) => edge.temporalWeight,
     key: (edge) => edge.relationshipId,
   });
@@ -1377,11 +1374,7 @@ function directionDatums(
   for (const edge of marked) {
     const arrowLengthDegrees = arrowLengthDegreesForEdge(edge);
     const prior = previous.get(edge.relationshipId);
-    if (
-      prior &&
-      prior.edge === edge &&
-      prior.arrowLengthDegrees === arrowLengthDegrees
-    ) {
+    if (prior && prior.edge === edge && prior.arrowLengthDegrees === arrowLengthDegrees) {
       byId.set(edge.relationshipId, prior);
       result.push(prior);
       continue;
@@ -1720,8 +1713,7 @@ function labelDatums(input: {
     );
   }
 
-  const pinnedEntity = (entity: DeckWorldEntityDatum) =>
-    focused("entity", entity.entityId);
+  const pinnedEntity = (entity: DeckWorldEntityDatum) => focused("entity", entity.entityId);
   const entities = selectPrioritizedLabels(
     input.entities.filter((entity) => entity.label && !input.clustered),
     {
@@ -2118,10 +2110,6 @@ export class DeckWorldSurface implements WorldSurface {
     const style = (this.#container as HTMLElement).style;
     if (!style) return;
     style.cursor =
-      selection?.kind === "entity" && this.#nodeDragSink
-        ? "grab"
-        : selection
-          ? "pointer"
           : "";
   }
 
