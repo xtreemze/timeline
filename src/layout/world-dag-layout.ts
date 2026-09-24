@@ -81,9 +81,13 @@ const DAG_TARGET_RADIUS_PER_SQRT_NODE_METERS = 900;
 const DAG_TARGET_MAX_RADIUS_METERS = 12_000;
 const DAG_CACHE_RETENTION_REVISIONS = 8;
 const EXACT_DECROSS_MAX_NODES = 8;
+const EXACT_DECROSS_MAX_EDGES = 32;
 const COMPARE_LAYERING_MAX_NODES = 24;
+const COMPARE_LAYERING_MAX_EDGES = 96;
 const SIMPLEX_COORD_MAX_NODES = 64;
+const SIMPLEX_COORD_MAX_EDGES = 384;
 const SIMPLEX_LAYER_MAX_NODES = 128;
+const SIMPLEX_LAYER_MAX_EDGES = 384;
 const PAIRWISE_METRIC_MAX_NODES = 256;
 
 interface LocalDagEdge {
@@ -326,12 +330,13 @@ function topologyKey(
       ];
       return [String(id), Math.round(width), Math.round(height)];
     }),
+    // Layout invalidation follows the accepted DAG structure, not continuously
+    // changing temporal weights. Weight/retained changes that alter cycle
+    // priority change the accepted edge set above and therefore still invalidate.
     edges.map((edge) => [
       String(edge.relationshipId),
       String(edge.sourceId),
       String(edge.targetId),
-      Math.round(edge.temporalWeight * 1_000),
-      edge.retained ? 1 : 0,
     ]),
   ]);
 }
@@ -496,6 +501,37 @@ function mirrorForStability(
   };
 }
 
+function minimumNonOverlappingScale(
+  targets: readonly RawTarget[],
+  sizes: ReadonlyMap<string, readonly [number, number]>,
+): number {
+  if (targets.length > PAIRWISE_METRIC_MAX_NODES) return 1;
+
+  let minimumScale = 0;
+  for (let leftIndex = 0; leftIndex < targets.length; leftIndex += 1) {
+    const left = targets[leftIndex];
+    if (!left) continue;
+    const [leftWidth, leftHeight] =
+      sizes.get(left.id) ?? [DAG_FALLBACK_NODE_SIZE_METERS, DAG_FALLBACK_NODE_SIZE_METERS];
+
+    for (let rightIndex = leftIndex + 1; rightIndex < targets.length; rightIndex += 1) {
+      const right = targets[rightIndex];
+      if (!right) continue;
+      const [rightWidth, rightHeight] =
+        sizes.get(right.id) ?? [DAG_FALLBACK_NODE_SIZE_METERS, DAG_FALLBACK_NODE_SIZE_METERS];
+      const dx = Math.abs(right.eastMeters - left.eastMeters);
+      const dy = Math.abs(right.northMeters - left.northMeters);
+      const requiredX = (leftWidth + rightWidth) / 2;
+      const requiredY = (leftHeight + rightHeight) / 2;
+      const scaleX = dx > 0 ? requiredX / dx : Number.POSITIVE_INFINITY;
+      const scaleY = dy > 0 ? requiredY / dy : Number.POSITIVE_INFINITY;
+      minimumScale = Math.max(minimumScale, Math.min(scaleX, scaleY));
+    }
+  }
+
+  return Math.min(1, minimumScale);
+}
+
 function scaledCandidate(
   candidate: Omit<
     CandidateLayout,
@@ -506,6 +542,7 @@ function scaledCandidate(
   >,
   nodeCount: number,
   edges: readonly LocalDagEdge[],
+  sizes: ReadonlyMap<string, readonly [number, number]>,
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
 ): CandidateLayout {
   const maxRawRadius = candidate.targets.reduce(
@@ -517,8 +554,27 @@ function scaledCandidate(
     DAG_TARGET_BASE_RADIUS_METERS +
       Math.sqrt(Math.max(1, nodeCount)) * DAG_TARGET_RADIUS_PER_SQRT_NODE_METERS,
   );
-  const scale =
+  const desiredScale =
     maxRawRadius > maxTargetRadius && maxRawRadius > 0 ? maxTargetRadius / maxRawRadius : 1;
+  const safeScale = minimumNonOverlappingScale(candidate.targets, sizes);
+  const scale = Math.min(1, Math.max(desiredScale, safeScale));
+
+  // If the size-aware layout still cannot fit the local presentation radius
+  // without overlap, do not feed contradictory positional targets/routes to
+  // the force solver. Dense neighborhoods remain owned by collision + LOD.
+  const safeRadius = maxRawRadius * scale;
+  if (safeRadius > maxTargetRadius + 1e-6) {
+    return Object.freeze({
+      ...candidate,
+      name: `${candidate.name}-force-only`,
+      targets: Object.freeze([]),
+      routes: Object.freeze([]),
+      crossingCount: null,
+      meanEdgeLengthMeters: 0,
+      minSeparationMeters: null,
+      meanStableDisplacementMeters: 0,
+    });
+  }
 
   const targets =
     scale === 1
@@ -704,6 +760,7 @@ function runLayoutCandidate(
     },
     nodeIds.length,
     edges,
+    sizes,
     previousTargets,
   );
 }
@@ -716,7 +773,7 @@ function chooseCandidate(
 ): CandidateLayout {
   const gap = layoutGap(sizes);
 
-  if (nodeIds.length <= EXACT_DECROSS_MAX_NODES) {
+  if (nodeIds.length <= EXACT_DECROSS_MAX_NODES && edges.length <= EXACT_DECROSS_MAX_EDGES) {
     try {
       return runLayoutCandidate(
         "longest-opt-simplex",
@@ -744,7 +801,10 @@ function chooseCandidate(
     }
   }
 
-  if (nodeIds.length <= COMPARE_LAYERING_MAX_NODES) {
+  if (
+    nodeIds.length <= COMPARE_LAYERING_MAX_NODES &&
+    edges.length <= COMPARE_LAYERING_MAX_EDGES
+  ) {
     const longest = runLayoutCandidate(
       "longest-two-layer-simplex",
       nodeIds,
@@ -770,10 +830,15 @@ function chooseCandidate(
     return candidateScore(longest) <= candidateScore(simplex) ? longest : simplex;
   }
 
-  const useSimplexLayering = nodeIds.length <= SIMPLEX_LAYER_MAX_NODES;
+  const useSimplexLayering =
+    nodeIds.length <= SIMPLEX_LAYER_MAX_NODES && edges.length <= SIMPLEX_LAYER_MAX_EDGES;
+  const useSimplexCoord =
+    nodeIds.length <= SIMPLEX_COORD_MAX_NODES && edges.length <= SIMPLEX_COORD_MAX_EDGES;
   return runLayoutCandidate(
-    nodeIds.length <= SIMPLEX_COORD_MAX_NODES
-      ? "simplex-two-layer-simplex"
+    useSimplexCoord
+      ? useSimplexLayering
+        ? "simplex-two-layer-simplex"
+        : "longest-two-layer-simplex"
       : useSimplexLayering
         ? "simplex-two-layer-greedy"
         : "longest-two-layer-greedy",
@@ -784,7 +849,7 @@ function chooseCandidate(
     previousTargets,
     useSimplexLayering ? "simplex" : "longest",
     "two-layer",
-    nodeIds.length <= SIMPLEX_COORD_MAX_NODES ? "simplex" : "greedy",
+    useSimplexCoord ? "simplex" : "greedy",
   );
 }
 
