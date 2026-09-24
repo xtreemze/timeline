@@ -72,6 +72,7 @@ export interface WorldSimulationDiagnostics {
 
 export interface WorldForceSimulationBackend {
   setScene(scene: WorldForceScene): void;
+  setClusteredPlaceIds?(placeIds: readonly PlaceId[]): void;
   setPin(pin: WorldForcePin | null): void;
   apply(request: WorldSimulationRequest): void;
   stop(): void;
