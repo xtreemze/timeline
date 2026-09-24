@@ -11,6 +11,7 @@ import {
   packComponentRects,
 } from "./graph-component-packing.js";
 import { createGraphSimulationCoordinator } from "./layout/graph-simulation-coordinator.ts";
+import { TimelineMotion as motion } from "../site/timeline-motion.ts";
 
 const LARGE_GRAPH_NODE_THRESHOLD = 1200;
 const GPU_LAYOUT_NODE_THRESHOLD = 3000;
@@ -33,7 +34,6 @@ const TOPOLOGY_SETTLE_MS = 1500;
 const TOPOLOGY_ENTRY_OFFSET = 28;
 const COMPONENT_PACKING_GAP = 112;
 const CENTER_ATTRACTION_STRENGTH = 0.004;
-const motion = globalThis.TimelineMotion;
 
 function resolvedColor(container, name, fallback) {
   const value = getComputedStyle(container).getPropertyValue(name).trim();
@@ -1806,7 +1806,7 @@ function create(container, handlers = {}) {
   });
 }
 
-globalThis.TimelineOrbGraph = Object.freeze({
+export const TimelineOrbGraph = Object.freeze({
   create,
   version: "1.1.0",
 });
