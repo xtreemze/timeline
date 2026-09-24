@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   createWorldForceScene,
   DEFAULT_WORLD_FORCE_SCENE_POLICY,
+  worldForceComponentCollisionRadiusPx,
 } from "../src/layout/world-force-scene.ts";
 import {
   createProjectedWorldEdge,
@@ -99,7 +100,7 @@ test("temporal weight modulates edge and anchor influence without changing topol
   );
 });
 
-test("visual weight affects layout mass/collision policy only", () => {
+test("force collision radius follows the rendered node footprint", () => {
   const scene = createWorldForceScene(sampleProjection());
   const alice = scene.nodes.find((node) => node.canonicalId === "alice");
   const bob = scene.nodes.find((node) => node.canonicalId === "bob");
@@ -107,7 +108,13 @@ test("visual weight affects layout mass/collision policy only", () => {
   assert.ok(alice);
   assert.ok(bob);
   assert.ok(alice.mass > bob.mass);
+  assert.equal(alice.collisionRadiusPx, 24);
+  assert.equal(bob.collisionRadiusPx, 22);
   assert.ok(alice.collisionRadiusMeters > bob.collisionRadiusMeters);
+  assert.ok(
+    bob.collisionRadiusMeters >= DEFAULT_WORLD_FORCE_SCENE_POLICY.baseCollisionRadiusMeters,
+    "low-weight nodes must never shrink below the visible/mobile footprint",
+  );
 });
 
 test("default force spacing scales with the enlarged world-node footprint", () => {
@@ -132,7 +139,8 @@ test("custom policy remains explicit and deterministic", () => {
   const alice = scene.nodes.find((node) => node.canonicalId === "alice");
   assert.ok(alice);
   assert.equal(alice.mass, 5);
-  assert.equal(alice.collisionRadiusMeters, 250);
+  assert.equal(alice.collisionRadiusPx, 24);
+  assert.equal(alice.collisionRadiusMeters, (200 * 24) / 22);
   assert.equal(scene.edges[0].strength, 0.1);
   assert.equal(scene.edges[0].restLengthMeters, 900);
   assert.equal(scene.anchors[0].influence, 0.2);
@@ -156,4 +164,43 @@ test("invalid force policy values fail before reaching a backend", () => {
       }),
     /anchor influence/,
   );
+});
+
+
+test("custom visible node size expands the force body instead of clipping through neighbours", () => {
+  const id = worldInstanceId("large", "styled");
+  const projection = createWorldProjection({
+    instances: [
+      createProjectedWorldInstance({
+        id,
+        canonicalId: "large",
+        occurrenceId: "styled",
+        kind: "person",
+        style: { size: 24, borderWidth: 6 },
+        geographicAnchors: [],
+        temporalWeight: 1,
+        visualWeight: 0,
+        retained: false,
+      }),
+    ],
+    edges: [],
+  });
+  const [node] = createWorldForceScene(projection).nodes;
+  assert.equal(node.collisionRadiusPx, 54);
+  assert.equal(
+    node.collisionRadiusMeters,
+    DEFAULT_WORLD_FORCE_SCENE_POLICY.baseCollisionRadiusMeters * (54 / 22),
+  );
+});
+
+
+test("D3 component collision radius uses the largest rendered footprint", () => {
+  const scene = createWorldForceScene(sampleProjection());
+  assert.equal(
+    worldForceComponentCollisionRadiusPx(scene.nodes),
+    Math.max(...scene.nodes.map((node) => node.collisionRadiusPx)),
+  );
+
+  const tiny = scene.nodes.map((node) => ({ ...node, collisionRadiusPx: 1 }));
+  assert.equal(worldForceComponentCollisionRadiusPx(tiny), 22);
 });
