@@ -1,3 +1,6 @@
+import * as LeafletModule from "leaflet";
+import "leaflet/dist/leaflet.css";
+
 /**
  * Leaflet-based location map viewer and editor
  * Supports read-only display with geospatial features and interactive editing
@@ -120,13 +123,10 @@ interface LocationMapControllerOptions {
   clearButton?: HTMLElement;
 }
 
+const Leaflet = LeafletModule.default || LeafletModule;
+
 function loadLeaflet(): Promise<any> {
-  const ready = Reflect.get(globalThis, "TimelineLeafletReady");
-  if (ready && typeof (ready as { then?: unknown }).then === "function") {
-    return ready as Promise<any>;
-  }
-  if (globalThis.L) return Promise.resolve(globalThis.L);
-  return Promise.reject(new Error("Leaflet local bundle is unavailable."));
+  return Promise.resolve(Leaflet);
 }
 
 function tileProviders(): MapProvider[] {
