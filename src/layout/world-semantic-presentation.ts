@@ -423,6 +423,7 @@ export function worldPresentationOffsetScale(
   entityCount: number,
   typicalOffsetMeters: number,
   latitude = 0,
+  maxRadiusPx = Number.POSITIVE_INFINITY,
 ): number {
   if (
     !Number.isFinite(zoom) ||
@@ -434,7 +435,12 @@ export function worldPresentationOffsetScale(
   }
   const cosine = Math.max(0.05, Math.cos((latitude * Math.PI) / 180));
   const metersPerPixel = (WORLD_METERS_PER_PIXEL_AT_ZOOM_0 * cosine) / 2 ** zoom;
-  const wanted = (worldFloatingGraphRadiusPx(zoom) * metersPerPixel) / typicalOffsetMeters;
+  const viewportRadius =
+    Number.isFinite(maxRadiusPx) && maxRadiusPx > 0
+      ? maxRadiusPx
+      : Number.POSITIVE_INFINITY;
+  const targetRadiusPx = Math.min(worldFloatingGraphRadiusPx(zoom), viewportRadius);
+  const wanted = (targetRadiusPx * metersPerPixel) / typicalOffsetMeters;
   if (wanted <= 1) return 1;
   return 2 ** (Math.round(Math.log2(wanted) * 4) / 4);
 }
@@ -506,6 +512,8 @@ export function worldPixelsToDegrees(pixels: number, zoom: number): number {
 
 /** Arrow length as a fraction of the average visible endpoint-node radius. */
 export const WORLD_EDGE_ARROW_NODE_RADIUS_RATIO = 0.85;
+/** Arrow stroke width relative to endpoint-node radius, with edge width as a floor. */
+export const WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO = 0.14;
 
 /**
  * Converts a node-relative screen-pixel arrow length into the local angular
@@ -528,12 +536,53 @@ export function worldArrowLengthDegreesForNodeRadius(
     latitudeScale
   );
 }
+
+/**
+ * Keeps a direction chevron's line weight visually proportional to the nodes
+ * it connects while never making it thinner than the relationship itself.
+ */
+export function worldArrowStrokeWidthPxForNodeRadius(
+  nodeRadiusPx: number,
+  edgeWidthPx: number,
+): number {
+  const radiusPx =
+    Number.isFinite(nodeRadiusPx) && nodeRadiusPx > 0 ? nodeRadiusPx : 1;
+  const widthPx =
+    Number.isFinite(edgeWidthPx) && edgeWidthPx > 0 ? edgeWidthPx : 1;
+  return Math.max(widthPx + 1, radiusPx * WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO);
+}
 /**
  * Below this on-screen local radius a place's entities remain clustered.
  * Align the cluster gate with the readability floor so local topology does
  * not begin resolving before it has enough screen space to be legible.
  */
 export const WORLD_PLACE_CLUSTER_RADIUS_PX = WORLD_READABLE_LOCAL_RADIUS_PX;
+/** Larger rendered nodes need proportionally more room before declustering. */
+export const WORLD_CLUSTER_NODE_RADIUS_MULTIPLIER = 4;
+
+/**
+ * Required local graph radius before place members fully resolve. The default
+ * preserves the existing 200px readability floor, large nodes raise it, and
+ * narrow viewports may cap it so the graph can actually fit on screen.
+ */
+export function worldPlaceClusterRadiusPx(
+  nodeFootprintRadiusPx: number,
+  viewportRadiusLimitPx = Number.POSITIVE_INFINITY,
+): number {
+  const nodeRadius =
+    Number.isFinite(nodeFootprintRadiusPx) && nodeFootprintRadiusPx > 0
+      ? nodeFootprintRadiusPx
+      : 0;
+  const required = Math.max(
+    WORLD_PLACE_CLUSTER_RADIUS_PX,
+    nodeRadius * WORLD_CLUSTER_NODE_RADIUS_MULTIPLIER,
+  );
+  const limit =
+    Number.isFinite(viewportRadiusLimitPx) && viewportRadiusLimitPx > 0
+      ? viewportRadiusLimitPx
+      : Number.POSITIVE_INFINITY;
+  return Math.min(required, limit);
+}
 
 /** On-screen radius (pixels) of a local graph of `meters` at `zoom`. */
 export function worldLocalRadiusPx(meters: number, zoom: number, latitude = 0): number {
