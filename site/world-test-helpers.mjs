@@ -9,7 +9,9 @@
  * specs need. Not part of the production build input (see `vite.config.ts`
  * `rollupOptions.input`).
  */
+export { directedEdgeArrowhead } from "../src/layout/world-semantic-presentation.ts";
 export {
+  createProjectedWorldEdge,
   createProjectedWorldInstance,
   createWorldProjection,
 } from "../src/projection/world-projection.ts";

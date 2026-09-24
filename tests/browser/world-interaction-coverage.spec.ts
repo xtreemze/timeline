@@ -194,6 +194,121 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     expect(snapshot.selection).toEqual({ kind: "entity", id: result.entityId });
   });
 
+  test("real deck.gl renders semantic labels and picks a directed relationship marker", async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(String(error)));
+    page.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text());
+    });
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const setScene = async (withLabels: boolean) =>
+      page.evaluate(async (labelled) => {
+        const helpersModulePath = "/world-test-helpers.mjs";
+        const {
+          createProjectedWorldEdge,
+          createProjectedWorldInstance,
+          createWorldProjection,
+          directedEdgeArrowhead,
+        } = await import(helpersModulePath);
+        const harness = window.__worldPerfHarness;
+        const endpoint = (name: string, longitude: number) =>
+          createProjectedWorldInstance({
+            id: `${name}::meeting`,
+            canonicalId: name,
+            ...(labelled ? { label: `Label ${name}` } : {}),
+            occurrenceId: "meeting",
+            geographicAnchors: [
+              {
+                placeId: `place-${name}`,
+                ...(labelled ? { label: `Place ${name}` } : {}),
+                longitude,
+                latitude: 20,
+                influence: 1,
+              },
+            ],
+            temporalWeight: 1,
+            visualWeight: 1,
+            retained: false,
+          });
+        const source = endpoint("source", -8);
+        const target = endpoint("target", 8);
+        harness.surface.setCamera({ longitude: 0, latitude: 20, zoom: 3, bearing: 0, pitch: 0 });
+        harness.surface.setProjection(
+          createWorldProjection({
+            instances: [source, target],
+            edges: [
+              createProjectedWorldEdge({
+                id: "meeting",
+                ...(labelled ? { label: "met" } : {}),
+                sourceInstanceId: source.id,
+                targetInstanceId: target.id,
+                temporalWeight: 1,
+                visible: true,
+                retained: false,
+              }),
+            ],
+          }),
+        );
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        );
+        const [, apex] = directedEdgeArrowhead([-8, 20, 0], [8, 20, 0]);
+        return {
+          apex: harness.surface.project({
+            longitude: apex[0],
+            latitude: apex[1],
+            altitudeMeters: apex[2],
+          }),
+          sourceLabel: harness.surface.project({ longitude: -8, latitude: 20, altitudeMeters: 0 }),
+        };
+      }, withLabels);
+
+    const unlabelled = await setScene(false);
+    if (!unlabelled.sourceLabel) throw new Error("Source entity did not project on screen.");
+    const clip = {
+      x: Math.round(unlabelled.sourceLabel.x + 8),
+      y: Math.round(unlabelled.sourceLabel.y - 14),
+      width: 90,
+      height: 28,
+    };
+    const before = await page.screenshot({ clip });
+
+    const labelled = await setScene(true);
+    await expect
+      .poll(async () => Buffer.compare(await page.screenshot({ clip }), before) !== 0, {
+        message: "entity label text should become visible beside its world instance",
+      })
+      .toBe(true);
+
+    const snapshot = await page.evaluate(() =>
+      window.__worldPerfHarness.surface.getAccessibleSnapshot(),
+    );
+    expect(snapshot.relationships).toEqual([
+      {
+        relationshipId: "meeting",
+        selected: false,
+        label: "met",
+        sourceEntityId: "source",
+        targetEntityId: "target",
+      },
+    ]);
+    expect(snapshot.entities.map((entity) => entity.label).sort()).toEqual([
+      "Label source",
+      "Label target",
+    ]);
+
+    if (!labelled.apex) throw new Error("Direction marker apex did not project on screen.");
+    const hit = await page.evaluate(
+      (point) => window.__worldPerfHarness.surface.pick(point),
+      labelled.apex,
+    );
+    expect(hit).toEqual({ kind: "relationship", relationshipId: "meeting" });
+    expect(errors, "no WebGL/deck.gl errors while rendering labels and markers").toEqual([]);
+  });
+
   test("mouse-drag on an entity moves its derived position without touching canonical geography", async ({
     page,
   }) => {

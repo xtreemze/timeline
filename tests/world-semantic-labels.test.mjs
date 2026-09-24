@@ -163,7 +163,10 @@ test("entity and place labels come from renderer-neutral WorldProjection metadat
   ]);
   assert.deepEqual(
     entityLabels.map((datum) => datum.worldInstanceId).sort(),
-    [worldInstanceId("entity-0", "occurrence-0"), worldInstanceId("entity-1", "occurrence-0")].sort(),
+    [
+      worldInstanceId("entity-0", "occurrence-0"),
+      worldInstanceId("entity-1", "occurrence-0"),
+    ].sort(),
   );
 
   const placeLabels = labels.props.data.filter((datum) => datum.kind === "place-label");
@@ -180,6 +183,7 @@ test("entity and place labels come from renderer-neutral WorldProjection metadat
     ["met"],
   );
   assert.equal(labels.props.pickable, false, "labels never steal picks from world objects");
+  assert.equal(labels.props.parameters.cullMode, "none", "globe back-face culling keeps glyphs");
 });
 
 test("each rendered directed relationship has a visible marker preserving source/target identity", () => {
@@ -270,7 +274,8 @@ test("label and marker datums keep object identity across unrelated re-renders",
   const labelsAfter = layer(after, DECK_WORLD_LAYER_IDS.labels).props.data;
   const entityBefore = labelsBefore.find((datum) => datum.kind === "entity-label");
   const entityAfter = labelsAfter.find(
-    (datum) => datum.kind === "entity-label" && datum.worldInstanceId === entityBefore.worldInstanceId,
+    (datum) =>
+      datum.kind === "entity-label" && datum.worldInstanceId === entityBefore.worldInstanceId,
   );
   assert.equal(entityAfter, entityBefore);
 
@@ -285,10 +290,10 @@ test("the non-WebGL accessibility snapshot carries the same labels and directed 
   surface.setProjection(directedProjection());
 
   const snapshot = surface.getAccessibleSnapshot();
-  assert.deepEqual(
-    snapshot.entities.map((entity) => entity.label).sort(),
-    ["Entity 0", "Entity 1"],
-  );
+  assert.deepEqual(snapshot.entities.map((entity) => entity.label).sort(), [
+    "Entity 0",
+    "Entity 1",
+  ]);
   assert.deepEqual(snapshot.places.map((place) => place.label).sort(), ["Place 0", "Place 1"]);
   assert.deepEqual(snapshot.relationships, [
     {
@@ -317,7 +322,10 @@ test("labels follow force-displaced render positions rather than a second placem
   const label = layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.find(
     (datum) => datum.kind === "entity-label",
   );
-  assert.deepEqual(layer(layers, DECK_WORLD_LAYER_IDS.labels).props.getPosition(label), entity.position);
+  assert.deepEqual(
+    layer(layers, DECK_WORLD_LAYER_IDS.labels).props.getPosition(label),
+    entity.position,
+  );
 });
 
 test("a runtime without text support still renders geometry and direction markers", () => {
@@ -329,4 +337,90 @@ test("a runtime without text support still renders geometry and direction marker
   const layers = h.lastLayers();
   assert.equal(layer(layers, DECK_WORLD_LAYER_IDS.labels), undefined);
   assert.ok(layer(layers, DECK_WORLD_LAYER_IDS.relationshipDirections));
+});
+
+test("the live region announces the selected object's projection label", () => {
+  const h = harness();
+  const region = { textContent: "" };
+  const container = {
+    ownerDocument: {
+      createElement() {
+        return {
+          setAttribute() {},
+          set textContent(value) {
+            region.textContent = value;
+          },
+          get textContent() {
+            return region.textContent;
+          },
+          remove() {},
+        };
+      },
+    },
+    appendChild() {},
+  };
+  const surface = new DeckWorldSurface(container, h.runtime, WORKING_CAMERA);
+  surface.setProjection(directedProjection());
+  surface.setSelection({ kind: "relationship", id: "meeting" });
+
+  assert.match(region.textContent, /Selected relationship meeting \(met\)\./);
+});
+
+function chainProjection(count) {
+  const instances = [];
+  const edges = [];
+  for (let index = 0; index < count; index += 1) {
+    instances.push(instance(index));
+    if (index > 0) {
+      edges.push(
+        createProjectedWorldEdge({
+          id: `edge-${index}`,
+          label: "next",
+          sourceInstanceId: instances[index - 1].id,
+          targetInstanceId: instances[index].id,
+          temporalWeight: index === 1 ? 1 : 0.2,
+          visible: true,
+          retained: false,
+        }),
+      );
+    }
+  }
+  return createWorldProjection({ instances, edges });
+}
+
+test("dense direction markers follow LOD but keep important, selected, and focused edges", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 1 });
+  surface.setProjection(chainProjection(2_000));
+  surface.setSelection({ kind: "relationship", id: "edge-1500" });
+
+  let markers = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections).props.data;
+  const ids = markers.map((marker) => marker.relationshipId);
+  assert.ok(ids.length < 1_999, "dense marker load is reduced at overview");
+  assert.ok(ids.includes("edge-1"), "high-importance edge keeps its marker");
+  assert.ok(ids.includes("edge-1500"), "selected edge keeps its marker");
+
+  surface.focusOccurrence("edge-900");
+  markers = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections).props.data;
+  assert.ok(markers.some((marker) => marker.relationshipId === "edge-900"));
+
+  // Every rendered edge still carries its directed identity for non-visual use.
+  assert.equal(surface.getAccessibleSnapshot().relationships.length, 1_999);
+});
+
+test("zooming across a LOD tier re-renders labels and markers, zooming within one does not", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 1 });
+  surface.setProjection(chainProjection(2_000));
+  const overviewMarkers = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections).props
+    .data.length;
+  const renders = h.setProps.filter((props) => props.layers).length;
+
+  surface.setCamera({ ...WORKING_CAMERA, zoom: 1.5 });
+  assert.equal(h.setProps.filter((props) => props.layers).length, renders);
+
+  surface.setCamera({ ...WORKING_CAMERA, zoom: 6.5 });
+  const detailMarkers = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections).props
+    .data.length;
+  assert.ok(detailMarkers > overviewMarkers);
 });

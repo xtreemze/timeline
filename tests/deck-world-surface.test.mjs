@@ -1,19 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  DECK_WORLD_LAYER_IDS,
-  DeckWorldSurface,
-} from "../site/world/deck-world-surface.ts";
+import { DECK_WORLD_LAYER_IDS, DeckWorldSurface } from "../site/world/deck-world-surface.ts";
+import { selectWorldSpatialMode } from "../src/layout/world-spatial-mode.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
   createWorldProjection,
   worldInstanceId,
 } from "../src/projection/world-projection.ts";
-import {
-  selectWorldSpatialMode,
-} from "../src/layout/world-spatial-mode.ts";
 
 function harness() {
   const calls = {
@@ -205,9 +200,12 @@ test("DeckWorldSurface renders places, globe-visible paths, and elevated entity 
 
   const render = calls.setProps.at(-1);
   assert.ok(render);
-  assert.equal(render.layers.length, 3);
+  // Geometry layers plus the directed-relationship marker layer; this fake
+  // runtime has no text support, so no label layer is created.
+  assert.equal(render.layers.length, 4);
 
-  const [places, relationships, entities] = render.layers;
+  const [places, relationships, entities, directions] = render.layers;
+  assert.equal(directions.props.id, DECK_WORLD_LAYER_IDS.relationshipDirections);
   assert.equal(places.props.id, DECK_WORLD_LAYER_IDS.places);
   assert.equal(relationships.props.id, DECK_WORLD_LAYER_IDS.relationships);
   assert.equal(entities.props.id, DECK_WORLD_LAYER_IDS.entities);
@@ -324,10 +322,7 @@ test("deck viewport project/unproject stays behind renderer-neutral world coordi
     width: 1,
     height: 1,
   });
-  assert.deepEqual(calls.unprojected.at(-1), [
-    [118.0686, 259.3293],
-    { targetZ: 1200 },
-  ]);
+  assert.deepEqual(calls.unprojected.at(-1), [[118.0686, 259.3293], { targetZ: 1200 }]);
 });
 
 test("deck viewport projection rejects invalid renderer-neutral spatial inputs", () => {
@@ -343,10 +338,7 @@ test("deck viewport projection rejects invalid renderer-neutral spatial inputs",
       }),
     /longitude/,
   );
-  assert.throws(
-    () => surface.unproject({ x: Number.NaN, y: 0 }, 1000),
-    /screen point/,
-  );
+  assert.throws(() => surface.unproject({ x: Number.NaN, y: 0 }, 1000), /screen point/);
 });
 
 test("deck picking translates directly to canonical world hits with a touch-sized radius", () => {
@@ -376,6 +368,7 @@ test("deck picking translates directly to canonical world hits with a touch-size
     unproject3D: true,
     layerIds: [
       DECK_WORLD_LAYER_IDS.entities,
+      DECK_WORLD_LAYER_IDS.relationshipDirections,
       DECK_WORLD_LAYER_IDS.relationships,
       DECK_WORLD_LAYER_IDS.places,
     ],
@@ -414,7 +407,11 @@ test("double-click/double-tap focuses the canonical entity picked under the poin
 
   setPickResult({
     layer: { id: DECK_WORLD_LAYER_IDS.entities },
-    object: { kind: "entity", entityId: "alice", worldInstanceId: worldInstanceId("alice", "meeting") },
+    object: {
+      kind: "entity",
+      entityId: "alice",
+      worldInstanceId: worldInstanceId("alice", "meeting"),
+    },
   });
 
   listeners.get("dblclick")({ offsetX: 40, offsetY: 60 });
@@ -426,6 +423,7 @@ test("double-click/double-tap focuses the canonical entity picked under the poin
     unproject3D: true,
     layerIds: [
       DECK_WORLD_LAYER_IDS.entities,
+      DECK_WORLD_LAYER_IDS.relationshipDirections,
       DECK_WORLD_LAYER_IDS.relationships,
       DECK_WORLD_LAYER_IDS.places,
     ],
@@ -676,7 +674,6 @@ test("refresh and destruction delegate to Deck lifecycle exactly once", () => {
   assert.throws(() => surface.refresh(), /destroyed/);
 });
 
-
 test("world spatial mode uses hysteresis around the local precision threshold", () => {
   assert.equal(selectWorldSpatialMode({ zoom: 11.4 }, "globe"), "globe");
   assert.equal(selectWorldSpatialMode({ zoom: 11.5 }, "globe"), "local");
@@ -705,9 +702,7 @@ test("DeckWorldSurface switches to local geographic view only at high zoom", () 
     pitch: 20,
   });
 
-  const localSwitch = calls.setProps.find(
-    (props) => props.views?.[0]?.type === "map",
-  );
+  const localSwitch = calls.setProps.find((props) => props.views?.[0]?.type === "map");
   assert.ok(localSwitch);
   assert.deepEqual(localSwitch.views[0].props, { id: "lum-world-local" });
 
@@ -735,9 +730,7 @@ test("DeckWorldSurface switches to local geographic view only at high zoom", () 
     pitch: 20,
   });
 
-  const globeSwitches = calls.setProps.filter(
-    (props) => props.views?.[0]?.type === "globe",
-  );
+  const globeSwitches = calls.setProps.filter((props) => props.views?.[0]?.type === "globe");
   assert.ok(globeSwitches.length >= 1);
 });
 
@@ -854,9 +847,15 @@ test("removing the world drag sink disables direct-node-drag capability", () => 
   const { runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
   const sink = {
-    begin() { return true; },
-    update() { return true; },
-    release() { return true; },
+    begin() {
+      return true;
+    },
+    update() {
+      return true;
+    },
+    release() {
+      return true;
+    },
     cancel() {},
   };
 
@@ -989,10 +988,7 @@ test("incremental render only replaces datums whose selection actually changed",
     if (datum !== byId.get(datum.worldInstanceId)) changed += 1;
   }
   assert.equal(changed, 1);
-  assert.equal(
-    secondEntities.find((datum) => datum.entityId === "entity-10").selected,
-    true,
-  );
+  assert.equal(secondEntities.find((datum) => datum.entityId === "entity-10").selected, true);
 });
 
 test("clustering is bypassed at the default working zoom (issue #445 Priority 2)", () => {
@@ -1169,7 +1165,10 @@ test("a spatial-mode crossing alone does not re-render or invalidate memoized da
     afterEntities.sort(),
     beforeEntities.map((datum) => datum.worldInstanceId).sort(),
   );
-  assert.equal(calls.setProps.filter((props) => props.layers).at(-1).layers[2].props.data, beforeEntities);
+  assert.equal(
+    calls.setProps.filter((props) => props.layers).at(-1).layers[2].props.data,
+    beforeEntities,
+  );
 });
 
 test("getAccessibleSnapshot derives entities/places/relationships/selection from projection state", () => {
@@ -1199,11 +1198,16 @@ test("getAccessibleSnapshot never reflects GPU/layer state, only projection/sele
 
   // Simulate a pick/hover-style GPU interaction that never touches
   // #projection or #selection: the accessible snapshot must be unaffected.
-  setPickResult({ object: { kind: "entity", entityId: "alice", worldInstanceId: "alice::meeting" } });
+  setPickResult({
+    object: { kind: "entity", entityId: "alice", worldInstanceId: "alice::meeting" },
+  });
   surface.pick({ x: 1, y: 2 });
 
   const snapshot = surface.getAccessibleSnapshot();
-  assert.equal(snapshot.entities.every((entity) => entity.selected === false), true);
+  assert.equal(
+    snapshot.entities.every((entity) => entity.selected === false),
+    true,
+  );
   assert.equal(snapshot.selection, null);
   assert.ok(calls.pickOptions.length >= 1);
 });
