@@ -500,6 +500,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       next.size === this.#clusteredPlaceIds.size &&
       [...next].every((placeId) => this.#clusteredPlaceIds.has(placeId));
     if (unchanged && this.#expandingPlaceIds.size === 0) return;
+    if (next.size === 0 && this.#clusteredPlaceIds.size === 0) return;
 
     if (next.size > 0) {
       this.#clusteredPlaceIds = next;
@@ -666,7 +667,9 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       this.#clusterSimulations.size === 0
         ? 0
         : Math.max(
-            ...[...this.#clusterSimulations.values()].map(({ simulation }) => simulation.alpha()),
+            ...[...this.#clusterSimulations.values()].map(({ simulation }) =>
+              simulation.alpha() > simulation.alphaMin() ? simulation.alpha() : 0,
+            ),
           );
     this.#energy = Math.max(referenceEnergy, d3Energy);
     this.#settled =
