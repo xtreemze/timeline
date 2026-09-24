@@ -213,7 +213,18 @@ test("optional deck collision filtering is attached only to the text label layer
     collisionRuntime,
     { longitude: 18.0686, latitude: 59.3293, zoom: 6, bearing: 0, pitch: 0 },
   );
-  surface.setProjection(projection());
+  const input = projection();
+  surface.setProjection(
+    createWorldProjection({
+      instances: input.instances.map((instance) =>
+        Object.freeze({
+          ...instance,
+          label: instance.canonicalId === "alice" ? "Alice" : "Bob",
+        }),
+      ),
+      edges: input.edges,
+    }),
+  );
 
   const labelLayer = calls.setProps
     .at(-1)
