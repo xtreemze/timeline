@@ -43,6 +43,7 @@ export class LuumEventCardElement extends LitElement {
 
   setSelected(selected: boolean): void {
     this.classList.toggle("is-selected", selected);
+    this.terminal?.setAttribute("aria-expanded", String(selected));
   }
 
   get terminal(): HTMLButtonElement | null {
@@ -73,6 +74,8 @@ export class LuumEventCardElement extends LitElement {
         class="timeline-event-terminal"
         data-id=${item.id}
         aria-label=${ariaLabel}
+        aria-controls="timeline-focus-view"
+        aria-expanded="false"
       >
         <span
           class=${media?.src ? "timeline-event-art" : "timeline-event-dot"}
