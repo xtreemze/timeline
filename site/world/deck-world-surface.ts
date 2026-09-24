@@ -1138,16 +1138,53 @@ interface DeckWorldIconDescriptor {
   readonly url: string;
   readonly width: number;
   readonly height: number;
-  readonly mask: true;
+  readonly mask: boolean;
 }
 
 const ICON_ATLAS_PX = 48;
+const IMAGE_ATLAS_PX = 64;
+const IMAGE_DESCRIPTOR_CACHE_LIMIT = 128;
 const iconDescriptors = new Map<string, DeckWorldIconDescriptor>();
+const shapeDescriptors = new Map<string, DeckWorldIconDescriptor>();
+const imageDescriptors = new Map<string, DeckWorldIconDescriptor>();
+
+function visualColorCss(color: WorldVisualColor): string {
+  return `rgba(${color[0]},${color[1]},${color[2]},${color[3] / 255})`;
+}
+
+function shapeMarkup(shape: WorldNodeShape, attributes: string): string {
+  switch (shape) {
+    case "square":
+      return `<rect x="4" y="4" width="16" height="16" rx="2" ${attributes}/>`;
+    case "triangle":
+      return `<path d="M12 3 22 21H2Z" ${attributes}/>`;
+    case "diamond":
+      return `<path d="M12 2 22 12 12 22 2 12Z" ${attributes}/>`;
+    case "pentagon":
+      return `<path d="M12 2 22 9 18 21H6L2 9Z" ${attributes}/>`;
+    case "hexagon":
+      return `<path d="M7 3h10l5 9-5 9H7l-5-9Z" ${attributes}/>`;
+    case "star":
+      return `<path d="m12 2 3 6 7 .9-5 4.8 1.4 7-6.4-3.4-6.4 3.4 1.4-7-5-4.8 7-.9Z" ${attributes}/>`;
+    case "cross":
+      return `<path d="M8 3h8v5h5v8h-5v5H8v-5H3V8h5Z" ${attributes}/>`;
+    default:
+      return `<circle cx="12" cy="12" r="9" ${attributes}/>`;
+  }
+}
+
+function descriptorHash(value: string): string {
+  let hash = 2166136261;
+  for (const character of value) {
+    hash ^= character.codePointAt(0) ?? 0;
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
 
 /**
- * One auto-packed, tintable (mask) icon per semantic icon name, drawn from
- * the app's shared icon geometry so the globe and timeline speak one visual
- * vocabulary. Memoized so deck packs each icon once.
+ * One auto-packed, tintable icon per semantic icon name, drawn from the
+ * app's shared icon geometry so the globe and timeline use one vocabulary.
  */
 function entityIconDescriptor(name: string): DeckWorldIconDescriptor {
   const cached = iconDescriptors.get(name);
@@ -1164,6 +1201,60 @@ function entityIconDescriptor(name: string): DeckWorldIconDescriptor {
     mask: true,
   });
   iconDescriptors.set(name, descriptor);
+  return descriptor;
+}
+
+function entityShapeDescriptor(
+  visual: WorldEntityVisualEncoding,
+  selected: boolean,
+): DeckWorldIconDescriptor {
+  const key = [
+    visual.shape,
+    visual.fillColor.join(","),
+    visual.outlineColor.join(","),
+    selected ? "selected" : "normal",
+  ].join(":");
+  const cached = shapeDescriptors.get(key);
+  if (cached) return cached;
+
+  const fill = visualColorCss(visual.fillColor);
+  const outline = visualColorCss(visual.outlineColor);
+  const selection = visualColorCss(WORLD_PALETTE.selected);
+  const outer = selected
+    ? shapeMarkup(
+        visual.shape,
+        `fill="${fill}" stroke="${selection}" stroke-width="5" stroke-linejoin="round"`,
+      )
+    : "";
+  const inner = shapeMarkup(
+    visual.shape,
+    `fill="${fill}" stroke="${outline}" stroke-width="2" stroke-linejoin="round"`,
+  );
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${ICON_ATLAS_PX}" height="${ICON_ATLAS_PX}">${outer}${inner}</svg>`;
+  const descriptor: DeckWorldIconDescriptor = Object.freeze({
+    id: `lum-shape:${descriptorHash(key)}`,
+    url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+    width: ICON_ATLAS_PX,
+    height: ICON_ATLAS_PX,
+    mask: false,
+  });
+  shapeDescriptors.set(key, descriptor);
+  return descriptor;
+}
+
+function entityImageDescriptor(url: string): DeckWorldIconDescriptor {
+  const cached = imageDescriptors.get(url);
+  if (cached) return cached;
+  const descriptor: DeckWorldIconDescriptor = Object.freeze({
+    id: `lum-image:${descriptorHash(url)}`,
+    url,
+    width: IMAGE_ATLAS_PX,
+    height: IMAGE_ATLAS_PX,
+    mask: false,
+  });
+  if (imageDescriptors.size < IMAGE_DESCRIPTOR_CACHE_LIMIT) {
+    imageDescriptors.set(url, descriptor);
+  }
   return descriptor;
 }
 
