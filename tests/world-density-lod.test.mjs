@@ -108,17 +108,21 @@ test("overview place merging uses proximity across cell boundaries and the datel
   );
 });
 
-test("cluster presentation keeps positions force-resolved without interpolation", async () => {
+test("cluster lifecycle retires edges before force-owned member cleanup", async () => {
   const source = await readFile(
     new URL("../site/world/deck-world-surface.ts", import.meta.url),
     "utf8",
   );
 
+  assert.match(source, /setClusterForceSink/);
+  assert.match(source, /WORLD_CLUSTER_EDGE_RELEASE_MS\s*=\s*420/);
+  assert.match(source, /WORLD_CLUSTER_FORCE_SETTLE_MS\s*=\s*1500/);
+  assert.match(source, /clusterLifecyclePhase\s*=\s*"retiring"/);
+  assert.match(source, /setClusteredPlaceIds\(this\.\#clusterLifecyclePlaces\)/);
+  assert.match(source, /setClusteredPlaceIds\(Object\.freeze\(\[\]\)\)/);
+  assert.match(source, /retiringRelationshipDots/);
+  assert.doesNotMatch(source, /interpolateClusterPosition/);
+  assert.doesNotMatch(source, /transitions\s*:/);
   assert.match(source, /instanceIndexFromEntities\(transitionEntities\)/);
   assert.match(source, /members\.push\(entity\)/);
-  assert.doesNotMatch(source, /interpolateClusterPosition/);
-  assert.doesNotMatch(source, /transitions:/);
-  assert.match(source, /\.\.\.placeTransition\.clusters,[\s\S]*\.\.\.placeTransition\.members/);
-  assert.match(source, /\(state\.temporalActive \? width : 0\) \* edgeExpansion\(state\.edge\)/);
-  assert.match(source, /worldNodeMarker\(this\.#entityStyle\(datum\)\)\.size \* entityExpansion\(datum\)/);
 });
