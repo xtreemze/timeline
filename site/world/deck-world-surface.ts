@@ -22,7 +22,6 @@ import {
   worldPlaceStyle,
 } from "../../src/layout/world-graph-style.ts";
 import {
-  declutterWorldLabels,
   directedEdgeArrowhead,
   edgeMidpoint,
   medianNearestPlaceMeters,
@@ -216,6 +215,7 @@ type DeckWorldLabelDatum =
       readonly text: string;
       readonly position: WorldRenderPosition;
       readonly emphasized: boolean;
+      readonly pixelOffset?: readonly [number, number];
     }
   | {
       readonly kind: "place-label";
@@ -224,6 +224,7 @@ type DeckWorldLabelDatum =
       readonly text: string;
       readonly position: WorldRenderPosition;
       readonly emphasized: boolean;
+      readonly pixelOffset?: readonly [number, number];
     }
   | {
       readonly kind: "relationship-label";
@@ -234,6 +235,7 @@ type DeckWorldLabelDatum =
       readonly text: string;
       readonly position: WorldRenderPosition;
       readonly emphasized: boolean;
+      readonly pixelOffset?: readonly [number, number];
     };
 
 export interface DeckWorldClusterMember {
@@ -1046,16 +1048,185 @@ export function worldGraphLabelSize(
   return datum.emphasized ? 19 : 16;
 }
 
+const LABEL_PLACEMENT_CELL_PX = 128;
+const LABEL_PLACEMENT_PADDING_PX = 4;
+const LABEL_DETAIL_KEEP_ALL_ZOOM = 7;
+
+function labelFootprint(datum: DeckWorldLabelDatum): {
+  readonly width: number;
+  readonly height: number;
+} {
+  const size = worldGraphLabelSize(datum);
+  return Object.freeze({
+    width: datum.text.length * size * 0.6 + LABEL_HALO_PX * 2,
+    height: size * 0.9 + LABEL_HALO_PX * 2,
+  });
+}
+
 /**
- * Entity labels start beyond the enlarged node body, place labels sit above their
- * anchor and relationship labels below the edge midpoint, so the three kinds
- * do not contend for the same space around a shared anchor. The vertical gap
- * grows with the label so an emphasized label does not evict its neighbours.
+ * Prefer the conventional position for each semantic kind, then try the
+ * remaining compass positions before hiding anything. Entity labels clear the
+ * node body; place and relationship labels start above/below their anchors.
  */
+function labelOffsetCandidates(
+  datum: DeckWorldLabelDatum,
+  width: number,
+  height: number,
+): readonly (readonly [number, number])[] {
+  const horizontal = ENTITY_LABEL_OFFSET_PX + width / 2;
+  const vertical = ENTITY_LABEL_OFFSET_PX + height / 2;
+  const nearHorizontal = width / 2 + 12;
+  const nearVertical = height / 2 + 10;
+
+  if (datum.kind === "entity-label") {
+    return Object.freeze([
+      [horizontal, 0],
+      [-horizontal, 0],
+      [0, -vertical],
+      [0, vertical],
+      [horizontal, -vertical],
+      [horizontal, vertical],
+      [-horizontal, -vertical],
+      [-horizontal, vertical],
+    ]);
+  }
+
+  if (datum.kind === "place-label") {
+    return Object.freeze([
+      [0, -nearVertical],
+      [nearHorizontal, 0],
+      [-nearHorizontal, 0],
+      [0, nearVertical],
+      [nearHorizontal, -nearVertical],
+      [-nearHorizontal, -nearVertical],
+      [nearHorizontal, nearVertical],
+      [-nearHorizontal, nearVertical],
+    ]);
+  }
+
+  return Object.freeze([
+    [0, nearVertical],
+    [0, -nearVertical],
+    [nearHorizontal, 0],
+    [-nearHorizontal, 0],
+    [nearHorizontal, nearVertical],
+    [-nearHorizontal, nearVertical],
+    [nearHorizontal, -nearVertical],
+    [-nearHorizontal, -nearVertical],
+  ]);
+}
+
 function labelPixelOffset(datum: DeckWorldLabelDatum): [number, number] {
-  if (datum.kind === "entity-label") return [ENTITY_LABEL_OFFSET_PX, 0];
-  const gap = worldGraphLabelSize(datum) / 2 + 6;
-  return datum.kind === "relationship-label" ? [0, gap] : [0, -gap];
+  const own = datum.pixelOffset;
+  if (own) return [own[0], own[1]];
+  const { width, height } = labelFootprint(datum);
+  const [x, y] = labelOffsetCandidates(datum, width, height)[0] ?? [0, 0];
+  return [x, y];
+}
+
+function withLabelPixelOffset(
+  datum: DeckWorldLabelDatum,
+  offset: readonly [number, number],
+): DeckWorldLabelDatum {
+  if (datum.pixelOffset?.[0] === offset[0] && datum.pixelOffset?.[1] === offset[1]) return datum;
+  return Object.freeze({
+    ...datum,
+    pixelOffset: Object.freeze([offset[0], offset[1]]) as readonly [number, number],
+  }) as DeckWorldLabelDatum;
+}
+
+/**
+ * Collision-aware screen-space placement. At working/overview zoom, labels
+ * that cannot fit after trying eight positions may still be suppressed. At
+ * detail zoom the semantic labels remain visible even when the scene is
+ * intrinsically too dense to find a collision-free slot.
+ */
+function placeWorldLabelDatums(
+  datums: readonly DeckWorldLabelDatum[],
+  zoom: number,
+): readonly DeckWorldLabelDatum[] {
+  const tierZoom = worldLabelTierFloor(zoom);
+  const scale = (512 / 360) * 2 ** Math.max(0, tierZoom);
+  interface Box {
+    readonly left: number;
+    readonly right: number;
+    readonly top: number;
+    readonly bottom: number;
+  }
+  const grid = new Map<string, Box[]>();
+  const cells = (box: Box): readonly string[] => {
+    const keys: string[] = [];
+    for (
+      let x = Math.floor(box.left / LABEL_PLACEMENT_CELL_PX);
+      x <= Math.floor(box.right / LABEL_PLACEMENT_CELL_PX);
+      x += 1
+    ) {
+      for (
+        let y = Math.floor(box.top / LABEL_PLACEMENT_CELL_PX);
+        y <= Math.floor(box.bottom / LABEL_PLACEMENT_CELL_PX);
+        y += 1
+      ) {
+        keys.push(`${x}:${y}`);
+      }
+    }
+    return keys;
+  };
+  const overlaps = (left: Box, right: Box) =>
+    left.left < right.right &&
+    right.left < left.right &&
+    left.top < right.bottom &&
+    right.top < left.bottom;
+
+  const placed: DeckWorldLabelDatum[] = [];
+  for (const datum of datums) {
+    const footprint = labelFootprint(datum);
+    const latitudeScale = Math.max(0.2, Math.cos((datum.position[1] * Math.PI) / 180));
+    const anchorX = datum.position[0] * scale * latitudeScale;
+    const anchorY = -datum.position[1] * scale;
+    const candidates = labelOffsetCandidates(datum, footprint.width, footprint.height);
+    let chosen: readonly [number, number] | null = null;
+    let chosenBox: Box | null = null;
+
+    for (const offset of candidates) {
+      const centerX = anchorX + offset[0];
+      const centerY = anchorY + offset[1];
+      const box: Box = {
+        left: centerX - footprint.width / 2 - LABEL_PLACEMENT_PADDING_PX,
+        right: centerX + footprint.width / 2 + LABEL_PLACEMENT_PADDING_PX,
+        top: centerY - footprint.height / 2 - LABEL_PLACEMENT_PADDING_PX,
+        bottom: centerY + footprint.height / 2 + LABEL_PLACEMENT_PADDING_PX,
+      };
+      const keys = cells(box);
+      if (!keys.some((key) => grid.get(key)?.some((other) => overlaps(box, other)))) {
+        chosen = offset;
+        chosenBox = box;
+        break;
+      }
+    }
+
+    if (!chosen || !chosenBox) {
+      if (!datum.emphasized && zoom < LABEL_DETAIL_KEEP_ALL_ZOOM) continue;
+      chosen = candidates[0] ?? [0, 0];
+      const centerX = anchorX + chosen[0];
+      const centerY = anchorY + chosen[1];
+      chosenBox = {
+        left: centerX - footprint.width / 2,
+        right: centerX + footprint.width / 2,
+        top: centerY - footprint.height / 2,
+        bottom: centerY + footprint.height / 2,
+      };
+    }
+
+    const placedDatum = withLabelPixelOffset(datum, chosen);
+    placed.push(placedDatum);
+    for (const key of cells(chosenBox)) {
+      const bucket = grid.get(key);
+      if (bucket) bucket.push(chosenBox);
+      else grid.set(key, [chosenBox]);
+    }
+  }
+
+  return Object.freeze(placed);
 }
 
 function labelDatums(input: {
@@ -1208,30 +1379,17 @@ function labelDatums(input: {
     const b = priority.get(right) ?? [1, 3, 0];
     return a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
   });
-  const kept = declutterWorldLabels(ordered, {
-    zoom: worldLabelTierFloor(input.zoom),
-    isPinned: (datum) => datum.emphasized,
-    // Mirrors the TextLayer anchoring below; footprints approximate glyph
-    // ink (0.6em monospace advance per character, 0.9em tall) plus the halo.
-    measure: (datum) => {
-      const size = worldGraphLabelSize(datum);
-      const width = datum.text.length * size * 0.6 + LABEL_HALO_PX * 2;
-      const [offsetX, offsetY] = labelPixelOffset(datum);
-      return {
-        longitude: datum.position[0],
-        latitude: datum.position[1],
-        width,
-        height: size * 0.9,
-        offsetX: datum.kind === "entity-label" ? offsetX + width / 2 : offsetX,
-        offsetY,
-      };
-    },
-  });
-  const keptKeys = new Set(kept.map((datum) => datum.key));
+  const placed = placeWorldLabelDatums(ordered, input.zoom);
+  const placedKeys = new Set(placed.map((datum) => datum.key));
   for (const key of [...byKey.keys()]) {
-    if (!keptKeys.has(key)) byKey.delete(key);
+    if (!placedKeys.has(key)) {
+      byKey.delete(key);
+      continue;
+    }
+    const placedDatum = placed.find((datum) => datum.key === key);
+    if (placedDatum) byKey.set(key, placedDatum);
   }
-  return { datums: kept, byKey };
+  return { datums: placed, byKey };
 }
 
 function screenPointFromDoubleClickEvent(event: DoubleClickEvent): ScreenPoint | null {
@@ -2684,8 +2842,7 @@ export class DeckWorldSurface implements WorldSurface {
                     : datum.kind === "relationship-label"
                       ? this.#theme.labelRelationship
                       : this.#theme.labelText,
-              getTextAnchor: (datum: DeckWorldLabelDatum) =>
-                datum.kind === "entity-label" ? "start" : "middle",
+              getTextAnchor: "middle",
               getAlignmentBaseline: "center",
               getPixelOffset: labelPixelOffset,
               // GlobeView culls back faces; billboarded glyph quads are
