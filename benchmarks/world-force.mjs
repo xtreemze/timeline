@@ -1,6 +1,7 @@
 import { performance } from "node:perf_hooks";
 
 import { ReferenceWorldForceSimulation } from "../src/layout/reference-world-force-simulation.ts";
+import { createWorldDagLayout } from "../src/layout/world-dag-layout.ts";
 import { createWorldForceScene } from "../src/layout/world-force-scene.ts";
 import {
   createProjectedWorldEdge,
@@ -49,6 +50,21 @@ function measure(fn, iterations) {
     minMs: Number((sorted[0] ?? 0).toFixed(3)),
     maxMs: Number((sorted.at(-1) ?? 0).toFixed(3)),
   };
+}
+
+function settleTicks(scene, maxTicks = 480) {
+  const simulation = new ReferenceWorldForceSimulation();
+  simulation.setScene(scene);
+  simulation.apply({ reason: "topology", energyTarget: 0.12, reheat: true });
+
+  let ticks = 0;
+  while (ticks < maxTicks && !simulation.getDiagnostics().settled) {
+    simulation.step(1000 / 60);
+    ticks += 1;
+  }
+  const settled = simulation.getDiagnostics().settled;
+  simulation.destroy();
+  return { ticks, settled, maxTicks };
 }
 
 function fixture(nodeCount, groupSize = 32) {
@@ -149,6 +165,17 @@ for (const nodeCount of sizes) {
   }, iterations);
 
   forceScene = createWorldForceScene(projection);
+  const dagQuality = createWorldDagLayout(projection, {
+    nodeSizes: new Map(
+      forceScene.nodes.map((node) => [
+        node.id,
+        {
+          widthMeters: node.collisionRadiusMeters * 2,
+          heightMeters: node.collisionRadiusMeters * 2,
+        },
+      ]),
+    ),
+  }).metrics;
 
   const solverSetup = measure(() => {
     const simulation = new ReferenceWorldForceSimulation();
@@ -177,6 +204,8 @@ for (const nodeCount of sizes) {
   }, stepIterations);
   const diagnostics = simulation.getDiagnostics();
   simulation.destroy();
+
+  const settling = nodeCount <= 1_000 ? settleTicks(forceScene) : null;
 
   const dragSimulation = new ReferenceWorldForceSimulation();
   dragSimulation.setScene(forceScene);
@@ -208,6 +237,8 @@ for (const nodeCount of sizes) {
     solveStep,
     dragStep,
     dragChangedNodes,
+    dagQuality,
+    settling,
     diagnostics,
   });
 }
@@ -222,7 +253,7 @@ console.log(
       architecture: process.arch,
       fixture: denseMode
         ? "pathological single-place dense groups for same-anchor pair-force scaling"
-        : "deterministic geographic groups of <=32 nodes with local topology and cross-place visual relationships",
+        : "deterministic geographic groups of <=32 nodes with local topology, cross-place relationships, and DAG quality metrics",
       results,
     },
     null,

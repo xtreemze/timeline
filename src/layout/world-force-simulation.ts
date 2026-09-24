@@ -44,6 +44,19 @@ export interface WorldForceAnchor {
   readonly precisionRadiusMeters: number;
 }
 
+export interface WorldRelationshipRoutePoint {
+  readonly eastMeters: number;
+  readonly northMeters: number;
+}
+
+export interface WorldRelationshipRouteHint {
+  readonly relationshipId: RelationshipId;
+  readonly placeId: PlaceId;
+  readonly sourceId: WorldInstanceId;
+  readonly targetId: WorldInstanceId;
+  readonly points: readonly WorldRelationshipRoutePoint[];
+}
+
 export interface WorldForcePin {
   readonly instanceId: WorldInstanceId;
   readonly eastMeters: number;
@@ -55,6 +68,8 @@ export interface WorldForceScene {
   readonly nodes: readonly WorldForceNode[];
   readonly edges: readonly WorldForceEdge[];
   readonly anchors: readonly WorldForceAnchor[];
+  /** d3-dag routing hints for local relationships; physics remains node-based. */
+  readonly relationshipRoutes?: readonly WorldRelationshipRouteHint[];
 }
 
 export interface WorldSimulationRequest {
