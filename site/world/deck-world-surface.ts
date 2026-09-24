@@ -8,6 +8,7 @@ import {
 import { fitWorldCamera, globeOverviewCamera } from "../../src/layout/world-camera-fit.ts";
 import {
   interpolateClusterPosition,
+  WORLD_CLUSTER_FORCE_TRANSITION_MS,
   worldClusterExpansionProgress,
 } from "../../src/layout/world-cluster-transition.ts";
 import {
@@ -2969,16 +2970,18 @@ export class DeckWorldSurface implements WorldSurface {
     const gridClustered =
       placeExpansion >= 1 &&
       shouldClusterEntityDatums(entityResult.datums.length, this.#camera.zoom);
-    const relationshipExpansion = gridClustered ? 0 : placeExpansion;
     const temporalRelationships = this.#temporalRelationshipDatums(relationships);
-    const entities: readonly DeckWorldEntityRenderDatum[] =
-      placeExpansion < 1
-        ? Object.freeze([
-            ...placeTransition.clusters,
-            ...placeTransition.loose,
-            ...(placeExpansion > 0 ? placeTransition.members : []),
-          ])
-        : clusterEntityDatums(entityResult.datums, this.#camera.zoom);
+    // Keep place-cluster and member rows alive at both endpoints. Clusters
+    // reach zero radius/alpha at full expansion; members reach zero size/alpha
+    // at full collapse. Stable rows give deck a prior value to interpolate
+    // when an asynchronous force backend publishes a solved target at once.
+    const entities: readonly DeckWorldEntityRenderDatum[] = gridClustered
+      ? clusterEntityDatums(entityResult.datums, this.#camera.zoom)
+      : Object.freeze([
+          ...placeTransition.clusters,
+          ...placeTransition.loose,
+          ...placeTransition.members,
+        ]);
 
     this.#placeDatumCache = placeResult.byId;
     this.#relationshipDatumCache = relationshipResult.byId;
@@ -3025,9 +3028,7 @@ export class DeckWorldSurface implements WorldSurface {
     // not exposed as glyphs or hit targets. Loose/unclustered entities remain.
     const iconSource = gridClustered
       ? Object.freeze([] as DeckWorldEntityDatum[])
-      : placeExpansion > 0
-        ? transitionEntities
-        : placeTransition.loose;
+      : transitionEntities;
     const iconDatums = this.#runtime.createIconLayer
       ? selectPrioritizedLabels(iconSource, {
           budget:
@@ -3081,6 +3082,14 @@ export class DeckWorldSurface implements WorldSurface {
               getPath: (path: unknown) => path,
               getWidth: 1,
               getColor: this.#theme.graticule,
+              transitions: prefersReducedMotion()
+                ? undefined
+                : {
+                    getPath: {
+                      duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
+                      easing: temporalRelationEasing,
+                    },
+                  },
               parameters: { cullMode: "none" },
             }),
             ...(this.#basemap
@@ -3135,7 +3144,16 @@ export class DeckWorldSurface implements WorldSurface {
         },
         transitions: prefersReducedMotion()
           ? undefined
-          : { getRadius: 120, getLineWidth: 120, getLineColor: 120, getFillColor: 120 },
+          : {
+              getPosition: {
+                duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
+                easing: temporalRelationEasing,
+              },
+              getRadius: 120,
+              getLineWidth: 120,
+              getLineColor: 120,
+              getFillColor: 120,
+            },
       }),
       this.#runtime.createPathLayer({
         id: DECK_WORLD_LAYER_IDS.relationships,
@@ -3162,6 +3180,10 @@ export class DeckWorldSurface implements WorldSurface {
           );
         },
         transitions: {
+          getPath: {
+            duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
+            easing: temporalRelationEasing,
+          },
           getWidth: {
             duration: WORLD_TEMPORAL_RELATION_TRANSITION_MS,
             easing: temporalRelationEasing,
@@ -3295,7 +3317,16 @@ export class DeckWorldSurface implements WorldSurface {
                 getSize: [this.#palette, placeExpansion, gridClustered],
                 getColor: [placeExpansion, gridClustered],
               },
-              transitions: prefersReducedMotion() ? undefined : { getSize: 120 },
+              transitions: prefersReducedMotion()
+                ? undefined
+                : {
+                    getPosition: {
+                      duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
+                      easing: temporalRelationEasing,
+                    },
+                    getSize: 120,
+                    getColor: 120,
+                  },
               // GlobeView culls back faces; billboarded icon quads vanish
               // without this (same as the label TextLayer). Markers draw
               // without depth testing so the invisible earth never clips
@@ -3331,6 +3362,16 @@ export class DeckWorldSurface implements WorldSurface {
             this.#edgeStyle(datum.edge).color,
             Math.round(255 * edgeExpansion(datum)),
           ),
+        transitions: prefersReducedMotion()
+          ? undefined
+          : {
+              getPath: {
+                duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
+                easing: temporalRelationEasing,
+              },
+              getWidth: 120,
+              getColor: 120,
+            },
         updateTriggers: {
           getWidth: [this.#palette, placeExpansion, gridClustered],
           getColor: [this.#palette, placeExpansion, gridClustered],
@@ -3379,7 +3420,15 @@ export class DeckWorldSurface implements WorldSurface {
               },
               transitions: prefersReducedMotion()
                 ? undefined
-                : { getSize: 120, getColor: 120, getPixelOffset: 120 },
+                : {
+                    getPosition: {
+                      duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
+                      easing: temporalRelationEasing,
+                    },
+                    getSize: 120,
+                    getColor: 120,
+                    getPixelOffset: 120,
+                  },
               // GlobeView culls back faces; billboarded glyph quads are
               // wound the other way and vanish without this. Labels draw
               // over marks (far-side labels are filtered out above) so
