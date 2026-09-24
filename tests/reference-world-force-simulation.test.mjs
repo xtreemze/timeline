@@ -145,6 +145,90 @@ test("default repulsion spreads a dense same-anchor group beyond label-scale cro
   assert.ok(minimum >= 200, `minimum same-anchor spacing was ${minimum}`);
 });
 
+test("D3 cluster lifecycle gathers and scatters with relationship links detached", () => {
+  const simulation = new ReferenceWorldForceSimulation();
+  const alice = '["alice","cluster"]';
+  const bob = '["bob","cluster"]';
+  simulation.setScene({
+    nodes: [
+      node(alice, { initialEastMeters: -900, collisionRadiusMeters: 180 }),
+      node(bob, { initialEastMeters: 900, collisionRadiusMeters: 180 }),
+    ],
+    edges: [
+      {
+        id: "cluster-link",
+        sourceId: alice,
+        targetId: bob,
+        strength: 0.08,
+        restLengthMeters: 1800,
+      },
+    ],
+    anchors: [
+      anchor(alice, "stockholm", { influence: 1 }),
+      anchor(bob, "stockholm", { influence: 1 }),
+    ],
+  });
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 40; index += 1) simulation.step(1000 / 60);
+
+  const distance = (snapshot) => {
+    const left = snapshot.find((entry) => entry.instanceId === alice);
+    const right = snapshot.find((entry) => entry.instanceId === bob);
+    return Math.hypot(
+      right.eastMeters - left.eastMeters,
+      right.northMeters - left.northMeters,
+    );
+  };
+
+  const expandedBefore = distance(simulation.getSnapshot());
+  simulation.setClusteredPlaceIds(["stockholm"]);
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 180; index += 1) simulation.step(1000 / 60);
+  const collapsed = distance(simulation.getSnapshot());
+  assert.ok(collapsed < expandedBefore, "D3 gathers the detached place group");
+
+  simulation.setClusteredPlaceIds([]);
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 180; index += 1) simulation.step(1000 / 60);
+  const expandedAfter = distance(simulation.getSnapshot());
+  assert.ok(
+    expandedAfter > collapsed,
+    "D3 rejection scatters members before ordinary relationship links resume",
+  );
+});
+
+test("D3 cluster ownership leaves unrelated geographic groups under the ordinary 3D solver", () => {
+  const simulation = new ReferenceWorldForceSimulation();
+  const alice = '["alice","cluster-a"]';
+  const bob = '["bob","cluster-b"]';
+  const remote = '["remote","other"]';
+  simulation.setScene({
+    nodes: [
+      node(alice, { initialEastMeters: -500 }),
+      node(bob, { initialEastMeters: 500 }),
+      node(remote, { initialEastMeters: 700 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(alice, "stockholm", { influence: 1 }),
+      anchor(bob, "stockholm", { influence: 1 }),
+      anchor(remote, "copenhagen", { influence: 0 }),
+    ],
+  });
+
+  const before = simulation.getSnapshot().find((entry) => entry.instanceId === remote);
+  simulation.setClusteredPlaceIds(["stockholm"]);
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 120; index += 1) simulation.step(1000 / 60);
+  const after = simulation.getSnapshot().find((entry) => entry.instanceId === remote);
+
+  assert.deepEqual(
+    after,
+    before,
+    "D3-owned clustering must not replace ordinary force ownership for unrelated places",
+  );
+});
+
 test("cross-place relationships never collapse geographic anchors into one local force group", () => {
   const commonNodes = [
     node('["alice","travel"]', { initialEastMeters: 100 }),
