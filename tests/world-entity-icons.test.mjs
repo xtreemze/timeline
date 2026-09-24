@@ -10,6 +10,7 @@ import {
   createWorldProjection,
   worldInstanceId,
 } from "../src/projection/world-projection.ts";
+import { worldEntityVisualEncoding } from "../src/projection/world-visual-encoding.ts";
 
 function harness({ icons = true } = {}) {
   const setProps = [];
@@ -110,15 +111,50 @@ test("kind icons render from projection metadata as tintable masks and pick as t
   assert.equal(icons.props.pickable, true);
 
   const byEntity = new Map(icons.props.data.map((datum) => [datum.entityId, datum]));
-  assert.deepEqual([...byEntity.keys()].sort(), ["entity-0", "entity-2"]);
+  assert.deepEqual([...byEntity.keys()].sort(), ["entity-0", "entity-1", "entity-2"]);
   const personIcon = icons.props.getIcon(byEntity.get("entity-0"));
   assert.equal(personIcon.id, "lum-icon:person");
   assert.equal(personIcon.mask, true);
   assert.match(personIcon.url, /^data:image\/svg\+xml/);
   assert.equal(byEntity.get("entity-0").kind, "entity", "icons pick as the canonical entity");
+  assert.equal(icons.props.getIcon(byEntity.get("entity-1")).id, "lum-icon:object");
+
+  const shapes = h.lastLayers().find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityShapes);
+  assert.ok(shapes, "semantic node shapes are rendered");
+  const shapeByEntity = new Map(shapes.props.data.map((datum) => [datum.entityId, datum]));
+  const personShape = shapes.props.getIcon(shapeByEntity.get("entity-0"));
+  const objectShape = shapes.props.getIcon(shapeByEntity.get("entity-2"));
+  assert.equal(personShape.mask, false);
+  assert.notEqual(personShape.id, objectShape.id);
 
   surface.pick({ x: 1, y: 1 });
   assert.ok(h.pickOptions().layerIds.includes(DECK_WORLD_LAYER_IDS.entityIcons));
+  assert.ok(h.pickOptions().layerIds.includes(DECK_WORLD_LAYER_IDS.entityShapes));
+});
+
+test("optional images render above the semantic icon while preserving the icon fallback", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, CAMERA);
+  const visual = worldEntityVisualEncoding("person", {
+    imageUrl: "https://example.test/person.webp",
+  });
+  surface.setProjection(
+    createWorldProjection({
+      instances: [entity(0, "person", { visual })],
+      edges: [],
+    }),
+  );
+
+  const layers = h.lastLayers();
+  const icons = layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons);
+  const images = layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityImages);
+  assert.ok(icons, "semantic fallback icon remains present");
+  assert.ok(images, "image layer is rendered at detail zoom");
+  assert.equal(images.props.data.length, 1);
+  assert.equal(images.props.getIcon(images.props.data[0]).url, "https://example.test/person.webp");
+
+  surface.pick({ x: 1, y: 1 });
+  assert.ok(h.pickOptions().layerIds.includes(DECK_WORLD_LAYER_IDS.entityImages));
 });
 
 test("dense icon load follows the LOD budget but keeps the selected entity", () => {
