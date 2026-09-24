@@ -30,6 +30,7 @@ import {
   medianNearestPlaceMeters,
   relationshipEdgePath,
   selectPrioritizedLabels,
+  trimWorldEdgePathForNodeRadii,
   typicalLocalOffsetMeters,
   WORLD_CLUSTER_MERGE_PX,
   WORLD_ENTITY_FLOAT_PX,
@@ -38,14 +39,13 @@ import {
   WORLD_PLACE_LABEL_FLOOR,
   worldArrowLengthDegreesForNodeRadius,
   worldArrowStrokeWidthPxForNodeRadius,
+  worldDashedEdgeSegments,
   worldLabelBudget,
   worldLabelTierFloor,
   worldLocalRadiusPx,
   worldPixelsToDegrees,
   worldPlaceClusterRadiusPx,
   worldPresentationOffsetScale,
-  trimWorldEdgePathForNodeRadii,
-  worldDashedEdgeSegments,
 } from "../../src/layout/world-semantic-presentation.ts";
 import {
   selectWorldSpatialMode,
@@ -55,7 +55,6 @@ import {
   createWorldCameraState,
   createWorldSpatialPosition,
   createWorldTemporalWindow,
-  worldSelectionFromHit,
   type ScreenPoint,
   type WorldCameraState,
   type WorldHit,
@@ -64,6 +63,7 @@ import {
   type WorldSurface,
   type WorldSurfaceCapabilities,
   type WorldTemporalWindow,
+  worldSelectionFromHit,
 } from "../../src/layout/world-surface.ts";
 import type {
   ProjectedWorldInstance,
@@ -332,8 +332,7 @@ export function clusterZoomThresholdForNodeRadius(nodeRadiusPx: number): number 
       ? nodeRadiusPx
       : WORLD_CLUSTER_BASE_NODE_RADIUS_PX;
   return (
-    CLUSTER_ZOOM_THRESHOLD +
-    Math.max(0, Math.log2(radius / WORLD_CLUSTER_BASE_NODE_RADIUS_PX))
+    CLUSTER_ZOOM_THRESHOLD + Math.max(0, Math.log2(radius / WORLD_CLUSTER_BASE_NODE_RADIUS_PX))
   );
 }
 
@@ -356,17 +355,10 @@ const DENSE_CLUSTER_ZOOM_THRESHOLD = 5.5;
  */
 const WORLD_PLACE_ICON_LIFT_PX = 2;
 
-function liftedPlaceIconPosition(
-  position: WorldRenderPosition,
-  zoom: number,
-): WorldRenderPosition {
+function liftedPlaceIconPosition(position: WorldRenderPosition, zoom: number): WorldRenderPosition {
   const metersPerPixel = worldLocalRadiusPx(1, zoom, position[1]) ** -1;
   const liftMeters = Math.max(1, metersPerPixel * WORLD_PLACE_ICON_LIFT_PX);
-  return Object.freeze([
-    position[0],
-    position[1],
-    position[2] + liftMeters,
-  ]) as WorldRenderPosition;
+  return Object.freeze([position[0], position[1], position[2] + liftMeters]) as WorldRenderPosition;
 }
 
 export function shouldClusterEntityDatums(
@@ -537,10 +529,7 @@ export function clusterEntityDatumsByPlace(
     const cellFor = (anchor: Anchor): readonly [number, number] => {
       const longitude = (((anchor.longitude + 180) % 360) + 360) % 360;
       return Object.freeze([
-        Math.min(
-          longitudeCellCount - 1,
-          Math.floor(longitude / mergeCellDegrees),
-        ),
+        Math.min(longitudeCellCount - 1, Math.floor(longitude / mergeCellDegrees)),
         Math.floor((anchor.latitude + 90) / mergeCellDegrees),
       ]);
     };
@@ -598,9 +587,7 @@ export function clusterEntityDatumsByPlace(
       }
     }
     components.push(
-      component.sort((left, right) =>
-        String(left.placeId).localeCompare(String(right.placeId)),
-      ),
+      component.sort((left, right) => String(left.placeId).localeCompare(String(right.placeId))),
     );
   }
 
@@ -627,10 +614,7 @@ export function clusterEntityDatumsByPlace(
       weightedLatitude += group.anchor.latitude * weight;
       weightedAltitude += (group.anchor.sourceAltitude ?? 0) * weight;
       totalWeight += weight;
-      totalVisualWeight += group.members.reduce(
-        (sum, member) => sum + member.visualWeight,
-        0,
-      );
+      totalVisualWeight += group.members.reduce((sum, member) => sum + member.visualWeight, 0);
     }
 
     const [singlePlace] = component;
@@ -644,7 +628,7 @@ export function clusterEntityDatumsByPlace(
         : weightedLatitude / totalWeight;
     const altitude =
       component.length === 1 && singlePlace
-        ? singlePlace.anchor.sourceAltitude ?? 0
+        ? (singlePlace.anchor.sourceAltitude ?? 0)
         : weightedAltitude / totalWeight;
     const placeIds = component.map((group) => String(group.placeId)).sort();
     const clusterMembers = members
@@ -665,11 +649,7 @@ export function clusterEntityDatumsByPlace(
           placeIds.length === 1
             ? `cluster:place:${placeIds[0]}`
             : `cluster:places:${placeIds.join("|")}`,
-        position: Object.freeze([
-          longitude,
-          latitude,
-          altitude,
-        ]) as WorldRenderPosition,
+        position: Object.freeze([longitude, latitude, altitude]) as WorldRenderPosition,
         clusterMembers: Object.freeze(clusterMembers),
         visualWeight: totalVisualWeight / totalWeight,
       }),
@@ -922,7 +902,9 @@ function prefersReducedMotion(): boolean {
  * left off (deck.gl's own default) because this surface wires its own
  * double-tap/double-click focus gesture (see `#handleDoubleClick`) instead.
  */
-function deckControllerOptions(mode: WorldSpatialMode = "globe"): Readonly<Record<string, unknown>> {
+function deckControllerOptions(
+  mode: WorldSpatialMode = "globe",
+): Readonly<Record<string, unknown>> {
   return Object.freeze({
     dragPan: true,
     dragRotate: true,
@@ -1363,8 +1345,7 @@ function directionDatums(
   const result: DeckWorldDirectionDatum[] = [];
   const marked = selectPrioritizedLabels(relationships, {
     budget: worldLabelBudget(zoom),
-    isPinned: (edge) =>
-      focus?.kind === "relationship" && focus.id === edge.relationshipId,
+    isPinned: (edge) => focus?.kind === "relationship" && focus.id === edge.relationshipId,
     importance: (edge) => edge.temporalWeight,
     key: (edge) => edge.relationshipId,
   });
@@ -1372,11 +1353,7 @@ function directionDatums(
   for (const edge of marked) {
     const arrowLengthDegrees = arrowLengthDegreesForEdge(edge);
     const prior = previous.get(edge.relationshipId);
-    if (
-      prior &&
-      prior.edge === edge &&
-      prior.arrowLengthDegrees === arrowLengthDegrees
-    ) {
+    if (prior && prior.edge === edge && prior.arrowLengthDegrees === arrowLengthDegrees) {
       byId.set(edge.relationshipId, prior);
       result.push(prior);
       continue;
@@ -1715,8 +1692,7 @@ function labelDatums(input: {
     );
   }
 
-  const pinnedEntity = (entity: DeckWorldEntityDatum) =>
-    focused("entity", entity.entityId);
+  const pinnedEntity = (entity: DeckWorldEntityDatum) => focused("entity", entity.entityId);
   const entities = selectPrioritizedLabels(
     input.entities.filter((entity) => entity.label && !input.clustered),
     {
@@ -2107,11 +2083,7 @@ export class DeckWorldSurface implements WorldSurface {
     const style = (this.#container as HTMLElement).style;
     if (!style) return;
     style.cursor =
-      selection?.kind === "entity" && this.#nodeDragSink
-        ? "grab"
-        : selection
-          ? "pointer"
-          : "";
+      selection?.kind === "entity" && this.#nodeDragSink ? "grab" : selection ? "pointer" : "";
   }
 
   #selectionFromPickingInfo(info: DeckRuntimePickingInfo): WorldSelection | null {
@@ -2141,9 +2113,7 @@ export class DeckWorldSurface implements WorldSurface {
     const next = this.#selectionFromPickingInfo(info);
     const toggled = next !== null && selectionEquals(next, this.#selection) ? null : next;
     const changed =
-      toggled === null
-        ? this.#selection !== null
-        : !selectionEquals(toggled, this.#selection);
+      toggled === null ? this.#selection !== null : !selectionEquals(toggled, this.#selection);
     this.setSelection(toggled);
     if (changed) void pulseHaptic("selection");
   };
@@ -2536,9 +2506,7 @@ export class DeckWorldSurface implements WorldSurface {
   setSelection(selection: WorldSelection | null): void {
     this.#assertAlive();
     if (
-      selection === null
-        ? this.#selection === null
-        : selectionEquals(selection, this.#selection)
+      selection === null ? this.#selection === null : selectionEquals(selection, this.#selection)
     ) {
       return;
     }
@@ -2948,11 +2916,8 @@ export class DeckWorldSurface implements WorldSurface {
     const clusterExpansion = this.#placeClusterExpansion();
     const maxNodeRadiusPx = this.#maxEntityFootprintRadiusPx();
     const clusteredNow =
-      shouldClusterEntityDatums(
-        this.#entityDatumCache.size,
-        this.#camera.zoom,
-        maxNodeRadiusPx,
-      ) || clusterExpansion < 1;
+      shouldClusterEntityDatums(this.#entityDatumCache.size, this.#camera.zoom, maxNodeRadiusPx) ||
+      clusterExpansion < 1;
     const clusterMotionChanged =
       Math.abs(clusterExpansion - this.#clusterExpansionLastRender) > 0.002;
     const budget = worldLabelBudget(this.#camera.zoom);
@@ -2961,8 +2926,7 @@ export class DeckWorldSurface implements WorldSurface {
       Math.min(budget, this.#labelBudgetLastRender) < this.#lodCandidateCountLastRender;
     const screenScaleChanged =
       screenScaleZoomStep(this.#camera.zoom) !== this.#screenScaleZoomLastRender;
-    const cameraFacingChanged =
-      cameraFacingStep(this.#camera) !== this.#cameraFacingStepLastRender;
+    const cameraFacingChanged = cameraFacingStep(this.#camera) !== this.#cameraFacingStepLastRender;
     return (
       clusteredNow !== this.#clusteredLastRender ||
       clusterMotionChanged ||
@@ -3020,12 +2984,6 @@ export class DeckWorldSurface implements WorldSurface {
     const instances = this.#projection.instances;
     // Clustered overviews group true geography; magnifying offsets there
     // would scatter one place's entities across cluster cells.
-    if (
-      shouldClusterEntityDatums(
-        instances.length,
-        zoom,
-        this.#maxEntityFootprintRadiusPx(),
-      )
     ) return 1;
     const typical = this.#typicalOffsetMeters();
     const scale = worldPresentationOffsetScale(
