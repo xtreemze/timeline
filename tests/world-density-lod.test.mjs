@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -45,4 +46,19 @@ test("sparse scenes retain individual detail at the default globe camera", () =>
 
   assert.equal(shouldClusterEntityDatums(entities.length, 1), false);
   assert.equal(clusterEntityDatums(entities, 1), entities);
+});
+
+
+test("cluster transition keeps force targets retained and animates topology from the place origin", async () => {
+  const source = await readFile(
+    new URL("../site/world/deck-world-surface.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /instanceIndexFromEntities\(transitionEntities\)/);
+  assert.match(source, /interpolateClusterPosition\(origin, entity\.position, expansion\)/);
+  assert.match(source, /\.\.\.placeTransition\.clusters,[\s\S]*\.\.\.placeTransition\.members/);
+  assert.match(source, /temporalWidth \* edgeExpansion\(state\.edge\)/);
+  assert.match(source, /worldNodeMarker\(this\.#entityStyle\(datum\)\)\.size \* entityExpansion\(datum\)/);
+  assert.match(source, /WORLD_CLUSTER_FORCE_TRANSITION_MS/);
 });
