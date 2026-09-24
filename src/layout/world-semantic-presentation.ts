@@ -509,8 +509,12 @@ export function medianNearestPlaceMeters(
 export const WORLD_LOCAL_GRAPH_MAX_PLACE_SHARE = 3;
 /** Clusters closer than this on screen merge into one bubble. */
 export const WORLD_CLUSTER_MERGE_PX = 96;
-/** Local graphs at least this large on screen count as readable. */
-export const WORLD_READABLE_LOCAL_RADIUS_PX = 200;
+/**
+ * Local graphs at least this large on screen count as readable. The compact
+ * 30-34px marker baseline needs less empty radius than the former 44-52px
+ * marker scale, so place-local topology can resolve sooner while remaining legible.
+ */
+export const WORLD_READABLE_LOCAL_RADIUS_PX = 160;
 
 /** Degrees of longitude spanned by `pixels` at `zoom` (GlobeView scale). */
 export function worldPixelsToDegrees(pixels: number, zoom: number): number {
@@ -594,7 +598,7 @@ export const WORLD_CLUSTER_NODE_RADIUS_MULTIPLIER = 4;
 
 /**
  * Required local graph radius before place members fully resolve. The default
- * preserves the existing 200px readability floor, large nodes raise it, and
+ * preserves the 160px readability floor, large nodes raise it, and
  * narrow viewports may cap it so the graph can actually fit on screen.
  */
 export function worldPlaceClusterRadiusPx(
