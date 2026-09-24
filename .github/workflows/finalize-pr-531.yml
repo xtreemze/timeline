@@ -1,5 +1,5 @@
 name: Finalize PR 531
-# rerun after fixture corrections
+# rerun after provenance deduplication
 
 on:
   push:
