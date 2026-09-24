@@ -121,7 +121,10 @@ test("secondary anchors bias local layout without replacing the primary geograph
   for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
   const after = simulation.getSnapshot()[0];
 
-  assert.ok(after.eastMeters > before.eastMeters, "secondary east anchor should bias local layout east");
+  assert.ok(
+    after.eastMeters > before.eastMeters,
+    "secondary east anchor should bias local layout east",
+  );
   assert.ok(
     after.eastMeters < 550,
     "secondary anchors should steer inside the primary place domain instead of relocating globally",
@@ -1169,7 +1172,6 @@ test("updated DAG targets preserve position and converge through force only", ()
     "the force solver should move toward the new DAG target after a tick",
   );
 });
-
 
 test("dense same-place spatial indexing stays deterministic and resolves hard overlap", () => {
   const ids = Array.from({ length: 120 }, (_, index) => `["dense","node-${index}"]`);
