@@ -130,7 +130,8 @@ function normalizedTimeStep(deltaMs: number): number {
     throw new Error("Reference force delta must be a finite non-negative number.");
   }
   if (deltaMs === 0) return 0;
-  return Math.min(3, deltaMs / (1000 / 60));
+  // Bound catch-up so a missed frame cannot turn into a visible force jump.
+  return Math.min(1.5, deltaMs / (1000 / 60));
 }
 
 export class ReferenceWorldForceSimulation implements WorldForceSimulationBackend {
@@ -210,10 +211,21 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
 
   setPin(pin: WorldForcePin | null): void {
     this.#assertAlive();
-    if (pin && !this.#states.has(pin.instanceId)) {
+    const state = pin ? this.#states.get(pin.instanceId) : null;
+    if (pin && !state) {
       throw new Error(`Cannot pin unknown world instance ${String(pin.instanceId)}.`);
     }
     this.#pin = pin ? Object.freeze({ ...pin }) : null;
+    if (pin && state) {
+      // Direct manipulation owns the dragged node: publish the pin
+      // immediately instead of waiting for a global physics tick.
+      state.x = pin.eastMeters;
+      state.y = pin.northMeters;
+      state.z = pin.visualAltitudeMeters;
+      state.vx = 0;
+      state.vy = 0;
+      state.vz = 0;
+    }
     this.#settled = false;
   }
 
@@ -247,7 +259,15 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       groups.set(state.group, [...(groups.get(state.group) ?? []), state]);
     }
 
-    for (const states of groups.values()) {
+    // During direct manipulation geography is fixed. Only the floating
+    // topology sharing the dragged node's anchor participates in force;
+    // unrelated place groups remain completely still until release.
+    const activeDragGroup = this.#pin
+      ? (this.#states.get(this.#pin.instanceId)?.group ?? null)
+      : null;
+
+    for (const [group, states] of groups) {
+      if (activeDragGroup && group !== activeDragGroup) continue;
       for (let leftIndex = 0; leftIndex < states.length; leftIndex += 1) {
         const left = states[leftIndex];
         if (!left) continue;
@@ -263,10 +283,12 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       const source = this.#states.get(edge.sourceId);
       const target = this.#states.get(edge.targetId);
       if (!source || !target || source.group !== target.group) continue;
+      if (activeDragGroup && source.group !== activeDragGroup) continue;
       this.#applyEdgeForce(edge, source, target, forces);
     }
 
     for (const state of this.#states.values()) {
+      if (activeDragGroup && state.group !== activeDragGroup) continue;
       this.#applyAnchorForce(state, forces);
       this.#applyAltitudeForce(state, forces);
     }
@@ -274,7 +296,10 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const energyScale = 1 + (this.#request?.energyTarget ?? 0) * 4;
     let energy = 0;
 
+    let activeNodeCount = 0;
     for (const state of this.#states.values()) {
+      if (activeDragGroup && state.group !== activeDragGroup) continue;
+      activeNodeCount += 1;
       if (this.#pin?.instanceId === state.node.id) {
         state.x = this.#pin.eastMeters;
         state.y = this.#pin.northMeters;
@@ -305,7 +330,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     }
 
     this.#iteration += 1;
-    this.#energy = energy / Math.max(1, this.#states.size);
+    this.#energy = energy / Math.max(1, activeNodeCount);
     this.#settled = this.#energy <= this.#options.settleEnergy;
   }
 
