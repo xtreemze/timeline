@@ -19,10 +19,7 @@ const sizes = requestedSizes.length ? requestedSizes : [1_000, 10_000, 50_000];
 
 function percentile(sorted, fraction) {
   if (!sorted.length) return 0;
-  const index = Math.min(
-    sorted.length - 1,
-    Math.max(0, Math.ceil(sorted.length * fraction) - 1),
-  );
+  const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * fraction) - 1));
   return sorted[index] ?? 0;
 }
 
@@ -38,9 +35,7 @@ function measure(fn, iterations) {
   const median =
     sorted.length % 2
       ? sorted[Math.floor(sorted.length / 2)]
-      : ((sorted[sorted.length / 2 - 1] ?? 0) +
-          (sorted[sorted.length / 2] ?? 0)) /
-        2;
+      : ((sorted[sorted.length / 2 - 1] ?? 0) + (sorted[sorted.length / 2] ?? 0)) / 2;
 
   return {
     iterations,
@@ -91,10 +86,7 @@ function fixture(nodeCount, groupSize = 32) {
       edges.push(
         createProjectedWorldEdge({
           id: `local-edge-${index}`,
-          sourceInstanceId: worldInstanceId(
-            `entity-${index - 1}`,
-            `occurrence-${index - 1}`,
-          ),
+          sourceInstanceId: worldInstanceId(`entity-${index - 1}`, `occurrence-${index - 1}`),
           targetInstanceId: id,
           temporalWeight: 0.8,
           visible: true,
@@ -137,10 +129,7 @@ for (const nodeCount of sizes) {
   let forceScene;
   const sceneBuild = measure(() => {
     forceScene = createWorldForceScene(projection);
-    if (
-      forceScene.nodes.length !== nodeCount ||
-      forceScene.anchors.length !== nodeCount
-    ) {
+    if (forceScene.nodes.length !== nodeCount || forceScene.anchors.length !== nodeCount) {
       throw new Error(`Unexpected force scene size for ${nodeCount} world instances.`);
     }
   }, iterations);
