@@ -1,10 +1,10 @@
 import { ReferenceWorldForceSimulation } from "../../src/layout/reference-world-force-simulation.ts";
 import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
 import type { WorldForceSimulationBackend } from "../../src/layout/world-force-simulation.ts";
+import { LuumWorldSurfaceElement } from "../components/world-surface-element.ts";
 import { createDeckWorldRuntime, type DeckWorldBindings } from "./deck-world-runtime.ts";
 import { DeckWorldSurface } from "./deck-world-surface.ts";
 import { loadWorldBasemap } from "./world-basemap.ts";
-import { LuumWorldSurfaceElement } from "../components/world-surface-element.ts";
 import {
   WorldProjectionView,
   type WorldViewModel,
