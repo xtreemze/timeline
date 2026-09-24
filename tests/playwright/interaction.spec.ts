@@ -166,10 +166,12 @@ test.describe("Timeline interaction contracts", () => {
     expect(new Set(active).size).toBe(active.length);
 
     const bands = await page.evaluate(() =>
-      [...document.querySelectorAll("#timeline-view [data-relationship-id]")].map((node) => ({
-        id: node.getAttribute("data-relationship-id"),
-        visible: !node.hidden,
-      })),
+      [...document.querySelectorAll<HTMLElement>("#timeline-view [data-relationship-id]")].map(
+        (node) => ({
+          id: node.getAttribute("data-relationship-id"),
+          visible: !node.hidden,
+        }),
+      ),
     );
     expect(bands.length, "the sample chronology must exercise timed relationships").toBeGreaterThan(
       0,
