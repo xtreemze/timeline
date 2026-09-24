@@ -135,18 +135,21 @@ function worldNodeMetrics(input: WorldNodeStyleInput): {
   // Keep ordinary nodes at least icon-button scale visibly, not merely as
   // hit targets. Quantized radii still keep the marker atlas bounded.
   const baseRadius = Math.round(11 + Math.min(1, Math.max(0, input.visualWeight ?? 0)) * 2);
-  const authoredDiameter = number(own["diameter"], 8, 56);
+  // Portable marker semantics: `size` and `diameter` are visible diameters;
+  // `radius` is the only radius-valued property. Explicit authored geometry
+  // is authoritative and is not multiplied by the app's default node scale.
+  const authoredDiameter =
+    number(own["size"], 8, 64) ?? number(own["diameter"], 8, 64);
   const authoredRadius =
-    number(own["size"], 4, 28) ??
-    number(own["radius"], 4, 28) ??
+    number(own["radius"], 4, 32) ??
     (authoredDiameter === null ? null : authoredDiameter / 2);
-  const resolvedRadius = Math.round(authoredRadius ?? baseRadius);
+  const resolvedRadius = Math.round(authoredRadius ?? baseRadius * WORLD_NODE_SCALE);
   const authoredBorderWidth =
     number(own["borderWidth"], 0, 8) ?? number(own["strokeWidth"], 0, 8) ?? 2;
   return Object.freeze({
     // Interaction state is presentation-only. Never feed hover/selection into
     // visible geometry or collision/force footprints.
-    radius: resolvedRadius * WORLD_NODE_SCALE,
+    radius: resolvedRadius,
     borderWidth: authoredBorderWidth,
   });
 }
@@ -232,10 +235,15 @@ export function worldPlaceStyle(
     number(marker["weight"], 0, 8) ??
     number(own["borderWidth"], 0, 8) ??
     2;
+  const authoredDiameter =
+    number(marker["size"], 8, 64) ??
+    number(marker["diameter"], 8, 64) ??
+    number(own["size"], 8, 64) ??
+    number(own["diameter"], 8, 64);
   const authoredRadius =
     number(marker["radius"], 4, 32) ??
     number(own["radius"], 4, 32) ??
-    (number(marker["size"], 8, 64) ?? number(own["size"], 8, 64) ?? 44) / 2;
+    (authoredDiameter === null ? 22 : authoredDiameter / 2);
   return Object.freeze({
     fill,
     border,
@@ -248,7 +256,10 @@ export function worldPlaceStyle(
       marker["image"] ?? marker["imageUrl"] ?? own["image"] ?? own["imageUrl"],
       2048,
     ),
-    radius: Math.max(WORLD_ENTITY_MIN_HIT_RADIUS_PX, Math.round(authoredRadius)),
+    // The visible marker respects authored geometry. The renderer maintains
+    // the separate >=44px acquisition target, so a deliberately small marker
+    // does not have to be visually inflated for touch accessibility.
+    radius: Math.round(authoredRadius),
   });
 }
 
