@@ -142,22 +142,22 @@ test("default repulsion spreads a dense same-anchor group beyond label-scale cro
   assert.ok(minimum >= 200, `minimum same-anchor spacing was ${minimum}`);
 });
 
-test("cluster directives collapse to the place origin and expand through force rejection", () => {
+test("D3 cluster lifecycle detaches links, gathers, then scatters before reconnecting", () => {
   const simulation = new ReferenceWorldForceSimulation();
   const alice = '["alice","cluster"]';
   const bob = '["bob","cluster"]';
   simulation.setScene({
     nodes: [
-      node(alice, { initialEastMeters: -800, collisionRadiusMeters: 180 }),
-      node(bob, { initialEastMeters: 800, collisionRadiusMeters: 180 }),
+      node(alice, { initialEastMeters: -900, collisionRadiusMeters: 180 }),
+      node(bob, { initialEastMeters: 900, collisionRadiusMeters: 180 }),
     ],
     edges: [
       {
         id: "cluster-link",
         sourceId: alice,
         targetId: bob,
-        strength: 0.4,
-        restLengthMeters: 900,
+        strength: 0.08,
+        restLengthMeters: 1800,
       },
     ],
     anchors: [
@@ -165,33 +165,30 @@ test("cluster directives collapse to the place origin and expand through force r
       anchor(bob, "stockholm", { influence: 1 }),
     ],
   });
-
-  simulation.applyClusterDirective({ mode: "collapse", instanceIds: [alice, bob] });
   simulation.apply(topologyRequest());
-  for (let index = 0; index < 120; index += 1) simulation.step(1000 / 60);
+  for (let index = 0; index < 40; index += 1) simulation.step(1000 / 60);
 
-  const collapsed = simulation.getSnapshot();
-  assert.ok(Math.abs(collapsed[0].eastMeters) < 100);
-  assert.ok(Math.abs(collapsed[1].eastMeters) < 100);
+  const distance = (snapshot) => {
+    const left = snapshot.find((entry) => entry.instanceId === alice);
+    const right = snapshot.find((entry) => entry.instanceId === bob);
+    return Math.hypot(
+      right.eastMeters - left.eastMeters,
+      right.northMeters - left.northMeters,
+    );
+  };
 
-  simulation.applyClusterDirective({ mode: "expand", instanceIds: [alice, bob] });
+  const expandedBefore = distance(simulation.getSnapshot());
+  simulation.setClusteredPlaceIds(["stockholm"]);
   simulation.apply(topologyRequest());
-  const seeded = simulation.getSnapshot();
-  const seededDistance = Math.hypot(
-    seeded[1].eastMeters - seeded[0].eastMeters,
-    seeded[1].northMeters - seeded[0].northMeters,
-  );
-  for (let index = 0; index < 120; index += 1) simulation.step(1000 / 60);
-  const expanded = simulation.getSnapshot();
-  const expandedDistance = Math.hypot(
-    expanded[1].eastMeters - expanded[0].eastMeters,
-    expanded[1].northMeters - expanded[0].northMeters,
-  );
+  for (let index = 0; index < 180; index += 1) simulation.step(1000 / 60);
+  const collapsed = distance(simulation.getSnapshot());
+  assert.ok(collapsed < expandedBefore, "D3 gathers the detached place group");
 
-  assert.ok(
-    expandedDistance > seededDistance,
-    "node separation must be produced by force rejection after declustering",
-  );
+  simulation.setClusteredPlaceIds([]);
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 180; index += 1) simulation.step(1000 / 60);
+  const expandedAfter = distance(simulation.getSnapshot());
+  assert.ok(expandedAfter > collapsed, "D3 rejection scatters members before normal links resume");
 });
 
 test("cross-place relationships never collapse geographic anchors into one local force group", () => {
