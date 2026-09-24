@@ -65,6 +65,10 @@ function mergeGeographicAnchors(target: SpatialAnchor[], incoming: readonly Spat
     }
 
     const existing = target[existingIndex];
+    if (!existing) {
+      target[existingIndex] = anchor;
+      continue;
+    }
     const existingCertainty = existing.certainty ?? -1;
     const incomingCertainty = anchor.certainty ?? -1;
     if (
