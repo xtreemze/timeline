@@ -13,6 +13,7 @@ import {
 import {
   occurrenceViewportWeight,
   type ProjectableOccurrence,
+  relationshipOccurrenceExtent,
 } from "../../src/projection/spatiotemporal-projection.ts";
 import {
   createTemporalOccurrenceIndex,
@@ -208,20 +209,19 @@ function canonicalRelationships(
   );
 }
 
+/**
+ * Uses the same extent rule as TimelineSurface relationship bands, applied to
+ * the raw input time so an untyped-but-dated relationship is timed in both
+ * views rather than timeless in one of them.
+ */
 function indexedOccurrence(
-  relationship: CanonicalRelationship,
+  id: RelationshipId,
+  rawTime: unknown,
 ): IndexedRelationshipOccurrence | null {
-  if (!relationship.time?.start) return null;
-  const start = TimelineTemporal.sortKey(relationship.time.start);
-  if (!Number.isFinite(start)) return null;
-
-  const rawEnd =
-    relationship.time.type === "interval" && relationship.time.end
-      ? TimelineTemporal.sortKey(relationship.time.end)
-      : start;
-  const end = Number.isFinite(rawEnd) ? rawEnd : start;
-
-  return Object.freeze({ id: relationship.id, start, end });
+  const extent = relationshipOccurrenceExtent(rawTime, (endpoint) =>
+    TimelineTemporal.sortKey(endpoint),
+  );
+  return extent ? Object.freeze({ id, start: extent.start, end: extent.end }) : null;
 }
 
 export class WorldProjectionView {
@@ -279,10 +279,15 @@ export class WorldProjectionView {
     );
     this.#spatialAnchors = new SpatialAnchorIndex(places, this.#relationships);
 
+    const rawTimes = new Map<string, unknown>();
+    for (const raw of Array.isArray(model.relationships) ? model.relationships : []) {
+      const id = text(raw.id);
+      if (id && !rawTimes.has(id)) rawTimes.set(id, raw.time);
+    }
     const timed: IndexedRelationshipOccurrence[] = [];
     const timeless: RelationshipId[] = [];
     for (const relationship of this.#relationships) {
-      const indexed = indexedOccurrence(relationship);
+      const indexed = indexedOccurrence(relationship.id, rawTimes.get(String(relationship.id)));
       if (indexed) timed.push(indexed);
       else timeless.push(relationship.id);
     }
