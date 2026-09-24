@@ -307,7 +307,6 @@ test("touch node long press is armed from capture-phase hit testing before Orb d
   assert.doesNotMatch(bridge, /onNodeDragStart[\s\S]{0,180}beginTouchHold/);
 });
 
-
 test("long-press node drag flashes, elevates, haptically confirms, and restores feedback", async () => {
   const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 

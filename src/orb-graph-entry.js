@@ -283,11 +283,7 @@ function create(container, handlers = {}) {
         // D3 many-body already operates across the full simulator node set.
         // Remove its distance cutoff while dragging so disconnected graph
         // components and nodes tied to other spatial anchors still react.
-        distanceMax: globalDrag
-          ? DRAG_GLOBAL_REPULSION_DISTANCE
-          : dense
-            ? 1800
-            : 3200,
+        distanceMax: globalDrag ? DRAG_GLOBAL_REPULSION_DISTANCE : dense ? 1800 : 3200,
       },
       collision: {
         radius: dense ? 30 : 42,
