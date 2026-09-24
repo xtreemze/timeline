@@ -208,6 +208,11 @@ test("place anchors render through the node marker path", () => {
   assert.ok(marker.id.includes("pin"));
   assert.ok(marker.id.includes("place"));
   assert.ok(placeIcons.props.getSize(datum) >= 44);
+  assert.equal(
+    placeIcons.props.parameters.depthCompare,
+    "always",
+    "near-side place markers share the entity marker depth behavior",
+  );
   assert.equal(renderedPosition[0], datum.position[0]);
   assert.equal(renderedPosition[1], datum.position[1]);
   assert.ok(
@@ -252,7 +257,7 @@ test("place marker rendering uses the authored icon, fill, border, width, and sh
   assert.ok(datum);
   const marker = placeIcons.props.getIcon(datum);
   assert.ok(
-    marker.id.startsWith("lum-node:square|#123456|#abcdef|4|22|crown|"),
+    marker.id.startsWith("lum-node:square|#123456|#abcdef|4|16|crown|"),
     `authored marker visual tuple must remain authoritative: ${marker.id}`,
   );
 });
@@ -349,6 +354,29 @@ test("detail zoom repositions co-located semantic labels before hiding them", ()
   const offsets = data.map((datum) => labels.props.getPixelOffset(datum).join(":"));
   assert.ok(new Set(offsets).size >= 3, "colliding semantic labels use alternate placements");
   assert.equal(labels.props.getTextAnchor, "middle");
+});
+
+test("large marker labels clear the rendered node footprint", () => {
+  const h = harness();
+  const large = instance(0, {
+    style: { radius: 32 },
+    geographicAnchors: [],
+  });
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
+  surface.setProjection(createWorldProjection({ instances: [large], edges: [] }));
+
+  const layers = h.lastLayers();
+  const icons = layer(layers, DECK_WORLD_LAYER_IDS.entityIcons);
+  const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels);
+  const entity = icons.props.data[0];
+  const labelDatum = labels.props.data.find((datum) => datum.kind === "entity-label");
+  assert.ok(labelDatum);
+  const markerRadius = icons.props.getSize(entity) / 2;
+  const [x, y] = labels.props.getPixelOffset(labelDatum);
+  assert.ok(
+    Math.hypot(x, y) > markerRadius + 8,
+    "label placement derives clearance from the actual marker instead of a fixed 32px offset",
+  );
 });
 
 test("clustered overview shows only place labels", () => {
@@ -568,6 +596,25 @@ test("each rendered directed relationship has a visible marker preserving source
   assert.notDeepEqual(wingA, wingB);
 });
 
+test("interactive zoom refreshes world-space arrow geometry before LOD thresholds", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 7 });
+  surface.setProjection(directedProjection());
+
+  const beforeLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections);
+  const before = beforeLayer.props.data[0].arrowLengthDegrees;
+
+  surface.setCamera({ ...WORKING_CAMERA, zoom: 7.04 });
+
+  const afterLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections);
+  const after = afterLayer.props.data[0].arrowLengthDegrees;
+  assert.ok(after < before, "zooming in refreshes the angular arrow size");
+  assert.ok(
+    Math.abs(after / before - 2 ** -0.04) < 0.01,
+    "arrow geometry tracks the pixel-sized node scale between semantic LOD thresholds",
+  );
+});
+
 test("direction marker length stays node-relative across camera zoom", () => {
   const markerLength = (zoom) => {
     const h = harness();
@@ -588,6 +635,37 @@ test("direction marker length stays node-relative across camera zoom", () => {
     Math.abs(zoom7 / zoom8 - 2) < 1e-9,
     "pixel-sized nodes imply halved angular arrow length for each +1 zoom",
   );
+});
+
+test("direction marker stroke scales with visible endpoint markers", () => {
+  const widthFor = (style) => {
+    const h = harness();
+    const source = instance(0, { style, visualWeight: 1 });
+    const target = instance(1, { style });
+    const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 8 });
+    surface.setProjection(
+      createWorldProjection({
+        instances: [source, target],
+        edges: [
+          createProjectedWorldEdge({
+            id: "scaled",
+            label: "met",
+            sourceInstanceId: source.id,
+            targetInstanceId: target.id,
+            temporalWeight: 1,
+            visible: true,
+            retained: false,
+          }),
+        ],
+      }),
+    );
+    const directions = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections);
+    return directions.props.getWidth(directions.props.data[0]);
+  };
+
+  const ordinary = widthFor(undefined);
+  const large = widthFor({ radius: 32 });
+  assert.ok(large > ordinary, "large nodes receive a proportionally heavier direction chevron");
 });
 
 test("picking a direction marker resolves to its canonical relationship", () => {
