@@ -1,4 +1,5 @@
 import {
+  type Decross,
   coordGreedy,
   coordSimplex,
   decrossOpt,
@@ -91,6 +92,12 @@ interface LocalDagEdge {
   readonly temporalWeight: number;
   readonly retained: boolean;
 }
+
+type DagLinkData = readonly [
+  source: string,
+  target: string,
+  relationshipId: RelationshipId | null,
+];
 
 interface LayoutIndex {
   readonly instancesByPlace: ReadonlyMap<PlaceId, readonly ProjectedWorldInstance[]>;
@@ -565,6 +572,27 @@ function candidateScore(candidate: CandidateLayout): number {
   );
 }
 
+function priorOrderInitializer(
+  previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
+): Decross<string, DagLinkData> {
+  return (layers) => {
+    const value = (node: (typeof layers)[number][number]): number => {
+      const data = node.data;
+      if (data.role === "node") {
+        return previousTargets.get(data.node.data)?.eastMeters ?? Number.POSITIVE_INFINITY;
+      }
+      const source = previousTargets.get(data.link.source.data)?.eastMeters;
+      const target = previousTargets.get(data.link.target.data)?.eastMeters;
+      if (source !== undefined && target !== undefined) return (source + target) / 2;
+      return source ?? target ?? Number.POSITIVE_INFINITY;
+    };
+
+    for (const layer of layers) {
+      layer.sort((left, right) => value(left) - value(right));
+    }
+  };
+}
+
 function runLayoutCandidate(
   name: string,
   nodeIds: readonly WorldInstanceId[],
@@ -577,13 +605,12 @@ function runLayoutCandidate(
   coord: "simplex" | "greedy",
 ): CandidateLayout {
   const rootId = "__lum-place-root__";
-  type LinkData = readonly [source: string, target: string, relationshipId: RelationshipId | null];
   const indegree = new Map<WorldInstanceId, number>(nodeIds.map((id) => [id, 0] as const));
   for (const edge of edges) {
     indegree.set(edge.targetId, (indegree.get(edge.targetId) ?? 0) + 1);
   }
 
-  const links: LinkData[] = [];
+  const links: DagLinkData[] = [];
   for (const id of nodeIds) {
     if ((indegree.get(id) ?? 0) === 0) links.push([rootId, String(id), null]);
   }
@@ -592,9 +619,13 @@ function runLayoutCandidate(
   }
 
   const graph = graphConnect()(links);
-  let layout = sugiyama()
+  const defaultTwoLayer = decrossTwoLayer();
+  const twoLayer = defaultTwoLayer
+    .passes(nodeIds.length > 64 ? 8 : nodeIds.length > 24 ? 16 : 24)
+    .inits([priorOrderInitializer(previousTargets), ...defaultTwoLayer.inits()]);
+  const layout = sugiyama()
     .layering(layering === "longest" ? layeringLongestPath() : layeringSimplex())
-    .decross(decross === "opt" ? decrossOpt() : decrossTwoLayer())
+    .decross(decross === "opt" ? decrossOpt() : twoLayer)
     .coord(coord === "simplex" ? coordSimplex() : coordGreedy())
     .nodeSize((node) => sizes.get(node.data) ?? [1, 1])
     .gap(gap);
