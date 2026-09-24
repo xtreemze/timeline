@@ -1806,7 +1806,10 @@ function create(container, handlers = {}) {
   });
 }
 
-globalThis.TimelineOrbGraph = Object.freeze({
+export const TimelineOrbGraph = Object.freeze({
   create,
   version: "1.1.0",
 });
+
+// Temporary ESM compatibility surface for isolated browser interaction fixtures.
+globalThis.TimelineOrbGraph = TimelineOrbGraph;
