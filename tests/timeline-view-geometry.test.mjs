@@ -37,6 +37,25 @@ test("wheel zoom is deliberately capped and symmetric enough for fine control", 
   assert.ok(Math.abs(zoomOut * zoomIn - 1) < 0.001);
 });
 
+test("trackpad pinch keeps wheel units but amplifies Ctrl-modified deltas like d3-zoom", () => {
+  assert.equal(
+    geometry.normalizeWheelDelta({ deltaY: 2, deltaMode: 0, ctrlKey: false }, 800),
+    2,
+  );
+  assert.equal(
+    geometry.normalizeWheelDelta({ deltaY: 2, deltaMode: 0, ctrlKey: true }, 800),
+    20,
+  );
+  assert.equal(
+    geometry.normalizeWheelDelta({ deltaY: 1, deltaMode: 1, ctrlKey: true }, 800),
+    160,
+  );
+  assert.equal(
+    geometry.normalizeWheelDelta({ deltaY: 1, deltaMode: 2, ctrlKey: false }, 800),
+    800,
+  );
+});
+
 test("selected events use a shell-owned six-column detail surface with timeline-owned controls", async () => {
   const [html, js, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
