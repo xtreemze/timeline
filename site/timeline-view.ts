@@ -3014,7 +3014,10 @@ export class LuumTimelineElement extends LitElement {
   }
 }
 
-if (!customElements.get("luum-timeline")) {
+if (
+  typeof customElements !== "undefined" &&
+  !customElements.get("luum-timeline")
+) {
   customElements.define("luum-timeline", LuumTimelineElement);
 }
 
