@@ -1,4 +1,7 @@
-import type { WorldNodeStyle } from "../../src/layout/world-graph-style.ts";
+import {
+  type WorldNodeStyle,
+  worldNodeShapeVisualRadiusScale,
+} from "../../src/layout/world-graph-style.ts";
 import { iconPathData, TimelinePresentation } from "../event-presentation.ts";
 import { worldEntityIconName } from "./world-entity-icon.ts";
 
@@ -29,8 +32,6 @@ function escapeAttribute(value: string): string {
 function shapePath(shape: WorldNodeStyle["shape"], center: number, radius: number): string {
   switch (shape) {
     case "square": {
-      // Use the full nominal footprint so equal-radius square/circle markers
-      // have comparable visual presence and collision geometry.
       const side = radius * 2;
       const start = center - radius;
       return `<rect x="${start}" y="${start}" width="${side}" height="${side}" rx="${radius * 0.25}"/>`;
@@ -69,10 +70,11 @@ export function worldNodeMarker(style: WorldNodeStyle): WorldNodeMarker {
   const cached = markers.get(key);
   if (cached) return cached;
 
-  const size = Math.ceil((style.radius + style.borderWidth) * 2 + 2);
+  const bodyRadius = style.radius * worldNodeShapeVisualRadiusScale(style.shape);
+  const size = Math.ceil((bodyRadius + style.borderWidth) * 2 + 2);
   const pixels = size * SUPERSAMPLE;
   const center = size / 2;
-  const body = shapePath(style.shape, center, style.radius);
+  const body = shapePath(style.shape, center, bodyRadius);
   const authoredIcon =
     style.icon && TimelinePresentation.ICON_NAMES.some((name) => name === style.icon)
       ? style.icon
@@ -81,7 +83,7 @@ export function worldNodeMarker(style: WorldNodeStyle): WorldNodeMarker {
   const glyphSize = style.radius * 1.15;
   const glyphOrigin = center - glyphSize / 2;
   const inner = style.image
-    ? `<clipPath id="c">${shapePath(style.shape, center, style.radius - 0.5)}</clipPath><image href="${escapeAttribute(style.image)}" x="${center - style.radius}" y="${center - style.radius}" width="${style.radius * 2}" height="${style.radius * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#c)"/>`
+    ? `<clipPath id="c">${shapePath(style.shape, center, Math.max(0, bodyRadius - 0.5))}</clipPath><image href="${escapeAttribute(style.image)}" x="${center - bodyRadius}" y="${center - bodyRadius}" width="${bodyRadius * 2}" height="${bodyRadius * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#c)"/>`
     : iconName
       ? `<g transform="translate(${glyphOrigin} ${glyphOrigin}) scale(${glyphSize / 24})" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${iconPathData(
           iconName,
