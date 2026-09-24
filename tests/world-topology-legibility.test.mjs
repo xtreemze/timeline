@@ -1,14 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  clusterEntityDatums,
-} from "../site/world/deck-world-surface.ts";
-import {
-  DEFAULT_WORLD_FORCE_SCENE_POLICY,
-  createWorldForceScene,
-} from "../src/layout/world-force-scene.ts";
+import { clusterEntityDatums } from "../site/world/deck-world-surface.ts";
 import { fitWorldCamera } from "../src/layout/world-camera-fit.ts";
+import {
+  createWorldForceScene,
+  DEFAULT_WORLD_FORCE_SCENE_POLICY,
+} from "../src/layout/world-force-scene.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
@@ -36,20 +34,17 @@ test("sparse co-located nodes cluster before they become indistinguishable and e
   const overview = clusterEntityDatums(entities, 5);
   assert.equal(overview.length, 1);
   assert.equal(overview[0].kind, "cluster");
-  assert.deepEqual(
-    overview[0].clusterMembers.map((member) => member.entityId).sort(),
-    ["entity-0", "entity-1"],
-  );
+  assert.deepEqual(overview[0].clusterMembers.map((member) => member.entityId).sort(), [
+    "entity-0",
+    "entity-1",
+  ]);
 
   const detail = clusterEntityDatums(entities, 7.25);
   assert.equal(detail, entities);
 });
 
 test("nearby nodes cluster by a zoom-scaled visual-proximity cell", () => {
-  const entities = Object.freeze([
-    entityDatum(0, 18.0686, 59.3293),
-    entityDatum(1, 18.22, 59.38),
-  ]);
+  const entities = Object.freeze([entityDatum(0, 18.0686, 59.3293), entityDatum(1, 18.22, 59.38)]);
 
   assert.equal(clusterEntityDatums(entities, 4).length, 1);
   assert.equal(clusterEntityDatums(entities, 7.25), entities);
@@ -66,7 +61,10 @@ test("camera fitting can choose an individual-node detail zoom for a compact sce
   );
 
   assert.ok(camera);
-  assert.ok(camera.zoom >= 7, `expected compact scenes to fit at readable detail zoom, got ${camera.zoom}`);
+  assert.ok(
+    camera.zoom >= 7,
+    `expected compact scenes to fit at readable detail zoom, got ${camera.zoom}`,
+  );
 });
 
 test("default force spacing cannot pull connected nodes inside their readable collision footprint", () => {
