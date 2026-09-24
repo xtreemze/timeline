@@ -5487,13 +5487,12 @@
 }
 
 #app-shell.is-event-focused #presentation-stage {
-  --focus-timeline-block-size: clamp(112px, 24%, 184px);
-  --focus-timeline-inline-size: clamp(92px, 18%, 132px);
+  --focus-timeline-block-size: clamp(104px, 22%, 144px);
+  --focus-timeline-inline-size: clamp(84px, 22%, 104px);
   position: relative;
   display: block;
   min-inline-size: 0;
   min-block-size: 0;
-  overflow: hidden;
 }
 
 #app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar:not([hidden]) {
@@ -5512,7 +5511,6 @@
   max-inline-size: calc(100% - 1.1rem);
   margin: 0;
   padding: 0.5rem;
-  overflow-x: clip;
   overflow-y: auto;
   overscroll-behavior: contain;
   border: 1px solid color-mix(in srgb, var(--line-strong) 82%, transparent);
@@ -5555,7 +5553,6 @@
   min-inline-size: 0;
   min-block-size: 0;
   margin: 0;
-  overflow: hidden;
 }
 
 #app-shell.is-event-focused
@@ -5568,7 +5565,6 @@
   min-inline-size: 0;
   min-block-size: 0;
   margin: 0;
-  overflow: hidden;
 }
 
 #app-shell.is-event-focused
@@ -5655,24 +5651,47 @@
   display: none;
 }
 
-@container (max-width: 460px) {
+#app-shell.is-event-focused
+  #presentation-stage
+  > .timeline-focus-sidebar[data-layout]
+  > .timeline-focus-summary,
+#app-shell.is-event-focused
+  #presentation-stage
+  > .timeline-focus-sidebar[data-layout]
+  > .timeline-focus-place {
+  grid-column: 1 / -1;
+  grid-row: auto;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage
+  > .timeline-focus-sidebar[data-layout]
+  > .timeline-focus-hero {
+  min-block-size: clamp(190px, 28vh, 280px);
+}
+
+@container (min-width: 461px) {
   #app-shell.is-event-focused
     #presentation-stage
     > .timeline-focus-sidebar[data-layout]
-    > .timeline-focus-summary,
+    > .timeline-focus-summary {
+    grid-column: 1 / span 4;
+    grid-row: 3;
+  }
+
   #app-shell.is-event-focused
     #presentation-stage
     > .timeline-focus-sidebar[data-layout]
     > .timeline-focus-place {
-    grid-column: 1 / -1;
-    grid-row: auto;
+    grid-column: 5 / -1;
+    grid-row: 3;
   }
 
   #app-shell.is-event-focused
     #presentation-stage
     > .timeline-focus-sidebar[data-layout]
     > .timeline-focus-hero {
-    min-block-size: clamp(190px, 28vh, 280px);
+    min-block-size: clamp(210px, 30vh, 340px);
   }
 }
 
@@ -5685,32 +5704,34 @@
   }
 }
 
-@media (max-width: 699px) {
+
+
+@media (min-width: 700px) {
   #app-shell.is-event-focused #presentation-stage {
-    --focus-timeline-block-size: clamp(104px, 22%, 144px);
-    --focus-timeline-inline-size: clamp(84px, 22%, 104px);
+    --focus-timeline-block-size: clamp(112px, 24%, 184px);
+    --focus-timeline-inline-size: clamp(92px, 18%, 132px);
   }
 
   #app-shell.is-event-focused
     #presentation-stage[data-timeline-orientation="horizontal"]
     > .timeline-focus-sidebar:not([hidden]) {
-    inset-inline-start: max(0.35rem, env(safe-area-inset-left));
-    inline-size: calc(100% - 0.7rem);
-    max-inline-size: calc(100% - 0.7rem);
-    max-block-size: calc(100% - var(--focus-timeline-block-size) - 0.7rem);
+    inset-inline-start: max(0.55rem, env(safe-area-inset-left));
+    inline-size: min(560px, calc(100% - 1.1rem));
+    max-inline-size: calc(100% - 1.1rem);
+    max-block-size: calc(100% - var(--focus-timeline-block-size) - 1.1rem);
   }
 
   #app-shell.is-event-focused
     #presentation-stage[data-timeline-orientation="vertical"]
     > .timeline-focus-sidebar:not([hidden]) {
-    inset-inline-start: max(0.35rem, env(safe-area-inset-left));
-    inline-size: calc(100% - var(--focus-timeline-inline-size) - 0.7rem);
-    max-inline-size: calc(100% - var(--focus-timeline-inline-size) - 0.7rem);
-    max-block-size: calc(100% - 0.7rem);
+    inset-inline-start: max(0.55rem, env(safe-area-inset-left));
+    inline-size: min(560px, calc(100% - var(--focus-timeline-inline-size) - 1.1rem));
+    max-inline-size: calc(100% - var(--focus-timeline-inline-size) - 1.1rem);
+    max-block-size: calc(100% - 1.1rem);
   }
 
   .timeline-view[data-orientation="landscape"] > .timeline-local-toolbar {
-    inset-block-start: max(0.35rem, env(safe-area-inset-top));
-    inset-inline-end: max(0.35rem, env(safe-area-inset-right));
+    inset-block-start: max(0.5rem, env(safe-area-inset-top));
+    inset-inline-end: max(0.5rem, env(safe-area-inset-right));
   }
 }
