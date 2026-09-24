@@ -136,25 +136,6 @@ interface ForceGroup {
   readonly bucket: readonly [number, number, number] | null;
 }
 
-function shortestLongitudeDeltaDegrees(from: number, to: number): number {
-  return ((((to - from + 180) % 360) + 360) % 360) - 180;
-}
-
-function anchorDeltaMeters(
-  left: WorldForceAnchor,
-  right: WorldForceAnchor,
-): readonly [number, number] {
-  const radians = Math.PI / 180;
-  const meanLatitude = ((left.latitude + right.latitude) / 2) * radians;
-  const eastMeters =
-    shortestLongitudeDeltaDegrees(left.longitude, right.longitude) *
-    radians *
-    EARTH_RADIUS_METERS *
-    Math.max(0.05, Math.cos(meanLatitude));
-  const northMeters = (right.latitude - left.latitude) * radians * EARTH_RADIUS_METERS;
-  return Object.freeze([eastMeters, northMeters]);
-}
-
 function anchorCartesian(anchor: WorldForceAnchor): readonly [number, number, number] {
   const latitude = (anchor.latitude * Math.PI) / 180;
   const longitude = (anchor.longitude * Math.PI) / 180;
@@ -164,6 +145,26 @@ function anchorCartesian(anchor: WorldForceAnchor): readonly [number, number, nu
     horizontal * Math.sin(longitude),
     Math.sin(latitude) * EARTH_RADIUS_METERS,
   ]);
+}
+
+function anchorDeltaMeters(
+  left: WorldForceAnchor,
+  right: WorldForceAnchor,
+): readonly [number, number] {
+  const leftPosition = anchorCartesian(left);
+  const rightPosition = anchorCartesian(right);
+  const dx = rightPosition[0] - leftPosition[0];
+  const dy = rightPosition[1] - leftPosition[1];
+  const dz = rightPosition[2] - leftPosition[2];
+  const latitude = (left.latitude * Math.PI) / 180;
+  const longitude = (left.longitude * Math.PI) / 180;
+
+  const eastMeters = -Math.sin(longitude) * dx + Math.cos(longitude) * dy;
+  const northMeters =
+    -Math.sin(latitude) * Math.cos(longitude) * dx -
+    Math.sin(latitude) * Math.sin(longitude) * dy +
+    Math.cos(latitude) * dz;
+  return Object.freeze([eastMeters, northMeters]);
 }
 
 function forceGroup(key: string, states: readonly NodeState[]): ForceGroup {
@@ -191,7 +192,9 @@ function forceGroup(key: string, states: readonly NodeState[]): ForceGroup {
   });
 }
 
-function crossGroupCandidates(groups: readonly ForceGroup[]): readonly (readonly [ForceGroup, ForceGroup])[] {
+function crossGroupCandidates(
+  groups: readonly ForceGroup[],
+): readonly (readonly [ForceGroup, ForceGroup])[] {
   const buckets = new Map<string, number[]>();
   const keyFor = (x: number, y: number, z: number) => `${x}:${y}:${z}`;
 
@@ -522,7 +525,10 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#running = false;
   }
 
-  #groupsCanInteract(leftStates: readonly NodeState[], rightStates: readonly NodeState[]): boolean {
+  #groupsCanInteract(
+    leftStates: readonly NodeState[],
+    rightStates: readonly NodeState[],
+  ): boolean {
     for (const left of leftStates) {
       for (const right of rightStates) {
         const delta = pairDeltaMeters(left, right);
