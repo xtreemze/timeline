@@ -28,6 +28,7 @@
     "benchmark:graph-data": "node benchmarks/graph-data.mjs",
     "benchmark:world-force": "node benchmarks/world-force.mjs",
     "benchmark:world-force:dense": "node benchmarks/world-force.mjs --dense",
+    "benchmark:world-force:d3": "node benchmarks/world-force-d3.mjs",
     "benchmark:world-dag": "node benchmarks/world-dag.mjs",
     "types:migrated": "tsc -p tsconfig.migrated.json --pretty",
     "types:architecture": "tsc -p tsconfig.architecture.json --pretty",
@@ -94,6 +95,7 @@
     "@types/node": "^26.6.2",
     "@types/topojson-client": "3.1.5",
     "@types/topojson-specification": "1.0.5",
+    "d3-force": "3.0.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.0"
   },
