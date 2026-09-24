@@ -64,6 +64,20 @@ Lūm combines a retained chronology with synchronized relational and spatial con
 
 The product is browser-first and backend-free. Hosting the application does not imply custody of project data.
 
+## Product showcase
+
+The showcase media is generated from the real application in Chromium CI. Desktop and mobile exercise the same five core flows.
+
+| Flow | Desktop | Mobile |
+| --- | --- | --- |
+| Navigate the continuum | <img src="https://xtreemze.github.io/timeline/showcase/desktop/01-timeline-navigation.gif" alt="Lūm desktop chronology navigation" width="360"> | <img src="https://xtreemze.github.io/timeline/showcase/mobile/01-timeline-navigation.gif" alt="Lūm mobile chronology navigation" width="180"> |
+| Read an occurrence in context | <img src="https://xtreemze.github.io/timeline/showcase/desktop/02-focused-context.gif" alt="Lūm desktop focused occurrence context" width="360"> | <img src="https://xtreemze.github.io/timeline/showcase/mobile/02-focused-context.gif" alt="Lūm mobile focused occurrence context" width="180"> |
+| Inspect evidence | <img src="https://xtreemze.github.io/timeline/showcase/desktop/03-evidence.gif" alt="Lūm desktop evidence dossier" width="360"> | <img src="https://xtreemze.github.io/timeline/showcase/mobile/03-evidence.gif" alt="Lūm mobile evidence dossier" width="180"> |
+| Explore relationships | <img src="https://xtreemze.github.io/timeline/showcase/desktop/04-relation-graph.gif" alt="Lūm desktop relational world view" width="360"> | <img src="https://xtreemze.github.io/timeline/showcase/mobile/04-relation-graph.gif" alt="Lūm mobile relational world view" width="180"> |
+| Browse narrative threads | <img src="https://xtreemze.github.io/timeline/showcase/desktop/05-story-browser.gif" alt="Lūm desktop story browser" width="360"> | <img src="https://xtreemze.github.io/timeline/showcase/mobile/05-story-browser.gif" alt="Lūm mobile story browser" width="180"> |
+
+See [docs/E2E-HIGHLIGHT-REEL.md](docs/E2E-HIGHLIGHT-REEL.md) for how CI records and assembles these assets.
+
 ## Architecture
 
 The architectural rule is simple: **canonical knowledge never depends on visualization**.
