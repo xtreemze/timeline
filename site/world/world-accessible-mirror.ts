@@ -15,6 +15,10 @@ interface OutlineSnapshotEntity {
   readonly worldInstanceId: string;
   readonly selected: boolean;
   readonly label?: string;
+  readonly entityKind?: string;
+  readonly shape?: string;
+  readonly icon?: string;
+  readonly imageUrl?: string;
 }
 
 interface OutlineSnapshotPlace {
@@ -27,6 +31,7 @@ interface OutlineSnapshotRelationship {
   readonly relationshipId: string;
   readonly selected: boolean;
   readonly label?: string;
+  readonly relationshipType?: string;
   readonly sourceEntityId: string;
   readonly targetEntityId: string;
 }
@@ -105,10 +110,20 @@ function item(
 
 export function buildWorldAccessibleOutline(snapshot: WorldOutlineSnapshot): WorldOutline {
   const entityLabels = new Map<string, string>();
+  const entitySemantics = new Map<string, string>();
   const entityOccurrences = new Map<string, number>();
   for (const entity of snapshot.entities) {
     if (entity.label && !entityLabels.has(entity.entityId)) {
       entityLabels.set(entity.entityId, entity.label);
+    }
+    if (!entitySemantics.has(entity.entityId)) {
+      const semantics = [
+        entity.entityKind,
+        entity.shape ? `${entity.shape} node` : undefined,
+        entity.icon ? `${entity.icon} icon` : undefined,
+        entity.imageUrl ? "image" : undefined,
+      ].filter(Boolean);
+      if (semantics.length > 0) entitySemantics.set(entity.entityId, semantics.join(", "));
     }
     entityOccurrences.set(entity.entityId, (entityOccurrences.get(entity.entityId) ?? 0) + 1);
   }
@@ -128,7 +143,7 @@ export function buildWorldAccessibleOutline(snapshot: WorldOutlineSnapshot): Wor
         kind: "relationship" as const,
         id: relationship.relationshipId,
       }) as WorldSelection,
-      `${relationship.label ?? relationship.relationshipId}: ${entityName(
+      `${relationship.relationshipType ?? relationship.label ?? relationship.relationshipId}: ${entityName(
         relationship.sourceEntityId,
       )} → ${entityName(relationship.targetEntityId)}`,
       snapshot.selection,
@@ -138,7 +153,13 @@ export function buildWorldAccessibleOutline(snapshot: WorldOutlineSnapshot): Wor
   const entities = [...entityOccurrences].map(([id, occurrences]) =>
     item(
       Object.freeze({ kind: "entity" as const, id }) as WorldSelection,
-      occurrences > 1 ? `${entityName(id)} (${occurrences} occurrences)` : entityName(id),
+      [
+        entityName(id),
+        entitySemantics.get(id) ? `— ${entitySemantics.get(id)}` : "",
+        occurrences > 1 ? `(${occurrences} occurrences)` : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
       snapshot.selection,
     ),
   );
