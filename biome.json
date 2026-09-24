@@ -59,6 +59,40 @@
   },
   "overrides": [
     {
+      "includes": ["src/**/*.js", "site/**/*.js", "tests/**/*.mjs", "benchmarks/**/*.mjs"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUndeclaredVariables": "error",
+            "noUnusedVariables": "error"
+          },
+          "complexity": {
+            "noImplicitCoercions": "error",
+            "useArrowFunction": "error"
+          },
+          "style": {
+            "noParameterAssign": "error",
+            "useConst": "error"
+          },
+          "suspicious": {
+            "noConsole": {
+              "level": "error",
+              "options": {
+                "allow": ["warn", "error"]
+              }
+            },
+            "noDoubleEquals": {
+              "level": "error",
+              "options": {
+                "ignoreNull": false
+              }
+            },
+            "noUnusedExpressions": "error"
+          }
+        }
+      }
+    },
+    {
       "includes": [
         "site/ui/**",
         "site/components/**",
@@ -81,5 +115,70 @@
     "clientKind": "git",
     "useIgnoreFile": true,
     "defaultBranch": "main"
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "javascript": {
+    "globals": [
+      "document",
+      "window",
+      "navigator",
+      "fetch",
+      "WebSocket",
+      "Worker",
+      "EventTarget",
+      "Event",
+      "CustomEvent",
+      "localStorage",
+      "sessionStorage",
+      "indexedDB",
+      "requestAnimationFrame",
+      "cancelAnimationFrame",
+      "setTimeout",
+      "clearTimeout",
+      "setInterval",
+      "clearInterval",
+      "queueMicrotask",
+      "Promise",
+      "AbortController",
+      "AbortSignal",
+      "URL",
+      "URLSearchParams",
+      "Blob",
+      "File",
+      "FileReader",
+      "FormData",
+      "ResizeObserver",
+      "IntersectionObserver",
+      "MutationObserver",
+      "PerformanceObserver",
+      "CSS",
+      "Element",
+      "HTMLElement",
+      "HTMLInputElement",
+      "HTMLTextAreaElement",
+      "HTMLSelectElement",
+      "HTMLButtonElement",
+      "HTMLAnchorElement",
+      "DOMParser",
+      "performance",
+      "getComputedStyle",
+      "structuredClone",
+      "WheelEvent",
+      "Temporal",
+      "L",
+      "console",
+      "process",
+      "Buffer",
+      "__dirname",
+      "__filename",
+      "global"
+    ]
   }
 }
