@@ -9,7 +9,9 @@ import {
   typicalLocalOffsetMeters,
   WORLD_FLOATING_GRAPH_MAX_EXPANSION,
   WORLD_LOCAL_GRAPH_RADIUS_PX,
+  WORLD_PLACE_CLUSTER_RADIUS_PX,
   worldFloatingGraphRadiusPx,
+  worldPlaceClusterRadiusPx,
   worldPresentationOffsetScale,
 } from "../src/layout/world-semantic-presentation.ts";
 
@@ -52,6 +54,27 @@ test("offset scale keeps overview topology readable and expands it at detail zoo
     WORLD_LOCAL_GRAPH_RADIUS_PX * WORLD_FLOATING_GRAPH_MAX_EXPANSION,
     "detail expansion is bounded",
   );
+});
+
+test("offset scale respects the available viewport radius", () => {
+  const zoom = 6;
+  const typical = 500;
+  const uncapped = worldPresentationOffsetScale(zoom, 100, typical, 0);
+  const capped = worldPresentationOffsetScale(zoom, 100, typical, 0, 140);
+  const metersPerPixel = 40_075_016.686 / 512 / 2 ** zoom;
+  const cappedRadiusPx = (typical * capped) / metersPerPixel;
+
+  assert.ok(capped < uncapped);
+  assert.ok(
+    Math.abs(Math.log2(cappedRadiusPx / 140)) <= 0.125 + 1e-9,
+    "quarter-octave quantisation stays close to the viewport-constrained target",
+  );
+});
+
+test("decluster readability grows with node footprint but is capped by the viewport", () => {
+  assert.equal(worldPlaceClusterRadiusPx(28), WORLD_PLACE_CLUSTER_RADIUS_PX);
+  assert.equal(worldPlaceClusterRadiusPx(60), 240);
+  assert.equal(worldPlaceClusterRadiusPx(60, 150), 150);
 });
 
 test("offset scale never shrinks and is disabled for dense or offset-free scenes", () => {

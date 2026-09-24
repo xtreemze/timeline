@@ -6,6 +6,7 @@ import {
   DECK_WORLD_LAYER_IDS,
   DeckWorldSurface,
   WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM,
+  clusterZoomThresholdForNodeRadius,
   shouldClusterEntityDatums,
   worldGraphLabelSize,
 } from "../site/world/deck-world-surface.ts";
@@ -23,6 +24,14 @@ test("sparse world topology stays clustered through the extended overview tier",
   assert.equal(shouldClusterEntityDatums(100, 4), true);
   assert.equal(shouldClusterEntityDatums(100, 4.49), true);
   assert.equal(shouldClusterEntityDatums(100, 4.5), false);
+});
+
+test("larger rendered nodes remain clustered until proportionally closer zoom", () => {
+  const largeRadius = 56;
+  const threshold = clusterZoomThresholdForNodeRadius(largeRadius);
+  assert.equal(threshold, CLUSTER_ZOOM_THRESHOLD + 1);
+  assert.equal(shouldClusterEntityDatums(100, 5, largeRadius), true);
+  assert.equal(shouldClusterEntityDatums(100, 5.5, largeRadius), false);
 });
 
 function harness() {

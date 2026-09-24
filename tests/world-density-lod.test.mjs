@@ -51,7 +51,6 @@ test("sparse scenes retain individual detail at the default globe camera", () =>
   assert.equal(clusterEntityDatums(entities, 1), entities);
 });
 
-
 function anchoredInstance(id, placeId, longitude, latitude) {
   return Object.freeze({
     id,
@@ -109,7 +108,6 @@ test("overview place merging uses proximity across cell boundaries and the datel
   );
 });
 
-
 test("cluster presentation keeps positions force-resolved without interpolation", async () => {
   const source = await readFile(
     new URL("../site/world/deck-world-surface.ts", import.meta.url),
@@ -121,6 +119,6 @@ test("cluster presentation keeps positions force-resolved without interpolation"
   assert.doesNotMatch(source, /interpolateClusterPosition/);
   assert.doesNotMatch(source, /transitions:/);
   assert.match(source, /\.\.\.placeTransition\.clusters,[\s\S]*\.\.\.placeTransition\.members/);
-  assert.match(source, /temporalWidth \* edgeExpansion\(state\.edge\)/);
+  assert.match(source, /\(state\.temporalActive \? width : 0\) \* edgeExpansion\(state\.edge\)/);
   assert.match(source, /worldNodeMarker\(this\.#entityStyle\(datum\)\)\.size \* entityExpansion\(datum\)/);
 });
