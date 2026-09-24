@@ -361,6 +361,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
   #edges: readonly WorldForceEdge[] = Object.freeze([]);
   #edgesByGroup = new Map<string, readonly WorldForceEdge[]>();
   #pin: WorldForcePin | null = null;
+  #interactionInstanceId: WorldInstanceId | null = null;
   #request: WorldSimulationRequest | null = null;
   #running = false;
   #settled = true;
@@ -481,6 +482,9 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     );
 
     if (this.#pin && !this.#states.has(this.#pin.instanceId)) this.#pin = null;
+    if (this.#interactionInstanceId !== null && !this.#states.has(this.#interactionInstanceId)) {
+      this.#interactionInstanceId = null;
+    }
     this.#settled = false;
     this.#energy = null;
     this.#iteration = 0;
@@ -494,6 +498,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     }
     this.#pin = pin ? Object.freeze({ ...pin }) : null;
     if (pin && state) {
+      this.#interactionInstanceId = pin.instanceId;
       // Direct manipulation owns the dragged node: publish the pin
       // immediately instead of waiting for a global physics tick.
       state.x = pin.eastMeters;
@@ -513,6 +518,9 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     finiteNonNegative(request.energyTarget, "World simulation energy target");
     this.#request = Object.freeze({ ...request });
     this.#running = request.reason !== "idle";
+    if (request.reason !== "drag" && request.reason !== "post-drop") {
+      this.#interactionInstanceId = null;
+    }
     if (request.reheat) this.#settled = false;
     if (request.reason === "idle") {
       this.#settled = true;
@@ -533,12 +541,18 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const activeDragGroup = this.#pin
       ? (this.#states.get(this.#pin.instanceId)?.group ?? null)
       : null;
+    const settlingGroup =
+      this.#request?.reason === "post-drop" && this.#interactionInstanceId !== null
+        ? (this.#states.get(this.#interactionInstanceId)?.group ?? null)
+        : null;
+    const interactionGroup = activeDragGroup ?? settlingGroup;
     const forceGroups = [...this.#groups.entries()].map(([key, states]) => forceGroup(key, states));
-    const crossPairs = crossGroupCandidates(forceGroups, activeDragGroup);
+    const crossPairs = crossGroupCandidates(forceGroups, interactionGroup);
 
-    // During direct manipulation geography is fixed. Only the dragged island
-    // and world-space neighbours that can actually overlap are integrated.
-    const activeGroups = activeDragGroup ? new Set<string>([activeDragGroup]) : null;
+    // Direct manipulation and its post-drop relaxation are one local force
+    // epoch. Keep unrelated geography asleep while the released island
+    // settles; only the active drag suspends the place-domain constraint.
+    const activeGroups = interactionGroup ? new Set<string>([interactionGroup]) : null;
     if (activeGroups) {
       for (const [leftGroup, rightGroup] of crossPairs) {
         if (!this.#groupsCanInteract(leftGroup.states, rightGroup.states)) continue;
@@ -710,6 +724,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#edges = Object.freeze([]);
     this.#edgesByGroup.clear();
     this.#pin = null;
+    this.#interactionInstanceId = null;
     this.#request = null;
     this.#running = false;
   }
