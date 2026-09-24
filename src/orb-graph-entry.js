@@ -1806,7 +1806,7 @@ function create(container, handlers = {}) {
   });
 }
 
-globalThis.TimelineOrbGraph = Object.freeze({
+export const TimelineOrbGraph = Object.freeze({
   create,
   version: "1.1.0",
 });
