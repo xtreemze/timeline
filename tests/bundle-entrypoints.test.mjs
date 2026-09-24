@@ -84,3 +84,9 @@ test("Vite keeps the 500 kB warning meaningful instead of raising its threshold"
   assert.match(config, /codeSplitting/);
   assert.match(config, /maxSize:\s*400_000/);
 });
+
+test("Vite keeps deck.gl layers splittable without disabling the WebGPU build", async () => {
+  const config = await readFile(new URL("../vite.config.ts", import.meta.url), "utf8");
+  assert.match(config, /@deck\.gl\/layers\/src\/index\.ts/);
+  assert.doesNotMatch(config, /visgl:webgl-only/);
+});
