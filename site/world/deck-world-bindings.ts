@@ -8,6 +8,7 @@
  * interface with the actual `@deck.gl/core` / `@deck.gl/layers` classes.
  */
 import { Deck, _GlobeView as GlobeView, MapView } from "@deck.gl/core";
+import { CollisionFilterExtension } from "@deck.gl/extensions";
 import {
   IconLayer,
   PathLayer,
@@ -15,7 +16,6 @@ import {
   SolidPolygonLayer,
   TextLayer,
 } from "@deck.gl/layers";
-import { CollisionFilterExtension } from "@deck.gl/extensions";
 import { webgl2Adapter } from "@luma.gl/webgl";
 import type { DeckWorldBindings } from "./deck-world-runtime.ts";
 import type { DeckRuntimeInstance, DeckRuntimePickingInfo } from "./deck-world-surface.ts";
