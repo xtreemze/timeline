@@ -41,14 +41,21 @@ import type {
   WorldInstanceId,
   WorldProjection,
 } from "../../src/projection/world-projection.ts";
+import type {
+  WorldEntityVisualEncoding,
+  WorldNodeShape,
+  WorldRelationshipVisualEncoding,
+  WorldVisualColor,
+} from "../../src/projection/world-visual-encoding.ts";
 import { iconPathData } from "../event-presentation.ts";
 import { buildWorldAccessibleOutline, WorldAccessibleMirror } from "./world-accessible-mirror.ts";
-import { worldEntityIconName } from "./world-entity-icon.ts";
 
 export const DECK_WORLD_LAYER_IDS = Object.freeze({
   places: "lum-world-places",
   relationships: "lum-world-relationships",
   entities: "lum-world-entities",
+  entityShapes: "lum-world-entity-shapes",
+  entityImages: "lum-world-entity-images",
   relationshipDirections: "lum-world-relationship-directions",
   labels: "lum-world-labels",
   entityIcons: "lum-world-entity-icons",
@@ -122,6 +129,7 @@ interface DeckWorldEntityDatum {
   readonly worldInstanceId: WorldInstanceId;
   readonly label?: string;
   readonly entityKind?: string;
+  readonly visual: WorldEntityVisualEncoding;
   readonly position: WorldRenderPosition;
   readonly selected: boolean;
   readonly visualWeight: number;
@@ -131,6 +139,8 @@ interface DeckWorldRelationshipDatum {
   readonly kind: "relationship";
   readonly relationshipId: RelationshipId;
   readonly label?: string;
+  readonly relationshipType: string;
+  readonly visual: WorldRelationshipVisualEncoding;
   readonly sourceInstanceId: WorldInstanceId;
   readonly targetInstanceId: WorldInstanceId;
   readonly sourceEntityId: EntityId;
@@ -372,6 +382,10 @@ export interface AccessibleWorldEntity {
   readonly worldInstanceId: WorldInstanceId;
   readonly selected: boolean;
   readonly label?: string;
+  readonly entityKind?: string;
+  readonly shape: WorldNodeShape;
+  readonly icon: string;
+  readonly imageUrl?: string;
 }
 
 export interface AccessibleWorldPlace {
@@ -384,6 +398,7 @@ export interface AccessibleWorldRelationship {
   readonly relationshipId: RelationshipId;
   readonly selected: boolean;
   readonly label?: string;
+  readonly relationshipType: string;
   readonly sourceEntityId: EntityId;
   readonly targetEntityId: EntityId;
 }
