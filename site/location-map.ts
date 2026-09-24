@@ -1,5 +1,4 @@
-import * as LeafletModule from "leaflet";
-import "leaflet/dist/leaflet.css";
+import { Leaflet } from "../src/leaflet-entry.js";
 
 /**
  * Leaflet-based location map viewer and editor
@@ -122,8 +121,6 @@ interface LocationMapControllerOptions {
   geolocation?: HTMLElement;
   clearButton?: HTMLElement;
 }
-
-const Leaflet = LeafletModule.default || LeafletModule;
 
 function loadLeaflet(): Promise<any> {
   return Promise.resolve(Leaflet);
