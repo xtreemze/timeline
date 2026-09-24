@@ -3,6 +3,7 @@
  * Owns application-level graph projection/focus state while rendering through GraphSurface.
  */
 
+import { TimelineOrbGraph } from "../src/orb-graph-entry.js";
 import type {
   CanonicalSelection,
   GraphEdgeProjection,
@@ -78,11 +79,7 @@ function getGraph(): TimelineGraphRuntime {
 }
 
 function getOrbFactory(): OrbFactory {
-  const orbFactory = Reflect.get(globalThis, "TimelineOrbGraph");
-  if (!hasFunction(orbFactory, "create")) {
-    throw new Error("Build the bundled Orb graph before loading TemporalGraphView.");
-  }
-  return orbFactory as OrbFactory;
+  return TimelineOrbGraph as OrbFactory;
 }
 
 function formatWindow(viewport: Viewport | null): string {

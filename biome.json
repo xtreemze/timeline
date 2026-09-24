@@ -7,12 +7,7 @@
       "!!dist",
       "!!test-results",
       "!!playwright-report",
-      "!!blob-report",
-      "!!site/orb-graph.bundle.js",
-      "!!site/evidence-extraction.bundle.js",
-      "!!site/leaflet.bundle.js",
-      "!!site/leaflet.css",
-      "!!site/pdf.worker.mjs"
+      "!!blob-report"
     ]
   },
   "formatter": {
@@ -59,7 +54,12 @@
   },
   "overrides": [
     {
-      "includes": ["src/**/*.js", "site/**/*.js", "tests/**/*.mjs", "benchmarks/**/*.mjs"],
+      "includes": [
+        "src/**/*.js",
+        "site/**/*.js",
+        "tests/**/*.mjs",
+        "benchmarks/**/*.mjs"
+      ],
       "linter": {
         "rules": {
           "correctness": {
@@ -78,7 +78,10 @@
             "noConsole": {
               "level": "error",
               "options": {
-                "allow": ["warn", "error"]
+                "allow": [
+                  "warn",
+                  "error"
+                ]
               }
             },
             "noDoubleEquals": {

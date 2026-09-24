@@ -5,6 +5,7 @@
 
 import { planWorkspacePlacement } from "../src/layout/workspace-layout.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
+import { TimelineEvidenceExtraction } from "../src/evidence-extraction-entry.js";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
@@ -309,9 +310,7 @@ interface ItemInferenceDraft {
   proposal: ReturnType<(typeof TimelineGraphInference)["reconcileProposal"]>;
 }
 
-const evidenceExtraction = Reflect.get(globalThis, "TimelineEvidenceExtraction") as
-  | EvidenceExtractionApi
-  | undefined;
+const evidenceExtraction = TimelineEvidenceExtraction as EvidenceExtractionApi;
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);

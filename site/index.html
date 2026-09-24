@@ -1170,7 +1170,7 @@
         </aside>
 
         <section id="presentation-stage" class="presentation-stage" data-stage-shape="stacked" data-timeline-orientation="horizontal" aria-label="Timeline presentation with contextual relation graph and place map">
-          <section id="timeline-view" class="timeline-view" aria-label="Interactive timeline">
+          <luum-timeline id="timeline-view" class="timeline-view" aria-label="Interactive timeline">
             <header class="timeline-project-heading" aria-label="Timeline project">
               <label class="project-title-field timeline-project-title">
                 <span class="sr-only">Timeline title</span>
@@ -1281,7 +1281,7 @@
           </div>
           <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan with inertia. Scroll or pinch over the timeline for slow pointer-anchored zoom. The View zoom slider runs from whole chronology context, through the focused event with two neighboring events, to an isolated focused-event time window that preserves intersecting timeline items. Home fits the currently visible or filtered chronology; Shift+Home fits the full chronology. Selecting an event enters a full focused composition. In focused presentation mode, Left and Right move between events, Up and Down move between photographs, Space or media Play/Pause toggles automatic advance, and Escape or Browser Back returns. Standard gamepads and TV remote D-pads use the same commands. Any manual interaction pauses automatic advance. Press F while the presentation stage has focus to enter or leave full screen; the timeline and relation graph remain visible, with focused detail arranged beside the graph and place context shown when the focused event provides it.</p>
           <div id="timeline-surface" class="timeline-surface is-landscape" tabindex="0" role="group" aria-describedby="timeline-surface-help"></div>
-        </section>
+        </luum-timeline>
 
         <section id="timeline-focus-view" class="timeline-focus-view timeline-focus-sidebar" data-presentation-surface="sidebar" aria-live="polite" aria-label="Focused occurrence details" hidden></section>
 
@@ -1319,17 +1319,14 @@
   <script type="module" src="./date-range-picker-shim.ts" defer></script>
   <script type="module" src="./event-presentation-shim.ts" defer></script>
   <script type="module" src="./evidence-store-shim.ts" defer></script>
-  <script src="./evidence-extraction.bundle.js" defer></script>
   <script type="module" src="./sample-case-shim.ts" defer></script>
   <script type="module" src="./timeline-clustering-shim.ts" defer></script>
   <script type="module" src="./timeline-motion-shim.ts" defer></script>
   <script type="module" src="./timeline-graph-shim.ts" defer></script>
-  <script src="./orb-graph.bundle.js"></script>
   <script type="module" src="./temporal-graph-view-shim.ts" defer></script>
   <script type="module" src="./timeline-navigation-shim.ts" defer></script>
   <script type="module" src="./presentation-layout-shim.ts" defer></script>
   <script type="module" src="./spatial-shim.ts" defer></script>
-  <script src="./leaflet.bundle.js" defer></script>
   <script type="module" src="./location-map-shim.ts" defer></script>
   <script type="module" src="./interchange-adapter-shim.ts" defer></script>
   <script type="module" src="./memgraph-interchange-shim.ts" defer></script>
