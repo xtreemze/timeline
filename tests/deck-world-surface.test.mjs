@@ -9,7 +9,6 @@ import {
   shouldClusterEntityDatums,
   WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM,
   worldGraphLabelSize,
-  worldLabelCollisionPriority,
 } from "../site/world/deck-world-surface.ts";
 import { selectWorldSpatialMode } from "../src/layout/world-spatial-mode.ts";
 import {
@@ -176,36 +175,15 @@ test("world graph label scale matches sidebar reading typography", () => {
   assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: true }), 18);
 });
 
-test("world label collision priority preserves semantic order and interaction emphasis", () => {
-  const relationship = worldLabelCollisionPriority({
-    kind: "relationship-label",
-    emphasized: false,
-  });
-  const entity = worldLabelCollisionPriority({ kind: "entity-label", emphasized: false });
-  const place = worldLabelCollisionPriority({ kind: "place-label", emphasized: false });
-  const emphasizedRelationship = worldLabelCollisionPriority({
-    kind: "relationship-label",
-    emphasized: true,
-  });
-
-  assert.ok(place > entity);
-  assert.ok(entity > relationship);
-  assert.ok(emphasizedRelationship > place);
-});
-
-test("optional deck collision filtering is attached only to the text label layer", () => {
+test("offset world labels stay on the CPU declutter path", () => {
   const { calls, runtime } = harness();
-  const textLayers = [];
-  const extension = { kind: "collision-filter" };
   const collisionRuntime = {
     ...runtime,
     createTextLayer(props) {
-      const layer = { type: "text", props };
-      textLayers.push(layer);
-      return layer;
+      return { type: "text", props };
     },
     createCollisionFilterExtension() {
-      return extension;
+      return { kind: "collision-filter" };
     },
   };
   const surface = new DeckWorldSurface({}, collisionRuntime, {
@@ -232,23 +210,7 @@ test("optional deck collision filtering is attached only to the text label layer
     .at(-1)
     .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.labels);
   assert.ok(labelLayer);
-  assert.deepEqual(labelLayer.props.extensions, [extension]);
-  assert.equal(labelLayer.props.collisionGroup, "lum-world-labels");
-
-  const placeLabel = labelLayer.props.data.find((datum) => datum.kind === "place-label");
-  const entityLabel = labelLayer.props.data.find((datum) => datum.kind === "entity-label");
-  if (placeLabel && entityLabel) {
-    assert.ok(
-      labelLayer.props.getCollisionPriority(placeLabel) >
-        labelLayer.props.getCollisionPriority(entityLabel),
-    );
-  }
-
-  for (const layer of calls.setProps.at(-1).layers) {
-    if (layer === labelLayer) continue;
-    assert.equal(layer.props.extensions, undefined);
-  }
-  assert.ok(textLayers.length >= 1);
+  assert.equal(labelLayer.props.extensions, undefined);
 });
 
 test("DeckWorldSurface constructs one globe view and controlled deck runtime", () => {
@@ -840,7 +802,6 @@ test("deck picking translates directly to canonical world hits with a touch-size
     radius: 22,
     unproject3D: true,
     layerIds: [
-      DECK_WORLD_LAYER_IDS.entityIcons,
       DECK_WORLD_LAYER_IDS.entities,
       DECK_WORLD_LAYER_IDS.relationshipDirections,
       DECK_WORLD_LAYER_IDS.relationships,
@@ -904,7 +865,6 @@ test("double-click/double-tap focuses the canonical entity picked under the poin
     radius: 22,
     unproject3D: true,
     layerIds: [
-      DECK_WORLD_LAYER_IDS.entityIcons,
       DECK_WORLD_LAYER_IDS.entities,
       DECK_WORLD_LAYER_IDS.relationshipDirections,
       DECK_WORLD_LAYER_IDS.relationships,
