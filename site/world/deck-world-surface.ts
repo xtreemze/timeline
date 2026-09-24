@@ -3013,7 +3013,7 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #zoomNeedsRender(): boolean {
-    const clusterTarget = this.#placeClusterExpansion() < 0.5;
+    const clusterTarget = this.#placeClusterTarget();
     const maxNodeRadiusPx = this.#maxEntityFootprintRadiusPx();
     const clusteredNow =
       shouldClusterEntityDatums(this.#entityDatumCache.size, this.#camera.zoom, maxNodeRadiusPx) ||
@@ -3108,14 +3108,12 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   /**
-   * Continuous place-cluster expansion. At 0 only the place cluster is
-   * visible; at 1 the active force backend owns the full node positions.
-   * Intermediate zooms blend between those endpoints instead of swapping
-   * representations at a threshold.
+   * Hysteretic place-cluster target. This decides topology state only; it
+   * never supplies visual progress. Movement is exclusively force-owned.
    */
-  #placeClusterExpansion(zoom = this.#camera.zoom): number {
+  #placeClusterTarget(zoom = this.#camera.zoom): boolean {
     const instances = this.#projection.instances;
-    if (instances.length === 0) return 1;
+    if (instances.length === 0) return false;
 
     // Only multi-member place groups participate. A lone anchored entity has
     // nothing to collapse into, so ordinary camera zoom must not trigger
@@ -3132,19 +3130,23 @@ export class DeckWorldSurface implements WorldSurface {
         break;
       }
     }
-    if (!hasClusterablePlace) return 1;
+    if (!hasClusterablePlace) return false;
 
     // Before the force backend has emitted local displacement, the
     // logical origin is exactly the place cluster. This makes the first
     // solved layout expand from that origin instead of popping into view.
     const typical = this.#typicalOffsetMeters();
-    if (typical <= 0) return 0;
+    if (typical <= 0) return true;
     const radius = worldLocalRadiusPx(
       typical * this.#nextOffsetScale(zoom),
       zoom,
       this.#camera.latitude,
     );
-    return worldClusterTarget(radius, this.#clusterRadiusPx(), this.#clusterLifecyclePhase !== "expanded") ? 0 : 1;
+    return worldClusterTarget(
+      radius,
+      this.#clusterRadiusPx(),
+      this.#clusterLifecyclePhase !== "expanded",
+    );
   }
 
   /**
@@ -3364,7 +3366,7 @@ export class DeckWorldSurface implements WorldSurface {
       neighborhood.entityIds,
     );
 
-    const rawPlaceExpansion = this.#placeClusterExpansion();
+    const targetPlaceClustered = this.#placeClusterTarget();
     // Place-local collapse always uses the exact authored place. Nearby-place
     // merging belongs only to the low-zoom overview tier; otherwise a member
     // could appear to decluster from a neighbour's centroid.
@@ -3374,7 +3376,7 @@ export class DeckWorldSurface implements WorldSurface {
     );
     const hasPlaceClusters = placeClusterCandidates.some((datum) => datum.kind === "cluster");
     const placeTransition = placeClusterTransitionDatums(entityResult.datums, placeClusterCandidates);
-    this.#syncClusterLifecycle(hasPlaceClusters && rawPlaceExpansion < 0.5, Object.freeze([...placeTransition.memberIds]));
+    this.#syncClusterLifecycle(hasPlaceClusters && targetPlaceClustered, Object.freeze([...placeTransition.memberIds]));
     const transitionEntities = Object.freeze([
       ...placeTransition.members,
       ...placeTransition.loose,
