@@ -1191,7 +1191,12 @@ export class TimelineViewController {
         label.hidden = true;
         continue;
       }
-      const textLength = (label.textContent || "").trim().length;
+      const text = (label.textContent || "").trim();
+      if (!text) {
+        label.hidden = true;
+        continue;
+      }
+      const textLength = text.length;
       const extent = this.orientation === "horizontal" ? clamp(30 + textLength * 6.2, 42, 168) : 18;
       candidates.push({ label, position, extent });
     }
