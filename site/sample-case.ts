@@ -1,11 +1,13 @@
+import { extendSampleCase } from "./sample-case-additions.ts";
+
 /**
- * Sample timeline case: Three classic tales — parallel fictional casebook
+ * Sample timeline case: Six classic tales — distributed fictional casebook
  * Provides example data for timeline demonstration
  */
 
 const SAMPLE = {
   version: 2,
-  title: "Three classic tales — parallel fictional casebook",
+  title: "Six classic tales — distributed fictional casebook",
   categories: [
     {
       id: "context",
@@ -6318,6 +6320,8 @@ const SAMPLE = {
     },
   ],
 };
+
+extendSampleCase(SAMPLE);
 
 globalThis.TimelineSampleCase = Object.freeze(SAMPLE);
 
