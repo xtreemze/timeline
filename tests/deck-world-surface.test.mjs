@@ -3,11 +3,11 @@ import test from "node:test";
 
 import {
   CLUSTER_ZOOM_THRESHOLD,
-  clusterZoomThresholdForNodeRadius,
   DECK_WORLD_LAYER_IDS,
   DeckWorldSurface,
-  shouldClusterEntityDatums,
   WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM,
+  clusterZoomThresholdForNodeRadius,
+  shouldClusterEntityDatums,
   worldGraphLabelSize,
 } from "../site/world/deck-world-surface.ts";
 import { selectWorldSpatialMode } from "../src/layout/world-spatial-mode.ts";
@@ -254,9 +254,9 @@ test("temporal relationship joins and disconnects update immediately without ren
   const surface = new DeckWorldSurface({}, runtime);
   surface.setProjection(projection());
 
-  const joinedLayer = calls.setProps
-    .at(-1)
-    .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships);
+  const joinedLayer = calls.setProps.at(-1).layers.find(
+    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships,
+  );
   assert.ok(joinedLayer);
   assert.equal(joinedLayer.props.transitions, undefined);
   const joined = joinedLayer.props.data[0];
@@ -266,9 +266,9 @@ test("temporal relationship joins and disconnects update immediately without ren
   assert.ok(joinedLayer.props.getWidth(joined) > 0);
 
   surface.setProjection(createWorldProjection({ instances: [], edges: [] }));
-  const disconnectedLayer = calls.setProps
-    .at(-1)
-    .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships);
+  const disconnectedLayer = calls.setProps.at(-1).layers.find(
+    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships,
+  );
   assert.ok(disconnectedLayer);
   assert.equal(disconnectedLayer.props.transitions, undefined);
   assert.equal(disconnectedLayer.props.data.length, 1, "departing relation row is retained");
@@ -287,9 +287,9 @@ test("temporal relationship joins and disconnects update immediately without ren
   assert.equal(surface.pick({ x: 0, y: 0 }), null, "departing ghost is never logically pickable");
 
   surface.setProjection(projection());
-  const rejoinedLayer = calls.setProps
-    .at(-1)
-    .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships);
+  const rejoinedLayer = calls.setProps.at(-1).layers.find(
+    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships,
+  );
   assert.equal(rejoinedLayer.props.data.length, 1);
   assert.equal(rejoinedLayer.props.data[0], joined, "rejoin keeps the stable temporal row");
   assert.ok(rejoinedLayer.props.getWidth(rejoinedLayer.props.data[0]) > 0);
@@ -306,17 +306,17 @@ test("reduced motion uses the same immediate relationship geometry", (t) => {
   const surface = new DeckWorldSurface({}, runtime);
   surface.setProjection(projection());
 
-  const joinedLayer = calls.setProps
-    .at(-1)
-    .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships);
+  const joinedLayer = calls.setProps.at(-1).layers.find(
+    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships,
+  );
   assert.ok(joinedLayer);
   assert.equal(joinedLayer.props.transitions, undefined);
   assert.ok(joinedLayer.props.getWidth(joinedLayer.props.data[0]) > 0);
 
   surface.setProjection(createWorldProjection({ instances: [], edges: [] }));
-  const disconnectedLayer = calls.setProps
-    .at(-1)
-    .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships);
+  const disconnectedLayer = calls.setProps.at(-1).layers.find(
+    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships,
+  );
   assert.ok(disconnectedLayer);
   assert.equal(disconnectedLayer.props.transitions, undefined);
   const disconnected = disconnectedLayer.props.data[0];
@@ -540,7 +540,9 @@ test("hover and selection emphasize without changing graph geometry, and repeate
   let relationshipsLayer = render.layers.find(
     (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.relationships,
   );
-  const placesLayer = render.layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.places);
+  const placesLayer = render.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.places,
+  );
   let entities = entitiesLayer.props.data;
   let relationship = relationshipsLayer.props.data.find(
     (datum) => datum.relationshipId === "meeting",
@@ -572,12 +574,16 @@ test("hover and selection emphasize without changing graph geometry, and repeate
   calls.deckProps.onClick(entityPick);
 
   render = calls.setProps.at(-1);
-  entitiesLayer = render.layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities);
+  entitiesLayer = render.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities,
+  );
   relationshipsLayer = render.layers.find(
     (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.relationships,
   );
   entities = entitiesLayer.props.data;
-  relationship = relationshipsLayer.props.data.find((datum) => datum.relationshipId === "meeting");
+  relationship = relationshipsLayer.props.data.find(
+    (datum) => datum.relationshipId === "meeting",
+  );
 
   const alice = entities.find((datum) => datum.entityId === "alice");
   const bob = entities.find((datum) => datum.entityId === "bob");
@@ -597,8 +603,9 @@ test("hover and selection emphasize without changing graph geometry, and repeate
 
   calls.deckProps.onHover({});
   render = calls.setProps.at(-1);
-  entities = render.layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities).props
-    .data;
+  entities = render.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities,
+  ).props.data;
   assert.equal(container.style.cursor, "");
   assert.ok(entities.every((datum) => datum.emphasized === false));
 });
@@ -1150,7 +1157,8 @@ test("node, edge, arrow, icon, tether, and label geometry always update without 
     pitch: 20,
   });
 
-  const latestLayer = (id) => calls.setProps.at(-1).layers.find((layer) => layer.props.id === id);
+  const latestLayer = (id) =>
+    calls.setProps.at(-1).layers.find((layer) => layer.props.id === id);
 
   surface.setNodeDragSink({
     begin() {
@@ -1505,9 +1513,7 @@ test("default overview keeps same-place topology clustered without covering the 
   surface.setProjection(projection());
 
   const render = calls.setProps.at(-1);
-  const layer = render.layers.find(
-    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities,
-  );
+  const layer = render.layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities);
   assert.ok(layer);
 
   const cluster = layer.props.data.find((datum) => datum.kind === "cluster");
@@ -1592,9 +1598,7 @@ test("zooming out groups nearby entities without losing canonical identity", () 
   surface.setCamera({ longitude: 0, latitude: 0, zoom: 0, bearing: 0, pitch: 0 });
 
   const render = calls.setProps.at(-1);
-  const layer = render.layers.find(
-    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities,
-  );
+  const layer = render.layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities);
   const cluster = layer.props.data.find((datum) => datum.kind === "cluster");
   assert.ok(cluster);
   const memberIds = cluster.clusterMembers.map((member) => member.entityId).sort();
@@ -1608,9 +1612,7 @@ test("picking a cluster resolves to one of its real canonical member entities", 
   surface.setCamera({ longitude: 0, latitude: 0, zoom: 0, bearing: 0, pitch: 0 });
 
   const render = calls.setProps.at(-1);
-  const layer = render.layers.find(
-    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities,
-  );
+  const layer = render.layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities);
   const cluster = layer.props.data.find((datum) => datum.kind === "cluster");
   assert.ok(cluster);
 
@@ -1628,9 +1630,7 @@ test("detail zoom fades the retained place-cluster envelope to zero and restores
   surface.setCamera({ longitude: 0, latitude: 0, zoom: 8, bearing: 0, pitch: 0 });
 
   const render = calls.setProps.at(-1);
-  const layer = render.layers.find(
-    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities,
-  );
+  const layer = render.layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities);
   const cluster = layer.props.data.find((datum) => datum.kind === "cluster");
   const members = layer.props.data.filter((datum) => datum.kind === "entity");
 
