@@ -639,7 +639,6 @@ function scaledCandidate(
     | "meanStableDisplacementMeters"
   >,
   nodeCount: number,
-  edges: readonly LocalDagEdge[],
   sizes: ReadonlyMap<string, readonly [number, number]>,
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
 ): CandidateLayout {
@@ -859,7 +858,6 @@ function runLayoutCandidate(
       height: dimensions.height,
     },
     nodeIds.length,
-    edges,
     sizes,
     previousTargets,
   );
