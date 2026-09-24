@@ -243,6 +243,125 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     expect(snapshot.selection).toEqual({ kind: "entity", id: result.entityId });
   });
 
+  test("depth-aware picking acquires the nearest elevated instance on a shared screen ray", async ({
+    page,
+  }) => {
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const result = await page.evaluate(async () => {
+      const helpersModulePath = "/world-test-helpers.mjs";
+      const { createProjectedWorldInstance, createWorldProjection } = await import(
+        helpersModulePath
+      );
+      const harness = window.__worldPerfHarness;
+      const stacked = (name: string, visualAltitude: number) =>
+        createProjectedWorldInstance({
+          id: `${name}::stack`,
+          canonicalId: name,
+          occurrenceId: "stack",
+          geographicAnchors: [
+            { placeId: "place-stack", longitude: 12, latitude: 30, influence: 1 },
+          ],
+          temporalWeight: 1,
+          visualWeight: 1,
+          retained: false,
+          visualAltitude,
+        });
+      // Canonical order puts the ground-level instance first so a
+      // draw-order or first-match pick would return the wrong one.
+      const ground = stacked("a-ground", 0);
+      const elevated = stacked("b-elevated", 150_000);
+      harness.surface.setCamera({ longitude: 12, latitude: 30, zoom: 5, bearing: 0, pitch: 0 });
+      harness.surface.setProjection(
+        createWorldProjection({ instances: [ground, elevated], edges: [] }),
+      );
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+      const top = harness.surface.project({ longitude: 12, latitude: 30, altitudeMeters: 150_000 });
+      const base = harness.surface.project({ longitude: 12, latitude: 30, altitudeMeters: 0 });
+      return { top, base };
+    });
+
+    if (!result.top || !result.base) throw new Error("Stacked instances did not project.");
+    // Top-down camera: both instances and the place marker share one ray.
+    expect(Math.hypot(result.top.x - result.base.x, result.top.y - result.base.y)).toBeLessThan(3);
+
+    const hit = await page.evaluate(
+      (point) => window.__worldPerfHarness.surface.pick(point),
+      result.top,
+    );
+    expect(hit).toEqual({
+      kind: "entity",
+      entityId: "b-elevated",
+      worldInstanceId: "b-elevated::stack",
+    });
+  });
+
+  test("under a pitched camera an elevated node occludes the ground node behind it for picking", async ({
+    page,
+  }) => {
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const result = await page.evaluate(async () => {
+      const helpersModulePath = "/world-test-helpers.mjs";
+      const { createProjectedWorldInstance, createWorldProjection } = await import(
+        helpersModulePath
+      );
+      const harness = window.__worldPerfHarness;
+      const node = (name: string, longitude: number, latitude: number, visualAltitude: number) =>
+        createProjectedWorldInstance({
+          id: `${name}::ray`,
+          canonicalId: name,
+          occurrenceId: "ray",
+          geographicAnchors: [{ placeId: `place-${name}`, longitude, latitude, influence: 1 }],
+          temporalWeight: 1,
+          visualWeight: 1,
+          retained: false,
+          visualAltitude,
+        });
+      harness.surface.setCamera({ longitude: 12, latitude: 30, zoom: 5, bearing: 0, pitch: 55 });
+      const elevated = node("z-elevated", 12, 30, 60_000);
+      harness.surface.setProjection(createWorldProjection({ instances: [elevated], edges: [] }));
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+      const point = harness.surface.project({
+        longitude: 12,
+        latitude: 30,
+        altitudeMeters: 60_000,
+      });
+      if (!point) return null;
+      // The ground location that lies on the same screen ray, behind the
+      // elevated node from the camera's point of view.
+      const behind = harness.surface.unproject(point, 0);
+      if (!behind) return null;
+      const ground = node("a-ground", behind.longitude, behind.latitude, 0);
+      harness.surface.setProjection(
+        createWorldProjection({ instances: [ground, elevated], edges: [] }),
+      );
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+      const groundPoint = harness.surface.project({
+        longitude: behind.longitude,
+        latitude: behind.latitude,
+        altitudeMeters: 0,
+      });
+      return { point, groundPoint, hit: harness.surface.pick(point) };
+    });
+
+    if (!result?.groundPoint) throw new Error("Ray construction did not project.");
+    expect(
+      Math.hypot(result.point.x - result.groundPoint.x, result.point.y - result.groundPoint.y),
+    ).toBeLessThan(3);
+    expect(result.hit).toEqual({
+      kind: "entity",
+      entityId: "z-elevated",
+      worldInstanceId: "z-elevated::ray",
+    });
+  });
+
   test("real deck.gl renders semantic labels and picks a directed relationship marker", async ({
     page,
   }) => {
