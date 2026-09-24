@@ -274,7 +274,7 @@ export class WorldProjectionView {
   #relationships: readonly CanonicalRelationship[] = Object.freeze([]);
   #spatialAnchors = new SpatialAnchorIndex([], []);
   #temporalIndex: TemporalOccurrenceIndex<IndexedRelationshipOccurrence> =
-    createTemporalOccurrenceIndex([]);
+    createTemporalOccurrenceIndex<IndexedRelationshipOccurrence>([]);
   #timedById: ReadonlyMap<RelationshipId, IndexedRelationshipOccurrence> = new Map();
   #timelessIds: readonly RelationshipId[] = Object.freeze([]);
   #viewport: WorldTemporalWindow | null = null;
