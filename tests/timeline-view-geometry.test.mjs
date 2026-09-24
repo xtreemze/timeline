@@ -115,7 +115,7 @@ test("Browse overlays without workspace reflow and Edit becomes a bounded deskto
   );
   assert.match(
     css,
-    /@media \(min-width:\s*760px\)[\s\S]*#app-shell\[data-editor-open="true"\][\s\S]*display:\s*block[\s\S]*\.app-editor-sheet[\s\S]*inline-size:\s*clamp\(360px,\s*34vw,\s*460px\)/,
+    /@media \(min-width:\s*760px\)[\s\S]*#app-shell\[data-editor-open="true"\][\s\S]*display:\s*block[\s\S]*\.app-editor-sheet[\s\S]*inline-size:\s*clamp\(360px,\s*34%,\s*460px\)/,
   );
   assert.match(
     html,
