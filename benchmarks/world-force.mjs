@@ -174,6 +174,13 @@ for (const nodeCount of sizes) {
     dragSimulation.step(1000 / 60);
   }, stepIterations);
   const dragChangedNodes = dragSimulation.getChangedSnapshot().length;
+
+  dragSimulation.setPin(null);
+  dragSimulation.apply({ reason: "post-drop", energyTarget: 0.035, reheat: true });
+  const postDropStep = measure(() => {
+    dragSimulation.step(1000 / 60);
+  }, stepIterations);
+  const postDropChangedNodes = dragSimulation.getChangedSnapshot().length;
   dragSimulation.destroy();
 
   results.push({
@@ -186,6 +193,8 @@ for (const nodeCount of sizes) {
     solveStep,
     dragStep,
     dragChangedNodes,
+    postDropStep,
+    postDropChangedNodes,
     diagnostics,
   });
 }
