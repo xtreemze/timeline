@@ -186,7 +186,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       const titleBar = page.locator(".timeline-project-heading");
       const surface = page.locator(".timeline-surface");
       const actions = dock.locator(":scope > .app-tool");
-      await expect(actions).toHaveCount(4);
+      await expect(actions).toHaveCount(3);
 
       const dockBox = await expectInsideViewport(dock, viewport);
       const titleBox = await expectInsideViewport(titleBar, viewport);
@@ -196,10 +196,11 @@ test.describe("Mobile-first Timeline layout contracts", () => {
         "#project-menu-toggle",
         "#editor-toggle",
         "#timeline-browser-toggle",
-        "#timeline-view-controls-toggle",
       ]) {
         await expect(dock.locator(selector)).toBeVisible();
       }
+      await expect(page.locator("#timeline-view-controls-toggle")).toBeVisible();
+      await expect(page.locator(".timeline-local-toolbar")).toBeVisible();
 
       expect(dockBox.x).toBeLessThanOrEqual(2);
       expect(dockBox.width).toBeGreaterThanOrEqual(viewport.width - 4);
@@ -394,7 +395,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     const projectButton = toolDock.locator("#project-menu-toggle");
     const editorButton = toolDock.locator("#editor-toggle");
     const browseButton = toolDock.locator("#timeline-browser-toggle");
-    const viewButton = toolDock.locator("#timeline-view-controls-toggle");
+    const viewButton = page.locator("#timeline-view-controls-toggle");
 
     await editorButton.click();
     await expect(page.locator("#control-panel")).toBeVisible();
