@@ -1022,19 +1022,25 @@ const LABEL_HALO_PX = 3;
 const APP_FONT_FAMILY = "Monaspace Krypton Timeline";
 const LABEL_FALLBACK_FONT_FAMILY = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 const GRATICULE = worldGraticule();
+const ENTITY_LABEL_OFFSET_PX = 56;
+
+/** Close/detail zoom where a claimed node drag freezes the globe camera. */
+export const WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM = 6;
 
 function labelSize(datum: DeckWorldLabelDatum): number {
-  return datum.emphasized ? 15 : datum.kind === "place-label" ? 13 : 12;
+  if (datum.emphasized) return 19;
+  if (datum.kind === "relationship-label") return 15;
+  return 16;
 }
 
 /**
- * Entity labels start 10px right of their dot, place labels sit above their
+ * Entity labels start beyond the enlarged node body, place labels sit above their
  * anchor and relationship labels below the edge midpoint, so the three kinds
  * do not contend for the same space around a shared anchor. The vertical gap
  * grows with the label so an emphasized label does not evict its neighbours.
  */
 function labelPixelOffset(datum: DeckWorldLabelDatum): [number, number] {
-  if (datum.kind === "entity-label") return [10, 0];
+  if (datum.kind === "entity-label") return [ENTITY_LABEL_OFFSET_PX, 0];
   const gap = labelSize(datum) / 2 + 6;
   return datum.kind === "relationship-label" ? [0, gap] : [0, -gap];
 }
@@ -1332,6 +1338,7 @@ export class DeckWorldSurface implements WorldSurface {
   #spatialMode: WorldSpatialMode = "globe";
   #nodeDragSink: DeckWorldNodeDragSink | null = null;
   #activeDragPointerId: number | null = null;
+  #dragCameraLock: WorldCameraState | null = null;
   #destroyed = false;
 
   // Priority 3 (issue #445): previous frame's datum-by-id maps, kept so
@@ -1423,6 +1430,7 @@ export class DeckWorldSurface implements WorldSurface {
     }
     this.#nodeDragSink?.cancel("pointercancel");
     this.#activeDragPointerId = null;
+    this.#dragCameraLock = null;
   };
 
   readonly #handleLostPointerCapture = (event: PointerEvent): void => {
@@ -1431,6 +1439,7 @@ export class DeckWorldSurface implements WorldSurface {
     }
     this.#nodeDragSink?.cancel("lostpointercapture");
     this.#activeDragPointerId = null;
+    this.#dragCameraLock = null;
   };
 
   // Double-tap/double-click focus (issue #445 Priority 4). deck.gl's own
@@ -1509,6 +1518,13 @@ export class DeckWorldSurface implements WorldSurface {
         this.#reframe(this.#autoFitMode);
       },
       onViewStateChange: ({ viewState }: { readonly viewState: DeckRuntimeViewState }) => {
+        // At close/detail zoom direct manipulation owns the gesture. Reject
+        // controller inertia/orbit updates until the node drag ends so the
+        // geographic frame and its place anchors stay visually locked.
+        if (this.#dragCameraLock) {
+          this.#deck.setProps({ viewState: this.#dragCameraLock });
+          return;
+        }
         const next = cameraFromRuntime(viewState, this.#camera);
         if (next) {
           this.#cameraOwned = true;
@@ -1753,7 +1769,10 @@ export class DeckWorldSurface implements WorldSurface {
   setNodeDragSink(sink: DeckWorldNodeDragSink | null): void {
     this.#assertAlive();
     this.#nodeDragSink = sink;
-    if (!sink) this.#activeDragPointerId = null;
+    if (!sink) {
+      this.#activeDragPointerId = null;
+      this.#dragCameraLock = null;
+    }
     this.#render();
   }
 
@@ -2095,6 +2114,9 @@ export class DeckWorldSurface implements WorldSurface {
     if (claimed) {
       if (touch) this.#touchHold.commit(pointerId);
       this.#activeDragPointerId = pointerId;
+      if (this.#camera.zoom >= WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM) {
+        this.#dragCameraLock = this.#camera;
+      }
       // deck.gl ignores the layer handler's return value; only a handled
       // event stops its controller from turning the same gesture into a pan.
       event.stopPropagation?.();
@@ -2109,6 +2131,7 @@ export class DeckWorldSurface implements WorldSurface {
     if (!sink || pointerId === null || pointerId !== this.#activeDragPointerId || !target) {
       return false;
     }
+    event.stopPropagation?.();
     return sink.update(pointerId, target.position);
   }
 
@@ -2119,7 +2142,9 @@ export class DeckWorldSurface implements WorldSurface {
       return false;
     }
 
+    event.stopPropagation?.();
     this.#activeDragPointerId = null;
+    this.#dragCameraLock = null;
     return sink.release(pointerId);
   }
 
@@ -2148,6 +2173,7 @@ export class DeckWorldSurface implements WorldSurface {
     if (this.#activeDragPointerId !== null) {
       this.#nodeDragSink?.cancel("pointercancel");
       this.#activeDragPointerId = null;
+      this.#dragCameraLock = null;
     }
 
     this.#spatialMode = nextMode;
