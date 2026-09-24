@@ -16,9 +16,6 @@ interface TouchGraphController {
 
 declare global {
   interface Window {
-    TimelineOrbGraph?: {
-      create(container: HTMLElement): TouchGraphController;
-    };
     __touchNodeGraph?: TouchGraphController;
   }
 }
@@ -56,9 +53,8 @@ test("long-press touch moves an Orb node", async ({ page }, testInfo) => {
   expect(testInfo.project.use.hasTouch).toBe(true);
   await page.goto("/");
   await page.setViewportSize({ width: 375, height: 812 });
-  await page.waitForFunction(() => Boolean(window.TimelineOrbGraph?.create));
-
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
+    const { createTouchGraphController } = await import("/orb-graph-test-helper.ts");
     const fixture = document.createElement("div");
     fixture.id = "touch-node-drag-fixture";
     Object.assign(fixture.style, {
@@ -72,8 +68,7 @@ test("long-press touch moves an Orb node", async ({ page }, testInfo) => {
     });
     document.body.append(fixture);
 
-    const graph = window.TimelineOrbGraph?.create(fixture);
-    if (!graph) throw new Error("Timeline Orb graph bridge unavailable");
+    const graph = createTouchGraphController(fixture);
     window.__touchNodeGraph = graph;
     graph.setData({
       nodes: [{ id: 1, label: "Touch node", properties: { timelineType: "person" } }],
