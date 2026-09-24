@@ -551,7 +551,9 @@ export class TimelineViewController {
 
     const registerTouchTap = (event: PointerEvent, tap: TouchTapState | null): boolean => {
       if (!tap || tap.cancelled) return false;
-      const now = performance.now();
+      // Input time, not handling time: a busy main thread must not stretch a
+      // quick double-tap past its window.
+      const now = Number(event.timeStamp) || performance.now();
       const previous = this.lastTouchTap;
       const point = { x: event.clientX, y: event.clientY };
       this.touchTap = null;
@@ -576,7 +578,7 @@ export class TimelineViewController {
           end: anchor + nextSpan * (1 - ratio),
         };
         this.lastTouchTap = null;
-        this.suppressClickUntil = now + CLICK_SUPPRESSION_MS;
+        this.suppressClickUntil = performance.now() + CLICK_SUPPRESSION_MS;
         this.commitInteraction();
         return true;
       }
