@@ -1284,6 +1284,53 @@ export class TimelineViewController {
     );
   }
 
+  updateEdgeAccentLabel(node: HTMLElement, label: string, animateChanges: boolean): void {
+    const target = String(label || "");
+    const slots = Array.from(
+      node.querySelectorAll<HTMLElement>(".timeline-edge-date-character"),
+    );
+
+    while (slots.length < target.length) {
+      const slot = document.createElement("span");
+      slot.className = "timeline-edge-date-character";
+      node.append(slot);
+      slots.push(slot);
+    }
+    while (slots.length > target.length) {
+      slots.pop()?.remove();
+    }
+
+    for (let index = 0; index < target.length; index += 1) {
+      const slot = slots[index];
+      const next = target[index] || "";
+      if (!slot) continue;
+      const previous = slot.textContent || "";
+      if (previous === next) continue;
+
+      slot.textContent = next;
+      const numericReplacement = /\d/.test(previous) && /\d/.test(next);
+      if (
+        !animateChanges ||
+        !numericReplacement ||
+        this.reducedMotionQuery?.matches ||
+        typeof slot.animate !== "function"
+      ) {
+        continue;
+      }
+
+      for (const animation of slot.getAnimations()) animation.cancel();
+      const direction = Number(next) >= Number(previous) ? 1 : -1;
+      const animation = slot.animate(
+        [
+          { opacity: 0.28, transform: `translateY(${direction * 0.42}em)` },
+          { opacity: 1, transform: "translateY(0)" },
+        ],
+        { duration: 180, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
+      );
+      animation.addEventListener("finish", () => animation.cancel(), { once: true });
+    }
+  }
+
   materializeTickHierarchy(
     spec: SemanticTickSpec,
     extent: TemporalWindow,
@@ -1349,38 +1396,56 @@ export class TimelineViewController {
     const materialize = (
       accent: (typeof accentPlan.edgeAccents)[number] | (typeof accentPlan.axisMonths)[number],
       axis: boolean,
+      slot: number = 0,
     ): void => {
-      const key = temporalAccentSceneKey({
-        kind: String(accent.kind || (axis ? "axis" : "edge")),
-        time: Number(accent.sceneTime ?? accent.time),
-      });
+      const key = axis
+        ? temporalAccentSceneKey({
+            kind: String(accent.kind || "axis"),
+            time: Number(accent.sceneTime ?? accent.time),
+          })
+        : `edge-slot:${slot}`;
       keep.add(key);
+
       let node = this.accentScene.get(key);
       const created = !node;
+      const className = axis
+        ? "timeline-axis-month-label"
+        : accent.kind === "year"
+          ? "timeline-month-accent timeline-year-accent timeline-edge-date"
+          : "timeline-month-accent timeline-edge-date";
+
       if (!node) {
         node = document.createElement("div");
-        node.className = axis
-          ? "timeline-axis-month-label"
-          : accent.kind === "year"
-            ? "timeline-month-accent timeline-year-accent"
-            : "timeline-month-accent";
-        node.dataset.time = String(accent.time);
-        node.dataset.temporalAccent = String(accent.kind || "");
+        node.className = className;
         this.accentScene.set(key, node);
         this.stage.append(node);
         this.frameCreatedObjects += 1;
+      } else {
+        node.className = className;
       }
+
+      node.dataset.time = String(accent.time);
+      node.dataset.temporalAccent = String(accent.kind || "");
       node.classList.toggle("is-incoming-hierarchy", incoming && created);
       if (incoming && created) {
         node.dataset.pendingHierarchy = "true";
         node.style.opacity = "0.35";
       }
-      node.textContent = String(accent.label || "");
+
+      const label = String(accent.label || "");
+      if (axis) {
+        delete node.dataset.temporalAccentSlot;
+        node.textContent = label;
+      } else {
+        node.dataset.temporalAccentSlot = String(slot);
+        this.updateEdgeAccentLabel(node, label, !created);
+      }
+
       node.dataset.count = String(accent.count || 0);
       this.positionTemporalNode(node, Number(accent.time), padding, usable);
     };
 
-    for (const accent of accentPlan.edgeAccents) materialize(accent, false);
+    accentPlan.edgeAccents.forEach((accent, index) => materialize(accent, false, index));
     for (const accent of accentPlan.axisMonths) materialize(accent, true);
     return keep;
   }
