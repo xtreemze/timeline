@@ -7,7 +7,6 @@ import {
 } from "../../src/interaction/world-touch-hold.ts";
 import { fitWorldCamera, globeOverviewCamera } from "../../src/layout/world-camera-fit.ts";
 import { worldClusterTarget } from "../../src/layout/world-cluster-transition.ts";
-import type { WorldClusterForceDirective } from "../../src/layout/world-force-simulation.ts";
 import {
   resolveWorldRenderPosition,
   type WorldRenderPosition,
@@ -127,7 +126,9 @@ interface DoubleClickEvent {
   readonly offsetY?: unknown;
 }
 
-export type DeckWorldClusterTopologySink = (directive: WorldClusterForceDirective) => void;
+export interface DeckWorldClusterForceSink {
+  setClusteredPlaceIds(placeIds: readonly PlaceId[]): void;
+}
 
 export interface DeckWorldNodeDragSink {
   begin(pointerId: number, instanceId: WorldInstanceId, position: WorldNodeDragPosition): boolean;
@@ -1981,9 +1982,10 @@ export class DeckWorldSurface implements WorldSurface {
   #floatMeters = 0;
   #spatialMode: WorldSpatialMode = "globe";
   #nodeDragSink: DeckWorldNodeDragSink | null = null;
-  #clusterTopologySink: DeckWorldClusterTopologySink | null = null;
+  #clusterForceSink: DeckWorldClusterForceSink | null = null;
   #clusterLifecyclePhase: WorldClusterLifecyclePhase = "expanded";
   #clusterLifecycleMembers: readonly WorldInstanceId[] = Object.freeze([]);
+  #clusterLifecyclePlaces: readonly PlaceId[] = Object.freeze([]);
   #clusterLifecycleKey = "";
   #clusterEdgeTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   #clusterSettleTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
@@ -2486,9 +2488,9 @@ export class DeckWorldSurface implements WorldSurface {
     return region;
   }
 
-  setClusterTopologySink(sink: DeckWorldClusterTopologySink | null): void {
+  setClusterForceSink(sink: DeckWorldClusterForceSink | null): void {
     this.#assertAlive();
-    this.#clusterTopologySink = sink;
+    this.#clusterForceSink = sink;
   }
 
   #clearClusterLifecycleTimers(): void {
@@ -2498,23 +2500,36 @@ export class DeckWorldSurface implements WorldSurface {
     this.#clusterSettleTimer = null;
   }
 
-  #syncClusterLifecycle(targetClustered: boolean, memberIds: readonly WorldInstanceId[]): void {
-    const key = [...memberIds].map(String).sort().join("|");
+  #syncClusterLifecycle(
+    targetClustered: boolean,
+    memberIds: readonly WorldInstanceId[],
+    placeIds: readonly PlaceId[],
+  ): void {
+    const key = [
+      ...memberIds.map(String).sort(),
+      "::places::",
+      ...placeIds.map(String).sort(),
+    ].join("|");
+
     if (targetClustered) {
       if (
         this.#clusterLifecyclePhase === "collapsed" ||
         this.#clusterLifecyclePhase === "retiring" ||
         this.#clusterLifecyclePhase === "collapsing"
-      ) return;
+      ) {
+        return;
+      }
+
       this.#clearClusterLifecycleTimers();
       this.#clusterLifecycleMembers = Object.freeze([...memberIds]);
+      this.#clusterLifecyclePlaces = Object.freeze([...placeIds]);
       this.#clusterLifecycleKey = key;
       this.#clusterLifecyclePhase = "retiring";
       this.#clusterEdgeTimer = globalThis.setTimeout(() => {
         this.#clusterEdgeTimer = null;
         if (this.#destroyed || this.#clusterLifecycleKey !== key) return;
         this.#clusterLifecyclePhase = "collapsing";
-        this.#clusterTopologySink?.(Object.freeze({ mode: "collapse" as const, instanceIds: this.#clusterLifecycleMembers }));
+        this.#clusterForceSink?.setClusteredPlaceIds(this.#clusterLifecyclePlaces);
         this.#render();
         this.#clusterSettleTimer = globalThis.setTimeout(() => {
           this.#clusterSettleTimer = null;
@@ -2529,17 +2544,16 @@ export class DeckWorldSurface implements WorldSurface {
     if (this.#clusterLifecyclePhase === "expanded") return;
     this.#clearClusterLifecycleTimers();
     this.#clusterLifecycleMembers = Object.freeze([...memberIds]);
+    this.#clusterLifecyclePlaces = Object.freeze([...placeIds]);
     this.#clusterLifecycleKey = key;
     this.#clusterLifecyclePhase = "revealing";
-    this.#clusterTopologySink?.(Object.freeze({ mode: "expand" as const, instanceIds: this.#clusterLifecycleMembers }));
+    this.#clusterForceSink?.setClusteredPlaceIds(Object.freeze([]));
     this.#clusterSettleTimer = globalThis.setTimeout(() => {
       this.#clusterSettleTimer = null;
       if (this.#destroyed || this.#clusterLifecycleKey !== key) return;
-      this.#clusterTopologySink?.(
-        Object.freeze({ mode: "connect" as const, instanceIds: this.#clusterLifecycleMembers }),
-      );
       this.#clusterLifecyclePhase = "expanded";
       this.#clusterLifecycleMembers = Object.freeze([]);
+      this.#clusterLifecyclePlaces = Object.freeze([]);
       this.#clusterLifecycleKey = "";
       this.#render();
     }, WORLD_CLUSTER_FORCE_SETTLE_MS);
@@ -3376,7 +3390,23 @@ export class DeckWorldSurface implements WorldSurface {
     );
     const hasPlaceClusters = placeClusterCandidates.some((datum) => datum.kind === "cluster");
     const placeTransition = placeClusterTransitionDatums(entityResult.datums, placeClusterCandidates);
-    this.#syncClusterLifecycle(hasPlaceClusters && targetPlaceClustered, Object.freeze([...placeTransition.memberIds]));
+    const clusteredPlaceIds = Object.freeze(
+      [
+        ...new Set(
+          this.#projection.instances
+            .filter((instance) => placeTransition.memberIds.has(instance.id))
+            .flatMap((instance) => {
+              const placeId = instance.geographicAnchors[0]?.placeId;
+              return placeId ? [placeId] : [];
+            }),
+        ),
+      ].sort((left, right) => String(left).localeCompare(String(right))),
+    );
+    this.#syncClusterLifecycle(
+      hasPlaceClusters && targetPlaceClustered,
+      Object.freeze([...placeTransition.memberIds]),
+      clusteredPlaceIds,
+    );
     const transitionEntities = Object.freeze([
       ...placeTransition.members,
       ...placeTransition.loose,
