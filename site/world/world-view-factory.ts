@@ -4,6 +4,7 @@ import type { WorldForceSimulationBackend } from "../../src/layout/world-force-s
 import { createDeckWorldRuntime, type DeckWorldBindings } from "./deck-world-runtime.ts";
 import { DeckWorldSurface } from "./deck-world-surface.ts";
 import { loadWorldBasemap } from "./world-basemap.ts";
+import { LuumWorldSurfaceElement } from "./world-surface-element.ts";
 import {
   WorldProjectionView,
   type WorldViewModel,
@@ -66,6 +67,7 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
   readonly #view: WorldProjectionView;
   readonly #runtime: WorldViewRuntimeController;
   readonly #scheduler: WorldFrameScheduler;
+  readonly #onDestroy: (() => void) | null;
 
   #frame = 0;
   #lastFrameAt = 0;
@@ -77,10 +79,12 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
     view: WorldProjectionView,
     runtime: WorldViewRuntimeController,
     scheduler: WorldFrameScheduler,
+    onDestroy: (() => void) | null = null,
   ) {
     this.#view = view;
     this.#runtime = runtime;
     this.#scheduler = scheduler;
+    this.#onDestroy = onDestroy;
   }
 
   setModel(model: WorldViewModel): void {
@@ -129,6 +133,7 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
     this.#frame = 0;
     this.#lastFrameAt = 0;
     this.#view.destroy();
+    this.#onDestroy?.();
   }
 
   /**
@@ -188,6 +193,9 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
     create(root: HTMLElement | null): WorldApplicationView | null {
       if (!root) return null;
 
+      const owner = root instanceof LuumWorldSurfaceElement ? root : null;
+      if (owner?.ownedView) return owner.ownedView as WorldApplicationView;
+
       const container = root.querySelector<HTMLElement>(".temporal-graph-canvas") ?? root;
       const surface = new DeckWorldSurface(container, deckRuntime);
       loadWorldBasemap()
@@ -212,7 +220,11 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
           : {}),
       });
       const view = new WorldProjectionView(runtime);
-      const scheduledView = new ScheduledWorldProjectionView(view, runtime, scheduler);
+      let scheduledView: ScheduledWorldProjectionView;
+      scheduledView = new ScheduledWorldProjectionView(view, runtime, scheduler, () => {
+        owner?.releaseView(scheduledView);
+      });
+      owner?.attachView(scheduledView);
 
       surface.setNodeDragSink({
         begin(pointerId, instanceId, position) {
