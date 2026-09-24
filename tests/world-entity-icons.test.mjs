@@ -119,6 +119,16 @@ test("kind icons render from projection metadata as tintable masks and pick as t
   assert.equal(byEntity.get("entity-0").kind, "entity", "icons pick as the canonical entity");
   assert.equal(icons.props.getIcon(byEntity.get("entity-1")).id, "lum-icon:object");
 
+  const entityLayer = h.lastLayers().find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities,
+  );
+  const baseByEntity = new Map(entityLayer.props.data.map((datum) => [datum.entityId, datum]));
+  assert.notDeepEqual(
+    entityLayer.props.getFillColor(baseByEntity.get("entity-0")),
+    entityLayer.props.getFillColor(baseByEntity.get("entity-2")),
+    "semantic entity kinds retain distinguishable base fill colors",
+  );
+
   const shapes = h.lastLayers().find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityShapes);
   assert.ok(shapes, "semantic node shapes are rendered");
   const shapeByEntity = new Map(shapes.props.data.map((datum) => [datum.entityId, datum]));
