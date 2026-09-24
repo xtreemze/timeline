@@ -93,6 +93,7 @@ export const DECK_WORLD_LAYER_IDS = Object.freeze({
   places: "lum-world-places",
   placeIcons: "lum-world-place-icons",
   relationships: "lum-world-relationships",
+  releasingRelationships: "lum-world-releasing-relationships",
   entities: "lum-world-entities",
   relationshipDirections: "lum-world-relationship-directions",
   labels: "lum-world-labels",
@@ -136,6 +137,10 @@ export interface DeckWorldNodeDragSink {
   update(pointerId: number, position: WorldNodeDragPosition): boolean;
   release(pointerId: number): boolean;
   cancel(reason: "pointercancel" | "lostpointercapture"): void;
+}
+
+export interface DeckWorldClusterForceSink {
+  setClusteredPlaceIds(placeIds: readonly PlaceId[]): void;
 }
 
 export interface DeckRuntimeViewport {
@@ -1713,6 +1718,11 @@ export class DeckWorldSurface implements WorldSurface {
   #floatMeters = 0;
   #spatialMode: WorldSpatialMode = "globe";
   #nodeDragSink: DeckWorldNodeDragSink | null = null;
+  #clusterForceSink: DeckWorldClusterForceSink | null = null;
+  #clusterPhase: WorldClusterLifecyclePhase = "expanded";
+  #clusterPlaceIds: readonly PlaceId[] = Object.freeze([]);
+  #clusterEdgeReleaseTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+  #clusterSettleTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   #activeDragPointerId: number | null = null;
   #dragCameraLock: WorldCameraState | null = null;
   #destroyed = false;
