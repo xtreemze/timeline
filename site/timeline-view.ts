@@ -1460,7 +1460,9 @@ export class TimelineViewController {
       this.positionTemporalNode(node, Number(accent.time), padding, usable);
     };
 
-    boundedEdgeAccents.forEach((accent, index) => materialize(accent, false, index));
+    boundedEdgeAccents.forEach((accent, index) => {
+      materialize(accent, false, index);
+    });
     this.stage.dataset.edgeDateCount = String(boundedEdgeAccents.length);
     for (const accent of accentPlan.axisMonths) materialize(accent, true);
     return keep;
