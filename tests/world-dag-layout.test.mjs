@@ -197,7 +197,7 @@ test("quality metrics report crossings, edge length and separation", () => {
 });
 
 test("deep size-aware DAGs fall back instead of compressing nodes into overlap", () => {
-  const nodes = Array.from({ length: 12 }, (_, index) => instance(`deep-${index}`));
+  const nodes = Array.from({ length: 80 }, (_, index) => instance(`deep-${index}`));
   const projection = createWorldProjection({
     instances: nodes,
     edges: nodes.slice(1).map((item, index) => edge(`deep-edge-${index}`, nodes[index], item)),
@@ -210,7 +210,7 @@ test("deep size-aware DAGs fall back instead of compressing nodes into overlap",
 
   assert.equal(layout.targets.length, 0);
   assert.equal(layout.routes.length, 0);
-  assert.equal(layout.metrics.nodeCount, 12);
+  assert.equal(layout.metrics.nodeCount, 80);
   assert.equal(
     Object.entries(layout.metrics.algorithmCounts).some(
       ([name, count]) => name.endsWith("-force-only") && count === 1,
