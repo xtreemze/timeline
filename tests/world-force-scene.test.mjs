@@ -108,8 +108,8 @@ test("force collision radius follows the rendered node footprint", () => {
   assert.ok(alice);
   assert.ok(bob);
   assert.ok(alice.mass > bob.mass);
-  assert.equal(alice.collisionRadiusPx, 24);
-  assert.equal(bob.collisionRadiusPx, 22);
+  assert.equal(alice.collisionRadiusPx, 28);
+  assert.equal(bob.collisionRadiusPx, 26);
   assert.ok(alice.collisionRadiusMeters > bob.collisionRadiusMeters);
   assert.ok(
     bob.collisionRadiusMeters >= DEFAULT_WORLD_FORCE_SCENE_POLICY.baseCollisionRadiusMeters,
@@ -140,7 +140,7 @@ test("custom policy remains explicit and deterministic", () => {
   assert.ok(alice);
   assert.equal(alice.mass, 5);
   assert.equal(alice.collisionRadiusPx, 24);
-  assert.equal(alice.collisionRadiusMeters, (200 * 24) / 22);
+  assert.equal(alice.collisionRadiusMeters, (200 * 28) / 22);
   assert.equal(scene.edges[0].strength, 0.1);
   assert.equal(scene.edges[0].restLengthMeters, 900);
   assert.equal(scene.anchors[0].influence, 0.2);
@@ -165,7 +165,6 @@ test("invalid force policy values fail before reaching a backend", () => {
     /anchor influence/,
   );
 });
-
 
 test("custom visible node size expands the force body instead of clipping through neighbours", () => {
   const id = worldInstanceId("large", "styled");
@@ -192,7 +191,6 @@ test("custom visible node size expands the force body instead of clipping throug
     DEFAULT_WORLD_FORCE_SCENE_POLICY.baseCollisionRadiusMeters * (54 / 22),
   );
 });
-
 
 test("D3 component collision radius uses the largest rendered footprint", () => {
   const scene = createWorldForceScene(sampleProjection());
