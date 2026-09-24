@@ -10,7 +10,7 @@ import {
   type WorldViewViewport,
 } from "./world-projection-view.ts";
 import { WorldViewRuntimeController } from "./world-view-controller.ts";
-import { LuumWorldSurfaceElement } from "./world-surface-element.ts";
+import { LuumWorldSurfaceElement } from "../components/world-surface-element.ts";
 
 export interface WorldFrameScheduler {
   request(callback: (timestamp: number) => void): number;
