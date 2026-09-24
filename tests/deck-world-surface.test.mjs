@@ -394,7 +394,7 @@ test("focus moves the globe camera to a rendered canonical target", () => {
   assert.deepEqual(calls.setProps.at(-1).viewState, {
     longitude: 18.0686,
     latitude: 59.3293,
-    zoom: 5,
+    zoom: 7.25,
     bearing: 0,
     pitch: 20,
   });
@@ -441,7 +441,7 @@ test("double-click/double-tap focuses the canonical entity picked under the poin
   assert.deepEqual(calls.setProps.at(-1).viewState, {
     longitude: 18.0686,
     latitude: 59.3293,
-    zoom: 5,
+    zoom: 7.25,
     bearing: 0,
     pitch: 20,
   });
@@ -923,7 +923,7 @@ function largeProjection(count, overrides = {}) {
 
 test("incremental render reuses prior datum object references for unchanged rows (issue #445 Priority 3)", () => {
   const { calls, runtime } = harness();
-  const surface = new DeckWorldSurface({}, runtime);
+  const surface = new DeckWorldSurface({}, runtime, { longitude: 0, latitude: 0, zoom: 7.25, bearing: 0, pitch: 20 });
 
   surface.setProjection(largeProjection(500));
   const firstRender = calls.setProps.at(-1);
@@ -982,7 +982,7 @@ test("incremental render reuses prior datum object references for unchanged rows
 
 test("incremental render only replaces datums whose selection actually changed", () => {
   const { calls, runtime } = harness();
-  const surface = new DeckWorldSurface({}, runtime);
+  const surface = new DeckWorldSurface({}, runtime, { longitude: 0, latitude: 0, zoom: 7.25, bearing: 0, pitch: 20 });
   surface.setProjection(largeProjection(50));
 
   const firstRender = calls.setProps.at(-1);
@@ -1055,7 +1055,7 @@ test("zooming back in above the cluster threshold restores per-entity picking an
   surface.setCamera({ longitude: 0, latitude: 0, zoom: 0, bearing: 0, pitch: 0 });
   assert.equal(calls.setProps.at(-1).layers[2].props.data.length, 1);
 
-  surface.setCamera({ longitude: 0, latitude: 0, zoom: 5, bearing: 0, pitch: 0 });
+  surface.setCamera({ longitude: 0, latitude: 0, zoom: 7.25, bearing: 0, pitch: 0 });
   const entities = calls.setProps.at(-1).layers[2].props.data;
   assert.equal(entities.length, 2);
   assert.ok(entities.every((datum) => datum.kind === "entity"));
