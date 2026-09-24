@@ -29,8 +29,10 @@ function escapeAttribute(value: string): string {
 function shapePath(shape: WorldNodeStyle["shape"], center: number, radius: number): string {
   switch (shape) {
     case "square": {
-      const side = radius * 1.7;
-      const start = center - side / 2;
+      // Use the full nominal footprint so equal-radius square/circle markers
+      // have comparable visual presence and collision geometry.
+      const side = radius * 2;
+      const start = center - radius;
       return `<rect x="${start}" y="${start}" width="${side}" height="${side}" rx="${radius * 0.25}"/>`;
     }
     case "diamond":
@@ -42,8 +44,14 @@ function shapePath(shape: WorldNodeStyle["shape"], center: number, radius: numbe
       }).join(" ");
       return `<polygon points="${points}"/>`;
     }
-    case "pin":
-      return `<path d="M${center} ${center + radius}C${center + radius * 0.75} ${center + radius * 0.1} ${center + radius} ${center - radius * 0.25} ${center + radius} ${center - radius * 0.45}A${radius} ${radius} 0 1 0 ${center - radius} ${center - radius * 0.45}C${center - radius} ${center - radius * 0.25} ${center - radius * 0.75} ${center + radius * 0.1} ${center} ${center + radius}Z"/>`;
+    case "pin": {
+      // Keep the entire teardrop inside the nominal radius. The previous arc
+      // extended ~45% beyond the atlas top and could be visibly clipped even
+      // when the marker itself was correctly lifted above the globe.
+      const head = radius * 0.66;
+      const shoulderY = center - radius * 0.12;
+      return `<path d="M${center} ${center + radius}L${center - head * 0.82} ${center + radius * 0.12}A${head} ${head} 0 1 1 ${center + head * 0.82} ${center + radius * 0.12}Z"/>`;
+    }
     default:
       return `<circle cx="${center}" cy="${center}" r="${radius}"/>`;
   }
