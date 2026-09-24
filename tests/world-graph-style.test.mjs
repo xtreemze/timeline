@@ -179,7 +179,7 @@ test("places use node-like shape, icon, border, fill, and readable footprint", (
   const fallback = worldPlaceStyle({}, false, WORLD_LIGHT_PALETTE);
   assert.equal(fallback.shape, "pin");
   assert.equal(fallback.icon, "place");
-  assert.equal(fallback.radius, 17);
+  assert.equal(fallback.radius, 14);
   assert.ok(fallback.radius < WORLD_ENTITY_MIN_HIT_RADIUS_PX);
 });
 
@@ -280,7 +280,7 @@ test("node radii are whole pixels so a scene shares a few marker textures", () =
   );
   assert.deepEqual(
     [...radii].sort((a, b) => a - b),
-    [14, 16, 17],
+    [12, 13, 14],
   );
   assert.equal(
     worldNodeStyle({ type: "person", attributes: { style: { size: 12.7 } } }, WORLD_LIGHT_PALETTE)
