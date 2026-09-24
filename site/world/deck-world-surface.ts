@@ -2080,6 +2080,8 @@ export class DeckWorldSurface implements WorldSurface {
   #activeDragInstanceId: WorldInstanceId | null = null;
   #dragFlashInstanceId: WorldInstanceId | null = null;
   #dragFlashTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+  #dragClickSuppressionTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+  #suppressNextDeckClick = false;
   #dragPresentationRevision = 0;
   #dragCameraLock: WorldCameraState | null = null;
   #destroyed = false;
@@ -2243,6 +2245,10 @@ export class DeckWorldSurface implements WorldSurface {
 
   readonly #handleDeckClick = (info: DeckRuntimePickingInfo): void => {
     if (this.#activeDragPointerId !== null) return;
+    if (this.#suppressNextDeckClick) {
+      this.#suppressNextDeckClick = false;
+      return;
+    }
     const next = this.#selectionFromPickingInfo(info);
     const toggled = next !== null && selectionEquals(next, this.#selection) ? null : next;
     const changed =
@@ -2905,6 +2911,7 @@ export class DeckWorldSurface implements WorldSurface {
     );
     this.#clearTouchHoldTimer();
     this.#clearDragFlash({ render: false });
+    this.#clearDragClickSuppression();
     this.#touchHold.clear();
     this.#container.removeEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
     this.#container.removeEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
@@ -3005,6 +3012,7 @@ export class DeckWorldSurface implements WorldSurface {
     // would re-enable geometry transitions for that frame and recreate the
     // label-leading/node-lagging effect at pointer-up.
     const released = sink.release(pointerId);
+    if (released) this.#armDragClickSuppression();
     this.#activeDragPointerId = null;
     this.#clearDragFlash({ render: false });
     this.#setActiveDragInstance(null);
@@ -3024,6 +3032,27 @@ export class DeckWorldSurface implements WorldSurface {
     if (this.#dragFlashTimer === null) return;
     globalThis.clearTimeout(this.#dragFlashTimer);
     this.#dragFlashTimer = null;
+  }
+
+  #armDragClickSuppression(): void {
+    if (this.#dragClickSuppressionTimer !== null) {
+      globalThis.clearTimeout(this.#dragClickSuppressionTimer);
+    }
+    this.#suppressNextDeckClick = true;
+    // Mirrors d3-drag's noclick behavior: consume only the click dispatched
+    // immediately after pointer-up, then restore ordinary click selection.
+    this.#dragClickSuppressionTimer = globalThis.setTimeout(() => {
+      this.#dragClickSuppressionTimer = null;
+      this.#suppressNextDeckClick = false;
+    }, 0);
+  }
+
+  #clearDragClickSuppression(): void {
+    if (this.#dragClickSuppressionTimer !== null) {
+      globalThis.clearTimeout(this.#dragClickSuppressionTimer);
+      this.#dragClickSuppressionTimer = null;
+    }
+    this.#suppressNextDeckClick = false;
   }
 
   #clearDragFlash({ render = true }: { readonly render?: boolean } = {}): void {
