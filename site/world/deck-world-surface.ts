@@ -295,7 +295,7 @@ export type DeckWorldEntityRenderDatum = DeckWorldEntityDatum | DeckWorldCluster
  * Below this globe zoom level, nearby entities remain grouped into clusters.
  * Release them only once a 6-degree cluster cell occupies roughly 192px on
  * screen (zoom ~= 4.5 at the equator). The extra overview tier prevents a
- * freshly declustered field of 28-34px nodes, labels, and relationships from
+ * freshly declustered field of 30-34px nodes, labels, and relationships from
  * becoming dense before the camera has enough room to resolve them.
  */
 export const CLUSTER_ZOOM_THRESHOLD = 4.5;
@@ -2395,7 +2395,10 @@ export class DeckWorldSurface implements WorldSurface {
     return undefined;
   }
 
-  #edgeRenderColor(datum: DeckWorldRelationshipDatum, expansion: number): [number, number, number, number] {
+  #edgeRenderColor(
+    datum: DeckWorldRelationshipDatum,
+    expansion: number,
+  ): [number, number, number, number] {
     const hovered =
       this.#hoverSelection?.kind === "relationship" &&
       this.#hoverSelection.id === datum.relationshipId;
