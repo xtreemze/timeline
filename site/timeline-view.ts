@@ -6,8 +6,6 @@
  * alive across pan/zoom so rendering does not become a destructive per-frame rebuild.
  */
 
-import { html, LitElement, noChange } from "lit";
-
 import {
   geometryMeasurementKey,
   planCommittedTemporalLayout,
@@ -36,6 +34,7 @@ import {
   visibleIntervalAnchor,
 } from "../src/projection/temporal-scene.ts";
 import { TimelineClustering as clustering } from "./timeline-clustering.ts";
+import { LuumEventCardElement } from "./components/timeline-event-card.ts";
 import { TimelineMotion as motion } from "./timeline-motion.ts";
 
 const scale = globalThis.TimelineScale;
@@ -163,117 +162,6 @@ interface LastTouchTap {
   y: number;
 }
 
-/**
- * Semantic event-card renderer.
- *
- * Lit owns the card's content subtree, but never its geometry. The retained
- * timeline controller positions the host element directly so drag/zoom frames
- * do not enqueue reactive updates for every visible occurrence.
- */
-export class LuumEventCardElement extends LitElement {
-  item: TimelineItem | null = null;
-
-  override createRenderRoot(): HTMLElement {
-    return this;
-  }
-
-  setSemanticItem(item: TimelineItem): void {
-    if (this.item === item) return;
-    this.item = item;
-    this.requestUpdate();
-    this.performUpdate();
-  }
-
-  setSelected(selected: boolean): void {
-    this.classList.toggle("is-selected", selected);
-  }
-
-  get terminal(): HTMLButtonElement | null {
-    return this.querySelector<HTMLButtonElement>(".timeline-event-terminal");
-  }
-
-  override render() {
-    const item = this.item;
-    if (!item) return noChange;
-
-    const primaryTag = item.tags?.[0];
-    const iconName =
-      typeof primaryTag === "object" && primaryTag?.icon ? primaryTag.icon : "milestone";
-    const media = item.media?.[0];
-    const detail =
-      Number.isFinite(item.end) && item.endLabel
-        ? `${item.startLabel || ""} → ${item.endLabel}`
-        : item.startLabel || "";
-    const ariaLabel = [item.title || item.id, detail].filter(Boolean).join(", ");
-
-    return html`
-      <span class="timeline-event-connector" aria-hidden="true"></span>
-      <span class="timeline-event-connector-turn" aria-hidden="true"></span>
-      <button
-        type="button"
-        class="timeline-event-terminal"
-        data-id=${item.id}
-        aria-label=${ariaLabel}
-      >
-        <span
-          class=${media?.src ? "timeline-event-art" : "timeline-event-dot"}
-          aria-hidden="true"
-          data-timeline-visual
-        >
-          ${media?.src
-            ? html`
-                <img
-                  class="timeline-event-art-image"
-                  src=${media.src}
-                  alt=""
-                  decoding="async"
-                  loading="lazy"
-                />
-                <span
-                  class="timeline-event-icon-badge"
-                  data-timeline-icon=${iconName}
-                ></span>
-              `
-            : html`<span data-timeline-icon=${iconName}>•</span>`}
-        </span>
-        <span class="timeline-event-copy">
-          <strong>${item.title || item.id}</strong>
-          <span>${detail}</span>
-        </span>
-      </button>
-    `;
-  }
-
-  override updated(): void {
-    const item = this.item;
-    if (!item) return;
-
-    this.style.setProperty("--event-color", item.color || "var(--accent)");
-    this.dataset.terminalShape = item.terminalShape || "rounded";
-    this.dataset.connectorStyle = item.connectorStyle || "solid";
-    this.dataset.connectorRouting = item.connectorRouting || "straight";
-    this.dataset.connectorEndpoint = item.connectorEndpoint || "none";
-    this.dataset.connectorWeight = item.connectorWeight || "normal";
-
-    for (const slot of this.querySelectorAll<HTMLElement>("[data-timeline-icon]")) {
-      const iconName = slot.dataset.timelineIcon || "milestone";
-      const icon =
-        presentation && typeof presentation.createIcon === "function"
-          ? presentation.createIcon(iconName, {
-              size: slot.classList.contains("timeline-event-icon-badge") ? 18 : 24,
-            })
-          : null;
-      if (icon) slot.replaceChildren(icon);
-    }
-  }
-}
-
-if (
-  typeof customElements !== "undefined" &&
-  !customElements.get("luum-event-card")
-) {
-  customElements.define("luum-event-card", LuumEventCardElement);
-}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -402,7 +290,7 @@ function formatElapsedDuration(durationMs: number): string {
   return parts.length ? parts.join(" ") : "0 seconds";
 }
 
-class TimelineViewController {
+export class TimelineViewController {
   root: HTMLElement;
   surface: HTMLElement;
   focusView: HTMLElement;
@@ -3031,62 +2919,13 @@ class TimelineViewController {
   }
 }
 
-/**
- * Lit owns the timeline component lifecycle and stable light-DOM boundary.
- *
- * The retained scene intentionally stays imperative: pointer/wheel/pinch frames update
- * keyed DOM records directly instead of asking Lit to diff the occurrence collection.
- * This keeps reactive component work out of the high-frequency interaction path while
- * still giving the timeline one explicit custom-element owner.
- */
-export class LuumTimelineElement extends LitElement {
-  private timelineController: TimelineViewController | null = null;
-
-  override createRenderRoot(): HTMLElement {
-    // Existing application markup and CSS remain authoritative during migration.
-    // Returning the host preserves light DOM and avoids a shadow-boundary rewrite.
-    return this;
-  }
-
-  override render() {
-    // The controller owns the retained scene. Lit must never reconcile its keyed
-    // occurrence DOM or replace the application-provided timeline structure.
-    return noChange;
-  }
-
-  ensureController(): TimelineViewController {
-    if (!this.timelineController) {
-      this.timelineController = new TimelineViewController(this);
-    }
-    return this.timelineController;
-  }
-
-  get controller(): TimelineViewController | null {
-    return this.timelineController;
-  }
-
-  override connectedCallback(): void {
-    super.connectedCallback();
-    // Parser-created custom elements may connect before all light-DOM children exist.
-    // Deferring initialization also lets the legacy factory initialize synchronously
-    // when app orchestration runs after document parsing.
-    queueMicrotask(() => {
-      if (this.isConnected) this.ensureController();
-    });
-  }
-}
-
-if (
-  typeof customElements !== "undefined" &&
-  !customElements.get("luum-timeline")
-) {
-  customElements.define("luum-timeline", LuumTimelineElement);
-}
-
 export const TimelineView = Object.freeze({
   create(root: HTMLElement): TimelineViewController | null {
     if (!(root instanceof HTMLElement)) return null;
-    if (root instanceof LuumTimelineElement) return root.ensureController();
+    const ensureController = Reflect.get(root, "ensureTimelineController");
+    if (typeof ensureController === "function") {
+      return ensureController.call(root) as TimelineViewController;
+    }
     return new TimelineViewController(root);
   },
   geometry: Object.freeze({
