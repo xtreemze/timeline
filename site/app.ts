@@ -5,14 +5,8 @@
 
 import { planWorkspacePlacement } from "../src/layout/workspace-layout.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
-import {
-  createAuthoringContext,
-  type AuthoringCreateKind,
-} from "./authoring-context.ts";
-import {
-  LuumAuthoringMenuElement,
-  type AuthoringMenuAction,
-} from "./components/authoring-menu.ts";
+import { createAuthoringContext, type AuthoringCreateKind } from "./authoring-context.ts";
+import { LuumAuthoringMenuElement, type AuthoringMenuAction } from "./components/authoring-menu.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
@@ -3727,11 +3721,7 @@ function handleAuthoringAction(action: AuthoringMenuAction): void {
     return;
   }
   const kind: AuthoringCreateKind =
-    action === "add-place"
-      ? "place"
-      : action === "add-node"
-        ? "node"
-        : "relationship";
+    action === "add-place" ? "place" : action === "add-node" ? "node" : "relationship";
   beginContextualGraphCreate(kind);
 }
 
@@ -5431,9 +5421,7 @@ els.graphViewRoot.addEventListener("worldcontextrequest", (event) => {
   if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return;
   const rawPosition = request.detail?.position;
   const position =
-    rawPosition &&
-    Number.isFinite(rawPosition.longitude) &&
-    Number.isFinite(rawPosition.latitude)
+    rawPosition && Number.isFinite(rawPosition.longitude) && Number.isFinite(rawPosition.latitude)
       ? {
           longitude: Number(rawPosition.longitude),
           latitude: Number(rawPosition.latitude),
