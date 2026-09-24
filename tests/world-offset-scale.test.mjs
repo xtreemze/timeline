@@ -55,3 +55,17 @@ test("typical offset is the 90th percentile distance from the anchor", () => {
   assert.equal(typicalLocalOffsetMeters(offsets), 1000);
   assert.equal(typicalLocalOffsetMeters([]), 0);
 });
+
+test("floating render positions invert back to the stored altitude and offset", () => {
+  const floating = { ...instance, visualAltitude: 400 };
+  for (const [scale, float] of [
+    [1, 0],
+    [8, 5_000],
+  ]) {
+    const position = resolveWorldRenderPosition(floating, scale, float);
+    assert.ok(position[2] >= float, "entities float above the terrain");
+    const local = resolveWorldLocalLayoutPosition(floating, position, scale, float);
+    assert.ok(Math.abs(local.visualAltitudeMeters - 400) < 1e-6, `altitude at ${scale}/${float}`);
+    assert.ok(Math.abs(local.eastMeters - 300) < 1e-6);
+  }
+});

@@ -71,6 +71,7 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
   #lastFrameAt = 0;
   #runStartedAt: number | null = null;
   #runTicks = 0;
+  #wasDragging = false;
   #destroyed = false;
 
   constructor(
@@ -160,6 +161,10 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
       state.simulationRunning || !state.simulationSettled || state.dragging || state.settlingDrag;
     if (!wantsFrames) return;
 
+    // Dropping a node starts a fresh run so its neighbours keep relaxing
+    // around the new position, however long the drag itself took.
+    if (this.#wasDragging && !state.dragging) this.#restartBudget();
+    this.#wasDragging = state.dragging;
     this.#runStartedAt ??= timestamp;
     this.#runTicks += 1;
     const budgetSpent =

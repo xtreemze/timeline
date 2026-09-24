@@ -29,6 +29,7 @@ import {
   selectPrioritizedLabels,
   typicalLocalOffsetMeters,
   WORLD_CLUSTER_MERGE_PX,
+  WORLD_ENTITY_FLOAT_PX,
   WORLD_LOCAL_GRAPH_MAX_PLACE_SHARE,
   WORLD_PLACE_CLUSTER_RADIUS_PX,
   WORLD_PLACE_LABEL_FLOOR,
@@ -79,6 +80,7 @@ export const DECK_WORLD_LAYER_IDS = Object.freeze({
   labels: "lum-world-labels",
   entityIcons: "lum-world-entity-icons",
   earth: "lum-world-earth",
+  tethers: "lum-world-tethers",
   graticule: "lum-world-graticule",
   coastlines: "lum-world-coastlines",
   borders: "lum-world-borders",
@@ -169,6 +171,10 @@ interface DeckWorldRelationshipDatum {
   readonly selected: boolean;
   readonly temporalWeight: number;
   readonly style?: WorldPresentationStyle;
+}
+
+interface DeckWorldTether {
+  readonly path: readonly [WorldRenderPosition, WorldRenderPosition];
 }
 
 interface DeckWorldPlaceDatum {
@@ -493,6 +499,7 @@ interface WorldThemeColors {
   readonly cluster: Rgba;
   readonly clusterBorder: Rgba;
   readonly hit: Rgba;
+  readonly tether: Rgba;
   readonly labelText: Rgba;
   readonly labelPlace: Rgba;
   readonly labelRelationship: Rgba;
@@ -511,6 +518,7 @@ function worldThemeColors(palette: WorldGraphPalette): WorldThemeColors {
     cluster: worldColorBytes(palette.story, 235),
     clusterBorder: worldColorBytes(palette.paper),
     hit: [0, 0, 0, 0] as Rgba,
+    tether: worldColorBytes(palette.muted, 90),
     labelText: worldColorBytes(palette.ink),
     labelPlace: worldColorBytes(palette.muted),
     labelRelationship: worldColorBytes(palette.muted),
@@ -683,8 +691,9 @@ function focusZoom(current: number): number {
 function anchorPosition(
   instance: ProjectedWorldInstance,
   offsetScale = 1,
+  floatMeters = 0,
 ): WorldRenderPosition | null {
-  return resolveWorldRenderPosition(instance, offsetScale);
+  return resolveWorldRenderPosition(instance, offsetScale, floatMeters);
 }
 
 function positionEquals(left: WorldRenderPosition, right: WorldRenderPosition): boolean {
@@ -795,6 +804,7 @@ function entityDatums(
   selection: WorldSelection | null,
   previous: ReadonlyMap<WorldInstanceId, DeckWorldEntityDatum>,
   offsetScale = 1,
+  floatMeters = 0,
 ): {
   readonly datums: readonly DeckWorldEntityDatum[];
   readonly byId: Map<WorldInstanceId, DeckWorldEntityDatum>;
@@ -803,7 +813,7 @@ function entityDatums(
   const result: DeckWorldEntityDatum[] = [];
 
   for (const instance of instances) {
-    const position = anchorPosition(instance, offsetScale);
+    const position = anchorPosition(instance, offsetScale, floatMeters);
     if (!position) continue;
     const selected = selection?.kind === "entity" && selection.id === instance.canonicalId;
     const prior = previous.get(instance.id);
@@ -1318,6 +1328,7 @@ export class DeckWorldSurface implements WorldSurface {
   #autoFitted = false;
   #autoFitMode: "globe" | "content" = "globe";
   #offsetScale = 1;
+  #floatMeters = 0;
   #spatialMode: WorldSpatialMode = "globe";
   #nodeDragSink: DeckWorldNodeDragSink | null = null;
   #activeDragPointerId: number | null = null;
@@ -1369,7 +1380,10 @@ export class DeckWorldSurface implements WorldSurface {
       return;
     }
 
-    const hit = this.pick(touch.point);
+    // Object-only pick: the long-press gate needs no 3D unprojection, and
+    // skipping its extra depth pass keeps touch-down fast so a quick swipe's
+    // move events are not delayed past the hold threshold.
+    const hit = this.pick(touch.point, { depth: false });
     if (hit?.kind !== "entity") return;
     this.#setTouchDragState("holding");
     this.#touchHoldTimer = globalThis.setTimeout(() => {
@@ -1489,6 +1503,7 @@ export class DeckWorldSurface implements WorldSurface {
       controller: deckControllerOptions(),
       initialViewState: this.#camera,
       layers: [],
+      onAfterRender: () => this.#afterRender(),
       onResize: () => {
         if (!this.#autoFitted || this.#destroyed) return;
         this.#reframe(this.#autoFitMode);
@@ -1809,7 +1824,11 @@ export class DeckWorldSurface implements WorldSurface {
     // offsets are magnified per zoom.
     const scale = this.#nextOffsetScale(focusZoom(this.#camera.zoom));
     const instance = this.#projection.instances.find((candidate) => candidate.canonicalId === id);
-    this.#focusPosition(instance ? anchorPosition(instance, scale) : null);
+    this.#focusPosition(
+      instance
+        ? anchorPosition(instance, scale, this.#nextFloatMeters(focusZoom(this.#camera.zoom)))
+        : null,
+    );
   }
 
   focusOccurrence(id: RelationshipId): void {
@@ -1904,14 +1923,15 @@ export class DeckWorldSurface implements WorldSurface {
     }
   }
 
-  pick(point: ScreenPoint): WorldHit | null {
+  pick(point: ScreenPoint, options: { readonly depth?: boolean } = {}): WorldHit | null {
     this.#assertAlive();
-    return worldHitFromPicking(
-      this.#deck.pickObject({
+    let picked: DeckRuntimePickingInfo | null;
+    try {
+      picked = this.#deck.pickObject({
         x: point.x,
         y: point.y,
         radius: 22,
-        unproject3D: true,
+        unproject3D: options.depth !== false,
         layerIds: [
           DECK_WORLD_LAYER_IDS.entityIcons,
           DECK_WORLD_LAYER_IDS.entities,
@@ -1919,8 +1939,13 @@ export class DeckWorldSurface implements WorldSurface {
           DECK_WORLD_LAYER_IDS.relationships,
           DECK_WORLD_LAYER_IDS.places,
         ],
-      }),
-    );
+      });
+    } catch {
+      // Backends without synchronous picking (deck.gl 9.4 WebGPU) throw;
+      // treat as "nothing under the pointer" instead of breaking input.
+      picked = null;
+    }
+    return worldHitFromPicking(picked);
   }
 
   /**
@@ -1962,6 +1987,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#selection,
       this.#entityDatumCache,
       this.#offsetScale,
+      this.#floatMeters,
     ).datums.map((datum) =>
       Object.freeze({
         entityId: datum.entityId,
@@ -2038,7 +2064,13 @@ export class DeckWorldSurface implements WorldSurface {
     const point = screenPointFromPicking(info);
     if (!instance || !point) return null;
 
-    const position = resolveWorldNodeDragPosition(this, instance, point, this.#offsetScale);
+    const position = resolveWorldNodeDragPosition(
+      this,
+      instance,
+      point,
+      this.#offsetScale,
+      this.#floatMeters,
+    );
     return position
       ? Object.freeze({
           instanceId: instance.id,
@@ -2054,15 +2086,14 @@ export class DeckWorldSurface implements WorldSurface {
     if (!sink || pointerId === null || !target) return false;
     // Touch drags only claim the node after the long-press gate armed;
     // otherwise deck's controller keeps the gesture as a globe pan.
-    if (
-      pointerTypeFromRuntimeEvent(event) === "touch" &&
-      !this.#touchHold.isArmed(pointerId, Date.now())
-    ) {
+    const touch = pointerTypeFromRuntimeEvent(event) === "touch";
+    if (touch && !this.#touchHold.isArmed(pointerId, Date.now())) {
       return false;
     }
 
     const claimed = sink.begin(pointerId, target.instanceId, target.position);
     if (claimed) {
+      if (touch) this.#touchHold.commit(pointerId);
       this.#activeDragPointerId = pointerId;
       // deck.gl ignores the layer handler's return value; only a handled
       // event stops its controller from turning the same gesture into a pan.
@@ -2145,7 +2176,8 @@ export class DeckWorldSurface implements WorldSurface {
     return (
       clusteredNow !== this.#clusteredLastRender ||
       lodChanged ||
-      this.#nextOffsetScale() !== this.#offsetScale
+      this.#nextOffsetScale() !== this.#offsetScale ||
+      this.#nextFloatMeters() !== this.#floatMeters
     );
   }
 
@@ -2191,6 +2223,20 @@ export class DeckWorldSurface implements WorldSurface {
     return radius < WORLD_PLACE_CLUSTER_RADIUS_PX;
   }
 
+  /**
+   * Entities float a constant on-screen height above the terrain (places
+   * stay on it). Quantised to quarter zoom steps like the offset scale so
+   * positions only rebuild on real zoom changes; 0 while entities cluster
+   * or in scenes without local layout (bare anchors).
+   */
+  #nextFloatMeters(zoom = this.#camera.zoom): number {
+    const instances = this.#projection.instances;
+    if (instances.length === 0 || shouldClusterEntityDatums(instances.length, zoom)) return 0;
+    if (this.#typicalOffsetMeters() <= 0) return 0;
+    const quantised = Math.round(zoom * 4) / 4;
+    return Math.round(worldLocalRadiusPx(1, quantised, 0) ** -1 * WORLD_ENTITY_FLOAT_PX);
+  }
+
   #nearestPlaceCache: { readonly projection: WorldProjection; readonly meters: number } | null =
     null;
 
@@ -2230,6 +2276,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#selection,
       this.#entityDatumCache,
       this.#offsetScale,
+      this.#floatMeters,
     ).datums;
     const relationships = relationshipDatums(
       this.#projection,
@@ -2262,7 +2309,7 @@ export class DeckWorldSurface implements WorldSurface {
     const positions = new Map<WorldInstanceId, WorldRenderPosition>();
     const entityIds = new Map<WorldInstanceId, EntityId>();
     for (const instance of this.#projection.instances) {
-      const position = anchorPosition(instance, this.#offsetScale);
+      const position = anchorPosition(instance, this.#offsetScale, this.#floatMeters);
       if (!position) continue;
       positions.set(instance.id, position);
       entityIds.set(instance.id, instance.canonicalId);
@@ -2279,6 +2326,7 @@ export class DeckWorldSurface implements WorldSurface {
 
   #render(withCamera = false): void {
     this.#offsetScale = this.#nextOffsetScale();
+    this.#floatMeters = this.#nextFloatMeters();
     const index = this.#instanceIndex();
     const placeResult = placeDatums(
       this.#projection.instances,
@@ -2296,6 +2344,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#selection,
       this.#entityDatumCache,
       this.#offsetScale,
+      this.#floatMeters,
     );
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
@@ -2361,6 +2410,7 @@ export class DeckWorldSurface implements WorldSurface {
       : null;
     this.#labelDatumCache = labelResult?.byKey ?? new Map();
 
+    const tethers = this.#tethers(this.#clusteredLastRender ? [] : entityResult.datums);
     const layers = [
       // Earth base: orientation on light and dark hosts, and depth-occludes
       // the far side of the globe. Never pickable.
@@ -2485,6 +2535,25 @@ export class DeckWorldSurface implements WorldSurface {
             }
           : {}),
       }),
+      // Tethers: each floating entity hangs from its place on the terrain,
+      // making the altitude readable. Presentation only, never pickable, and
+      // only created when something floats (an extra layer still costs a
+      // picking pass).
+      ...(tethers.length > 0
+        ? [
+            this.#runtime.createPathLayer({
+              id: DECK_WORLD_LAYER_IDS.tethers,
+              data: tethers,
+              pickable: false,
+              widthUnits: "pixels",
+              getPath: (tether: DeckWorldTether) => tether.path,
+              getWidth: 1,
+              getColor: this.#theme.tether,
+              updateTriggers: { getColor: this.#palette },
+              parameters: { cullMode: "none" },
+            }),
+          ]
+        : []),
       ...(iconDatums && this.#runtime.createIconLayer
         ? [
             this.#runtime.createIconLayer({
@@ -2573,8 +2642,33 @@ export class DeckWorldSurface implements WorldSurface {
     ];
 
     this.#deck.setProps(withCamera ? { layers, viewState: this.#camera } : { layers });
+    this.#warmUpPicking();
     this.#updateLiveRegion();
   }
+
+  #pickingWarm = false;
+  #pickingWarmScheduled = false;
+
+  /**
+   * deck.gl compiles picking shaders lazily on the first pick, which can
+   * take hundreds of milliseconds on software GPUs and would land on the
+   * user's first tap (delaying a swipe's events until it reads as a long
+   * press). Do one throwaway pick while the browser is idle instead.
+   */
+  #warmUpPicking(): void {
+    if (this.#pickingWarm || this.#pickingWarmScheduled) return;
+    this.#pickingWarmScheduled = true;
+  }
+
+  /** Runs after deck's first frame with layers (see `onAfterRender`). */
+  #afterRender = (): void => {
+    if (this.#pickingWarm || !this.#pickingWarmScheduled || this.#destroyed) return;
+    this.#pickingWarm = true;
+    // Next task, so the throwaway pick never lengthens the frame itself.
+    globalThis.setTimeout(() => {
+      if (!this.#destroyed) this.pick({ x: 1, y: 1 });
+    }, 0);
+  };
 
   #updateLiveRegion(): void {
     if (!this.#liveRegion) return;
@@ -2650,6 +2744,38 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #visibleEntityCache: readonly DeckWorldEntityDatum[] = [];
+  #tetherCache = new WeakMap<DeckWorldEntityDatum, DeckWorldTether>();
+
+  /** Place-to-entity tethers, reused per (memoized) entity datum. */
+  #tethers(entities: readonly DeckWorldEntityDatum[]): readonly DeckWorldTether[] {
+    if (entities.length === 0 || this.#floatMeters <= 0) return [];
+    const anchors = new Map<WorldInstanceId, WorldRenderPosition>();
+    for (const instance of this.#projection.instances) {
+      const anchor = instance.geographicAnchors[0];
+      if (anchor) {
+        anchors.set(instance.id, [anchor.longitude, anchor.latitude, anchor.sourceAltitude ?? 0]);
+      }
+    }
+    const result: DeckWorldTether[] = [];
+    for (const entity of entities) {
+      const cached = this.#tetherCache.get(entity);
+      if (cached) {
+        result.push(cached);
+        continue;
+      }
+      const anchor = anchors.get(entity.worldInstanceId);
+      if (!anchor) continue;
+      const tether: DeckWorldTether = Object.freeze({
+        path: Object.freeze([anchor, entity.position]) as readonly [
+          WorldRenderPosition,
+          WorldRenderPosition,
+        ],
+      });
+      this.#tetherCache.set(entity, tether);
+      result.push(tether);
+    }
+    return result;
+  }
 
   /** Near-side entities only (markers skip depth testing), reusing the array. */
   #cameraFacingEntities(datums: readonly DeckWorldEntityDatum[]): readonly DeckWorldEntityDatum[] {

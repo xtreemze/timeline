@@ -11,8 +11,9 @@ export function resolveWorldNodeDragPosition(
   instance: ProjectedWorldInstance,
   point: ScreenPoint,
   offsetScale = 1,
+  floatMeters = 0,
 ): WorldNodeDragPosition | null {
-  const currentPosition = resolveWorldRenderPosition(instance, offsetScale);
+  const currentPosition = resolveWorldRenderPosition(instance, offsetScale, floatMeters);
   if (!currentPosition) return null;
 
   const worldPosition = surface.unproject(point, currentPosition[2]);
@@ -22,5 +23,6 @@ export function resolveWorldNodeDragPosition(
     instance,
     [worldPosition.longitude, worldPosition.latitude, worldPosition.altitudeMeters],
     offsetScale,
+    floatMeters,
   );
 }
