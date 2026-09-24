@@ -156,7 +156,6 @@ export function createWorldForceScene(
   });
 }
 
-
 /**
  * graph-layers D3ForceLayout currently accepts one scalar collision radius
  * per layout. Use the largest exact rendered footprint in the component so
