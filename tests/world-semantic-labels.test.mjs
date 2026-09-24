@@ -594,6 +594,56 @@ test("each rendered directed relationship has a visible marker preserving source
   assert.notDeepEqual(wingA, wingB);
 });
 
+test("direction marker clears the target marker footprint", () => {
+  const clearanceFor = (targetStyle) => {
+    const h = harness();
+    const source = instance(0, { visualWeight: 1 });
+    const target = instance(1, { style: targetStyle });
+    const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 8 });
+    surface.setProjection(
+      createWorldProjection({
+        instances: [source, target],
+        edges: [
+          createProjectedWorldEdge({
+            id: "clearance",
+            label: "met",
+            sourceInstanceId: source.id,
+            targetInstanceId: target.id,
+            temporalWeight: 1,
+            visible: true,
+            retained: false,
+          }),
+        ],
+      }),
+    );
+    const directions = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections);
+    const marker = directions.props.data[0];
+    const [wingA, apex, wingB] = directions.props.getPath(marker);
+    const relationship = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationships);
+    const edge = relationship.props.data[0];
+    const targetPosition = relationship.props.getPath(edge).at(-1);
+    const distanceToTarget = Math.hypot(
+      apex[0] - targetPosition[0],
+      apex[1] - targetPosition[1],
+    );
+    return {
+      targetClearanceDegrees: marker.targetClearanceDegrees,
+      distanceToTarget,
+      wingA,
+      wingB,
+    };
+  };
+
+  const ordinary = clearanceFor(undefined);
+  const large = clearanceFor({ radius: 32 });
+  assert.ok(large.targetClearanceDegrees > ordinary.targetClearanceDegrees);
+  assert.ok(
+    large.distanceToTarget > ordinary.distanceToTarget,
+    "larger target nodes push the arrow apex farther from the node center",
+  );
+  assert.notDeepEqual(large.wingA, large.wingB);
+});
+
 test("interactive zoom refreshes world-space arrow geometry before LOD thresholds", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 7 });
@@ -661,6 +711,7 @@ test("direction marker stroke scales with visible endpoint markers", () => {
   const ordinary = widthFor(undefined);
   const large = widthFor({ radius: 32 });
   assert.ok(large > ordinary, "large nodes receive a proportionally heavier direction chevron");
+  assert.ok(large <= 5, "arrow stroke remains visually coupled to the default 2.5px edge");
 });
 
 test("picking a direction marker resolves to its canonical relationship", () => {

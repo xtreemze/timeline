@@ -38,6 +38,7 @@ import {
   WORLD_PLACE_LABEL_FLOOR,
   worldArrowLengthDegreesForNodeRadius,
   worldArrowStrokeWidthPxForNodeRadius,
+  worldNodeClearanceDegreesForRadius,
   worldLabelBudget,
   worldLabelTierFloor,
   worldLocalRadiusPx,
@@ -233,6 +234,7 @@ interface DeckWorldDirectionDatum {
   readonly targetEntityId: EntityId;
   readonly edge: DeckWorldRelationshipDatum;
   readonly arrowLengthDegrees: number;
+  readonly targetClearanceDegrees: number;
   readonly path: readonly [WorldRenderPosition, WorldRenderPosition, WorldRenderPosition];
   readonly selected: boolean;
 }
@@ -303,7 +305,7 @@ export const CLUSTER_ZOOM_THRESHOLD = 4.5;
 const WORLD_CLUSTER_BASE_NODE_RADIUS_PX = 28;
 /** Arrow geometry is world-space, so refresh it on fine-grained zoom steps. */
 const WORLD_SCREEN_SCALE_ZOOM_STEPS_PER_LEVEL = 32;
-const WORLD_CAMERA_FACING_STEP_DEGREES = 2;
+const WORLD_CAMERA_FACING_STEP_DEGREES = 0.25;
 
 function screenScaleZoomStep(zoom: number): number {
   return Math.round(zoom * WORLD_SCREEN_SCALE_ZOOM_STEPS_PER_LEVEL);
@@ -354,9 +356,8 @@ function liftedPositionByPixels(
   zoom: number,
   liftPx: number,
 ): WorldRenderPosition {
-  const quantisedZoom = Math.round(zoom * 4) / 4;
-  const metersPerPixel = worldLocalRadiusPx(1, quantisedZoom, position[1]) ** -1;
-  const liftMeters = Math.max(1, Math.round(metersPerPixel * liftPx));
+  const metersPerPixel = worldLocalRadiusPx(1, zoom, position[1]) ** -1;
+  const liftMeters = Math.max(1, metersPerPixel * liftPx);
   return Object.freeze([position[0], position[1], position[2] + liftMeters]) as WorldRenderPosition;
 }
 
@@ -1334,6 +1335,7 @@ function directionDatums(
   focus: WorldLabelFocus | null,
   previous: ReadonlyMap<RelationshipId, DeckWorldDirectionDatum>,
   arrowLengthDegreesForEdge: (edge: DeckWorldRelationshipDatum) => number,
+  targetClearanceDegreesForEdge: (edge: DeckWorldRelationshipDatum) => number,
 ): {
   readonly datums: readonly DeckWorldDirectionDatum[];
   readonly byId: Map<RelationshipId, DeckWorldDirectionDatum>;
@@ -1349,13 +1351,23 @@ function directionDatums(
 
   for (const edge of marked) {
     const arrowLengthDegrees = arrowLengthDegreesForEdge(edge);
+    const targetClearanceDegrees = targetClearanceDegreesForEdge(edge);
     const prior = previous.get(edge.relationshipId);
-    if (prior && prior.edge === edge && prior.arrowLengthDegrees === arrowLengthDegrees) {
+    if (
+      prior &&
+      prior.edge === edge &&
+      prior.arrowLengthDegrees === arrowLengthDegrees &&
+      prior.targetClearanceDegrees === targetClearanceDegrees
+    ) {
       byId.set(edge.relationshipId, prior);
       result.push(prior);
       continue;
     }
-    const path = directedEdgePathArrowhead(edge.path, arrowLengthDegrees);
+    const path = directedEdgePathArrowhead(
+      edge.path,
+      arrowLengthDegrees,
+      targetClearanceDegrees,
+    );
     if (!path) continue;
     const datum: DeckWorldDirectionDatum = Object.freeze({
       kind: "relationship-direction",
@@ -1366,6 +1378,7 @@ function directionDatums(
       targetEntityId: edge.targetEntityId,
       edge,
       arrowLengthDegrees,
+      targetClearanceDegrees,
       path,
       selected: edge.selected,
     });
@@ -3052,7 +3065,7 @@ export class DeckWorldSurface implements WorldSurface {
     const nearest = this.#nearestPlaceMeters();
     if (nearest <= 0 || typical <= 0) return scale;
     const cap = Math.max(1, (WORLD_LOCAL_GRAPH_MAX_PLACE_SHARE * nearest) / typical);
-    return Math.min(scale, 2 ** (Math.floor(Math.log2(cap) * 4) / 4));
+    return Math.min(scale, cap);
   }
 
   /**
@@ -3097,9 +3110,9 @@ export class DeckWorldSurface implements WorldSurface {
 
   /**
    * Entities float a constant on-screen height above the terrain (places
-   * stay on it). Quantised to quarter zoom steps like the offset scale so
-   * positions only rebuild on real zoom changes; 0 while entities cluster
-   * or in scenes without local layout (bare anchors).
+   * stay on it). Screen-space conversion is continuous; render throttling
+   * controls update frequency without introducing quarter-zoom position jumps.
+   * Returns 0 while entities cluster or in scenes without local layout.
    */
   #nextFloatMeters(zoom = this.#camera.zoom): number {
     const instances = this.#projection.instances;
@@ -3109,8 +3122,10 @@ export class DeckWorldSurface implements WorldSurface {
     )
       return 0;
     if (this.#typicalOffsetMeters() <= 0) return 0;
-    const quantised = Math.round(zoom * 4) / 4;
-    return Math.round(worldLocalRadiusPx(1, quantised, 0) ** -1 * WORLD_ENTITY_FLOAT_PX);
+    return (
+      worldLocalRadiusPx(1, zoom, this.#camera.latitude) ** -1 *
+      WORLD_ENTITY_FLOAT_PX
+    );
   }
 
   #nearestPlaceCache: { readonly projection: WorldProjection; readonly meters: number } | null =
@@ -3405,6 +3420,16 @@ export class DeckWorldSurface implements WorldSurface {
         const latitude = source && target ? (source[1] + target[1]) / 2 : this.#camera.latitude;
         return worldArrowLengthDegreesForNodeRadius(nodeRadiusPx, this.#camera.zoom, latitude);
       },
+      (edge) => {
+        const targetRadiusPx = visibleEntityRadiusPx(edge.targetInstanceId);
+        const target = edge.path[edge.path.length - 1];
+        const latitude = target?.[1] ?? this.#camera.latitude;
+        return worldNodeClearanceDegreesForRadius(
+          targetRadiusPx + 4,
+          this.#camera.zoom,
+          latitude,
+        );
+      },
     );
     this.#directionDatumCache = directionResult.byId;
     const focus = this.#focus;
@@ -3612,7 +3637,7 @@ export class DeckWorldSurface implements WorldSurface {
                 datum.selected ? 255 : datum.emphasized ? 242 : 215,
               ],
               updateTriggers: {
-                getPosition: [Math.round(this.#camera.zoom * 4) / 4],
+                getPosition: [screenScaleZoomStep(this.#camera.zoom)],
                 getIcon: this.#palette,
                 getSize: this.#palette,
                 getColor: this.#palette,
@@ -3683,16 +3708,27 @@ export class DeckWorldSurface implements WorldSurface {
         // Individual entities are drawn by the styled marker layer; this
         // layer is their (invisible) pick/drag target. Clusters render only
         // as an outer neutral ring so they never cover the place marker.
-        getRadius: (datum: DeckWorldEntityRenderDatum) =>
-          datum.kind === "cluster"
-            ? (WORLD_ENTITY_MIN_HIT_RADIUS_PX +
-                10 +
-                Math.min(datum.clusterMembers.length, 30) * 0.5) *
-              clusterVisibility
-            : Math.max(
-                WORLD_ENTITY_MIN_HIT_RADIUS_PX,
-                this.#entityStyle(datum).radius + this.#entityStyle(datum).borderWidth,
-              ) * entityExpansion(datum),
+        getRadius: (datum: DeckWorldEntityRenderDatum) => {
+          if (datum.kind === "cluster") {
+            const memberRadius = datum.clusterMembers.reduce(
+              (radius, member) => Math.max(radius, visibleEntityRadiusPx(member.worldInstanceId)),
+              WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+            );
+            return (
+              memberRadius +
+              10 +
+              Math.min(datum.clusterMembers.length, 30) * 0.5
+            ) * clusterVisibility;
+          }
+          const expansion = entityExpansion(datum);
+          if (expansion <= 0) return 0;
+          const visibleRadius =
+            this.#entityStyle(datum).radius + this.#entityStyle(datum).borderWidth;
+          return Math.max(
+            WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+            visibleRadius * expansion,
+          );
+        },
         stroked: true,
         lineWidthUnits: "pixels",
         getLineWidth: (datum: DeckWorldEntityRenderDatum) =>

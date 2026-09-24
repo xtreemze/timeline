@@ -1528,6 +1528,52 @@ test("default overview keeps same-place topology clustered without covering the 
   assert.ok(retainedMembers.every((datum) => layer.props.getRadius(datum) === 0));
 });
 
+test("cluster envelope grows with the largest retained member marker", () => {
+  const { calls, runtime } = harness();
+  const base = projection();
+  const instances = base.instances.map((instance, index) =>
+    createProjectedWorldInstance({
+      ...instance,
+      style: index === 0 ? { radius: 32 } : instance.style,
+    }),
+  );
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(createWorldProjection({ instances, edges: base.edges }));
+
+  const entityLayer = calls.setProps
+    .at(-1)
+    .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities);
+  const cluster = entityLayer.props.data.find((datum) => datum.kind === "cluster");
+  assert.ok(cluster);
+  assert.ok(
+    entityLayer.props.getRadius(cluster) > 42,
+    "cluster ring clears a 32px-radius authored member plus its border",
+  );
+});
+
+test("partially revealed entities retain the 44px acquisition target", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+
+  let observedPartialReveal = false;
+  for (const zoom of [4.75, 5, 5.25, 5.5, 5.75, 6, 6.25, 6.5, 6.75, 7]) {
+    surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom, bearing: 0, pitch: 0 });
+    const entityLayer = calls.setProps
+      .at(-1)
+      .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities);
+    const members = entityLayer.props.data.filter((datum) => datum.kind === "entity");
+    for (const member of members) {
+      const radius = entityLayer.props.getRadius(member);
+      if (radius > 0 && radius < 30) {
+        observedPartialReveal = true;
+        assert.ok(radius >= 22, "visible partial member keeps at least a 44px diameter hit target");
+      }
+    }
+  }
+  assert.equal(observedPartialReveal, true, "test traverses the place-cluster reveal band");
+});
+
 test("zooming out groups nearby entities without losing canonical identity", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
