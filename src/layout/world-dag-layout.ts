@@ -1,10 +1,4 @@
-import {
-  coordSimplex,
-  decrossTwoLayer,
-  graphConnect,
-  layeringLongestPath,
-  sugiyama,
-} from "d3-dag";
+import { coordSimplex, decrossTwoLayer, graphConnect, layeringLongestPath, sugiyama } from "d3-dag";
 
 import type { PlaceId } from "../domain/ids.ts";
 import type {
@@ -103,10 +97,7 @@ function localAcyclicEdges(
     );
 
   for (const edge of candidates) {
-    const pairKey = JSON.stringify([
-      String(edge.sourceInstanceId),
-      String(edge.targetInstanceId),
-    ]);
+    const pairKey = JSON.stringify([String(edge.sourceInstanceId), String(edge.targetInstanceId)]);
     if (acceptedPairs.has(pairKey)) continue;
     if (reaches(adjacency, edge.targetInstanceId, edge.sourceInstanceId)) continue;
 
@@ -166,9 +157,7 @@ function targetsForPlace(
     return cached;
   }
 
-  const indegree = new Map<WorldInstanceId, number>(
-    nodeIds.map((id) => [id, 0] as const),
-  );
+  const indegree = new Map<WorldInstanceId, number>(nodeIds.map((id) => [id, 0] as const));
   for (const edge of edges) {
     indegree.set(edge.targetId, (indegree.get(edge.targetId) ?? 0) + 1);
   }
