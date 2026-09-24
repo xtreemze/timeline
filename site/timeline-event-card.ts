@@ -59,25 +59,31 @@ function semanticIcon(name: string, size: number) {
 export class LuumEventCardElement extends LitElement {
   item: TimelineEventCardItem | null = null;
 
-  readonly connector: HTMLSpanElement;
-  readonly connectorTurn: HTMLSpanElement;
-  readonly terminal: HTMLButtonElement;
+  #connector: HTMLSpanElement | null = null;
+  #connectorTurn: HTMLSpanElement | null = null;
+  #terminal: HTMLButtonElement | null = null;
 
-  constructor() {
-    super();
+  get terminal(): HTMLButtonElement {
+    this.#ensureStructure();
+    return this.#terminal!;
+  }
+
+  #ensureStructure(): void {
+    if (this.#terminal) return;
+
     this.classList.add("timeline-event");
 
-    this.connector = document.createElement("span");
-    this.connector.className = "timeline-event-connector";
+    this.#connector = document.createElement("span");
+    this.#connector.className = "timeline-event-connector";
 
-    this.connectorTurn = document.createElement("span");
-    this.connectorTurn.className = "timeline-event-connector-turn";
+    this.#connectorTurn = document.createElement("span");
+    this.#connectorTurn.className = "timeline-event-connector-turn";
 
-    this.terminal = document.createElement("button");
-    this.terminal.type = "button";
-    this.terminal.className = "timeline-event-terminal";
+    this.#terminal = document.createElement("button");
+    this.#terminal.type = "button";
+    this.#terminal.className = "timeline-event-terminal";
 
-    this.append(this.connector, this.connectorTurn, this.terminal);
+    this.append(this.#connector, this.#connectorTurn, this.#terminal);
   }
 
   override createRenderRoot(): HTMLElement {
