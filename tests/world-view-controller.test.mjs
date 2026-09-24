@@ -116,7 +116,7 @@ function harness({ settled = false, readback = false, delta = false, gpuBridge =
       pin = value;
       calls.push(["force:pin", value]);
     },
-    applyClusterDirective(value) {
+    setClusteredPlaceIds(value) {
       calls.push(["force:cluster", value]);
     },
     apply(request) {
@@ -190,13 +190,12 @@ test("projection updates feed force scene and WorldSurface from one revision", (
   assert.deepEqual(calls[2], ["surface:projection", input]);
 });
 
-test("cluster topology commands reheat the force backend", () => {
+test("place cluster commands reheat the D3 force backend", () => {
   const { calls, controller } = harness();
-  const instanceIds = projection().instances.map((instance) => instance.id);
 
-  controller.applyClusterDirective({ mode: "collapse", instanceIds });
+  controller.setClusteredPlaceIds(["stockholm"]);
 
-  assert.deepEqual(calls[0], ["force:cluster", { mode: "collapse", instanceIds }]);
+  assert.deepEqual(calls[0], ["force:cluster", ["stockholm"]]);
   assert.equal(calls[1][0], "force:apply");
   assert.equal(calls[1][1].reason, "topology");
   assert.equal(calls[1][1].reheat, true);
