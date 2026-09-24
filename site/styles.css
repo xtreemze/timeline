@@ -2122,6 +2122,41 @@ footer > :last-child {
   width: 100%;
   height: 100%;
 }
+.world-camera-controls {
+  position: absolute;
+  inset-block-start: 0.75rem;
+  inset-inline-end: 0.75rem;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--paper);
+  box-shadow: 0 1px 3px rgb(23 23 23 / 12%);
+}
+.world-camera-control {
+  display: grid;
+  place-items: center;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 600 1.1rem / 1 inherit;
+  cursor: pointer;
+}
+.world-camera-control + .world-camera-control {
+  border-block-start: 1px solid var(--line);
+}
+.world-camera-control:is(:hover, :focus-visible) {
+  background: var(--paper-2);
+}
+.world-camera-control:focus-visible {
+  outline: 2px solid currentcolor;
+  outline-offset: -3px;
+}
 
 .temporal-graph-canvas[data-touch-drag="holding"]::after,
 .temporal-graph-canvas[data-touch-drag="active"]::after {
