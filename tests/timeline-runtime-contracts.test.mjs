@@ -45,18 +45,19 @@ test("media stepping updates only focused presentation state", async () => {
 
 
 test("retained event terminals preserve semantic media, tag icons, and connector weight", async () => {
-  const [view, css] = await Promise.all([
+  const [view, card, css] = await Promise.all([
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/timeline-event-card.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
 
-  assert.match(view, /timeline-event-art-image/);
-  assert.match(view, /timeline-event-icon-badge/);
-  assert.match(view, /primaryTag[\s\S]*iconName/);
-  assert.match(view, /class LuumEventCardElement extends LitElement/);
-  assert.match(view, /setSemanticItem\(item: TimelineItem\)/);
-  assert.match(view, /data-timeline-icon/);
-  assert.match(view, /this\.dataset\.connectorWeight/);
+  assert.match(card, /timeline-event-art-image/);
+  assert.match(card, /timeline-event-icon-badge/);
+  assert.match(card, /primaryTag[\s\S]*iconName/);
+  assert.match(card, /class LuumEventCardElement extends LitElement/);
+  assert.match(card, /setSemanticItem\(item: TimelineEventCardItem\)/);
+  assert.match(card, /data-timeline-icon/);
+  assert.match(card, /this\.dataset\.connectorWeight/);
   assert.match(view, /connectorWeight === "fine" \? 1 : item\.connectorWeight === "strong" \? 4 : 2/);
   assert.match(css, /\.timeline-event-art-image/);
   assert.match(css, /\.timeline-event-icon-badge/);
@@ -88,7 +89,8 @@ test("retained event cards use Lit for semantic content but not interaction geom
 
   assert.match(card, /customElements\.define\("luum-event-card", LuumEventCardElement\)/);
   assert.match(view, /new LuumEventCardElement\(\)/);
-  assert.match(view, /contentRevision: this\.itemContentRevision\(item\)/);
+  assert.match(view, /contentRevision: ""/);
+  assert.match(view, /this\.updateRecordContent\(record\)/);
   assert.match(
     view,
     /if \(record\.contentRevision !== revision\)[\s\S]*node\.setSemanticItem\(item\)/,
