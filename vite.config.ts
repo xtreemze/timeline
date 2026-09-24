@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 
 const runtimeFiles = [
@@ -13,6 +13,25 @@ export default defineConfig({
   // Keep production assets relative so the same build works under GitHub Pages' /timeline/ subpath.
   base: './',
   plugins: [
+    {
+      // The runtime bundles are prebuilt esbuild IIFEs loaded as classic
+      // scripts. Vite's dev transform would rewrite pdf.js' dynamic import()
+      // into module syntax and break the classic script, so serve them verbatim.
+      name: 'serve-static-runtime-bundles',
+      apply: 'serve',
+      configureServer(server) {
+        server.middlewares.use((request, response, next) => {
+          const path = (request.url ?? '').split('?')[0]?.replace(/^\//, '');
+          if (!runtimeFiles.includes(path as (typeof runtimeFiles)[number])) {
+            next();
+            return;
+          }
+          response.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+          response.setHeader('Cache-Control', 'no-cache');
+          response.end(readFileSync(new URL(`./site/${path}`, import.meta.url)));
+        });
+      },
+    },
     {
       name: 'copy-static-runtime-bundles',
       closeBundle() {

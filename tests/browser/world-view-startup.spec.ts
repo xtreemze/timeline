@@ -20,7 +20,7 @@ test.describe("production world view startup", () => {
     });
 
     await page.goto("/");
-    await page.waitForTimeout(1500);
+    await page.waitForLoadState("load");
 
     const registration = await page.evaluate(() => {
       const worldView = Reflect.get(globalThis, "TimelineWorldView") as unknown;
