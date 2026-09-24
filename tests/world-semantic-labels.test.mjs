@@ -168,6 +168,18 @@ const WORKING_CAMERA = Object.freeze({
   pitch: 20,
 });
 
+test("empty world skips the deck.gl text atlas", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
+  surface.setProjection(createWorldProjection({ instances: [], edges: [] }));
+
+  assert.equal(
+    layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels),
+    undefined,
+    "an empty visible label set must not instantiate TextLayer with a zero-sized auto atlas",
+  );
+});
+
 test("production bindings and runtime expose a real deck.gl TextLayer path", async () => {
   const bindings = await readFile(
     new URL("../site/world/deck-world-bindings.ts", import.meta.url),
