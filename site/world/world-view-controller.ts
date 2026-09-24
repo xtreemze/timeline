@@ -17,6 +17,7 @@ import {
 } from "../../src/layout/world-force-scene.ts";
 import {
   createWorldSimulationCoordinator,
+  type WorldClusterForceDirective,
   type WorldForceSimulationBackend,
 } from "../../src/layout/world-force-simulation.ts";
 import type {
@@ -130,6 +131,17 @@ export class WorldViewRuntimeController {
     }
 
     this.#surface.setProjection(projection);
+  }
+
+  applyClusterDirective(directive: WorldClusterForceDirective): void {
+    this.#assertAlive();
+    if (!this.#forceBackend.applyClusterDirective) return;
+    this.#forceBackend.applyClusterDirective(directive);
+    this.#simulation.request({
+      reason: "topology",
+      energyTarget: directive.mode === "expand" ? 0.16 : 0.1,
+      reheat: true,
+    });
   }
 
   setTemporalWindow(window: WorldTemporalWindow): void {
