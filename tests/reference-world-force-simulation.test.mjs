@@ -437,6 +437,72 @@ test("post-drop settling stays responsive after an extreme drag displacement", (
   );
 });
 
+test("post-drop settling keeps distant force groups asleep", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0.02,
+    altitudeStrength: 0,
+    damping: 0.84,
+    settleEnergy: 0,
+  });
+  const dragged = '["alice","post-drop-local"]';
+  const remoteA = '["bob","post-drop-remote-a"]';
+  const remoteB = '["bob","post-drop-remote-b"]';
+
+  simulation.setScene({
+    nodes: [
+      node(dragged),
+      node(remoteA, { initialEastMeters: -1, collisionRadiusMeters: 120 }),
+      node(remoteB, { initialEastMeters: 1, collisionRadiusMeters: 120 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(dragged, "stockholm", { influence: 1 }),
+      anchor(remoteA, "remote-place", {
+        longitude: 139.6917,
+        latitude: 35.6895,
+        influence: 0,
+      }),
+      anchor(remoteB, "remote-place", {
+        longitude: 139.6917,
+        latitude: 35.6895,
+        influence: 0,
+      }),
+    ],
+  });
+
+  simulation.getChangedSnapshot();
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 10_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.step(1000 / 60);
+  simulation.getChangedSnapshot();
+
+  simulation.setPin(null);
+  simulation.apply({ reason: "post-drop", energyTarget: 0.035, reheat: true });
+  const before = simulation.getSnapshot();
+  simulation.step(1000 / 60);
+  const after = simulation.getSnapshot();
+  const changed = simulation.getChangedSnapshot().map((entry) => entry.instanceId);
+
+  assert.ok(changed.includes(dragged), "released drag island should continue settling");
+  assert.ok(!changed.includes(remoteA));
+  assert.ok(!changed.includes(remoteB));
+  assert.deepEqual(
+    after.find((entry) => entry.instanceId === remoteA),
+    before.find((entry) => entry.instanceId === remoteA),
+  );
+  assert.deepEqual(
+    after.find((entry) => entry.instanceId === remoteB),
+    before.find((entry) => entry.instanceId === remoteB),
+  );
+});
+
 test("cross-anchor rejection maintains breathing room beyond hard collision radii", () => {
   const simulation = new ReferenceWorldForceSimulation({
     repulsionStrength: 48_000,
