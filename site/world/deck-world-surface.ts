@@ -2539,10 +2539,12 @@ export class DeckWorldSurface implements WorldSurface {
 
   setRelationshipRoutes(routes: readonly WorldRelationshipRouteHint[]): void {
     this.#assertAlive();
+    // Route hints are updated in the same projection transaction by the
+    // controller. Store them here and let setProjection/applyProjectionDelta
+    // perform the single renderer invalidation for that revision.
     this.#relationshipRouteHints = new Map(
       routes.map((route) => [route.relationshipId, route] as const),
     );
-    this.#render();
   }
 
   setProjection(projection: WorldProjection): void {
