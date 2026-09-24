@@ -741,7 +741,6 @@ test("legacy Orb fallback keeps data synchronization enabled before manual force
   assert.match(source, /isSimulatingOnSettingsUpdate:\s*false/);
 });
 
-
 test("graph interaction work is coalesced to the display frame", async () => {
   const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
@@ -749,10 +748,7 @@ test("graph interaction work is coalesced to the display frame", async () => {
     bridge,
     /function scheduleGraphRender\(\)[\s\S]*if \(graphRenderAnimationFrame\) return[\s\S]*requestAnimationFrame\([\s\S]*orb\.render\(\)/,
   );
-  assert.match(
-    bridge,
-    /function applyCameraPan\([\s\S]*orb\.render\(\)[\s\S]*return true/,
-  );
+  assert.match(bridge, /function applyCameraPan\([\s\S]*orb\.render\(\)[\s\S]*return true/);
   assert.match(
     bridge,
     /function updateCameraGesture\([\s\S]*scheduleGraphRender\(\)[\s\S]*return true/,
