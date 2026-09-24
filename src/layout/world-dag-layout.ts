@@ -127,7 +127,10 @@ interface PlaceLayoutCache {
   readonly result: {
     readonly targets: readonly WorldDagLayoutTarget[];
     readonly routes: readonly WorldDagLayoutRoute[];
-    readonly metrics: Omit<WorldDagLayoutMetrics, "placeCount" | "nodeCount" | "algorithmCounts"> & {
+    readonly metrics: Omit<
+      WorldDagLayoutMetrics,
+      "placeCount" | "nodeCount" | "algorithmCounts"
+    > & {
       readonly algorithm: string;
       readonly nodeCount: number;
     };
@@ -269,9 +272,7 @@ function localAcyclicEdges(
   return Object.freeze(accepted);
 }
 
-function finitePositiveSize(
-  size: WorldDagLayoutNodeSize | undefined,
-): readonly [number, number] {
+function finitePositiveSize(size: WorldDagLayoutNodeSize | undefined): readonly [number, number] {
   const width = size?.widthMeters;
   const height = size?.heightMeters;
   return Object.freeze([
@@ -288,20 +289,17 @@ function nodeSizeMap(
   nodeIds: readonly WorldInstanceId[],
   sizes: ReadonlyMap<WorldInstanceId, WorldDagLayoutNodeSize> | undefined,
 ): ReadonlyMap<string, readonly [number, number]> {
-  return new Map(
-    nodeIds.map((id) => [String(id), finitePositiveSize(sizes?.get(id))] as const),
-  );
+  return new Map(nodeIds.map((id) => [String(id), finitePositiveSize(sizes?.get(id))] as const));
 }
 
-function layoutGap(sizes: ReadonlyMap<string, readonly [number, number]>): readonly [number, number] {
+function layoutGap(
+  sizes: ReadonlyMap<string, readonly [number, number]>,
+): readonly [number, number] {
   const diameters = [...sizes.values()]
     .map(([width, height]) => Math.max(width, height))
     .sort((left, right) => left - right);
   const median = diameters[Math.floor(diameters.length / 2)] ?? DAG_FALLBACK_NODE_SIZE_METERS;
-  const horizontal = Math.max(
-    DAG_MIN_GAP_METERS,
-    Math.min(DAG_MAX_GAP_METERS, median * 0.45),
-  );
+  const horizontal = Math.max(DAG_MIN_GAP_METERS, Math.min(DAG_MAX_GAP_METERS, median * 0.45));
   return Object.freeze([horizontal, horizontal * 1.15]);
 }
 
@@ -357,10 +355,7 @@ function candidateMetrics(
   "crossingCount" | "meanEdgeLengthMeters" | "minSeparationMeters" | "meanStableDisplacementMeters"
 > {
   const positions = new Map(
-    targets.map(
-      (target) =>
-        [target.id, [target.eastMeters, target.northMeters] as const] as const,
-    ),
+    targets.map((target) => [target.id, [target.eastMeters, target.northMeters] as const] as const),
   );
 
   let totalLength = 0;
@@ -407,8 +402,7 @@ function candidateMetrics(
     }
   }
 
-  let minSeparationMeters: number | null =
-    targets.length <= 1 ? null : Number.POSITIVE_INFINITY;
+  let minSeparationMeters: number | null = targets.length <= 1 ? null : Number.POSITIVE_INFINITY;
   if (targets.length > PAIRWISE_METRIC_MAX_NODES) {
     minSeparationMeters = null;
   } else {
@@ -420,10 +414,7 @@ function candidateMetrics(
         if (!right) continue;
         minSeparationMeters = Math.min(
           minSeparationMeters ?? Number.POSITIVE_INFINITY,
-          Math.hypot(
-            right.eastMeters - left.eastMeters,
-            right.northMeters - left.northMeters,
-          ),
+          Math.hypot(right.eastMeters - left.eastMeters, right.northMeters - left.northMeters),
         );
       }
     }
@@ -477,9 +468,7 @@ function mirrorForStability(
 
   return {
     targets: Object.freeze(
-      targets.map((target) =>
-        Object.freeze({ ...target, eastMeters: -target.eastMeters }),
-      ),
+      targets.map((target) => Object.freeze({ ...target, eastMeters: -target.eastMeters })),
     ),
     routes: Object.freeze(
       routes.map((route) =>
@@ -502,15 +491,17 @@ function mirrorForStability(
 function scaledCandidate(
   candidate: Omit<
     CandidateLayout,
-    "crossingCount" | "meanEdgeLengthMeters" | "minSeparationMeters" | "meanStableDisplacementMeters"
+    | "crossingCount"
+    | "meanEdgeLengthMeters"
+    | "minSeparationMeters"
+    | "meanStableDisplacementMeters"
   >,
   nodeCount: number,
   edges: readonly LocalDagEdge[],
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
 ): CandidateLayout {
   const maxRawRadius = candidate.targets.reduce(
-    (radius, target) =>
-      Math.max(radius, Math.hypot(target.eastMeters, target.northMeters)),
+    (radius, target) => Math.max(radius, Math.hypot(target.eastMeters, target.northMeters)),
     0,
   );
   const maxTargetRadius = Math.min(
@@ -563,7 +554,9 @@ function scaledCandidate(
 
 function candidateScore(candidate: CandidateLayout): number {
   const crossings = candidate.crossingCount ?? 0;
-  const aspect = Math.max(candidate.width, candidate.height) / Math.max(1, Math.min(candidate.width, candidate.height));
+  const aspect =
+    Math.max(candidate.width, candidate.height) /
+    Math.max(1, Math.min(candidate.width, candidate.height));
   return (
     crossings * 100_000 +
     candidate.meanEdgeLengthMeters +
@@ -890,7 +883,9 @@ export function createWorldDagLayout(
 
   return Object.freeze({
     targets: Object.freeze(
-      targets.sort((left, right) => String(left.instanceId).localeCompare(String(right.instanceId))),
+      targets.sort((left, right) =>
+        String(left.instanceId).localeCompare(String(right.instanceId)),
+      ),
     ),
     routes: Object.freeze(
       routes.sort((left, right) =>
