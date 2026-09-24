@@ -6,7 +6,7 @@
  * alive across pan/zoom so rendering does not become a destructive per-frame rebuild.
  */
 
-import { LitElement, noChange } from "lit";
+import { html, LitElement, noChange } from "lit";
 
 import {
   geometryMeasurementKey,
@@ -113,11 +113,10 @@ interface SetItemsOptions {
 
 interface SceneRecord {
   item: TimelineItem;
-  node: HTMLDivElement;
+  node: LuumEventCardElement;
   terminal: HTMLButtonElement;
   range: HTMLButtonElement | null;
-  visual: HTMLSpanElement;
-  copy: HTMLSpanElement;
+  contentRevision: string;
 }
 
 interface ClusterSceneRecord {
@@ -162,6 +161,122 @@ interface LastTouchTap {
   time: number;
   x: number;
   y: number;
+}
+
+/**
+ * Semantic event-card renderer.
+ *
+ * Lit owns the card's content subtree, but never its geometry. The retained
+ * timeline controller positions the host element directly so drag/zoom frames
+ * do not enqueue reactive updates for every visible occurrence.
+ */
+export class LuumEventCardElement extends LitElement {
+  static override properties = {
+    item: { attribute: false },
+  };
+
+  item: TimelineItem | null = null;
+
+  override createRenderRoot(): HTMLElement {
+    return this;
+  }
+
+  setSemanticItem(item: TimelineItem): void {
+    if (this.item === item) return;
+    this.item = item;
+    this.requestUpdate();
+    this.performUpdate();
+  }
+
+  setSelected(selected: boolean): void {
+    this.classList.toggle("is-selected", selected);
+  }
+
+  get terminal(): HTMLButtonElement | null {
+    return this.querySelector<HTMLButtonElement>(".timeline-event-terminal");
+  }
+
+  override render() {
+    const item = this.item;
+    if (!item) return noChange;
+
+    const primaryTag = item.tags?.[0];
+    const iconName =
+      typeof primaryTag === "object" && primaryTag?.icon ? primaryTag.icon : "milestone";
+    const media = item.media?.[0];
+    const detail =
+      Number.isFinite(item.end) && item.endLabel
+        ? `${item.startLabel || ""} → ${item.endLabel}`
+        : item.startLabel || "";
+    const ariaLabel = [item.title || item.id, detail].filter(Boolean).join(", ");
+
+    return html`
+      <span class="timeline-event-connector" aria-hidden="true"></span>
+      <span class="timeline-event-connector-turn" aria-hidden="true"></span>
+      <button
+        type="button"
+        class="timeline-event-terminal"
+        data-id=${item.id}
+        aria-label=${ariaLabel}
+      >
+        <span
+          class=${media?.src ? "timeline-event-art" : "timeline-event-dot"}
+          aria-hidden="true"
+          data-timeline-visual
+        >
+          ${media?.src
+            ? html`
+                <img
+                  class="timeline-event-art-image"
+                  src=${media.src}
+                  alt=""
+                  decoding="async"
+                  loading="lazy"
+                />
+                <span
+                  class="timeline-event-icon-badge"
+                  data-timeline-icon=${iconName}
+                ></span>
+              `
+            : html`<span data-timeline-icon=${iconName}>•</span>`}
+        </span>
+        <span class="timeline-event-copy">
+          <strong>${item.title || item.id}</strong>
+          <span>${detail}</span>
+        </span>
+      </button>
+    `;
+  }
+
+  override updated(): void {
+    const item = this.item;
+    if (!item) return;
+
+    this.style.setProperty("--event-color", item.color || "var(--accent)");
+    this.dataset.terminalShape = item.terminalShape || "rounded";
+    this.dataset.connectorStyle = item.connectorStyle || "solid";
+    this.dataset.connectorRouting = item.connectorRouting || "straight";
+    this.dataset.connectorEndpoint = item.connectorEndpoint || "none";
+    this.dataset.connectorWeight = item.connectorWeight || "normal";
+
+    for (const slot of this.querySelectorAll<HTMLElement>("[data-timeline-icon]")) {
+      const iconName = slot.dataset.timelineIcon || "milestone";
+      const icon =
+        presentation && typeof presentation.createIcon === "function"
+          ? presentation.createIcon(iconName, {
+              size: slot.classList.contains("timeline-event-icon-badge") ? 18 : 24,
+            })
+          : null;
+      if (icon) slot.replaceChildren(icon);
+    }
+  }
+}
+
+if (
+  typeof customElements !== "undefined" &&
+  !customElements.get("luum-event-card")
+) {
+  customElements.define("luum-event-card", LuumEventCardElement);
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -1677,12 +1792,25 @@ class TimelineViewController {
     const media = (item.media || [])
       .map((entry) => [entry.src || "", entry.alt || "", entry.caption || ""].join("\u0001"))
       .join("\u0002");
+    const tags = (item.tags || [])
+      .map((entry) =>
+        typeof entry === "string"
+          ? entry
+          : [entry.label || "", entry.icon || "", entry.hue ?? ""].join("\u0001"),
+      )
+      .join("\u0002");
     return [
       item.title || "",
       item.startLabel || "",
       item.endLabel || "",
       item.layoutVariant || "",
       item.terminalShape || "",
+      item.color || "",
+      item.connectorStyle || "",
+      item.connectorRouting || "",
+      item.connectorWeight || "",
+      item.connectorEndpoint || "",
+      tags,
       media,
     ].join("\u0003");
   }
@@ -2118,14 +2246,14 @@ class TimelineViewController {
   }
 
   createRecord(item: TimelineItem): SceneRecord {
-    const node = document.createElement("div");
+    const node = document.createElement("luum-event-card") as LuumEventCardElement;
     node.className = "timeline-event";
     node.dataset.id = item.id;
+    this.stage.append(node);
+    node.setSemanticItem(item);
 
-    const terminal = document.createElement("button");
-    terminal.type = "button";
-    terminal.className = "timeline-event-terminal";
-    terminal.dataset.id = item.id;
+    const terminal = node.terminal;
+    if (!terminal) throw new Error(`Timeline event card ${item.id} did not render a terminal.`);
     terminal.addEventListener("click", () => {
       if (this.focusedId === item.id) {
         this.closeFocus();
@@ -2134,20 +2262,6 @@ class TimelineViewController {
         void motion.pulseHaptic("selection");
       }
     });
-
-    const visual = document.createElement("span");
-    visual.className = "timeline-event-dot";
-    visual.setAttribute("aria-hidden", "true");
-
-    const copy = document.createElement("span");
-    copy.className = "timeline-event-copy";
-    terminal.append(visual, copy);
-
-    const connector = document.createElement("span");
-    connector.className = "timeline-event-connector";
-    const connectorTurn = document.createElement("span");
-    connectorTurn.className = "timeline-event-connector-turn";
-    node.append(connector, connectorTurn, terminal);
 
     let range: HTMLButtonElement | null = null;
     if (Number.isFinite(item.end)) {
@@ -2166,9 +2280,14 @@ class TimelineViewController {
       this.stage.append(range);
     }
 
-    this.stage.append(node);
     this.frameCreatedObjects += range ? 2 : 1;
-    const record = { item, node, terminal, range, visual, copy };
+    const record = {
+      item,
+      node,
+      terminal,
+      range,
+      contentRevision: this.itemContentRevision(item),
+    };
     this.bindRecordInteractionTarget(record, terminal);
     if (range) this.bindRecordInteractionTarget(record, range);
     this.updateRecordContent(record);
@@ -2209,76 +2328,23 @@ class TimelineViewController {
   }
 
   updateRecordContent(record: SceneRecord): void {
-    const { item, node, terminal, range, visual, copy } = record;
-    node.style.setProperty("--event-color", item.color || "var(--accent)");
-    node.dataset.terminalShape = item.terminalShape || "rounded";
-    node.dataset.connectorStyle = item.connectorStyle || "solid";
-    node.dataset.connectorRouting = item.connectorRouting || "straight";
-    node.dataset.connectorEndpoint = item.connectorEndpoint || "none";
-    const selected = item.id === this.focusedId;
-    node.classList.toggle("is-selected", selected);
-    range?.classList.toggle("is-selected", selected);
-
-    const primaryTag = item.tags?.[0];
-    const iconName =
-      typeof primaryTag === "object" && primaryTag?.icon ? primaryTag.icon : "milestone";
-    const media = item.media?.[0];
-    const mediaSignature = [media?.src || "", iconName].join("\u0001");
-    if (visual.dataset.signature !== mediaSignature) {
-      visual.dataset.signature = mediaSignature;
-      visual.className = media?.src ? "timeline-event-art" : "timeline-event-dot";
-      visual.replaceChildren();
-      if (media?.src) {
-        const image = document.createElement("img");
-        image.className = "timeline-event-art-image";
-        image.src = media.src;
-        image.alt = "";
-        image.decoding = "async";
-        image.loading = "lazy";
-        visual.append(image);
-
-        const badge = document.createElement("span");
-        badge.className = "timeline-event-icon-badge";
-        const badgeIcon =
-          presentation && typeof presentation.createIcon === "function"
-            ? presentation.createIcon(iconName, { size: 18 })
-            : null;
-        if (badgeIcon) badge.append(badgeIcon);
-        visual.append(badge);
-      } else {
-        const icon =
-          presentation && typeof presentation.createIcon === "function"
-            ? presentation.createIcon(iconName, { size: 24 })
-            : null;
-        if (icon) visual.append(icon);
-        else visual.textContent = "•";
+    const { item, node, range } = record;
+    const revision = this.itemContentRevision(item);
+    if (record.contentRevision !== revision) {
+      node.setSemanticItem(item);
+      record.contentRevision = revision;
+      if (range) {
+        range.style.setProperty("--event-color", item.color || "var(--accent)");
+        const rangeLabel = `${item.title || item.id} · ${item.startLabel || item.start} → ${item.endLabel || item.end}`;
+        range.dataset.tooltip = rangeLabel;
+        range.title = rangeLabel;
+        range.setAttribute("aria-label", rangeLabel);
       }
     }
 
-    node.dataset.connectorWeight = item.connectorWeight || "normal";
-
-    const strong = copy.querySelector("strong") || document.createElement("strong");
-    strong.textContent = item.title || item.id;
-    const detail = copy.querySelector("span") || document.createElement("span");
-    detail.textContent =
-      Number.isFinite(item.end) && item.endLabel
-        ? `${item.startLabel || ""} → ${item.endLabel}`
-        : item.startLabel || "";
-    if (!strong.parentNode) copy.append(strong);
-    if (!detail.parentNode) copy.append(detail);
-
-    terminal.setAttribute(
-      "aria-label",
-      [item.title || item.id, detail.textContent].filter(Boolean).join(", "),
-    );
-
-    if (range) {
-      range.style.setProperty("--event-color", item.color || "var(--accent)");
-      const rangeLabel = `${item.title || item.id} · ${item.startLabel || item.start} → ${item.endLabel || item.end}`;
-      range.dataset.tooltip = rangeLabel;
-      range.title = rangeLabel;
-      range.setAttribute("aria-label", rangeLabel);
-    }
+    const selected = item.id === this.focusedId;
+    node.setSelected(selected);
+    range?.classList.toggle("is-selected", selected);
   }
 
   positionRecord(record: SceneRecord, primaryLength: number, axisCross: number): void {
