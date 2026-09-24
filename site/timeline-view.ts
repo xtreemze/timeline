@@ -344,6 +344,7 @@ class TimelineViewController {
   inertiaAnimationFrame = 0;
   renderFrame = 0;
   wheelCommitTimer: ReturnType<typeof globalThis.setTimeout> | 0 = 0;
+  lifecycleAbortController = new AbortController();
   viewportInitialized = false;
   reducedMotionQuery: MediaQueryList | null =
     typeof globalThis.matchMedia === "function"
@@ -769,15 +770,26 @@ class TimelineViewController {
         abortSurfaceGesture();
       }
     });
-    window.addEventListener("blur", abortSurfaceGesture);
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) abortSurfaceGesture();
+    const lifecycleSignal = this.lifecycleAbortController.signal;
+    window.addEventListener("blur", abortSurfaceGesture, { signal: lifecycleSignal });
+    document.addEventListener(
+      "visibilitychange",
+      () => {
+        if (document.hidden) abortSurfaceGesture();
+      },
+      { signal: lifecycleSignal },
+    );
+    window.addEventListener("orientationchange", abortSurfaceGesture, { signal: lifecycleSignal });
+    globalThis.screen?.orientation?.addEventListener?.("change", abortSurfaceGesture, {
+      signal: lifecycleSignal,
     });
-    window.addEventListener("orientationchange", abortSurfaceGesture);
-    globalThis.screen?.orientation?.addEventListener?.("change", abortSurfaceGesture);
-    window.visualViewport?.addEventListener("resize", () => {
-      if (this.pointerDrag || this.pinch || this.touchPointers.size) abortSurfaceGesture();
-    });
+    window.visualViewport?.addEventListener(
+      "resize",
+      () => {
+        if (this.pointerDrag || this.pinch || this.touchPointers.size) abortSurfaceGesture();
+      },
+      { signal: lifecycleSignal },
+    );
 
     this.surface.addEventListener("keydown", (event) => {
       if (!this.items.length) return;
@@ -815,17 +827,21 @@ class TimelineViewController {
       }
     });
 
-    document.addEventListener("graphselectionchange", (event: Event) => {
-      const detail = (event as CustomEvent).detail;
-      if (!detail || detail.kind !== "node") return;
-      const nodeId = String(detail.id);
-      if (!nodeId.startsWith("cluster:")) return;
-      const eventIds = nodeId.split(":")[1]?.split("|") || [];
-      const firstEventId = eventIds[0];
-      if (firstEventId) {
-        this.focusItem(firstEventId);
-      }
-    });
+    document.addEventListener(
+      "graphselectionchange",
+      (event: Event) => {
+        const detail = (event as CustomEvent).detail;
+        if (!detail || detail.kind !== "node") return;
+        const nodeId = String(detail.id);
+        if (!nodeId.startsWith("cluster:")) return;
+        const eventIds = nodeId.split(":")[1]?.split("|") || [];
+        const firstEventId = eventIds[0];
+        if (firstEventId) {
+          this.focusItem(firstEventId);
+        }
+      },
+      { signal: lifecycleSignal },
+    );
 
     this.stage.addEventListener("click", (event) => {
       const button = (event.target as Element).closest<HTMLElement>("button[data-cluster-id]");
@@ -2964,6 +2980,19 @@ class TimelineViewController {
     const start = new Date(this.viewport.start);
     const end = new Date(this.viewport.end);
     this.readout.textContent = `${start.toLocaleDateString()} — ${end.toLocaleDateString()}`;
+  }
+
+  destroy(): void {
+    this.lifecycleAbortController.abort();
+    this.cancelInertia();
+    if (this.renderFrame) {
+      cancelAnimationFrame(this.renderFrame);
+      this.renderFrame = 0;
+    }
+    globalThis.clearTimeout(this.wheelCommitTimer);
+    this.wheelCommitTimer = 0;
+    this.semanticList.remove();
+    timelineControllers.delete(this.root);
   }
 }
 
