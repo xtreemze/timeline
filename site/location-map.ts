@@ -122,11 +122,15 @@ interface LocationMapControllerOptions {
   clearButton?: HTMLElement;
 }
 
+let leafletRuntime: any = null;
 let leafletPromise: Promise<any> | null = null;
 
 function loadLeaflet(): Promise<any> {
   if (!leafletPromise) {
-    leafletPromise = import("leaflet").then((module) => module.default || module);
+    leafletPromise = import("leaflet").then((module) => {
+      leafletRuntime = module.default || module;
+      return leafletRuntime;
+    });
   }
   return leafletPromise;
 }
@@ -1002,9 +1006,9 @@ class ReadOnlyLocationMap {
   }
 
   geometryBounds(): any {
-    if (!globalThis.L) return null;
+    if (!leafletRuntime) return null;
     const drawableLayers = this.layers.filter((layer) => typeof layer?.getBounds === "function");
-    return drawableLayers.length ? globalThis.L.featureGroup(drawableLayers).getBounds() : null;
+    return drawableLayers.length ? leafletRuntime.featureGroup(drawableLayers).getBounds() : null;
   }
 
   clearCountryContextInteractionGuard() {
@@ -1112,7 +1116,7 @@ class ReadOnlyLocationMap {
   }
 
   fitGeometry({ animate = false, maxZoom = presentationZoom(this.location) } = {}) {
-    if (!this.map || !globalThis.L) return;
+    if (!this.map || !leafletRuntime) return;
     const point = pointCoordinates(this.location);
     const bounds = this.geometryBounds();
 
@@ -1286,7 +1290,7 @@ class LocationMapController {
   }
 
   updateFromInputs(fit = false) {
-    if (!this.map || !globalThis.L) return;
+    if (!this.map || !leafletRuntime) return;
     const lat = numeric(this.latitude, -90, 90);
     const lng = numeric(this.longitude, -180, 180);
     if (lat === null || lng === null) {
@@ -1300,11 +1304,11 @@ class LocationMapController {
     if (!this.marker) {
       const markerColor =
         getComputedStyle(this.container).getPropertyValue("--focus").trim() || "#315fbd";
-      this.marker = globalThis.L.marker([lat, lng], {
+      this.marker = leafletRuntime.marker([lat, lng], {
         draggable: true,
         keyboard: true,
         title: "Selected location",
-        icon: semanticMarkerIcon(globalThis.L, "place", markerColor, "", "pin"),
+        icon: semanticMarkerIcon(leafletRuntime, "place", markerColor, "", "pin"),
       }).addTo(this.map);
       this.marker.on("dragend", () => {
         const point = this.marker.getLatLng();
