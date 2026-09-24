@@ -46,6 +46,14 @@ test("a second finger cancels a pending hold so pinch keeps camera ownership", (
 
 test("world node drag initiation preserves modified and secondary-button browser gestures", () => {
   assert.equal(worldPointerDragMayStart({ srcEvent: { button: 0, ctrlKey: false } }), true);
+  assert.equal(
+    worldPointerDragMayStart({ srcEvent: { button: -1, buttons: 1, ctrlKey: false } }),
+    true,
+  );
+  assert.equal(
+    worldPointerDragMayStart({ srcEvent: { button: -1, buttons: 0, ctrlKey: false } }),
+    false,
+  );
   assert.equal(worldPointerDragMayStart({ srcEvent: { button: 2, ctrlKey: false } }), false);
   assert.equal(worldPointerDragMayStart({ srcEvent: { button: 0, ctrlKey: true } }), false);
   assert.equal(worldPointerDragMayStart({ srcEvent: { pointerType: "touch" } }), true);
