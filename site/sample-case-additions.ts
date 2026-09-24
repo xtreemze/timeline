@@ -338,7 +338,7 @@ export function extendSampleCase(sample) {
     }
     for (const place of story.places) sample.places.push(makePlace(story, place));
 
-    const itemIds = [];
+    const itemIds: string[] = [];
     story.scenes.forEach((scene, index) => {
       const sequence = index + 1;
       const generated = makeItem(story, scene, sequence);
