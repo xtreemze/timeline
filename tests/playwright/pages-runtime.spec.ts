@@ -43,3 +43,54 @@ test("built Pages shell boots application runtime on mobile", async ({ page }) =
 
   expect(pageErrors).toEqual([]);
 });
+
+
+test("project load and clear mutate persisted state from view mode", async ({ page }) => {
+  const response = await page.goto("/timeline/", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(200);
+
+  const shell = page.locator("#app-shell");
+  const project = page.locator("#project-menu-toggle");
+
+  await expect(shell).toHaveAttribute("data-mode", "view");
+
+  await project.click();
+  await page.locator("#load-sample").click();
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const saved = JSON.parse(localStorage.getItem("timeline:v2") || "{}");
+        return Array.isArray(saved.items) ? saved.items.length : 0;
+      }),
+    )
+    .toBeGreaterThan(0);
+  await expect(page.locator("#item-count")).not.toHaveText("0");
+  await expect(shell).toHaveAttribute("data-mode", "view");
+
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("Clear this timeline?");
+    await dialog.accept();
+  });
+
+  await project.click();
+  await page.locator("#clear-timeline").click();
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const saved = JSON.parse(localStorage.getItem("timeline:v2") || "{}");
+        return {
+          items: Array.isArray(saved.items) ? saved.items.length : -1,
+          stories: Array.isArray(saved.stories) ? saved.stories.length : -1,
+          entities: Array.isArray(saved.entities) ? saved.entities.length : -1,
+          places: Array.isArray(saved.places) ? saved.places.length : -1,
+          relationships: Array.isArray(saved.relationships) ? saved.relationships.length : -1,
+        };
+      }),
+    )
+    .toEqual({ items: 0, stories: 0, entities: 0, places: 0, relationships: 0 });
+
+  await expect(page.locator("#item-count")).toHaveText("0");
+  await expect(shell).toHaveAttribute("data-mode", "view");
+});
