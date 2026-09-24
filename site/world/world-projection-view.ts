@@ -305,15 +305,36 @@ export class WorldProjectionView {
     this.#render();
   }
 
-  setWindow(viewport: WorldViewViewport | null): void {
-    this.#viewport =
+  /**
+   * Applies the shared temporal window. Returns false, without re-rendering,
+   * when the window and active set are unchanged: the timeline re-publishes
+   * its committed viewport after every settled gesture, including taps.
+   */
+  setWindow(viewport: WorldViewViewport | null): boolean {
+    const next =
       viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end)
         ? Object.freeze({ start: viewport.start, end: viewport.end })
         : null;
-    this.#sharedActiveIds = Array.isArray(viewport?.activeOccurrenceIds)
+    const nextActiveIds = Array.isArray(viewport?.activeOccurrenceIds)
       ? Object.freeze(viewport.activeOccurrenceIds.map(String))
       : null;
+    const previous = this.#viewport;
+    const previousActiveIds = this.#sharedActiveIds;
+    if (
+      previous?.start === next?.start &&
+      previous?.end === next?.end &&
+      (previousActiveIds === nextActiveIds ||
+        (previousActiveIds !== null &&
+          nextActiveIds !== null &&
+          previousActiveIds.length === nextActiveIds.length &&
+          previousActiveIds.every((id, index) => id === nextActiveIds[index])))
+    ) {
+      return false;
+    }
+    this.#viewport = next;
+    this.#sharedActiveIds = nextActiveIds;
     this.#render();
+    return true;
   }
 
   setFocus(id: string | number | null): void {

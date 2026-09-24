@@ -94,8 +94,7 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
 
   setWindow(viewport: WorldViewViewport | null): void {
     this.#assertAlive();
-    this.#view.setWindow(viewport);
-    this.#schedule();
+    if (this.#view.setWindow(viewport)) this.#schedule();
   }
 
   setFocus(id: string | number | null): void {
