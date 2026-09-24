@@ -34,7 +34,11 @@ function pdfTextFromItems(items) {
     result += part;
     if (item?.hasEOL) result += "\n";
   }
-  return result.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim().slice(0, MAX_SEGMENT_TEXT);
+  return result
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .slice(0, MAX_SEGMENT_TEXT);
 }
 
 function normalizeLocator(raw) {
@@ -68,7 +72,7 @@ function normalizeSegment(raw, index = 0) {
     locator,
     method,
     text: content,
-    confidence
+    confidence,
   };
 }
 
@@ -81,32 +85,33 @@ function normalizeExtraction(raw) {
   const unresolved = (Array.isArray(raw.unresolved) ? raw.unresolved : [])
     .map((entry) => ({
       locator: normalizeLocator(entry?.locator),
-      reason: text(entry?.reason, 500)
+      reason: text(entry?.reason, 500),
     }))
     .filter((entry) => entry.locator && entry.reason)
     .slice(0, MAX_PDF_PAGES);
   if (!segments.length && !unresolved.length) return null;
   return {
     schemaVersion: EXTRACTION_SCHEMA_VERSION,
-    status: ["complete", "partial", "empty", "failed"].includes(raw.status) ? raw.status : (unresolved.length ? "partial" : "complete"),
+    status: ["complete", "partial", "empty", "failed"].includes(raw.status)
+      ? raw.status
+      : unresolved.length
+        ? "partial"
+        : "complete",
     mimeType: text(raw.mimeType, 120),
     generatedAt: text(raw.generatedAt, 80),
     tool: {
       name: text(raw.tool?.name, 120) || "Timeline Evidence Extraction",
-      version: text(raw.tool?.version, 80) || TOOL_VERSION
+      version: text(raw.tool?.version, 80) || TOOL_VERSION,
     },
     segments,
-    unresolved
+    unresolved,
   };
 }
 
 function visionOptions() {
   return {
-    expectedInputs: [
-      { type: "text", languages: ["en"] },
-      { type: "image" }
-    ],
-    expectedOutputs: [{ type: "text", languages: ["en"] }]
+    expectedInputs: [{ type: "text", languages: ["en"] }, { type: "image" }],
+    expectedOutputs: [{ type: "text", languages: ["en"] }],
   };
 }
 
@@ -136,7 +141,9 @@ async function ocrWithTextDetector(source, root = globalThis) {
       .filter(Boolean)
       .join("\n")
       .trim();
-    return result ? { text: result.slice(0, MAX_SEGMENT_TEXT), method: "text-detector", confidence: null } : null;
+    return result
+      ? { text: result.slice(0, MAX_SEGMENT_TEXT), method: "text-detector", confidence: null }
+      : null;
   } catch (error) {
     if (error?.name === "AbortError") throw error;
     return null;
@@ -156,43 +163,50 @@ async function ocrWithLanguageModel(source, options = {}) {
   abortIfNeeded(options.signal);
   const session = await model.create({
     ...visionOptions(),
-    initialPrompts: [{
-      role: "system",
-      content: "You are an OCR transcription engine. Transcribe only text visibly present in the supplied image. Preserve reading order and line breaks. Never infer missing words, names, numbers, or context."
-    }],
+    initialPrompts: [
+      {
+        role: "system",
+        content:
+          "You are an OCR transcription engine. Transcribe only text visibly present in the supplied image. Preserve reading order and line breaks. Never infer missing words, names, numbers, or context.",
+      },
+    ],
     signal: options.signal,
     monitor(monitor) {
       monitor.addEventListener("downloadprogress", (event) => {
         options.onProgress?.({
           phase: "model-download",
-          loaded: Number(event.loaded) || 0
+          loaded: Number(event.loaded) || 0,
         });
       });
-    }
+    },
   });
 
   try {
-    const response = await session.prompt([
+    const response = await session.prompt(
+      [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              value:
+                "Transcribe every legible visible character. Return an empty text field if no text is legible.",
+            },
+            { type: "image", value: source },
+          ],
+        },
+      ],
       {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            value: "Transcribe every legible visible character. Return an empty text field if no text is legible."
-          },
-          { type: "image", value: source }
-        ]
-      }
-    ], {
-      responseConstraint: {
-        type: "object",
-        additionalProperties: false,
-        properties: { text: { type: "string" } },
-        required: ["text"]
+        responseConstraint: {
+          type: "object",
+          additionalProperties: false,
+          properties: { text: { type: "string" } },
+          required: ["text"],
+        },
+        omitResponseConstraintInput: true,
+        signal: options.signal,
       },
-      omitResponseConstraintInput: true,
-      signal: options.signal
-    });
+    );
     const parsed = JSON.parse(response);
     const result = cleanOcrText(parsed?.text);
     return result ? { text: result, method: "language-model-vision", confidence: null } : null;
@@ -214,12 +228,17 @@ async function ocrImage(source, options = {}) {
 }
 
 function renderScaleForViewport(viewport) {
-  const pixels = Math.max(1, Number(viewport?.width) || 1) * Math.max(1, Number(viewport?.height) || 1);
+  const pixels =
+    Math.max(1, Number(viewport?.width) || 1) * Math.max(1, Number(viewport?.height) || 1);
   if (pixels <= MAX_RENDER_PIXELS) return 1;
   return Math.sqrt(MAX_RENDER_PIXELS / pixels);
 }
 
-export function createEvidenceExtraction({ pdfjs, root = globalThis, now = () => new Date().toISOString() } = {}) {
+export function createEvidenceExtraction({
+  pdfjs,
+  root = globalThis,
+  now = () => new Date().toISOString(),
+} = {}) {
   if (!pdfjs || typeof pdfjs.getDocument !== "function") {
     throw new Error("PDF.js getDocument() is required.");
   }
@@ -268,7 +287,7 @@ export function createEvidenceExtraction({ pdfjs, root = globalThis, now = () =>
             locator: { kind: "page", page: pageNumber },
             method: "pdf-text",
             text: nativeText,
-            confidence: 1
+            confidence: 1,
           });
           page.cleanup?.();
           continue;
@@ -282,7 +301,7 @@ export function createEvidenceExtraction({ pdfjs, root = globalThis, now = () =>
             locator: { kind: "page", page: pageNumber },
             method: ocr.method,
             text: ocr.text,
-            confidence: ocr.confidence
+            confidence: ocr.confidence,
           });
         } else if (nativeText) {
           segments.push({
@@ -290,12 +309,13 @@ export function createEvidenceExtraction({ pdfjs, root = globalThis, now = () =>
             locator: { kind: "page", page: pageNumber },
             method: "pdf-text",
             text: nativeText,
-            confidence: 1
+            confidence: 1,
           });
         } else {
           unresolved.push({
             locator: { kind: "page", page: pageNumber },
-            reason: "No embedded text was found and OCR was unavailable or returned no legible text."
+            reason:
+              "No embedded text was found and OCR was unavailable or returned no legible text.",
           });
         }
         if (canvas) {
@@ -315,7 +335,7 @@ export function createEvidenceExtraction({ pdfjs, root = globalThis, now = () =>
       generatedAt: now(),
       tool: { name: "Timeline Evidence Extraction", version: TOOL_VERSION },
       segments,
-      unresolved
+      unresolved,
     });
   }
 
@@ -327,17 +347,25 @@ export function createEvidenceExtraction({ pdfjs, root = globalThis, now = () =>
       mimeType: blob.type || "image/*",
       generatedAt: now(),
       tool: { name: "Timeline Evidence Extraction", version: TOOL_VERSION },
-      segments: ocr?.text ? [{
-        id: "image-1",
-        locator: { kind: "image", index: 1 },
-        method: ocr.method,
-        text: ocr.text,
-        confidence: ocr.confidence
-      }] : [],
-      unresolved: ocr?.text ? [] : [{
-        locator: { kind: "image", index: 1 },
-        reason: "OCR was unavailable or returned no legible text."
-      }]
+      segments: ocr?.text
+        ? [
+            {
+              id: "image-1",
+              locator: { kind: "image", index: 1 },
+              method: ocr.method,
+              text: ocr.text,
+              confidence: ocr.confidence,
+            },
+          ]
+        : [],
+      unresolved: ocr?.text
+        ? []
+        : [
+            {
+              locator: { kind: "image", index: 1 },
+              reason: "OCR was unavailable or returned no legible text.",
+            },
+          ],
     });
   }
 
@@ -355,7 +383,7 @@ export function createEvidenceExtraction({ pdfjs, root = globalThis, now = () =>
     return {
       pdfText: true,
       textDetector: typeof root.TextDetector === "function",
-      languageModelVision: await languageModelVisionAvailability(root)
+      languageModelVision: await languageModelVisionAvailability(root),
     };
   }
 
@@ -366,16 +394,16 @@ export function createEvidenceExtraction({ pdfjs, root = globalThis, now = () =>
     extract,
     extractPdf,
     extractImage,
-    availability
+    availability,
   });
 }
 
 export {
+  cleanOcrText,
   EXTRACTION_SCHEMA_VERSION,
   MIN_NATIVE_PDF_TEXT,
-  cleanOcrText,
   normalizeExtraction,
   normalizeSegment,
   pdfTextFromItems,
-  visionOptions
+  visionOptions,
 };

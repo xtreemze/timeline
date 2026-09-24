@@ -3,8 +3,6 @@
  * Sets TimelineDateRangePicker on globalThis for legacy global consumers
  */
 
-import { TimelineDateRangePicker } from './date-range-picker.ts';
+import { TimelineDateRangePicker } from "./date-range-picker.ts";
 
 globalThis.TimelineDateRangePicker = TimelineDateRangePicker;
-
-export {};

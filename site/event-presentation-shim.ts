@@ -3,8 +3,6 @@
  * Sets TimelinePresentation on globalThis for legacy global consumers
  */
 
-import { TimelinePresentation } from './event-presentation.ts';
+import { TimelinePresentation } from "./event-presentation.ts";
 
 globalThis.TimelinePresentation = TimelinePresentation;
-
-export {};

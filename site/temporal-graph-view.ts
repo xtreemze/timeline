@@ -3,6 +3,7 @@
  * Owns application-level graph projection/focus state while rendering through GraphSurface.
  */
 
+import { entityId, relationshipId } from "../src/domain/ids.ts";
 import type {
   CanonicalSelection,
   GraphEdgeProjection,
@@ -12,12 +13,8 @@ import type {
   GraphSurfaceFactory,
   GraphTemporalState,
 } from "../src/layout/graph-surface.ts";
-import {
-  createOrbGraphSurfaceFactory,
-  type OrbFactory,
-} from "../src/layout/orb-graph-surface.ts";
+import { createOrbGraphSurfaceFactory, type OrbFactory } from "../src/layout/orb-graph-surface.ts";
 import { TimelineOrbGraph } from "../src/orb-graph-entry.js";
-import { entityId, relationshipId } from "../src/domain/ids.ts";
 
 interface Viewport {
   start: number;
@@ -67,7 +64,9 @@ interface TimelineGraphRuntime {
 }
 
 function hasFunction(value: unknown, key: string): boolean {
-  return typeof value === "object" && value !== null && typeof Reflect.get(value, key) === "function";
+  return (
+    typeof value === "object" && value !== null && typeof Reflect.get(value, key) === "function"
+  );
 }
 
 function getGraph(): TimelineGraphRuntime {
@@ -99,9 +98,7 @@ function graphProjection(data: GraphData): GraphProjection {
       id: entityId(String(node.id)),
       label: node.label || String(node.id),
       kind:
-        typeof node.properties?.timelineType === "string"
-          ? node.properties.timelineType
-          : "entity",
+        typeof node.properties?.timelineType === "string" ? node.properties.timelineType : "entity",
     })),
     edges: data.edges.map((edge) => ({
       id: relationshipId(String(edge.id)),
@@ -117,13 +114,11 @@ function topologySignature(data: GraphData): string {
   return JSON.stringify({
     nodes: data.nodes.map((node) => String(node.id)).sort(),
     edges: data.edges
-      .map(
-        (edge): [string, string, string] => [
-          String(edge.id),
-          String(edge.start),
-          String(edge.end),
-        ],
-      )
+      .map((edge): [string, string, string] => [
+        String(edge.id),
+        String(edge.start),
+        String(edge.end),
+      ])
       .sort((a, b) => a[0].localeCompare(b[0])),
   });
 }
@@ -226,7 +221,9 @@ class TemporalGraphViewController {
 
   private setupPointerEventTracking(): void {
     // Find the timeline surface and listen to pointer events
-    const timelineSurface = this.root.closest("[data-view-name]")?.querySelector(".timeline-surface");
+    const timelineSurface = this.root
+      .closest("[data-view-name]")
+      ?.querySelector(".timeline-surface");
     if (!timelineSurface) return;
 
     const onPointerDown = () => {

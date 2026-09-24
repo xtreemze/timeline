@@ -4377,7 +4377,7 @@ function positionProjectMenu() {
   const availableWidth = Math.max(1, maxRight - minLeft);
   const availableHeight = Math.max(1, maxBottom - minTop);
 
-  let menuWidth = Math.min(340, availableWidth);
+  const menuWidth = Math.min(340, availableWidth);
   let menuHeight = Math.min(620, availableHeight);
   let left = minLeft;
   let top = minTop;

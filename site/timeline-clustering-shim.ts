@@ -3,8 +3,6 @@
  * Sets TimelineClustering on globalThis for legacy global consumers
  */
 
-import { TimelineClustering } from './timeline-clustering.ts';
+import { TimelineClustering } from "./timeline-clustering.ts";
 
 globalThis.TimelineClustering = TimelineClustering;
-
-export {};

@@ -5,13 +5,13 @@ import {
   OrbEventType,
   OrbView,
 } from "@memgraph/orb";
+import { TimelineMotion as motion } from "../site/timeline-motion.ts";
 import {
   connectedGraphComponents,
   graphComponentTopologySignature,
   packComponentRects,
 } from "./graph-component-packing.js";
 import { createGraphSimulationCoordinator } from "./layout/graph-simulation-coordinator.ts";
-import { TimelineMotion as motion } from "../site/timeline-motion.ts";
 
 const LARGE_GRAPH_NODE_THRESHOLD = 1200;
 const GPU_LAYOUT_NODE_THRESHOLD = 3000;

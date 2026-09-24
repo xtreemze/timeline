@@ -4,8 +4,6 @@
  * This shim can be removed after app.ts conversion (Phase 4d)
  */
 
-import { TimelineTemporal } from './temporal-standards.ts';
+import { TimelineTemporal } from "./temporal-standards.ts";
 
 globalThis.TimelineTemporal = TimelineTemporal;
-
-export {};

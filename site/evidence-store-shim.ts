@@ -3,8 +3,6 @@
  * Sets TimelineEvidence on globalThis for legacy global consumers
  */
 
-import { TimelineEvidence } from './evidence-store.ts';
+import { TimelineEvidence } from "./evidence-store.ts";
 
 globalThis.TimelineEvidence = TimelineEvidence;
-
-export {};
