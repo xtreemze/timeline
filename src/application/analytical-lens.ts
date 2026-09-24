@@ -132,7 +132,8 @@ function parseEndpoint(value: unknown): number | null {
 
   const earliest =
     typeof endpoint["earliest"] === "string" ? Date.parse(endpoint["earliest"]) : Number.NaN;
-  const latest = typeof endpoint["latest"] === "string" ? Date.parse(endpoint["latest"]) : Number.NaN;
+  const latest =
+    typeof endpoint["latest"] === "string" ? Date.parse(endpoint["latest"]) : Number.NaN;
   if (Number.isFinite(earliest) && Number.isFinite(latest)) {
     return earliest + (latest - earliest) / 2;
   }
@@ -377,7 +378,9 @@ export function parseAnalyticalLens(input: unknown): AnalyticalLensParseResult {
   const start = timeInput ? parseFiniteNumber(timeInput["start"]) : null;
   const end = timeInput ? parseFiniteNumber(timeInput["end"]) : null;
   const untimed = timeInput?.["untimed"] === "exclude" ? "exclude" : "include";
-  const neighborhoodDepth = neighborhoodInput ? parseFiniteNumber(neighborhoodInput["depth"]) : null;
+  const neighborhoodDepth = neighborhoodInput
+    ? parseFiniteNumber(neighborhoodInput["depth"])
+    : null;
 
   const entityIds = stringList(filterInput["entityIds"]);
   const relationshipPredicates = uniqueSorted(
