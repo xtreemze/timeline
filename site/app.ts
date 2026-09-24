@@ -309,9 +309,16 @@ interface ItemInferenceDraft {
   proposal: ReturnType<(typeof TimelineGraphInference)["reconcileProposal"]>;
 }
 
-const evidenceExtraction = Reflect.get(globalThis, "TimelineEvidenceExtraction") as
-  | EvidenceExtractionApi
-  | undefined;
+let evidenceExtractionPromise: Promise<EvidenceExtractionApi> | null = null;
+
+function loadEvidenceExtraction(): Promise<EvidenceExtractionApi> {
+  if (!evidenceExtractionPromise) {
+    evidenceExtractionPromise = import("../src/evidence-extraction-entry.js").then(
+      ({ TimelineEvidenceExtraction }) => TimelineEvidenceExtraction as EvidenceExtractionApi,
+    );
+  }
+  return evidenceExtractionPromise;
+}
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -2600,16 +2607,10 @@ async function extractEvidenceRow(row, { quiet = false } = {}) {
     if (!quiet) setError(els.itemFormError, "Text extraction supports PDF and image evidence.");
     return null;
   }
-  if (!evidenceExtraction?.extract) {
-    const message = "Evidence extraction is unavailable in this build.";
-    if (parts.extractionStatus) parts.extractionStatus.textContent = message;
-    if (!quiet) setError(els.itemFormError, message);
-    return null;
-  }
-
   if (parts.extractText) parts.extractText.disabled = true;
   if (parts.extractionStatus) parts.extractionStatus.textContent = "Preparing extraction…";
   try {
+    const evidenceExtraction = await loadEvidenceExtraction();
     const extraction = await evidenceExtraction.extract(source.blob, {
       mimeType: source.mimeType || source.blob.type,
       fileName: source.fileName,
