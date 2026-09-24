@@ -6,5 +6,3 @@
 import { TimelineClustering } from './timeline-clustering.ts';
 
 globalThis.TimelineClustering = TimelineClustering;
-
-export {};

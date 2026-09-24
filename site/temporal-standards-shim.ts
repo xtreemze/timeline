@@ -7,5 +7,3 @@
 import { TimelineTemporal } from './temporal-standards.ts';
 
 globalThis.TimelineTemporal = TimelineTemporal;
-
-export {};

@@ -7,5 +7,3 @@
 import { TimelineScale } from './time-scale.ts';
 
 globalThis.TimelineScale = TimelineScale;
-
-export {};

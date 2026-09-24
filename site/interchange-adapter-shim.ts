@@ -7,5 +7,3 @@
 import { TimelineInterchangeAdapter } from './interchange-adapter.ts';
 
 globalThis.TimelineInterchangeAdapter = TimelineInterchangeAdapter;
-
-export {};

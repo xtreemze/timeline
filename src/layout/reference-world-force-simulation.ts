@@ -567,13 +567,13 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       const inverseMass = 1 / Math.max(0.001, state.node.mass);
       state.vx =
         (state.vx + force[0] * inverseMass * dt * energyScale) *
-        Math.pow(this.#options.damping, dt);
+        this.#options.damping ** dt;
       state.vy =
         (state.vy + force[1] * inverseMass * dt * energyScale) *
-        Math.pow(this.#options.damping, dt);
+        this.#options.damping ** dt;
       state.vz =
         (state.vz + force[2] * inverseMass * dt * energyScale) *
-        Math.pow(this.#options.damping, dt);
+        this.#options.damping ** dt;
 
       state.x += state.vx * dt;
       state.y += state.vy * dt;
@@ -760,7 +760,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     // large snap. anchorStrength remains the backend softness control.
     const relaxation = Math.min(0.45, this.#options.anchorStrength * anchor.influence * 24);
     if (relaxation <= 0) return 0;
-    const desiredCorrection = radialError * (1 - Math.pow(1 - relaxation, dt));
+    const desiredCorrection = radialError * (1 - (1 - relaxation) ** dt);
     const maxCorrection =
       Math.max(
         state.node.collisionRadiusMeters * 2,

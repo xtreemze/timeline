@@ -6,5 +6,3 @@
 import { TimelineMemgraphInterchange } from './memgraph-interchange.ts';
 
 globalThis.TimelineMemgraphInterchange = TimelineMemgraphInterchange;
-
-export {};
