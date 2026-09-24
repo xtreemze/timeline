@@ -16,6 +16,7 @@ import {
   createOrbGraphSurfaceFactory,
   type OrbFactory,
 } from "../src/layout/orb-graph-surface.ts";
+import { TimelineOrbGraph } from "../src/orb-graph-entry.js";
 import { entityId, relationshipId } from "../src/domain/ids.ts";
 
 interface Viewport {
@@ -78,11 +79,7 @@ function getGraph(): TimelineGraphRuntime {
 }
 
 function getOrbFactory(): OrbFactory {
-  const orbFactory = Reflect.get(globalThis, "TimelineOrbGraph");
-  if (!hasFunction(orbFactory, "create")) {
-    throw new Error("Build the bundled Orb graph before loading TemporalGraphView.");
-  }
-  return orbFactory as OrbFactory;
+  return TimelineOrbGraph as OrbFactory;
 }
 
 function formatWindow(viewport: Viewport | null): string {
