@@ -370,4 +370,4 @@ export function worldLocalRadiusPx(meters: number, zoom: number, latitude = 0): 
 }
 
 /** On-screen height (pixels) entities float above their place's terrain. */
-export const WORLD_ENTITY_FLOAT_PX = 64;
+export const WORLD_ENTITY_FLOAT_PX = 96;
