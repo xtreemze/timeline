@@ -1025,7 +1025,7 @@ export function compactTickLabel(
   const date = new Date(Number(timeMs));
   if (!Number.isFinite(date.getTime())) return null;
 
-  if (spec.unit === "year") return yearLabelForTime(timeMs);
+  if (spec.unit === "year") return hasAmbientMonth ? "" : yearLabelForTime(timeMs);
   if (spec.unit === "month") {
     if (hasAmbientMonth) return "";
     return formatMonthYear(timeMs);
