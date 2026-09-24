@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { DECK_WORLD_LAYER_IDS, DeckWorldSurface } from "../site/world/deck-world-surface.ts";
+import { worldPointerDragMayStart } from "../src/interaction/world-pointer-policy.ts";
 import {
   createWorldTouchHoldGate,
   WORLD_TOUCH_HOLD_MS,
   WORLD_TOUCH_HOLD_TOLERANCE_PX,
 } from "../src/interaction/world-touch-hold.ts";
-import { worldPointerDragMayStart } from "../src/interaction/world-pointer-policy.ts";
 import {
   createProjectedWorldInstance,
   createWorldProjection,
