@@ -89,10 +89,7 @@ test("sparse readback publishes only force positions dirtied since the previous 
   simulation.setScene({
     nodes: [node(alice), node(bob)],
     edges: [],
-    anchors: [
-      anchor(alice, "stockholm"),
-      anchor(bob, "copenhagen"),
-    ],
+    anchors: [anchor(alice, "stockholm"), anchor(bob, "copenhagen")],
   });
 
   assert.deepEqual(
@@ -169,7 +166,10 @@ test("default repulsion spreads a dense same-anchor group beyond label-scale cro
     for (let right = left + 1; right < positions.length; right += 1) {
       const a = positions[left];
       const b = positions[right];
-      minimum = Math.min(minimum, Math.hypot(a.eastMeters - b.eastMeters, a.northMeters - b.northMeters));
+      minimum = Math.min(
+        minimum,
+        Math.hypot(a.eastMeters - b.eastMeters, a.northMeters - b.northMeters),
+      );
     }
   }
   assert.ok(minimum >= 200, `minimum same-anchor spacing was ${minimum}`);
@@ -373,17 +373,10 @@ test("post-drop settling stays responsive after an extreme drag displacement", (
     settleEnergy: 0,
   });
   const dragged = '["alice","extreme-drag"]';
-  const remoteIds = [
-    '["bob","remote-west"]',
-    '["carol","remote-east"]',
-    '["dave","remote-south"]',
-  ];
+  const remoteIds = ['["bob","remote-west"]', '["carol","remote-east"]', '["dave","remote-south"]'];
 
   simulation.setScene({
-    nodes: [
-      node(dragged),
-      ...remoteIds.map((id) => node(id)),
-    ],
+    nodes: [node(dragged), ...remoteIds.map((id) => node(id))],
     edges: [],
     anchors: [
       anchor(dragged, "stockholm", { influence: 1 }),
@@ -424,10 +417,7 @@ test("post-drop settling stays responsive after an extreme drag displacement", (
 
   assert.ok(before);
   assert.ok(after);
-  assert.ok(
-    elapsedMs < 100,
-    `extreme post-drop force step took ${elapsedMs.toFixed(1)} ms`,
-  );
+  assert.ok(elapsedMs < 100, `extreme post-drop force step took ${elapsedMs.toFixed(1)} ms`);
   assert.ok(Number.isFinite(after.eastMeters));
   assert.ok(Number.isFinite(after.northMeters));
   assert.ok(Number.isFinite(after.visualAltitudeMeters));
@@ -574,11 +564,7 @@ test("drag wakes nearby foreign-anchor topology but leaves distant groups frozen
   const beforeRemote = before.find((entry) => entry.instanceId === remote);
   const afterRemote = after.find((entry) => entry.instanceId === remote);
 
-  assert.notDeepEqual(
-    afterBob,
-    beforeBob,
-    "nearby foreign-anchor node participates in drag force",
-  );
+  assert.notDeepEqual(afterBob, beforeBob, "nearby foreign-anchor node participates in drag force");
   assert.deepEqual(afterRemote, beforeRemote, "distant anchor group stays frozen");
 });
 
@@ -639,17 +625,87 @@ test("far drag does not wake a foreign group located only between active-group m
   const before = simulation.getSnapshot();
   simulation.step(1000 / 60);
   const after = simulation.getSnapshot();
-  const beforeMiddle = before.filter((entry) =>
-    entry.instanceId === middleA || entry.instanceId === middleB,
+  const beforeMiddle = before.filter(
+    (entry) => entry.instanceId === middleA || entry.instanceId === middleB,
   );
-  const afterMiddle = after.filter((entry) =>
-    entry.instanceId === middleA || entry.instanceId === middleB,
+  const afterMiddle = after.filter(
+    (entry) => entry.instanceId === middleA || entry.instanceId === middleB,
   );
 
   assert.deepEqual(
     afterMiddle,
     beforeMiddle,
     "foreign group between separated active members remains asleep when no node is nearby",
+  );
+});
+
+test("post-drop settling stays localized to the released node's force island", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0.02,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const dragged = '["alice","released-locality"]';
+  const remoteA = '["bob","remote-a"]';
+  const remoteB = '["carol","remote-b"]';
+
+  simulation.setScene({
+    nodes: [
+      node(dragged, { collisionRadiusMeters: 120 }),
+      node(remoteA, { initialEastMeters: -1, collisionRadiusMeters: 120 }),
+      node(remoteB, { initialEastMeters: 1, collisionRadiusMeters: 120 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(dragged, "stockholm", { influence: 1 }),
+      anchor(remoteA, "remote", {
+        longitude: 12.5683,
+        latitude: 55.6761,
+        influence: 0,
+      }),
+      anchor(remoteB, "remote", {
+        longitude: 12.5683,
+        latitude: 55.6761,
+        influence: 0,
+      }),
+    ],
+  });
+
+  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 10_000_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+  simulation.step(1000 / 60);
+
+  const remoteBefore = simulation
+    .getSnapshot()
+    .filter((entry) => entry.instanceId === remoteA || entry.instanceId === remoteB);
+
+  simulation.setPin(null);
+  simulation.apply({ reason: "post-drop", energyTarget: 0.035, reheat: true });
+  for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
+
+  const after = simulation.getSnapshot();
+  const remoteAfter = after.filter(
+    (entry) => entry.instanceId === remoteA || entry.instanceId === remoteB,
+  );
+  const draggedAfter = after.find((entry) => entry.instanceId === dragged);
+
+  assert.deepEqual(
+    remoteAfter,
+    remoteBefore,
+    "unrelated geographic groups must stay asleep while the released force island settles",
+  );
+  assert.ok(draggedAfter);
+  assert.ok(
+    Math.abs(draggedAfter.eastMeters) < 10_000_000,
+    "the released node should still relax toward its authored place domain",
   );
 });
 

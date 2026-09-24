@@ -33,9 +33,11 @@ if (!entry || typeof entry.file !== "string") {
 
 const recordsByKey = new Map(Object.entries(manifest));
 const staticFiles = new Set();
+const visitedRecords = new Set();
 
 function visit(record) {
-  if (!record || typeof record !== "object") return;
+  if (!record || typeof record !== "object" || visitedRecords.has(record)) return;
+  visitedRecords.add(record);
   if (typeof record.file === "string") staticFiles.add(record.file);
   for (const importKey of record.imports ?? []) {
     visit(recordsByKey.get(importKey));

@@ -357,17 +357,10 @@ function liftedPositionByPixels(
   const quantisedZoom = Math.round(zoom * 4) / 4;
   const metersPerPixel = worldLocalRadiusPx(1, quantisedZoom, position[1]) ** -1;
   const liftMeters = Math.max(1, Math.round(metersPerPixel * liftPx));
-  return Object.freeze([
-    position[0],
-    position[1],
-    position[2] + liftMeters,
-  ]) as WorldRenderPosition;
+  return Object.freeze([position[0], position[1], position[2] + liftMeters]) as WorldRenderPosition;
 }
 
-function liftedPlaceIconPosition(
-  position: WorldRenderPosition,
-  zoom: number,
-): WorldRenderPosition {
+function liftedPlaceIconPosition(position: WorldRenderPosition, zoom: number): WorldRenderPosition {
   return liftedPositionByPixels(position, zoom, WORLD_PLACE_ICON_LIFT_PX);
 }
 
@@ -376,9 +369,7 @@ function liftedDraggedEntityPosition(
   zoom: number,
   dragging: boolean,
 ): WorldRenderPosition {
-  return dragging
-    ? liftedPositionByPixels(position, zoom, WORLD_DRAG_PICKUP_LIFT_PX)
-    : position;
+  return dragging ? liftedPositionByPixels(position, zoom, WORLD_DRAG_PICKUP_LIFT_PX) : position;
 }
 
 export function shouldClusterEntityDatums(
