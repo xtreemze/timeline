@@ -18,6 +18,12 @@ test("double tap zooms around the tapped temporal coordinate", async () => {
   assert.match(source, /TOUCH_DOUBLE_TAP_MS\s*=\s*320/);
   assert.match(source, /TOUCH_DOUBLE_TAP_DISTANCE_PX\s*=\s*28/);
   assert.match(source, /const registerTouchTap/);
+  // The tap window is measured on input timestamps, so a long task between
+  // the taps cannot turn a quick double-tap into two single taps.
+  assert.match(
+    source,
+    /const registerTouchTap[\s\S]*?const now = Number\(event\.timeStamp\) \|\| performance\.now\(\)/,
+  );
   assert.match(source, /nextSpan = Math\.max\(MIN_SPAN_MS, span \* DOUBLE_TAP_ZOOM_FACTOR\)/);
   assert.match(source, /start: anchor - nextSpan \* ratio/);
 });
