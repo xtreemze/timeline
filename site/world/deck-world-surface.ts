@@ -20,6 +20,7 @@ import {
   type WorldNodeStyle,
   worldColorBytes,
   worldEdgeStyle,
+  worldNodeFootprintRadiusPx,
   worldNodeStyle,
   worldPlaceStyle,
 } from "../../src/layout/world-graph-style.ts";
@@ -33,14 +34,15 @@ import {
   WORLD_CLUSTER_MERGE_PX,
   WORLD_ENTITY_FLOAT_PX,
   WORLD_LOCAL_GRAPH_MAX_PLACE_SHARE,
-  WORLD_PLACE_CLUSTER_RADIUS_PX,
+  WORLD_LOCAL_GRAPH_RADIUS_PX,
   WORLD_PLACE_LABEL_FLOOR,
-  WORLD_READABLE_LOCAL_RADIUS_PX,
   worldArrowLengthDegreesForNodeRadius,
+  worldArrowStrokeWidthPxForNodeRadius,
   worldLabelBudget,
   worldLabelTierFloor,
   worldLocalRadiusPx,
   worldPixelsToDegrees,
+  worldPlaceClusterRadiusPx,
   worldPresentationOffsetScale,
 } from "../../src/layout/world-semantic-presentation.ts";
 import {
@@ -297,6 +299,33 @@ export type DeckWorldEntityRenderDatum = DeckWorldEntityDatum | DeckWorldCluster
  * becoming dense before the camera has enough room to resolve them.
  */
 export const CLUSTER_ZOOM_THRESHOLD = 4.5;
+/** Default-sized nodes preserve the historical clustering threshold. */
+const WORLD_CLUSTER_BASE_NODE_RADIUS_PX = 28;
+/** Arrow geometry is world-space, so refresh it on fine-grained zoom steps. */
+const WORLD_SCREEN_SCALE_ZOOM_STEPS_PER_LEVEL = 32;
+const WORLD_CAMERA_FACING_STEP_DEGREES = 2;
+
+function screenScaleZoomStep(zoom: number): number {
+  return Math.round(zoom * WORLD_SCREEN_SCALE_ZOOM_STEPS_PER_LEVEL);
+}
+
+function cameraFacingStep(camera: WorldCameraState): string {
+  return [
+    Math.round(camera.longitude / WORLD_CAMERA_FACING_STEP_DEGREES),
+    Math.round(camera.latitude / WORLD_CAMERA_FACING_STEP_DEGREES),
+  ].join(":");
+}
+
+export function clusterZoomThresholdForNodeRadius(nodeRadiusPx: number): number {
+  const radius =
+    Number.isFinite(nodeRadiusPx) && nodeRadiusPx > 0
+      ? nodeRadiusPx
+      : WORLD_CLUSTER_BASE_NODE_RADIUS_PX;
+  return (
+    CLUSTER_ZOOM_THRESHOLD +
+    Math.max(0, Math.log2(radius / WORLD_CLUSTER_BASE_NODE_RADIUS_PX))
+  );
+}
 
 /**
  * Dense projections need semantic LOD earlier than sparse scenes: drawing
@@ -331,11 +360,17 @@ function liftedPlaceIconPosition(
   ]) as WorldRenderPosition;
 }
 
-export function shouldClusterEntityDatums(entityCount: number, zoom: number): boolean {
+export function shouldClusterEntityDatums(
+  entityCount: number,
+  zoom: number,
+  nodeRadiusPx = WORLD_CLUSTER_BASE_NODE_RADIUS_PX,
+): boolean {
   if (entityCount < OVERVIEW_CLUSTER_MIN_ENTITY_COUNT) return false;
+  const threshold = clusterZoomThresholdForNodeRadius(nodeRadiusPx);
   return (
-    zoom < CLUSTER_ZOOM_THRESHOLD ||
-    (entityCount >= DENSE_CLUSTER_ENTITY_THRESHOLD && zoom < DENSE_CLUSTER_ZOOM_THRESHOLD)
+    zoom < threshold ||
+    (entityCount >= DENSE_CLUSTER_ENTITY_THRESHOLD &&
+      zoom < Math.max(DENSE_CLUSTER_ZOOM_THRESHOLD, threshold))
   );
 }
 
@@ -361,8 +396,9 @@ function clusterCellKey(position: WorldRenderPosition): string {
 export function clusterEntityDatums(
   entities: readonly DeckWorldEntityDatum[],
   zoom: number,
+  nodeRadiusPx = WORLD_CLUSTER_BASE_NODE_RADIUS_PX,
 ): readonly DeckWorldEntityRenderDatum[] {
-  if (!shouldClusterEntityDatums(entities.length, zoom)) return entities;
+  if (!shouldClusterEntityDatums(entities.length, zoom, nodeRadiusPx)) return entities;
 
   const cells = new Map<string, DeckWorldEntityDatum[]>();
   for (const entity of entities) {
