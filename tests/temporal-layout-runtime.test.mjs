@@ -276,3 +276,29 @@ test("timeline keeps one semantic date hierarchy during an active zoom gesture",
   assert.match(body, /const incomingHierarchy = false/);
   assert.match(body, /selected hierarchy becomes authoritative on commit/);
 });
+
+
+test("timeline edge date context keeps retained slots and rolls changed digits in place", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  const materializeStart = source.indexOf("  materializeTemporalAccents(");
+  const materializeEnd = source.indexOf("  renderTemporalContext(", materializeStart);
+  const materializeBody = source.slice(materializeStart, materializeEnd);
+  assert.match(materializeBody, /edge-slot:\\$\\{slot\\}/);
+  assert.match(materializeBody, /updateEdgeAccentLabel/);
+  assert.match(materializeBody, /timeline-edge-date/);
+
+  const updateStart = source.indexOf("  updateEdgeAccentLabel(");
+  const updateEnd = source.indexOf("  materializeTickHierarchy(", updateStart);
+  const updateBody = source.slice(updateStart, updateEnd);
+  assert.match(updateBody, /timeline-edge-date-character/);
+  assert.match(updateBody, /slot\\.animate/);
+  assert.doesNotMatch(updateBody, /replaceChildren/);
+});
+
+test("portrait edge dates live on the outer rail rather than beside the timeline axis", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  assert.match(css, /\\.is-portrait \\.timeline-edge-date\\s*\\{[^}]*right:\\s*8px/s);
+  assert.match(css, /\\.is-portrait \\.timeline-edge-date\\s*\\{[^}]*left:\\s*auto/s);
+  assert.match(css, /\\.is-portrait \\.timeline-edge-date\\s*\\{[^}]*writing-mode:\\s*vertical-rl/s);
+});
