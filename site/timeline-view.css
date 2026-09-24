@@ -5475,8 +5475,8 @@
 }
 
 .timeline-view[data-orientation="landscape"] > .timeline-local-toolbar {
-  inset-block-start: max(0.5rem, env(safe-area-inset-top));
-  inset-inline-end: max(0.5rem, env(safe-area-inset-right));
+  inset-block-start: max(0.35rem, env(safe-area-inset-top));
+  inset-inline-end: max(0.35rem, env(safe-area-inset-right));
 }
 
 .timeline-view[data-orientation="portrait"] > .timeline-local-toolbar {
@@ -5504,11 +5504,11 @@
   grid-template-rows: auto auto auto;
   align-content: start;
   gap: 0.5rem;
-  inline-size: min(560px, calc(100% - 1.1rem));
+  inline-size: calc(100% - 0.7rem);
   block-size: auto;
   min-inline-size: 0;
   min-block-size: 0;
-  max-inline-size: calc(100% - 1.1rem);
+  max-inline-size: calc(100% - 0.7rem);
   margin: 0;
   padding: 0.5rem;
   overflow-y: auto;
@@ -5524,22 +5524,19 @@
 #app-shell.is-event-focused
   #presentation-stage[data-timeline-orientation="horizontal"]
   > .timeline-focus-sidebar:not([hidden]) {
-  inset-block-start: max(0.55rem, env(safe-area-inset-top));
-  inset-inline-start: max(0.55rem, env(safe-area-inset-left));
-  max-block-size: calc(100% - var(--focus-timeline-block-size) - 1.1rem);
+  inset-block-start: max(0.35rem, env(safe-area-inset-top));
+  inset-inline-start: max(0.35rem, env(safe-area-inset-left));
+  max-block-size: calc(100% - var(--focus-timeline-block-size) - 0.7rem);
 }
 
 #app-shell.is-event-focused
   #presentation-stage[data-timeline-orientation="vertical"]
   > .timeline-focus-sidebar:not([hidden]) {
   inset-block-start: 50%;
-  inset-inline-start: max(0.55rem, env(safe-area-inset-left));
-  inline-size: min(
-    560px,
-    calc(100% - var(--focus-timeline-inline-size) - 1.1rem)
-  );
-  max-inline-size: calc(100% - var(--focus-timeline-inline-size) - 1.1rem);
-  max-block-size: calc(100% - 1.1rem);
+  inset-inline-start: max(0.35rem, env(safe-area-inset-left));
+  inline-size: calc(100% - var(--focus-timeline-inline-size) - 0.7rem);
+  max-inline-size: calc(100% - var(--focus-timeline-inline-size) - 0.7rem);
+  max-block-size: calc(100% - 0.7rem);
   transform: translateY(-50%);
 }
 
