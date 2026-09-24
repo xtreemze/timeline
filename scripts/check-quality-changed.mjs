@@ -14,13 +14,7 @@ const supportedExtensions = new Set([
   ".tsx",
 ]);
 
-const ignoredPaths = new Set([
-  "site/evidence-extraction.bundle.js",
-  "site/leaflet.bundle.js",
-  "site/leaflet.css",
-  "site/orb-graph.bundle.js",
-  "site/pdf.worker.mjs",
-]);
+const ignoredPaths = new Set();
 
 function git(args, { allowFailure = false } = {}) {
   const result = spawnSync("git", args, { encoding: "utf8" });
