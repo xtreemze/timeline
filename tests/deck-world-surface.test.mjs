@@ -19,11 +19,11 @@ import {
 } from "../src/projection/world-projection.ts";
 import { diffWorldProjection } from "../src/projection/world-projection-delta.ts";
 
-test("sparse world topology stays clustered until a readable working zoom", () => {
-  assert.equal(CLUSTER_ZOOM_THRESHOLD, 3.5);
-  assert.equal(shouldClusterEntityDatums(100, 3), true);
-  assert.equal(shouldClusterEntityDatums(100, 3.49), true);
-  assert.equal(shouldClusterEntityDatums(100, 3.5), false);
+test("sparse world topology stays clustered through the extended overview tier", () => {
+  assert.equal(CLUSTER_ZOOM_THRESHOLD, 4.5);
+  assert.equal(shouldClusterEntityDatums(100, 4), true);
+  assert.equal(shouldClusterEntityDatums(100, 4.49), true);
+  assert.equal(shouldClusterEntityDatums(100, 4.5), false);
 });
 
 function harness() {
@@ -1422,32 +1422,43 @@ test("incremental render only replaces datums whose selection actually changed",
   assert.equal(secondEntities.find((datum) => datum.entityId === "entity-10").selected, true);
 });
 
-test("clustering is bypassed at the default working zoom (issue #445 Priority 2)", () => {
+test("default overview keeps same-place topology clustered without covering the place", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
   surface.setProjection(projection());
 
   const render = calls.setProps.at(-1);
-  const entities = render.layers[2].props.data;
-  assert.equal(entities.length, 2);
-  assert.ok(entities.every((datum) => datum.kind === "entity"));
+  const layer = render.layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities);
+  assert.ok(layer);
+
+  const cluster = layer.props.data.find((datum) => datum.kind === "cluster");
+  assert.ok(cluster);
+  assert.equal(cluster.clusterMembers.length, 2);
+  assert.ok(
+    layer.props.getRadius(cluster) > 22,
+    "cluster envelope sits outside the ordinary place marker footprint",
+  );
+  assert.equal(
+    layer.props.getFillColor(cluster)[3],
+    0,
+    "cluster envelope is transparent and cannot cover the authored place marker",
+  );
+
+  const retainedMembers = layer.props.data.filter((datum) => datum.kind === "entity");
+  assert.equal(retainedMembers.length, 2);
+  assert.ok(retainedMembers.every((datum) => layer.props.getRadius(datum) === 0));
 });
 
-test("zooming out past the cluster threshold groups nearby entities without losing canonical identity", () => {
+test("zooming out groups nearby entities without losing canonical identity", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
   surface.setProjection(projection());
   surface.setCamera({ longitude: 0, latitude: 0, zoom: 0, bearing: 0, pitch: 0 });
 
   const render = calls.setProps.at(-1);
-  const entities = render.layers[2].props.data;
-
-  // alice and bob share the same Stockholm anchor, so at low zoom they
-  // collapse into a single cluster datum.
-  assert.equal(entities.length, 1);
-  const [cluster] = entities;
-  assert.equal(cluster.kind, "cluster");
-  assert.equal(cluster.clusterMembers.length, 2);
+  const layer = render.layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities);
+  const cluster = layer.props.data.find((datum) => datum.kind === "cluster");
+  assert.ok(cluster);
   const memberIds = cluster.clusterMembers.map((member) => member.entityId).sort();
   assert.deepEqual(memberIds, ["alice", "bob"]);
 });
@@ -1459,8 +1470,9 @@ test("picking a cluster resolves to one of its real canonical member entities", 
   surface.setCamera({ longitude: 0, latitude: 0, zoom: 0, bearing: 0, pitch: 0 });
 
   const render = calls.setProps.at(-1);
-  const [cluster] = render.layers[2].props.data;
-  assert.equal(cluster.kind, "cluster");
+  const layer = render.layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities);
+  const cluster = layer.props.data.find((datum) => datum.kind === "cluster");
+  assert.ok(cluster);
 
   setPickResult({ object: cluster, layer: { id: DECK_WORLD_LAYER_IDS.entities }, x: 1, y: 2 });
   const hit = surface.pick({ x: 1, y: 2 });
@@ -1469,17 +1481,21 @@ test("picking a cluster resolves to one of its real canonical member entities", 
   assert.ok(["alice", "bob"].includes(hit.entityId));
 });
 
-test("zooming back in above the cluster threshold restores per-entity picking and dragging", () => {
+test("detail zoom fades the retained place-cluster envelope to zero and restores members", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
   surface.setProjection(projection());
-  surface.setCamera({ longitude: 0, latitude: 0, zoom: 0, bearing: 0, pitch: 0 });
-  assert.equal(calls.setProps.at(-1).layers[2].props.data.length, 1);
+  surface.setCamera({ longitude: 0, latitude: 0, zoom: 8, bearing: 0, pitch: 0 });
 
-  surface.setCamera({ longitude: 0, latitude: 0, zoom: 5, bearing: 0, pitch: 0 });
-  const entities = calls.setProps.at(-1).layers[2].props.data;
-  assert.equal(entities.length, 2);
-  assert.ok(entities.every((datum) => datum.kind === "entity"));
+  const render = calls.setProps.at(-1);
+  const layer = render.layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities);
+  const cluster = layer.props.data.find((datum) => datum.kind === "cluster");
+  const members = layer.props.data.filter((datum) => datum.kind === "entity");
+
+  assert.ok(cluster, "cluster row stays retained for reversible motion");
+  assert.equal(layer.props.getRadius(cluster), 0, "expanded place cluster is no longer visible");
+  assert.equal(members.length, 2);
+  assert.ok(members.every((datum) => layer.props.getRadius(datum) > 0));
 });
 
 function harnessWithLocalView() {
