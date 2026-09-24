@@ -1,6 +1,6 @@
 /**
  * Temporary compatibility shim for memgraph-interchange ESM migration
- * Sets TimelineMemgraphInterchange on globalThis for backward compatibility with IIFE code
+ * Sets TimelineMemgraphInterchange on globalThis for legacy global consumers
  */
 
 import { TimelineMemgraphInterchange } from './memgraph-interchange.ts';
