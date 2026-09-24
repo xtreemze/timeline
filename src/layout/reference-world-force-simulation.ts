@@ -39,9 +39,9 @@ interface NodeState {
 }
 
 export const DEFAULT_REFERENCE_WORLD_FORCE_OPTIONS: ReferenceWorldForceOptions = Object.freeze({
-  repulsionStrength: 18_000,
-  collisionStrength: 0.18,
-  anchorStrength: 0.012,
+  repulsionStrength: 32_000,
+  collisionStrength: 0.28,
+  anchorStrength: 0.009,
   altitudeStrength: 0.04,
   damping: 0.84,
   settleEnergy: 0.0005,

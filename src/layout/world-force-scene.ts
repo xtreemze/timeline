@@ -19,10 +19,10 @@ export interface WorldForceScenePolicy {
 export const DEFAULT_WORLD_FORCE_SCENE_POLICY: WorldForceScenePolicy = Object.freeze({
   baseMass: 1,
   visualWeightMassScale: 1,
-  baseCollisionRadiusMeters: 120 * WORLD_NODE_SCALE,
-  edgeStrength: 0.05,
-  edgeRestLengthMeters: 600 * WORLD_NODE_SCALE,
-  anchorInfluenceScale: 1,
+  baseCollisionRadiusMeters: 180 * WORLD_NODE_SCALE,
+  edgeStrength: 0.035,
+  edgeRestLengthMeters: 900 * WORLD_NODE_SCALE,
+  anchorInfluenceScale: 0.75,
 });
 
 function finiteNonNegative(value: number, label: string): number {

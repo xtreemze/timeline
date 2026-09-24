@@ -11,12 +11,13 @@ import type { WorldRenderPosition } from "./world-geographic-position.ts";
 // Tuned on real projects: co-located occurrences stack their labels at one
 // anchor, so regional zooms keep only a handful of the most important ones.
 const LABEL_BUDGETS: readonly (readonly [minimumZoom: number, budget: number])[] = [
-  [7, 1_000],
-  [5, 120],
-  [3, 24],
-  [1.5, 12],
+  [9, 4_000],
+  [7, 2_000],
+  [5, 240],
+  [3, 48],
+  [1.5, 24],
 ];
-const OVERVIEW_LABEL_BUDGET = 8;
+const OVERVIEW_LABEL_BUDGET = 12;
 
 /** Places are sparse canonical geography; their labels get a higher floor. */
 export const WORLD_PLACE_LABEL_FLOOR = 40;
@@ -256,7 +257,7 @@ export function declutterWorldLabels<T>(
  * octaves so positions only rebuild on meaningful zoom changes. Dense scenes
  * (already clustered) keep 1.
  */
-export const WORLD_LOCAL_GRAPH_RADIUS_PX = 260;
+export const WORLD_LOCAL_GRAPH_RADIUS_PX = 320;
 export const WORLD_FLOATING_GRAPH_DETAIL_ZOOM = 7;
 export const WORLD_FLOATING_GRAPH_MAX_EXPANSION = 2;
 const WORLD_FLOATING_GRAPH_DETAIL_GROWTH_PER_ZOOM = 0.25;
@@ -352,14 +353,14 @@ export const WORLD_LOCAL_GRAPH_MAX_PLACE_SHARE = 3;
 /** Clusters closer than this on screen merge into one bubble. */
 export const WORLD_CLUSTER_MERGE_PX = 96;
 /** Local graphs at least this large on screen count as readable. */
-export const WORLD_READABLE_LOCAL_RADIUS_PX = 160;
+export const WORLD_READABLE_LOCAL_RADIUS_PX = 200;
 
 /** Degrees of longitude spanned by `pixels` at `zoom` (GlobeView scale). */
 export function worldPixelsToDegrees(pixels: number, zoom: number): number {
   return (pixels * 360) / (512 * 2 ** zoom);
 }
 /** Below this on-screen local radius a place's entities cluster. */
-export const WORLD_PLACE_CLUSTER_RADIUS_PX = 96;
+export const WORLD_PLACE_CLUSTER_RADIUS_PX = 112;
 
 /** On-screen radius (pixels) of a local graph of `meters` at `zoom`. */
 export function worldLocalRadiusPx(meters: number, zoom: number, latitude = 0): number {
