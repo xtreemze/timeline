@@ -62,22 +62,25 @@ test("retained event terminals preserve semantic media, tag icons, and connector
 });
 
 
-test("timeline uses a Lit custom-element ownership boundary without reactive scene rendering", async () => {
-  const [html, view] = await Promise.all([
+test("timeline uses a bounded Lit custom-element owner without reactive scene rendering", async () => {
+  const [html, view, component] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/luum-timeline.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(html, /<luum-timeline id="timeline-view"/);
   assert.match(html, /<\/luum-timeline>/);
-  assert.match(view, /import \{ LitElement, noChange \} from "lit"/);
-  assert.match(view, /class LuumTimelineElement extends LitElement/);
-  assert.match(view, /createRenderRoot\(\): HTMLElement[\s\S]*return this/);
-  assert.match(view, /render\(\)[\s\S]*return noChange/);
-  assert.match(view, /ensureController\(\): TimelineViewController/);
-  assert.match(view, /customElements\.define\("luum-timeline", LuumTimelineElement\)/);
-  assert.match(
-    view,
-    /root instanceof LuumTimelineElement\) return root\.ensureController\(\)/,
-  );
+  assert.doesNotMatch(view, /from "lit"/);
+  assert.match(view, /export class TimelineViewController/);
+  assert.match(view, /isTimelineControllerHost/);
+  assert.match(view, /root\.ensureController\(\)/);
+
+  assert.match(component, /import \{ LitElement, noChange \} from "lit"/);
+  assert.match(component, /class LuumTimelineElement extends LitElement/);
+  assert.match(component, /createRenderRoot\(\): HTMLElement[\s\S]*return this/);
+  assert.match(component, /render\(\)[\s\S]*return noChange/);
+  assert.match(component, /ensureController\(\): TimelineViewController/);
+  assert.match(component, /customElements\.define\("luum-timeline", LuumTimelineElement\)/);
+  assert.doesNotMatch(component, /document\.createElement\(/);
 });
