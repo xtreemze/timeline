@@ -358,7 +358,10 @@ test("timeline retains obsolete edge-year slots during gestures, suppresses over
     /for \(const animation of node\.getAnimations\(\)\) animation\.cancel\(\);[\s\S]*node\.hidden = true/,
   );
   const interactionCleanupStart = renderBody.indexOf("if (this.retention.active)");
-  const committedCleanupStart = renderBody.indexOf("if (!this.retention.active)", interactionCleanupStart);
+  const committedCleanupStart = renderBody.indexOf(
+    "if (!this.retention.active)",
+    interactionCleanupStart,
+  );
   const interactionCleanup = renderBody.slice(interactionCleanupStart, committedCleanupStart);
   assert.doesNotMatch(interactionCleanup, /accentScene\.delete/);
   assert.doesNotMatch(interactionCleanup, /node\.remove\(\)/);
