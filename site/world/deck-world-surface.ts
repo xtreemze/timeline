@@ -1255,7 +1255,7 @@ const LABEL_HALO_PX = 3;
 const APP_FONT_FAMILY = "Monaspace Krypton Timeline";
 const LABEL_FALLBACK_FONT_FAMILY = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 const GRATICULE = worldGraticule();
-const ENTITY_LABEL_OFFSET_PX = 32;
+const LABEL_MARKER_GAP_PX = 8;
 
 /** Close/detail zoom where a claimed node drag freezes the globe camera. */
 export const WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM = 6;
@@ -1292,11 +1292,13 @@ function labelOffsetCandidates(
   datum: DeckWorldLabelDatum,
   width: number,
   height: number,
+  markerRadiusPx = 0,
 ): readonly (readonly [number, number])[] {
-  const horizontal = ENTITY_LABEL_OFFSET_PX + width / 2;
-  const vertical = ENTITY_LABEL_OFFSET_PX + height / 2;
-  const nearHorizontal = width / 2 + 12;
-  const nearVertical = height / 2 + 10;
+  const clearance = Math.max(0, markerRadiusPx) + LABEL_MARKER_GAP_PX;
+  const horizontal = clearance + width / 2;
+  const vertical = clearance + height / 2;
+  const nearHorizontal = width / 2 + clearance;
+  const nearVertical = height / 2 + clearance;
 
   if (datum.kind === "entity-label") {
     return Object.freeze([
@@ -1340,7 +1342,7 @@ function labelPixelOffset(datum: DeckWorldLabelDatum): [number, number] {
   const own = datum.pixelOffset;
   if (own) return [own[0], own[1]];
   const { width, height } = labelFootprint(datum);
-  const [x, y] = labelOffsetCandidates(datum, width, height)[0] ?? [0, 0];
+  const [x, y] = labelOffsetCandidates(datum, width, height, 0)[0] ?? [0, 0];
   return [x, y];
 }
 
@@ -1364,6 +1366,7 @@ function withLabelPixelOffset(
 function placeWorldLabelDatums(
   datums: readonly DeckWorldLabelDatum[],
   zoom: number,
+  markerRadiusPx: (datum: DeckWorldLabelDatum) => number,
 ): readonly DeckWorldLabelDatum[] {
   const tierZoom = worldLabelTierFloor(zoom);
   const scale = (512 / 360) * 2 ** Math.max(0, tierZoom);
@@ -1403,7 +1406,12 @@ function placeWorldLabelDatums(
     const latitudeScale = Math.max(0.2, Math.cos((datum.position[1] * Math.PI) / 180));
     const anchorX = datum.position[0] * scale * latitudeScale;
     const anchorY = -datum.position[1] * scale;
-    const candidates = labelOffsetCandidates(datum, footprint.width, footprint.height);
+    const candidates = labelOffsetCandidates(
+      datum,
+      footprint.width,
+      footprint.height,
+      markerRadiusPx(datum),
+    );
     let chosen: readonly [number, number] | null = null;
     let chosenBox: Box | null = null;
 
@@ -1457,6 +1465,8 @@ function labelDatums(input: {
   readonly zoom: number;
   readonly focus: WorldLabelFocus | null;
   readonly previous: ReadonlyMap<string, DeckWorldLabelDatum>;
+  readonly entityMarkerRadiusPx: (instanceId: WorldInstanceId) => number;
+  readonly placeMarkerRadiusPx: (placeId: PlaceId) => number;
 }): {
   readonly datums: readonly DeckWorldLabelDatum[];
   readonly byKey: Map<string, DeckWorldLabelDatum>;
@@ -1466,6 +1476,7 @@ function labelDatums(input: {
     input.focus?.kind === kind && input.focus.id === id;
   const byKey = new Map<string, DeckWorldLabelDatum>();
   const result: DeckWorldLabelDatum[] = [];
+  const markerRadiusByKey = new Map<string, number>();
   // Declutter priority: pinned first, then importance across kinds (entity
   // visual weight; places fixed mid-importance; relationships down-weighted),
   // with places, entities, relationships as the tie-break order.
@@ -1501,6 +1512,7 @@ function labelDatums(input: {
     const text = place.label ?? "";
     const emphasized = focused("place", place.placeId);
     const key = `place:${place.placeId}`;
+    markerRadiusByKey.set(key, input.placeMarkerRadiusPx(place.placeId));
     emit(
       key,
       text,
@@ -1535,6 +1547,7 @@ function labelDatums(input: {
     const text = entity.label ?? "";
     const emphasized = pinnedEntity(entity);
     const key = `entity:${entity.worldInstanceId}`;
+    markerRadiusByKey.set(key, input.entityMarkerRadiusPx(entity.worldInstanceId));
     emit(
       key,
       text,
@@ -1600,7 +1613,11 @@ function labelDatums(input: {
     const b = priority.get(right) ?? [1, 3, 0];
     return a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
   });
-  const placed = placeWorldLabelDatums(ordered, input.zoom);
+  const placed = placeWorldLabelDatums(
+    ordered,
+    input.zoom,
+    (datum) => markerRadiusByKey.get(datum.key) ?? 0,
+  );
   const placedByKey = new Map(placed.map((datum) => [datum.key, datum] as const));
   for (const key of [...byKey.keys()]) {
     const placedDatum = placedByKey.get(key);
