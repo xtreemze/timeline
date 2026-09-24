@@ -42,6 +42,8 @@ function shapePath(shape: WorldNodeStyle["shape"], center: number, radius: numbe
       }).join(" ");
       return `<polygon points="${points}"/>`;
     }
+    case "pin":
+      return `<path d="M${center} ${center + radius}C${center + radius * 0.75} ${center + radius * 0.1} ${center + radius} ${center - radius * 0.25} ${center + radius} ${center - radius * 0.45}A${radius} ${radius} 0 1 0 ${center - radius} ${center - radius * 0.45}C${center - radius} ${center - radius * 0.25} ${center - radius * 0.75} ${center + radius * 0.1} ${center} ${center + radius}Z"/>`;
     default:
       return `<circle cx="${center}" cy="${center}" r="${radius}"/>`;
   }
