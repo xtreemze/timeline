@@ -333,3 +333,168 @@ test("Sugiyama reduces crossings versus the former circular baseline", () => {
     `expected Sugiyama crossings ${dagCrossings} to beat circular baseline ${circularCrossings}`,
   );
 });
+
+test("isolated entities stay force-owned while connected entities receive DAG targets", () => {
+  const localPlace = {
+    placeId: "sparse-place",
+    longitude: 18,
+    latitude: 59,
+    influence: 1,
+  };
+  const make = (name) =>
+    createProjectedWorldInstance({
+      id: worldInstanceId(name, `occ-${name}`),
+      canonicalId: name,
+      occurrenceId: `occ-${name}`,
+      geographicAnchors: [localPlace],
+      temporalWeight: 1,
+      visualWeight: 0.5,
+      retained: false,
+    });
+  const a = make("sparse-a");
+  const b = make("sparse-b");
+  const c = make("sparse-c");
+  const d = make("sparse-d");
+
+  const layout = createWorldDagLayout(
+    createWorldProjection({
+      instances: [a, b, c, d],
+      edges: [edge("sparse-ab", a, b)],
+    }),
+  );
+
+  assert.deepEqual(
+    layout.targets.map((target) => target.instanceId).sort(),
+    [a.id, b.id].sort(),
+  );
+  assert.deepEqual(layout.routes.map((route) => route.relationshipId), ["sparse-ab"]);
+  assert.equal(layout.metrics.nodeCount, 4);
+});
+
+test("route quality metrics measure the routed polyline rather than endpoint distance", () => {
+  const localPlace = {
+    placeId: "route-metric-place",
+    longitude: 18,
+    latitude: 59,
+    influence: 1,
+  };
+  const make = (name) =>
+    createProjectedWorldInstance({
+      id: worldInstanceId(name, `occ-${name}`),
+      canonicalId: name,
+      occurrenceId: `occ-${name}`,
+      geographicAnchors: [localPlace],
+      temporalWeight: 1,
+      visualWeight: 0.5,
+      retained: false,
+    });
+  const a = make("route-a");
+  const b = make("route-b");
+  const c = make("route-c");
+  const projection = createWorldProjection({
+    instances: [a, b, c],
+    edges: [edge("route-ab", a, b), edge("route-bc", b, c), edge("route-ac", a, c)],
+  });
+  const layout = createWorldDagLayout(projection);
+
+  const routedLengths = layout.routes.map((route) => {
+    let length = 0;
+    for (let index = 1; index < route.points.length; index += 1) {
+      const source = route.points[index - 1];
+      const target = route.points[index];
+      length += Math.hypot(
+        target.eastMeters - source.eastMeters,
+        target.northMeters - source.northMeters,
+      );
+    }
+    return length;
+  });
+  const expectedMean =
+    routedLengths.reduce((total, length) => total + length, 0) / routedLengths.length;
+
+  assert.ok(layout.routes.some((route) => route.points.length > 2));
+  assert.ok(Math.abs(layout.metrics.meanEdgeLengthMeters - expectedMean) < 1e-6);
+});
+
+test("SCC cycle breaking cannot discard a bridge to another component", () => {
+  const localPlace = {
+    placeId: "scc-place",
+    longitude: 18,
+    latitude: 59,
+    influence: 1,
+  };
+  const make = (name) =>
+    createProjectedWorldInstance({
+      id: worldInstanceId(name, `occ-${name}`),
+      canonicalId: name,
+      occurrenceId: `occ-${name}`,
+      geographicAnchors: [localPlace],
+      temporalWeight: 1,
+      visualWeight: 0.5,
+      retained: false,
+    });
+  const a = make("scc-a");
+  const b = make("scc-b");
+  const c = make("scc-c");
+  const d = make("scc-d");
+  const layout = createWorldDagLayout(
+    createWorldProjection({
+      instances: [a, b, c, d],
+      edges: [
+        edge("scc-ab", a, b, 1),
+        edge("scc-bc", b, c, 0.9),
+        edge("scc-ca", c, a, 0.8),
+        edge("scc-bridge", c, d, 0.01),
+      ],
+    }),
+  );
+
+  const routeIds = layout.routes.map((route) => String(route.relationshipId));
+  assert.ok(routeIds.includes("scc-bridge"));
+  assert.equal(routeIds.filter((id) => id.startsWith("scc-") && id !== "scc-bridge").length, 2);
+});
+
+test("operator hysteresis keeps a stable family across the 24-node boundary", () => {
+  const localPlace = {
+    placeId: "hysteresis-place",
+    longitude: 18,
+    latitude: 59,
+    influence: 1,
+  };
+  const make = (name) =>
+    createProjectedWorldInstance({
+      id: worldInstanceId(name, `occ-${name}`),
+      canonicalId: name,
+      occurrenceId: `occ-${name}`,
+      geographicAnchors: [localPlace],
+      temporalWeight: 1,
+      visualWeight: 0.5,
+      retained: false,
+    });
+  const initialNodes = Array.from({ length: 24 }, (_, index) => make(`hysteresis-${index}`));
+  const initial = createWorldDagLayout(
+    createWorldProjection({
+      instances: initialNodes,
+      edges: initialNodes
+        .slice(1)
+        .map((item, index) => edge(`hysteresis-edge-${index}`, initialNodes[index], item)),
+    }),
+  );
+  const previousAlgorithm = Object.keys(initial.metrics.algorithmCounts)[0];
+  assert.ok(previousAlgorithm);
+
+  const added = make("hysteresis-24");
+  const updatedNodes = [...initialNodes, added];
+  const updated = createWorldDagLayout(
+    createWorldProjection({
+      instances: updatedNodes,
+      edges: updatedNodes
+        .slice(1)
+        .map((item, index) => edge(`hysteresis-edge-${index}`, updatedNodes[index], item)),
+    }),
+  );
+  const updatedAlgorithm = Object.keys(updated.metrics.algorithmCounts)[0];
+
+  assert.equal(updatedAlgorithm, previousAlgorithm);
+});
+

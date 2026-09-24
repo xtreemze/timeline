@@ -91,6 +91,14 @@ const SIMPLEX_COORD_MAX_EDGES = 384;
 const SIMPLEX_LAYER_MAX_NODES = 128;
 const SIMPLEX_LAYER_MAX_EDGES = 384;
 const PAIRWISE_METRIC_MAX_NODES = 256;
+const ROUTE_METRIC_MAX_SEGMENTS = 512;
+const LAYOUT_HYSTERESIS_SCORE_RATIO = 1.12;
+const COMPARE_LAYERING_HYSTERESIS_NODES = 4;
+const COMPARE_LAYERING_HYSTERESIS_EDGES = 16;
+const SIMPLEX_COORD_HYSTERESIS_NODES = 8;
+const SIMPLEX_COORD_HYSTERESIS_EDGES = 64;
+const SIMPLEX_LAYER_HYSTERESIS_NODES = 16;
+const SIMPLEX_LAYER_HYSTERESIS_EDGES = 64;
 
 interface LocalDagEdge {
   readonly relationshipId: RelationshipId;
@@ -245,29 +253,85 @@ function reaches(
   return false;
 }
 
+function stronglyConnectedComponentIndex(
+  nodeIds: ReadonlySet<WorldInstanceId>,
+  candidates: readonly ProjectedWorldEdge[],
+): ReadonlyMap<WorldInstanceId, number> {
+  const adjacency = new Map<WorldInstanceId, WorldInstanceId[]>(
+    [...nodeIds].map((id) => [id, []] as const),
+  );
+  for (const edge of candidates) {
+    if (!nodeIds.has(edge.sourceInstanceId) || !nodeIds.has(edge.targetInstanceId)) continue;
+    adjacency.get(edge.sourceInstanceId)?.push(edge.targetInstanceId);
+  }
+  for (const entries of adjacency.values()) {
+    entries.sort((left, right) => String(left).localeCompare(String(right)));
+  }
+
+  let nextIndex = 0;
+  let nextComponent = 0;
+  const indexes = new Map<WorldInstanceId, number>();
+  const lowLinks = new Map<WorldInstanceId, number>();
+  const stack: WorldInstanceId[] = [];
+  const stacked = new Set<WorldInstanceId>();
+  const componentByNode = new Map<WorldInstanceId, number>();
+
+  const visit = (node: WorldInstanceId): void => {
+    indexes.set(node, nextIndex);
+    lowLinks.set(node, nextIndex);
+    nextIndex += 1;
+    stack.push(node);
+    stacked.add(node);
+
+    for (const child of adjacency.get(node) ?? []) {
+      if (!indexes.has(child)) {
+        visit(child);
+        lowLinks.set(node, Math.min(lowLinks.get(node) ?? 0, lowLinks.get(child) ?? 0));
+      } else if (stacked.has(child)) {
+        lowLinks.set(node, Math.min(lowLinks.get(node) ?? 0, indexes.get(child) ?? 0));
+      }
+    }
+
+    if (lowLinks.get(node) !== indexes.get(node)) return;
+    while (stack.length) {
+      const member = stack.pop();
+      if (member === undefined) break;
+      stacked.delete(member);
+      componentByNode.set(member, nextComponent);
+      if (member === node) break;
+    }
+    nextComponent += 1;
+  };
+
+  for (const node of [...nodeIds].sort((left, right) => String(left).localeCompare(String(right)))) {
+    if (!indexes.has(node)) visit(node);
+  }
+
+  return componentByNode;
+}
+
 /**
- * Preserve the most temporally relevant directed relationships when a local
- * semantic graph contains cycles. Lower-weight cycle-closing edges stay in
- * the semantic/force graph; they are omitted only from this temporary DAG.
+ * Build an acyclic structural view without letting one arbitrary cycle-closing
+ * choice redefine the hierarchy outside that cycle. Strongly connected
+ * components are identified first; all unique inter-component relationships
+ * are retained, while cycle breaking is confined to relationships inside an
+ * SCC. The semantic/force graph remains untouched.
  */
 function localAcyclicEdges(
   nodeIds: ReadonlySet<WorldInstanceId>,
   candidates: readonly ProjectedWorldEdge[],
 ): readonly LocalDagEdge[] {
-  const adjacency = new Map<WorldInstanceId, Set<WorldInstanceId>>();
+  const componentByNode = stronglyConnectedComponentIndex(nodeIds, candidates);
   const accepted: LocalDagEdge[] = [];
   const acceptedPairs = new Set<string>();
+  const internalAdjacency = new Map<WorldInstanceId, Set<WorldInstanceId>>(
+    [...nodeIds].map((id) => [id, new Set()] as const),
+  );
 
-  for (const id of nodeIds) adjacency.set(id, new Set());
-
-  for (const edge of candidates) {
-    if (!nodeIds.has(edge.sourceInstanceId) || !nodeIds.has(edge.targetInstanceId)) continue;
+  const append = (edge: ProjectedWorldEdge): void => {
     const pairKey = JSON.stringify([String(edge.sourceInstanceId), String(edge.targetInstanceId)]);
-    if (acceptedPairs.has(pairKey)) continue;
-    if (reaches(adjacency, edge.targetInstanceId, edge.sourceInstanceId)) continue;
-
+    if (acceptedPairs.has(pairKey)) return;
     acceptedPairs.add(pairKey);
-    adjacency.get(edge.sourceInstanceId)?.add(edge.targetInstanceId);
     accepted.push(
       Object.freeze({
         relationshipId: edge.id,
@@ -277,6 +341,22 @@ function localAcyclicEdges(
         retained: edge.retained,
       }),
     );
+  };
+
+  for (const edge of candidates) {
+    if (!nodeIds.has(edge.sourceInstanceId) || !nodeIds.has(edge.targetInstanceId)) continue;
+    const sourceComponent = componentByNode.get(edge.sourceInstanceId);
+    const targetComponent = componentByNode.get(edge.targetInstanceId);
+    if (sourceComponent === undefined || targetComponent === undefined) continue;
+
+    if (sourceComponent !== targetComponent) {
+      append(edge);
+      continue;
+    }
+
+    if (reaches(internalAdjacency, edge.targetInstanceId, edge.sourceInstanceId)) continue;
+    append(edge);
+    internalAdjacency.get(edge.sourceInstanceId)?.add(edge.targetInstanceId);
   }
 
   return Object.freeze(accepted);
@@ -355,57 +435,75 @@ function properSegmentIntersection(
   return abC * abD < 0 && cdA * cdB < 0;
 }
 
+function routeSegments(
+  route: RawRoute,
+): readonly (readonly [WorldDagRoutePoint, WorldDagRoutePoint])[] {
+  const segments: Array<readonly [WorldDagRoutePoint, WorldDagRoutePoint]> = [];
+  for (let index = 1; index < route.points.length; index += 1) {
+    const source = route.points[index - 1];
+    const target = route.points[index];
+    if (source && target) segments.push(Object.freeze([source, target]));
+  }
+  return Object.freeze(segments);
+}
+
 function candidateMetrics(
   targets: readonly RawTarget[],
-  edges: readonly LocalDagEdge[],
+  routes: readonly RawRoute[],
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
 ): Pick<
   CandidateLayout,
   "crossingCount" | "meanEdgeLengthMeters" | "minSeparationMeters" | "meanStableDisplacementMeters"
 > {
-  const positions = new Map(
-    targets.map((target) => [target.id, [target.eastMeters, target.northMeters] as const] as const),
-  );
-
+  const segmentedRoutes = routes.map((route) => ({ route, segments: routeSegments(route) }));
   let totalLength = 0;
-  let measuredEdges = 0;
-  for (const edge of edges) {
-    const source = positions.get(String(edge.sourceId));
-    const target = positions.get(String(edge.targetId));
-    if (!source || !target) continue;
-    totalLength += Math.hypot(target[0] - source[0], target[1] - source[1]);
-    measuredEdges += 1;
+  let measuredRoutes = 0;
+  let segmentCount = 0;
+
+  for (const { segments } of segmentedRoutes) {
+    if (segments.length === 0) continue;
+    measuredRoutes += 1;
+    segmentCount += segments.length;
+    for (const [source, target] of segments) {
+      totalLength += Math.hypot(
+        target.eastMeters - source.eastMeters,
+        target.northMeters - source.northMeters,
+      );
+    }
   }
 
   let crossingCount: number | null = 0;
-  if (edges.length > 256) {
+  if (segmentCount > ROUTE_METRIC_MAX_SEGMENTS) {
     crossingCount = null;
   } else {
-    for (let leftIndex = 0; leftIndex < edges.length; leftIndex += 1) {
-      const left = edges[leftIndex];
+    for (let leftIndex = 0; leftIndex < segmentedRoutes.length; leftIndex += 1) {
+      const left = segmentedRoutes[leftIndex];
       if (!left) continue;
-      const leftSource = positions.get(String(left.sourceId));
-      const leftTarget = positions.get(String(left.targetId));
-      if (!leftSource || !leftTarget) continue;
-      for (let rightIndex = leftIndex + 1; rightIndex < edges.length; rightIndex += 1) {
-        const right = edges[rightIndex];
+      for (let rightIndex = leftIndex + 1; rightIndex < segmentedRoutes.length; rightIndex += 1) {
+        const right = segmentedRoutes[rightIndex];
         if (
           !right ||
-          left.sourceId === right.sourceId ||
-          left.sourceId === right.targetId ||
-          left.targetId === right.sourceId ||
-          left.targetId === right.targetId
+          left.route.sourceId === right.route.sourceId ||
+          left.route.sourceId === right.route.targetId ||
+          left.route.targetId === right.route.sourceId ||
+          left.route.targetId === right.route.targetId
         ) {
           continue;
         }
-        const rightSource = positions.get(String(right.sourceId));
-        const rightTarget = positions.get(String(right.targetId));
-        if (
-          rightSource &&
-          rightTarget &&
-          properSegmentIntersection(leftSource, leftTarget, rightSource, rightTarget)
-        ) {
-          crossingCount += 1;
+
+        for (const [leftSource, leftTarget] of left.segments) {
+          for (const [rightSource, rightTarget] of right.segments) {
+            if (
+              properSegmentIntersection(
+                [leftSource.eastMeters, leftSource.northMeters],
+                [leftTarget.eastMeters, leftTarget.northMeters],
+                [rightSource.eastMeters, rightSource.northMeters],
+                [rightTarget.eastMeters, rightTarget.northMeters],
+              )
+            ) {
+              crossingCount += 1;
+            }
+          }
         }
       }
     }
@@ -444,7 +542,7 @@ function candidateMetrics(
 
   return {
     crossingCount,
-    meanEdgeLengthMeters: measuredEdges > 0 ? totalLength / measuredEdges : 0,
+    meanEdgeLengthMeters: measuredRoutes > 0 ? totalLength / measuredRoutes : 0,
     minSeparationMeters,
     meanStableDisplacementMeters: stableCount > 0 ? stableDisplacement / stableCount : 0,
   };
@@ -541,7 +639,6 @@ function scaledCandidate(
     | "meanStableDisplacementMeters"
   >,
   nodeCount: number,
-  edges: readonly LocalDagEdge[],
   sizes: ReadonlyMap<string, readonly [number, number]>,
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
 ): CandidateLayout {
@@ -613,7 +710,7 @@ function scaledCandidate(
     ...candidate,
     targets: stable.targets,
     routes: stable.routes,
-    ...candidateMetrics(stable.targets, edges, previousTargets),
+    ...candidateMetrics(stable.targets, stable.routes, previousTargets),
   });
 }
 
@@ -761,10 +858,32 @@ function runLayoutCandidate(
       height: dimensions.height,
     },
     nodeIds.length,
-    edges,
     sizes,
     previousTargets,
   );
+}
+
+function stableAlgorithmName(name: string | undefined): string | null {
+  if (!name) return null;
+  return name.endsWith("-force-only") ? name.slice(0, -"-force-only".length) : name;
+}
+
+function preferPreviousCandidate(
+  previousAlgorithm: string | undefined,
+  candidates: readonly CandidateLayout[],
+): CandidateLayout {
+  const best = [...candidates].sort(
+    (left, right) => candidateScore(left) - candidateScore(right) || left.name.localeCompare(right.name),
+  )[0];
+  if (!best) {
+    throw new Error("World DAG candidate selection requires at least one candidate.");
+  }
+
+  const priorName = stableAlgorithmName(previousAlgorithm);
+  const prior = candidates.find((candidate) => candidate.name === priorName);
+  if (!prior || prior.targets.length === 0) return best;
+
+  return candidateScore(prior) <= candidateScore(best) * LAYOUT_HYSTERESIS_SCORE_RATIO ? prior : best;
 }
 
 function chooseCandidate(
@@ -772,24 +891,46 @@ function chooseCandidate(
   edges: readonly LocalDagEdge[],
   sizes: ReadonlyMap<string, readonly [number, number]>,
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
+  previousAlgorithm?: string,
 ): CandidateLayout {
   const gap = layoutGap(sizes);
+  const previousName = stableAlgorithmName(previousAlgorithm);
+
+  if (nodeIds.length === 0 || edges.length === 0) {
+    return Object.freeze({
+      name: "sparse-force-only",
+      targets: Object.freeze([]),
+      routes: Object.freeze([]),
+      width: 0,
+      height: 0,
+      crossingCount: null,
+      meanEdgeLengthMeters: 0,
+      minSeparationMeters: null,
+      meanStableDisplacementMeters: 0,
+    });
+  }
 
   if (nodeIds.length <= EXACT_DECROSS_MAX_NODES && edges.length <= EXACT_DECROSS_MAX_EDGES) {
+    const candidates: CandidateLayout[] = [];
     try {
-      return runLayoutCandidate(
-        "longest-opt-simplex",
-        nodeIds,
-        edges,
-        sizes,
-        gap,
-        previousTargets,
-        "longest",
-        "opt",
-        "simplex",
+      candidates.push(
+        runLayoutCandidate(
+          "longest-opt-simplex",
+          nodeIds,
+          edges,
+          sizes,
+          gap,
+          previousTargets,
+          "longest",
+          "opt",
+          "simplex",
+        ),
       );
     } catch {
-      return runLayoutCandidate(
+      // Exact decross can reject pathological tiny graphs; bounded heuristics remain available.
+    }
+    candidates.push(
+      runLayoutCandidate(
         "longest-two-layer-simplex",
         nodeIds,
         edges,
@@ -799,40 +940,71 @@ function chooseCandidate(
         "longest",
         "two-layer",
         "simplex",
-      );
-    }
+      ),
+      runLayoutCandidate(
+        "simplex-two-layer-simplex",
+        nodeIds,
+        edges,
+        sizes,
+        gap,
+        previousTargets,
+        "simplex",
+        "two-layer",
+        "simplex",
+      ),
+    );
+    return preferPreviousCandidate(previousAlgorithm, candidates);
   }
 
-  if (nodeIds.length <= COMPARE_LAYERING_MAX_NODES && edges.length <= COMPARE_LAYERING_MAX_EDGES) {
-    const longest = runLayoutCandidate(
-      "longest-two-layer-simplex",
-      nodeIds,
-      edges,
-      sizes,
-      gap,
-      previousTargets,
-      "longest",
-      "two-layer",
-      "simplex",
-    );
-    const simplex = runLayoutCandidate(
-      "simplex-two-layer-simplex",
-      nodeIds,
-      edges,
-      sizes,
-      gap,
-      previousTargets,
-      "simplex",
-      "two-layer",
-      "simplex",
-    );
-    return candidateScore(longest) <= candidateScore(simplex) ? longest : simplex;
+  const compareLayering =
+    (nodeIds.length <= COMPARE_LAYERING_MAX_NODES && edges.length <= COMPARE_LAYERING_MAX_EDGES) ||
+    ((previousName === "longest-two-layer-simplex" ||
+      previousName === "simplex-two-layer-simplex") &&
+      nodeIds.length <= COMPARE_LAYERING_MAX_NODES + COMPARE_LAYERING_HYSTERESIS_NODES &&
+      edges.length <= COMPARE_LAYERING_MAX_EDGES + COMPARE_LAYERING_HYSTERESIS_EDGES);
+
+  if (compareLayering) {
+    return preferPreviousCandidate(previousAlgorithm, [
+      runLayoutCandidate(
+        "longest-two-layer-simplex",
+        nodeIds,
+        edges,
+        sizes,
+        gap,
+        previousTargets,
+        "longest",
+        "two-layer",
+        "simplex",
+      ),
+      runLayoutCandidate(
+        "simplex-two-layer-simplex",
+        nodeIds,
+        edges,
+        sizes,
+        gap,
+        previousTargets,
+        "simplex",
+        "two-layer",
+        "simplex",
+      ),
+    ]);
   }
 
+  const previousUsedSimplexLayering =
+    previousName === "simplex-two-layer-simplex" || previousName === "simplex-two-layer-greedy";
+  const previousUsedSimplexCoord =
+    previousName === "simplex-two-layer-simplex" || previousName === "longest-two-layer-simplex";
   const useSimplexLayering =
-    nodeIds.length <= SIMPLEX_LAYER_MAX_NODES && edges.length <= SIMPLEX_LAYER_MAX_EDGES;
+    (nodeIds.length <= SIMPLEX_LAYER_MAX_NODES && edges.length <= SIMPLEX_LAYER_MAX_EDGES) ||
+    (previousUsedSimplexLayering &&
+      nodeIds.length <= SIMPLEX_LAYER_MAX_NODES + SIMPLEX_LAYER_HYSTERESIS_NODES &&
+      edges.length <= SIMPLEX_LAYER_MAX_EDGES + SIMPLEX_LAYER_HYSTERESIS_EDGES);
   const useSimplexCoord =
-    nodeIds.length <= SIMPLEX_COORD_MAX_NODES && edges.length <= SIMPLEX_COORD_MAX_EDGES;
+    (nodeIds.length <= SIMPLEX_COORD_MAX_NODES && edges.length <= SIMPLEX_COORD_MAX_EDGES) ||
+    (previousUsedSimplexCoord &&
+      nodeIds.length <= SIMPLEX_COORD_MAX_NODES + SIMPLEX_COORD_HYSTERESIS_NODES &&
+      edges.length <= SIMPLEX_COORD_MAX_EDGES + SIMPLEX_COORD_HYSTERESIS_EDGES);
+
   return runLayoutCandidate(
     useSimplexCoord
       ? useSimplexLayering
@@ -863,6 +1035,12 @@ function layoutPlace(
   const nodeIdSet = new Set(nodeIds);
   const sizes = nodeSizeMap(nodeIds, options.nodeSizes);
   const edges = localAcyclicEdges(nodeIdSet, candidateEdges);
+  const structuredNodeSet = new Set<WorldInstanceId>();
+  for (const edge of edges) {
+    structuredNodeSet.add(edge.sourceId);
+    structuredNodeSet.add(edge.targetId);
+  }
+  const structuredNodeIds = nodeIds.filter((id) => structuredNodeSet.has(id));
   const key = topologyKey(placeId, nodeIds, edges, sizes);
   const cacheKey = String(placeId);
   const cached = placeCache.get(cacheKey);
@@ -875,7 +1053,13 @@ function layoutPlace(
   const previousTargets = new Map(
     (cached?.result.targets ?? []).map((target) => [String(target.instanceId), target] as const),
   );
-  const candidate = chooseCandidate(nodeIds, edges, sizes, previousTargets);
+  const candidate = chooseCandidate(
+    structuredNodeIds,
+    edges,
+    sizes,
+    previousTargets,
+    cached?.result.metrics.algorithm,
+  );
   const originalIds = new Map(nodeIds.map((id) => [String(id), id] as const));
 
   const targets = Object.freeze(

@@ -107,6 +107,8 @@ const cases = [
   ["dense", 32],
 ];
 
+const check = process.argv.includes("--check");
+
 const results = cases.map(([kind, count]) => {
   const { nodes, projection } = fixture(kind, count);
   const nodeSizes = new Map(
@@ -132,6 +134,27 @@ const results = cases.map(([kind, count]) => {
     minSeparationMeters: layout.metrics.minSeparationMeters,
   };
 });
+
+if (check) {
+  for (const result of results) {
+    if (result.coldLayoutMs > 2_500) {
+      throw new Error(
+        `World DAG cold layout budget exceeded for ${result.fixture}/${result.nodes}: ${result.coldLayoutMs} ms`,
+      );
+    }
+    if (
+      (result.fixture === "chain" || result.fixture === "branch") &&
+      (result.forceOnly ||
+        result.dagCrossings === null ||
+        result.dagCrossings > result.circularCrossings ||
+        (result.minSeparationMeters ?? 0) < 700)
+    ) {
+      throw new Error(
+        `World DAG quality regression for ${result.fixture}/${result.nodes}: ${JSON.stringify(result)}`,
+      );
+    }
+  }
+}
 
 // biome-ignore lint/suspicious/noConsole: benchmark emits a machine-readable report
 console.log(
