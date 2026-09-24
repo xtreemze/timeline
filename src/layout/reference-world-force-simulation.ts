@@ -1,5 +1,6 @@
 import type { WorldInstanceId } from "../projection/world-projection.ts";
 import type {
+  WorldClusterForceDirective,
   WorldForceAnchor,
   WorldForceEdge,
   WorldForceNode,
@@ -390,6 +391,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
   readonly #options: ReferenceWorldForceOptions;
   #states = new Map<WorldInstanceId, NodeState>();
   #edges: readonly WorldForceEdge[] = Object.freeze([]);
+  #collapsing = new Set<WorldInstanceId>();
   #pin: WorldForcePin | null = null;
   #request: WorldSimulationRequest | null = null;
   #running = false;
@@ -457,6 +459,31 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#settled = false;
     this.#energy = null;
     this.#iteration = 0;
+  }
+
+  applyClusterDirective(directive: WorldClusterForceDirective): void {
+    this.#assertAlive();
+    const ids = new Set(directive.instanceIds);
+    if (directive.mode === "collapse") {
+      this.#collapsing = ids;
+    } else {
+      for (const id of ids) {
+        const state = this.#states.get(id);
+        if (!state) continue;
+        const [seedX, seedY] = seededOffset(id);
+        const seedLength = Math.max(1, Math.hypot(seedX, seedY));
+        const radius = Math.max(12, state.node.collisionRadiusMeters * 0.18);
+        state.x = (seedX / seedLength) * radius;
+        state.y = (seedY / seedLength) * radius;
+        state.z = state.node.targetVisualAltitudeMeters;
+        state.vx = 0;
+        state.vy = 0;
+        state.vz = 0;
+      }
+      for (const id of ids) this.#collapsing.delete(id);
+    }
+    this.#settled = false;
+    this.#energy = null;
   }
 
   setPin(pin: WorldForcePin | null): void {
@@ -539,6 +566,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
         for (let rightIndex = leftIndex + 1; rightIndex < states.length; rightIndex += 1) {
           const right = states[rightIndex];
           if (!right) continue;
+          if (this.#collapsing.has(left.node.id) || this.#collapsing.has(right.node.id)) continue;
           this.#applyPairForces(left, right, forces, false);
         }
       }
@@ -553,6 +581,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       }
       for (const left of leftGroup.states) {
         for (const right of rightGroup.states) {
+          if (this.#collapsing.has(left.node.id) || this.#collapsing.has(right.node.id)) continue;
           this.#applyPairForces(left, right, forces, true);
         }
       }
@@ -563,6 +592,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       const target = this.#states.get(edge.targetId);
       if (!source || !target || source.group !== target.group) continue;
       if (activeGroups && !activeGroups.has(source.group)) continue;
+      if (this.#collapsing.has(source.node.id) || this.#collapsing.has(target.node.id)) continue;
       this.#applyEdgeForce(edge, source, target, forces);
     }
 
@@ -574,6 +604,15 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
 
     for (const state of this.#states.values()) {
       if (activeGroups && !activeGroups.has(state.group)) continue;
+      if (this.#collapsing.has(state.node.id)) {
+        const force = forces.get(state.node.id);
+        if (force) {
+          force[0] += -state.x * 0.08;
+          force[1] += -state.y * 0.08;
+          force[2] += -state.z * 0.06;
+        }
+        continue;
+      }
       this.#applyAltitudeForce(state, forces);
     }
 
@@ -615,7 +654,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       // for collision/relationship forces, while only radial violations are
       // corrected. The whole dragged group remains unconstrained until drop.
       const domainActivity =
-        !activeDragGroup || state.group !== activeDragGroup
+        !this.#collapsing.has(state.node.id) && (!activeDragGroup || state.group !== activeDragGroup)
           ? this.#applyPlaceDomainConstraint(
               state,
               placeDomains.get(state.group) ?? null,
@@ -661,6 +700,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#destroyed = true;
     this.#states.clear();
     this.#edges = Object.freeze([]);
+    this.#collapsing.clear();
     this.#pin = null;
     this.#request = null;
     this.#running = false;
