@@ -62,7 +62,7 @@ test("production world surface uses a Lit lifecycle boundary while deck remains 
       readFile(new URL("../site/world/world-view-factory.ts", import.meta.url), "utf8"),
     ),
     import("node:fs/promises").then(({ readFile }) =>
-      readFile(new URL("../site/world/world-surface-element.ts", import.meta.url), "utf8"),
+      readFile(new URL("../site/components/world-surface-element.ts", import.meta.url), "utf8"),
     ),
   ]);
 
