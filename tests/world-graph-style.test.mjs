@@ -45,7 +45,7 @@ test("an entity's own style overrides the defaults; invalid values fall back", (
   assert.equal(styled.shape, "square");
   assert.equal(styled.icon, "object");
   assert.equal(styled.image, "https://example.test/a.png");
-  assert.equal(styled.radius, 28);
+  assert.equal(styled.radius, 7);
 
   const invalid = worldNodeStyle(
     { type: "person", attributes: { style: { fillColor: "red; x", shape: "star" } } },
@@ -153,7 +153,7 @@ test("portable fill, border, stroke, and radius aliases override defaults", () =
   assert.equal(styled.fill, "#112233");
   assert.equal(styled.border, "#445566");
   assert.equal(styled.borderWidth, 3);
-  assert.equal(styled.radius, 30);
+  assert.equal(styled.radius, 15);
 });
 
 test("places use node-like shape, icon, border, fill, and readable footprint", () => {
@@ -176,12 +176,26 @@ test("places use node-like shape, icon, border, fill, and readable footprint", (
   assert.equal(place.borderWidth, 3);
   assert.equal(place.shape, "square");
   assert.equal(place.icon, "crown");
-  assert.equal(place.radius, WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+  assert.equal(place.radius, 12);
 
   const fallback = worldPlaceStyle({}, false, WORLD_LIGHT_PALETTE);
   assert.equal(fallback.shape, "pin");
   assert.equal(fallback.icon, "place");
   assert.ok(fallback.radius >= WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+});
+
+test("entity and place authored size share diameter semantics", () => {
+  const entity = worldNodeStyle(
+    { type: "person", attributes: { style: { size: 32 } } },
+    WORLD_LIGHT_PALETTE,
+  );
+  const place = worldPlaceStyle({ marker: { size: 32 } }, false, WORLD_LIGHT_PALETTE);
+  assert.equal(entity.radius, 16);
+  assert.equal(place.radius, 16);
+  assert.equal(worldNodeFootprintRadiusPx({
+    type: "person",
+    attributes: { style: { size: 32 } },
+  }), WORLD_ENTITY_MIN_HIT_RADIUS_PX);
 });
 
 test("edges colour by relationship type unless they carry their own style, including style aliases", () => {
@@ -233,7 +247,7 @@ test("node radii are whole pixels so a scene shares a few marker textures", () =
   assert.equal(
     worldNodeStyle({ type: "person", attributes: { style: { size: 12.7 } } }, WORLD_LIGHT_PALETTE)
       .radius,
-    26,
+    6,
   );
 });
 
@@ -249,10 +263,10 @@ test("force footprint is never smaller than the rendered node or mobile target",
 
   const custom = {
     type: "person",
-    attributes: { style: { size: 24, borderWidth: 6 } },
+    attributes: { style: { radius: 24, borderWidth: 6 } },
     visualWeight: 0,
   };
   const rendered = worldNodeStyle(custom, WORLD_LIGHT_PALETTE);
-  assert.equal(rendered.radius, 48);
-  assert.equal(worldNodeFootprintRadiusPx(custom), 54);
+  assert.equal(rendered.radius, 24);
+  assert.equal(worldNodeFootprintRadiusPx(custom), 30);
 });
