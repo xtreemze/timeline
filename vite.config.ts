@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 
 const runtimeFiles = [
@@ -22,13 +22,15 @@ export default defineConfig({
       configureServer(server) {
         server.middlewares.use((request, response, next) => {
           const path = (request.url ?? "").split("?")[0]?.replace(/^\//, "");
-          if (!runtimeFiles.includes(path as (typeof runtimeFiles)[number])) {
+          const file = new URL(`./site/${path}`, import.meta.url);
+          // Unbuilt bundles fall through to Vite's ordinary 404 handling.
+          if (!runtimeFiles.includes(path as (typeof runtimeFiles)[number]) || !existsSync(file)) {
             next();
             return;
           }
           response.setHeader("Content-Type", "text/javascript; charset=utf-8");
           response.setHeader("Cache-Control", "no-cache");
-          response.end(readFileSync(new URL(`./site/${path}`, import.meta.url)));
+          response.end(readFileSync(file));
         });
       },
     },
