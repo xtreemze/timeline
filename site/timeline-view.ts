@@ -435,7 +435,9 @@ export class TimelineViewController {
       (event) => {
         if (!this.items.length) return;
         event.preventDefault();
-        const rect = this.surface.getBoundingClientRect();
+        this.cancelInertia();
+        this.beginInteraction();
+        const rect = this.interactionRect();
         const primary =
           this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
         const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
@@ -1388,6 +1390,8 @@ export class TimelineViewController {
     const selectedKey = this.tickSpecKey(selectedSpec);
     const committedSpec = this.committedTickSpec || selectedSpec;
     const committedKey = this.tickSpecKey(committedSpec);
+    const hierarchyChangedOnCommit =
+      !this.retention.active && this.committedTickSpec !== null && selectedKey !== committedKey;
     // Keep one semantic hierarchy stable for the entire gesture. Rendering both the
     // committed and newly selected hierarchy caused year/month/date labels to overlap
     // and flap at zoom thresholds. The selected hierarchy becomes authoritative on commit.
@@ -2468,8 +2472,27 @@ export class TimelineViewController {
     );
     const shiftedCross = terminalCross + routeOffset;
 
+    const previousLabelBefore = record.labelBefore;
+    const previousCrossPosition = record.crossPosition;
     const labelBefore =
-      this.orientation === "horizontal" ? primary > padding + usable / 2 : lane < 0;
+      this.orientation === "horizontal"
+        ? labelBeforeForPosition(
+            previousLabelBefore,
+            primary,
+            padding,
+            usable,
+            this.retention.active,
+          )
+        : lane < 0;
+    const sideCorrectionStart =
+      !this.retention.active &&
+      this.orientation === "horizontal" &&
+      previousLabelBefore !== null &&
+      previousLabelBefore !== labelBefore
+        ? terminal.getBoundingClientRect()
+        : null;
+    record.labelBefore = labelBefore;
+    record.crossPosition = shiftedCross;
     node.dataset.side = labelBefore ? "before" : "after";
     node.classList.toggle("label-before", labelBefore);
     node.classList.toggle("is-buffered", !itemOverlapsWindow(item, this.viewport));
