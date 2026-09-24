@@ -316,63 +316,75 @@ test("a lone relationship remains visually straight on fixed sampled path topolo
 test(
   "parallel and reciprocal relationships fan into distinct curved paths with labels and arrows",
   () => {
-  const h = harness();
-  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
-  surface.setProjection(parallelProjection());
+    const h = harness();
+    const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
+    surface.setProjection(parallelProjection());
 
-  const layers = h.lastLayers();
-  const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
-  const paths = new Map(
-    relationships.props.data.map((datum) => [
-      datum.relationshipId,
-      relationships.props.getPath(datum),
-    ]),
-  );
-  assert.equal(paths.size, 3);
-  assert.equal(new Set([...paths.values()].map((path) => path.length)).size, 1);
-  assert.equal(paths.get("alpha").length, 9);
-
-  const alpha = paths.get("alpha");
-  const beta = paths.get("beta");
-  const gamma = paths.get("gamma");
-  assert.ok(alpha && beta && gamma);
-  assert.deepEqual(gamma[0], alpha.at(-1), "reciprocal edge starts at its canonical source");
-  assert.deepEqual(gamma.at(-1), alpha[0], "reciprocal edge ends at its canonical target");
-
-  const straightMidpoint = [
-    (alpha[0][0] + alpha.at(-1)[0]) / 2,
-    (alpha[0][1] + alpha.at(-1)[1]) / 2,
-  ];
-  const midpoints = [alpha[4], beta[4], gamma[4]];
-  assert.equal(
-    new Set(midpoints.map((point) => `${point[0].toFixed(9)}:${point[1].toFixed(9)}`)).size,
-    3,
-    "every parallel relationship owns a distinct curve lane",
-  );
-  for (const midpoint of midpoints) {
-    assert.ok(
-      Math.hypot(midpoint[0] - straightMidpoint[0], midpoint[1] - straightMidpoint[1]) >
-        1e-9,
-      "no relationship remains on the overlapping straight centre line",
+    const layers = h.lastLayers();
+    const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+    const paths = new Map(
+      relationships.props.data.map((datum) => [
+        datum.relationshipId,
+        relationships.props.getPath(datum),
+      ]),
     );
-  }
+    assert.equal(paths.size, 3);
+    assert.equal(new Set([...paths.values()].map((path) => path.length)).size, 1);
+    assert.equal(paths.get("alpha").length, 9);
 
-  const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.filter(
-    (datum) => datum.kind === "relationship-label",
-  );
-  for (const labelDatum of labels) {
-    const path = paths.get(labelDatum.relationshipId);
-    assert.ok(path);
-    assert.deepEqual(labelDatum.position, path[4], "label follows its own curved edge midpoint");
-  }
+    const alpha = paths.get("alpha");
+    const beta = paths.get("beta");
+    const gamma = paths.get("gamma");
+    assert.ok(alpha && beta && gamma);
+    assert.deepEqual(
+      gamma[0],
+      alpha.at(-1),
+      "reciprocal edge starts at its canonical source",
+    );
+    assert.deepEqual(
+      gamma.at(-1),
+      alpha[0],
+      "reciprocal edge ends at its canonical target",
+    );
 
-  const directions = layer(layers, DECK_WORLD_LAYER_IDS.relationshipDirections);
-  const arrowApexes = directions.props.data.map((datum) => directions.props.getPath(datum)[1]);
-  assert.equal(
-    new Set(arrowApexes.map((point) => `${point[0].toFixed(9)}:${point[1].toFixed(9)}`)).size,
-    3,
-    "direction markers follow the separate curve tangents",
-  );
+    const straightMidpoint = [
+      (alpha[0][0] + alpha.at(-1)[0]) / 2,
+      (alpha[0][1] + alpha.at(-1)[1]) / 2,
+    ];
+    const midpoints = [alpha[4], beta[4], gamma[4]];
+    assert.equal(
+      new Set(midpoints.map((point) => `${point[0].toFixed(9)}:${point[1].toFixed(9)}`)).size,
+      3,
+      "every parallel relationship owns a distinct curve lane",
+    );
+    for (const midpoint of midpoints) {
+      assert.ok(
+        Math.hypot(midpoint[0] - straightMidpoint[0], midpoint[1] - straightMidpoint[1]) >
+          1e-9,
+        "no relationship remains on the overlapping straight centre line",
+      );
+    }
+
+    const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.filter(
+      (datum) => datum.kind === "relationship-label",
+    );
+    for (const labelDatum of labels) {
+      const path = paths.get(labelDatum.relationshipId);
+      assert.ok(path);
+      assert.deepEqual(
+        labelDatum.position,
+        path[4],
+        "label follows its own curved edge midpoint",
+      );
+    }
+
+    const directions = layer(layers, DECK_WORLD_LAYER_IDS.relationshipDirections);
+    const arrowApexes = directions.props.data.map((datum) => directions.props.getPath(datum)[1]);
+    assert.equal(
+      new Set(arrowApexes.map((point) => `${point[0].toFixed(9)}:${point[1].toFixed(9)}`)).size,
+      3,
+      "direction markers follow the separate curve tangents",
+    );
     assert.equal(relationships.props.transitions.getPath.duration, 600);
   },
 );
