@@ -7,7 +7,12 @@
  * structural `DeckWorldBindings` interface; this module fulfils that
  * interface with the actual `@deck.gl/core` / `@deck.gl/layers` classes.
  */
-import { Deck, _GlobeView as GlobeView, MapView } from "@deck.gl/core";
+import {
+  Deck,
+  _GlobeView as GlobeView,
+  _GlobeViewport as GlobeViewport,
+  MapView,
+} from "@deck.gl/core";
 import {
   IconLayer,
   PathLayer,
@@ -94,6 +99,9 @@ function createRealDeckWorldBindings(webgpuAdapter?: WebGpuAdapter): DeckWorldBi
     },
     globeView(props) {
       return new GlobeView(props as ConstructorParameters<typeof GlobeView>[0]);
+    },
+    globeViewport(props) {
+      return new GlobeViewport(props as ConstructorParameters<typeof GlobeViewport>[0]);
     },
     mapView(props) {
       return new MapView(props as ConstructorParameters<typeof MapView>[0]);
