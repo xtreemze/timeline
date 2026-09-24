@@ -54,7 +54,7 @@ test("ambient calendar context uses the surviving collision-aware clustering pla
   assert.match(source, /clustering\.planTemporalAccents/);
   assert.match(
     source,
-    /const contextItems = this\.measuredQueryOccurrences\(this\.items, this\.viewport\)/,
+    /const contextItems = this\.measuredQueryOccurrences\(this\.viewport\)/,
   );
   assert.match(source, /clustering\.compactTickLabel/);
   assert.match(source, /timeline-month-accent timeline-year-accent/);
