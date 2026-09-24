@@ -649,7 +649,7 @@ const graphEdgeDatePicker = dateRangeFactory.create({
 let presentationResizeObserver: ResizeObserver | null = null;
 let viewControlsResizeObserver: ResizeObserver | null = null;
 let presentationResizeFrame = 0;
-let timelineOrientationBeforeFullscreen = null;
+let timelineOrientationBeforeFullscreen: ReturnType<LuumTimelineElement["getOrientation"]> | null = null;
 let presentationMap: PresentationMapController | null = null;
 let presentationMapKey = "";
 let focusedGraphContextAvailable = false;
@@ -3449,15 +3449,13 @@ function focusStory(id) {
   focusCurrentStoryItem();
 }
 
-function focusCurrentStoryItem(openFocus = false, options: { direction?: number } = {}): void {
+function focusCurrentStoryItem(openFocus = false): void {
   const story = getStory(ui.activeStoryId);
   if (!story?.itemIds.length) return;
   const currentId = story.itemIds[ui.storyCursor];
   if (!currentId) return;
   if (openFocus) {
-    timelineView?.focusItem(currentId, {
-      direction: Number(options.direction ?? 1) < 0 ? -1 : 1,
-    });
+    timelineView?.focusItem(currentId);
     return;
   }
   requestAnimationFrame(() => {
@@ -3473,9 +3471,7 @@ function stepStory(delta: number, options: { focusEvent?: boolean } = {}): boole
   if (next < 0 || next >= story.itemIds.length) return false;
   ui.storyCursor = next;
   renderTimeline();
-  focusCurrentStoryItem(Boolean(options.focusEvent), {
-    direction: delta < 0 ? -1 : 1,
-  });
+  focusCurrentStoryItem(Boolean(options.focusEvent));
   return true;
 }
 
