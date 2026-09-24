@@ -539,7 +539,6 @@ function lintDisableComments(file, source) {
 const files = [...(await walk("site")), ...(await walk("src")), ...(await walk("tests")), ...(await walk("benchmarks"))];
 
 for (const file of files) {
-  if (file.endsWith(".bundle.js")) continue;
   const source = await readFile(path.join(ROOT, file), "utf8");
   if (file.endsWith(".css")) lintCss(file, source);
   if (file.endsWith(".html")) lintHtml(file, source);
