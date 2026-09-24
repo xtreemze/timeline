@@ -622,10 +622,7 @@ test("direction marker clears the target marker footprint", () => {
     const relationship = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationships);
     const edge = relationship.props.data[0];
     const targetPosition = relationship.props.getPath(edge).at(-1);
-    const distanceToTarget = Math.hypot(
-      apex[0] - targetPosition[0],
-      apex[1] - targetPosition[1],
-    );
+    const distanceToTarget = Math.hypot(apex[0] - targetPosition[0], apex[1] - targetPosition[1]);
     return {
       targetClearanceDegrees: marker.targetClearanceDegrees,
       distanceToTarget,
