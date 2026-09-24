@@ -235,6 +235,11 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
         root.adoptView(scheduledView);
       }
 
+      surface.setClusterTopologySink((directive) => {
+        runtime.applyClusterDirective(directive);
+        scheduledView.wake();
+      });
+
       surface.setNodeDragSink({
         begin(pointerId, instanceId, position) {
           const claimed = runtime.beginNodeDrag(pointerId, instanceId, position);
