@@ -1169,3 +1169,107 @@ test("updated DAG targets preserve position and converge through force only", ()
     "the force solver should move toward the new DAG target after a tick",
   );
 });
+
+
+test("dense same-place spatial indexing stays deterministic and resolves hard overlap", () => {
+  const ids = Array.from({ length: 120 }, (_, index) => `["dense","node-${index}"]`);
+  const nodes = ids.map((id, index) =>
+    node(id, {
+      initialEastMeters: 1 + (index % 12) * 8,
+      initialNorthMeters: 1 + Math.floor(index / 12) * 8,
+      collisionRadiusMeters: 20,
+      targetVisualAltitudeMeters: 0,
+    }),
+  );
+  const anchors = ids.map((id) =>
+    anchor(id, "dense-place", {
+      influence: 0,
+      precisionRadiusMeters: 0,
+    }),
+  );
+  const options = {
+    repulsionStrength: 48_000,
+    collisionStrength: 0.5,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.84,
+    settleEnergy: 0,
+  };
+  const scene = { nodes, edges: [], anchors };
+  const first = new ReferenceWorldForceSimulation(options);
+  const second = new ReferenceWorldForceSimulation(options);
+  first.setScene(scene);
+  second.setScene({
+    nodes: [...nodes].reverse(),
+    edges: [],
+    anchors: [...anchors].reverse(),
+  });
+
+  first.apply(topologyRequest());
+  second.apply(topologyRequest());
+  for (let index = 0; index < 180; index += 1) {
+    first.step(1000 / 60);
+    second.step(1000 / 60);
+  }
+
+  assert.deepEqual(first.getSnapshot(), second.getSnapshot());
+
+  const positions = first.getSnapshot();
+  let minimum = Number.POSITIVE_INFINITY;
+  for (let left = 0; left < positions.length; left += 1) {
+    for (let right = left + 1; right < positions.length; right += 1) {
+      const a = positions[left];
+      const b = positions[right];
+      minimum = Math.min(
+        minimum,
+        Math.hypot(
+          a.eastMeters - b.eastMeters,
+          a.northMeters - b.northMeters,
+          a.visualAltitudeMeters - b.visualAltitudeMeters,
+        ),
+      );
+    }
+  }
+
+  assert.ok(minimum >= 39, `dense minimum separation was ${minimum}`);
+});
+
+test("world excitation is a force-gain control rather than a cooling target", () => {
+  const scene = {
+    nodes: [
+      node('["alice","excitation-left"]', {
+        initialEastMeters: -120,
+        collisionRadiusMeters: 100,
+        targetVisualAltitudeMeters: 0,
+      }),
+      node('["bob","excitation-right"]', {
+        initialEastMeters: 120,
+        collisionRadiusMeters: 100,
+        targetVisualAltitudeMeters: 0,
+      }),
+    ],
+    edges: [],
+    anchors: [
+      anchor('["alice","excitation-left"]', "stockholm", { influence: 0 }),
+      anchor('["bob","excitation-right"]', "stockholm", { influence: 0 }),
+    ],
+  };
+  const baseline = new ReferenceWorldForceSimulation();
+  const excited = new ReferenceWorldForceSimulation();
+  baseline.setScene(scene);
+  excited.setScene(scene);
+
+  baseline.apply({ reason: "topology", excitation: 0, reheat: true });
+  excited.apply({ reason: "topology", excitation: 0.2, reheat: true });
+  baseline.step(1000 / 60);
+  excited.step(1000 / 60);
+
+  const baselineLeft = baseline.getSnapshot()[0];
+  const excitedLeft = excited.getSnapshot()[0];
+  assert.ok(
+    Math.abs(excitedLeft.eastMeters + 120) > Math.abs(baselineLeft.eastMeters + 120),
+    "higher excitation should increase one-step force response",
+  );
+  assert.equal(baseline.getDiagnostics().running, true);
+  assert.equal(excited.getDiagnostics().running, true);
+});
