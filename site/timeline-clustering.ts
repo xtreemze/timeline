@@ -426,14 +426,32 @@ interface TemporalAccentsResult {
 function ambientContextForUnit(timeMs: number, unit: string | null): {
   kind: string;
   label: string;
+  sceneTime: number;
 } {
+  const date = new Date(Number(timeMs));
+  if (!Number.isFinite(date.getTime())) {
+    return { kind: "day-month-year", label: "", sceneTime: 0 };
+  }
+
   if (unit === "year" || unit === "month") {
-    return { kind: "year", label: yearLabelForTime(timeMs) };
+    const sceneTime = Date.UTC(date.getUTCFullYear(), 0, 1);
+    return { kind: "year", label: yearLabelForTime(sceneTime), sceneTime };
   }
   if (unit === "day" || unit === "week") {
-    return { kind: "month-year", label: formatMonthYear(timeMs) };
+    const sceneTime = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1);
+    return { kind: "month-year", label: formatMonthYear(sceneTime), sceneTime };
   }
-  return { kind: "day-month-year", label: formatDayMonthYear(timeMs) };
+
+  const sceneTime = Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate(),
+  );
+  return {
+    kind: "day-month-year",
+    label: formatDayMonthYear(sceneTime),
+    sceneTime,
+  };
 }
 
 function viewportAmbientAccents(
@@ -449,25 +467,32 @@ function viewportAmbientAccents(
 
   const desired = Math.max(1, Math.min(4, Math.trunc(desiredCount) || 1));
   const sampleCount = Math.max(desired, desired * 4);
-  const byLabel = new Map<string, any>();
+  const byLabel = new Map<string, any[]>();
 
   for (let index = 0; index < sampleCount; index += 1) {
     const ratio = sampleCount === 1 ? 0.5 : (index + 0.5) / sampleCount;
     const time = start + (end - start) * ratio;
     const context = ambientContextForUnit(time, unit);
-    if (!context.label || byLabel.has(context.label)) continue;
-    byLabel.set(context.label, {
-      kind: context.kind,
-      key: `viewport-context:${context.kind}:${context.label}`,
-      label: context.label,
+    if (!context.label) continue;
+    const entries = byLabel.get(context.label) || [];
+    entries.push({ ...context, time });
+    byLabel.set(context.label, entries);
+  }
+
+  return [...byLabel.values()].map((entries) => {
+    const first = entries[0]!;
+    const time = entries.reduce((sum, entry) => sum + entry.time, 0) / entries.length;
+    return {
+      kind: first.kind,
+      key: `viewport-context:${first.kind}:${first.label}`,
+      label: first.label,
+      sceneTime: first.sceneTime,
       time,
       position: projectedPosition(time, viewport, pixelLength, padding),
       count: 0,
       viewportContext: true,
-    });
-  }
-
-  return [...byLabel.values()];
+    };
+  });
 }
 
 function ensureMinimumEdgeAccents(
@@ -993,7 +1018,7 @@ export function compactTickLabel(
   const date = new Date(Number(timeMs));
   if (!Number.isFinite(date.getTime())) return null;
 
-  if (spec.unit === "year") return hasAmbientMonth ? "" : yearLabelForTime(timeMs);
+  if (spec.unit === "year") return yearLabelForTime(timeMs);
   if (spec.unit === "month") {
     if (hasAmbientMonth) return monthLabelForTime(timeMs);
     return formatMonthYear(timeMs);
