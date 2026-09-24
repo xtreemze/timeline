@@ -160,6 +160,7 @@ export interface DeckWorldRuntime {
   createTextLayer?(props: Readonly<Record<string, unknown>>): unknown;
   createIconLayer?(props: Readonly<Record<string, unknown>>): unknown;
   createSolidPolygonLayer?(props: Readonly<Record<string, unknown>>): unknown;
+  createCollisionFilterExtension?(): unknown;
   createDeck(props: Readonly<Record<string, unknown>>): DeckRuntimeInstance;
 }
 
@@ -1540,6 +1541,14 @@ export function worldGraphLabelSize(
   return 18;
 }
 
+export function worldLabelCollisionPriority(
+  datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">,
+): number {
+  const semanticBase =
+    datum.kind === "place-label" ? 200 : datum.kind === "entity-label" ? 120 : 80;
+  return datum.emphasized ? semanticBase + 700 : semanticBase;
+}
+
 const LABEL_PLACEMENT_CELL_PX = 128;
 const LABEL_PLACEMENT_PADDING_PX = 4;
 const LABEL_DETAIL_KEEP_ALL_ZOOM = 5;
@@ -2021,6 +2030,7 @@ function worldHitFromPicking(info: DeckRuntimePickingInfo | null): WorldHit | nu
 
 export class DeckWorldSurface implements WorldSurface {
   readonly #runtime: DeckWorldRuntime;
+  readonly #labelCollisionExtension: unknown | null;
   readonly #deck: DeckRuntimeInstance;
   readonly #globeView: unknown;
   readonly #localView: unknown | null;
@@ -2297,6 +2307,7 @@ export class DeckWorldSurface implements WorldSurface {
 
   constructor(container: HTMLElement, runtime: DeckWorldRuntime, initialCamera?: WorldCameraState) {
     this.#runtime = runtime;
+    this.#labelCollisionExtension = runtime.createCollisionFilterExtension?.() ?? null;
     this.#container = container;
     // A caller-chosen camera is authoritative; otherwise the first projected
     // content fits the camera once (see #autoFitCamera).
@@ -4016,6 +4027,13 @@ export class DeckWorldSurface implements WorldSurface {
               fontSettings: { sdf: true, fontSize: 64, buffer: 8, radius: 16 },
               outlineWidth: LABEL_HALO_PX,
               outlineColor: this.#theme.labelHalo,
+              ...(this.#labelCollisionExtension
+                ? {
+                    extensions: [this.#labelCollisionExtension],
+                    collisionGroup: "lum-world-labels",
+                    getCollisionPriority: worldLabelCollisionPriority,
+                  }
+                : {}),
               getText: (datum: DeckWorldLabelDatum) => datum.text,
               getPosition: (datum: DeckWorldLabelDatum) => datum.position,
               getSize: worldGraphLabelSize,
