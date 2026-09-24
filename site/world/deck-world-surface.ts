@@ -1398,6 +1398,7 @@ export class DeckWorldSurface implements WorldSurface {
   >();
   #nextTemporalRelationshipSlot = 0;
   #temporalRelationshipRevision = 0;
+  #relationshipPathRevision = 0;
   #relationshipStyleRevision = 0;
   #directionDatumCache: ReadonlyMap<RelationshipId, DeckWorldDirectionDatum> = new Map();
   #labelDatumCache: ReadonlyMap<string, DeckWorldLabelDatum> = new Map();
@@ -2416,6 +2417,7 @@ export class DeckWorldSurface implements WorldSurface {
   ): readonly DeckWorldTemporalRelationshipDatum[] {
     const activeIds = new Set<RelationshipId>();
     let temporalChanged = false;
+    let pathChanged = false;
     let styleChanged = false;
 
     for (const relationship of activeRelationships) {
@@ -2437,6 +2439,13 @@ export class DeckWorldSurface implements WorldSurface {
 
       const previous = this.#temporalRelationshipState.get(relationship.relationshipId);
       if (!previous || !previous.temporalActive) temporalChanged = true;
+      if (
+        !previous ||
+        !positionEquals(previous.edge.path[0], relationship.path[0]) ||
+        !positionEquals(previous.edge.path[1], relationship.path[1])
+      ) {
+        pathChanged = true;
+      }
       if (
         !previous ||
         previous.edge.label !== relationship.label ||
@@ -2463,6 +2472,7 @@ export class DeckWorldSurface implements WorldSurface {
     }
 
     if (temporalChanged) this.#temporalRelationshipRevision += 1;
+    if (pathChanged) this.#relationshipPathRevision += 1;
     if (styleChanged) this.#relationshipStyleRevision += 1;
 
     return Object.freeze(
@@ -2702,7 +2712,7 @@ export class DeckWorldSurface implements WorldSurface {
           },
         },
         updateTriggers: {
-          getPath: this.#projection,
+          getPath: this.#relationshipPathRevision,
           getWidth: [
             this.#palette,
             this.#temporalRelationshipRevision,
