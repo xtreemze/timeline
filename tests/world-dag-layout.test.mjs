@@ -135,6 +135,16 @@ test("layout quality adapts operators to neighborhood size", () => {
   });
   const largeLayout = createWorldDagLayout(large);
   assert.equal(largeLayout.metrics.algorithmCounts["simplex-two-layer-greedy"], 1);
+
+  const hugeInstances = Array.from({ length: 160 }, (_, index) => instance(`huge-${index}`));
+  const huge = createWorldProjection({
+    instances: hugeInstances,
+    edges: hugeInstances
+      .slice(1)
+      .map((item, index) => edge(`huge-edge-${index}`, hugeInstances[index], item)),
+  });
+  const hugeLayout = createWorldDagLayout(huge);
+  assert.equal(hugeLayout.metrics.algorithmCounts["longest-two-layer-greedy"], 1);
 });
 
 test("topology updates choose the stable horizontal orientation", () => {
