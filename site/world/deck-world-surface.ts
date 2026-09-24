@@ -2080,9 +2080,9 @@ export class DeckWorldSurface implements WorldSurface {
     this.#handleThemeChange();
   }
 
-  #entityStyle(datum: DeckWorldEntityDatum): WorldNodeStyle {
+  #entityStyle(datum: DeckWorldEntityDatum, inactive = false): WorldNodeStyle {
     const styleKey = datum.style ? JSON.stringify(datum.style) : "";
-    const key = `${datum.entityKind ?? ""}|${datum.selected}|${datum.emphasized}|${datum.visualWeight}|${styleKey}`;
+    const key = `${datum.entityKind ?? ""}|${datum.selected}|${datum.emphasized}|${inactive}|${datum.visualWeight}|${styleKey}`;
     let style = this.#nodeStyles.get(key);
     if (!style) {
       style = worldNodeStyle(
@@ -2091,6 +2091,8 @@ export class DeckWorldSurface implements WorldSurface {
           attributes: datum.style ? { style: datum.style } : undefined,
           selected: datum.selected,
           emphasized: datum.emphasized,
+          inactive,
+          inactive,
           visualWeight: datum.visualWeight,
         },
         this.#palette,
@@ -2115,8 +2117,8 @@ export class DeckWorldSurface implements WorldSurface {
     readonly selected: boolean;
     readonly emphasized?: boolean;
     readonly style?: WorldPresentationStyle;
-  }): WorldEdgeStyle {
-    const key = `${datum.label ?? ""}|${datum.selected}|${datum.emphasized === true}|${datum.style ? JSON.stringify(datum.style) : ""}`;
+  }, inactive = false): WorldEdgeStyle {
+    const key = `${datum.label ?? ""}|${datum.selected}|${datum.emphasized === true}|${inactive}|${datum.style ? JSON.stringify(datum.style) : ""}`;
     let style = this.#edgeStyles.get(key);
     if (!style) {
       style = worldEdgeStyle(
