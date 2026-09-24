@@ -78,6 +78,7 @@ import { worldNodeMarker } from "./world-node-marker.ts";
 
 export const DECK_WORLD_LAYER_IDS = Object.freeze({
   places: "lum-world-places",
+  placeIcons: "lum-world-place-icons",
   relationships: "lum-world-relationships",
   entities: "lum-world-entities",
   relationshipDirections: "lum-world-relationship-directions",
@@ -1328,7 +1329,7 @@ function labelDatums(input: {
   const pinnedEntity = (entity: DeckWorldEntityDatum) =>
     entity.selected || focused("entity", entity.entityId);
   const entities = selectPrioritizedLabels(
-    input.entities.filter((entity) => entity.label && (!input.clustered || pinnedEntity(entity))),
+    input.entities.filter((entity) => entity.label && !input.clustered),
     {
       budget,
       isPinned: pinnedEntity,
@@ -1363,11 +1364,10 @@ function labelDatums(input: {
   const pinnedRelationship = (relationship: DeckWorldRelationshipDatum) =>
     relationship.selected || focused("relationship", relationship.relationshipId);
   const relationships = selectPrioritizedLabels(
-    input.relationships.filter((relationship) => relationship.label),
+    input.relationships.filter((relationship) => relationship.label && !input.clustered),
     {
-      // Relationship predicates are semantic graph content, not hover-only
-      // decoration. Preserve them through clustering and show all at working
-      // zoom; the collision pass still relocates them before overlap.
+      // Clustered topology is represented by its geographic anchor. Keep the
+      // place label as the sole visual label until the cluster expands again.
       budget: input.zoom >= LABEL_DETAIL_KEEP_ALL_ZOOM ? Number.POSITIVE_INFINITY : budget,
       isPinned: pinnedRelationship,
       importance: (relationship) => relationship.temporalWeight,
@@ -2173,6 +2173,7 @@ export class DeckWorldSurface implements WorldSurface {
           DECK_WORLD_LAYER_IDS.entities,
           DECK_WORLD_LAYER_IDS.relationshipDirections,
           DECK_WORLD_LAYER_IDS.relationships,
+          DECK_WORLD_LAYER_IDS.placeIcons,
           DECK_WORLD_LAYER_IDS.places,
         ],
       });
@@ -2808,19 +2809,28 @@ export class DeckWorldSurface implements WorldSurface {
         data: places,
         dataComparator: sameDatumSequence,
         pickable: true,
-        // Screen-constant marks: metre radii shrank to specks at overview
-        // zoom and ballooned into blobs close up.
+        // Screen-constant pick target. When IconLayer is available the visible
+        // shape/icon/border/fill comes from the same marker renderer as graph
+        // nodes; ScatterplotLayer remains the >=44px acquisition fallback.
         radiusUnits: "pixels",
         getPosition: (datum: DeckWorldPlaceDatum) => datum.position,
-        // The place's own map marker style, else the place default.
-        getRadius: (datum: DeckWorldPlaceDatum) => this.#placeStyle(datum).radius,
+        getRadius: (datum: DeckWorldPlaceDatum) =>
+          Math.max(
+            WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+            this.#placeStyle(datum).radius + this.#placeStyle(datum).borderWidth,
+          ),
         stroked: true,
         lineWidthUnits: "pixels",
-        getLineWidth: (datum: DeckWorldPlaceDatum) => this.#placeStyle(datum).borderWidth,
+        getLineWidth: (datum: DeckWorldPlaceDatum) =>
+          this.#runtime.createIconLayer ? 0 : this.#placeStyle(datum).borderWidth,
         getLineColor: (datum: DeckWorldPlaceDatum) =>
-          worldColorBytes(this.#placeStyle(datum).border),
+          this.#runtime.createIconLayer
+            ? this.#theme.hit
+            : worldColorBytes(this.#placeStyle(datum).border),
         getFillColor: (datum: DeckWorldPlaceDatum) =>
-          worldColorBytes(this.#placeStyle(datum).fill, 230),
+          this.#runtime.createIconLayer
+            ? this.#theme.hit
+            : worldColorBytes(this.#placeStyle(datum).fill, 230),
         updateTriggers: {
           getRadius: this.#palette,
           getLineWidth: this.#palette,
@@ -2828,6 +2838,24 @@ export class DeckWorldSurface implements WorldSurface {
           getFillColor: this.#palette,
         },
       }),
+      ...(this.#runtime.createIconLayer
+        ? [
+            this.#runtime.createIconLayer({
+              id: DECK_WORLD_LAYER_IDS.placeIcons,
+              data: places,
+              dataComparator: sameDatumSequence,
+              pickable: true,
+              billboard: true,
+              sizeUnits: "pixels",
+              getPosition: (datum: DeckWorldPlaceDatum) => datum.position,
+              getIcon: (datum: DeckWorldPlaceDatum) => worldNodeMarker(this.#placeStyle(datum)),
+              getSize: (datum: DeckWorldPlaceDatum) =>
+                worldNodeMarker(this.#placeStyle(datum)).size,
+              updateTriggers: { getIcon: this.#palette, getSize: this.#palette },
+              parameters: { cullMode: "none" },
+            }),
+          ]
+        : []),
       this.#runtime.createPathLayer({
         id: DECK_WORLD_LAYER_IDS.relationships,
         data: temporalRelationships,
