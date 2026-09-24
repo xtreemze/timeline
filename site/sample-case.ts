@@ -4163,13 +4163,13 @@ const SAMPLE = {
       media: [
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel-and-gretel-rackham.jpg",
-          alt: "Public-domain Hansel and Gretel illustration by Arthur Rackham",
+          alt: "Public-domain fairy-tale illustration by Arthur Rackham",
           caption:
             "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction.",
         },
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel%20and%20Grethal-Rackham-058.jpg",
-          alt: "Public-domain page illustration from Hansel and Grethel by Arthur Rackham",
+          alt: "Public-domain Arthur Rackham page illustration",
           caption:
             "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
         },
@@ -4215,13 +4215,13 @@ const SAMPLE = {
       media: [
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel-and-gretel-rackham.jpg",
-          alt: "Public-domain Hansel and Gretel illustration by Arthur Rackham",
+          alt: "Public-domain fairy-tale illustration by Arthur Rackham",
           caption:
             "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction.",
         },
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel%20and%20Grethal-Rackham-058.jpg",
-          alt: "Public-domain page illustration from Hansel and Grethel by Arthur Rackham",
+          alt: "Public-domain Arthur Rackham page illustration",
           caption:
             "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
         },
@@ -4267,13 +4267,13 @@ const SAMPLE = {
       media: [
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel-and-gretel-rackham.jpg",
-          alt: "Public-domain Hansel and Gretel illustration by Arthur Rackham",
+          alt: "Public-domain fairy-tale illustration by Arthur Rackham",
           caption:
             "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction.",
         },
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel%20and%20Grethal-Rackham-058.jpg",
-          alt: "Public-domain page illustration from Hansel and Grethel by Arthur Rackham",
+          alt: "Public-domain Arthur Rackham page illustration",
           caption:
             "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
         },
@@ -4319,13 +4319,13 @@ const SAMPLE = {
       media: [
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel-and-gretel-rackham.jpg",
-          alt: "Public-domain Hansel and Gretel illustration by Arthur Rackham",
+          alt: "Public-domain fairy-tale illustration by Arthur Rackham",
           caption:
             "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction.",
         },
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel%20and%20Grethal-Rackham-058.jpg",
-          alt: "Public-domain page illustration from Hansel and Grethel by Arthur Rackham",
+          alt: "Public-domain Arthur Rackham page illustration",
           caption:
             "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
         },
@@ -4371,13 +4371,13 @@ const SAMPLE = {
       media: [
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel-and-gretel-rackham.jpg",
-          alt: "Public-domain Hansel and Gretel illustration by Arthur Rackham",
+          alt: "Public-domain fairy-tale illustration by Arthur Rackham",
           caption:
             "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction.",
         },
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel%20and%20Grethal-Rackham-058.jpg",
-          alt: "Public-domain page illustration from Hansel and Grethel by Arthur Rackham",
+          alt: "Public-domain Arthur Rackham page illustration",
           caption:
             "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
         },
@@ -4423,13 +4423,13 @@ const SAMPLE = {
       media: [
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel-and-gretel-rackham.jpg",
-          alt: "Public-domain Hansel and Gretel illustration by Arthur Rackham",
+          alt: "Public-domain fairy-tale illustration by Arthur Rackham",
           caption:
             "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction.",
         },
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel%20and%20Grethal-Rackham-058.jpg",
-          alt: "Public-domain page illustration from Hansel and Grethel by Arthur Rackham",
+          alt: "Public-domain Arthur Rackham page illustration",
           caption:
             "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
         },
@@ -4475,13 +4475,13 @@ const SAMPLE = {
       media: [
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel-and-gretel-rackham.jpg",
-          alt: "Public-domain Hansel and Gretel illustration by Arthur Rackham",
+          alt: "Public-domain fairy-tale illustration by Arthur Rackham",
           caption:
             "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction.",
         },
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel%20and%20Grethal-Rackham-058.jpg",
-          alt: "Public-domain page illustration from Hansel and Grethel by Arthur Rackham",
+          alt: "Public-domain Arthur Rackham page illustration",
           caption:
             "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
         },
@@ -4527,13 +4527,13 @@ const SAMPLE = {
       media: [
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel-and-gretel-rackham.jpg",
-          alt: "Public-domain Hansel and Gretel illustration by Arthur Rackham",
+          alt: "Public-domain fairy-tale illustration by Arthur Rackham",
           caption:
             "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction.",
         },
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel%20and%20Grethal-Rackham-058.jpg",
-          alt: "Public-domain page illustration from Hansel and Grethel by Arthur Rackham",
+          alt: "Public-domain Arthur Rackham page illustration",
           caption:
             "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
         },
@@ -4581,13 +4581,13 @@ const SAMPLE = {
       media: [
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel-and-gretel-rackham.jpg",
-          alt: "Public-domain Hansel and Gretel illustration by Arthur Rackham",
+          alt: "Public-domain fairy-tale illustration by Arthur Rackham",
           caption:
             "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction.",
         },
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel%20and%20Grethal-Rackham-058.jpg",
-          alt: "Public-domain page illustration from Hansel and Grethel by Arthur Rackham",
+          alt: "Public-domain Arthur Rackham page illustration",
           caption:
             "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
         },
@@ -4633,13 +4633,13 @@ const SAMPLE = {
       media: [
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel-and-gretel-rackham.jpg",
-          alt: "Public-domain Hansel and Gretel illustration by Arthur Rackham",
+          alt: "Public-domain fairy-tale illustration by Arthur Rackham",
           caption:
             "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction.",
         },
         {
           src: "https://commons.wikimedia.org/wiki/Special:FilePath/Hansel%20and%20Grethal-Rackham-058.jpg",
-          alt: "Public-domain page illustration from Hansel and Grethel by Arthur Rackham",
+          alt: "Public-domain Arthur Rackham page illustration",
           caption:
             "Public-domain story illustration via Wikimedia Commons; additional narrative context only.",
         },
@@ -7624,6 +7624,37 @@ const SAMPLE = {
       attributes: { storyId: "story-hansel-and-gretel" },
       placeId: "place-hg-gingerbread-house",
       itemIds: ["hg-discovers-gingerbread-house"],
+    },
+    {
+      id: "rel-hg-witch-inhabits-house",
+      subjectId: "hg-witch",
+      objectId: "hg-gingerbread-house",
+      predicate: "inhabits",
+      sourceIds: ["src-hansel-gretel"],
+      time: {
+        type: "interval",
+        start: {
+          value: "1000-04-21T14:00Z",
+          precision: "minute",
+          certainty: "inferred",
+          calendar: "gregorian",
+          timeZone: "UTC",
+          utcOffset: "+00:00",
+          sourceText: "Fictional narrative ordering coordinate; not a real-world date.",
+        },
+        end: {
+          value: "1000-04-28T16:20Z",
+          precision: "minute",
+          certainty: "inferred",
+          calendar: "gregorian",
+          timeZone: "UTC",
+          utcOffset: "+00:00",
+          sourceText: "Fictional narrative ordering coordinate; not a real-world date.",
+        },
+      },
+      attributes: { storyId: "story-hansel-and-gretel" },
+      placeId: "place-hg-gingerbread-house",
+      itemIds: ["hg-witch-captures", "hg-witch-defeated"],
     },
     {
       id: "rel-hg-witch-traps",
