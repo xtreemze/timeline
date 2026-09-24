@@ -49,7 +49,6 @@ function shapePath(shape: WorldNodeStyle["shape"], center: number, radius: numbe
       // extended ~45% beyond the atlas top and could be visibly clipped even
       // when the marker itself was correctly lifted above the globe.
       const head = radius * 0.66;
-      const shoulderY = center - radius * 0.12;
       return `<path d="M${center} ${center + radius}L${center - head * 0.82} ${center + radius * 0.12}A${head} ${head} 0 1 1 ${center + head * 0.82} ${center + radius * 0.12}Z"/>`;
     }
     default:
