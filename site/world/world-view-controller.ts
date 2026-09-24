@@ -112,11 +112,11 @@ export class WorldViewRuntimeController {
     this.#renderProjection = projection;
     this.#projectionRevision += 1;
 
-    this.#forceBackend.setScene(
-      this.#forcePolicy
-        ? createWorldForceScene(projection, this.#forcePolicy)
-        : createWorldForceScene(projection),
-    );
+    const forceScene = this.#forcePolicy
+      ? createWorldForceScene(projection, this.#forcePolicy)
+      : createWorldForceScene(projection);
+    this.#forceBackend.setScene(forceScene);
+    this.#surface.setRelationshipRoutes?.(forceScene.relationshipRoutes ?? Object.freeze([]));
     this.#simulation.request({
       reason: "projection-update",
       energyTarget: 0.08,

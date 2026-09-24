@@ -54,6 +54,36 @@ test("deferred spatial view replays state after its renderer loads", async () =>
   ]);
 });
 
+test("deferred spatial view reports renderer state replay failures", async () => {
+  const errors = [];
+  const factory = createDeferredSpatialViewFactory(
+    async () => ({
+      create() {
+        return {
+          setModel() {
+            throw new Error("projection replay failed");
+          },
+          setWindow() {},
+          setFocus() {},
+        };
+      },
+    }),
+    {
+      onError(error) {
+        errors.push(error);
+      },
+    },
+  );
+
+  const view = factory.create({});
+  assert.ok(view);
+  view.setModel({ id: "model" });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(errors.length, 1);
+  assert.match(String(errors[0]), /projection replay failed/);
+});
+
 test("production entrypoints keep PDF, deck/luma, and Orb behind dynamic imports", async () => {
   const [app, worldShim, worldBindings, legacyShim] = await Promise.all([
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),

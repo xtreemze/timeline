@@ -1,6 +1,6 @@
 import type { ProjectedWorldInstance, WorldProjection } from "../projection/world-projection.ts";
 import {
-  createWorldDagLayoutTargets,
+  createWorldDagLayout,
   WORLD_DAG_TARGET_STRENGTH,
   type WorldDagLayoutTarget,
 } from "./world-dag-layout.ts";
@@ -74,7 +74,6 @@ function validatePolicy(policy: WorldForceScenePolicy): WorldForceScenePolicy {
 function nodeFromInstance(
   instance: ProjectedWorldInstance,
   policy: WorldForceScenePolicy,
-  dagTarget: WorldDagLayoutTarget | undefined,
 ): WorldForceNode {
   const styleInput = {
     ...(instance.kind === undefined ? {} : { type: instance.kind }),
@@ -91,13 +90,6 @@ function nodeFromInstance(
       policy.baseCollisionRadiusMeters * (collisionRadiusPx / WORLD_ENTITY_MIN_HIT_RADIUS_PX),
     initialEastMeters: instance.localOffset?.eastMeters ?? 0,
     initialNorthMeters: instance.localOffset?.northMeters ?? 0,
-    ...(dagTarget
-      ? {
-          layoutTargetEastMeters: dagTarget.eastMeters,
-          layoutTargetNorthMeters: dagTarget.northMeters,
-          layoutTargetStrength: WORLD_DAG_TARGET_STRENGTH,
-        }
-      : {}),
     targetVisualAltitudeMeters: instance.visualAltitude ?? 0,
   });
 }
@@ -136,12 +128,34 @@ export function createWorldForceScene(
 ): WorldForceScene {
   const policy = validatePolicy(inputPolicy);
 
+  const baseNodes = projection.instances.map((instance) => nodeFromInstance(instance, policy));
+  const nodeSizes = new Map(
+    baseNodes.map(
+      (node) =>
+        [
+          node.id,
+          Object.freeze({
+            widthMeters: node.collisionRadiusMeters * 2,
+            heightMeters: node.collisionRadiusMeters * 2,
+          }),
+        ] as const,
+    ),
+  );
+  const dagLayout = createWorldDagLayout(projection, { nodeSizes });
   const dagTargets = new Map(
-    createWorldDagLayoutTargets(projection).map((target) => [target.instanceId, target] as const),
+    dagLayout.targets.map((target) => [target.instanceId, target] as const),
   );
-  const nodes: WorldForceNode[] = projection.instances.map((instance) =>
-    nodeFromInstance(instance, policy, dagTargets.get(instance.id)),
-  );
+  const nodes: WorldForceNode[] = baseNodes.map((node) => {
+    const dagTarget: WorldDagLayoutTarget | undefined = dagTargets.get(node.id);
+    return dagTarget
+      ? Object.freeze({
+          ...node,
+          layoutTargetEastMeters: dagTarget.eastMeters,
+          layoutTargetNorthMeters: dagTarget.northMeters,
+          layoutTargetStrength: WORLD_DAG_TARGET_STRENGTH,
+        })
+      : node;
+  });
 
   const edges: WorldForceEdge[] = projection.edges.map((edge) =>
     Object.freeze({
@@ -168,6 +182,7 @@ export function createWorldForceScene(
       ),
     ),
     anchors: Object.freeze(anchors),
+    relationshipRoutes: dagLayout.routes,
   });
 }
 

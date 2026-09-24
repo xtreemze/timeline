@@ -29,8 +29,10 @@ export interface ReferenceWorldForcePosition {
 interface NodeState {
   readonly node: WorldForceNode;
   readonly group: string;
+  readonly anchors: readonly WorldForceAnchor[];
   readonly anchor: WorldForceAnchor | null;
   readonly anchorFrame: AnchorFrame | null;
+  readonly anchorBias: AnchorBias | null;
   x: number;
   y: number;
   z: number;
@@ -80,24 +82,28 @@ function validateOptions(options: ReferenceWorldForceOptions): ReferenceWorldFor
   });
 }
 
-function primaryAnchors(
+function anchorsByInstance(
   anchors: readonly WorldForceAnchor[],
-): ReadonlyMap<WorldInstanceId, WorldForceAnchor> {
-  const result = new Map<WorldInstanceId, WorldForceAnchor>();
-
+): ReadonlyMap<WorldInstanceId, readonly WorldForceAnchor[]> {
+  const mutable = new Map<WorldInstanceId, WorldForceAnchor[]>();
   for (const anchor of anchors) {
-    const current = result.get(anchor.instanceId);
-    if (
-      !current ||
-      anchor.influence > current.influence ||
-      (anchor.influence === current.influence &&
-        String(anchor.placeId).localeCompare(String(current.placeId)) < 0)
-    ) {
-      result.set(anchor.instanceId, anchor);
-    }
+    const entries = mutable.get(anchor.instanceId);
+    if (entries) entries.push(anchor);
+    else mutable.set(anchor.instanceId, [anchor]);
   }
 
-  return result;
+  return new Map(
+    [...mutable.entries()].map(([instanceId, entries]) => [
+      instanceId,
+      Object.freeze(
+        [...entries].sort(
+          (left, right) =>
+            right.influence - left.influence ||
+            String(left.placeId).localeCompare(String(right.placeId)),
+        ),
+      ),
+    ]),
+  );
 }
 
 function stableHash(value: string): number {
@@ -143,6 +149,8 @@ const READABLE_SEPARATION_SCALE = 1.35;
 const PLACE_DOMAIN_INNER_RADIUS_SCALE = 2.25;
 const PLACE_DOMAIN_WIDTH_SCALE = 2.4;
 const PLACE_DOMAIN_CORRECTION_SQRT_SCALE = 20;
+const MULTI_ANCHOR_BIAS_RADIUS_SCALE = 4;
+const MULTI_ANCHOR_BIAS_STRENGTH_SCALE = 0.35;
 
 type Vector3 = readonly [number, number, number];
 
@@ -156,6 +164,12 @@ interface AnchorFrame {
 interface PlaceDomain {
   readonly innerRadiusMeters: number;
   readonly outerRadiusMeters: number;
+}
+
+interface AnchorBias {
+  readonly eastMeters: number;
+  readonly northMeters: number;
+  readonly strength: number;
 }
 
 interface ForceGroup {
@@ -189,6 +203,59 @@ function createAnchorFrame(anchor: WorldForceAnchor): AnchorFrame {
     up,
     origin: [up[0] * radius, up[1] * radius, up[2] * radius],
   };
+}
+
+function anchorBias(
+  primary: WorldForceAnchor,
+  primaryFrame: AnchorFrame,
+  anchors: readonly WorldForceAnchor[],
+  node: WorldForceNode,
+): AnchorBias | null {
+  if (anchors.length <= 1) return null;
+
+  const maxBiasRadiusMeters = Math.max(
+    1,
+    primary.precisionRadiusMeters,
+    node.collisionRadiusMeters * MULTI_ANCHOR_BIAS_RADIUS_SCALE,
+  );
+  let weightedEast = 0;
+  let weightedNorth = 0;
+  let secondaryInfluence = 0;
+
+  for (const anchor of anchors) {
+    if (anchor === primary || anchor.influence <= 0) continue;
+    const frame = createAnchorFrame(anchor);
+    const worldDx = frame.origin[0] - primaryFrame.origin[0];
+    const worldDy = frame.origin[1] - primaryFrame.origin[1];
+    const worldDz = frame.origin[2] - primaryFrame.origin[2];
+    const east =
+      primaryFrame.east[0] * worldDx +
+      primaryFrame.east[1] * worldDy +
+      primaryFrame.east[2] * worldDz;
+    const north =
+      primaryFrame.north[0] * worldDx +
+      primaryFrame.north[1] * worldDy +
+      primaryFrame.north[2] * worldDz;
+    const distance = Math.hypot(east, north);
+    if (distance < 0.001) continue;
+
+    // Secondary places steer organization inside the primary place domain.
+    // They never relocate the rendered instance toward a potentially distant
+    // geographic midpoint; occurrences that truly happen at separate places
+    // remain separate world instances.
+    const targetDistance = Math.min(distance, maxBiasRadiusMeters);
+    weightedEast += (east / distance) * targetDistance * anchor.influence;
+    weightedNorth += (north / distance) * targetDistance * anchor.influence;
+    secondaryInfluence += anchor.influence;
+  }
+
+  if (secondaryInfluence <= 0) return null;
+  const totalInfluence = Math.max(0.001, Math.max(0, primary.influence) + secondaryInfluence);
+  return Object.freeze({
+    eastMeters: weightedEast / secondaryInfluence,
+    northMeters: weightedNorth / secondaryInfluence,
+    strength: Math.min(1, secondaryInfluence / totalInfluence),
+  });
 }
 
 function updateStateCartesian(state: NodeState): void {
@@ -266,6 +333,38 @@ function forceGroup(key: string, states: readonly NodeState[]): ForceGroup {
   };
 }
 
+function placeDomain(states: readonly NodeState[]): PlaceDomain | null {
+  const anchored = states.filter((state) => state.anchor !== null);
+  if (anchored.length === 0) return null;
+
+  const maxCollisionRadiusMeters = anchored.reduce(
+    (radius, state) => Math.max(radius, state.node.collisionRadiusMeters),
+    0,
+  );
+  const precisionRadiusMeters = anchored.reduce(
+    (radius, state) => Math.max(radius, state.anchor?.precisionRadiusMeters ?? 0),
+    0,
+  );
+
+  // A place is the centre of a local layout domain, not the target position
+  // of every entity. Keep the authored place marker clear, then give the
+  // group enough annular area to spread through collision/relationship
+  // forces without assigning rigid angular slots.
+  const innerRadiusMeters = Math.max(
+    1,
+    maxCollisionRadiusMeters * PLACE_DOMAIN_INNER_RADIUS_SCALE,
+  );
+  const packingWidthMeters =
+    maxCollisionRadiusMeters *
+    Math.max(2, Math.sqrt(anchored.length) * PLACE_DOMAIN_WIDTH_SCALE);
+  const outerRadiusMeters = Math.max(
+    innerRadiusMeters + packingWidthMeters,
+    precisionRadiusMeters,
+  );
+
+  return Object.freeze({ innerRadiusMeters, outerRadiusMeters });
+}
+
 function boundsOverlap(left: ForceGroup, right: ForceGroup): boolean {
   return (
     left.minX <= right.maxX &&
@@ -280,6 +379,7 @@ function boundsOverlap(left: ForceGroup, right: ForceGroup): boolean {
 function crossGroupCandidates(
   groups: readonly ForceGroup[],
   activeGroupKey: string | null,
+  activeInstanceId: WorldInstanceId | null,
 ): readonly (readonly [ForceGroup, ForceGroup])[] {
   const bounded = groups.filter((group) => group.bounded);
 
@@ -291,30 +391,26 @@ function crossGroupCandidates(
     const activeGroup = bounded.find((group) => group.key === activeGroupKey);
     if (!activeGroup) return [];
 
+    const interactionState =
+      activeInstanceId === null
+        ? null
+        : (activeGroup.states.find((state) => state.node.id === activeInstanceId) ?? null);
+    if (!interactionState?.anchorFrame) return [];
+
     const pairs: Array<readonly [ForceGroup, ForceGroup]> = [];
+    const paddingMeters = Math.max(
+      CROSS_ANCHOR_FORCE_RADIUS_METERS / 2,
+      interactionState.node.collisionRadiusMeters * READABLE_SEPARATION_SCALE * 4,
+    );
     for (const other of bounded) {
       if (other === activeGroup) continue;
-
-      let overlaps = false;
-      for (const state of activeGroup.states) {
-        if (!state.anchorFrame) continue;
-        const paddingMeters = Math.max(
-          CROSS_ANCHOR_FORCE_RADIUS_METERS / 2,
-          state.node.collisionRadiusMeters * READABLE_SEPARATION_SCALE * 4,
-        );
-        if (
-          state.worldX + paddingMeters >= other.minX &&
-          state.worldX - paddingMeters <= other.maxX &&
-          state.worldY + paddingMeters >= other.minY &&
-          state.worldY - paddingMeters <= other.maxY &&
-          state.worldZ + paddingMeters >= other.minZ &&
-          state.worldZ - paddingMeters <= other.maxZ
-        ) {
-          overlaps = true;
-          break;
-        }
-      }
-
+      const overlaps =
+        interactionState.worldX + paddingMeters >= other.minX &&
+        interactionState.worldX - paddingMeters <= other.maxX &&
+        interactionState.worldY + paddingMeters >= other.minY &&
+        interactionState.worldY - paddingMeters <= other.maxY &&
+        interactionState.worldZ + paddingMeters >= other.minZ &&
+        interactionState.worldZ - paddingMeters <= other.maxZ;
       if (overlaps) pairs.push([activeGroup, other]);
     }
     return pairs;
@@ -352,6 +448,12 @@ function crossAnchorInteractionRadius(left: NodeState, right: NodeState): number
   return Math.max(CROSS_ANCHOR_FORCE_RADIUS_METERS, readableSeparationDistance(left, right) * 4);
 }
 
+type EdgeForcePolicy = "local-spring" | "visual-only";
+
+function edgeForcePolicy(source: NodeState, target: NodeState): EdgeForcePolicy {
+  return source.group === target.group ? "local-spring" : "visual-only";
+}
+
 export class ReferenceWorldForceSimulation implements WorldForceSimulationBackend {
   readonly #options: ReferenceWorldForceOptions;
   #states = new Map<WorldInstanceId, NodeState>();
@@ -378,24 +480,28 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const previous = this.#states;
     const next = new Map<WorldInstanceId, NodeState>();
     const orderedStates: NodeState[] = [];
-    const primaryByInstance = primaryAnchors(scene.anchors);
+    const anchorsForInstance = anchorsByInstance(scene.anchors);
 
     const orderedNodes = [...scene.nodes].sort((left, right) =>
       String(left.id).localeCompare(String(right.id)),
     );
 
     for (const node of orderedNodes) {
-      const anchor = primaryByInstance.get(node.id) ?? null;
+      const anchors = anchorsForInstance.get(node.id) ?? Object.freeze([]);
+      const anchor = anchors[0] ?? null;
       const group = groupFor(anchor);
       const old = previous.get(node.id);
       const anchorFrame = anchor ? createAnchorFrame(anchor) : null;
+      const bias = anchor && anchorFrame ? anchorBias(anchor, anchorFrame, anchors, node) : null;
 
       if (old && old.group === group) {
         const state: NodeState = {
           node,
           group,
+          anchors,
           anchor,
           anchorFrame,
+          anchorBias: bias,
           x: old.x,
           y: old.y,
           z: old.z,
@@ -420,8 +526,10 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       const state: NodeState = {
         node,
         group,
+        anchors,
         anchor,
         anchorFrame,
+        anchorBias: bias,
         x,
         y,
         z,
@@ -472,7 +580,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     for (const edge of this.#edges) {
       const source = this.#states.get(edge.sourceId);
       const target = this.#states.get(edge.targetId);
-      if (!source || !target || source.group !== target.group) continue;
+      if (!source || !target || edgeForcePolicy(source, target) !== "local-spring") continue;
       const edges = mutableEdgesByGroup.get(source.group);
       if (edges) edges.push(edge);
       else mutableEdgesByGroup.set(source.group, [edge]);
@@ -538,16 +646,19 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const dt = normalizedTimeStep(deltaMs);
     if (!this.#running || dt === 0 || this.#states.size === 0) return;
 
-    const activeDragGroup = this.#pin
-      ? (this.#states.get(this.#pin.instanceId)?.group ?? null)
-      : null;
-    const settlingGroup =
-      this.#request?.reason === "post-drop" && this.#interactionInstanceId !== null
-        ? (this.#states.get(this.#interactionInstanceId)?.group ?? null)
-        : null;
-    const interactionGroup = activeDragGroup ?? settlingGroup;
+    const interactionInstanceId =
+      this.#pin?.instanceId ??
+      (this.#request?.reason === "post-drop" ? this.#interactionInstanceId : null);
+    const interactionState =
+      interactionInstanceId === null ? null : (this.#states.get(interactionInstanceId) ?? null);
+    const interactionGroup = interactionState?.group ?? null;
+    const activeDragGroup = this.#pin ? interactionGroup : null;
     const forceGroups = [...this.#groups.entries()].map(([key, states]) => forceGroup(key, states));
-    const crossPairs = crossGroupCandidates(forceGroups, interactionGroup);
+    const crossPairs = crossGroupCandidates(
+      forceGroups,
+      interactionGroup,
+      interactionInstanceId,
+    );
 
     // Direct manipulation and its post-drop relaxation are one local force
     // epoch. Keep unrelated geography asleep while the released island
@@ -555,7 +666,11 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const activeGroups = interactionGroup ? new Set<string>([interactionGroup]) : null;
     if (activeGroups) {
       for (const [leftGroup, rightGroup] of crossPairs) {
-        if (!this.#groupsCanInteract(leftGroup.states, rightGroup.states)) continue;
+        const canInteract =
+          interactionState && leftGroup.key === interactionGroup
+            ? this.#stateCanInteractWithGroup(interactionState, rightGroup.states)
+            : this.#groupsCanInteract(leftGroup.states, rightGroup.states);
+        if (!canInteract) continue;
         activeGroups.add(leftGroup.key);
         activeGroups.add(rightGroup.key);
       }
@@ -586,8 +701,16 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       if (activeGroups && (!activeGroups.has(leftGroup.key) || !activeGroups.has(rightGroup.key))) {
         continue;
       }
-      for (const left of leftGroup.states) {
-        for (const right of rightGroup.states) {
+      const leftStates =
+        interactionState && leftGroup.key === interactionGroup
+          ? [interactionState]
+          : leftGroup.states;
+      const rightStates =
+        interactionState && rightGroup.key === interactionGroup
+          ? [interactionState]
+          : rightGroup.states;
+      for (const left of leftStates) {
+        for (const right of rightStates) {
           this.#applyPairForces(left, right, true);
         }
       }
@@ -605,7 +728,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       for (const edge of this.#edges) {
         const source = this.#states.get(edge.sourceId);
         const target = this.#states.get(edge.targetId);
-        if (!source || !target || source.group !== target.group) continue;
+        if (!source || !target || edgeForcePolicy(source, target) !== "local-spring") continue;
         this.#applyEdgeForce(edge, source, target);
       }
     }
@@ -613,6 +736,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     for (const state of this.#orderedStates) {
       if (activeGroups && !activeGroups.has(state.group)) continue;
       this.#applyLayoutTargetForce(state);
+      this.#applyAnchorBiasForce(state);
       this.#applyAltitudeForce(state);
     }
 
@@ -729,18 +853,23 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#running = false;
   }
 
+  #stateCanInteractWithGroup(state: NodeState, otherStates: readonly NodeState[]): boolean {
+    if (!state.anchorFrame) return false;
+    for (const other of otherStates) {
+      if (!other.anchorFrame) continue;
+      const distance = Math.hypot(
+        other.worldX - state.worldX,
+        other.worldY - state.worldY,
+        other.worldZ - state.worldZ,
+      );
+      if (distance <= crossAnchorInteractionRadius(state, other)) return true;
+    }
+    return false;
+  }
+
   #groupsCanInteract(leftStates: readonly NodeState[], rightStates: readonly NodeState[]): boolean {
     for (const left of leftStates) {
-      if (!left.anchorFrame) continue;
-      for (const right of rightStates) {
-        if (!right.anchorFrame) continue;
-        const distance = Math.hypot(
-          right.worldX - left.worldX,
-          right.worldY - left.worldY,
-          right.worldZ - left.worldZ,
-        );
-        if (distance <= crossAnchorInteractionRadius(left, right)) return true;
-      }
+      if (this.#stateCanInteractWithGroup(left, rightStates)) return true;
     }
     return false;
   }
@@ -938,6 +1067,19 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     }
 
     this.#addForce(state, (east - state.x) * strength, (north - state.y) * strength, 0);
+  }
+
+  #applyAnchorBiasForce(state: NodeState): void {
+    const bias = state.anchorBias;
+    if (!bias || bias.strength <= 0) return;
+    const strength =
+      this.#options.anchorStrength * bias.strength * MULTI_ANCHOR_BIAS_STRENGTH_SCALE;
+    this.#addForce(
+      state,
+      (bias.eastMeters - state.x) * strength,
+      (bias.northMeters - state.y) * strength,
+      0,
+    );
   }
 
   #applyAltitudeForce(state: NodeState): void {

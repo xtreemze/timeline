@@ -1,6 +1,7 @@
 import type { EntityId, PlaceId, RelationshipId } from "../domain/ids.ts";
 import type { WorldInstanceId, WorldProjection } from "../projection/world-projection.ts";
 import type { WorldProjectionDelta } from "../projection/world-projection-delta.ts";
+import type { WorldRelationshipRouteHint } from "./world-force-simulation.ts";
 
 export interface WorldTemporalWindow {
   readonly start: number;
@@ -64,6 +65,8 @@ export interface WorldSurfaceCapabilities {
 export interface WorldSurface {
   setProjection(projection: WorldProjection): void;
   applyProjectionDelta?(delta: WorldProjectionDelta): void;
+  /** Presentation-only local DAG routing hints; canonical topology stays in WorldProjection. */
+  setRelationshipRoutes?(routes: readonly WorldRelationshipRouteHint[]): void;
   setTemporalWindow(range: WorldTemporalWindow): void;
   setSelection(selection: WorldSelection | null): void;
 

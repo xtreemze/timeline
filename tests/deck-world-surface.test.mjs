@@ -295,6 +295,44 @@ test("temporal relationship joins and disconnects update immediately without ren
   assert.ok(rejoinedLayer.props.getWidth(rejoinedLayer.props.data[0]) > 0);
 });
 
+test("d3-dag route hints guide relationship geometry while preserving live endpoints", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  const input = projection();
+  const [source, target] = input.instances;
+
+  surface.setRelationshipRoutes([
+    {
+      relationshipId: "meeting",
+      placeId: "stockholm",
+      sourceId: source.id,
+      targetId: target.id,
+      points: [
+        { eastMeters: 0, northMeters: 0 },
+        { eastMeters: 0, northMeters: 900 },
+        { eastMeters: 150, northMeters: 0 },
+      ],
+    },
+  ]);
+  surface.setProjection(input);
+
+  const relationshipLayer = calls.setProps
+    .at(-1)
+    .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships);
+  assert.ok(relationshipLayer);
+  const relationship = relationshipLayer.props.data[0];
+  assert.equal(relationship.path.length, 3);
+  assert.deepEqual(relationship.path[0].slice(0, 2), [18.0686, 59.3293]);
+  assert.ok(
+    relationship.path[1][1] > relationship.path[0][1],
+    "intermediate route point follows the DAG northing hint",
+  );
+  assert.ok(
+    relationship.path.at(-1)[0] > relationship.path[0][0],
+    "live target endpoint remains force/geography-derived",
+  );
+});
+
 test("reduced motion uses the same immediate relationship geometry", (t) => {
   const originalMatchMedia = globalThis.matchMedia;
   globalThis.matchMedia = (query) => ({ matches: query === "(prefers-reduced-motion: reduce)" });
@@ -1526,6 +1564,52 @@ test("default overview keeps same-place topology clustered without covering the 
   const retainedMembers = layer.props.data.filter((datum) => datum.kind === "entity");
   assert.equal(retainedMembers.length, 2);
   assert.ok(retainedMembers.every((datum) => layer.props.getRadius(datum) === 0));
+});
+
+test("cluster envelope grows with the largest retained member marker", () => {
+  const { calls, runtime } = harness();
+  const base = projection();
+  const instances = base.instances.map((instance, index) =>
+    createProjectedWorldInstance({
+      ...instance,
+      style: index === 0 ? { radius: 32 } : instance.style,
+    }),
+  );
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(createWorldProjection({ instances, edges: base.edges }));
+
+  const entityLayer = calls.setProps
+    .at(-1)
+    .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities);
+  const cluster = entityLayer.props.data.find((datum) => datum.kind === "cluster");
+  assert.ok(cluster);
+  assert.ok(
+    entityLayer.props.getRadius(cluster) > 42,
+    "cluster ring clears a 32px-radius authored member plus its border",
+  );
+});
+
+test("partially revealed entities retain the 44px acquisition target", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+
+  let observedPartialReveal = false;
+  for (const zoom of [4.75, 5, 5.25, 5.5, 5.75, 6, 6.25, 6.5, 6.75, 7]) {
+    surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom, bearing: 0, pitch: 0 });
+    const entityLayer = calls.setProps
+      .at(-1)
+      .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities);
+    const members = entityLayer.props.data.filter((datum) => datum.kind === "entity");
+    for (const member of members) {
+      const radius = entityLayer.props.getRadius(member);
+      if (radius > 0 && radius < 30) {
+        observedPartialReveal = true;
+        assert.ok(radius >= 22, "visible partial member keeps at least a 44px diameter hit target");
+      }
+    }
+  }
+  assert.equal(observedPartialReveal, true, "test traverses the place-cluster reveal band");
 });
 
 test("zooming out groups nearby entities without losing canonical identity", () => {
