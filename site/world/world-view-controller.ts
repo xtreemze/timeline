@@ -34,12 +34,26 @@ export interface WorldLayoutReadback {
   read(): readonly WorldForceLayoutSample[];
 }
 
+/**
+ * Execution-only bridge for a GPU-resident force backend.
+ *
+ * Implementations may bind backend-owned luma resources directly into the
+ * WorldSurface execution path. The bridge deliberately exposes no GPU handles
+ * to projection/domain code and avoids requiring per-frame CPU position
+ * readback simply to render simulation results.
+ */
+export interface WorldGpuLayoutBridge {
+  syncFrame(): void;
+  destroy(): void;
+}
+
 export interface WorldViewRuntimeOptions {
   readonly surface: WorldSurface;
   readonly forceBackend: WorldForceSimulationBackend;
   readonly interaction?: InteractionCoordinator;
   readonly forcePolicy?: WorldForceScenePolicy;
   readonly layoutReadback?: WorldLayoutReadback;
+  readonly gpuLayoutBridge?: WorldGpuLayoutBridge;
 }
 
 export interface WorldViewRuntimeState {
@@ -62,6 +76,7 @@ export class WorldViewRuntimeController {
   readonly #drag;
   readonly #forcePolicy?: WorldForceScenePolicy;
   readonly #layoutReadback?: WorldLayoutReadback;
+  readonly #gpuLayoutBridge?: WorldGpuLayoutBridge;
 
   #sourceProjection: WorldProjection | null = null;
   #renderProjection: WorldProjection | null = null;
@@ -70,6 +85,12 @@ export class WorldViewRuntimeController {
   #destroyed = false;
 
   constructor(options: WorldViewRuntimeOptions) {
+    if (options.layoutReadback && options.gpuLayoutBridge) {
+      throw new Error(
+        "World layout readback and GPU layout bridge are mutually exclusive execution paths.",
+      );
+    }
+
     this.#surface = options.surface;
     this.#forceBackend = options.forceBackend;
     this.#interaction = options.interaction ?? createInteractionCoordinator();
@@ -81,6 +102,7 @@ export class WorldViewRuntimeController {
     );
     this.#forcePolicy = options.forcePolicy;
     this.#layoutReadback = options.layoutReadback;
+    this.#gpuLayoutBridge = options.gpuLayoutBridge;
   }
 
   setProjection(projection: WorldProjection): void {
@@ -164,6 +186,10 @@ export class WorldViewRuntimeController {
 
     this.#forceBackend.step?.(deltaMs);
 
+    // The zero-readback GPU bridge updates positions in place every frame;
+    // only the CPU readback path rebuilds layers and is throttled below.
+    this.#gpuLayoutBridge?.syncFrame();
+
     const diagnostics = this.#forceBackend.getDiagnostics();
     // Physics steps every frame, but pushing a new layout to the surface
     // rebuilds and redraws every layer; throttle that while the layout is
@@ -204,7 +230,7 @@ export class WorldViewRuntimeController {
 
   #pushLayout(): void {
     this.#sinceLayoutPush = 0;
-    if (!this.#layoutReadback || !this.#sourceProjection) return;
+    if (this.#gpuLayoutBridge || !this.#layoutReadback || !this.#sourceProjection) return;
     const samples = this.#layoutReadback.read();
     this.#renderProjection = applyWorldForceLayout(this.#sourceProjection, samples);
     this.#surface.setProjection(this.#renderProjection);
@@ -233,6 +259,7 @@ export class WorldViewRuntimeController {
     if (this.#destroyed) return;
     this.#destroyed = true;
     this.#simulation.clear();
+    this.#gpuLayoutBridge?.destroy();
     this.#forceBackend.destroy();
     this.#surface.destroy();
   }

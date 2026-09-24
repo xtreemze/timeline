@@ -62,7 +62,7 @@ function projection() {
   });
 }
 
-function harness({ settled = false, readback = false, delta = false } = {}) {
+function harness({ settled = false, readback = false, delta = false, gpuBridge = false } = {}) {
   const calls = [];
   const diagnostics = { running: false, settled, energy: 0, iteration: 0 };
   let pin = null;
@@ -150,6 +150,16 @@ function harness({ settled = false, readback = false, delta = false } = {}) {
             visualAltitudeMeters: 1500,
           },
         ];
+      },
+    };
+  }
+  if (gpuBridge) {
+    options.gpuLayoutBridge = {
+      syncFrame() {
+        calls.push(["gpu-layout:sync"]);
+      },
+      destroy() {
+        calls.push(["gpu-layout:destroy"]);
       },
     };
   }
@@ -244,24 +254,45 @@ test("world drag lifecycle is coordinated with force pin and post-drop settling"
   assert.equal(controller.getInteractionCoordinator().snapshot().phase, "committed");
 });
 
-test("GPU-style backends are not required to expose CPU layout readback", () => {
-  const { calls, controller } = harness();
-  controller.setProjection(projection());
+test("GPU layout bridge advances render state without CPU projection rebuild", () => {
+  const { calls, controller } = harness({ gpuBridge: true });
+  const input = projection();
+  controller.setProjection(input);
   const projectionCallsBefore = calls.filter(([name]) => name === "surface:projection").length;
 
   controller.step(16);
 
+  const stepIndex = calls.findIndex(([name]) => name === "force:step");
+  const bridgeIndex = calls.findIndex(([name]) => name === "gpu-layout:sync");
   const projectionCallsAfter = calls.filter(([name]) => name === "surface:projection").length;
+
+  assert.ok(stepIndex >= 0);
+  assert.ok(bridgeIndex > stepIndex);
   assert.equal(projectionCallsAfter, projectionCallsBefore);
+  assert.equal(controller.getRenderProjection(), input);
 });
 
-test("destroy is idempotent and shuts down force and surface execution", () => {
-  const { calls, controller } = harness();
+test("CPU readback and GPU layout bridge cannot both own one frame", () => {
+  assert.throws(
+    () => harness({ readback: true, gpuBridge: true }),
+    /mutually exclusive execution paths/,
+  );
+});
+
+test("destroy is idempotent and shuts down bridge, force, and surface execution", () => {
+  const { calls, controller } = harness({ gpuBridge: true });
   controller.destroy();
   controller.destroy();
 
+  assert.equal(calls.filter(([name]) => name === "gpu-layout:destroy").length, 1);
   assert.equal(calls.filter(([name]) => name === "force:destroy").length, 1);
   assert.equal(calls.filter(([name]) => name === "surface:destroy").length, 1);
+
+  const bridgeIndex = calls.findIndex(([name]) => name === "gpu-layout:destroy");
+  const forceIndex = calls.findIndex(([name]) => name === "force:destroy");
+  const surfaceIndex = calls.findIndex(([name]) => name === "surface:destroy");
+  assert.ok(bridgeIndex < forceIndex);
+  assert.ok(forceIndex < surfaceIndex);
   assert.throws(() => controller.refresh(), /destroyed/);
 });
 
