@@ -619,6 +619,9 @@ const BASE_CAPABILITIES = Object.freeze({
 type Rgba = [number, number, number, number];
 
 /** Theme-derived colours for the non-graph layers (basemap, labels, clusters). */
+const WORLD_TETHER_WIDTH_PX = 0.6;
+const WORLD_TETHER_ALPHA = 48;
+
 interface WorldThemeColors {
   readonly earth: Rgba;
   readonly graticule: Rgba;
@@ -650,7 +653,7 @@ function worldThemeColors(palette: WorldGraphPalette): WorldThemeColors {
     cluster: [0, 0, 0, 0] as Rgba,
     clusterBorder: worldColorBytes(palette.muted, 150),
     hit: [0, 0, 0, 0] as Rgba,
-    tether: worldColorBytes(palette.muted, 90),
+    tether: worldColorBytes(palette.muted, WORLD_TETHER_ALPHA),
     labelText: worldColorBytes(palette.ink),
     labelPlace: worldColorBytes(palette.muted),
     labelRelationship: worldColorBytes(palette.muted),
@@ -3445,7 +3448,8 @@ export class DeckWorldSurface implements WorldSurface {
               widthUnits: "pixels",
               getPath: (tether: DeckWorldTether) => tether.path,
               getWidth: (tether: DeckWorldTether) =>
-                placeTransition.memberIds.has(tether.worldInstanceId) ? placeExpansion : 1,
+                WORLD_TETHER_WIDTH_PX *
+                (placeTransition.memberIds.has(tether.worldInstanceId) ? placeExpansion : 1),
               getColor: (tether: DeckWorldTether) =>
                 scaleAlpha(
                   this.#theme.tether,
