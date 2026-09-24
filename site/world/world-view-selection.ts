@@ -3,6 +3,7 @@ export interface CompatibleSpatialView {
   setWindow(viewport: unknown): void;
   previewWindow?(viewport: unknown): void;
   setFocus(id: string | number | null): void;
+  setSelection?(selection: import("../application-selection.ts").ApplicationSelection | null): void;
   setPresentationMode?(active: boolean): void;
   hasContext?(): boolean;
   refreshLayout?(): void;

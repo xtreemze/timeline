@@ -15,6 +15,7 @@ import type {
 } from "../src/layout/graph-surface.ts";
 import { createOrbGraphSurfaceFactory, type OrbFactory } from "../src/layout/orb-graph-surface.ts";
 import { TimelineOrbGraph } from "../src/orb-graph-entry.js";
+import type { ApplicationSelection } from "./application-selection.ts";
 
 interface Viewport {
   start: number;
@@ -287,6 +288,22 @@ class TemporalGraphViewController {
     this.selection = null;
     this.surface.setSelection(null);
     this.render();
+  }
+
+  setSelection(selection: ApplicationSelection | null): void {
+    const next: CanonicalSelection | null =
+      selection?.kind === "node"
+        ? Object.freeze({ kind: "entity", id: entityId(selection.id) })
+        : selection?.kind === "edge"
+          ? Object.freeze({ kind: "relationship", id: relationshipId(selection.id) })
+          : null;
+    const unchanged =
+      next === null
+        ? this.selection === null
+        : this.selection?.kind === next.kind && String(this.selection.id) === String(next.id);
+    if (unchanged) return;
+    this.selection = next;
+    this.surface.setSelection(next);
   }
 
   resetView(): void {

@@ -23,12 +23,15 @@ import {
   projectWorldOccurrences,
   type WorldEntityPresentation,
 } from "../../src/projection/world-occurrence-projection.ts";
+import type { WorldSelection } from "../../src/layout/world-surface.ts";
 import type { WorldProjection } from "../../src/projection/world-projection.ts";
+import type { ApplicationSelection } from "../application-selection.ts";
 import { TimelineTemporal } from "../temporal-standards.ts";
 
 export interface WorldProjectionRuntime {
   setProjection(projection: WorldProjection): void;
   setTemporalWindow(window: WorldViewViewport): void;
+  setSelection(selection: WorldSelection | null): void;
   focusEntity(id: EntityId): void;
   focusOccurrence(id: RelationshipId): void;
   focusPlace(id: PlaceId): void;
@@ -280,6 +283,7 @@ export class WorldProjectionView {
   #viewport: WorldTemporalWindow | null = null;
   #sharedActiveIds: readonly string[] | null = null;
   #focusId: string | null = null;
+  #selection: ApplicationSelection | null = null;
   #presentationMode = false;
   #entityIds = new Set<string>();
   #entityPresentation = new Map<EntityId, WorldEntityPresentation>();
@@ -388,6 +392,13 @@ export class WorldProjectionView {
     this.#focusCurrent();
   }
 
+  setSelection(selection: ApplicationSelection | null): void {
+    this.#selection = selection
+      ? Object.freeze({ kind: selection.kind, id: String(selection.id) })
+      : null;
+    this.#applySelection();
+  }
+
   setPresentationMode(active: boolean): void {
     this.#presentationMode = Boolean(active);
   }
@@ -430,7 +441,32 @@ export class WorldProjectionView {
 
     this.#runtime.setProjection(projection);
     if (this.#viewport) this.#runtime.setTemporalWindow(this.#viewport);
+    this.#applySelection();
     this.#focusCurrent();
+  }
+
+  #applySelection(): void {
+    const selection = this.#selection;
+    if (!selection) {
+      this.#runtime.setSelection(null);
+      return;
+    }
+    if (selection.kind === "node" && this.#entityIds.has(selection.id)) {
+      this.#runtime.setSelection({ kind: "entity", id: entityId(selection.id) });
+      return;
+    }
+    if (
+      selection.kind === "edge" &&
+      this.#relationships.some((relationship) => String(relationship.id) === selection.id)
+    ) {
+      this.#runtime.setSelection({ kind: "relationship", id: relationshipId(selection.id) });
+      return;
+    }
+    if (selection.kind === "place" && this.#placeIds.has(selection.id)) {
+      this.#runtime.setSelection({ kind: "place", id: placeId(selection.id) });
+      return;
+    }
+    this.#runtime.setSelection(null);
   }
 
   #sharedActivation(ids: readonly string[]): {
