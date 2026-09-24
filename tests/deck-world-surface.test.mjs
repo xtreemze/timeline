@@ -925,10 +925,7 @@ test("close-zoom node drag locks the globe camera until release", () => {
   };
 
   assert.equal(
-    entityLayer.props.onDragStart(
-      { object: alice, x: 118.0786, y: 259.3393 },
-      dragEvent,
-    ),
+    entityLayer.props.onDragStart({ object: alice, x: 118.0786, y: 259.3393 }, dragEvent),
     true,
   );
   const locked = surface.getCamera();
@@ -946,19 +943,13 @@ test("close-zoom node drag locks the globe camera until release", () => {
   assert.deepEqual(calls.setProps.at(-1).viewState, locked);
 
   assert.equal(
-    entityLayer.props.onDrag(
-      { object: alice, x: 118.0886, y: 259.3493 },
-      dragEvent,
-    ),
+    entityLayer.props.onDrag({ object: alice, x: 118.0886, y: 259.3493 }, dragEvent),
     true,
   );
   assert.ok(stopped.length >= 2, "drag start and moves suppress globe-controller propagation");
 
   assert.equal(
-    entityLayer.props.onDragEnd(
-      { object: alice, x: 118.0886, y: 259.3493 },
-      dragEvent,
-    ),
+    entityLayer.props.onDragEnd({ object: alice, x: 118.0886, y: 259.3493 }, dragEvent),
     true,
   );
 
