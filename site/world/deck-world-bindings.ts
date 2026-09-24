@@ -12,6 +12,7 @@ import {
   _GlobeView as GlobeView,
   _GlobeViewport as GlobeViewport,
   MapView,
+  WebMercatorViewport,
 } from "@deck.gl/core";
 import {
   IconLayer,
@@ -105,6 +106,11 @@ function createRealDeckWorldBindings(webgpuAdapter?: WebGpuAdapter): DeckWorldBi
     },
     mapView(props) {
       return new MapView(props as ConstructorParameters<typeof MapView>[0]);
+    },
+    mapViewport(props) {
+      return new WebMercatorViewport(
+        props as ConstructorParameters<typeof WebMercatorViewport>[0],
+      );
     },
     scatterplotLayer(props) {
       return new ScatterplotLayer(props as ConstructorParameters<typeof ScatterplotLayer>[0]);
