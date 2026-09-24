@@ -534,7 +534,10 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
   readonly #options: ReferenceWorldForceOptions;
   #states = new Map<WorldInstanceId, NodeState>();
   #orderedStates: readonly NodeState[] = Object.freeze([]);
+  #dirtyStateIds = new Set<WorldInstanceId>();
   #groups = new Map<string, readonly NodeState[]>();
+  #groupBounds = new Map<string, ForceGroup>();
+  #dirtyGroupBounds = new Set<string>();
   #placeDomains = new Map<string, PlaceDomain>();
   #edges: readonly WorldForceEdge[] = Object.freeze([]);
   #edgesByGroup = new Map<string, readonly WorldForceEdge[]>();
@@ -637,6 +640,11 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#groups = new Map(
       [...mutableGroups.entries()].map(([key, states]) => [key, Object.freeze(states)]),
     );
+    this.#dirtyStateIds = new Set(orderedStates.map((state) => state.node.id));
+    this.#groupBounds = new Map(
+      [...this.#groups.entries()].map(([key, states]) => [key, forceGroup(key, states)]),
+    );
+    this.#dirtyGroupBounds.clear();
     this.#placeDomains = new Map();
     for (const [key, states] of this.#groups) {
       const domain = placeDomain(states);
@@ -685,14 +693,22 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       this.#interactionInstanceId = pin.instanceId;
       // Direct manipulation owns the dragged node: publish the pin
       // immediately instead of waiting for a global physics tick.
+      const changed =
+        state.x !== pin.eastMeters ||
+        state.y !== pin.northMeters ||
+        state.z !== pin.visualAltitudeMeters;
       state.x = pin.eastMeters;
       state.y = pin.northMeters;
       state.z = pin.visualAltitudeMeters;
       state.vx = 0;
       state.vy = 0;
       state.vz = 0;
-      state.dirty = true;
-      updateStateCartesian(state);
+      if (changed) {
+        state.dirty = true;
+        this.#dirtyStateIds.add(state.node.id);
+        this.#dirtyGroupBounds.add(state.group);
+        updateStateCartesian(state);
+      }
     }
     this.#settled = false;
   }
@@ -729,7 +745,16 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       interactionInstanceId === null ? null : (this.#states.get(interactionInstanceId) ?? null);
     const interactionGroup = interactionState?.group ?? null;
     const activeDragGroup = this.#pin ? interactionGroup : null;
-    const forceGroups = [...this.#groups.entries()].map(([key, states]) => forceGroup(key, states));
+    const forceGroups: ForceGroup[] = [];
+    for (const [key, states] of this.#groups) {
+      let group = this.#groupBounds.get(key);
+      if (!group || this.#dirtyGroupBounds.has(key)) {
+        group = forceGroup(key, states);
+        this.#groupBounds.set(key, group);
+        this.#dirtyGroupBounds.delete(key);
+      }
+      forceGroups.push(group);
+    }
     const crossPairs = crossGroupCandidates(forceGroups, interactionGroup, interactionInstanceId);
 
     // Direct manipulation and its post-drop relaxation are one local force
@@ -748,15 +773,20 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       }
     }
 
-    for (const state of this.#orderedStates) {
-      if (activeGroups && !activeGroups.has(state.group)) continue;
+    const activeForceGroups = activeGroups
+      ? forceGroups.filter((group) => activeGroups.has(group.key))
+      : forceGroups;
+    const activeStates = activeGroups
+      ? [...activeGroups].flatMap((groupKey) => this.#groups.get(groupKey) ?? [])
+      : this.#orderedStates;
+
+    for (const state of activeStates) {
       state.forceX = 0;
       state.forceY = 0;
       state.forceZ = 0;
     }
 
-    for (const group of forceGroups) {
-      if (activeGroups && !activeGroups.has(group.key)) continue;
+    for (const group of activeForceGroups) {
       visitSamePlacePairs(group.states, (left, right) => {
         this.#applyPairForces(left, right, false);
       });
@@ -798,8 +828,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       }
     }
 
-    for (const state of this.#orderedStates) {
-      if (activeGroups && !activeGroups.has(state.group)) continue;
+    for (const state of activeStates) {
       this.#applyLayoutTargetForce(state);
       this.#applyAnchorBiasForce(state);
       this.#applyAltitudeForce(state);
@@ -813,8 +842,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     let energy = 0;
     let activeNodeCount = 0;
 
-    for (const state of this.#orderedStates) {
-      if (activeGroups && !activeGroups.has(state.group)) continue;
+    for (const state of activeStates) {
       activeNodeCount += 1;
 
       if (this.#pin?.instanceId === state.node.id) {
@@ -828,7 +856,11 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
         state.vx = 0;
         state.vy = 0;
         state.vz = 0;
-        if (changed) state.dirty = true;
+        if (changed) {
+          state.dirty = true;
+          this.#dirtyStateIds.add(state.node.id);
+          this.#dirtyGroupBounds.add(state.group);
+        }
         continue;
       }
 
@@ -851,6 +883,8 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
 
       if (state.x !== beforeX || state.y !== beforeY || state.z !== beforeZ) {
         state.dirty = true;
+        this.#dirtyStateIds.add(state.node.id);
+        this.#dirtyGroupBounds.add(state.group);
       }
       energy += state.vx ** 2 + state.vy ** 2 + state.vz ** 2 + domainActivity;
     }
@@ -891,8 +925,13 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
   getChangedSnapshot(): readonly ReferenceWorldForcePosition[] {
     this.#assertAlive();
     const changed: ReferenceWorldForcePosition[] = [];
-    for (const state of this.#orderedStates) {
-      if (!state.dirty) continue;
+    const dirtyIds = [...this.#dirtyStateIds].sort((left, right) =>
+      String(left).localeCompare(String(right)),
+    );
+    this.#dirtyStateIds.clear();
+    for (const instanceId of dirtyIds) {
+      const state = this.#states.get(instanceId);
+      if (!state?.dirty) continue;
       changed.push(
         Object.freeze({
           instanceId: state.node.id,
@@ -911,7 +950,10 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#destroyed = true;
     this.#states.clear();
     this.#orderedStates = Object.freeze([]);
+    this.#dirtyStateIds.clear();
     this.#groups.clear();
+    this.#groupBounds.clear();
+    this.#dirtyGroupBounds.clear();
     this.#placeDomains.clear();
     this.#edges = Object.freeze([]);
     this.#edgesByGroup.clear();

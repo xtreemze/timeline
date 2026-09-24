@@ -1275,3 +1275,25 @@ test("world excitation is a force-gain control rather than a cooling target", ()
   assert.equal(baseline.getDiagnostics().running, true);
   assert.equal(excited.getDiagnostics().running, true);
 });
+
+test("repeating an unchanged drag pin does not republish the node", () => {
+  const simulation = new ReferenceWorldForceSimulation();
+  const alice = '["alice","meeting"]';
+  simulation.setScene({
+    nodes: [node(alice, { initialEastMeters: 250, initialNorthMeters: -125 })],
+    edges: [],
+    anchors: [anchor(alice, "stockholm")],
+  });
+  simulation.getChangedSnapshot();
+
+  const pin = {
+    instanceId: alice,
+    eastMeters: 250,
+    northMeters: -125,
+    visualAltitudeMeters: 1000,
+  };
+  simulation.setPin(pin);
+  assert.deepEqual(simulation.getChangedSnapshot(), []);
+  simulation.setPin(pin);
+  assert.deepEqual(simulation.getChangedSnapshot(), []);
+});

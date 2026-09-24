@@ -247,6 +247,11 @@ test("CPU force readback applies incremental WorldSurface deltas", () => {
     deltaCall[1].updatedInstances.map((instance) => instance.canonicalId),
     ["alice"],
   );
+  assert.deepEqual(deltaCall[1].addedInstances, []);
+  assert.deepEqual(deltaCall[1].removedInstanceIds, []);
+  assert.deepEqual(deltaCall[1].addedEdges, []);
+  assert.deepEqual(deltaCall[1].updatedEdges, []);
+  assert.deepEqual(deltaCall[1].removedEdgeIds, []);
 });
 
 test("empty sparse CPU readback skips projection rebuild and renderer invalidation", () => {
