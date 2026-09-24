@@ -5,6 +5,11 @@
 
 import { planWorkspacePlacement } from "../src/layout/workspace-layout.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
+import {
+  createApplicationSelectionController,
+  type ApplicationSelection,
+  type ApplicationSelectionSource,
+} from "./application-selection.ts";
 import { createAuthoringContext, type AuthoringCreateKind } from "./authoring-context.ts";
 import { LuumAuthoringMenuElement, type AuthoringMenuAction } from "./components/authoring-menu.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
@@ -597,6 +602,7 @@ const ui = {
   collapsedCategoryIds: new Set(state.categories.map((category) => category.id)),
 };
 
+const applicationSelection = createApplicationSelectionController();
 const authoring = createAuthoringContext();
 const authoringMenu = document.createElement("luum-authoring-menu") as LuumAuthoringMenuElement;
 document.body.append(authoringMenu);
@@ -631,6 +637,13 @@ try {
 } catch (error) {
   console.error("Failed to initialize TemporalGraphView:", error);
 }
+applicationSelection.subscribe(({ selection }) => {
+  authoring.setSelection(selection);
+  temporalGraphView?.setSelection?.(selection);
+  syncSelectionAwareToolbar(selection);
+});
+syncSelectionAwareToolbar(applicationSelection.current);
+
 const dateRangePicker = dateRangeFactory.create({
   input: els.itemDateRange,
   popover: els.itemCalendarPopover,
@@ -3654,11 +3667,8 @@ function authoringPlaceLabel(placeId: string | null): string | null {
   return getPlace(placeId)?.name || placeId;
 }
 
-function syncAuthoringSelection(detail: unknown): void {
-  if (!detail || typeof detail !== "object") {
-    authoring.setSelection(null);
-    return;
-  }
+function selectionFromDetail(detail: unknown): ApplicationSelection | null {
+  if (!detail || typeof detail !== "object") return null;
   const record = detail as { kind?: unknown; id?: unknown };
   const kind = record.kind;
   const id = record.id;
@@ -3666,10 +3676,52 @@ function syncAuthoringSelection(detail: unknown): void {
     (kind !== "node" && kind !== "edge" && kind !== "place") ||
     (typeof id !== "string" && typeof id !== "number")
   ) {
-    authoring.setSelection(null);
-    return;
+    return null;
   }
-  authoring.setSelection({ kind, id: String(id) });
+  return Object.freeze({ kind, id: String(id) });
+}
+
+function publishApplicationSelection(
+  detail: unknown,
+  source: ApplicationSelectionSource,
+): void {
+  applicationSelection.select(selectionFromDetail(detail), source);
+}
+
+function syncSelectionAwareToolbar(selection: ApplicationSelection | null): void {
+  const label = selection ? "Edit" : "Add";
+  const detail = selection ? ` ${selection.kind}` : " project content";
+  els.editorToggle.setAttribute("aria-label", `${label}${detail}`);
+  els.editorToggle.title = `${label}${detail}`;
+  const visibleLabel = els.editorToggle.querySelector<HTMLElement>(".app-tool-label");
+  if (visibleLabel) visibleLabel.textContent = label;
+}
+
+function timelineSelectionForFocus(id: unknown): ApplicationSelection | null {
+  if (typeof id !== "string" && typeof id !== "number") return null;
+  const focusId = String(id);
+  const derived = projectTimelineOccurrences({
+    entities: state.entities,
+    relationships: state.relationships,
+  }).find((occurrence) => String(occurrence.occurrenceId) === focusId);
+  if (derived) {
+    return Object.freeze({ kind: "edge", id: String(derived.relationshipId) });
+  }
+
+  const related = state.relationships.filter((relationship) =>
+    (relationship.itemIds || []).some((itemId) => String(itemId) === focusId),
+  );
+  return related.length === 1
+    ? Object.freeze({ kind: "edge", id: String(related[0]?.id) })
+    : null;
+}
+
+function retainCurrentApplicationSelection(): void {
+  applicationSelection.retain({
+    node: new Set(state.entities.map((entity) => String(entity.id))),
+    edge: new Set(state.relationships.map((relationship) => String(relationship.id))),
+    place: new Set(state.places.map((place) => String(place.id))),
+  });
 }
 
 function beginAuthoringSelectionEdit(): boolean {
@@ -4183,6 +4235,7 @@ function collapseAllCategories() {
 }
 
 function renderAll() {
+  retainCurrentApplicationSelection();
   renderProjectMeta();
   renderCategoryOptions();
   renderStoryBuilder();
@@ -5386,6 +5439,10 @@ els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
   }
   els.appShell.classList.toggle("is-event-focused", focused);
   temporalGraphView?.setFocus(focused ? event.detail?.id : null);
+  if (focused) {
+    const timelineSelection = timelineSelectionForFocus(event.detail?.id);
+    if (timelineSelection) applicationSelection.select(timelineSelection, "timeline");
+  }
   focusedGraphContextAvailable = focused && Boolean(temporalGraphView?.hasContext?.());
   temporalGraphView?.setPresentationMode?.(presentationModeActive());
   syncContextualPresentationPanels();
@@ -5404,11 +5461,11 @@ els.graphViewRoot.addEventListener("graphcontextchange", (event) => {
 });
 
 els.graphViewRoot.addEventListener("graphselectionchange", (event) => {
-  syncAuthoringSelection((event as CustomEvent).detail);
+  publishApplicationSelection((event as CustomEvent).detail, "graph");
 });
 
 els.graphViewRoot.addEventListener("worldselectionchange", (event) => {
-  syncAuthoringSelection((event as CustomEvent).detail);
+  publishApplicationSelection((event as CustomEvent).detail, "world");
 });
 
 els.graphViewRoot.addEventListener("worldcontextrequest", (event) => {
