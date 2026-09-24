@@ -226,7 +226,7 @@ export function createEvidenceExtraction({ pdfjs, root = globalThis, now = () =>
 
   function configurePdfWorker() {
     const workerOptions = pdfjs.GlobalWorkerOptions;
-    if (!workerOptions || !root.document?.baseURI) return;
+    if (!workerOptions || workerOptions.workerSrc || !root.document?.baseURI) return;
     workerOptions.workerSrc = new URL("./pdf.worker.mjs", root.document.baseURI).href;
   }
 
