@@ -2894,7 +2894,6 @@ export class DeckWorldSurface implements WorldSurface {
   #render(withCamera = false): void {
     this.#offsetScale = this.#nextOffsetScale();
     this.#floatMeters = this.#nextFloatMeters();
-    const index = this.#instanceIndex();
     const neighborhood = interactionNeighborhood(this.#projection, [
       this.#selection,
       this.#hoverSelection,
@@ -2905,13 +2904,6 @@ export class DeckWorldSurface implements WorldSurface {
       this.#placeDatumCache,
       neighborhood.placeIds,
     );
-    const relationshipResult = relationshipDatums(
-      this.#projection,
-      index,
-      this.#selection,
-      this.#relationshipDatumCache,
-      neighborhood.relationshipIds,
-    );
     const entityResult = entityDatums(
       this.#projection.instances,
       this.#selection,
@@ -2920,22 +2912,57 @@ export class DeckWorldSurface implements WorldSurface {
       this.#floatMeters,
       neighborhood.entityIds,
     );
+
+    const rawPlaceExpansion = this.#placeClusterExpansion();
+    const placeClusterCandidates = clusterEntityDatumsByPlace(
+      entityResult.datums,
+      this.#projection.instances,
+      worldPixelsToDegrees(WORLD_CLUSTER_MERGE_PX, this.#camera.zoom),
+    );
+    const hasPlaceClusters = placeClusterCandidates.some((datum) => datum.kind === "cluster");
+    const placeExpansion = hasPlaceClusters ? rawPlaceExpansion : 1;
+    const placeTransition = placeClusterTransitionDatums(
+      entityResult.datums,
+      placeClusterCandidates,
+      placeExpansion,
+    );
+    const transitionEntities = Object.freeze([
+      ...placeTransition.members,
+      ...placeTransition.loose,
+    ]);
+
+    // Relationship geometry consumes the same interpolated positions as node
+    // rendering. When zooming out, both endpoints therefore travel back to
+    // the place origin and the edge collapses with them.
+    const relationshipResult = relationshipDatums(
+      this.#projection,
+      instanceIndexFromEntities(transitionEntities),
+      this.#selection,
+      this.#relationshipDatumCache,
+      neighborhood.relationshipIds,
+    );
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
+
+    const gridClustered =
+      placeExpansion >= 1 &&
+      shouldClusterEntityDatums(entityResult.datums.length, this.#camera.zoom);
+    const relationshipExpansion = gridClustered ? 0 : placeExpansion;
     const temporalRelationships = this.#temporalRelationshipDatums(relationships);
-    const placeClustered = this.#placeClustered();
-    const entities = placeClustered
-      ? clusterEntityDatumsByPlace(
-          entityResult.datums,
-          this.#projection.instances,
-          worldPixelsToDegrees(WORLD_CLUSTER_MERGE_PX, this.#camera.zoom),
-        )
-      : clusterEntityDatums(entityResult.datums, this.#camera.zoom);
+    const entities: readonly DeckWorldEntityRenderDatum[] =
+      placeExpansion < 1
+        ? Object.freeze([
+            ...placeTransition.clusters,
+            ...placeTransition.loose,
+            ...(placeExpansion > 0 ? placeTransition.members : []),
+          ])
+        : clusterEntityDatums(entityResult.datums, this.#camera.zoom);
+
     this.#placeDatumCache = placeResult.byId;
     this.#relationshipDatumCache = relationshipResult.byId;
     this.#entityDatumCache = entityResult.byId;
-    this.#clusteredLastRender =
-      placeClustered || shouldClusterEntityDatums(entityResult.datums.length, this.#camera.zoom);
+    this.#clusteredLastRender = placeExpansion < 1 || gridClustered;
+    this.#clusterExpansionLastRender = rawPlaceExpansion;
     this.#labelBudgetLastRender = worldLabelBudget(this.#camera.zoom);
     this.#lodCandidateCountLastRender = Math.max(
       places.length,
@@ -2949,37 +2976,32 @@ export class DeckWorldSurface implements WorldSurface {
       this.#directionDatumCache,
     );
     this.#directionDatumCache = directionResult.byId;
-    // Kind icons follow the same LOD as labels: while clustered only pinned
-    // entities keep an icon; otherwise a zoom-tier budget by visual weight.
     const focus = this.#focus;
     const pinnedEntity = (entity: DeckWorldEntityDatum) =>
       entity.selected ||
       entity.emphasized ||
       (focus?.kind === "entity" && focus.id === entity.entityId);
+    const iconSource =
+      relationshipExpansion > 0 ? transitionEntities : Object.freeze([] as DeckWorldEntityDatum[]);
     const iconDatums = this.#runtime.createIconLayer
-      ? selectPrioritizedLabels(
-          entityResult.datums.filter(
-            (entity) => !this.#clusteredLastRender || pinnedEntity(entity),
-          ),
-          {
-            // Markers are the node bodies, so every entity gets one; only
-            // dense scenes fall back to the label budget.
-            budget:
-              entityResult.datums.length >= DENSE_CLUSTER_ENTITY_THRESHOLD
-                ? worldLabelBudget(this.#camera.zoom)
-                : Number.POSITIVE_INFINITY,
-            isPinned: pinnedEntity,
-            importance: (entity) => entity.visualWeight,
-            key: (entity) => entity.worldInstanceId,
-          },
-        )
+      ? selectPrioritizedLabels(iconSource, {
+          // Markers are the node bodies, so every visible expanding entity
+          // gets one; dense scenes still obey the semantic budget.
+          budget:
+            iconSource.length >= DENSE_CLUSTER_ENTITY_THRESHOLD
+              ? worldLabelBudget(this.#camera.zoom)
+              : Number.POSITIVE_INFINITY,
+          isPinned: pinnedEntity,
+          importance: (entity) => entity.visualWeight,
+          key: (entity) => entity.worldInstanceId,
+        })
       : null;
     const labelResult = this.#runtime.createTextLayer
       ? labelDatums({
           places,
           relationships,
-          entities: entityResult.datums,
-          clustered: this.#clusteredLastRender,
+          entities: transitionEntities,
+          clustered: relationshipExpansion === 0,
           zoom: this.#camera.zoom,
           focus: this.#focus,
           previous: this.#labelDatumCache,
@@ -2987,7 +3009,7 @@ export class DeckWorldSurface implements WorldSurface {
       : null;
     this.#labelDatumCache = labelResult?.byKey ?? new Map();
 
-    const tethers = this.#tethers(this.#clusteredLastRender ? [] : entityResult.datums);
+    const tethers = this.#tethers(relationshipExpansion > 0 ? transitionEntities : []);
     const layers = [
       // Earth base: orientation on light and dark hosts, and depth-occludes
       // the far side of the globe. Never pickable.
