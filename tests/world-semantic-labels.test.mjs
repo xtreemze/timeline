@@ -28,6 +28,9 @@ function harness() {
     createTextLayer(props) {
       return { type: "text", props };
     },
+    createIconLayer(props) {
+      return { type: "icon", props };
+    },
     createDeck() {
       return {
         setProps(props) {
@@ -147,6 +150,23 @@ test("production bindings and runtime expose a real deck.gl TextLayer path", asy
   assert.deepEqual(created, [{ id: "labels" }]);
 });
 
+test("place anchors render through the node marker path", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
+  surface.setProjection(directedProjection());
+
+  const placeIcons = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.placeIcons);
+  assert.ok(placeIcons, "place icon layer is rendered when IconLayer is available");
+  assert.equal(placeIcons.type, "icon");
+  assert.ok(placeIcons.props.data.length > 0);
+
+  const datum = placeIcons.props.data[0];
+  const marker = placeIcons.props.getIcon(datum);
+  assert.ok(marker.id.includes("pin"));
+  assert.ok(marker.id.includes("place"));
+  assert.ok(placeIcons.props.getSize(datum) >= 44);
+});
+
 test("entity and place labels come from renderer-neutral WorldProjection metadata", () => {
   const h = harness();
   // Close zoom: these fixtures sit 0.5 degrees apart, which screen-space
@@ -241,18 +261,17 @@ test("detail zoom repositions co-located semantic labels before hiding them", ()
   assert.equal(labels.props.getTextAnchor, "middle");
 });
 
-test("relationship predicate labels survive clustered overview presentation", () => {
+test("clustered overview shows only place labels", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
   surface.setProjection(directedProjection());
 
   const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
-  const relationshipLabels = labels.props.data.filter(
-    (datum) => datum.kind === "relationship-label",
-  );
+  assert.ok(labels.props.data.length > 0);
+  assert.ok(labels.props.data.every((datum) => datum.kind === "place-label"));
   assert.deepEqual(
-    relationshipLabels.map((datum) => labels.props.getText(datum)),
-    ["met"],
+    labels.props.data.map((datum) => labels.props.getText(datum)).sort(),
+    ["Place 0", "Place 1"],
   );
 });
 
@@ -318,17 +337,17 @@ test("label LOD reduces dense entity text but retains important, selected, and f
   assert.ok(entityIds.includes("entity-555"), "focused label survives LOD");
 });
 
-test("clustered overview hides individual labels except selected/focused ones", () => {
+test("clustered overview suppresses member labels even when a member is selected", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
   surface.setProjection(denseProjection(200));
   surface.setSelection({ kind: "entity", id: "entity-150" });
 
   const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
-  const entityIds = labels
-    .filter((datum) => datum.kind === "entity-label")
-    .map((datum) => datum.entityId);
-  assert.deepEqual(entityIds, ["entity-150"]);
+  assert.equal(labels.some((datum) => datum.kind === "entity-label"), false);
+  assert.equal(labels.some((datum) => datum.kind === "relationship-label"), false);
+  assert.ok(labels.length > 0);
+  assert.ok(labels.every((datum) => datum.kind === "place-label"));
 });
 
 test("label and marker datums keep object identity across unrelated re-renders", () => {
