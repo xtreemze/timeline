@@ -82,7 +82,7 @@ export function createWorldNodeDragController(
     activeInstanceId = target.instanceId;
     activePointerId = pointerId;
     backend.setPin(pin);
-    simulation.request({ reason: "drag", energyTarget: 0.2, reheat: true });
+    simulation.request({ reason: "drag", excitation: 0.2, reheat: true });
     return true;
   }
 
@@ -107,7 +107,7 @@ export function createWorldNodeDragController(
     }
 
     backend.setPin(null);
-    simulation.request({ reason: "post-drop", energyTarget: 0.035, reheat: true });
+    simulation.request({ reason: "post-drop", excitation: 0.035, reheat: true });
     simulation.release("drag");
 
     const released = interaction.release("world", pointerId);
