@@ -56,7 +56,7 @@ test("retained event terminals preserve semantic media, tag icons, and connector
   assert.match(view, /class LuumEventCardElement extends LitElement/);
   assert.match(view, /setSemanticItem\(item: TimelineItem\)/);
   assert.match(view, /data-timeline-icon/);
-  assert.match(view, /node\.dataset\.connectorWeight/);
+  assert.match(view, /this\.dataset\.connectorWeight/);
   assert.match(view, /connectorWeight === "fine" \? 1 : item\.connectorWeight === "strong" \? 4 : 2/);
   assert.match(css, /\.timeline-event-art-image/);
   assert.match(css, /\.timeline-event-icon-badge/);
@@ -71,7 +71,7 @@ test("timeline uses a Lit custom-element ownership boundary without reactive sce
 
   assert.match(html, /<luum-timeline id="timeline-view"/);
   assert.match(html, /<\/luum-timeline>/);
-  assert.match(view, /import \{ LitElement, noChange \} from "lit"/);
+  assert.match(view, /import \{ html, LitElement, noChange \} from "lit"/);
   assert.match(view, /class LuumTimelineElement extends LitElement/);
   assert.match(view, /createRenderRoot\(\): HTMLElement[\s\S]*return this/);
   assert.match(view, /render\(\)[\s\S]*return noChange/);
