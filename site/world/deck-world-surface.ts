@@ -41,11 +41,13 @@ import type {
   WorldInstanceId,
   WorldProjection,
 } from "../../src/projection/world-projection.ts";
-import type {
-  WorldEntityVisualEncoding,
-  WorldNodeShape,
-  WorldRelationshipVisualEncoding,
-  WorldVisualColor,
+import {
+  type WorldEntityVisualEncoding,
+  type WorldNodeShape,
+  type WorldRelationshipVisualEncoding,
+  type WorldVisualColor,
+  worldEntityVisualEncoding,
+  worldRelationshipVisualEncoding,
 } from "../../src/projection/world-visual-encoding.ts";
 import { iconPathData } from "../event-presentation.ts";
 import { buildWorldAccessibleOutline, WorldAccessibleMirror } from "./world-accessible-mirror.ts";
@@ -595,6 +597,35 @@ function positionEquals(left: WorldRenderPosition, right: WorldRenderPosition): 
   return left[0] === right[0] && left[1] === right[1] && left[2] === right[2];
 }
 
+function visualColorEquals(left: WorldVisualColor, right: WorldVisualColor): boolean {
+  return (
+    left[0] === right[0] &&
+    left[1] === right[1] &&
+    left[2] === right[2] &&
+    left[3] === right[3]
+  );
+}
+
+function entityVisualEquals(
+  left: WorldEntityVisualEncoding,
+  right: WorldEntityVisualEncoding,
+): boolean {
+  return (
+    left.shape === right.shape &&
+    left.icon === right.icon &&
+    left.imageUrl === right.imageUrl &&
+    visualColorEquals(left.fillColor, right.fillColor) &&
+    visualColorEquals(left.outlineColor, right.outlineColor)
+  );
+}
+
+function relationshipVisualEquals(
+  left: WorldRelationshipVisualEncoding,
+  right: WorldRelationshipVisualEncoding,
+): boolean {
+  return left.type === right.type && visualColorEquals(left.color, right.color);
+}
+
 function placeDatumUnchanged(
   previous: DeckWorldPlaceDatum,
   position: WorldRenderPosition,
@@ -669,12 +700,14 @@ function entityDatumUnchanged(
   visualWeight: number,
   label: string | undefined,
   entityKind: string | undefined,
+  visual: WorldEntityVisualEncoding,
 ): boolean {
   return (
     previous.selected === selected &&
     previous.visualWeight === visualWeight &&
     previous.label === label &&
     previous.entityKind === entityKind &&
+    entityVisualEquals(previous.visual, visual) &&
     positionEquals(previous.position, position)
   );
 }
@@ -694,6 +727,7 @@ function entityDatums(
     const position = anchorPosition(instance);
     if (!position) continue;
     const selected = selection?.kind === "entity" && selection.id === instance.canonicalId;
+    const visual = instance.visual ?? worldEntityVisualEncoding(instance.kind);
     const prior = previous.get(instance.id);
     const datum =
       prior &&
@@ -704,6 +738,7 @@ function entityDatums(
         instance.visualWeight,
         instance.label,
         instance.kind,
+        visual,
       )
         ? prior
         : Object.freeze({
@@ -712,6 +747,7 @@ function entityDatums(
             worldInstanceId: instance.id,
             ...(instance.label === undefined ? {} : { label: instance.label }),
             ...(instance.kind === undefined ? {} : { entityKind: instance.kind }),
+            visual,
             position,
             selected,
             visualWeight: instance.visualWeight,
@@ -736,11 +772,15 @@ function relationshipDatumUnchanged(
   source: WorldRenderPosition,
   target: WorldRenderPosition,
   selected: boolean,
+  relationshipType: string,
+  visual: WorldRelationshipVisualEncoding,
 ): boolean {
   return (
     previous.selected === selected &&
     previous.temporalWeight === edge.temporalWeight &&
     previous.label === edge.label &&
+    previous.relationshipType === relationshipType &&
+    relationshipVisualEquals(previous.visual, visual) &&
     previous.sourceInstanceId === edge.sourceInstanceId &&
     previous.targetInstanceId === edge.targetInstanceId &&
     positionEquals(previous.path[0], source) &&
@@ -773,14 +813,27 @@ function relationshipDatums(
     if (!source || !target || !sourceEntityId || !targetEntityId) continue;
 
     const selected = selection?.kind === "relationship" && selection.id === edge.id;
+    const relationshipType = edge.type ?? edge.label ?? String(edge.id);
+    const visual = edge.visual ?? worldRelationshipVisualEncoding(relationshipType);
     const prior = previous.get(edge.id);
     const datum =
-      prior && relationshipDatumUnchanged(prior, edge, source, target, selected)
+      prior &&
+      relationshipDatumUnchanged(
+        prior,
+        edge,
+        source,
+        target,
+        selected,
+        relationshipType,
+        visual,
+      )
         ? prior
         : Object.freeze({
             kind: "relationship" as const,
             relationshipId: edge.id,
             ...(edge.label === undefined ? {} : { label: edge.label }),
+            relationshipType,
+            visual,
             sourceInstanceId: edge.sourceInstanceId,
             targetInstanceId: edge.targetInstanceId,
             sourceEntityId,
