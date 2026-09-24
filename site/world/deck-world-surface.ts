@@ -156,6 +156,7 @@ export interface DeckWorldRuntime {
   createGlobeView(props: Readonly<Record<string, unknown>>): unknown;
   createGlobeViewport?(props: Readonly<Record<string, unknown>>): DeckRuntimeViewport;
   createMapView?(props: Readonly<Record<string, unknown>>): unknown;
+  createMapViewport?(props: Readonly<Record<string, unknown>>): DeckRuntimeViewport;
   createScatterplotLayer(props: Readonly<Record<string, unknown>>): unknown;
   createPathLayer(props: Readonly<Record<string, unknown>>): unknown;
   createTextLayer?(props: Readonly<Record<string, unknown>>): unknown;
