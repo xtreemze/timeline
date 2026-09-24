@@ -24,18 +24,7 @@ test("Biome is the authoritative formatter and strict multi-language quality too
   assert.equal(biome.linter?.rules?.suspicious?.noShorthandPropertyOverrides, "error");
   assert.equal(biome.linter?.rules?.suspicious?.noUnknownAtRules, "error");
 
-  for (const ignored of [
-    "!!dist",
-    "!!site/orb-graph.bundle.js",
-    "!!site/evidence-extraction.bundle.js",
-    "!!site/leaflet.bundle.js",
-    "!!site/pdf.worker.mjs",
-  ]) {
-    assert.ok(
-      biome.files?.includes?.includes(ignored),
-      `Biome must ignore generated artifact: ${ignored}`,
-    );
-  }
+  assert.ok(biome.files?.includes?.includes("!!dist"));
 
   const parityOverride = biome.overrides?.find((override) =>
     override.includes?.includes("src/**/*.js"),
@@ -98,6 +87,9 @@ test("package scripts expose one Biome quality pipeline plus architecture policy
   assert.doesNotMatch(Object.values(scripts).join("\n"), /eslint/i);
   assert.equal(pkg.devDependencies?.eslint, undefined);
   assert.equal(pkg.devDependencies?.["@eslint/js"], undefined);
+  assert.equal(pkg.devDependencies?.esbuild, undefined);
+  assert.equal(scripts.build, "vite build");
+  assert.doesNotMatch(Object.values(scripts).join("\n"), /esbuild|--format=iife/i);
   assert.doesNotMatch(scripts.format ?? "", /disabled|echo/i);
 });
 
