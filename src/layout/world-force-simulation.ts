@@ -66,7 +66,7 @@ export interface WorldSimulationDiagnostics {
   readonly iteration: number | null;
 }
 
-export type WorldClusterForceMode = "expand" | "collapse";
+export type WorldClusterForceMode = "expand" | "collapse" | "connect";
 
 export interface WorldClusterForceDirective {
   readonly mode: WorldClusterForceMode;
