@@ -1,6 +1,5 @@
 import { html, LitElement, noChange } from "lit";
-
-const presentation = globalThis.TimelinePresentation;
+import { createIcon } from "../event-presentation.ts";
 
 export interface TimelineEventCardItem {
   id: string;
@@ -110,13 +109,10 @@ export class LuumEventCardElement extends LitElement {
 
     for (const slot of this.querySelectorAll<HTMLElement>("[data-timeline-icon]")) {
       const iconName = slot.dataset.timelineIcon || "milestone";
-      const icon =
-        presentation && typeof presentation.createIcon === "function"
-          ? presentation.createIcon(iconName, {
-              size: slot.classList.contains("timeline-event-icon-badge") ? 18 : 24,
-            })
-          : null;
-      if (icon) slot.replaceChildren(icon);
+      const icon = createIcon(iconName, {
+        size: slot.classList.contains("timeline-event-icon-badge") ? 18 : 24,
+      });
+      slot.replaceChildren(icon);
     }
   }
 }
