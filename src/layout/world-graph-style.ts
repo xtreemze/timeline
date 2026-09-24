@@ -37,11 +37,11 @@ export const WORLD_DARK_PALETTE: WorldGraphPalette = Object.freeze({
 });
 
 /**
- * Ordinary nodes render at roughly 44-52px visible diameter before authored
- * sizing, comparable with a mobile icon button. Picking keeps a separate
- * >=44px target in WorldSurface.
+ * Ordinary nodes render at roughly 28-34px visible diameter before authored
+ * sizing. Picking remains a separate >=44px target in WorldSurface, so the
+ * graph can be visually quieter without shrinking touch acquisition.
  */
-export const WORLD_NODE_SCALE = 2;
+export const WORLD_NODE_SCALE = 1.3;
 /** Minimum radius of the mobile interaction footprint (44px diameter). */
 export const WORLD_ENTITY_MIN_HIT_RADIUS_PX = 22;
 
@@ -263,7 +263,7 @@ export function worldPlaceStyle(
   const authoredRadius =
     number(marker.radius, 4, 32) ??
     number(own.radius, 4, 32) ??
-    (authoredDiameter === null ? 22 : authoredDiameter / 2);
+    (authoredDiameter === null ? 17 : authoredDiameter / 2);
   return Object.freeze({
     fill,
     border,
@@ -295,6 +295,8 @@ export interface WorldEdgeStyleInput {
   readonly selected?: boolean;
   /** Incident-edge emphasis without changing canonical selection. */
   readonly emphasized?: boolean;
+  /** Semantic endpoint fallback used when the relationship has no authored/category colour. */
+  readonly fallbackColor?: string;
   readonly inactive?: boolean;
 }
 
@@ -308,12 +310,13 @@ export function worldEdgeStyle(
     color(own.color) ??
     color(own.stroke) ??
     color(own.lineColor) ??
+    color(input.fallbackColor) ??
     semanticEdgeColor(input.predicate ?? "", palette);
   const authoredWidth =
     number(own.width, 0.5, 10) ??
     number(own.strokeWidth, 0.5, 10) ??
     number(own.lineWidth, 0.5, 10) ??
-    2.5;
+    1.5;
   return Object.freeze({
     // Interaction emphasis is renderer-only so edge geometry/routing never
     // changes on hover or selection.
