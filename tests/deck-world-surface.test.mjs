@@ -602,6 +602,36 @@ test("hover and selection emphasize without changing graph geometry, and repeate
   assert.equal(container.style.cursor, "");
   assert.ok(entities.every((datum) => datum.emphasized === false));
 });
+test("idle relationships are subdued while hover and selection restore semantic color", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+
+  const relationshipLayer = () =>
+    calls.setProps.at(-1).layers.find(
+      (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.relationships,
+    );
+  const relationship = (layer) =>
+    layer.props.data.find((datum) => datum.relationshipId === "meeting");
+
+  let layer = relationshipLayer();
+  let edge = relationship(layer);
+  const idleColor = layer.props.getColor(edge);
+  assert.equal(idleColor[3], 105);
+
+  calls.deckProps.onHover({ object: { kind: "relationship", relationshipId: "meeting" } });
+  layer = relationshipLayer();
+  edge = relationship(layer);
+  const hoveredColor = layer.props.getColor(edge);
+  assert.equal(hoveredColor[3], 255);
+  assert.notDeepEqual(hoveredColor.slice(0, 3), idleColor.slice(0, 3));
+
+  surface.setSelection({ kind: "relationship", id: "meeting" });
+  layer = relationshipLayer();
+  edge = relationship(layer);
+  assert.deepEqual(layer.props.getColor(edge), hoveredColor);
+});
+
 test("relationship and place selection are also reflected in their render datums (issue #445 Priority 4)", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
@@ -1513,9 +1543,10 @@ test("default overview keeps same-place topology clustered without covering the 
   const cluster = layer.props.data.find((datum) => datum.kind === "cluster");
   assert.ok(cluster);
   assert.equal(cluster.clusterMembers.length, 2);
+  const clusterRadius = layer.props.getRadius(cluster);
   assert.ok(
-    layer.props.getRadius(cluster) > 22,
-    "cluster envelope sits outside the ordinary place marker footprint",
+    clusterRadius >= 28 && clusterRadius <= 38,
+    "cluster envelope remains compact while clearing the ordinary marker footprint",
   );
   assert.equal(
     layer.props.getFillColor(cluster)[3],
