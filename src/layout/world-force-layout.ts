@@ -36,9 +36,7 @@ export function applyWorldForceLayout(
       );
     }
     if (byId.has(sample.instanceId)) {
-      throw new Error(
-        `Duplicate world force layout sample for ${String(sample.instanceId)}.`,
-      );
+      throw new Error(`Duplicate world force layout sample for ${String(sample.instanceId)}.`);
     }
 
     byId.set(
