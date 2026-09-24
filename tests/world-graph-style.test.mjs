@@ -8,6 +8,7 @@ import {
   worldColorBytes,
   worldEdgeStyle,
   worldNodeFootprintRadiusPx,
+  worldNodeShapeVisualRadiusScale,
   worldNodeStyle,
   worldPlaceStyle,
 } from "../src/layout/world-graph-style.ts";
@@ -182,6 +183,25 @@ test("places use node-like shape, icon, border, fill, and readable footprint", (
   assert.equal(fallback.shape, "pin");
   assert.equal(fallback.icon, "place");
   assert.ok(fallback.radius >= WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+});
+
+test("marker shape scales normalize filled area and collision extent", () => {
+  const square = worldNodeShapeVisualRadiusScale("square");
+  const diamond = worldNodeShapeVisualRadiusScale("diamond");
+  const hexagon = worldNodeShapeVisualRadiusScale("hexagon");
+
+  assert.ok(Math.abs(4 * square ** 2 - Math.PI) < 1e-12);
+  assert.ok(Math.abs(2 * diamond ** 2 - Math.PI) < 1e-12);
+  assert.ok(Math.abs(((3 * Math.sqrt(3)) / 2) * hexagon ** 2 - Math.PI) < 1e-12);
+
+  const diamondInput = {
+    type: "event",
+    attributes: { style: { radius: 20, borderWidth: 2 } },
+  };
+  assert.ok(
+    worldNodeFootprintRadiusPx(diamondInput) >= 20 * diamond + 2,
+    "force collision reserves the normalized diamond extent",
+  );
 });
 
 test("entity and place authored size share diameter semantics", () => {
