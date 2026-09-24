@@ -71,10 +71,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
-      - name: Record ten real-browser showcase scenes
+      - name: Record source-native showcase media
         run: pnpm test:e2e:showcase
 
-      - name: Render desktop and mobile reels and GIF collections
+      - name: Render desktop and mobile reels and showcase assets
         run: pnpm render:e2e:showcase
 
       - name: Verify media evidence
@@ -83,23 +83,25 @@ jobs:
           test -s artifacts/e2e-media/README-showcase.md
           test -s artifacts/e2e-media/reels/lum-desktop-highlight.mp4
           test -s artifacts/e2e-media/reels/lum-mobile-highlight.mp4
-          test "$(find artifacts/e2e-media/raw/desktop -type f -name '*.webm' | wc -l)" -eq 5
-          test "$(find artifacts/e2e-media/raw/mobile -type f -name '*.webm' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/raw/desktop -type f -name '*.webm' | wc -l)" -eq 2
+          test "$(find artifacts/e2e-media/raw/mobile -type f -name '*.webm' | wc -l)" -eq 2
           test "$(find artifacts/e2e-media/raw/desktop -type f -name '*.png' | wc -l)" -eq 5
           test "$(find artifacts/e2e-media/raw/mobile -type f -name '*.png' | wc -l)" -eq 5
-          test "$(find artifacts/e2e-media/gifs/desktop -type f -name '*.gif' | wc -l)" -eq 5
-          test "$(find artifacts/e2e-media/gifs/mobile -type f -name '*.gif' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/showcase/desktop -type f -name '*.webp' | wc -l)" -eq 2
+          test "$(find artifacts/e2e-media/showcase/mobile -type f -name '*.webp' | wc -l)" -eq 2
+          test "$(find artifacts/e2e-media/showcase/desktop -type f -name '*.png' | wc -l)" -eq 3
+          test "$(find artifacts/e2e-media/showcase/mobile -type f -name '*.png' | wc -l)" -eq 3
 
-      - name: Report GIF sizes
+      - name: Report showcase asset sizes
         run: |
-          echo "Desktop GIFs"
-          du -h artifacts/e2e-media/gifs/desktop/*.gif
-          du -sh artifacts/e2e-media/gifs/desktop
-          echo "Mobile GIFs"
-          du -h artifacts/e2e-media/gifs/mobile/*.gif
-          du -sh artifacts/e2e-media/gifs/mobile
-          echo "Combined GIF payload"
-          du -sh artifacts/e2e-media/gifs
+          echo "Desktop showcase"
+          du -h artifacts/e2e-media/showcase/desktop/*
+          du -sh artifacts/e2e-media/showcase/desktop
+          echo "Mobile showcase"
+          du -h artifacts/e2e-media/showcase/mobile/*
+          du -sh artifacts/e2e-media/showcase/mobile
+          echo "Combined showcase payload"
+          du -sh artifacts/e2e-media/showcase
 
       - name: Upload E2E media evidence
         if: always()
