@@ -160,7 +160,8 @@ function worldNodeMetrics(input: WorldNodeStyleInput): {
   const authoredRadius =
     number(own["radius"], 4, 32) ?? (authoredDiameter === null ? null : authoredDiameter / 2);
   const resolvedRadius = Math.round(authoredRadius ?? baseRadius * WORLD_NODE_SCALE);
-  const authoredBorderWidth = number(own["borderWidth"], 0, 8) ?? number(own["strokeWidth"], 0, 8) ?? 2;
+  const authoredBorderWidth =
+    number(own["borderWidth"], 0, 8) ?? number(own["strokeWidth"], 0, 8) ?? 2;
   return Object.freeze({
     // Interaction state is presentation-only. Never feed hover/selection into
     // visible geometry or collision/force footprints.
