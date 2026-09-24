@@ -71,7 +71,7 @@ test("lower-priority anchor and projection work cannot cool an active topology s
   assert.equal(coordinator.getState().reason, "topology");
 });
 
-test("node drag temporarily owns simulation energy and returns to topology", () => {
+test("node drag temporarily owns simulation excitation and returns to topology", () => {
   const { calls, coordinator } = harness();
 
   coordinator.request({ reason: "topology", excitation: 0.12, reheat: true });
