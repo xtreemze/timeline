@@ -367,6 +367,7 @@ test("deck picking translates directly to canonical world hits with a touch-size
     radius: 22,
     unproject3D: true,
     layerIds: [
+      DECK_WORLD_LAYER_IDS.entityIcons,
       DECK_WORLD_LAYER_IDS.entities,
       DECK_WORLD_LAYER_IDS.relationshipDirections,
       DECK_WORLD_LAYER_IDS.relationships,
@@ -422,6 +423,7 @@ test("double-click/double-tap focuses the canonical entity picked under the poin
     radius: 22,
     unproject3D: true,
     layerIds: [
+      DECK_WORLD_LAYER_IDS.entityIcons,
       DECK_WORLD_LAYER_IDS.entities,
       DECK_WORLD_LAYER_IDS.relationshipDirections,
       DECK_WORLD_LAYER_IDS.relationships,

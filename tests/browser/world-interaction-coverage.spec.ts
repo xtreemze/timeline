@@ -362,6 +362,75 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     });
   });
 
+  test("real deck.gl renders entity kind icons that pick as the canonical entity", async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(String(error)));
+    page.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text());
+    });
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const setScene = (kind: string | null) =>
+      page.evaluate(async (entityKind) => {
+        const helpersModulePath = "/world-test-helpers.mjs";
+        const { createProjectedWorldInstance, createWorldProjection } = await import(
+          helpersModulePath
+        );
+        const harness = window.__worldPerfHarness;
+        harness.surface.setCamera({ longitude: 5, latitude: 15, zoom: 6, bearing: 0, pitch: 0 });
+        harness.surface.setProjection(
+          createWorldProjection({
+            instances: [
+              createProjectedWorldInstance({
+                id: "icon-person::icons",
+                canonicalId: "icon-person",
+                ...(entityKind ? { kind: entityKind } : {}),
+                occurrenceId: "icons",
+                geographicAnchors: [
+                  { placeId: "place-icon", longitude: 5, latitude: 15, influence: 1 },
+                ],
+                temporalWeight: 1,
+                visualWeight: 1,
+                retained: false,
+              }),
+            ],
+            edges: [],
+          }),
+        );
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        );
+        return harness.surface.project({ longitude: 5, latitude: 15, altitudeMeters: 0 });
+      }, kind);
+
+    const point = await setScene(null);
+    if (!point) throw new Error("Icon target did not project.");
+    const clip = {
+      x: Math.round(point.x - 14),
+      y: Math.round(point.y - 14),
+      width: 28,
+      height: 28,
+    };
+    const plain = await page.screenshot({ clip });
+
+    await setScene("person");
+    await expect
+      .poll(async () => Buffer.compare(await page.screenshot({ clip }), plain) !== 0, {
+        message: "the person icon should render over its entity",
+      })
+      .toBe(true);
+
+    const hit = await page.evaluate((at) => window.__worldPerfHarness.surface.pick(at), point);
+    expect(hit).toEqual({
+      kind: "entity",
+      entityId: "icon-person",
+      worldInstanceId: "icon-person::icons",
+    });
+    expect(errors, "no WebGL/deck.gl errors while rendering icons").toEqual([]);
+  });
+
   test("real deck.gl renders semantic labels and picks a directed relationship marker", async ({
     page,
   }) => {
