@@ -12,7 +12,7 @@ const TILE_SIZE_PX = 512;
 /** Share of the smaller viewport dimension the content should occupy. */
 const FILL_RATIO = 0.7;
 const MIN_FIT_ZOOM = 0.6;
-const MAX_FIT_ZOOM = 6;
+const MAX_FIT_ZOOM = 7.25;
 /** Extent assumed for a single point so it is not fitted to street level. */
 const MIN_SPAN_DEGREES = 2;
 
