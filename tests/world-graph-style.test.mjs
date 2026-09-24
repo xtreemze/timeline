@@ -257,7 +257,11 @@ test("edges colour by relationship type unless they carry their own style, inclu
   assert.equal(category.color, "#aabbcc", "category color is the semantic first choice");
 
   const nodeFallback = worldEdgeStyle(
-    { predicate: "visits", fallbackColor: "#334455" },
+    {
+      predicate: "visits",
+      fallbackColor: "#334455",
+      attributes: { style: { color: "#010203" } },
+    },
     WORLD_LIGHT_PALETTE,
   );
   assert.equal(nodeFallback.color, "#334455");
