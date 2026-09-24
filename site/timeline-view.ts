@@ -2967,10 +2967,16 @@ class TimelineViewController {
   }
 }
 
+const timelineControllers = new WeakMap<HTMLElement, TimelineViewController>();
+
 export const TimelineView = Object.freeze({
   create(root: HTMLElement): TimelineViewController | null {
     if (!(root instanceof HTMLElement)) return null;
-    return new TimelineViewController(root);
+    const existing = timelineControllers.get(root);
+    if (existing) return existing;
+    const controller = new TimelineViewController(root);
+    timelineControllers.set(root, controller);
+    return controller;
   },
   geometry: Object.freeze({
     connectorSegment,
