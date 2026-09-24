@@ -296,6 +296,28 @@ test("timeline edge date context keeps retained slots and rolls changed digits i
   assert.doesNotMatch(updateBody, /replaceChildren/);
 });
 
+test("timeline replaces obsolete edge years during drag and preserves a resting reference", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+  const start = source.indexOf("  renderTemporalContext(");
+  const end = source.indexOf("  relationshipBandLane(", start);
+  const body = source.slice(start, end);
+
+  assert.match(body, /minimumEdgeAccents:\s*this\.retention\.active \? 2 : 1/);
+  assert.match(
+    body,
+    /if \(!key\.startsWith\("edge-slot:"\) \|\| keepAccents\.has\(key\)\) continue;/,
+  );
+  assert.match(body, /for \(const animation of node\.getAnimations\(\)\) animation\.cancel\(\);/);
+  assert.match(
+    body,
+    /resolveTickLabelCollisions[\s\S]*key\.startsWith\("edge-slot:"\)[\s\S]*if \(!this\.retention\.active\) \{/,
+  );
+  assert.match(
+    body,
+    /if \(key\.startsWith\("edge-slot:"\) \|\| hierarchyChangedOnCommit\) node\.remove\(\);/,
+  );
+});
+
 test("portrait edge dates live on the outer rail rather than beside the timeline axis", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   assert.match(css, /\.is-portrait \.timeline-edge-date\s*\{[^}]*right:\s*8px/s);
