@@ -180,12 +180,16 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function normalizeWheelDelta(
-  event: Pick<WheelEvent, "deltaY" | "deltaMode">,
+  event: Pick<WheelEvent, "deltaY" | "deltaMode" | "ctrlKey">,
   pageLength: number,
 ): number {
   let delta = Number(event.deltaY) || 0;
   if (event.deltaMode === 1) delta *= 16;
   if (event.deltaMode === 2) delta *= Math.max(1, pageLength);
+  // Browser trackpad pinch is commonly exposed as a Ctrl-modified wheel
+  // gesture. Match d3-zoom's normalization here, then let Lūm's existing
+  // exponent cap keep the actual zoom response deliberately conservative.
+  if (event.ctrlKey) delta *= 10;
   return delta;
 }
 
@@ -3352,6 +3356,7 @@ export const TimelineView = Object.freeze({
     connectorRouteOffset,
     visibleIntervalAnchor,
     itemOverlapsViewport,
+    normalizeWheelDelta,
     wheelZoomFactor,
     selectEdgeAccents,
   }),
