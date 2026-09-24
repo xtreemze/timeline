@@ -255,7 +255,8 @@ export function dayAccents(items: unknown, options?: DayAccentOptions): AccentIn
     const key = dayKey(item.start);
     if (!key) continue;
     if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key)!.push(item);
+    const bucket = buckets.get(key);
+    if (bucket) bucket.push(item);
   }
 
   const accents: AccentInfo[] = [];
