@@ -36,7 +36,12 @@ export const WORLD_DARK_PALETTE: WorldGraphPalette = Object.freeze({
   line: "#393633",
 });
 
-export const WORLD_NODE_SCALE = 4;
+/**
+ * The legacy 9-11px radius becomes a 36-44px visible diameter, comparable
+ * with a mobile icon button without turning each graph node into an 80px blob.
+ * Picking keeps a separate >=44px target in WorldSurface.
+ */
+export const WORLD_NODE_SCALE = 2;
 
 export interface WorldNodeStyle {
   readonly fill: string;
