@@ -1,7 +1,7 @@
 import {
-  type Decross,
   coordGreedy,
   coordSimplex,
+  type Decross,
   decrossOpt,
   decrossTwoLayer,
   graphConnect,
@@ -99,11 +99,7 @@ interface LocalDagEdge {
   readonly retained: boolean;
 }
 
-type DagLinkData = readonly [
-  source: string,
-  target: string,
-  relationshipId: RelationshipId | null,
-];
+type DagLinkData = readonly [source: string, target: string, relationshipId: RelationshipId | null];
 
 interface LayoutIndex {
   readonly instancesByPlace: ReadonlyMap<PlaceId, readonly ProjectedWorldInstance[]>;
@@ -335,11 +331,7 @@ function topologyKey(
     // changing temporal weights or their candidate ordering. Weight/retained
     // changes that alter cycle priority still invalidate by changing this set.
     edges
-      .map((edge) => [
-        String(edge.relationshipId),
-        String(edge.sourceId),
-        String(edge.targetId),
-      ])
+      .map((edge) => [String(edge.relationshipId), String(edge.sourceId), String(edge.targetId)])
       .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
   ]);
 }
@@ -514,14 +506,18 @@ function minimumNonOverlappingScale(
   for (let leftIndex = 0; leftIndex < targets.length; leftIndex += 1) {
     const left = targets[leftIndex];
     if (!left) continue;
-    const [leftWidth, leftHeight] =
-      sizes.get(left.id) ?? [DAG_FALLBACK_NODE_SIZE_METERS, DAG_FALLBACK_NODE_SIZE_METERS];
+    const [leftWidth, leftHeight] = sizes.get(left.id) ?? [
+      DAG_FALLBACK_NODE_SIZE_METERS,
+      DAG_FALLBACK_NODE_SIZE_METERS,
+    ];
 
     for (let rightIndex = leftIndex + 1; rightIndex < targets.length; rightIndex += 1) {
       const right = targets[rightIndex];
       if (!right) continue;
-      const [rightWidth, rightHeight] =
-        sizes.get(right.id) ?? [DAG_FALLBACK_NODE_SIZE_METERS, DAG_FALLBACK_NODE_SIZE_METERS];
+      const [rightWidth, rightHeight] = sizes.get(right.id) ?? [
+        DAG_FALLBACK_NODE_SIZE_METERS,
+        DAG_FALLBACK_NODE_SIZE_METERS,
+      ];
       const dx = Math.abs(right.eastMeters - left.eastMeters);
       const dy = Math.abs(right.northMeters - left.northMeters);
       const requiredX = (leftWidth + rightWidth) / 2;
@@ -806,10 +802,7 @@ function chooseCandidate(
     }
   }
 
-  if (
-    nodeIds.length <= COMPARE_LAYERING_MAX_NODES &&
-    edges.length <= COMPARE_LAYERING_MAX_EDGES
-  ) {
+  if (nodeIds.length <= COMPARE_LAYERING_MAX_NODES && edges.length <= COMPARE_LAYERING_MAX_EDGES) {
     const longest = runLayoutCandidate(
       "longest-two-layer-simplex",
       nodeIds,
