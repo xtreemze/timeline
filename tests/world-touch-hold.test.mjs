@@ -7,6 +7,7 @@ import {
   WORLD_TOUCH_HOLD_MS,
   WORLD_TOUCH_HOLD_TOLERANCE_PX,
 } from "../src/interaction/world-touch-hold.ts";
+import { worldPointerDragMayStart } from "../src/interaction/world-pointer-policy.ts";
 import {
   createProjectedWorldInstance,
   createWorldProjection,
@@ -41,6 +42,13 @@ test("a second finger cancels a pending hold so pinch keeps camera ownership", (
   gate.press(2, { x: 90, y: 50 }, 50);
   assert.equal(gate.isArmed(1, WORLD_TOUCH_HOLD_MS * 2), false);
   assert.equal(gate.isArmed(2, WORLD_TOUCH_HOLD_MS * 2), false);
+});
+
+test("world node drag initiation preserves modified and secondary-button browser gestures", () => {
+  assert.equal(worldPointerDragMayStart({ srcEvent: { button: 0, ctrlKey: false } }), true);
+  assert.equal(worldPointerDragMayStart({ srcEvent: { button: 2, ctrlKey: false } }), false);
+  assert.equal(worldPointerDragMayStart({ srcEvent: { button: 0, ctrlKey: true } }), false);
+  assert.equal(worldPointerDragMayStart({ srcEvent: { pointerType: "touch" } }), true);
 });
 
 function surfaceHarness() {
@@ -145,10 +153,10 @@ function surfaceHarness() {
         clientY: y,
       });
     },
-    dragStart(pointerId, pointerType = "touch") {
+    dragStart(pointerId, pointerType = "touch", source = {}) {
       return entityLayer().props.onDragStart(
         { object: alice(), x: 118.0786, y: 259.3393 },
-        { srcEvent: { pointerId, pointerType } },
+        { srcEvent: { pointerId, pointerType, ...source } },
       );
     },
     dragEnd(pointerId, pointerType = "touch") {
@@ -264,6 +272,13 @@ test("mouse and pen drags stay immediate", () => {
   const h = surfaceHarness();
   assert.equal(h.dragStart(9, "mouse"), true);
   assert.equal(h.begins.length, 1);
+});
+
+test("modified and secondary-button mouse drags never claim the world node", () => {
+  const h = surfaceHarness();
+  assert.equal(h.dragStart(9, "mouse", { button: 2 }), false);
+  assert.equal(h.dragStart(10, "mouse", { button: 0, ctrlKey: true }), false);
+  assert.deepEqual(h.begins, []);
 });
 
 test("destroy removes every touch-hold listener", () => {
