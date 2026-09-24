@@ -400,7 +400,7 @@ test("post-drop settling stays responsive after an extreme drag displacement", (
   assert.ok(Number.isFinite(after.visualAltitudeMeters));
   assert.ok(
     Math.abs(after.eastMeters) < Math.abs(before.eastMeters),
-    "released node should resume smooth attraction toward its geographic anchor",
+    "released node should resume smooth correction toward its place domain",
   );
 });
 
@@ -549,7 +549,7 @@ test("drag wakes nearby foreign-anchor topology but leaves distant groups frozen
   assert.deepEqual(afterRemote, beforeRemote, "distant anchor group stays frozen");
 });
 
-test("geographic anchor force pulls local displacement toward its precision radius", () => {
+test("place-domain constraint returns distant nodes to an annulus without centering them", () => {
   const simulation = new ReferenceWorldForceSimulation({
     repulsionStrength: 0,
     collisionStrength: 0,
@@ -575,6 +575,42 @@ test("geographic anchor force pulls local displacement toward its precision radi
   const after = simulation.getSnapshot()[0].eastMeters;
 
   assert.ok(Math.abs(after) < Math.abs(before));
+  assert.ok(
+    Math.abs(after) > 200,
+    "the entity remains outside the place marker clearance instead of converging on the anchor",
+  );
+});
+
+test("place-domain constraint pushes a released node away from the exact place centre", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0,
+    anchorStrength: 0.05,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const instanceId = '["alice","centre-release"]';
+  simulation.setScene({
+    nodes: [node(instanceId, { collisionRadiusMeters: 100 })],
+    edges: [],
+    anchors: [anchor(instanceId, "stockholm", { influence: 1 })],
+  });
+  simulation.setPin({
+    instanceId,
+    eastMeters: 0,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+  simulation.setPin(null);
+  simulation.apply({ reason: "post-drop", energyTarget: 0.035, reheat: true });
+
+  for (let index = 0; index < 40; index += 1) simulation.step(1000 / 60);
+  const settled = simulation.getSnapshot()[0];
+  const radius = Math.hypot(settled.eastMeters, settled.northMeters);
+
+  assert.ok(radius >= 200, `expected place clearance, got ${radius}`);
+  assert.ok(radius < 600, `expected a local annular layout, got ${radius}`);
 });
 
 test("pinning hard-locks local layout position and altitude", () => {
@@ -666,7 +702,7 @@ test("drag force is localized to the pinned node's geographic group", () => {
   assert.notDeepEqual(bobAfter, bobBefore, "same-anchor floating topology still relaxes");
 });
 
-test("place-anchor attraction is suspended for the active drag group until release", () => {
+test("place-domain constraint is suspended for the active drag group until release", () => {
   const simulation = new ReferenceWorldForceSimulation({
     repulsionStrength: 0,
     collisionStrength: 0,
@@ -699,7 +735,7 @@ test("place-anchor attraction is suspended for the active drag group until relea
   assert.deepEqual(
     bobDuring,
     bobBefore,
-    "the shared place anchor does not pull floating neighbours inward during drag",
+    "the shared place domain does not reposition floating neighbours during drag",
   );
 
   simulation.setPin(null);
@@ -708,7 +744,7 @@ test("place-anchor attraction is suspended for the active drag group until relea
   const bobAfter = simulation.getSnapshot().find((entry) => entry.instanceId === bob);
   assert.ok(
     Math.abs(bobAfter.eastMeters) < Math.abs(bobDuring.eastMeters),
-    "anchor attraction resumes after release",
+    "the place-domain constraint resumes after release",
   );
 });
 
