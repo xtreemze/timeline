@@ -1519,6 +1519,18 @@ export class TimelineViewController {
 
     this.resolveTickLabelCollisions(keepTicks, padding, usable);
 
+    // Edge dates are viewport references rather than retained chronology objects.
+    // Retaining an obsolete slot during a drag lets the previous calendar year sit
+    // underneath its replacement. Drop stale slots immediately; the surviving
+    // slot remains keyed and continues moving with the viewport, including after commit.
+    for (const [key, node] of this.accentScene) {
+      if (!key.startsWith("edge-slot:") || keepAccents.has(key)) continue;
+      this.accentScene.delete(key);
+      this.frameDestroyedObjects += 1;
+      for (const animation of node.getAnimations()) animation.cancel();
+      node.remove();
+    }
+
     if (!this.retention.active) {
       for (const [key, node] of this.tickScene) {
         if (keepTicks.has(key)) {
@@ -1547,7 +1559,7 @@ export class TimelineViewController {
         }
         this.accentScene.delete(key);
         this.frameDestroyedObjects += 1;
-        if (hierarchyChangedOnCommit) node.remove();
+        if (key.startsWith("edge-slot:") || hierarchyChangedOnCommit) node.remove();
         else this.retireTemporalContextNode(node);
       }
     }
