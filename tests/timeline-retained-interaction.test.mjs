@@ -106,6 +106,32 @@ test("retained card semantic work is dataset-scoped and cross geometry is cached
   assert.match(clusterBody, /record\.connectorGeometryDirty \|\| crossGeometryChanged/);
 });
 
+test("timeline window queries preserve preordered data without frame-time sorting", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  assert.match(source, /orderedItems: TimelineItem\[\] = \[\]/);
+  assert.match(source, /itemById = new Map<string, TimelineItem>\(\)/);
+
+  const setItemsStart = source.indexOf("  setItems(");
+  const setItemsEnd = source.indexOf("  semanticChronologyLabel(", setItemsStart);
+  const setItemsBody = source.slice(setItemsStart, setItemsEnd);
+  assert.match(setItemsBody, /this\.orderedItems = \[\.\.\.this\.items\]\.sort/);
+  assert.match(setItemsBody, /this\.itemById = new Map/);
+
+  const queryStart = source.indexOf("  measuredQueryOccurrences(");
+  const queryEnd = source.indexOf("  getPerformanceMetrics(", queryStart);
+  const queryBody = source.slice(queryStart, queryEnd);
+  assert.match(queryBody, /this\.orderedItems\.filter/);
+  assert.doesNotMatch(queryBody, /\.sort\(/);
+  assert.doesNotMatch(queryBody, /queryOccurrences/);
+
+  const sceneStart = source.indexOf("  renderScene(): void {");
+  const createStart = source.indexOf("  createRecord(", sceneStart);
+  const sceneBody = source.slice(sceneStart, createStart);
+  assert.match(sceneBody, /this\.measuredQueryOccurrences\(membershipWindow\)/);
+  assert.match(sceneBody, /this\.itemById\.get\(this\.focusedId\)/);
+});
+
 test("continuous input publishes viewport state only from the rendered animation frame", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
