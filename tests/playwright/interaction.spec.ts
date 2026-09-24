@@ -142,6 +142,39 @@ test.describe('Timeline interaction contracts', () => {
       .toBeTruthy();
   });
 
+  test('viewport events publish the logical active relationship set shown by the timeline', async ({ page }) => {
+    const surface = page.locator('.timeline-surface');
+    await surface.focus();
+
+    // Zoom in so overscan/retention keeps offscreen relationship bands alive:
+    // those retained bands must never leak into logical activation.
+    for (let step = 0; step < 3; step += 1) {
+      await clearViewportEvents(page);
+      await page.keyboard.press('+');
+      await waitForViewportEvents(page);
+    }
+    await settleTimeline(page);
+
+    const latest = (await viewportEvents(page)).at(-1);
+    if (!latest) throw new Error('Zoom emitted no viewport event.');
+    const active = latest.viewport.activeOccurrenceIds;
+    expect(Array.isArray(active)).toBeTruthy();
+    expect(new Set(active).size).toBe(active.length);
+
+    const bands = await page.evaluate(() =>
+      [...document.querySelectorAll('#timeline-view [data-relationship-id]')].map((node) => ({
+        id: node.getAttribute('data-relationship-id'),
+        visible: !node.hidden,
+      })),
+    );
+    expect(bands.length, 'the sample chronology must exercise timed relationships').toBeGreaterThan(0);
+
+    const visible = bands.filter((band) => band.visible).map((band) => band.id);
+    const retainedOnly = bands.filter((band) => !band.visible).map((band) => band.id);
+    expect([...active].sort()).toEqual([...visible].sort());
+    for (const id of retainedOnly) expect(active).not.toContain(id);
+  });
+
   test('keyboard pan emits committed viewport changes in opposite directions', async ({ page }) => {
     const surface = page.locator('.timeline-surface');
     await surface.focus();
