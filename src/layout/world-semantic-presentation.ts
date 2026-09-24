@@ -517,12 +517,10 @@ export function worldPixelsToDegrees(pixels: number, zoom: number): number {
   return (pixels * 360) / (512 * 2 ** zoom);
 }
 
-/** Arrow length as a fraction of the average visible endpoint-node radius. */
+/** Arrow length as a fraction of the visible target-node radius. */
 export const WORLD_EDGE_ARROW_NODE_RADIUS_RATIO = 0.85;
-/** Arrow stroke width relative to endpoint-node radius, with edge width as a floor. */
+/** Arrow stroke width relative to the target-node radius, with edge width as a floor. */
 export const WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO = 0.14;
-/** Prevent arrow strokes from visually detaching from their relationship line. */
-export const WORLD_EDGE_ARROW_MAX_EDGE_WIDTH_RATIO = 2;
 
 /**
  * Converts a node-relative screen-pixel arrow length into the local angular
@@ -566,11 +564,25 @@ export function worldArrowStrokeWidthPxForNodeRadius(
 ): number {
   const radiusPx = Number.isFinite(nodeRadiusPx) && nodeRadiusPx > 0 ? nodeRadiusPx : 1;
   const widthPx = Number.isFinite(edgeWidthPx) && edgeWidthPx > 0 ? edgeWidthPx : 1;
-  return Math.min(
-    widthPx * WORLD_EDGE_ARROW_MAX_EDGE_WIDTH_RATIO,
-    Math.max(widthPx + 1, radiusPx * WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO),
-  );
+  return Math.max(widthPx, radiusPx * WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO);
 }
+
+/**
+ * A robust node-footprint radius for global LOD decisions. A single authored
+ * outlier must not hold an otherwise readable scene in the overview cluster
+ * tier, while small scenes retain exact max-radius behaviour.
+ */
+export function representativeWorldNodeRadiusPx(radii: readonly number[]): number {
+  const sorted = radii
+    .filter((radius) => Number.isFinite(radius) && radius > 0)
+    .slice()
+    .sort((left, right) => left - right);
+  if (sorted.length === 0) return 0;
+  if (sorted.length < 10) return sorted[sorted.length - 1] ?? 0;
+  const index = Math.max(0, Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.9) - 1));
+  return sorted[index] ?? 0;
+}
+
 /**
  * Below this on-screen local radius a place's entities remain clustered.
  * Align the cluster gate with the readability floor so local topology does

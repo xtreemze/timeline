@@ -10,6 +10,7 @@ import {
   WORLD_FLOATING_GRAPH_MAX_EXPANSION,
   WORLD_LOCAL_GRAPH_RADIUS_PX,
   WORLD_PLACE_CLUSTER_RADIUS_PX,
+  representativeWorldNodeRadiusPx,
   worldFloatingGraphRadiusPx,
   worldPlaceClusterRadiusPx,
   worldPresentationOffsetScale,
@@ -90,6 +91,14 @@ test("decluster readability grows with node footprint but is capped by the viewp
   assert.equal(worldPlaceClusterRadiusPx(28), WORLD_PLACE_CLUSTER_RADIUS_PX);
   assert.equal(worldPlaceClusterRadiusPx(60), 240);
   assert.equal(worldPlaceClusterRadiusPx(60, 150), 150);
+});
+
+test("global LOD ignores one oversized node once the scene is large enough", () => {
+  assert.equal(representativeWorldNodeRadiusPx([22, 26, 64]), 64);
+  assert.equal(
+    representativeWorldNodeRadiusPx([22, 22, 22, 22, 22, 22, 22, 22, 22, 64]),
+    22,
+  );
 });
 
 test("offset scale never shrinks and is disabled for dense or offset-free scenes", () => {

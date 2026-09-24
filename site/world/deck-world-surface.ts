@@ -47,6 +47,7 @@ import {
   worldPixelsToDegrees,
   worldPlaceClusterRadiusPx,
   worldPresentationOffsetScale,
+  representativeWorldNodeRadiusPx,
 } from "../../src/layout/world-semantic-presentation.ts";
 import {
   selectWorldSpatialMode,
@@ -307,7 +308,7 @@ export const CLUSTER_ZOOM_THRESHOLD = 4.5;
 const WORLD_CLUSTER_BASE_NODE_RADIUS_PX = 28;
 /** Arrow geometry is world-space, so refresh it on fine-grained zoom steps. */
 const WORLD_SCREEN_SCALE_ZOOM_STEPS_PER_LEVEL = 32;
-const WORLD_CAMERA_FACING_STEP_DEGREES = 0.25;
+const WORLD_CAMERA_FACING_STEP_DEGREES = 0.1;
 
 function screenScaleZoomStep(zoom: number): number {
   return Math.round(zoom * WORLD_SCREEN_SCALE_ZOOM_STEPS_PER_LEVEL);
@@ -806,6 +807,9 @@ type Rgba = [number, number, number, number];
 /** Theme-derived colours for the non-graph layers (basemap, labels, clusters). */
 const WORLD_TETHER_WIDTH_PX = 0.6;
 const WORLD_TETHER_ALPHA = 48;
+const WORLD_INACTIVE_EDGE_ALPHA = 96;
+const WORLD_EMPHASIZED_EDGE_ALPHA = 242;
+const WORLD_CAMERA_FACING_FADE_END = 0.08;
 
 interface WorldThemeColors {
   readonly earth: Rgba;
@@ -2457,13 +2461,17 @@ export class DeckWorldSurface implements WorldSurface {
     return style;
   }
 
-  #edgeStyle(datum: {
-    readonly label?: string;
-    readonly selected: boolean;
-    readonly emphasized?: boolean;
-    readonly style?: WorldPresentationStyle;
-  }): WorldEdgeStyle {
-    const key = `${datum.label ?? ""}|${datum.selected}|${datum.emphasized === true}|${datum.style ? JSON.stringify(datum.style) : ""}`;
+  #edgeStyle(
+    datum: {
+      readonly label?: string;
+      readonly selected: boolean;
+      readonly emphasized?: boolean;
+      readonly style?: WorldPresentationStyle;
+    },
+    fallbackColor?: string,
+  ): WorldEdgeStyle {
+    const subdued = !datum.selected && datum.emphasized !== true;
+    const key = `${datum.label ?? ""}|${datum.selected}|${datum.emphasized === true}|${fallbackColor ?? ""}|${datum.style ? JSON.stringify(datum.style) : ""}`;
     let style = this.#edgeStyles.get(key);
     if (!style) {
       style = worldEdgeStyle(
@@ -2472,6 +2480,8 @@ export class DeckWorldSurface implements WorldSurface {
           attributes: datum.style ? { style: datum.style } : undefined,
           selected: datum.selected,
           emphasized: datum.emphasized,
+          subdued,
+          ...(fallbackColor === undefined ? {} : { fallbackColor }),
         },
         this.#palette,
       );
@@ -3088,7 +3098,7 @@ export class DeckWorldSurface implements WorldSurface {
 
   #zoomNeedsRender(): boolean {
     const clusterExpansion = this.#placeClusterExpansion();
-    const maxNodeRadiusPx = this.#maxEntityFootprintRadiusPx();
+    const maxNodeRadiusPx = this.#clusterEntityFootprintRadiusPx();
     const clusteredNow =
       shouldClusterEntityDatums(this.#entityDatumCache.size, this.#camera.zoom, maxNodeRadiusPx) ||
       clusterExpansion < 1;
@@ -3119,34 +3129,34 @@ export class DeckWorldSurface implements WorldSurface {
     return Math.max(120, Math.min(WORLD_LOCAL_GRAPH_RADIUS_PX * 2, shortSide * 0.42));
   }
 
-  #maxEntityFootprintCache: {
+  #clusterEntityFootprintCache: {
     readonly projection: WorldProjection;
     readonly radiusPx: number;
   } | null = null;
 
-  #maxEntityFootprintRadiusPx(): number {
+  #clusterEntityFootprintRadiusPx(): number {
     const projection = this.#projection;
-    if (this.#maxEntityFootprintCache?.projection === projection) {
-      return this.#maxEntityFootprintCache.radiusPx;
+    if (this.#clusterEntityFootprintCache?.projection === projection) {
+      return this.#clusterEntityFootprintCache.radiusPx;
     }
-    let radiusPx = WORLD_ENTITY_MIN_HIT_RADIUS_PX;
-    for (const instance of projection.instances) {
-      radiusPx = Math.max(
-        radiusPx,
-        worldNodeFootprintRadiusPx({
-          ...(instance.kind === undefined ? {} : { type: instance.kind }),
-          attributes: instance.style ? { style: instance.style } : undefined,
-          visualWeight: instance.visualWeight,
-        }),
-      );
-    }
-    this.#maxEntityFootprintCache = { projection, radiusPx };
+    const radii = projection.instances.map((instance) =>
+      worldNodeFootprintRadiusPx({
+        ...(instance.kind === undefined ? {} : { type: instance.kind }),
+        attributes: instance.style ? { style: instance.style } : undefined,
+        visualWeight: instance.visualWeight,
+      }),
+    );
+    const radiusPx = Math.max(
+      WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+      representativeWorldNodeRadiusPx(radii),
+    );
+    this.#clusterEntityFootprintCache = { projection, radiusPx };
     return radiusPx;
   }
 
   #clusterRadiusPx(): number {
     return worldPlaceClusterRadiusPx(
-      this.#maxEntityFootprintRadiusPx(),
+      this.#clusterEntityFootprintRadiusPx(),
       this.#viewportGraphRadiusLimitPx(),
     );
   }
@@ -3160,7 +3170,7 @@ export class DeckWorldSurface implements WorldSurface {
     const instances = this.#projection.instances;
     // Clustered overviews group true geography; magnifying offsets there
     // would scatter one place's entities across cluster cells.
-    if (shouldClusterEntityDatums(instances.length, zoom, this.#maxEntityFootprintRadiusPx()))
+    if (shouldClusterEntityDatums(instances.length, zoom, this.#clusterEntityFootprintRadiusPx()))
       return 1;
     const typical = this.#typicalOffsetMeters();
     const scale = worldPresentationOffsetScale(
@@ -3227,7 +3237,7 @@ export class DeckWorldSurface implements WorldSurface {
     const instances = this.#projection.instances;
     if (
       instances.length === 0 ||
-      shouldClusterEntityDatums(instances.length, zoom, this.#maxEntityFootprintRadiusPx())
+      shouldClusterEntityDatums(instances.length, zoom, this.#clusterEntityFootprintRadiusPx())
     )
       return 0;
     if (this.#typicalOffsetMeters() <= 0) return 0;
@@ -3394,14 +3404,20 @@ export class DeckWorldSurface implements WorldSurface {
     return state;
   }
 
-  #temporalEdgeStyle(datum: DeckWorldTemporalRelationshipDatum): WorldEdgeStyle {
+  #temporalEdgeStyle(
+    datum: DeckWorldTemporalRelationshipDatum,
+    fallbackColor?: string,
+  ): WorldEdgeStyle {
     const state = this.#temporalRelationshipStateFor(datum);
-    return this.#edgeStyle({
-      ...(state.edge.label === undefined ? {} : { label: state.edge.label }),
-      ...(state.edge.style === undefined ? {} : { style: state.edge.style }),
-      selected: state.temporalActive && state.edge.selected,
-      emphasized: state.temporalActive && state.edge.emphasized,
-    });
+    return this.#edgeStyle(
+      {
+        ...(state.edge.label === undefined ? {} : { label: state.edge.label }),
+        ...(state.edge.style === undefined ? {} : { style: state.edge.style }),
+        selected: state.temporalActive && state.edge.selected,
+        emphasized: state.temporalActive && state.edge.emphasized,
+      },
+      fallbackColor,
+    );
   }
 
   #setLabelFocus(kind: WorldSelection["kind"], id: string): void {
@@ -3475,11 +3491,11 @@ export class DeckWorldSurface implements WorldSurface {
     // Otherwise a dense scene with many members per place could retain
     // thousands of place-local bubbles at globe scale and never reach the
     // cheaper nearby-place merge path.
-    const maxEntityFootprintRadiusPx = this.#maxEntityFootprintRadiusPx();
+    const clusterEntityFootprintRadiusPx = this.#clusterEntityFootprintRadiusPx();
     const gridClustered = shouldClusterEntityDatums(
       entityResult.datums.length,
       this.#camera.zoom,
-      maxEntityFootprintRadiusPx,
+      clusterEntityFootprintRadiusPx,
     );
     const overviewClusters = gridClustered
       ? clusterEntityDatumsByPlace(
@@ -3520,20 +3536,29 @@ export class DeckWorldSurface implements WorldSurface {
       const style = this.#entityStyle(entity);
       return worldNodeMarker(style).size / 2;
     };
+    const edgeFallbackColor = (edge: DeckWorldRelationshipDatum): string | undefined => {
+      const source = entityResult.byId.get(edge.sourceInstanceId);
+      const target = entityResult.byId.get(edge.targetInstanceId);
+      if (source) return this.#entityStyle(source).fill;
+      if (target) return this.#entityStyle(target).fill;
+      return undefined;
+    };
+    const edgeAlpha = (edge: Pick<DeckWorldRelationshipDatum, "selected" | "emphasized">): number =>
+      edge.selected
+        ? 255
+        : edge.emphasized
+          ? WORLD_EMPHASIZED_EDGE_ALPHA
+          : WORLD_INACTIVE_EDGE_ALPHA;
     const directionResult = directionDatums(
       relationships,
       this.#camera.zoom,
       this.#focus,
       this.#directionDatumCache,
       (edge) => {
-        const nodeRadiusPx =
-          (visibleEntityRadiusPx(edge.sourceInstanceId) +
-            visibleEntityRadiusPx(edge.targetInstanceId)) /
-          2;
-        const source = edge.path[0];
+        const targetRadiusPx = visibleEntityRadiusPx(edge.targetInstanceId);
         const target = edge.path[edge.path.length - 1];
-        const latitude = source && target ? (source[1] + target[1]) / 2 : this.#camera.latitude;
-        return worldArrowLengthDegreesForNodeRadius(nodeRadiusPx, this.#camera.zoom, latitude);
+        const latitude = target?.[1] ?? this.#camera.latitude;
+        return worldArrowLengthDegreesForNodeRadius(targetRadiusPx, this.#camera.zoom, latitude);
       },
       (edge) => {
         const targetRadiusPx = visibleEntityRadiusPx(edge.targetInstanceId);
@@ -3749,13 +3774,16 @@ export class DeckWorldSurface implements WorldSurface {
                 255,
                 255,
                 255,
-                datum.selected ? 255 : datum.emphasized ? 242 : 215,
+                Math.round(
+                  (datum.selected ? 255 : datum.emphasized ? 242 : 215) *
+                    this.#cameraFacingOpacity(datum.position),
+                ),
               ],
               updateTriggers: {
                 getPosition: [screenScaleZoomStep(this.#camera.zoom)],
                 getIcon: this.#palette,
                 getSize: this.#palette,
-                getColor: this.#palette,
+                getColor: [this.#palette, cameraFacingStep(this.#camera)],
               },
               // Far-side markers are filtered explicitly, so visible place
               // billboards can share entity-marker depth behavior safely.
@@ -3776,15 +3804,14 @@ export class DeckWorldSurface implements WorldSurface {
         // presentation state here; WorldProjection already contains truth.
         getWidth: (datum: DeckWorldTemporalRelationshipDatum) => {
           const state = this.#temporalRelationshipStateFor(datum);
-          const width = this.#temporalEdgeStyle(datum).width;
+          const width = this.#temporalEdgeStyle(datum, edgeFallbackColor(state.edge)).width;
           return (state.temporalActive ? width : 0) * edgeExpansion(state.edge);
         },
         getColor: (datum: DeckWorldTemporalRelationshipDatum) => {
           const state = this.#temporalRelationshipStateFor(datum);
-          const emphasisAlpha = state.edge.selected ? 255 : state.edge.emphasized ? 242 : 215;
           return worldColorBytes(
-            this.#temporalEdgeStyle(datum).color,
-            state.temporalActive ? Math.round(emphasisAlpha * edgeExpansion(state.edge)) : 0,
+            this.#temporalEdgeStyle(datum, edgeFallbackColor(state.edge)).color,
+            state.temporalActive ? Math.round(edgeAlpha(state.edge) * edgeExpansion(state.edge)) : 0,
           );
         },
         updateTriggers: {
@@ -3929,10 +3956,18 @@ export class DeckWorldSurface implements WorldSurface {
                   : 1),
               getColor: (datum: DeckWorldEntityDatum) => {
                 // Keep the authored fill visibly distinct from the app background.
-                // 215 alpha composites the default person fill far enough toward
-                // paper that real-app visibility becomes marginal on antialiased pixels.
+                // Horizon visibility is camera-derived and never uses renderer transitions.
                 const emphasisAlpha = datum.selected ? 255 : datum.emphasized ? 245 : 230;
-                return [255, 255, 255, Math.round(emphasisAlpha * entityExpansion(datum))] as Rgba;
+                return [
+                  255,
+                  255,
+                  255,
+                  Math.round(
+                    emphasisAlpha *
+                      entityExpansion(datum) *
+                      this.#cameraFacingOpacity(datum.position),
+                  ),
+                ] as Rgba;
               },
               updateTriggers: {
                 getPosition: [
@@ -3946,7 +3981,7 @@ export class DeckWorldSurface implements WorldSurface {
                   gridClustered,
                   this.#dragPresentationRevision,
                 ],
-                getColor: [placeExpansion, gridClustered],
+                getColor: [placeExpansion, gridClustered, cameraFacingStep(this.#camera)],
               },
               // GlobeView culls back faces; billboarded icon quads vanish
               // without this (same as the label TextLayer). Markers draw
@@ -3968,7 +4003,9 @@ export class DeckWorldSurface implements WorldSurface {
         : []),
       this.#runtime.createPathLayer({
         id: DECK_WORLD_LAYER_IDS.relationshipDirections,
-        data: directionResult.datums.filter((datum) => this.#edgeStyle(datum.edge).arrow),
+        data: directionResult.datums.filter((datum) =>
+          this.#edgeStyle(datum.edge, edgeFallbackColor(datum.edge)).arrow,
+        ),
         dataComparator: sameDatumSequence,
         pickable: !gridClustered,
         widthUnits: "pixels",
@@ -3977,22 +4014,19 @@ export class DeckWorldSurface implements WorldSurface {
         capRounded: true,
         getPath: (datum: DeckWorldDirectionDatum) => datum.path,
         getWidth: (datum: DeckWorldDirectionDatum) => {
-          const nodeRadiusPx =
-            (visibleEntityRadiusPx(datum.sourceInstanceId) +
-              visibleEntityRadiusPx(datum.targetInstanceId)) /
-            2;
+          const targetRadiusPx = visibleEntityRadiusPx(datum.targetInstanceId);
           return (
-            worldArrowStrokeWidthPxForNodeRadius(nodeRadiusPx, this.#edgeStyle(datum.edge).width) *
-            edgeExpansion(datum)
+            worldArrowStrokeWidthPxForNodeRadius(
+              targetRadiusPx,
+              this.#edgeStyle(datum.edge, edgeFallbackColor(datum.edge)).width,
+            ) * edgeExpansion(datum)
           );
         },
-        getColor: (datum: DeckWorldDirectionDatum) => {
-          const emphasisAlpha = datum.edge.selected ? 255 : datum.edge.emphasized ? 242 : 215;
-          return worldColorBytes(
-            this.#edgeStyle(datum.edge).color,
-            Math.round(emphasisAlpha * edgeExpansion(datum)),
-          );
-        },
+        getColor: (datum: DeckWorldDirectionDatum) =>
+          worldColorBytes(
+            this.#edgeStyle(datum.edge, edgeFallbackColor(datum.edge)).color,
+            Math.round(edgeAlpha(datum.edge) * edgeExpansion(datum)),
+          ),
         updateTriggers: {
           getWidth: [this.#palette, placeExpansion, gridClustered],
           getColor: [this.#palette, placeExpansion, gridClustered],
@@ -4025,13 +4059,14 @@ export class DeckWorldSurface implements WorldSurface {
                     : datum.kind === "relationship-label"
                       ? this.#theme.labelRelationship
                       : this.#theme.labelText;
-                if (datum.kind === "place-label") return base;
+                const facing = this.#cameraFacingOpacity(datum.position);
+                if (datum.kind === "place-label") return scaleAlpha(base, facing);
                 if (datum.kind === "relationship-label") {
                   const edge = relationshipResult.byId.get(datum.relationshipId);
-                  return scaleAlpha(base, edge ? edgeExpansion(edge) : 0);
+                  return scaleAlpha(base, facing * (edge ? edgeExpansion(edge) : 0));
                 }
                 const entity = entityResult.byId.get(datum.worldInstanceId);
-                return scaleAlpha(base, entity ? entityExpansion(entity) : 0);
+                return scaleAlpha(base, facing * (entity ? entityExpansion(entity) : 0));
               },
               getTextAnchor: "middle",
               getAlignmentBaseline: "center",
@@ -4040,7 +4075,13 @@ export class DeckWorldSurface implements WorldSurface {
                 // Interaction updates invalidate color only. Position is
                 // already supplied by explicit cluster interpolation and must
                 // never get a second deck transition on hover/selection.
-                getColor: [this.#palette, placeExpansion, gridClustered, labelInteractionKey],
+                getColor: [
+                  this.#palette,
+                  placeExpansion,
+                  gridClustered,
+                  labelInteractionKey,
+                  cameraFacingStep(this.#camera),
+                ],
               },
               // GlobeView culls back faces; billboarded glyph quads are
               // wound the other way and vanish without this. Labels draw
@@ -4218,17 +4259,21 @@ export class DeckWorldSurface implements WorldSurface {
     return visible;
   }
 
-  /** True when a position lies on the camera-facing hemisphere. */
-  #facesCamera(position: WorldRenderPosition): boolean {
+  /** Camera-facing opacity: fully visible away from the limb, smoothly zero at the horizon. */
+  #cameraFacingOpacity(position: WorldRenderPosition): number {
     const radians = Math.PI / 180;
     const latitude = position[1] * radians;
     const cameraLatitude = this.#camera.latitude * radians;
     const deltaLongitude = (position[0] - this.#camera.longitude) * radians;
-    return (
+    const facing =
       Math.sin(latitude) * Math.sin(cameraLatitude) +
-        Math.cos(latitude) * Math.cos(cameraLatitude) * Math.cos(deltaLongitude) >
-      0.05
-    );
+      Math.cos(latitude) * Math.cos(cameraLatitude) * Math.cos(deltaLongitude);
+    return Math.max(0, Math.min(1, facing / WORLD_CAMERA_FACING_FADE_END));
+  }
+
+  /** True when a position is at least partially visible on the camera-facing hemisphere. */
+  #facesCamera(position: WorldRenderPosition): boolean {
+    return this.#cameraFacingOpacity(position) > 0;
   }
 
   #assertAlive(): void {

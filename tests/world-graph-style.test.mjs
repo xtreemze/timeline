@@ -246,6 +246,39 @@ test("edges colour by relationship type unless they carry their own style, inclu
   assert.equal(aliased.width, 3);
 });
 
+test("subdued edges mute while emphasized edges restore endpoint or authored colour", () => {
+  const subdued = worldEdgeStyle(
+    { predicate: "calls", fallbackColor: "#123456", subdued: true },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(subdued.color, WORLD_LIGHT_PALETTE.muted);
+  assert.equal(subdued.dashed, false);
+
+  const inactive = worldEdgeStyle(
+    { predicate: "calls", fallbackColor: "#123456", inactive: true },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(inactive.dashed, true, "semantic inactivity can still use a dashed line");
+
+  const emphasized = worldEdgeStyle(
+    { predicate: "calls", fallbackColor: "#123456", emphasized: true },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(emphasized.color, "#123456");
+  assert.equal(emphasized.dashed, false);
+
+  const authored = worldEdgeStyle(
+    {
+      predicate: "calls",
+      fallbackColor: "#123456",
+      emphasized: true,
+      attributes: { style: { color: "#abcdef" } },
+    },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(authored.color, "#abcdef");
+});
+
 test("colour bytes parse short, long and alpha hex", () => {
   assert.deepEqual(worldColorBytes("#fff"), [255, 255, 255, 255]);
   assert.deepEqual(worldColorBytes("#102030", 128), [16, 32, 48, 128]);
