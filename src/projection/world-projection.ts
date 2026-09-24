@@ -34,6 +34,8 @@ export interface ProjectedWorldInstance {
   readonly label?: string;
   readonly kind?: string;
   readonly occurrenceId?: RelationshipId;
+  /** All active occurrences represented by this rendered spatial instance. */
+  readonly occurrenceIds?: readonly RelationshipId[];
   readonly geographicAnchors: readonly SpatialAnchor[];
   readonly temporalWeight: number;
   readonly visualWeight: number;
@@ -146,6 +148,13 @@ export function createProjectedWorldInstance(
     instance.occurrenceId === undefined
       ? undefined
       : (nonEmpty(instance.occurrenceId, "Occurrence ID") as RelationshipId);
+  const occurrenceIds =
+    instance.occurrenceIds === undefined
+      ? undefined
+      : Object.freeze(
+          [...new Set(instance.occurrenceIds.map((id) => nonEmpty(id, "Occurrence ID") as RelationshipId))]
+            .sort((left, right) => String(left).localeCompare(String(right))),
+        );
   const id = instance.id ?? worldInstanceId(canonicalId, occurrenceId);
   const label = optionalText(instance.label, 180);
   const kind = optionalText(instance.kind, 80);
@@ -170,6 +179,7 @@ export function createProjectedWorldInstance(
     ...(instanceStyle === undefined ? {} : { style: instanceStyle }),
     ...(kind === undefined ? {} : { kind }),
     ...(occurrenceId === undefined ? {} : { occurrenceId }),
+    ...(occurrenceIds === undefined ? {} : { occurrenceIds }),
     geographicAnchors: Object.freeze(instance.geographicAnchors.map(createSpatialAnchor)),
     temporalWeight: unitInterval(instance.temporalWeight, "Temporal weight"),
     visualWeight: unitInterval(instance.visualWeight, "Visual weight"),

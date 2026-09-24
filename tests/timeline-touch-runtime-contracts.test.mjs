@@ -22,6 +22,17 @@ test("double tap zooms around the tapped temporal coordinate", async () => {
   assert.match(source, /start: anchor - nextSpan \* ratio/);
 });
 
+test("one-finger pan caches surface geometry instead of forcing layout on every pointer move", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+  const moveStart = source.indexOf('this.surface.addEventListener("pointermove"');
+  const finishStart = source.indexOf("const finishPointer", moveStart);
+  const pointerMoveBody = source.slice(moveStart, finishStart);
+
+  assert.match(source, /usableLength: number/);
+  assert.match(source, /this\.startInertia\(releaseVelocity, drag\.usableLength\)/);
+  assert.doesNotMatch(pointerMoveBody, /getBoundingClientRect\(\)/);
+});
+
 test("pinch can hand off continuously to one-finger pan", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.match(source, /const remaining = Array\.from\(this\.touchPointers\.values\(\)\)\[0\]/);

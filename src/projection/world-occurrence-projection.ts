@@ -7,8 +7,9 @@ import {
   createWorldProjection,
   type ProjectedWorldEdge,
   type ProjectedWorldInstance,
+  type SpatialAnchor,
+  type WorldInstanceId,
   type WorldProjection,
-  worldInstanceId,
 } from "./world-projection.ts";
 
 export interface WorldEntityPresentation {
@@ -33,6 +34,66 @@ function relationshipStyle(
     : undefined;
 }
 
+/**
+ * Render identity is canonical entity + spatial context, not canonical entity
+ * + every occurrence. Repeated active facts at one place therefore reuse one
+ * visible node, while genuinely different place contexts remain separate
+ * world instances. Unplaced facts share one unplaced instance per entity.
+ */
+function worldSpatialInstanceId(
+  canonicalId: EntityId,
+  anchor: SpatialAnchor | undefined,
+): WorldInstanceId {
+  return JSON.stringify([
+    String(canonicalId),
+    anchor ? `place:${String(anchor.placeId)}` : "unplaced",
+  ]) as WorldInstanceId;
+}
+
+interface WorldInstanceAccumulator {
+  readonly id: WorldInstanceId;
+  readonly canonicalId: EntityId;
+  readonly presentation?: WorldEntityPresentation;
+  readonly geographicAnchors: readonly SpatialAnchor[];
+  readonly occurrenceIds: RelationshipId[];
+  temporalWeight: number;
+  visualWeight: number;
+  retained: boolean;
+}
+
+function accumulateInstance(
+  instances: Map<WorldInstanceId, WorldInstanceAccumulator>,
+  canonicalId: EntityId,
+  occurrenceId: RelationshipId,
+  geographicAnchors: readonly SpatialAnchor[],
+  temporalWeight: number,
+  visualWeight: number,
+  retained: boolean,
+  presentation: WorldEntityPresentation | undefined,
+): WorldInstanceId {
+  const id = worldSpatialInstanceId(canonicalId, geographicAnchors[0]);
+  const existing = instances.get(id);
+  if (existing) {
+    if (!existing.occurrenceIds.includes(occurrenceId)) existing.occurrenceIds.push(occurrenceId);
+    existing.temporalWeight = Math.max(existing.temporalWeight, temporalWeight);
+    existing.visualWeight = Math.max(existing.visualWeight, visualWeight);
+    existing.retained ||= retained;
+    return id;
+  }
+
+  instances.set(id, {
+    id,
+    canonicalId,
+    ...(presentation ? { presentation } : {}),
+    geographicAnchors,
+    occurrenceIds: [occurrenceId],
+    temporalWeight,
+    visualWeight,
+    retained,
+  });
+  return id;
+}
+
 export function projectWorldOccurrences(
   relationships: readonly CanonicalRelationship[],
   activeOccurrenceIds: readonly RelationshipId[],
@@ -48,7 +109,7 @@ export function projectWorldOccurrences(
     relationshipsById.set(relationship.id, relationship);
   }
 
-  const instances: ProjectedWorldInstance[] = [];
+  const instancesById = new Map<WorldInstanceId, WorldInstanceAccumulator>();
   const edges: ProjectedWorldEdge[] = [];
 
   const activeIds = [...new Set(activeOccurrenceIds)].sort((left, right) =>
@@ -66,44 +127,36 @@ export function projectWorldOccurrences(
     const retained = options.retainedOccurrenceIds?.has(occurrenceId) ?? false;
     const anchor = spatialAnchors.anchorForOccurrence(occurrenceId);
     const geographicAnchors = anchor ? Object.freeze([anchor]) : Object.freeze([]);
-
-    const subjectInstanceId = worldInstanceId(relationship.subjectId, occurrenceId);
-    const objectInstanceId = worldInstanceId(relationship.objectId, occurrenceId);
     const subjectPresentation = options.entityPresentation?.get(relationship.subjectId);
     const objectPresentation = options.entityPresentation?.get(relationship.objectId);
 
-    instances.push(
-      createProjectedWorldInstance({
-        id: subjectInstanceId,
-        canonicalId: relationship.subjectId,
-        ...(subjectPresentation?.label ? { label: subjectPresentation.label } : {}),
-        ...(subjectPresentation?.kind ? { kind: subjectPresentation.kind } : {}),
-        ...(subjectPresentation?.style ? { style: subjectPresentation.style } : {}),
-        occurrenceId,
-        geographicAnchors,
-        temporalWeight,
-        visualWeight,
-        retained,
-      }),
-      createProjectedWorldInstance({
-        id: objectInstanceId,
-        canonicalId: relationship.objectId,
-        ...(objectPresentation?.label ? { label: objectPresentation.label } : {}),
-        ...(objectPresentation?.kind ? { kind: objectPresentation.kind } : {}),
-        ...(objectPresentation?.style ? { style: objectPresentation.style } : {}),
-        occurrenceId,
-        geographicAnchors,
-        temporalWeight,
-        visualWeight,
-        retained,
-      }),
+    const subjectInstanceId = accumulateInstance(
+      instancesById,
+      relationship.subjectId,
+      occurrenceId,
+      geographicAnchors,
+      temporalWeight,
+      visualWeight,
+      retained,
+      subjectPresentation,
+    );
+    const objectInstanceId = accumulateInstance(
+      instancesById,
+      relationship.objectId,
+      occurrenceId,
+      geographicAnchors,
+      temporalWeight,
+      visualWeight,
+      retained,
+      objectPresentation,
     );
 
+    const style = relationshipStyle(relationship);
     edges.push(
       createProjectedWorldEdge({
         id: relationship.id,
         label: relationship.predicate,
-        ...(relationshipStyle(relationship) ? { style: relationshipStyle(relationship) } : {}),
+        ...(style ? { style } : {}),
         sourceInstanceId: subjectInstanceId,
         targetInstanceId: objectInstanceId,
         temporalWeight,
@@ -112,6 +165,26 @@ export function projectWorldOccurrences(
       }),
     );
   }
+
+  const instances: ProjectedWorldInstance[] = [...instancesById.values()].map((instance) => {
+    const occurrenceIds = [...instance.occurrenceIds].sort((left, right) =>
+      String(left).localeCompare(String(right)),
+    );
+    const presentation = instance.presentation;
+    return createProjectedWorldInstance({
+      id: instance.id,
+      canonicalId: instance.canonicalId,
+      ...(presentation?.label ? { label: presentation.label } : {}),
+      ...(presentation?.kind ? { kind: presentation.kind } : {}),
+      ...(presentation?.style ? { style: presentation.style } : {}),
+      ...(occurrenceIds.length === 1 ? { occurrenceId: occurrenceIds[0] } : {}),
+      occurrenceIds,
+      geographicAnchors: instance.geographicAnchors,
+      temporalWeight: instance.temporalWeight,
+      visualWeight: instance.visualWeight,
+      retained: instance.retained,
+    });
+  });
 
   return createWorldProjection({ instances, edges });
 }

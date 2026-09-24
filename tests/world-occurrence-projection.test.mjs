@@ -54,7 +54,7 @@ test("active placed relationships compose into elevated-world-ready instances an
   assert.equal(projection.edges[0].id, "stockholm-meeting");
 });
 
-test("one canonical entity becomes distinct occurrence-scoped world instances", () => {
+test("one canonical entity becomes distinct world instances only across distinct spatial contexts", () => {
   const relationships = [
     relationship({
       id: "copenhagen-meeting",
@@ -98,6 +98,47 @@ test("one canonical entity becomes distinct occurrence-scoped world instances", 
   assert.deepEqual(
     aliceInstances.map((instance) => instance.geographicAnchors[0]?.placeId).sort(),
     ["copenhagen", "stockholm"],
+  );
+});
+
+test("repeated active relationships at one place reuse one canonical rendered node", () => {
+  const relationships = [
+    relationship({
+      id: "first",
+      subjectId: "alice",
+      objectId: "bob",
+      placeId: "stockholm",
+    }),
+    relationship({
+      id: "second",
+      subjectId: "alice",
+      objectId: "charlie",
+      placeId: "stockholm",
+    }),
+  ];
+  const spatialAnchors = new SpatialAnchorIndex(
+    [
+      {
+        id: "stockholm",
+        geometry: { type: "Point", coordinates: [18.0686, 59.3293] },
+      },
+    ],
+    relationships,
+  );
+
+  const projection = projectWorldOccurrences(relationships, ["first", "second"], spatialAnchors);
+  const aliceInstances = projection.instances.filter((instance) => instance.canonicalId === "alice");
+
+  assert.equal(aliceInstances.length, 1);
+  assert.deepEqual(aliceInstances[0].occurrenceIds, ["first", "second"]);
+  assert.equal(aliceInstances[0].occurrenceId, undefined);
+  assert.equal(
+    projection.edges.every(
+      (edge) =>
+        edge.sourceInstanceId === aliceInstances[0].id ||
+        edge.targetInstanceId === aliceInstances[0].id,
+    ),
+    true,
   );
 });
 

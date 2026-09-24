@@ -55,20 +55,50 @@ test("an entity's own style overrides the defaults; invalid values fall back", (
   assert.equal(invalid.shape, "circle");
 });
 
-test("selection uses the theme focus colour in light and dark", () => {
-  assert.equal(
-    worldNodeStyle({ type: "person", selected: true }, WORLD_LIGHT_PALETTE).fill,
-    WORLD_LIGHT_PALETTE.focus,
+test("selection preserves semantic colours and increases emphasis instead", () => {
+  const normal = worldNodeStyle({ type: "person" }, WORLD_LIGHT_PALETTE);
+  const selected = worldNodeStyle({ type: "person", selected: true }, WORLD_LIGHT_PALETTE);
+  assert.equal(selected.fill, normal.fill);
+  assert.equal(selected.border, normal.border);
+  assert.ok(selected.borderWidth > normal.borderWidth);
+  assert.ok(selected.radius > normal.radius);
+
+  const authored = worldNodeStyle(
+    {
+      type: "person",
+      selected: true,
+      attributes: { style: { fill: "#123456", stroke: "#abcdef" } },
+    },
+    WORLD_LIGHT_PALETTE,
   );
-  assert.equal(
-    worldNodeStyle({ type: "person", selected: true }, WORLD_DARK_PALETTE).fill,
-    WORLD_DARK_PALETTE.focus,
-  );
+  assert.equal(authored.fill, "#123456");
+  assert.equal(authored.border, "#abcdef");
   assert.equal(
     worldNodeStyle({ type: "thing" }, WORLD_DARK_PALETTE).fill !== WORLD_DARK_PALETTE.ink,
     true,
     "the untyped default stays visible on the dark background",
   );
+});
+
+test("portable fill, border, stroke, and radius aliases override defaults", () => {
+  const styled = worldNodeStyle(
+    {
+      type: "person",
+      attributes: {
+        style: {
+          fill: "#112233",
+          stroke: "#445566",
+          strokeWidth: 3,
+          radius: 15,
+        },
+      },
+    },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(styled.fill, "#112233");
+  assert.equal(styled.border, "#445566");
+  assert.equal(styled.borderWidth, 3);
+  assert.equal(styled.radius, 30);
 });
 
 test("places honour their map marker style", () => {
@@ -83,7 +113,7 @@ test("places honour their map marker style", () => {
   assert.equal(place.radius, 12);
 });
 
-test("edges colour by relationship type unless they carry their own style", () => {
+test("edges colour by relationship type unless they carry their own style, including style aliases", () => {
   assert.equal(worldEdgeStyle({ predicate: "visits" }, WORLD_LIGHT_PALETTE).color, "#3e6d5b");
   assert.equal(worldEdgeStyle({ predicate: "calls" }, WORLD_LIGHT_PALETTE).color, "#496f8c");
   assert.equal(
@@ -98,6 +128,17 @@ test("edges colour by relationship type unless they carry their own style", () =
     WORLD_LIGHT_PALETTE,
   );
   assert.deepEqual([own.color, own.width, own.dashed, own.arrow], ["#010203", 5, true, false]);
+
+  const aliased = worldEdgeStyle(
+    {
+      predicate: "visits",
+      selected: true,
+      attributes: { style: { stroke: "#abcdef", strokeWidth: 3 } },
+    },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(aliased.color, "#abcdef");
+  assert.ok(aliased.width >= 4);
 });
 
 test("colour bytes parse short, long and alpha hex", () => {
@@ -116,7 +157,7 @@ test("node radii are whole pixels so a scene shares a few marker textures", () =
   );
   assert.deepEqual(
     [...radii].sort((a, b) => a - b),
-    [18, 20, 22],
+    [22, 24, 26],
   );
   assert.equal(
     worldNodeStyle({ type: "person", attributes: { style: { size: 12.7 } } }, WORLD_LIGHT_PALETTE)
