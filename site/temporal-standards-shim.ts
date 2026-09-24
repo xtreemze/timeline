@@ -1,6 +1,6 @@
 /**
  * Temporary compatibility shim for temporal-standards ESM migration
- * Sets TimelineTemporal on globalThis for backward compatibility with IIFE code
+ * Sets TimelineTemporal on globalThis for legacy global consumers
  * This shim can be removed after app.ts conversion (Phase 4d)
  */
 
