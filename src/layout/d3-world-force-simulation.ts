@@ -1,3 +1,5 @@
+/// <reference path="../types/d3-force.d.ts" />
+
 import {
   forceCollide,
   forceLink,
@@ -127,7 +129,6 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
   #groups = new Map<string, D3WorldGroup>();
   #clusteredPlaces = new Set<string>();
   #pin: WorldForcePin | null = null;
-  #request: WorldSimulationRequest | null = null;
   #running = false;
   #settled = true;
   #iteration = 0;
@@ -219,7 +220,6 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
   apply(request: WorldSimulationRequest): void {
     this.#assertAlive();
     finiteNonNegative(request.energyTarget, "World simulation energy target");
-    this.#request = Object.freeze({ ...request });
     if (request.reason === "idle") {
       this.stop();
       this.#settled = true;
