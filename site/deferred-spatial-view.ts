@@ -75,10 +75,20 @@ export function createDeferredSpatialViewFactory(
       }
 
       void loadFactory()
-        .then((factory) => attach(factory.create(root)))
+        .then((factory) => {
+          try {
+            attach(factory.create(root));
+          } catch (error) {
+            // Loading succeeded, but constructing the renderer or replaying
+            // buffered startup state failed. Report this separately so a
+            // blank spatial surface never hides a projection/runtime error.
+            options.onError?.(error);
+          }
+        })
         .catch(() => {
-          // onError above owns reporting; an unavailable optional renderer
-          // must not create an unhandled rejection during application startup.
+          // loadFactory already reports loader failures through onError; an
+          // unavailable optional renderer must not create an unhandled
+          // rejection during application startup.
         });
 
       return Object.freeze({

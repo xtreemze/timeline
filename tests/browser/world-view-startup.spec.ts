@@ -49,5 +49,20 @@ test.describe("production world view startup", () => {
     expect(failedRequests, "no failed requests while loading the world view shim").toEqual([]);
     expect(registration.hasWorldView).toBe(true);
     expect(registration.hasCreate).toBe(true);
+
+    await page.evaluate(() => {
+      const sample = Reflect.get(globalThis, "TimelineSampleCase");
+      if (!sample) throw new Error("Timeline sample case is unavailable.");
+      localStorage.setItem("timeline:v2", JSON.stringify(sample));
+    });
+    await page.reload({ waitUntil: "load" });
+
+    const worldSummary = page.locator(
+      "#temporal-graph-view .temporal-graph-canvas [role=\"status\"]",
+    );
+    await expect(worldSummary).toHaveText(
+      /World view: [1-9]\d* places, [1-9]\d* relationships, [1-9]\d* entities visible\./,
+    );
+    expect(consoleErrors, "persisted project must initialize the world without errors").toEqual([]);
   });
 });

@@ -266,6 +266,31 @@ function forceGroup(key: string, states: readonly NodeState[]): ForceGroup {
   };
 }
 
+function placeDomain(states: readonly NodeState[]): PlaceDomain | null {
+  const anchored = states.filter((state) => state.anchor !== null);
+  if (anchored.length === 0) return null;
+
+  const maxCollisionRadiusMeters = anchored.reduce(
+    (radius, state) => Math.max(radius, state.node.collisionRadiusMeters),
+    0,
+  );
+  const precisionRadiusMeters = anchored.reduce(
+    (radius, state) => Math.max(radius, state.anchor?.precisionRadiusMeters ?? 0),
+    0,
+  );
+
+  // A place is the centre of a local layout domain, not the target position
+  // of every entity. Keep the authored place marker clear, then give the
+  // group enough annular area to spread through collision/relationship
+  // forces without assigning rigid angular slots.
+  const innerRadiusMeters = Math.max(1, maxCollisionRadiusMeters * PLACE_DOMAIN_INNER_RADIUS_SCALE);
+  const packingWidthMeters =
+    maxCollisionRadiusMeters * Math.max(2, Math.sqrt(anchored.length) * PLACE_DOMAIN_WIDTH_SCALE);
+  const outerRadiusMeters = Math.max(innerRadiusMeters + packingWidthMeters, precisionRadiusMeters);
+
+  return Object.freeze({ innerRadiusMeters, outerRadiusMeters });
+}
+
 function boundsOverlap(left: ForceGroup, right: ForceGroup): boolean {
   return (
     left.minX <= right.maxX &&
