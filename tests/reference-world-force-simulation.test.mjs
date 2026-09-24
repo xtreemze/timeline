@@ -639,6 +639,76 @@ test("far drag does not wake a foreign group located only between active-group m
   );
 });
 
+test("post-drop settling stays localized to the released node's force island", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0.02,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const dragged = '["alice","released-locality"]';
+  const remoteA = '["bob","remote-a"]';
+  const remoteB = '["carol","remote-b"]';
+
+  simulation.setScene({
+    nodes: [
+      node(dragged, { collisionRadiusMeters: 120 }),
+      node(remoteA, { initialEastMeters: -1, collisionRadiusMeters: 120 }),
+      node(remoteB, { initialEastMeters: 1, collisionRadiusMeters: 120 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(dragged, "stockholm", { influence: 1 }),
+      anchor(remoteA, "remote", {
+        longitude: 12.5683,
+        latitude: 55.6761,
+        influence: 0,
+      }),
+      anchor(remoteB, "remote", {
+        longitude: 12.5683,
+        latitude: 55.6761,
+        influence: 0,
+      }),
+    ],
+  });
+
+  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 10_000_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+  simulation.step(1000 / 60);
+
+  const remoteBefore = simulation
+    .getSnapshot()
+    .filter((entry) => entry.instanceId === remoteA || entry.instanceId === remoteB);
+
+  simulation.setPin(null);
+  simulation.apply({ reason: "post-drop", energyTarget: 0.035, reheat: true });
+  for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
+
+  const after = simulation.getSnapshot();
+  const remoteAfter = after.filter(
+    (entry) => entry.instanceId === remoteA || entry.instanceId === remoteB,
+  );
+  const draggedAfter = after.find((entry) => entry.instanceId === dragged);
+
+  assert.deepEqual(
+    remoteAfter,
+    remoteBefore,
+    "unrelated geographic groups must stay asleep while the released force island settles",
+  );
+  assert.ok(draggedAfter);
+  assert.ok(
+    Math.abs(draggedAfter.eastMeters) < 10_000_000,
+    "the released node should still relax toward its authored place domain",
+  );
+});
+
 test("place-domain constraint returns distant nodes to an annulus without centering them", () => {
   const simulation = new ReferenceWorldForceSimulation({
     repulsionStrength: 0,
