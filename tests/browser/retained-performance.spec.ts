@@ -111,6 +111,13 @@ async function installPerformanceFixture(page) {
 
     controller.resetPerformanceMetrics();
 
+    const viewportEvidence = { uncommitted: 0, committed: 0 };
+    root.addEventListener('timelineviewportchange', (event) => {
+      const detail = (event as CustomEvent<{ committed?: boolean }>).detail;
+      if (detail?.committed) viewportEvidence.committed += 1;
+      else viewportEvidence.uncommitted += 1;
+    });
+
     Object.assign(globalThis as typeof globalThis & Record<string, unknown>, {
       __retainedPerformanceController: controller,
       __retainedPerformanceLongTasks: longTasks,
@@ -120,6 +127,7 @@ async function installPerformanceFixture(page) {
       __retainedPerformanceLongAnimationFrameObserver: longAnimationFrameObserver,
       __retainedPerformanceLongAnimationFrameSupported: Boolean(longAnimationFrameSupported),
       __retainedPerformanceHeapBefore: heapBefore,
+      __retainedPerformanceViewportEvidence: viewportEvidence,
     });
   });
   await twoFrames(page);
@@ -159,16 +167,19 @@ test('retained renderer publishes phase-attributed performance evidence', async 
     clientY: y,
   });
 
-  for (const clientX of positions.slice(1)) {
-    await surface.dispatchEvent('pointermove', {
-      pointerId,
-      pointerType,
-      isPrimary: true,
-      button: 0,
-      buttons: 1,
-      clientX,
-      clientY: y,
-    });
+  const movePositions = positions.slice(1);
+  for (let index = 0; index < movePositions.length; index += 3) {
+    for (const clientX of movePositions.slice(index, index + 3)) {
+      await surface.dispatchEvent('pointermove', {
+        pointerId,
+        pointerType,
+        isPrimary: true,
+        button: 0,
+        buttons: 1,
+        clientX,
+        clientY: y,
+      });
+    }
     await twoFrames(page);
   }
 
@@ -224,6 +235,10 @@ test('retained renderer publishes phase-attributed performance evidence', async 
       globalThis,
       '__retainedPerformanceLongAnimationFrames',
     );
+    const viewportEvidence = Reflect.get(
+      globalThis,
+      '__retainedPerformanceViewportEvidence',
+    ) as { uncommitted?: number; committed?: number } | undefined;
 
     return {
       metrics: controller?.getPerformanceMetrics(),
@@ -248,6 +263,10 @@ test('retained renderer publishes phase-attributed performance evidence', async 
       eventNodes: document.querySelectorAll(
         '#retained-performance-host .timeline-event, #retained-performance-host .timeline-range-segment',
       ).length,
+      viewportEvidence: {
+        uncommitted: Number(viewportEvidence?.uncommitted || 0),
+        committed: Number(viewportEvidence?.committed || 0),
+      },
     };
   });
 
@@ -264,6 +283,9 @@ test('retained renderer publishes phase-attributed performance evidence', async 
   expect(Number.isFinite(metrics.commit.p95DurationMs)).toBeTruthy();
   expect(metrics.interaction.inputLatencySampleCount).toBeGreaterThan(0);
   expect(Number.isFinite(metrics.interaction.p95InputLatencyMs)).toBeTruthy();
+  expect(evidence.viewportEvidence.uncommitted).toBeGreaterThan(0);
+  expect(evidence.viewportEvidence.uncommitted).toBeLessThan(positions.length - 1);
+  expect(evidence.viewportEvidence.committed).toBeGreaterThan(0);
 
   // Renderer-owned timings are release-fatal. Touch/mobile projects use a
   // 30 Hz worst-case interaction ceiling because WebKit CI variance can cross
@@ -285,6 +307,8 @@ test('retained renderer publishes phase-attributed performance evidence', async 
     retainedPeak: metrics.retainedPeak,
     bufferExpansions: metrics.bufferExpansions,
     renderedEventNodes: evidence.eventNodes,
+    uncommittedViewportEvents: evidence.viewportEvidence.uncommitted,
+    committedViewportEvents: evidence.viewportEvidence.committed,
     heapBeforeBytes: evidence.heapBefore,
     heapAfterBytes: evidence.heapAfter,
     heapDeltaBytes: evidence.heapDelta,
