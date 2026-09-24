@@ -42,10 +42,10 @@ import {
   WORLD_PLACE_LABEL_FLOOR,
   worldArrowLengthDegreesForNodeRadius,
   worldArrowStrokeWidthPxForNodeRadius,
-  worldNodeClearanceDegreesForRadius,
   worldLabelBudget,
   worldLabelTierFloor,
   worldLocalRadiusPx,
+  worldNodeClearanceDegreesForRadius,
   worldPixelsToDegrees,
   worldPlaceClusterRadiusPx,
   worldPresentationOffsetScale,
@@ -1299,8 +1299,10 @@ function routedRelationshipPath(
       {
         ...sourceInstance,
         localOffset: Object.freeze({
-          eastMeters: point.eastMeters + sourceDeltaEast * oneMinusFraction + targetDeltaEast * fraction,
-          northMeters: point.northMeters + sourceDeltaNorth * oneMinusFraction + targetDeltaNorth * fraction,
+          eastMeters:
+            point.eastMeters + sourceDeltaEast * oneMinusFraction + targetDeltaEast * fraction,
+          northMeters:
+            point.northMeters + sourceDeltaNorth * oneMinusFraction + targetDeltaNorth * fraction,
         }),
       },
       offsetScale,
@@ -3247,17 +3249,11 @@ export class DeckWorldSurface implements WorldSurface {
     return worldPrimarySpatialAnchor(instance)?.latitude ?? 0;
   }
 
-  #offsetScaleForInstance(
-    instance: ProjectedWorldInstance,
-    zoom = this.#camera.zoom,
-  ): number {
+  #offsetScaleForInstance(instance: ProjectedWorldInstance, zoom = this.#camera.zoom): number {
     return this.#nextOffsetScale(zoom, this.#instanceLatitude(instance));
   }
 
-  #floatMetersForInstance(
-    instance: ProjectedWorldInstance,
-    zoom = this.#camera.zoom,
-  ): number {
+  #floatMetersForInstance(instance: ProjectedWorldInstance, zoom = this.#camera.zoom): number {
     return this.#nextFloatMeters(zoom, this.#instanceLatitude(instance));
   }
 
