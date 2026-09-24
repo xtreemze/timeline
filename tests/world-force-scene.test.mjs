@@ -113,6 +113,15 @@ test("visual weight affects layout mass/collision policy only", () => {
   assert.ok(alice.collisionRadiusMeters > bob.collisionRadiusMeters);
 });
 
+test("default force spacing scales with the enlarged world-node footprint", () => {
+  assert.equal(DEFAULT_WORLD_FORCE_SCENE_POLICY.baseCollisionRadiusMeters, 480);
+  assert.equal(DEFAULT_WORLD_FORCE_SCENE_POLICY.edgeRestLengthMeters, 2400);
+  assert.ok(
+    DEFAULT_WORLD_FORCE_SCENE_POLICY.edgeRestLengthMeters >
+      DEFAULT_WORLD_FORCE_SCENE_POLICY.baseCollisionRadiusMeters * 2,
+  );
+});
+
 test("custom policy remains explicit and deterministic", () => {
   const scene = createWorldForceScene(sampleProjection(), {
     baseMass: 2,
