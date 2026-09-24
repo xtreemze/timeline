@@ -1174,10 +1174,10 @@ export class DeckWorldSurface implements WorldSurface {
   // The last canonical object the camera was focused on. Presentation-only:
   // it keeps that object's label through LOD and never alters selection.
   #focus: WorldLabelFocus | null = null;
-  // Tracks which side of CLUSTER_ZOOM_THRESHOLD the last render used, so
-  // camera-only zoom changes only trigger a re-render when clustering would
-  // actually turn on/off (ordinary panning/zooming above the threshold stays
-  // as cheap as before).
+  // Tracks the quantized semantic clustering tier so fractional camera motion
+  // within one tier does not rebuild presentation clusters. The boolean tracks
+  // whether the previous render produced any actual multi-member cluster.
+  #clusterTierLastRender = -1;
   #clusteredLastRender = false;
   // Same idea for the semantic label/marker LOD tier: a tier change only
   // matters when some kind has more candidates than the smaller budget.
@@ -1761,12 +1761,15 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #reclusterIfZoomCrossedThreshold(): void {
-    const clusteredNow = shouldClusterEntityDatums(this.#entityDatumCache.size, this.#camera.zoom);
+    const clusterTierNow = worldEntityClusterTier(
+      this.#entityDatumCache.size,
+      this.#camera.zoom,
+    );
     const budget = worldLabelBudget(this.#camera.zoom);
     const lodChanged =
       budget !== this.#labelBudgetLastRender &&
       Math.min(budget, this.#labelBudgetLastRender) < this.#lodCandidateCountLastRender;
-    if (clusteredNow !== this.#clusteredLastRender || lodChanged) this.#render();
+    if (clusterTierNow !== this.#clusterTierLastRender || lodChanged) this.#render();
   }
 
   #selectionCandidates(): readonly WorldSelection[] {
@@ -1845,10 +1848,11 @@ export class DeckWorldSurface implements WorldSurface {
     this.#placeDatumCache = placeResult.byId;
     this.#relationshipDatumCache = relationshipResult.byId;
     this.#entityDatumCache = entityResult.byId;
-    this.#clusteredLastRender = shouldClusterEntityDatums(
+    this.#clusterTierLastRender = worldEntityClusterTier(
       entityResult.datums.length,
       this.#camera.zoom,
     );
+    this.#clusteredLastRender = entities.some((datum) => datum.kind === "cluster");
     this.#labelBudgetLastRender = worldLabelBudget(this.#camera.zoom);
     this.#lodCandidateCountLastRender = Math.max(
       places.length,
@@ -2067,7 +2071,7 @@ export class DeckWorldSurface implements WorldSurface {
       ...this.#camera,
       longitude: position[0],
       latitude: position[1],
-      zoom: Math.max(this.#camera.zoom, 5),
+      zoom: Math.max(this.#camera.zoom, 7.25),
     });
   }
 
