@@ -7,11 +7,11 @@ import {
 } from "../../src/interaction/world-touch-hold.ts";
 import { fitWorldCamera, globeOverviewCamera } from "../../src/layout/world-camera-fit.ts";
 import { worldClusterExpansionProgress } from "../../src/layout/world-cluster-transition.ts";
+import type { WorldRelationshipRouteHint } from "../../src/layout/world-force-simulation.ts";
 import {
   resolveWorldRenderPosition,
   type WorldRenderPosition,
 } from "../../src/layout/world-geographic-position.ts";
-import type { WorldRelationshipRouteHint } from "../../src/layout/world-force-simulation.ts";
 import {
   WORLD_DARK_PALETTE,
   WORLD_ENTITY_MIN_HIT_RADIUS_PX,
