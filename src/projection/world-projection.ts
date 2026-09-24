@@ -142,7 +142,7 @@ export function createProjectedWorldInstance(
   const id = instance.id ?? worldInstanceId(canonicalId, occurrenceId);
   const label = optionalText(instance.label, 180);
   const kind = optionalText(instance.kind, 80);
-  const visual = instance.visual ?? worldEntityVisualEncoding(kind);
+  const visual = worldEntityVisualEncoding(kind, instance.visual);
 
   const localOffset = instance.localOffset
     ? Object.freeze({
