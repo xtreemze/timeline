@@ -1045,6 +1045,11 @@ test("DeckWorldSurface switches to local geographic view only at high zoom", () 
   const localSwitch = calls.setProps.find((props) => props.views?.[0]?.type === "map");
   assert.ok(localSwitch);
   assert.deepEqual(localSwitch.views[0].props, { id: "lum-world-local" });
+  assert.equal(
+    localSwitch.controller.zoomAround,
+    "center",
+    "local MapView must not retain GlobeController pointer-anchor math",
+  );
 
   const localSwitchCount = calls.setProps.filter(
     (props) => props.views?.[0]?.type === "map",
@@ -1072,6 +1077,7 @@ test("DeckWorldSurface switches to local geographic view only at high zoom", () 
 
   const globeSwitches = calls.setProps.filter((props) => props.views?.[0]?.type === "globe");
   assert.ok(globeSwitches.length >= 1);
+  assert.equal(globeSwitches.at(-1).controller.zoomAround, "pointer");
 });
 
 test("deck entity drag callbacks resolve screen motion into world-local drag intents", () => {
