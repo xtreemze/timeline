@@ -1,3 +1,4 @@
+import type { PlaceId } from "../../src/domain/ids.ts";
 import {
   createInteractionCoordinator,
   type InteractionCompletionReason,
@@ -17,7 +18,6 @@ import {
 } from "../../src/layout/world-force-scene.ts";
 import {
   createWorldSimulationCoordinator,
-  type WorldClusterForceDirective,
   type WorldForceSimulationBackend,
 } from "../../src/layout/world-force-simulation.ts";
 import type {
@@ -133,14 +133,12 @@ export class WorldViewRuntimeController {
     this.#surface.setProjection(projection);
   }
 
-  applyClusterDirective(directive: WorldClusterForceDirective): void {
+  setClusteredPlaceIds(placeIds: readonly PlaceId[]): void {
     this.#assertAlive();
-    if (!this.#forceBackend.applyClusterDirective) return;
-    this.#forceBackend.applyClusterDirective(directive);
+    this.#forceBackend.setClusteredPlaceIds?.(placeIds);
     this.#simulation.request({
       reason: "topology",
-      energyTarget:
-        directive.mode === "expand" ? 0.16 : directive.mode === "connect" ? 0.06 : 0.1,
+      energyTarget: 0.12,
       reheat: true,
     });
   }
