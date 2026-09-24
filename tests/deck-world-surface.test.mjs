@@ -1534,6 +1534,63 @@ test("default overview keeps same-place topology clustered without covering the 
   assert.ok(retainedMembers.every((datum) => layer.props.getRadius(datum) === 0));
 });
 
+test("cluster envelope expands beyond large authored node footprints", () => {
+  const { calls, runtime } = harness();
+  const base = projection();
+  const large = createWorldProjection({
+    instances: base.instances.map((instance) =>
+      createProjectedWorldInstance({
+        ...instance,
+        style: { radius: 32 },
+      }),
+    ),
+    edges: base.edges,
+  });
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(large);
+
+  const render = calls.setProps.at(-1);
+  const entityLayer = render.layers.find(
+    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities,
+  );
+  const cluster = entityLayer.props.data.find((datum) => datum.kind === "cluster");
+  assert.ok(cluster);
+  assert.ok(
+    entityLayer.props.getRadius(cluster) > 35,
+    "cluster envelope clears a 32px-radius marker plus border/atlas padding",
+  );
+});
+
+test("partially revealed entities keep the minimum acquisition radius", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+
+  let visibleMembers = [];
+  for (let zoom = 4.5; zoom <= 8; zoom += 0.25) {
+    surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom, bearing: 0, pitch: 0 });
+    const render = calls.setProps.filter((props) => props.layers).at(-1);
+    const entityLayer = render.layers.find(
+      (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities,
+    );
+    const cluster = entityLayer.props.data.find((datum) => datum.kind === "cluster");
+    const members = entityLayer.props.data.filter((datum) => datum.kind === "entity");
+    if (
+      cluster &&
+      entityLayer.props.getRadius(cluster) > 0 &&
+      members.some((datum) => entityLayer.props.getRadius(datum) > 0)
+    ) {
+      visibleMembers = members.filter((datum) => entityLayer.props.getRadius(datum) > 0);
+      assert.ok(
+        visibleMembers.every((datum) => entityLayer.props.getRadius(datum) >= 22),
+        "visible members never shrink their pick body below 44px diameter",
+      );
+      break;
+    }
+  }
+  assert.ok(visibleMembers.length > 0, "fixture crosses the partial cluster-reveal band");
+});
+
 test("zooming out groups nearby entities without losing canonical identity", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
@@ -1679,10 +1736,9 @@ test("a spatial-mode crossing alone does not re-render or invalidate memoized da
   const surface = new DeckWorldSurface({}, runtime);
   surface.setProjection(projection());
   surface.setSelection({ kind: "entity", id: "alice" });
-  // Start just below the local-entry zoom (11.5). Local offsets are
-  // magnified in quarter-octave bands of zoom; for this fixture (one 150 m
-  // offset at 59.3°N) zooms 11.463–11.713 share a band, so 11.49 and 11.5
-  // differ only by the spatial-mode crossing under test.
+  // Start just below the local-entry zoom (11.5). Fine-grained screen-scale
+  // invalidation keeps 11.49 and 11.5 in the same render bucket, so this
+  // isolates the spatial-mode crossing from presentation-geometry refresh.
   surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 11.49, bearing: 0, pitch: 20 });
 
   const beforeEntities = calls.setProps.filter((props) => props.layers).at(-1).layers[2].props.data;
