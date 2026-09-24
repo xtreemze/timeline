@@ -1,5 +1,5 @@
 import type { WorldNodeStyle } from "../../src/layout/world-graph-style.ts";
-import { iconPathData } from "../event-presentation.ts";
+import { iconPathData, TimelinePresentation } from "../event-presentation.ts";
 import { worldEntityIconName } from "./world-entity-icon.ts";
 
 /**
@@ -42,6 +42,8 @@ function shapePath(shape: WorldNodeStyle["shape"], center: number, radius: numbe
       }).join(" ");
       return `<polygon points="${points}"/>`;
     }
+    case "pin":
+      return `<path d="M${center} ${center + radius}C${center + radius * 0.75} ${center + radius * 0.1} ${center + radius} ${center - radius * 0.25} ${center + radius} ${center - radius * 0.45}A${radius} ${radius} 0 1 0 ${center - radius} ${center - radius * 0.45}C${center - radius} ${center - radius * 0.25} ${center - radius * 0.75} ${center + radius * 0.1} ${center} ${center + radius}Z"/>`;
     default:
       return `<circle cx="${center}" cy="${center}" r="${radius}"/>`;
   }
@@ -64,7 +66,11 @@ export function worldNodeMarker(style: WorldNodeStyle): WorldNodeMarker {
   const pixels = size * SUPERSAMPLE;
   const center = size / 2;
   const body = shapePath(style.shape, center, style.radius);
-  const iconName = style.icon ? worldEntityIconName(style.icon) : null;
+  const authoredIcon =
+    style.icon && TimelinePresentation.ICON_NAMES.some((name) => name === style.icon)
+      ? style.icon
+      : null;
+  const iconName = authoredIcon ?? (style.icon ? worldEntityIconName(style.icon) : null);
   const glyphSize = style.radius * 1.15;
   const glyphOrigin = center - glyphSize / 2;
   const inner = style.image

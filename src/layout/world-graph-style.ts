@@ -6,7 +6,7 @@
  * defaults; anything invalid or missing falls back to them.
  */
 
-export type WorldNodeShape = "circle" | "square" | "diamond" | "hexagon";
+export type WorldNodeShape = "circle" | "square" | "diamond" | "hexagon" | "pin";
 
 /** Theme colours, resolved by the host from its light/dark tokens. */
 export interface WorldGraphPalette {
@@ -66,7 +66,7 @@ export interface WorldEdgeStyle {
 }
 
 const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
-const SHAPES: readonly WorldNodeShape[] = ["circle", "square", "diamond", "hexagon"];
+const SHAPES: readonly WorldNodeShape[] = ["circle", "square", "diamond", "hexagon", "pin"];
 
 function record(value: unknown): Readonly<Record<string, unknown>> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -140,18 +140,14 @@ function worldNodeMetrics(input: WorldNodeStyleInput): {
     number(own["size"], 4, 28) ??
     number(own["radius"], 4, 28) ??
     (authoredDiameter === null ? null : authoredDiameter / 2);
-  const emphasized = input.emphasized === true && input.selected !== true;
-  const resolvedRadius =
-    Math.round(authoredRadius ?? baseRadius) + (input.selected ? 2 : emphasized ? 1 : 0);
+  const resolvedRadius = Math.round(authoredRadius ?? baseRadius);
   const authoredBorderWidth =
     number(own["borderWidth"], 0, 8) ?? number(own["strokeWidth"], 0, 8) ?? 2;
   return Object.freeze({
+    // Interaction state is presentation-only. Never feed hover/selection into
+    // visible geometry or collision/force footprints.
     radius: resolvedRadius * WORLD_NODE_SCALE,
-    borderWidth: input.selected
-      ? Math.max(4, authoredBorderWidth + 1)
-      : emphasized
-        ? Math.max(3, authoredBorderWidth + 1)
-        : authoredBorderWidth,
+    borderWidth: authoredBorderWidth,
   });
 }
 
@@ -189,7 +185,8 @@ export function worldNodeStyle(
     color(own["strokeColor"]) ??
     palette.paper;
   return Object.freeze({
-    // Selection changes emphasis/size, never the authored semantic colours.
+    // Interaction emphasis is applied by the renderer as color/opacity only;
+    // semantic marker geometry remains invariant.
     fill,
     border,
     borderWidth: metrics.borderWidth,
@@ -202,43 +199,56 @@ export function worldNodeStyle(
   });
 }
 
-/** Place anchors honour the place's own map marker style. */
+/** Place anchors use the same marker grammar as graph nodes without becoming semantic graph nodes. */
 export function worldPlaceStyle(
   placeStyle: unknown,
-  selected: boolean,
+  _selected: boolean,
   palette: WorldGraphPalette,
-  emphasized = false,
+  _emphasized = false,
 ): WorldNodeStyle {
-  const marker = record(record(placeStyle)?.["marker"]) ?? {};
+  const own = record(placeStyle) ?? {};
+  const marker = record(own["marker"]) ?? {};
+  const ownShape = text(
+    marker["shape"] ?? marker["markerShape"] ?? own["markerShape"] ?? own["shape"],
+    16,
+  )?.toLowerCase();
   const fill =
     color(marker["fillColor"]) ??
     color(marker["fill"]) ??
+    color(own["fillColor"]) ??
+    color(own["fill"]) ??
     color(marker["color"]) ??
     defaultNodeFill("place", palette);
   const border =
     color(marker["borderColor"]) ??
     color(marker["stroke"]) ??
+    color(own["borderColor"]) ??
+    color(own["stroke"]) ??
     color(marker["color"]) ??
     palette.paper;
   const borderWidth =
     number(marker["borderWidth"], 0, 8) ??
     number(marker["strokeWidth"], 0, 8) ??
     number(marker["weight"], 0, 8) ??
+    number(own["borderWidth"], 0, 8) ??
     2;
+  const authoredRadius =
+    number(marker["radius"], 4, 32) ??
+    number(own["radius"], 4, 32) ??
+    (number(marker["size"], 8, 64) ?? number(own["size"], 8, 64) ?? 44) / 2;
   return Object.freeze({
     fill,
     border,
-    borderWidth: selected
-      ? Math.max(4, borderWidth + 1)
-      : emphasized
-        ? Math.max(3, borderWidth + 1)
-        : borderWidth,
-    shape: "circle",
-    icon: null,
-    image: null,
-    radius:
-      Math.round((number(marker["size"], 8, 48) ?? 12) / 2) +
-      (selected ? 2 : emphasized ? 1 : 0),
+    borderWidth,
+    shape: SHAPES.includes(ownShape as WorldNodeShape)
+      ? (ownShape as WorldNodeShape)
+      : "pin",
+    icon: text(marker["icon"] ?? own["icon"], 48) ?? "place",
+    image: text(
+      marker["image"] ?? marker["imageUrl"] ?? own["image"] ?? own["imageUrl"],
+      2048,
+    ),
+    radius: Math.max(WORLD_ENTITY_MIN_HIT_RADIUS_PX, Math.round(authoredRadius)),
   });
 }
 
@@ -278,16 +288,11 @@ export function worldEdgeStyle(
     number(own["strokeWidth"], 0.5, 10) ??
     number(own["lineWidth"], 0.5, 10) ??
     2.5;
-  const emphasized = input.emphasized === true && input.selected !== true;
   return Object.freeze({
-    // Selection/neighborhood emphasis increases prominence but preserves
-    // authored/type colour.
+    // Interaction emphasis is renderer-only so edge geometry/routing never
+    // changes on hover or selection.
     color: input.inactive && !input.selected ? palette.muted : semanticColor,
-    width: input.selected
-      ? Math.max(4, authoredWidth + 1)
-      : emphasized
-        ? Math.max(3, authoredWidth + 0.5)
-        : authoredWidth,
+    width: authoredWidth,
     dashed:
       lineStyle === "dashed" ||
       lineStyle === "dash" ||

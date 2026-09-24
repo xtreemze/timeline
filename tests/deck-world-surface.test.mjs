@@ -155,7 +155,7 @@ test("world graph label scale matches sidebar reading typography", () => {
   assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: false }), 18);
   assert.equal(worldGraphLabelSize({ kind: "place-label", emphasized: false }), 18);
   assert.equal(worldGraphLabelSize({ kind: "relationship-label", emphasized: false }), 18);
-  assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: true }), 21);
+  assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: true }), 18);
 });
 
 test("DeckWorldSurface constructs one globe view and controlled deck runtime", () => {
@@ -220,8 +220,6 @@ test("short interaction feedback transitions respect reduced motion", (t) => {
     .at(-1)
     .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.places);
   assert.deepEqual(animatedPlaces.props.transitions, {
-    getRadius: 120,
-    getLineWidth: 120,
     getLineColor: 120,
     getFillColor: 120,
   });
@@ -490,11 +488,37 @@ test("selection updates presentation data while preserving canonical IDs", () =>
   assert.equal(entities.find((datum) => datum.entityId === "bob").selected, false);
 });
 
-test("hover and click emphasize a node's immediate neighborhood without changing hover into canonical selection", () => {
+test("hover and selection emphasize without changing graph geometry, and repeated click toggles selection", () => {
   const { calls, runtime } = harness();
   const container = { style: {} };
   const surface = new DeckWorldSurface(container, runtime);
   surface.setProjection(projection());
+
+  const initial = calls.setProps.at(-1);
+  const initialEntitiesLayer = initial.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities,
+  );
+  const initialRelationshipsLayer = initial.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.relationships,
+  );
+  const initialPlacesLayer = initial.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.places,
+  );
+  const initialEntityGeometry = initialEntitiesLayer.props.data.map((datum) => ({
+    id: datum.entityId,
+    position: datum.position,
+    radius: initialEntitiesLayer.props.getRadius(datum),
+  }));
+  const initialRelationship = initialRelationshipsLayer.props.data.find(
+    (datum) => datum.relationshipId === "meeting",
+  );
+  const initialRelationshipWidth = initialRelationshipsLayer.props.getWidth(initialRelationship);
+  const initialRelationshipAlpha = initialRelationshipsLayer.props.getColor(initialRelationship)[3];
+  const initialPlaceGeometry = initialPlacesLayer.props.data.map((datum) => ({
+    id: datum.placeId,
+    position: datum.position,
+    radius: initialPlacesLayer.props.getRadius(datum),
+  }));
 
   const aliceId = worldInstanceId("alice", "meeting");
   const entityPick = {
@@ -508,32 +532,54 @@ test("hover and click emphasize a node's immediate neighborhood without changing
   calls.deckProps.onHover(entityPick);
 
   let render = calls.setProps.at(-1);
-  let entities = render.layers.find(
+  let entitiesLayer = render.layers.find(
     (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities,
-  ).props.data;
-  let relationships = render.layers.find(
+  );
+  let relationshipsLayer = render.layers.find(
     (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.relationships,
   );
-  const relationship = relationships.props.data.find(
+  let placesLayer = render.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.places,
+  );
+  let entities = entitiesLayer.props.data;
+  let relationship = relationshipsLayer.props.data.find(
     (datum) => datum.relationshipId === "meeting",
   );
 
   assert.equal(entities.find((datum) => datum.entityId === "alice").emphasized, true);
   assert.equal(entities.find((datum) => datum.entityId === "bob").emphasized, true);
-  assert.equal(relationships.props.getWidth(relationship), 3);
+  assert.deepEqual(
+    entities.map((datum) => ({
+      id: datum.entityId,
+      position: datum.position,
+      radius: entitiesLayer.props.getRadius(datum),
+    })),
+    initialEntityGeometry,
+  );
+  assert.deepEqual(
+    placesLayer.props.data.map((datum) => ({
+      id: datum.placeId,
+      position: datum.position,
+      radius: placesLayer.props.getRadius(datum),
+    })),
+    initialPlaceGeometry,
+  );
+  assert.equal(relationshipsLayer.props.getWidth(relationship), initialRelationshipWidth);
+  assert.ok(relationshipsLayer.props.getColor(relationship)[3] > initialRelationshipAlpha);
   assert.equal(container.style.cursor, "pointer");
   assert.equal(surface.getAccessibleSnapshot().selection, null);
 
   calls.deckProps.onClick(entityPick);
 
   render = calls.setProps.at(-1);
-  entities = render.layers.find(
+  entitiesLayer = render.layers.find(
     (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities,
-  ).props.data;
-  relationships = render.layers.find(
+  );
+  relationshipsLayer = render.layers.find(
     (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.relationships,
   );
-  const selectedRelationship = relationships.props.data.find(
+  entities = entitiesLayer.props.data;
+  relationship = relationshipsLayer.props.data.find(
     (datum) => datum.relationshipId === "meeting",
   );
 
@@ -543,11 +589,15 @@ test("hover and click emphasize a node's immediate neighborhood without changing
   assert.equal(alice.emphasized, true);
   assert.equal(bob.selected, false);
   assert.equal(bob.emphasized, true);
-  assert.equal(relationships.props.getWidth(selectedRelationship), 3);
+  assert.equal(relationshipsLayer.props.getWidth(relationship), initialRelationshipWidth);
+  assert.ok(relationshipsLayer.props.getColor(relationship)[3] > initialRelationshipAlpha);
   assert.deepEqual(surface.getAccessibleSnapshot().selection, {
     kind: "entity",
     id: "alice",
   });
+
+  calls.deckProps.onClick(entityPick);
+  assert.equal(surface.getAccessibleSnapshot().selection, null);
 
   calls.deckProps.onHover({});
   render = calls.setProps.at(-1);
@@ -555,13 +605,8 @@ test("hover and click emphasize a node's immediate neighborhood without changing
     (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities,
   ).props.data;
   assert.equal(container.style.cursor, "");
-  assert.equal(
-    entities.find((datum) => datum.entityId === "bob").emphasized,
-    true,
-    "canonical selection keeps the selected node's neighborhood emphasized after hover leaves",
-  );
+  assert.ok(entities.every((datum) => datum.emphasized === false));
 });
-
 test("relationship and place selection are also reflected in their render datums (issue #445 Priority 4)", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);

@@ -54,6 +54,8 @@ const model = {
       name: "Stockholm",
       geometry: { type: "Point", coordinates: [18.0686, 59.3293] },
       accuracyMeters: 25,
+      icon: "place",
+      markerShape: "diamond",
     },
     {
       id: "unknown-place",
@@ -108,6 +110,10 @@ test("application model projects timed and timeless relationships into one world
   assert.ok(
     meetingInstances.every((instance) => instance.geographicAnchors[0]?.placeId === "stockholm"),
   );
+  assert.deepEqual(meetingInstances[0].geographicAnchors[0]?.style?.marker, {
+    icon: "place",
+    shape: "diamond",
+  });
 
   const timelessInstances = projection.instances.filter(
     (instance) => instance.occurrenceId === "timeless",

@@ -55,13 +55,13 @@ test("an entity's own style overrides the defaults; invalid values fall back", (
   assert.equal(invalid.shape, "circle");
 });
 
-test("selection preserves semantic colours and increases emphasis instead", () => {
+test("selection preserves semantic colours without changing node geometry", () => {
   const normal = worldNodeStyle({ type: "person" }, WORLD_LIGHT_PALETTE);
   const selected = worldNodeStyle({ type: "person", selected: true }, WORLD_LIGHT_PALETTE);
   assert.equal(selected.fill, normal.fill);
   assert.equal(selected.border, normal.border);
-  assert.ok(selected.borderWidth > normal.borderWidth);
-  assert.ok(selected.radius > normal.radius);
+  assert.equal(selected.borderWidth, normal.borderWidth);
+  assert.equal(selected.radius, normal.radius);
 
   const authored = worldNodeStyle(
     {
@@ -80,7 +80,7 @@ test("selection preserves semantic colours and increases emphasis instead", () =
   );
 });
 
-test("selection and connected-neighborhood emphasis preserve semantic colours", () => {
+test("selection and connected-neighborhood emphasis preserve graph geometry", () => {
   const ordinary = worldNodeStyle({ type: "person" }, WORLD_LIGHT_PALETTE);
   const neighbor = worldNodeStyle(
     { type: "person", emphasized: true },
@@ -93,12 +93,16 @@ test("selection and connected-neighborhood emphasis preserve semantic colours", 
 
   assert.equal(neighbor.fill, ordinary.fill);
   assert.equal(neighbor.border, ordinary.border);
-  assert.ok(neighbor.borderWidth > ordinary.borderWidth);
-  assert.ok(neighbor.radius > ordinary.radius);
+  assert.equal(neighbor.borderWidth, ordinary.borderWidth);
+  assert.equal(neighbor.radius, ordinary.radius);
   assert.equal(selected.fill, ordinary.fill);
   assert.equal(selected.border, ordinary.border);
-  assert.ok(selected.borderWidth > neighbor.borderWidth);
-  assert.ok(selected.radius > neighbor.radius);
+  assert.equal(selected.borderWidth, ordinary.borderWidth);
+  assert.equal(selected.radius, ordinary.radius);
+  assert.equal(
+    worldNodeFootprintRadiusPx({ type: "person", emphasized: true }),
+    worldNodeFootprintRadiusPx({ type: "person" }),
+  );
 
   const ordinaryEdge = worldEdgeStyle({ predicate: "met" }, WORLD_LIGHT_PALETTE);
   const emphasizedEdge = worldEdgeStyle(
@@ -110,9 +114,9 @@ test("selection and connected-neighborhood emphasis preserve semantic colours", 
     WORLD_LIGHT_PALETTE,
   );
   assert.equal(emphasizedEdge.color, ordinaryEdge.color);
-  assert.ok(emphasizedEdge.width > ordinaryEdge.width);
+  assert.equal(emphasizedEdge.width, ordinaryEdge.width);
   assert.equal(selectedEdge.color, ordinaryEdge.color);
-  assert.ok(selectedEdge.width > emphasizedEdge.width);
+  assert.equal(selectedEdge.width, ordinaryEdge.width);
 
   const ordinaryPlace = worldPlaceStyle(
     { marker: { fillColor: "#123456", color: "#abcdef" } },
@@ -127,8 +131,8 @@ test("selection and connected-neighborhood emphasis preserve semantic colours", 
   );
   assert.equal(emphasizedPlace.fill, ordinaryPlace.fill);
   assert.equal(emphasizedPlace.border, ordinaryPlace.border);
-  assert.ok(emphasizedPlace.borderWidth > ordinaryPlace.borderWidth);
-  assert.ok(emphasizedPlace.radius > ordinaryPlace.radius);
+  assert.equal(emphasizedPlace.borderWidth, ordinaryPlace.borderWidth);
+  assert.equal(emphasizedPlace.radius, ordinaryPlace.radius);
 });
 
 test("portable fill, border, stroke, and radius aliases override defaults", () => {
@@ -152,16 +156,32 @@ test("portable fill, border, stroke, and radius aliases override defaults", () =
   assert.equal(styled.radius, 30);
 });
 
-test("places honour their map marker style", () => {
+test("places use node-like shape, icon, border, fill, and readable footprint", () => {
   const place = worldPlaceStyle(
-    { marker: { fillColor: "#123456", color: "#abcdef", size: 24, weight: 3 } },
+    {
+      marker: {
+        fillColor: "#123456",
+        color: "#abcdef",
+        size: 24,
+        weight: 3,
+        shape: "square",
+        icon: "crown",
+      },
+    },
     false,
     WORLD_LIGHT_PALETTE,
   );
   assert.equal(place.fill, "#123456");
   assert.equal(place.border, "#abcdef");
   assert.equal(place.borderWidth, 3);
-  assert.equal(place.radius, 12);
+  assert.equal(place.shape, "square");
+  assert.equal(place.icon, "crown");
+  assert.equal(place.radius, WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+
+  const fallback = worldPlaceStyle({}, false, WORLD_LIGHT_PALETTE);
+  assert.equal(fallback.shape, "pin");
+  assert.equal(fallback.icon, "place");
+  assert.ok(fallback.radius >= WORLD_ENTITY_MIN_HIT_RADIUS_PX);
 });
 
 test("edges colour by relationship type unless they carry their own style, including style aliases", () => {
@@ -189,7 +209,7 @@ test("edges colour by relationship type unless they carry their own style, inclu
     WORLD_LIGHT_PALETTE,
   );
   assert.equal(aliased.color, "#abcdef");
-  assert.ok(aliased.width >= 4);
+  assert.equal(aliased.width, 3);
 });
 
 test("colour bytes parse short, long and alpha hex", () => {
