@@ -346,22 +346,15 @@ function entityMentionVariants(value: unknown): string[] {
   return [...variants];
 }
 
-function itemNarrativeContext(item: any, evidenceById: Map<string, any> | null = null): string {
+function itemNarrativeContext(item: any): string {
   if (!item || typeof item !== "object") return "";
   const mediaContext = Array.isArray(item.media)
     ? item.media.map((media) => (typeof media?.alt === "string" ? media.alt : ""))
     : [];
-  const evidenceNotes =
-    evidenceById instanceof Map
-      ? textList(item.evidenceIds, { maxItems: 96, maxLength: 120 })
-          .map((id) => evidenceById.get(String(id))?.note)
-          .filter((note) => typeof note === "string" && note.trim())
-      : [];
   return [
     typeof item.title === "string" ? item.title : "",
     typeof item.description === "string" ? item.description : "",
     ...mediaContext,
-    ...evidenceNotes,
   ]
     .filter(Boolean)
     .join(" ");
@@ -372,7 +365,8 @@ function namedEntityMentions(
   entities: any[],
   evidenceById: Map<string, any> | null = null,
 ): any[] {
-  const context = entityMentionKey(itemNarrativeContext(item, evidenceById));
+  void evidenceById;
+  const context = entityMentionKey(itemNarrativeContext(item));
   if (!context) return [];
   const padded = ` ${context} `;
   const itemStoryId = text(item?.extensions?.narrative?.storyId, 120);
