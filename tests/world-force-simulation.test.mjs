@@ -16,7 +16,7 @@ function harness() {
       calls.push(["pin", pin?.instanceId ?? null]);
     },
     apply(request) {
-      calls.push(["apply", request.reason, request.energyTarget, request.reheat]);
+      calls.push(["apply", request.reason, request.excitation, request.reheat]);
     },
     stop() {
       calls.push(["stop"]);
@@ -55,15 +55,15 @@ test("world force priorities keep drag above topology and spatial-anchor updates
 test("lower-priority anchor and projection work cannot cool an active topology solve", () => {
   const { calls, coordinator } = harness();
 
-  coordinator.request({ reason: "topology", energyTarget: 0.12, reheat: true });
+  coordinator.request({ reason: "topology", excitation: 0.12, reheat: true });
   coordinator.request({
     reason: "spatial-anchor-update",
-    energyTarget: 0.04,
+    excitation: 0.04,
     reheat: false,
   });
   coordinator.request({
     reason: "projection-update",
-    energyTarget: 0,
+    excitation: 0,
     reheat: false,
   });
 
@@ -74,11 +74,11 @@ test("lower-priority anchor and projection work cannot cool an active topology s
 test("node drag temporarily owns simulation energy and returns to topology", () => {
   const { calls, coordinator } = harness();
 
-  coordinator.request({ reason: "topology", energyTarget: 0.12, reheat: true });
-  coordinator.request({ reason: "drag", energyTarget: 0.2, reheat: true });
+  coordinator.request({ reason: "topology", excitation: 0.12, reheat: true });
+  coordinator.request({ reason: "drag", excitation: 0.2, reheat: true });
   coordinator.request({
     reason: "post-drop",
-    energyTarget: 0.035,
+    excitation: 0.035,
     reheat: true,
   });
 
@@ -97,7 +97,7 @@ test("node drag temporarily owns simulation energy and returns to topology", () 
 test("globe or timeline interaction suspension stops simulation until all owners release", () => {
   const { calls, coordinator } = harness();
 
-  coordinator.request({ reason: "topology", energyTarget: 0.12, reheat: true });
+  coordinator.request({ reason: "topology", excitation: 0.12, reheat: true });
   coordinator.suspend("globe-camera");
   coordinator.suspend("timeline-drag");
   coordinator.resume("globe-camera");
@@ -116,7 +116,7 @@ test("releasing the last active request applies an explicit idle request", () =>
 
   coordinator.request({
     reason: "projection-update",
-    energyTarget: 0.02,
+    excitation: 0.02,
     reheat: false,
   });
   coordinator.release("projection-update");
