@@ -1492,7 +1492,7 @@ export class TimelineViewController {
       spec: authoritativeSpec,
       maxItemsPerMonth: 3,
       limit: 18,
-      minimumEdgeAccents: this.retention.active ? 2 : 1,
+      minimumEdgeAccents: this.retention.active ? 3 : 1,
     });
     const keepTicks = this.materializeTickHierarchy(
       authoritativeSpec,
