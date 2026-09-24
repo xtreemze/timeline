@@ -24,16 +24,17 @@ test("Biome is the authoritative formatter and strict multi-language quality too
   assert.equal(biome.linter?.rules?.suspicious?.noShorthandPropertyOverrides, "error");
   assert.equal(biome.linter?.rules?.suspicious?.noUnknownAtRules, "error");
 
-  for (const ignored of [
-    "!!dist",
+  assert.ok(biome.files?.includes?.includes("!!dist"));
+  for (const obsolete of [
     "!!site/orb-graph.bundle.js",
     "!!site/evidence-extraction.bundle.js",
     "!!site/leaflet.bundle.js",
+    "!!site/leaflet.css",
     "!!site/pdf.worker.mjs",
   ]) {
     assert.ok(
-      biome.files?.includes?.includes(ignored),
-      `Biome must ignore generated artifact: ${ignored}`,
+      !biome.files?.includes?.includes(obsolete),
+      `Removed runtime artifact must not remain exempt from quality checks: ${obsolete}`,
     );
   }
 
@@ -95,10 +96,33 @@ test("package scripts expose one Biome quality pipeline plus architecture policy
   assert.match(scripts["lint:styles"] ?? "", /--config-path=biome\.strict\.json/);
   assert.match(scripts["lint:styles"] ?? "", /\.css/);
   assert.equal(scripts["check:quality"], "pnpm lint && node scripts/check-quality-changed.mjs");
+  assert.equal(scripts.build, "vite build");
+  assert.equal(scripts["build:graph"], undefined);
+  assert.equal(scripts["build:leaflet"], undefined);
+  assert.equal(scripts["build:evidence"], undefined);
+  assert.equal(pkg.devDependencies?.esbuild, undefined);
+  assert.doesNotMatch(Object.values(scripts).join("\n"), /\besbuild\b|--format=iife/i);
+  assert.doesNotMatch(Object.values(scripts).join("\n"), /build:(?:graph|leaflet|evidence)/);
   assert.doesNotMatch(Object.values(scripts).join("\n"), /eslint/i);
   assert.equal(pkg.devDependencies?.eslint, undefined);
   assert.equal(pkg.devDependencies?.["@eslint/js"], undefined);
   assert.doesNotMatch(scripts.format ?? "", /disabled|echo/i);
+});
+
+test("Vite 8 owns the production module graph without classic runtime bundles", async () => {
+  const [viteConfig, html] = await Promise.all([
+    readFile(new URL("vite.config.ts", root), "utf8"),
+    readFile(new URL("site/index.html", root), "utf8"),
+  ]);
+
+  assert.match(viteConfig, /rolldownOptions/);
+  assert.doesNotMatch(viteConfig, /rollupOptions/);
+  assert.doesNotMatch(viteConfig, /serve-static-runtime-bundles|copy-static-runtime-bundles/);
+  assert.doesNotMatch(
+    html,
+    /(?:orb-graph|leaflet|evidence-extraction)\.bundle\.js|leaflet\.css|pdf\.worker\.mjs/,
+  );
+  assert.doesNotMatch(html, /<script(?![^>]*type=["']module["'])[^>]*src=/);
 });
 
 test("CI treats migrated TypeScript and the full test suite as fatal", async () => {
