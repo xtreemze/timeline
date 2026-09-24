@@ -10,6 +10,9 @@ import { expect, type Page, test } from "@playwright/test";
 
 // Default person fill (src/layout/world-graph-style.ts, light theme).
 const ENTITY_RGB = [75, 95, 134] as const;
+// Compact globe markers intentionally fade toward the horizon. This tolerance
+// accepts that alpha compositing while remaining well separated from the neutral basemap.
+const ENTITY_COLOR_DISTANCE = 120;
 
 async function graphCanvasBox(page: Page) {
   const canvas = page.locator(".temporal-graph-canvas canvas").first();
@@ -26,7 +29,7 @@ async function entityPixels(
 ) {
   const png = (await page.screenshot({ clip })).toString("base64");
   return page.evaluate(
-    async ({ data, rgb }) => {
+    async ({ data, rgb, colorDistance }) => {
       const image = new Image();
       image.src = `data:image/png;base64,${data}`;
       await image.decode();
@@ -47,7 +50,7 @@ async function entityPixels(
           Math.abs((pixels[index] ?? 0) - rgb[0]) +
           Math.abs((pixels[index + 1] ?? 0) - rgb[1]) +
           Math.abs((pixels[index + 2] ?? 0) - rgb[2]);
-        if (distance > 60) continue;
+        if (distance > colorDistance) continue;
         const pixel = index / 4;
         const x = pixel % image.width;
         const y = Math.floor(pixel / image.width);
@@ -63,7 +66,7 @@ async function entityPixels(
         spreadY: count ? (maxY - minY) / image.height : 0,
       };
     },
-    { data: png, rgb: ENTITY_RGB },
+    { data: png, rgb: ENTITY_RGB, colorDistance: ENTITY_COLOR_DISTANCE },
   );
 }
 
