@@ -21,6 +21,7 @@ export interface WorldFrameScheduler {
 export interface WorldApplicationView {
   setModel(model: WorldViewModel): void;
   setWindow(viewport: WorldViewViewport | null): void;
+  previewWindow(viewport: WorldViewViewport | null): void;
   setFocus(id: string | number | null): void;
   setPresentationMode(active: boolean): void;
   hasContext(): boolean;
@@ -95,6 +96,11 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
   setWindow(viewport: WorldViewViewport | null): void {
     this.#assertAlive();
     if (this.#view.setWindow(viewport)) this.#schedule();
+  }
+
+  previewWindow(viewport: WorldViewViewport | null): void {
+    this.#assertAlive();
+    this.#view.previewWindow(viewport);
   }
 
   setFocus(id: string | number | null): void {

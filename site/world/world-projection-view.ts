@@ -348,6 +348,14 @@ export class WorldProjectionView {
    * when the window and active set are unchanged: the timeline re-publishes
    * its committed viewport after every settled gesture, including taps.
    */
+  previewWindow(viewport: WorldViewViewport | null): void {
+    const next =
+      viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end)
+        ? Object.freeze({ start: viewport.start, end: viewport.end })
+        : null;
+    if (next) this.#runtime.setTemporalWindow(next);
+  }
+
   setWindow(viewport: WorldViewViewport | null): boolean {
     const next =
       viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end)

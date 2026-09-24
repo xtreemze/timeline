@@ -1,6 +1,7 @@
 export interface DeferredSpatialView {
   setModel(model: unknown): void;
   setWindow(viewport: unknown): void;
+  previewWindow?(viewport: unknown): void;
   setFocus(id: string | number | null): void;
   setPresentationMode?(active: boolean): void;
   hasContext?(): boolean;
@@ -90,6 +91,9 @@ export function createDeferredSpatialViewFactory(
           hasWindow = true;
           viewport = next;
           delegate?.setWindow(next);
+        },
+        previewWindow(next: unknown): void {
+          delegate?.previewWindow?.(next);
         },
         setFocus(next: string | number | null): void {
           hasFocus = true;
