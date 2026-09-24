@@ -216,24 +216,6 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - name: Canonicalize changed source with repository Biome
-        run: |
-          mapfile -t files < <(git diff --name-only "$QUALITY_BASE_SHA"...HEAD -- '*.js' '*.mjs' '*.ts' '*.json')
-          if (( ${#files[@]} )); then
-            pnpm exec biome check --write "${files[@]}"
-          fi
-          node --input-type=module <<'NODE'
-          import { execFileSync } from "node:child_process";
-          import { readFileSync } from "node:fs";
-          const paths = execFileSync("git", ["diff", "--name-only"], { encoding: "utf8" })
-            .trim()
-            .split("\n")
-            .filter(Boolean);
-          for (const path of paths) {
-            const encoded = readFileSync(path).toString("base64");
-            console.log(`BIOME_FILE:${path}:${encoded}`);
-          }
-          NODE
       - run: pnpm check:quality
       - run: pnpm types:migrated
       - run: pnpm types:architecture
