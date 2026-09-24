@@ -7,6 +7,10 @@ import {
 } from "../../src/interaction/world-touch-hold.ts";
 import { fitWorldCamera, globeOverviewCamera } from "../../src/layout/world-camera-fit.ts";
 import {
+  interpolateClusterPosition,
+  worldClusterExpansionProgress,
+} from "../../src/layout/world-cluster-transition.ts";
+import {
   resolveWorldRenderPosition,
   type WorldRenderPosition,
 } from "../../src/layout/world-geographic-position.ts";
@@ -454,6 +458,75 @@ export function clusterEntityDatumsByPlace(
     );
   }
   return Object.freeze(result);
+}
+
+interface PlaceClusterTransitionDatums {
+  readonly clusters: readonly DeckWorldClusterDatum[];
+  readonly members: readonly DeckWorldEntityDatum[];
+  readonly loose: readonly DeckWorldEntityDatum[];
+  readonly memberIds: ReadonlySet<WorldInstanceId>;
+}
+
+/**
+ * Retains the force-resolved target positions while moving every clustered
+ * member along the exact reversible path to/from its place-cluster origin.
+ * Force state is never discarded merely because the overview hides members.
+ */
+function placeClusterTransitionDatums(
+  entities: readonly DeckWorldEntityDatum[],
+  clustered: readonly DeckWorldEntityRenderDatum[],
+  expansion: number,
+): PlaceClusterTransitionDatums {
+  const originByMember = new Map<WorldInstanceId, WorldRenderPosition>();
+  const clusters: DeckWorldClusterDatum[] = [];
+  for (const datum of clustered) {
+    if (datum.kind !== "cluster") continue;
+    clusters.push(datum);
+    for (const member of datum.clusterMembers) {
+      originByMember.set(member.worldInstanceId, datum.position);
+    }
+  }
+
+  const members: DeckWorldEntityDatum[] = [];
+  const loose: DeckWorldEntityDatum[] = [];
+  for (const entity of entities) {
+    const origin = originByMember.get(entity.worldInstanceId);
+    if (!origin) {
+      loose.push(entity);
+      continue;
+    }
+    const position = interpolateClusterPosition(origin, entity.position, expansion);
+    members.push(
+      positionEquals(position, entity.position)
+        ? entity
+        : Object.freeze({
+            ...entity,
+            position,
+          }),
+    );
+  }
+
+  return Object.freeze({
+    clusters: Object.freeze(clusters),
+    members: Object.freeze(members),
+    loose: Object.freeze(loose),
+    memberIds: new Set(originByMember.keys()),
+  });
+}
+
+function instanceIndexFromEntities(entities: readonly DeckWorldEntityDatum[]): WorldInstanceIndex {
+  const positions = new Map<WorldInstanceId, WorldRenderPosition>();
+  const entityIds = new Map<WorldInstanceId, EntityId>();
+  for (const entity of entities) {
+    positions.set(entity.worldInstanceId, entity.position);
+    entityIds.set(entity.worldInstanceId, entity.entityId);
+  }
+  return { positions, entityIds };
+}
+
+function scaleAlpha(color: Rgba, factor: number): Rgba {
+  const alpha = Math.max(0, Math.min(1, factor));
+  return [color[0], color[1], color[2], Math.round(color[3] * alpha)];
 }
 
 /**
@@ -1390,11 +1463,13 @@ function labelDatums(input: {
     relationship.emphasized ||
     focused("relationship", relationship.relationshipId);
   const relationships = selectPrioritizedLabels(
-    input.relationships.filter((relationship) => relationship.label),
+    input.relationships.filter(
+      (relationship) => relationship.label && (!input.clustered || pinnedRelationship(relationship)),
+    ),
     {
-      // Relationship predicates are semantic graph content, not hover-only
-      // decoration. Preserve them through clustering and show all at working
-      // zoom; the collision pass still relocates them before overlap.
+      // Relationship predicates are semantic graph content, but a fully
+      // collapsed place cluster has no visible edge geometry. Hide ordinary
+      // predicates with those edges; selected/focused context may remain.
       budget: input.zoom >= LABEL_DETAIL_KEEP_ALL_ZOOM ? Number.POSITIVE_INFINITY : budget,
       isPinned: pinnedRelationship,
       importance: (relationship) => relationship.temporalWeight,
@@ -1643,6 +1718,7 @@ export class DeckWorldSurface implements WorldSurface {
   // actually turn on/off (ordinary panning/zooming above the threshold stays
   // as cheap as before).
   #clusteredLastRender = false;
+  #clusterExpansionLastRender = 1;
   // Same idea for the semantic label/marker LOD tier: a tier change only
   // matters when some kind has more candidates than the smaller budget.
   #labelBudgetLastRender = -1;
@@ -2557,15 +2633,19 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #zoomNeedsRender(): boolean {
+    const clusterExpansion = this.#placeClusterExpansion();
     const clusteredNow =
       shouldClusterEntityDatums(this.#entityDatumCache.size, this.#camera.zoom) ||
-      this.#placeClustered();
+      clusterExpansion < 1;
+    const clusterMotionChanged =
+      Math.abs(clusterExpansion - this.#clusterExpansionLastRender) > 0.002;
     const budget = worldLabelBudget(this.#camera.zoom);
     const lodChanged =
       budget !== this.#labelBudgetLastRender &&
       Math.min(budget, this.#labelBudgetLastRender) < this.#lodCandidateCountLastRender;
     return (
       clusteredNow !== this.#clusteredLastRender ||
+      clusterMotionChanged ||
       lodChanged ||
       this.#nextOffsetScale() !== this.#offsetScale ||
       this.#nextFloatMeters() !== this.#floatMeters
@@ -2597,21 +2677,26 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   /**
-   * True when places' local graphs would be too small on screen to tell
-   * entities apart: each place's entities then show as one cluster bubble
-   * (labelled by the place), freeing the globe for rotation and picking.
+   * Continuous place-cluster expansion. At 0 only the place cluster is
+   * visible; at 1 the active force backend owns the full node positions.
+   * Intermediate zooms blend between those endpoints instead of swapping
+   * representations at a threshold.
    */
-  #placeClustered(zoom = this.#camera.zoom): boolean {
+  #placeClusterExpansion(zoom = this.#camera.zoom): number {
     const instances = this.#projection.instances;
-    if (instances.length === 0 || shouldClusterEntityDatums(instances.length, zoom)) return false;
+    if (instances.length === 0) return 1;
     const typical = this.#typicalOffsetMeters();
-    if (typical <= 0) return false;
+    if (typical <= 0) return 1;
     const radius = worldLocalRadiusPx(
       typical * this.#nextOffsetScale(zoom),
       zoom,
       this.#camera.latitude,
     );
-    return radius < WORLD_PLACE_CLUSTER_RADIUS_PX;
+    return worldClusterExpansionProgress(radius, WORLD_PLACE_CLUSTER_RADIUS_PX);
+  }
+
+  #placeClustered(zoom = this.#camera.zoom): boolean {
+    return this.#placeClusterExpansion(zoom) < 1;
   }
 
   /**
