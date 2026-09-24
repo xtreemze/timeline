@@ -11,12 +11,15 @@ export default defineConfig({
     target: "chrome155",
     manifest: true,
     rolldownOptions: {
+      preserveEntrySignatures: "allow-extension",
       input: {
         main: new URL("./site/index.html", import.meta.url).pathname,
       },
       output: {
+        strictExecutionOrder: true,
         codeSplitting: {
           maxSize: 400_000,
+          includeDependenciesRecursively: false,
           groups: [
             {
               name: "pdf-runtime",
@@ -35,6 +38,13 @@ export default defineConfig({
               test: /node_modules[\\/]@memgraph[\\/]orb[\\/]/,
               maxSize: 400_000,
               priority: 20,
+            },
+            {
+              name: "application",
+              test: /[\\/](?:site|src)[\\/]/,
+              entriesAware: true,
+              maxSize: 350_000,
+              priority: 5,
             },
           ],
         },
