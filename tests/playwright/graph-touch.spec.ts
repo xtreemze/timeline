@@ -54,7 +54,8 @@ test("long-press touch moves an Orb node", async ({ page }, testInfo) => {
   await page.goto("/");
   await page.setViewportSize({ width: 375, height: 812 });
   await page.evaluate(async () => {
-    const { createTouchGraphController } = await import("/orb-graph-test-helper.ts");
+    const helperModulePath = "/orb-graph-test-helper.ts";
+    const { createTouchGraphController } = await import(helperModulePath);
     const fixture = document.createElement("div");
     fixture.id = "touch-node-drag-fixture";
     Object.assign(fixture.style, {
