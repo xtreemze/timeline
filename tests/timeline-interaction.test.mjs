@@ -548,7 +548,7 @@ test("coarse-pointer timeline controls and ranges retain a 44 CSS px interaction
   );
   assert.match(
     css,
-    /@media \(pointer: coarse\)[\s\S]*timeline-range-segment::before[\s\S]*inset:\s*-19px[\s\S]*pointer-events:\s*auto/,
+    /@media \(pointer: coarse\)[\s\S]*timeline-range-segment::before[\s\S]*inset:\s*-21px[\s\S]*pointer-events:\s*auto/,
   );
   assert.match(
     css,
