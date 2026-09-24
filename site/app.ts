@@ -11,6 +11,7 @@ import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
 import { TimelineSpatial } from "./spatial.ts";
 // Import ESM modules
 import { TimelineTemporal } from "./temporal-standards.ts";
+import { createSettledTemporalWindowSink } from "./world/settled-temporal-window.ts";
 import { selectPrimarySpatialViewFactory } from "./world/world-view-selection.ts";
 
 // Import globals that still use globalThis (not yet converted)
@@ -5225,8 +5226,15 @@ els.storyPrev.addEventListener("click", () => stepStory(-1));
 els.storyNext.addEventListener("click", () => stepStory(1));
 els.storyExit.addEventListener("click", () => exitStoryFocus());
 
+const settledSpatialWindow = createSettledTemporalWindowSink<unknown>((viewport) => {
+  temporalGraphView?.setWindow(viewport);
+});
+
 els.timelineViewRoot.addEventListener("timelineviewportchange", (event) => {
-  temporalGraphView?.setWindow(event.detail?.viewport || null);
+  settledSpatialWindow.push(
+    event.detail?.viewport || null,
+    Boolean(event.detail?.committed),
+  );
 });
 
 els.timelineViewRoot.addEventListener("timelineorientationchange", (event) => {
