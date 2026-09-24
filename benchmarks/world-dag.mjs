@@ -39,8 +39,7 @@ function relationship(id, source, target) {
 }
 
 function crossingCount(edges, positions) {
-  const orient = (p, q, r) =>
-    (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+  const orient = (p, q, r) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
   const intersects = (a, b, c, d) =>
     orient(a, b, c) * orient(a, b, d) < 0 && orient(c, d, a) * orient(c, d, b) < 0;
 
