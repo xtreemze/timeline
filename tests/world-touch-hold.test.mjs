@@ -122,8 +122,7 @@ function surfaceHarness() {
   const entityIconLayer = () =>
     icons.filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons).at(-1);
   const alice = () => entityLayer().props.data.find((datum) => datum.entityId === "alice");
-  const aliceIcon = () =>
-    entityIconLayer().props.data.find((datum) => datum.entityId === "alice");
+  const aliceIcon = () => entityIconLayer().props.data.find((datum) => datum.entityId === "alice");
   return {
     surface,
     listeners,
@@ -192,7 +191,6 @@ test("a long press on an entity then drag claims the node drag", (t) => {
   h.touch("pointerup", 4, 160, 280);
   assert.equal(h.dataset.worldTouchDrag, undefined);
 });
-
 
 test("long-press pickup flashes and lifts only the actively dragged node", (t) => {
   t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });

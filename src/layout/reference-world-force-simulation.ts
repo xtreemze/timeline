@@ -179,16 +179,8 @@ function createAnchorFrame(anchor: WorldForceAnchor): AnchorFrame {
   const cosLongitude = Math.cos(longitude);
 
   const east: Vector3 = [-sinLongitude, cosLongitude, 0];
-  const north: Vector3 = [
-    -sinLatitude * cosLongitude,
-    -sinLatitude * sinLongitude,
-    cosLatitude,
-  ];
-  const up: Vector3 = [
-    cosLatitude * cosLongitude,
-    cosLatitude * sinLongitude,
-    sinLatitude,
-  ];
+  const north: Vector3 = [-sinLatitude * cosLongitude, -sinLatitude * sinLongitude, cosLatitude];
+  const up: Vector3 = [cosLatitude * cosLongitude, cosLatitude * sinLongitude, sinLatitude];
   const radius = EARTH_RADIUS_METERS + anchor.sourceAltitudeMeters;
 
   return {
@@ -209,20 +201,11 @@ function updateStateCartesian(state: NodeState): void {
   }
 
   state.worldX =
-    frame.origin[0] +
-    frame.east[0] * state.x +
-    frame.north[0] * state.y +
-    frame.up[0] * state.z;
+    frame.origin[0] + frame.east[0] * state.x + frame.north[0] * state.y + frame.up[0] * state.z;
   state.worldY =
-    frame.origin[1] +
-    frame.east[1] * state.x +
-    frame.north[1] * state.y +
-    frame.up[1] * state.z;
+    frame.origin[1] + frame.east[1] * state.x + frame.north[1] * state.y + frame.up[1] * state.z;
   state.worldZ =
-    frame.origin[2] +
-    frame.east[2] * state.x +
-    frame.north[2] * state.y +
-    frame.up[2] * state.z;
+    frame.origin[2] + frame.east[2] * state.x + frame.north[2] * state.y + frame.up[2] * state.z;
 }
 
 function forceGroup(key: string, states: readonly NodeState[]): ForceGroup {
@@ -245,10 +228,7 @@ function forceGroup(key: string, states: readonly NodeState[]): ForceGroup {
     maxY = Math.max(maxY, state.worldY);
     minZ = Math.min(minZ, state.worldZ);
     maxZ = Math.max(maxZ, state.worldZ);
-    maxCollisionRadiusMeters = Math.max(
-      maxCollisionRadiusMeters,
-      state.node.collisionRadiusMeters,
-    );
+    maxCollisionRadiusMeters = Math.max(maxCollisionRadiusMeters, state.node.collisionRadiusMeters);
   }
 
   if (!bounded) {
@@ -364,16 +344,12 @@ function crossGroupCandidates(
 
 function readableSeparationDistance(left: NodeState, right: NodeState): number {
   return (
-    (left.node.collisionRadiusMeters + right.node.collisionRadiusMeters) *
-    READABLE_SEPARATION_SCALE
+    (left.node.collisionRadiusMeters + right.node.collisionRadiusMeters) * READABLE_SEPARATION_SCALE
   );
 }
 
 function crossAnchorInteractionRadius(left: NodeState, right: NodeState): number {
-  return Math.max(
-    CROSS_ANCHOR_FORCE_RADIUS_METERS,
-    readableSeparationDistance(left, right) * 4,
-  );
+  return Math.max(CROSS_ANCHOR_FORCE_RADIUS_METERS, readableSeparationDistance(left, right) * 4);
 }
 
 export class ReferenceWorldForceSimulation implements WorldForceSimulationBackend {
@@ -557,9 +533,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const activeDragGroup = this.#pin
       ? (this.#states.get(this.#pin.instanceId)?.group ?? null)
       : null;
-    const forceGroups = [...this.#groups.entries()].map(([key, states]) =>
-      forceGroup(key, states),
-    );
+    const forceGroups = [...this.#groups.entries()].map(([key, states]) => forceGroup(key, states));
     const crossPairs = crossGroupCandidates(forceGroups, activeDragGroup);
 
     // During direct manipulation geography is fixed. Only the dragged island
@@ -595,10 +569,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     }
 
     for (const [leftGroup, rightGroup] of crossPairs) {
-      if (
-        activeGroups &&
-        (!activeGroups.has(leftGroup.key) || !activeGroups.has(rightGroup.key))
-      ) {
+      if (activeGroups && (!activeGroups.has(leftGroup.key) || !activeGroups.has(rightGroup.key))) {
         continue;
       }
       for (const left of leftGroup.states) {
@@ -659,12 +630,9 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       const beforeY = state.y;
       const beforeZ = state.z;
       const inverseMass = 1 / Math.max(0.001, state.node.mass);
-      state.vx =
-        (state.vx + state.forceX * inverseMass * dt * energyScale) * damping;
-      state.vy =
-        (state.vy + state.forceY * inverseMass * dt * energyScale) * damping;
-      state.vz =
-        (state.vz + state.forceZ * inverseMass * dt * energyScale) * damping;
+      state.vx = (state.vx + state.forceX * inverseMass * dt * energyScale) * damping;
+      state.vy = (state.vy + state.forceY * inverseMass * dt * energyScale) * damping;
+      state.vz = (state.vz + state.forceZ * inverseMass * dt * energyScale) * damping;
 
       state.x += state.vx * dt;
       state.y += state.vy * dt;
@@ -672,11 +640,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
 
       const domainActivity =
         !activeDragGroup || state.group !== activeDragGroup
-          ? this.#applyPlaceDomainConstraint(
-              state,
-              this.#placeDomains.get(state.group) ?? null,
-              dt,
-            )
+          ? this.#applyPlaceDomainConstraint(state, this.#placeDomains.get(state.group) ?? null, dt)
           : 0;
 
       if (state.x !== beforeX || state.y !== beforeY || state.z !== beforeZ) {
@@ -750,10 +714,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#running = false;
   }
 
-  #groupsCanInteract(
-    leftStates: readonly NodeState[],
-    rightStates: readonly NodeState[],
-  ): boolean {
+  #groupsCanInteract(leftStates: readonly NodeState[], rightStates: readonly NodeState[]): boolean {
     for (const left of leftStates) {
       if (!left.anchorFrame) continue;
       for (const right of rightStates) {
@@ -769,11 +730,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     return false;
   }
 
-  #applyPairForces(
-    left: NodeState,
-    right: NodeState,
-    crossAnchor: boolean,
-  ): void {
+  #applyPairForces(left: NodeState, right: NodeState, crossAnchor: boolean): void {
     let leftDx: number;
     let leftDy: number;
     let leftDz: number;
@@ -794,29 +751,18 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       if (distance > crossAnchorInteractionRadius(left, right)) return;
 
       leftDx =
-        leftFrame.east[0] * worldDx +
-        leftFrame.east[1] * worldDy +
-        leftFrame.east[2] * worldDz;
+        leftFrame.east[0] * worldDx + leftFrame.east[1] * worldDy + leftFrame.east[2] * worldDz;
       leftDy =
-        leftFrame.north[0] * worldDx +
-        leftFrame.north[1] * worldDy +
-        leftFrame.north[2] * worldDz;
-      leftDz =
-        leftFrame.up[0] * worldDx +
-        leftFrame.up[1] * worldDy +
-        leftFrame.up[2] * worldDz;
+        leftFrame.north[0] * worldDx + leftFrame.north[1] * worldDy + leftFrame.north[2] * worldDz;
+      leftDz = leftFrame.up[0] * worldDx + leftFrame.up[1] * worldDy + leftFrame.up[2] * worldDz;
       rightDx =
-        rightFrame.east[0] * worldDx +
-        rightFrame.east[1] * worldDy +
-        rightFrame.east[2] * worldDz;
+        rightFrame.east[0] * worldDx + rightFrame.east[1] * worldDy + rightFrame.east[2] * worldDz;
       rightDy =
         rightFrame.north[0] * worldDx +
         rightFrame.north[1] * worldDy +
         rightFrame.north[2] * worldDz;
       rightDz =
-        rightFrame.up[0] * worldDx +
-        rightFrame.up[1] * worldDy +
-        rightFrame.up[2] * worldDz;
+        rightFrame.up[0] * worldDx + rightFrame.up[1] * worldDy + rightFrame.up[2] * worldDz;
     } else {
       leftDx = right.x - left.x;
       leftDy = right.y - left.y;
@@ -844,12 +790,9 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       if (crossAnchor && left.anchorFrame && right.anchorFrame) {
         const leftFrame = left.anchorFrame;
         const rightFrame = right.anchorFrame;
-        const worldUnitX =
-          leftFrame.east[0] * leftUnitX + leftFrame.north[0] * leftUnitY;
-        const worldUnitY =
-          leftFrame.east[1] * leftUnitX + leftFrame.north[1] * leftUnitY;
-        const worldUnitZ =
-          leftFrame.east[2] * leftUnitX + leftFrame.north[2] * leftUnitY;
+        const worldUnitX = leftFrame.east[0] * leftUnitX + leftFrame.north[0] * leftUnitY;
+        const worldUnitY = leftFrame.east[1] * leftUnitX + leftFrame.north[1] * leftUnitY;
+        const worldUnitZ = leftFrame.east[2] * leftUnitX + leftFrame.north[2] * leftUnitY;
         rightUnitX =
           rightFrame.east[0] * worldUnitX +
           rightFrame.east[1] * worldUnitY +
@@ -877,8 +820,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       rightUnitZ = rightDz / distance;
     }
 
-    const hardMinimumDistance =
-      left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
+    const hardMinimumDistance = left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
     const readableDistance = readableSeparationDistance(left, right);
     const repulsion = this.#options.repulsionStrength / Math.max(100, distance ** 2);
     const readableCollision =
@@ -891,25 +833,11 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
         : 0;
     const magnitude = repulsion + readableCollision + overlapBoost;
 
-    this.#addForce(
-      left,
-      -leftUnitX * magnitude,
-      -leftUnitY * magnitude,
-      -leftUnitZ * magnitude,
-    );
-    this.#addForce(
-      right,
-      rightUnitX * magnitude,
-      rightUnitY * magnitude,
-      rightUnitZ * magnitude,
-    );
+    this.#addForce(left, -leftUnitX * magnitude, -leftUnitY * magnitude, -leftUnitZ * magnitude);
+    this.#addForce(right, rightUnitX * magnitude, rightUnitY * magnitude, rightUnitZ * magnitude);
   }
 
-  #applyEdgeForce(
-    edge: WorldForceEdge,
-    source: NodeState,
-    target: NodeState,
-  ): void {
+  #applyEdgeForce(edge: WorldForceEdge, source: NodeState, target: NodeState): void {
     const dx = target.x - source.x;
     const dy = target.y - source.y;
     const distance = Math.max(0.001, Math.hypot(dx, dy));
@@ -921,11 +849,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#addForce(target, -unitX * magnitude, -unitY * magnitude, 0);
   }
 
-  #applyPlaceDomainConstraint(
-    state: NodeState,
-    domain: PlaceDomain | null,
-    dt: number,
-  ): number {
+  #applyPlaceDomainConstraint(state: NodeState, domain: PlaceDomain | null, dt: number): number {
     const anchor = state.anchor;
     if (!anchor || !domain || anchor.influence <= 0 || dt <= 0) return 0;
 
@@ -955,21 +879,16 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     // anchor spring. Correction is deliberately bounded, with a sqrt(error)
     // catch-up term so a very long drag returns promptly without a single
     // large snap. anchorStrength remains the backend softness control.
-    const relaxation = Math.min(
-      0.45,
-      this.#options.anchorStrength * anchor.influence * 24,
-    );
+    const relaxation = Math.min(0.45, this.#options.anchorStrength * anchor.influence * 24);
     if (relaxation <= 0) return 0;
-    const desiredCorrection =
-      radialError * (1 - (1 - relaxation) ** dt);
+    const desiredCorrection = radialError * (1 - (1 - relaxation) ** dt);
     const maxCorrection =
       Math.max(
         state.node.collisionRadiusMeters * 2,
         Math.sqrt(Math.abs(radialError)) * PLACE_DOMAIN_CORRECTION_SQRT_SCALE,
       ) * dt;
     const correction =
-      Math.sign(desiredCorrection) *
-      Math.min(Math.abs(desiredCorrection), maxCorrection);
+      Math.sign(desiredCorrection) * Math.min(Math.abs(desiredCorrection), maxCorrection);
 
     state.x += unitX * correction;
     state.y += unitY * correction;
@@ -1003,12 +922,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       return;
     }
 
-    this.#addForce(
-      state,
-      (east - state.x) * strength,
-      (north - state.y) * strength,
-      0,
-    );
+    this.#addForce(state, (east - state.x) * strength, (north - state.y) * strength, 0);
   }
 
   #applyAltitudeForce(state: NodeState): void {

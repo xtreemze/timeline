@@ -222,7 +222,7 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
         surface,
         forceBackend,
         ...(typeof forceBackend.getChangedSnapshot === "function" ||
-          typeof forceBackend.getSnapshot === "function"
+        typeof forceBackend.getSnapshot === "function"
           ? {
               layoutReadback: {
                 read: () =>
