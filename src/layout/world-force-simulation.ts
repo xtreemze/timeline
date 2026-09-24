@@ -74,7 +74,12 @@ export interface WorldForceScene {
 
 export interface WorldSimulationRequest {
   readonly reason: WorldSimulationReason;
-  readonly energyTarget: number;
+  /**
+   * Dimensionless force excitation. Zero means the backend's baseline force gain.
+   * This is intentionally not a d3-force alpha/alphaTarget contract; adapters may
+   * translate excitation into backend-specific heat while preserving these semantics.
+   */
+  readonly excitation: number;
   readonly reheat: boolean;
 }
 
@@ -124,7 +129,7 @@ function requestChanged(
   if (!left || !right) return true;
   return (
     left.reason !== right.reason ||
-    left.energyTarget !== right.energyTarget ||
+    left.excitation !== right.excitation ||
     left.reheat !== right.reheat
   );
 }
@@ -164,7 +169,7 @@ export function createWorldSimulationCoordinator(backend: WorldForceSimulationBa
       if (applied && applied.reason !== "idle") {
         const idleRequest: WorldSimulationRequest = {
           reason: "idle",
-          energyTarget: 0,
+          excitation: 0,
           reheat: false,
         };
         applied = idleRequest;
