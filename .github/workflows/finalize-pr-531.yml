@@ -1,5 +1,5 @@
 name: Finalize PR 531
-# rerun after Cinderella context repair
+# rerun after scene-local media alt repair
 
 on:
   push:
