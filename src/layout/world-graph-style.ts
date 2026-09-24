@@ -37,11 +37,11 @@ export const WORLD_DARK_PALETTE: WorldGraphPalette = Object.freeze({
 });
 
 /**
- * Ordinary nodes render at roughly 44-52px visible diameter before authored
- * sizing, comparable with a mobile icon button. Picking keeps a separate
- * >=44px target in WorldSurface.
+ * Ordinary nodes render at roughly 30-34px including their normal border and
+ * marker padding. Picking remains a separate >=44px target in WorldSurface,
+ * so visual density and interaction acquisition can scale independently.
  */
-export const WORLD_NODE_SCALE = 2;
+export const WORLD_NODE_SCALE = 1.1;
 /** Minimum radius of the mobile interaction footprint (44px diameter). */
 export const WORLD_ENTITY_MIN_HIT_RADIUS_PX = 22;
 
@@ -150,8 +150,8 @@ function worldNodeMetrics(input: WorldNodeStyleInput): {
   readonly borderWidth: number;
 } {
   const own = styleOf(input.attributes);
-  // Keep ordinary nodes at least icon-button scale visibly, not merely as
-  // hit targets. Quantized radii still keep the marker atlas bounded.
+  // Keep a compact visible baseline; the separate hit footprint preserves
+  // mobile acquisition. Quantized radii still keep the marker atlas bounded.
   const baseRadius = Math.round(11 + Math.min(1, Math.max(0, input.visualWeight ?? 0)) * 2);
   // Portable marker semantics: `size` and `diameter` are visible diameters;
   // `radius` is the only radius-valued property. Explicit authored geometry
@@ -169,12 +169,8 @@ function worldNodeMetrics(input: WorldNodeStyleInput): {
   });
 }
 
-/**
- * Full on-screen radius that collision/picking must reserve. The force body
- * must never be smaller than what is visibly rendered, and it also respects
- * the 44px minimum mobile interaction target.
- */
-export function worldNodeFootprintRadiusPx(input: WorldNodeStyleInput): number {
+/** Full visible marker radius, including normalized shape extent and border. */
+export function worldNodeVisualFootprintRadiusPx(input: WorldNodeStyleInput): number {
   const metrics = worldNodeMetrics(input);
   const type = (input.type ?? "").toLowerCase();
   const own = styleOf(input.attributes);
@@ -182,9 +178,15 @@ export function worldNodeFootprintRadiusPx(input: WorldNodeStyleInput): number {
   const shape = SHAPES.includes(ownShape as WorldNodeShape)
     ? (ownShape as WorldNodeShape)
     : defaultNodeShape(type);
-  const visibleRadius =
-    metrics.radius * worldNodeShapeVisualRadiusScale(shape) + metrics.borderWidth;
-  return Math.max(WORLD_ENTITY_MIN_HIT_RADIUS_PX, visibleRadius);
+  return metrics.radius * worldNodeShapeVisualRadiusScale(shape) + metrics.borderWidth;
+}
+
+/**
+ * Collision/picking radius. It never falls below the 44px mobile interaction
+ * target even when the visible marker is deliberately more compact.
+ */
+export function worldNodeFootprintRadiusPx(input: WorldNodeStyleInput): number {
+  return Math.max(WORLD_ENTITY_MIN_HIT_RADIUS_PX, worldNodeVisualFootprintRadiusPx(input));
 }
 
 export function worldNodeStyle(
@@ -263,7 +265,7 @@ export function worldPlaceStyle(
   const authoredRadius =
     number(marker.radius, 4, 32) ??
     number(own.radius, 4, 32) ??
-    (authoredDiameter === null ? 22 : authoredDiameter / 2);
+    (authoredDiameter === null ? 14 : authoredDiameter / 2);
   return Object.freeze({
     fill,
     border,
@@ -309,16 +311,17 @@ export function worldEdgeStyle(
   const own = styleOf(input.attributes);
   const lineStyle = text(own.lineStyle ?? own.strokeStyle, 16)?.toLowerCase();
   const semanticColor =
+    color(own.categoryColor) ??
+    color(input.fallbackColor) ??
     color(own.color) ??
     color(own.stroke) ??
     color(own.lineColor) ??
-    color(input.fallbackColor) ??
     semanticEdgeColor(input.predicate ?? "", palette);
   const authoredWidth =
     number(own.width, 0.5, 10) ??
     number(own.strokeWidth, 0.5, 10) ??
     number(own.lineWidth, 0.5, 10) ??
-    2.5;
+    1.5;
   return Object.freeze({
     // Interaction emphasis is renderer-only so edge geometry/routing never
     // changes on hover or selection.
