@@ -63,6 +63,10 @@ import type {
   WorldPresentationStyle,
   WorldProjection,
 } from "../../src/projection/world-projection.ts";
+import {
+  applyWorldProjectionDelta,
+  type WorldProjectionDelta,
+} from "../../src/projection/world-projection-delta.ts";
 import { buildWorldAccessibleOutline, WorldAccessibleMirror } from "./world-accessible-mirror.ts";
 import {
   clipWorldLines,
@@ -608,6 +612,14 @@ function deckControllerOptions(): Readonly<Record<string, unknown>> {
     zoomAround: "pointer",
     inertia: !prefersReducedMotion(),
   });
+}
+
+function sameDatumSequence(next: unknown, previous: unknown): boolean {
+  if (next === previous) return true;
+  if (!Array.isArray(next) || !Array.isArray(previous) || next.length !== previous.length) {
+    return false;
+  }
+  return next.every((value, index) => value === previous[index]);
 }
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -1781,6 +1793,14 @@ export class DeckWorldSurface implements WorldSurface {
     this.#render();
   }
 
+  applyProjectionDelta(delta: WorldProjectionDelta): void {
+    this.#assertAlive();
+    this.#projection = applyWorldProjectionDelta(this.#projection, delta);
+    // Force/layout deltas are derived presentation updates. Do not re-run
+    // content fit or move the camera while nodes relax.
+    this.#render();
+  }
+
   /**
    * Automatic framing when the host supplied no camera: the whole globe,
    * turned so the content faces the viewer. "Fit to content" zooms in.
@@ -2490,6 +2510,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#runtime.createScatterplotLayer({
         id: DECK_WORLD_LAYER_IDS.places,
         data: places,
+        dataComparator: sameDatumSequence,
         pickable: true,
         // Screen-constant marks: metre radii shrank to specks at overview
         // zoom and ballooned into blobs close up.
@@ -2514,6 +2535,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#runtime.createPathLayer({
         id: DECK_WORLD_LAYER_IDS.relationships,
         data: relationships,
+        dataComparator: sameDatumSequence,
         pickable: true,
         widthUnits: "pixels",
         getPath: (datum: DeckWorldRelationshipDatum) => datum.path,
@@ -2528,6 +2550,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#runtime.createScatterplotLayer({
         id: DECK_WORLD_LAYER_IDS.entities,
         data: entities,
+        dataComparator: sameDatumSequence,
         pickable: true,
         radiusUnits: "pixels",
         getPosition: (datum: DeckWorldEntityRenderDatum) => datum.position,
@@ -2568,6 +2591,7 @@ export class DeckWorldSurface implements WorldSurface {
             this.#runtime.createPathLayer({
               id: DECK_WORLD_LAYER_IDS.tethers,
               data: tethers,
+              dataComparator: sameDatumSequence,
               pickable: false,
               widthUnits: "pixels",
               getPath: (tether: DeckWorldTether) => tether.path,
@@ -2583,6 +2607,7 @@ export class DeckWorldSurface implements WorldSurface {
             this.#runtime.createIconLayer({
               id: DECK_WORLD_LAYER_IDS.entityIcons,
               data: this.#cameraFacingEntities(iconDatums),
+              dataComparator: sameDatumSequence,
               pickable: true,
               billboard: true,
               sizeUnits: "pixels",
@@ -2614,6 +2639,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#runtime.createPathLayer({
         id: DECK_WORLD_LAYER_IDS.relationshipDirections,
         data: directionResult.datums.filter((datum) => this.#edgeStyle(datum.edge).arrow),
+        dataComparator: sameDatumSequence,
         pickable: true,
         widthUnits: "pixels",
         widthMinPixels: 2,
@@ -2631,6 +2657,7 @@ export class DeckWorldSurface implements WorldSurface {
             this.#runtime.createTextLayer({
               id: DECK_WORLD_LAYER_IDS.labels,
               data: this.#cameraFacingLabels(labelResult.datums),
+              dataComparator: sameDatumSequence,
               pickable: false,
               billboard: true,
               characterSet: "auto",
