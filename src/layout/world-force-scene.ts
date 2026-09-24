@@ -18,9 +18,9 @@ export interface WorldForceScenePolicy {
 export const DEFAULT_WORLD_FORCE_SCENE_POLICY: WorldForceScenePolicy = Object.freeze({
   baseMass: 1,
   visualWeightMassScale: 1,
-  baseCollisionRadiusMeters: 120,
+  baseCollisionRadiusMeters: 6_000,
   edgeStrength: 0.08,
-  edgeRestLengthMeters: 600,
+  edgeRestLengthMeters: 18_000,
   anchorInfluenceScale: 1,
 });
 
