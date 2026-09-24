@@ -250,12 +250,7 @@ function prefersReducedMotion(): boolean {
 }
 
 function weightedMapDragAvailable(): boolean {
-  return Boolean(
-    motion?.appendPointerVectorSamples &&
-      motion?.estimatePointerVectorVelocity &&
-      motion?.responseForElapsed &&
-      motion?.decayVelocity,
-  );
+  return true;
 }
 
 interface MapMotionOptions {
