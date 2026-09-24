@@ -5,6 +5,7 @@ import {
   OrbEventType,
   OrbView,
 } from "@memgraph/orb";
+import { TimelineMotion } from "../site/timeline-motion.ts";
 import {
   connectedGraphComponents,
   graphComponentTopologySignature,
@@ -33,7 +34,7 @@ const TOPOLOGY_SETTLE_MS = 1500;
 const TOPOLOGY_ENTRY_OFFSET = 28;
 const COMPONENT_PACKING_GAP = 112;
 const CENTER_ATTRACTION_STRENGTH = 0.004;
-const motion = globalThis.TimelineMotion;
+const motion = TimelineMotion;
 
 function resolvedColor(container, name, fallback) {
   const value = getComputedStyle(container).getPropertyValue(name).trim();
