@@ -306,9 +306,17 @@ export const CLUSTER_ZOOM_THRESHOLD = 4.5;
 const WORLD_CLUSTER_BASE_NODE_RADIUS_PX = 28;
 /** Arrow geometry is world-space, so refresh it on fine-grained zoom steps. */
 const WORLD_SCREEN_SCALE_ZOOM_STEPS_PER_LEVEL = 32;
+const WORLD_CAMERA_FACING_STEP_DEGREES = 2;
 
 function screenScaleZoomStep(zoom: number): number {
   return Math.round(zoom * WORLD_SCREEN_SCALE_ZOOM_STEPS_PER_LEVEL);
+}
+
+function cameraFacingStep(camera: WorldCameraState): string {
+  return [
+    Math.round(camera.longitude / WORLD_CAMERA_FACING_STEP_DEGREES),
+    Math.round(camera.latitude / WORLD_CAMERA_FACING_STEP_DEGREES),
+  ].join(":");
 }
 
 export function clusterZoomThresholdForNodeRadius(nodeRadiusPx: number): number {
@@ -1830,6 +1838,7 @@ export class DeckWorldSurface implements WorldSurface {
   #clusteredLastRender = false;
   #clusterExpansionLastRender = 1;
   #screenScaleZoomLastRender = Number.NaN;
+  #cameraFacingStepLastRender = "";
   // Same idea for the semantic label/marker LOD tier: a tier change only
   // matters when some kind has more candidates than the smaller budget.
   #labelBudgetLastRender = -1;
@@ -2775,11 +2784,14 @@ export class DeckWorldSurface implements WorldSurface {
       Math.min(budget, this.#labelBudgetLastRender) < this.#lodCandidateCountLastRender;
     const screenScaleChanged =
       screenScaleZoomStep(this.#camera.zoom) !== this.#screenScaleZoomLastRender;
+    const cameraFacingChanged =
+      cameraFacingStep(this.#camera) !== this.#cameraFacingStepLastRender;
     return (
       clusteredNow !== this.#clusteredLastRender ||
       clusterMotionChanged ||
       lodChanged ||
       screenScaleChanged ||
+      cameraFacingChanged ||
       this.#nextOffsetScale() !== this.#offsetScale ||
       this.#nextFloatMeters() !== this.#floatMeters
     );
@@ -3179,6 +3191,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#clusteredLastRender = placeExpansion < 1 || gridClustered;
     this.#clusterExpansionLastRender = rawPlaceExpansion;
     this.#screenScaleZoomLastRender = screenScaleZoomStep(this.#camera.zoom);
+    this.#cameraFacingStepLastRender = cameraFacingStep(this.#camera);
     this.#labelBudgetLastRender = worldLabelBudget(this.#camera.zoom);
     this.#lodCandidateCountLastRender = Math.max(
       places.length,
