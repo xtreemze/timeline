@@ -24,10 +24,28 @@ export default defineConfig({
               priority: 30,
             },
             {
-              name: "world-rendering",
-              test: /node_modules[\\/](?:@deck\\.gl|@luma\\.gl|@math\\.gl|@loaders\\.gl|@probe\\.gl)[\\/]/,
-              maxSize: 400_000,
-              priority: 25,
+              name: "deck-core",
+              test: /node_modules[\\/]@deck\\.gl[\\/]core[\\/]/,
+              maxSize: 350_000,
+              priority: 29,
+            },
+            {
+              name: "deck-layers",
+              test: /node_modules[\\/]@deck\\.gl[\\/]layers[\\/]/,
+              maxSize: 350_000,
+              priority: 28,
+            },
+            {
+              name: "luma-runtime",
+              test: /node_modules[\\/](?:@luma\\.gl|@math\\.gl|@loaders\\.gl|@probe\\.gl)[\\/]/,
+              maxSize: 350_000,
+              priority: 27,
+            },
+            {
+              name: "lit-runtime",
+              test: /node_modules[\\/](?:lit|lit-html|lit-element|@lit)[\\/]/,
+              maxSize: 300_000,
+              priority: 26,
             },
             {
               name: "legacy-graph",
