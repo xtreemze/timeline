@@ -57,7 +57,10 @@ test("Biome is the authoritative formatter and strict multi-language quality too
     "warn",
     "error",
   ]);
-  assert.equal(parityOverride?.linter?.rules?.suspicious?.noDoubleEquals?.options?.ignoreNull, false);
+  assert.equal(
+    parityOverride?.linter?.rules?.suspicious?.noDoubleEquals?.options?.ignoreNull,
+    false,
+  );
   assert.equal(parityOverride?.linter?.rules?.suspicious?.noUnusedExpressions, "error");
 
   const strictOverride = biome.overrides?.find((override) =>
