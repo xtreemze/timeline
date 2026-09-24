@@ -1,6 +1,7 @@
 export interface CompatibleSpatialView {
   setModel(model: unknown): void;
   setWindow(viewport: unknown): void;
+  previewWindow?(viewport: unknown): void;
   setFocus(id: string | number | null): void;
   setPresentationMode?(active: boolean): void;
   hasContext?(): boolean;
