@@ -2303,6 +2303,19 @@ export class DeckWorldSurface implements WorldSurface {
     );
   }
 
+  #hiddenClusterInstanceIds(): ReadonlySet<WorldInstanceId> {
+    if (this.#clusterPhase !== "collapsed") return new Set();
+    const places = new Set(this.#clusterPlaceIds);
+    return new Set(
+      this.#projection.instances
+        .filter((instance) => {
+          const placeId = instance.geographicAnchors[0]?.placeId;
+          return placeId !== undefined && places.has(placeId);
+        })
+        .map((instance) => instance.id),
+    );
+  }
+
   #sameClusterPlaces(placeIds: readonly PlaceId[]): boolean {
     return (
       placeIds.length === this.#clusterPlaceIds.length &&
@@ -2633,34 +2646,44 @@ export class DeckWorldSurface implements WorldSurface {
         ...(datum.label === undefined ? {} : { label: datum.label }),
       }),
     );
+    const hiddenInstances = this.#hiddenClusterInstanceIds();
     const relationships = relationshipDatums(
       this.#projection,
       this.#instanceIndex(),
       this.#selection,
       this.#relationshipDatumCache,
-    ).datums.map((datum) =>
-      Object.freeze({
-        relationshipId: datum.relationshipId,
-        selected: datum.selected,
-        ...(datum.label === undefined ? {} : { label: datum.label }),
-        sourceEntityId: datum.sourceEntityId,
-        targetEntityId: datum.targetEntityId,
-      }),
-    );
+    ).datums
+      .filter(
+        (datum) =>
+          !hiddenInstances.has(datum.sourceInstanceId) &&
+          !hiddenInstances.has(datum.targetInstanceId),
+      )
+      .map((datum) =>
+        Object.freeze({
+          relationshipId: datum.relationshipId,
+          selected: datum.selected,
+          ...(datum.label === undefined ? {} : { label: datum.label }),
+          sourceEntityId: datum.sourceEntityId,
+          targetEntityId: datum.targetEntityId,
+        }),
+      );
+    const hiddenInstances = this.#hiddenClusterInstanceIds();
     const entities = entityDatums(
       this.#projection.instances,
       this.#selection,
       this.#entityDatumCache,
       this.#offsetScale,
       this.#floatMeters,
-    ).datums.map((datum) =>
-      Object.freeze({
-        entityId: datum.entityId,
-        worldInstanceId: datum.worldInstanceId,
-        selected: datum.selected,
-        ...(datum.label === undefined ? {} : { label: datum.label }),
-      }),
-    );
+    ).datums
+      .filter((datum) => !hiddenInstances.has(datum.worldInstanceId))
+      .map((datum) =>
+        Object.freeze({
+          entityId: datum.entityId,
+          worldInstanceId: datum.worldInstanceId,
+          selected: datum.selected,
+          ...(datum.label === undefined ? {} : { label: datum.label }),
+        }),
+      );
 
     return Object.freeze({
       entities: Object.freeze(entities),
@@ -2947,16 +2970,24 @@ export class DeckWorldSurface implements WorldSurface {
       this.#placeDatumCache,
     ).datums;
 
+    const hiddenInstances = this.#hiddenClusterInstanceIds();
     const candidates: WorldSelection[] = [];
     for (const place of places) {
       candidates.push(Object.freeze({ kind: "place" as const, id: place.placeId }));
     }
     for (const relationship of relationships) {
+      if (
+        hiddenInstances.has(relationship.sourceInstanceId) ||
+        hiddenInstances.has(relationship.targetInstanceId)
+      ) {
+        continue;
+      }
       candidates.push(
         Object.freeze({ kind: "relationship" as const, id: relationship.relationshipId }),
       );
     }
     for (const entity of entities) {
+      if (hiddenInstances.has(entity.worldInstanceId)) continue;
       candidates.push(Object.freeze({ kind: "entity" as const, id: entity.entityId }));
     }
     return Object.freeze(candidates);
