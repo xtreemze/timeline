@@ -2,46 +2,46 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  interpolateClusterPosition,
-  worldClusterExpansionProgress,
+  WORLD_CLUSTER_EDGE_RELEASE_MS,
+  WORLD_CLUSTER_SETTLE_MS,
+  worldClusterMutesMembers,
+  worldClusterShowsActiveEdges,
+  worldClusterShowsMembers,
+  worldClusterShowsReleasingEdges,
+  worldClusterWantsCollapsed,
 } from "../src/layout/world-cluster-transition.ts";
-import {
-  WORLD_PLACE_CLUSTER_RADIUS_PX,
-  WORLD_READABLE_LOCAL_RADIUS_PX,
-} from "../src/layout/world-semantic-presentation.ts";
 
-test("cluster expansion is continuous across the semantic zoom band", () => {
-  assert.equal(worldClusterExpansionProgress(50, 100), 0);
-  assert.equal(worldClusterExpansionProgress(140, 100), 1);
-  const middle = worldClusterExpansionProgress(100, 100);
-  assert.ok(middle > 0 && middle < 1);
+const THRESHOLD = 4.5;
 
-  const before = worldClusterExpansionProgress(99, 100);
-  const after = worldClusterExpansionProgress(101, 100);
-  assert.ok(Math.abs(after - before) < 0.1, "no threshold-sized jump is introduced");
+test("cluster zoom policy uses hysteresis without generating geometry", () => {
+  assert.equal(worldClusterWantsCollapsed(4.4, THRESHOLD, "expanded"), false);
+  assert.equal(worldClusterWantsCollapsed(4.2, THRESHOLD, "expanded"), true);
+
+  assert.equal(worldClusterWantsCollapsed(4.6, THRESHOLD, "collapsed"), true);
+  assert.equal(worldClusterWantsCollapsed(4.8, THRESHOLD, "collapsed"), false);
 });
 
-test("cluster interpolation is reversible and follows the shortest longitude path", () => {
-  const origin = Object.freeze([179, 10, 0]);
-  const target = Object.freeze([-179, 14, 1000]);
+test("Orb-style topology staging releases edges before member cleanup", () => {
+  assert.equal(WORLD_CLUSTER_EDGE_RELEASE_MS, 420);
+  assert.equal(WORLD_CLUSTER_SETTLE_MS, 1_500);
+  assert.ok(WORLD_CLUSTER_EDGE_RELEASE_MS < WORLD_CLUSTER_SETTLE_MS);
 
-  assert.deepEqual(interpolateClusterPosition(origin, target, 0), origin);
-  assert.deepEqual(interpolateClusterPosition(origin, target, 1), target);
+  assert.equal(worldClusterShowsMembers("releasing"), true);
+  assert.equal(worldClusterShowsReleasingEdges("releasing"), true);
+  assert.equal(worldClusterShowsActiveEdges("releasing"), false);
+  assert.equal(worldClusterMutesMembers("releasing"), true);
 
-  const half = interpolateClusterPosition(origin, target, 0.5);
-  assert.ok(Math.abs(Math.abs(half[0]) - 180) < 1e-9);
-  assert.equal(half[1], 12);
-  assert.equal(half[2], 500);
-});
+  assert.equal(worldClusterShowsMembers("collapsing"), true);
+  assert.equal(worldClusterShowsActiveEdges("collapsing"), false);
+  assert.equal(worldClusterMutesMembers("collapsing"), true);
 
+  assert.equal(worldClusterShowsMembers("collapsed"), false);
+  assert.equal(worldClusterShowsReleasingEdges("collapsed"), false);
 
-test("place clusters do not resolve before the local graph readability floor", () => {
-  assert.equal(WORLD_PLACE_CLUSTER_RADIUS_PX, WORLD_READABLE_LOCAL_RADIUS_PX);
-  assert.ok(
-    worldClusterExpansionProgress(
-      WORLD_READABLE_LOCAL_RADIUS_PX,
-      WORLD_PLACE_CLUSTER_RADIUS_PX,
-    ) < 1,
-    "the readability floor is still inside the transition band; full expansion requires more room",
-  );
+  assert.equal(worldClusterShowsMembers("expanding"), true);
+  assert.equal(worldClusterShowsActiveEdges("expanding"), false);
+  assert.equal(worldClusterMutesMembers("expanding"), true);
+
+  assert.equal(worldClusterShowsActiveEdges("expanded"), true);
+  assert.equal(worldClusterMutesMembers("expanded"), false);
 });
