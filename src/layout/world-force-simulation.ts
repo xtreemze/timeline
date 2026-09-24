@@ -69,6 +69,11 @@ export interface WorldSimulationDiagnostics {
 export interface WorldForceSimulationBackend {
   setScene(scene: WorldForceScene): void;
   setPin(pin: WorldForcePin | null): void;
+  /**
+   * Presentation-only place clustering. Implementations keep canonical place
+   * anchors intact while changing local force constraints for these groups.
+   */
+  setClusteredPlaceIds?(placeIds: readonly PlaceId[]): void;
   apply(request: WorldSimulationRequest): void;
   stop(): void;
   step?(deltaMs: number): void;
