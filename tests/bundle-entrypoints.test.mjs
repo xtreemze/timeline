@@ -55,9 +55,10 @@ test("deferred spatial view replays state after its renderer loads", async () =>
 });
 
 test("production entrypoints keep PDF, deck/luma, and Orb behind dynamic imports", async () => {
-  const [app, worldShim, legacyShim] = await Promise.all([
+  const [app, worldShim, worldBindings, legacyShim] = await Promise.all([
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/world-view-shim.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/world/deck-world-bindings.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/temporal-graph-view-shim.ts", import.meta.url), "utf8"),
   ]);
 
@@ -66,6 +67,11 @@ test("production entrypoints keep PDF, deck/luma, and Orb behind dynamic imports
 
   assert.doesNotMatch(worldShim, /from\s+["']\.\/world\/deck-world-bindings\.ts["']/);
   assert.match(worldShim, /import\(["']\.\/world\/deck-world-bindings\.ts["']\)/);
+  assert.doesNotMatch(
+    worldBindings,
+    /import\s+\{\s*webgpuAdapter\s*\}\s+from\s+["']@luma\.gl\/webgpu["']/,
+  );
+  assert.match(worldBindings, /import\(["']@luma\.gl\/webgpu["']\)/);
 
   assert.doesNotMatch(legacyShim, /from\s+["']\.\.\/src\/orb-graph-entry\.js["']/);
   assert.doesNotMatch(legacyShim, /from\s+["']\.\/temporal-graph-view\.ts["']/);
