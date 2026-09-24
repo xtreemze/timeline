@@ -1561,14 +1561,6 @@ export function worldGraphLabelSize(
   return 18;
 }
 
-export function worldLabelCollisionPriority(
-  datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">,
-): number {
-  const semanticBase =
-    datum.kind === "place-label" ? 200 : datum.kind === "entity-label" ? 120 : 80;
-  return datum.emphasized ? semanticBase + 700 : semanticBase;
-}
-
 const LABEL_PLACEMENT_CELL_PX = 128;
 const LABEL_PLACEMENT_PADDING_PX = 4;
 const LABEL_DETAIL_KEEP_ALL_ZOOM = 5;
@@ -2050,7 +2042,6 @@ function worldHitFromPicking(info: DeckRuntimePickingInfo | null): WorldHit | nu
 
 export class DeckWorldSurface implements WorldSurface {
   readonly #runtime: DeckWorldRuntime;
-  readonly #labelCollisionExtension: unknown | null;
   readonly #deck: DeckRuntimeInstance;
   readonly #globeView: unknown;
   readonly #localView: unknown | null;
@@ -2335,7 +2326,6 @@ export class DeckWorldSurface implements WorldSurface {
 
   constructor(container: HTMLElement, runtime: DeckWorldRuntime, initialCamera?: WorldCameraState) {
     this.#runtime = runtime;
-    this.#labelCollisionExtension = runtime.createCollisionFilterExtension?.() ?? null;
     this.#container = container;
     // A caller-chosen camera is authoritative; otherwise the first projected
     // content fits the camera once (see #autoFitCamera).
@@ -2818,20 +2808,28 @@ export class DeckWorldSurface implements WorldSurface {
   pick(point: ScreenPoint, options: { readonly depth?: boolean } = {}): WorldHit | null {
     this.#assertAlive();
     let picked: DeckRuntimePickingInfo | null;
+    const depthAware = options.depth !== false;
     try {
       picked = this.#deck.pickObject({
         x: point.x,
         y: point.y,
         radius: 22,
-        unproject3D: options.depth !== false,
-        layerIds: [
-          DECK_WORLD_LAYER_IDS.entityIcons,
-          DECK_WORLD_LAYER_IDS.entities,
-          DECK_WORLD_LAYER_IDS.relationshipDirections,
-          DECK_WORLD_LAYER_IDS.relationships,
-          DECK_WORLD_LAYER_IDS.placeIcons,
-          DECK_WORLD_LAYER_IDS.places,
-        ],
+        unproject3D: depthAware,
+        layerIds: depthAware
+          ? [
+              DECK_WORLD_LAYER_IDS.entities,
+              DECK_WORLD_LAYER_IDS.relationshipDirections,
+              DECK_WORLD_LAYER_IDS.relationships,
+              DECK_WORLD_LAYER_IDS.places,
+            ]
+          : [
+              DECK_WORLD_LAYER_IDS.entityIcons,
+              DECK_WORLD_LAYER_IDS.entities,
+              DECK_WORLD_LAYER_IDS.relationshipDirections,
+              DECK_WORLD_LAYER_IDS.relationships,
+              DECK_WORLD_LAYER_IDS.placeIcons,
+              DECK_WORLD_LAYER_IDS.places,
+            ],
       });
     } catch {
       // Backends without synchronous picking (deck.gl 9.4 WebGPU) throw;
@@ -4126,13 +4124,6 @@ export class DeckWorldSurface implements WorldSurface {
               fontSettings: { sdf: true, fontSize: 64, buffer: 8, radius: 16 },
               outlineWidth: LABEL_HALO_PX,
               outlineColor: this.#theme.labelHalo,
-              ...(this.#labelCollisionExtension
-                ? {
-                    extensions: [this.#labelCollisionExtension],
-                    collisionGroup: "lum-world-labels",
-                    getCollisionPriority: worldLabelCollisionPriority,
-                  }
-                : {}),
               getText: (datum: DeckWorldLabelDatum) => datum.text,
               getPosition: (datum: DeckWorldLabelDatum) => datum.position,
               getSize: worldGraphLabelSize,
