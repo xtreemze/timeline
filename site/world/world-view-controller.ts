@@ -139,7 +139,8 @@ export class WorldViewRuntimeController {
     this.#forceBackend.applyClusterDirective(directive);
     this.#simulation.request({
       reason: "topology",
-      energyTarget: directive.mode === "expand" ? 0.16 : 0.1,
+      energyTarget:
+        directive.mode === "expand" ? 0.16 : directive.mode === "connect" ? 0.06 : 0.1,
       reheat: true,
     });
   }
