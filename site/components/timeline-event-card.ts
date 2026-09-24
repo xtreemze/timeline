@@ -104,26 +104,28 @@ export class LuumEventCardElement extends LitElement {
         data-id=${item.id}
         aria-label=${ariaLabel}
       >
-        ${media?.src
-          ? html`
-              <span class="timeline-event-art" aria-hidden="true">
-                <img
-                  class="timeline-event-art-image"
-                  src=${media.src}
-                  alt=""
-                  decoding="async"
-                  loading="lazy"
-                />
-                <span class="timeline-event-icon-badge">
-                  ${semanticIcon(iconName, 18)}
+        ${
+          media?.src
+            ? html`
+                <span class="timeline-event-art" aria-hidden="true">
+                  <img
+                    class="timeline-event-art-image"
+                    src=${media.src}
+                    alt=""
+                    decoding="async"
+                    loading="lazy"
+                  />
+                  <span class="timeline-event-icon-badge">
+                    ${semanticIcon(iconName, 18)}
+                  </span>
                 </span>
-              </span>
-            `
-          : html`
-              <span class="timeline-event-dot" aria-hidden="true">
-                ${semanticIcon(iconName, 24)}
-              </span>
-            `}
+              `
+            : html`
+                <span class="timeline-event-dot" aria-hidden="true">
+                  ${semanticIcon(iconName, 24)}
+                </span>
+              `
+        }
         <span class="timeline-event-copy">
           <strong>${item.title || item.id}</strong>
           <span>${detail}</span>
@@ -133,9 +135,6 @@ export class LuumEventCardElement extends LitElement {
   }
 }
 
-if (
-  typeof customElements !== "undefined" &&
-  !customElements.get("luum-event-card")
-) {
+if (typeof customElements !== "undefined" && !customElements.get("luum-event-card")) {
   customElements.define("luum-event-card", LuumEventCardElement);
 }
