@@ -423,6 +423,13 @@ interface TemporalAccentsResult {
   hasAmbientContext: boolean;
 }
 
+function utcBucketTime(year: number, month: number, day: number): number {
+  const date = new Date(0);
+  date.setUTCFullYear(year, month, day);
+  date.setUTCHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
 function ambientContextForUnit(timeMs: number, unit: string | null): {
   kind: string;
   label: string;
@@ -434,15 +441,15 @@ function ambientContextForUnit(timeMs: number, unit: string | null): {
   }
 
   if (unit === "year" || unit === "month") {
-    const sceneTime = Date.UTC(date.getUTCFullYear(), 0, 1);
+    const sceneTime = utcBucketTime(date.getUTCFullYear(), 0, 1);
     return { kind: "year", label: yearLabelForTime(sceneTime), sceneTime };
   }
   if (unit === "day" || unit === "week") {
-    const sceneTime = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1);
+    const sceneTime = utcBucketTime(date.getUTCFullYear(), date.getUTCMonth(), 1);
     return { kind: "month-year", label: formatMonthYear(sceneTime), sceneTime };
   }
 
-  const sceneTime = Date.UTC(
+  const sceneTime = utcBucketTime(
     date.getUTCFullYear(),
     date.getUTCMonth(),
     date.getUTCDate(),
@@ -1020,7 +1027,7 @@ export function compactTickLabel(
 
   if (spec.unit === "year") return yearLabelForTime(timeMs);
   if (spec.unit === "month") {
-    if (hasAmbientMonth) return monthLabelForTime(timeMs);
+    if (hasAmbientMonth) return "";
     return formatMonthYear(timeMs);
   }
   if (spec.unit === "week") {
