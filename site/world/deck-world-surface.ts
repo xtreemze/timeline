@@ -2783,20 +2783,32 @@ export class DeckWorldSurface implements WorldSurface {
   pick(point: ScreenPoint, options: { readonly depth?: boolean } = {}): WorldHit | null {
     this.#assertAlive();
     let picked: DeckRuntimePickingInfo | null;
+    const depthAware = options.depth !== false;
     try {
       picked = this.#deck.pickObject({
         x: point.x,
         y: point.y,
         radius: 22,
-        unproject3D: options.depth !== false,
-        layerIds: [
-          DECK_WORLD_LAYER_IDS.entityIcons,
-          DECK_WORLD_LAYER_IDS.entities,
-          DECK_WORLD_LAYER_IDS.relationshipDirections,
-          DECK_WORLD_LAYER_IDS.relationships,
-          DECK_WORLD_LAYER_IDS.placeIcons,
-          DECK_WORLD_LAYER_IDS.places,
-        ],
+        unproject3D: depthAware,
+        layerIds: depthAware
+          ? [
+              // Depth-aware acquisition must use geometry layers. Marker icons
+              // deliberately render with depthCompare: "always" so they remain
+              // legible over the globe, which makes them presentation-only for
+              // semantic depth picking.
+              DECK_WORLD_LAYER_IDS.entities,
+              DECK_WORLD_LAYER_IDS.relationshipDirections,
+              DECK_WORLD_LAYER_IDS.relationships,
+              DECK_WORLD_LAYER_IDS.places,
+            ]
+          : [
+              DECK_WORLD_LAYER_IDS.entityIcons,
+              DECK_WORLD_LAYER_IDS.entities,
+              DECK_WORLD_LAYER_IDS.relationshipDirections,
+              DECK_WORLD_LAYER_IDS.relationships,
+              DECK_WORLD_LAYER_IDS.placeIcons,
+              DECK_WORLD_LAYER_IDS.places,
+            ],
       });
     } catch {
       // Backends without synchronous picking (deck.gl 9.4 WebGPU) throw;
