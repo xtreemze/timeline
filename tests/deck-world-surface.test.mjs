@@ -1143,6 +1143,105 @@ test("deck entity drag callbacks resolve screen motion into world-local drag int
   assert.deepEqual(dragCalls.at(-1), ["release", 7]);
 });
 
+test("direct node drag keeps node, edge, and label geometry in lockstep", () => {
+  const { calls, runtime } = harness();
+  runtime.createIconLayer = (props) => ({ type: "icon", props });
+  runtime.createTextLayer = (props) => ({ type: "text", props });
+
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+  surface.setCamera({
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 8,
+    bearing: 0,
+    pitch: 20,
+  });
+
+  const latestLayer = (id) =>
+    calls.setProps.at(-1).layers.find((layer) => layer.props.id === id);
+
+  surface.setNodeDragSink({
+    begin() {
+      // Exercise the synchronous first-frame case: drag mode must already be
+      // active before the sink publishes a new projection.
+      surface.setProjection(projection());
+      return true;
+    },
+    update() {
+      surface.setProjection(projection());
+      return true;
+    },
+    release() {
+      // The final pinned frame must also remain transition-free.
+      surface.setProjection(projection());
+      return true;
+    },
+    cancel() {},
+  });
+
+  const entityLayer = calls.scatterLayers
+    .filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities)
+    .at(-1);
+  const alice = entityLayer.props.data.find((datum) => datum.entityId === "alice");
+  const dragEvent = { srcEvent: { pointerId: 71 }, stopPropagation() {} };
+
+  assert.equal(
+    entityLayer.props.onDragStart({ object: alice, x: 118.0786, y: 259.3393 }, dragEvent),
+    true,
+  );
+
+  const assertGeometryIsImmediate = () => {
+    assert.equal(latestLayer(DECK_WORLD_LAYER_IDS.entities).props.transitions.getPosition, undefined);
+    assert.equal(
+      latestLayer(DECK_WORLD_LAYER_IDS.relationships).props.transitions.getPath,
+      undefined,
+    );
+    assert.equal(
+      latestLayer(DECK_WORLD_LAYER_IDS.relationshipDirections).props.transitions.getPath,
+      undefined,
+    );
+
+    const tethers = latestLayer(DECK_WORLD_LAYER_IDS.tethers);
+    if (tethers) assert.equal(tethers.props.transitions.getPath, undefined);
+
+    const icons = latestLayer(DECK_WORLD_LAYER_IDS.entityIcons);
+    assert.ok(icons);
+    assert.equal(icons.props.transitions.getPosition, undefined);
+
+    const labels = latestLayer(DECK_WORLD_LAYER_IDS.labels);
+    assert.ok(labels);
+    assert.equal(labels.props.transitions.getPosition, undefined);
+  };
+
+  assertGeometryIsImmediate();
+
+  assert.equal(
+    latestLayer(DECK_WORLD_LAYER_IDS.entities).props.onDrag(
+      { object: alice, x: 118.0886, y: 259.3493 },
+      dragEvent,
+    ),
+    true,
+  );
+  assertGeometryIsImmediate();
+
+  assert.equal(
+    latestLayer(DECK_WORLD_LAYER_IDS.entities).props.onDragEnd(
+      { object: alice, x: 118.0886, y: 259.3493 },
+      dragEvent,
+    ),
+    true,
+  );
+  assertGeometryIsImmediate();
+
+  // Ordinary non-drag layout/cluster motion still keeps its continuity
+  // transitions after direct manipulation is over.
+  surface.setProjection(projection());
+  assert.ok(latestLayer(DECK_WORLD_LAYER_IDS.entities).props.transitions.getPosition);
+  assert.ok(latestLayer(DECK_WORLD_LAYER_IDS.relationships).props.transitions.getPath);
+  assert.ok(latestLayer(DECK_WORLD_LAYER_IDS.entityIcons).props.transitions.getPosition);
+});
+
 test("close-zoom node drag locks the globe camera until release", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
