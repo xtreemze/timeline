@@ -228,15 +228,13 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     }
   });
 
-  test("utility sheets and popovers stay reachable in both phone orientations", async ({
-    page,
-  }) => {
-    for (const { viewport, orientation } of [
-      { viewport: PHONE_PORTRAIT, orientation: "portrait" },
-      { viewport: PHONE_LANDSCAPE, orientation: "landscape" },
-      { viewport: TABLET_LANDSCAPE, orientation: "landscape" },
-      { viewport: DESKTOP_LANDSCAPE, orientation: "landscape" },
-    ]) {
+  for (const { label, viewport, orientation } of [
+    { label: "phone portrait", viewport: PHONE_PORTRAIT, orientation: "portrait" },
+    { label: "phone landscape", viewport: PHONE_LANDSCAPE, orientation: "landscape" },
+    { label: "tablet landscape", viewport: TABLET_LANDSCAPE, orientation: "landscape" },
+    { label: "desktop landscape", viewport: DESKTOP_LANDSCAPE, orientation: "landscape" },
+  ] as const) {
+    test(`utility sheets and popovers stay reachable in ${label}`, async ({ page }) => {
       await page.setViewportSize(viewport);
       await page.goto("/");
       await ensureTimelineOrientation(page, orientation);
@@ -272,8 +270,8 @@ test.describe("Mobile-first Timeline layout contracts", () => {
 
       await page.keyboard.press("Escape");
       await expect(viewButton).toHaveAttribute("aria-expanded", "false");
-    }
-  });
+    });
+  }
 
   test("orientation changes retain rendered occurrence identity and update control semantics", async ({
     page,
