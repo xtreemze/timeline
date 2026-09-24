@@ -205,7 +205,7 @@ Responsibilities:
 - global geographic/Earth projection;
 - `SpatialAnchorIndex`;
 - occurrence-to-place association;
-- multiple rendered instances for one canonical entity when different occurrences require different places;
+- one rendered node per canonical entity, with multiple spatial anchors when different occurrences reference different places;
 - geographic, topology, collision, cluster and altitude constraints;
 - globe/world camera coordination;
 - derived visual altitude that separates interactive topology from the Earth surface.
