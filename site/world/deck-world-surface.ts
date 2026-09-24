@@ -1245,9 +1245,6 @@ export const WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM = 6;
  * Presentation only: logical activation remains immediate.
  */
 export const WORLD_TEMPORAL_RELATION_TRANSITION_MS = 3_000;
-/** Path topology moves quickly enough to explain parallel-edge fan-out without snapping. */
-export const WORLD_RELATION_PATH_TRANSITION_MS = 600;
-
 function temporalRelationEasing(t: number): number {
   return t * t * (3 - 2 * t);
 }
@@ -1808,7 +1805,6 @@ export class DeckWorldSurface implements WorldSurface {
   // actually turn on/off (ordinary panning/zooming above the threshold stays
   // as cheap as before).
   #clusteredLastRender = false;
-  #clusterExpansionLastRender = 1;
   // Same idea for the semantic label/marker LOD tier: a tier change only
   // matters when some kind has more candidates than the smaller budget.
   #labelBudgetLastRender = -1;
@@ -2854,19 +2850,13 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #zoomNeedsRender(): boolean {
-    const clusterExpansion = this.#placeClusterExpansion();
-    const clusteredNow =
-      shouldClusterEntityDatums(this.#entityDatumCache.size, this.#camera.zoom) ||
-      clusterExpansion < 1;
-    const clusterMotionChanged =
-      Math.abs(clusterExpansion - this.#clusterExpansionLastRender) > 0.002;
+    const clusteredNow = this.#clusterPhase !== "expanded";
     const budget = worldLabelBudget(this.#camera.zoom);
     const lodChanged =
       budget !== this.#labelBudgetLastRender &&
       Math.min(budget, this.#labelBudgetLastRender) < this.#lodCandidateCountLastRender;
     return (
       clusteredNow !== this.#clusteredLastRender ||
-      clusterMotionChanged ||
       lodChanged ||
       this.#nextOffsetScale() !== this.#offsetScale ||
       this.#nextFloatMeters() !== this.#floatMeters
@@ -2880,9 +2870,6 @@ export class DeckWorldSurface implements WorldSurface {
    */
   #nextOffsetScale(zoom = this.#camera.zoom): number {
     const instances = this.#projection.instances;
-    // Clustered overviews group true geography; magnifying offsets there
-    // would scatter one place's entities across cluster cells.
-    if (shouldClusterEntityDatums(instances.length, zoom)) return 1;
     const typical = this.#typicalOffsetMeters();
     const scale = worldPresentationOffsetScale(
       zoom,
@@ -2898,46 +2885,6 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   /**
-   * Continuous place-cluster expansion. At 0 only the place cluster is
-   * visible; at 1 the active force backend owns the full node positions.
-   * Intermediate zooms blend between those endpoints instead of swapping
-   * representations at a threshold.
-   */
-  #placeClusterExpansion(zoom = this.#camera.zoom): number {
-    const instances = this.#projection.instances;
-    if (instances.length === 0) return 1;
-
-    // Only multi-member place groups participate. A lone anchored entity has
-    // nothing to collapse into, so ordinary camera zoom must not trigger
-    // continuous re-renders for it.
-    const placeCounts = new Map<PlaceId, number>();
-    let hasClusterablePlace = false;
-    for (const instance of instances) {
-      const placeId = instance.geographicAnchors[0]?.placeId;
-      if (!placeId) continue;
-      const count = (placeCounts.get(placeId) ?? 0) + 1;
-      placeCounts.set(placeId, count);
-      if (count > 1) {
-        hasClusterablePlace = true;
-        break;
-      }
-    }
-    if (!hasClusterablePlace) return 1;
-
-    // Before the force backend has emitted local displacement, the
-    // logical origin is exactly the place cluster. This makes the first
-    // solved layout expand from that origin instead of popping into view.
-    const typical = this.#typicalOffsetMeters();
-    if (typical <= 0) return 0;
-    const radius = worldLocalRadiusPx(
-      typical * this.#nextOffsetScale(zoom),
-      zoom,
-      this.#camera.latitude,
-    );
-    return worldClusterExpansionProgress(radius, WORLD_PLACE_CLUSTER_RADIUS_PX);
-  }
-
-  /**
    * Entities float a constant on-screen height above the terrain (places
    * stay on it). Quantised to quarter zoom steps like the offset scale so
    * positions only rebuild on real zoom changes; 0 while entities cluster
@@ -2945,7 +2892,7 @@ export class DeckWorldSurface implements WorldSurface {
    */
   #nextFloatMeters(zoom = this.#camera.zoom): number {
     const instances = this.#projection.instances;
-    if (instances.length === 0 || shouldClusterEntityDatums(instances.length, zoom)) return 0;
+    if (instances.length === 0) return 0;
     if (this.#typicalOffsetMeters() <= 0) return 0;
     const quantised = Math.round(zoom * 4) / 4;
     return Math.round(worldLocalRadiusPx(1, quantised, 0) ** -1 * WORLD_ENTITY_FLOAT_PX);
@@ -3199,7 +3146,6 @@ export class DeckWorldSurface implements WorldSurface {
     this.#relationshipDatumCache = relationshipResult.byId;
     this.#entityDatumCache = entityResult.byId;
     this.#clusteredLastRender = clusterPhase !== "expanded";
-    this.#clusterExpansionLastRender = clusterPhase === "collapsed" ? 0 : 1;
     this.#labelBudgetLastRender = worldLabelBudget(this.#camera.zoom);
     this.#lodCandidateCountLastRender = Math.max(
       places.length,
