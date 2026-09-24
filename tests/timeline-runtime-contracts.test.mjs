@@ -47,6 +47,8 @@ test("retained event cards delegate semantic rendering to Lit without reactive g
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
 
+  assert.match(view, /import "\.\/components\/timeline-event-card\.ts"/);
+  assert.match(view, /import type \{ LuumEventCardElement \}/);
   assert.match(view, /document\.createElement\("luum-event-card"\)/);
   assert.match(view, /contentRevision/);
   assert.match(view, /revision !== record\.contentRevision/);
