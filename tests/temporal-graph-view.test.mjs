@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { selectPrimarySpatialViewFactory } from "../site/world/world-view-selection.ts";
 
 await import("../site/temporal-standards-shim.ts");
 await import("../site/timeline-graph-shim.ts");
@@ -434,4 +435,25 @@ test("clearing all graph records bypasses topology transitions through GraphSurf
     /if \(this\.hasRenderedData\) \{[\s\S]{0,500}if \(graphIsEmpty\) this\.surface\.setProjection\(projection\)[\s\S]{0,300}else this\.surface\.transitionProjection\(projection\)/,
   );
   assert.doesNotMatch(source, /this\.orb\./);
+});
+
+
+test("application spatial-view selection prefers the globe WorldView factory", () => {
+  const world = { create() { return { kind: "world" }; } };
+  const legacy = { create() { return { kind: "legacy" }; } };
+
+  assert.equal(selectPrimarySpatialViewFactory(world, legacy), world);
+});
+
+test("application spatial-view selection retains Orb graph fallback during migration", () => {
+  const legacy = { create() { return { kind: "legacy" }; } };
+
+  assert.equal(selectPrimarySpatialViewFactory(null, legacy), legacy);
+});
+
+test("application spatial-view selection fails explicitly when no compatible surface exists", () => {
+  assert.throws(
+    () => selectPrimarySpatialViewFactory(null, null),
+    /WorldView or legacy TemporalGraphView/,
+  );
 });

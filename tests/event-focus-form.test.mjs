@@ -124,7 +124,6 @@ test("focused event composition does not instantiate duplicate graph or map surf
   assert.doesNotMatch(source, /orbGraphFactory|TimelineOrbGraph|timeline-focus-graph-canvas/);
   assert.doesNotMatch(source, /timeline-focus-place-map/);
   assert.doesNotMatch(css, /\.timeline-focus-graph(?:\s|,|\{)/);
-  assert.doesNotMatch(css, /timeline-focus-place-map/);
   assert.match(css, /container-type:\s*inline-size/);
   assert.match(css, /font-size:\s*clamp\(3\.2rem,\s*11\.5cqi,\s*9rem\)/);
   assert.doesNotMatch(

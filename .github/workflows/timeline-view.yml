@@ -58,6 +58,7 @@ on:
       - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
+      - 'tests/timeline-recovered-affordances-runtime.test.mjs'
       - 'tests/retained-structural-composition-runtime.test.mjs'
       - 'tests/browser/retained-structural-composition.spec.ts'
       - 'tests/browser/semantic-chronology.spec.ts'
@@ -72,6 +73,7 @@ on:
       - 'src/performance/retained-timeline-metrics.ts'
       - 'benchmarks/retained-timeline.mjs'
       - 'benchmarks/graph-data.mjs'
+      - 'benchmarks/world-force.mjs'
       - 'docs/CONTRIBUTOR-ARCHITECTURE.md'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
       - 'tests/temporal-layout-runtime.test.mjs'
@@ -144,6 +146,7 @@ on:
       - 'schemas/interchange-v1.schema.json'
       - 'tests/timeline-view-geometry.test.mjs'
       - 'tests/timeline-interaction.test.mjs'
+      - 'tests/timeline-recovered-affordances-runtime.test.mjs'
       - 'tests/retained-structural-composition-runtime.test.mjs'
       - 'tests/browser/retained-structural-composition.spec.ts'
       - 'tests/browser/semantic-chronology.spec.ts'
@@ -155,6 +158,7 @@ on:
       - 'src/performance/retained-timeline-metrics.ts'
       - 'benchmarks/retained-timeline.mjs'
       - 'benchmarks/graph-data.mjs'
+      - 'benchmarks/world-force.mjs'
       - 'docs/CONTRIBUTOR-ARCHITECTURE.md'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
       - 'tests/temporal-layout-runtime.test.mjs'
@@ -202,12 +206,14 @@ jobs:
       - run: pnpm test:architecture
       - run: pnpm test:browser-certification-config
       - run: pnpm test:runtime-contracts
+      - run: pnpm test:recovered-affordances-runtime
       - run: pnpm test:evidence-inference-runtime
       - run: pnpm test:temporal-layout-runtime
       - run: pnpm test:structural-composition-runtime
       - run: pnpm test:retained-timeline-metrics
       - run: pnpm benchmark:retained-timeline
       - run: pnpm benchmark:graph-data
+      - run: pnpm benchmark:world-force
       - run: pnpm test:touch-runtime-contracts
       - run: pnpm test:temporal-context-runtime
       - run: pnpm test:semantic-hierarchy-runtime

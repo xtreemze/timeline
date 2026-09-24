@@ -1,4 +1,4 @@
-export type InteractionOwner = "timeline" | "graph" | "map";
+export type InteractionOwner = "timeline" | "world" | "graph" | "map";
 
 export type GestureKind =
   | "tap"
