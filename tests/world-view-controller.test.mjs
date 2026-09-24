@@ -77,6 +77,9 @@ function harness({
     setProjection(value) {
       calls.push(["surface:projection", value]);
     },
+    setRelationshipRoutes(value) {
+      calls.push(["surface:routes", value]);
+    },
     setTemporalWindow(value) {
       calls.push(["surface:window", value]);
     },
@@ -190,8 +193,10 @@ test("projection updates feed force scene and WorldSurface from one revision", (
   assert.equal(controller.state().projectionRevision, 1);
   assert.equal(controller.state().hasProjection, true);
   assert.equal(calls[0][0], "force:scene");
-  assert.equal(calls[1][0], "force:apply");
-  assert.deepEqual(calls[2], ["surface:projection", input]);
+  assert.equal(calls[1][0], "surface:routes");
+  assert.ok(calls[1][1].length > 0, "local DAG route hints reach the renderer");
+  assert.equal(calls[2][0], "force:apply");
+  assert.deepEqual(calls[3], ["surface:projection", input]);
 });
 
 test("runtime delegates temporal window and canonical selection to WorldSurface", () => {

@@ -7,7 +7,9 @@ import {
 } from "../../src/interaction/world-touch-hold.ts";
 import { fitWorldCamera, globeOverviewCamera } from "../../src/layout/world-camera-fit.ts";
 import { worldClusterExpansionProgress } from "../../src/layout/world-cluster-transition.ts";
+import type { WorldRelationshipRouteHint } from "../../src/layout/world-force-simulation.ts";
 import {
+  resolveWorldLocalLayoutPosition,
   resolveWorldRenderPosition,
   type WorldRenderPosition,
 } from "../../src/layout/world-geographic-position.ts";
@@ -1233,18 +1235,103 @@ interface WorldInstanceIndex {
   readonly entityIds: ReadonlyMap<WorldInstanceId, EntityId>;
 }
 
+interface RelationshipRoutingContext {
+  readonly routes: ReadonlyMap<RelationshipId, WorldRelationshipRouteHint>;
+  readonly offsetScale: number;
+  readonly floatMeters: number;
+  readonly activeDragInstanceId: WorldInstanceId | null;
+}
+
+function routedRelationshipPath(
+  route: WorldRelationshipRouteHint,
+  source: WorldRenderPosition,
+  target: WorldRenderPosition,
+  instanceById: ReadonlyMap<WorldInstanceId, ProjectedWorldInstance>,
+  context: RelationshipRoutingContext,
+): readonly WorldRenderPosition[] | null {
+  if (
+    route.points.length < 2 ||
+    context.activeDragInstanceId === route.sourceId ||
+    context.activeDragInstanceId === route.targetId
+  ) {
+    return null;
+  }
+  const sourceInstance = instanceById.get(route.sourceId);
+  if (!sourceInstance) return null;
+
+  const liveSource = resolveWorldLocalLayoutPosition(
+    sourceInstance,
+    source,
+    context.offsetScale,
+    context.floatMeters,
+  );
+  const liveTarget = resolveWorldLocalLayoutPosition(
+    sourceInstance,
+    target,
+    context.offsetScale,
+    context.floatMeters,
+  );
+  const desiredSource = route.points[0];
+  const desiredTarget = route.points[route.points.length - 1];
+  if (!liveSource || !liveTarget || !desiredSource || !desiredTarget) return null;
+
+  const sourceDeltaEast = liveSource.eastMeters - desiredSource.eastMeters;
+  const sourceDeltaNorth = liveSource.northMeters - desiredSource.northMeters;
+  const targetDeltaEast = liveTarget.eastMeters - desiredTarget.eastMeters;
+  const targetDeltaNorth = liveTarget.northMeters - desiredTarget.northMeters;
+  const points: WorldRenderPosition[] = [];
+
+  for (const [index, point] of route.points.entries()) {
+    const fraction = route.points.length <= 1 ? 0 : index / (route.points.length - 1);
+    const oneMinusFraction = 1 - fraction;
+    const projected = resolveWorldRenderPosition(
+      {
+        ...sourceInstance,
+        localOffset: Object.freeze({
+          eastMeters:
+            point.eastMeters +
+            sourceDeltaEast * oneMinusFraction +
+            targetDeltaEast * fraction,
+          northMeters:
+            point.northMeters +
+            sourceDeltaNorth * oneMinusFraction +
+            targetDeltaNorth * fraction,
+        }),
+      },
+      context.offsetScale,
+      context.floatMeters,
+    );
+    if (!projected) return null;
+    points.push(
+      Object.freeze([
+        projected[0],
+        projected[1],
+        source[2] + (target[2] - source[2]) * fraction,
+      ]) as WorldRenderPosition,
+    );
+  }
+
+  points[0] = source;
+  points[points.length - 1] = target;
+  return Object.freeze(points);
+}
+
 function relationshipDatums(
   projection: WorldProjection,
   index: WorldInstanceIndex,
   selection: WorldSelection | null,
   previous: ReadonlyMap<RelationshipId, DeckWorldRelationshipDatum>,
   emphasizedRelationshipIds?: ReadonlySet<RelationshipId>,
+  routing?: RelationshipRoutingContext,
 ): {
   readonly datums: readonly DeckWorldRelationshipDatum[];
   readonly byId: Map<RelationshipId, DeckWorldRelationshipDatum>;
 } {
   const byId = new Map<RelationshipId, DeckWorldRelationshipDatum>();
   const result: DeckWorldRelationshipDatum[] = [];
+  const instanceById = new Map(
+    projection.instances.map((instance) => [instance.id, instance] as const),
+  );
   const groups = new Map<string, WorldProjection["edges"][number][]>();
   for (const edge of projection.edges) {
     const sourceKey = String(edge.sourceInstanceId);
@@ -1281,14 +1368,28 @@ function relationshipDatums(
     const selected = selection?.kind === "relationship" && selection.id === edge.id;
     const emphasized = emphasizedRelationshipIds?.has(edge.id) === true;
     const lane = lanes.get(edge.id) ?? 0;
+    const route = routing?.routes.get(edge.id);
+    const routedPath =
+      route &&
+      route.sourceId === edge.sourceInstanceId &&
+      route.targetId === edge.targetInstanceId &&
+      routing
+        ? routedRelationshipPath(route, source, target, instanceById, routing)
+        : null;
     const canonicalForward =
       String(edge.sourceInstanceId).localeCompare(String(edge.targetInstanceId)) <= 0;
-    const canonicalPath = relationshipEdgePath(
-      canonicalForward ? source : target,
-      canonicalForward ? target : source,
-      lane,
-    );
-    const path = canonicalForward ? canonicalPath : Object.freeze([...canonicalPath].reverse());
+    const canonicalPath = routedPath
+      ? routedPath
+      : relationshipEdgePath(
+          canonicalForward ? source : target,
+          canonicalForward ? target : source,
+          lane,
+        );
+    const path = routedPath
+      ? routedPath
+      : canonicalForward
+        ? canonicalPath
+        : Object.freeze([...canonicalPath].reverse());
     const prior = previous.get(edge.id);
     const datum =
       prior && relationshipDatumUnchanged(prior, edge, path, selected, emphasized)
@@ -1949,6 +2050,7 @@ export class DeckWorldSurface implements WorldSurface {
     instances: Object.freeze([]),
     edges: Object.freeze([]),
   });
+  #relationshipRouteHints: ReadonlyMap<RelationshipId, WorldRelationshipRouteHint> = new Map();
   #selection: WorldSelection | null = null;
   #hoverSelection: WorldSelection | null = null;
   #camera: WorldCameraState;
@@ -2475,6 +2577,13 @@ export class DeckWorldSurface implements WorldSurface {
       this.#dragCameraLock = null;
     }
     this.#render();
+  }
+
+  setRelationshipRoutes(routes: readonly WorldRelationshipRouteHint[]): void {
+    this.#assertAlive();
+    this.#relationshipRouteHints = new Map(
+      routes.map((route) => [route.relationshipId, route] as const),
+    );
   }
 
   setProjection(projection: WorldProjection): void {
@@ -3352,6 +3461,12 @@ export class DeckWorldSurface implements WorldSurface {
       this.#selection,
       this.#relationshipDatumCache,
       neighborhood.relationshipIds,
+      {
+        routes: this.#relationshipRouteHints,
+        offsetScale: this.#offsetScale,
+        floatMeters: this.#floatMeters,
+        activeDragInstanceId: this.#activeDragInstanceId,
+      },
     );
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
