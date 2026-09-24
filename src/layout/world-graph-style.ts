@@ -124,6 +124,8 @@ export interface WorldNodeStyleInput {
   readonly selected?: boolean;
   /** Connected-neighborhood emphasis without changing canonical selection. */
   readonly emphasized?: boolean;
+  /** Topology-release state; geometry stays unchanged while color becomes muted. */
+  readonly inactive?: boolean;
   readonly visualWeight?: number;
 }
 
@@ -172,12 +174,13 @@ export function worldNodeStyle(
   const own = styleOf(input.attributes);
   const ownShape = text(own["shape"] ?? own["markerShape"], 16)?.toLowerCase();
   const metrics = worldNodeMetrics(input);
-  const fill =
+  const semanticFill =
     color(own["fillColor"]) ??
     color(own["fill"]) ??
     color(own["backgroundColor"]) ??
     color(own["color"]) ??
     defaultNodeFill(type, palette);
+  const fill = input.inactive && !input.selected ? palette.muted : semanticFill;
   const border =
     color(own["borderColor"]) ??
     color(own["border"]) ??
