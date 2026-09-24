@@ -5,7 +5,11 @@ import type {
   WorldForceNode,
   WorldForceScene,
 } from "./world-force-simulation.ts";
-import { WORLD_NODE_SCALE } from "./world-graph-style.ts";
+import {
+  WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+  WORLD_NODE_SCALE,
+  worldNodeFootprintRadiusPx,
+} from "./world-graph-style.ts";
 
 export interface WorldForceScenePolicy {
   readonly baseMass: number;
@@ -66,11 +70,20 @@ function nodeFromInstance(
   instance: ProjectedWorldInstance,
   policy: WorldForceScenePolicy,
 ): WorldForceNode {
+  const styleInput = {
+    ...(instance.kind === undefined ? {} : { type: instance.kind }),
+    attributes: instance.style ? { style: instance.style } : undefined,
+    visualWeight: instance.visualWeight,
+  };
+  const collisionRadiusPx = worldNodeFootprintRadiusPx(styleInput);
   return Object.freeze({
     id: instance.id,
     canonicalId: instance.canonicalId,
     mass: policy.baseMass + instance.visualWeight * policy.visualWeightMassScale,
-    collisionRadiusMeters: policy.baseCollisionRadiusMeters * (0.75 + instance.visualWeight * 0.5),
+    collisionRadiusPx,
+    collisionRadiusMeters:
+      policy.baseCollisionRadiusMeters *
+      (collisionRadiusPx / WORLD_ENTITY_MIN_HIT_RADIUS_PX),
     initialEastMeters: instance.localOffset?.eastMeters ?? 0,
     initialNorthMeters: instance.localOffset?.northMeters ?? 0,
     targetVisualAltitudeMeters: instance.visualAltitude ?? 0,
@@ -141,4 +154,19 @@ export function createWorldForceScene(
     ),
     anchors: Object.freeze(anchors),
   });
+}
+
+
+/**
+ * graph-layers D3ForceLayout currently accepts one scalar collision radius
+ * per layout. Use the largest exact rendered footprint in the component so
+ * no node receives a smaller force body than its visible marker.
+ */
+export function worldForceComponentCollisionRadiusPx(
+  nodes: readonly WorldForceNode[],
+): number {
+  return nodes.reduce(
+    (radius, node) => Math.max(radius, node.collisionRadiusPx),
+    WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+  );
 }

@@ -42,6 +42,8 @@ export const WORLD_DARK_PALETTE: WorldGraphPalette = Object.freeze({
  * >=44px target in WorldSurface.
  */
 export const WORLD_NODE_SCALE = 2;
+/** Minimum radius of the mobile interaction footprint (44px diameter). */
+export const WORLD_ENTITY_MIN_HIT_RADIUS_PX = 22;
 
 export interface WorldNodeStyle {
   readonly fill: string;
@@ -123,13 +125,11 @@ export interface WorldNodeStyleInput {
   readonly visualWeight?: number;
 }
 
-export function worldNodeStyle(
-  input: WorldNodeStyleInput,
-  palette: WorldGraphPalette,
-): WorldNodeStyle {
-  const type = (input.type ?? "").toLowerCase();
+function worldNodeMetrics(input: WorldNodeStyleInput): {
+  readonly radius: number;
+  readonly borderWidth: number;
+} {
   const own = styleOf(input.attributes);
-  const ownShape = text(own["shape"] ?? own["markerShape"], 16)?.toLowerCase();
   // Keep ordinary nodes at least icon-button scale visibly, not merely as
   // hit targets. Quantized radii still keep the marker atlas bounded.
   const baseRadius = Math.round(11 + Math.min(1, Math.max(0, input.visualWeight ?? 0)) * 2);
@@ -139,6 +139,35 @@ export function worldNodeStyle(
     number(own["radius"], 4, 28) ??
     (authoredDiameter === null ? null : authoredDiameter / 2);
   const resolvedRadius = Math.round(authoredRadius ?? baseRadius) + (input.selected ? 2 : 0);
+  const authoredBorderWidth =
+    number(own["borderWidth"], 0, 8) ?? number(own["strokeWidth"], 0, 8) ?? 2;
+  return Object.freeze({
+    radius: resolvedRadius * WORLD_NODE_SCALE,
+    borderWidth: input.selected ? Math.max(4, authoredBorderWidth + 1) : authoredBorderWidth,
+  });
+}
+
+/**
+ * Full on-screen radius that collision/picking must reserve. The force body
+ * must never be smaller than what is visibly rendered, and it also respects
+ * the 44px minimum mobile interaction target.
+ */
+export function worldNodeFootprintRadiusPx(input: WorldNodeStyleInput): number {
+  const metrics = worldNodeMetrics(input);
+  return Math.max(
+    WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+    metrics.radius + metrics.borderWidth,
+  );
+}
+
+export function worldNodeStyle(
+  input: WorldNodeStyleInput,
+  palette: WorldGraphPalette,
+): WorldNodeStyle {
+  const type = (input.type ?? "").toLowerCase();
+  const own = styleOf(input.attributes);
+  const ownShape = text(own["shape"] ?? own["markerShape"], 16)?.toLowerCase();
+  const metrics = worldNodeMetrics(input);
   const fill =
     color(own["fillColor"]) ??
     color(own["fill"]) ??
@@ -151,19 +180,17 @@ export function worldNodeStyle(
     color(own["stroke"]) ??
     color(own["strokeColor"]) ??
     palette.paper;
-  const authoredBorderWidth =
-    number(own["borderWidth"], 0, 8) ?? number(own["strokeWidth"], 0, 8) ?? 2;
   return Object.freeze({
     // Selection changes emphasis/size, never the authored semantic colours.
     fill,
     border,
-    borderWidth: input.selected ? Math.max(4, authoredBorderWidth + 1) : authoredBorderWidth,
+    borderWidth: metrics.borderWidth,
     shape: SHAPES.includes(ownShape as WorldNodeShape)
       ? (ownShape as WorldNodeShape)
       : defaultNodeShape(type),
     icon: text(own["icon"], 48) ?? (type || null),
     image: text(own["image"] ?? own["imageUrl"], 2048),
-    radius: resolvedRadius * WORLD_NODE_SCALE,
+    radius: metrics.radius,
   });
 }
 
