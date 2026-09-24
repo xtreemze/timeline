@@ -188,6 +188,59 @@ test("entity and place labels come from renderer-neutral WorldProjection metadat
   assert.equal(labels.props.parameters.cullMode, "none", "globe back-face culling keeps glyphs");
 });
 
+test("detail zoom repositions co-located semantic labels before hiding them", () => {
+  const h = harness();
+  const source = instance(0, {
+    geographicAnchors: [
+      {
+        placeId: "shared",
+        label: "Shared place",
+        longitude: 10,
+        latitude: 50,
+        influence: 1,
+      },
+    ],
+  });
+  const target = instance(1, {
+    geographicAnchors: [
+      {
+        placeId: "shared",
+        label: "Shared place",
+        longitude: 10,
+        latitude: 50,
+        influence: 1,
+      },
+    ],
+  });
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, longitude: 10, latitude: 50, zoom: 9 });
+  surface.setProjection(
+    createWorldProjection({
+      instances: [source, target],
+      edges: [
+        createProjectedWorldEdge({
+          id: "shared-edge",
+          label: "connected to",
+          sourceInstanceId: source.id,
+          targetInstanceId: target.id,
+          temporalWeight: 1,
+          visible: true,
+          retained: false,
+        }),
+      ],
+    }),
+  );
+
+  const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const data = labels.props.data;
+  assert.equal(data.filter((datum) => datum.kind === "entity-label").length, 2);
+  assert.equal(data.filter((datum) => datum.kind === "place-label").length, 1);
+  assert.equal(data.filter((datum) => datum.kind === "relationship-label").length, 1);
+
+  const offsets = data.map((datum) => labels.props.getPixelOffset(datum).join(":"));
+  assert.ok(new Set(offsets).size >= 3, "colliding semantic labels use alternate placements");
+  assert.equal(labels.props.getTextAnchor, "middle");
+});
+
 test("each rendered directed relationship has a visible marker preserving source/target identity", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
