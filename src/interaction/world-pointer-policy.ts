@@ -10,6 +10,7 @@
 export interface WorldPointerInitiationEvent {
   readonly ctrlKey?: unknown;
   readonly button?: unknown;
+  readonly buttons?: unknown;
   readonly srcEvent?: unknown;
 }
 
@@ -28,6 +29,18 @@ export function worldPointerDragMayStart(event: unknown): boolean {
 
   const button = source.button;
   if (button === undefined || button === null) return true;
+
   const numericButton = Number(button);
-  return Number.isFinite(numericButton) && numericButton === 0;
+  if (!Number.isFinite(numericButton)) return false;
+  if (numericButton === 0) return true;
+
+  // deck/mjolnir dispatches drag-start from a move event. Pointer/mouse move
+  // reports button=-1 even while the primary button remains depressed, so use
+  // the buttons bitmask to preserve the initiating primary-button gesture.
+  if (numericButton === -1) {
+    const buttons = Number(source.buttons);
+    return Number.isFinite(buttons) && (buttons & 1) === 1;
+  }
+
+  return false;
 }
