@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { createSettledTemporalWindowSink } from "../site/world/settled-temporal-window.ts";
 import { WorldProjectionView } from "../site/world/world-projection-view.ts";
 import { activeOccurrenceIds } from "../src/projection/spatiotemporal-projection.ts";
 
@@ -161,8 +162,37 @@ test("TimelineSurface publishes activation from the logical viewport, never from
     /emitViewport\(committed: boolean\): void \{([\s\S]*?)\n {2}\}/.exec(view)?.[1] ?? "";
   assert.match(emit, /activeOccurrenceIds\(this\.relationships, this\.viewport\)/);
   assert.doesNotMatch(emit, /activeOccurrenceIds\([^)]*(renderWindow|retention)/);
+  assert.match(app, /createSettledTemporalWindowSink/);
   assert.match(
     app,
-    /timelineviewportchange[\s\S]{0,200}setWindow\(event\.detail\?\.viewport \|\| null\)/,
+    /timelineviewportchange[\s\S]{0,260}settledSpatialWindow\.push\([\s\S]*event\.detail\?\.viewport \|\| null[\s\S]*Boolean\(event\.detail\?\.committed\)/,
   );
+});
+
+
+test("transient timeline viewport bursts collapse to the latest settled spatial update", () => {
+  const applied = [];
+  const sink = createSettledTemporalWindowSink((viewport) => applied.push(viewport));
+
+  assert.equal(sink.push({ start: 0, end: 10 }, false), false);
+  assert.equal(sink.push({ start: 5, end: 15 }, false), false);
+  assert.equal(sink.push({ start: 10, end: 20 }, false), false);
+  assert.deepEqual(applied, []);
+
+  const settled = { start: 15, end: 25 };
+  assert.equal(sink.push(settled, true), true);
+  assert.deepEqual(applied, [settled]);
+});
+
+test("a new transient burst never replays a stale settled viewport", () => {
+  const applied = [];
+  const sink = createSettledTemporalWindowSink((viewport) => applied.push(viewport));
+
+  const first = { start: 0, end: 10 };
+  const second = { start: 100, end: 110 };
+  sink.push(first, true);
+  sink.push({ start: 50, end: 60 }, false);
+  sink.push(second, true);
+
+  assert.deepEqual(applied, [first, second]);
 });
