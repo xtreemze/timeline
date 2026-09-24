@@ -69,8 +69,7 @@ test("the anthology combines overlapping tales with deliberately separated story
   for (let i = 0; i < legacySpans.length; i += 1) {
     for (let j = i + 1; j < legacySpans.length; j += 1) {
       assert.ok(
-        legacySpans[i].end >= legacySpans[j].start &&
-          legacySpans[j].end >= legacySpans[i].start,
+        legacySpans[i].end >= legacySpans[j].start && legacySpans[j].end >= legacySpans[i].start,
       );
     }
   }
@@ -85,9 +84,7 @@ test("the anthology combines overlapping tales with deliberately separated story
   assert.ok(addedStarts[2] - addedStarts[1] > 10 * 365 * 86_400_000);
 
   for (const story of sample.stories) {
-    const labels = storyItems(story).map(
-      (item) => item.extensions?.narrative?.displayTime || "",
-    );
+    const labels = storyItems(story).map((item) => item.extensions?.narrative?.displayTime || "");
     assert.ok(labels.some((label) => /Day 1/i.test(label)));
     assert.ok(labels.some((label) => /Day 2/i.test(label)));
   }
