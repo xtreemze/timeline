@@ -219,7 +219,12 @@ function renderScaleForViewport(viewport) {
   return Math.sqrt(MAX_RENDER_PIXELS / pixels);
 }
 
-export function createEvidenceExtraction({ pdfjs, root = globalThis, now = () => new Date().toISOString() } = {}) {
+export function createEvidenceExtraction({
+  pdfjs,
+  pdfWorkerUrl = "",
+  root = globalThis,
+  now = () => new Date().toISOString(),
+} = {}) {
   if (!pdfjs || typeof pdfjs.getDocument !== "function") {
     throw new Error("PDF.js getDocument() is required.");
   }
@@ -227,7 +232,8 @@ export function createEvidenceExtraction({ pdfjs, root = globalThis, now = () =>
   function configurePdfWorker() {
     const workerOptions = pdfjs.GlobalWorkerOptions;
     if (!workerOptions || !root.document?.baseURI) return;
-    workerOptions.workerSrc = new URL("./pdf.worker.mjs", root.document.baseURI).href;
+    workerOptions.workerSrc =
+      pdfWorkerUrl || new URL("./pdf.worker.mjs", root.document.baseURI).href;
   }
 
   async function renderPdfPage(page, options = {}) {

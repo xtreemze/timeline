@@ -3,8 +3,9 @@
  * Sets TemporalGraphView on globalThis for backward compatibility with IIFE code
  */
 
-import { TemporalGraphView } from './temporal-graph-view.ts';
+import { TimelineOrbGraph } from "../src/orb-graph-entry.js";
+import { TemporalGraphView } from "./temporal-graph-view.ts";
 
 globalThis.TemporalGraphView = TemporalGraphView;
 
-export {};
+export { TimelineOrbGraph };

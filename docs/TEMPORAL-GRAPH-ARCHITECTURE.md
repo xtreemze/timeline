@@ -231,7 +231,7 @@ A cycle is not intrinsically invalid. Two opposite-direction edges are allowed w
 
 ## Timeline-synchronized graph lens
 
-`site/temporal-graph-view.js` renders the current graph through the bundled Memgraph Orb canvas/WebGL surface.
+`site/temporal-graph-view.ts` renders the current graph through the Vite-managed Memgraph Orb canvas/WebGL surface.
 
 - explicitly persistent/timeless edges remain visible across timeline windows;
 - timed relations are rendered only while their extent intersects the timeline viewport;
@@ -242,7 +242,7 @@ A cycle is not intrinsically invalid. Two opposite-direction edges are allowed w
 - node/edge selection is direct manipulation only: the selected object is emphasized in the graph and no inspector, navigation, editor, or JSON surface is opened;
 - wheel zoom, pan and node drag manipulate the graph view without changing canonical graph data.
 
-The authoring lens now uses the scale path directly. `@memgraph/orb` is bundled through esbuild, preserving its worker-backed CPU force simulation. Canvas is the default renderer; dense graphs switch to WebGL when WebGL2 is available, and very large graphs can enable Orb's GPU force path.
+The authoring lens now uses the scale path directly. `@memgraph/orb` is imported through the native ESM graph and bundled by Vite 8/Rolldown, preserving its worker-backed CPU force simulation. Canvas is the default renderer; dense graphs switch to WebGL when WebGL2 is available, and very large graphs can enable Orb's GPU force path.
 
 Disconnected rendered components are packed deterministically after force simulation settles so unrelated topology islands do not make an otherwise large graph canvas illegible. Packing translates whole connected components without changing their internal geometry or canonical graph records, follows the current graph-canvas aspect ratio, and reruns only when the undirected topology signature changes. Manual node dragging therefore remains authoritative until the topology itself changes.
 

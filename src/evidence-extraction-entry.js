@@ -1,9 +1,9 @@
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { createEvidenceExtraction } from "./evidence-extraction-core.js";
 
-const api = createEvidenceExtraction({
+export const TimelineEvidenceExtraction = createEvidenceExtraction({
   pdfjs: { getDocument, GlobalWorkerOptions },
-  root: globalThis
+  pdfWorkerUrl,
+  root: globalThis,
 });
-
-globalThis.TimelineEvidenceExtraction = api;

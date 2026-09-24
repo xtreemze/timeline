@@ -13,7 +13,7 @@ Run, in order, from the repo root:
 2. `pnpm types:migrated`
 3. `pnpm test`
 
-Before step 1, temporarily move locally built, gitignored artifacts out of `site/` (they are absent in CI and trip the linters): `site/leaflet.css`, `site/leaflet.bundle.js`, `site/evidence-extraction.bundle.js`, `site/orb-graph.bundle.js`, `site/pdf.worker.mjs`. Move them to a temp directory and restore them when you finish, even on failure.
+The Vite build writes generated artifacts only to `dist/`; source quality gates should run directly against `site/` and `src/` without moving generated files.
 
 Rules:
 - Never weaken thresholds, skip, or disable tests, and never edit baselines.

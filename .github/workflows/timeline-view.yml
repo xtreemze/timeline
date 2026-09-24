@@ -222,11 +222,11 @@ jobs:
       - run: pnpm types:migrated
       - run: pnpm types:architecture
       - run: pnpm build
-      - run: test -s site/orb-graph.bundle.js
-      - run: test -s site/leaflet.bundle.js && test -s site/leaflet.css
-      - run: node --check site/leaflet.bundle.js
+      - run: test -s dist/index.html && test -d dist/assets
+      - run: test "$(find dist/assets -type f -name '*.js' | wc -l)" -gt 0
+      - run: "! grep -Eq '(orb-graph|leaflet|evidence-extraction)\\.bundle\\.js' dist/index.html"
       - run: node --check src/orb-graph-entry.js
-      - run: node --check site/orb-graph.bundle.js
+      - run: node --check src/evidence-extraction-entry.js
       - run: pnpm test:architecture
       - run: pnpm test:browser-certification-config
       - run: pnpm test:runtime-contracts

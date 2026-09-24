@@ -24,13 +24,7 @@ test("Biome is the authoritative formatter and strict multi-language quality too
   assert.equal(biome.linter?.rules?.suspicious?.noShorthandPropertyOverrides, "error");
   assert.equal(biome.linter?.rules?.suspicious?.noUnknownAtRules, "error");
 
-  for (const ignored of [
-    "!!dist",
-    "!!site/orb-graph.bundle.js",
-    "!!site/evidence-extraction.bundle.js",
-    "!!site/leaflet.bundle.js",
-    "!!site/pdf.worker.mjs",
-  ]) {
+  for (const ignored of ["!!dist"]) {
     assert.ok(
       biome.files?.includes?.includes(ignored),
       `Biome must ignore generated artifact: ${ignored}`,
