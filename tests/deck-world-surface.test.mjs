@@ -208,11 +208,13 @@ test("optional deck collision filtering is attached only to the text label layer
       return extension;
     },
   };
-  const surface = new DeckWorldSurface(
-    {},
-    collisionRuntime,
-    { longitude: 18.0686, latitude: 59.3293, zoom: 6, bearing: 0, pitch: 0 },
-  );
+  const surface = new DeckWorldSurface({}, collisionRuntime, {
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 6,
+    bearing: 0,
+    pitch: 0,
+  });
   const input = projection();
   surface.setProjection(
     createWorldProjection({
