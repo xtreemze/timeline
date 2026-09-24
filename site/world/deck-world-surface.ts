@@ -1172,7 +1172,10 @@ function worldPathEquals(
 ): boolean {
   return (
     left.length === right.length &&
-    left.every((position, index) => positionEquals(position, right[index]!))
+    left.every((position, index) => {
+      const counterpart = right[index];
+      return counterpart !== undefined && positionEquals(position, counterpart);
+    })
   );
 }
 
@@ -1228,7 +1231,8 @@ function relationshipDatums(
   for (const group of groups.values()) {
     group.sort((left, right) => String(left.id).localeCompare(String(right.id)));
     if (group.length === 1) {
-      lanes.set(group[0]!.id, 0);
+      const [onlyEdge] = group;
+      if (onlyEdge) lanes.set(onlyEdge.id, 0);
       continue;
     }
     group.forEach((edge, index) => {
