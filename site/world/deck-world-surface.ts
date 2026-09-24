@@ -3206,7 +3206,12 @@ export class DeckWorldSurface implements WorldSurface {
         })
       : null;
     const labelEntities = iconSource;
-    const labelRelationships = relationships.filter((relationship) => edgeExpansion(relationship) > 0);
+    const labelRelationships = relationships.filter(
+      (relationship) =>
+        !edgeIsClusterAffected(relationship) ||
+        showActiveClusterEdges ||
+        showReleasingClusterEdges,
+    );
     const labelResult = this.#runtime.createTextLayer
       ? labelDatums({
           places,
@@ -3220,9 +3225,9 @@ export class DeckWorldSurface implements WorldSurface {
       : null;
     this.#labelDatumCache = labelResult?.byKey ?? new Map();
 
-    // Tethers remain in the retained data set during collapse so their width
-    // and alpha can reach zero at the exact place origin before disappearing.
-    const tethers = gridClustered ? [] : this.#tethers(transitionEntities);
+    // Tethers follow the same live D3 positions as their members. Fully
+    // collapsed members produce no topology geometry.
+    const tethers = this.#tethers(iconSource);
     const layers = [
       // Earth base: orientation on light and dark hosts, and depth-occludes
       // the far side of the globe. Never pickable.
