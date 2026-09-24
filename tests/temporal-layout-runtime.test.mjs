@@ -157,6 +157,23 @@ test("renderer performs global layout planning only through commit reconciliatio
   assert.match(commitBody, /reconcileCommittedLayout\(\)/);
 });
 
+test("renderer aligns cards with padded temporal coordinates and defers geometry replanning while interacting", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  assert.match(source, /padding \+ scale\.coordinateFor\(time, this\.viewport, usable\)/);
+  assert.match(source, /positionRecord\(record, padding, usable, axisCross, crossLength\)/);
+  assert.doesNotMatch(
+    source,
+    /positionRecord[\s\S]{0,1800}this\.surface\.getBoundingClientRect\(\)/,
+  );
+  assert.match(source, /geometryObserver: ResizeObserver \| null/);
+  assert.match(source, /this\.geometryObserver\?\.observe\(terminal\)/);
+  assert.match(
+    source,
+    /if \(this\.retention\.active\)[\s\S]{0,220}this\.geometryReflowPending = true/,
+  );
+});
+
 test("committed clusters keep occurrence DOM alive and restore mature tile affordance", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.match(source, /clusterScene = new Map<string, ClusterSceneRecord>/);
@@ -168,7 +185,6 @@ test("committed clusters keep occurrence DOM alive and restore mature tile affor
   assert.match(source, /node\.hidden = hiddenByCluster/);
   assert.doesNotMatch(source, /hiddenByCluster[\s\S]{0,300}removeRecord/);
 });
-
 
 test("clustering follows measured collision pressure rather than nearby event count", () => {
   const occurrences = [
@@ -205,7 +221,6 @@ test("clustering follows measured collision pressure rather than nearby event co
   assert.equal(wide.clusters.length, 1);
   assert.deepEqual(wide.clusters[0].itemIds, ["a", "b", "c", "d"]);
 });
-
 
 test("coincident timestamps stay separate and gain enough perpendicular lanes", () => {
   const occurrences = [
