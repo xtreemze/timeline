@@ -19,19 +19,19 @@ import {
 } from "../src/projection/world-projection.ts";
 import { diffWorldProjection } from "../src/projection/world-projection-delta.ts";
 
-test("sparse world topology stays clustered through the extended overview tier", () => {
-  assert.equal(CLUSTER_ZOOM_THRESHOLD, 4.5);
+test("sparse world topology resolves at the compact-marker overview tier", () => {
+  assert.equal(CLUSTER_ZOOM_THRESHOLD, 4.25);
   assert.equal(shouldClusterEntityDatums(100, 4), true);
-  assert.equal(shouldClusterEntityDatums(100, 4.49), true);
-  assert.equal(shouldClusterEntityDatums(100, 4.5), false);
+  assert.equal(shouldClusterEntityDatums(100, 4.24), true);
+  assert.equal(shouldClusterEntityDatums(100, 4.25), false);
 });
 
-test("larger rendered nodes remain clustered until proportionally closer zoom", () => {
-  const largeRadius = 56;
-  const threshold = clusterZoomThresholdForNodeRadius(largeRadius);
-  assert.equal(threshold, CLUSTER_ZOOM_THRESHOLD + 1);
-  assert.equal(shouldClusterEntityDatums(100, 5, largeRadius), true);
-  assert.equal(shouldClusterEntityDatums(100, 5.5, largeRadius), false);
+test("cluster zoom responds to visible marker size within bounded limits", () => {
+  assert.equal(clusterZoomThresholdForNodeRadius(8), CLUSTER_ZOOM_THRESHOLD - 0.5);
+  assert.equal(clusterZoomThresholdForNodeRadius(32), CLUSTER_ZOOM_THRESHOLD + 1);
+  assert.equal(clusterZoomThresholdForNodeRadius(56), CLUSTER_ZOOM_THRESHOLD + 1.5);
+  assert.equal(shouldClusterEntityDatums(100, 5, 32), true);
+  assert.equal(shouldClusterEntityDatums(100, 5.25, 32), false);
 });
 
 function harness() {
@@ -1587,9 +1587,10 @@ test("default overview keeps same-place topology clustered without covering the 
   const cluster = layer.props.data.find((datum) => datum.kind === "cluster");
   assert.ok(cluster);
   assert.equal(cluster.clusterMembers.length, 2);
+  const clusterRadius = layer.props.getRadius(cluster);
   assert.ok(
-    layer.props.getRadius(cluster) > 22,
-    "cluster envelope sits outside the ordinary place marker footprint",
+    clusterRadius >= 28 && clusterRadius <= 38,
+    "cluster envelope stays compact while remaining distinct from the place marker",
   );
   assert.equal(
     layer.props.getFillColor(cluster)[3],
@@ -1602,7 +1603,7 @@ test("default overview keeps same-place topology clustered without covering the 
   assert.ok(retainedMembers.every((datum) => layer.props.getRadius(datum) === 0));
 });
 
-test("cluster envelope grows with the largest retained member marker", () => {
+test("cluster envelope clears large retained markers without growing without bound", () => {
   const { calls, runtime } = harness();
   const base = projection();
   const instances = base.instances.map((instance, index) =>
@@ -1619,9 +1620,10 @@ test("cluster envelope grows with the largest retained member marker", () => {
     .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities);
   const cluster = entityLayer.props.data.find((datum) => datum.kind === "cluster");
   assert.ok(cluster);
+  const radius = entityLayer.props.getRadius(cluster);
   assert.ok(
-    entityLayer.props.getRadius(cluster) > 42,
-    "cluster ring clears a 32px-radius authored member plus its border",
+    radius >= 36 && radius <= 38,
+    "cluster ring clears the marker within the bounded envelope",
   );
 });
 
