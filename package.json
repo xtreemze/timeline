@@ -80,8 +80,7 @@
     "test:world-selection": "node --test tests/world-selection.test.mjs",
     "lint:styles": "biome lint --config-path=biome.strict.json site/print.css site/styles.css site/timeline-view.css --diagnostic-level=error --max-diagnostics=200",
     "format:check": "biome format .",
-    "check:quality": "pnpm check:biome && pnpm lint:architecture && node scripts/check-quality-changed.mjs",
-    "check:biome": "biome check . --diagnostic-level=error --max-diagnostics=200"
+    "check:quality": "pnpm lint && node scripts/check-quality-changed.mjs"
   },
   "packageManager": "pnpm@12.5.1+sha512.e3f305bc784a2bc89f5ad3b6138889470fae8d2af5f36b61216ec91c2c3d64089775f9de38aac331044ea40f245cb0d5666392dfdf65824e1907ef6a2c62de5f",
   "devDependencies": {
