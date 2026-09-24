@@ -401,8 +401,8 @@
   transform-origin: center;
 }
 .is-portrait .timeline-edge-date {
-  left: auto;
-  right: 8px;
+  inset-inline-start: auto;
+  inset-inline-end: 8px;
   writing-mode: vertical-rl;
   text-orientation: mixed;
 }

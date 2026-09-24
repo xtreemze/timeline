@@ -340,7 +340,7 @@ test("timeline replaces obsolete edge years, suppresses overlap, and preserves a
 
 test("portrait edge dates live on the outer rail rather than beside the timeline axis", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
-  assert.match(css, /\.is-portrait \.timeline-edge-date\s*\{[^}]*right:\s*8px/s);
-  assert.match(css, /\.is-portrait \.timeline-edge-date\s*\{[^}]*left:\s*auto/s);
+  assert.match(css, /\.is-portrait \.timeline-edge-date\s*\{[^}]*inset-inline-end:\s*8px/s);
+  assert.match(css, /\.is-portrait \.timeline-edge-date\s*\{[^}]*inset-inline-start:\s*auto/s);
   assert.match(css, /\.is-portrait \.timeline-edge-date\s*\{[^}]*writing-mode:\s*vertical-rl/s);
 });
