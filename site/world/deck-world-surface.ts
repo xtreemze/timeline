@@ -5,6 +5,7 @@ import {
   createWorldTouchHoldGate,
   WORLD_TOUCH_HOLD_MS,
 } from "../../src/interaction/world-touch-hold.ts";
+import { worldPointerDragMayStart } from "../../src/interaction/world-pointer-policy.ts";
 import { fitWorldCamera, globeOverviewCamera } from "../../src/layout/world-camera-fit.ts";
 import { worldClusterExpansionProgress } from "../../src/layout/world-cluster-transition.ts";
 import type { WorldRelationshipRouteHint } from "../../src/layout/world-force-simulation.ts";
@@ -160,6 +161,7 @@ export interface DeckWorldRuntime {
   createTextLayer?(props: Readonly<Record<string, unknown>>): unknown;
   createIconLayer?(props: Readonly<Record<string, unknown>>): unknown;
   createSolidPolygonLayer?(props: Readonly<Record<string, unknown>>): unknown;
+  createCollisionFilterExtension?(): unknown;
   createDeck(props: Readonly<Record<string, unknown>>): DeckRuntimeInstance;
 }
 
@@ -1533,6 +1535,14 @@ export function worldGraphLabelSize(
   return 18;
 }
 
+export function worldLabelCollisionPriority(
+  datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">,
+): number {
+  const semanticBase =
+    datum.kind === "place-label" ? 200 : datum.kind === "entity-label" ? 120 : 80;
+  return datum.emphasized ? semanticBase + 700 : semanticBase;
+}
+
 const LABEL_PLACEMENT_CELL_PX = 128;
 const LABEL_PLACEMENT_PADDING_PX = 4;
 const LABEL_DETAIL_KEEP_ALL_ZOOM = 5;
@@ -2014,6 +2024,7 @@ function worldHitFromPicking(info: DeckRuntimePickingInfo | null): WorldHit | nu
 
 export class DeckWorldSurface implements WorldSurface {
   readonly #runtime: DeckWorldRuntime;
+  readonly #labelCollisionExtension: unknown | null;
   readonly #deck: DeckRuntimeInstance;
   readonly #globeView: unknown;
   readonly #localView: unknown | null;
@@ -2063,6 +2074,8 @@ export class DeckWorldSurface implements WorldSurface {
   #activeDragInstanceId: WorldInstanceId | null = null;
   #dragFlashInstanceId: WorldInstanceId | null = null;
   #dragFlashTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+  #dragClickSuppressionTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+  #suppressNextDeckClick = false;
   #dragPresentationRevision = 0;
   #dragCameraLock: WorldCameraState | null = null;
   #destroyed = false;
@@ -2226,6 +2239,10 @@ export class DeckWorldSurface implements WorldSurface {
 
   readonly #handleDeckClick = (info: DeckRuntimePickingInfo): void => {
     if (this.#activeDragPointerId !== null) return;
+    if (this.#suppressNextDeckClick) {
+      this.#suppressNextDeckClick = false;
+      return;
+    }
     const next = this.#selectionFromPickingInfo(info);
     const toggled = next !== null && selectionEquals(next, this.#selection) ? null : next;
     const changed =
@@ -2290,6 +2307,7 @@ export class DeckWorldSurface implements WorldSurface {
 
   constructor(container: HTMLElement, runtime: DeckWorldRuntime, initialCamera?: WorldCameraState) {
     this.#runtime = runtime;
+    this.#labelCollisionExtension = runtime.createCollisionFilterExtension?.() ?? null;
     this.#container = container;
     // A caller-chosen camera is authoritative; otherwise the first projected
     // content fits the camera once (see #autoFitCamera).
@@ -2893,6 +2911,7 @@ export class DeckWorldSurface implements WorldSurface {
     );
     this.#clearTouchHoldTimer();
     this.#clearDragFlash({ render: false });
+    this.#clearDragClickSuppression();
     this.#touchHold.clear();
     this.#container.removeEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
     this.#container.removeEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
@@ -2935,7 +2954,7 @@ export class DeckWorldSurface implements WorldSurface {
     const sink = this.#nodeDragSink;
     const pointerId = pointerIdFromRuntimeEvent(event);
     const target = this.#dragTarget(info);
-    if (!sink || pointerId === null || !target) return false;
+    if (!sink || pointerId === null || !target || !worldPointerDragMayStart(event)) return false;
     // Touch drags only claim the node after the long-press gate armed;
     // otherwise deck's controller keeps the gesture as a globe pan.
     const touch = pointerTypeFromRuntimeEvent(event) === "touch";
@@ -2993,6 +3012,7 @@ export class DeckWorldSurface implements WorldSurface {
     // would re-enable geometry transitions for that frame and recreate the
     // label-leading/node-lagging effect at pointer-up.
     const released = sink.release(pointerId);
+    if (released) this.#armDragClickSuppression();
     this.#activeDragPointerId = null;
     this.#clearDragFlash({ render: false });
     this.#setActiveDragInstance(null);
@@ -3012,6 +3032,27 @@ export class DeckWorldSurface implements WorldSurface {
     if (this.#dragFlashTimer === null) return;
     globalThis.clearTimeout(this.#dragFlashTimer);
     this.#dragFlashTimer = null;
+  }
+
+  #armDragClickSuppression(): void {
+    if (this.#dragClickSuppressionTimer !== null) {
+      globalThis.clearTimeout(this.#dragClickSuppressionTimer);
+    }
+    this.#suppressNextDeckClick = true;
+    // Mirrors d3-drag's noclick behavior: consume only the click dispatched
+    // immediately after pointer-up, then restore ordinary click selection.
+    this.#dragClickSuppressionTimer = globalThis.setTimeout(() => {
+      this.#dragClickSuppressionTimer = null;
+      this.#suppressNextDeckClick = false;
+    }, 0);
+  }
+
+  #clearDragClickSuppression(): void {
+    if (this.#dragClickSuppressionTimer !== null) {
+      globalThis.clearTimeout(this.#dragClickSuppressionTimer);
+      this.#dragClickSuppressionTimer = null;
+    }
+    this.#suppressNextDeckClick = false;
   }
 
   #clearDragFlash({ render = true }: { readonly render?: boolean } = {}): void {
@@ -4032,6 +4073,13 @@ export class DeckWorldSurface implements WorldSurface {
               fontSettings: { sdf: true, fontSize: 64, buffer: 8, radius: 16 },
               outlineWidth: LABEL_HALO_PX,
               outlineColor: this.#theme.labelHalo,
+              ...(this.#labelCollisionExtension
+                ? {
+                    extensions: [this.#labelCollisionExtension],
+                    collisionGroup: "lum-world-labels",
+                    getCollisionPriority: worldLabelCollisionPriority,
+                  }
+                : {}),
               getText: (datum: DeckWorldLabelDatum) => datum.text,
               getPosition: (datum: DeckWorldLabelDatum) => datum.position,
               getSize: worldGraphLabelSize,
