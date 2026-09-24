@@ -36,6 +36,8 @@ export class LuumTimelineElement extends ReactiveElement {
   override disconnectedCallback(): void {
     this.#resizeObserver?.disconnect();
     this.#resizeObserver = null;
+    this.controller?.destroy();
+    this.controller = null;
     super.disconnectedCallback();
   }
 
@@ -46,7 +48,9 @@ export class LuumTimelineElement extends ReactiveElement {
     return controller;
   }
 
-  setItems(...args: Parameters<TimelineController["setItems"]>): ReturnType<TimelineController["setItems"]> {
+  setItems(
+    ...args: Parameters<TimelineController["setItems"]>
+  ): ReturnType<TimelineController["setItems"]> {
     return this.#requireController().setItems(...args);
   }
 
@@ -62,15 +66,21 @@ export class LuumTimelineElement extends ReactiveElement {
     return this.#requireController().fitVisible();
   }
 
-  focusItem(...args: Parameters<TimelineController["focusItem"]>): ReturnType<TimelineController["focusItem"]> {
+  focusItem(
+    ...args: Parameters<TimelineController["focusItem"]>
+  ): ReturnType<TimelineController["focusItem"]> {
     return this.#requireController().focusItem(...args);
   }
 
-  focusAdjacent(...args: Parameters<TimelineController["focusAdjacent"]>): ReturnType<TimelineController["focusAdjacent"]> {
+  focusAdjacent(
+    ...args: Parameters<TimelineController["focusAdjacent"]>
+  ): ReturnType<TimelineController["focusAdjacent"]> {
     return this.#requireController().focusAdjacent(...args);
   }
 
-  stepFocusMedia(...args: Parameters<TimelineController["stepFocusMedia"]>): ReturnType<TimelineController["stepFocusMedia"]> {
+  stepFocusMedia(
+    ...args: Parameters<TimelineController["stepFocusMedia"]>
+  ): ReturnType<TimelineController["stepFocusMedia"]> {
     return this.#requireController().stepFocusMedia(...args);
   }
 
@@ -94,7 +104,9 @@ export class LuumTimelineElement extends ReactiveElement {
     return this.#requireController().getOrientation();
   }
 
-  setOrientation(...args: Parameters<TimelineController["setOrientation"]>): ReturnType<TimelineController["setOrientation"]> {
+  setOrientation(
+    ...args: Parameters<TimelineController["setOrientation"]>
+  ): ReturnType<TimelineController["setOrientation"]> {
     return this.#requireController().setOrientation(...args);
   }
 }
