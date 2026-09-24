@@ -1,62 +1,43 @@
-import type { WorldRenderPosition } from "./world-geographic-position.ts";
+export const WORLD_CLUSTER_EDGE_RELEASE_MS = 420;
+export const WORLD_CLUSTER_SETTLE_MS = 1_500;
+export const WORLD_CLUSTER_ZOOM_HYSTERESIS = 0.2;
 
-export const WORLD_CLUSTER_COLLAPSED_RADIUS_RATIO = 0.7;
-export const WORLD_CLUSTER_EXPANDED_RADIUS_RATIO = 1.35;
-/** Visual continuity fallback when a worker publishes a solved target in one update. */
-export const WORLD_CLUSTER_FORCE_TRANSITION_MS = 650;
-
-function clampUnit(value: number): number {
-  return Math.max(0, Math.min(1, value));
-}
-
-function smoothstep(value: number): number {
-  const t = clampUnit(value);
-  return t * t * (3 - 2 * t);
-}
+export type WorldClusterLifecyclePhase =
+  | "expanded"
+  | "releasing"
+  | "collapsing"
+  | "collapsed"
+  | "expanding";
 
 /**
- * Continuous semantic-zoom progress for a place-local graph.
- *
- * 0 means the place owns a fully collapsed cluster. 1 means the active force
- * layout owns the full node positions. The band around the clustering radius
- * deliberately overlaps both states so zoom never swaps one representation
- * for the other in a single frame.
+ * Hysteretic zoom decision only. This function never computes an interpolated
+ * position: all topology motion belongs to D3 force.
  */
-export function worldClusterExpansionProgress(
-  localRadiusPx: number,
-  clusterRadiusPx: number,
-): number {
-  if (!Number.isFinite(localRadiusPx) || localRadiusPx <= 0) return 0;
-  if (!Number.isFinite(clusterRadiusPx) || clusterRadiusPx <= 0) return 1;
-
-  const collapsed = clusterRadiusPx * WORLD_CLUSTER_COLLAPSED_RADIUS_RATIO;
-  const expanded = clusterRadiusPx * WORLD_CLUSTER_EXPANDED_RADIUS_RATIO;
-  if (localRadiusPx <= collapsed) return 0;
-  if (localRadiusPx >= expanded) return 1;
-  return smoothstep((localRadiusPx - collapsed) / (expanded - collapsed));
+export function worldClusterWantsCollapsed(
+  zoom: number,
+  threshold: number,
+  phase: WorldClusterLifecyclePhase,
+): boolean {
+  if (!Number.isFinite(zoom) || !Number.isFinite(threshold)) return false;
+  const clustered =
+    phase === "releasing" || phase === "collapsing" || phase === "collapsed";
+  return clustered
+    ? zoom < threshold + WORLD_CLUSTER_ZOOM_HYSTERESIS
+    : zoom < threshold - WORLD_CLUSTER_ZOOM_HYSTERESIS;
 }
 
-function shortestLongitudeDelta(from: number, to: number): number {
-  return ((((to - from + 180) % 360) + 360) % 360) - 180;
+export function worldClusterShowsMembers(phase: WorldClusterLifecyclePhase): boolean {
+  return phase !== "collapsed";
 }
 
-function wrapLongitude(value: number): number {
-  return ((((value + 180) % 360) + 360) % 360) - 180;
+export function worldClusterShowsActiveEdges(phase: WorldClusterLifecyclePhase): boolean {
+  return phase === "expanded";
 }
 
-/**
- * Moves a force-resolved node along the shortest geographic path from its
- * cluster/place origin. Reversing progress gives the exact collapse path.
- */
-export function interpolateClusterPosition(
-  origin: WorldRenderPosition,
-  target: WorldRenderPosition,
-  progress: number,
-): WorldRenderPosition {
-  const t = clampUnit(progress);
-  return Object.freeze([
-    wrapLongitude(origin[0] + shortestLongitudeDelta(origin[0], target[0]) * t),
-    origin[1] + (target[1] - origin[1]) * t,
-    origin[2] + (target[2] - origin[2]) * t,
-  ]) as WorldRenderPosition;
+export function worldClusterShowsReleasingEdges(phase: WorldClusterLifecyclePhase): boolean {
+  return phase === "releasing";
+}
+
+export function worldClusterMutesMembers(phase: WorldClusterLifecyclePhase): boolean {
+  return phase === "releasing" || phase === "collapsing" || phase === "expanding";
 }
