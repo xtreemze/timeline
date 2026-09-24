@@ -43,12 +43,10 @@ async function settleTimeline(page) {
 
 /**
  * Real input is hit-tested with Chromium's touch adjustment, which snaps a
- * fingertip to a nearby control inside its contact area, and presses that start
- * on an event, range bar or other control activate it instead of moving the
- * camera. Finds a row where the gesture's first point (the first of
- * `xFractions`, all shifted together if needed) has a finger-sized radius of
- * open background; later points only need to stay on the surface, since
- * pans and pinches keep going across controls once started.
+ * fingertip to nearby controls inside its contact area. These helpers find a
+ * row with finger-sized open background when a test specifically needs the
+ * background camera path. Card-originated pan arbitration is covered
+ * separately below.
  */
 async function openSurfaceRow<const Fractions extends readonly number[]>(
   surface: Locator,
@@ -145,6 +143,59 @@ test.describe("Timeline interaction contracts", () => {
     await expect
       .poll(async () => (await viewportEvents(page)).some((event) => event.committed))
       .toBeTruthy();
+  });
+
+  test("touch drag can begin on an occurrence card without activating it", async ({
+    page,
+  }, testInfo) => {
+    test.skip(!testInfo.project.use.hasTouch, "Requires a touch-enabled browser project.");
+
+    const surface = page.locator(".timeline-surface");
+    await surface.focus();
+    await page.keyboard.press("Home");
+    await waitForViewportEvents(page);
+    await settleTimeline(page);
+    await clearViewportEvents(page);
+
+    const terminal = page
+      .locator(
+        ".timeline-event:not(.timeline-cluster):not(.is-buffered) .timeline-event-terminal:visible",
+      )
+      .first();
+    await expect(terminal).toBeVisible();
+    const [box, surfaceBox] = await Promise.all([terminal.boundingBox(), surface.boundingBox()]);
+    if (!box || !surfaceBox) throw new Error("Timeline card or surface has no layout box.");
+
+    const start = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    const direction = start.x >= surfaceBox.x + surfaceBox.width / 2 ? -1 : 1;
+    const finger = await touchscreen(page);
+    await finger.move([start]);
+    await finger.move([{ x: start.x + direction * 24, y: start.y }]);
+    await finger.move([{ x: start.x + direction * 96, y: start.y }]);
+
+    await expect
+      .poll(async () => (await viewportEvents(page)).some((event) => event.committed === false))
+      .toBeTruthy();
+
+    await finger.end();
+    await settleTimeline(page);
+    await expect(page.locator("#timeline-focus-view")).toBeHidden();
+  });
+
+  test("event cards expose focused-detail expansion state", async ({ page }) => {
+    const terminal = page
+      .locator(
+        ".timeline-event:not(.timeline-cluster):not(.is-buffered) .timeline-event-terminal:visible",
+      )
+      .first();
+    await expect(terminal).toHaveAttribute("aria-controls", "timeline-focus-view");
+    await expect(terminal).toHaveAttribute("aria-expanded", "false");
+
+    await terminal.focus();
+    await page.keyboard.press("Enter");
+
+    await expect(page.locator("#timeline-focus-view")).toBeVisible();
+    await expect(terminal).toHaveAttribute("aria-expanded", "true");
   });
 
   test("viewport events publish the logical active relationship set shown by the timeline", async ({
