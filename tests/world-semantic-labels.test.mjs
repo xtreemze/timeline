@@ -315,6 +315,95 @@ test("entity and place labels come from renderer-neutral WorldProjection metadat
   assert.equal(labels.props.parameters.cullMode, "none", "globe back-face culling keeps glyphs");
 });
 
+test("label collisions use the active viewport projection instead of geographic approximation", () => {
+  const h = harness();
+  const projected = [];
+  h.runtime.createGlobeViewport = () => ({
+    project(position) {
+      projected.push(position);
+      return [160, 240, 0];
+    },
+    unproject(position) {
+      return position;
+    },
+  });
+
+  const source = instance(0, {
+    geographicAnchors: [
+      {
+        placeId: "west",
+        longitude: -120,
+        latitude: 10,
+        influence: 1,
+      },
+    ],
+  });
+  const target = instance(1, {
+    geographicAnchors: [
+      {
+        placeId: "east",
+        longitude: 120,
+        latitude: 60,
+        influence: 1,
+      },
+    ],
+  });
+  const surface = new DeckWorldSurface(
+    { clientWidth: 320, clientHeight: 480 },
+    h.runtime,
+    { ...WORKING_CAMERA, zoom: 9 },
+  );
+  surface.setProjection(createWorldProjection({ instances: [source, target], edges: [] }));
+
+  const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const entityLabels = labels.props.data.filter((datum) => datum.kind === "entity-label");
+  assert.equal(entityLabels.length, 2);
+  assert.ok(projected.length >= 2, "label placement asks the viewport to project world positions");
+  assert.notDeepEqual(
+    labels.props.getPixelOffset(entityLabels[0]),
+    labels.props.getPixelOffset(entityLabels[1]),
+    "geographically distant labels still avoid one another when they collide on screen",
+  );
+});
+
+test("viewport label placement keeps edge labels inside the visible canvas", () => {
+  const h = harness();
+  h.runtime.createGlobeViewport = () => ({
+    project() {
+      return [4, 240, 0];
+    },
+    unproject(position) {
+      return position;
+    },
+  });
+
+  const anchored = instance(0, {
+    geographicAnchors: [
+      {
+        placeId: "edge-place",
+        label: "Edge place",
+        longitude: 10,
+        latitude: 40,
+        influence: 1,
+      },
+    ],
+  });
+  const surface = new DeckWorldSurface(
+    { clientWidth: 320, clientHeight: 480 },
+    h.runtime,
+    { ...WORKING_CAMERA, zoom: 9 },
+  );
+  surface.setProjection(createWorldProjection({ instances: [anchored], edges: [] }));
+
+  const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const placeLabel = labels.props.data.find((datum) => datum.kind === "place-label");
+  assert.ok(placeLabel);
+  assert.ok(
+    labels.props.getPixelOffset(placeLabel)[0] > 0,
+    "viewport fitting moves a left-edge place label inward",
+  );
+});
+
 test("detail zoom repositions co-located semantic labels before hiding them", () => {
   const h = harness();
   const source = instance(0, {
