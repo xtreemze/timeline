@@ -57,10 +57,6 @@ function semanticIcon(name: string, size: number) {
  * interior when the occurrence revision changes.
  */
 export class LuumEventCardElement extends LitElement {
-  static override properties = {
-    item: { attribute: false },
-  };
-
   item: TimelineEventCardItem | null = null;
 
   readonly connector: HTMLSpanElement;
@@ -92,6 +88,7 @@ export class LuumEventCardElement extends LitElement {
 
   setSemanticItem(item: TimelineEventCardItem): void {
     this.item = item;
+    this.requestUpdate();
     this.dataset.id = item.id;
     this.terminal.dataset.id = item.id;
     this.style.setProperty("--event-color", item.color || "var(--accent)");
