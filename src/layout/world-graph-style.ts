@@ -123,7 +123,9 @@ export function worldNodeStyle(
   const type = (input.type ?? "").toLowerCase();
   const own = styleOf(input.attributes);
   const ownShape = text(own["shape"], 16)?.toLowerCase();
-  const baseRadius = 9 + Math.min(1, Math.max(0, input.visualWeight ?? 0)) * 2;
+  // Whole-pixel radii: every distinct radius is its own marker texture, so
+  // a continuous weight would give each node its own atlas entry.
+  const baseRadius = Math.round(9 + Math.min(1, Math.max(0, input.visualWeight ?? 0)) * 2);
   return Object.freeze({
     fill: input.selected
       ? palette.focus
@@ -135,7 +137,7 @@ export function worldNodeStyle(
       : defaultNodeShape(type),
     icon: text(own["icon"], 48) ?? (type || null),
     image: text(own["image"] ?? own["imageUrl"], 2048),
-    radius: (number(own["size"], 4, 24) ?? baseRadius) + (input.selected ? 2 : 0),
+    radius: Math.round(number(own["size"], 4, 24) ?? baseRadius) + (input.selected ? 2 : 0),
   });
 }
 

@@ -103,3 +103,22 @@ test("colour bytes parse short, long and alpha hex", () => {
   assert.deepEqual(worldColorBytes("#102030", 128), [16, 32, 48, 128]);
   assert.deepEqual(worldColorBytes("#10203080"), [16, 32, 48, 128]);
 });
+
+test("node radii are whole pixels so a scene shares a few marker textures", () => {
+  const radii = new Set(
+    Array.from(
+      { length: 200 },
+      (_, index) =>
+        worldNodeStyle({ type: "person", visualWeight: index / 199 }, WORLD_LIGHT_PALETTE).radius,
+    ),
+  );
+  assert.deepEqual(
+    [...radii].sort((a, b) => a - b),
+    [9, 10, 11],
+  );
+  assert.equal(
+    worldNodeStyle({ type: "person", attributes: { style: { size: 12.7 } } }, WORLD_LIGHT_PALETTE)
+      .radius,
+    13,
+  );
+});
