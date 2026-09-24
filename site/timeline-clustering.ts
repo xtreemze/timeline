@@ -413,6 +413,7 @@ interface TemporalAccentsOptions extends NonOverlappingOptions {
   spec?: TemporalSpec | null;
   maxItemsPerMonth?: number;
   limit?: number;
+  minimumEdgeAccents?: number;
 }
 
 interface TemporalAccentsResult {
@@ -420,6 +421,120 @@ interface TemporalAccentsResult {
   edgeAccents: any[];
   axisMonths: any[];
   hasAmbientContext: boolean;
+}
+
+function utcBucketTime(year: number, month: number, day: number): number {
+  const date = new Date(0);
+  date.setUTCFullYear(year, month, day);
+  date.setUTCHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+function ambientContextForUnit(timeMs: number, unit: string | null): {
+  kind: string;
+  label: string;
+  sceneTime: number;
+} {
+  const date = new Date(Number(timeMs));
+  if (!Number.isFinite(date.getTime())) {
+    return { kind: "day-month-year", label: "", sceneTime: 0 };
+  }
+
+  if (unit === "year" || unit === "month") {
+    const sceneTime = utcBucketTime(date.getUTCFullYear(), 0, 1);
+    return { kind: "year", label: yearLabelForTime(sceneTime), sceneTime };
+  }
+  if (unit === "day" || unit === "week") {
+    const sceneTime = utcBucketTime(date.getUTCFullYear(), date.getUTCMonth(), 1);
+    return { kind: "month-year", label: formatMonthYear(sceneTime), sceneTime };
+  }
+
+  const sceneTime = utcBucketTime(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate(),
+  );
+  return {
+    kind: "day-month-year",
+    label: formatDayMonthYear(sceneTime),
+    sceneTime,
+  };
+}
+
+function viewportAmbientAccents(
+  viewport: Viewport | null,
+  unit: string | null,
+  pixelLength: number,
+  padding: number,
+  desiredCount: number,
+): any[] {
+  const start = Number(viewport?.start);
+  const end = Number(viewport?.end);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return [];
+
+  const desired = Math.max(1, Math.min(4, Math.trunc(desiredCount) || 1));
+  const sampleCount = Math.max(desired, desired * 4);
+  const byLabel = new Map<string, any[]>();
+
+  for (let index = 0; index < sampleCount; index += 1) {
+    const ratio = sampleCount === 1 ? 0.5 : (index + 0.5) / sampleCount;
+    const time = start + (end - start) * ratio;
+    const context = ambientContextForUnit(time, unit);
+    if (!context.label) continue;
+    const entries = byLabel.get(context.label) || [];
+    entries.push({ ...context, time });
+    byLabel.set(context.label, entries);
+  }
+
+  return [...byLabel.values()].map((entries) => {
+    const first = entries[0]!;
+    const time = entries.reduce((sum, entry) => sum + entry.time, 0) / entries.length;
+    return {
+      kind: first.kind,
+      key: `viewport-context:${first.kind}:${first.label}`,
+      label: first.label,
+      sceneTime: first.sceneTime,
+      time,
+      position: projectedPosition(time, viewport, pixelLength, padding),
+      count: 0,
+      viewportContext: true,
+    };
+  });
+}
+
+function ensureMinimumEdgeAccents(
+  edgeAccents: any[],
+  options: {
+    viewport: Viewport | null;
+    unit: string | null;
+    pixelLength: number;
+    padding: number;
+    orientation: string;
+    minimum: number;
+  },
+): any[] {
+  const minimum = Math.max(1, Math.min(4, Math.trunc(options.minimum) || 1));
+  if (edgeAccents.length >= minimum) return edgeAccents;
+
+  const selected = [...edgeAccents];
+  const labels = new Set(selected.map((accent) => String(accent.label || "")));
+  const candidates = viewportAmbientAccents(
+    options.viewport,
+    options.unit,
+    options.pixelLength,
+    options.padding,
+    minimum,
+  );
+
+  for (const candidate of candidates) {
+    if (selected.length >= minimum) break;
+    const label = String(candidate.label || "");
+    if (!label || labels.has(label)) continue;
+    selected.push(candidate);
+    labels.add(label);
+  }
+
+  return selected.sort((left, right) => Number(left.time) - Number(right.time));
 }
 
 export function planTemporalAccents(
@@ -434,6 +549,7 @@ export function planTemporalAccents(
     spec = null,
     maxItemsPerMonth = 3,
     limit = 18,
+    minimumEdgeAccents = 1,
   } = options || {};
   const usable = Math.max(1, Number(pixelLength) || 1);
   const unit = (spec as any)?.unit || null;
@@ -451,11 +567,19 @@ export function planTemporalAccents(
       () => yearExtent,
       { min: padding, max: padding + usable, gap: 16, allowExtentOverflow: true },
     );
+    const contextualEdgeAccents = ensureMinimumEdgeAccents(edgeAccents, {
+      viewport,
+      unit,
+      pixelLength: usable,
+      padding,
+      orientation,
+      minimum: minimumEdgeAccents,
+    });
     return {
-      mode: edgeAccents.length ? "year-edge" : "axis-only",
-      edgeAccents,
+      mode: contextualEdgeAccents.length ? "year-edge" : "axis-only",
+      edgeAccents: contextualEdgeAccents,
       axisMonths: [],
-      hasAmbientContext: edgeAccents.length > 0,
+      hasAmbientContext: contextualEdgeAccents.length > 0,
     };
   }
 
@@ -471,7 +595,20 @@ export function planTemporalAccents(
     .sort((a: any, b: any) => a.position - b.position);
 
   if (!accents.length) {
-    return { mode: "axis-only", edgeAccents: [], axisMonths: [], hasAmbientContext: false };
+    const contextualEdgeAccents = ensureMinimumEdgeAccents([], {
+      viewport,
+      unit,
+      pixelLength: usable,
+      padding,
+      orientation,
+      minimum: minimumEdgeAccents,
+    });
+    return {
+      mode: contextualEdgeAccents.length ? "viewport-edge" : "axis-only",
+      edgeAccents: contextualEdgeAccents,
+      axisMonths: [],
+      hasAmbientContext: contextualEdgeAccents.length > 0,
+    };
   }
 
   const fullExtent = dayContext
@@ -489,11 +626,19 @@ export function planTemporalAccents(
   );
 
   if (FINE_UNITS.has(unit) && full.length === accents.length) {
+    const contextualEdgeAccents = ensureMinimumEdgeAccents(full, {
+      viewport,
+      unit,
+      pixelLength: usable,
+      padding,
+      orientation,
+      minimum: minimumEdgeAccents,
+    });
     return {
       mode: dayContext ? "day-month-year-edge" : "month-year-edge",
-      edgeAccents: full,
+      edgeAccents: contextualEdgeAccents,
       axisMonths: [],
-      hasAmbientContext: true,
+      hasAmbientContext: contextualEdgeAccents.length > 0,
     };
   }
 
@@ -537,11 +682,19 @@ export function planTemporalAccents(
       { min: padding, max: padding + usable, gap: 8 },
     );
 
+    const contextualEdgeAccents = ensureMinimumEdgeAccents(edgeAccents, {
+      viewport,
+      unit,
+      pixelLength: usable,
+      padding,
+      orientation,
+      minimum: minimumEdgeAccents,
+    });
     return {
       mode: "month-year-edge-day-axis",
-      edgeAccents,
+      edgeAccents: contextualEdgeAccents,
       axisMonths,
-      hasAmbientContext: edgeAccents.length > 0 || axisMonths.length > 0,
+      hasAmbientContext: contextualEdgeAccents.length > 0 || axisMonths.length > 0,
     };
   }
 
@@ -584,11 +737,19 @@ export function planTemporalAccents(
     { min: padding, max: padding + usable, gap: 8 },
   );
 
+  const contextualEdgeAccents = ensureMinimumEdgeAccents(edgeAccents, {
+    viewport,
+    unit,
+    pixelLength: usable,
+    padding,
+    orientation,
+    minimum: minimumEdgeAccents,
+  });
   return {
     mode: "year-edge-month-axis",
-    edgeAccents,
+    edgeAccents: contextualEdgeAccents,
     axisMonths,
-    hasAmbientContext: edgeAccents.length > 0 || axisMonths.length > 0,
+    hasAmbientContext: contextualEdgeAccents.length > 0 || axisMonths.length > 0,
   };
 }
 
@@ -866,11 +1027,15 @@ export function compactTickLabel(
 
   if (spec.unit === "year") return yearLabelForTime(timeMs);
   if (spec.unit === "month") {
-    if (hasAmbientMonth) return null;
+    if (hasAmbientMonth) return "";
     return formatMonthYear(timeMs);
   }
-  if (spec.unit === "week") return formatDayMonthYear(timeMs);
-  if (spec.unit === "day") return formatDayMonthYear(timeMs);
+  if (spec.unit === "week") {
+    return hasAmbientMonth ? pad(date.getUTCDate()) : formatDayMonthYear(timeMs);
+  }
+  if (spec.unit === "day") {
+    return hasAmbientMonth ? pad(date.getUTCDate()) : formatDayMonthYear(timeMs);
+  }
   if (spec.unit === "hour") {
     return `${pad(date.getUTCHours())}:00`;
   }

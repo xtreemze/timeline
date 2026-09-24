@@ -1291,7 +1291,7 @@ export class TimelineViewController {
     ): void => {
       const key = temporalAccentSceneKey({
         kind: String(accent.kind || (axis ? "axis" : "edge")),
-        time: Number(accent.time),
+        time: Number(accent.sceneTime ?? accent.time),
       });
       keep.add(key);
       let node = this.accentScene.get(key);
@@ -1361,6 +1361,7 @@ export class TimelineViewController {
       spec: authoritativeSpec,
       maxItemsPerMonth: 3,
       limit: 18,
+      minimumEdgeAccents: this.retention.active ? 2 : 1,
     });
     const keepTicks = this.materializeTickHierarchy(
       authoritativeSpec,
