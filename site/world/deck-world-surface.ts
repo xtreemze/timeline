@@ -3657,6 +3657,37 @@ export class DeckWorldSurface implements WorldSurface {
     const labelRelationships = relationships.filter(
       (relationship) => edgeExpansion(relationship) > 0,
     );
+    const labelViewportWidth = Number(this.#container.clientWidth) || 1024;
+    const labelViewportHeight = Number(this.#container.clientHeight) || 768;
+    const deckLabelViewport =
+      this.#spatialMode === "local"
+        ? this.#runtime.createMapViewport?.({
+            width: labelViewportWidth,
+            height: labelViewportHeight,
+            ...this.#camera,
+          })
+        : this.#runtime.createGlobeViewport?.({
+            width: labelViewportWidth,
+            height: labelViewportHeight,
+            ...this.#camera,
+          });
+    const labelViewport: WorldLabelPlacementViewport | undefined = deckLabelViewport
+      ? {
+          width: labelViewportWidth,
+          height: labelViewportHeight,
+          project: (position) => {
+            const projected = deckLabelViewport.project(position);
+            const x = projected[0];
+            const y = projected[1];
+            return typeof x === "number" &&
+              typeof y === "number" &&
+              Number.isFinite(x) &&
+              Number.isFinite(y)
+              ? Object.freeze([x, y])
+              : null;
+          },
+        }
+      : undefined;
     const labelResult = this.#runtime.createTextLayer
       ? labelDatums({
           places,
@@ -3666,6 +3697,7 @@ export class DeckWorldSurface implements WorldSurface {
           zoom: this.#camera.zoom,
           focus: this.#focus,
           previous: this.#labelDatumCache,
+          viewport: labelViewport,
           entityMarkerRadiusPx: visibleEntityRadiusPx,
           placeMarkerRadiusPx: (placeId) => {
             const place = placeResult.byId.get(placeId);
