@@ -73,6 +73,7 @@ on:
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'tests/browser/retained-performance.spec.ts'
       - 'tests/browser/world-interaction-coverage.spec.ts'
+      - 'tests/browser/world-spatial-continuity.spec.ts'
       - 'tests/browser/world-app-visibility.spec.ts'
       - 'tests/browser/world-performance-certification.spec.ts'
       - 'tests/browser/fixtures/world-performance-baseline.json'
@@ -167,6 +168,7 @@ on:
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
       - 'tests/browser/retained-performance.spec.ts'
       - 'tests/browser/world-interaction-coverage.spec.ts'
+      - 'tests/browser/world-spatial-continuity.spec.ts'
       - 'tests/browser/world-app-visibility.spec.ts'
       - 'tests/browser/world-performance-certification.spec.ts'
       - 'tests/browser/fixtures/world-performance-baseline.json'
@@ -449,6 +451,24 @@ jobs:
         with:
           name: world-surface-interaction-report
           path: /tmp/world-interaction-report.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Run WorldSurface globe/local precision continuity certification
+        run: |
+          pnpm exec playwright test --config=playwright.config.ts \
+            tests/browser/world-spatial-continuity.spec.ts \
+            --project="Desktop Chrome" \
+            --project="Mobile Chrome" \
+            --project="Mobile Chrome Landscape" \
+            --project="Tablet Touch" \
+            --project="Reduced Motion" \
+            --reporter=json > /tmp/world-spatial-continuity-report.json
+      - name: Upload WorldSurface precision continuity evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-surface-spatial-continuity-report
+          path: /tmp/world-spatial-continuity-report.json
           if-no-files-found: error
           retention-days: 14
       - name: Run WorldSurface scale certification
