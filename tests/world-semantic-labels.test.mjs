@@ -14,6 +14,7 @@ import {
 function harness() {
   const setProps = [];
   let pickResult = null;
+  let deckProps = null;
   const pickOptions = [];
   const runtime = {
     createGlobeView(props) {
@@ -31,7 +32,8 @@ function harness() {
     createIconLayer(props) {
       return { type: "icon", props };
     },
-    createDeck() {
+    createDeck(props) {
+      deckProps = props;
       return {
         setProps(props) {
           setProps.push(props);
@@ -54,6 +56,9 @@ function harness() {
     pickOptions,
     setPickResult(value) {
       pickResult = value;
+    },
+    getDeckProps() {
+      return deckProps;
     },
     lastLayers() {
       return setProps.filter((props) => props.layers).at(-1).layers;
@@ -571,6 +576,63 @@ test("clustered overview suppresses member labels even when a member is selected
   assert.ok(labels.every((datum) => datum.kind === "place-label"));
 });
 
+test("hover changes label color only and never restarts label position transitions", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
+  surface.setProjection(directedProjection());
+
+  const beforeLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const beforeByKey = new Map(beforeLayer.props.data.map((datum) => [datum.key, datum]));
+  const beforeGeometry = new Map(
+    beforeLayer.props.data.map((datum) => [
+      datum.key,
+      {
+        position: beforeLayer.props.getPosition(datum),
+        pixelOffset: beforeLayer.props.getPixelOffset(datum),
+      },
+    ]),
+  );
+  const hoveredBefore = beforeLayer.props.data.find(
+    (datum) => datum.kind === "entity-label" && datum.entityId === "entity-0",
+  );
+  assert.ok(hoveredBefore);
+  const colorBefore = beforeLayer.props.getColor(hoveredBefore);
+
+  h.getDeckProps().onHover({
+    object: {
+      kind: "entity",
+      entityId: "entity-0",
+      worldInstanceId: worldInstanceId("entity-0", "occurrence-0"),
+    },
+  });
+
+  const afterLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const hoveredAfter = afterLayer.props.data.find(
+    (datum) => datum.kind === "entity-label" && datum.entityId === "entity-0",
+  );
+  assert.equal(hoveredAfter, hoveredBefore, "hover preserves label datum identity");
+
+  for (const datum of afterLayer.props.data) {
+    assert.equal(datum, beforeByKey.get(datum.key), datum.key + " datum identity stays stable");
+    assert.deepEqual(
+      {
+        position: afterLayer.props.getPosition(datum),
+        pixelOffset: afterLayer.props.getPixelOffset(datum),
+      },
+      beforeGeometry.get(datum.key),
+      datum.key + " label geometry stays stable on hover",
+    );
+  }
+
+  assert.notDeepEqual(afterLayer.props.getColor(hoveredAfter), colorBefore);
+  assert.deepEqual(
+    afterLayer.props.transitions,
+    { getColor: 120 },
+    "hover-capable label layer transitions color only",
+  );
+  assert.equal(afterLayer.props.transitions.getPosition, undefined);
+});
+
 test("label and marker datums keep object identity across unrelated re-renders", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
@@ -698,37 +760,53 @@ function chainProjection(count) {
   return createWorldProjection({ instances, edges });
 }
 
-test("selection emphasizes an existing neighborhood without changing label membership or placement", () => {
+test("selection changes label color without changing label membership or placement", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 1 });
   surface.setProjection(chainProjection(2_000));
 
-  const before = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  const beforeLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const before = beforeLayer.props.data;
   const beforeGeometry = before.map((datum) => ({
     key: datum.key,
-    pixelOffset: datum.pixelOffset ?? null,
+    position: beforeLayer.props.getPosition(datum),
+    pixelOffset: beforeLayer.props.getPixelOffset(datum),
   }));
+  const selectedBefore = before.find(
+    (datum) => datum.kind === "entity-label" && datum.entityId === "entity-0",
+  );
+  const incidentBefore = before.find(
+    (datum) => datum.kind === "relationship-label" && datum.relationshipId === "edge-1",
+  );
+  assert.ok(selectedBefore);
+  assert.ok(incidentBefore);
+  const selectedColorBefore = beforeLayer.props.getColor(selectedBefore);
+  const incidentColorBefore = beforeLayer.props.getColor(incidentBefore);
 
   surface.setSelection({ kind: "entity", id: "entity-0" });
 
-  const after = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  const afterLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const after = afterLayer.props.data;
   assert.deepEqual(
-    after.map((datum) => ({ key: datum.key, pixelOffset: datum.pixelOffset ?? null })),
+    after.map((datum) => ({
+      key: datum.key,
+      position: afterLayer.props.getPosition(datum),
+      pixelOffset: afterLayer.props.getPixelOffset(datum),
+    })),
     beforeGeometry,
     "selection must not perturb label LOD or declutter geometry",
   );
 
-  const selectedLabel = after.find(
+  const selectedAfter = after.find(
     (datum) => datum.kind === "entity-label" && datum.entityId === "entity-0",
   );
-  assert.ok(selectedLabel);
-  assert.equal(selectedLabel.emphasized, true);
-
-  const incidentLabel = after.find(
+  const incidentAfter = after.find(
     (datum) => datum.kind === "relationship-label" && datum.relationshipId === "edge-1",
   );
-  assert.ok(incidentLabel);
-  assert.equal(incidentLabel.emphasized, true);
+  assert.equal(selectedAfter, selectedBefore, "selection reuses the same selected label datum");
+  assert.equal(incidentAfter, incidentBefore, "selection reuses the same incident label datum");
+  assert.notDeepEqual(afterLayer.props.getColor(selectedAfter), selectedColorBefore);
+  assert.notDeepEqual(afterLayer.props.getColor(incidentAfter), incidentColorBefore);
 });
 
 test("dense direction-marker LOD is selection-stable while explicit focus may pin an edge", () => {
