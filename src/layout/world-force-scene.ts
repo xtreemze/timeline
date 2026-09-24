@@ -12,7 +12,6 @@ import type {
 } from "./world-force-simulation.ts";
 import {
   WORLD_ENTITY_MIN_HIT_RADIUS_PX,
-  WORLD_NODE_SCALE,
   worldNodeFootprintRadiusPx,
 } from "./world-graph-style.ts";
 
@@ -25,12 +24,18 @@ export interface WorldForceScenePolicy {
   readonly anchorInfluenceScale: number;
 }
 
+/**
+ * Physical graph spacing is deliberately independent from screen marker scale.
+ * Compact markers must not collapse the force layout or DAG target geometry.
+ */
+const WORLD_FORCE_LAYOUT_SCALE = 2;
+
 export const DEFAULT_WORLD_FORCE_SCENE_POLICY: WorldForceScenePolicy = Object.freeze({
   baseMass: 1,
   visualWeightMassScale: 1,
-  baseCollisionRadiusMeters: 180 * WORLD_NODE_SCALE,
+  baseCollisionRadiusMeters: 180 * WORLD_FORCE_LAYOUT_SCALE,
   edgeStrength: 0.035,
-  edgeRestLengthMeters: 900 * WORLD_NODE_SCALE,
+  edgeRestLengthMeters: 900 * WORLD_FORCE_LAYOUT_SCALE,
   anchorInfluenceScale: 0.75,
 });
 
