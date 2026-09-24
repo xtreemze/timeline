@@ -8,7 +8,7 @@ import {
   type WorldNodeDragPosition,
 } from "../../src/interaction/world-node-drag-controller.ts";
 import {
-  applyWorldForceLayout,
+  applyWorldForceLayoutUpdate,
   type WorldForceLayoutSample,
 } from "../../src/layout/world-force-layout.ts";
 import {
@@ -234,19 +234,30 @@ export class WorldViewRuntimeController {
     const samples = this.#layoutReadback.read();
     if (samples.length === 0) return;
     const previous = this.#renderProjection;
-    const next = applyWorldForceLayout(previous ?? this.#sourceProjection, samples);
-    this.#renderProjection = next;
+    const update = applyWorldForceLayoutUpdate(previous ?? this.#sourceProjection, samples);
+    this.#renderProjection = update.projection;
 
-    // Force animation should not replace the whole deck data graph every
-    // frame. Reuse WorldSurface's incremental path so only nodes/edges whose
-    // derived positions changed invalidate renderer attributes.
+    // Force readback already tells us exactly which instances moved. Avoid
+    // the generic projection diff here: it rebuilds maps for all nodes/edges
+    // and deep-serializes values even though force frames only change derived
+    // node positions.
     if (previous && this.#surface.applyProjectionDelta) {
-      const delta = diffWorldProjection(previous, next);
-      if (!isEmptyWorldProjectionDelta(delta)) this.#surface.applyProjectionDelta(delta);
+      if (update.updatedInstances.length > 0) {
+        this.#surface.applyProjectionDelta(
+          Object.freeze({
+            addedInstances: Object.freeze([]),
+            updatedInstances: update.updatedInstances,
+            removedInstanceIds: Object.freeze([]),
+            addedEdges: Object.freeze([]),
+            updatedEdges: Object.freeze([]),
+            removedEdgeIds: Object.freeze([]),
+          }),
+        );
+      }
       return;
     }
 
-    this.#surface.setProjection(next);
+    this.#surface.setProjection(update.projection);
   }
 
   refresh(): void {
