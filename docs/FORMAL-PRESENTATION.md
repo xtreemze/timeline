@@ -179,9 +179,9 @@ For product demonstrations, release reviews, talks, and slide/web presentations,
 
 - `artifacts/e2e-media/reels/lum-desktop-highlight.mp4`;
 - `artifacts/e2e-media/reels/lum-mobile-highlight.mp4`;
-- five looping desktop GIFs under `gifs/desktop/`;
-- five looping mobile GIFs under `gifs/mobile/`.
+- source-resolution PNG screenshots for static product states;
+- source-dimension, source-frame-rate animated WebP for motion scenes.
 
-The desktop and mobile collections demonstrate the same five product capabilities with layout-appropriate interactions. Stable published GIFs live under `/timeline/showcase/desktop/` and `/timeline/showcase/mobile/`.
+The desktop and mobile collections demonstrate the same five product capabilities with layout-appropriate interactions. Stable mixed showcase media lives under `/timeline/showcase/desktop/` and `/timeline/showcase/mobile/`. Static states should remain screenshots; animation is reserved for interactions where motion itself communicates behavior.
 
 These files are product-presentation assets only. They must not be represented as case evidence, provenance, source material, or a substitute for the evidence and trace model described elsewhere in this documentation.

@@ -54,6 +54,9 @@ test("retained event terminals preserve semantic media, tag icons, and connector
   assert.match(card, /setSemanticItem\(item: TimelineEventCardItem\)/);
   assert.match(card, /data-timeline-icon/);
   assert.match(card, /this\.dataset\.connectorWeight/);
+  assert.match(card, /aria-controls="timeline-focus-view"/);
+  assert.match(card, /aria-expanded="false"/);
+  assert.match(card, /setAttribute\("aria-expanded", String\(selected\)\)/);
   assert.match(
     view,
     /connectorWeight === "fine" \? 1 : item\.connectorWeight === "strong" \? 4 : 2/,
@@ -120,4 +123,16 @@ test("Lit event card has no ambient Timeline globals", async () => {
   );
   assert.doesNotMatch(card, /globalThis\.Timeline/);
   assert.match(card, /import \{ createIcon \} from "\.\.\/event-presentation\.ts"/);
+});
+
+test("timeline touch arbitration keeps occurrence taps separate from camera gestures", async () => {
+  const view = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  assert.match(view, /interactive:\s*Boolean\(timelineInteractionTarget\)/);
+  assert.match(view, /tap\.cancelled \|\| tap\.interactive/);
+  assert.match(
+    view,
+    /tap\.interactive[\s\S]*TOUCH_TAP_MOVE_TOLERANCE_PX[\s\S]*beginSurfaceDrag\(event\.pointerId, \{ x: tap\.startX, y: tap\.startY \}\)/,
+  );
+  assert.match(view, /borderBoxSize[\s\S]*contentRect\.width[\s\S]*contentRect\.height/);
 });

@@ -1,6 +1,6 @@
 # Lūm terminology and conceptual model
 
-Lūm is the product identity for the project historically named Timeline.
+Lūm is the product identity for the project historically named Timeline. Visual identity, product copy, palette, and mark usage are defined in [BRAND.md](BRAND.md).
 
 The name is written **Lūm** in human-facing product copy. Use **Lum** only where a plain-ASCII identifier is required. Existing `timeline:*` storage keys, `Timeline*` compatibility globals, WebMCP tool names, repository paths, migration namespaces, and schema identifiers remain compatibility contracts until a separately versioned migration changes them.
 
