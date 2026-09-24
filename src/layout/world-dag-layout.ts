@@ -1,13 +1,16 @@
 import {
   coordGreedy,
   coordSimplex,
+  type Coord,
   type Decross,
   decrossOpt,
   decrossTwoLayer,
   type GraphNode,
   graphConnect,
+  type Layering,
   layeringLongestPath,
   layeringSimplex,
+  type NodeSize,
   sugiyama,
 } from "d3-dag";
 
@@ -682,11 +685,18 @@ function runLayoutCandidate(
   const twoLayer = defaultTwoLayer
     .passes(nodeIds.length > 64 ? 8 : nodeIds.length > 24 ? 16 : 24)
     .inits([priorOrderInitializer(previousTargets), ...defaultTwoLayer.inits()]);
+  const selectedLayering: Layering<string, DagLinkData> =
+    layering === "longest" ? layeringLongestPath() : layeringSimplex();
+  const selectedDecross: Decross<string, DagLinkData> = decross === "opt" ? decrossOpt() : twoLayer;
+  const selectedCoord: Coord<string, DagLinkData> =
+    coord === "simplex" ? coordSimplex() : coordGreedy();
+  const nodeSize: NodeSize<string, DagLinkData> = (node: GraphNode<string, DagLinkData>) =>
+    sizes.get(node.data) ?? [1, 1];
   const layout = sugiyama()
-    .layering(layering === "longest" ? layeringLongestPath() : layeringSimplex())
-    .decross(decross === "opt" ? decrossOpt() : twoLayer)
-    .coord(coord === "simplex" ? coordSimplex() : coordGreedy())
-    .nodeSize((node: GraphNode<string, DagLinkData>) => sizes.get(node.data) ?? [1, 1])
+    .layering(selectedLayering)
+    .decross(selectedDecross)
+    .coord(selectedCoord)
+    .nodeSize(nodeSize)
     .gap(gap);
   const dimensions = layout(graph);
 
