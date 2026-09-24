@@ -90,6 +90,11 @@ test.describe("production WorldSurface in the app", () => {
     const box = await graphCanvasBox(page);
     const clip = { x: box.x, y: box.y, width: box.width, height: box.height };
 
+    // Opens on the whole rotatable globe turned towards the content; the
+    // content fit is one control away.
+    await expect(page.getByRole("button", { name: "Show whole globe" })).toBeVisible();
+    await page.getByRole("button", { name: "Fit to content" }).click();
+
     await expect
       .poll(async () => (await entityPixels(page, clip)).count, {
         message: "entity marks must be drawn in a colour visible on the app background",
@@ -118,6 +123,22 @@ test.describe("production WorldSurface in the app", () => {
     await expect
       .poll(async () => Buffer.compare(await page.screenshot({ clip }), before) !== 0)
       .toBe(true);
+
+    // Visible camera controls: zoom in changes the view, fit restores it.
+    const controls = page.getByRole("toolbar", { name: "Globe camera" });
+    await expect(controls).toBeVisible();
+    const beforeZoom = await page.screenshot({ clip });
+    await controls.getByRole("button", { name: "Zoom in" }).click();
+    await expect
+      .poll(async () => Buffer.compare(await page.screenshot({ clip }), beforeZoom) !== 0)
+      .toBe(true);
+    await controls.getByRole("button", { name: "Fit to content" }).click();
+    await expect
+      .poll(async () => {
+        const refit = await entityPixels(page, clip);
+        return Math.max(refit.spreadX, refit.spreadY);
+      })
+      .toBeGreaterThan(0.2);
     expect(glErrors, "the world renders without WebGL or page errors").toEqual([]);
   });
 });

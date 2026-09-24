@@ -1,0 +1,57 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import {
+  resolveWorldLocalLayoutPosition,
+  resolveWorldRenderPosition,
+} from "../src/layout/world-geographic-position.ts";
+import {
+  typicalLocalOffsetMeters,
+  WORLD_LOCAL_GRAPH_RADIUS_PX,
+  worldPresentationOffsetScale,
+} from "../src/layout/world-semantic-presentation.ts";
+
+const instance = Object.freeze({
+  id: "a::1",
+  canonicalId: "a",
+  geographicAnchors: [{ placeId: "p", latitude: 50, longitude: 8 }],
+  temporalWeight: 1,
+  visualWeight: 1,
+  retained: false,
+  localOffset: { eastMeters: 300, northMeters: -400 },
+});
+
+test("magnified render positions invert back to the stored offset (drag stays honest)", () => {
+  for (const scale of [1, 8, 90.5]) {
+    const position = resolveWorldRenderPosition(instance, scale);
+    const local = resolveWorldLocalLayoutPosition(instance, position, scale);
+    assert.ok(Math.abs(local.eastMeters - 300) < 1e-6, `east at ${scale}`);
+    assert.ok(Math.abs(local.northMeters + 400) < 1e-6, `north at ${scale}`);
+  }
+});
+
+test("offset scale keeps a typical local graph at a constant on-screen radius", () => {
+  const typical = 500;
+  for (const zoom of [6, 8, 10]) {
+    const scale = worldPresentationOffsetScale(zoom, 100, typical, 0);
+    const metersPerPixel = 40_075_016.686 / 512 / 2 ** zoom;
+    const radiusPx = (typical * scale) / metersPerPixel;
+    // Quarter-octave quantisation: within 2^(1/8) of the target.
+    assert.ok(Math.abs(Math.log2(radiusPx / WORLD_LOCAL_GRAPH_RADIUS_PX)) <= 0.125 + 1e-9);
+  }
+});
+
+test("offset scale never shrinks and is disabled for dense or offset-free scenes", () => {
+  assert.equal(worldPresentationOffsetScale(18, 100, 500, 0), 1);
+  assert.equal(worldPresentationOffsetScale(6, 50_000, 500, 0), 1);
+  assert.equal(worldPresentationOffsetScale(6, 100, 0, 0), 1);
+});
+
+test("typical offset is the 90th percentile distance from the anchor", () => {
+  const offsets = Array.from({ length: 10 }, (_, index) => ({
+    eastMeters: (index + 1) * 100,
+    northMeters: 0,
+  }));
+  assert.equal(typicalLocalOffsetMeters(offsets), 1000);
+  assert.equal(typicalLocalOffsetMeters([]), 0);
+});

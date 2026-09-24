@@ -15,6 +15,8 @@ import {
   SolidPolygonLayer,
   TextLayer,
 } from "@deck.gl/layers";
+import { webgl2Adapter } from "@luma.gl/webgl";
+import { webgpuAdapter } from "@luma.gl/webgpu";
 import type { DeckWorldBindings } from "./deck-world-runtime.ts";
 import type { DeckRuntimeInstance, DeckRuntimePickingInfo } from "./deck-world-surface.ts";
 
@@ -39,9 +41,62 @@ function wrapDeckInstance(deck: InstanceType<typeof Deck>): DeckRuntimeInstance 
   });
 }
 
+/**
+ * Resolves true once the browser actually grants a WebGPU adapter. luma's
+ * "best-available" only checks that `navigator.gpu` exists and then fails
+ * outright when no adapter is granted (blocklisted GPU, headless, policy).
+ */
+const webgpuUsable: Promise<boolean> = (async () => {
+  try {
+    const gpu = (
+      globalThis.navigator as { gpu?: { requestAdapter(): Promise<unknown> } } | undefined
+    )?.gpu;
+    return Boolean(await gpu?.requestAdapter());
+  } catch {
+    return false;
+  }
+})();
+
+/**
+ * WebGPU adapter that falls back to WebGL2 when no WebGPU adapter is
+ * granted, so device selection never fails the world view (Orb would then
+ * take over).
+ */
+const webgpuOrWebgl2Adapter: typeof webgpuAdapter = Object.assign(Object.create(webgpuAdapter), {
+  async create(props: Parameters<typeof webgpuAdapter.create>[0]) {
+    return (await webgpuUsable) ? webgpuAdapter.create(props) : webgl2Adapter.create(props);
+  },
+});
+
+/**
+ * WebGPU where the browser grants an adapter, WebGL2 otherwise.
+ * `?renderer=webgl` forces the fallback for debugging.
+ */
+function worldDeviceProps() {
+  const forced = new URLSearchParams(globalThis.location?.search ?? "").get("renderer");
+  if (forced === "webgl") return { type: "webgl" as const };
+  return {
+    type: "best-available" as const,
+    adapters: [webgpuOrWebgl2Adapter],
+    // Deck only defaults to a premultiplied (transparent) canvas when the
+    // type is exactly "webgpu"; without it WebGPU composites over black.
+    createCanvasContext: { alphaMode: "premultiplied" as const },
+  };
+}
+
 export const realDeckWorldBindings: DeckWorldBindings = Object.freeze({
   deck(props) {
-    return wrapDeckInstance(new Deck(props as ConstructorParameters<typeof Deck>[0]));
+    return wrapDeckInstance(
+      new Deck({
+        ...(props as ConstructorParameters<typeof Deck>[0]),
+        deviceProps: worldDeviceProps(),
+        // Exposes the negotiated backend ("webgpu" | "webgl") to CSS/tests.
+        onDeviceInitialized: (device) => {
+          const parent = (props as { parent?: HTMLElement }).parent;
+          parent?.setAttribute?.("data-world-renderer", device.type);
+        },
+      }),
+    );
   },
   globeView(props) {
     return new GlobeView(props as ConstructorParameters<typeof GlobeView>[0]);

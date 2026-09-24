@@ -18,6 +18,7 @@ on:
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'src/orb-graph-entry.js'
+      - 'src/leaflet-entry.js'
       - 'src/domain/**'
       - 'src/application/**'
       - 'src/projection/**'
@@ -73,6 +74,7 @@ on:
       - 'tests/browser/retained-performance.spec.ts'
       - 'tests/browser/world-interaction-coverage.spec.ts'
       - 'tests/browser/world-app-visibility.spec.ts'
+      - 'tests/browser/world-webgpu.spec.ts'
       - 'tests/browser/world-performance-certification.spec.ts'
       - 'tests/browser/fixtures/world-performance-baseline.json'
       - 'site/world-perf-harness.html'
@@ -118,6 +120,7 @@ on:
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'src/orb-graph-entry.js'
+      - 'src/leaflet-entry.js'
       - 'src/domain/**'
       - 'src/application/**'
       - 'src/projection/**'
@@ -166,6 +169,7 @@ on:
       - 'tests/browser/retained-performance.spec.ts'
       - 'tests/browser/world-interaction-coverage.spec.ts'
       - 'tests/browser/world-app-visibility.spec.ts'
+      - 'tests/browser/world-webgpu.spec.ts'
       - 'tests/browser/world-performance-certification.spec.ts'
       - 'tests/browser/fixtures/world-performance-baseline.json'
       - 'site/world-perf-harness.html'
@@ -352,6 +356,11 @@ jobs:
             --project="Desktop Chrome" \
             --project="Mobile Chrome" \
             --project="Tablet Touch"
+      - name: Verify the WorldSurface negotiates WebGPU with a WebGL fallback
+        run: |
+          pnpm exec playwright test --config=playwright.config.ts \
+            tests/browser/world-webgpu.spec.ts \
+            --project="Desktop Chrome"
       - name: Run WorldSurface interaction certification
         continue-on-error: true
         run: |

@@ -65,6 +65,9 @@ export interface WorldViewRuntimeState {
   readonly settlingDrag: boolean;
 }
 
+/** Minimum simulated time between layout pushes to the surface. */
+export const WORLD_LAYOUT_PUSH_INTERVAL_MS = 100;
+
 export class WorldViewRuntimeController {
   readonly #surface: WorldSurface;
   readonly #forceBackend: WorldForceSimulationBackend;
@@ -78,6 +81,7 @@ export class WorldViewRuntimeController {
   #sourceProjection: WorldProjection | null = null;
   #renderProjection: WorldProjection | null = null;
   #projectionRevision = 0;
+  #sinceLayoutPush = Number.POSITIVE_INFINITY;
   #destroyed = false;
 
   constructor(options: WorldViewRuntimeOptions) {
@@ -182,15 +186,23 @@ export class WorldViewRuntimeController {
 
     this.#forceBackend.step?.(deltaMs);
 
-    if (this.#gpuLayoutBridge) {
-      this.#gpuLayoutBridge.syncFrame();
-    } else if (this.#layoutReadback && this.#sourceProjection) {
-      const samples = this.#layoutReadback.read();
-      this.#renderProjection = applyWorldForceLayout(this.#sourceProjection, samples);
-      this.#surface.setProjection(this.#renderProjection);
-    }
+    // The zero-readback GPU bridge updates positions in place every frame;
+    // only the CPU readback path rebuilds layers and is throttled below.
+    this.#gpuLayoutBridge?.syncFrame();
 
     const diagnostics = this.#forceBackend.getDiagnostics();
+    // Physics steps every frame, but pushing a new layout to the surface
+    // rebuilds and redraws every layer; throttle that while the layout is
+    // only drifting (drags still update every frame, the settled layout is
+    // always pushed).
+    this.#sinceLayoutPush += Number.isFinite(deltaMs) && deltaMs > 0 ? deltaMs : 0;
+    if (
+      diagnostics.settled ||
+      this.#drag.state().active ||
+      this.#sinceLayoutPush >= WORLD_LAYOUT_PUSH_INTERVAL_MS
+    ) {
+      this.#pushLayout();
+    }
 
     if (diagnostics.settled) {
       this.#simulation.release("projection-update");
@@ -199,6 +211,29 @@ export class WorldViewRuntimeController {
     }
 
     return this.state();
+  }
+
+  /**
+   * Ends the current layout run without waiting for the energy criterion:
+   * stops the backend, releases the settle-driven simulation holds and
+   * commits a drag that was waiting to settle. Used when the frame budget
+   * for a run is spent (slow devices can otherwise animate indefinitely).
+   */
+  settle(): void {
+    this.#assertAlive();
+    this.#forceBackend.stop();
+    this.#pushLayout();
+    this.#simulation.release("projection-update");
+    this.#simulation.release("spatial-anchor-update");
+    if (this.#drag.state().settling) this.#drag.commit();
+  }
+
+  #pushLayout(): void {
+    this.#sinceLayoutPush = 0;
+    if (this.#gpuLayoutBridge || !this.#layoutReadback || !this.#sourceProjection) return;
+    const samples = this.#layoutReadback.read();
+    this.#renderProjection = applyWorldForceLayout(this.#sourceProjection, samples);
+    this.#surface.setProjection(this.#renderProjection);
   }
 
   refresh(): void {

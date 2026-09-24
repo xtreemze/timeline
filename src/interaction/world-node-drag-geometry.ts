@@ -1,8 +1,8 @@
-import type { ScreenPoint, WorldSurface } from "../layout/world-surface.ts";
 import {
   resolveWorldLocalLayoutPosition,
   resolveWorldRenderPosition,
 } from "../layout/world-geographic-position.ts";
+import type { ScreenPoint, WorldSurface } from "../layout/world-surface.ts";
 import type { ProjectedWorldInstance } from "../projection/world-projection.ts";
 import type { WorldNodeDragPosition } from "./world-node-drag-controller.ts";
 
@@ -10,16 +10,17 @@ export function resolveWorldNodeDragPosition(
   surface: Pick<WorldSurface, "unproject">,
   instance: ProjectedWorldInstance,
   point: ScreenPoint,
+  offsetScale = 1,
 ): WorldNodeDragPosition | null {
-  const currentPosition = resolveWorldRenderPosition(instance);
+  const currentPosition = resolveWorldRenderPosition(instance, offsetScale);
   if (!currentPosition) return null;
 
   const worldPosition = surface.unproject(point, currentPosition[2]);
   if (!worldPosition) return null;
 
-  return resolveWorldLocalLayoutPosition(instance, [
-    worldPosition.longitude,
-    worldPosition.latitude,
-    worldPosition.altitudeMeters,
-  ]);
+  return resolveWorldLocalLayoutPosition(
+    instance,
+    [worldPosition.longitude, worldPosition.latitude, worldPosition.altitudeMeters],
+    offsetScale,
+  );
 }

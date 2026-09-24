@@ -3,6 +3,7 @@ import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout
 import type { WorldForceSimulationBackend } from "../../src/layout/world-force-simulation.ts";
 import { createDeckWorldRuntime, type DeckWorldBindings } from "./deck-world-runtime.ts";
 import { DeckWorldSurface } from "./deck-world-surface.ts";
+import { loadWorldBasemap } from "./world-basemap.ts";
 import {
   WorldProjectionView,
   type WorldViewModel,
@@ -40,6 +41,13 @@ export interface WorldViewFactoryOptions {
   readonly createForceBackend?: () => WorldViewFactoryForceBackend;
 }
 
+/**
+ * Wall-clock and tick budget for one layout run (after a model/window change,
+ * wake or drop). An active drag is never cut short.
+ */
+export const WORLD_LAYOUT_RUN_BUDGET_MS = 4_000;
+export const WORLD_LAYOUT_RUN_MAX_TICKS = 600;
+
 function browserScheduler(): WorldFrameScheduler {
   return Object.freeze({
     request(callback) {
@@ -61,6 +69,8 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
 
   #frame = 0;
   #lastFrameAt = 0;
+  #runStartedAt: number | null = null;
+  #runTicks = 0;
   #destroyed = false;
 
   constructor(
@@ -76,6 +86,7 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
   setModel(model: WorldViewModel): void {
     this.#assertAlive();
     this.#view.setModel(model);
+    this.#restartBudget();
     this.#schedule();
   }
 
@@ -107,6 +118,7 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
 
   wake(): void {
     this.#assertAlive();
+    this.#restartBudget();
     this.#schedule();
   }
 
@@ -117,6 +129,16 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
     this.#frame = 0;
     this.#lastFrameAt = 0;
     this.#view.destroy();
+  }
+
+  /**
+   * New data or an explicit wake (drag, drop) starts a fresh layout budget.
+   * Window changes do not: the timeline updates its window continuously and
+   * would otherwise keep the budget from ever running out.
+   */
+  #restartBudget(): void {
+    this.#runStartedAt = null;
+    this.#runTicks = 0;
   }
 
   #schedule(): void {
@@ -134,14 +156,23 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
     this.#lastFrameAt = timestamp;
 
     const state = this.#runtime.step(deltaMs);
-    if (
-      state.simulationRunning ||
-      !state.simulationSettled ||
-      state.dragging ||
-      state.settlingDrag
-    ) {
-      this.#frame = this.#scheduler.request((next) => this.#tick(next));
+    const wantsFrames =
+      state.simulationRunning || !state.simulationSettled || state.dragging || state.settlingDrag;
+    if (!wantsFrames) return;
+
+    this.#runStartedAt ??= timestamp;
+    this.#runTicks += 1;
+    const budgetSpent =
+      timestamp - this.#runStartedAt >= WORLD_LAYOUT_RUN_BUDGET_MS ||
+      this.#runTicks >= WORLD_LAYOUT_RUN_MAX_TICKS;
+    if (budgetSpent && !state.dragging) {
+      // The energy criterion may never be met (anchor springs oscillate) and
+      // on slow devices each frame is expensive, so an unbounded loop starves
+      // the main thread. Freeze the layout where it is.
+      this.#runtime.settle();
+      return;
     }
+    this.#frame = this.#scheduler.request((next) => this.#tick(next));
   }
 
   #assertAlive(): void {
@@ -159,6 +190,15 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
 
       const container = root.querySelector<HTMLElement>(".temporal-graph-canvas") ?? root;
       const surface = new DeckWorldSurface(container, deckRuntime);
+      loadWorldBasemap()
+        .then((basemap) => {
+          try {
+            surface.setBasemap(basemap);
+          } catch {
+            // Surface destroyed before the geography arrived.
+          }
+        })
+        .catch(() => {});
       const forceBackend = options.createForceBackend?.() ?? new ReferenceWorldForceSimulation();
       const runtime = new WorldViewRuntimeController({
         surface,

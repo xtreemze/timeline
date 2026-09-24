@@ -65,15 +65,53 @@ export function fitWorldCamera(
   }
   const latitude = (south + north) / 2;
   const latitudeScale = Math.max(0.2, Math.cos((latitude * Math.PI) / 180));
-  const span = Math.max(MIN_SPAN_DEGREES, longitudeSpan * latitudeScale, north - south);
-
-  const pixels = Math.max(1, Math.min(viewport.width, viewport.height)) * FILL_RATIO;
-  const zoom = Math.log2((pixels * 360) / (TILE_SIZE_PX * span));
+  // deck.gl's GlobeView matches Web Mercator scale at the camera latitude:
+  // a degree of longitude spans the zoom's base pixels, a degree of
+  // latitude that divided by cos(latitude). Fit each axis to its own side.
+  const pixelsPerDegreeAtZoom0 = TILE_SIZE_PX / 360;
+  const zoomFor = (degrees: number, pixels: number) =>
+    Math.log2((Math.max(1, pixels) * FILL_RATIO) / (pixelsPerDegreeAtZoom0 * degrees));
+  const zoom = Math.min(
+    zoomFor(Math.max(MIN_SPAN_DEGREES, longitudeSpan), viewport.width),
+    zoomFor(Math.max(MIN_SPAN_DEGREES, north - south) / latitudeScale, viewport.height),
+  );
 
   return createWorldCameraState({
     longitude,
     latitude,
     zoom: Math.min(MAX_FIT_ZOOM, Math.max(MIN_FIT_ZOOM, zoom)),
+    bearing: current.bearing,
+    pitch: current.pitch,
+  });
+}
+
+/** Globe diameter in screen pixels at zoom 0 on the equator (deck GlobeView). */
+const GLOBE_DIAMETER_AT_ZOOM_0_PX = 151;
+/** Share of the smaller viewport side the whole globe occupies. */
+const GLOBE_FILL_RATIO = 0.86;
+
+/**
+ * Whole-globe overview: the full sphere visible and rotatable, turned so the
+ * content faces the viewer. GlobeView enlarges the sphere by 1/cos(latitude)
+ * at the camera latitude, so the zoom compensates for it.
+ */
+export function globeOverviewCamera(
+  positions: readonly WorldRenderPosition[],
+  viewport: WorldViewportSize,
+  current: WorldCameraState,
+): WorldCameraState {
+  const fitted = fitWorldCamera(positions, viewport, current);
+  const longitude = fitted?.longitude ?? current.longitude;
+  const latitude = Math.max(-60, Math.min(60, fitted?.latitude ?? current.latitude));
+  const pixels = Math.max(1, Math.min(viewport.width, viewport.height)) * GLOBE_FILL_RATIO;
+  const cosine = Math.cos((latitude * Math.PI) / 180);
+  const zoom = Math.log2((pixels * cosine) / GLOBE_DIAMETER_AT_ZOOM_0_PX);
+  return createWorldCameraState({
+    longitude,
+    latitude,
+    // Camera state rejects negative zoom; tiny viewports show a slightly
+    // cropped globe instead.
+    zoom: Math.max(0, zoom),
     bearing: current.bearing,
     pitch: current.pitch,
   });
