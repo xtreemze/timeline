@@ -15,3 +15,6 @@
 /packages/simulation/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json
 /dist
 /apps/web/dist
+/packages/audio/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709
+/packages/scene/dist
+/packages/ui/node_modules
