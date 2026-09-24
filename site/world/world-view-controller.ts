@@ -1,3 +1,4 @@
+import type { PlaceId } from "../../src/domain/ids.ts";
 import {
   createInteractionCoordinator,
   type InteractionCompletionReason,
@@ -130,6 +131,16 @@ export class WorldViewRuntimeController {
     }
 
     this.#surface.setProjection(projection);
+  }
+
+  setClusteredPlaceIds(placeIds: readonly PlaceId[]): void {
+    this.#assertAlive();
+    this.#forceBackend.setClusteredPlaceIds?.(placeIds);
+    this.#simulation.request({
+      reason: "topology",
+      energyTarget: 0.12,
+      reheat: true,
+    });
   }
 
   setTemporalWindow(window: WorldTemporalWindow): void {
