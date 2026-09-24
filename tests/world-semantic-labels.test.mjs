@@ -241,7 +241,7 @@ test("detail zoom repositions co-located semantic labels before hiding them", ()
   assert.equal(labels.props.getTextAnchor, "middle");
 });
 
-test("relationship predicate labels survive clustered overview presentation", () => {
+test("clustered overview hides relationship labels with their hidden edges", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
   surface.setProjection(directedProjection());
@@ -252,8 +252,82 @@ test("relationship predicate labels survive clustered overview presentation", ()
   );
   assert.deepEqual(
     relationshipLabels.map((datum) => labels.props.getText(datum)),
-    ["met"],
+    [],
   );
+});
+
+test("same-place overview retains members at the cluster origin while hiding member topology", () => {
+  const h = harness();
+  const source = instance(0, {
+    geographicAnchors: [
+      {
+        placeId: "shared-place",
+        label: "Shared place",
+        longitude: 10,
+        latitude: 50,
+        influence: 1,
+      },
+    ],
+    localOffset: { eastMeters: -500, northMeters: 0 },
+  });
+  const target = instance(1, {
+    geographicAnchors: [
+      {
+        placeId: "shared-place",
+        label: "Shared place",
+        longitude: 10,
+        latitude: 50,
+        influence: 1,
+      },
+    ],
+    localOffset: { eastMeters: 500, northMeters: 0 },
+  });
+  const surface = new DeckWorldSurface({}, h.runtime, {
+    ...WORKING_CAMERA,
+    longitude: 10,
+    latitude: 50,
+    zoom: 0.2,
+  });
+  surface.setProjection(
+    createWorldProjection({
+      instances: [source, target],
+      edges: [
+        createProjectedWorldEdge({
+          id: "shared-edge",
+          label: "met",
+          sourceInstanceId: source.id,
+          targetInstanceId: target.id,
+          temporalWeight: 1,
+          visible: true,
+          retained: false,
+        }),
+      ],
+    }),
+  );
+
+  const layers = h.lastLayers();
+  const entities = layer(layers, DECK_WORLD_LAYER_IDS.entities);
+  const clusters = entities.props.data.filter((datum) => datum.kind === "cluster");
+  const retainedMembers = entities.props.data.filter((datum) => datum.kind === "entity");
+  assert.equal(clusters.length, 1);
+  assert.equal(retainedMembers.length, 2);
+  assert.ok(entities.props.getRadius(clusters[0]) > 0);
+  assert.deepEqual(
+    retainedMembers.map((datum) => entities.props.getRadius(datum)),
+    [0, 0],
+    "member hit bodies are retained but not exposed while collapsed",
+  );
+
+  const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+  assert.equal(relationships.props.data.length, 1);
+  assert.equal(relationships.props.getWidth(relationships.props.data[0]), 0);
+  const [edgeStart, edgeEnd] = relationships.props.getPath(relationships.props.data[0]);
+  assert.deepEqual(edgeStart, edgeEnd, "edge endpoints collapse to the shared place origin");
+
+  const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.equal(labels.some((datum) => datum.kind === "entity-label"), false);
+  assert.equal(labels.some((datum) => datum.kind === "relationship-label"), false);
+  assert.equal(labels.some((datum) => datum.kind === "place-label"), true);
 });
 
 test("each rendered directed relationship has a visible marker preserving source/target identity", () => {
