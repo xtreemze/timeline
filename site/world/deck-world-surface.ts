@@ -3082,14 +3082,6 @@ export class DeckWorldSurface implements WorldSurface {
               getPath: (path: unknown) => path,
               getWidth: 1,
               getColor: this.#theme.graticule,
-              transitions: prefersReducedMotion()
-                ? undefined
-                : {
-                    getPath: {
-                      duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
-                      easing: temporalRelationEasing,
-                    },
-                  },
               parameters: { cullMode: "none" },
             }),
             ...(this.#basemap
@@ -3144,16 +3136,7 @@ export class DeckWorldSurface implements WorldSurface {
         },
         transitions: prefersReducedMotion()
           ? undefined
-          : {
-              getPosition: {
-                duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
-                easing: temporalRelationEasing,
-              },
-              getRadius: 120,
-              getLineWidth: 120,
-              getLineColor: 120,
-              getFillColor: 120,
-            },
+          : { getRadius: 120, getLineWidth: 120, getLineColor: 120, getFillColor: 120 },
       }),
       this.#runtime.createPathLayer({
         id: DECK_WORLD_LAYER_IDS.relationships,
@@ -3255,7 +3238,16 @@ export class DeckWorldSurface implements WorldSurface {
         },
         transitions: prefersReducedMotion()
           ? undefined
-          : { getRadius: 120, getLineWidth: 120, getLineColor: 120, getFillColor: 120 },
+          : {
+              getPosition: {
+                duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
+                easing: temporalRelationEasing,
+              },
+              getRadius: 120,
+              getLineWidth: 120,
+              getLineColor: 120,
+              getFillColor: 120,
+            },
         ...(this.#nodeDragSink
           ? {
               onDragStart: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
@@ -3291,6 +3283,16 @@ export class DeckWorldSurface implements WorldSurface {
                 getWidth: [placeExpansion],
                 getColor: [this.#palette, placeExpansion],
               },
+              transitions: prefersReducedMotion()
+                ? undefined
+                : {
+                    getPath: {
+                      duration: WORLD_CLUSTER_FORCE_TRANSITION_MS,
+                      easing: temporalRelationEasing,
+                    },
+                    getWidth: 120,
+                    getColor: 120,
+                  },
               parameters: { cullMode: "none" },
             }),
           ]
