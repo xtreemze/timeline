@@ -127,8 +127,16 @@ function normalizedTimeStep(deltaMs: number): number {
 const EARTH_RADIUS_METERS = 6_371_008.8;
 const CROSS_ANCHOR_FORCE_RADIUS_METERS = 6_000;
 const READABLE_SEPARATION_SCALE = 1.35;
+const PLACE_DOMAIN_INNER_RADIUS_SCALE = 2.25;
+const PLACE_DOMAIN_WIDTH_SCALE = 2.4;
+const PLACE_DOMAIN_CORRECTION_SQRT_SCALE = 20;
 
 type Vector3 = readonly [number, number, number];
+
+interface PlaceDomain {
+  readonly innerRadiusMeters: number;
+  readonly outerRadiusMeters: number;
+}
 
 interface ForceGroup {
   readonly key: string;
@@ -245,6 +253,38 @@ function forceGroup(key: string, states: readonly NodeState[]): ForceGroup {
     extentMeters,
     center: anchorCartesian(anchor),
   });
+}
+
+function placeDomain(states: readonly NodeState[]): PlaceDomain | null {
+  const anchored = states.filter((state) => state.anchor !== null);
+  if (anchored.length === 0) return null;
+
+  const maxCollisionRadiusMeters = anchored.reduce(
+    (radius, state) => Math.max(radius, state.node.collisionRadiusMeters),
+    0,
+  );
+  const precisionRadiusMeters = anchored.reduce(
+    (radius, state) => Math.max(radius, state.anchor?.precisionRadiusMeters ?? 0),
+    0,
+  );
+
+  // A place is the centre of a local layout domain, not the target position
+  // of every entity. Keep the authored place marker clear, then give the
+  // group enough annular area to spread through collision/relationship
+  // forces without assigning rigid angular slots.
+  const innerRadiusMeters = Math.max(
+    1,
+    maxCollisionRadiusMeters * PLACE_DOMAIN_INNER_RADIUS_SCALE,
+  );
+  const packingWidthMeters =
+    maxCollisionRadiusMeters *
+    Math.max(2, Math.sqrt(anchored.length) * PLACE_DOMAIN_WIDTH_SCALE);
+  const outerRadiusMeters = Math.max(
+    innerRadiusMeters + packingWidthMeters,
+    precisionRadiusMeters,
+  );
+
+  return Object.freeze({ innerRadiusMeters, outerRadiusMeters });
 }
 
 function crossGroupCandidates(
@@ -526,14 +566,14 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       this.#applyEdgeForce(edge, source, target, forces);
     }
 
+    const placeDomains = new Map<string, PlaceDomain>();
+    for (const group of forceGroups) {
+      const domain = placeDomain(group.states);
+      if (domain) placeDomains.set(group.key, domain);
+    }
+
     for (const state of this.#states.values()) {
       if (activeGroups && !activeGroups.has(state.group)) continue;
-      // The dragged group is free from anchor tug-of-war while directly
-      // manipulated. Nearby foreign groups keep their own anchor attraction,
-      // so they can yield to collision without losing geographic provenance.
-      if (!activeDragGroup || state.group !== activeDragGroup) {
-        this.#applyAnchorForce(state, forces);
-      }
       this.#applyAltitudeForce(state, forces);
     }
 
@@ -570,7 +610,20 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       state.y += state.vy * dt;
       state.z = Math.max(0, state.z + state.vz * dt);
 
-      energy += state.vx ** 2 + state.vy ** 2 + state.vz ** 2;
+      // Geographic membership is a positional annulus constraint rather than
+      // a spring to the exact place coordinate. Tangential motion stays free
+      // for collision/relationship forces, while only radial violations are
+      // corrected. The whole dragged group remains unconstrained until drop.
+      const domainActivity =
+        !activeDragGroup || state.group !== activeDragGroup
+          ? this.#applyPlaceDomainConstraint(
+              state,
+              placeDomains.get(state.group) ?? null,
+              dt,
+            )
+          : 0;
+
+      energy += state.vx ** 2 + state.vy ** 2 + state.vz ** 2 + domainActivity;
     }
 
     this.#iteration += 1;
@@ -714,23 +767,71 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#addForce(forces, target.node.id, -unitX * magnitude, -unitY * magnitude, 0);
   }
 
-  #applyAnchorForce(
+  #applyPlaceDomainConstraint(
     state: NodeState,
-    forces: Map<WorldInstanceId, [number, number, number]>,
-  ): void {
-    if (!state.anchor) return;
-    const radius = Math.hypot(state.x, state.y);
-    const excess = Math.max(0, radius - state.anchor.precisionRadiusMeters);
-    if (excess === 0 || radius < 0.001) return;
+    domain: PlaceDomain | null,
+    dt: number,
+  ): number {
+    const anchor = state.anchor;
+    if (!anchor || !domain || anchor.influence <= 0 || dt <= 0) return 0;
 
-    const magnitude = excess * state.anchor.influence * this.#options.anchorStrength;
-    this.#addForce(
-      forces,
-      state.node.id,
-      -(state.x / radius) * magnitude,
-      -(state.y / radius) * magnitude,
-      0,
+    const radius = Math.hypot(state.x, state.y);
+    let unitX: number;
+    let unitY: number;
+    if (radius < 0.001) {
+      const [seedX, seedY] = seededOffset(state.node.id);
+      const seedRadius = Math.max(0.001, Math.hypot(seedX, seedY));
+      unitX = seedX / seedRadius;
+      unitY = seedY / seedRadius;
+    } else {
+      unitX = state.x / radius;
+      unitY = state.y / radius;
+    }
+
+    let radialError = 0;
+    if (radius < domain.innerRadiusMeters) {
+      radialError = domain.innerRadiusMeters - radius;
+    } else if (radius > domain.outerRadiusMeters) {
+      radialError = domain.outerRadiusMeters - radius;
+    } else {
+      return 0;
+    }
+
+    // Position-based radial relaxation avoids the oscillation of a long
+    // anchor spring. Correction is deliberately bounded, with a sqrt(error)
+    // catch-up term so a very long drag returns promptly without a single
+    // large snap. anchorStrength remains the backend softness control.
+    const relaxation = Math.min(
+      0.45,
+      this.#options.anchorStrength * anchor.influence * 24,
     );
+    if (relaxation <= 0) return 0;
+    const desiredCorrection =
+      radialError * (1 - Math.pow(1 - relaxation, dt));
+    const maxCorrection =
+      Math.max(
+        state.node.collisionRadiusMeters * 2,
+        Math.sqrt(Math.abs(radialError)) * PLACE_DOMAIN_CORRECTION_SQRT_SCALE,
+      ) * dt;
+    const correction =
+      Math.sign(desiredCorrection) *
+      Math.min(Math.abs(desiredCorrection), maxCorrection);
+
+    state.x += unitX * correction;
+    state.y += unitY * correction;
+
+    // Remove only velocity that is driving farther out of the allowed band.
+    // Tangential velocity and velocity returning toward the band are retained.
+    const radialVelocity = state.vx * unitX + state.vy * unitY;
+    const movingFartherOut =
+      (radius < domain.innerRadiusMeters && radialVelocity < 0) ||
+      (radius > domain.outerRadiusMeters && radialVelocity > 0);
+    if (movingFartherOut) {
+      state.vx -= unitX * radialVelocity;
+      state.vy -= unitY * radialVelocity;
+    }
+
+    return correction ** 2;
   }
 
   #applyAltitudeForce(
