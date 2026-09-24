@@ -2535,6 +2535,9 @@ export class DeckWorldSurface implements WorldSurface {
     this.#clusterSettleTimer = globalThis.setTimeout(() => {
       this.#clusterSettleTimer = null;
       if (this.#destroyed || this.#clusterLifecycleKey !== key) return;
+      this.#clusterTopologySink?.(
+        Object.freeze({ mode: "connect" as const, instanceIds: this.#clusterLifecycleMembers }),
+      );
       this.#clusterLifecyclePhase = "expanded";
       this.#clusterLifecycleMembers = Object.freeze([]);
       this.#clusterLifecycleKey = "";
