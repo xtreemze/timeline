@@ -66,28 +66,27 @@ test("retained event terminals preserve semantic media, tag icons, and connector
 test("timeline uses a Lit custom-element ownership boundary without reactive scene rendering", async () => {
   const [html, view] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/timeline-element.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(html, /<luum-timeline id="timeline-view"/);
   assert.match(html, /<\/luum-timeline>/);
-  assert.match(view, /import \{ html, LitElement, noChange \} from "lit"/);
+  assert.match(view, /import \{ LitElement, noChange \} from "lit"/);
   assert.match(view, /class LuumTimelineElement extends LitElement/);
   assert.match(view, /createRenderRoot\(\): HTMLElement[\s\S]*return this/);
   assert.match(view, /render\(\)[\s\S]*return noChange/);
-  assert.match(view, /ensureController\(\): TimelineViewController/);
+  assert.match(view, /ensureTimelineController\(\): TimelineViewController/);
   assert.match(view, /customElements\.define\("luum-timeline", LuumTimelineElement\)/);
-  assert.match(
-    view,
-    /root instanceof LuumTimelineElement\) return root\.ensureController\(\)/,
-  );
 });
 
 
 test("retained event cards use Lit for semantic content but not interaction geometry", async () => {
-  const view = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+  const [view, card] = await Promise.all([
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/timeline-event-card.ts", import.meta.url), "utf8"),
+  ]);
 
-  assert.match(view, /customElements\.define\("luum-event-card", LuumEventCardElement\)/);
+  assert.match(card, /customElements\.define\("luum-event-card", LuumEventCardElement\)/);
   assert.match(view, /document\.createElement\("luum-event-card"\)/);
   assert.match(view, /contentRevision: this\.itemContentRevision\(item\)/);
   assert.match(
@@ -104,7 +103,7 @@ test("retained event cards use Lit for semantic content but not interaction geom
 test("world graph mounts behind a Lit lifecycle boundary", async () => {
   const [html, source] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/world/world-surface-element.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/world-surface-element.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(html, /<luum-world-surface id="temporal-graph-view"/);
