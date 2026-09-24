@@ -124,6 +124,137 @@ function normalizedTimeStep(deltaMs: number): number {
   return Math.min(1.5, deltaMs / (1000 / 60));
 }
 
+const EARTH_RADIUS_METERS = 6_371_008.8;
+const CROSS_ANCHOR_FORCE_RADIUS_METERS = 6_000;
+const CROSS_ANCHOR_BUCKET_METERS = 100_000;
+
+interface ForceGroup {
+  readonly key: string;
+  readonly states: readonly NodeState[];
+  readonly anchor: WorldForceAnchor | null;
+  readonly extentMeters: number;
+  readonly bucket: readonly [number, number, number] | null;
+}
+
+function shortestLongitudeDeltaDegrees(from: number, to: number): number {
+  return ((((to - from + 180) % 360) + 360) % 360) - 180;
+}
+
+function anchorDeltaMeters(
+  left: WorldForceAnchor,
+  right: WorldForceAnchor,
+): readonly [number, number] {
+  const radians = Math.PI / 180;
+  const meanLatitude = ((left.latitude + right.latitude) / 2) * radians;
+  const eastMeters =
+    shortestLongitudeDeltaDegrees(left.longitude, right.longitude) *
+    radians *
+    EARTH_RADIUS_METERS *
+    Math.max(0.05, Math.cos(meanLatitude));
+  const northMeters = (right.latitude - left.latitude) * radians * EARTH_RADIUS_METERS;
+  return Object.freeze([eastMeters, northMeters]);
+}
+
+function anchorCartesian(anchor: WorldForceAnchor): readonly [number, number, number] {
+  const latitude = (anchor.latitude * Math.PI) / 180;
+  const longitude = (anchor.longitude * Math.PI) / 180;
+  const horizontal = Math.cos(latitude) * EARTH_RADIUS_METERS;
+  return Object.freeze([
+    horizontal * Math.cos(longitude),
+    horizontal * Math.sin(longitude),
+    Math.sin(latitude) * EARTH_RADIUS_METERS,
+  ]);
+}
+
+function forceGroup(key: string, states: readonly NodeState[]): ForceGroup {
+  const anchor = states.find((state) => state.anchor)?.anchor ?? null;
+  const extentMeters = states.reduce(
+    (extent, state) =>
+      Math.max(extent, Math.hypot(state.x, state.y) + state.node.collisionRadiusMeters),
+    0,
+  );
+  if (!anchor) {
+    return Object.freeze({ key, states, anchor: null, extentMeters, bucket: null });
+  }
+
+  const [x, y, z] = anchorCartesian(anchor);
+  return Object.freeze({
+    key,
+    states,
+    anchor,
+    extentMeters,
+    bucket: Object.freeze([
+      Math.floor(x / CROSS_ANCHOR_BUCKET_METERS),
+      Math.floor(y / CROSS_ANCHOR_BUCKET_METERS),
+      Math.floor(z / CROSS_ANCHOR_BUCKET_METERS),
+    ]),
+  });
+}
+
+function crossGroupCandidates(groups: readonly ForceGroup[]): readonly (readonly [ForceGroup, ForceGroup])[] {
+  const buckets = new Map<string, number[]>();
+  const keyFor = (x: number, y: number, z: number) => `${x}:${y}:${z}`;
+
+  for (let index = 0; index < groups.length; index += 1) {
+    const bucket = groups[index]?.bucket;
+    if (!bucket) continue;
+    const key = keyFor(bucket[0], bucket[1], bucket[2]);
+    buckets.set(key, [...(buckets.get(key) ?? []), index]);
+  }
+
+  const pairs: Array<readonly [ForceGroup, ForceGroup]> = [];
+  for (let index = 0; index < groups.length; index += 1) {
+    const group = groups[index];
+    const bucket = group?.bucket;
+    if (!group || !bucket) continue;
+
+    for (let x = bucket[0] - 1; x <= bucket[0] + 1; x += 1) {
+      for (let y = bucket[1] - 1; y <= bucket[1] + 1; y += 1) {
+        for (let z = bucket[2] - 1; z <= bucket[2] + 1; z += 1) {
+          for (const otherIndex of buckets.get(keyFor(x, y, z)) ?? []) {
+            if (otherIndex <= index) continue;
+            const other = groups[otherIndex];
+            if (!other || !group.anchor || !other.anchor) continue;
+
+            const [eastMeters, northMeters] = anchorDeltaMeters(group.anchor, other.anchor);
+            const anchorDistance = Math.hypot(eastMeters, northMeters);
+            if (
+              anchorDistance >
+              group.extentMeters +
+                other.extentMeters +
+                CROSS_ANCHOR_FORCE_RADIUS_METERS
+            ) {
+              continue;
+            }
+            pairs.push(Object.freeze([group, other]));
+          }
+        }
+      }
+    }
+  }
+
+  return Object.freeze(pairs);
+}
+
+function pairDeltaMeters(left: NodeState, right: NodeState): readonly [number, number] | null {
+  if (left.group === right.group) {
+    return Object.freeze([right.x - left.x, right.y - left.y]);
+  }
+  if (!left.anchor || !right.anchor) return null;
+  const [anchorEastMeters, anchorNorthMeters] = anchorDeltaMeters(left.anchor, right.anchor);
+  return Object.freeze([
+    anchorEastMeters + right.x - left.x,
+    anchorNorthMeters + right.y - left.y,
+  ]);
+}
+
+function crossAnchorInteractionRadius(left: NodeState, right: NodeState): number {
+  return Math.max(
+    CROSS_ANCHOR_FORCE_RADIUS_METERS,
+    (left.node.collisionRadiusMeters + right.node.collisionRadiusMeters) * 4,
+  );
+}
+
 export class ReferenceWorldForceSimulation implements WorldForceSimulationBackend {
   readonly #options: ReferenceWorldForceOptions;
   #states = new Map<WorldInstanceId, NodeState>();
@@ -247,22 +378,51 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       groups.set(state.group, [...(groups.get(state.group) ?? []), state]);
     }
 
-    // During direct manipulation geography is fixed. Only the floating
-    // topology sharing the dragged node's anchor participates in force;
-    // unrelated place groups remain completely still until release.
+    const forceGroups = [...groups.entries()].map(([key, states]) => forceGroup(key, states));
+    const crossPairs = crossGroupCandidates(forceGroups);
+
+    // During direct manipulation geography is fixed. The dragged local group
+    // remains the primary active island, but nearby floating nodes belonging
+    // to other fixed place anchors must still participate in collision and
+    // repulsion when their world-space footprints approach each other.
     const activeDragGroup = this.#pin
       ? (this.#states.get(this.#pin.instanceId)?.group ?? null)
       : null;
+    const activeGroups = activeDragGroup ? new Set<string>([activeDragGroup]) : null;
 
-    for (const [group, states] of groups) {
-      if (activeDragGroup && group !== activeDragGroup) continue;
+    if (activeDragGroup && activeGroups) {
+      for (const [leftGroup, rightGroup] of crossPairs) {
+        if (leftGroup.key !== activeDragGroup && rightGroup.key !== activeDragGroup) continue;
+        if (!this.#groupsCanInteract(leftGroup.states, rightGroup.states)) continue;
+        activeGroups.add(leftGroup.key);
+        activeGroups.add(rightGroup.key);
+      }
+    }
+
+    for (const group of forceGroups) {
+      if (activeGroups && !activeGroups.has(group.key)) continue;
+      const states = group.states;
       for (let leftIndex = 0; leftIndex < states.length; leftIndex += 1) {
         const left = states[leftIndex];
         if (!left) continue;
         for (let rightIndex = leftIndex + 1; rightIndex < states.length; rightIndex += 1) {
           const right = states[rightIndex];
           if (!right) continue;
-          this.#applyPairForces(left, right, forces);
+          this.#applyPairForces(left, right, forces, false);
+        }
+      }
+    }
+
+    for (const [leftGroup, rightGroup] of crossPairs) {
+      if (
+        activeGroups &&
+        (!activeGroups.has(leftGroup.key) || !activeGroups.has(rightGroup.key))
+      ) {
+        continue;
+      }
+      for (const left of leftGroup.states) {
+        for (const right of rightGroup.states) {
+          this.#applyPairForces(left, right, forces, true);
         }
       }
     }
@@ -271,18 +431,18 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       const source = this.#states.get(edge.sourceId);
       const target = this.#states.get(edge.targetId);
       if (!source || !target || source.group !== target.group) continue;
-      if (activeDragGroup && source.group !== activeDragGroup) continue;
+      if (activeGroups && !activeGroups.has(source.group)) continue;
       this.#applyEdgeForce(edge, source, target, forces);
     }
 
     for (const state of this.#states.values()) {
-      if (activeDragGroup && state.group !== activeDragGroup) continue;
-      // A claimed drag temporarily turns the active local topology into a
-      // free floating component. The canonical place remains fixed, but its
-      // attraction must not pull the dragged node's neighbours back toward
-      // the anchor while the user is arranging them. Restore anchor force as
-      // soon as the pin is released.
-      if (!activeDragGroup) this.#applyAnchorForce(state, forces);
+      if (activeGroups && !activeGroups.has(state.group)) continue;
+      // The dragged group is free from anchor tug-of-war while directly
+      // manipulated. Nearby foreign groups keep their own anchor attraction,
+      // so they can yield to collision without losing geographic provenance.
+      if (!activeDragGroup || state.group !== activeDragGroup) {
+        this.#applyAnchorForce(state, forces);
+      }
       this.#applyAltitudeForce(state, forces);
     }
 
@@ -291,7 +451,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
 
     let activeNodeCount = 0;
     for (const state of this.#states.values()) {
-      if (activeDragGroup && state.group !== activeDragGroup) continue;
+      if (activeGroups && !activeGroups.has(state.group)) continue;
       activeNodeCount += 1;
       if (this.#pin?.instanceId === state.node.id) {
         state.x = this.#pin.eastMeters;
@@ -362,14 +522,33 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#running = false;
   }
 
+  #groupsCanInteract(leftStates: readonly NodeState[], rightStates: readonly NodeState[]): boolean {
+    for (const left of leftStates) {
+      for (const right of rightStates) {
+        const delta = pairDeltaMeters(left, right);
+        if (!delta) continue;
+        if (Math.hypot(delta[0], delta[1]) <= crossAnchorInteractionRadius(left, right)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   #applyPairForces(
     left: NodeState,
     right: NodeState,
     forces: Map<WorldInstanceId, [number, number, number]>,
+    crossAnchor: boolean,
   ): void {
-    let dx = right.x - left.x;
-    let dy = right.y - left.y;
+    const delta = pairDeltaMeters(left, right);
+    if (!delta) return;
+
+    let [dx, dy] = delta;
     let distance = Math.hypot(dx, dy);
+    const minimumDistance = left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
+
+    if (crossAnchor && distance > crossAnchorInteractionRadius(left, right)) return;
 
     if (distance < 0.001) {
       const [seedX, seedY] = seededOffset(right.node.id);
@@ -381,7 +560,6 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const unitX = dx / distance;
     const unitY = dy / distance;
     const repulsion = this.#options.repulsionStrength / Math.max(100, distance ** 2);
-    const minimumDistance = left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
     const collision =
       distance < minimumDistance
         ? (minimumDistance - distance) * this.#options.collisionStrength
