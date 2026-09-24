@@ -13,8 +13,6 @@ Run, in order, from the repo root:
 2. `pnpm types:migrated`
 3. `pnpm test`
 
-Before step 1, temporarily move locally built, gitignored artifacts out of `site/` (they are absent in CI and trip the linters): `site/leaflet.css`, `site/leaflet.bundle.js`, `site/evidence-extraction.bundle.js`, `site/orb-graph.bundle.js`, `site/pdf.worker.mjs`. Move them to a temp directory and restore them when you finish, even on failure.
-
 Rules:
 - Never weaken thresholds, skip, or disable tests, and never edit baselines.
 - If the strict quality gate reports formatting on a touched file, say which file and that `npx biome check --config-path=biome.strict.json --write <file>` fixes it. Do not run it unless the caller asked you to fix formatting.
