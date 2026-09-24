@@ -1584,7 +1584,7 @@ function loadState(): TimelineState {
   // A first launch should demonstrate the complete application rather than an empty shell.
   // Persisted current/legacy timelines still take precedence above this sample fallback.
   const sample = getSample();
-  if (sample && sample.items && sample.items.length > 0) {
+  if (sample?.items && sample.items.length > 0) {
     return normalizeTimeline(clone(sample));
   }
   return blankTimeline();
