@@ -113,6 +113,12 @@ interface TimelineRelationshipBand {
   subjectId?: string;
 }
 
+interface RelationshipBandPresentation {
+  title: string;
+  laneOffset: string;
+  color: string | null;
+}
+
 interface SetItemsOptions {
   focusId?: string | null;
   allCoordinates?: number[];
@@ -392,6 +398,7 @@ export class TimelineViewController {
   tickLabelScene = new Map<string, HTMLSpanElement>();
   accentScene = new Map<string, HTMLDivElement>();
   relationshipBandScene = new Map<string, HTMLDivElement>();
+  relationshipBandPresentation = new Map<string, RelationshipBandPresentation>();
   relationshipBandZone: HTMLDivElement | null = null;
   committedLayout: TemporalCommittedLayoutPlan = {
     lanes: Object.freeze({}),
@@ -936,14 +943,22 @@ export class TimelineViewController {
       (item) => item && typeof item.id === "string" && Number.isFinite(item.start),
     );
     this.relationships = Array.isArray(options.relationships)
-      ? options.relationships.filter(
-          (relationship): relationship is TimelineRelationshipBand =>
-            Boolean(relationship) &&
-            typeof relationship.id === "string" &&
-            Number.isFinite(relationship.start) &&
-            Number.isFinite(relationship.end),
-        )
+      ? options.relationships
+          .filter(
+            (relationship): relationship is TimelineRelationshipBand =>
+              Boolean(relationship) &&
+              typeof relationship.id === "string" &&
+              Number.isFinite(relationship.start) &&
+              Number.isFinite(relationship.end),
+          )
+          .sort(
+            (left, right) =>
+              left.start - right.start ||
+              left.end - right.end ||
+              left.id.localeCompare(right.id),
+          )
       : [];
+    this.rebuildRelationshipBandPresentation();
     this.allCoordinates = Array.isArray(options.allCoordinates)
       ? options.allCoordinates.filter(Number.isFinite)
       : this.items.flatMap((item) =>
@@ -1668,6 +1683,35 @@ export class TimelineViewController {
     return Math.abs(hash) % 4;
   }
 
+  rebuildRelationshipBandPresentation(): void {
+    this.relationshipBandPresentation.clear();
+
+    for (const relationship of this.relationships) {
+      let eventId: string | null = null;
+      const eventMatch = relationship.id.match(/event-([a-z0-9-]+)/);
+      if (eventMatch) eventId = eventMatch[1] ?? null;
+
+      let coloredItem = eventId
+        ? this.items.find((item) => item.id === eventId || item.id.includes(eventId))
+        : null;
+
+      if (!coloredItem) {
+        const { subjectId } = relationship;
+        if (subjectId) {
+          coloredItem = this.items.find(
+            (item) => item.id.includes(subjectId) || item.title?.includes(subjectId),
+          );
+        }
+      }
+
+      this.relationshipBandPresentation.set(relationship.id, {
+        title: relationship.predicate || "Temporal relationship",
+        laneOffset: `${this.relationshipBandLane(relationship.id) * 8}px`,
+        color: coloredItem?.color || null,
+      });
+    }
+  }
+
   renderRelationshipBands(padding: number, usable: number): void {
     if (!this.relationshipBandZone) {
       this.relationshipBandZone = document.createElement("div");
@@ -1675,9 +1719,9 @@ export class TimelineViewController {
       this.stage.append(this.relationshipBandZone);
     }
 
-    const retained = this.relationships
-      .filter((relationship) => itemOverlapsWindow(relationship, this.retention.extent))
-      .sort((left, right) => left.start - right.start || left.id.localeCompare(right.id));
+    const retained = this.relationships.filter((relationship) =>
+      itemOverlapsWindow(relationship, this.retention.extent),
+    );
     const keep = new Set<string>();
 
     for (const relationship of retained) {
@@ -1693,42 +1737,32 @@ export class TimelineViewController {
         this.frameCreatedObjects += 1;
       }
 
-      segment.title = relationship.predicate || "Temporal relationship";
-      segment.style.setProperty(
-        "--relation-lane-offset",
-        `${this.relationshipBandLane(relationship.id) * 8}px`,
-      );
+      const presentation = this.relationshipBandPresentation.get(relationship.id);
+      const title = presentation?.title || "Temporal relationship";
+      if (segment.title !== title) segment.title = title;
 
-      // Color segment based on associated event
-      // Try to extract event ID from relationship ID (for event-based relationships)
-      let eventId: string | null = null;
-      const eventMatch = relationship.id.match(/event-([a-z0-9-]+)/);
-      if (eventMatch) {
-        eventId = eventMatch[1] ?? null;
+      const laneOffset =
+        presentation?.laneOffset || `${this.relationshipBandLane(relationship.id) * 8}px`;
+      if (segment.style.getPropertyValue("--relation-lane-offset") !== laneOffset) {
+        segment.style.setProperty("--relation-lane-offset", laneOffset);
       }
 
-      let coloredItem = eventId
-        ? this.items.find((item) => item.id === eventId || item.id.includes(eventId))
-        : null;
-
-      // Fall back to finding events by subject entity
-      if (!coloredItem) {
-        const { subjectId } = relationship;
-        if (subjectId) {
-          coloredItem = this.items.find(
-            (item) => item.id.includes(subjectId) || item.title?.includes(subjectId),
-          );
-        }
-      }
-
-      if (coloredItem?.color) {
-        segment.style.setProperty("--relation-event-color", coloredItem.color);
+      const color = presentation?.color || "";
+      if (segment.style.getPropertyValue("--relation-event-color") !== color) {
+        if (color) segment.style.setProperty("--relation-event-color", color);
+        else segment.style.removeProperty("--relation-event-color");
       }
 
       const visible = itemOverlapsWindow(relationship, this.viewport);
-      segment.hidden = !visible;
-      segment.classList.toggle("is-buffered", !visible);
-      segment.setAttribute("aria-hidden", String(!visible));
+      if (segment.hidden === visible) segment.hidden = !visible;
+      const buffered = !visible;
+      if (segment.classList.contains("is-buffered") !== buffered) {
+        segment.classList.toggle("is-buffered", buffered);
+      }
+      const ariaHidden = String(!visible);
+      if (segment.getAttribute("aria-hidden") !== ariaHidden) {
+        segment.setAttribute("aria-hidden", ariaHidden);
+      }
       if (!visible) continue;
 
       const clippedStart = Math.max(
