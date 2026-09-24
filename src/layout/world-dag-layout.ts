@@ -83,6 +83,7 @@ const DAG_CACHE_RETENTION_REVISIONS = 8;
 const EXACT_DECROSS_MAX_NODES = 8;
 const COMPARE_LAYERING_MAX_NODES = 24;
 const SIMPLEX_COORD_MAX_NODES = 64;
+const SIMPLEX_LAYER_MAX_NODES = 128;
 const PAIRWISE_METRIC_MAX_NODES = 256;
 
 interface LocalDagEdge {
@@ -716,17 +717,31 @@ function chooseCandidate(
   const gap = layoutGap(sizes);
 
   if (nodeIds.length <= EXACT_DECROSS_MAX_NODES) {
-    return runLayoutCandidate(
-      "longest-opt-simplex",
-      nodeIds,
-      edges,
-      sizes,
-      gap,
-      previousTargets,
-      "longest",
-      "opt",
-      "simplex",
-    );
+    try {
+      return runLayoutCandidate(
+        "longest-opt-simplex",
+        nodeIds,
+        edges,
+        sizes,
+        gap,
+        previousTargets,
+        "longest",
+        "opt",
+        "simplex",
+      );
+    } catch {
+      return runLayoutCandidate(
+        "longest-two-layer-simplex",
+        nodeIds,
+        edges,
+        sizes,
+        gap,
+        previousTargets,
+        "longest",
+        "two-layer",
+        "simplex",
+      );
+    }
   }
 
   if (nodeIds.length <= COMPARE_LAYERING_MAX_NODES) {
@@ -755,16 +770,19 @@ function chooseCandidate(
     return candidateScore(longest) <= candidateScore(simplex) ? longest : simplex;
   }
 
+  const useSimplexLayering = nodeIds.length <= SIMPLEX_LAYER_MAX_NODES;
   return runLayoutCandidate(
     nodeIds.length <= SIMPLEX_COORD_MAX_NODES
       ? "simplex-two-layer-simplex"
-      : "simplex-two-layer-greedy",
+      : useSimplexLayering
+        ? "simplex-two-layer-greedy"
+        : "longest-two-layer-greedy",
     nodeIds,
     edges,
     sizes,
     gap,
     previousTargets,
-    "simplex",
+    useSimplexLayering ? "simplex" : "longest",
     "two-layer",
     nodeIds.length <= SIMPLEX_COORD_MAX_NODES ? "simplex" : "greedy",
   );
