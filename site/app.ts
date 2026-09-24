@@ -5,6 +5,8 @@
 
 import { planWorkspacePlacement } from "../src/layout/workspace-layout.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
+import { createAuthoringContext, type AuthoringCreateKind } from "./authoring-context.ts";
+import { LuumAuthoringMenuElement, type AuthoringMenuAction } from "./components/authoring-menu.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
@@ -594,6 +596,10 @@ const ui = {
   browserOpen: false,
   collapsedCategoryIds: new Set(state.categories.map((category) => category.id)),
 };
+
+const authoring = createAuthoringContext();
+const authoringMenu = document.createElement("luum-authoring-menu") as LuumAuthoringMenuElement;
+document.body.append(authoringMenu);
 
 function decorateSemanticControls() {
   for (const element of els.semanticIconTargets) {
@@ -1750,10 +1756,13 @@ function setEditorSurfaceOpen(open) {
   const editing = Boolean(open);
   ui.mode = editing ? "edit" : "view";
   ui.editorOpen = editing;
+  authoring.setMode(editing ? "edit" : "view");
   if (editing) {
     closeLargeUtilitySurfaces("editor");
     closeProjectMenu();
     closeFocusedEventForUtility();
+  } else {
+    authoringMenu.close();
   }
   syncApplicationSurfaces();
 }
@@ -3640,6 +3649,102 @@ function beginGraphNodeEdit(id) {
   els.graphNodeName.focus();
 }
 
+function authoringPlaceLabel(placeId: string | null): string | null {
+  if (!placeId) return null;
+  return getPlace(placeId)?.name || placeId;
+}
+
+function syncAuthoringSelection(detail: unknown): void {
+  if (!detail || typeof detail !== "object") {
+    authoring.setSelection(null);
+    return;
+  }
+  const record = detail as { kind?: unknown; id?: unknown };
+  const kind = record.kind;
+  const id = record.id;
+  if (
+    (kind !== "node" && kind !== "edge" && kind !== "place") ||
+    (typeof id !== "string" && typeof id !== "number")
+  ) {
+    authoring.setSelection(null);
+    return;
+  }
+  authoring.setSelection({ kind, id: String(id) });
+}
+
+function beginAuthoringSelectionEdit(): boolean {
+  const selection = authoring.selection;
+  if (!selection) return false;
+  if (selection.kind === "node") beginGraphNodeEdit(selection.id);
+  else if (selection.kind === "place") beginGraphPlaceEdit(selection.id);
+  else beginGraphEdgeEdit(selection.id);
+  return true;
+}
+
+function beginContextualGraphCreate(kind: AuthoringCreateKind): void {
+  const draft = authoring.draft(kind);
+  setActivePanel("graph");
+
+  if (kind === "place") {
+    resetGraphPlaceForm();
+    if (draft.position) {
+      els.graphPlaceLatitude.value = String(draft.position.latitude);
+      els.graphPlaceLongitude.value = String(draft.position.longitude);
+    }
+    els.graphPlaceName.focus();
+    return;
+  }
+
+  if (kind === "node") {
+    resetGraphNodeForm();
+    els.graphNodeName.focus();
+    return;
+  }
+
+  resetGraphEdgeForm();
+  if (draft.selection?.kind === "node") {
+    graphEndpointOptions(els.graphEdgeSubject, draft.selection.id);
+  }
+  if (draft.placeId) graphPlaceOptions(els.graphEdgePlace, draft.placeId);
+  if (draft.date) {
+    els.graphEdgeTimeKind.value = "event";
+    configureGraphEdgeTime();
+    graphEdgeDatePicker.setRange(draft.date, "");
+  }
+  els.graphEdgePredicate.focus();
+}
+
+function handleAuthoringAction(action: AuthoringMenuAction): void {
+  authoringMenu.close();
+  if (action === "edit-selection") {
+    beginAuthoringSelectionEdit();
+    return;
+  }
+  const kind: AuthoringCreateKind =
+    action === "add-place" ? "place" : action === "add-node" ? "node" : "relationship";
+  beginContextualGraphCreate(kind);
+}
+
+function showAuthoringMenuAt(
+  clientX: number,
+  clientY: number,
+  position: { longitude: number; latitude: number } | null = null,
+): void {
+  const placeId =
+    authoring.selection?.kind === "place"
+      ? authoring.selection.id
+      : authoring.spatialContext.placeId;
+  authoringMenu.showAt({
+    clientX,
+    clientY,
+    date: authoring.date,
+    placeLabel: authoringPlaceLabel(placeId),
+    selectionKind: authoring.selection?.kind ?? null,
+    longitude: position?.longitude ?? null,
+    latitude: position?.latitude ?? null,
+  });
+}
+
 function pruneRelationChanges(removedRelationshipIds) {
   const removed = new Set(Array.from(removedRelationshipIds || [], String));
   if (!removed.size) return;
@@ -4441,7 +4546,10 @@ els.projectMenu?.addEventListener("click", (event) => {
   queueMicrotask(closeProjectMenu);
 });
 
-els.editorToggle?.addEventListener("click", () => setEditorSurfaceOpen(!ui.editorOpen));
+els.editorToggle?.addEventListener("click", () => {
+  if (!ui.editorOpen && beginAuthoringSelectionEdit()) return;
+  setEditorSurfaceOpen(!ui.editorOpen);
+});
 els.panelOpeners.forEach((button) => {
   button.addEventListener("click", () => setActivePanel(button.dataset.openPanel));
 });
@@ -4469,8 +4577,24 @@ els.viewControls?.addEventListener("toggle", () => {
   schedulePresentationGeometryRefresh({ recenterGraph: false });
 });
 
+authoringMenu.addEventListener("authoringaction", (event) => {
+  handleAuthoringAction((event as CustomEvent<{ action: AuthoringMenuAction }>).detail.action);
+});
+
+document.addEventListener("pointerdown", (event) => {
+  if (!authoringMenu.open) return;
+  if (event.target instanceof Node && authoringMenu.contains(event.target)) return;
+  authoringMenu.close();
+});
+
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
+  if (authoringMenu.open) {
+    event.preventDefault();
+    authoringMenu.close();
+    authoring.clearSpatialContext();
+    return;
+  }
   if (ui.editorOpen) {
     event.preventDefault();
     setEditorSurfaceOpen(false);
@@ -5236,7 +5360,10 @@ const settledSpatialWindow = createSettledTemporalWindowSink<unknown>(
 );
 
 els.timelineViewRoot.addEventListener("timelineviewportchange", (event) => {
-  settledSpatialWindow.push(event.detail?.viewport || null, Boolean(event.detail?.committed));
+  const viewport = event.detail?.viewport || null;
+  const committed = Boolean(event.detail?.committed);
+  authoring.setTimelineViewport(viewport, committed);
+  settledSpatialWindow.push(viewport, committed);
 });
 
 els.timelineViewRoot.addEventListener("timelineorientationchange", (event) => {
@@ -5274,6 +5401,47 @@ els.graphViewRoot.addEventListener("graphcontextchange", (event) => {
   focusedGraphContextAvailable = Boolean(event.detail?.hasContext);
   syncContextualPresentationPanels();
   schedulePresentationGeometryRefresh({ recenterGraph: true });
+});
+
+els.graphViewRoot.addEventListener("graphselectionchange", (event) => {
+  syncAuthoringSelection((event as CustomEvent).detail);
+});
+
+els.graphViewRoot.addEventListener("worldselectionchange", (event) => {
+  syncAuthoringSelection((event as CustomEvent).detail);
+});
+
+els.graphViewRoot.addEventListener("worldcontextrequest", (event) => {
+  const request = event as CustomEvent<{
+    clientPoint?: { x?: number; y?: number };
+    position?: { longitude?: number; latitude?: number; altitudeMeters?: number } | null;
+  }>;
+  const clientX = Number(request.detail?.clientPoint?.x);
+  const clientY = Number(request.detail?.clientPoint?.y);
+  if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return;
+  const rawPosition = request.detail?.position;
+  const position =
+    rawPosition && Number.isFinite(rawPosition.longitude) && Number.isFinite(rawPosition.latitude)
+      ? {
+          longitude: Number(rawPosition.longitude),
+          latitude: Number(rawPosition.latitude),
+          altitudeMeters: Number(rawPosition.altitudeMeters) || 0,
+        }
+      : null;
+  const placeId = authoring.selection?.kind === "place" ? authoring.selection.id : null;
+  authoring.setSpatialContext({ position, placeId });
+  request.preventDefault();
+  showAuthoringMenuAt(clientX, clientY, position);
+});
+
+els.graphViewRoot.addEventListener("contextmenu", (event) => {
+  if (event.defaultPrevented) return;
+  const target = eventTargetElement(event);
+  if (!target?.closest(".temporal-graph-canvas")) return;
+  event.preventDefault();
+  const placeId = authoring.selection?.kind === "place" ? authoring.selection.id : null;
+  authoring.setSpatialContext({ position: null, placeId });
+  showAuthoringMenuAt(event.clientX, event.clientY);
 });
 els.timelineViewRoot.addEventListener("timelinefocusedit", (event) => {
   if (!event.detail?.id) return;
