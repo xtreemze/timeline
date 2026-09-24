@@ -53,7 +53,7 @@ test("removed instances are reported and stale pins are discarded", () => {
   assert.deepEqual(result.entering, [bob.id]);
 });
 
-test("canonical entity identity alone does not transfer position between occurrences", () => {
+test("canonical entity identity preserves layout across occurrence and location changes", () => {
   const oldId = worldInstanceId("alice", "stockholm");
   const nextAlice = instance("alice", "copenhagen");
   const next = createWorldProjection({ instances: [nextAlice], edges: [] });
@@ -66,9 +66,10 @@ test("canonical entity identity alone does not transfer position between occurre
     next,
   );
 
-  assert.equal(result.positions.has(nextAlice.id), false);
-  assert.deepEqual(result.entering, [nextAlice.id]);
-  assert.deepEqual(result.exiting, [oldId]);
+  assert.deepEqual(result.positions.get(nextAlice.id), { x: 100, y: 200 });
+  assert.equal(result.pinned.has(nextAlice.id), true);
+  assert.deepEqual(result.entering, []);
+  assert.deepEqual(result.exiting, []);
 });
 
 test("invalid retained coordinates are rejected before reaching renderer state", () => {
