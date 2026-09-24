@@ -6,6 +6,8 @@
  * alive across pan/zoom so rendering does not become a destructive per-frame rebuild.
  */
 
+import { LitElement, noChange } from "lit";
+
 import {
   geometryMeasurementKey,
   planCommittedTemporalLayout,
@@ -2967,9 +2969,62 @@ class TimelineViewController {
   }
 }
 
+/**
+ * Lit owns the timeline component lifecycle and stable light-DOM boundary.
+ *
+ * The retained scene intentionally stays imperative: pointer/wheel/pinch frames update
+ * keyed DOM records directly instead of asking Lit to diff the occurrence collection.
+ * This keeps reactive component work out of the high-frequency interaction path while
+ * still giving the timeline one explicit custom-element owner.
+ */
+export class LuumTimelineElement extends LitElement {
+  private timelineController: TimelineViewController | null = null;
+
+  override createRenderRoot(): HTMLElement {
+    // Existing application markup and CSS remain authoritative during migration.
+    // Returning the host preserves light DOM and avoids a shadow-boundary rewrite.
+    return this;
+  }
+
+  override render() {
+    // The controller owns the retained scene. Lit must never reconcile its keyed
+    // occurrence DOM or replace the application-provided timeline structure.
+    return noChange;
+  }
+
+  ensureController(): TimelineViewController {
+    if (!this.timelineController) {
+      this.timelineController = new TimelineViewController(this);
+    }
+    return this.timelineController;
+  }
+
+  get controller(): TimelineViewController | null {
+    return this.timelineController;
+  }
+
+  override connectedCallback(): void {
+    super.connectedCallback();
+    // Parser-created custom elements may connect before all light-DOM children exist.
+    // Deferring initialization also lets the legacy factory initialize synchronously
+    // when app orchestration runs after document parsing.
+    queueMicrotask(() => {
+      if (this.isConnected) this.ensureController();
+    });
+  }
+}
+
+if (
+  typeof customElements !== "undefined" &&
+  !customElements.get("luum-timeline")
+) {
+  customElements.define("luum-timeline", LuumTimelineElement);
+}
+
 export const TimelineView = Object.freeze({
   create(root: HTMLElement): TimelineViewController | null {
     if (!(root instanceof HTMLElement)) return null;
+    if (root instanceof LuumTimelineElement) return root.ensureController();
     return new TimelineViewController(root);
   },
   geometry: Object.freeze({

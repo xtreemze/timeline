@@ -60,3 +60,24 @@ test("retained event terminals preserve semantic media, tag icons, and connector
   assert.match(css, /\.timeline-event-art-image/);
   assert.match(css, /\.timeline-event-icon-badge/);
 });
+
+
+test("timeline uses a Lit custom-element ownership boundary without reactive scene rendering", async () => {
+  const [html, view] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(html, /<luum-timeline id="timeline-view"/);
+  assert.match(html, /<\/luum-timeline>/);
+  assert.match(view, /import \{ LitElement, noChange \} from "lit"/);
+  assert.match(view, /class LuumTimelineElement extends LitElement/);
+  assert.match(view, /createRenderRoot\(\): HTMLElement[\s\S]*return this/);
+  assert.match(view, /render\(\)[\s\S]*return noChange/);
+  assert.match(view, /ensureController\(\): TimelineViewController/);
+  assert.match(view, /customElements\.define\("luum-timeline", LuumTimelineElement\)/);
+  assert.match(
+    view,
+    /root instanceof LuumTimelineElement\) return root\.ensureController\(\)/,
+  );
+});
