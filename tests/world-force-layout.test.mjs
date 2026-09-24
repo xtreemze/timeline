@@ -112,6 +112,25 @@ test("partial force snapshots preserve untouched world instances and edges", () 
   assert.deepEqual(output.edges, input.edges);
 });
 
+test("unchanged force samples retain world instance object identity", () => {
+  const input = projection();
+  const alice = input.instances.find((instance) => instance.canonicalId === "alice");
+
+  const output = applyWorldForceLayout(input, [
+    {
+      instanceId: alice.id,
+      eastMeters: 0,
+      northMeters: 0,
+      visualAltitudeMeters: 1000,
+    },
+  ]);
+
+  assert.equal(
+    output.instances.find((instance) => instance.canonicalId === "alice"),
+    alice,
+  );
+});
+
 test("layout output remains deterministic independent of sample input order", () => {
   const input = projection();
   const alice = input.instances.find((instance) => instance.canonicalId === "alice");
