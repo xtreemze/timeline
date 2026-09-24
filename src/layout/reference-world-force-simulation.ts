@@ -282,7 +282,8 @@ function crossGroupCandidates(
     // proportional to drag distance cubed. Sweep-and-prune only keeps groups
     // whose expanded X ranges can still overlap.
     for (let index = active.length - 1; index >= 0; index -= 1) {
-      if (active[index].maxX < current.minX) active.splice(index, 1);
+      const candidate = active[index];
+      if (candidate && candidate.maxX < current.minX) active.splice(index, 1);
     }
 
     for (const other of active) {
