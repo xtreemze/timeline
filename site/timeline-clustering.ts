@@ -413,6 +413,7 @@ interface TemporalAccentsOptions extends NonOverlappingOptions {
   spec?: TemporalSpec | null;
   maxItemsPerMonth?: number;
   limit?: number;
+  minimumEdgeAccents?: number;
 }
 
 interface TemporalAccentsResult {
@@ -420,6 +421,88 @@ interface TemporalAccentsResult {
   edgeAccents: any[];
   axisMonths: any[];
   hasAmbientContext: boolean;
+}
+
+function ambientContextForUnit(timeMs: number, unit: string | null): {
+  kind: string;
+  label: string;
+} {
+  if (unit === "year" || unit === "month") {
+    return { kind: "year", label: yearLabelForTime(timeMs) };
+  }
+  if (unit === "day" || unit === "week") {
+    return { kind: "month-year", label: formatMonthYear(timeMs) };
+  }
+  return { kind: "day-month-year", label: formatDayMonthYear(timeMs) };
+}
+
+function viewportAmbientAccents(
+  viewport: Viewport | null,
+  unit: string | null,
+  pixelLength: number,
+  padding: number,
+  desiredCount: number,
+): any[] {
+  const start = Number(viewport?.start);
+  const end = Number(viewport?.end);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return [];
+
+  const desired = Math.max(1, Math.min(4, Math.trunc(desiredCount) || 1));
+  const sampleCount = Math.max(desired, desired * 4);
+  const byLabel = new Map<string, any>();
+
+  for (let index = 0; index < sampleCount; index += 1) {
+    const ratio = sampleCount === 1 ? 0.5 : (index + 0.5) / sampleCount;
+    const time = start + (end - start) * ratio;
+    const context = ambientContextForUnit(time, unit);
+    if (!context.label || byLabel.has(context.label)) continue;
+    byLabel.set(context.label, {
+      kind: context.kind,
+      key: `viewport-context:${context.kind}:${context.label}`,
+      label: context.label,
+      time,
+      position: projectedPosition(time, viewport, pixelLength, padding),
+      count: 0,
+      viewportContext: true,
+    });
+  }
+
+  return [...byLabel.values()];
+}
+
+function ensureMinimumEdgeAccents(
+  edgeAccents: any[],
+  options: {
+    viewport: Viewport | null;
+    unit: string | null;
+    pixelLength: number;
+    padding: number;
+    orientation: string;
+    minimum: number;
+  },
+): any[] {
+  const minimum = Math.max(1, Math.min(4, Math.trunc(options.minimum) || 1));
+  if (edgeAccents.length >= minimum) return edgeAccents;
+
+  const selected = [...edgeAccents];
+  const labels = new Set(selected.map((accent) => String(accent.label || "")));
+  const candidates = viewportAmbientAccents(
+    options.viewport,
+    options.unit,
+    options.pixelLength,
+    options.padding,
+    minimum,
+  );
+
+  for (const candidate of candidates) {
+    if (selected.length >= minimum) break;
+    const label = String(candidate.label || "");
+    if (!label || labels.has(label)) continue;
+    selected.push(candidate);
+    labels.add(label);
+  }
+
+  return selected.sort((left, right) => Number(left.time) - Number(right.time));
 }
 
 export function planTemporalAccents(
@@ -434,6 +517,7 @@ export function planTemporalAccents(
     spec = null,
     maxItemsPerMonth = 3,
     limit = 18,
+    minimumEdgeAccents = 1,
   } = options || {};
   const usable = Math.max(1, Number(pixelLength) || 1);
   const unit = (spec as any)?.unit || null;
@@ -451,11 +535,19 @@ export function planTemporalAccents(
       () => yearExtent,
       { min: padding, max: padding + usable, gap: 16, allowExtentOverflow: true },
     );
+    const contextualEdgeAccents = ensureMinimumEdgeAccents(edgeAccents, {
+      viewport,
+      unit,
+      pixelLength: usable,
+      padding,
+      orientation,
+      minimum: minimumEdgeAccents,
+    });
     return {
-      mode: edgeAccents.length ? "year-edge" : "axis-only",
-      edgeAccents,
+      mode: contextualEdgeAccents.length ? "year-edge" : "axis-only",
+      edgeAccents: contextualEdgeAccents,
       axisMonths: [],
-      hasAmbientContext: edgeAccents.length > 0,
+      hasAmbientContext: contextualEdgeAccents.length > 0,
     };
   }
 
@@ -471,7 +563,20 @@ export function planTemporalAccents(
     .sort((a: any, b: any) => a.position - b.position);
 
   if (!accents.length) {
-    return { mode: "axis-only", edgeAccents: [], axisMonths: [], hasAmbientContext: false };
+    const contextualEdgeAccents = ensureMinimumEdgeAccents([], {
+      viewport,
+      unit,
+      pixelLength: usable,
+      padding,
+      orientation,
+      minimum: minimumEdgeAccents,
+    });
+    return {
+      mode: contextualEdgeAccents.length ? "viewport-edge" : "axis-only",
+      edgeAccents: contextualEdgeAccents,
+      axisMonths: [],
+      hasAmbientContext: contextualEdgeAccents.length > 0,
+    };
   }
 
   const fullExtent = dayContext
@@ -489,11 +594,19 @@ export function planTemporalAccents(
   );
 
   if (FINE_UNITS.has(unit) && full.length === accents.length) {
+    const contextualEdgeAccents = ensureMinimumEdgeAccents(full, {
+      viewport,
+      unit,
+      pixelLength: usable,
+      padding,
+      orientation,
+      minimum: minimumEdgeAccents,
+    });
     return {
       mode: dayContext ? "day-month-year-edge" : "month-year-edge",
-      edgeAccents: full,
+      edgeAccents: contextualEdgeAccents,
       axisMonths: [],
-      hasAmbientContext: true,
+      hasAmbientContext: contextualEdgeAccents.length > 0,
     };
   }
 
@@ -537,11 +650,19 @@ export function planTemporalAccents(
       { min: padding, max: padding + usable, gap: 8 },
     );
 
+    const contextualEdgeAccents = ensureMinimumEdgeAccents(edgeAccents, {
+      viewport,
+      unit,
+      pixelLength: usable,
+      padding,
+      orientation,
+      minimum: minimumEdgeAccents,
+    });
     return {
       mode: "month-year-edge-day-axis",
-      edgeAccents,
+      edgeAccents: contextualEdgeAccents,
       axisMonths,
-      hasAmbientContext: edgeAccents.length > 0 || axisMonths.length > 0,
+      hasAmbientContext: contextualEdgeAccents.length > 0 || axisMonths.length > 0,
     };
   }
 
@@ -584,11 +705,19 @@ export function planTemporalAccents(
     { min: padding, max: padding + usable, gap: 8 },
   );
 
+  const contextualEdgeAccents = ensureMinimumEdgeAccents(edgeAccents, {
+    viewport,
+    unit,
+    pixelLength: usable,
+    padding,
+    orientation,
+    minimum: minimumEdgeAccents,
+  });
   return {
     mode: "year-edge-month-axis",
-    edgeAccents,
+    edgeAccents: contextualEdgeAccents,
     axisMonths,
-    hasAmbientContext: edgeAccents.length > 0 || axisMonths.length > 0,
+    hasAmbientContext: contextualEdgeAccents.length > 0 || axisMonths.length > 0,
   };
 }
 
@@ -864,13 +993,17 @@ export function compactTickLabel(
   const date = new Date(Number(timeMs));
   if (!Number.isFinite(date.getTime())) return null;
 
-  if (spec.unit === "year") return yearLabelForTime(timeMs);
+  if (spec.unit === "year") return hasAmbientMonth ? "" : yearLabelForTime(timeMs);
   if (spec.unit === "month") {
-    if (hasAmbientMonth) return null;
+    if (hasAmbientMonth) return monthLabelForTime(timeMs);
     return formatMonthYear(timeMs);
   }
-  if (spec.unit === "week") return formatDayMonthYear(timeMs);
-  if (spec.unit === "day") return formatDayMonthYear(timeMs);
+  if (spec.unit === "week") {
+    return hasAmbientMonth ? pad(date.getUTCDate()) : formatDayMonthYear(timeMs);
+  }
+  if (spec.unit === "day") {
+    return hasAmbientMonth ? pad(date.getUTCDate()) : formatDayMonthYear(timeMs);
+  }
   if (spec.unit === "hour") {
     return `${pad(date.getUTCHours())}:00`;
   }
