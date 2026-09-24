@@ -30,7 +30,7 @@ function anchor(instanceId, placeId, overrides = {}) {
 }
 
 function topologyRequest() {
-  return { reason: "topology", energyTarget: 0.12, reheat: true };
+  return { reason: "topology", excitation: 0.12, reheat: true };
 }
 
 test("reference solver starts from explicit local offsets and visual altitude", () => {
@@ -444,7 +444,7 @@ test("post-drop settling stays responsive after an extreme drag displacement", (
     ],
   });
 
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.setPin({
     instanceId: dragged,
     eastMeters: 10_000_000,
@@ -453,7 +453,7 @@ test("post-drop settling stays responsive after an extreme drag displacement", (
   });
   simulation.step(1000 / 60);
   simulation.setPin(null);
-  simulation.apply({ reason: "post-drop", energyTarget: 0.035, reheat: true });
+  simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
 
   const before = simulation.getSnapshot().find((entry) => entry.instanceId === dragged);
   const startedAt = performance.now();
@@ -594,7 +594,7 @@ test("drag wakes nearby foreign-anchor topology but leaves distant groups frozen
     ],
   });
 
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.setPin({
     instanceId: alice,
     eastMeters: 20,
@@ -660,7 +660,7 @@ test("far drag does not wake a foreign group located only between active-group m
     ],
   });
 
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.setPin({
     instanceId: dragged,
     eastMeters: 10_000,
@@ -731,7 +731,7 @@ test("drag cross-place interaction is specific to the grabbed node, not its whol
     ],
   });
 
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.setPin({
     instanceId: dragged,
     eastMeters: 10_000,
@@ -791,7 +791,7 @@ test("post-drop settling stays localized to the released node's force island", (
     ],
   });
 
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.setPin({
     instanceId: dragged,
     eastMeters: 10_000_000,
@@ -805,7 +805,7 @@ test("post-drop settling stays localized to the released node's force island", (
     .filter((entry) => entry.instanceId === remoteA || entry.instanceId === remoteB);
 
   simulation.setPin(null);
-  simulation.apply({ reason: "post-drop", energyTarget: 0.035, reheat: true });
+  simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
   for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
 
   const after = simulation.getSnapshot();
@@ -880,7 +880,7 @@ test("place-domain constraint pushes a released node away from the exact place c
     visualAltitudeMeters: 1000,
   });
   simulation.setPin(null);
-  simulation.apply({ reason: "post-drop", energyTarget: 0.035, reheat: true });
+  simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
 
   for (let index = 0; index < 40; index += 1) simulation.step(1000 / 60);
   const settled = simulation.getSnapshot()[0];
@@ -912,7 +912,7 @@ test("pinning hard-locks local layout position and altitude", () => {
       visualAltitudeMeters: 1750,
     },
   ]);
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
 
   for (let index = 0; index < 10; index += 1) simulation.step(1000 / 60);
 
@@ -961,7 +961,7 @@ test("drag force is localized to the pinned node's geographic group", () => {
       anchor(remote, "copenhagen", { influence: 0 }),
     ],
   });
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.setPin({
     instanceId: alice,
     eastMeters: -250,
@@ -998,7 +998,7 @@ test("place-domain constraint is suspended for the active drag group until relea
       anchor(bob, "stockholm", { influence: 1, precisionRadiusMeters: 0 }),
     ],
   });
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.setPin({
     instanceId: alice,
     eastMeters: 1200,
@@ -1016,7 +1016,7 @@ test("place-domain constraint is suspended for the active drag group until relea
   );
 
   simulation.setPin(null);
-  simulation.apply({ reason: "settle", energyTarget: 0.08, reheat: true });
+  simulation.apply({ reason: "settle", excitation: 0.08, reheat: true });
   for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
   const bobAfter = simulation.getSnapshot().find((entry) => entry.instanceId === bob);
   assert.ok(
