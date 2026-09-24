@@ -269,10 +269,7 @@ test("delta-capable CPU readback materializes a full render snapshot only on dem
   // The harness intentionally returns the same sparse sample again. A second
   // eligible push must be a no-op instead of invalidating the renderer.
   controller.step(50);
-  assert.equal(
-    calls.filter(([name]) => name === "surface:delta").length,
-    deltasAfterFirstPush,
-  );
+  assert.equal(calls.filter(([name]) => name === "surface:delta").length, deltasAfterFirstPush);
 });
 
 test("empty sparse CPU readback skips projection rebuild and renderer invalidation", () => {
