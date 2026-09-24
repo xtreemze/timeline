@@ -178,6 +178,11 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(mediaWorkflow, /lum-desktop-highlight\.mp4/);
   assert.match(mediaWorkflow, /lum-mobile-highlight\.mp4/);
   assert.match(mediaWorkflow, /name:\s*lum-e2e-showcase/);
+  assert.match(
+    mediaWorkflow,
+    /cancel-in-progress:\s*\$\{\{\s*github\.event_name == 'pull_request'\s*\}\}/,
+    "main showcase runs must not be cancelled because Pages depends on their successful artifact",
+  );
 
   assert.match(pagesWorkflow, /workflow_run:/);
   assert.match(pagesWorkflow, /workflows:\s*\["E2E media showcase"\]/);
