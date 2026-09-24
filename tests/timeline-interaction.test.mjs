@@ -528,7 +528,11 @@ test("shared camera motion exposes capped two-dimensional release velocity and m
 });
 
 test("coarse-pointer timeline controls and ranges retain a 44 CSS px interaction floor", async () => {
-  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  const [timelineCss, shellCss] = await Promise.all([
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/spatial-shell.css", import.meta.url), "utf8"),
+  ]);
+  const css = `${timelineCss}\n${shellCss}`;
 
   assert.match(
     css,
