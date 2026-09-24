@@ -16,7 +16,7 @@ export interface WorldProjectionDelta {
 }
 
 function sameValue(left: unknown, right: unknown): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  return left === right || JSON.stringify(left) === JSON.stringify(right);
 }
 
 export function diffWorldProjection(

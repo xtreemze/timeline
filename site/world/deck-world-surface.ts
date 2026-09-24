@@ -63,6 +63,10 @@ import type {
   WorldPresentationStyle,
   WorldProjection,
 } from "../../src/projection/world-projection.ts";
+import {
+  applyWorldProjectionDelta,
+  type WorldProjectionDelta,
+} from "../../src/projection/world-projection-delta.ts";
 import { buildWorldAccessibleOutline, WorldAccessibleMirror } from "./world-accessible-mirror.ts";
 import {
   clipWorldLines,
@@ -610,6 +614,14 @@ function deckControllerOptions(): Readonly<Record<string, unknown>> {
   });
 }
 
+function sameDatumSequence(next: unknown, previous: unknown): boolean {
+  if (next === previous) return true;
+  if (!Array.isArray(next) || !Array.isArray(previous) || next.length !== previous.length) {
+    return false;
+  }
+  return next.every((value, index) => value === previous[index]);
+}
+
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -1022,20 +1034,27 @@ const LABEL_HALO_PX = 3;
 const APP_FONT_FAMILY = "Monaspace Krypton Timeline";
 const LABEL_FALLBACK_FONT_FAMILY = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 const GRATICULE = worldGraticule();
+const ENTITY_LABEL_OFFSET_PX = 32;
+const ENTITY_MIN_HIT_RADIUS_PX = 22;
 
-function labelSize(datum: DeckWorldLabelDatum): number {
-  return datum.emphasized ? 15 : datum.kind === "place-label" ? 13 : 12;
+/** Close/detail zoom where a claimed node drag freezes the globe camera. */
+export const WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM = 6;
+
+export function worldGraphLabelSize(
+  datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">,
+): number {
+  return datum.emphasized ? 19 : 16;
 }
 
 /**
- * Entity labels start 10px right of their dot, place labels sit above their
+ * Entity labels start beyond the enlarged node body, place labels sit above their
  * anchor and relationship labels below the edge midpoint, so the three kinds
  * do not contend for the same space around a shared anchor. The vertical gap
  * grows with the label so an emphasized label does not evict its neighbours.
  */
 function labelPixelOffset(datum: DeckWorldLabelDatum): [number, number] {
-  if (datum.kind === "entity-label") return [10, 0];
-  const gap = labelSize(datum) / 2 + 6;
+  if (datum.kind === "entity-label") return [ENTITY_LABEL_OFFSET_PX, 0];
+  const gap = worldGraphLabelSize(datum) / 2 + 6;
   return datum.kind === "relationship-label" ? [0, gap] : [0, -gap];
 }
 
@@ -1195,7 +1214,7 @@ function labelDatums(input: {
     // Mirrors the TextLayer anchoring below; footprints approximate glyph
     // ink (0.6em monospace advance per character, 0.9em tall) plus the halo.
     measure: (datum) => {
-      const size = labelSize(datum);
+      const size = worldGraphLabelSize(datum);
       const width = datum.text.length * size * 0.6 + LABEL_HALO_PX * 2;
       const [offsetX, offsetY] = labelPixelOffset(datum);
       return {
@@ -1332,6 +1351,7 @@ export class DeckWorldSurface implements WorldSurface {
   #spatialMode: WorldSpatialMode = "globe";
   #nodeDragSink: DeckWorldNodeDragSink | null = null;
   #activeDragPointerId: number | null = null;
+  #dragCameraLock: WorldCameraState | null = null;
   #destroyed = false;
 
   // Priority 3 (issue #445): previous frame's datum-by-id maps, kept so
@@ -1423,6 +1443,7 @@ export class DeckWorldSurface implements WorldSurface {
     }
     this.#nodeDragSink?.cancel("pointercancel");
     this.#activeDragPointerId = null;
+    this.#dragCameraLock = null;
   };
 
   readonly #handleLostPointerCapture = (event: PointerEvent): void => {
@@ -1431,6 +1452,7 @@ export class DeckWorldSurface implements WorldSurface {
     }
     this.#nodeDragSink?.cancel("lostpointercapture");
     this.#activeDragPointerId = null;
+    this.#dragCameraLock = null;
   };
 
   // Double-tap/double-click focus (issue #445 Priority 4). deck.gl's own
@@ -1509,6 +1531,13 @@ export class DeckWorldSurface implements WorldSurface {
         this.#reframe(this.#autoFitMode);
       },
       onViewStateChange: ({ viewState }: { readonly viewState: DeckRuntimeViewState }) => {
+        // At close/detail zoom direct manipulation owns the gesture. Reject
+        // controller inertia/orbit updates until the node drag ends so the
+        // geographic frame and its place anchors stay visually locked.
+        if (this.#dragCameraLock) {
+          this.#deck.setProps({ viewState: this.#dragCameraLock });
+          return;
+        }
         const next = cameraFromRuntime(viewState, this.#camera);
         if (next) {
           this.#cameraOwned = true;
@@ -1753,7 +1782,10 @@ export class DeckWorldSurface implements WorldSurface {
   setNodeDragSink(sink: DeckWorldNodeDragSink | null): void {
     this.#assertAlive();
     this.#nodeDragSink = sink;
-    if (!sink) this.#activeDragPointerId = null;
+    if (!sink) {
+      this.#activeDragPointerId = null;
+      this.#dragCameraLock = null;
+    }
     this.#render();
   }
 
@@ -1761,6 +1793,14 @@ export class DeckWorldSurface implements WorldSurface {
     this.#assertAlive();
     this.#projection = projection;
     this.#autoFitCamera();
+    this.#render();
+  }
+
+  applyProjectionDelta(delta: WorldProjectionDelta): void {
+    this.#assertAlive();
+    this.#projection = applyWorldProjectionDelta(this.#projection, delta);
+    // Force/layout deltas are derived presentation updates. Do not re-run
+    // content fit or move the camera while nodes relax.
     this.#render();
   }
 
@@ -2095,6 +2135,9 @@ export class DeckWorldSurface implements WorldSurface {
     if (claimed) {
       if (touch) this.#touchHold.commit(pointerId);
       this.#activeDragPointerId = pointerId;
+      if (this.#camera.zoom >= WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM) {
+        this.#dragCameraLock = this.#camera;
+      }
       // deck.gl ignores the layer handler's return value; only a handled
       // event stops its controller from turning the same gesture into a pan.
       event.stopPropagation?.();
@@ -2109,6 +2152,7 @@ export class DeckWorldSurface implements WorldSurface {
     if (!sink || pointerId === null || pointerId !== this.#activeDragPointerId || !target) {
       return false;
     }
+    event.stopPropagation?.();
     return sink.update(pointerId, target.position);
   }
 
@@ -2119,7 +2163,9 @@ export class DeckWorldSurface implements WorldSurface {
       return false;
     }
 
+    event.stopPropagation?.();
     this.#activeDragPointerId = null;
+    this.#dragCameraLock = null;
     return sink.release(pointerId);
   }
 
@@ -2148,6 +2194,7 @@ export class DeckWorldSurface implements WorldSurface {
     if (this.#activeDragPointerId !== null) {
       this.#nodeDragSink?.cancel("pointercancel");
       this.#activeDragPointerId = null;
+      this.#dragCameraLock = null;
     }
 
     this.#spatialMode = nextMode;
@@ -2466,6 +2513,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#runtime.createScatterplotLayer({
         id: DECK_WORLD_LAYER_IDS.places,
         data: places,
+        dataComparator: sameDatumSequence,
         pickable: true,
         // Screen-constant marks: metre radii shrank to specks at overview
         // zoom and ballooned into blobs close up.
@@ -2490,6 +2538,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#runtime.createPathLayer({
         id: DECK_WORLD_LAYER_IDS.relationships,
         data: relationships,
+        dataComparator: sameDatumSequence,
         pickable: true,
         widthUnits: "pixels",
         getPath: (datum: DeckWorldRelationshipDatum) => datum.path,
@@ -2504,6 +2553,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#runtime.createScatterplotLayer({
         id: DECK_WORLD_LAYER_IDS.entities,
         data: entities,
+        dataComparator: sameDatumSequence,
         pickable: true,
         radiusUnits: "pixels",
         getPosition: (datum: DeckWorldEntityRenderDatum) => datum.position,
@@ -2512,7 +2562,10 @@ export class DeckWorldSurface implements WorldSurface {
         getRadius: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster"
             ? 12 + Math.min(datum.clusterMembers.length, 30) * 0.5
-            : this.#entityStyle(datum).radius + this.#entityStyle(datum).borderWidth,
+            : Math.max(
+                ENTITY_MIN_HIT_RADIUS_PX,
+                this.#entityStyle(datum).radius + this.#entityStyle(datum).borderWidth,
+              ),
         stroked: true,
         lineWidthUnits: "pixels",
         getLineWidth: (datum: DeckWorldEntityRenderDatum) => (datum.kind === "cluster" ? 2 : 0),
@@ -2544,6 +2597,7 @@ export class DeckWorldSurface implements WorldSurface {
             this.#runtime.createPathLayer({
               id: DECK_WORLD_LAYER_IDS.tethers,
               data: tethers,
+              dataComparator: sameDatumSequence,
               pickable: false,
               widthUnits: "pixels",
               getPath: (tether: DeckWorldTether) => tether.path,
@@ -2559,6 +2613,7 @@ export class DeckWorldSurface implements WorldSurface {
             this.#runtime.createIconLayer({
               id: DECK_WORLD_LAYER_IDS.entityIcons,
               data: this.#cameraFacingEntities(iconDatums),
+              dataComparator: sameDatumSequence,
               pickable: true,
               billboard: true,
               sizeUnits: "pixels",
@@ -2590,6 +2645,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#runtime.createPathLayer({
         id: DECK_WORLD_LAYER_IDS.relationshipDirections,
         data: directionResult.datums.filter((datum) => this.#edgeStyle(datum.edge).arrow),
+        dataComparator: sameDatumSequence,
         pickable: true,
         widthUnits: "pixels",
         widthMinPixels: 2,
@@ -2607,6 +2663,7 @@ export class DeckWorldSurface implements WorldSurface {
             this.#runtime.createTextLayer({
               id: DECK_WORLD_LAYER_IDS.labels,
               data: this.#cameraFacingLabels(labelResult.datums),
+              dataComparator: sameDatumSequence,
               pickable: false,
               billboard: true,
               characterSet: "auto",
@@ -2618,7 +2675,7 @@ export class DeckWorldSurface implements WorldSurface {
               outlineColor: this.#theme.labelHalo,
               getText: (datum: DeckWorldLabelDatum) => datum.text,
               getPosition: (datum: DeckWorldLabelDatum) => datum.position,
-              getSize: labelSize,
+              getSize: worldGraphLabelSize,
               getColor: (datum: DeckWorldLabelDatum) =>
                 datum.emphasized
                   ? this.#theme.labelEmphasis

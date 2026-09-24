@@ -38,15 +38,14 @@ interface NodeState {
   vz: number;
 }
 
-export const DEFAULT_REFERENCE_WORLD_FORCE_OPTIONS: ReferenceWorldForceOptions =
-  Object.freeze({
-    repulsionStrength: 18_000,
-    collisionStrength: 0.18,
-    anchorStrength: 0.012,
-    altitudeStrength: 0.04,
-    damping: 0.84,
-    settleEnergy: 0.0005,
-  });
+export const DEFAULT_REFERENCE_WORLD_FORCE_OPTIONS: ReferenceWorldForceOptions = Object.freeze({
+  repulsionStrength: 18_000,
+  collisionStrength: 0.18,
+  anchorStrength: 0.012,
+  altitudeStrength: 0.04,
+  damping: 0.84,
+  settleEnergy: 0.0005,
+});
 
 function finiteNonNegative(value: number, label: string): number {
   if (!Number.isFinite(value) || value < 0) {
@@ -64,19 +63,10 @@ function finiteUnit(value: number, label: string): number {
 
 function validateOptions(options: ReferenceWorldForceOptions): ReferenceWorldForceOptions {
   return Object.freeze({
-    repulsionStrength: finiteNonNegative(
-      options.repulsionStrength,
-      "Reference repulsion strength",
-    ),
-    collisionStrength: finiteNonNegative(
-      options.collisionStrength,
-      "Reference collision strength",
-    ),
+    repulsionStrength: finiteNonNegative(options.repulsionStrength, "Reference repulsion strength"),
+    collisionStrength: finiteNonNegative(options.collisionStrength, "Reference collision strength"),
     anchorStrength: finiteNonNegative(options.anchorStrength, "Reference anchor strength"),
-    altitudeStrength: finiteNonNegative(
-      options.altitudeStrength,
-      "Reference altitude strength",
-    ),
+    altitudeStrength: finiteNonNegative(options.altitudeStrength, "Reference altitude strength"),
     damping: finiteUnit(options.damping, "Reference damping"),
     settleEnergy: finiteNonNegative(options.settleEnergy, "Reference settle energy"),
   });
@@ -130,7 +120,8 @@ function normalizedTimeStep(deltaMs: number): number {
     throw new Error("Reference force delta must be a finite non-negative number.");
   }
   if (deltaMs === 0) return 0;
-  return Math.min(3, deltaMs / (1000 / 60));
+  // Bound catch-up so a missed frame cannot turn into a visible force jump.
+  return Math.min(1.5, deltaMs / (1000 / 60));
 }
 
 export class ReferenceWorldForceSimulation implements WorldForceSimulationBackend {
@@ -145,9 +136,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
   #iteration = 0;
   #destroyed = false;
 
-  constructor(
-    options: ReferenceWorldForceOptions = DEFAULT_REFERENCE_WORLD_FORCE_OPTIONS,
-  ) {
+  constructor(options: ReferenceWorldForceOptions = DEFAULT_REFERENCE_WORLD_FORCE_OPTIONS) {
     this.#options = validateOptions(options);
   }
 
@@ -210,10 +199,21 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
 
   setPin(pin: WorldForcePin | null): void {
     this.#assertAlive();
-    if (pin && !this.#states.has(pin.instanceId)) {
+    const state = pin ? this.#states.get(pin.instanceId) : null;
+    if (pin && !state) {
       throw new Error(`Cannot pin unknown world instance ${String(pin.instanceId)}.`);
     }
     this.#pin = pin ? Object.freeze({ ...pin }) : null;
+    if (pin && state) {
+      // Direct manipulation owns the dragged node: publish the pin
+      // immediately instead of waiting for a global physics tick.
+      state.x = pin.eastMeters;
+      state.y = pin.northMeters;
+      state.z = pin.visualAltitudeMeters;
+      state.vx = 0;
+      state.vy = 0;
+      state.vz = 0;
+    }
     this.#settled = false;
   }
 
@@ -247,7 +247,15 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       groups.set(state.group, [...(groups.get(state.group) ?? []), state]);
     }
 
-    for (const states of groups.values()) {
+    // During direct manipulation geography is fixed. Only the floating
+    // topology sharing the dragged node's anchor participates in force;
+    // unrelated place groups remain completely still until release.
+    const activeDragGroup = this.#pin
+      ? (this.#states.get(this.#pin.instanceId)?.group ?? null)
+      : null;
+
+    for (const [group, states] of groups) {
+      if (activeDragGroup && group !== activeDragGroup) continue;
       for (let leftIndex = 0; leftIndex < states.length; leftIndex += 1) {
         const left = states[leftIndex];
         if (!left) continue;
@@ -263,18 +271,28 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       const source = this.#states.get(edge.sourceId);
       const target = this.#states.get(edge.targetId);
       if (!source || !target || source.group !== target.group) continue;
+      if (activeDragGroup && source.group !== activeDragGroup) continue;
       this.#applyEdgeForce(edge, source, target, forces);
     }
 
     for (const state of this.#states.values()) {
-      this.#applyAnchorForce(state, forces);
+      if (activeDragGroup && state.group !== activeDragGroup) continue;
+      // A claimed drag temporarily turns the active local topology into a
+      // free floating component. The canonical place remains fixed, but its
+      // attraction must not pull the dragged node's neighbours back toward
+      // the anchor while the user is arranging them. Restore anchor force as
+      // soon as the pin is released.
+      if (!activeDragGroup) this.#applyAnchorForce(state, forces);
       this.#applyAltitudeForce(state, forces);
     }
 
     const energyScale = 1 + (this.#request?.energyTarget ?? 0) * 4;
     let energy = 0;
 
+    let activeNodeCount = 0;
     for (const state of this.#states.values()) {
+      if (activeDragGroup && state.group !== activeDragGroup) continue;
+      activeNodeCount += 1;
       if (this.#pin?.instanceId === state.node.id) {
         state.x = this.#pin.eastMeters;
         state.y = this.#pin.northMeters;
@@ -305,7 +323,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     }
 
     this.#iteration += 1;
-    this.#energy = energy / Math.max(1, this.#states.size);
+    this.#energy = energy / Math.max(1, activeNodeCount);
     this.#settled = this.#energy <= this.#options.settleEnergy;
   }
 
@@ -363,8 +381,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const unitX = dx / distance;
     const unitY = dy / distance;
     const repulsion = this.#options.repulsionStrength / Math.max(100, distance ** 2);
-    const minimumDistance =
-      left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
+    const minimumDistance = left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
     const collision =
       distance < minimumDistance
         ? (minimumDistance - distance) * this.#options.collisionStrength
@@ -401,8 +418,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const excess = Math.max(0, radius - state.anchor.precisionRadiusMeters);
     if (excess === 0 || radius < 0.001) return;
 
-    const magnitude =
-      excess * state.anchor.influence * this.#options.anchorStrength;
+    const magnitude = excess * state.anchor.influence * this.#options.anchorStrength;
     this.#addForce(
       forces,
       state.node.id,
@@ -417,13 +433,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     forces: Map<WorldInstanceId, [number, number, number]>,
   ): void {
     const delta = state.node.targetVisualAltitudeMeters - state.z;
-    this.#addForce(
-      forces,
-      state.node.id,
-      0,
-      0,
-      delta * this.#options.altitudeStrength,
-    );
+    this.#addForce(forces, state.node.id, 0, 0, delta * this.#options.altitudeStrength);
   }
 
   #addForce(

@@ -5,6 +5,7 @@ import type {
   WorldForceNode,
   WorldForceScene,
 } from "./world-force-simulation.ts";
+import { WORLD_NODE_SCALE } from "./world-graph-style.ts";
 
 export interface WorldForceScenePolicy {
   readonly baseMass: number;
@@ -18,9 +19,9 @@ export interface WorldForceScenePolicy {
 export const DEFAULT_WORLD_FORCE_SCENE_POLICY: WorldForceScenePolicy = Object.freeze({
   baseMass: 1,
   visualWeightMassScale: 1,
-  baseCollisionRadiusMeters: 120,
-  edgeStrength: 0.08,
-  edgeRestLengthMeters: 600,
+  baseCollisionRadiusMeters: 120 * WORLD_NODE_SCALE,
+  edgeStrength: 0.05,
+  edgeRestLengthMeters: 600 * WORLD_NODE_SCALE,
   anchorInfluenceScale: 1,
 });
 
@@ -69,8 +70,7 @@ function nodeFromInstance(
     id: instance.id,
     canonicalId: instance.canonicalId,
     mass: policy.baseMass + instance.visualWeight * policy.visualWeightMassScale,
-    collisionRadiusMeters:
-      policy.baseCollisionRadiusMeters * (0.75 + instance.visualWeight * 0.5),
+    collisionRadiusMeters: policy.baseCollisionRadiusMeters * (0.75 + instance.visualWeight * 0.5),
     initialEastMeters: instance.localOffset?.eastMeters ?? 0,
     initialNorthMeters: instance.localOffset?.northMeters ?? 0,
     targetVisualAltitudeMeters: instance.visualAltitude ?? 0,
@@ -125,9 +125,7 @@ export function createWorldForceScene(
     }),
   );
 
-  const anchors = projection.instances.flatMap((instance) =>
-    anchorsFromInstance(instance, policy),
-  );
+  const anchors = projection.instances.flatMap((instance) => anchorsFromInstance(instance, policy));
 
   return Object.freeze({
     nodes: Object.freeze(

@@ -216,6 +216,27 @@ test("optional reference readback applies derived layout without changing source
   assert.equal(calls.at(-1)[0], "surface:projection");
 });
 
+test("CPU force readback applies incremental WorldSurface deltas", () => {
+  const { calls, controller } = harness({ readback: true, delta: true });
+  const input = projection();
+
+  controller.setProjection(input);
+  const projectionCallsBefore = calls.filter(([name]) => name === "surface:projection").length;
+  controller.step(16);
+
+  assert.equal(
+    calls.filter(([name]) => name === "surface:projection").length,
+    projectionCallsBefore,
+    "force frames do not replace the whole projection",
+  );
+  const deltaCall = calls.find(([name]) => name === "surface:delta");
+  assert.ok(deltaCall);
+  assert.deepEqual(
+    deltaCall[1].updatedInstances.map((instance) => instance.canonicalId),
+    ["alice"],
+  );
+});
+
 test("world drag lifecycle is coordinated with force pin and post-drop settling", () => {
   const { controller, getPin, diagnostics } = harness();
   const input = projection();

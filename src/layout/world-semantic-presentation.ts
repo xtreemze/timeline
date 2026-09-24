@@ -248,14 +248,30 @@ export function declutterWorldLabels<T>(
 /**
  * Semantic-zoom magnification of local layout offsets. Local graphs are laid
  * out in metres around a place, which is sub-pixel at city or country zoom;
- * magnifying offsets so a place's typical local radius spans a constant
- * on-screen size keeps each place's graph legible, like a planar graph view,
- * while the stored offsets stay untouched. Never shrinks (scale >= 1), and is
- * quantised to quarter octaves so positions only rebuild on real zoom
- * changes. Dense scenes (already clustered) keep 1.
+ * magnifying offsets so a place's typical local radius stays readable while
+ * the stored offsets stay untouched. At detail zoom, the floating topology
+ * intentionally grows in screen space instead of treating zoom as globe-only:
+ * geography remains anchored while the graph gains room for direct
+ * manipulation. Never shrinks (scale >= 1), and is quantised to quarter
+ * octaves so positions only rebuild on meaningful zoom changes. Dense scenes
+ * (already clustered) keep 1.
  */
-export const WORLD_LOCAL_GRAPH_RADIUS_PX = 110;
+export const WORLD_LOCAL_GRAPH_RADIUS_PX = 260;
+export const WORLD_FLOATING_GRAPH_DETAIL_ZOOM = 7;
+export const WORLD_FLOATING_GRAPH_MAX_EXPANSION = 2;
+const WORLD_FLOATING_GRAPH_DETAIL_GROWTH_PER_ZOOM = 0.25;
 const WORLD_METERS_PER_PIXEL_AT_ZOOM_0 = 40_075_016.686 / 512;
+
+export function worldFloatingGraphRadiusPx(zoom: number): number {
+  if (!Number.isFinite(zoom) || zoom <= WORLD_FLOATING_GRAPH_DETAIL_ZOOM) {
+    return WORLD_LOCAL_GRAPH_RADIUS_PX;
+  }
+  const expansion = Math.min(
+    WORLD_FLOATING_GRAPH_MAX_EXPANSION,
+    2 ** ((zoom - WORLD_FLOATING_GRAPH_DETAIL_ZOOM) * WORLD_FLOATING_GRAPH_DETAIL_GROWTH_PER_ZOOM),
+  );
+  return WORLD_LOCAL_GRAPH_RADIUS_PX * expansion;
+}
 
 export function worldPresentationOffsetScale(
   zoom: number,
@@ -273,7 +289,8 @@ export function worldPresentationOffsetScale(
   }
   const cosine = Math.max(0.05, Math.cos((latitude * Math.PI) / 180));
   const metersPerPixel = (WORLD_METERS_PER_PIXEL_AT_ZOOM_0 * cosine) / 2 ** zoom;
-  const wanted = (WORLD_LOCAL_GRAPH_RADIUS_PX * metersPerPixel) / typicalOffsetMeters;
+  const wanted =
+    (worldFloatingGraphRadiusPx(zoom) * metersPerPixel) / typicalOffsetMeters;
   if (wanted <= 1) return 1;
   return 2 ** (Math.round(Math.log2(wanted) * 4) / 4);
 }
@@ -334,16 +351,16 @@ export function medianNearestPlaceMeters(
  */
 export const WORLD_LOCAL_GRAPH_MAX_PLACE_SHARE = 3;
 /** Clusters closer than this on screen merge into one bubble. */
-export const WORLD_CLUSTER_MERGE_PX = 36;
+export const WORLD_CLUSTER_MERGE_PX = 96;
 /** Local graphs at least this large on screen count as readable. */
-export const WORLD_READABLE_LOCAL_RADIUS_PX = 60;
+export const WORLD_READABLE_LOCAL_RADIUS_PX = 160;
 
 /** Degrees of longitude spanned by `pixels` at `zoom` (GlobeView scale). */
 export function worldPixelsToDegrees(pixels: number, zoom: number): number {
   return (pixels * 360) / (512 * 2 ** zoom);
 }
 /** Below this on-screen local radius a place's entities cluster. */
-export const WORLD_PLACE_CLUSTER_RADIUS_PX = 28;
+export const WORLD_PLACE_CLUSTER_RADIUS_PX = 96;
 
 /** On-screen radius (pixels) of a local graph of `meters` at `zoom`. */
 export function worldLocalRadiusPx(meters: number, zoom: number, latitude = 0): number {
@@ -353,4 +370,4 @@ export function worldLocalRadiusPx(meters: number, zoom: number, latitude = 0): 
 }
 
 /** On-screen height (pixels) entities float above their place's terrain. */
-export const WORLD_ENTITY_FLOAT_PX = 36;
+export const WORLD_ENTITY_FLOAT_PX = 64;

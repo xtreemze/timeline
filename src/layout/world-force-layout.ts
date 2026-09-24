@@ -59,6 +59,13 @@ export function applyWorldForceLayout(
     instances: projection.instances.map((instance) => {
       const sample = byId.get(instance.id);
       if (!sample) return instance;
+      if (
+        instance.localOffset?.eastMeters === sample.eastMeters &&
+        instance.localOffset?.northMeters === sample.northMeters &&
+        instance.visualAltitude === sample.visualAltitudeMeters
+      ) {
+        return instance;
+      }
 
       return createProjectedWorldInstance({
         ...instance,

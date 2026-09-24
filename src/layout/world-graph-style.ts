@@ -36,6 +36,13 @@ export const WORLD_DARK_PALETTE: WorldGraphPalette = Object.freeze({
   line: "#393633",
 });
 
+/**
+ * The legacy 9-11px radius becomes a 36-44px visible diameter, comparable
+ * with a mobile icon button without turning each graph node into an 80px blob.
+ * Picking keeps a separate >=44px target in WorldSurface.
+ */
+export const WORLD_NODE_SCALE = 2;
+
 export interface WorldNodeStyle {
   readonly fill: string;
   readonly border: string;
@@ -124,8 +131,11 @@ export function worldNodeStyle(
   const own = styleOf(input.attributes);
   const ownShape = text(own["shape"], 16)?.toLowerCase();
   // Whole-pixel radii: every distinct radius is its own marker texture, so
-  // a continuous weight would give each node its own atlas entry.
+  // a continuous weight would give each node its own atlas entry. The graph
+  // uses a deliberately larger reading scale than geographic place markers.
   const baseRadius = Math.round(9 + Math.min(1, Math.max(0, input.visualWeight ?? 0)) * 2);
+  const resolvedRadius =
+    Math.round(number(own["size"], 4, 24) ?? baseRadius) + (input.selected ? 2 : 0);
   return Object.freeze({
     fill: input.selected
       ? palette.focus
@@ -137,7 +147,7 @@ export function worldNodeStyle(
       : defaultNodeShape(type),
     icon: text(own["icon"], 48) ?? (type || null),
     image: text(own["image"] ?? own["imageUrl"], 2048),
-    radius: Math.round(number(own["size"], 4, 24) ?? baseRadius) + (input.selected ? 2 : 0),
+    radius: resolvedRadius * WORLD_NODE_SCALE,
   });
 }
 

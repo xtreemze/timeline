@@ -124,6 +124,12 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
     this.#schedule();
   }
 
+  /** Schedule another frame without extending the current layout run. */
+  pulse(): void {
+    this.#assertAlive();
+    this.#schedule();
+  }
+
   destroy(): void {
     if (this.#destroyed) return;
     this.#destroyed = true;
@@ -154,7 +160,7 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
     if (this.#destroyed) return;
 
     const elapsed = timestamp - this.#lastFrameAt;
-    const deltaMs = Number.isFinite(elapsed) && elapsed > 0 ? Math.min(64, elapsed) : 1000 / 60;
+    const deltaMs = Number.isFinite(elapsed) && elapsed > 0 ? Math.min(32, elapsed) : 1000 / 60;
     this.#lastFrameAt = timestamp;
 
     const state = this.#runtime.step(deltaMs);
@@ -232,7 +238,9 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
         },
         update(pointerId, position) {
           const changed = runtime.updateNodeDrag(pointerId, position);
-          if (changed) scheduledView.wake();
+          // Pointer movement keeps RAF alive but must not restart the run
+          // budget on every event; begin/drop are the layout epochs.
+          if (changed) scheduledView.pulse();
           return changed;
         },
         release(pointerId) {

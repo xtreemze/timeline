@@ -59,15 +59,9 @@ test("reference solver starts from explicit local offsets and visual altitude", 
 
 test("reference solver is deterministic when no explicit offset exists", () => {
   const scene = {
-    nodes: [
-      node('["alice","meeting"]'),
-      node('["bob","meeting"]'),
-    ],
+    nodes: [node('["alice","meeting"]'), node('["bob","meeting"]')],
     edges: [],
-    anchors: [
-      anchor('["alice","meeting"]', "stockholm"),
-      anchor('["bob","meeting"]', "stockholm"),
-    ],
+    anchors: [anchor('["alice","meeting"]', "stockholm"), anchor('["bob","meeting"]', "stockholm")],
   };
 
   const first = new ReferenceWorldForceSimulation();
@@ -204,6 +198,14 @@ test("pinning hard-locks local layout position and altitude", () => {
     northMeters: -125,
     visualAltitudeMeters: 1750,
   });
+  assert.deepEqual(simulation.getSnapshot(), [
+    {
+      instanceId,
+      eastMeters: 250,
+      northMeters: -125,
+      visualAltitudeMeters: 1750,
+    },
+  ]);
   simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
 
   for (let index = 0; index < 10; index += 1) simulation.step(1000 / 60);
@@ -225,6 +227,99 @@ test("pinning hard-locks local layout position and altitude", () => {
     northMeters: -125,
     visualAltitudeMeters: 1750,
   });
+});
+
+test("drag force is localized to the pinned node's geographic group", () => {
+  const simulation = new ReferenceWorldForceSimulation();
+  const alice = '["alice","meeting"]';
+  const bob = '["bob","meeting"]';
+  const remote = '["remote","other"]';
+  simulation.setScene({
+    nodes: [
+      node(alice, { initialEastMeters: -500 }),
+      node(bob, { initialEastMeters: 500 }),
+      node(remote, { initialEastMeters: 700 }),
+    ],
+    edges: [
+      {
+        id: "meeting",
+        sourceId: alice,
+        targetId: bob,
+        strength: 0.2,
+        restLengthMeters: 300,
+      },
+    ],
+    anchors: [
+      anchor(alice, "stockholm", { influence: 0 }),
+      anchor(bob, "stockholm", { influence: 0 }),
+      anchor(remote, "copenhagen", { influence: 0 }),
+    ],
+  });
+  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.setPin({
+    instanceId: alice,
+    eastMeters: -250,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+
+  const remoteBefore = simulation.getSnapshot().find((entry) => entry.instanceId === remote);
+  const bobBefore = simulation.getSnapshot().find((entry) => entry.instanceId === bob);
+  for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
+  const remoteAfter = simulation.getSnapshot().find((entry) => entry.instanceId === remote);
+  const bobAfter = simulation.getSnapshot().find((entry) => entry.instanceId === bob);
+
+  assert.deepEqual(remoteAfter, remoteBefore, "unrelated place groups stay frozen during drag");
+  assert.notDeepEqual(bobAfter, bobBefore, "same-anchor floating topology still relaxes");
+});
+
+test("place-anchor attraction is suspended for the active drag group until release", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0,
+    anchorStrength: 0.05,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const alice = '["alice","meeting"]';
+  const bob = '["bob","meeting"]';
+  simulation.setScene({
+    nodes: [
+      node(alice, { initialEastMeters: 1000 }),
+      node(bob, { initialEastMeters: 800 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(alice, "stockholm", { influence: 1, precisionRadiusMeters: 0 }),
+      anchor(bob, "stockholm", { influence: 1, precisionRadiusMeters: 0 }),
+    ],
+  });
+  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.setPin({
+    instanceId: alice,
+    eastMeters: 1200,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+
+  const bobBefore = simulation.getSnapshot().find((entry) => entry.instanceId === bob);
+  for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
+  const bobDuring = simulation.getSnapshot().find((entry) => entry.instanceId === bob);
+  assert.deepEqual(
+    bobDuring,
+    bobBefore,
+    "the shared place anchor does not pull floating neighbours inward during drag",
+  );
+
+  simulation.setPin(null);
+  simulation.apply({ reason: "settle", energyTarget: 0.08, reheat: true });
+  for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
+  const bobAfter = simulation.getSnapshot().find((entry) => entry.instanceId === bob);
+  assert.ok(
+    Math.abs(bobAfter.eastMeters) < Math.abs(bobDuring.eastMeters),
+    "anchor attraction resumes after release",
+  );
 });
 
 test("hot scene replacement preserves unchanged local state within the same geographic group", () => {
