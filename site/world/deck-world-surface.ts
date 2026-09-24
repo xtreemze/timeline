@@ -768,7 +768,7 @@ function prefersReducedMotion(): boolean {
  * left off (deck.gl's own default) because this surface wires its own
  * double-tap/double-click focus gesture (see `#handleDoubleClick`) instead.
  */
-function deckControllerOptions(): Readonly<Record<string, unknown>> {
+function deckControllerOptions(mode: WorldSpatialMode = "globe"): Readonly<Record<string, unknown>> {
   return Object.freeze({
     dragPan: true,
     dragRotate: true,
@@ -777,7 +777,10 @@ function deckControllerOptions(): Readonly<Record<string, unknown>> {
     multiTouchDrag: "rotate",
     keyboard: true,
     doubleClickZoom: false,
-    zoomAround: "pointer",
+    // GlobeController has globe-only pointer-anchor math. A retained globe
+    // controller can briefly observe the local MapView during a mode swap,
+    // so local mode deliberately anchors zoom at the viewport center.
+    zoomAround: mode === "globe" ? "pointer" : "center",
     inertia: !prefersReducedMotion(),
   });
 }
@@ -2040,7 +2043,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#deck = runtime.createDeck({
       parent: container,
       views: [this.#globeView],
-      controller: deckControllerOptions(),
+      controller: deckControllerOptions(this.#spatialMode),
       initialViewState: this.#camera,
       layers: [],
       onHover: (info: DeckRuntimePickingInfo) => this.#handleDeckHover(info),
@@ -2759,6 +2762,7 @@ export class DeckWorldSurface implements WorldSurface {
     // setProps call.
     this.#deck.setProps({
       views: [nextMode === "local" ? this.#localView : this.#globeView],
+      controller: deckControllerOptions(nextMode),
       viewState: this.#camera,
     });
   }
@@ -3585,7 +3589,9 @@ export class DeckWorldSurface implements WorldSurface {
               getSize: (datum: DeckWorldEntityDatum) =>
                 worldNodeMarker(this.#entityStyle(datum)).size * entityExpansion(datum),
               getColor: (datum: DeckWorldEntityDatum) => {
-                const emphasisAlpha = datum.selected ? 255 : datum.emphasized ? 242 : 215;
+                // Keep the authored fill visibly distinct from the app background.
+                // Lower alpha composites the default fill too far toward paper.
+                const emphasisAlpha = datum.selected ? 255 : datum.emphasized ? 245 : 230;
                 return [
                   255,
                   255,
