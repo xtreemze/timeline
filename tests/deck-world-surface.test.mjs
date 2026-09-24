@@ -229,7 +229,8 @@ test("temporal relationship joins and disconnects remain perceptible for at leas
   const joined = joinedLayer.props.data[0];
   const joinedColor = joinedLayer.props.getColor(joined);
   const joinedWidth = joinedLayer.props.getWidth(joined);
-  assert.equal(joined.temporalActive, true);
+  assert.equal(joined.kind, "relationship");
+  assert.equal(joined.relationshipId, "meeting");
   assert.equal(joinedColor[3], 215);
   assert.ok(joinedWidth > 0);
   assert.equal(joinedLayer.props.transitions.getColor.enter(joinedColor)[3], 0);
@@ -243,7 +244,7 @@ test("temporal relationship joins and disconnects remain perceptible for at leas
   assert.ok(disconnectedLayer);
   assert.equal(disconnectedLayer.props.data.length, 1, "departing relation is retained visually");
   const disconnected = disconnectedLayer.props.data[0];
-  assert.equal(disconnected.temporalActive, false);
+  assert.equal(disconnected, joined, "temporal row identity is retained across disconnection");
   assert.equal(disconnectedLayer.props.getColor(disconnected)[3], 0);
   assert.equal(disconnectedLayer.props.getWidth(disconnected), 0);
   assert.deepEqual(surface.getAccessibleSnapshot().relationships, []);
@@ -265,7 +266,8 @@ test("temporal relationship joins and disconnects remain perceptible for at leas
     (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships,
   );
   assert.equal(rejoinedLayer.props.data.length, 1);
-  assert.equal(rejoinedLayer.props.data[0].temporalActive, true);
+  assert.equal(rejoinedLayer.props.data[0], joined, "rejoining reuses the same transition slot");
+  assert.equal(rejoinedLayer.props.getColor(rejoinedLayer.props.data[0])[3], 215);
 });
 
 test("reduced motion keeps the three-second temporal fade without line-width motion", (t) => {
