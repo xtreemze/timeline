@@ -12,7 +12,7 @@ import {
 } from "../../src/layout/world-geographic-position.ts";
 import {
   WORLD_DARK_PALETTE,
-  WORLD_WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+  WORLD_ENTITY_MIN_HIT_RADIUS_PX,
   WORLD_LIGHT_PALETTE,
   type WorldEdgeStyle,
   type WorldGraphPalette,
@@ -1386,7 +1386,9 @@ function labelDatums(input: {
   }
 
   const pinnedRelationship = (relationship: DeckWorldRelationshipDatum) =>
-    relationship.selected || focused("relationship", relationship.relationshipId);
+    relationship.selected ||
+    relationship.emphasized ||
+    focused("relationship", relationship.relationshipId);
   const relationships = selectPrioritizedLabels(
     input.relationships.filter((relationship) => relationship.label),
     {
