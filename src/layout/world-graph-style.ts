@@ -129,19 +129,34 @@ export function worldNodeStyle(
 ): WorldNodeStyle {
   const type = (input.type ?? "").toLowerCase();
   const own = styleOf(input.attributes);
-  const ownShape = text(own["shape"], 16)?.toLowerCase();
-  // Whole-pixel radii: every distinct radius is its own marker texture, so
-  // a continuous weight would give each node its own atlas entry. The graph
-  // uses a deliberately larger reading scale than geographic place markers.
-  const baseRadius = Math.round(9 + Math.min(1, Math.max(0, input.visualWeight ?? 0)) * 2);
-  const resolvedRadius =
-    Math.round(number(own["size"], 4, 24) ?? baseRadius) + (input.selected ? 2 : 0);
+  const ownShape = text(own["shape"] ?? own["markerShape"], 16)?.toLowerCase();
+  // Keep ordinary nodes at least icon-button scale visibly, not merely as
+  // hit targets. Quantized radii still keep the marker atlas bounded.
+  const baseRadius = Math.round(11 + Math.min(1, Math.max(0, input.visualWeight ?? 0)) * 2);
+  const authoredRadius =
+    number(own["size"], 4, 28) ??
+    number(own["radius"], 4, 28) ??
+    (number(own["diameter"], 8, 56) === null ? null : number(own["diameter"], 8, 56)! / 2);
+  const resolvedRadius = Math.round(authoredRadius ?? baseRadius) + (input.selected ? 2 : 0);
+  const fill =
+    color(own["fillColor"]) ??
+    color(own["fill"]) ??
+    color(own["backgroundColor"]) ??
+    color(own["color"]) ??
+    defaultNodeFill(type, palette);
+  const border =
+    color(own["borderColor"]) ??
+    color(own["border"]) ??
+    color(own["stroke"]) ??
+    color(own["strokeColor"]) ??
+    palette.paper;
+  const authoredBorderWidth =
+    number(own["borderWidth"], 0, 8) ?? number(own["strokeWidth"], 0, 8) ?? 2;
   return Object.freeze({
-    fill: input.selected
-      ? palette.focus
-      : (color(own["fillColor"]) ?? color(own["color"]) ?? defaultNodeFill(type, palette)),
-    border: color(own["borderColor"]) ?? palette.paper,
-    borderWidth: input.selected ? 4 : (number(own["borderWidth"], 0, 6) ?? 2),
+    // Selection changes emphasis/size, never the authored semantic colours.
+    fill,
+    border,
+    borderWidth: input.selected ? Math.max(4, authoredBorderWidth + 1) : authoredBorderWidth,
     shape: SHAPES.includes(ownShape as WorldNodeShape)
       ? (ownShape as WorldNodeShape)
       : defaultNodeShape(type),
@@ -158,16 +173,29 @@ export function worldPlaceStyle(
   palette: WorldGraphPalette,
 ): WorldNodeStyle {
   const marker = record(record(placeStyle)?.["marker"]) ?? {};
+  const fill =
+    color(marker["fillColor"]) ??
+    color(marker["fill"]) ??
+    color(marker["color"]) ??
+    defaultNodeFill("place", palette);
+  const border =
+    color(marker["borderColor"]) ??
+    color(marker["stroke"]) ??
+    color(marker["color"]) ??
+    palette.paper;
+  const borderWidth =
+    number(marker["borderWidth"], 0, 8) ??
+    number(marker["strokeWidth"], 0, 8) ??
+    number(marker["weight"], 0, 8) ??
+    2;
   return Object.freeze({
-    fill: selected
-      ? palette.focus
-      : (color(marker["fillColor"]) ?? color(marker["color"]) ?? defaultNodeFill("place", palette)),
-    border: color(marker["color"]) ?? palette.paper,
-    borderWidth: number(marker["weight"], 0, 6) ?? 2,
+    fill,
+    border,
+    borderWidth: selected ? Math.max(4, borderWidth + 1) : borderWidth,
     shape: "circle",
     icon: null,
     image: null,
-    radius: Math.round((number(marker["size"], 8, 40) ?? 12) / 2) + (selected ? 2 : 0),
+    radius: Math.round((number(marker["size"], 8, 48) ?? 12) / 2) + (selected ? 2 : 0),
   });
 }
 
@@ -194,15 +222,25 @@ export function worldEdgeStyle(
   palette: WorldGraphPalette,
 ): WorldEdgeStyle {
   const own = styleOf(input.attributes);
-  const lineStyle = text(own["lineStyle"], 16)?.toLowerCase();
+  const lineStyle = text(own["lineStyle"] ?? own["strokeStyle"], 16)?.toLowerCase();
+  const semanticColor =
+    color(own["color"]) ??
+    color(own["stroke"]) ??
+    color(own["lineColor"]) ??
+    semanticEdgeColor(input.predicate ?? "", palette);
+  const authoredWidth =
+    number(own["width"], 0.5, 10) ??
+    number(own["strokeWidth"], 0.5, 10) ??
+    number(own["lineWidth"], 0.5, 10) ??
+    2.5;
   return Object.freeze({
-    color: input.selected
-      ? palette.focus
-      : input.inactive
-        ? palette.muted
-        : (color(own["color"]) ?? semanticEdgeColor(input.predicate ?? "", palette)),
-    width: input.selected ? 4 : (number(own["width"], 0.5, 8) ?? 2),
-    dashed: lineStyle === "dashed" || (lineStyle === undefined && input.inactive === true),
+    // Selection increases prominence but preserves authored/type colour.
+    color: input.inactive && !input.selected ? palette.muted : semanticColor,
+    width: input.selected ? Math.max(4, authoredWidth + 1) : authoredWidth,
+    dashed:
+      lineStyle === "dashed" ||
+      lineStyle === "dash" ||
+      (lineStyle === undefined && input.inactive === true),
     arrow: own["arrow"] !== false,
   });
 }
