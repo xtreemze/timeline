@@ -36,8 +36,15 @@ function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-function canonicalViewport(viewport: AuthoringViewport | null | undefined): AuthoringViewport | null {
-  if (!viewport || !finite(viewport.start) || !finite(viewport.end) || viewport.end < viewport.start) {
+function canonicalViewport(
+  viewport: AuthoringViewport | null | undefined,
+): AuthoringViewport | null {
+  if (
+    !viewport ||
+    !finite(viewport.start) ||
+    !finite(viewport.end) ||
+    viewport.end < viewport.start
+  ) {
     return null;
   }
   return Object.freeze({ start: viewport.start, end: viewport.end });
@@ -88,10 +95,7 @@ export class AuthoringContextController {
     return this.#mode;
   }
 
-  setTimelineViewport(
-    viewport: AuthoringViewport | null | undefined,
-    committed: boolean,
-  ): void {
+  setTimelineViewport(viewport: AuthoringViewport | null | undefined, committed: boolean): void {
     if (!committed) return;
     const next = canonicalViewport(viewport);
     this.#viewport = next;
