@@ -45,7 +45,7 @@ function visit(record) {
 visit(entry);
 
 const heavyweightInitialChunks = [...staticFiles].filter((file) =>
-  /(?:pdf-runtime|world-rendering|legacy-graph)/.test(file),
+  /(?:pdf-runtime|world-rendering|legacy-graph|webgpu-adapter)/.test(file),
 );
 if (heavyweightInitialChunks.length > 0) {
   throw new Error(
