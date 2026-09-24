@@ -2718,10 +2718,6 @@ export class DeckWorldSurface implements WorldSurface {
     return worldClusterExpansionProgress(radius, WORLD_PLACE_CLUSTER_RADIUS_PX);
   }
 
-  #placeClustered(zoom = this.#camera.zoom): boolean {
-    return this.#placeClusterExpansion(zoom) < 1;
-  }
-
   /**
    * Entities float a constant on-screen height above the terrain (places
    * stay on it). Quantised to quarter zoom steps like the offset scale so
