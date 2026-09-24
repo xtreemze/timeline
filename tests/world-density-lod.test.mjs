@@ -50,7 +50,6 @@ test("sparse scenes remain clustered at globe overview and restore detail at wor
   assert.equal(clusterEntityDatums(entities, 5), entities);
 });
 
-
 test("cluster transition keeps force targets retained and animates topology from the place origin", async () => {
   const source = await readFile(
     new URL("../site/world/deck-world-surface.ts", import.meta.url),
@@ -60,7 +59,7 @@ test("cluster transition keeps force targets retained and animates topology from
   assert.match(source, /instanceIndexFromEntities\(transitionEntities\)/);
   assert.match(source, /interpolateClusterPosition\(origin, entity\.position, expansion\)/);
   assert.match(source, /\.\.\.placeTransition\.clusters,[\s\S]*\.\.\.placeTransition\.members/);
-  assert.match(source, /temporalWidth \* edgeExpansion\(state\.edge\)/);
+  assert.match(source, /\(state\.temporalActive \? width : 0\) \* edgeExpansion\(state\.edge\)/);
   assert.match(source, /worldNodeMarker\(this\.#entityStyle\(datum\)\)\.size \* entityExpansion\(datum\)/);
   assert.doesNotMatch(
     source,
