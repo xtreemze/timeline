@@ -136,7 +136,10 @@ test("default repulsion spreads a dense same-anchor group beyond label-scale cro
     for (let right = left + 1; right < positions.length; right += 1) {
       const a = positions[left];
       const b = positions[right];
-      minimum = Math.min(minimum, Math.hypot(a.eastMeters - b.eastMeters, a.northMeters - b.northMeters));
+      minimum = Math.min(
+        minimum,
+        Math.hypot(a.eastMeters - b.eastMeters, a.northMeters - b.northMeters),
+      );
     }
   }
   assert.ok(minimum >= 200, `minimum same-anchor spacing was ${minimum}`);
@@ -340,17 +343,10 @@ test("post-drop settling stays responsive after an extreme drag displacement", (
     settleEnergy: 0,
   });
   const dragged = '["alice","extreme-drag"]';
-  const remoteIds = [
-    '["bob","remote-west"]',
-    '["carol","remote-east"]',
-    '["dave","remote-south"]',
-  ];
+  const remoteIds = ['["bob","remote-west"]', '["carol","remote-east"]', '["dave","remote-south"]'];
 
   simulation.setScene({
-    nodes: [
-      node(dragged),
-      ...remoteIds.map((id) => node(id)),
-    ],
+    nodes: [node(dragged), ...remoteIds.map((id) => node(id))],
     edges: [],
     anchors: [
       anchor(dragged, "stockholm", { influence: 1 }),
@@ -391,10 +387,7 @@ test("post-drop settling stays responsive after an extreme drag displacement", (
 
   assert.ok(before);
   assert.ok(after);
-  assert.ok(
-    elapsedMs < 100,
-    `extreme post-drop force step took ${elapsedMs.toFixed(1)} ms`,
-  );
+  assert.ok(elapsedMs < 100, `extreme post-drop force step took ${elapsedMs.toFixed(1)} ms`);
   assert.ok(Number.isFinite(after.eastMeters));
   assert.ok(Number.isFinite(after.northMeters));
   assert.ok(Number.isFinite(after.visualAltitudeMeters));
@@ -541,11 +534,7 @@ test("drag wakes nearby foreign-anchor topology but leaves distant groups frozen
   const beforeRemote = before.find((entry) => entry.instanceId === remote);
   const afterRemote = after.find((entry) => entry.instanceId === remote);
 
-  assert.notDeepEqual(
-    afterBob,
-    beforeBob,
-    "nearby foreign-anchor node participates in drag force",
-  );
+  assert.notDeepEqual(afterBob, beforeBob, "nearby foreign-anchor node participates in drag force");
   assert.deepEqual(afterRemote, beforeRemote, "distant anchor group stays frozen");
 });
 
@@ -837,4 +826,58 @@ test("unknown pins, invalid deltas, and use-after-destroy fail explicitly", () =
   simulation.destroy();
   simulation.destroy();
   assert.throws(() => simulation.step(16), /destroyed/);
+});
+
+test("updated DAG targets preserve position and converge through force only", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const instanceId = '["alice","dag-target"]';
+
+  simulation.setScene({
+    nodes: [
+      node(instanceId, {
+        initialEastMeters: 100,
+        layoutTargetEastMeters: 800,
+        layoutTargetNorthMeters: 0,
+        layoutTargetStrength: 0.01,
+      }),
+    ],
+    edges: [],
+    anchors: [],
+  });
+
+  assert.equal(simulation.getSnapshot()[0].eastMeters, 100);
+
+  simulation.setScene({
+    nodes: [
+      node(instanceId, {
+        initialEastMeters: 100,
+        layoutTargetEastMeters: 1_600,
+        layoutTargetNorthMeters: 0,
+        layoutTargetStrength: 0.01,
+      }),
+    ],
+    edges: [],
+    anchors: [],
+  });
+
+  assert.equal(
+    simulation.getSnapshot()[0].eastMeters,
+    100,
+    "changing the organizational target must not jump the rendered node",
+  );
+
+  simulation.apply(topologyRequest());
+  simulation.step(1000 / 60);
+
+  assert.ok(
+    simulation.getSnapshot()[0].eastMeters > 100,
+    "the force solver should move toward the new DAG target after a tick",
+  );
 });

@@ -1,4 +1,9 @@
 import type { ProjectedWorldInstance, WorldProjection } from "../projection/world-projection.ts";
+import {
+  createWorldDagLayoutTargets,
+  WORLD_DAG_TARGET_STRENGTH,
+  type WorldDagLayoutTarget,
+} from "./world-dag-layout.ts";
 import type {
   WorldForceAnchor,
   WorldForceEdge,
@@ -69,6 +74,7 @@ function validatePolicy(policy: WorldForceScenePolicy): WorldForceScenePolicy {
 function nodeFromInstance(
   instance: ProjectedWorldInstance,
   policy: WorldForceScenePolicy,
+  dagTarget: WorldDagLayoutTarget | undefined,
 ): WorldForceNode {
   const styleInput = {
     ...(instance.kind === undefined ? {} : { type: instance.kind }),
@@ -82,10 +88,16 @@ function nodeFromInstance(
     mass: policy.baseMass + instance.visualWeight * policy.visualWeightMassScale,
     collisionRadiusPx,
     collisionRadiusMeters:
-      policy.baseCollisionRadiusMeters *
-      (collisionRadiusPx / WORLD_ENTITY_MIN_HIT_RADIUS_PX),
+      policy.baseCollisionRadiusMeters * (collisionRadiusPx / WORLD_ENTITY_MIN_HIT_RADIUS_PX),
     initialEastMeters: instance.localOffset?.eastMeters ?? 0,
     initialNorthMeters: instance.localOffset?.northMeters ?? 0,
+    ...(dagTarget
+      ? {
+          layoutTargetEastMeters: dagTarget.eastMeters,
+          layoutTargetNorthMeters: dagTarget.northMeters,
+          layoutTargetStrength: WORLD_DAG_TARGET_STRENGTH,
+        }
+      : {}),
     targetVisualAltitudeMeters: instance.visualAltitude ?? 0,
   });
 }
@@ -124,8 +136,11 @@ export function createWorldForceScene(
 ): WorldForceScene {
   const policy = validatePolicy(inputPolicy);
 
+  const dagTargets = new Map(
+    createWorldDagLayoutTargets(projection).map((target) => [target.instanceId, target] as const),
+  );
   const nodes: WorldForceNode[] = projection.instances.map((instance) =>
-    nodeFromInstance(instance, policy),
+    nodeFromInstance(instance, policy, dagTargets.get(instance.id)),
   );
 
   const edges: WorldForceEdge[] = projection.edges.map((edge) =>
@@ -161,9 +176,7 @@ export function createWorldForceScene(
  * per layout. Use the largest exact rendered footprint in the component so
  * no node receives a smaller force body than its visible marker.
  */
-export function worldForceComponentCollisionRadiusPx(
-  nodes: readonly WorldForceNode[],
-): number {
+export function worldForceComponentCollisionRadiusPx(nodes: readonly WorldForceNode[]): number {
   return nodes.reduce(
     (radius, node) => Math.max(radius, node.collisionRadiusPx),
     WORLD_ENTITY_MIN_HIT_RADIUS_PX,
