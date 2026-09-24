@@ -63,7 +63,7 @@ function entity(index, kind, overrides = {}) {
   });
 }
 
-const CAMERA = Object.freeze({ longitude: 12, latitude: 41, zoom: 5, bearing: 0, pitch: 0 });
+const CAMERA = Object.freeze({ longitude: 12, latitude: 41, zoom: 7.25, bearing: 0, pitch: 0 });
 
 test("entity kinds map to the app's semantic icon vocabulary; unknown kinds get none", () => {
   assert.equal(worldEntityIconName("person"), "person");
