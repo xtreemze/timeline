@@ -18,6 +18,7 @@ import {
   WORLD_DARK_PALETTE,
   WORLD_ENTITY_MIN_HIT_RADIUS_PX,
   WORLD_LIGHT_PALETTE,
+  WORLD_MIN_VISIBLE_STROKE_PX,
   type WorldEdgeStyle,
   type WorldGraphPalette,
   type WorldNodeStyle,
@@ -806,7 +807,7 @@ const BASE_CAPABILITIES = Object.freeze({
 type Rgba = [number, number, number, number];
 
 /** Theme-derived colours for the non-graph layers (basemap, labels, clusters). */
-const WORLD_TETHER_WIDTH_PX = 0.6;
+const WORLD_TETHER_WIDTH_PX = WORLD_MIN_VISIBLE_STROKE_PX;
 const WORLD_TETHER_ALPHA = 48;
 const WORLD_INACTIVE_EDGE_ALPHA = 96;
 const WORLD_EMPHASIZED_EDGE_ALPHA = 242;
@@ -3711,7 +3712,7 @@ export class DeckWorldSurface implements WorldSurface {
                     pickable: false,
                     widthUnits: "pixels",
                     getPath: (path: unknown) => path,
-                    getWidth: 0.75,
+                    getWidth: WORLD_MIN_VISIBLE_STROKE_PX,
                     getColor: this.#theme.border,
                     parameters: { cullMode: "none" },
                   }),
