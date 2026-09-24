@@ -13,6 +13,9 @@ export interface WorldForceNode {
   readonly id: WorldInstanceId;
   readonly canonicalId: EntityId;
   readonly mass: number;
+  /** Exact rendered/mobile collision footprint in screen pixels. */
+  readonly collisionRadiusPx: number;
+  /** Tangent-space equivalent used by metre-based fallback solvers. */
   readonly collisionRadiusMeters: number;
   readonly initialEastMeters: number;
   readonly initialNorthMeters: number;
