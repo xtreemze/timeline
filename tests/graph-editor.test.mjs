@@ -174,7 +174,7 @@ test("touch graph dragging requires a long press while preserving live force phy
   assert.match(bridge, /setDragEnabled\(false\)/);
   assert.match(bridge, /setDragEnabled\(true\)/);
   assert.match(bridge, /isPhysicsEnabled:\s*true/);
-  assert.match(bridge, /vibrate\?\.\(12\)/);
+  assert.match(bridge, /motion\?\.pulseHaptic\?\.\("drag"\)/);
   assert.match(bridge, /activeTouchPointers/);
   assert.match(bridge, /Math\.hypot/);
   assert.match(adapter, /onNodeLongPress/);
@@ -243,11 +243,11 @@ test("mouse node drag preheats force before Orb enters native drag state", async
   );
   assert.match(
     source,
-    /const onNodeDragStart = \(\) => \{[\s\S]{0,320}clearInteractionSettleTimer\(\)/,
+    /const onNodeDragStart = \(payload\) => \{[\s\S]{0,320}beginDragFeedback\(payload\?\.node\)[\s\S]{0,180}clearInteractionSettleTimer\(\)/,
   );
   assert.doesNotMatch(
     source,
-    /const onNodeDragStart = \(\) => \{[\s\S]{0,320}requestSimulation\("drag"/,
+    /const onNodeDragStart = \(payload\) => \{[\s\S]{0,420}requestSimulation\("drag"/,
   );
 });
 
@@ -305,6 +305,49 @@ test("touch node long press is armed from capture-phase hit testing before Orb d
     /touchHold\.activated = true[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)[\s\S]*requestSimulation\("drag", DRAG_ALPHA_TARGET\)[\s\S]*simulator\?\.startDragNode\(\)/,
   );
   assert.doesNotMatch(bridge, /onNodeDragStart[\s\S]{0,180}beginTouchHold/);
+});
+
+
+test("long-press node drag flashes, elevates, haptically confirms, and restores feedback", async () => {
+  const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(source, /DRAG_FEEDBACK_FLASH_MS\s*=\s*150/);
+  assert.match(source, /DRAG_Z_INDEX_OFFSET\s*=\s*3/);
+  assert.match(
+    source,
+    /function beginDragFeedback\(node,[\s\S]*activeDragNodeId = nodeId[\s\S]*dragFlashNodeId = nodeId[\s\S]*DRAG_FEEDBACK_FLASH_MS/,
+  );
+  assert.match(source, /motion\?\.pulseHaptic\?\.\("drag"\)/);
+  assert.match(
+    source,
+    /touchHold\.activated = true[\s\S]*beginDragFeedback\(node, \{ flash: true, haptic: true \}\)/,
+  );
+  assert.match(source, /size: isDragFlash \? transitionSize \* 1\.16 : transitionSize/);
+  assert.match(source, /zIndex: baseZIndex \+ \(isDragged \? DRAG_Z_INDEX_OFFSET : 0\)/);
+  assert.match(
+    source,
+    /function finishActiveTouchNodeDrag[\s\S]*simulator\.endDragNode\(node\.getId\(\)\)[\s\S]*endDragFeedback\(\{ haptic: settle \}\)/,
+  );
+  assert.match(source, /motion\?\.pulseHaptic\?\.\("release"\)/);
+});
+
+test("drag force uses global repulsion across disconnected and differently anchored node groups", async () => {
+  const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(source, /DRAG_GLOBAL_REPULSION_DISTANCE\s*=\s*1_000_000_000/);
+  assert.match(
+    source,
+    /function forceLayoutOptions\([\s\S]*\{ globalDrag = false \} = \{\}[\s\S]*manyBody:/,
+  );
+  assert.match(
+    source,
+    /distanceMax: globalDrag[\s\S]*DRAG_GLOBAL_REPULSION_DISTANCE[\s\S]*dense[\s\S]*1800[\s\S]*3200/,
+  );
+  assert.match(
+    source,
+    /forceLayoutOptions\(forceNodeCount, request\.alphaTarget, request\.reheat, \{[\s\S]*globalDrag: request\.reason === "drag"/,
+  );
+  assert.match(source, /collision:[\s\S]*radius: dense \? 30 : 42/);
 });
 
 test("touch graph gesture ownership separates node drag from graph pan and pinch", async () => {

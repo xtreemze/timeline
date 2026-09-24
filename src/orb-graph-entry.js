@@ -25,6 +25,9 @@ const GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX = -280;
 const GRAPH_MIN_ZOOM = 0.002;
 const GRAPH_MAX_ZOOM = 2.5;
 const GRAPH_KEYBOARD_PAN_PX = 72;
+const DRAG_FEEDBACK_FLASH_MS = 150;
+const DRAG_Z_INDEX_OFFSET = 3;
+const DRAG_GLOBAL_REPULSION_DISTANCE = 1_000_000_000;
 const INTERACTION_SETTLE_MS = 4400;
 const DRAG_ALPHA_TARGET = 0.034;
 const RELEASE_ALPHA_TARGET = 0.009;
@@ -129,6 +132,9 @@ function create(container, handlers = {}) {
   let touchDragBlockedUntilRelease = false;
   let suppressGraphClickUntil = 0;
   let selectedGraphObject = null;
+  let activeDragNodeId = null;
+  let dragFlashNodeId = null;
+  let dragFlashTimer = 0;
   let cameraGesture = null;
   let cameraInertiaAnimationFrame = 0;
   let userOwnsCamera = false;
@@ -260,7 +266,12 @@ function create(container, handlers = {}) {
     };
   }
 
-  function forceLayoutOptions(nodeCount = forceNodeCount, alphaTarget = 0, reheat = true) {
+  function forceLayoutOptions(
+    nodeCount = forceNodeCount,
+    alphaTarget = 0,
+    reheat = true,
+    { globalDrag = false } = {},
+  ) {
     const dense = nodeCount >= 1000;
     const useGPU = currentMode === "gpu-main-force";
     return {
@@ -269,7 +280,14 @@ function create(container, handlers = {}) {
         strength: dense ? -125 : -190,
         theta: 0.84,
         distanceMin: 24,
-        distanceMax: dense ? 1800 : 3200,
+        // D3 many-body already operates across the full simulator node set.
+        // Remove its distance cutoff while dragging so disconnected graph
+        // components and nodes tied to other spatial anchors still react.
+        distanceMax: globalDrag
+          ? DRAG_GLOBAL_REPULSION_DISTANCE
+          : dense
+            ? 1800
+            : 3200,
       },
       collision: {
         radius: dense ? 30 : 42,
@@ -318,7 +336,9 @@ function create(container, handlers = {}) {
   function applySimulationRequest(request) {
     const layout = {
       type: "force",
-      options: forceLayoutOptions(forceNodeCount, request.alphaTarget, request.reheat),
+      options: forceLayoutOptions(forceNodeCount, request.alphaTarget, request.reheat, {
+        globalDrag: request.reason === "drag",
+      }),
     };
     const simulator = forceSimulator();
     if (simulator) {
@@ -679,6 +699,43 @@ function create(container, handlers = {}) {
     orb.render();
   }
 
+  function clearDragFlashTimer() {
+    if (!dragFlashTimer) return;
+    globalThis.clearTimeout(dragFlashTimer);
+    dragFlashTimer = 0;
+  }
+
+  function beginDragFeedback(node, { flash = false, haptic = false } = {}) {
+    const rawId = node?.getId?.() ?? node?.getData?.()?.id;
+    if (rawId === null || rawId === undefined) return;
+    const nodeId = String(rawId);
+    const sameNode = activeDragNodeId === nodeId;
+    activeDragNodeId = nodeId;
+    if (flash) {
+      clearDragFlashTimer();
+      dragFlashNodeId = nodeId;
+      dragFlashTimer = globalThis.setTimeout(() => {
+        dragFlashTimer = 0;
+        if (activeDragNodeId !== nodeId || dragFlashNodeId !== nodeId) return;
+        dragFlashNodeId = null;
+        orb.render();
+      }, DRAG_FEEDBACK_FLASH_MS);
+    } else if (!sameNode) {
+      dragFlashNodeId = null;
+    }
+    orb.render();
+    if (haptic) void motion?.pulseHaptic?.("drag");
+  }
+
+  function endDragFeedback({ haptic = false } = {}) {
+    const hadActiveDrag = activeDragNodeId !== null;
+    clearDragFlashTimer();
+    activeDragNodeId = null;
+    dragFlashNodeId = null;
+    if (hadActiveDrag) orb.render();
+    if (haptic) void motion?.pulseHaptic?.("release");
+  }
+
   function clearTouchReleaseFallback() {
     if (!touchReleaseFallback) return;
     globalThis.clearTimeout(touchReleaseFallback);
@@ -712,6 +769,7 @@ function create(container, handlers = {}) {
     const simulator = touchDragSimulator();
     if (simulator && node) simulator.endDragNode(node.getId());
     releaseSimulation("drag");
+    endDragFeedback({ haptic: settle });
     // Mark inactive before releasing capture because browsers may dispatch
     // lostpointercapture synchronously from releasePointerCapture().
     touchHold.activated = false;
@@ -853,6 +911,7 @@ function create(container, handlers = {}) {
       lastTouchTap = null;
       touchDragBlockedUntilRelease = false;
       container.dataset.touchDrag = "active";
+      beginDragFeedback(node, { flash: true, haptic: true });
       // Once the long press resolves, Timeline owns this pointer. Do not rely
       // on Orb/D3 preserving a drag gesture that began while node dragging was
       // intentionally disabled during the hold threshold.
@@ -872,11 +931,6 @@ function create(container, handlers = {}) {
       }
       selectGraphObject(node);
       handlers.onNodeLongPress?.(node.getData());
-      try {
-        globalThis.navigator?.vibrate?.(12);
-      } catch {
-        // Haptics are optional and may be unavailable or permission-gated.
-      }
     }, TOUCH_NODE_HOLD_MS);
   }
 
@@ -1173,6 +1227,9 @@ function create(container, handlers = {}) {
 
   function nodeStyle(data) {
     const type = semanticType(data);
+    const nodeId = String(data?.id ?? "");
+    const isDragged = Boolean(nodeId) && nodeId === activeDragNodeId;
+    const isDragFlash = isDragged && nodeId === dragFlashNodeId;
     const transition = data?.__timelineTransition || "active";
     const exiting = transition === "exiting";
     const entering = transition === "entering";
@@ -1192,25 +1249,29 @@ function create(container, handlers = {}) {
                   : palette.ink;
     const color = exiting ? palette.muted : baseColor;
     const size = type === "event" ? 12 : type === "story" ? 13 : 10;
+    const transitionSize = exiting ? Math.max(6, size * 0.72) : entering ? size * 0.88 : size;
+    const baseZIndex = type === "event" ? 4 : type === "story" ? 3 : 2;
     return {
-      size: exiting ? Math.max(6, size * 0.72) : entering ? size * 0.88 : size,
+      // The acquisition flash is a discrete state change, not a positional
+      // transition; the elevated z-order lasts only while the node is dragged.
+      size: isDragFlash ? transitionSize * 1.16 : transitionSize,
       mass: type === "event" ? 3.4 : type === "story" ? 3 : 1.8,
       shape: nodeShape(type),
       imageUrl: semanticIconUrl(type),
       imageUrlSelected: semanticIconUrl(type),
       color,
       colorHover: palette.focus,
-      colorSelected: palette.focus,
+      colorSelected: isDragFlash ? palette.paper : palette.focus,
       borderColor: palette.paper,
       borderColorHover: palette.paper,
-      borderColorSelected: palette.paper,
+      borderColorSelected: isDragFlash ? palette.focus : palette.paper,
       borderWidth: exiting ? 1 : 2,
-      borderWidthSelected: 4,
+      borderWidthSelected: isDragFlash ? 6 : 4,
       label: data?.label || String(data?.id || ""),
       fontSize: exiting ? 10 : 12,
       fontColor: exiting ? palette.muted : palette.ink,
       fontBackgroundColor: palette.paper,
-      zIndex: type === "event" ? 4 : type === "story" ? 3 : 2,
+      zIndex: baseZIndex + (isDragged ? DRAG_Z_INDEX_OFFSET : 0),
     };
   }
 
@@ -1291,15 +1352,17 @@ function create(container, handlers = {}) {
     selectGraphObject(edge);
     handlers.onEdgeClick?.(edge.getData());
   };
-  const onNodeDragStart = () => {
+  const onNodeDragStart = (payload) => {
     // Capture-phase pointerdown already requested drag heat before Orb enters
     // native drag state. Do not independently restart the simulator here.
+    beginDragFeedback(payload?.node);
     clearInteractionSettleTimer();
   };
   const onNodeDrag = () => {
     clearInteractionSettleTimer();
   };
   const onNodeDragEnd = (payload) => {
+    endDragFeedback();
     releaseSimulation("drag");
     keepForceActiveAfterInteraction();
     if (isTouchInput(payload.event) && touchHold?.activated) finishTouchGesture();
