@@ -885,7 +885,7 @@ export class TimelineViewController {
 
     document.addEventListener("graphselectionchange", (event: Event) => {
       const detail = (event as CustomEvent).detail;
-      if (!detail || detail.kind !== "node") return;
+      if (detail?.kind !== "node") return;
       const nodeId = String(detail.id);
       if (!nodeId.startsWith("cluster:")) return;
       const eventIds = nodeId.split(":")[1]?.split("|") || [];
@@ -1681,7 +1681,7 @@ export class TimelineViewController {
         }
       }
 
-      if (coloredItem && coloredItem.color) {
+      if (coloredItem?.color) {
         segment.style.setProperty("--relation-event-color", coloredItem.color);
       }
 
@@ -2432,7 +2432,7 @@ export class TimelineViewController {
     const width = Math.max(1, rect.width || this.surface.clientWidth || 800);
     const height = Math.max(1, rect.height || this.surface.clientHeight || 480);
     const primaryLength = this.orientation === "horizontal" ? width : height;
-    const crossLength = this.orientation === "horizontal" ? height : width;
+    const _crossLength = this.orientation === "horizontal" ? height : width;
     const axisCross = this.orientation === "horizontal" ? height / 2 : width * 0.58;
     const padding = this.axisPadding(primaryLength);
     const usable = Math.max(1, primaryLength - padding * 2);
@@ -2617,7 +2617,7 @@ export class TimelineViewController {
 
   positionRecord(
     record: SceneRecord,
-    primaryLength: number,
+    _primaryLength: number,
     axisCross: number,
     padding: number,
     usable: number,
