@@ -424,7 +424,7 @@ export class TimelineViewController {
         event.preventDefault();
         this.cancelInertia();
         this.beginInteraction();
-        const rect = this.interactionSurfaceRect || this.surface.getBoundingClientRect();
+        const rect = this.interactionRect();
         const primary =
           this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
         const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
@@ -468,7 +468,7 @@ export class TimelineViewController {
     ): void => {
       this.cancelInertia();
       this.beginInteraction();
-      const rect = this.interactionSurfaceRect || this.surface.getBoundingClientRect();
+      const rect = this.interactionRect();
       const coordinate =
         this.orientation === "horizontal" ? point.x - rect.left : point.y - rect.top;
       this.pointerDrag = {
@@ -494,7 +494,7 @@ export class TimelineViewController {
       if (this.touchPointers.size < 2) return null;
       const [first, second] = Array.from(this.touchPointers.values()).slice(0, 2);
       if (!first || !second) return null;
-      const rect = this.interactionSurfaceRect || this.surface.getBoundingClientRect();
+      const rect = this.interactionRect();
       const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
       const primary =
         this.orientation === "horizontal"
@@ -685,7 +685,7 @@ export class TimelineViewController {
 
       const drag = this.pointerDrag;
       if (!drag || drag.pointerId !== event.pointerId) return;
-      const rect = this.interactionSurfaceRect || this.surface.getBoundingClientRect();
+      const rect = this.interactionRect();
       const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
       const coordinate =
         this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
@@ -1647,6 +1647,16 @@ export class TimelineViewController {
     };
 
     this.inertiaAnimationFrame = requestAnimationFrame(step);
+  }
+
+  interactionRect(): DOMRect {
+    if (this.retention.active) {
+      if (!this.interactionSurfaceRect) {
+        this.interactionSurfaceRect = this.surface.getBoundingClientRect();
+      }
+      return this.interactionSurfaceRect;
+    }
+    return this.surface.getBoundingClientRect();
   }
 
   beginInteraction(): void {
