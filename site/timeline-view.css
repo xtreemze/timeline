@@ -382,6 +382,20 @@
   left: calc(var(--timeline-axis-cross) + 28px);
 }
 
+.timeline-edge-date {
+  display: inline-flex;
+  align-items: baseline;
+  contain: layout style;
+}
+.timeline-edge-date-character {
+  display: inline-block;
+  min-inline-size: 0.54ch;
+  text-align: center;
+  transform-origin: 50% 50%;
+}
+.timeline-edge-date-character:empty {
+  min-inline-size: 0.28ch;
+}
 .timeline-year-accent {
   overflow: visible;
   font-size: clamp(1.45rem, 3.2vw, 3.2rem);
