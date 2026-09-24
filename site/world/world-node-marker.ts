@@ -80,7 +80,9 @@ export function worldNodeMarker(style: WorldNodeStyle): WorldNodeMarker {
       ? style.icon
       : null;
   const iconName = authoredIcon ?? (style.icon ? worldEntityIconName(style.icon) : null);
-  const glyphSize = style.radius * 1.15;
+  const glyphRadius =
+    style.shape === "pin" ? style.radius * 0.6 : Math.min(style.radius, bodyRadius);
+  const glyphSize = glyphRadius * 1.15;
   const glyphOrigin = center - glyphSize / 2;
   const inner = style.image
     ? `<clipPath id="c">${shapePath(style.shape, center, Math.max(0, bodyRadius - 0.5))}</clipPath><image href="${escapeAttribute(style.image)}" x="${center - bodyRadius}" y="${center - bodyRadius}" width="${bodyRadius * 2}" height="${bodyRadius * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#c)"/>`

@@ -634,10 +634,7 @@ test("direction marker clears the target marker footprint", () => {
     const relationship = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationships);
     const edge = relationship.props.data[0];
     const targetPosition = relationship.props.getPath(edge).at(-1);
-    const distanceToTarget = Math.hypot(
-      apex[0] - targetPosition[0],
-      apex[1] - targetPosition[1],
-    );
+    const distanceToTarget = Math.hypot(apex[0] - targetPosition[0], apex[1] - targetPosition[1]);
     return {
       targetClearanceDegrees: marker.targetClearanceDegrees,
       distanceToTarget,
@@ -694,11 +691,11 @@ test("direction marker length stays node-relative across camera zoom", () => {
   );
 });
 
-test("direction marker stroke scales with visible endpoint markers", () => {
-  const widthFor = (style) => {
+test("direction marker length and stroke follow the target marker scale", () => {
+  const metricsFor = (sourceStyle, targetStyle, edgeStyle) => {
     const h = harness();
-    const source = instance(0, { style, visualWeight: 1 });
-    const target = instance(1, { style });
+    const source = instance(0, { style: sourceStyle, visualWeight: 1 });
+    const target = instance(1, { style: targetStyle });
     const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 8 });
     surface.setProjection(
       createWorldProjection({
@@ -712,18 +709,34 @@ test("direction marker stroke scales with visible endpoint markers", () => {
             temporalWeight: 1,
             visible: true,
             retained: false,
+            ...(edgeStyle ? { style: edgeStyle } : {}),
           }),
         ],
       }),
     );
     const directions = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections);
-    return directions.props.getWidth(directions.props.data[0]);
+    const marker = directions.props.data[0];
+    return {
+      width: directions.props.getWidth(marker),
+      length: marker.arrowLengthDegrees,
+    };
   };
 
-  const ordinary = widthFor(undefined);
-  const large = widthFor({ radius: 32 });
-  assert.ok(large > ordinary, "large nodes receive a proportionally heavier direction chevron");
-  assert.ok(large <= 5, "arrow stroke remains visually coupled to the default 2.5px edge");
+  const ordinary = metricsFor(undefined, undefined);
+  const largeSource = metricsFor({ radius: 32 }, undefined);
+  const largeTarget = metricsFor(undefined, { radius: 32 });
+  const thinEdgeLargeTarget = metricsFor(undefined, { radius: 32 }, { width: 0.5 });
+
+  assert.ok(
+    Math.abs(largeSource.length - ordinary.length) < 1e-12,
+    "source-node size does not distort a marker terminating at the target",
+  );
+  assert.ok(largeTarget.length > ordinary.length, "target-node size controls chevron length");
+  assert.ok(largeTarget.width > ordinary.width, "target-node size controls chevron stroke");
+  assert.ok(
+    thinEdgeLargeTarget.width > 1,
+    "a thin authored edge cannot force a large target-relative chevron into a hairline stroke",
+  );
 });
 
 test("picking a direction marker resolves to its canonical relationship", () => {
@@ -786,6 +799,48 @@ test("clustered overview suppresses member labels even when a member is selected
   );
   assert.ok(labels.length > 0);
   assert.ok(labels.every((datum) => datum.kind === "place-label"));
+});
+
+test("inactive relationships mute until their connected neighborhood is emphasized", () => {
+  const h = harness();
+  const source = instance(0, { style: { fill: "#123456" }, visualWeight: 1 });
+  const target = instance(1);
+  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
+  surface.setProjection(
+    createWorldProjection({
+      instances: [source, target],
+      edges: [
+        createProjectedWorldEdge({
+          id: "hierarchy",
+          label: "met",
+          sourceInstanceId: source.id,
+          targetInstanceId: target.id,
+          temporalWeight: 1,
+          visible: true,
+          retained: false,
+        }),
+      ],
+    }),
+  );
+
+  let relationships = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationships);
+  let edge = relationships.props.data[0];
+  const inactive = relationships.props.getColor(edge);
+  assert.equal(inactive[3], 96, "ordinary edges stay visually subordinate");
+
+  h.getDeckProps().onHover({
+    object: {
+      kind: "entity",
+      entityId: source.canonicalId,
+      worldInstanceId: source.id,
+    },
+  });
+
+  relationships = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationships);
+  edge = relationships.props.data[0];
+  const emphasized = relationships.props.getColor(edge);
+  assert.deepEqual(emphasized.slice(0, 3), [18, 52, 86]);
+  assert.ok(emphasized[3] > inactive[3], "hover restores the semantic edge emphasis");
 });
 
 test("hover changes label color only and never invokes renderer transitions", () => {

@@ -296,6 +296,10 @@ export interface WorldEdgeStyleInput {
   /** Incident-edge emphasis without changing canonical selection. */
   readonly emphasized?: boolean;
   readonly inactive?: boolean;
+  /** Visual de-emphasis for edges outside the active interaction neighborhood. */
+  readonly subdued?: boolean;
+  /** Endpoint/category-derived colour used only when the relationship has no authored colour. */
+  readonly fallbackColor?: string;
 }
 
 export function worldEdgeStyle(
@@ -308,6 +312,7 @@ export function worldEdgeStyle(
     color(own.color) ??
     color(own.stroke) ??
     color(own.lineColor) ??
+    color(input.fallbackColor) ??
     semanticEdgeColor(input.predicate ?? "", palette);
   const authoredWidth =
     number(own.width, 0.5, 10) ??
@@ -317,7 +322,7 @@ export function worldEdgeStyle(
   return Object.freeze({
     // Interaction emphasis is renderer-only so edge geometry/routing never
     // changes on hover or selection.
-    color: input.inactive && !input.selected ? palette.muted : semanticColor,
+    color: (input.subdued || input.inactive) && !input.selected ? palette.muted : semanticColor,
     width: authoredWidth,
     dashed:
       lineStyle === "dashed" ||
