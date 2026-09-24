@@ -114,12 +114,12 @@ test("cluster lifecycle retires edges before force-owned member cleanup", async 
     "utf8",
   );
 
-  assert.match(source, /setClusterTopologySink/);
+  assert.match(source, /setClusterForceSink/);
   assert.match(source, /WORLD_CLUSTER_EDGE_RELEASE_MS\s*=\s*420/);
   assert.match(source, /WORLD_CLUSTER_FORCE_SETTLE_MS\s*=\s*1500/);
   assert.match(source, /clusterLifecyclePhase\s*=\s*"retiring"/);
-  assert.match(source, /mode:\s*"collapse"/);
-  assert.match(source, /mode:\s*"expand"/);
+  assert.match(source, /setClusteredPlaceIds\(this\.\#clusterLifecyclePlaces\)/);
+  assert.match(source, /setClusteredPlaceIds\(Object\.freeze\(\[\]\)\)/);
   assert.match(source, /retiringRelationshipDots/);
   assert.doesNotMatch(source, /interpolateClusterPosition/);
   assert.doesNotMatch(source, /transitions\s*:/);
