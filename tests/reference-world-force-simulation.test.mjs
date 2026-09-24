@@ -330,6 +330,80 @@ test("broad phase finds floating nodes that meet far from their different anchor
   );
 });
 
+test("post-drop settling stays responsive after an extreme drag displacement", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0,
+    anchorStrength: 0.02,
+    altitudeStrength: 0,
+    damping: 0.84,
+    settleEnergy: 0,
+  });
+  const dragged = '["alice","extreme-drag"]';
+  const remoteIds = [
+    '["bob","remote-west"]',
+    '["carol","remote-east"]',
+    '["dave","remote-south"]',
+  ];
+
+  simulation.setScene({
+    nodes: [
+      node(dragged),
+      ...remoteIds.map((id) => node(id)),
+    ],
+    edges: [],
+    anchors: [
+      anchor(dragged, "stockholm", { influence: 1 }),
+      anchor(remoteIds[0], "remote-west", {
+        longitude: -122.4194,
+        latitude: 37.7749,
+        influence: 0,
+      }),
+      anchor(remoteIds[1], "remote-east", {
+        longitude: 139.6917,
+        latitude: 35.6895,
+        influence: 0,
+      }),
+      anchor(remoteIds[2], "remote-south", {
+        longitude: 151.2093,
+        latitude: -33.8688,
+        influence: 0,
+      }),
+    ],
+  });
+
+  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 10_000_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+  simulation.step(1000 / 60);
+  simulation.setPin(null);
+  simulation.apply({ reason: "post-drop", energyTarget: 0.035, reheat: true });
+
+  const before = simulation.getSnapshot().find((entry) => entry.instanceId === dragged);
+  const startedAt = performance.now();
+  simulation.step(1000 / 60);
+  const elapsedMs = performance.now() - startedAt;
+  const after = simulation.getSnapshot().find((entry) => entry.instanceId === dragged);
+
+  assert.ok(before);
+  assert.ok(after);
+  assert.ok(
+    elapsedMs < 100,
+    `extreme post-drop force step took ${elapsedMs.toFixed(1)} ms`,
+  );
+  assert.ok(Number.isFinite(after.eastMeters));
+  assert.ok(Number.isFinite(after.northMeters));
+  assert.ok(Number.isFinite(after.visualAltitudeMeters));
+  assert.ok(
+    Math.abs(after.eastMeters) < Math.abs(before.eastMeters),
+    "released node should resume smooth attraction toward its geographic anchor",
+  );
+});
+
 test("cross-anchor rejection maintains breathing room beyond hard collision radii", () => {
   const simulation = new ReferenceWorldForceSimulation({
     repulsionStrength: 48_000,
