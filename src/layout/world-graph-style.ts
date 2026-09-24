@@ -36,7 +36,9 @@ export const WORLD_DARK_PALETTE: WorldGraphPalette = Object.freeze({
   line: "#393633",
 });
 
-export const WORLD_NODE_SCALE = 4;\n\nexport interface WorldNodeStyle {
+export const WORLD_NODE_SCALE = 4;
+
+export interface WorldNodeStyle {
   readonly fill: string;
   readonly border: string;
   readonly borderWidth: number;
