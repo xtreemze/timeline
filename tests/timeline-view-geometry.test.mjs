@@ -41,7 +41,7 @@ test("selected events use a shell-owned six-column detail surface with timeline-
   const [html, js, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/spatial-shell.css", import.meta.url), "utf8"),
   ]);
   assert.match(html, /id="timeline-focus-view"/);
   assert.match(html, /class="timeline-local-toolbar"/);
@@ -56,12 +56,13 @@ test("selected events use a shell-owned six-column detail surface with timeline-
   assert.match(js, /focusNavigationState\(\)/);
   assert.doesNotMatch(js, /timeline-focus-nav-prev|timeline-focus-nav-next|Edit event/);
   assert.match(css, /Spatial timeline chrome and content-first focused detail/);
-  assert.match(css, /\.timeline-focus-view\s*\{[\s\S]*grid-template-columns:\s*repeat\(6,/);
-  assert.doesNotMatch(css, /\.timeline-focus-view\s*\{[\s\S]*grid-template-columns:\s*repeat\(12,/);
+  assert.match(css, /\.timeline-focus-sidebar:not\(\[hidden\]\)\s*\{[\s\S]*grid-template-columns:\s*repeat\(6,/);
+  assert.doesNotMatch(css, /\.timeline-focus-sidebar:not\(\[hidden\]\)\s*\{[\s\S]*grid-template-columns:\s*repeat\(12,/);
   assert.match(
     css,
     /#app-shell\.is-event-focused[\s\S]*timeline-focus-sidebar:not\(\[hidden\]\)[\s\S]*position:\s*absolute[\s\S]*inline-size:\s*min\(560px/,
   );
+  assert.match(css, /#presentation-stage > \.timeline-local-toolbar[\s\S]*z-index:\s*1100/);
   assert.match(css, /--focus-timeline-block-size/);
   assert.match(css, /--focus-timeline-inline-size/);
   assert.doesNotMatch(css, /position-anchor:\s*--timeline-detail-anchor/);
@@ -95,7 +96,7 @@ test("long visible ranges trace from the midpoint of their visible portion", () 
 
 test("Browse overlays without workspace reflow and Edit becomes a bounded desktop panel", async () => {
   const [css, html, architecture] = await Promise.all([
-    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/spatial-shell.css", import.meta.url), "utf8"),
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../docs/TIMELINE-V3-ARCHITECTURE.md", import.meta.url), "utf8"),
   ]);
