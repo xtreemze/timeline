@@ -2685,8 +2685,29 @@ export class DeckWorldSurface implements WorldSurface {
   #placeClusterExpansion(zoom = this.#camera.zoom): number {
     const instances = this.#projection.instances;
     if (instances.length === 0) return 1;
+
+    // Only multi-member place groups participate. A lone anchored entity has
+    // nothing to collapse into, so ordinary camera zoom must not trigger
+    // continuous re-renders for it.
+    const placeCounts = new Map<PlaceId, number>();
+    let hasClusterablePlace = false;
+    for (const instance of instances) {
+      const placeId = instance.geographicAnchors[0]?.placeId;
+      if (!placeId) continue;
+      const count = (placeCounts.get(placeId) ?? 0) + 1;
+      placeCounts.set(placeId, count);
+      if (count > 1) {
+        hasClusterablePlace = true;
+        break;
+      }
+    }
+    if (!hasClusterablePlace) return 1;
+
+    // Before the force backend has emitted any local displacement, the
+    // logical origin is exactly the place cluster. This makes the first
+    // solved layout expand from that origin instead of popping into view.
     const typical = this.#typicalOffsetMeters();
-    if (typical <= 0) return 1;
+    if (typical <= 0) return 0;
     const radius = worldLocalRadiusPx(
       typical * this.#nextOffsetScale(zoom),
       zoom,
