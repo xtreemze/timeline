@@ -1,6 +1,6 @@
 # Architecture contract for contributors
 
-Timeline/Lūm is an occurrence-centered spatiotemporal knowledge system with multiple coordinated projections. Changes should preserve the dependency direction and domain invariants below, regardless of whether the contributor is human or automated.
+Lūm is an occurrence-centered spatiotemporal knowledge system with multiple coordinated projections. The repository and some compatibility APIs retain `timeline` / `Timeline` identifiers; product-facing prose should follow [BRAND.md](BRAND.md) and [LUM-TERMINOLOGY.md](LUM-TERMINOLOGY.md). Changes should preserve the dependency direction and domain invariants below, regardless of whether the contributor is human or automated.
 
 ## Dependency direction
 
@@ -96,7 +96,7 @@ Current certification covers:
 - graph projection at 1k, 10k, and 50k nodes by default;
 - sparse/range-heavy chronology;
 - focused graph neighborhoods;
-- mobile Chrome/Safari portrait and landscape;
+- mobile Chrome portrait and landscape;
 - tablet touch;
 - reduced motion;
 - retained DOM churn and input-to-visual latency.
