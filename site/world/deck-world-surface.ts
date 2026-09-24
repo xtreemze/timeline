@@ -320,6 +320,8 @@ function cameraFacingStep(camera: WorldCameraState): string {
   return [
     Math.round(camera.longitude / WORLD_CAMERA_FACING_STEP_DEGREES),
     Math.round(camera.latitude / WORLD_CAMERA_FACING_STEP_DEGREES),
+    Math.round(camera.bearing / WORLD_CAMERA_FACING_STEP_DEGREES),
+    Math.round(camera.pitch / WORLD_CAMERA_FACING_STEP_DEGREES),
   ].join(":");
 }
 
@@ -2337,8 +2339,14 @@ export class DeckWorldSurface implements WorldSurface {
       onClick: (info: DeckRuntimePickingInfo) => this.#handleDeckClick(info),
       onAfterRender: () => this.#afterRender(),
       onResize: () => {
-        if (!this.#autoFitted || this.#destroyed) return;
-        this.#reframe(this.#autoFitMode);
+        if (this.#destroyed) return;
+        if (this.#autoFitted) {
+          this.#reframe(this.#autoFitMode);
+          return;
+        }
+        // Label collisions and edge fitting depend on the current viewport
+        // dimensions even when the user owns the camera.
+        this.#render();
       },
       onViewStateChange: ({ viewState }: { readonly viewState: DeckRuntimeViewState }) => {
         // At close/detail zoom direct manipulation owns the gesture. Reject
