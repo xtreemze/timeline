@@ -217,59 +217,64 @@ export interface DeckWorldClusterDatum {
 export type DeckWorldEntityRenderDatum = DeckWorldEntityDatum | DeckWorldClusterDatum;
 
 /**
- * Below this globe zoom level, nearby entities are grouped into clusters.
- * The default camera (zoom 1, see `DEFAULT_CAMERA` below) sits above this
- * threshold so clustering stays fully bypassed until the viewer zooms out
- * past the initial globe overview, keeping per-entity picking/dragging
- * unaffected at working zoom levels.
+ * Individual entity glyphs remain readable only while their projected
+ * footprints have enough screen-space separation. Below this zoom, nearby
+ * instances are eligible for presentation-only clustering. The threshold is
+ * intentionally above the ordinary regional working range: focus operations
+ * can zoom beyond it to recover individual picking/dragging.
  */
-export const CLUSTER_ZOOM_THRESHOLD = 0.5;
+export const CLUSTER_ZOOM_THRESHOLD = 7;
 
 /**
- * Dense projections need semantic LOD earlier than sparse scenes: drawing
- * tens of thousands of individually pickable glyphs at a globe overview is
- * both unreadable and needlessly expensive. This threshold is presentation
- * only; canonical membership remains in each cluster and zooming to a
- * working scale restores the original world instances.
+ * Approximate diameter reserved for a readable entity glyph plus outline and
+ * icon. The bucketing scale is derived from deck.gl's 512px world tile and
+ * quantized into half-zoom tiers so normal camera motion does not rebuild
+ * clusters on every fractional zoom delta.
  */
-const DENSE_CLUSTER_ENTITY_THRESHOLD = 25_000;
-const DENSE_CLUSTER_ZOOM_THRESHOLD = 4.5;
+const CLUSTER_TARGET_PX = 40;
+const CLUSTER_TILE_SIZE_PX = 512;
+const CLUSTER_ZOOM_STEP = 0.5;
 
-export function shouldClusterEntityDatums(entityCount: number, zoom: number): boolean {
-  return (
-    zoom < CLUSTER_ZOOM_THRESHOLD ||
-    (entityCount >= DENSE_CLUSTER_ENTITY_THRESHOLD && zoom < DENSE_CLUSTER_ZOOM_THRESHOLD)
-  );
+export function worldEntityClusterTier(entityCount: number, zoom: number): number {
+  if (entityCount < 2 || !Number.isFinite(zoom) || zoom >= CLUSTER_ZOOM_THRESHOLD) return -1;
+  return Math.floor(Math.max(0, zoom) / CLUSTER_ZOOM_STEP);
 }
 
-/** Grid-cell size (degrees) used to bucket entities for clustering. */
-const CLUSTER_CELL_DEGREES = 6;
+export function shouldClusterEntityDatums(entityCount: number, zoom: number): boolean {
+  return worldEntityClusterTier(entityCount, zoom) >= 0;
+}
 
-function clusterCellKey(position: WorldRenderPosition): string {
-  const cellLongitude = Math.floor(position[0] / CLUSTER_CELL_DEGREES);
-  const cellLatitude = Math.floor(position[1] / CLUSTER_CELL_DEGREES);
+function clusterCellDegrees(entityCount: number, zoom: number): number | null {
+  const tier = worldEntityClusterTier(entityCount, zoom);
+  if (tier < 0) return null;
+  const tierZoom = tier * CLUSTER_ZOOM_STEP;
+  const worldPixels = CLUSTER_TILE_SIZE_PX * 2 ** tierZoom;
+  return (CLUSTER_TARGET_PX * 360) / worldPixels;
+}
+
+function clusterCellKey(position: WorldRenderPosition, cellDegrees: number): string {
+  const cellLongitude = Math.floor((position[0] + 180) / cellDegrees);
+  const cellLatitude = Math.floor((position[1] + 90) / cellDegrees);
   return `${cellLongitude}:${cellLatitude}`;
 }
 
 /**
- * Pure function grouping entity datums into clusters by screen-proximity
- * (approximated here via a lon/lat grid, since actual pixel projection would
- * require a live viewport). Fully bypassed at/above `CLUSTER_ZOOM_THRESHOLD`
- * so per-entity picking/dragging is unaffected at working zoom levels, and
- * a place-anchor's own entities are only grouped when more than one entity
- * shares proximity — a lone entity is returned unchanged (same reference),
- * preserving the Priority 3 incremental-memoization guarantee for the
- * common case.
+ * Pure zoom-scaled proximity clustering. A cell approximates a 40px glyph
+ * footprint at the current semantic zoom. Cluster membership retains every
+ * canonical entity/world-instance identity, while a scene with no collisions
+ * returns the original array by reference so incremental rendering remains
+ * cheap.
  */
 export function clusterEntityDatums(
   entities: readonly DeckWorldEntityDatum[],
   zoom: number,
 ): readonly DeckWorldEntityRenderDatum[] {
-  if (!shouldClusterEntityDatums(entities.length, zoom)) return entities;
+  const cellDegrees = clusterCellDegrees(entities.length, zoom);
+  if (cellDegrees === null) return entities;
 
   const cells = new Map<string, DeckWorldEntityDatum[]>();
   for (const entity of entities) {
-    const key = clusterCellKey(entity.position);
+    const key = clusterCellKey(entity.position, cellDegrees);
     const bucket = cells.get(key);
     if (bucket) {
       bucket.push(entity);
@@ -279,6 +284,7 @@ export function clusterEntityDatums(
   }
 
   const result: DeckWorldEntityRenderDatum[] = [];
+  let clustered = false;
   for (const [key, members] of cells) {
     const [onlyMember] = members;
     if (members.length === 1 && onlyMember) {
@@ -286,6 +292,7 @@ export function clusterEntityDatums(
       continue;
     }
 
+    clustered = true;
     let sumLongitude = 0;
     let sumLatitude = 0;
     let sumAltitude = 0;
@@ -315,6 +322,8 @@ export function clusterEntityDatums(
       }),
     );
   }
+
+  if (!clustered) return entities;
 
   return Object.freeze(
     result.sort((left, right) => {
