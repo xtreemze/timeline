@@ -37,7 +37,9 @@ import type {
   WorldInstanceId,
   WorldProjection,
 } from "../../src/projection/world-projection.ts";
+import { iconPathData } from "../event-presentation.ts";
 import { buildWorldAccessibleOutline, WorldAccessibleMirror } from "./world-accessible-mirror.ts";
+import { worldEntityIconName } from "./world-entity-icon.ts";
 
 export const DECK_WORLD_LAYER_IDS = Object.freeze({
   places: "lum-world-places",
@@ -45,6 +47,7 @@ export const DECK_WORLD_LAYER_IDS = Object.freeze({
   entities: "lum-world-entities",
   relationshipDirections: "lum-world-relationship-directions",
   labels: "lum-world-labels",
+  entityIcons: "lum-world-entity-icons",
 });
 
 interface DeckRuntimeViewState {
@@ -103,6 +106,7 @@ export interface DeckWorldRuntime {
   createScatterplotLayer(props: Readonly<Record<string, unknown>>): unknown;
   createPathLayer(props: Readonly<Record<string, unknown>>): unknown;
   createTextLayer?(props: Readonly<Record<string, unknown>>): unknown;
+  createIconLayer?(props: Readonly<Record<string, unknown>>): unknown;
   createDeck(props: Readonly<Record<string, unknown>>): DeckRuntimeInstance;
 }
 
@@ -111,6 +115,7 @@ interface DeckWorldEntityDatum {
   readonly entityId: EntityId;
   readonly worldInstanceId: WorldInstanceId;
   readonly label?: string;
+  readonly entityKind?: string;
   readonly position: WorldRenderPosition;
   readonly selected: boolean;
   readonly visualWeight: number;
@@ -573,11 +578,13 @@ function entityDatumUnchanged(
   selected: boolean,
   visualWeight: number,
   label: string | undefined,
+  entityKind: string | undefined,
 ): boolean {
   return (
     previous.selected === selected &&
     previous.visualWeight === visualWeight &&
     previous.label === label &&
+    previous.entityKind === entityKind &&
     positionEquals(previous.position, position)
   );
 }
@@ -600,13 +607,21 @@ function entityDatums(
     const prior = previous.get(instance.id);
     const datum =
       prior &&
-      entityDatumUnchanged(prior, position, selected, instance.visualWeight, instance.label)
+      entityDatumUnchanged(
+        prior,
+        position,
+        selected,
+        instance.visualWeight,
+        instance.label,
+        instance.kind,
+      )
         ? prior
         : Object.freeze({
             kind: "entity" as const,
             entityId: instance.canonicalId,
             worldInstanceId: instance.id,
             ...(instance.label === undefined ? {} : { label: instance.label }),
+            ...(instance.kind === undefined ? {} : { entityKind: instance.kind }),
             position,
             selected,
             visualWeight: instance.visualWeight,
@@ -899,6 +914,40 @@ function labelDatums(input: {
   }
 
   return { datums: Object.freeze(result), byKey };
+}
+
+interface DeckWorldIconDescriptor {
+  readonly id: string;
+  readonly url: string;
+  readonly width: number;
+  readonly height: number;
+  readonly mask: true;
+}
+
+const ICON_ATLAS_PX = 48;
+const iconDescriptors = new Map<string, DeckWorldIconDescriptor>();
+
+/**
+ * One auto-packed, tintable (mask) icon per semantic icon name, drawn from
+ * the app's shared icon geometry so the globe and timeline speak one visual
+ * vocabulary. Memoized so deck packs each icon once.
+ */
+function entityIconDescriptor(name: string): DeckWorldIconDescriptor {
+  const cached = iconDescriptors.get(name);
+  if (cached) return cached;
+  const paths = iconPathData(name)
+    .map((d) => `<path d="${d}"/>`)
+    .join("");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${ICON_ATLAS_PX}" height="${ICON_ATLAS_PX}" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+  const descriptor: DeckWorldIconDescriptor = Object.freeze({
+    id: `lum-icon:${name}`,
+    url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+    width: ICON_ATLAS_PX,
+    height: ICON_ATLAS_PX,
+    mask: true,
+  });
+  iconDescriptors.set(name, descriptor);
+  return descriptor;
 }
 
 function screenPointFromDoubleClickEvent(event: DoubleClickEvent): ScreenPoint | null {
@@ -1357,6 +1406,7 @@ export class DeckWorldSurface implements WorldSurface {
         radius: 22,
         unproject3D: true,
         layerIds: [
+          DECK_WORLD_LAYER_IDS.entityIcons,
           DECK_WORLD_LAYER_IDS.entities,
           DECK_WORLD_LAYER_IDS.relationshipDirections,
           DECK_WORLD_LAYER_IDS.relationships,
@@ -1670,6 +1720,26 @@ export class DeckWorldSurface implements WorldSurface {
       this.#directionDatumCache,
     );
     this.#directionDatumCache = directionResult.byId;
+    // Kind icons follow the same LOD as labels: while clustered only pinned
+    // entities keep an icon; otherwise a zoom-tier budget by visual weight.
+    const focus = this.#focus;
+    const pinnedEntity = (entity: DeckWorldEntityDatum) =>
+      entity.selected || (focus?.kind === "entity" && focus.id === entity.entityId);
+    const iconDatums = this.#runtime.createIconLayer
+      ? selectPrioritizedLabels(
+          entityResult.datums.filter(
+            (entity) =>
+              worldEntityIconName(entity.entityKind) !== null &&
+              (!this.#clusteredLastRender || pinnedEntity(entity)),
+          ),
+          {
+            budget: worldLabelBudget(this.#camera.zoom),
+            isPinned: pinnedEntity,
+            importance: (entity) => entity.visualWeight,
+            key: (entity) => entity.worldInstanceId,
+          },
+        )
+      : null;
     const labelResult = this.#runtime.createTextLayer
       ? labelDatums({
           places,
@@ -1735,6 +1805,36 @@ export class DeckWorldSurface implements WorldSurface {
             }
           : {}),
       }),
+      ...(iconDatums && this.#runtime.createIconLayer
+        ? [
+            this.#runtime.createIconLayer({
+              id: DECK_WORLD_LAYER_IDS.entityIcons,
+              data: iconDatums,
+              pickable: true,
+              billboard: true,
+              sizeUnits: "pixels",
+              getPosition: (datum: DeckWorldEntityDatum) => datum.position,
+              getIcon: (datum: DeckWorldEntityDatum) =>
+                entityIconDescriptor(worldEntityIconName(datum.entityKind) ?? "note"),
+              getSize: (datum: DeckWorldEntityDatum) => (datum.selected ? 22 : 16),
+              getColor: (datum: DeckWorldEntityDatum) =>
+                datum.selected ? [20, 24, 32, 255] : [40, 48, 60, 235],
+              // GlobeView culls back faces; billboarded icon quads vanish
+              // without this (same as the label TextLayer).
+              parameters: { cullMode: "none" },
+              ...(this.#nodeDragSink
+                ? {
+                    onDragStart: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
+                      this.#beginEntityDrag(info, event),
+                    onDrag: (info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
+                      this.#updateEntityDrag(info, event),
+                    onDragEnd: (_info: DeckRuntimePickingInfo, event: DeckRuntimePointerEvent) =>
+                      this.#endEntityDrag(event),
+                  }
+                : {}),
+            }),
+          ]
+        : []),
       this.#runtime.createPathLayer({
         id: DECK_WORLD_LAYER_IDS.relationshipDirections,
         data: directionResult.datums,

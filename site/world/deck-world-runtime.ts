@@ -7,6 +7,7 @@ export interface DeckWorldBindings {
   readonly scatterplotLayer: (props: Readonly<Record<string, unknown>>) => unknown;
   readonly pathLayer: (props: Readonly<Record<string, unknown>>) => unknown;
   readonly textLayer?: (props: Readonly<Record<string, unknown>>) => unknown;
+  readonly iconLayer?: (props: Readonly<Record<string, unknown>>) => unknown;
 }
 
 export function createDeckWorldRuntime(bindings: DeckWorldBindings): DeckWorldRuntime {
@@ -30,6 +31,13 @@ export function createDeckWorldRuntime(bindings: DeckWorldBindings): DeckWorldRu
     createPathLayer(props) {
       return bindings.pathLayer(props);
     },
+    ...(bindings.iconLayer
+      ? {
+          createIconLayer(props: Readonly<Record<string, unknown>>) {
+            return bindings.iconLayer?.(props) ?? null;
+          },
+        }
+      : {}),
     ...(bindings.textLayer
       ? {
           createTextLayer(props: Readonly<Record<string, unknown>>) {
