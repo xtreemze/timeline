@@ -184,6 +184,9 @@ importers:
       d3-dag:
         specifier: 1.2.2
         version: 1.2.2
+      d3-force:
+        specifier: 3.0.0
+        version: 3.0.0
       leaflet:
         specifier: 1.9.4
         version: 1.9.4
