@@ -234,18 +234,43 @@ export const CLUSTER_ZOOM_THRESHOLD = 7;
 const CLUSTER_TARGET_PX = 40;
 const CLUSTER_TILE_SIZE_PX = 512;
 const CLUSTER_ZOOM_STEP = 0.5;
+const CLUSTER_ZOOM_HYSTERESIS = 0.08;
 
 export function worldEntityClusterTier(entityCount: number, zoom: number): number {
   if (entityCount < 2 || !Number.isFinite(zoom) || zoom >= CLUSTER_ZOOM_THRESHOLD) return -1;
   return Math.floor(Math.max(0, zoom) / CLUSTER_ZOOM_STEP);
 }
 
+export function resolveWorldEntityClusterTier(
+  entityCount: number,
+  zoom: number,
+  previousTier: number | null,
+): number {
+  const candidate = worldEntityClusterTier(entityCount, zoom);
+  if (previousTier === null || entityCount < 2 || !Number.isFinite(zoom)) return candidate;
+  if (candidate === previousTier) return candidate;
+
+  if (previousTier < 0) {
+    return zoom < CLUSTER_ZOOM_THRESHOLD - CLUSTER_ZOOM_HYSTERESIS ? candidate : previousTier;
+  }
+  if (candidate < 0) {
+    return zoom >= CLUSTER_ZOOM_THRESHOLD + CLUSTER_ZOOM_HYSTERESIS ? candidate : previousTier;
+  }
+
+  if (candidate > previousTier) {
+    const boundary = candidate * CLUSTER_ZOOM_STEP;
+    return zoom >= boundary + CLUSTER_ZOOM_HYSTERESIS ? candidate : previousTier;
+  }
+
+  const boundary = previousTier * CLUSTER_ZOOM_STEP;
+  return zoom <= boundary - CLUSTER_ZOOM_HYSTERESIS ? candidate : previousTier;
+}
+
 export function shouldClusterEntityDatums(entityCount: number, zoom: number): boolean {
   return worldEntityClusterTier(entityCount, zoom) >= 0;
 }
 
-function clusterCellDegrees(entityCount: number, zoom: number): number | null {
-  const tier = worldEntityClusterTier(entityCount, zoom);
+function clusterCellDegreesForTier(tier: number): number | null {
   if (tier < 0) return null;
   const tierZoom = tier * CLUSTER_ZOOM_STEP;
   const worldPixels = CLUSTER_TILE_SIZE_PX * 2 ** tierZoom;
@@ -268,8 +293,9 @@ function clusterCellKey(position: WorldRenderPosition, cellDegrees: number): str
 export function clusterEntityDatums(
   entities: readonly DeckWorldEntityDatum[],
   zoom: number,
+  clusterTier = worldEntityClusterTier(entities.length, zoom),
 ): readonly DeckWorldEntityRenderDatum[] {
-  const cellDegrees = clusterCellDegrees(entities.length, zoom);
+  const cellDegrees = clusterCellDegreesForTier(clusterTier);
   if (cellDegrees === null) return entities;
 
   const cells = new Map<string, DeckWorldEntityDatum[]>();
@@ -1177,7 +1203,7 @@ export class DeckWorldSurface implements WorldSurface {
   // Tracks the quantized semantic clustering tier so fractional camera motion
   // within one tier does not rebuild presentation clusters. The boolean tracks
   // whether the previous render produced any actual multi-member cluster.
-  #clusterTierLastRender = -1;
+  #clusterTierLastRender: number | null = null;
   #clusteredLastRender = false;
   // Same idea for the semantic label/marker LOD tier: a tier change only
   // matters when some kind has more candidates than the smaller budget.
@@ -1761,9 +1787,10 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #reclusterIfZoomCrossedThreshold(): void {
-    const clusterTierNow = worldEntityClusterTier(
+    const clusterTierNow = resolveWorldEntityClusterTier(
       this.#entityDatumCache.size,
       this.#camera.zoom,
+      this.#clusterTierLastRender,
     );
     const budget = worldLabelBudget(this.#camera.zoom);
     const lodChanged =
@@ -1844,14 +1871,16 @@ export class DeckWorldSurface implements WorldSurface {
     );
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
-    const entities = clusterEntityDatums(entityResult.datums, this.#camera.zoom);
+    const clusterTier = resolveWorldEntityClusterTier(
+      entityResult.datums.length,
+      this.#camera.zoom,
+      this.#clusterTierLastRender,
+    );
+    const entities = clusterEntityDatums(entityResult.datums, this.#camera.zoom, clusterTier);
     this.#placeDatumCache = placeResult.byId;
     this.#relationshipDatumCache = relationshipResult.byId;
     this.#entityDatumCache = entityResult.byId;
-    this.#clusterTierLastRender = worldEntityClusterTier(
-      entityResult.datums.length,
-      this.#camera.zoom,
-    );
+    this.#clusterTierLastRender = clusterTier;
     this.#clusteredLastRender = entities.some((datum) => datum.kind === "cluster");
     this.#labelBudgetLastRender = worldLabelBudget(this.#camera.zoom);
     this.#lodCandidateCountLastRender = Math.max(
