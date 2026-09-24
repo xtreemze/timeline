@@ -41,11 +41,13 @@ test("working zoom restores the exact individual datum array for dense scenes", 
   assert.equal(clusterEntityDatums(entities, 5), entities);
 });
 
-test("sparse scenes retain individual detail at the default globe camera", () => {
+test("sparse scenes remain clustered at globe overview and restore detail at working zoom", () => {
   const entities = Object.freeze([entityDatum(0), entityDatum(1)]);
 
-  assert.equal(shouldClusterEntityDatums(entities.length, 1), false);
-  assert.equal(clusterEntityDatums(entities, 1), entities);
+  assert.equal(shouldClusterEntityDatums(entities.length, 1), true);
+  assert.ok(clusterEntityDatums(entities, 1).some((datum) => datum.kind === "cluster"));
+  assert.equal(shouldClusterEntityDatums(entities.length, 5), false);
+  assert.equal(clusterEntityDatums(entities, 5), entities);
 });
 
 
@@ -60,5 +62,9 @@ test("cluster transition keeps force targets retained and animates topology from
   assert.match(source, /\.\.\.placeTransition\.clusters,[\s\S]*\.\.\.placeTransition\.members/);
   assert.match(source, /temporalWidth \* edgeExpansion\(state\.edge\)/);
   assert.match(source, /worldNodeMarker\(this\.#entityStyle\(datum\)\)\.size \* entityExpansion\(datum\)/);
-  assert.match(source, /WORLD_CLUSTER_FORCE_TRANSITION_MS/);
+  assert.doesNotMatch(
+    source,
+    /transitions:\s*\{/,
+    "cluster continuity comes from force/interpolation state, not deck renderer transitions",
+  );
 });
