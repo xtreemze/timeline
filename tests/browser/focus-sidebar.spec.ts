@@ -81,6 +81,9 @@ test("focused detail is shell-owned while contextual actions stay on the timelin
   await expect(page.locator("#timeline-focus-next")).toBeVisible();
   await expect(page.locator("#timeline-focus-edit")).toBeVisible();
   await expect(page.locator("#timeline-view-controls-toggle")).toBeVisible();
+
+  await focus.locator(".timeline-focus-close").click();
+  await expect(focus).toBeHidden();
 });
 
 test("landscape keeps the timeline as a bottom rail and layers detail over the graph canvas", async ({
