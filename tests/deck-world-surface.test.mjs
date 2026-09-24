@@ -5,6 +5,7 @@ import {
   DECK_WORLD_LAYER_IDS,
   DeckWorldSurface,
   WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM,
+  WORLD_TEMPORAL_RELATION_TRANSITION_MS,
   worldGraphLabelSize,
 } from "../site/world/deck-world-surface.ts";
 import { selectWorldSpatialMode } from "../src/layout/world-spatial-mode.ts";
@@ -203,6 +204,101 @@ test("deck controller disables inertia when prefers-reduced-motion is set", (t) 
   new DeckWorldSurface({}, runtime);
 
   assert.equal(calls.deckProps.controller.inertia, false);
+});
+
+test("temporal relationship joins and disconnects remain perceptible for at least three seconds", () => {
+  assert.ok(WORLD_TEMPORAL_RELATION_TRANSITION_MS >= 3_000);
+
+  const { calls, runtime, setPickResult } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+
+  const joinedLayer = calls.setProps.at(-1).layers.find(
+    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships,
+  );
+  assert.ok(joinedLayer);
+  assert.equal(
+    joinedLayer.props.transitions.getColor.duration,
+    WORLD_TEMPORAL_RELATION_TRANSITION_MS,
+  );
+  assert.equal(
+    joinedLayer.props.transitions.getWidth.duration,
+    WORLD_TEMPORAL_RELATION_TRANSITION_MS,
+  );
+
+  const joined = joinedLayer.props.data[0];
+  const joinedColor = joinedLayer.props.getColor(joined);
+  const joinedWidth = joinedLayer.props.getWidth(joined);
+  assert.equal(joined.temporalActive, true);
+  assert.equal(joinedColor[3], 215);
+  assert.ok(joinedWidth > 0);
+  assert.equal(joinedLayer.props.transitions.getColor.enter(joinedColor)[3], 0);
+  assert.equal(joinedLayer.props.transitions.getWidth.enter(joinedWidth), 0);
+
+  surface.setProjection(createWorldProjection({ instances: [], edges: [] }));
+
+  const disconnectedLayer = calls.setProps.at(-1).layers.find(
+    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships,
+  );
+  assert.ok(disconnectedLayer);
+  assert.equal(disconnectedLayer.props.data.length, 1, "departing relation is retained visually");
+  const disconnected = disconnectedLayer.props.data[0];
+  assert.equal(disconnected.temporalActive, false);
+  assert.equal(disconnectedLayer.props.getColor(disconnected)[3], 0);
+  assert.equal(disconnectedLayer.props.getWidth(disconnected), 0);
+  assert.deepEqual(surface.getAccessibleSnapshot().relationships, []);
+
+  setPickResult({
+    object: disconnected,
+    layer: { id: DECK_WORLD_LAYER_IDS.relationships },
+    x: 0,
+    y: 0,
+  });
+  assert.equal(
+    surface.pick({ x: 0, y: 0 }),
+    null,
+    "departing ghost is never logically pickable",
+  );
+
+  surface.setProjection(projection());
+  const rejoinedLayer = calls.setProps.at(-1).layers.find(
+    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships,
+  );
+  assert.equal(rejoinedLayer.props.data.length, 1);
+  assert.equal(rejoinedLayer.props.data[0].temporalActive, true);
+});
+
+test("reduced motion keeps the three-second temporal fade without line-width motion", (t) => {
+  const originalMatchMedia = globalThis.matchMedia;
+  globalThis.matchMedia = (query) => ({ matches: query === "(prefers-reduced-motion: reduce)" });
+  t.after(() => {
+    globalThis.matchMedia = originalMatchMedia;
+  });
+
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(projection());
+
+  const joinedLayer = calls.setProps.at(-1).layers.find(
+    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships,
+  );
+  assert.ok(joinedLayer);
+  const joined = joinedLayer.props.data[0];
+  const width = joinedLayer.props.getWidth(joined);
+  assert.equal(joinedLayer.props.transitions.getWidth.enter(width), width);
+  assert.equal(
+    joinedLayer.props.transitions.getColor.duration,
+    WORLD_TEMPORAL_RELATION_TRANSITION_MS,
+  );
+
+  surface.setProjection(createWorldProjection({ instances: [], edges: [] }));
+  const disconnectedLayer = calls.setProps.at(-1).layers.find(
+    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships,
+  );
+  assert.ok(disconnectedLayer);
+  const disconnected = disconnectedLayer.props.data[0];
+  assert.ok(disconnectedLayer.props.getWidth(disconnected) > 0);
+  assert.equal(disconnectedLayer.props.getColor(disconnected)[3], 0);
 });
 
 test("DeckWorldSurface renders places, globe-visible paths, and elevated entity instances", () => {
