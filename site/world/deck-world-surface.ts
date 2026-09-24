@@ -11,6 +11,7 @@ import {
   resolveWorldRenderPosition,
   type WorldRenderPosition,
 } from "../../src/layout/world-geographic-position.ts";
+import type { WorldRelationshipRouteHint } from "../../src/layout/world-force-simulation.ts";
 import {
   WORLD_DARK_PALETTE,
   WORLD_ENTITY_MIN_HIT_RADIUS_PX,
