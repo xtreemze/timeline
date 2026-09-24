@@ -331,13 +331,15 @@ function topologyKey(
       return [String(id), Math.round(width), Math.round(height)];
     }),
     // Layout invalidation follows the accepted DAG structure, not continuously
-    // changing temporal weights. Weight/retained changes that alter cycle
-    // priority change the accepted edge set above and therefore still invalidate.
-    edges.map((edge) => [
-      String(edge.relationshipId),
-      String(edge.sourceId),
-      String(edge.targetId),
-    ]),
+    // changing temporal weights or their candidate ordering. Weight/retained
+    // changes that alter cycle priority still invalidate by changing this set.
+    edges
+      .map((edge) => [
+        String(edge.relationshipId),
+        String(edge.sourceId),
+        String(edge.targetId),
+      ])
+      .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
   ]);
 }
 
