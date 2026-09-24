@@ -299,7 +299,6 @@ export function worldDashedEdgeSegments(
     readonly from: WorldRenderPosition;
     readonly to: WorldRenderPosition;
     readonly length: number;
-    readonly longitudeScale: number;
   }[] = [];
   let total = 0;
   for (let index = 1; index < path.length; index += 1) {
@@ -315,7 +314,7 @@ export function worldDashedEdgeSegments(
     const dy = to[1] - from[1];
     const length = Math.hypot(dx, dy);
     if (!(length > 0)) continue;
-    segments.push({ from, to, length, longitudeScale });
+    segments.push({ from, to, length });
     total += length;
   }
   if (!(total > 0)) return Object.freeze([]);
