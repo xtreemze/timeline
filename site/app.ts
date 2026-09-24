@@ -5226,9 +5226,14 @@ els.storyPrev.addEventListener("click", () => stepStory(-1));
 els.storyNext.addEventListener("click", () => stepStory(1));
 els.storyExit.addEventListener("click", () => exitStoryFocus());
 
-const settledSpatialWindow = createSettledTemporalWindowSink<unknown>((viewport) => {
-  temporalGraphView?.setWindow(viewport);
-});
+const settledSpatialWindow = createSettledTemporalWindowSink<unknown>(
+  (viewport) => {
+    temporalGraphView?.setWindow(viewport);
+  },
+  (viewport) => {
+    temporalGraphView?.previewWindow?.(viewport);
+  },
+);
 
 els.timelineViewRoot.addEventListener("timelineviewportchange", (event) => {
   settledSpatialWindow.push(
