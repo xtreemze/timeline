@@ -2,7 +2,10 @@ import { performance } from "node:perf_hooks";
 
 import { ReferenceWorldForceSimulation } from "../src/layout/reference-world-force-simulation.ts";
 import { createWorldDagLayout } from "../src/layout/world-dag-layout.ts";
-import { applyWorldForceLayoutUpdate } from "../src/layout/world-force-layout.ts";
+import {
+  applyWorldForceLayoutUpdate,
+  updateWorldForceLayoutInstance,
+} from "../src/layout/world-force-layout.ts";
 import { createWorldForceScene } from "../src/layout/world-force-scene.ts";
 import {
   createProjectedWorldEdge,
@@ -198,15 +201,20 @@ for (const nodeCount of sizes) {
         : 6;
   const firstInstance = projection.instances[0];
   if (!firstInstance) throw new Error("World force benchmark requires at least one instance.");
+  const sparseSample = {
+    instanceId: firstInstance.id,
+    eastMeters: 1_234,
+    northMeters: -567,
+    visualAltitudeMeters: (firstInstance.visualAltitude ?? 0) + 25,
+  };
+  const sparseInstanceUpdate = measure(() => {
+    const updated = updateWorldForceLayoutInstance(firstInstance, sparseSample);
+    if (updated === firstInstance) {
+      throw new Error("Sparse instance update should produce a changed force layout instance.");
+    }
+  }, stepIterations);
   const sparseLayoutApply = measure(() => {
-    const update = applyWorldForceLayoutUpdate(projection, [
-      {
-        instanceId: firstInstance.id,
-        eastMeters: 1_234,
-        northMeters: -567,
-        visualAltitudeMeters: (firstInstance.visualAltitude ?? 0) + 25,
-      },
-    ]);
+    const update = applyWorldForceLayoutUpdate(projection, [sparseSample]);
     if (update.updatedInstances.length !== 1) {
       throw new Error("Sparse force-layout update should report exactly one changed instance.");
     }
@@ -254,6 +262,7 @@ for (const nodeCount of sizes) {
     solveStep,
     dragStep,
     dragChangedNodes,
+    sparseInstanceUpdate,
     sparseLayoutApply,
     dagQuality,
     settling,
