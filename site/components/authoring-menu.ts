@@ -123,8 +123,12 @@ export class LuumAuthoringMenuElement extends LitElement {
   selectionKind: "node" | "edge" | "place" | "" = "";
   longitude: number | null = null;
   latitude: number | null = null;
+  #returnFocus: HTMLElement | null = null;
 
   showAt(options: AuthoringMenuOpenOptions): void {
+    const activeElement = this.ownerDocument.activeElement;
+    this.#returnFocus =
+      activeElement instanceof HTMLElement && activeElement !== this ? activeElement : null;
     this.contextDate = options.date ?? "";
     this.contextPlace = options.placeLabel ?? "";
     this.selectionKind = options.selectionKind ?? "";
@@ -141,9 +145,44 @@ export class LuumAuthoringMenuElement extends LitElement {
     });
   }
 
-  close(): void {
+  close({ restoreFocus = true }: { readonly restoreFocus?: boolean } = {}): void {
     if (!this.open) return;
     this.open = false;
+    const returnFocus = this.#returnFocus;
+    this.#returnFocus = null;
+    if (restoreFocus) {
+      void this.updateComplete.then(() => returnFocus?.focus({ preventScroll: true }));
+    }
+  }
+
+  private handleMenuKeyDown(event: KeyboardEvent): void {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      this.close();
+      this.dispatchEvent(
+        new CustomEvent("authoringdismiss", {
+          bubbles: true,
+          composed: true,
+        }),
+      );
+      return;
+    }
+
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const items = Array.from(this.renderRoot.querySelectorAll<HTMLButtonElement>("button"));
+    if (items.length === 0) return;
+    event.preventDefault();
+    const current = items.findIndex((item) => item === this.ownerDocument.activeElement);
+    const nextIndex =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? items.length - 1
+          : event.key === "ArrowUp"
+            ? (current - 1 + items.length) % items.length
+            : (current + 1) % items.length;
+    items[nextIndex]?.focus({ preventScroll: true });
   }
 
   private clampToViewport(): void {
@@ -175,7 +214,13 @@ export class LuumAuthoringMenuElement extends LitElement {
     const coordinate = this.coordinateLabel();
     const hasContext = Boolean(this.contextDate || this.contextPlace || coordinate);
     return html`
-      <div class="menu" role="menu" aria-label="Create or edit">
+      <div
+        class="menu"
+        role="menu"
+        aria-label="Create or edit"
+        aria-orientation="vertical"
+        @keydown=${(event: KeyboardEvent) => this.handleMenuKeyDown(event)}
+      >
         ${
           hasContext
             ? html`
