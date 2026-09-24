@@ -204,9 +204,20 @@ test("place anchors render through the node marker path", () => {
 
   const datum = placeIcons.props.data[0];
   const marker = placeIcons.props.getIcon(datum);
+  const renderedPosition = placeIcons.props.getPosition(datum);
   assert.ok(marker.id.includes("pin"));
   assert.ok(marker.id.includes("place"));
   assert.ok(placeIcons.props.getSize(datum) >= 44);
+  assert.equal(renderedPosition[0], datum.position[0]);
+  assert.equal(renderedPosition[1], datum.position[1]);
+  assert.ok(
+    renderedPosition[2] > datum.position[2],
+    "place icon is lifted slightly above the canonical globe surface",
+  );
+  assert.ok(
+    renderedPosition[2] - datum.position[2] < 20_000,
+    "place icon lift stays presentation-small at the working zoom",
+  );
 });
 
 test("place marker rendering uses the authored icon, fill, border, width, and shape", () => {
