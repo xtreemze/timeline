@@ -408,7 +408,9 @@ export class TimelineViewController {
         const primary =
           this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
         const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
-        const ratio = clamp(primary / length, 0, 1);
+        const padding = this.axisPadding(length);
+        const usable = Math.max(1, length - padding * 2);
+        const ratio = clamp((primary - padding) / usable, 0, 1);
         const deltaPixels = normalizeWheelDelta(event, length);
         const factor = wheelZoomFactor(deltaPixels);
         const span = Math.max(MIN_SPAN_MS, (this.viewport.end - this.viewport.start) * factor);
@@ -683,13 +685,8 @@ export class TimelineViewController {
         end: drag.viewport.end + temporalDelta,
       };
 
-      const now = Number(event.timeStamp) || performance.now();
-      const response = motion.responseForElapsed(now - drag.lastTime);
-      drag.lastTime = now;
-      this.viewport = {
-        start: this.viewport.start + (target.start - this.viewport.start) * response,
-        end: this.viewport.end + (target.end - this.viewport.end) * response,
-      };
+      drag.lastTime = Number(event.timeStamp) || performance.now();
+      this.viewport = target;
       const pointerVelocity = motion.estimatePointerVelocity(drag.samples);
       this.interactionVelocity = -((pointerVelocity / usable) * span);
       this.markInputForNextRender();
@@ -1332,8 +1329,10 @@ export class TimelineViewController {
     const selectedKey = this.tickSpecKey(selectedSpec);
     const committedSpec = this.committedTickSpec || selectedSpec;
     const committedKey = this.tickSpecKey(committedSpec);
-    const incomingHierarchy =
-      this.retention.active && this.committedTickSpec !== null && selectedKey !== committedKey;
+    // Keep one semantic hierarchy stable for the entire gesture. Rendering both the
+    // committed and newly selected hierarchy caused year/month/date labels to overlap
+    // and flap at zoom thresholds. The selected hierarchy becomes authoritative on commit.
+    const incomingHierarchy = false;
 
     if (!this.retention.active) {
       this.committedTickSpec = selectedSpec;
@@ -2107,7 +2106,7 @@ export class TimelineViewController {
         record.item = item;
         this.updateRecordContent(record);
       }
-      this.positionRecord(record, primaryLength, axisCross);
+      this.positionRecord(record, primaryLength, axisCross, padding, usable, this.orientation === "horizontal" ? height : width);
     }
 
     this.positionCommittedClusters(padding, usable, axisCross);
@@ -2231,11 +2230,17 @@ export class TimelineViewController {
     range?.classList.toggle("is-selected", selected);
   }
 
-  positionRecord(record: SceneRecord, primaryLength: number, axisCross: number): void {
+  positionRecord(
+    record: SceneRecord,
+    primaryLength: number,
+    axisCross: number,
+    padding: number,
+    usable: number,
+    crossExtent: number,
+  ): void {
     const { item, node, terminal, range } = record;
-    const span = Math.max(MIN_SPAN_MS, this.viewport.end - this.viewport.start);
     const coordinate = (time: number): number =>
-      ((time - this.viewport.start) / span) * primaryLength;
+      padding + scale.coordinateFor(time, this.viewport, usable);
 
     const anchor =
       visibleIntervalAnchor(item, this.viewport) ??
@@ -2252,14 +2257,13 @@ export class TimelineViewController {
     const routeOffset = connectorRouteOffset(
       item.connectorRouting || "straight",
       terminalCross,
-      this.orientation === "horizontal"
-        ? Math.max(1, this.surface.getBoundingClientRect().height)
-        : Math.max(1, this.surface.getBoundingClientRect().width),
+      Math.max(1, crossExtent),
       Math.abs(lane),
     );
     const shiftedCross = terminalCross + routeOffset;
 
-    const labelBefore = this.orientation === "horizontal" ? primary > primaryLength / 2 : lane < 0;
+    const labelBefore =
+      this.orientation === "horizontal" ? primary > padding + usable / 2 : lane < 0;
     node.dataset.side = labelBefore ? "before" : "after";
     node.classList.toggle("label-before", labelBefore);
     node.classList.toggle("is-buffered", !itemOverlapsWindow(item, this.viewport));

@@ -227,3 +227,37 @@ test("coincident timestamps stay separate and gain enough perpendicular lanes", 
   assert.equal(plan.clusters.length, 0);
   assert.equal(new Set(Object.values(plan.lanes)).size, 4);
 });
+
+
+test("timeline interaction uses one padded coordinate system and direct pointer tracking", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  const wheelStart = source.indexOf('    this.surface.addEventListener(\n      "wheel"');
+  const wheelEnd = source.indexOf("    const releasePointerCapture", wheelStart);
+  const wheelBody = source.slice(wheelStart, wheelEnd);
+  assert.match(wheelBody, /const padding = this\.axisPadding\(length\)/);
+  assert.match(wheelBody, /const usable = Math\.max\(1, length - padding \* 2\)/);
+  assert.match(wheelBody, /clamp\(\(primary - padding\) \/ usable, 0, 1\)/);
+
+  const dragStart = source.indexOf('    this.surface.addEventListener("pointermove"');
+  const dragEnd = source.indexOf("    const finishPointer", dragStart);
+  const dragBody = source.slice(dragStart, dragEnd);
+  assert.match(dragBody, /this\.viewport = target/);
+  assert.doesNotMatch(dragBody, /responseForElapsed/);
+
+  const positionStart = source.indexOf("  positionRecord(");
+  const positionEnd = source.indexOf("  animateEntry(", positionStart);
+  const positionBody = source.slice(positionStart, positionEnd);
+  assert.match(positionBody, /padding \+ scale\.coordinateFor\(time, this\.viewport, usable\)/);
+  assert.doesNotMatch(positionBody, /getBoundingClientRect/);
+});
+
+test("timeline keeps one semantic date hierarchy during an active zoom gesture", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+  const start = source.indexOf("  renderTemporalContext(");
+  const end = source.indexOf("  relationshipBandLane(", start);
+  const body = source.slice(start, end);
+
+  assert.match(body, /const incomingHierarchy = false/);
+  assert.match(body, /selected hierarchy becomes authoritative on commit/);
+});
