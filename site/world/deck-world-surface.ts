@@ -2154,10 +2154,11 @@ export class DeckWorldSurface implements WorldSurface {
   #dispatchAuthoringContext(
     point: ScreenPoint,
     clientPoint: ScreenPoint,
-    source: "contextmenu" | "long-press",
+    source: "contextmenu" | "long-press" | "keyboard",
+    { requireEmpty = true }: { readonly requireEmpty?: boolean } = {},
   ): boolean {
     const hit = this.pick(point, { depth: false });
-    if (hit && hit.kind !== "background") return false;
+    if (requireEmpty && hit && hit.kind !== "background") return false;
     const position = this.unproject(point, 0);
     const request = new CustomEvent("worldcontextrequest", {
       bubbles: true,
@@ -2216,6 +2217,26 @@ export class DeckWorldSurface implements WorldSurface {
     // The accessible outline owns its own keyboard semantics (native button
     // activation and Tab order); globe selection cycling must not hijack it.
     if (this.#accessibleMirror?.contains(event.target)) return;
+
+    if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+      const rect = this.#container.getBoundingClientRect?.();
+      const width = Number(this.#container.clientWidth) || rect?.width || 1;
+      const height = Number(this.#container.clientHeight) || rect?.height || 1;
+      const point = Object.freeze({ x: width / 2, y: height / 2 });
+      const clientPoint = Object.freeze({
+        x: (rect?.left ?? 0) + width / 2,
+        y: (rect?.top ?? 0) + height / 2,
+      });
+      if (
+        this.#dispatchAuthoringContext(point, clientPoint, "keyboard", {
+          requireEmpty: false,
+        })
+      ) {
+        event.preventDefault?.();
+      }
+      return;
+    }
+
     if (event.key === "Tab") {
       const candidates = this.#selectionCandidates();
       if (candidates.length === 0) return;
