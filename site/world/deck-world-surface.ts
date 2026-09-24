@@ -2,6 +2,10 @@ import type { EntityId, PlaceId, RelationshipId } from "../../src/domain/ids.ts"
 import type { WorldNodeDragPosition } from "../../src/interaction/world-node-drag-controller.ts";
 import { resolveWorldNodeDragPosition } from "../../src/interaction/world-node-drag-geometry.ts";
 import {
+  createWorldTouchHoldGate,
+  WORLD_TOUCH_HOLD_MS,
+} from "../../src/interaction/world-touch-hold.ts";
+import {
   resolveWorldRenderPosition,
   type WorldRenderPosition,
 } from "../../src/layout/world-geographic-position.ts";
@@ -60,6 +64,8 @@ export interface DeckRuntimePickingInfo {
 interface DeckRuntimePointerEvent {
   readonly pointerId?: unknown;
   readonly srcEvent?: unknown;
+  /** Marks the gesture handled so deck's controller does not also pan. */
+  readonly stopPropagation?: () => void;
 }
 
 interface DoubleClickEvent {
@@ -423,6 +429,31 @@ function numberField(
 ): number {
   const value = record[key];
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function pointerTypeFromRuntimeEvent(event: DeckRuntimePointerEvent): string | null {
+  const source = isRecord(event.srcEvent) ? event.srcEvent : null;
+  const value = source?.["pointerType"];
+  return typeof value === "string" ? value : null;
+}
+
+interface TouchPointerEvent {
+  readonly pointerType?: unknown;
+  readonly pointerId?: unknown;
+  readonly offsetX?: unknown;
+  readonly offsetY?: unknown;
+}
+
+function touchPointer(
+  event: TouchPointerEvent,
+): { readonly pointerId: number; readonly point: ScreenPoint } | null {
+  if (event.pointerType !== "touch") return null;
+  const pointerId = Number(event.pointerId);
+  const x = event.offsetX;
+  const y = event.offsetY;
+  if (!Number.isInteger(pointerId) || typeof x !== "number" || typeof y !== "number") return null;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { pointerId, point: Object.freeze({ x, y }) };
 }
 
 function pointerIdFromRuntimeEvent(event: DeckRuntimePointerEvent): number | null {
@@ -984,7 +1015,56 @@ export class DeckWorldSurface implements WorldSurface {
   // surface still functions without it.
   readonly #liveRegion: HTMLElement | null;
 
+  // Touch long-press gate (issue #445): on touch a one-finger drag pans the
+  // globe unless the finger first rests on an entity for the hold threshold.
+  readonly #touchHold = createWorldTouchHoldGate();
+  #touchHoldTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+
+  readonly #handleTouchPointerDown = (event: TouchPointerEvent): void => {
+    const touch = touchPointer(event);
+    if (!touch) return;
+    this.#touchHold.press(touch.pointerId, touch.point, Date.now());
+    this.#clearTouchHoldTimer();
+    if (!this.#touchHold.isPending(touch.pointerId)) {
+      this.#setTouchDragState(null);
+      return;
+    }
+
+    const hit = this.pick(touch.point);
+    if (hit?.kind !== "entity") return;
+    this.#setTouchDragState("holding");
+    this.#touchHoldTimer = globalThis.setTimeout(() => {
+      this.#touchHoldTimer = null;
+      if (this.#destroyed || !this.#touchHold.isArmed(touch.pointerId, Date.now())) return;
+      this.#setTouchDragState("active");
+      this.setSelection(Object.freeze({ kind: "entity" as const, id: hit.entityId }));
+    }, WORLD_TOUCH_HOLD_MS);
+  };
+
+  readonly #handleTouchPointerMove = (event: TouchPointerEvent): void => {
+    const touch = touchPointer(event);
+    if (!touch) return;
+    this.#touchHold.move(touch.pointerId, touch.point, Date.now());
+    if (!this.#touchHold.isPending(touch.pointerId) && this.#activeDragPointerId === null) {
+      this.#clearTouchHoldTimer();
+      this.#setTouchDragState(null);
+    }
+  };
+
+  readonly #handleTouchPointerUp = (event: TouchPointerEvent): void => {
+    const touch = touchPointer(event);
+    if (!touch) return;
+    this.#touchHold.release(touch.pointerId);
+    this.#clearTouchHoldTimer();
+    this.#setTouchDragState(null);
+  };
+
   readonly #handlePointerCancel = (event: PointerEvent): void => {
+    if (event.pointerType === "touch") {
+      this.#touchHold.release(event.pointerId);
+      this.#clearTouchHoldTimer();
+      this.#setTouchDragState(null);
+    }
     if (this.#activeDragPointerId === null || event.pointerId !== this.#activeDragPointerId) {
       return;
     }
@@ -1079,6 +1159,21 @@ export class DeckWorldSurface implements WorldSurface {
     });
 
     this.#container.addEventListener?.("pointercancel", this.#handlePointerCancel);
+    this.#container.addEventListener?.(
+      "pointerdown",
+      this.#handleTouchPointerDown as EventListener,
+      true,
+    );
+    this.#container.addEventListener?.(
+      "pointermove",
+      this.#handleTouchPointerMove as EventListener,
+      true,
+    );
+    this.#container.addEventListener?.(
+      "pointerup",
+      this.#handleTouchPointerUp as EventListener,
+      true,
+    );
     this.#container.addEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
     this.#container.addEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
     this.#container.addEventListener?.("keydown", this.#handleKeyDown as EventListener);
@@ -1325,6 +1420,23 @@ export class DeckWorldSurface implements WorldSurface {
     if (this.#destroyed) return;
     this.#destroyed = true;
     this.#container.removeEventListener?.("pointercancel", this.#handlePointerCancel);
+    this.#container.removeEventListener?.(
+      "pointerdown",
+      this.#handleTouchPointerDown as EventListener,
+      true,
+    );
+    this.#container.removeEventListener?.(
+      "pointermove",
+      this.#handleTouchPointerMove as EventListener,
+      true,
+    );
+    this.#container.removeEventListener?.(
+      "pointerup",
+      this.#handleTouchPointerUp as EventListener,
+      true,
+    );
+    this.#clearTouchHoldTimer();
+    this.#touchHold.clear();
     this.#container.removeEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
     this.#container.removeEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
     this.#container.removeEventListener?.("keydown", this.#handleKeyDown as EventListener);
@@ -1359,9 +1471,22 @@ export class DeckWorldSurface implements WorldSurface {
     const pointerId = pointerIdFromRuntimeEvent(event);
     const target = this.#dragTarget(info);
     if (!sink || pointerId === null || !target) return false;
+    // Touch drags only claim the node after the long-press gate armed;
+    // otherwise deck's controller keeps the gesture as a globe pan.
+    if (
+      pointerTypeFromRuntimeEvent(event) === "touch" &&
+      !this.#touchHold.isArmed(pointerId, Date.now())
+    ) {
+      return false;
+    }
 
     const claimed = sink.begin(pointerId, target.instanceId, target.position);
-    if (claimed) this.#activeDragPointerId = pointerId;
+    if (claimed) {
+      this.#activeDragPointerId = pointerId;
+      // deck.gl ignores the layer handler's return value; only a handled
+      // event stops its controller from turning the same gesture into a pan.
+      event.stopPropagation?.();
+    }
     return claimed;
   }
 
@@ -1384,6 +1509,19 @@ export class DeckWorldSurface implements WorldSurface {
 
     this.#activeDragPointerId = null;
     return sink.release(pointerId);
+  }
+
+  #clearTouchHoldTimer(): void {
+    if (this.#touchHoldTimer === null) return;
+    globalThis.clearTimeout(this.#touchHoldTimer);
+    this.#touchHoldTimer = null;
+  }
+
+  #setTouchDragState(state: "holding" | "active" | null): void {
+    const dataset = (this.#container as { dataset?: DOMStringMap }).dataset;
+    if (!dataset) return;
+    if (state === null) delete dataset["worldTouchDrag"];
+    else dataset["worldTouchDrag"] = state;
   }
 
   #syncSpatialMode(): void {

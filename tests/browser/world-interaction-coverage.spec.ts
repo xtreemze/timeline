@@ -67,6 +67,55 @@ async function dispatchPinchZoom(page: import("@playwright/test").Page) {
   }
 }
 
+async function touchSequence(
+  page: import("@playwright/test").Page,
+  steps: readonly {
+    readonly type: "touchStart" | "touchMove" | "touchEnd";
+    readonly x?: number;
+    readonly y?: number;
+  }[],
+) {
+  const session = await page.context().newCDPSession(page);
+  try {
+    for (const step of steps) {
+      await session.send("Input.dispatchTouchEvent", {
+        type: step.type,
+        touchPoints:
+          step.type === "touchEnd"
+            ? []
+            : [{ x: step.x ?? 0, y: step.y ?? 0, radiusX: 6, radiusY: 6, force: 1, id: 1 }],
+      });
+    }
+  } finally {
+    await session.detach();
+  }
+}
+
+async function placeTouchTarget(page: import("@playwright/test").Page) {
+  return page.evaluate(async () => {
+    const helpersModulePath = "/world-test-helpers.mjs";
+    const { createWorldProjection, createProjectedWorldInstance } = await import(helpersModulePath);
+    const harness = window.__worldPerfHarness;
+    harness.dragSinkCalls.begin = 0;
+    harness.dragSinkCalls.update = 0;
+    harness.dragSinkCalls.release = 0;
+    harness.dragSinkCalls.cancel = 0;
+    const instance = createProjectedWorldInstance({
+      canonicalId: "entity-touch-target",
+      geographicAnchors: [{ placeId: "place-touch", longitude: 10, latitude: 10, influence: 1 }],
+      temporalWeight: 1,
+      visualWeight: 1,
+      retained: true,
+    });
+    harness.surface.setCamera({ longitude: 10, latitude: 10, zoom: 6, bearing: 0, pitch: 0 });
+    harness.surface.setProjection(createWorldProjection({ instances: [instance], edges: [] }));
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    );
+    return harness.surface.project({ longitude: 10, latitude: 10, altitudeMeters: 0 });
+  });
+}
+
 async function gotoHarness(page: import("@playwright/test").Page) {
   await page.goto("/world-perf-harness.html");
   await page.waitForFunction(() => window.__worldPerfHarness?.ready === true);
@@ -307,6 +356,99 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     );
     expect(hit).toEqual({ kind: "relationship", relationshipId: "meeting" });
     expect(errors, "no WebGL/deck.gl errors while rendering labels and markers").toEqual([]);
+  });
+
+  test("a quick one-finger touch drag from an entity pans the globe, not the node", async ({
+    page,
+    browserName,
+    isMobile,
+  }) => {
+    test.skip(
+      !isMobile || browserName !== "chromium",
+      "CDP touch certification is mobile Chromium.",
+    );
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const point = await placeTouchTarget(page);
+    if (!point) throw new Error("Touch target did not project to a screen point.");
+    const before = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+
+    await touchSequence(page, [
+      { type: "touchStart", x: point.x, y: point.y },
+      { type: "touchMove", x: point.x + 30, y: point.y },
+      { type: "touchMove", x: point.x + 70, y: point.y + 10 },
+      { type: "touchMove", x: point.x + 110, y: point.y + 20 },
+      { type: "touchEnd" },
+    ]);
+
+    await expect
+      .poll(() => page.evaluate(() => window.__worldPerfHarness.surface.getCamera().longitude))
+      .not.toBeCloseTo(before.longitude, 4);
+    const calls = await page.evaluate(() => window.__worldPerfHarness.dragSinkCalls);
+    expect(calls.begin, "a quick touch drag must not claim the node").toBe(0);
+  });
+
+  test("long-press then drag moves an elevated node on mobile touch without panning", async ({
+    page,
+    browserName,
+    isMobile,
+  }) => {
+    test.skip(
+      !isMobile || browserName !== "chromium",
+      "CDP touch certification is mobile Chromium.",
+    );
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const point = await placeTouchTarget(page);
+    if (!point) throw new Error("Touch target did not project to a screen point.");
+    const before = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+    const beforeProjection = await page.evaluate(() => window.__worldPerfHarness.getProjection());
+    const container = page.locator("#world-container");
+
+    const session = await page.context().newCDPSession(page);
+    const touch = (type: "touchStart" | "touchMove" | "touchEnd", x = 0, y = 0) =>
+      session.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: type === "touchEnd" ? [] : [{ x, y, radiusX: 6, radiusY: 6, force: 1, id: 1 }],
+      });
+    try {
+      await touch("touchStart", point.x, point.y);
+      await expect(container).toHaveAttribute("data-world-touch-drag", "holding");
+      await expect(container).toHaveAttribute("data-world-touch-drag", "active");
+      for (const [dx, dy] of [
+        [20, 8],
+        [45, 18],
+        [70, 28],
+        [90, 36],
+      ] as const) {
+        await touch("touchMove", point.x + dx, point.y + dy);
+      }
+      await expect
+        .poll(() => page.evaluate(() => window.__worldPerfHarness.dragSinkCalls.update))
+        .toBeGreaterThan(0);
+      await touch("touchEnd");
+    } finally {
+      await session.detach();
+    }
+
+    const calls = await page.evaluate(() => window.__worldPerfHarness.dragSinkCalls);
+    expect(calls.begin).toBe(1);
+    expect(calls.release).toBe(1);
+    await expect(container).not.toHaveAttribute("data-world-touch-drag");
+
+    const after = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+    expect(after.longitude).toBeCloseTo(before.longitude, 6);
+    expect(after.latitude).toBeCloseTo(before.latitude, 6);
+
+    const afterProjection = await page.evaluate(() => window.__worldPerfHarness.getProjection());
+    const [beforeInstance] = beforeProjection.instances;
+    const [afterInstance] = afterProjection.instances;
+    expect(afterInstance?.geographicAnchors).toEqual(beforeInstance?.geographicAnchors);
+    expect(afterInstance?.localOffset).not.toEqual(beforeInstance?.localOffset);
+    const snapshot = await page.evaluate(() =>
+      window.__worldPerfHarness.surface.getAccessibleSnapshot(),
+    );
+    expect(snapshot.selection).toEqual({ kind: "entity", id: "entity-touch-target" });
   });
 
   test("mouse-drag on an entity moves its derived position without touching canonical geography", async ({
