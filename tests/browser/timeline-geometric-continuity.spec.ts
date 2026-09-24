@@ -164,7 +164,7 @@ for (const orientation of ["horizontal", "vertical"] as const) {
       await twoFrames(page);
     }
 
-    await expect(probe).toBeVisible();
+    await expect(probe.locator(".timeline-event-terminal")).toBeVisible();
     await probe.evaluate((node) => {
       (node as HTMLElement).dataset.continuityIdentity = "probe-stable-dom";
     });
