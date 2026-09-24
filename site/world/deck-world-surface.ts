@@ -965,6 +965,8 @@ interface TouchPointerEvent {
   readonly pointerId?: unknown;
   readonly offsetX?: unknown;
   readonly offsetY?: unknown;
+  readonly clientX?: unknown;
+  readonly clientY?: unknown;
 }
 
 function touchPointer(
@@ -2024,12 +2026,14 @@ export class DeckWorldSurface implements WorldSurface {
   // globe unless the finger first rests on an entity for the hold threshold.
   readonly #touchHold = createWorldTouchHoldGate();
   #touchHoldTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+  #authoringHoldTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
 
   readonly #handleTouchPointerDown = (event: TouchPointerEvent): void => {
     const touch = touchPointer(event);
     if (!touch) return;
     this.#touchHold.press(touch.pointerId, touch.point, Date.now());
     this.#clearTouchHoldTimer();
+    this.#clearAuthoringHoldTimer();
     if (!this.#touchHold.isPending(touch.pointerId)) {
       this.#setTouchDragState(null);
       return;
@@ -2039,15 +2043,34 @@ export class DeckWorldSurface implements WorldSurface {
     // skipping its extra depth pass keeps touch-down fast so a quick swipe's
     // move events are not delayed past the hold threshold.
     const hit = this.pick(touch.point, { depth: false });
-    if (hit?.kind !== "entity") return;
-    this.#setTouchDragState("holding");
-    this.#touchHoldTimer = globalThis.setTimeout(() => {
-      this.#touchHoldTimer = null;
+    if (hit?.kind === "entity") {
+      this.#setTouchDragState("holding");
+      this.#touchHoldTimer = globalThis.setTimeout(() => {
+        this.#touchHoldTimer = null;
+        if (this.#destroyed || !this.#touchHold.isArmed(touch.pointerId, Date.now())) return;
+        this.#setTouchDragState("active");
+        this.#flashDragPickup(hit.worldInstanceId);
+        this.setSelection(Object.freeze({ kind: "entity" as const, id: hit.entityId }));
+        void pulseHaptic("drag");
+      }, WORLD_TOUCH_HOLD_MS);
+      return;
+    }
+
+    if (hit && hit.kind !== "background") return;
+    const clientX =
+      typeof event.clientX === "number" && Number.isFinite(event.clientX)
+        ? event.clientX
+        : touch.point.x;
+    const clientY =
+      typeof event.clientY === "number" && Number.isFinite(event.clientY)
+        ? event.clientY
+        : touch.point.y;
+    this.#authoringHoldTimer = globalThis.setTimeout(() => {
+      this.#authoringHoldTimer = null;
       if (this.#destroyed || !this.#touchHold.isArmed(touch.pointerId, Date.now())) return;
-      this.#setTouchDragState("active");
-      this.#flashDragPickup(hit.worldInstanceId);
-      this.setSelection(Object.freeze({ kind: "entity" as const, id: hit.entityId }));
-      void pulseHaptic("drag");
+      if (this.#dispatchAuthoringContext(touch.point, { x: clientX, y: clientY }, "long-press")) {
+        this.#touchHold.commit(touch.pointerId);
+      }
     }, WORLD_TOUCH_HOLD_MS);
   };
 
@@ -2057,6 +2080,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#touchHold.move(touch.pointerId, touch.point, Date.now());
     if (!this.#touchHold.isPending(touch.pointerId) && this.#activeDragPointerId === null) {
       this.#clearTouchHoldTimer();
+      this.#clearAuthoringHoldTimer();
       this.#setTouchDragState(null);
     }
   };
@@ -2066,6 +2090,7 @@ export class DeckWorldSurface implements WorldSurface {
     if (!touch) return;
     this.#touchHold.release(touch.pointerId);
     this.#clearTouchHoldTimer();
+    this.#clearAuthoringHoldTimer();
     this.#clearDragFlash();
     this.#setTouchDragState(null);
   };
@@ -2074,6 +2099,7 @@ export class DeckWorldSurface implements WorldSurface {
     if (event.pointerType === "touch") {
       this.#touchHold.release(event.pointerId);
       this.#clearTouchHoldTimer();
+      this.#clearAuthoringHoldTimer();
       this.#setTouchDragState(null);
     }
     if (this.#activeDragPointerId === null || event.pointerId !== this.#activeDragPointerId) {
@@ -2136,6 +2162,41 @@ export class DeckWorldSurface implements WorldSurface {
       toggled === null ? this.#selection !== null : !selectionEquals(toggled, this.#selection);
     this.setSelection(toggled);
     if (changed) void pulseHaptic("selection");
+  };
+
+  #dispatchAuthoringContext(
+    point: ScreenPoint,
+    clientPoint: ScreenPoint,
+    source: "contextmenu" | "long-press",
+  ): boolean {
+    const hit = this.pick(point, { depth: false });
+    if (hit && hit.kind !== "background") return false;
+    const position = this.unproject(point, 0);
+    const request = new CustomEvent("worldcontextrequest", {
+      bubbles: true,
+      cancelable: true,
+      detail: {
+        source,
+        point,
+        clientPoint,
+        position,
+      },
+    });
+    return this.#container.dispatchEvent?.(request) === false;
+  }
+
+  readonly #handleContextMenu = (event: MouseEvent): void => {
+    if (event.target instanceof Element && event.target.closest(".world-camera-controls")) return;
+    const rect = this.#container.getBoundingClientRect?.();
+    const x = rect ? event.clientX - rect.left : event.offsetX;
+    const y = rect ? event.clientY - rect.top : event.offsetY;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    const handled = this.#dispatchAuthoringContext(
+      Object.freeze({ x, y }),
+      Object.freeze({ x: event.clientX, y: event.clientY }),
+      "contextmenu",
+    );
+    if (handled) event.preventDefault();
   };
 
   // Double-tap/double-click focus (issue #445 Priority 4). deck.gl's own
@@ -2254,6 +2315,7 @@ export class DeckWorldSurface implements WorldSurface {
       true,
     );
     this.#container.addEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
+    this.#container.addEventListener?.("contextmenu", this.#handleContextMenu as EventListener);
     this.#container.addEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
     this.#container.addEventListener?.("keydown", this.#handleKeyDown as EventListener);
 
@@ -2532,6 +2594,21 @@ export class DeckWorldSurface implements WorldSurface {
     }
     this.#selection = selection;
     this.#render();
+    const detail =
+      selection === null
+        ? { kind: null, id: null }
+        : {
+            kind:
+              selection.kind === "entity"
+                ? "node"
+                : selection.kind === "relationship"
+                  ? "edge"
+                  : "place",
+            id: String(selection.id),
+          };
+    this.#container.dispatchEvent?.(
+      new CustomEvent("worldselectionchange", { bubbles: true, detail }),
+    );
   }
 
   getCamera(): WorldCameraState {
@@ -2783,9 +2860,11 @@ export class DeckWorldSurface implements WorldSurface {
       true,
     );
     this.#clearTouchHoldTimer();
+    this.#clearAuthoringHoldTimer();
     this.#clearDragFlash({ render: false });
     this.#touchHold.clear();
     this.#container.removeEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
+    this.#container.removeEventListener?.("contextmenu", this.#handleContextMenu as EventListener);
     this.#container.removeEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
     this.#container.removeEventListener?.("keydown", this.#handleKeyDown as EventListener);
     this.#liveRegion?.remove?.();
@@ -2897,6 +2976,12 @@ export class DeckWorldSurface implements WorldSurface {
     if (this.#touchHoldTimer === null) return;
     globalThis.clearTimeout(this.#touchHoldTimer);
     this.#touchHoldTimer = null;
+  }
+
+  #clearAuthoringHoldTimer(): void {
+    if (this.#authoringHoldTimer === null) return;
+    globalThis.clearTimeout(this.#authoringHoldTimer);
+    this.#authoringHoldTimer = null;
   }
 
   #clearDragFlashTimer(): void {
