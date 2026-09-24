@@ -296,7 +296,9 @@ function patchRelationship(sample, id, patch) {
 
 function refreshStoryPlaces(sample) {
   const itemStory = new Map(
-    sample.items.map((item) => [item.id, item.extensions?.narrative?.storyId]).filter((entry) => entry[1]),
+    sample.items
+      .map((item) => [item.id, item.extensions?.narrative?.storyId])
+      .filter((entry) => entry[1]),
   );
   for (const story of sample.stories) {
     const itemIds = new Set(story.itemIds);
@@ -422,7 +424,8 @@ export function extendSampleCase(sample) {
     narrative.spatialReferenceFrame = {
       fictional: true,
       name: "Storybook Atlas",
-      coordinateSemantics: "staging anchors for relative story geography; not Earth-location claims",
+      coordinateSemantics:
+        "staging anchors for relative story geography; not Earth-location claims",
     };
     if (narrative.anthology) {
       narrative.anthology.storyIds = sample.stories.map((story) => story.id);
