@@ -393,9 +393,6 @@
   contain: layout style;
   pointer-events: none;
 }
-.timeline-view[data-scene-state="interacting"] .timeline-edge-date {
-  will-change: translate;
-}
 .timeline-edge-date-character {
   display: inline-block;
   transform-origin: center;
@@ -405,6 +402,9 @@
   inset-inline-end: 8px;
   writing-mode: vertical-rl;
   text-orientation: mixed;
+}
+.timeline-view[data-scene-state="interacting"] .timeline-edge-date {
+  will-change: translate;
 }
 .timeline-axis-month-label {
   position: absolute;
@@ -4204,12 +4204,12 @@
     min-height: 44px;
   }
 
-  /* Range bars stay visually thin, but their pseudo-element expands the
-     actual hit region to at least 44px in both axes, including very short ranges. */
+  /* Range bars stay visually thin, but their pseudo-element expands even a
+     2px minimum-length range to at least 44px in both axes. */
   .timeline-range-segment::before {
     content: "";
     position: absolute;
-    inset: -19px;
+    inset: -21px;
     border-radius: 999px;
     background: transparent;
     pointer-events: auto;
