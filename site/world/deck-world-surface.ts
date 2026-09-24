@@ -9,6 +9,7 @@ import { fitWorldCamera, globeOverviewCamera } from "../../src/layout/world-came
 import { worldClusterExpansionProgress } from "../../src/layout/world-cluster-transition.ts";
 import type { WorldRelationshipRouteHint } from "../../src/layout/world-force-simulation.ts";
 import {
+  resolveWorldLocalLayoutPosition,
   resolveWorldRenderPosition,
   type WorldRenderPosition,
 } from "../../src/layout/world-geographic-position.ts";
@@ -1257,21 +1258,49 @@ function routedRelationshipPath(
   const sourceInstance = instanceById.get(route.sourceId);
   if (!sourceInstance) return null;
 
+  const liveSource = resolveWorldLocalLayoutPosition(
+    sourceInstance,
+    source,
+    context.offsetScale,
+    context.floatMeters,
+  );
+  const liveTarget = resolveWorldLocalLayoutPosition(
+    sourceInstance,
+    target,
+    context.offsetScale,
+    context.floatMeters,
+  );
+  const desiredSource = route.points[0];
+  const desiredTarget = route.points[route.points.length - 1];
+  if (!liveSource || !liveTarget || !desiredSource || !desiredTarget) return null;
+
+  const sourceDeltaEast = liveSource.eastMeters - desiredSource.eastMeters;
+  const sourceDeltaNorth = liveSource.northMeters - desiredSource.northMeters;
+  const targetDeltaEast = liveTarget.eastMeters - desiredTarget.eastMeters;
+  const targetDeltaNorth = liveTarget.northMeters - desiredTarget.northMeters;
   const points: WorldRenderPosition[] = [];
+
   for (const [index, point] of route.points.entries()) {
+    const fraction = route.points.length <= 1 ? 0 : index / (route.points.length - 1);
+    const oneMinusFraction = 1 - fraction;
     const projected = resolveWorldRenderPosition(
       {
         ...sourceInstance,
         localOffset: Object.freeze({
-          eastMeters: point.eastMeters,
-          northMeters: point.northMeters,
+          eastMeters:
+            point.eastMeters +
+            sourceDeltaEast * oneMinusFraction +
+            targetDeltaEast * fraction,
+          northMeters:
+            point.northMeters +
+            sourceDeltaNorth * oneMinusFraction +
+            targetDeltaNorth * fraction,
         }),
       },
       context.offsetScale,
       context.floatMeters,
     );
     if (!projected) return null;
-    const fraction = route.points.length <= 1 ? 0 : index / (route.points.length - 1);
     points.push(
       Object.freeze([
         projected[0],
