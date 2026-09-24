@@ -238,7 +238,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       { viewport: DESKTOP_LANDSCAPE, orientation: "landscape" },
     ]) {
       await page.setViewportSize(viewport);
-      await page.goto("/");
+      await page.goto("/", { waitUntil: "domcontentloaded" });
       await ensureTimelineOrientation(page, orientation);
 
       await page.locator("#editor-toggle").click();
