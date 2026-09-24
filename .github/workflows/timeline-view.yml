@@ -240,6 +240,9 @@ jobs:
       - run: pnpm benchmark:retained-timeline
       - run: pnpm benchmark:graph-data
       - run: pnpm benchmark:world-force
+      - name: Certify world DAG layout quality
+        run: pnpm benchmark:world-dag -- --check
+        timeout-minutes: 2
       - name: Certify dense world-force scaling
         run: pnpm benchmark:world-force:dense
         timeout-minutes: 2
