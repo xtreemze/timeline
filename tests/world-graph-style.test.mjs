@@ -10,6 +10,7 @@ import {
   worldNodeFootprintRadiusPx,
   worldNodeShapeVisualRadiusScale,
   worldNodeStyle,
+  worldNodeVisualFootprintRadiusPx,
   worldPlaceStyle,
 } from "../src/layout/world-graph-style.ts";
 
@@ -179,7 +180,8 @@ test("places use node-like shape, icon, border, fill, and readable footprint", (
   const fallback = worldPlaceStyle({}, false, WORLD_LIGHT_PALETTE);
   assert.equal(fallback.shape, "pin");
   assert.equal(fallback.icon, "place");
-  assert.ok(fallback.radius >= WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+  assert.equal(fallback.radius, 14);
+  assert.ok(fallback.radius < WORLD_ENTITY_MIN_HIT_RADIUS_PX);
 });
 
 test("marker shape scales normalize filled area and collision extent", () => {
@@ -246,7 +248,7 @@ test("edges colour by relationship type unless they carry their own style, inclu
   assert.equal(aliased.width, 3);
 });
 
-test("subdued edges mute while emphasized edges restore endpoint or authored colour", () => {
+test("subdued edges mute while emphasis restores category or endpoint colour", () => {
   const subdued = worldEdgeStyle(
     { predicate: "calls", fallbackColor: "#123456", subdued: true },
     WORLD_LIGHT_PALETTE,
@@ -267,7 +269,7 @@ test("subdued edges mute while emphasized edges restore endpoint or authored col
   assert.equal(emphasized.color, "#123456");
   assert.equal(emphasized.dashed, false);
 
-  const authored = worldEdgeStyle(
+  const endpoint = worldEdgeStyle(
     {
       predicate: "calls",
       fallbackColor: "#123456",
@@ -276,7 +278,19 @@ test("subdued edges mute while emphasized edges restore endpoint or authored col
     },
     WORLD_LIGHT_PALETTE,
   );
-  assert.equal(authored.color, "#abcdef");
+  assert.equal(endpoint.color, "#123456");
+
+  const category = worldEdgeStyle(
+    {
+      predicate: "calls",
+      fallbackColor: "#123456",
+      emphasized: true,
+      attributes: { style: { categoryColor: "#aabbcc", color: "#abcdef" } },
+    },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(category.color, "#aabbcc");
+  assert.equal(category.width, 1.5);
 });
 
 test("colour bytes parse short, long and alpha hex", () => {
@@ -295,13 +309,21 @@ test("node radii are whole pixels so a scene shares a few marker textures", () =
   );
   assert.deepEqual(
     [...radii].sort((a, b) => a - b),
-    [22, 24, 26],
+    [12, 13, 14],
   );
   assert.equal(
     worldNodeStyle({ type: "person", attributes: { style: { size: 12.7 } } }, WORLD_LIGHT_PALETTE)
       .radius,
     6,
   );
+});
+
+test("visual footprint stays independent from the larger mobile hit target", () => {
+  const input = { type: "person", visualWeight: 0.5 };
+  const visual = worldNodeVisualFootprintRadiusPx(input);
+  const hit = worldNodeFootprintRadiusPx(input);
+  assert.ok(visual < WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+  assert.equal(hit, WORLD_ENTITY_MIN_HIT_RADIUS_PX);
 });
 
 test("force footprint is never smaller than the rendered node or mobile target", () => {
