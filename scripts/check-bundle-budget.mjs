@@ -1,4 +1,4 @@
-import { readFile, readdir, stat } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 
 const MAX_JS_CHUNK_BYTES = 500_000;
 const distUrl = new URL("../dist/", import.meta.url);
