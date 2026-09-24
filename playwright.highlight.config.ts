@@ -1,35 +1,35 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
-  testDir: './tests/highlight',
-  testMatch: ['**/*.spec.ts'],
+  testDir: "./tests/highlight",
+  testMatch: ["**/*.spec.ts"],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 0,
   workers: 1,
-  reporter: [['line']],
+  reporter: [["line"]],
   timeout: 240_000,
   use: {
-    baseURL: 'http://localhost:5173',
-    trace: 'off',
-    screenshot: 'off',
-    video: 'off',
+    baseURL: "http://localhost:5173",
+    trace: "off",
+    screenshot: "off",
+    video: "off",
     actionTimeout: 10_000,
   },
   expect: { timeout: 7_500 },
-  outputDir: 'artifacts/e2e-media/playwright',
+  outputDir: "artifacts/e2e-media/playwright",
   projects: [
     {
-      name: 'Desktop Showcase',
+      name: "Desktop Showcase",
       use: {
-        ...devices['Desktop Chrome'],
+        ...devices["Desktop Chrome"],
         viewport: { width: 1440, height: 900 },
       },
     },
     {
-      name: 'Mobile Showcase',
+      name: "Mobile Showcase",
       use: {
-        ...devices['Pixel 5'],
+        ...devices["Pixel 5"],
         viewport: { width: 390, height: 844 },
         hasTouch: true,
         isMobile: true,
@@ -37,8 +37,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm dev',
-    url: 'http://localhost:5173',
+    command: "pnpm dev",
+    url: "http://localhost:5173",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

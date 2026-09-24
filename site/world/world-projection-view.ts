@@ -116,12 +116,12 @@ function temporalEndpoint(value: unknown): Readonly<Record<string, unknown>> | n
 
 function canonicalTime(value: unknown): CanonicalTemporalExtent | null {
   if (!isRecord(value)) return null;
-  const type = value["type"];
+  const type = value.type;
   if (type !== "instant" && type !== "interval") return null;
 
-  const start = temporalEndpoint(value["start"]);
-  const openStart = value["openStart"] === true;
-  const openEnd = value["openEnd"] === true;
+  const start = temporalEndpoint(value.start);
+  const openStart = value.openStart === true;
+  const openEnd = value.openEnd === true;
 
   if (type === "instant") {
     return Object.freeze({
@@ -132,7 +132,7 @@ function canonicalTime(value: unknown): CanonicalTemporalExtent | null {
     });
   }
 
-  const end = temporalEndpoint(value["end"]);
+  const end = temporalEndpoint(value.end);
   return Object.freeze({
     type,
     start,
@@ -155,19 +155,19 @@ function confidence(value: unknown): number | null {
 
 function placePresentationStyle(raw: InputPlace): Readonly<Record<string, unknown>> | undefined {
   const attributes = isRecord(raw.attributes) ? raw.attributes : {};
-  const attributeStyle = isRecord(attributes["style"]) ? attributes["style"] : {};
+  const attributeStyle = isRecord(attributes.style) ? attributes.style : {};
   const mapStyle = isRecord(raw.mapStyle) ? raw.mapStyle : {};
   const directStyle = isRecord(raw.style) ? raw.style : {};
   const directMarker = isRecord(raw.marker) ? raw.marker : {};
   const marker = Object.freeze({
-    ...(isRecord(attributeStyle["marker"]) ? attributeStyle["marker"] : {}),
+    ...(isRecord(attributeStyle.marker) ? attributeStyle.marker : {}),
     ...directMarker,
-    ...(isRecord(mapStyle["marker"]) ? mapStyle["marker"] : {}),
-    ...(isRecord(directStyle["marker"]) ? directStyle["marker"] : {}),
+    ...(isRecord(mapStyle.marker) ? mapStyle.marker : {}),
+    ...(isRecord(directStyle.marker) ? directStyle.marker : {}),
   });
-  const icon = text(raw.icon) || text(directMarker["icon"]) || text(attributes["icon"]);
+  const icon = text(raw.icon) || text(directMarker.icon) || text(attributes.icon);
   const markerShape =
-    text(raw.markerShape) || text(directMarker["shape"]) || text(attributes["markerShape"]);
+    text(raw.markerShape) || text(directMarker.shape) || text(attributes.markerShape);
   const resolvedMarker =
     Object.keys(marker).length > 0 || icon || markerShape
       ? Object.freeze({

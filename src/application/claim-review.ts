@@ -1,14 +1,7 @@
-import type { CandidateClaimId, EntityId } from "../domain/ids.ts";
-import type {
-  CandidateClaim,
-  ClaimLedger,
-  ClaimReviewEvent,
-} from "../domain/claim.ts";
+import type { CandidateClaim, ClaimLedger, ClaimReviewEvent } from "../domain/claim.ts";
 import { validateCandidateClaim } from "../domain/claim.ts";
-import type {
-  CanonicalProject,
-  RecordRelationshipResult,
-} from "../domain/project.ts";
+import type { CandidateClaimId, EntityId } from "../domain/ids.ts";
+import type { CanonicalProject, RecordRelationshipResult } from "../domain/project.ts";
 import { recordRelationship } from "../domain/project.ts";
 import type { CanonicalRelationship } from "../domain/relationship.ts";
 
@@ -54,10 +47,14 @@ export function reviewCandidateClaim(
   input: ReviewCandidateClaimInput,
 ): ReviewCandidateClaimResult {
   const claim = state.ledger.claims.find((candidate) => candidate.id === input.claimId);
-  if (!claim) throw new Error(`Candidate claim ${String(input.claimId)} does not exist.`);
+  if (!claim) {
+    throw new Error(`Candidate claim ${String(input.claimId)} does not exist.`);
+  }
 
   const findings = validateCandidateClaim(claim, state.ledger);
-  if (findings.length) throw new Error(findings.join(" "));
+  if (findings.length > 0) {
+    throw new Error(findings.join(" "));
+  }
 
   let project = state.project;
   let canonicalResult: RecordRelationshipResult | null = null;
@@ -78,9 +75,7 @@ export function reviewCandidateClaim(
 
     for (const sourceId of claim.sourceIds) {
       if (!input.relationship.sourceIds.includes(sourceId)) {
-        throw new Error(
-          `Accepted relationship must preserve claim source ${String(sourceId)}.`,
-        );
+        throw new Error(`Accepted relationship must preserve claim source ${String(sourceId)}.`);
       }
     }
 

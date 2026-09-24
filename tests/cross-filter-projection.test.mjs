@@ -12,7 +12,7 @@ import {
   withAnalyticalTimeWindow,
 } from "../src/application/cross-filter-projection.ts";
 
-const day = (value) => Date.parse(value + "T00:00:00Z");
+const day = (value) => Date.parse(`${value}T00:00:00Z`);
 
 function lens(filters = {}) {
   return {

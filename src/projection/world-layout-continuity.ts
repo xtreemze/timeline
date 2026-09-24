@@ -25,7 +25,11 @@ function finitePoint(point: WorldLayoutPoint): WorldLayoutPoint {
   if (point.z !== undefined && !Number.isFinite(point.z)) {
     throw new Error("World layout altitude must be finite.");
   }
-  return Object.freeze({ x: point.x, y: point.y, ...(point.z === undefined ? {} : { z: point.z }) });
+  return Object.freeze({
+    x: point.x,
+    y: point.y,
+    ...(point.z === undefined ? {} : { z: point.z }),
+  });
 }
 
 export function reconcileWorldLayout(
@@ -38,17 +42,18 @@ export function reconcileWorldLayout(
 
   for (const instance of next.instances) {
     const prior = previous.positions.get(instance.id);
-    if (prior) positions.set(instance.id, finitePoint(prior));
-    else entering.push(instance.id);
+    if (prior) {
+      positions.set(instance.id, finitePoint(prior));
+    } else {
+      entering.push(instance.id);
+    }
   }
 
   const exiting = [...previous.positions.keys()]
     .filter((id) => !nextIds.has(id))
     .sort((left, right) => String(left).localeCompare(String(right)));
 
-  const pinned = new Set(
-    [...previous.pinned].filter((id) => nextIds.has(id)),
-  );
+  const pinned = new Set([...previous.pinned].filter((id) => nextIds.has(id)));
 
   return Object.freeze({
     positions,

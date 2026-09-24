@@ -19,7 +19,9 @@ export interface SpatialAnchor {
 export type WorldPresentationStyle = Readonly<Record<string, unknown>>;
 
 function presentationStyle(value: unknown): WorldPresentationStyle | undefined {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return undefined;
+  }
   return Object.freeze({ ...(value as Record<string, unknown>) });
 }
 
@@ -64,7 +66,9 @@ export interface WorldProjection {
 }
 
 function finite(value: number, label: string): number {
-  if (!Number.isFinite(value)) throw new Error(`${label} must be finite.`);
+  if (!Number.isFinite(value)) {
+    throw new Error(`${label} must be finite.`);
+  }
   return value;
 }
 
@@ -78,18 +82,24 @@ function unitInterval(value: number, label: string): number {
 
 function nonNegative(value: number, label: string): number {
   const normalized = finite(value, label);
-  if (normalized < 0) throw new Error(`${label} must be non-negative.`);
+  if (normalized < 0) {
+    throw new Error(`${label} must be non-negative.`);
+  }
   return normalized;
 }
 
 function nonEmpty(value: string, label: string): string {
   const normalized = value.trim();
-  if (!normalized) throw new Error(`${label} must be non-empty.`);
+  if (!normalized) {
+    throw new Error(`${label} must be non-empty.`);
+  }
   return normalized;
 }
 
 function optionalText(value: string | undefined, max: number): string | undefined {
-  if (value === undefined) return undefined;
+  if (value === undefined) {
+    return undefined;
+  }
   const normalized = value.trim().slice(0, max);
   return normalized || undefined;
 }
@@ -149,8 +159,11 @@ export function createProjectedWorldInstance(
     instance.occurrenceIds === undefined
       ? undefined
       : Object.freeze(
-          [...new Set(instance.occurrenceIds.map((id) => nonEmpty(id, "Occurrence ID") as RelationshipId))]
-            .sort((left, right) => String(left).localeCompare(String(right))),
+          [
+            ...new Set(
+              instance.occurrenceIds.map((id) => nonEmpty(id, "Occurrence ID") as RelationshipId),
+            ),
+          ].sort((left, right) => String(left).localeCompare(String(right))),
         );
   const id = instance.id ?? worldInstanceId(canonicalId, occurrenceId);
   const label = optionalText(instance.label, 180);

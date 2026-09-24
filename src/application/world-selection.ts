@@ -65,7 +65,7 @@ export interface WorldSearchOptions {
 
 export interface WorldSearchIndex {
   readonly size: number;
-  query(text: string, options?: WorldSearchOptions): readonly WorldSearchResult[];
+  query: (text: string, options?: WorldSearchOptions) => readonly WorldSearchResult[];
 }
 
 const EMPTY_SELECTION = Object.freeze({
@@ -77,7 +77,9 @@ const EMPTY_SELECTION = Object.freeze({
 
 function normalizedId(value: string): string {
   const id = value.trim();
-  if (!id) throw new Error("Selection ID must be non-empty.");
+  if (!id) {
+    throw new Error("Selection ID must be non-empty.");
+  }
   return id;
 }
 
@@ -101,9 +103,15 @@ export function createCanonicalSelectionSet(
 }
 
 function keyFor(kind: CanonicalSelectionItem["kind"]): keyof CanonicalSelectionSet {
-  if (kind === "entity") return "entityIds";
-  if (kind === "occurrence") return "occurrenceIds";
-  if (kind === "place") return "placeIds";
+  if (kind === "entity") {
+    return "entityIds";
+  }
+  if (kind === "occurrence") {
+    return "occurrenceIds";
+  }
+  if (kind === "place") {
+    return "placeIds";
+  }
   return "evidenceIds";
 }
 
@@ -167,7 +175,9 @@ export function summarizeSelection(selection: CanonicalSelectionSet): SelectionS
 export function selectionItemFromWorldHit(
   hit: CanonicalWorldHit | null,
 ): CanonicalSelectionItem | null {
-  if (!hit || hit.kind === "background") return null;
+  if (!hit || hit.kind === "background") {
+    return null;
+  }
   if (hit.kind === "entity") {
     return Object.freeze({ kind: "entity", id: hit.entityId });
   }
@@ -187,7 +197,9 @@ function normalizeSearchText(value: string): string {
 }
 
 function canonicalStringList(values: readonly string[] | undefined): readonly string[] | undefined {
-  if (!values?.length) return undefined;
+  if (!values?.length) {
+    return undefined;
+  }
   return Object.freeze(
     [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort((left, right) =>
       left.localeCompare(right),
@@ -198,7 +210,9 @@ function canonicalStringList(values: readonly string[] | undefined): readonly st
 function canonicalRecord(record: WorldSearchRecord): WorldSearchRecord {
   const id = normalizedId(record.id);
   const label = record.label.trim();
-  if (!label) throw new Error("Search record label must be non-empty.");
+  if (!label) {
+    throw new Error("Search record label must be non-empty.");
+  }
 
   const aliases = canonicalStringList(record.aliases);
   const keywords = canonicalStringList(record.keywords);
@@ -216,17 +230,27 @@ function canonicalRecord(record: WorldSearchRecord): WorldSearchRecord {
 
 function scoreRecord(record: WorldSearchRecord, query: string): number | null {
   const label = normalizeSearchText(record.label);
-  if (label === query) return 0;
-  if (label.startsWith(query)) return 1;
+  if (label === query) {
+    return 0;
+  }
+  if (label.startsWith(query)) {
+    return 1;
+  }
 
   const tokens = label.split(" ");
-  if (tokens.some((token) => token.startsWith(query))) return 2;
-  if (label.includes(query)) return 3;
+  if (tokens.some((token) => token.startsWith(query))) {
+    return 2;
+  }
+  if (label.includes(query)) {
+    return 3;
+  }
 
   const extra = normalizeSearchText(
     [...(record.aliases ?? []), record.detail ?? "", ...(record.keywords ?? [])].join(" "),
   );
-  if (extra.includes(query)) return 4;
+  if (extra.includes(query)) {
+    return 4;
+  }
   return null;
 }
 
@@ -246,7 +270,9 @@ export function createWorldSearchIndex(records: readonly WorldSearchRecord[]): W
     size: canonical.length,
     query(text: string, options: WorldSearchOptions = {}): readonly WorldSearchResult[] {
       const query = normalizeSearchText(text);
-      if (!query) return Object.freeze([]);
+      if (!query) {
+        return Object.freeze([]);
+      }
 
       const allowedKinds = options.kinds?.length ? new Set(options.kinds) : null;
       const limit = Math.max(1, Math.min(100, Math.trunc(options.limit ?? 20)));

@@ -83,10 +83,7 @@ test("selection preserves semantic colours without changing node geometry", () =
 
 test("selection and connected-neighborhood emphasis preserve graph geometry", () => {
   const ordinary = worldNodeStyle({ type: "person" }, WORLD_LIGHT_PALETTE);
-  const neighbor = worldNodeStyle(
-    { type: "person", emphasized: true },
-    WORLD_LIGHT_PALETTE,
-  );
+  const neighbor = worldNodeStyle({ type: "person", emphasized: true }, WORLD_LIGHT_PALETTE);
   const selected = worldNodeStyle(
     { type: "person", selected: true, emphasized: true },
     WORLD_LIGHT_PALETTE,
@@ -212,10 +209,13 @@ test("entity and place authored size share diameter semantics", () => {
   const place = worldPlaceStyle({ marker: { size: 32 } }, false, WORLD_LIGHT_PALETTE);
   assert.equal(entity.radius, 16);
   assert.equal(place.radius, 16);
-  assert.equal(worldNodeFootprintRadiusPx({
-    type: "person",
-    attributes: { style: { size: 32 } },
-  }), WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+  assert.equal(
+    worldNodeFootprintRadiusPx({
+      type: "person",
+      attributes: { style: { size: 32 } },
+    }),
+    WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+  );
 });
 
 test("edges colour by relationship type unless they carry their own style, including style aliases", () => {
@@ -270,7 +270,6 @@ test("node radii are whole pixels so a scene shares a few marker textures", () =
     6,
   );
 });
-
 
 test("force footprint is never smaller than the rendered node or mobile target", () => {
   for (const visualWeight of [0, 0.25, 0.5, 1]) {

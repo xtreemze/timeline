@@ -9,7 +9,6 @@ export interface TemporalOccurrence {
   readonly end?: number | null;
 }
 
-
 export interface TemporalSceneTickIdentity {
   readonly unit: string;
   readonly value: number;
@@ -25,7 +24,9 @@ export interface TemporalSceneAccentIdentity {
 
 function canonicalSceneToken(value: string, message: string): string {
   const token = value.trim();
-  if (!token) throw new Error(message);
+  if (!token) {
+    throw new Error(message);
+  }
   return token;
 }
 
@@ -84,7 +85,9 @@ function finite(value: number, fallback: number): number {
 export function normalizeWindow(extent: TemporalWindow): TemporalWindow {
   const start = finite(extent.start, 0);
   const end = finite(extent.end, start + MIN_SPAN);
-  if (end > start) return { start, end };
+  if (end > start) {
+    return { start, end };
+  }
   return { start: end, end: start + MIN_SPAN };
 }
 
@@ -98,7 +101,9 @@ export function itemOverlapsWindow(
   extent: TemporalWindow,
 ): boolean {
   const normalized = normalizeWindow(extent);
-  if (!Number.isFinite(occurrence.start)) return false;
+  if (!Number.isFinite(occurrence.start)) {
+    return false;
+  }
   const end = Number.isFinite(occurrence.end) ? Number(occurrence.end) : occurrence.start;
   return end >= normalized.start && occurrence.start <= normalized.end;
 }
@@ -107,8 +112,12 @@ export function visibleIntervalAnchor(
   occurrence: Pick<TemporalOccurrence, "start" | "end">,
   extent: TemporalWindow,
 ): number | null {
-  if (!itemOverlapsWindow(occurrence, extent)) return null;
-  if (!Number.isFinite(occurrence.end)) return occurrence.start;
+  if (!itemOverlapsWindow(occurrence, extent)) {
+    return null;
+  }
+  if (!Number.isFinite(occurrence.end)) {
+    return occurrence.start;
+  }
   const normalized = normalizeWindow(extent);
   const visibleStart = Math.max(occurrence.start, normalized.start);
   const visibleEnd = Math.min(Number(occurrence.end), normalized.end);
@@ -121,10 +130,16 @@ export function createRenderWindow(
 ): TemporalWindow {
   const normalized = normalizeWindow(viewport);
   const span = windowSpan(normalized);
-  const overscanRatio = Math.max(0, finite(options.overscanRatio ?? DEFAULT_OVERSCAN_RATIO, DEFAULT_OVERSCAN_RATIO));
+  const overscanRatio = Math.max(
+    0,
+    finite(options.overscanRatio ?? DEFAULT_OVERSCAN_RATIO, DEFAULT_OVERSCAN_RATIO),
+  );
   const horizon = Math.max(
     0,
-    finite(options.predictionHorizonMs ?? DEFAULT_PREDICTION_HORIZON_MS, DEFAULT_PREDICTION_HORIZON_MS),
+    finite(
+      options.predictionHorizonMs ?? DEFAULT_PREDICTION_HORIZON_MS,
+      DEFAULT_PREDICTION_HORIZON_MS,
+    ),
   );
   const velocity = finite(options.velocityTemporalPerMs ?? 0, 0);
   const zoomVelocity = Math.abs(finite(options.zoomVelocity ?? 0, 0));
@@ -138,8 +153,12 @@ export function createRenderWindow(
   const zoomAllowance = span * Math.min(1, zoomVelocity);
   let before = baseline + zoomAllowance;
   let after = baseline + zoomAllowance;
-  if (velocity < 0) before += predictedTravel;
-  if (velocity > 0) after += predictedTravel;
+  if (velocity < 0) {
+    before += predictedTravel;
+  }
+  if (velocity > 0) {
+    after += predictedTravel;
+  }
 
   const maxExtra = Math.max(0, span * maxSpanMultiplier - span);
   const requestedExtra = before + after;
@@ -172,7 +191,9 @@ function clampRetainedWindow(
   const logical = normalizeWindow(viewport);
   const maxSpan = windowSpan(logical) * Math.max(1, maxSpanMultiplier);
   const current = normalizeWindow(retained);
-  if (windowSpan(current) <= maxSpan) return current;
+  if (windowSpan(current) <= maxSpan) {
+    return current;
+  }
 
   const center = (logical.start + logical.end) / 2;
   const half = maxSpan / 2;
@@ -193,7 +214,9 @@ export function extendRetention(
   maxSpanMultiplier = 8,
 ): TemporalRetentionState {
   const next = normalizeWindow(nextRenderWindow);
-  if (!state.active) return beginRetention(next);
+  if (!state.active) {
+    return beginRetention(next);
+  }
   return {
     active: true,
     extent: clampRetainedWindow(unionWindows(state.extent, next), viewport, maxSpanMultiplier),
@@ -218,6 +241,8 @@ export function queryOccurrences<T extends TemporalOccurrence>(
 
 export function occurrenceSceneKey(id: string): string {
   const canonicalId = id.trim();
-  if (!canonicalId) throw new Error("Occurrence scene keys require a stable canonical id.");
+  if (!canonicalId) {
+    throw new Error("Occurrence scene keys require a stable canonical id.");
+  }
   return `occurrence:${canonicalId}`;
 }

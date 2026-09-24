@@ -1,2 +1,3 @@
-import { TimelineGraphInference } from './graph-inference.ts';
+import { TimelineGraphInference } from "./graph-inference.ts";
+
 globalThis.TimelineGraphInference = TimelineGraphInference;

@@ -16,7 +16,8 @@ test("category focus has a concrete fitVisible controller implementation", () =>
     viewSource.indexOf("fitVisible(): void"),
     viewSource.indexOf("fitAll(): void"),
   );
-  assert.doesNotMatch(fitVisibleSource, /this\.allCoordinates/);});
+  assert.doesNotMatch(fitVisibleSource, /this\.allCoordinates/);
+});
 
 test("Home frames visible chronology while Shift+Home frames whole context", () => {
   assert.match(

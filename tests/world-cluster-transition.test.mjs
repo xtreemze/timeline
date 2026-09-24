@@ -21,10 +21,8 @@ test("cluster expansion is continuous across the semantic zoom band", () => {
 test("place clusters do not resolve before the local graph readability floor", () => {
   assert.equal(WORLD_PLACE_CLUSTER_RADIUS_PX, WORLD_READABLE_LOCAL_RADIUS_PX);
   assert.ok(
-    worldClusterExpansionProgress(
-      WORLD_READABLE_LOCAL_RADIUS_PX,
-      WORLD_PLACE_CLUSTER_RADIUS_PX,
-    ) < 1,
+    worldClusterExpansionProgress(WORLD_READABLE_LOCAL_RADIUS_PX, WORLD_PLACE_CLUSTER_RADIUS_PX) <
+      1,
     "the readability floor is still inside the transition band; full expansion requires more room",
   );
 });

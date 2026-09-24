@@ -209,12 +209,8 @@ interface TimelineAdapter {
 }
 
 export function toolDefinitions(adapter: TimelineAdapter): Record<string, unknown>[] {
-  if (!adapter || typeof adapter !== "object")
-    throw new Error("Lūm WebMCP adapter is required.");
-  if (
-    typeof adapter.getGraphContract !== "function" ||
-    typeof adapter.auditGraph !== "function"
-  ) {
+  if (!adapter || typeof adapter !== "object") throw new Error("Lūm WebMCP adapter is required.");
+  if (typeof adapter.getGraphContract !== "function" || typeof adapter.auditGraph !== "function") {
     throw new Error("Lūm WebMCP adapter must expose getGraphContract() and auditGraph().");
   }
 
