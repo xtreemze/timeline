@@ -627,11 +627,12 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
 
     for (const state of this.#orderedStates) {
       if (activeGroups && !activeGroups.has(state.group)) continue;
+      this.#applyLayoutTargetForce(state);
       this.#applyAltitudeForce(state);
     }
 
     const energyScale = 1 + (this.#request?.energyTarget ?? 0) * 4;
-    const damping = Math.pow(this.#options.damping, dt);
+    const damping = this.#options.damping ** dt;
     let energy = 0;
     let activeNodeCount = 0;
 
@@ -960,7 +961,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     );
     if (relaxation <= 0) return 0;
     const desiredCorrection =
-      radialError * (1 - Math.pow(1 - relaxation, dt));
+      radialError * (1 - (1 - relaxation) ** dt);
     const maxCorrection =
       Math.max(
         state.node.collisionRadiusMeters * 2,
@@ -985,6 +986,29 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     }
 
     return correction ** 2;
+  }
+
+  #applyLayoutTargetForce(state: NodeState): void {
+    const east = state.node.layoutTargetEastMeters;
+    const north = state.node.layoutTargetNorthMeters;
+    const strength = state.node.layoutTargetStrength ?? 0;
+    if (
+      east === undefined ||
+      north === undefined ||
+      !Number.isFinite(east) ||
+      !Number.isFinite(north) ||
+      !Number.isFinite(strength) ||
+      strength <= 0
+    ) {
+      return;
+    }
+
+    this.#addForce(
+      state,
+      (east - state.x) * strength,
+      (north - state.y) * strength,
+      0,
+    );
   }
 
   #applyAltitudeForce(state: NodeState): void {

@@ -6,5 +6,3 @@
 import { TimelineEvidence } from './evidence-store.ts';
 
 globalThis.TimelineEvidence = TimelineEvidence;
-
-export {};

@@ -19,7 +19,7 @@ export interface ReconciledWorldLayout {
 }
 
 function finitePoint(point: WorldLayoutPoint): WorldLayoutPoint {
-  if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+  if (!(Number.isFinite(point.x) && Number.isFinite(point.y))) {
     throw new Error("World layout coordinates must be finite.");
   }
   if (point.z !== undefined && !Number.isFinite(point.z)) {

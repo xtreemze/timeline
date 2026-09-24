@@ -6,5 +6,3 @@
 import { TimelinePresentationLayout } from './presentation-layout.ts';
 
 globalThis.TimelinePresentationLayout = TimelinePresentationLayout;
-
-export {};

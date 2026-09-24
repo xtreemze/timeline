@@ -6,5 +6,3 @@
 import { TimelineLocationMap } from './location-map.ts';
 
 globalThis.TimelineLocationMap = TimelineLocationMap;
-
-export {};

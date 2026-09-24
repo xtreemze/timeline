@@ -942,3 +942,57 @@ test("unknown pins, invalid deltas, and use-after-destroy fail explicitly", () =
   simulation.destroy();
   assert.throws(() => simulation.step(16), /destroyed/);
 });
+
+test("updated DAG targets preserve position and converge through force only", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const instanceId = '["alice","dag-target"]';
+
+  simulation.setScene({
+    nodes: [
+      node(instanceId, {
+        initialEastMeters: 100,
+        layoutTargetEastMeters: 800,
+        layoutTargetNorthMeters: 0,
+        layoutTargetStrength: 0.01,
+      }),
+    ],
+    edges: [],
+    anchors: [],
+  });
+
+  assert.equal(simulation.getSnapshot()[0].eastMeters, 100);
+
+  simulation.setScene({
+    nodes: [
+      node(instanceId, {
+        initialEastMeters: 100,
+        layoutTargetEastMeters: 1_600,
+        layoutTargetNorthMeters: 0,
+        layoutTargetStrength: 0.01,
+      }),
+    ],
+    edges: [],
+    anchors: [],
+  });
+
+  assert.equal(
+    simulation.getSnapshot()[0].eastMeters,
+    100,
+    "changing the organizational target must not jump the rendered node",
+  );
+
+  simulation.apply(topologyRequest());
+  simulation.step(1000 / 60);
+
+  assert.ok(
+    simulation.getSnapshot()[0].eastMeters > 100,
+    "the force solver should move toward the new DAG target after a tick",
+  );
+});

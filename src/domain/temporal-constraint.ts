@@ -47,10 +47,10 @@ export function validateTemporalEnvelope(envelope: TemporalEnvelope): readonly s
   const findings: string[] = [];
   if (!envelope.id.trim()) findings.push("Temporal envelope ID is required.");
   if (
-    !finite(envelope.earliestStart) ||
-    !finite(envelope.latestStart) ||
-    !finite(envelope.earliestEnd) ||
-    !finite(envelope.latestEnd)
+    !(((finite(envelope.earliestStart) &&
+    finite(envelope.latestStart) ) &&
+    finite(envelope.earliestEnd) ) &&
+    finite(envelope.latestEnd))
   ) {
     findings.push("Temporal envelope bounds must be finite.");
     return Object.freeze(findings);
@@ -75,7 +75,7 @@ export function validateTemporalConstraint(
 ): readonly string[] {
   const findings: string[] = [];
   if (!constraint.id.trim()) findings.push("Temporal constraint ID is required.");
-  if (!constraint.leftId.trim() || !constraint.rightId.trim()) {
+  if (!(constraint.leftId.trim() && constraint.rightId.trim())) {
     findings.push("Temporal constraint requires two record references.");
   }
   if (constraint.leftId === constraint.rightId) {
@@ -161,7 +161,7 @@ export function evaluateTemporalConstraint(
   const constraintFindings = validateTemporalConstraint(constraint);
   if (constraintFindings.length) throw new Error(constraintFindings.join(" "));
 
-  if (!left || !right) {
+  if (!(left && right)) {
     return Object.freeze({
       constraintId: constraint.id,
       status: "indeterminate" as const,

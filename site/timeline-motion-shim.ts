@@ -6,5 +6,3 @@
 import { TimelineMotion } from './timeline-motion.ts';
 
 globalThis.TimelineMotion = TimelineMotion;
-
-export {};

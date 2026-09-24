@@ -33,7 +33,7 @@ const TEMPORAL_WIDTHS = Object.freeze([
   1,
   10,
   100,
-  1_000,
+  1000,
   10_000,
   60_000,
   5 * 60_000,
