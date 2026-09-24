@@ -4041,6 +4041,7 @@ function renderGraphEditor() {
     places: state.places,
     relationships: state.relationships,
     items: state.items,
+    categories: state.categories,
   });
 }
 
