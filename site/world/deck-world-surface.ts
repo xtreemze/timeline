@@ -2055,9 +2055,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#authoringHoldTimer = globalThis.setTimeout(() => {
       this.#authoringHoldTimer = null;
       if (this.#destroyed || !this.#touchHold.isArmed(touch.pointerId, Date.now())) return;
-      if (
-        this.#dispatchAuthoringContext(touch.point, { x: clientX, y: clientY }, "long-press")
-      ) {
+      if (this.#dispatchAuthoringContext(touch.point, { x: clientX, y: clientY }, "long-press")) {
         this.#touchHold.commit(touch.pointerId);
       }
     }, WORLD_TOUCH_HOLD_MS);
