@@ -1,4 +1,3 @@
-// biome-ignore-all format: compact declarative fixture matrix is easier to audit in aligned tuples
 const SOURCE_TEXT = "Fictional narrative ordering coordinate; not a real-world date.";
 const MEDIA_CAPTION =
   "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction.";
@@ -8,7 +7,9 @@ const EXTRA_CATEGORIES = [
   { id: "exchange", name: "Exchange / Bargain", color: "#a16207" },
 ];
 
-const STORY_SPECS = [
+const STORY_SPECS =
+  // biome-ignore format: compact scene tuples keep each authored fixture record reviewable as one unit
+  [
   {
     id: "story-little-red-riding-hood",
     title: "Little Red Riding Hood",
