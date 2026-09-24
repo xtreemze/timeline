@@ -66,8 +66,20 @@ export interface WorldSimulationDiagnostics {
   readonly iteration: number | null;
 }
 
+export type WorldClusterForceMode = "expand" | "collapse";
+
+export interface WorldClusterForceDirective {
+  readonly mode: WorldClusterForceMode;
+  readonly instanceIds: readonly WorldInstanceId[];
+}
+
 export interface WorldForceSimulationBackend {
   setScene(scene: WorldForceScene): void;
+  /**
+   * Optional local-topology LOD hook. Backends that support it must move
+   * clustered members through force state, never renderer interpolation.
+   */
+  applyClusterDirective?(directive: WorldClusterForceDirective): void;
   setPin(pin: WorldForcePin | null): void;
   apply(request: WorldSimulationRequest): void;
   stop(): void;
