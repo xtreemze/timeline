@@ -923,7 +923,13 @@ function largeProjection(count, overrides = {}) {
 
 test("incremental render reuses prior datum object references for unchanged rows (issue #445 Priority 3)", () => {
   const { calls, runtime } = harness();
-  const surface = new DeckWorldSurface({}, runtime, { longitude: 0, latitude: 0, zoom: 7.25, bearing: 0, pitch: 20 });
+  const surface = new DeckWorldSurface({}, runtime, {
+    longitude: 0,
+    latitude: 0,
+    zoom: 7.25,
+    bearing: 0,
+    pitch: 20,
+  });
 
   surface.setProjection(largeProjection(500));
   const firstRender = calls.setProps.at(-1);
@@ -982,7 +988,13 @@ test("incremental render reuses prior datum object references for unchanged rows
 
 test("incremental render only replaces datums whose selection actually changed", () => {
   const { calls, runtime } = harness();
-  const surface = new DeckWorldSurface({}, runtime, { longitude: 0, latitude: 0, zoom: 7.25, bearing: 0, pitch: 20 });
+  const surface = new DeckWorldSurface({}, runtime, {
+    longitude: 0,
+    latitude: 0,
+    zoom: 7.25,
+    bearing: 0,
+    pitch: 20,
+  });
   surface.setProjection(largeProjection(50));
 
   const firstRender = calls.setProps.at(-1);
