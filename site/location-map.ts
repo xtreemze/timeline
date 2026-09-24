@@ -3,6 +3,8 @@
  * Supports read-only display with geospatial features and interactive editing
  */
 
+import "leaflet/dist/leaflet.css";
+
 const DEFAULT_PROVIDER = Object.freeze({
   id: "osm-public-compatibility",
   url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -120,13 +122,13 @@ interface LocationMapControllerOptions {
   clearButton?: HTMLElement;
 }
 
+let leafletPromise: Promise<any> | null = null;
+
 function loadLeaflet(): Promise<any> {
-  const ready = Reflect.get(globalThis, "TimelineLeafletReady");
-  if (ready && typeof (ready as { then?: unknown }).then === "function") {
-    return ready as Promise<any>;
+  if (!leafletPromise) {
+    leafletPromise = import("leaflet").then((module) => module.default || module);
   }
-  if (globalThis.L) return Promise.resolve(globalThis.L);
-  return Promise.reject(new Error("Leaflet local bundle is unavailable."));
+  return leafletPromise;
 }
 
 function tileProviders(): MapProvider[] {
