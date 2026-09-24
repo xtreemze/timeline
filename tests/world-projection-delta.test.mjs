@@ -110,3 +110,40 @@ test("applying a deterministic delta reconstructs the next WorldProjection", () 
   const delta = diffWorldProjection(previous, next);
   assert.deepEqual(applyWorldProjectionDelta(previous, delta), next);
 });
+
+
+test("position-only force deltas preserve static projection topology by identity", () => {
+  const alice = instance("alice", "meeting");
+  const bob = instance("bob", "meeting");
+  const previous = createWorldProjection({
+    instances: [alice, bob],
+    edges: [edge("meeting", alice.id, bob.id)],
+  });
+  const previousAlice = previous.instances.find((value) => value.canonicalId === "alice");
+  const previousBob = previous.instances.find((value) => value.canonicalId === "bob");
+  assert.ok(previousAlice);
+  assert.ok(previousBob);
+
+  const updatedAlice = Object.freeze({
+    ...previousAlice,
+    localOffset: Object.freeze({ eastMeters: 125, northMeters: -75 }),
+    visualAltitude: 1400,
+  });
+  const delta = Object.freeze({
+    addedInstances: Object.freeze([]),
+    updatedInstances: Object.freeze([updatedAlice]),
+    removedInstanceIds: Object.freeze([]),
+    addedEdges: Object.freeze([]),
+    updatedEdges: Object.freeze([]),
+    removedEdgeIds: Object.freeze([]),
+  });
+
+  const applied = applyWorldProjectionDelta(previous, delta);
+  const appliedAlice = applied.instances.find((value) => value.canonicalId === "alice");
+  const appliedBob = applied.instances.find((value) => value.canonicalId === "bob");
+
+  assert.equal(applied.edges, previous.edges);
+  assert.equal(appliedAlice, updatedAlice);
+  assert.equal(appliedAlice.geographicAnchors, previousAlice.geographicAnchors);
+  assert.equal(appliedBob, previousBob);
+});
