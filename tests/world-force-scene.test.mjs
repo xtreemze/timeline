@@ -175,7 +175,7 @@ test("custom visible node size expands the force body instead of clipping throug
         canonicalId: "large",
         occurrenceId: "styled",
         kind: "person",
-        style: { size: 24, borderWidth: 6 },
+        style: { radius: 24, borderWidth: 6 },
         geographicAnchors: [],
         temporalWeight: 1,
         visualWeight: 0,
@@ -185,10 +185,10 @@ test("custom visible node size expands the force body instead of clipping throug
     edges: [],
   });
   const [node] = createWorldForceScene(projection).nodes;
-  assert.equal(node.collisionRadiusPx, 54);
+  assert.equal(node.collisionRadiusPx, 30);
   assert.equal(
     node.collisionRadiusMeters,
-    DEFAULT_WORLD_FORCE_SCENE_POLICY.baseCollisionRadiusMeters * (54 / 22),
+    DEFAULT_WORLD_FORCE_SCENE_POLICY.baseCollisionRadiusMeters * (30 / 22),
   );
 });
 
