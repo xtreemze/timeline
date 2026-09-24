@@ -276,3 +276,63 @@ test("timeline keeps one semantic date hierarchy during an active zoom gesture",
   assert.match(body, /const incomingHierarchy = false/);
   assert.match(body, /selected hierarchy becomes authoritative on commit/);
 });
+
+
+test("timeline edge date context keeps retained slots and rolls changed digits in place", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  const materializeStart = source.indexOf("  materializeTemporalAccents(");
+  const materializeEnd = source.indexOf("  renderTemporalContext(", materializeStart);
+  const materializeBody = source.slice(materializeStart, materializeEnd);
+  assert.match(materializeBody, /edge-slot:\$\{slot\}/);
+  assert.match(materializeBody, /updateEdgeAccentLabel/);
+  assert.match(materializeBody, /timeline-edge-date/);
+
+  const updateStart = source.indexOf("  updateEdgeAccentLabel(");
+  const updateEnd = source.indexOf("  materializeTickHierarchy(", updateStart);
+  const updateBody = source.slice(updateStart, updateEnd);
+  assert.match(updateBody, /timeline-edge-date-character/);
+  assert.match(updateBody, /slot\.animate/);
+  assert.doesNotMatch(updateBody, /replaceChildren/);
+});
+
+test("timeline replaces obsolete edge years during drag and preserves a resting reference", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+  const materializeStart = source.indexOf("  materializeTemporalAccents(");
+  const renderStart = source.indexOf("  renderTemporalContext(", materializeStart);
+  const materializeBody = source.slice(materializeStart, renderStart);
+  const renderEnd = source.indexOf("  relationshipBandLane(", renderStart);
+  const renderBody = source.slice(renderStart, renderEnd);
+
+  assert.match(materializeBody, /maximumEdgeAccents = clamp\(Math\.trunc\(edgeAccentLimit\) \|\| 1, 1, 2\)/);
+  assert.match(materializeBody, /const boundedEdgeAccents =/);
+  assert.match(materializeBody, /maximumEdgeAccents === 1/);
+  assert.match(materializeBody, /orderedEdgeAccents\.slice\(0, 1\)/);
+  assert.match(materializeBody, /orderedEdgeAccents\.at\(-1\)/);
+  assert.match(materializeBody, /boundedEdgeAccents\.forEach/);
+  assert.doesNotMatch(materializeBody, /accentPlan\.edgeAccents\.forEach/);
+  assert.match(materializeBody, /dataset\.edgeDateCount = String\(boundedEdgeAccents\.length\)/);
+
+  assert.match(renderBody, /minimumEdgeAccents:\s*this\.retention\.active \? 2 : 1/);
+  assert.match(renderBody, /this\.retention\.active \? 2 : 1/);
+  assert.match(
+    renderBody,
+    /if \(!key\.startsWith\("edge-slot:"\) \|\| keepAccents\.has\(key\)\) continue;/,
+  );
+  assert.match(renderBody, /for \(const animation of node\.getAnimations\(\)\) animation\.cancel\(\);/);
+  assert.match(
+    renderBody,
+    /resolveTickLabelCollisions[\s\S]*key\.startsWith\("edge-slot:"\)[\s\S]*if \(!this\.retention\.active\) \{/,
+  );
+  assert.match(
+    renderBody,
+    /if \(key\.startsWith\("edge-slot:"\) \|\| hierarchyChangedOnCommit\) node\.remove\(\);/,
+  );
+});
+
+test("portrait edge dates live on the outer rail rather than beside the timeline axis", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  assert.match(css, /\.is-portrait \.timeline-edge-date\s*\{[^}]*right:\s*8px/s);
+  assert.match(css, /\.is-portrait \.timeline-edge-date\s*\{[^}]*left:\s*auto/s);
+  assert.match(css, /\.is-portrait \.timeline-edge-date\s*\{[^}]*writing-mode:\s*vertical-rl/s);
+});

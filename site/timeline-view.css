@@ -389,6 +389,23 @@
   letter-spacing: -0.055em;
   color: color-mix(in srgb, var(--muted) 25%, transparent);
 }
+.timeline-edge-date {
+  contain: layout style;
+  pointer-events: none;
+}
+.timeline-view[data-scene-state="interacting"] .timeline-edge-date {
+  will-change: translate;
+}
+.timeline-edge-date-character {
+  display: inline-block;
+  transform-origin: center;
+}
+.is-portrait .timeline-edge-date {
+  left: auto;
+  right: 8px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
 .timeline-axis-month-label {
   position: absolute;
   z-index: 3;
