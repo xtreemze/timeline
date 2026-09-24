@@ -13,7 +13,9 @@ import {
 } from "./graph-component-packing.js";
 import { createGraphSimulationCoordinator } from "./layout/graph-simulation-coordinator.ts";
 
+const FORCE_DENSE_NODE_THRESHOLD = 1000;
 const LARGE_GRAPH_NODE_THRESHOLD = 1200;
+const GRAPH_LABEL_NODE_THRESHOLD = 1800;
 const GPU_LAYOUT_NODE_THRESHOLD = 3000;
 const TOUCH_NODE_HOLD_MS = 420;
 const TOUCH_NODE_MOVE_TOLERANCE_PX = 12;
@@ -45,13 +47,17 @@ function resolvedColor(container, name, fallback) {
   return fallback;
 }
 
+let webGL2Support;
+
 function supportsWebGL2() {
+  if (webGL2Support !== undefined) return webGL2Support;
   try {
     const canvas = document.createElement("canvas");
-    return Boolean(canvas.getContext("webgl2"));
+    webGL2Support = Boolean(canvas.getContext("webgl2"));
   } catch {
-    return false;
+    webGL2Support = false;
   }
+  return webGL2Support;
 }
 
 const ICON_PATHS = Object.freeze({
@@ -136,6 +142,9 @@ function create(container, handlers = {}) {
   let dragFlashTimer = 0;
   let cameraGesture = null;
   let cameraInertiaAnimationFrame = 0;
+  let graphRenderAnimationFrame = 0;
+  let touchDragAnimationFrame = 0;
+  let pendingTouchDrag = null;
   let userOwnsCamera = false;
   let pendingAutoFit = false;
   let lastPackedTopologySignature = "";
@@ -256,7 +265,7 @@ function create(container, handlers = {}) {
   // smaller reheats and weaker centering/repulsion spread correction across more ticks
   // instead of letting topology changes snap nodes across the canvas.
   function forceAlphaProfile(nodeCount = forceNodeCount, alphaTarget = 0, reheat = true) {
-    const dense = nodeCount >= 1000;
+    const dense = nodeCount >= FORCE_DENSE_NODE_THRESHOLD;
     return {
       alpha: reheat ? (dense ? 0.07 : 0.09) : dense ? 0.012 : 0.016,
       alphaMin: dense ? 0.0035 : 0.003,
@@ -266,7 +275,7 @@ function create(container, handlers = {}) {
   }
 
   function forceLayoutOptions(nodeCount = forceNodeCount, alphaTarget = 0, reheat = true) {
-    const dense = nodeCount >= 1000;
+    const dense = nodeCount >= FORCE_DENSE_NODE_THRESHOLD;
     const useGPU = currentMode === "gpu-main-force";
     return {
       links: { distance: dense ? 128 : 168, strength: 0.5, iterations: 2 },
@@ -488,6 +497,19 @@ function create(container, handlers = {}) {
     cameraInertiaAnimationFrame = 0;
   }
 
+  function scheduleGraphRender() {
+    if (graphRenderAnimationFrame) return;
+    graphRenderAnimationFrame = requestAnimationFrame(() => {
+      graphRenderAnimationFrame = 0;
+      orb.render();
+    });
+  }
+
+  function cancelScheduledGraphRender() {
+    if (graphRenderAnimationFrame) cancelAnimationFrame(graphRenderAnimationFrame);
+    graphRenderAnimationFrame = 0;
+  }
+
   function markCameraOwnedByUser() {
     userOwnsCamera = true;
     pendingAutoFit = false;
@@ -517,7 +539,7 @@ function create(container, handlers = {}) {
     const next = transform.translate(deltaX / transform.k, deltaY / transform.k);
     canvas.__zoom = next;
     if (orb._renderer) orb._renderer.transform = next;
-    orb.render();
+    scheduleGraphRender();
     return true;
   }
 
@@ -619,7 +641,7 @@ function create(container, handlers = {}) {
     gesture.weightedTransform = next;
     if (orb.canvas) orb.canvas.__zoom = next;
     if (orb._renderer) orb._renderer.transform = next;
-    orb.render();
+    scheduleGraphRender();
     return true;
   }
 
@@ -755,6 +777,9 @@ function create(container, handlers = {}) {
     if (!touchHold?.activated) return false;
     const node = touchHold.node;
     const pointerId = touchHold.pointerId;
+    if (touchDragAnimationFrame) cancelAnimationFrame(touchDragAnimationFrame);
+    touchDragAnimationFrame = 0;
+    flushPendingTouchDrag();
     const simulator = touchDragSimulator();
     if (simulator && node) simulator.endDragNode(node.getId());
     releaseSimulation("drag");
@@ -801,6 +826,34 @@ function create(container, handlers = {}) {
     };
     const localPoint = orb.getSimulationPosition(globalPoint);
     return { event, globalPoint, localPoint };
+  }
+
+  function flushPendingTouchDrag() {
+    const pending = pendingTouchDrag;
+    pendingTouchDrag = null;
+    if (!pending || !touchHold?.activated) return false;
+    const activeNodeId = touchHold.node?.getId?.();
+    if (String(activeNodeId) !== String(pending.nodeId)) return false;
+    const simulator = touchDragSimulator();
+    if (!simulator) return false;
+    simulator.dragNode(pending.nodeId, pending.localPoint);
+    clearInteractionSettleTimer();
+    return true;
+  }
+
+  function scheduleTouchDrag(nodeId, localPoint) {
+    pendingTouchDrag = { nodeId, localPoint };
+    if (touchDragAnimationFrame) return;
+    touchDragAnimationFrame = requestAnimationFrame(() => {
+      touchDragAnimationFrame = 0;
+      flushPendingTouchDrag();
+    });
+  }
+
+  function cancelScheduledTouchDrag() {
+    if (touchDragAnimationFrame) cancelAnimationFrame(touchDragAnimationFrame);
+    touchDragAnimationFrame = 0;
+    pendingTouchDrag = null;
   }
 
   function simulationRadiusForPixels(globalPoint, radiusPx) {
@@ -1000,10 +1053,8 @@ function create(container, handlers = {}) {
       event.preventDefault();
       event.stopPropagation();
       const geometry = touchGeometry(event);
-      const simulator = touchDragSimulator();
-      if (geometry && simulator) {
-        simulator.dragNode(touchHold.node.getId(), geometry.localPoint);
-        clearInteractionSettleTimer();
+      if (geometry && touchDragSimulator()) {
+        scheduleTouchDrag(touchHold.node.getId(), geometry.localPoint);
       }
       return;
     }
@@ -1387,9 +1438,11 @@ function create(container, handlers = {}) {
 
   function setPerformanceMode(nodeCount) {
     forceNodeCount = nodeCount;
+    const forceDense = nodeCount >= FORCE_DENSE_NODE_THRESHOLD;
+    const labelsEnabled = nodeCount < GRAPH_LABEL_NODE_THRESHOLD;
     const wantsWebGL = nodeCount >= LARGE_GRAPH_NODE_THRESHOLD && supportsWebGL2();
     const wantsGPU = nodeCount >= GPU_LAYOUT_NODE_THRESHOLD && wantsWebGL;
-    const sizeClass = `${wantsWebGL ? "webgl" : "canvas"}:${wantsGPU ? "gpu" : "worker"}:${nodeCount >= 400 ? "dense" : "normal"}`;
+    const sizeClass = `${wantsWebGL ? "webgl" : "canvas"}:${wantsGPU ? "gpu" : "worker"}:${forceDense ? "force-dense" : "force-normal"}:${labelsEnabled ? "labels" : "no-labels"}`;
     if (sizeClass === lastSizeClass) return;
     lastSizeClass = sizeClass;
     currentMode = wantsGPU ? "gpu-main-force" : "worker-cpu";
@@ -1399,7 +1452,7 @@ function create(container, handlers = {}) {
     removeOrbNativeCameraDragListeners();
     orb.setSettings({
       render: {
-        labelsIsEnabled: nodeCount < 1800,
+        labelsIsEnabled: labelsEnabled,
         labelsOnEventIsEnabled: true,
         shadowIsEnabled: false,
         minZoom: GRAPH_MIN_ZOOM,
@@ -1823,6 +1876,8 @@ function create(container, handlers = {}) {
     },
     destroy() {
       cancelCameraInertia();
+      cancelScheduledGraphRender();
+      cancelScheduledTouchDrag();
       cameraGesture = null;
       finishTouchGesture();
       clearInteractionSettleTimer();
