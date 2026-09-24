@@ -308,8 +308,9 @@ export const CLUSTER_ZOOM_THRESHOLD = 4.5;
  * only; canonical membership remains in each cluster and zooming to a
  * working scale restores the original world instances.
  */
+const OVERVIEW_CLUSTER_MIN_ENTITY_COUNT = 3;
 const DENSE_CLUSTER_ENTITY_THRESHOLD = 25_000;
-const DENSE_CLUSTER_ZOOM_THRESHOLD = 4.5;
+const DENSE_CLUSTER_ZOOM_THRESHOLD = 5.5;
 
 /**
  * Presentation-only radial clearance for billboarded place markers. The
@@ -334,6 +335,7 @@ function liftedPlaceIconPosition(
 }
 
 export function shouldClusterEntityDatums(entityCount: number, zoom: number): boolean {
+  if (entityCount < OVERVIEW_CLUSTER_MIN_ENTITY_COUNT) return false;
   return (
     zoom < CLUSTER_ZOOM_THRESHOLD ||
     (entityCount >= DENSE_CLUSTER_ENTITY_THRESHOLD && zoom < DENSE_CLUSTER_ZOOM_THRESHOLD)
@@ -424,24 +426,31 @@ export function clusterEntityDatums(
 }
 
 /**
- * One cluster bubble per anchor place (Sigma-style cluster labelling: the
- * place label names the group). Used when local graphs are too small on
- * screen to tell entities apart. Membership stays canonical.
+ * Anchor-first clustering. With no merge radius, each authored place owns
+ * its local cluster. At overview zoom, nearby place groups can be merged by
+ * true proximity using a neighbouring-cell broad phase, so cluster membership
+ * is stable under force movement and across ordinary grid-cell boundaries.
+ * Membership stays canonical.
  */
 export function clusterEntityDatumsByPlace(
   entities: readonly DeckWorldEntityDatum[],
   instances: readonly ProjectedWorldInstance[],
   mergeCellDegrees = 0,
 ): readonly DeckWorldEntityRenderDatum[] {
-  const anchorOf = new Map<WorldInstanceId, ProjectedWorldInstance["geographicAnchors"][number]>();
+  type Anchor = ProjectedWorldInstance["geographicAnchors"][number];
+  interface PlaceGroup {
+    readonly placeId: PlaceId;
+    readonly anchor: Anchor;
+    readonly members: DeckWorldEntityDatum[];
+  }
+
+  const anchorOf = new Map<WorldInstanceId, Anchor>();
   for (const instance of instances) {
     const anchor = instance.geographicAnchors[0];
     if (anchor) anchorOf.set(instance.id, anchor);
   }
-  const groups = new Map<
-    string,
-    { anchor: ProjectedWorldInstance["geographicAnchors"][number]; members: DeckWorldEntityDatum[] }
-  >();
+
+  const groupsByPlace = new Map<PlaceId, PlaceGroup>();
   const loose: DeckWorldEntityRenderDatum[] = [];
   for (const entity of entities) {
     const anchor = anchorOf.get(entity.worldInstanceId);
@@ -449,42 +458,189 @@ export function clusterEntityDatumsByPlace(
       loose.push(entity);
       continue;
     }
-    // Places closer than a merge cell on screen share one bubble.
-    const key =
-      mergeCellDegrees > 0
-        ? `cell:${Math.floor(anchor.longitude / mergeCellDegrees)}:${Math.floor(anchor.latitude / mergeCellDegrees)}`
-        : anchor.placeId;
-    const group = groups.get(key);
-    if (group) group.members.push(entity);
-    else groups.set(key, { anchor, members: [entity] });
+    const existing = groupsByPlace.get(anchor.placeId);
+    if (existing) {
+      existing.members.push(entity);
+    } else {
+      groupsByPlace.set(anchor.placeId, {
+        placeId: anchor.placeId,
+        anchor,
+        members: [entity],
+      });
+    }
   }
+
+  const groups = [...groupsByPlace.values()].sort((left, right) =>
+    String(left.placeId).localeCompare(String(right.placeId)),
+  );
+  const neighbours = new Map<PlaceId, Set<PlaceId>>(
+    groups.map((group) => [group.placeId, new Set<PlaceId>()] as const),
+  );
+
+  const wrappedLongitudeDelta = (from: number, to: number): number =>
+    ((((to - from + 180) % 360) + 360) % 360) - 180;
+  const angularDistanceDegrees = (left: Anchor, right: Anchor): number => {
+    const meanLatitude = ((left.latitude + right.latitude) / 2) * (Math.PI / 180);
+    const longitude =
+      wrappedLongitudeDelta(left.longitude, right.longitude) * Math.cos(meanLatitude);
+    const latitude = right.latitude - left.latitude;
+    return Math.hypot(longitude, latitude);
+  };
+
+  if (mergeCellDegrees > 0 && Number.isFinite(mergeCellDegrees)) {
+    const longitudeCellCount = Math.max(1, Math.ceil(360 / mergeCellDegrees));
+    const grid = new Map<string, PlaceGroup[]>();
+    const wrapCellX = (value: number): number =>
+      ((value % longitudeCellCount) + longitudeCellCount) % longitudeCellCount;
+    const cellFor = (anchor: Anchor): readonly [number, number] => {
+      const longitude = (((anchor.longitude + 180) % 360) + 360) % 360;
+      return Object.freeze([
+        Math.min(
+          longitudeCellCount - 1,
+          Math.floor(longitude / mergeCellDegrees),
+        ),
+        Math.floor((anchor.latitude + 90) / mergeCellDegrees),
+      ]);
+    };
+    const keyFor = (x: number, y: number) => `${wrapCellX(x)}:${y}`;
+
+    for (const group of groups) {
+      const [cellX, cellY] = cellFor(group.anchor);
+      const latitudeCosine = Math.max(
+        0.1,
+        Math.abs(Math.cos((group.anchor.latitude * Math.PI) / 180)),
+      );
+      const longitudeReach = Math.min(
+        Math.ceil(longitudeCellCount / 2),
+        Math.max(1, Math.ceil(1 / latitudeCosine)),
+      );
+      const visitedCells = new Set<string>();
+
+      for (let x = cellX - longitudeReach; x <= cellX + longitudeReach; x += 1) {
+        for (let y = cellY - 1; y <= cellY + 1; y += 1) {
+          const key = keyFor(x, y);
+          if (visitedCells.has(key)) continue;
+          visitedCells.add(key);
+          for (const other of grid.get(key) ?? []) {
+            if (angularDistanceDegrees(group.anchor, other.anchor) > mergeCellDegrees) {
+              continue;
+            }
+            neighbours.get(group.placeId)?.add(other.placeId);
+            neighbours.get(other.placeId)?.add(group.placeId);
+          }
+        }
+      }
+
+      const ownKey = keyFor(cellX, cellY);
+      const ownCell = grid.get(ownKey);
+      if (ownCell) ownCell.push(group);
+      else grid.set(ownKey, [group]);
+    }
+  }
+
+  const components: PlaceGroup[][] = [];
+  const visited = new Set<PlaceId>();
+  for (const group of groups) {
+    if (visited.has(group.placeId)) continue;
+    const component: PlaceGroup[] = [];
+    const pending: PlaceId[] = [group.placeId];
+    while (pending.length > 0) {
+      const placeId = pending.pop();
+      if (!placeId || visited.has(placeId)) continue;
+      const memberGroup = groupsByPlace.get(placeId);
+      if (!memberGroup) continue;
+      visited.add(placeId);
+      component.push(memberGroup);
+      for (const neighbour of neighbours.get(placeId) ?? []) {
+        if (!visited.has(neighbour)) pending.push(neighbour);
+      }
+    }
+    components.push(
+      component.sort((left, right) =>
+        String(left.placeId).localeCompare(String(right.placeId)),
+      ),
+    );
+  }
+
   const result: DeckWorldEntityRenderDatum[] = [...loose];
-  for (const [placeId, { anchor, members }] of groups) {
+  for (const component of components) {
+    const members = component.flatMap((group) => group.members);
     const [only] = members;
     if (members.length === 1 && only) {
       result.push(only);
       continue;
     }
+
+    let longitudeSin = 0;
+    let longitudeCos = 0;
+    let weightedLatitude = 0;
+    let weightedAltitude = 0;
+    let totalWeight = 0;
+    let totalVisualWeight = 0;
+    for (const group of component) {
+      const weight = group.members.length;
+      const longitudeRadians = group.anchor.longitude * (Math.PI / 180);
+      longitudeSin += Math.sin(longitudeRadians) * weight;
+      longitudeCos += Math.cos(longitudeRadians) * weight;
+      weightedLatitude += group.anchor.latitude * weight;
+      weightedAltitude += (group.anchor.sourceAltitude ?? 0) * weight;
+      totalWeight += weight;
+      totalVisualWeight += group.members.reduce(
+        (sum, member) => sum + member.visualWeight,
+        0,
+      );
+    }
+
+    const [singlePlace] = component;
+    const longitude =
+      component.length === 1 && singlePlace
+        ? singlePlace.anchor.longitude
+        : Math.atan2(longitudeSin, longitudeCos) * (180 / Math.PI);
+    const latitude =
+      component.length === 1 && singlePlace
+        ? singlePlace.anchor.latitude
+        : weightedLatitude / totalWeight;
+    const altitude =
+      component.length === 1 && singlePlace
+        ? singlePlace.anchor.sourceAltitude ?? 0
+        : weightedAltitude / totalWeight;
+    const placeIds = component.map((group) => String(group.placeId)).sort();
+    const clusterMembers = members
+      .map((member) =>
+        Object.freeze({
+          entityId: member.entityId,
+          worldInstanceId: member.worldInstanceId,
+        }),
+      )
+      .sort((left, right) =>
+        String(left.worldInstanceId).localeCompare(String(right.worldInstanceId)),
+      );
+
     result.push(
       Object.freeze({
         kind: "cluster",
-        clusterId: `cluster:place:${placeId}`,
+        clusterId:
+          placeIds.length === 1
+            ? `cluster:place:${placeIds[0]}`
+            : `cluster:places:${placeIds.join("|")}`,
         position: Object.freeze([
-          anchor.longitude,
-          anchor.latitude,
-          anchor.sourceAltitude ?? 0,
+          longitude,
+          latitude,
+          altitude,
         ]) as WorldRenderPosition,
-        clusterMembers: Object.freeze(
-          members.map((member) =>
-            Object.freeze({ entityId: member.entityId, worldInstanceId: member.worldInstanceId }),
-          ),
-        ),
-        visualWeight:
-          members.reduce((sum, member) => sum + member.visualWeight, 0) / members.length,
+        clusterMembers: Object.freeze(clusterMembers),
+        visualWeight: totalVisualWeight / totalWeight,
       }),
     );
   }
-  return Object.freeze(result);
+
+  return Object.freeze(
+    result.sort((left, right) => {
+      const leftId = left.kind === "cluster" ? left.clusterId : left.worldInstanceId;
+      const rightId = right.kind === "cluster" ? right.clusterId : right.worldInstanceId;
+      return String(leftId).localeCompare(String(rightId));
+    }),
+  );
 }
 
 interface PlaceClusterTransitionDatums {
@@ -1018,7 +1174,10 @@ function worldPathEquals(
 ): boolean {
   return (
     left.length === right.length &&
-    left.every((position, index) => positionEquals(position, right[index]!))
+    left.every((position, index) => {
+      const counterpart = right[index];
+      return counterpart !== undefined && positionEquals(position, counterpart);
+    })
   );
 }
 
@@ -1074,7 +1233,8 @@ function relationshipDatums(
   for (const group of groups.values()) {
     group.sort((left, right) => String(left.id).localeCompare(String(right.id)));
     if (group.length === 1) {
-      lanes.set(group[0]!.id, 0);
+      const [onlyEdge] = group;
+      if (onlyEdge) lanes.set(onlyEdge.id, 0);
       continue;
     }
     group.forEach((edge, index) => {
@@ -3011,10 +3171,12 @@ export class DeckWorldSurface implements WorldSurface {
     );
 
     const rawPlaceExpansion = this.#placeClusterExpansion();
+    // Place-local collapse always uses the exact authored place. Nearby-place
+    // merging belongs only to the low-zoom overview tier; otherwise a member
+    // could appear to decluster from a neighbour's centroid.
     const placeClusterCandidates = clusterEntityDatumsByPlace(
       entityResult.datums,
       this.#projection.instances,
-      worldPixelsToDegrees(WORLD_CLUSTER_MERGE_PX, this.#camera.zoom),
     );
     const hasPlaceClusters = placeClusterCandidates.some((datum) => datum.kind === "cluster");
     const placeExpansion = hasPlaceClusters ? rawPlaceExpansion : 1;
@@ -3041,16 +3203,28 @@ export class DeckWorldSurface implements WorldSurface {
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
 
-    const gridClustered =
-      placeExpansion >= 1 &&
-      shouldClusterEntityDatums(entityResult.datums.length, this.#camera.zoom);
+    // Overview semantic LOD takes precedence over local place expansion.
+    // Otherwise a dense scene with many members per place could retain
+    // thousands of place-local bubbles at globe scale and never reach the
+    // cheaper nearby-place merge path.
+    const gridClustered = shouldClusterEntityDatums(
+      entityResult.datums.length,
+      this.#camera.zoom,
+    );
+    const overviewClusters = gridClustered
+      ? clusterEntityDatumsByPlace(
+          entityResult.datums,
+          this.#projection.instances,
+          worldPixelsToDegrees(WORLD_CLUSTER_MERGE_PX, this.#camera.zoom),
+        )
+      : null;
     const temporalRelationships = this.#temporalRelationshipDatums(relationships);
     // Keep place-cluster and member rows alive at both endpoints. Clusters
     // reach zero radius/alpha at full expansion; members reach zero size/alpha
     // at full collapse. Geometry is supplied directly by force/cluster state,
     // without deck.gl interpolation.
-    const entities: readonly DeckWorldEntityRenderDatum[] = gridClustered
-      ? clusterEntityDatums(entityResult.datums, this.#camera.zoom)
+    const entities: readonly DeckWorldEntityRenderDatum[] = overviewClusters
+      ? overviewClusters
       : Object.freeze([
           ...placeTransition.clusters,
           ...placeTransition.loose,

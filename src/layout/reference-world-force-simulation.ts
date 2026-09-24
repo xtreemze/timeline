@@ -126,17 +126,32 @@ function normalizedTimeStep(deltaMs: number): number {
 
 const EARTH_RADIUS_METERS = 6_371_008.8;
 const CROSS_ANCHOR_FORCE_RADIUS_METERS = 6_000;
-const CROSS_ANCHOR_BUCKET_METERS = 100_000;
 const READABLE_SEPARATION_SCALE = 1.35;
+const PLACE_DOMAIN_INNER_RADIUS_SCALE = 2.25;
+const PLACE_DOMAIN_WIDTH_SCALE = 2.4;
+const PLACE_DOMAIN_CORRECTION_SQRT_SCALE = 20;
 
 type Vector3 = readonly [number, number, number];
+
+interface PlaceDomain {
+  readonly innerRadiusMeters: number;
+  readonly outerRadiusMeters: number;
+}
 
 interface ForceGroup {
   readonly key: string;
   readonly states: readonly NodeState[];
   readonly anchor: WorldForceAnchor | null;
   readonly extentMeters: number;
-  readonly bucket: readonly [number, number, number] | null;
+  readonly center: Vector3 | null;
+}
+
+interface CrossGroupSweepEntry {
+  readonly group: ForceGroup;
+  readonly center: Vector3;
+  readonly radiusMeters: number;
+  readonly minX: number;
+  readonly maxX: number;
 }
 
 interface PairDelta {
@@ -228,83 +243,98 @@ function forceGroup(key: string, states: readonly NodeState[]): ForceGroup {
     0,
   );
   if (!anchor) {
-    return Object.freeze({ key, states, anchor: null, extentMeters, bucket: null });
+    return Object.freeze({ key, states, anchor: null, extentMeters, center: null });
   }
 
-  const [x, y, z] = anchorCartesian(anchor);
   return Object.freeze({
     key,
     states,
     anchor,
     extentMeters,
-    bucket: Object.freeze([
-      Math.floor(x / CROSS_ANCHOR_BUCKET_METERS),
-      Math.floor(y / CROSS_ANCHOR_BUCKET_METERS),
-      Math.floor(z / CROSS_ANCHOR_BUCKET_METERS),
-    ]),
+    center: anchorCartesian(anchor),
   });
+}
+
+function placeDomain(states: readonly NodeState[]): PlaceDomain | null {
+  const anchored = states.filter((state) => state.anchor !== null);
+  if (anchored.length === 0) return null;
+
+  const maxCollisionRadiusMeters = anchored.reduce(
+    (radius, state) => Math.max(radius, state.node.collisionRadiusMeters),
+    0,
+  );
+  const precisionRadiusMeters = anchored.reduce(
+    (radius, state) => Math.max(radius, state.anchor?.precisionRadiusMeters ?? 0),
+    0,
+  );
+
+  // A place is the centre of a local layout domain, not the target position
+  // of every entity. Keep the authored place marker clear, then give the
+  // group enough annular area to spread through collision/relationship
+  // forces without assigning rigid angular slots.
+  const innerRadiusMeters = Math.max(
+    1,
+    maxCollisionRadiusMeters * PLACE_DOMAIN_INNER_RADIUS_SCALE,
+  );
+  const packingWidthMeters =
+    maxCollisionRadiusMeters *
+    Math.max(2, Math.sqrt(anchored.length) * PLACE_DOMAIN_WIDTH_SCALE);
+  const outerRadiusMeters = Math.max(
+    innerRadiusMeters + packingWidthMeters,
+    precisionRadiusMeters,
+  );
+
+  return Object.freeze({ innerRadiusMeters, outerRadiusMeters });
 }
 
 function crossGroupCandidates(
   groups: readonly ForceGroup[],
 ): readonly (readonly [ForceGroup, ForceGroup])[] {
-  const buckets = new Map<string, number[]>();
-  const keyFor = (x: number, y: number, z: number) => `${x}:${y}:${z}`;
-  const maxExtentMeters = groups.reduce(
-    (extent, group) => Math.max(extent, group.extentMeters),
-    0,
-  );
-
-  for (let index = 0; index < groups.length; index += 1) {
-    const bucket = groups[index]?.bucket;
-    if (!bucket) continue;
-    const key = keyFor(bucket[0], bucket[1], bucket[2]);
-    buckets.set(key, [...(buckets.get(key) ?? []), index]);
-  }
-
-  const pairs: Array<readonly [ForceGroup, ForceGroup]> = [];
-  for (let index = 0; index < groups.length; index += 1) {
-    const group = groups[index];
-    const bucket = group?.bucket;
-    if (!group || !bucket || !group.anchor) continue;
-
-    // A group's floating topology can extend well beyond its geographic
-    // anchor. Search as many broad-phase buckets as its current world-space
-    // extent can actually reach instead of assuming anchors must themselves
-    // occupy adjacent buckets.
-    const bucketReach = Math.max(
-      1,
-      Math.ceil(
-        (group.extentMeters + maxExtentMeters + CROSS_ANCHOR_FORCE_RADIUS_METERS) /
-          CROSS_ANCHOR_BUCKET_METERS,
-      ),
+  const entries: CrossGroupSweepEntry[] = groups
+    .filter(
+      (group): group is ForceGroup & { readonly center: Vector3 } =>
+        group.anchor !== null && group.center !== null,
+    )
+    .map((group) => {
+      // Give each group half of the cross-anchor interaction padding. Two
+      // expanded spheres overlap exactly when their anchor distance is within
+      // both floating extents plus the shared interaction radius.
+      const radiusMeters = group.extentMeters + CROSS_ANCHOR_FORCE_RADIUS_METERS / 2;
+      return Object.freeze({
+        group,
+        center: group.center,
+        radiusMeters,
+        minX: group.center[0] - radiusMeters,
+        maxX: group.center[0] + radiusMeters,
+      });
+    })
+    .sort(
+      (left, right) =>
+        left.minX - right.minX || left.group.key.localeCompare(right.group.key),
     );
 
-    for (let x = bucket[0] - bucketReach; x <= bucket[0] + bucketReach; x += 1) {
-      for (let y = bucket[1] - bucketReach; y <= bucket[1] + bucketReach; y += 1) {
-        for (let z = bucket[2] - bucketReach; z <= bucket[2] + bucketReach; z += 1) {
-          for (const otherIndex of buckets.get(keyFor(x, y, z)) ?? []) {
-            if (otherIndex <= index) continue;
-            const other = groups[otherIndex];
-            if (!other?.anchor) continue;
+  const active: CrossGroupSweepEntry[] = [];
+  const pairs: Array<readonly [ForceGroup, ForceGroup]> = [];
 
-            const anchorDistance = cartesianDistance(
-              anchorCartesian(group.anchor),
-              anchorCartesian(other.anchor),
-            );
-            if (
-              anchorDistance >
-              group.extentMeters +
-                other.extentMeters +
-                CROSS_ANCHOR_FORCE_RADIUS_METERS
-            ) {
-              continue;
-            }
-            pairs.push(Object.freeze([group, other]));
-          }
-        }
-      }
+  for (const current of entries) {
+    // A far drag increases one group's extent. The previous bucket search
+    // expanded a three-dimensional cube from that extent, making one frame
+    // proportional to drag distance cubed. Sweep-and-prune only keeps groups
+    // whose expanded X ranges can still overlap.
+    for (let index = active.length - 1; index >= 0; index -= 1) {
+      const candidate = active[index];
+      if (candidate && candidate.maxX < current.minX) active.splice(index, 1);
     }
+
+    for (const other of active) {
+      const interactionRadius = current.radiusMeters + other.radiusMeters;
+      if (Math.abs(current.center[1] - other.center[1]) > interactionRadius) continue;
+      if (Math.abs(current.center[2] - other.center[2]) > interactionRadius) continue;
+      if (cartesianDistance(current.center, other.center) > interactionRadius) continue;
+      pairs.push(Object.freeze([other.group, current.group]));
+    }
+
+    active.push(current);
   }
 
   return Object.freeze(pairs);
@@ -536,14 +566,14 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       this.#applyEdgeForce(edge, source, target, forces);
     }
 
+    const placeDomains = new Map<string, PlaceDomain>();
+    for (const group of forceGroups) {
+      const domain = placeDomain(group.states);
+      if (domain) placeDomains.set(group.key, domain);
+    }
+
     for (const state of this.#states.values()) {
       if (activeGroups && !activeGroups.has(state.group)) continue;
-      // The dragged group is free from anchor tug-of-war while directly
-      // manipulated. Nearby foreign groups keep their own anchor attraction,
-      // so they can yield to collision without losing geographic provenance.
-      if (!activeDragGroup || state.group !== activeDragGroup) {
-        this.#applyAnchorForce(state, forces);
-      }
       this.#applyAltitudeForce(state, forces);
     }
 
@@ -580,7 +610,20 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       state.y += state.vy * dt;
       state.z = Math.max(0, state.z + state.vz * dt);
 
-      energy += state.vx ** 2 + state.vy ** 2 + state.vz ** 2;
+      // Geographic membership is a positional annulus constraint rather than
+      // a spring to the exact place coordinate. Tangential motion stays free
+      // for collision/relationship forces, while only radial violations are
+      // corrected. The whole dragged group remains unconstrained until drop.
+      const domainActivity =
+        !activeDragGroup || state.group !== activeDragGroup
+          ? this.#applyPlaceDomainConstraint(
+              state,
+              placeDomains.get(state.group) ?? null,
+              dt,
+            )
+          : 0;
+
+      energy += state.vx ** 2 + state.vy ** 2 + state.vz ** 2 + domainActivity;
     }
 
     this.#iteration += 1;
@@ -724,23 +767,71 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#addForce(forces, target.node.id, -unitX * magnitude, -unitY * magnitude, 0);
   }
 
-  #applyAnchorForce(
+  #applyPlaceDomainConstraint(
     state: NodeState,
-    forces: Map<WorldInstanceId, [number, number, number]>,
-  ): void {
-    if (!state.anchor) return;
-    const radius = Math.hypot(state.x, state.y);
-    const excess = Math.max(0, radius - state.anchor.precisionRadiusMeters);
-    if (excess === 0 || radius < 0.001) return;
+    domain: PlaceDomain | null,
+    dt: number,
+  ): number {
+    const anchor = state.anchor;
+    if (!anchor || !domain || anchor.influence <= 0 || dt <= 0) return 0;
 
-    const magnitude = excess * state.anchor.influence * this.#options.anchorStrength;
-    this.#addForce(
-      forces,
-      state.node.id,
-      -(state.x / radius) * magnitude,
-      -(state.y / radius) * magnitude,
-      0,
+    const radius = Math.hypot(state.x, state.y);
+    let unitX: number;
+    let unitY: number;
+    if (radius < 0.001) {
+      const [seedX, seedY] = seededOffset(state.node.id);
+      const seedRadius = Math.max(0.001, Math.hypot(seedX, seedY));
+      unitX = seedX / seedRadius;
+      unitY = seedY / seedRadius;
+    } else {
+      unitX = state.x / radius;
+      unitY = state.y / radius;
+    }
+
+    let radialError = 0;
+    if (radius < domain.innerRadiusMeters) {
+      radialError = domain.innerRadiusMeters - radius;
+    } else if (radius > domain.outerRadiusMeters) {
+      radialError = domain.outerRadiusMeters - radius;
+    } else {
+      return 0;
+    }
+
+    // Position-based radial relaxation avoids the oscillation of a long
+    // anchor spring. Correction is deliberately bounded, with a sqrt(error)
+    // catch-up term so a very long drag returns promptly without a single
+    // large snap. anchorStrength remains the backend softness control.
+    const relaxation = Math.min(
+      0.45,
+      this.#options.anchorStrength * anchor.influence * 24,
     );
+    if (relaxation <= 0) return 0;
+    const desiredCorrection =
+      radialError * (1 - Math.pow(1 - relaxation, dt));
+    const maxCorrection =
+      Math.max(
+        state.node.collisionRadiusMeters * 2,
+        Math.sqrt(Math.abs(radialError)) * PLACE_DOMAIN_CORRECTION_SQRT_SCALE,
+      ) * dt;
+    const correction =
+      Math.sign(desiredCorrection) *
+      Math.min(Math.abs(desiredCorrection), maxCorrection);
+
+    state.x += unitX * correction;
+    state.y += unitY * correction;
+
+    // Remove only velocity that is driving farther out of the allowed band.
+    // Tangential velocity and velocity returning toward the band are retained.
+    const radialVelocity = state.vx * unitX + state.vy * unitY;
+    const movingFartherOut =
+      (radius < domain.innerRadiusMeters && radialVelocity < 0) ||
+      (radius > domain.outerRadiusMeters && radialVelocity > 0);
+    if (movingFartherOut) {
+      state.vx -= unitX * radialVelocity;
+      state.vy -= unitY * radialVelocity;
+    }
+
+    return correction ** 2;
   }
 
   #applyAltitudeForce(
