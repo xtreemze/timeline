@@ -59,15 +59,9 @@ test("reference solver starts from explicit local offsets and visual altitude", 
 
 test("reference solver is deterministic when no explicit offset exists", () => {
   const scene = {
-    nodes: [
-      node('["alice","meeting"]'),
-      node('["bob","meeting"]'),
-    ],
+    nodes: [node('["alice","meeting"]'), node('["bob","meeting"]')],
     edges: [],
-    anchors: [
-      anchor('["alice","meeting"]', "stockholm"),
-      anchor('["bob","meeting"]', "stockholm"),
-    ],
+    anchors: [anchor('["alice","meeting"]', "stockholm"), anchor('["bob","meeting"]', "stockholm")],
   };
 
   const first = new ReferenceWorldForceSimulation();
