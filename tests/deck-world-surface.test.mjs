@@ -1565,7 +1565,7 @@ test("DeckWorldSurface switches to local geographic view only at high zoom", () 
   surface.setCamera({
     longitude: 18.0686,
     latitude: 59.3293,
-    zoom: 11.5,
+    zoom: 12.75,
     bearing: 0,
     pitch: 20,
   });
@@ -1598,7 +1598,7 @@ test("DeckWorldSurface switches to local geographic view only at high zoom", () 
   surface.setCamera({
     longitude: 18.0686,
     latitude: 59.3293,
-    zoom: 10.5,
+    zoom: 12,
     bearing: 0,
     pitch: 20,
   });
