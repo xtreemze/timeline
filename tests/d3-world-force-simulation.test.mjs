@@ -121,3 +121,140 @@ test("D3 DAG targets remain soft guidance outside collapsed clusters", () => {
   for (let index = 0; index < 120; index += 1) simulation.step(1000 / 60);
   assert.ok(simulation.getSnapshot()[0].eastMeters > before);
 });
+
+test("D3 drag and post-drop stay local and publish sparse changed positions", () => {
+  const simulation = new D3WorldForceSimulation();
+  const dragged = '["alice","stockholm"]';
+  const peer = '["bob","stockholm"]';
+  const remoteA = '["carol","copenhagen"]';
+  const remoteB = '["dave","copenhagen"]';
+
+  simulation.setScene({
+    nodes: [
+      node(dragged, -600, 180),
+      node(peer, 600, 180),
+      node(remoteA, -500, 180),
+      node(remoteB, 500, 180),
+    ],
+    edges: [
+      {
+        id: "stockholm-link",
+        sourceId: dragged,
+        targetId: peer,
+        strength: 0.08,
+        restLengthMeters: 1_200,
+      },
+      {
+        id: "copenhagen-link",
+        sourceId: remoteA,
+        targetId: remoteB,
+        strength: 0.08,
+        restLengthMeters: 1_000,
+      },
+    ],
+    anchors: [
+      anchor(dragged, "stockholm", 1),
+      anchor(peer, "stockholm", 1),
+      anchor(remoteA, "copenhagen", 1),
+      anchor(remoteB, "copenhagen", 1),
+    ],
+  });
+
+  assert.equal(simulation.getChangedSnapshot().length, 4);
+  const remoteBefore = simulation
+    .getSnapshot()
+    .filter((entry) => entry.instanceId === remoteA || entry.instanceId === remoteB);
+
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 2_000_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1_000,
+  });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+  simulation.step(1000 / 60);
+  assert.deepEqual(
+    simulation
+      .getChangedSnapshot()
+      .map((entry) => entry.instanceId)
+      .sort(),
+    [dragged, peer].sort(),
+    "direct manipulation should publish only the affected place group",
+  );
+
+  simulation.setPin(null);
+  simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
+  simulation.step(1000 / 60);
+  assert.deepEqual(
+    simulation
+      .getChangedSnapshot()
+      .map((entry) => entry.instanceId)
+      .sort(),
+    [dragged, peer].sort(),
+    "post-drop settling should keep unrelated places asleep",
+  );
+
+  const remoteAfter = simulation
+    .getSnapshot()
+    .filter((entry) => entry.instanceId === remoteA || entry.instanceId === remoteB);
+  assert.deepEqual(remoteAfter, remoteBefore);
+});
+
+test("D3 long-distance release bounds the first post-drop force step", () => {
+  const simulation = new D3WorldForceSimulation();
+  const dragged = '["alice","long-release"]';
+  const peer = '["bob","long-release"]';
+
+  simulation.setScene({
+    nodes: [node(dragged, 0, 120), node(peer, 1_000, 120)],
+    edges: [
+      {
+        id: "long-release-link",
+        sourceId: dragged,
+        targetId: peer,
+        strength: 1,
+        restLengthMeters: 1_000,
+      },
+    ],
+    anchors: [anchor(dragged, "stockholm", 1), anchor(peer, "stockholm", 1)],
+  });
+
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 10_000_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1_000,
+  });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+  simulation.step(1000 / 60);
+
+  simulation.setPin(null);
+  simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
+  const before = simulation.getSnapshot();
+  simulation.step(1000 / 60);
+  const after = simulation.getSnapshot();
+
+  const beforeDragged = before.find((entry) => entry.instanceId === dragged);
+  const afterDragged = after.find((entry) => entry.instanceId === dragged);
+  const beforePeer = before.find((entry) => entry.instanceId === peer);
+  const afterPeer = after.find((entry) => entry.instanceId === peer);
+
+  assert.ok(beforeDragged && afterDragged && beforePeer && afterPeer);
+  const draggedStep = Math.hypot(
+    afterDragged.eastMeters - beforeDragged.eastMeters,
+    afterDragged.northMeters - beforeDragged.northMeters,
+  );
+  const peerStep = Math.hypot(
+    afterPeer.eastMeters - beforePeer.eastMeters,
+    afterPeer.northMeters - beforePeer.northMeters,
+  );
+
+  assert.ok(Number.isFinite(draggedStep));
+  assert.ok(Number.isFinite(peerStep));
+  assert.ok(draggedStep < 10_000, `released node jumped ${draggedStep.toFixed(1)}m in one step`);
+  assert.ok(peerStep < 10_000, `connected peer jumped ${peerStep.toFixed(1)}m in one step`);
+  assert.ok(
+    Math.abs(afterDragged.eastMeters) < Math.abs(beforeDragged.eastMeters),
+    "released node should return toward its authored place without a distance-amplified snap",
+  );
+});
