@@ -43,11 +43,18 @@ test("image evidence and extraction provenance survive normalization", () => {
   assert.equal(record.extraction.segments[0].text, "Call Bob at 09:30");
 });
 
-test("deployed build recreates evidence extraction bundle and PDF worker", async () => {
-  const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
-  assert.match(pkg.scripts["build:evidence"], /evidence-extraction-entry\.js/);
-  assert.match(pkg.scripts["build:evidence"], /pdf\.worker\.mjs/);
-  assert.match(pkg.scripts.build, /build:evidence/);
+test("deployed Vite build keeps evidence extraction and the PDF worker in the native ESM graph", async () => {
+  const [pkgSource, app, entry] = await Promise.all([
+    readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/evidence-extraction-entry.js", import.meta.url), "utf8"),
+  ]);
+  const pkg = JSON.parse(pkgSource);
+
+  assert.match(pkg.scripts.build, /vite build/);
+  assert.equal(pkg.scripts["build:evidence"], undefined);
+  assert.match(app, /import\(["']\.\.\/src\/evidence-extraction-entry\.js["']\)/);
+  assert.match(entry, /pdfjs-dist\/build\/pdf\.worker\.mjs\?url/);
 });
 
 test("visible extraction and inference controls are wired to application handlers", async () => {
