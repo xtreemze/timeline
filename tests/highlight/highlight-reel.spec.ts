@@ -1,7 +1,8 @@
 import { spawn } from "node:child_process";
-import { once } from "node:events";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
@@ -137,17 +138,14 @@ async function encodeCapturedFrames(frames: readonly Buffer[], videoPath: string
     ],
     { stdio: ["pipe", "inherit", "inherit"] },
   );
-  const exited = once(child, "exit").then(([code, signal]) => {
-    if (code !== 0) throw new Error(`ffmpeg exited with ${String(code ?? signal)}`);
+  const exited = new Promise<void>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("exit", (code, signal) => {
+      if (code === 0) resolve();
+      else reject(new Error(`ffmpeg exited with ${String(code ?? signal)}`));
+    });
   });
-  child.on("error", (error) => {
-    child.stdin.destroy(error);
-  });
-  for (const frame of frames) {
-    if (!child.stdin.write(frame)) await once(child.stdin, "drain");
-  }
-  child.stdin.end();
-  await exited;
+  await Promise.all([pipeline(Readable.from(frames), child.stdin), exited]);
 }
 
 async function loadSample(page: Page) {
