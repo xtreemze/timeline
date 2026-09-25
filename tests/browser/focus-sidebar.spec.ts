@@ -81,8 +81,9 @@ test("focused detail is shell-owned while contextual actions stay in the footer"
 
   await expect(page.locator("#timeline-focus-prev")).toBeVisible();
   await expect(page.locator("#timeline-focus-next")).toBeVisible();
-  await expect(page.locator("#timeline-focus-edit")).toBeVisible();
-  await expect(page.locator("#timeline-view-controls-toggle")).toBeVisible();
+  await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
+  await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-label", "Edit focused event");
+  await expect(page.locator("#timeline-view-toolbar")).toBeVisible();
 
   await focus.locator(".timeline-focus-close").click();
   await expect(focus).toBeHidden();
@@ -132,7 +133,9 @@ test("portrait preserves the right timeline rail while focused detail layers ins
   expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
 });
 
-test("opening Browse or View does not discard the focused occurrence", async ({ page }) => {
+test("opening Browse or using persistent View controls does not discard the focused occurrence", async ({
+  page,
+}) => {
   await focusOccurrence(page);
 
   await page.locator("#timeline-browser-toggle").click();
@@ -140,13 +143,20 @@ test("opening Browse or View does not discard the focused occurrence", async ({ 
   await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
   await page.locator("#timeline-browser-close").click();
 
-  await page.locator("#timeline-view-controls-toggle").click();
-  await expect
-    .poll(() =>
-      page
-        .locator("#timeline-view-toolbar")
-        .evaluate((element) => element.matches(":popover-open")),
-    )
-    .toBe(true);
+  await expect(page.locator("#timeline-view-toolbar")).toBeVisible();
+  await page.locator("#timeline-orientation-toggle").click();
   await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
+});
+
+test("the single Edit toolbar action edits the focused occurrence", async ({ page }) => {
+  await focusOccurrence(page);
+
+  const edit = page.locator("#editor-toggle");
+  await expect(edit).toHaveAttribute("aria-label", "Edit focused event");
+  await edit.click();
+
+  await expect(page.locator("#control-panel")).toBeVisible();
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-mode", "edit");
+  await expect(page.locator("#item-id")).not.toHaveValue("");
+  await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
 });
