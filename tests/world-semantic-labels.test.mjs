@@ -495,6 +495,8 @@ test("entity and place labels come from renderer-neutral WorldProjection metadat
   const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
   assert.ok(labels, "a semantic label layer is rendered");
   assert.equal(labels.type, "text");
+  assert.equal(labels.props.fontWeight, 600, "labels stay crisp without overpowering graph marks");
+  assert.equal(labels.props.outlineWidth, 2, "label halo stays restrained around compact type");
 
   const entityLabels = labels.props.data.filter((datum) => datum.kind === "entity-label");
   assert.deepEqual(entityLabels.map((datum) => labels.props.getText(datum)).sort(), [
