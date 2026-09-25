@@ -15,7 +15,10 @@ declare module "d3-force" {
     index?: number;
   }
 
-  export interface Simulation<NodeDatum extends SimulationNodeDatum, LinkDatum extends SimulationLinkDatum<NodeDatum>> {
+  export interface Simulation<
+    NodeDatum extends SimulationNodeDatum,
+    LinkDatum extends SimulationLinkDatum<NodeDatum>,
+  > {
     alpha(): number;
     alpha(value: number): this;
     alphaMin(): number;
@@ -27,7 +30,10 @@ declare module "d3-force" {
     tick(iterations?: number): this;
   }
 
-  export interface ForceLink<NodeDatum extends SimulationNodeDatum, LinkDatum extends SimulationLinkDatum<NodeDatum>> {
+  export interface ForceLink<
+    NodeDatum extends SimulationNodeDatum,
+    LinkDatum extends SimulationLinkDatum<NodeDatum>,
+  > {
     id(accessor: (node: NodeDatum) => string | number): this;
     distance(distance: number | ((link: LinkDatum) => number)): this;
     strength(strength: number | ((link: LinkDatum) => number)): this;
@@ -64,6 +70,10 @@ declare module "d3-force" {
 
   export function forceManyBody<NodeDatum extends SimulationNodeDatum>(): ForceManyBody<NodeDatum>;
   export function forceCollide<NodeDatum extends SimulationNodeDatum>(): ForceCollide<NodeDatum>;
-  export function forceX<NodeDatum extends SimulationNodeDatum>(x?: number | ((node: NodeDatum) => number)): ForceX<NodeDatum>;
-  export function forceY<NodeDatum extends SimulationNodeDatum>(y?: number | ((node: NodeDatum) => number)): ForceY<NodeDatum>;
+  export function forceX<NodeDatum extends SimulationNodeDatum>(
+    x?: number | ((node: NodeDatum) => number),
+  ): ForceX<NodeDatum>;
+  export function forceY<NodeDatum extends SimulationNodeDatum>(
+    y?: number | ((node: NodeDatum) => number),
+  ): ForceY<NodeDatum>;
 }
