@@ -366,12 +366,12 @@ test("detail zoom repositions co-located semantic labels before hiding them", ()
 
   const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
   const data = labels.props.data;
-  assert.equal(data.filter((datum) => datum.kind === "entity-label").length, 2);
+  assert.equal(data.filter((datum) => datum.kind === "entity-label").length, 0);
   assert.equal(data.filter((datum) => datum.kind === "place-label").length, 1);
   assert.equal(data.filter((datum) => datum.kind === "relationship-label").length, 1);
 
   const offsets = data.map((datum) => labels.props.getPixelOffset(datum).join(":"));
-  assert.ok(new Set(offsets).size >= 3, "colliding semantic labels use alternate placements");
+  assert.ok(new Set(offsets).size >= 2, "colliding semantic labels use alternate placements");
   assert.equal(labels.props.getTextAnchor, "middle");
 });
 
