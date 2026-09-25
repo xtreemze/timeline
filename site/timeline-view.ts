@@ -7,17 +7,6 @@
  */
 
 import {
-  geometryMeasurementKey,
-  planCommittedTemporalLayout,
-  type TemporalCommittedLayoutPlan,
-  type TemporalLayoutCluster,
-  type TemporalLayoutMeasurement,
-} from "../src/layout/temporal-layout.ts";
-import {
-  createRetainedTimelineMetrics,
-  type RetainedTimelineSummary,
-} from "../src/performance/retained-timeline-metrics.ts";
-import {
   createInteractionCoordinator,
   type InteractionCompletionReason,
   type InteractionCoordinator,
@@ -30,6 +19,17 @@ import {
   surfaceNavigationFromKeyboard,
   surfacePointerMayStartDirectManipulation,
 } from "../src/interaction/surface-input-policy.ts";
+import {
+  geometryMeasurementKey,
+  planCommittedTemporalLayout,
+  type TemporalCommittedLayoutPlan,
+  type TemporalLayoutCluster,
+  type TemporalLayoutMeasurement,
+} from "../src/layout/temporal-layout.ts";
+import {
+  createRetainedTimelineMetrics,
+  type RetainedTimelineSummary,
+} from "../src/performance/retained-timeline-metrics.ts";
 import { activeOccurrenceIds } from "../src/projection/spatiotemporal-projection.ts";
 import {
   beginRetention,
@@ -733,9 +733,7 @@ export class TimelineViewController {
       return false;
     };
 
-    const abortSurfaceGesture = (
-      reason: Exclude<InteractionCompletionReason, "release">,
-    ): void => {
+    const abortSurfaceGesture = (reason: Exclude<InteractionCompletionReason, "release">): void => {
       const pointerIds = new Set(this.touchPointers.keys());
       if (this.pointerDrag) pointerIds.add(this.pointerDrag.pointerId);
       const snapshot = this.surfaceInteraction.snapshot();
@@ -993,9 +991,7 @@ export class TimelineViewController {
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) abortSurfaceGesture("visibilitychange");
     });
-    window.addEventListener("orientationchange", () =>
-      abortSurfaceGesture("orientationchange"),
-    );
+    window.addEventListener("orientationchange", () => abortSurfaceGesture("orientationchange"));
     globalThis.screen?.orientation?.addEventListener?.("change", () =>
       abortSurfaceGesture("orientationchange"),
     );
