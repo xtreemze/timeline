@@ -16,7 +16,6 @@ export default defineConfig({
     video: "off",
     actionTimeout: 10_000,
     headless: false,
-    channel: "chrome",
     launchOptions: {
       args: [
         "--disable-background-timer-throttling",
