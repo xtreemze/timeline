@@ -376,13 +376,12 @@ function releasingRelationshipSegments(
 
 /**
  * Below this globe zoom level, nearby entities remain grouped into clusters.
- * Release ordinary compact markers once a 6-degree cluster cell occupies
- * roughly 160px on screen (zoom ~= 4.25 at the equator). Authored large
- * markers remain clustered longer; deliberately small markers may resolve
- * slightly sooner without changing their touch targets.
+ * The 44px default node footprint intentionally feeds this readability policy:
+ * larger authored markers remain clustered longer because they consume more
+ * of the same screen space used for touch and collision.
  */
 export const CLUSTER_ZOOM_THRESHOLD = 4.25;
-/** Reference visible footprint radius for the compact default marker scale. */
+/** Historical clustering reference radius; actual node footprints scale from it. */
 const WORLD_CLUSTER_BASE_NODE_RADIUS_PX = 16;
 /** Bound cluster bubbles so membership does not linearly inflate overview geometry. */
 const WORLD_CLUSTER_MARKER_MIN_RADIUS_PX = 22;
