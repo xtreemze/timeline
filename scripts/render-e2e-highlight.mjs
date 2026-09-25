@@ -68,16 +68,6 @@ function usableFrameRate(value) {
   return typeof value === "string" && value.length > 0 && value !== "0/0";
 }
 
-function frameRateNumber(value) {
-  if (!usableFrameRate(value)) return Number.NaN;
-  if (!value.includes("/")) return Number.parseFloat(value);
-  const [numerator, denominator] = value.split("/").map(Number);
-  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) {
-    return Number.NaN;
-  }
-  return numerator / denominator;
-}
-
 async function probeFrameTimestamps(filePath) {
   const stdout = await capture(ffprobe, [
     "-v",
@@ -97,6 +87,20 @@ async function probeFrameTimestamps(filePath) {
     .filter((value) => Number.isFinite(value));
 }
 
+function decodedFrameStats(timestamps) {
+  if (timestamps.length < 2) {
+    return { frames: timestamps.length, duration: 0, fps: 0 };
+  }
+  const first = timestamps[0];
+  const last = timestamps.at(-1);
+  const duration = last - first;
+  return {
+    frames: timestamps.length,
+    duration,
+    fps: duration > 0 ? (timestamps.length - 1) / duration : 0,
+  };
+}
+
 async function verifyMeasuredCapture(videoPath, manifest) {
   const timingPath = `${videoPath}.frames.json`;
   const timing = JSON.parse(await readFile(timingPath, "utf8"));
@@ -104,45 +108,46 @@ async function verifyMeasuredCapture(videoPath, manifest) {
     ? timing.timestamps.filter((value) => Number.isFinite(value))
     : [];
   if (timestamps.length < 2) {
-    throw new Error(`Measured capture timestamps missing for ${videoPath}`);
+    throw new Error(`Measured current-tab capture timestamps missing for ${videoPath}`);
+  }
+  if (timing.requestedFps !== manifest.captureFps) {
+    throw new Error(`${videoPath} timing evidence does not match the requested capture rate`);
+  }
+  if (timing.minimumFps !== manifest.minimumMeasuredCaptureFps) {
+    throw new Error(`${videoPath} timing evidence does not match the minimum capture rate`);
+  }
+  if (!String(timing.mimeType ?? "").toLowerCase().includes("vp8")) {
+    throw new Error(`${videoPath} raw capture did not use the preferred VP8 codec`);
   }
 
-  const captureDuration = (timestamps.at(-1) - timestamps[0]) / 1000;
-  if (!Number.isFinite(captureDuration) || captureDuration <= 0) {
-    throw new Error(`Invalid measured capture duration for ${videoPath}`);
-  }
-  const measuredFps = (timestamps.length - 1) / captureDuration;
-  const minimumFps = manifest.minimumMeasuredCaptureFps ?? manifest.captureFps - 1;
-  if (measuredFps < minimumFps) {
+  const captureStats = decodedFrameStats(timestamps);
+  const minimumFps = manifest.minimumMeasuredCaptureFps;
+  if (!Number.isFinite(captureStats.fps) || captureStats.fps < minimumFps) {
     throw new Error(
-      `${videoPath} captured ${String(timestamps.length)} actual Chromium frames across ${captureDuration.toFixed(3)}s (${measuredFps.toFixed(2)} fps); expected at least ${Number(minimumFps).toFixed(2)} fps before encoding.`,
+      `${videoPath} current-tab stream delivered ${String(captureStats.frames)} frames across ${captureStats.duration.toFixed(3)}s (${captureStats.fps.toFixed(2)} fps); expected at least ${Number(minimumFps).toFixed(2)} fps before publication encoding.`,
     );
   }
 
   const decodedTimestamps = await probeFrameTimestamps(videoPath);
-  if (decodedTimestamps.length < 2) {
-    throw new Error(`Could not decode raw WebM frame timestamps for ${videoPath}`);
-  }
-  if (decodedTimestamps.length !== timing.encodedFrames) {
+  const decoded = decodedFrameStats(decodedTimestamps);
+  if (!Number.isFinite(decoded.fps) || decoded.fps < minimumFps) {
     throw new Error(
-      `${videoPath} decoded ${String(decodedTimestamps.length)} frames but capture selected ${String(timing.encodedFrames)}; encoder duplication or loss is not allowed.`,
+      `${videoPath} raw WebM decodes at only ${decoded.fps.toFixed(2)} fps from ${String(decoded.frames)} actual frames; expected at least ${Number(minimumFps).toFixed(2)} fps.`,
     );
   }
-  const decodedDuration = decodedTimestamps.at(-1) - decodedTimestamps[0];
-  const decodedFps = (decodedTimestamps.length - 1) / decodedDuration;
-  if (!Number.isFinite(decodedFps) || decodedFps < minimumFps) {
+  if (decoded.duration < captureStats.duration * 0.95) {
     throw new Error(
-      `${videoPath} decoded raw cadence is ${decodedFps.toFixed(2)} fps; expected at least ${Number(minimumFps).toFixed(2)} fps.`,
+      `${videoPath} raw WebM covers only ${decoded.duration.toFixed(3)}s of a ${captureStats.duration.toFixed(3)}s measured current-tab capture.`,
     );
   }
 
   return {
     timingPath,
-    capturedFrames: timestamps.length,
-    encodedFrames: decodedTimestamps.length,
-    capturedDuration: captureDuration,
-    measuredFps,
-    decodedFps,
+    capturedFrames: captureStats.frames,
+    encodedFrames: decoded.frames,
+    capturedDuration: captureStats.duration,
+    measuredFps: captureStats.fps,
+    decodedFps: decoded.fps,
   };
 }
 
@@ -214,13 +219,6 @@ async function renderFormFactor(formFactor, manifest) {
       const videoPath = path.resolve(workspace, segment.video);
       const captureVerification = await verifyMeasuredCapture(videoPath, manifest);
       const video = await probeVisualSource(videoPath);
-      if (!video.fps) throw new Error(`Could not determine source FPS for ${videoPath}`);
-      const rawFps = frameRateNumber(video.fps);
-      if (!Number.isFinite(rawFps) || rawFps < manifest.minimumMeasuredCaptureFps) {
-        throw new Error(
-          `${videoPath} reports only ${String(video.fps)} fps after raw encoding; expected at least ${String(manifest.minimumMeasuredCaptureFps)} fps`,
-        );
-      }
       sources.push({
         segment,
         screenshotPath,
@@ -338,11 +336,14 @@ async function renderFormFactor(formFactor, manifest) {
       },
     });
 
-    const publishedWebp = await probeVisualSource(webpOutput);
-    const publishedWebpFps = frameRateNumber(publishedWebp.fps);
-    if (!Number.isFinite(publishedWebpFps) || publishedWebpFps < manifest.minimumMeasuredCaptureFps) {
+    const publishedWebpTimestamps = await probeFrameTimestamps(webpOutput);
+    const publishedWebp = decodedFrameStats(publishedWebpTimestamps);
+    if (
+      !Number.isFinite(publishedWebp.fps) ||
+      publishedWebp.fps < manifest.minimumMeasuredCaptureFps
+    ) {
       throw new Error(
-        `${webpOutput} is not a verified 60 fps presentation derivative (${String(publishedWebp.fps)})`,
+        `${webpOutput} decodes at only ${publishedWebp.fps.toFixed(2)} fps; expected a verified 60 fps presentation derivative.`,
       );
     }
 
@@ -416,11 +417,11 @@ async function renderFormFactor(formFactor, manifest) {
     reelPath,
   );
   await run(ffmpeg, args);
-  const reelProbe = await probeVisualSource(reelPath);
-  const reelFps = frameRateNumber(reelProbe.fps);
-  if (!Number.isFinite(reelFps) || reelFps < manifest.minimumMeasuredCaptureFps) {
+  const reelTimestamps = await probeFrameTimestamps(reelPath);
+  const reelProbe = decodedFrameStats(reelTimestamps);
+  if (!Number.isFinite(reelProbe.fps) || reelProbe.fps < manifest.minimumMeasuredCaptureFps) {
     throw new Error(
-      `${reelPath} is not a verified 60 fps reel (${String(reelProbe.fps)})`,
+      `${reelPath} decodes at only ${reelProbe.fps.toFixed(2)} fps; expected a verified 60 fps reel.`,
     );
   }
 
