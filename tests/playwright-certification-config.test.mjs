@@ -141,9 +141,20 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightConfig, /viewport:\s*\{\s*width:\s*1440,\s*height:\s*900\s*\}/);
   assert.match(highlightConfig, /viewport:\s*\{\s*width:\s*390,\s*height:\s*844\s*\}/);
   assert.match(highlightConfig, /hasTouch:\s*true/);
+  assert.match(highlightConfig, /--disable-background-timer-throttling/);
+  assert.match(highlightConfig, /--disable-renderer-backgrounding/);
+  assert.match(highlightConfig, /--disable-backgrounding-occluded-windows/);
+  assert.match(highlightConfig, /--disable-frame-rate-limit/);
+  assert.match(highlightConfig, /--disable-gpu-vsync/);
 
   assert.match(highlightSpec, /records source-native Lūm showcase media per form factor/);
   assert.match(highlightSpec, /page\.screencast\.start/);
+  assert.match(highlightSpec, /onFrame/);
+  assert.match(highlightSpec, /CAPTURE_FPS\s*=\s*60/);
+  assert.match(highlightSpec, /MIN_CAPTURE_FPS\s*=\s*CAPTURE_FPS\s*-\s*1/);
+  assert.match(highlightSpec, /measuredFps\s*<\s*MIN_CAPTURE_FPS/);
+  assert.match(highlightSpec, /libvpx/);
+  assert.match(highlightSpec, /\.frames\.json/);
   assert.match(highlightSpec, /page\.screencast\.showChapter/);
   assert.match(highlightSpec, /page\.screencast\.showOverlay/);
   assert.match(highlightSpec, /page\.screenshot/);
@@ -161,6 +172,10 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /lum-\$\{formFactor\}-highlight\.mp4/);
   assert.match(highlightRenderer, /path\.join\(showcaseRoot, formFactor\)/);
   assert.match(highlightRenderer, /probeVisualSource/);
+  assert.match(highlightRenderer, /verifyMeasuredCapture/);
+  assert.match(highlightRenderer, /best_effort_timestamp_time/);
+  assert.match(highlightRenderer, /decodedTimestamps\.length !== timing\.encodedFrames/);
+  assert.match(highlightRenderer, /minimumMeasuredCaptureFps/);
   assert.match(highlightRenderer, /libwebp_anim/);
   assert.match(highlightRenderer, /copyFile/);
   assert.match(highlightRenderer, /mediaMode === "static"/);
