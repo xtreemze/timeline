@@ -826,7 +826,7 @@ test("inactive relationships mute until their connected neighborhood is emphasiz
   let relationships = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationships);
   let edge = relationships.props.data[0];
   const inactive = relationships.props.getColor(edge);
-  assert.equal(inactive[3], 96, "ordinary edges stay visually subordinate");
+  assert.equal(inactive[3], 72, "ordinary edges stay visually subordinate");
 
   h.getDeckProps().onHover({
     object: {

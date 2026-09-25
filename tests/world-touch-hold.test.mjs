@@ -46,6 +46,19 @@ test("a second finger cancels a pending hold so pinch keeps camera ownership", (
 
 test("world node drag initiation preserves modified and secondary-button browser gestures", () => {
   assert.equal(worldPointerDragMayStart({ srcEvent: { button: 0, ctrlKey: false } }), true);
+  assert.equal(
+    worldPointerDragMayStart({
+      srcEvent: { button: -1, buttons: 1, pointerType: "mouse", ctrlKey: false },
+    }),
+    true,
+    "deck drag-start may originate from a primary-button pointermove",
+  );
+  assert.equal(
+    worldPointerDragMayStart({
+      srcEvent: { button: -1, buttons: 2, pointerType: "mouse", ctrlKey: false },
+    }),
+    false,
+  );
   assert.equal(worldPointerDragMayStart({ srcEvent: { button: 2, ctrlKey: false } }), false);
   assert.equal(worldPointerDragMayStart({ srcEvent: { button: 0, ctrlKey: true } }), false);
   assert.equal(worldPointerDragMayStart({ srcEvent: { pointerType: "touch" } }), true);
@@ -270,8 +283,13 @@ test("touch presses off any entity never arm a hold", (t) => {
 
 test("mouse and pen drags stay immediate", () => {
   const h = surfaceHarness();
-  assert.equal(h.dragStart(9, "mouse"), true);
-  assert.equal(h.begins.length, 1);
+  assert.equal(
+    h.dragStart(9, "mouse", { button: -1, buttons: 1 }),
+    true,
+    "a real deck pointermove-derived drag start must claim the node",
+  );
+  assert.equal(h.dragStart(10, "pen", { button: -1, buttons: 1 }), true);
+  assert.equal(h.begins.length, 2);
 });
 
 test("modified and secondary-button mouse drags never claim the world node", () => {
