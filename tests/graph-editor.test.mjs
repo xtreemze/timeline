@@ -567,7 +567,10 @@ test("legacy graph camera and direct manipulation use the shared surface interac
 
   assert.match(bridge, /createSurfaceInteractionController\("graph", interaction\)/);
   assert.match(bridge, /surfaceInteraction\.beginPointer\(event\.pointerId, "pan"\)/);
-  assert.match(bridge, /surfaceInteraction\.beginPointer\(event\.pointerId, "tap", \{ claim: false \}\)/);
+  assert.match(
+    bridge,
+    /surfaceInteraction\.beginPointer\(event\.pointerId, "tap", \{ claim: false \}\)/,
+  );
   assert.match(bridge, /surfaceInteraction\.beginPointer\(event\.pointerId, "pinch"\)/);
   assert.match(bridge, /surfaceInteraction\.claimGesture\("node-drag"\)/);
   assert.match(bridge, /surfaceInteraction\.beginDiscrete\("wheel"\)/);
