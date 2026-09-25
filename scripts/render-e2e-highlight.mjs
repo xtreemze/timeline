@@ -78,8 +78,7 @@ async function probeFrameStats(filePath) {
     filePath,
   ]);
   const timestamps = stdout
-    .split(/\r?
-/u)
+    .split(/\r?\n/u)
     .map((value) => Number(value.trim()))
     .filter((value) => Number.isFinite(value));
   if (timestamps.length < 2) {
@@ -478,15 +477,13 @@ const markdown = [
       "",
     ]),
   ]),
-].join("
-");
+].join("\n");
 
 await writeFile(markdownPath, markdown);
 await rm(workDir, { recursive: true, force: true });
 
 for (const formFactor of formFactors) {
-  console.log(`
-${formFactor.toUpperCase()} showcase sizes`);
+  console.log(`\n${formFactor.toUpperCase()} showcase sizes`);
   for (const media of rendered[formFactor].media) {
     const dimensions = `${media.source.width}x${media.source.height}`;
     const rate = media.source.fps ? ` @ ${media.source.fps} fps` : "";
