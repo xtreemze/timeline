@@ -54,7 +54,7 @@ Categories and stories serve different axes and should not be used interchangeab
 - The same category should be reusable by unrelated stories when their events have the same semantic type.
 - A story title or story identifier should not be copied into `categoryId` merely to color or group that story. Story identity belongs in `story.itemIds` and, where useful, narrative extension metadata.
 
-The default anthology therefore keeps **The Three Little Pigs**, **Snow White**, and **Cinderella** as three story nodes while categorizing their events with a reusable semantic taxonomy: background/condition, movement/transition, creation/preparation, conflict/threat, decision/choice, discovery/information, relationship/social, state change/transformation, and resolution/outcome.
+The default anthology keeps **The Three Little Pigs**, **Snow White**, **Cinderella**, **Little Red Riding Hood**, **Hansel and Gretel**, and **Jack and the Beanstalk** as six story records while categorizing their events with a reusable semantic taxonomy. In addition to the original categories, the expanded fixture includes deception/manipulation and exchange/bargain so unrelated stories can share those semantics without turning story titles into categories.
 
 ## Parallel stories
 
@@ -62,9 +62,9 @@ Multiple stories may coexist in one timeline. The recommended pattern is:
 
 - every chronology item belongs to exactly one story unless a deliberate crossover is represented;
 - each story explicitly declares its reusable place set through `story.placeIds[]`;
-- every edge in the bundled example stories has a canonical `time` and `placeId`, and its place comes from that story's reusable place set;
+- every edge in the bundled example stories has canonical `time`, `placeId`, and chronology context, and its place comes from that story's reusable place set; long-lived lifecycle edges use explicit area/route places rather than blank spatial fields;
 - story places carry map-ready geometry plus a semantic icon and marker shape; edges reference the place ID rather than copying marker or geometry data;
 - stories remain narrative metadata rather than graph nodes or synthetic container topology;
 - with story focus off, the timeline shows all items together; selecting a story uses the existing focus path to inspect only that narrative sequence.
 
-The default sample uses **The Three Little Pigs**, **Snow White**, and **Cinderella** to exercise this model across year-scale prologues, minute-scale action, ranges, media, locations, graph relationships, relation lifecycle changes, and all three focused-event compositions.
+The default sample uses six classic tales. The first three retain their overlapping Storybook Cycle 1000 action, while **Little Red Riding Hood**, **Hansel and Gretel**, and **Jack and the Beanstalk** occupy separate synthetic cycles and distinct map regions. This exercises overlapping and separated chronology, minute-scale action, ranges, media, reusable story place registries, graph relationships, relation lifecycle changes, and all three focused-event compositions.
