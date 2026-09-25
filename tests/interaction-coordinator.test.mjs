@@ -111,7 +111,10 @@ test("all surfaces share primary pointer acquisition semantics", () => {
   );
   assert.equal(surfacePointerMayStartDirectManipulation({ pointerType: "touch" }), true);
   assert.equal(surfacePointerMayStartDirectManipulation({ pointerType: "pen", button: 0 }), true);
-  assert.equal(surfacePointerMayStartDirectManipulation({ pointerType: "mouse", button: 2 }), false);
+  assert.equal(
+    surfacePointerMayStartDirectManipulation({ pointerType: "mouse", button: 2 }),
+    false,
+  );
   assert.equal(
     surfacePointerMayStartDirectManipulation({ pointerType: "mouse", button: 0, ctrlKey: true }),
     false,
