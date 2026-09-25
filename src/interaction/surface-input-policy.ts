@@ -23,6 +23,7 @@ export type SurfaceNavigationCommand =
 interface SurfaceKeyboardTargetLike {
   readonly tagName?: unknown;
   readonly isContentEditable?: unknown;
+  readonly closest?: unknown;
 }
 
 interface SurfaceKeyboardEventLike {
@@ -117,6 +118,25 @@ export function surfaceKeyboardMayNavigate(event: SurfaceKeyboardEventLike): boo
   if (target.isContentEditable === true) return false;
   const tagName = typeof target.tagName === "string" ? target.tagName.toUpperCase() : "";
   return !NATIVE_KEYBOARD_TARGET_TAGS.has(tagName);
+}
+
+/**
+ * True when the keyboard event originated inside a renderer/custom surface
+ * that owns local navigation. Application-level presentation shortcuts use
+ * this to avoid competing with deck.gl/mjolnir, Leaflet, or the retained
+ * timeline while focus is inside one of those surfaces.
+ */
+export function surfaceKeyboardTargetOwnsNavigation(event: SurfaceKeyboardEventLike): boolean {
+  const target = record(event.target) as SurfaceKeyboardTargetLike | null;
+  const closest = target?.closest;
+  if (typeof closest !== "function") return false;
+  try {
+    return Boolean(
+      closest.call(target, '[data-surface-keyboard-navigation="camera"]'),
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
