@@ -530,6 +530,85 @@ test("detail zoom repositions co-located semantic labels before hiding them", ()
   assert.equal(labels.props.getTextAnchor, "middle");
 });
 
+test("relationship hover reveals only endpoint node labels and does not resurrect place labels", () => {
+  const h = harness();
+  const instances = Array.from({ length: 60 }, (_, index) =>
+    instance(index, {
+      visualWeight: 0.1,
+      geographicAnchors: [
+        {
+          placeId: `hover-place-${String(index).padStart(3, "0")}`,
+          label: `Hover place ${index}`,
+          longitude: -165 + (index % 12) * 30,
+          latitude: -50 + Math.floor(index / 12) * 25,
+          influence: 1,
+        },
+      ],
+    }),
+  );
+  const source = instances[58];
+  const target = instances[59];
+  const surface = new DeckWorldSurface({}, h.runtime, {
+    ...WORKING_CAMERA,
+    longitude: 0,
+    latitude: 0,
+    zoom: 3,
+  });
+  surface.setProjection(
+    createWorldProjection({
+      instances,
+      edges: [
+        createProjectedWorldEdge({
+          id: "hover-edge",
+          label: "connects",
+          sourceInstanceId: source.id,
+          targetInstanceId: target.id,
+          temporalWeight: 0.1,
+          visible: true,
+          retained: false,
+        }),
+      ],
+    }),
+  );
+
+  const before = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  const beforeEntityIds = new Set(
+    before.filter((datum) => datum.kind === "entity-label").map((datum) => datum.entityId),
+  );
+  const beforePlaceIds = new Set(
+    before.filter((datum) => datum.kind === "place-label").map((datum) => datum.placeId),
+  );
+  assert.equal(beforeEntityIds.has(source.canonicalId), false);
+  assert.equal(beforeEntityIds.has(target.canonicalId), false);
+  assert.equal(beforePlaceIds.has("hover-place-058"), false);
+  assert.equal(beforePlaceIds.has("hover-place-059"), false);
+
+  h.getDeckProps().onHover({
+    object: {
+      kind: "relationship",
+      relationshipId: "hover-edge",
+    },
+  });
+
+  const after = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  const afterEntityIds = new Set(
+    after.filter((datum) => datum.kind === "entity-label").map((datum) => datum.entityId),
+  );
+  const afterPlaceIds = new Set(
+    after.filter((datum) => datum.kind === "place-label").map((datum) => datum.placeId),
+  );
+  const newlyRevealedEntityIds = [...afterEntityIds]
+    .filter((entityId) => !beforeEntityIds.has(entityId))
+    .sort();
+
+  assert.deepEqual(newlyRevealedEntityIds, [source.canonicalId, target.canonicalId].sort());
+  assert.deepEqual(
+    [...afterPlaceIds].sort(),
+    [...beforePlaceIds].sort(),
+    "edge hover must leave place-label membership unchanged",
+  );
+});
+
 test("dense detail scenes keep only collision-free labels and reveal interaction context", () => {
   const h = harness();
   const instances = Array.from({ length: 24 }, (_, index) =>
