@@ -7,6 +7,7 @@ const outputRoot = path.resolve(process.env.E2E_MEDIA_DIR ?? "artifacts/e2e-medi
 const ffprobe = process.env.FFPROBE_BIN ?? "ffprobe";
 const SHOWCASE_FPS = 60;
 const MIN_CAPTURE_FPS = 59;
+const MIN_CAPTURE_COVERAGE = 0.95;
 const dimensions = {
   desktop: { width: 1440, height: 900 },
   mobile: { width: 390, height: 844 },
@@ -25,7 +26,7 @@ function probeVisual(filePath) {
       "-select_streams",
       "v:0",
       "-show_entries",
-      "stream=width,height,codec_name",
+      "stream=width,height,avg_frame_rate,r_frame_rate,codec_name",
       "-of",
       "json",
       filePath,
@@ -60,14 +61,12 @@ function probeDecodedFrameRate(filePath) {
   if (result.status !== 0) {
     throw new Error(`ffprobe frame decode failed for ${filePath}: ${result.stderr}`);
   }
-
   const timestamps = JSON.parse(result.stdout)
     .frames?.map((frame) => Number.parseFloat(frame.best_effort_timestamp_time))
     .filter(Number.isFinite);
   if (!Array.isArray(timestamps) || timestamps.length < 2) {
     throw new Error(`No decoded frame timing evidence found in ${filePath}.`);
   }
-
   const first = timestamps[0];
   const last = timestamps.at(-1);
   const duration = last - first;
@@ -78,11 +77,11 @@ function probeDecodedFrameRate(filePath) {
   return { rate, frameCount: timestamps.length, duration };
 }
 
-function assertFrameRate(filePath, label) {
+function assertDecodedFrameRate(filePath, label) {
   const decoded = probeDecodedFrameRate(filePath);
   if (decoded.rate < MIN_CAPTURE_FPS) {
     throw new Error(
-      `${label} decodes at ${decoded.rate.toFixed(2)} fps; expected at least ${MIN_CAPTURE_FPS} actual frames per second.`,
+      `${label} decodes at ${decoded.rate.toFixed(2)} fps; expected at least ${MIN_CAPTURE_FPS}.`,
     );
   }
   return decoded;
@@ -91,9 +90,46 @@ function assertFrameRate(filePath, label) {
 function assertDimensions(stream, expected, label) {
   if (stream.width !== expected.width || stream.height !== expected.height) {
     throw new Error(
-      `${label} is ${String(stream.width)}x${String(stream.height)}; expected ${String(expected.width)}x${String(expected.height)}.`,
+      `${label} is ${String(stream.width)}x${String(stream.height)}; expected ${expected.width}x${expected.height}.`,
     );
   }
+}
+
+function measureSourceCadence(segment, formFactor) {
+  const capture = segment.capture;
+  if (!capture || capture.targetFps !== SHOWCASE_FPS) {
+    throw new Error(`${formFactor}/${segment.name} does not target ${SHOWCASE_FPS} fps.`);
+  }
+  const timestamps = capture.frameTimestampsMs;
+  if (!Array.isArray(timestamps) || timestamps.length < 2) {
+    throw new Error(`${formFactor}/${segment.name} has no source frame timing evidence.`);
+  }
+  const first = timestamps[0];
+  const last = timestamps.at(-1);
+  const duration = (last - first) / 1_000;
+  const rate = (timestamps.length - 1) / duration;
+  if (!Number.isFinite(duration) || duration <= 0 || !Number.isFinite(rate)) {
+    throw new Error(`${formFactor}/${segment.name} has invalid source frame timing evidence.`);
+  }
+  const recordingWindow = Number(capture.recordingWindowSeconds);
+  if (
+    !Number.isFinite(recordingWindow) ||
+    recordingWindow <= 0 ||
+    duration < recordingWindow * MIN_CAPTURE_COVERAGE
+  ) {
+    throw new Error(
+      `${formFactor}/${segment.name} source frames cover ${duration.toFixed(3)}s of a ${recordingWindow.toFixed(3)}s recording window; expected at least ${(recordingWindow * MIN_CAPTURE_COVERAGE).toFixed(3)}s.`,
+    );
+  }
+  if (rate < MIN_CAPTURE_FPS) {
+    throw new Error(
+      `${formFactor}/${segment.name} measures ${rate.toFixed(2)} actual source fps; expected at least ${MIN_CAPTURE_FPS} fps before encoding.`,
+    );
+  }
+  if (!Number.isFinite(capture.browserFrameClockFps) || capture.browserFrameClockFps < MIN_CAPTURE_FPS) {
+    throw new Error(`${formFactor}/${segment.name} browser frame clock did not sustain 59 fps.`);
+  }
+  return rate;
 }
 
 const rendered = readJson(path.join(outputRoot, "manifest.json"));
@@ -103,52 +139,48 @@ for (const formFactor of ["desktop", "mobile"]) {
   const sourceManifest = readJson(path.join(outputRoot, "raw", formFactor, "manifest.json"));
   if (
     sourceManifest.captureFps !== SHOWCASE_FPS ||
-    sourceManifest.minimumCapturedFps !== MIN_CAPTURE_FPS
+    sourceManifest.minimumCapturedFps !== MIN_CAPTURE_FPS ||
+    sourceManifest.minimumCaptureCoverage !== MIN_CAPTURE_COVERAGE
   ) {
     throw new Error(`${formFactor} manifest does not declare the measured 60 fps contract.`);
   }
 
   for (const segment of sourceManifest.segments) {
-    const screenshotPath = path.resolve(workspace, segment.screenshot);
-    const screenshot = probeVisual(screenshotPath);
+    const screenshot = probeVisual(path.resolve(workspace, segment.screenshot));
     assertDimensions(screenshot, expected, `${formFactor}/${segment.name} screenshot`);
-
     if (segment.mediaMode !== "motion") continue;
-    if (segment.requestedFps !== SHOWCASE_FPS || segment.capturedFps < MIN_CAPTURE_FPS) {
-      throw new Error(
-        `${formFactor}/${segment.name} manifest does not certify at least ${MIN_CAPTURE_FPS} captured fps.`,
-      );
-    }
-    if (segment.browserFrameClockFps < MIN_CAPTURE_FPS) {
-      throw new Error(
-        `${formFactor}/${segment.name} browser frame clock fell below ${MIN_CAPTURE_FPS} fps.`,
-      );
-    }
 
-    const rawPath = path.resolve(workspace, segment.video);
-    const raw = probeVisual(rawPath);
-    assertDimensions(raw, expected, `${formFactor}/${segment.name} raw Chromium MP4`);
-    const rawRate = assertFrameRate(rawPath, `${formFactor}/${segment.name} raw Chromium MP4`);
+    const measured = measureSourceCadence(segment, formFactor);
+    const rawWebm = probeVisual(path.resolve(workspace, segment.video));
+    assertDimensions(rawWebm, expected, `${formFactor}/${segment.name} raw WebM`);
+    assertDecodedFrameRate(
+      path.resolve(workspace, segment.video),
+      `${formFactor}/${segment.name} raw VP8 WebM`,
+    );
+    if (rawWebm.codec_name !== "vp8") {
+      throw new Error(
+        `${formFactor}/${segment.name} raw VP8 WebM uses ${String(rawWebm.codec_name)}; expected VP8.`,
+      );
+    }
 
     const published = rendered[formFactor].segments.find(
       (entry) => entry.name === segment.name,
     )?.published;
-    if (!published?.path) {
-      throw new Error(`${formFactor}/${segment.name} has no published asset.`);
-    }
-
-    const webpPath = path.resolve(workspace, published.path);
-    const webp = probeVisual(webpPath);
+    if (!published?.path) throw new Error(`${formFactor}/${segment.name} has no published asset.`);
+    const webp = probeVisual(path.resolve(workspace, published.path));
     assertDimensions(webp, expected, `${formFactor}/${segment.name} animated WebP`);
-    assertFrameRate(webpPath, `${formFactor}/${segment.name} animated WebP`);
+    assertDecodedFrameRate(
+      path.resolve(workspace, published.path),
+      `${formFactor}/${segment.name} animated WebP`,
+    );
 
     console.log(
-      `${formFactor}/${segment.name}: ${rawRate.rate.toFixed(2)} raw fps; 60 fps derivative verified`,
+      `${formFactor}/${segment.name}: ${measured.toFixed(2)} measured source fps; 60 fps outputs verified`,
     );
   }
 
   const reelPath = path.resolve(workspace, rendered[formFactor].reel);
   const reel = probeVisual(reelPath);
   assertDimensions(reel, expected, `${formFactor} highlight reel`);
-  assertFrameRate(reelPath, `${formFactor} highlight reel`);
+  assertDecodedFrameRate(reelPath, `${formFactor} highlight reel`);
 }
