@@ -599,9 +599,14 @@
 .toolbar-control-group {
   display: flex;
   flex: 0 0 auto;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--toolbar-control-gap);
   min-inline-size: 0;
+}
+
+.app-footer-bar :is(.toolbar-range-control, .toolbar-number-control) {
+  flex-wrap: nowrap;
 }
 
 .app-footer-context-actions {
