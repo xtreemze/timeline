@@ -138,6 +138,16 @@ function assertMeasuredCapture(segment, formFactor) {
   if (Math.abs(measuredFps - capture.measuredFps) > 0.05) {
     throw new Error(`${formFactor}/${segment.name} source cadence metadata is inconsistent.`);
   }
+  const recordingWindow = Number(capture.recordingWindowSeconds);
+  if (
+    !Number.isFinite(recordingWindow) ||
+    recordingWindow <= 0 ||
+    durationSeconds < recordingWindow * MIN_CAPTURE_COVERAGE
+  ) {
+    throw new Error(
+      `${formFactor}/${segment.name} source-frame coverage is below the required ${String(MIN_CAPTURE_COVERAGE * 100)}% of its recording window.`,
+    );
+  }
   if (
     !Number.isFinite(capture.browserFrameClockFps) ||
     capture.browserFrameClockFps < MIN_CAPTURE_FPS
@@ -211,13 +221,25 @@ async function renderFormFactor(formFactor, manifest) {
   await mkdir(factorShowcaseDir, { recursive: true });
   await mkdir(reelsDir, { recursive: true });
 
+  const expectedWidth = manifest.captureViewport?.width;
+  const expectedHeight = manifest.captureViewport?.height;
   const sources = [];
   for (const segment of manifest.segments) {
     const screenshotPath = path.resolve(workspace, segment.screenshot);
     const screenshot = await probeVisualSource(screenshotPath);
+    if (screenshot.width !== expectedWidth || screenshot.height !== expectedHeight) {
+      throw new Error(
+        `${formFactor}/${segment.name} screenshot is ${String(screenshot.width)}x${String(screenshot.height)}; expected ${String(expectedWidth)}x${String(expectedHeight)}.`,
+      );
+    }
     if (segment.mediaMode === "motion") {
       const videoPath = path.resolve(workspace, segment.video);
       const video = await probeVisualSource(videoPath);
+      if (video.width !== expectedWidth || video.height !== expectedHeight) {
+        throw new Error(
+          `${formFactor}/${segment.name} raw WebM is ${String(video.width)}x${String(video.height)}; expected ${String(expectedWidth)}x${String(expectedHeight)}.`,
+        );
+      }
       if (!video.fps) throw new Error(`Could not determine source FPS for ${videoPath}`);
       await assertDecodedFrameRate(videoPath, `${formFactor}/${segment.name} raw VP8 WebM`);
       if (video.codec !== "vp8") {
@@ -234,8 +256,8 @@ async function renderFormFactor(formFactor, manifest) {
   const firstMotion = sources.find((entry) => entry.video);
   if (!firstMotion) throw new Error(`${formFactor} showcase has no motion source`);
   const reelProfile = {
-    width: firstMotion.video.width,
-    height: firstMotion.video.height,
+    width: expectedWidth,
+    height: expectedHeight,
     fps: String(SHOWCASE_FPS),
   };
 
