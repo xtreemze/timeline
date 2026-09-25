@@ -15,12 +15,15 @@ export default defineConfig({
     screenshot: "off",
     video: "off",
     actionTimeout: 10_000,
+    headless: false,
     launchOptions: {
       args: [
         "--disable-background-timer-throttling",
         "--disable-renderer-backgrounding",
         "--disable-backgrounding-occluded-windows",
         "--disable-frame-rate-limit",
+        "--auto-accept-this-tab-capture",
+        "--enable-experimental-web-platform-features",
         "--disable-gpu-vsync",
       ],
     },
