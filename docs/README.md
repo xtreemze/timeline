@@ -31,6 +31,7 @@ For product copy, use **Lūm**. The repository and some compatibility APIs still
 ## Persistence and interchange
 
 - [PROJECT-PERSISTENCE.md](PROJECT-PERSISTENCE.md) — local-first project repository boundary.
+- [DATA-LAYER.md](DATA-LAYER.md) — database, graph projection, browser storage, Arrow, and DuckDB architecture.
 - [INTERCHANGE.md](INTERCHANGE.md) — general import/export contract.
 - [TEMPORAL-SPATIAL-INTERCHANGE.md](TEMPORAL-SPATIAL-INTERCHANGE.md) — precise temporal/spatial serialization and browser integration.
 - [WEBMCP-MEMGRAPH.md](WEBMCP-MEMGRAPH.md) — WebMCP authoring and Memgraph relay/round-trip.
