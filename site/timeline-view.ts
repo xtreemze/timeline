@@ -1883,14 +1883,14 @@ export class TimelineViewController {
     this.interactionVelocity = 0;
   }
 
-  startInertia(initialVelocityPxPerMs: number, usableLength: number): void {
+  startInertia(initialVelocityPxPerMs: number, pixelLength: number): void {
     if (this.reducedMotionQuery?.matches) {
       this.commitInteraction();
       return;
     }
     this.cancelInertia();
     this.beginInteraction();
-    const usable = Math.max(1, usableLength);
+    const usable = Math.max(1, pixelLength);
     let velocity = Number(initialVelocityPxPerMs) || 0;
     let lastFrame = 0;
 
