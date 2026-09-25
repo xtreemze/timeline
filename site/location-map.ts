@@ -578,10 +578,7 @@ function installWeightedMapDragging(
   };
 
   const onKeyDownCapture = (event: KeyboardEvent) => {
-    if (
-      !MAP_KEYBOARD_CAMERA_KEYS.has(event.key) ||
-      !surfaceKeyboardMayNavigate(event)
-    ) {
+    if (!MAP_KEYBOARD_CAMERA_KEYS.has(event.key) || !surfaceKeyboardMayNavigate(event)) {
       return;
     }
     finishDiscreteInput();
