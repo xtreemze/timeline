@@ -12,6 +12,7 @@ on:
       - 'playwright.highlight.config.ts'
       - 'tests/highlight/**'
       - 'scripts/render-e2e-highlight.mjs'
+      - 'scripts/verify-e2e-highlight.mjs'
       - 'tests/playwright-certification-config.test.mjs'
       - 'docs/E2E-HIGHLIGHT-REEL.md'
       - 'docs/FORMAL-PRESENTATION.md'
@@ -30,6 +31,7 @@ on:
       - 'playwright.highlight.config.ts'
       - 'tests/highlight/**'
       - 'scripts/render-e2e-highlight.mjs'
+      - 'scripts/verify-e2e-highlight.mjs'
       - 'tests/playwright-certification-config.test.mjs'
       - 'docs/E2E-HIGHLIGHT-REEL.md'
       - 'docs/FORMAL-PRESENTATION.md'
@@ -79,6 +81,7 @@ jobs:
 
       - name: Verify media evidence
         run: |
+          pnpm verify:e2e:showcase
           test -s artifacts/e2e-media/manifest.json
           test -s artifacts/e2e-media/README-showcase.md
           test -s artifacts/e2e-media/reels/lum-desktop-highlight.mp4
