@@ -174,8 +174,12 @@ export class WorldViewRuntimeController {
     if (!this.#sourceProjection) return false;
 
     const forceScene = this.#forcePolicy
-      ? createWorldForceScene(this.#sourceProjection, this.#forcePolicy, { reorganizeDag: true })
-      : createWorldForceScene(this.#sourceProjection, undefined, { reorganizeDag: true });
+      ? createWorldForceScene(this.#sourceProjection, this.#forcePolicy, {
+          reorganizeDag: true,
+        })
+      : createWorldForceScene(this.#sourceProjection, undefined, {
+          reorganizeDag: true,
+        });
     this.#forceBackend.setScene(forceScene);
     this.#surface.setRelationshipRoutes?.(forceScene.relationshipRoutes ?? Object.freeze([]));
     this.#reheatTopology(0.18);
