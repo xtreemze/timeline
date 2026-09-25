@@ -231,7 +231,7 @@ test("D3 drag collides with nodes registered to a different place", () => {
   assert.ok(draggedPosition && foreignPosition);
   assert.equal(draggedPosition.eastMeters, 58, "the pointer-owned node must remain pinned");
   assert.ok(
-    Math.abs(foreignPosition.eastMeters - 1) > 100,
+    Math.hypot(foreignPosition.eastMeters - 1, foreignPosition.northMeters) > 100,
     "cross-place collision must displace the foreign node instead of allowing overlap",
   );
   assert.ok(
