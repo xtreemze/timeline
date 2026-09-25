@@ -887,6 +887,97 @@ test("post-drop settling stays localized to the released node's force island", (
   );
 });
 
+test("extreme drag stretch does not launch a connected peer", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const dragged = '["alice","edge-stretch"]';
+  const peer = '["bob","edge-stretch"]';
+
+  simulation.setScene({
+    nodes: [
+      node(dragged, { collisionRadiusMeters: 120 }),
+      node(peer, { initialEastMeters: 1000, collisionRadiusMeters: 120 }),
+    ],
+    edges: [
+      {
+        id: "stretched-edge",
+        sourceId: dragged,
+        targetId: peer,
+        strength: 1,
+        restLengthMeters: 1000,
+      },
+    ],
+    anchors: [
+      anchor(dragged, "stockholm", { influence: 0 }),
+      anchor(peer, "stockholm", { influence: 0 }),
+    ],
+  });
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 10_000_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+
+  const before = simulation.getSnapshot().find((entry) => entry.instanceId === peer);
+  simulation.step(1000 / 60);
+  const after = simulation.getSnapshot().find((entry) => entry.instanceId === peer);
+
+  assert.ok(before);
+  assert.ok(after);
+  assert.ok(
+    Math.abs(after.eastMeters - before.eastMeters) < 200,
+    "an arbitrarily stretched relationship must not inject an extreme one-frame velocity",
+  );
+});
+
+test("extreme post-drop place correction is bounded per physics step", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0,
+    anchorStrength: 0.05,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const dragged = '["alice","far-release-cap"]';
+
+  simulation.setScene({
+    nodes: [node(dragged, { collisionRadiusMeters: 120 })],
+    edges: [],
+    anchors: [anchor(dragged, "stockholm", { influence: 1 })],
+  });
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 10_000_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+  simulation.step(1000 / 60);
+
+  simulation.setPin(null);
+  simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
+  const before = simulation.getSnapshot()[0];
+  simulation.step(1000 / 60);
+  const after = simulation.getSnapshot()[0];
+
+  assert.ok(before);
+  assert.ok(after);
+  assert.ok(after.eastMeters < before.eastMeters, "the released node must still return");
+  assert.ok(
+    before.eastMeters - after.eastMeters <= 6000 + Number.EPSILON,
+    "far release must not produce a distance-amplified position jump",
+  );
+});
+
 test("place-domain constraint returns distant nodes to an annulus without centering them", () => {
   const simulation = new ReferenceWorldForceSimulation({
     repulsionStrength: 0,
