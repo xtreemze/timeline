@@ -16,7 +16,7 @@ Desktop uses the 1440×900 product layout. Mobile uses the explicit touch-capabl
 
 The showcase distinguishes motion from static presentation. Timeline navigation and relation-graph navigation are motion scenes. Focused context, evidence, and story browsing are static scenes.
 
-Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes run headed Chrome in an Xvfb display whose framebuffer exactly matches the certified 1440×900 desktop or 390×844 mobile surface. FFmpeg `x11grab` samples that displayed surface at 60 Hz and writes VP8 WebM with `-fps_mode passthrough`. CI decodes the raw WebM timestamps and requires at least 59 actual captured frames per second over at least 95% of the recording window. A separate `requestAnimationFrame` clock must also sustain at least 59 fps, so a nominally 60 fps file cannot hide a slower browser render loop.
+Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes run headed Chrome in an Xvfb display whose framebuffer exactly matches the certified 1440×900 desktop or 390×844 mobile surface. FFmpeg `x11grab` samples that displayed surface at 60 Hz into an ephemeral uncompressed NUT stream with `-fps_mode passthrough`. CI decodes those pre-encode source timestamps and requires at least 59 actual captured frames per second over at least 95% of the recording window. A separate `requestAnimationFrame` clock must also sustain at least 59 fps, so a nominally 60 fps file cannot hide a slower browser render loop.
 
 ## Output contract
 
@@ -69,7 +69,7 @@ The showcase config contains two structural projects:
 
 The shared scene metadata defines feature title, explanation, expected state, alt text, stable output stem, and whether the scene is `motion` or `static`. Desktop and mobile interaction routines remain separate so touch UI is not forced to mimic desktop input mechanics.
 
-Motion capture uses headed Chrome in kiosk mode on dedicated exact-size Xvfb displays. Showcase-only browser launches disable background timer throttling, renderer backgrounding, occluded-window throttling, frame-rate limiting, and GPU vsync. FFmpeg performs the source sampling outside Chromium's screen-recording APIs, using `x11grab` at 60 Hz, VP8 real-time encoding, and timestamp passthrough; this avoids Playwright's fixed-rate recorder, Chromium's damage-driven screencast path, and tab-capture throughput limits observed on CI. Static capture uses a CSS-pixel Playwright screenshot of the same reached state.
+Motion capture uses headed Chrome in kiosk mode on dedicated exact-size Xvfb displays. Showcase-only browser launches disable background timer throttling, renderer backgrounding, occluded-window throttling, frame-rate limiting, and GPU vsync. FFmpeg performs source sampling outside Chromium's screen-recording APIs using `x11grab` at 60 Hz, uncompressed rawvideo in NUT, and timestamp passthrough. Compression is deliberately deferred until after the source-cadence and browser-frame-clock gates pass; the accepted frame sequence is then encoded one-for-one to VP8 WebM. Static capture uses a CSS-pixel Playwright screenshot of the same reached state.
 
 A capture-only DOM overlay provides restrained Lūm branding without taking ownership of the framebuffer recorder. Static screenshots remain product-state captures.
 
@@ -88,7 +88,7 @@ A capture-only DOM overlay provides restrained Lūm branding without taking owne
 - emits README-ready markup from the same manifest metadata;
 - measures individual and aggregate showcase payloads.
 
-There is no GIF palette stage, no reduced WebP frame rate, and no fixed animation width. The raw stage does not use FFmpeg CFR normalization: `x11grab` samples the X11 framebuffer at 60 Hz and `-fps_mode passthrough` preserves source timestamps. CI then decodes those raw timestamps and requires at least 59 fps before any derivative encoding. The independently measured browser frame clock must also sustain at least 59 fps. Presentation derivatives are emitted only after both gates pass, then decoded again to verify their cadence.
+There is no GIF palette stage, no reduced WebP frame rate, and no fixed animation width. The capture stage does not use FFmpeg CFR normalization: `x11grab` samples the X11 framebuffer at 60 Hz into uncompressed NUT and `-fps_mode passthrough` preserves source timestamps. CI decodes that pre-encode stream and requires at least 59 fps before compression begins. The independently measured browser frame clock must also sustain at least 59 fps. Presentation derivatives are emitted only after both gates pass, then decoded again to verify their cadence.
 
 ## CI and publication
 
