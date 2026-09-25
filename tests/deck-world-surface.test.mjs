@@ -4,6 +4,8 @@ import test from "node:test";
 import { TimelineMotion } from "../site/timeline-motion.ts";
 import {
   CLUSTER_ZOOM_THRESHOLD,
+  clusterRequiredLocalRadiusPx,
+  clusterTargetPlaceIds,
   clusterZoomThresholdForNodeRadius,
   clusterZoomThresholdForPlaceDensity,
   DECK_WORLD_LAYER_IDS,
@@ -55,6 +57,114 @@ test("dense local places stay clustered longer and resolve progressively", () =>
   assert.ok(
     veryDenseGroup <= CLUSTER_ZOOM_THRESHOLD + 2.75,
     "density adjustment remains bounded so zoom can always resolve the cluster",
+  );
+});
+
+test("nearby singleton places stay clustered until their screen neighbourhood separates", () => {
+  const make = (id, longitude) =>
+    createProjectedWorldInstance({
+      id: worldInstanceId(id, `occ-${id}`),
+      canonicalId: id,
+      occurrenceId: `occ-${id}`,
+      geographicAnchors: [
+        {
+          placeId: `place-${id}`,
+          longitude,
+          latitude: 0,
+          sourceAltitude: 0,
+          influence: 1,
+        },
+      ],
+      temporalWeight: 1,
+      visualWeight: 1,
+      retained: false,
+    });
+  const instances = [make("a", 0), make("b", 1), make("c", 10)];
+
+  assert.deepEqual(
+    clusterTargetPlaceIds(instances, [], 6, 16, 320, "expanded"),
+    ["place-a", "place-b"],
+    "regional zoom keeps the two visually adjacent authored places aggregated",
+  );
+  assert.deepEqual(
+    clusterTargetPlaceIds(instances, [], 8, 16, 320, "expanded"),
+    [],
+    "zooming in resolves the same singleton places once their screen-space separation is readable",
+  );
+});
+
+test("deep zoom cannot force an intrinsically unreadable local graph open", () => {
+  const nodeRadiusPx = 16;
+  const memberCount = 100;
+  const internalEdgeCount = 300;
+  const required = clusterRequiredLocalRadiusPx(nodeRadiusPx, memberCount, internalEdgeCount);
+  assert.ok(required > 320, "semantic load requires more room than a 320px local graph");
+
+  const instances = Array.from({ length: memberCount }, (_, index) =>
+    createProjectedWorldInstance({
+      id: worldInstanceId(`dense-${index}`, `occ-${index}`),
+      canonicalId: `dense-${index}`,
+      occurrenceId: `occ-${index}`,
+      geographicAnchors: [
+        {
+          placeId: "dense-place",
+          longitude: 18.0686,
+          latitude: 59.3293,
+          sourceAltitude: 0,
+          influence: 1,
+        },
+      ],
+      temporalWeight: 1,
+      visualWeight: 1,
+      retained: false,
+    }),
+  );
+  const edges = Array.from({ length: internalEdgeCount }, (_, index) => {
+    const source = index % memberCount;
+    const target = (index * 7 + 1) % memberCount;
+    return createProjectedWorldEdge({
+      id: `dense-edge-${index}`,
+      sourceInstanceId: instances[source].id,
+      targetInstanceId: instances[target].id,
+      temporalWeight: 1,
+      visible: true,
+      retained: false,
+    });
+  });
+
+  assert.deepEqual(
+    clusterTargetPlaceIds(instances, edges, 14, nodeRadiusPx, 320, "expanded"),
+    ["dense-place"],
+    "zoom is not permission to expand a graph whose projected semantic load cannot fit",
+  );
+});
+
+test("small isolated local graphs may resolve when the readability contract fits", () => {
+  const instances = Array.from({ length: 4 }, (_, index) =>
+    createProjectedWorldInstance({
+      id: worldInstanceId(`small-${index}`, `occ-small-${index}`),
+      canonicalId: `small-${index}`,
+      occurrenceId: `occ-small-${index}`,
+      geographicAnchors: [
+        {
+          placeId: "small-place",
+          longitude: 18.0686,
+          latitude: 59.3293,
+          sourceAltitude: 0,
+          influence: 1,
+        },
+      ],
+      temporalWeight: 1,
+      visualWeight: 1,
+      retained: false,
+    }),
+  );
+
+  assert.ok(clusterRequiredLocalRadiusPx(16, instances.length, 0) <= 320);
+  assert.deepEqual(
+    clusterTargetPlaceIds(instances, [], 8, 16, 320, "expanded"),
+    [],
+    "an isolated group resolves when its projected members fit the available local radius",
   );
 });
 

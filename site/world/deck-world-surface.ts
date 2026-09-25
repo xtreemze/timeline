@@ -56,6 +56,7 @@ import {
   WORLD_PLACE_LABEL_FLOOR,
   worldArrowLengthDegreesForNodeRadius,
   worldArrowStrokeWidthPxForNodeRadius,
+  worldFloatingGraphRadiusPx,
   worldLabelBudget,
   worldLabelTierFloor,
   worldLocalRadiusPx,
@@ -436,6 +437,177 @@ export function clusterZoomThresholdForPlaceDensity(
   if (count <= 3) return base;
   const densityAdjustment = Math.min(2.75, Math.log2(count / 3) * 0.8);
   return base + densityAdjustment;
+}
+
+/**
+ * Estimates the screen-space radius needed to present one place's members
+ * without collapsing them. Node packing is the floor; internal relationship
+ * load increases the required area because predicates and edge crossings also
+ * consume semantic space.
+ */
+export function clusterRequiredLocalRadiusPx(
+  nodeRadiusPx: number,
+  memberCount: number,
+  internalEdgeCount = 0,
+): number {
+  const radius =
+    Number.isFinite(nodeRadiusPx) && nodeRadiusPx > 0
+      ? nodeRadiusPx
+      : WORLD_CLUSTER_BASE_NODE_RADIUS_PX;
+  const members = Number.isFinite(memberCount) ? Math.max(1, Math.floor(memberCount)) : 1;
+  const edges = Number.isFinite(internalEdgeCount) ? Math.max(0, Math.floor(internalEdgeCount)) : 0;
+  const markerPitchPx = Math.max(44, radius * 2 + 16);
+  const semanticLoad = members + Math.min(edges, members * 4) * 0.25;
+  const packingRadiusPx = markerPitchPx * Math.sqrt(semanticLoad) * 0.75;
+  return Math.max(worldPlaceClusterRadiusPx(radius), packingRadiusPx);
+}
+
+/**
+ * Keeps authored places clustered until the *resulting expanded presentation*
+ * has enough screen-space room. Zoom is only a conversion input: a group may
+ * remain clustered at deep zoom when its node/edge load still exceeds the
+ * available local-graph radius, and nearby groups remain collapsed while
+ * their required radii would overlap.
+ */
+export function clusterTargetPlaceIds(
+  instances: readonly ProjectedWorldInstance[],
+  edges: WorldProjection["edges"],
+  zoom: number,
+  nodeRadiusPx: number,
+  availableLocalRadiusPx: number,
+  phase: WorldClusterLifecyclePhase,
+): readonly PlaceId[] {
+  type Anchor = ProjectedWorldInstance["geographicAnchors"][number];
+  interface Group {
+    readonly placeId: PlaceId;
+    readonly anchor: Anchor;
+    readonly count: number;
+    readonly internalEdgeCount: number;
+    readonly requiredRadiusPx: number;
+  }
+
+  const counts = new Map<PlaceId, { anchor: Anchor; count: number }>();
+  const placeByInstance = new Map<WorldInstanceId, PlaceId>();
+  for (const instance of instances) {
+    const anchor = instance.geographicAnchors[0];
+    if (!anchor) continue;
+    placeByInstance.set(instance.id, anchor.placeId);
+    const previous = counts.get(anchor.placeId);
+    counts.set(anchor.placeId, {
+      anchor,
+      count: (previous?.count ?? 0) + 1,
+    });
+  }
+
+  const edgeCounts = new Map<PlaceId, number>();
+  for (const edge of edges) {
+    const sourcePlace = placeByInstance.get(edge.sourceInstanceId);
+    const targetPlace = placeByInstance.get(edge.targetInstanceId);
+    if (!sourcePlace || sourcePlace !== targetPlace) continue;
+    edgeCounts.set(sourcePlace, (edgeCounts.get(sourcePlace) ?? 0) + 1);
+  }
+
+  const groups: Group[] = [...counts]
+    .map(([placeId, value]) => {
+      const internalEdgeCount = edgeCounts.get(placeId) ?? 0;
+      return Object.freeze({
+        placeId,
+        anchor: value.anchor,
+        count: value.count,
+        internalEdgeCount,
+        requiredRadiusPx: clusterRequiredLocalRadiusPx(
+          nodeRadiusPx,
+          value.count,
+          internalEdgeCount,
+        ),
+      });
+    })
+    .sort((left, right) => String(left.placeId).localeCompare(String(right.placeId)));
+
+  if (shouldClusterEntityDatums(instances.length, zoom, nodeRadiusPx)) {
+    return Object.freeze(groups.map((group) => group.placeId));
+  }
+
+  const hysteresis = phase === "expanded" ? 1 : 1.08;
+  const available =
+    Number.isFinite(availableLocalRadiusPx) && availableLocalRadiusPx > 0
+      ? availableLocalRadiusPx
+      : 0;
+  const nearby = new Set<PlaceId>();
+  const maxRequired = groups.reduce(
+    (maximum, group) => Math.max(maximum, group.requiredRadiusPx),
+    0,
+  );
+  const broadPhaseDegrees = worldPixelsToDegrees(maxRequired * 2 * hysteresis, zoom);
+
+  if (broadPhaseDegrees > 0 && Number.isFinite(broadPhaseDegrees)) {
+    const wrappedLongitudeDelta = (from: number, to: number): number =>
+      ((((to - from + 180) % 360) + 360) % 360) - 180;
+    const angularDistanceDegrees = (left: Anchor, right: Anchor): number => {
+      const meanLatitude = ((left.latitude + right.latitude) / 2) * (Math.PI / 180);
+      const longitude =
+        wrappedLongitudeDelta(left.longitude, right.longitude) * Math.cos(meanLatitude);
+      return Math.hypot(longitude, right.latitude - left.latitude);
+    };
+
+    const longitudeCellCount = Math.max(1, Math.ceil(360 / broadPhaseDegrees));
+    const grid = new Map<string, Group[]>();
+    const wrapCellX = (value: number): number =>
+      ((value % longitudeCellCount) + longitudeCellCount) % longitudeCellCount;
+    const cellFor = (anchor: Anchor): readonly [number, number] => {
+      const longitude = (((anchor.longitude + 180) % 360) + 360) % 360;
+      return Object.freeze([
+        Math.min(longitudeCellCount - 1, Math.floor(longitude / broadPhaseDegrees)),
+        Math.floor((anchor.latitude + 90) / broadPhaseDegrees),
+      ]);
+    };
+    const keyFor = (x: number, y: number) => `${wrapCellX(x)}:${y}`;
+
+    for (const group of groups) {
+      const [cellX, cellY] = cellFor(group.anchor);
+      const latitudeCosine = Math.max(
+        0.1,
+        Math.abs(Math.cos((group.anchor.latitude * Math.PI) / 180)),
+      );
+      const longitudeReach = Math.min(
+        Math.ceil(longitudeCellCount / 2),
+        Math.max(1, Math.ceil(1 / latitudeCosine)),
+      );
+      const visitedCells = new Set<string>();
+      for (let x = cellX - longitudeReach; x <= cellX + longitudeReach; x += 1) {
+        for (let y = cellY - 1; y <= cellY + 1; y += 1) {
+          const key = keyFor(x, y);
+          if (visitedCells.has(key)) continue;
+          visitedCells.add(key);
+          for (const other of grid.get(key) ?? []) {
+            const pairThresholdDegrees = worldPixelsToDegrees(
+              (group.requiredRadiusPx + other.requiredRadiusPx) * hysteresis,
+              zoom,
+            );
+            if (angularDistanceDegrees(group.anchor, other.anchor) > pairThresholdDegrees) {
+              continue;
+            }
+            nearby.add(group.placeId);
+            nearby.add(other.placeId);
+          }
+        }
+      }
+      const ownKey = keyFor(cellX, cellY);
+      const ownCell = grid.get(ownKey);
+      if (ownCell) ownCell.push(group);
+      else grid.set(ownKey, [group]);
+    }
+  }
+
+  return Object.freeze(
+    groups
+      .filter(
+        (group) =>
+          nearby.has(group.placeId) ||
+          (group.count > 1 && group.requiredRadiusPx * hysteresis > available),
+      )
+      .map((group) => group.placeId),
+  );
 }
 
 /**
@@ -3014,33 +3186,13 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #clusterTargetPlaceIds(): readonly PlaceId[] {
-    const counts = new Map<PlaceId, number>();
-    for (const instance of this.#projection.instances) {
-      const placeId = instance.geographicAnchors[0]?.placeId;
-      if (!placeId) continue;
-      counts.set(placeId, (counts.get(placeId) ?? 0) + 1);
-    }
-
-    const footprintRadiusPx = this.#clusterEntityFootprintRadiusPx();
-    const globalOverview = shouldClusterEntityDatums(
-      this.#projection.instances.length,
+    return clusterTargetPlaceIds(
+      this.#projection.instances,
+      this.#projection.edges,
       this.#camera.zoom,
-      footprintRadiusPx,
-    );
-
-    return Object.freeze(
-      [...counts]
-        .filter(([, count]) => {
-          if (globalOverview) return true;
-          if (count <= 1) return false;
-          return worldClusterWantsCollapsed(
-            this.#camera.zoom,
-            clusterZoomThresholdForPlaceDensity(footprintRadiusPx, count),
-            this.#clusterPhase,
-          );
-        })
-        .map(([placeId]) => placeId)
-        .sort((left, right) => String(left).localeCompare(String(right))),
+      this.#clusterEntityFootprintRadiusPx(),
+      this.#availableLocalGraphRadiusPx(),
+      this.#clusterPhase,
     );
   }
 
@@ -3753,6 +3905,17 @@ export class DeckWorldSurface implements WorldSurface {
     );
   }
 
+  #availableLocalGraphRadiusPx(): number {
+    return Math.min(worldFloatingGraphRadiusPx(this.#camera.zoom), this.#viewportGraphRadiusLimitPx());
+  }
+
+  #clusterMergeRadiusPx(): number {
+    // Two independently expanded local graphs each consume their own readable
+    // radius, so their anchors need roughly the combined diameter before the
+    // renderer should stop presenting them as one neighbourhood.
+    return Math.max(WORLD_CLUSTER_MERGE_PX, this.#clusterRadiusPx() * 2);
+  }
+
   /**
    * Presentation magnification of local offsets for the current zoom (see
    * `worldPresentationOffsetScale`). Scenes without local offsets keep 1 so
@@ -4017,10 +4180,9 @@ export class DeckWorldSurface implements WorldSurface {
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const releasingSegments = releasingRelationshipSegments(releasingRelationships);
 
-    // Only the places selected by semantic density belong to the collapsed
-    // representation. This matters above the global overview tier: a dense
-    // story location may stay clustered while nearby sparse/singleton places
-    // are already readable as ordinary nodes.
+    // Only places selected by semantic density or unreadable screen-space
+    // proximity belong to the collapsed representation. Sparse/singleton
+    // places resolve independently only after their neighbourhood separates.
     const clusteredEntitySource = entityResult.datums.filter((entity) =>
       memberIds.has(entity.worldInstanceId),
     );
@@ -4030,7 +4192,7 @@ export class DeckWorldSurface implements WorldSurface {
     const placeClusters = clusterEntityDatumsByPlace(
       clusteredEntitySource,
       this.#projection.instances,
-      worldPixelsToDegrees(WORLD_CLUSTER_MERGE_PX, this.#camera.zoom),
+      worldPixelsToDegrees(this.#clusterMergeRadiusPx(), this.#camera.zoom),
     );
     const entities: readonly DeckWorldEntityRenderDatum[] =
       clusterPhase === "collapsed"
