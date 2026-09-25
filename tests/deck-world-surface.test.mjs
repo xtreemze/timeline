@@ -933,6 +933,36 @@ test("canonical focus crosses the active cluster threshold before framing an ent
   );
 });
 
+
+test("canonical focus crosses density threshold for a crowded place", () => {
+  const { runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime, {
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 3,
+    bearing: 0,
+    pitch: 20,
+  });
+  const template = projection().instances[0];
+  const instances = Array.from({ length: 16 }, (_, index) =>
+    createProjectedWorldInstance({
+      ...template,
+      id: worldInstanceId(`dense-${index}`, `occ-${index}`),
+      canonicalId: `dense-${index}`,
+      occurrenceId: `occ-${index}`,
+      localOffset: { eastMeters: index * 20, northMeters: 0 },
+    }),
+  );
+  surface.setProjection(createWorldProjection({ instances, edges: [] }));
+
+  surface.focusEntity("dense-0");
+
+  assert.ok(
+    surface.getCamera().zoom > clusterZoomThresholdForPlaceDensity(16, instances.length),
+    "explicit focus must zoom past the density threshold that keeps the place clustered",
+  );
+});
+
 test("relationship and place selection are also reflected in their render datums (issue #445 Priority 4)", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
