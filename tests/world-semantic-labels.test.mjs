@@ -1212,7 +1212,7 @@ test("clustered overview reveals aggregate and location context on interaction",
   );
 
   surface.setSelection({ kind: "entity", id: "entity-150" });
-  let interactionLayers = h.lastLayers();
+  const interactionLayers = h.lastLayers();
   labels = layer(interactionLayers, DECK_WORLD_LAYER_IDS.labels).props.data;
   assert.equal(
     labels.some((datum) => datum.kind === "entity-label"),
