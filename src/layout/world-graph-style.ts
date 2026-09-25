@@ -37,12 +37,12 @@ export const WORLD_DARK_PALETTE: WorldGraphPalette = Object.freeze({
 });
 
 /**
- * Ordinary node cores render at 20-24px across before their border. Picking
- * remains a separate >=44px target in WorldSurface, so visual density and
- * interaction acquisition can scale independently.
+ * Nodes share one physical footprint across rendering, picking, and collision.
+ * The minimum 44px diameter is therefore visible rather than hidden inside a
+ * larger interaction-only target.
  */
 export const WORLD_NODE_SCALE = 1;
-/** Minimum radius of the mobile interaction footprint (44px diameter). */
+/** Minimum visible/touch/collision radius (44px diameter). */
 export const WORLD_ENTITY_MIN_HIT_RADIUS_PX = 22;
 
 export interface WorldNodeStyle {
@@ -150,12 +150,11 @@ function worldNodeMetrics(input: WorldNodeStyleInput): {
   readonly borderWidth: number;
 } {
   const own = styleOf(input.attributes);
-  // Keep a compact visible baseline; the separate hit footprint preserves
-  // mobile acquisition. Quantized radii still keep the marker atlas bounded.
   const baseRadius = Math.round(10 + Math.min(1, Math.max(0, input.visualWeight ?? 0)) * 2);
   // Portable marker semantics: `size` and `diameter` are visible diameters;
-  // `radius` is the only radius-valued property. Explicit authored geometry
-  // is authoritative and is not multiplied by the app's default node scale.
+  // `radius` is the only radius-valued property. Authored geometry may grow a
+  // node beyond the shared target, but may not make its physical footprint
+  // smaller than the minimum touch/collision target.
   const authoredDiameter = number(own["size"], 8, 64) ?? number(own["diameter"], 8, 64);
   const authoredRadius =
     number(own["radius"], 4, 32) ?? (authoredDiameter === null ? null : authoredDiameter / 2);
@@ -170,24 +169,45 @@ function worldNodeMetrics(input: WorldNodeStyleInput): {
   });
 }
 
-/** Full visible marker radius, including normalized shape extent and border. */
-export function worldNodeVisualFootprintRadiusPx(input: WorldNodeStyleInput): number {
-  const metrics = worldNodeMetrics(input);
+function worldNodeShape(input: WorldNodeStyleInput): WorldNodeShape {
   const type = (input.type ?? "").toLowerCase();
   const own = styleOf(input.attributes);
   const ownShape = text(own["shape"] ?? own["markerShape"], 16)?.toLowerCase();
-  const shape = SHAPES.includes(ownShape as WorldNodeShape)
+  return SHAPES.includes(ownShape as WorldNodeShape)
     ? (ownShape as WorldNodeShape)
     : defaultNodeShape(type);
-  return metrics.radius * worldNodeShapeVisualRadiusScale(shape) + metrics.borderWidth;
 }
 
-/**
- * Collision/picking radius. It never falls below the 44px mobile interaction
- * target even when the visible marker is deliberately more compact.
- */
+function worldNodeDisplayMetrics(input: WorldNodeStyleInput): {
+  readonly radius: number;
+  readonly borderWidth: number;
+  readonly shape: WorldNodeShape;
+} {
+  const metrics = worldNodeMetrics(input);
+  const shape = worldNodeShape(input);
+  const shapeScale = worldNodeShapeVisualRadiusScale(shape);
+  const minimumBodyRadius = Math.max(
+    0,
+    (WORLD_ENTITY_MIN_HIT_RADIUS_PX - metrics.borderWidth) / shapeScale,
+  );
+  return Object.freeze({
+    // Whole-pixel body radii keep the marker atlas bounded while guaranteeing
+    // that the full visible footprint is never smaller than the touch target.
+    radius: Math.max(metrics.radius, Math.ceil(minimumBodyRadius)),
+    borderWidth: metrics.borderWidth,
+    shape,
+  });
+}
+
+/** Full visible/touch/collision marker radius, including shape extent and border. */
+export function worldNodeVisualFootprintRadiusPx(input: WorldNodeStyleInput): number {
+  const metrics = worldNodeDisplayMetrics(input);
+  return metrics.radius * worldNodeShapeVisualRadiusScale(metrics.shape) + metrics.borderWidth;
+}
+
+/** Collision and picking use the exact same radius as the rendered node. */
 export function worldNodeFootprintRadiusPx(input: WorldNodeStyleInput): number {
-  return Math.max(WORLD_ENTITY_MIN_HIT_RADIUS_PX, worldNodeVisualFootprintRadiusPx(input));
+  return worldNodeVisualFootprintRadiusPx(input);
 }
 
 export function worldNodeStyle(
@@ -196,8 +216,7 @@ export function worldNodeStyle(
 ): WorldNodeStyle {
   const type = (input.type ?? "").toLowerCase();
   const own = styleOf(input.attributes);
-  const ownShape = text(own["shape"] ?? own["markerShape"], 16)?.toLowerCase();
-  const metrics = worldNodeMetrics(input);
+  const metrics = worldNodeDisplayMetrics(input);
   const fill =
     color(own["fillColor"]) ??
     color(own["fill"]) ??
@@ -216,9 +235,7 @@ export function worldNodeStyle(
     fill,
     border,
     borderWidth: metrics.borderWidth,
-    shape: SHAPES.includes(ownShape as WorldNodeShape)
-      ? (ownShape as WorldNodeShape)
-      : defaultNodeShape(type),
+    shape: metrics.shape,
     icon: text(own["icon"], 48) ?? (type || null),
     image: text(own["image"] ?? own["imageUrl"], 2048),
     radius: metrics.radius,

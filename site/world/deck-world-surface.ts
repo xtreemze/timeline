@@ -37,6 +37,7 @@ import {
   type WorldNodeStyle,
   worldColorBytes,
   worldEdgeStyle,
+  worldNodeFootprintRadiusPx,
   worldNodeStyle,
   worldNodeVisualFootprintRadiusPx,
   worldPlaceStyle,
@@ -375,13 +376,12 @@ function releasingRelationshipSegments(
 
 /**
  * Below this globe zoom level, nearby entities remain grouped into clusters.
- * Release ordinary compact markers once a 6-degree cluster cell occupies
- * roughly 160px on screen (zoom ~= 4.25 at the equator). Authored large
- * markers remain clustered longer; deliberately small markers may resolve
- * slightly sooner without changing their touch targets.
+ * The 44px default node footprint intentionally feeds this readability policy:
+ * larger authored markers remain clustered longer because they consume more
+ * of the same screen space used for touch and collision.
  */
 export const CLUSTER_ZOOM_THRESHOLD = 4.25;
-/** Reference visible footprint radius for the compact default marker scale. */
+/** Historical clustering reference radius; actual node footprints scale from it. */
 const WORLD_CLUSTER_BASE_NODE_RADIUS_PX = 16;
 /** Bound cluster bubbles so membership does not linearly inflate overview geometry. */
 const WORLD_CLUSTER_MARKER_MIN_RADIUS_PX = 22;
@@ -4436,8 +4436,11 @@ export class DeckWorldSurface implements WorldSurface {
     const visibleEntityRadiusPx = (instanceId: WorldInstanceId): number => {
       const entity = entityResult.byId.get(instanceId);
       if (!entity) return WORLD_ENTITY_MIN_HIT_RADIUS_PX;
-      const style = this.#entityStyle(entity);
-      return worldNodeMarker(style).size / 2;
+      return worldNodeFootprintRadiusPx({
+        ...(entity.entityKind === undefined ? {} : { type: entity.entityKind }),
+        attributes: entity.style ? { style: entity.style } : undefined,
+        visualWeight: entity.visualWeight,
+      });
     };
     const edgeFallbackColor = (edge: DeckWorldRelationshipDatum): string | undefined => {
       const endpointColor = (entity: DeckWorldEntityDatum | undefined): string | undefined => {
@@ -4805,9 +4808,10 @@ export class DeckWorldSurface implements WorldSurface {
               )
             : datum.position,
         // Individual entities are drawn by the styled marker layer; this
-        // layer is their (invisible) pick/drag target. A collapsed cluster is
-        // the aggregate marker for both its member entities and represented
-        // place anchors, so duplicate place pins are omitted underneath it.
+        // layer mirrors that exact visible footprint for picking/dragging.
+        // A collapsed cluster is the aggregate marker for both its member
+        // entities and represented place anchors, so duplicate place pins are
+        // omitted underneath it.
         getRadius: (datum: DeckWorldEntityRenderDatum) => {
           if (datum.kind === "cluster") {
             const memberRadius = datum.clusterMembers.reduce(
@@ -4821,9 +4825,9 @@ export class DeckWorldSurface implements WorldSurface {
           }
           const expansion = entityExpansion(datum);
           if (expansion <= 0) return 0;
-          const visibleRadius =
-            this.#entityStyle(datum).radius + this.#entityStyle(datum).borderWidth;
-          return Math.max(WORLD_ENTITY_MIN_HIT_RADIUS_PX, visibleRadius * expansion);
+          // Rendering, picking, and force collision share one physical node
+          // radius. There is no invisible oversized node hit body.
+          return visibleEntityRadiusPx(datum.worldInstanceId) * expansion;
         },
         stroked: true,
         lineWidthUnits: "pixels",
