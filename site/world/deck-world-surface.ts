@@ -3178,10 +3178,25 @@ export class DeckWorldSurface implements WorldSurface {
 
   focusEntity(id: EntityId): void {
     this.#setLabelFocus("entity", id);
-    // Aim at where the entity is drawn at the destination zoom, using the
-    // same anchor-local presentation metrics as ordinary rendering.
-    const destinationZoom = this.#detailFocusZoom();
     const instance = this.#projection.instances.find((candidate) => candidate.canonicalId === id);
+    const placeId = instance?.geographicAnchors[0]?.placeId;
+    const placeMemberCount = placeId
+      ? this.#projection.instances.filter(
+          (candidate) => candidate.geographicAnchors[0]?.placeId === placeId,
+        ).length
+      : 1;
+    // Explicit focus must cross the same density threshold that keeps a dense
+    // local group clustered; otherwise the camera can center a hidden member
+    // while leaving its cluster intact.
+    const destinationZoom = Math.max(
+      this.#detailFocusZoom(),
+      placeId
+        ? clusterZoomThresholdForPlaceDensity(
+            this.#clusterEntityFootprintRadiusPx(),
+            placeMemberCount,
+          ) + 0.25
+        : 0,
+    );
     this.#focusPosition(
       instance
         ? anchorPosition(
