@@ -106,7 +106,12 @@ function createWorldLayoutControls(
       "relation",
       actions.reorganizeDag,
     ),
-    button("Relax graph forces", "Relax graph forces (D3 force)", "magic", actions.relaxForce),
+    button(
+      "Relax graph forces",
+      "Relax graph forces (D3 force)",
+      "magic",
+      actions.relaxForce,
+    ),
   );
   return group;
 }
