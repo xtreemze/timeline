@@ -1522,6 +1522,9 @@ test("deck entity drag callbacks resolve screen motion into world-local drag int
     .at(-1);
   const alice = entityLayer.props.data.find((datum) => datum.entityId === "alice");
 
+  calls.deckProps.onHover({ object: alice });
+  assert.equal(calls.deckProps.getCursor({ isDragging: false, isHovering: true }), "grab");
+
   assert.equal(
     entityLayer.props.onDragStart(
       { object: alice, x: 118.0786, y: 259.3393 },
@@ -1534,6 +1537,11 @@ test("deck entity drag callbacks resolve screen motion into world-local drag int
   assert.equal(dragCalls[0][2], alice.worldInstanceId);
   assert.ok(dragCalls[0][3].eastMeters > 0);
   assert.ok(dragCalls[0][3].northMeters > 0);
+  assert.equal(
+    calls.deckProps.getCursor({ isDragging: false, isHovering: true }),
+    "grabbing",
+    "custom node drag state is reflected through deck.gl's cursor callback",
+  );
 
   assert.equal(
     entityLayer.props.onDrag(
@@ -1552,6 +1560,7 @@ test("deck entity drag callbacks resolve screen motion into world-local drag int
     true,
   );
   assert.deepEqual(dragCalls.at(-1), ["release", 7]);
+  assert.equal(calls.deckProps.getCursor({ isDragging: false, isHovering: true }), "grab");
 });
 
 test("node, edge, arrow, icon, tether, and label geometry always update without transitions", () => {
