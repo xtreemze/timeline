@@ -188,7 +188,7 @@ function forceGroup(key: string, states: readonly NodeState[]): ForceGroup {
       Math.floor(x / CROSS_ANCHOR_BUCKET_METERS),
       Math.floor(y / CROSS_ANCHOR_BUCKET_METERS),
       Math.floor(z / CROSS_ANCHOR_BUCKET_METERS),
-    ]),
+    ] as const),
   });
 }
 
@@ -223,9 +223,7 @@ function crossGroupCandidates(
             const anchorDistance = Math.hypot(eastMeters, northMeters);
             if (
               anchorDistance >
-              group.extentMeters +
-                other.extentMeters +
-                CROSS_ANCHOR_FORCE_RADIUS_METERS
+              group.extentMeters + other.extentMeters + CROSS_ANCHOR_FORCE_RADIUS_METERS
             ) {
               continue;
             }
@@ -245,10 +243,7 @@ function pairDeltaMeters(left: NodeState, right: NodeState): readonly [number, n
   }
   if (!left.anchor || !right.anchor) return null;
   const [anchorEastMeters, anchorNorthMeters] = anchorDeltaMeters(left.anchor, right.anchor);
-  return Object.freeze([
-    anchorEastMeters + right.x - left.x,
-    anchorNorthMeters + right.y - left.y,
-  ]);
+  return Object.freeze([anchorEastMeters + right.x - left.x, anchorNorthMeters + right.y - left.y]);
 }
 
 function crossAnchorInteractionRadius(left: NodeState, right: NodeState): number {
@@ -417,10 +412,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     }
 
     for (const [leftGroup, rightGroup] of crossPairs) {
-      if (
-        activeGroups &&
-        (!activeGroups.has(leftGroup.key) || !activeGroups.has(rightGroup.key))
-      ) {
+      if (activeGroups && (!activeGroups.has(leftGroup.key) || !activeGroups.has(rightGroup.key))) {
         continue;
       }
       for (const left of leftGroup.states) {
@@ -469,14 +461,11 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
       const force = forces.get(state.node.id) ?? [0, 0, 0];
       const inverseMass = 1 / Math.max(0.001, state.node.mass);
       state.vx =
-        (state.vx + force[0] * inverseMass * dt * energyScale) *
-        Math.pow(this.#options.damping, dt);
+        (state.vx + force[0] * inverseMass * dt * energyScale) * this.#options.damping ** dt;
       state.vy =
-        (state.vy + force[1] * inverseMass * dt * energyScale) *
-        Math.pow(this.#options.damping, dt);
+        (state.vy + force[1] * inverseMass * dt * energyScale) * this.#options.damping ** dt;
       state.vz =
-        (state.vz + force[2] * inverseMass * dt * energyScale) *
-        Math.pow(this.#options.damping, dt);
+        (state.vz + force[2] * inverseMass * dt * energyScale) * this.#options.damping ** dt;
 
       state.x += state.vx * dt;
       state.y += state.vy * dt;
@@ -525,10 +514,7 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     this.#running = false;
   }
 
-  #groupsCanInteract(
-    leftStates: readonly NodeState[],
-    rightStates: readonly NodeState[],
-  ): boolean {
+  #groupsCanInteract(leftStates: readonly NodeState[], rightStates: readonly NodeState[]): boolean {
     for (const left of leftStates) {
       for (const right of rightStates) {
         const delta = pairDeltaMeters(left, right);

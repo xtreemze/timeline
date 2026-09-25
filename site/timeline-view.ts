@@ -2315,14 +2315,7 @@ export class TimelineViewController {
         record.item = item;
         this.updateRecordContent(record);
       }
-      this.positionRecord(
-        record,
-        primaryLength,
-        axisCross,
-        padding,
-        usable,
-        this.orientation === "horizontal" ? height : width,
-      );
+      this.positionRecord(record, padding, usable, axisCross, crossLength);
     }
 
     this.positionCommittedClusters(padding, usable, axisCross);
@@ -2452,11 +2445,10 @@ export class TimelineViewController {
 
   positionRecord(
     record: SceneRecord,
-    primaryLength: number,
-    axisCross: number,
     padding: number,
     usable: number,
-    crossExtent: number,
+    axisCross: number,
+    crossLength: number,
   ): void {
     const { item, node, terminal, range } = record;
     const coordinate = (time: number): number =>
@@ -2477,7 +2469,7 @@ export class TimelineViewController {
     const routeOffset = connectorRouteOffset(
       item.connectorRouting || "straight",
       terminalCross,
-      Math.max(1, crossExtent),
+      Math.max(1, crossLength),
       Math.abs(lane),
     );
     const shiftedCross = terminalCross + routeOffset;

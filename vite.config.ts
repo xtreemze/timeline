@@ -17,6 +17,19 @@ export default defineConfig({
       output: {
         codeSplitting: {
           groups: [
+            // Shared modules claimed first, so the optional-runtime groups below
+            // (which capture their dependencies recursively) cannot absorb
+            // them and drag those runtimes into the initial import closure.
+            {
+              name: "preload-helper",
+              test: /^\0vite[\\/]preload-helper/,
+              priority: 50,
+            },
+            {
+              name: "map-runtime",
+              test: /node_modules[\\/]leaflet[\\/]/,
+              priority: 40,
+            },
             {
               name: "pdf-runtime",
               test: /node_modules[\\/]pdfjs-dist[\\/]/,
@@ -25,9 +38,15 @@ export default defineConfig({
             },
             {
               name: "world-rendering",
-              test: /node_modules[\\/](?:@deck\\.gl|@luma\\.gl|@math\\.gl|@loaders\\.gl|@probe\\.gl)[\\/]/,
+              test: /node_modules[\\/](?:@deck\.gl|@luma\.gl|@math\.gl|@loaders\.gl|@probe\.gl)[\\/]/,
               maxSize: 400_000,
               priority: 25,
+            },
+            {
+              // Bundled demo case data: static, cacheable separately from app code.
+              name: "sample-case",
+              test: /[\\/]site[\\/]sample-case\.ts$/,
+              priority: 15,
             },
             {
               name: "legacy-graph",

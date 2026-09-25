@@ -162,16 +162,18 @@ function edgePathPointAtFraction(
   path: readonly WorldRenderPosition[],
   fraction: number,
 ): WorldRenderPosition {
-  if (path.length === 0) {
+  const first = path[0];
+  if (!first) {
     return Object.freeze([0, 0, 0]) as WorldRenderPosition;
   }
-  if (path.length === 1) return path[0]!;
+  if (path.length === 1) return first;
   const clamped = Math.max(0, Math.min(1, fraction));
   const scaled = clamped * (path.length - 1);
   const index = Math.min(path.length - 2, Math.floor(scaled));
   const local = scaled - index;
-  const left = path[index]!;
-  const right = path[index + 1]!;
+  const left = path[index];
+  const right = path[index + 1];
+  if (!left || !right) return first;
   return Object.freeze([
     wrapLongitude(left[0] + shortestLongitudeDelta(left[0], right[0]) * local),
     left[1] + (right[1] - left[1]) * local,
@@ -232,9 +234,9 @@ export function edgePathMidpoint(path: readonly WorldRenderPosition[]): WorldRen
 export function directedEdgePathArrowhead(
   path: readonly WorldRenderPosition[],
 ): readonly [WorldRenderPosition, WorldRenderPosition, WorldRenderPosition] | null {
-  if (path.length < 2) return null;
-  const source = path[0]!;
-  const target = path[path.length - 1]!;
+  const source = path[0];
+  const target = path[path.length - 1];
+  if (path.length < 2 || !source || !target) return null;
   const apex = edgePathPointAtFraction(path, ARROW_APEX_FRACTION);
   const before = edgePathPointAtFraction(path, ARROW_APEX_FRACTION - 0.06);
   const after = edgePathPointAtFraction(path, ARROW_APEX_FRACTION + 0.06);
@@ -267,10 +269,7 @@ export function directedEdgePathArrowhead(
     path,
     ARROW_APEX_FRACTION - ARROW_LENGTH_FRACTION,
   )[2];
-  const apexLongitudeScale = Math.max(
-    MINIMUM_LONGITUDE_SCALE,
-    Math.cos((apex[1] * Math.PI) / 180),
-  );
+  const apexLongitudeScale = Math.max(MINIMUM_LONGITUDE_SCALE, Math.cos((apex[1] * Math.PI) / 180));
   const point = (x: number, y: number): WorldRenderPosition =>
     Object.freeze([
       wrapLongitude(apex[0] + x / apexLongitudeScale),

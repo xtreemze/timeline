@@ -430,7 +430,10 @@ function utcBucketTime(year: number, month: number, day: number): number {
   return date.getTime();
 }
 
-function ambientContextForUnit(timeMs: number, unit: string | null): {
+function ambientContextForUnit(
+  timeMs: number,
+  unit: string | null,
+): {
   kind: string;
   label: string;
   sceneTime: number;
@@ -449,16 +452,26 @@ function ambientContextForUnit(timeMs: number, unit: string | null): {
     return { kind: "month-year", label: formatMonthYear(sceneTime), sceneTime };
   }
 
-  const sceneTime = utcBucketTime(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
-  );
+  const sceneTime = utcBucketTime(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
   return {
     kind: "day-month-year",
     label: formatDayMonthYear(sceneTime),
     sceneTime,
   };
+}
+
+interface AmbientContextSample {
+  kind: string;
+  label: string;
+  sceneTime: number;
+  time: number;
+}
+
+interface ViewportAmbientAccent extends AmbientContextSample {
+  key: string;
+  position: number;
+  count: number;
+  viewportContext: true;
 }
 
 function viewportAmbientAccents(
@@ -467,14 +480,14 @@ function viewportAmbientAccents(
   pixelLength: number,
   padding: number,
   desiredCount: number,
-): any[] {
+): ViewportAmbientAccent[] {
   const start = Number(viewport?.start);
   const end = Number(viewport?.end);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return [];
 
   const desired = Math.max(1, Math.min(4, Math.trunc(desiredCount) || 1));
   const sampleCount = Math.max(desired, desired * 4);
-  const byLabel = new Map<string, any[]>();
+  const byLabel = new Map<string, AmbientContextSample[]>();
 
   for (let index = 0; index < sampleCount; index += 1) {
     const ratio = sampleCount === 1 ? 0.5 : (index + 0.5) / sampleCount;
@@ -486,8 +499,9 @@ function viewportAmbientAccents(
     byLabel.set(context.label, entries);
   }
 
-  return [...byLabel.values()].map((entries) => {
-    const first = entries[0]!;
+  return [...byLabel.values()].flatMap((entries) => {
+    const [first] = entries;
+    if (!first) return [];
     const time = entries.reduce((sum, entry) => sum + entry.time, 0) / entries.length;
     return {
       kind: first.kind,
@@ -502,8 +516,8 @@ function viewportAmbientAccents(
   });
 }
 
-function ensureMinimumEdgeAccents(
-  edgeAccents: any[],
+function ensureMinimumEdgeAccents<Accent extends Candidate>(
+  edgeAccents: Accent[],
   options: {
     viewport: Viewport | null;
     unit: string | null;
@@ -512,11 +526,11 @@ function ensureMinimumEdgeAccents(
     orientation: string;
     minimum: number;
   },
-): any[] {
+): (Accent | ViewportAmbientAccent)[] {
   const minimum = Math.max(1, Math.min(4, Math.trunc(options.minimum) || 1));
   if (edgeAccents.length >= minimum) return edgeAccents;
 
-  const selected = [...edgeAccents];
+  const selected: (Accent | ViewportAmbientAccent)[] = [...edgeAccents];
   const labels = new Set(selected.map((accent) => String(accent.label || "")));
   const candidates = viewportAmbientAccents(
     options.viewport,
@@ -782,9 +796,7 @@ export function clusterExpansionViewport(
     return null;
   }
 
-  const uniqueStarts = starts.filter(
-    (value, index) => index === 0 || value !== starts[index - 1],
-  );
+  const uniqueStarts = starts.filter((value, index) => index === 0 || value !== starts[index - 1]);
   if (uniqueStarts.length < 2) {
     return {
       viewport: { start, end },
@@ -869,12 +881,7 @@ export function focusContextViewport(
     .slice()
     .sort((a: any, b: any) => a.start - b.start || String(a.id).localeCompare(String(b.id)));
   const focused = source.find((item: any) => String(item.id) === String(focusedId));
-  if (
-    !focused ||
-    !viewport ||
-    !Number.isFinite(viewport.start) ||
-    !Number.isFinite(viewport.end)
-  ) {
+  if (!focused || !viewport || !Number.isFinite(viewport.start) || !Number.isFinite(viewport.end)) {
     return null;
   }
 
@@ -901,10 +908,7 @@ export function focusContextViewport(
   );
 
   const coincidentIds = source
-    .filter(
-      (item: any) =>
-        String(item.id) !== String(focused.id) && item.start === focused.start,
-    )
+    .filter((item: any) => String(item.id) !== String(focused.id) && item.start === focused.start)
     .map((item: any) => String(item.id));
 
   if ((representation as any)?.kind === "cluster") {
@@ -961,13 +965,13 @@ export function focusContextViewport(
   if (after[0] && selected.length < targetContextCount) selected.push(after[0]);
 
   const remaining = distinctOthers
-    .filter((item: any) => !selected.some((candidate: any) => String(candidate.id) === String(item.id)))
+    .filter(
+      (item: any) => !selected.some((candidate: any) => String(candidate.id) === String(item.id)),
+    )
     .sort(
-      (a: any, b: any) =>
-        Math.abs(a.start - focused.start) - Math.abs(b.start - focused.start),
+      (a: any, b: any) => Math.abs(a.start - focused.start) - Math.abs(b.start - focused.start),
     );
-  while (selected.length < targetContextCount && remaining.length)
-    selected.push(remaining.shift());
+  while (selected.length < targetContextCount && remaining.length) selected.push(remaining.shift());
 
   const values = [focused.start, focusedEnd];
   for (const item of selected) {
@@ -979,10 +983,7 @@ export function focusContextViewport(
   const rawLocalSpan = Math.max(0, max - min);
   const localSpan = rawLocalSpan > 0 ? rawLocalSpan / availableRatio : 0;
 
-  const minimumFocusSpan = Math.min(
-    span,
-    Math.max(minSpanMs, span * 0.18, focusedContainingSpan),
-  );
+  const minimumFocusSpan = Math.min(span, Math.max(minSpanMs, span * 0.18, focusedContainingSpan));
   const maximumFocusSpan = Math.max(minimumFocusSpan, span * 0.6);
   const targetSpan = Math.min(
     span,
