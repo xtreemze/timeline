@@ -78,6 +78,9 @@ test("CI discovers core browser contracts and runs each browser lane fatally", (
   assert.match(workflow, /playwright install --with-deps chromium/);
   assert.doesNotMatch(workflow, /playwright install --with-deps chromium webkit/);
   assert.doesNotMatch(config, /Mobile Safari|iPhone 12|iPad Pro/);
+  assert.match(config, /failOnFlakyTests:\s*!!process\.env\.CI/);
+  assert.match(pagesConfig, /failOnFlakyTests:\s*!!process\.env\.CI/);
+  assert.match(highlightConfig, /failOnFlakyTests:\s*!!process\.env\.CI/);
 
   for (const spec of [
     "retained-structural-composition.spec.ts",

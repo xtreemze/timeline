@@ -5,6 +5,7 @@ export default defineConfig({
   testMatch: ["pages-runtime.spec.ts"],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
+  failOnFlakyTests: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: 1,
   reporter: [["list"], ["github"]],
