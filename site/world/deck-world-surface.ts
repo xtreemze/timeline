@@ -4618,8 +4618,9 @@ export class DeckWorldSurface implements WorldSurface {
               )
             : datum.position,
         // Individual entities are drawn by the styled marker layer; this
-        // layer is their (invisible) pick/drag target. Clusters render only
-        // as an outer neutral ring so they never cover the place marker.
+        // layer is their (invisible) pick/drag target. A collapsed cluster is
+        // the aggregate marker for both its member entities and represented
+        // place anchors, so duplicate place pins are omitted underneath it.
         getRadius: (datum: DeckWorldEntityRenderDatum) => {
           if (datum.kind === "cluster") {
             const memberRadius = datum.clusterMembers.reduce(
