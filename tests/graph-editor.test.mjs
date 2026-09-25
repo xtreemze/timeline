@@ -741,7 +741,6 @@ test("legacy Orb fallback keeps data synchronization enabled before manual force
   assert.match(source, /isSimulatingOnSettingsUpdate:\s*false/);
 });
 
-
 test("graph interaction work is coalesced to the display frame", async () => {
   const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
