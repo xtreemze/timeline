@@ -102,7 +102,6 @@ test("stale releases and commits from non-owners cannot mutate state", () => {
   assert.deepEqual(coordinator.snapshot(), before);
 });
 
-
 test("all surfaces share primary pointer acquisition semantics", () => {
   assert.equal(surfacePointerMayStartDirectManipulation({ pointerType: "mouse", button: 0 }), true);
   assert.equal(
@@ -139,7 +138,6 @@ test("surface cursors use one direct-manipulation vocabulary", () => {
   assert.equal(surfaceCursor("cluster"), "zoom-in");
   assert.equal(surfaceCursor("draggable", { dragging: true }), "grabbing");
 });
-
 
 test("owned pan can promote to pinch and return to pan without a second epoch", () => {
   const coordinator = createInteractionCoordinator();
@@ -207,7 +205,10 @@ test("shared keyboard navigation ignores controls and platform shortcuts", () =>
     false,
   );
   assert.equal(
-    surfaceKeyboardMayNavigate({ key: "ArrowLeft", target: { tagName: "DIV", isContentEditable: true } }),
+    surfaceKeyboardMayNavigate({
+      key: "ArrowLeft",
+      target: { tagName: "DIV", isContentEditable: true },
+    }),
     false,
   );
   assert.equal(surfaceKeyboardMayNavigate({ key: "ArrowLeft", metaKey: true }), false);
@@ -230,7 +231,10 @@ test("retained surfaces use the same renderer-style keyboard camera vocabulary",
     "fit-all",
   );
   assert.equal(
-    surfaceNavigationFromKeyboard({ key: "ArrowRight", target: { tagName: "BUTTON" } }, "horizontal"),
+    surfaceNavigationFromKeyboard(
+      { key: "ArrowRight", target: { tagName: "BUTTON" } },
+      "horizontal",
+    ),
     null,
   );
 });
