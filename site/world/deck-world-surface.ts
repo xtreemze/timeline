@@ -79,7 +79,7 @@ import {
   applyWorldProjectionDelta,
   type WorldProjectionDelta,
 } from "../../src/projection/world-projection-delta.ts";
-import { pulseHaptic } from "../timeline-motion.ts";
+import { pulseHaptic, TimelineMotion } from "../timeline-motion.ts";
 import { buildWorldAccessibleOutline, WorldAccessibleMirror } from "./world-accessible-mirror.ts";
 import {
   clipWorldLines,
@@ -934,18 +934,24 @@ function prefersReducedMotion(): boolean {
  * pointer-anchored wheel/pinch zoom (`zoomAround: "pointer"` is deck.gl's
  * default), and keyboard pan/zoom (`keyboard: true` is deck.gl's default) —
  * this file does not reimplement that gesture handling. What deck.gl
- * does *not* default to "on" is inertia, so it is set explicitly here and
- * tied to the platform's reduced-motion preference. `doubleClickZoom` is
+ * does *not* default to "on" is inertia, so its decay horizon is explicitly
+ * shared with the timeline motion model. Wheel zoom is smoothed for the same
+ * weighted feel, and both behaviors are tied to the platform's reduced-motion
+ * preference. `doubleClickZoom` is
  * left off (deck.gl's own default) because this surface wires its own
  * double-tap/double-click focus gesture (see `#handleDoubleClick`) instead.
  */
 function deckControllerOptions(
   mode: WorldSpatialMode = "globe",
 ): Readonly<Record<string, unknown>> {
+  const reducedMotion = prefersReducedMotion();
   return Object.freeze({
     dragPan: true,
     dragRotate: true,
-    scrollZoom: true,
+    // Keep wheel input direct under reduced motion. Otherwise let deck
+    // accumulate wheel deltas into a short smooth target so zoom carries the
+    // same weighted, non-stepped feel as timeline navigation.
+    scrollZoom: reducedMotion ? true : { smooth: true },
     touchZoom: true,
     multiTouchDrag: "rotate",
     keyboard: true,
@@ -954,7 +960,10 @@ function deckControllerOptions(
     // controller can briefly observe the local MapView during a mode swap,
     // so local mode deliberately anchors zoom at the viewport center.
     zoomAround: mode === "globe" ? "pointer" : "center",
-    inertia: !prefersReducedMotion(),
+    // deck.gl accepts a duration here. Reuse the timeline's decay horizon so
+    // a released globe/pinch gesture loses momentum on the same tactile time
+    // scale instead of relying on deck.gl's unrelated default.
+    inertia: reducedMotion ? false : TimelineMotion.INERTIA_TAU_MS,
   });
 }
 

@@ -12,6 +12,7 @@ import {
   worldLabelCollisionPriority,
 } from "../site/world/deck-world-surface.ts";
 import { selectWorldSpatialMode } from "../src/layout/world-spatial-mode.ts";
+import { TimelineMotion } from "../site/timeline-motion.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
@@ -269,20 +270,20 @@ test("DeckWorldSurface constructs one globe view and controlled deck runtime", (
   });
 });
 
-test("deck controller is configured with orbit, pointer-anchored zoom, and inertia enabled", () => {
+test("deck controller uses timeline-weighted inertia and smooth pointer-anchored zoom", () => {
   const { calls, runtime } = harness();
   new DeckWorldSurface({}, runtime);
 
   assert.deepEqual(calls.deckProps.controller, {
     dragPan: true,
     dragRotate: true,
-    scrollZoom: true,
+    scrollZoom: { smooth: true },
     touchZoom: true,
     multiTouchDrag: "rotate",
     keyboard: true,
     doubleClickZoom: false,
     zoomAround: "pointer",
-    inertia: true,
+    inertia: TimelineMotion.INERTIA_TAU_MS,
   });
 });
 
@@ -297,6 +298,7 @@ test("deck controller disables inertia when prefers-reduced-motion is set", (t) 
   new DeckWorldSurface({}, runtime);
 
   assert.equal(calls.deckProps.controller.inertia, false);
+  assert.equal(calls.deckProps.controller.scrollZoom, true);
 });
 
 test("world graph layers do not configure deck transitions", () => {
