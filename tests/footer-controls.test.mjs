@@ -18,7 +18,10 @@ test("footer controls use disclosure/group semantics without redundant toggle st
     index,
     /app-footer-timeline timeline-local-toolbar" role="group" aria-label="Timeline controls"/,
   );
-  assert.match(index, /id="timeline-view-controls-toggle"[\s\S]*aria-expanded="false"[\s\S]*aria-label="View controls"/);
+  assert.match(
+    index,
+    /id="timeline-view-controls-toggle"[\s\S]*aria-expanded="false"[\s\S]*aria-label="View controls"/,
+  );
   assert.doesNotMatch(index, /id="editor-toggle"[^>]*aria-pressed=/);
   assert.doesNotMatch(app, /editorToggle\.setAttribute\("aria-pressed"/);
   assert.match(world, /bar\.setAttribute\("role", "group"\)/);
@@ -33,10 +36,7 @@ test("footer controls share a 44px target and explicit focus treatment", async (
     css,
     /app-footer-timeline\.timeline-local-toolbar\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) auto/,
   );
-  assert.match(
-    css,
-    /app-footer-context-actions\s*\{[\s\S]*overflow-x:\s*auto/,
-  );
+  assert.match(css, /app-footer-context-actions\s*\{[\s\S]*overflow-x:\s*auto/);
   assert.match(
     css,
     /\.app-footer-actions > \.app-tool:focus-visible,[\s\S]*outline:\s*2px solid var\(--focus\)[\s\S]*outline-offset:\s*-3px/,
