@@ -376,7 +376,11 @@ export function worldEdgeStyle(
   return Object.freeze({
     // Interaction emphasis is renderer-only so edge geometry/routing never
     // changes on hover or selection.
-    color: (input.subdued || input.inactive) && !input.selected ? palette.muted : semanticColor,
+    // Ordinary relationships stay subordinate through alpha in the renderer,
+    // not by erasing their semantic/category hue. Inactive/releasing edges
+    // alone resolve to muted; this also gives temporal colour interpolation a
+    // meaningful semantic endpoint.
+    color: input.inactive && !input.selected ? palette.muted : semanticColor,
     width: authoredWidth,
     dashed:
       lineStyle === "dashed" ||
