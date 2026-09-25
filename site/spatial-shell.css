@@ -65,9 +65,9 @@
 
 #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-browser-sheet,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-browser-sheet {
-  inset: 0;
+  inset: 0 0 var(--workspace-footer-block-size, 64px);
   inline-size: 100%;
-  block-size: 100%;
+  block-size: auto;
   max-inline-size: none;
   max-block-size: none;
 }
@@ -161,8 +161,14 @@
 }
 
 #app-shell.is-event-focused #presentation-stage {
-  --focus-timeline-block-size: clamp(104px, 22%, 144px);
-  --focus-timeline-inline-size: clamp(84px, 22%, 104px);
+  --focus-timeline-block-size: var(
+    --relations-block-rail,
+    var(--mobile-relations-block-rail, clamp(156px, 42dvh, 320px))
+  );
+  --focus-timeline-inline-size: var(
+    --relations-inline-rail,
+    var(--mobile-relations-inline-rail, clamp(136px, 38dvw, 280px))
+  );
   position: relative;
   display: block;
   min-inline-size: 0;
@@ -214,24 +220,10 @@
   transform: translateY(-50%);
 }
 
-#app-shell.is-event-focused
-  #presentation-stage[data-timeline-orientation="horizontal"]
-  > .timeline-view {
+#app-shell.is-event-focused #presentation-stage > .timeline-view {
   position: absolute;
-  inset: auto 0 0;
+  inset: 0;
   inline-size: 100%;
-  block-size: var(--focus-timeline-block-size);
-  min-inline-size: 0;
-  min-block-size: 0;
-  margin: 0;
-}
-
-#app-shell.is-event-focused
-  #presentation-stage[data-timeline-orientation="vertical"]
-  > .timeline-view {
-  position: absolute;
-  inset: 0 0 0 auto;
-  inline-size: var(--focus-timeline-inline-size);
   block-size: 100%;
   min-inline-size: 0;
   min-block-size: 0;
@@ -399,11 +391,6 @@
     max-block-size: calc(100% - 1.1rem);
   }
 
-  #presentation-stage[data-timeline-orientation="horizontal"] > .timeline-local-toolbar {
-    inset-block-start: auto;
-    inset-block-end: calc(var(--workspace-footer-block-size, 64px) + 0.5rem);
-    inset-inline-end: max(0.5rem, env(safe-area-inset-right));
-  }
 }
 
 /* Persistent footer control plane.
@@ -499,11 +486,6 @@
   border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
 }
 
-#app-shell[data-browser-open="true"] > .app-browser-sheet {
-  inset-block-end: var(--workspace-footer-block-size);
-  block-size: auto;
-}
-
 #app-shell[data-browser-open="true"] > .app-browser-sheet > .app-browser-panel {
   padding-block-end: max(0.7rem, env(safe-area-inset-bottom));
 }
@@ -512,37 +494,8 @@
   inset-block-end: calc(var(--workspace-footer-block-size) + 0.35rem);
 }
 
-/* Selection is an overlay state, never a chronology resize. The timeline root remains
-   identical before and after focus; detail is constrained to the complementary world region. */
-#app-shell.is-event-focused #presentation-stage {
-  --focus-timeline-block-size: var(
-    --relations-block-rail,
-    var(--mobile-relations-block-rail, clamp(156px, 42dvh, 320px))
-  );
-  --focus-timeline-inline-size: var(
-    --relations-inline-rail,
-    var(--mobile-relations-inline-rail, clamp(136px, 38dvw, 280px))
-  );
-}
-
-#app-shell.is-event-focused #presentation-stage > .timeline-view,
-#app-shell.is-event-focused
-  #presentation-stage[data-timeline-orientation="horizontal"]
-  > .timeline-view,
-#app-shell.is-event-focused
-  #presentation-stage[data-timeline-orientation="vertical"]
-  > .timeline-view {
-  position: absolute;
-  inset: 0;
-  inline-size: 100%;
-  block-size: 100%;
-  width: 100%;
-  height: 100%;
-  min-inline-size: 0;
-  min-block-size: 0;
-  margin: 0;
-}
-
+/* Selection is an overlay state, never a chronology resize. Focused detail stays in
+   the complementary world region while the timeline root retains its normal geometry. */
 #app-shell.is-event-focused
   #presentation-stage[data-timeline-orientation="horizontal"]
   > .graph-lens:not([hidden]) {
@@ -560,4 +513,3 @@
     var(--focus-timeline-inline-size)
   );
 }
-
