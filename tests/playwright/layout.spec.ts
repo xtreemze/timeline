@@ -185,8 +185,13 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       const dock = page.locator(".app-tool-dock");
       const titleBar = page.locator(".timeline-project-heading");
       const surface = page.locator(".timeline-surface");
-      const actions = dock.locator(":scope > .app-tool");
+      const actions = dock.locator(".app-footer-primary > .app-tool");
       await expect(actions).toHaveCount(3);
+
+      const worldControls = dock.locator(
+        "#world-footer-controls .world-camera-control:visible",
+      );
+      await expect(worldControls).toHaveCount(viewport.width >= 521 ? 4 : 2);
 
       const dockBox = await expectInsideViewport(dock, viewport);
       const titleBox = await expectInsideViewport(titleBar, viewport);
@@ -202,6 +207,20 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       await expect(page.locator("#timeline-view-controls-toggle")).toBeVisible();
       await expect(page.locator(".timeline-local-toolbar")).toBeVisible();
 
+      const [worldBox, viewButtonBox] = await Promise.all([
+        dock.locator("#world-footer-controls .world-camera-controls").boundingBox(),
+        page.locator("#timeline-view-controls-toggle").boundingBox(),
+      ]);
+      expect(worldBox).not.toBeNull();
+      expect(viewButtonBox).not.toBeNull();
+      if (!worldBox || !viewButtonBox) {
+        throw new Error("Footer control zones must have live layout bounds.");
+      }
+
+      expect(worldBox.x).toBeLessThan(dockBox.x + dockBox.width / 2);
+      expect(viewButtonBox.x + viewButtonBox.width).toBeGreaterThan(
+        dockBox.x + dockBox.width / 2,
+      );
       expect(dockBox.x).toBeLessThanOrEqual(2);
       expect(dockBox.width).toBeGreaterThanOrEqual(viewport.width - 4);
       expect(dockBox.height).toBeGreaterThanOrEqual(56);
@@ -247,6 +266,10 @@ test.describe("Mobile-first Timeline layout contracts", () => {
 
       await page.locator("#editor-toggle").click();
       const editorBox = await expectInsideViewport(page.locator("#control-panel"), viewport);
+      const editorDockBox = await page.locator(".app-tool-dock").boundingBox();
+      expect(editorDockBox).not.toBeNull();
+      if (!editorDockBox) throw new Error("Persistent footer has no live bounds.");
+      expect(editorBox.y + editorBox.height).toBeLessThanOrEqual(editorDockBox.y + 1);
       if (viewport.width >= 760) {
         expect(editorBox.width).toBeLessThan(viewport.width * 0.6);
       } else {
@@ -255,8 +278,15 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       await page.locator("#control-panel-close").click();
 
       await page.locator("#timeline-browser-toggle").click();
-      await expectInsideViewport(page.locator("#timeline-browser-sheet"), viewport);
+      const browserBox = await expectInsideViewport(
+        page.locator("#timeline-browser-sheet"),
+        viewport,
+      );
       await expectInsideViewport(page.locator("#timeline-browser-close"), viewport);
+      const browserDockBox = await page.locator(".app-tool-dock").boundingBox();
+      expect(browserDockBox).not.toBeNull();
+      if (!browserDockBox) throw new Error("Persistent footer has no live bounds.");
+      expect(browserBox.y + browserBox.height).toBeLessThanOrEqual(browserDockBox.y + 1);
       const browserStage = await stage.boundingBox();
       expect(browserStage).not.toBeNull();
       if (!browserStage) throw new Error("Presentation stage disappeared under Browse.");
@@ -274,28 +304,45 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       await expect(projectButton).toHaveAttribute("aria-expanded", "false");
 
       const viewButton = page.locator("#timeline-view-controls-toggle");
+      const footer = page.locator(".app-tool-dock");
+      const panel = page.locator(".timeline-panel");
+      const [footerBefore, panelBefore] = await Promise.all([
+        footer.boundingBox(),
+        panel.boundingBox(),
+      ]);
+      expect(footerBefore).not.toBeNull();
+      expect(panelBefore).not.toBeNull();
+      if (!footerBefore || !panelBefore) {
+        throw new Error("Footer and presentation panel need baseline bounds.");
+      }
+
       await viewButton.click();
       const viewControls = page.locator("#timeline-view-toolbar:popover-open");
       const viewControlsBox = await expectInsideViewport(viewControls, viewport);
-      await expect(viewControls).toHaveAttribute(
-        "data-anchor-placement",
-        /timeline-(?:below|left)/,
-      );
+      await expect(viewControls).toHaveAttribute("data-anchor-placement", "footer");
 
-      const viewButtonBox = await viewButton.boundingBox();
-      expect(viewButtonBox).not.toBeNull();
-      if (!viewButtonBox) throw new Error("Timeline View invoker has no live bounds.");
-      const inlineGap = Math.max(
-        0,
-        viewButtonBox.x - (viewControlsBox.x + viewControlsBox.width),
-        viewControlsBox.x - (viewButtonBox.x + viewButtonBox.width),
+      const [footerAfter, panelAfter] = await Promise.all([
+        footer.boundingBox(),
+        panel.boundingBox(),
+      ]);
+      expect(footerAfter).not.toBeNull();
+      expect(panelAfter).not.toBeNull();
+      if (!footerAfter || !panelAfter) {
+        throw new Error("Footer and presentation panel need expanded View bounds.");
+      }
+
+      expect(footerAfter.height).toBeGreaterThan(footerBefore.height);
+      expect(panelAfter.height).toBeLessThan(panelBefore.height);
+      expect(
+        Math.abs(
+          (panelBefore.height - panelAfter.height) - (footerAfter.height - footerBefore.height),
+        ),
+      ).toBeLessThanOrEqual(2);
+      expect(panelAfter.y + panelAfter.height).toBeLessThanOrEqual(footerAfter.y + 1);
+      expect(viewControlsBox.y).toBeGreaterThanOrEqual(footerAfter.y - 1);
+      expect(viewControlsBox.y + viewControlsBox.height).toBeLessThanOrEqual(
+        footerAfter.y + footerAfter.height + 1,
       );
-      const blockGap = Math.max(
-        0,
-        viewButtonBox.y - (viewControlsBox.y + viewControlsBox.height),
-        viewControlsBox.y - (viewButtonBox.y + viewButtonBox.height),
-      );
-      expect(Math.min(inlineGap, blockGap)).toBeLessThanOrEqual(12);
 
       await page.keyboard.press("Escape");
       await expect(viewButton).toHaveAttribute("aria-expanded", "false");
