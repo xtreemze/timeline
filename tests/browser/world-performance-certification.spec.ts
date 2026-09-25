@@ -266,29 +266,37 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
         incrementalUpdate,
         sustainedNavigation,
       };
-      report.scales.push(scaleReport);
+      const existingIndex = report.scales.findIndex((entry) => entry.label === scaleReport.label);
+      if (existingIndex >= 0) report.scales[existingIndex] = scaleReport;
+      else report.scales.push(scaleReport);
 
-      // Loose sanity bounds: catch a total collapse, not a tight regression
-      // gate. See world-performance-baseline.json for the documented
-      // rationale and per-scale ceilings.
-      const baseline = loadBaseline();
-      const bound = baseline.scales[scale.label];
-      if (bound) {
-        expect(
-          scaleReport.firstUsableFrameMs,
-          `first usable frame at ${scale.label} should stay under the sanity ceiling`,
-        ).toBeLessThan(bound.maxFirstUsableFrameMs);
-        expect(
-          scaleReport.sustainedFrame.p95Ms,
-          `p95 frame time at ${scale.label} should stay under the sanity ceiling`,
-        ).toBeLessThan(bound.maxSustainedFrameP95Ms);
-      }
+      // Persist evidence before any baseline assertion can fail. This keeps
+      // partial/retry output current instead of uploading the committed JSON.
+      mkdirSync(dirname(REPORT_PATH), { recursive: true });
+      writeFileSync(REPORT_PATH, JSON.stringify(report, null, 2));
     });
   }
 
   test.afterAll(() => {
     mkdirSync(dirname(REPORT_PATH), { recursive: true });
     writeFileSync(REPORT_PATH, JSON.stringify(report, null, 2));
+
+    // Evaluate loose sanity ceilings only after every scale had a chance to
+    // run. A baseline miss should fail certification, not suppress evidence
+    // from the larger scales that explain where the time is going.
+    const baseline = loadBaseline();
+    for (const scaleReport of report.scales) {
+      const bound = baseline.scales[scaleReport.label];
+      if (!bound) continue;
+      expect(
+        scaleReport.firstUsableFrameMs,
+        `first usable frame at ${scaleReport.label} should stay under the sanity ceiling`,
+      ).toBeLessThan(bound.maxFirstUsableFrameMs);
+      expect(
+        scaleReport.sustainedFrame.p95Ms,
+        `p95 frame time at ${scaleReport.label} should stay under the sanity ceiling`,
+      ).toBeLessThan(bound.maxSustainedFrameP95Ms);
+    }
   });
 });
 
