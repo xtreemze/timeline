@@ -433,3 +433,171 @@
     inset-inline-end: max(0.5rem, env(safe-area-inset-right));
   }
 }
+
+
+/* Persistent footer control plane.
+   World camera controls live on the physical left, application actions stay centered,
+   and chronology controls live on the physical right. Utility panels end above this
+   plane instead of covering or displacing it. */
+#app-shell > .app-tool-dock.app-footer-bar {
+  z-index: 1600;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  inline-size: 100%;
+  max-inline-size: none;
+  overflow: hidden;
+}
+
+.app-footer-zone {
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+
+.app-footer-world {
+  justify-content: flex-start;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+
+.app-footer-world::-webkit-scrollbar,
+.app-footer-timeline::-webkit-scrollbar {
+  display: none;
+}
+
+.app-footer-actions {
+  justify-content: center;
+  min-inline-size: max-content;
+}
+
+.app-footer-actions > .app-tool {
+  flex: 0 1 88px;
+}
+
+.app-footer-timeline.timeline-local-toolbar {
+  justify-content: flex-end;
+  gap: 0.12rem;
+  padding: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.app-footer-world .world-camera-controls {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  display: flex;
+  flex-direction: row;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0.62rem;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-footer-world .world-camera-control {
+  inline-size: 40px;
+  block-size: 44px;
+  min-inline-size: 40px;
+  min-block-size: 44px;
+  border-radius: 0.5rem;
+}
+
+.app-footer-world .world-camera-control + .world-camera-control {
+  border-block-start: 0;
+  border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+#app-shell[data-browser-open="true"] > .app-browser-sheet {
+  inset-block-end: var(--workspace-footer-block-size);
+  block-size: auto;
+}
+
+#app-shell[data-browser-open="true"] > .app-browser-sheet > .app-browser-panel {
+  padding-block-end: max(0.7rem, env(safe-area-inset-bottom));
+}
+
+#app-shell[data-editor-open="true"] > .app-editor-sheet {
+  inset-block-end: calc(var(--workspace-footer-block-size) + 0.35rem);
+}
+
+/* Selection is an overlay state, never a chronology resize. The timeline root remains
+   identical before and after focus; detail is constrained to the complementary world region. */
+#app-shell.is-event-focused #presentation-stage {
+  --focus-timeline-block-size: var(
+    --relations-block-rail,
+    var(--mobile-relations-block-rail, clamp(156px, 42dvh, 320px))
+  );
+  --focus-timeline-inline-size: var(
+    --relations-inline-rail,
+    var(--mobile-relations-inline-rail, clamp(136px, 38dvw, 280px))
+  );
+}
+
+#app-shell.is-event-focused #presentation-stage > .timeline-view,
+#app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="horizontal"]
+  > .timeline-view,
+#app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="vertical"]
+  > .timeline-view {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  width: 100%;
+  height: 100%;
+  min-inline-size: 0;
+  min-block-size: 0;
+  margin: 0;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="horizontal"]
+  > .graph-lens:not([hidden]) {
+  inset-block-end: calc(
+    var(--relations-bottom-safe, var(--workspace-footer-block-size, 64px)) +
+    var(--focus-timeline-block-size)
+  );
+}
+
+#app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="vertical"]
+  > .graph-lens:not([hidden]) {
+  inset-inline-end: calc(
+    var(--relations-right-safe, max(0.25rem, env(safe-area-inset-right))) +
+    var(--focus-timeline-inline-size)
+  );
+}
+
+@media (max-width: 699px) {
+  #app-shell > .app-tool-dock.app-footer-bar {
+    grid-template-columns: minmax(72px, 1fr) auto minmax(48px, 1fr);
+    gap: 0.08rem;
+  }
+
+  .app-footer-actions > .app-tool {
+    flex-basis: 48px;
+    min-inline-size: 44px;
+    padding-inline: 0.18rem;
+  }
+
+  .app-footer-actions .app-tool-label {
+    font-size: 0.58rem;
+  }
+
+  .app-footer-world .world-camera-control,
+  .app-footer-timeline .timeline-local-button {
+    inline-size: 38px;
+    min-inline-size: 38px;
+  }
+}
