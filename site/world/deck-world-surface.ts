@@ -1,4 +1,8 @@
 import type { EntityId, PlaceId, RelationshipId } from "../../src/domain/ids.ts";
+import {
+  surfaceActivationFromKeyboard,
+  surfaceCursor,
+} from "../../src/interaction/surface-input-policy.ts";
 import type { WorldNodeDragPosition } from "../../src/interaction/world-node-drag-controller.ts";
 import { resolveWorldNodeDragPosition } from "../../src/interaction/world-node-drag-geometry.ts";
 import { worldPointerDragMayStart } from "../../src/interaction/world-pointer-policy.ts";
@@ -2265,13 +2269,14 @@ export class DeckWorldSurface implements WorldSurface {
   #setPointerCursor(selection: WorldSelection | null, cluster = false): void {
     const style = (this.#container as HTMLElement).style;
     if (!style) return;
-    style.cursor = cluster
-      ? "zoom-in"
+    const intent = cluster
+      ? "cluster"
       : selection?.kind === "entity" && this.#nodeDragSink
-        ? "grab"
+        ? "draggable"
         : selection
-          ? "pointer"
-          : "grab";
+          ? "action"
+          : "background";
+    style.cursor = surfaceCursor(intent, { dragging: this.#activeDragPointerId !== null });
   }
 
   #selectionFromPickingInfo(info: DeckRuntimePickingInfo): WorldSelection | null {
@@ -2350,7 +2355,8 @@ export class DeckWorldSurface implements WorldSurface {
     ) {
       return;
     }
-    if (event.key === "Enter" && this.#selection) {
+    const activation = surfaceActivationFromKeyboard(event);
+    if (activation === "activate" && this.#selection) {
       event.preventDefault?.();
       const selection = this.#selection;
       if (selection.kind === "entity") this.focusEntity(selection.id);
@@ -3040,8 +3046,7 @@ export class DeckWorldSurface implements WorldSurface {
     const claimed = sink.begin(pointerId, target.instanceId, target.position);
     if (claimed) {
       if (touch) this.#touchHold.commit(pointerId);
-      const style = (this.#container as HTMLElement).style;
-      if (style) style.cursor = "grabbing";
+      this.#setPointerCursor(this.#hoverSelection);
       if (!touch) void pulseHaptic("tick");
       this.#render();
       if (this.#camera.zoom >= WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM) {
