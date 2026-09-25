@@ -123,23 +123,35 @@ async function verifyMeasuredCapture(videoPath, manifest) {
   if (timing.minimumFps !== manifest.minimumMeasuredCaptureFps) {
     throw new Error(`${videoPath} timing evidence does not match the minimum capture rate`);
   }
+  if (timing.maximumFps !== manifest.maximumMeasuredCaptureFps) {
+    throw new Error(`${videoPath} timing evidence does not match the maximum capture rate`);
+  }
   if (timing.codec !== "vp8") {
     throw new Error(`${videoPath} timing evidence must identify the raw capture codec as VP8`);
   }
 
   const minimumFps = manifest.minimumMeasuredCaptureFps;
+  const maximumFps = manifest.maximumMeasuredCaptureFps;
   const captured = decodedFrameStats(timestamps);
-  if (!Number.isFinite(captured.fps) || captured.fps < minimumFps) {
+  if (
+    !Number.isFinite(captured.fps) ||
+    captured.fps < minimumFps ||
+    captured.fps > maximumFps
+  ) {
     throw new Error(
-      `${videoPath} raw X11 timing evidence is only ${captured.fps.toFixed(2)} fps; expected at least ${Number(minimumFps).toFixed(2)} fps before publication encoding.`,
+      `${videoPath} raw X11 timing evidence is ${captured.fps.toFixed(2)} fps; expected native ${Number(minimumFps).toFixed(2)}-${Number(maximumFps).toFixed(2)} fps before publication encoding.`,
     );
   }
 
   const browserSeconds = browserTimestamps.map((timestamp) => timestamp / 1000);
   const browser = decodedFrameStats(browserSeconds);
-  if (!Number.isFinite(browser.fps) || browser.fps < minimumFps) {
+  if (
+    !Number.isFinite(browser.fps) ||
+    browser.fps < minimumFps ||
+    browser.fps > maximumFps
+  ) {
     throw new Error(
-      `${videoPath} browser animation clock is only ${browser.fps.toFixed(2)} fps; expected at least ${Number(minimumFps).toFixed(2)} fps while recording.`,
+      `${videoPath} browser animation clock is ${browser.fps.toFixed(2)} fps; expected display-paced ${Number(minimumFps).toFixed(2)}-${Number(maximumFps).toFixed(2)} fps while recording.`,
     );
   }
 
@@ -150,9 +162,13 @@ async function verifyMeasuredCapture(videoPath, manifest) {
 
   const decodedTimestamps = await probeFrameTimestamps(videoPath);
   const decoded = decodedFrameStats(decodedTimestamps);
-  if (!Number.isFinite(decoded.fps) || decoded.fps < minimumFps) {
+  if (
+    !Number.isFinite(decoded.fps) ||
+    decoded.fps < minimumFps ||
+    decoded.fps > maximumFps
+  ) {
     throw new Error(
-      `${videoPath} raw WebM decodes at only ${decoded.fps.toFixed(2)} fps from ${String(decoded.frames)} actual frames; expected at least ${Number(minimumFps).toFixed(2)} fps.`,
+      `${videoPath} raw WebM decodes at ${decoded.fps.toFixed(2)} fps from ${String(decoded.frames)} actual frames; expected native ${Number(minimumFps).toFixed(2)}-${Number(maximumFps).toFixed(2)} fps.`,
     );
   }
   if (decoded.frames !== timing.capturedFrames || decoded.frames !== timestamps.length) {
@@ -209,6 +225,9 @@ function assertManifest(manifest, formFactor) {
   }
   if (manifest.minimumMeasuredCaptureFps !== 59) {
     throw new Error(`${formFactor} manifest must require at least 59 measured source frames per second`);
+  }
+  if (manifest.maximumMeasuredCaptureFps !== 61) {
+    throw new Error(`${formFactor} manifest must reject uncapped capture above 61 measured frames per second`);
   }
   if (!Array.isArray(manifest.segments) || manifest.segments.length !== 5) {
     throw new Error(`${formFactor} manifest must contain exactly five showcase scenes`);
@@ -335,8 +354,8 @@ async function renderFormFactor(formFactor, manifest) {
       "4",
       "-loop",
       "0",
-      "-r",
-      String(manifest.captureFps),
+      "-fps_mode",
+      "passthrough",
       webpOutput,
     ]);
 
@@ -363,10 +382,11 @@ async function renderFormFactor(formFactor, manifest) {
     const publishedWebp = decodedFrameStats(publishedWebpTimestamps);
     if (
       !Number.isFinite(publishedWebp.fps) ||
-      publishedWebp.fps < manifest.minimumMeasuredCaptureFps
+      publishedWebp.fps < manifest.minimumMeasuredCaptureFps ||
+      publishedWebp.fps > manifest.maximumMeasuredCaptureFps
     ) {
       throw new Error(
-        `${webpOutput} decodes at only ${publishedWebp.fps.toFixed(2)} fps; expected a verified 60 fps presentation derivative.`,
+        `${webpOutput} decodes at ${publishedWebp.fps.toFixed(2)} fps; expected source-paced 59-61 fps without publication retiming.`,
       );
     }
 
@@ -380,7 +400,9 @@ async function renderFormFactor(formFactor, manifest) {
       "-i",
       videoPath,
       "-vf",
-      `scale=${reelProfile.width}:${reelProfile.height}:force_original_aspect_ratio=decrease,pad=${reelProfile.width}:${reelProfile.height}:(ow-iw)/2:(oh-ih)/2:color=0x0b0c10,setsar=1,fps=${reelProfile.fps},format=yuv420p`,
+      `scale=${reelProfile.width}:${reelProfile.height}:force_original_aspect_ratio=decrease,pad=${reelProfile.width}:${reelProfile.height}:(ow-iw)/2:(oh-ih)/2:color=0x0b0c10,setsar=1,format=yuv420p`,
+      "-fps_mode",
+      "passthrough",
       "-an",
       "-c:v",
       "libx264",
@@ -424,8 +446,8 @@ async function renderFormFactor(formFactor, manifest) {
     filters.join(";"),
     "-map",
     `[${currentLabel}]`,
-    "-r",
-    String(manifest.captureFps),
+    "-fps_mode",
+    "passthrough",
     "-an",
     "-c:v",
     "libx264",
@@ -442,9 +464,13 @@ async function renderFormFactor(formFactor, manifest) {
   await run(ffmpeg, args);
   const reelTimestamps = await probeFrameTimestamps(reelPath);
   const reelProbe = decodedFrameStats(reelTimestamps);
-  if (!Number.isFinite(reelProbe.fps) || reelProbe.fps < manifest.minimumMeasuredCaptureFps) {
+  if (
+    !Number.isFinite(reelProbe.fps) ||
+    reelProbe.fps < manifest.minimumMeasuredCaptureFps ||
+    reelProbe.fps > manifest.maximumMeasuredCaptureFps
+  ) {
     throw new Error(
-      `${reelPath} decodes at only ${reelProbe.fps.toFixed(2)} fps; expected a verified 60 fps reel.`,
+      `${reelPath} decodes at ${reelProbe.fps.toFixed(2)} fps; expected source-paced 59-61 fps reel output.`,
     );
   }
 
