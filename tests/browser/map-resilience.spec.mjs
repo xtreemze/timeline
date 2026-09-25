@@ -96,9 +96,15 @@ test("the location editor places coordinates by click and by keyboard", async ({
     form.id = "map-editor-test";
     form.style.cssText =
       "position:fixed;inset-block-start:8px;inset-inline-start:8px;z-index:2147483647;background:#fff";
-    form.innerHTML = `
-      <div class="location-map" style="width:360px;height:260px;margin:0"></div>
-      <input name="lat"><input name="lng"><input name="accuracy"><input name="source">`;
+    const mapContainer = document.createElement("div");
+    mapContainer.className = "location-map";
+    mapContainer.style.cssText = "width:360px;height:260px;margin:0";
+    form.append(mapContainer);
+    for (const name of ["lat", "lng", "accuracy", "source"]) {
+      const field = document.createElement("input");
+      field.name = name;
+      form.append(field);
+    }
     document.body.append(form);
     const input = (name) => form.querySelector(`input[name="${name}"]`);
     const controller = globalThis.TimelineLocationMap.create({
