@@ -92,6 +92,7 @@ test("landscape selection preserves timeline geometry while detail layers over t
   await ensureOrientation(page, "landscape");
   const before = await page.locator("#timeline-view").boundingBox();
   expect(before).not.toBeNull();
+  if (!before) throw new Error("Timeline must have layout bounds before focus.");
 
   const focus = await focusOccurrence(page);
   const { focusBox, graphBox, timelineBox, stageBox } = await boxes(page, focus);
@@ -109,6 +110,7 @@ test("landscape selection preserves timeline geometry while detail layers over t
   await ensureOrientation(page, "portrait");
   const before = await page.locator("#timeline-view").boundingBox();
   expect(before).not.toBeNull();
+  if (!before) throw new Error("Timeline must have layout bounds before focus.");
 
   const focus = await focusOccurrence(page);
   const { focusBox, graphBox, timelineBox, stageBox } = await boxes(page, focus);
