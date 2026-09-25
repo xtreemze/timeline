@@ -254,6 +254,49 @@ async function stopX11Capture(captureState: X11Capture) {
   await captureState.exited;
 }
 
+async function captureX11Still(
+  screenshotPath: string,
+  captureSize: { width: number; height: number },
+) {
+  const display = process.env.DISPLAY;
+  if (!display) throw new Error("DISPLAY is required for the showcase framebuffer still.");
+
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(
+      process.env.FFMPEG_BIN ?? "ffmpeg",
+      [
+        "-y",
+        "-f",
+        "x11grab",
+        "-draw_mouse",
+        "0",
+        "-framerate",
+        String(SHOWCASE_FPS),
+        "-video_size",
+        `${String(captureSize.width)}x${String(captureSize.height)}`,
+        "-i",
+        `${display}+0,0`,
+        "-frames:v",
+        "1",
+        "-c:v",
+        "png",
+        "-update",
+        "1",
+        screenshotPath,
+      ],
+      {
+        stdio: ["ignore", "inherit", "inherit"],
+        env: process.env,
+      },
+    );
+    child.on("error", reject);
+    child.on("exit", (code, signal) => {
+      if (code === 0) resolve();
+      else reject(new Error(`ffmpeg still capture exited with ${String(code ?? signal)}`));
+    });
+  });
+}
+
 async function probeDecodedFrameTimestamps(videoPath: string) {
   const stdout = await capture(process.env.FFPROBE_BIN ?? "ffprobe", [
     "-v",
@@ -488,12 +531,7 @@ async function recordSegment(
         );
       }
 
-      await page.screenshot({
-        path: screenshotPath,
-        animations: "disabled",
-        scale: "css",
-        timeout: 30_000,
-      });
+      await captureX11Still(screenshotPath, captureSize);
       await encodeSourceCapture(sourcePath, videoPath, captureSize);
 
       capture = {
@@ -517,12 +555,7 @@ async function recordSegment(
   } else {
     await body();
     await page.waitForTimeout(250);
-    await page.screenshot({
-      path: screenshotPath,
-      animations: "disabled",
-      scale: "css",
-      timeout: 30_000,
-    });
+    await captureX11Still(screenshotPath, captureSize);
   }
 
   return {
