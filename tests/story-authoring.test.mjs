@@ -23,11 +23,7 @@ test("story authoring derives places from contextual occurrence edges without po
     { id: "r2", itemIds: ["b1"], placeId: "village", time: { type: "instant" } },
   ];
 
-  assert.deepEqual(deriveStoryPlaceIds(story, relationships, places), [
-    "village",
-    "castle",
-    "forest",
-  ]);
+  assert.deepEqual(deriveStoryPlaceIds(story, relationships, places), ["village", "castle"]);
 });
 
 test("adding a scene to a story is additive and reconciles contextual places atomically", () => {
@@ -41,7 +37,7 @@ test("adding a scene to a story is additive and reconciles contextual places ato
 
   const next = addItemToStory(stories, "story-a", "a3", relationships, places);
   assert.deepEqual(next[0].itemIds, ["a1", "a3"]);
-  assert.deepEqual(next[0].placeIds, ["castle", "forest"]);
+  assert.deepEqual(next[0].placeIds, ["castle"]);
   assert.deepEqual(next[1], stories[1]);
   assert.deepEqual(storyIdsForItem(next, "a3"), ["story-a"]);
 });
@@ -55,8 +51,12 @@ test("reconciling story context removes stale place ids while retaining manual v
   assert.deepEqual(reconcileStoryContext(story, relationships, places).placeIds, [
     "village",
     "castle",
-    "forest",
   ]);
+});
+
+test("story-attributed places remain a legacy fallback when no stronger context exists", () => {
+  const story = { id: "story-a", itemIds: ["a1"], placeIds: [] };
+  assert.deepEqual(deriveStoryPlaceIds(story, [], places), ["forest"]);
 });
 
 test("story health reports only concrete context integrity gaps", () => {
