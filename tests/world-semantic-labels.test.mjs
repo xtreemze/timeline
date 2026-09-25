@@ -822,13 +822,13 @@ test("hover and selection surface omitted entity labels without relocating stabl
   assertStableBaseGeometry(interactionLayer);
 });
 
-test("clustered overview suppresses member labels even when a member is selected", () => {
+test("clustered overview uses cluster summaries and reveals selected-node location context", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
   surface.setProjection(denseProjection(200));
-  surface.setSelection({ kind: "entity", id: "entity-150" });
 
-  const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  let labelLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  let labels = labelLayer.props.data;
   assert.equal(
     labels.some((datum) => datum.kind === "entity-label"),
     false,
@@ -837,8 +837,40 @@ test("clustered overview suppresses member labels even when a member is selected
     labels.some((datum) => datum.kind === "relationship-label"),
     false,
   );
-  assert.ok(labels.length > 0);
-  assert.ok(labels.every((datum) => datum.kind === "place-label"));
+  assert.ok(
+    labels.some((datum) => datum.kind === "cluster-label"),
+    "overview clustering presents aggregate context instead of member labels",
+  );
+
+  surface.setSelection({ kind: "entity", id: "entity-150" });
+  labelLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  labels = labelLayer.props.data;
+  assert.equal(
+    labels.some((datum) => datum.kind === "entity-label"),
+    false,
+    "clustered member geometry remains suppressed",
+  );
+  assert.ok(
+    labels.some((datum) => datum.kind === "place-label" && datum.text === "Place 0"),
+    "selecting a clustered node reveals its canonical location label",
+  );
+  assert.ok(
+    labels.some((datum) => datum.kind === "cluster-label" && datum.emphasized),
+    "the cluster containing the selected node is emphasized as context",
+  );
+
+  surface.setSelection(null);
+  const cluster = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.entities).props.data.find(
+    (datum) => datum.kind === "cluster",
+  );
+  assert.ok(cluster);
+  h.getDeckProps().onHover({ object: cluster });
+  labelLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const hoveredCluster = labelLayer.props.data.find(
+    (datum) => datum.kind === "cluster-label" && datum.clusterId === cluster.clusterId,
+  );
+  assert.ok(hoveredCluster);
+  assert.equal(hoveredCluster.emphasized, true, "hover reveals the cluster's summary context");
 });
 
 test("inactive relationships mute until their connected neighborhood is emphasized", () => {
