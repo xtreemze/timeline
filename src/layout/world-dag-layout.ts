@@ -90,6 +90,7 @@ const SIMPLEX_COORD_MAX_NODES = 64;
 const SIMPLEX_COORD_MAX_EDGES = 384;
 const SIMPLEX_LAYER_MAX_NODES = 128;
 const SIMPLEX_LAYER_MAX_EDGES = 384;
+const SIMPLEX_MAX_EDGES_PER_NODE = 6;
 const PAIRWISE_METRIC_MAX_NODES = 256;
 const ROUTE_METRIC_MAX_SEGMENTS = 512;
 const LAYOUT_HYSTERESIS_SCORE_RATIO = 1.12;
@@ -1002,16 +1003,23 @@ function chooseCandidate(
     previousName === "simplex-two-layer-simplex" || previousName === "simplex-two-layer-greedy";
   const previousUsedSimplexCoord =
     previousName === "simplex-two-layer-simplex" || previousName === "longest-two-layer-simplex";
+  // Simplex operators become superlinear on dense local DAGs well before the
+  // absolute edge caps. Route those neighborhoods through bounded longest/
+  // greedy operators; sparse chains and trees keep the higher-quality simplex
+  // family and its hysteresis.
+  const simplexDensityAllowed = edges.length <= nodeIds.length * SIMPLEX_MAX_EDGES_PER_NODE;
   const useSimplexLayering =
-    (nodeIds.length <= SIMPLEX_LAYER_MAX_NODES && edges.length <= SIMPLEX_LAYER_MAX_EDGES) ||
-    (previousUsedSimplexLayering &&
-      nodeIds.length <= SIMPLEX_LAYER_MAX_NODES + SIMPLEX_LAYER_HYSTERESIS_NODES &&
-      edges.length <= SIMPLEX_LAYER_MAX_EDGES + SIMPLEX_LAYER_HYSTERESIS_EDGES);
+    simplexDensityAllowed &&
+    ((nodeIds.length <= SIMPLEX_LAYER_MAX_NODES && edges.length <= SIMPLEX_LAYER_MAX_EDGES) ||
+      (previousUsedSimplexLayering &&
+        nodeIds.length <= SIMPLEX_LAYER_MAX_NODES + SIMPLEX_LAYER_HYSTERESIS_NODES &&
+        edges.length <= SIMPLEX_LAYER_MAX_EDGES + SIMPLEX_LAYER_HYSTERESIS_EDGES));
   const useSimplexCoord =
-    (nodeIds.length <= SIMPLEX_COORD_MAX_NODES && edges.length <= SIMPLEX_COORD_MAX_EDGES) ||
-    (previousUsedSimplexCoord &&
-      nodeIds.length <= SIMPLEX_COORD_MAX_NODES + SIMPLEX_COORD_HYSTERESIS_NODES &&
-      edges.length <= SIMPLEX_COORD_MAX_EDGES + SIMPLEX_COORD_HYSTERESIS_EDGES);
+    simplexDensityAllowed &&
+    ((nodeIds.length <= SIMPLEX_COORD_MAX_NODES && edges.length <= SIMPLEX_COORD_MAX_EDGES) ||
+      (previousUsedSimplexCoord &&
+        nodeIds.length <= SIMPLEX_COORD_MAX_NODES + SIMPLEX_COORD_HYSTERESIS_NODES &&
+        edges.length <= SIMPLEX_COORD_MAX_EDGES + SIMPLEX_COORD_HYSTERESIS_EDGES));
 
   return runLayoutCandidate(
     useSimplexCoord
