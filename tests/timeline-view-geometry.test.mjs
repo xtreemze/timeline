@@ -70,7 +70,7 @@ test("selected events use a shell-owned six-column detail surface with footer-ow
   );
   assert.match(
     css,
-    /#app-shell\.is-event-focused[\s\S]*#presentation-stage > \.timeline-view,[\s\S]*inset:\s*0[\s\S]*inline-size:\s*100%[\s\S]*block-size:\s*100%/,
+    /#app-shell\.is-event-focused #presentation-stage > \.timeline-view[\s\S]*inset:\s*0[\s\S]*inline-size:\s*100%[\s\S]*block-size:\s*100%/,
   );
   assert.match(
     css,
