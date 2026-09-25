@@ -171,6 +171,21 @@ async function stopCaptureHeartbeat(page: Page) {
   });
 }
 
+async function waitForBrowserFrameBudget(page: Page) {
+  let lastFps = 0;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    await startCaptureHeartbeat(page);
+    await page.waitForTimeout(1_000);
+    const measurement = await stopCaptureHeartbeat(page);
+    lastFps = measurement.fps;
+    if (Number.isFinite(lastFps) && lastFps >= MIN_CAPTURE_FPS) return;
+    await page.waitForTimeout(500);
+  }
+  throw new Error(
+    `Browser frame-clock preflight sustained only ${lastFps.toFixed(2)} fps; expected at least ${MIN_CAPTURE_FPS} before capture.`,
+  );
+}
+
 type X11Capture = {
   child: ReturnType<typeof spawn>;
   exited: Promise<void>;
@@ -473,7 +488,12 @@ async function recordSegment(
   const rawDir = path.join(OUTPUT_ROOT, "raw", formFactor);
   await mkdir(rawDir, { recursive: true });
   const videoPath = path.join(rawDir, `${scene.name}.webm`);
-  const sourcePath = `${videoPath}.source.nut`;
+  const captureTempDir = process.env.SHOWCASE_CAPTURE_TMPDIR ?? rawDir;
+  await mkdir(captureTempDir, { recursive: true });
+  const sourcePath = path.join(
+    captureTempDir,
+    `${formFactor}-${scene.name}.source.nut`,
+  );
   const screenshotPath = path.join(rawDir, `${scene.name}.png`);
   const captureSize =
     formFactor === "desktop" ? PROJECTS["Desktop Showcase"].size : PROJECTS["Mobile Showcase"].size;
@@ -499,6 +519,7 @@ async function recordSegment(
   if (scene.mediaMode === "motion") {
     await installCaptureBrand(page, formFactor);
     await page.waitForTimeout(250);
+    await waitForBrowserFrameBudget(page);
 
     let screenCapture: X11Capture | null = null;
     try {
