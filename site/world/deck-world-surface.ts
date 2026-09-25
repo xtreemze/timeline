@@ -990,6 +990,8 @@ interface TouchPointerEvent {
   readonly pointerId?: unknown;
   readonly offsetX?: unknown;
   readonly offsetY?: unknown;
+  readonly preventDefault?: () => void;
+  readonly stopPropagation?: () => void;
 }
 
 function touchPointer(
@@ -2180,7 +2182,44 @@ export class DeckWorldSurface implements WorldSurface {
     this.#touchHoldTimer = globalThis.setTimeout(() => {
       this.#touchHoldTimer = null;
       if (this.#destroyed || !this.#touchHold.isArmed(touch.pointerId, Date.now())) return;
+
+      // Once the hold gate owns the gesture, start the node drag directly
+      // from the pointer stream. Waiting for deck.gl's drag recognizer here
+      // is too late on touch: by the time the hold elapses its recognizer may
+      // already have classified the same contact as a camera gesture.
+      const sink = this.#nodeDragSink;
+      const target = this.#dragTarget({
+        object: { kind: "entity", worldInstanceId: hit.worldInstanceId },
+        x: touch.point.x,
+        y: touch.point.y,
+      });
+      if (!sink || !target) {
+        this.#touchHold.release(touch.pointerId);
+        this.#setTouchDragState(null);
+        return;
+      }
+
+      this.#activeDragPointerId = touch.pointerId;
+      this.#setActiveDragInstance(target.instanceId, { render: false });
+      if (!sink.begin(touch.pointerId, target.instanceId, target.position)) {
+        this.#activeDragPointerId = null;
+        this.#setActiveDragInstance(null);
+        this.#touchHold.release(touch.pointerId);
+        this.#setTouchDragState(null);
+        return;
+      }
+
+      this.#touchHold.commit(touch.pointerId);
       this.#setTouchDragState("active");
+      if (this.#camera.zoom >= WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM) {
+        this.#dragCameraLock = this.#camera;
+      }
+      try {
+        this.#container.setPointerCapture?.(touch.pointerId);
+      } catch {
+        // Pointer capture is an enhancement; the capture-phase handlers below
+        // still own movement while the contact remains over the surface.
+      }
       this.#flashDragPickup(hit.worldInstanceId);
       this.setSelection(Object.freeze({ kind: "entity" as const, id: hit.entityId }));
       void pulseHaptic("drag");
@@ -2190,6 +2229,22 @@ export class DeckWorldSurface implements WorldSurface {
   readonly #handleTouchPointerMove = (event: TouchPointerEvent): void => {
     const touch = touchPointer(event);
     if (!touch) return;
+
+    if (
+      this.#activeDragPointerId === touch.pointerId &&
+      this.#activeDragInstanceId !== null
+    ) {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      const target = this.#dragTarget({
+        object: { kind: "entity", worldInstanceId: this.#activeDragInstanceId },
+        x: touch.point.x,
+        y: touch.point.y,
+      });
+      if (target) this.#nodeDragSink?.update(touch.pointerId, target.position);
+      return;
+    }
+
     this.#touchHold.move(touch.pointerId, touch.point, Date.now());
     if (!this.#touchHold.isPending(touch.pointerId) && this.#activeDragPointerId === null) {
       this.#clearTouchHoldTimer();
@@ -2200,6 +2255,11 @@ export class DeckWorldSurface implements WorldSurface {
   readonly #handleTouchPointerUp = (event: TouchPointerEvent): void => {
     const touch = touchPointer(event);
     if (!touch) return;
+    if (this.#activeDragPointerId === touch.pointerId) {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      this.#releaseEntityDrag(touch.pointerId);
+    }
     this.#touchHold.release(touch.pointerId);
     this.#clearTouchHoldTimer();
     this.#clearDragFlash();
@@ -2989,6 +3049,11 @@ export class DeckWorldSurface implements WorldSurface {
     // Touch drags only claim the node after the long-press gate armed;
     // otherwise deck's controller keeps the gesture as a globe pan.
     const touch = pointerTypeFromRuntimeEvent(event) === "touch";
+    if (touch && this.#activeDragPointerId === pointerId) {
+      event.stopPropagation?.();
+      return true;
+    }
+    if (this.#activeDragPointerId !== null) return false;
     if (touch && !this.#touchHold.isArmed(pointerId, Date.now())) {
       return false;
     }
@@ -3030,14 +3095,10 @@ export class DeckWorldSurface implements WorldSurface {
     return sink.update(pointerId, target.position);
   }
 
-  #endEntityDrag(event: DeckRuntimePointerEvent): boolean {
+  #releaseEntityDrag(pointerId: number): boolean {
     const sink = this.#nodeDragSink;
-    const pointerId = pointerIdFromRuntimeEvent(event) ?? this.#activeDragPointerId;
-    if (!sink || pointerId === null || pointerId !== this.#activeDragPointerId) {
-      return false;
-    }
+    if (!sink || pointerId !== this.#activeDragPointerId) return false;
 
-    event.stopPropagation?.();
     // Keep direct-manipulation mode active through release because the sink
     // may synchronously publish the final pinned frame. Clearing it first
     // would re-enable geometry transitions for that frame and recreate the
@@ -3051,6 +3112,13 @@ export class DeckWorldSurface implements WorldSurface {
     this.#setPointerCursor(this.#hoverSelection);
     void pulseHaptic("release");
     return released;
+  }
+
+  #endEntityDrag(event: DeckRuntimePointerEvent): boolean {
+    const pointerId = pointerIdFromRuntimeEvent(event) ?? this.#activeDragPointerId;
+    if (pointerId === null || pointerId !== this.#activeDragPointerId) return false;
+    event.stopPropagation?.();
+    return this.#releaseEntityDrag(pointerId);
   }
 
   #clearTouchHoldTimer(): void {
