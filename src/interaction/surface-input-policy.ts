@@ -132,9 +132,7 @@ export function surfaceKeyboardTargetOwnsNavigation(event: unknown): boolean {
   const closest = target?.closest;
   if (typeof closest !== "function") return false;
   try {
-    return Boolean(
-      closest.call(target, '[data-surface-keyboard-navigation="camera"]'),
-    );
+    return Boolean(closest.call(target, '[data-surface-keyboard-navigation="camera"]'));
   } catch {
     return false;
   }
