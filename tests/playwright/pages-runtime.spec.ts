@@ -39,7 +39,7 @@ test("built Pages shell boots application runtime on mobile", async ({ page }) =
 
   await page.locator("#load-sample").click();
   await expect(page.locator("#timeline-title")).toHaveValue(
-    "Six classic tales — distributed fictional casebook",
+    "Nine classic tales — distributed fictional casebook",
   );
   await expect(page.locator("#item-count")).not.toHaveText("0 items");
   await expect(shell).toHaveAttribute("data-mode", "view");

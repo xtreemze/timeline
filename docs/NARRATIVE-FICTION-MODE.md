@@ -54,7 +54,7 @@ Categories and stories serve different axes and should not be used interchangeab
 - The same category should be reusable by unrelated stories when their events have the same semantic type.
 - A story title or story identifier should not be copied into `categoryId` merely to color or group that story. Story identity belongs in `story.itemIds` and, where useful, narrative extension metadata.
 
-The default anthology keeps **The Three Little Pigs**, **Snow White**, **Cinderella**, **Little Red Riding Hood**, **Hansel and Gretel**, and **Jack and the Beanstalk** as six story records while categorizing their events with a reusable semantic taxonomy. In addition to the original categories, the expanded fixture includes deception/manipulation and exchange/bargain so unrelated stories can share those semantics without turning story titles into categories.
+The default anthology keeps **The Three Little Pigs**, **Snow White**, **Cinderella**, **Little Red Riding Hood**, **Hansel and Gretel**, **Jack and the Beanstalk**, **Rapunzel**, **The Frog Prince**, and **Rumpelstiltskin** as nine story records while categorizing their events with a reusable semantic taxonomy. In addition to the original categories, the expanded fixture includes deception/manipulation, exchange/bargain, and promise/obligation so unrelated stories can share those semantics without turning story titles into categories.
 
 ## Parallel stories
 
@@ -67,4 +67,4 @@ Multiple stories may coexist in one timeline. The recommended pattern is:
 - stories remain narrative metadata rather than graph nodes or synthetic container topology;
 - with story focus off, the timeline shows all items together; selecting a story uses the existing focus path to inspect only that narrative sequence.
 
-The default sample uses six classic tales. The first three retain their overlapping Storybook Cycle 1000 action, while **Little Red Riding Hood**, **Hansel and Gretel**, and **Jack and the Beanstalk** occupy separate synthetic cycles and distinct map regions. This exercises overlapping and separated chronology, minute-scale action, ranges, media, reusable story place registries, graph relationships, relation lifecycle changes, and all three focused-event compositions.
+The default sample uses nine classic tales. The first three retain their overlapping Storybook Cycle 1000 action, while **Little Red Riding Hood**, **Hansel and Gretel**, **Jack and the Beanstalk**, **Rapunzel**, **The Frog Prince**, and **Rumpelstiltskin** occupy separate synthetic cycles and distinct map regions. This exercises overlapping and separated chronology, minute-scale action, ranges, media, reusable story place registries, graph relationships, relation lifecycle changes, and all three focused-event compositions.

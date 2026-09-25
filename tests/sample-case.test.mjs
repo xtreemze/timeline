@@ -29,7 +29,7 @@ function storySpan(story) {
   };
 }
 
-test("sample is a six-story fictional anthology with strict logical consistency", () => {
+test("sample is a nine-story fictional anthology with strict logical consistency", () => {
   assert.deepEqual(
     sample.stories.map((story) => story.title),
     [
@@ -39,6 +39,9 @@ test("sample is a six-story fictional anthology with strict logical consistency"
       "Little Red Riding Hood",
       "Hansel and Gretel",
       "Jack and the Beanstalk",
+      "Rapunzel",
+      "The Frog Prince",
+      "Rumpelstiltskin",
     ],
   );
   assert.equal(sample.extensions?.narrative?.mode, "fictional");
@@ -78,10 +81,14 @@ test("the anthology combines overlapping tales with deliberately separated story
   const addedFrames = new Set(
     addedStories.map((story) => story.extensions?.narrative?.temporalReferenceFrame),
   );
-  assert.equal(addedFrames.size, 3);
+  assert.equal(addedFrames.size, 6);
   const addedStarts = addedStories.map((story) => storySpan(story).start);
-  assert.ok(addedStarts[1] - addedStarts[0] > 10 * 365 * 86_400_000);
-  assert.ok(addedStarts[2] - addedStarts[1] > 10 * 365 * 86_400_000);
+  for (let index = 1; index < addedStarts.length; index += 1) {
+    assert.ok(
+      addedStarts[index] - addedStarts[index - 1] > 10 * 365 * 86_400_000,
+      `story cycles ${index} and ${index + 1} should remain deliberately separated`,
+    );
+  }
 
   for (const story of sample.stories) {
     const labels = storyItems(story).map((item) => item.extensions?.narrative?.displayTime || "");
@@ -307,7 +314,7 @@ test("timed graph edges cover intervals, instants, attributes, entities, and reu
   const entityTypes = new Set(sample.entities.map((entity) => entity.type));
   for (const type of ["group", "object", "person"]) assert.ok(entityTypes.has(type));
   assert.equal(entityTypes.has("place"), false);
-  assert.ok(sample.places.length >= 27);
+  assert.ok(sample.places.length >= 45);
 });
 
 test("storybook scenes remain recognizable through distributed media and semantic icons", () => {
@@ -331,7 +338,7 @@ test("categories classify event semantics independently from story membership", 
   const categoryNames = new Set(sample.categories.map((category) => category.name));
   const storyTitles = new Set(sample.stories.map((story) => story.title));
 
-  assert.equal(sample.categories.length, 11);
+  assert.equal(sample.categories.length, 12);
   for (const title of storyTitles) assert.equal(categoryNames.has(title), false, title);
   for (const item of sample.items) assert.ok(categoryIds.has(item.categoryId), item.id);
 
@@ -361,6 +368,7 @@ test("categories classify event semantics independently from story membership", 
       "resolution",
       "deception",
       "exchange",
+      "obligation",
     ],
   );
 });
@@ -373,6 +381,9 @@ test("each story exposes a detailed causal sequence rather than summary-only bea
     ["story-little-red-riding-hood", 10],
     ["story-hansel-and-gretel", 10],
     ["story-jack-and-the-beanstalk", 10],
+    ["story-rapunzel", 10],
+    ["story-frog-prince", 10],
+    ["story-rumpelstiltskin", 10],
   ]);
   for (const story of sample.stories) {
     const items = storyItems(story);
@@ -387,6 +398,30 @@ test("each story exposes a detailed causal sequence rather than summary-only bea
       `${story.title}: descriptions should carry causal context`,
     );
   }
+});
+
+test("new story fixtures cover obligation, displacement, object recovery, and identity resolution", () => {
+  const expected = new Map([
+    ["story-rapunzel", ["rapunzel-confined", "rapunzel-banished", "rapunzel-reunion"]],
+    ["story-frog-prince", ["frog-promise", "frog-ball-retrieved", "frog-thrown"]],
+    ["story-rumpelstiltskin", ["rumpel-final-bargain", "rumpel-promise", "rumpel-name-found"]],
+  ]);
+
+  for (const [storyId, itemIds] of expected) {
+    const story = sample.stories.find((candidate) => candidate.id === storyId);
+    assert.ok(story, storyId);
+    const ids = new Set(story.itemIds);
+    for (const itemId of itemIds) assert.ok(ids.has(itemId), itemId);
+  }
+
+  const obligationStories = new Set(
+    sample.items
+      .filter((item) => item.categoryId === "obligation")
+      .map((item) => item.extensions?.narrative?.storyId),
+  );
+  assert.ok(obligationStories.has("story-rapunzel"));
+  assert.ok(obligationStories.has("story-frog-prince"));
+  assert.ok(obligationStories.has("story-rumpelstiltskin"));
 });
 
 test("Three Little Pigs includes material choices, escapes, regrouping and alternate-entry escalation", () => {
@@ -466,12 +501,12 @@ test("Cinderella includes household formation, practical transformation, palace 
 });
 
 test("detailed stories add graph and place depth without conflating categories with stories", () => {
-  assert.ok(sample.items.length >= 55);
-  assert.ok(sample.entities.length >= 39);
-  assert.ok(sample.places.length >= 27);
-  assert.ok(sample.relationships.length >= 46);
+  assert.ok(sample.items.length >= 115);
+  assert.ok(sample.entities.length >= 52);
+  assert.ok(sample.places.length >= 45);
+  assert.ok(sample.relationships.length >= 76);
   assert.ok(
-    sample.relationships.filter((relationship) => relationship.time?.start?.value).length >= 30,
+    sample.relationships.filter((relationship) => relationship.time?.start?.value).length >= 60,
   );
 
   const storyTitles = new Set(sample.stories.map((story) => story.title));
@@ -639,7 +674,7 @@ test("chronology items remain edge context and never become graph nodes", () => 
 test("places are reusable spatial records and never graph nodes", () => {
   const placeIds = new Set(sample.places.map((place) => place.id));
   const entityIds = new Set(sample.entities.map((entity) => entity.id));
-  assert.ok(sample.places.length >= 27);
+  assert.ok(sample.places.length >= 45);
   assert.ok(
     sample.entities.every((entity) => entity.type !== "place" && entity.type !== "location"),
   );
