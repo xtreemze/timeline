@@ -497,3 +497,35 @@ test("operator hysteresis keeps a stable family across the 24-node boundary", ()
 
   assert.equal(updatedAlgorithm, previousAlgorithm);
 });
+
+test("explicit reorganization bypasses cached place layout while preserving geographic ownership", () => {
+  const a = instance("manual-reorg-a");
+  const b = instance("manual-reorg-b");
+  const c = instance("manual-reorg-c");
+  const projection = createWorldProjection({
+    instances: [a, b, c],
+    edges: [edge("manual-reorg-ab", a, b), edge("manual-reorg-bc", b, c)],
+  });
+
+  const first = createWorldDagLayout(projection);
+  const cached = createWorldDagLayout(projection);
+  const reorganized = createWorldDagLayout(projection, { reorganize: true });
+
+  assert.equal(cached.targets[0], first.targets[0], "normal repeat should reuse cached target objects");
+  assert.notEqual(
+    reorganized.targets[0],
+    cached.targets[0],
+    "manual reorganization must produce a fresh per-place layout pass",
+  );
+  assert.deepEqual(
+    new Set(reorganized.targets.map((target) => target.placeId)),
+    new Set(["place"]),
+    "reorganization keeps the geographic anchor as the local coordinate owner",
+  );
+  assert.equal(
+    reorganized.targets.some((target) => String(target.instanceId) === "place"),
+    false,
+    "the place itself never becomes a DAG node",
+  );
+});
+
