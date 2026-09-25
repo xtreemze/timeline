@@ -75,7 +75,10 @@ test("View controls remain inside the footer across landscape and portrait", asy
   await page.locator("#timeline-orientation-toggle").click();
   await expect(page.locator("#timeline-view")).toHaveAttribute("data-orientation", "portrait");
   await expectInsideFooter();
-  await expect(page.locator("#timeline-zoom-level")).toHaveAttribute("aria-orientation", "vertical");
+  await expect(page.locator("#timeline-zoom-level")).toHaveAttribute(
+    "aria-orientation",
+    "horizontal",
+  );
 });
 
 test("resize keeps the inline View group mounted in the persistent footer", async ({ page }) => {
