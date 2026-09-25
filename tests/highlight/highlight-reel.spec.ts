@@ -30,7 +30,6 @@ type ShowcaseSegment = SceneIntent & {
   capturedFps: number | null;
 };
 
-
 const SCENES: readonly SceneIntent[] = [
   {
     name: "01-timeline-navigation",
@@ -143,6 +142,7 @@ async function probeCapturedVideo(
   videoPath: string,
   sceneName: string,
   captureSize: { width: number; height: number },
+  expectedDurationSeconds: number,
 ) {
   const stdout = await capture(process.env.FFPROBE_BIN ?? "ffprobe", [
     "-v",
@@ -182,6 +182,13 @@ async function probeCapturedVideo(
   }
 
   const durationSeconds = lastTimestamp - firstTimestamp;
+  const minimumDurationSeconds = expectedDurationSeconds * 0.95;
+  if (durationSeconds < minimumDurationSeconds) {
+    throw new Error(
+      `${sceneName} captured only ${durationSeconds.toFixed(3)}s of a ${expectedDurationSeconds.toFixed(3)}s recording window; expected at least ${minimumDurationSeconds.toFixed(3)}s.`,
+    );
+  }
+
   const capturedFps = (timestamps.length - 1) / durationSeconds;
   if (capturedFps < MIN_CAPTURE_FPS) {
     throw new Error(
@@ -196,7 +203,6 @@ async function probeCapturedVideo(
     frames: timestamps.length,
   };
 }
-
 
 async function loadSample(page: Page) {
   await page.goto("/");
@@ -314,6 +320,7 @@ async function recordSegment(
         frameRate: CAPTURE_FPS,
       })) as { stream?: string };
       recordingStarted = true;
+      const captureStartedAt = Date.now();
 
       await body();
       await page.waitForTimeout(450);
@@ -335,7 +342,13 @@ async function recordSegment(
       }
       await writeFile(videoPath, video);
 
-      const stats = await probeCapturedVideo(videoPath, scene.name, captureSize);
+      const expectedDurationSeconds = (Date.now() - captureStartedAt) / 1000;
+      const stats = await probeCapturedVideo(
+        videoPath,
+        scene.name,
+        captureSize,
+        expectedDurationSeconds,
+      );
       motionDurationSeconds = stats.durationSeconds;
       capturedFps = stats.capturedFps;
     } finally {
