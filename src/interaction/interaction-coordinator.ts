@@ -175,12 +175,7 @@ export function createInteractionCoordinator(): InteractionCoordinator {
     },
 
     finishDiscrete(nextOwner: InteractionOwner) {
-      if (
-        !owner ||
-        owner !== nextOwner ||
-        phase !== "owned" ||
-        pointers.size > 0
-      ) {
+      if (!owner || owner !== nextOwner || phase !== "owned" || pointers.size > 0) {
         return false;
       }
       phase = "settling";
