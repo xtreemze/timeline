@@ -14,6 +14,8 @@ const ffprobe = process.env.FFPROBE_BIN ?? "ffprobe";
 const formFactors = ["desktop", "mobile"];
 const SHOWCASE_FPS = 60;
 const MIN_CAPTURE_FPS = 59;
+const ACTIVE_FRAME_GAP_MS = 100;
+const MIN_ACTIVE_FRAME_INTERVALS = Math.ceil(SHOWCASE_FPS / 2);
 
 function run(command, args) {
   return new Promise((resolve, reject) => {
@@ -97,10 +99,23 @@ function assertMeasuredCapture(segment, formFactor) {
   if (!Array.isArray(timestamps) || timestamps.length < 2) {
     throw new Error(`${formFactor}/${segment.name} is missing source frame timestamps.`);
   }
-  const first = timestamps[0];
-  const last = timestamps.at(-1);
-  const durationSeconds = (last - first) / 1_000;
-  const measuredFps = (timestamps.length - 1) / durationSeconds;
+  const activeIntervals = [];
+  for (let index = 1; index < timestamps.length; index += 1) {
+    const previous = timestamps[index - 1];
+    const current = timestamps[index];
+    const interval = current - previous;
+    if (Number.isFinite(interval) && interval > 0 && interval <= ACTIVE_FRAME_GAP_MS) {
+      activeIntervals.push(interval);
+    }
+  }
+  if (activeIntervals.length < MIN_ACTIVE_FRAME_INTERVALS) {
+    throw new Error(
+      `${formFactor}/${segment.name} has only ${String(activeIntervals.length)} active frame intervals.`,
+    );
+  }
+  const activeDurationSeconds =
+    activeIntervals.reduce((sum, interval) => sum + interval, 0) / 1_000;
+  const measuredFps = activeIntervals.length / activeDurationSeconds;
   if (!Number.isFinite(measuredFps) || measuredFps < MIN_CAPTURE_FPS) {
     throw new Error(
       `${formFactor}/${segment.name} measured ${measuredFps.toFixed(2)} actual source fps; expected at least ${MIN_CAPTURE_FPS}.`,
@@ -140,7 +155,11 @@ async function probeVisualSource(filePath) {
 
 function assertManifest(manifest, formFactor) {
   if (manifest.formFactor !== formFactor) throw new Error(`Expected ${formFactor} manifest`);
-  if (manifest.captureFps !== SHOWCASE_FPS || manifest.minimumMeasuredCaptureFps !== MIN_CAPTURE_FPS) {
+  if (
+    manifest.captureFps !== SHOWCASE_FPS ||
+    manifest.minimumMeasuredCaptureFps !== MIN_CAPTURE_FPS ||
+    manifest.activeFrameGapThresholdMs !== ACTIVE_FRAME_GAP_MS
+  ) {
     throw new Error(`${formFactor} manifest does not certify measured ${SHOWCASE_FPS} fps capture.`);
   }
   if (!Array.isArray(manifest.segments) || manifest.segments.length !== 5) {
