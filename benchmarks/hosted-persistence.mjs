@@ -76,6 +76,7 @@ function sample(label, fn, iterations = 5) {
 }
 
 const fixture = createFixture(nodeCount);
+const serializedFixture = JSON.stringify(fixture);
 const build = sample("client-hydrate-semantic-index", () => {
   const index = createSemanticGraphIndex(fixture);
   if (!index.entity("entity-0")) throw new Error("Semantic index did not hydrate entity-0.");
@@ -90,6 +91,16 @@ const neighborhoods = [1, 2, 3, 4, 5].map((depth) =>
     }
   }),
 );
+
+const temporalPlace = sample("client-relationship-filter-time-place", () => {
+  const matches = fixture.relationships.filter((relationship) => {
+    const iso = relationship.time?.start?.iso ?? "";
+    return relationship.placeId === "place-0" && iso >= "2026-09-15T00:00:00Z";
+  });
+  if (matches.length === 0) {
+    throw new Error("Temporal/place filter baseline returned no relationships.");
+  }
+});
 
 const components = sample("client-connected-components", () => {
   const result = index.connectedComponents();
@@ -119,14 +130,16 @@ const report = {
   benchmark: "lum-hosted-persistence-corpus",
   runtime: process.version,
   corpus: {
+    generator: "deterministic-v1",
     schemaVersion: fixture.schemaVersion,
     entities: fixture.entities.length,
     relationships: fixture.relationships.length,
     distinctPlaces: places.length,
     temporalCoverage: "2026-09 synthetic hourly instants",
+    serializedJsonBytes: Buffer.byteLength(serializedFixture, "utf8"),
   },
   workloadManifest,
-  localBaseline: [build, ...neighborhoods, components],
+  localBaseline: [build, ...neighborhoods, temporalPlace, components],
   ...(emitFixture ? { fixture } : {}),
 };
 
