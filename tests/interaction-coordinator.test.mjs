@@ -7,6 +7,7 @@ import {
   surfaceActivationFromKeyboard,
   surfaceCursor,
   surfaceKeyboardMayNavigate,
+  surfaceKeyboardTargetOwnsNavigation,
   surfaceNavigationFromKeyboard,
   surfacePointerMayStartDirectManipulation,
   surfacePointerType,
@@ -214,6 +215,23 @@ test("shared keyboard navigation ignores controls and platform shortcuts", () =>
   assert.equal(surfaceKeyboardMayNavigate({ key: "ArrowLeft", metaKey: true }), false);
   assert.equal(surfaceKeyboardMayNavigate({ key: "ArrowLeft", ctrlKey: true }), false);
   assert.equal(surfaceKeyboardMayNavigate({ key: "ArrowLeft", target: { tagName: "DIV" } }), true);
+});
+
+test("application navigation yields to a focused camera surface", () => {
+  const cameraSurface = {};
+  const target = {
+    closest(selector) {
+      return selector === '[data-surface-keyboard-navigation="camera"]' ? cameraSurface : null;
+    },
+  };
+  assert.equal(surfaceKeyboardTargetOwnsNavigation({ key: "ArrowRight", target }), true);
+  assert.equal(
+    surfaceKeyboardTargetOwnsNavigation({
+      key: "ArrowRight",
+      target: { closest: () => null },
+    }),
+    false,
+  );
 });
 
 test("retained surfaces use the same renderer-style keyboard camera vocabulary", () => {
