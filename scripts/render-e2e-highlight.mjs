@@ -115,7 +115,6 @@ function assertManifest(manifest, formFactor) {
   }
 }
 
-
 async function renderFormFactor(formFactor, manifest) {
   const factorWorkDir = path.join(workDir, formFactor);
   const factorShowcaseDir = path.join(showcaseRoot, formFactor);

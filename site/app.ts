@@ -5485,7 +5485,6 @@ els.title.addEventListener("input", () => {
 });
 
 els.loadSample.addEventListener("click", () => {
-  if (ui.mode !== "edit") return;
   if (
     (state.items.length || state.stories.length) &&
     !window.confirm("Replace the current timeline with the example dataset?")
@@ -5734,7 +5733,6 @@ els.exportMarkdown.addEventListener("click", () => {
 });
 
 els.clear.addEventListener("click", () => {
-  if (ui.mode !== "edit") return;
   if (
     (state.items.length || state.stories.length || state.title) &&
     !window.confirm("Clear this timeline? This removes its locally stored items and stories.")

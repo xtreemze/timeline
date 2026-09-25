@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-
+import { TimelineMotion } from "../site/timeline-motion.ts";
 import {
   CLUSTER_ZOOM_THRESHOLD,
   clusterZoomThresholdForNodeRadius,
@@ -14,7 +14,6 @@ import {
   worldLabelCollisionPriority,
 } from "../site/world/deck-world-surface.ts";
 import { selectWorldSpatialMode } from "../src/layout/world-spatial-mode.ts";
-import { TimelineMotion } from "../site/timeline-motion.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,

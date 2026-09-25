@@ -363,11 +363,11 @@ test("isolated entities stay force-owned while connected entities receive DAG ta
     }),
   );
 
+  assert.deepEqual(layout.targets.map((target) => target.instanceId).sort(), [a.id, b.id].sort());
   assert.deepEqual(
-    layout.targets.map((target) => target.instanceId).sort(),
-    [a.id, b.id].sort(),
+    layout.routes.map((route) => route.relationshipId),
+    ["sparse-ab"],
   );
-  assert.deepEqual(layout.routes.map((route) => route.relationshipId), ["sparse-ab"]);
   assert.equal(layout.metrics.nodeCount, 4);
 });
 
@@ -497,4 +497,3 @@ test("operator hysteresis keeps a stable family across the 24-node boundary", ()
 
   assert.equal(updatedAlgorithm, previousAlgorithm);
 });
-

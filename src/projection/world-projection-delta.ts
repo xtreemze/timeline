@@ -114,8 +114,7 @@ function isDerivedPositionOnlyUpdate(
 
   if (
     next.localOffset &&
-    (!Number.isFinite(next.localOffset.eastMeters) ||
-      !Number.isFinite(next.localOffset.northMeters))
+    !(Number.isFinite(next.localOffset.eastMeters) && Number.isFinite(next.localOffset.northMeters))
   ) {
     return false;
   }
@@ -148,7 +147,7 @@ function applyDerivedPositionOnlyDelta(
     const index = instanceIndex(previous.instances, update.id);
     if (index < 0) return null;
     const current = previous.instances[index];
-    if (!current || !isDerivedPositionOnlyUpdate(current, update)) return null;
+    if (!(current && isDerivedPositionOnlyUpdate(current, update))) return null;
     replacements.push({ index, value: update });
   }
 

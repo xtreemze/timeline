@@ -28,6 +28,21 @@ test("built Pages shell boots application runtime on mobile", async ({ page }) =
   await expect(page.locator("#export-markdown")).toBeEnabled();
   await expect(page.locator("#clear-timeline")).toBeEnabled();
   await expect(page.locator('#project-menu a[role="menuitem"]')).toBeVisible();
+
+  page.on("dialog", async (dialog) => {
+    await dialog.accept();
+  });
+  await page.locator("#clear-timeline").click();
+  await expect(page.locator("#timeline-title")).toHaveValue("");
+  await expect(page.locator("#item-count")).toHaveText("0 items");
+  await expect(shell).toHaveAttribute("data-mode", "view");
+
+  await page.locator("#load-sample").click();
+  await expect(page.locator("#timeline-title")).toHaveValue(
+    "Six classic tales — distributed fictional casebook",
+  );
+  await expect(page.locator("#item-count")).not.toHaveText("0 items");
+  await expect(shell).toHaveAttribute("data-mode", "view");
   await page.keyboard.press("Escape");
 
   await edit.click();
