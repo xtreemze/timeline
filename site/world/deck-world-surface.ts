@@ -140,6 +140,23 @@ interface DeckRuntimePointerEvent {
   readonly stopPropagation?: () => void;
 }
 
+interface DeckRuntimeInteractionState {
+  readonly inTransition?: boolean;
+  readonly isDragging?: boolean;
+  readonly isPanning?: boolean;
+  readonly isRotating?: boolean;
+  readonly isZooming?: boolean;
+}
+
+export type DeckWorldCameraGesture = "pan" | "pinch" | "wheel";
+
+export interface DeckWorldCameraInteractionSink {
+  begin(gesture: DeckWorldCameraGesture): boolean;
+  update(gesture: DeckWorldCameraGesture): boolean;
+  finish(): void;
+  cancel(): void;
+}
+
 interface DoubleClickEvent {
   readonly offsetX?: unknown;
   readonly offsetY?: unknown;
@@ -2449,6 +2466,9 @@ export class DeckWorldSurface implements WorldSurface {
   #floatMeters = 0;
   #spatialMode: WorldSpatialMode = "globe";
   #nodeDragSink: DeckWorldNodeDragSink | null = null;
+  #cameraInteractionSink: DeckWorldCameraInteractionSink | null = null;
+  #cameraInteractionActive = false;
+  #cameraInteractionBlocked = false;
   #clusterForceSink: DeckWorldClusterForceSink | null = null;
   #clusterPhase: WorldClusterLifecyclePhase = "expanded";
   #clusterPlaceIds: readonly PlaceId[] = Object.freeze([]);
@@ -2693,6 +2713,41 @@ export class DeckWorldSurface implements WorldSurface {
     }
   };
 
+  #cameraGestureFromInteractionState(
+    state: DeckRuntimeInteractionState,
+  ): DeckWorldCameraGesture | null {
+    if (state.isZooming && state.isDragging) return "pinch";
+    if (state.isPanning || state.isRotating || state.isDragging) return "pan";
+    if (state.isZooming) return "wheel";
+    return null;
+  }
+
+  readonly #handleDeckInteractionState = (state: DeckRuntimeInteractionState): void => {
+    // Layer-owned node dragging already participates in the shared coordinator.
+    // Do not let deck's camera lifecycle compete with it.
+    if (this.#activeDragPointerId !== null) return;
+
+    const gesture = this.#cameraGestureFromInteractionState(state);
+    if (gesture) {
+      if (!this.#cameraInteractionActive) {
+        this.#cameraInteractionActive = true;
+        this.#cameraInteractionBlocked =
+          this.#cameraInteractionSink !== null &&
+          !this.#cameraInteractionSink.begin(gesture);
+        return;
+      }
+      if (!this.#cameraInteractionBlocked && this.#cameraInteractionSink) {
+        this.#cameraInteractionBlocked = !this.#cameraInteractionSink.update(gesture);
+      }
+      return;
+    }
+
+    if (!this.#cameraInteractionActive) return;
+    if (!this.#cameraInteractionBlocked) this.#cameraInteractionSink?.finish();
+    this.#cameraInteractionActive = false;
+    this.#cameraInteractionBlocked = false;
+  };
+
   constructor(container: HTMLElement, runtime: DeckWorldRuntime, initialCamera?: WorldCameraState) {
     this.#runtime = runtime;
     this.#labelCollisionExtension = runtime.createCollisionFilterExtension?.() ?? null;
@@ -2717,6 +2772,8 @@ export class DeckWorldSurface implements WorldSurface {
       layers: [],
       onHover: (info: DeckRuntimePickingInfo) => this.#handleDeckHover(info),
       onClick: (info: DeckRuntimePickingInfo) => this.#handleDeckClick(info),
+      onInteractionStateChange: (state: DeckRuntimeInteractionState) =>
+        this.#handleDeckInteractionState(state),
       onAfterRender: () => this.#afterRender(),
       onResize: () => {
         if (!this.#autoFitted || this.#destroyed) return;
@@ -2726,8 +2783,8 @@ export class DeckWorldSurface implements WorldSurface {
         // At close/detail zoom direct manipulation owns the gesture. Reject
         // controller inertia/orbit updates until the node drag ends so the
         // geographic frame and its place anchors stay visually locked.
-        if (this.#dragCameraLock) {
-          this.#deck.setProps({ viewState: this.#dragCameraLock });
+        if (this.#dragCameraLock || this.#cameraInteractionBlocked) {
+          this.#deck.setProps({ viewState: this.#dragCameraLock ?? this.#camera });
           return;
         }
         const next = cameraFromRuntime(viewState, this.#camera);
@@ -3143,6 +3200,16 @@ export class DeckWorldSurface implements WorldSurface {
     this.#render();
   }
 
+  setCameraInteractionSink(sink: DeckWorldCameraInteractionSink | null): void {
+    this.#assertAlive();
+    if (this.#cameraInteractionActive && this.#cameraInteractionSink && !this.#cameraInteractionBlocked) {
+      this.#cameraInteractionSink.cancel();
+    }
+    this.#cameraInteractionSink = sink;
+    this.#cameraInteractionActive = false;
+    this.#cameraInteractionBlocked = false;
+  }
+
   setRelationshipRoutes(routes: readonly WorldRelationshipRouteHint[]): void {
     this.#assertAlive();
     this.#relationshipRouteHints = new Map(
@@ -3491,6 +3558,11 @@ export class DeckWorldSurface implements WorldSurface {
     this.#clearClusterTimers();
     this.#clearDragFlash({ render: false });
     this.#clearDragClickSuppression();
+    if (this.#cameraInteractionActive && !this.#cameraInteractionBlocked) {
+      this.#cameraInteractionSink?.cancel();
+    }
+    this.#cameraInteractionActive = false;
+    this.#cameraInteractionBlocked = false;
     this.#touchHold.clear();
     this.#container.removeEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
     this.#container.removeEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
