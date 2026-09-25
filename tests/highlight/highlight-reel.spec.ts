@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -403,6 +403,23 @@ async function recordSegment(
   const captureSize =
     formFactor === "desktop" ? PROJECTS["Desktop Showcase"].size : PROJECTS["Mobile Showcase"].size;
   let capture: ShowcaseSegment["capture"] = null;
+
+  const geometry = await page.evaluate(() => ({
+    innerWidth: window.innerWidth,
+    innerHeight: window.innerHeight,
+    screenWidth: window.screen.width,
+    screenHeight: window.screen.height,
+  }));
+  if (
+    geometry.innerWidth !== captureSize.width ||
+    geometry.innerHeight !== captureSize.height ||
+    geometry.screenWidth !== captureSize.width ||
+    geometry.screenHeight !== captureSize.height
+  ) {
+    throw new Error(
+      `${formFactor}/${scene.name} capture surface is ${String(geometry.innerWidth)}x${String(geometry.innerHeight)} on a ${String(geometry.screenWidth)}x${String(geometry.screenHeight)} screen; expected ${String(captureSize.width)}x${String(captureSize.height)}.`,
+    );
+  }
 
   if (scene.mediaMode === "motion") {
     await installCaptureBrand(page, formFactor);
