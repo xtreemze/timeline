@@ -11,10 +11,29 @@
 export type SurfacePointerType = "mouse" | "touch" | "pen" | "unknown";
 export type SurfaceActivation = "activate" | "cancel" | null;
 export type SurfaceCursorIntent = "background" | "action" | "draggable" | "cluster";
+export type SurfaceNavigationAxis = "horizontal" | "vertical";
+export type SurfaceNavigationCommand =
+  | "fit-visible"
+  | "fit-all"
+  | "zoom-in"
+  | "zoom-out"
+  | "pan-negative"
+  | "pan-positive";
+
+interface SurfaceKeyboardTargetLike {
+  readonly tagName?: unknown;
+  readonly isContentEditable?: unknown;
+}
 
 interface SurfaceKeyboardEventLike {
   readonly key?: unknown;
   readonly repeat?: unknown;
+  readonly shiftKey?: unknown;
+  readonly altKey?: unknown;
+  readonly ctrlKey?: unknown;
+  readonly metaKey?: unknown;
+  readonly defaultPrevented?: unknown;
+  readonly target?: unknown;
 }
 
 function record(value: unknown): Readonly<Record<string, unknown>> | null {
@@ -72,6 +91,58 @@ export function surfaceActivationFromKeyboard(event: SurfaceKeyboardEventLike): 
   if (event.repeat === true) return null;
   if (event.key === "Enter" || event.key === " " || event.key === "Spacebar") return "activate";
   if (event.key === "Escape") return "cancel";
+  return null;
+}
+
+const NATIVE_KEYBOARD_TARGET_TAGS = new Set([
+  "A",
+  "BUTTON",
+  "INPUT",
+  "SELECT",
+  "SUMMARY",
+  "TEXTAREA",
+]);
+
+/**
+ * Camera navigation must never steal keys from focused controls or browser /
+ * platform shortcuts. The check is structural so the pure interaction core
+ * stays independent of DOM constructors.
+ */
+export function surfaceKeyboardMayNavigate(event: SurfaceKeyboardEventLike): boolean {
+  if (event.defaultPrevented === true) return false;
+  if (event.altKey === true || event.ctrlKey === true || event.metaKey === true) return false;
+
+  const target = record(event.target) as SurfaceKeyboardTargetLike | null;
+  if (!target) return true;
+  if (target.isContentEditable === true) return false;
+  const tagName = typeof target.tagName === "string" ? target.tagName.toUpperCase() : "";
+  return !NATIVE_KEYBOARD_TARGET_TAGS.has(tagName);
+}
+
+/**
+ * Shared camera/navigation vocabulary for surfaces whose camera is implemented
+ * by Lūm rather than a renderer-native controller. deck.gl and Leaflet keep
+ * their native keyboard controller; this helper defines equivalent semantics
+ * for the retained timeline and other custom surfaces.
+ */
+export function surfaceNavigationFromKeyboard(
+  event: SurfaceKeyboardEventLike,
+  axis: SurfaceNavigationAxis,
+): SurfaceNavigationCommand | null {
+  if (!surfaceKeyboardMayNavigate(event)) return null;
+
+  if (event.key === "Home") return event.shiftKey === true ? "fit-all" : "fit-visible";
+  if (event.key === "+" || event.key === "=") return "zoom-in";
+  if (event.key === "-") return "zoom-out";
+
+  if (axis === "horizontal") {
+    if (event.key === "ArrowLeft") return "pan-negative";
+    if (event.key === "ArrowRight") return "pan-positive";
+    return null;
+  }
+
+  if (event.key === "ArrowUp") return "pan-negative";
+  if (event.key === "ArrowDown") return "pan-positive";
   return null;
 }
 
