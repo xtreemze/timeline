@@ -181,6 +181,22 @@ Small same-place groups use exact pair evaluation. Dense same-place groups use a
 
 Places remain anchors/records, not semantic graph nodes.
 
+### Manual layout controls
+
+The world footer may expose two explicit operator commands:
+
+- **Reorganize relationship layout (D3 DAG)** recomputes the local Sugiyama/DAG organization and routed relationship hints. This bypasses the per-place DAG result cache and stability hysteresis for that pass, then feeds fresh targets back into the live force solver as soft positional preferences. It never snaps rendered positions.
+- **Relax graph forces (D3 force)** reheats the current force scene without recomputing DAG targets.
+
+The commands deliberately use different rules for geography:
+
+- a geographic place is an immutable anchor/coordinate frame for the command, not a movable DAG or force node;
+- anchored entity instances may reorganize only in local tangent-space offsets around their owning anchor and remain subject to geographic anchor influence/precision;
+- cross-place relationships remain semantic/force relationships and do not pull one place coordinate toward another;
+- unanchored instances receive no invented place and no DAG target merely because a manual reorganization was requested; they remain force-owned by topology, collision, and related constraints;
+- a manual force relaxation may move anchored and unanchored entity instances according to their applicable forces, but it never edits stored place geometry or anchor evidence.
+
+
 ## WorldProjection
 
 `WorldProjection` is the derived scene contract shared by geography and graph rendering. It should include renderer-neutral records for:
