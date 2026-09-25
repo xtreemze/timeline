@@ -16,8 +16,8 @@ import { expect, test } from "@playwright/test";
  *
  * This does not do per-frame GPU readback: every measurement here is
  * `performance.now()` around calls the app itself makes (`setProjection`,
- * `setCamera`, `pick`), or `requestAnimationFrame` for paint timing — never
- * `deck.readPixels()`.
+ * `applyProjectionDelta`, `setCamera`, `pick`), or `requestAnimationFrame`
+ * for paint timing — never `deck.readPixels()`.
  *
  * Results are written to `tests/browser/world-performance-report.json` (a
  * human-reviewable artifact) and softly checked against generous sanity
@@ -49,6 +49,7 @@ interface ScaleReport {
   readonly inputToPaintMs: number | null;
   readonly pickingLatencyMs: number | null;
   readonly incrementalUpdate: {
+    readonly smallDeltaSyncMs: number;
     readonly smallDeltaMs: number;
     readonly fullSwapMs: number;
   } | null;
@@ -178,9 +179,19 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
           const base = window.__worldPerfFixture;
           if (!base) throw new Error("World performance fixture is unavailable.");
 
-          const delta = generateSmallDeltaFixture(base, 25);
+          const nextProjection = generateSmallDeltaFixture(base, 25);
+          // Constructing/diffing fixture data is deliberately outside the timed
+          // region. The measurement starts at the same sparse WorldSurface
+          // boundary production force readback uses.
+          const delta = harness.diffProjection(nextProjection);
+          if (delta.updatedInstances.length !== 25) {
+            throw new Error(
+              `Expected 25 sparse instance updates, got ${delta.updatedInstances.length}.`,
+            );
+          }
           const deltaStart = performance.now();
-          harness.surface.setProjection(delta);
+          harness.applyProjectionDelta(delta);
+          const smallDeltaSyncMs = performance.now() - deltaStart;
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
           const smallDeltaMs = performance.now() - deltaStart;
 
@@ -198,7 +209,7 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
           harness.surface.setProjection(base);
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-          return { smallDeltaMs, fullSwapMs };
+          return { smallDeltaSyncMs, smallDeltaMs, fullSwapMs };
         });
 
         // --- Sustained navigation: repeated camera changes, memory proxy. ---
