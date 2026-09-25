@@ -516,21 +516,16 @@ async function desktopRoutine(page: Page, sceneName: string) {
   if (sceneName === "01-timeline-navigation") {
     const surface = page.locator(".timeline-surface");
     await expect(surface).toBeVisible();
-    const controls = page.locator("#timeline-view-controls-toggle");
-    await controls.click();
-    const toolbar = page.locator("#timeline-view-toolbar:popover-open");
+    const toolbar = page.locator("#timeline-view-toolbar");
     await expect(toolbar).toBeVisible();
     const zoom = toolbar.locator("#timeline-zoom-level");
     const initialZoom = await zoom.inputValue();
-    await page.keyboard.press("Escape");
 
     await surface.hover();
     await page.mouse.wheel(0, -280);
     await page.waitForTimeout(450);
-    await controls.click();
     await expect(toolbar).toBeVisible();
     await zoom.fill(initialZoom);
-    await page.keyboard.press("Escape");
     await surface.focus();
     await page.keyboard.press("ArrowRight");
     await page.waitForTimeout(350);
@@ -590,9 +585,7 @@ async function mobileRoutine(page: Page, sceneName: string) {
     await touchDrag(surface, -48, 0);
     await page.waitForTimeout(350);
     await touchDrag(surface, 48, 0);
-    await page.locator("#timeline-view-controls-toggle").tap();
-    await expect(page.locator("#timeline-view-toolbar:popover-open")).toBeVisible();
-    await page.keyboard.press("Escape");
+    await expect(page.locator("#timeline-view-toolbar")).toBeVisible();
     return;
   }
 

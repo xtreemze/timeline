@@ -79,7 +79,8 @@ test("focused detail prioritizes Context and Evidence while navigation stays on 
   assert.doesNotMatch(source, /timeline-focus-nav-prev|timeline-focus-nav-next|Edit event/);
   assert.match(html, /id="timeline-focus-prev"/);
   assert.match(html, /id="timeline-focus-next"/);
-  assert.match(html, /id="timeline-focus-edit"/);
+  assert.doesNotMatch(html, /id="timeline-focus-edit"/);
+  assert.match(html, /id="editor-toggle"/);
   assert.match(css, /data-layout="hero-split"/);
   assert.match(css, /data-layout="evidence-dossier"/);
   assert.match(css, /data-layout="editorial-mosaic"/);
@@ -289,24 +290,16 @@ test("fullscreen restores the focused event popover after the browser changes to
   assert.match(app, /active && timelineView\?\.hasFocusedItem\?\.\(\)[\s\S]*ensureFocusPopover/);
 });
 
-test("utility surfaces stay coordinated without dismissing focused viewing for Browse or View", async () => {
+test("utility surfaces stay coordinated with persistent View controls and one Edit action", async () => {
   const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
-  assert.match(app, /closeLargeUtilitySurfaces\(except = ""\)[\s\S]*closeViewControls\(\)/);
   assert.match(
     app,
     /function setBrowserSurfaceOpen[\s\S]*closeLargeUtilitySurfaces\("browser"\)[\s\S]*syncApplicationSurfaces/,
   );
+  assert.doesNotMatch(app, /viewControlsToggle|closeViewControls|viewControlsAreOpen/);
   assert.match(
     app,
-    /viewControlsToggle\?\.addEventListener\("click",[\s\S]*closeLargeUtilitySurfaces\("view"\)[\s\S]*syncApplicationSurfaces/,
-  );
-  assert.doesNotMatch(
-    app,
-    /function setBrowserSurfaceOpen[\s\S]{0,700}closeFocusedEventForUtility/,
-  );
-  assert.doesNotMatch(
-    app,
-    /viewControlsToggle\?\.addEventListener\("click",[\s\S]{0,500}closeFocusedEventForUtility/,
+    /editorToggle\?\.addEventListener\("click"[\s\S]*focusedId[\s\S]*beginItemEdit\(focusedEditableId\)/,
   );
   assert.match(app, /timelinefocuschange[\s\S]*closeLargeUtilitySurfaces\("focus"\)/);
   assert.match(app, /function syncTimelineContextControls\(\)/);
