@@ -2,7 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 class FakeElement {
-  closest() {
+  constructor(camera = false) {
+    this.camera = camera;
+  }
+
+  closest(selector) {
+    if (
+      this.camera &&
+      selector === '[data-surface-keyboard-navigation="camera"]'
+    ) {
+      return this;
+    }
     return null;
   }
 }
@@ -20,6 +30,26 @@ test("keyboard maps TV remote, media and focused D-pad keys to presentation comm
   assert.equal(navigation.commandFromKeyboard(event("ArrowRight"), true), "next");
   assert.equal(navigation.commandFromKeyboard(event("ArrowUp"), true), "previous-media");
   assert.equal(navigation.commandFromKeyboard(event("ArrowRight"), false), null);
+});
+
+test("presentation D-pad commands yield to focused camera surfaces", () => {
+  const cameraTarget = new FakeElement(true);
+  assert.equal(
+    navigation.commandFromKeyboard({ key: "ArrowRight", target: cameraTarget }, true),
+    null,
+  );
+  assert.equal(
+    navigation.commandFromKeyboard({ key: "Enter", target: cameraTarget }, true),
+    null,
+  );
+  assert.equal(
+    navigation.commandFromKeyboard({ key: "MediaPlayPause", target: cameraTarget }, true),
+    "toggle-auto",
+  );
+  assert.equal(
+    navigation.commandFromKeyboard({ key: "Escape", target: cameraTarget }, true),
+    "back",
+  );
 });
 
 test("standard gamepad buttons and axes map to the same commands", () => {
