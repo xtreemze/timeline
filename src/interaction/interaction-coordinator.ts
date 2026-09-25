@@ -33,6 +33,9 @@ export interface InteractionCoordinator {
   begin(owner: InteractionOwner, pointerId: number): boolean;
   classify(owner: InteractionOwner, gesture: GestureKind): boolean;
   claim(owner: InteractionOwner): boolean;
+  reclassify(owner: InteractionOwner, gesture: GestureKind): boolean;
+  beginDiscrete(owner: InteractionOwner, gesture: GestureKind): boolean;
+  finishDiscrete(owner: InteractionOwner): boolean;
   release(owner: InteractionOwner, pointerId: number): boolean;
   commit(owner: InteractionOwner): boolean;
   cancel(
@@ -94,7 +97,18 @@ export function createInteractionCoordinator(): InteractionCoordinator {
       }
 
       if (owner && owner !== nextOwner) return false;
-      if (phase === "owned" || phase === "settling") return false;
+      if (phase === "settling") return false;
+
+      // A surface may promote a one-pointer pan into a two-pointer pinch
+      // without starting a second interaction epoch. The owning surface alone
+      // may add pointers after claim; another surface still cannot steal it.
+      if (phase === "owned") {
+        if (owner !== nextOwner || pointers.has(id)) return owner === nextOwner;
+        pointers.add(id);
+        reason = null;
+        mutate();
+        return true;
+      }
 
       owner = nextOwner;
       pointers.add(id);
@@ -119,6 +133,58 @@ export function createInteractionCoordinator(): InteractionCoordinator {
       if (!owner || owner !== nextOwner) return false;
       if (phase !== "classification" || !gesture) return false;
       phase = "owned";
+      mutate();
+      return true;
+    },
+
+    reclassify(nextOwner: InteractionOwner, nextGesture: GestureKind) {
+      if (!owner || owner !== nextOwner || phase !== "owned" || !gesture) return false;
+      // Node dragging is an exclusive direct-manipulation mode. It must be
+      // cancelled before native camera control can take over.
+      if (gesture === "node-drag" || nextGesture === "node-drag") return false;
+      if (nextGesture === "pinch" && pointers.size < 2) return false;
+      if (gesture === nextGesture) return true;
+
+      gesture = nextGesture;
+      mutate();
+      return true;
+    },
+
+    beginDiscrete(nextOwner: InteractionOwner, nextGesture: GestureKind) {
+      if (phase === "committed") {
+        phase = "idle";
+        reason = null;
+      }
+
+      if (
+        owner === nextOwner &&
+        phase === "owned" &&
+        gesture === nextGesture &&
+        pointers.size === 0
+      ) {
+        return true;
+      }
+      if (owner || phase !== "idle" || pointers.size > 0) return false;
+
+      owner = nextOwner;
+      gesture = nextGesture;
+      phase = "owned";
+      reason = null;
+      mutate();
+      return true;
+    },
+
+    finishDiscrete(nextOwner: InteractionOwner) {
+      if (
+        !owner ||
+        owner !== nextOwner ||
+        phase !== "owned" ||
+        pointers.size > 0
+      ) {
+        return false;
+      }
+      phase = "settling";
+      reason = "release";
       mutate();
       return true;
     },
