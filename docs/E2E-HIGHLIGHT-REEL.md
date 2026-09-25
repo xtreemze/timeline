@@ -16,7 +16,7 @@ Desktop uses the 1440×900 product layout. Mobile uses the explicit touch-capabl
 
 The showcase distinguishes motion from static presentation. Timeline navigation and relation-graph navigation are motion scenes. Focused context, evidence, and story browsing are static scenes.
 
-Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes use Playwright's full-viewport screencast frame callback to collect the browser-presented JPEG frames and timestamps directly. The motion window must measure at least 59 actual source frames per second before any video encoding occurs. Only after that source check passes are the captured frames encoded as VP8 WebM at 60 fps and published as 60 fps animated WebP without scaling. This prevents a constant-frame-rate encoder from turning a slower capture into a false 60 fps pass.
+Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes use Playwright's full-viewport screencast frame callback to collect the browser-presented JPEG frames and timestamps directly. During active motion, contiguous source-frame intervals must measure at least 59 actual frames per second before any video encoding occurs; deliberate action pauses longer than 100 ms are retained in output timing but excluded from the capture-cadence denominator. At least 30 active intervals are required per motion scene. Only after that source check passes are frames timestamp-normalized to 60 fps, encoded as VP8 WebM, and published as 60 fps animated WebP without scaling. This prevents a constant-frame-rate encoder from turning a slower active capture into a false 60 fps pass.
 
 ## Output contract
 
