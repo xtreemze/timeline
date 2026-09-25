@@ -284,9 +284,7 @@ test("story realms use compact terrestrial staging regions appropriate to their 
     const bounds = terrainBounds.get(story.id);
     assert.ok(bounds, `${story.title}: staging bounds must be declared`);
 
-    const places = (story.placeIds || [])
-      .map((placeId) => placeById.get(placeId))
-      .filter(Boolean);
+    const places = (story.placeIds || []).map((placeId) => placeById.get(placeId)).filter(Boolean);
     const points = places.flatMap((place) => coordinatePairs(place.geometry?.coordinates));
     assert.ok(points.length >= 5, `${story.title}: enough spatial anchors`);
     assert.ok(
@@ -295,11 +293,9 @@ test("story realms use compact terrestrial staging regions appropriate to their 
     );
 
     const longitudeSpan =
-      Math.max(...points.map((point) => point[0])) -
-      Math.min(...points.map((point) => point[0]));
+      Math.max(...points.map((point) => point[0])) - Math.min(...points.map((point) => point[0]));
     const latitudeSpan =
-      Math.max(...points.map((point) => point[1])) -
-      Math.min(...points.map((point) => point[1]));
+      Math.max(...points.map((point) => point[1])) - Math.min(...points.map((point) => point[1]));
     assert.ok(longitudeSpan <= 3, `${story.title}: local geography should remain compact`);
     assert.ok(latitudeSpan <= 3, `${story.title}: local geography should remain compact`);
 

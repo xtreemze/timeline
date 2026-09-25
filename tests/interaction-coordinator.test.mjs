@@ -99,7 +99,6 @@ test("stale releases and commits from non-owners cannot mutate state", () => {
   assert.deepEqual(coordinator.snapshot(), before);
 });
 
-
 test("all surfaces share primary pointer acquisition semantics", () => {
   assert.equal(surfacePointerMayStartDirectManipulation({ pointerType: "mouse", button: 0 }), true);
   assert.equal(

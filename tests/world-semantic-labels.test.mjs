@@ -219,7 +219,9 @@ test("place anchors render through the node marker path", () => {
   const renderedPosition = placeIcons.props.getPosition(datum);
   assert.ok(marker.id.includes("pin"));
   assert.ok(marker.id.includes("place"));
-  assert.ok(placeIcons.props.getSize(datum) >= 44);
+  // Visual marker size respects authored geometry (default pin radius 12 + border 2 = 30px).
+  // The separate >=44px hit target is handled by the scatter layer, not the icon size.
+  assert.equal(placeIcons.props.getSize(datum), 30);
   assert.equal(
     placeIcons.props.parameters.depthCompare,
     "always",
@@ -373,7 +375,6 @@ test("detail zoom repositions co-located semantic labels before hiding them", ()
   assert.equal(labels.props.getTextAnchor, "middle");
 });
 
-
 test("dense detail scenes keep only collision-free labels and reveal interaction context", () => {
   const h = harness();
   const instances = Array.from({ length: 24 }, (_, index) =>
@@ -457,7 +458,9 @@ test("clustered overview replaces nearby member labels with aggregate context", 
     "collapsed nearby places expose aggregate context instead of duplicating member labels",
   );
   assert.ok(
-    labels.props.data.some((datum) => datum.text.includes("2 places") && datum.text.includes("2 nodes")),
+    labels.props.data.some(
+      (datum) => datum.text.includes("2 places") && datum.text.includes("2 nodes"),
+    ),
   );
 });
 
@@ -544,9 +547,7 @@ test("same-place overview retains members at the cluster origin while hiding mem
     "collapsed place members use one aggregate label instead of duplicating the place name",
   );
   assert.ok(
-    labels.some(
-      (datum) => datum.kind === "cluster-label" && datum.text.includes("2 nodes"),
-    ),
+    labels.some((datum) => datum.kind === "cluster-label" && datum.text.includes("2 nodes")),
     "collapsed topology exposes aggregate cluster context",
   );
 });
