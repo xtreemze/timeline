@@ -144,10 +144,12 @@ function run(command: string, args: string[], cwd = process.cwd()) {
   });
 }
 
-function measureCapturedFrames(frames: CapturedFrame[]) {
-  if (frames.length < 2) throw new Error("Showcase motion capture produced fewer than two frames");
-  const firstTimestamp = frames[0]?.timestamp;
-  const lastTimestamp = frames.at(-1)?.timestamp;
+function measureCapturedFrames(timestamps: number[]) {
+  if (timestamps.length < 2) {
+    throw new Error("Showcase motion capture produced fewer than two frames");
+  }
+  const firstTimestamp = timestamps[0];
+  const lastTimestamp = timestamps.at(-1);
   if (!Number.isFinite(firstTimestamp) || !Number.isFinite(lastTimestamp)) {
     throw new Error("Showcase motion capture did not provide usable browser timestamps");
   }
@@ -155,43 +157,22 @@ function measureCapturedFrames(frames: CapturedFrame[]) {
   if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
     throw new Error("Showcase motion capture duration is invalid");
   }
-  const measuredFps = (frames.length - 1) / durationSeconds;
+  const measuredFps = (timestamps.length - 1) / durationSeconds;
   if (measuredFps < MIN_CAPTURE_FPS) {
     throw new Error(
-      `Showcase captured ${String(frames.length)} actual Chromium frames across ${durationSeconds.toFixed(3)}s (${measuredFps.toFixed(2)} fps); expected at least ${MIN_CAPTURE_FPS.toFixed(2)} fps before encoding.`,
+      `Showcase captured ${String(timestamps.length)} actual Chromium frames across ${durationSeconds.toFixed(3)}s (${measuredFps.toFixed(2)} fps); expected at least ${MIN_CAPTURE_FPS.toFixed(2)} fps before encoding.`,
     );
   }
   return { durationSeconds, measuredFps };
 }
 
-function sampleFramesAtTargetRate(frames: CapturedFrame[]) {
-  if (frames.length < 2) return frames;
-  const start = frames[0]!.timestamp;
-  const end = frames.at(-1)!.timestamp;
-  const intervalMs = 1000 / CAPTURE_FPS;
-  const selected: CapturedFrame[] = [];
-  let cursor = 0;
-
-  for (let target = start; target <= end; target += intervalMs) {
-    while (
-      cursor + 1 < frames.length &&
-      Math.abs(frames[cursor + 1]!.timestamp - target) <=
-        Math.abs(frames[cursor]!.timestamp - target)
-    ) {
-      cursor += 1;
-    }
-    const candidate = frames[cursor]!;
-    if (selected.at(-1) !== candidate) selected.push(candidate);
-  }
-  return selected;
-}
-
 async function encodeMeasuredCapture(
   videoPath: string,
   frames: CapturedFrame[],
+  timestamps: number[],
   captureSize: { width: number; height: number },
 ) {
-  const measured = measureCapturedFrames(frames);
+  const measured = measureCapturedFrames(timestamps);
   for (const frame of frames) {
     if (frame.viewportWidth !== captureSize.width || frame.viewportHeight !== captureSize.height) {
       throw new Error(
@@ -200,26 +181,25 @@ async function encodeMeasuredCapture(
     }
   }
 
-  const selected = sampleFramesAtTargetRate(frames);
-  if (selected.length < 2) throw new Error("Showcase frame sampler produced fewer than two frames");
+  if (frames.length < 2) throw new Error("Showcase frame sampler produced fewer than two frames");
 
   const frameDir = `${videoPath}.frames`;
   const timingPath = `${videoPath}.frames.json`;
   await rm(frameDir, { recursive: true, force: true });
   await mkdir(frameDir, { recursive: true });
 
-  for (const [index, frame] of selected.entries()) {
+  for (const [index, frame] of frames.entries()) {
     await writeFile(path.join(frameDir, `${String(index).padStart(6, "0")}.jpg`), frame.data);
   }
 
   const stats: CaptureStats = {
     requestedFps: CAPTURE_FPS,
     minimumFps: MIN_CAPTURE_FPS,
-    capturedFrames: frames.length,
-    encodedFrames: selected.length,
+    capturedFrames: timestamps.length,
+    encodedFrames: frames.length,
     capturedDurationSeconds: measured.durationSeconds,
     measuredFps: measured.measuredFps,
-    timestamps: frames.map((frame) => frame.timestamp),
+    timestamps,
   };
   await writeFile(timingPath, JSON.stringify(stats, null, 2));
 
@@ -311,12 +291,23 @@ async function recordSegment(
   const screenshotPath = path.join(rawDir, `${scene.name}.png`);
 
   if (scene.mediaMode === "motion") {
-    const capturedFrames: CapturedFrame[] = [];
+    const capturedTimestamps: number[] = [];
+    const selectedFrames: CapturedFrame[] = [];
+    const intervalMs = 1000 / CAPTURE_FPS;
+    let nextSelectedTimestamp: number | null = null;
     await page.screencast.start({
       quality: 92,
       size: captureSize,
       onFrame: ({ data, timestamp, viewportWidth, viewportHeight }) => {
-        capturedFrames.push({ data, timestamp, viewportWidth, viewportHeight });
+        capturedTimestamps.push(timestamp);
+        if (nextSelectedTimestamp === null || timestamp >= nextSelectedTimestamp - 0.5) {
+          selectedFrames.push({ data, timestamp, viewportWidth, viewportHeight });
+          if (nextSelectedTimestamp === null) nextSelectedTimestamp = timestamp + intervalMs;
+          else {
+            do nextSelectedTimestamp += intervalMs;
+            while (nextSelectedTimestamp <= timestamp);
+          }
+        }
       },
     });
     const actions = await page.screencast.showActions({
@@ -369,7 +360,7 @@ async function recordSegment(
       if (!page.isClosed()) await page.screencast.stop().catch(() => {});
     }
 
-    await encodeMeasuredCapture(videoPath, capturedFrames, captureSize);
+    await encodeMeasuredCapture(videoPath, selectedFrames, capturedTimestamps, captureSize);
   } else {
     await body();
     await page.waitForTimeout(250);
