@@ -157,7 +157,9 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightSpec, /"libvpx"/);
   assert.doesNotMatch(highlightSpec, /path:\s*videoPath/);
   assert.match(highlightSpec, /frameTimestampsMs/);
+  assert.match(highlightSpec, /ACTIVE_FRAME_GAP_MS = 100/);
   assert.match(highlightSpec, /minimumMeasuredCaptureFps/);
+  assert.match(highlightSpec, /activeFrameGapThresholdMs/);
   assert.match(highlightSpec, /page\.screencast\.showChapter/);
   assert.match(highlightSpec, /page\.screencast\.showOverlay/);
   assert.match(highlightSpec, /page\.screenshot/);
@@ -192,6 +194,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(mediaWorkflow, /pnpm render:e2e:showcase/);
   assert.match(mediaWorkflow, /pnpm verify:e2e:showcase/);
   assert.match(highlightVerifier, /MIN_CAPTURE_FPS = 59/);
+  assert.match(highlightVerifier, /ACTIVE_FRAME_GAP_MS = 100/);
   assert.match(highlightVerifier, /frameTimestampsMs/);
   assert.match(highlightVerifier, /codec_name/);
   assert.match(highlightVerifier, /animated WebP/);
