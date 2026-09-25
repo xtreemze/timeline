@@ -36,6 +36,9 @@ test("opening View reserves footer space instead of covering the presentation", 
   const beforeFooter = await footer.boundingBox();
   expect(beforePanel).not.toBeNull();
   expect(beforeFooter).not.toBeNull();
+  if (!beforePanel || !beforeFooter) {
+    throw new Error("Footer and presentation must have layout bounds before View opens.");
+  }
 
   await page.locator("#timeline-view-controls-toggle").click();
   await expect(page.locator("#timeline-view-toolbar:popover-open")).toBeVisible();
@@ -51,6 +54,12 @@ test("opening View reserves footer space instead of covering the presentation", 
   if (!panelBox || !footerBox || !toolbarBox) return;
 
   expect(footerBox.height).toBeGreaterThan(beforeFooter.height);
+  expect(panelBox.height).toBeLessThan(beforePanel.height);
+  expect(
+    Math.abs(
+      (beforePanel.height - panelBox.height) - (footerBox.height - beforeFooter.height),
+    ),
+  ).toBeLessThanOrEqual(2);
   expect(panelBox.y + panelBox.height).toBeLessThanOrEqual(footerBox.y + 1);
   expect(toolbarBox.y).toBeGreaterThanOrEqual(footerBox.y - 1);
   expect(toolbarBox.y + toolbarBox.height).toBeLessThanOrEqual(footerBox.y + footerBox.height + 1);
