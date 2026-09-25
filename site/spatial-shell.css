@@ -505,6 +505,8 @@
   block-size: var(--workspace-footer-block-size);
   min-block-size: var(--workspace-footer-block-size);
   max-block-size: none;
+  padding: 0 max(0.4rem, env(safe-area-inset-right)) env(safe-area-inset-bottom)
+    max(0.4rem, env(safe-area-inset-left));
   overflow: visible;
   box-sizing: border-box;
 }
