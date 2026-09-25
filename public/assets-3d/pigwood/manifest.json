@@ -1,0 +1,573 @@
+{
+  "version": 1,
+  "style": "storybook-maquette-v1",
+  "units": "meters",
+  "storyId": "story-three-little-pigs",
+  "realm": "Pigwood Realm",
+  "places": [
+    {
+      "placeId": "place-three-little-pigs-mother-pig-s-cottage",
+      "representation": "model",
+      "localPositionMeters": [
+        0,
+        0,
+        0
+      ],
+      "headingDegrees": 18
+    },
+    {
+      "placeId": "place-three-little-pigs-straw-seller-s-field",
+      "representation": "procedural-area",
+      "localPositionMeters": [
+        420,
+        0,
+        -160
+      ],
+      "headingDegrees": 0,
+      "dimensionsMeters": [
+        90,
+        0,
+        70
+      ]
+    },
+    {
+      "placeId": "pigs-market-place",
+      "representation": "procedural-route",
+      "localPositionMeters": [
+        600,
+        0,
+        -80
+      ],
+      "headingDegrees": 0,
+      "dimensionsMeters": [
+        900,
+        0,
+        5
+      ]
+    },
+    {
+      "placeId": "place-three-little-pigs-timber-track",
+      "representation": "procedural-route",
+      "localPositionMeters": [
+        900,
+        0,
+        -260
+      ],
+      "headingDegrees": 0,
+      "dimensionsMeters": [
+        650,
+        0,
+        3
+      ]
+    },
+    {
+      "placeId": "place-three-little-pigs-pigwood-mason-s-yard",
+      "representation": "procedural-area",
+      "localPositionMeters": [
+        1280,
+        0,
+        -420
+      ],
+      "headingDegrees": 0,
+      "dimensionsMeters": [
+        55,
+        0,
+        45
+      ]
+    },
+    {
+      "placeId": "place-three-little-pigs-straw-house-meadow",
+      "representation": "model",
+      "localPositionMeters": [
+        700,
+        0,
+        -680
+      ],
+      "headingDegrees": -8
+    },
+    {
+      "placeId": "place-three-little-pigs-stick-house-grove",
+      "representation": "model",
+      "localPositionMeters": [
+        1320,
+        0,
+        -820
+      ],
+      "headingDegrees": 12
+    },
+    {
+      "placeId": "place-three-little-pigs-pigwood-escape-path",
+      "representation": "procedural-route",
+      "localPositionMeters": [
+        1580,
+        0,
+        -930
+      ],
+      "headingDegrees": 0,
+      "dimensionsMeters": [
+        900,
+        0,
+        2
+      ]
+    },
+    {
+      "placeId": "place-three-little-pigs-brick-house-approach",
+      "representation": "procedural-route",
+      "localPositionMeters": [
+        2050,
+        0,
+        -1000
+      ],
+      "headingDegrees": 0,
+      "dimensionsMeters": [
+        320,
+        0,
+        3
+      ]
+    },
+    {
+      "placeId": "pigs-brick-place",
+      "representation": "model",
+      "localPositionMeters": [
+        2280,
+        18,
+        -1080
+      ],
+      "headingDegrees": -22
+    },
+    {
+      "placeId": "place-three-little-pigs-pursuit-corridor",
+      "representation": "procedural-area",
+      "localPositionMeters": [
+        1500,
+        0,
+        -850
+      ],
+      "headingDegrees": 0,
+      "dimensionsMeters": [
+        1800,
+        0,
+        700
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "placeId": "place-three-little-pigs-mother-pig-s-cottage",
+      "assetId": "pigwood-mother-cottage",
+      "representation": "model",
+      "units": "meters",
+      "scaleBasis": "fictional-plausible",
+      "localPositionMeters": [
+        0,
+        0,
+        0
+      ],
+      "headingDegrees": 18,
+      "dimensionsMeters": [
+        12,
+        8.5,
+        9
+      ],
+      "rootScale": [
+        1,
+        1,
+        1
+      ],
+      "anchors": [
+        {
+          "id": "ground",
+          "kind": "ground",
+          "positionMeters": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": "entrance",
+          "kind": "entrance",
+          "positionMeters": [
+            0,
+            0,
+            -4.05
+          ]
+        },
+        {
+          "id": "camera-focus",
+          "kind": "camera-focus",
+          "positionMeters": [
+            0,
+            3,
+            0
+          ]
+        }
+      ],
+      "lods": [
+        {
+          "lod": 0,
+          "triangleCount": 84,
+          "byteLength": 9872,
+          "materialCount": 0,
+          "dimensionsMeters": [
+            12,
+            8.5,
+            9
+          ],
+          "uri": "/assets-3d/pigwood/pigwood-mother-cottage/lod0.glb"
+        },
+        {
+          "lod": 1,
+          "triangleCount": 60,
+          "byteLength": 7192,
+          "materialCount": 0,
+          "dimensionsMeters": [
+            12,
+            8.5,
+            9
+          ],
+          "uri": "/assets-3d/pigwood/pigwood-mother-cottage/lod1.glb"
+        },
+        {
+          "lod": 2,
+          "triangleCount": 36,
+          "byteLength": 4532,
+          "materialCount": 0,
+          "dimensionsMeters": [
+            12,
+            8.5,
+            9
+          ],
+          "uri": "/assets-3d/pigwood/pigwood-mother-cottage/lod2.glb"
+        },
+        {
+          "lod": 3,
+          "triangleCount": 12,
+          "byteLength": 1844,
+          "materialCount": 0,
+          "dimensionsMeters": [
+            12,
+            8.5,
+            9
+          ],
+          "uri": "/assets-3d/pigwood/pigwood-mother-cottage/lod3.glb"
+        }
+      ]
+    },
+    {
+      "placeId": "place-three-little-pigs-straw-house-meadow",
+      "assetId": "pigwood-straw-house",
+      "representation": "model",
+      "units": "meters",
+      "scaleBasis": "fictional-plausible",
+      "localPositionMeters": [
+        700,
+        0,
+        -680
+      ],
+      "headingDegrees": -8,
+      "dimensionsMeters": [
+        8.5,
+        6.8,
+        7
+      ],
+      "rootScale": [
+        1,
+        1,
+        1
+      ],
+      "anchors": [
+        {
+          "id": "ground",
+          "kind": "ground",
+          "positionMeters": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": "entrance",
+          "kind": "entrance",
+          "positionMeters": [
+            0,
+            0,
+            -3.05
+          ]
+        },
+        {
+          "id": "camera-focus",
+          "kind": "camera-focus",
+          "positionMeters": [
+            0,
+            2.7,
+            0
+          ]
+        }
+      ],
+      "lods": [
+        {
+          "lod": 0,
+          "triangleCount": 60,
+          "byteLength": 7160,
+          "materialCount": 0,
+          "dimensionsMeters": [
+            8.5,
+            6.8,
+            7
+          ],
+          "uri": "/assets-3d/pigwood/pigwood-straw-house/lod0.glb"
+        },
+        {
+          "lod": 1,
+          "triangleCount": 48,
+          "byteLength": 5752,
+          "materialCount": 0,
+          "dimensionsMeters": [
+            8.5,
+            6.8,
+            7
+          ],
+          "uri": "/assets-3d/pigwood/pigwood-straw-house/lod1.glb"
+        },
+        {
+          "lod": 2,
+          "triangleCount": 36,
+          "byteLength": 4380,
+          "materialCount": 0,
+          "dimensionsMeters": [
+            8.5,
+            6.8,
+            7
+          ],
+          "uri": "/assets-3d/pigwood/pigwood-straw-house/lod2.glb"
+        },
+        {
+          "lod": 3,
+          "triangleCount": 12,
+          "byteLength": 1840,
+          "materialCount": 0,
+          "dimensionsMeters": [
+            8.5,
+            6.8,
+            7
+          ],
+          "uri": "/assets-3d/pigwood/pigwood-straw-house/lod3.glb"
+        }
+      ]
+    },
+    {
+      "placeId": "place-three-little-pigs-stick-house-grove",
+      "assetId": "pigwood-stick-house",
+      "representation": "model",
+      "units": "meters",
+      "scaleBasis": "fictional-plausible",
+      "localPositionMeters": [
+        1320,
+        0,
+        -820
+      ],
+      "headingDegrees": 12,
+      "dimensionsMeters": [
+        9.5,
+        7.3,
+        7.8
+      ],
+      "rootScale": [
+        1,
+        1,
+        1
+      ],
+      "anchors": [
+        {
+          "id": "ground",
+          "kind": "ground",
+          "positionMeters": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": "entrance",
+          "kind": "entrance",
+          "positionMeters": [
+            0,
+            0,
+            -3.45
+          ]
+        },
+        {
+          "id": "camera-focus",
+          "kind": "camera-focus",
+          "positionMeters": [
+            0,
+            2.9,
+            0
+          ]
+        }
+      ],
+      "lods": [
+        {
+          "lod": 0,
+          "triangleCount": 72,
+          "byteLength": 8436,
+          "materialCount": 0,
+          "dimensionsMeters": [
+            9.5,
+            7.3,
+            7.8
+          ],
+          "uri": "/assets-3d/pigwood/pigwood-stick-house/lod0.glb"
+        },
+        {
+          "lod": 1,
+          "triangleCount": 48,
+          "byteLength": 5752,
+          "materialCount": 0,
+          "dimensionsMeters": [
+            9.5,
+            7.3,
+            7.8
+          ],
+          "uri": "/assets-3d/pigwood/pigwood-stick-house/lod1.glb"
+        },
+        {
+          "lod": 2,
+          "triangleCount": 36,
+          "byteLength": 4540,
+          "materialCount": 0,
+          "dimensionsMeters": [
+            9.5,
+            7.3,
+            7.8
+          ],
+          "uri": "/assets-3d/pigwood/pigwood-stick-house/lod2.glb"
+        },
+        {
+          "lod": 3,
+          "triangleCount": 12,
+          "byteLength": 1844,
+          "materialCount": 0,
+          "dimensionsMeters": [
+            9.5,
+            7.3,
+            7.8
+          ],
+          "uri": "/assets-3d/pigwood/pigwood-stick-house/lod3.glb"
+        }
+      ]
+    },
+    {
+      "placeId": "pigs-brick-place",
+      "assetId": "pigwood-brick-house",
+      "representation": "model",
+      "units": "meters",
+      "scaleBasis": "fictional-plausible",
+      "localPositionMeters": [
+        2280,
+        18,
+        -1080
+      ],
+      "headingDegrees": -22,
+      "dimensionsMeters": [
+        11,
+        8.8,
+        9.2
+      ],
+      "rootScale": [
+        1,
+        1,
+        1
+      ],
+      "anchors": [
+        {
+          "id": "ground",
+          "kind": "ground",
+          "positionMeters": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": "entrance",
+          "kind": "entrance",
+          "positionMeters": [
+            0,
+            0,
+            -4.15
+          ]
+        },
+        {
+          "id": "interaction",
+          "kind": "interaction",
+          "positionMeters": [
+            0,
+            1.2,
+            -4.3
+          ]
+        },
+        {
+          "id": "camera-focus",
+          "kind": "camera-focus",
+          "positionMeters": [
+            0,
+            3.4,
+            0
+          ]
+        }
+      ],
+      "lods": [
+        {
+          "lod": 0,
+          "triangleCount": 84,
+          "byteLength": 9892,
+          "materialCount": 0,
+          "dimensionsMeters": [
+            11,
+            8.8,
+            9.2
+          ],
+          "uri": "/assets-3d/pigwood/pigwood-brick-house/lod0.glb"
+        },
+        {
+          "lod": 1,
+          "triangleCount": 60,
+          "byteLength": 7296,
+          "materialCount": 0,
+          "dimensionsMeters": [
+            11,
+            8.8,
+            9.2
+          ],
+          "uri": "/assets-3d/pigwood/pigwood-brick-house/lod1.glb"
+        },
+        {
+          "lod": 2,
+          "triangleCount": 36,
+          "byteLength": 4516,
+          "materialCount": 0,
+          "dimensionsMeters": [
+            11,
+            8.8,
+            9.2
+          ],
+          "uri": "/assets-3d/pigwood/pigwood-brick-house/lod2.glb"
+        },
+        {
+          "lod": 3,
+          "triangleCount": 12,
+          "byteLength": 1816,
+          "materialCount": 0,
+          "dimensionsMeters": [
+            11,
+            8.8,
+            9.2
+          ],
+          "uri": "/assets-3d/pigwood/pigwood-brick-house/lod3.glb"
+        }
+      ]
+    }
+  ]
+}
