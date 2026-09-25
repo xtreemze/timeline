@@ -2322,7 +2322,6 @@ test("user camera moves are handed back to the controlled deck so the globe rota
   assert.equal(surface.getCamera().longitude, 40);
 });
 
-
 test("deck native camera lifecycle is forwarded without re-recognizing raw mjolnir events", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
@@ -2352,12 +2351,7 @@ test("deck native camera lifecycle is forwarded without re-recognizing raw mjoln
   calls.deckProps.onInteractionStateChange({ inTransition: true });
   calls.deckProps.onInteractionStateChange({ inTransition: false });
 
-  assert.deepEqual(lifecycle, [
-    ["begin", "pan"],
-    ["update", "pinch"],
-    ["finish"],
-    ["commit"],
-  ]);
+  assert.deepEqual(lifecycle, [["begin", "pan"], ["update", "pinch"], ["finish"], ["commit"]]);
 });
 
 test("a camera gesture rejected by shared ownership cannot move the controlled deck camera", () => {
