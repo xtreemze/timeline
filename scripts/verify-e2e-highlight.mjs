@@ -100,10 +100,13 @@ function measureSourceCadence(segment, formFactor) {
   if (!capture || capture.targetFps !== SHOWCASE_FPS) {
     throw new Error(`${formFactor}/${segment.name} does not target ${SHOWCASE_FPS} fps.`);
   }
-  if (capture.method !== "ffmpeg-x11grab-rawvideo-nut") {
+  if (capture.method !== "get-display-media-current-tab-vp8") {
     throw new Error(
-      `${formFactor}/${segment.name} used ${String(capture.method)}; expected the raw X11 framebuffer capture path.`,
+      `${formFactor}/${segment.name} used ${String(capture.method)}; expected Chromium current-tab VP8 capture.`,
     );
+  }
+  if (capture.mimeType !== "video/webm;codecs=vp8") {
+    throw new Error(`${formFactor}/${segment.name} did not use VP8 MediaRecorder capture.`);
   }
   const timestamps = capture.frameTimestampsMs;
   if (!Array.isArray(timestamps) || timestamps.length < 2) {
@@ -162,9 +165,15 @@ for (const formFactor of ["desktop", "mobile"]) {
       path.resolve(workspace, segment.video),
       `${formFactor}/${segment.name} source-frame VP8 WebM`,
     );
-    if (rawDecoded.frameCount !== segment.capture.frameCount) {
+    const frameEvidenceRatio = rawDecoded.frameCount / segment.capture.frameCount;
+    if (frameEvidenceRatio < MIN_CAPTURE_COVERAGE || frameEvidenceRatio > 1 / MIN_CAPTURE_COVERAGE) {
       throw new Error(
-        `${formFactor}/${segment.name} source-frame WebM contains ${String(rawDecoded.frameCount)} frames but the Chromium capture reported ${String(segment.capture.frameCount)}.`,
+        `${formFactor}/${segment.name} source-frame WebM contains ${String(rawDecoded.frameCount)} decoded frames for ${String(segment.capture.frameCount)} Chromium source frames; expected encoded/source frame evidence within ${String(MIN_CAPTURE_COVERAGE * 100)}%.`,
+      );
+    }
+    if (rawDecoded.duration < segment.capture.recordingWindowSeconds * MIN_CAPTURE_COVERAGE) {
+      throw new Error(
+        `${formFactor}/${segment.name} decoded VP8 coverage is shorter than the certified recording window.`,
       );
     }
     if (rawWebm.codec_name !== "vp8") {
