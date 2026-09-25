@@ -16,7 +16,7 @@ Desktop uses the 1440×900 product layout. Mobile uses the explicit touch-capabl
 
 The showcase distinguishes motion from static presentation. Timeline navigation and relation-graph navigation are motion scenes. Focused context, evidence, and story browsing are static scenes.
 
-Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes capture WebM from Chromium, then publish animated WebP without scaling or a synthetic showcase-wide frame-rate override. The renderer probes the WebM stream and uses its own width, height, and frame rate for the published animation.
+Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes request a full-viewport 60 fps Playwright screencast and publish 60 fps animated WebP without scaling. The capture also records the browser-presented source-frame timestamps during each motion window and requires at least 59 actual source frames per second before rendering. This prevents Playwright/FFmpeg constant-frame-rate padding from turning a slower capture into a false 60 fps pass.
 
 ## Output contract
 
@@ -69,7 +69,9 @@ The showcase config contains two structural projects:
 
 The shared scene metadata defines feature title, explanation, expected state, alt text, stable output stem, and whether the scene is `motion` or `static`. Desktop and mobile interaction routines remain separate so touch UI is not forced to mimic desktop input mechanics.
 
-Motion capture does not pass a separate output size to the screencast API. Chromium therefore remains the source of the captured geometry. Static capture uses a CSS-pixel Playwright screenshot of the real reached state.
+Motion capture explicitly passes the project viewport as the screencast size (1440×900 desktop, 390×844 mobile) and requests 60 fps. Playwright otherwise defaults video recording to 25 fps and may choose a reduced recording size. Static capture uses a CSS-pixel Playwright screenshot of the real reached state.
+
+The dedicated showcase Chromium process disables background timer throttling, renderer backgrounding, occluded-window backgrounding, frame-rate limiting, and GPU vsync. Playwright's recorder already uses a real-time VP8 encoder; unlike the Lemonade canvas recorder, Timeline does not negotiate VP8/VP9 through MediaRecorder.
 
 Playwright native screencast overlays provide restrained Lūm branding and feature chapters for motion capture without modifying production UI only for recording. Static screenshots remain product-state captures rather than chapter cards.
 
@@ -80,14 +82,15 @@ Playwright native screencast overlays provide restrained Lūm branding and featu
 - probes every visual source with FFprobe;
 - preserves each published asset independently at its own source dimensions;
 - copies static PNG captures directly into the published showcase;
-- renders motion scenes as animated WebP with the source WebM dimensions and source frame rate;
+- refuses motion sources whose recorded source-frame timestamps measure below 59 fps;
+- renders motion scenes as source-dimension 60 fps animated WebP;
 - keeps the mobile showcase portrait;
 - composes separate H.264 desktop and mobile reels;
 - derives reel geometry and frame rate from the first motion source for that form factor, normalizing only reel inputs as required for composition;
 - emits README-ready markup from the same manifest metadata;
 - measures individual and aggregate showcase payloads.
 
-There is no GIF palette stage, no reduced GIF frame rate, and no fixed GIF width. Primary showcase media now preserves the source visual cadence and geometry.
+There is no GIF palette stage, no reduced WebP frame rate, and no fixed animation width. Primary showcase motion is certified against browser-presented source-frame timestamps and published at 60 fps only after that source measurement passes.
 
 ## CI and publication
 
@@ -118,6 +121,7 @@ Install Chromium and FFmpeg, then run:
 ```sh
 pnpm test:e2e:showcase
 pnpm render:e2e:showcase
+pnpm verify:e2e:showcase
 ```
 
 The renderer expects both Playwright projects to have completed successfully.
