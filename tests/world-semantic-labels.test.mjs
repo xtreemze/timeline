@@ -374,7 +374,6 @@ test("place marker rendering uses the authored icon, fill, border, width, and sh
   );
 });
 
-
 test("three very near places share one aggregate marker while readable nodes remain expanded", () => {
   const h = harness();
   const left = instance(0, {
@@ -470,11 +469,11 @@ test("two very near places remain separate markers", () => {
 
   const layers = h.lastLayers();
   const entities = layer(layers, DECK_WORLD_LAYER_IDS.entities);
-  assert.equal(entities.props.data.some((datum) => datum.kind === "cluster"), false);
   assert.equal(
-    entities.props.data.filter((datum) => datum.kind === "entity").length,
-    2,
+    entities.props.data.some((datum) => datum.kind === "cluster"),
+    false,
   );
+  assert.equal(entities.props.data.filter((datum) => datum.kind === "entity").length, 2);
   assert.equal(layer(layers, DECK_WORLD_LAYER_IDS.placeIcons).props.data.length, 2);
 });
 
@@ -552,8 +551,7 @@ test("selecting a clustered place reveals its incident nodes and edges without o
     );
     for (const member of [b2, b3]) {
       const datum = entities.props.data.find(
-        (candidate) =>
-          candidate.kind === "entity" && candidate.worldInstanceId === member.id,
+        (candidate) => candidate.kind === "entity" && candidate.worldInstanceId === member.id,
       );
       assert.ok(datum, "sub-three cluster remnants stay as individual node datums");
       assert.ok(
@@ -563,9 +561,7 @@ test("selecting a clustered place reveals its incident nodes and edges without o
     }
 
     const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
-    const cross = relationships.props.data.find(
-      (datum) => datum.relationshipId === "a-to-b",
-    );
+    const cross = relationships.props.data.find((datum) => datum.relationshipId === "a-to-b");
     assert.ok(cross);
     assert.ok(
       relationships.props.getWidth(cross) > 0,
@@ -1486,7 +1482,11 @@ test("the non-WebGL accessibility snapshot carries the same labels and directed 
     "Entity 1",
     "Entity 2",
   ]);
-  assert.deepEqual(snapshot.places.map((place) => place.label).sort(), ["Place 0", "Place 1", "Place 2"]);
+  assert.deepEqual(snapshot.places.map((place) => place.label).sort(), [
+    "Place 0",
+    "Place 1",
+    "Place 2",
+  ]);
   assert.deepEqual(snapshot.relationships, [
     {
       relationshipId: "meeting",
