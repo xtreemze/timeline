@@ -974,6 +974,7 @@ function renderPresentationMap() {
       interactive: true,
       countryContextIntro: true,
       fictionalReferenceFrame,
+      interaction: surfaceInteractionCoordinator,
     }) || null;
   presentationMapKey = presentationMap ? mapKey : "";
   return Boolean(presentationMap);
@@ -1155,6 +1156,7 @@ const locationMap =
     source: els.itemLocationSource,
     geolocation: els.itemGeolocation,
     clearButton: els.itemLocationClear,
+    interaction: surfaceInteractionCoordinator,
   }) || null;
 
 function newId(prefix = "id") {
