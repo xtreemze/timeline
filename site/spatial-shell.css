@@ -413,9 +413,8 @@
 
 .app-footer-actions {
   justify-content: center;
-  inline-size: clamp(132px, 33%, 264px);
-  min-inline-size: 0;
-  max-inline-size: 100%;
+  min-inline-size: 132px;
+  max-inline-size: 264px;
 }
 
 .app-footer-actions > .app-tool {
