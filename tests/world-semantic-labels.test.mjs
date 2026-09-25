@@ -753,33 +753,73 @@ test("picking a direction marker resolves to its canonical relationship", () => 
   assert.ok(h.pickOptions.at(-1).layerIds.includes(DECK_WORLD_LAYER_IDS.relationshipDirections));
 });
 
-test("selection leaves dense label LOD geometry stable while focus can still pin a label", () => {
+test("hover and selection surface omitted entity labels without relocating stable labels", () => {
   const h = harness();
+  const projection = denseProjection(1_000);
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 2 });
-  surface.setProjection(denseProjection(1_000));
+  surface.setProjection(projection);
 
-  const before = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
-  const beforeGeometry = before.map((datum) => ({
-    key: datum.key,
-    pixelOffset: datum.pixelOffset ?? null,
-  }));
-
-  surface.setSelection({ kind: "entity", id: "entity-777" });
-  const selected = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
-  assert.deepEqual(
-    selected.map((datum) => ({ key: datum.key, pixelOffset: datum.pixelOffset ?? null })),
-    beforeGeometry,
-    "selection may recolor labels but must not add, remove, or relocate them",
+  const beforeLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const beforeEntityIds = new Set(
+    beforeLayer.props.data
+      .filter((datum) => datum.kind === "entity-label")
+      .map((datum) => datum.entityId),
   );
+  const hidden = projection.instances.find(
+    (candidate) => !beforeEntityIds.has(candidate.canonicalId),
+  );
+  assert.ok(hidden, "dense LOD fixture must omit at least one entity label");
 
-  surface.focusEntity("entity-555");
-  const focused = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
-  const entityIds = focused
-    .filter((datum) => datum.kind === "entity-label")
-    .map((datum) => datum.entityId);
-  assert.ok(entityIds.length > 0);
-  assert.ok(entityIds.length < 1_000, "dense label load is reduced");
-  assert.ok(entityIds.includes("entity-555"), "explicit focus may pin its label");
+  const beforeGeometry = new Map(
+    beforeLayer.props.data.map((datum) => [
+      datum.key,
+      {
+        position: beforeLayer.props.getPosition(datum),
+        pixelOffset: beforeLayer.props.getPixelOffset(datum),
+      },
+    ]),
+  );
+  const assertStableBaseGeometry = (labelLayer) => {
+    for (const [key, geometry] of beforeGeometry) {
+      const datum = labelLayer.props.data.find((candidate) => candidate.key === key);
+      assert.ok(datum, `${key} remains visible while an interaction label is appended`);
+      assert.deepEqual(
+        {
+          position: labelLayer.props.getPosition(datum),
+          pixelOffset: labelLayer.props.getPixelOffset(datum),
+        },
+        geometry,
+        `${key} keeps its stable declutter placement`,
+      );
+    }
+  };
+
+  surface.setSelection({ kind: "entity", id: hidden.canonicalId });
+  let interactionLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  assert.ok(
+    interactionLayer.props.data.some(
+      (datum) => datum.kind === "entity-label" && datum.entityId === hidden.canonicalId,
+    ),
+    "selected node receives a label even when ordinary dense LOD suppressed it",
+  );
+  assertStableBaseGeometry(interactionLayer);
+
+  surface.setSelection(null);
+  h.getDeckProps().onHover({
+    object: {
+      kind: "entity",
+      entityId: hidden.canonicalId,
+      worldInstanceId: hidden.id,
+    },
+  });
+  interactionLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  assert.ok(
+    interactionLayer.props.data.some(
+      (datum) => datum.kind === "entity-label" && datum.entityId === hidden.canonicalId,
+    ),
+    "hovered node receives a label even when ordinary dense LOD suppressed it",
+  );
+  assertStableBaseGeometry(interactionLayer);
 });
 
 test("clustered overview suppresses member labels even when a member is selected", () => {

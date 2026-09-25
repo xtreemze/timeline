@@ -243,6 +243,11 @@ test("optional deck collision filtering is attached only to the text label layer
   assert.ok(labelLayer);
   assert.deepEqual(labelLayer.props.extensions, [extension]);
   assert.equal(labelLayer.props.collisionGroup, "lum-world-labels");
+  assert.equal(
+    labelLayer.props.collisionEnabled,
+    false,
+    "GPU collision filtering stays inert while CPU label placement is authoritative",
+  );
 
   const placeLabel = labelLayer.props.data.find((datum) => datum.kind === "place-label");
   const entityLabel = labelLayer.props.data.find((datum) => datum.kind === "entity-label");
@@ -658,6 +663,22 @@ test("selection updates presentation data while preserving canonical IDs", () =>
   assert.equal(entities.find((datum) => datum.entityId === "bob").selected, false);
 });
 
+test("world surface owns a stable cursor while deck inherits it", () => {
+  const { calls, runtime } = harness();
+  const container = { style: {} };
+  const surface = new DeckWorldSurface(container, runtime);
+
+  assert.equal(container.style.cursor, "grab");
+  assert.equal(calls.deckProps.getCursor({ isDragging: false, isHovering: false }), "inherit");
+  assert.equal(calls.deckProps.getCursor({ isDragging: true, isHovering: true }), "inherit");
+
+  calls.deckProps.onHover({});
+  assert.equal(container.style.cursor, "grab");
+
+  surface.destroy();
+  assert.equal(container.style.cursor, "");
+});
+
 test("hover and selection emphasize without changing graph geometry, and repeated click toggles selection", () => {
   const { calls, runtime } = harness();
   const container = { style: {} };
@@ -767,7 +788,7 @@ test("hover and selection emphasize without changing graph geometry, and repeate
   render = calls.setProps.at(-1);
   entities = render.layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities).props
     .data;
-  assert.equal(container.style.cursor, "");
+  assert.equal(container.style.cursor, "grab");
   assert.ok(entities.every((datum) => datum.emphasized === false));
 });
 
