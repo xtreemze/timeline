@@ -1,3 +1,5 @@
+import { createInteractionCoordinator } from "../src/interaction/interaction-coordinator.ts";
+import { createSurfaceInteractionController } from "../src/interaction/surface-controller.ts";
 import {
   surfacePointerMayStartDirectManipulation,
 } from "../src/interaction/surface-input-policy.ts";
@@ -293,6 +295,10 @@ function installWeightedMapDragging(
   if (!interactive || !map || !container || !weightedMapDragAvailable()) return () => {};
 
   const pointers = new Map<number, PointerState>();
+  const surfaceInteraction = createSurfaceInteractionController(
+    "map",
+    createInteractionCoordinator(),
+  );
   let drag: DragState | null = null;
   let inertiaAnimationFrame = 0;
   let suppressClickUntil = 0;
@@ -307,7 +313,12 @@ function installWeightedMapDragging(
   };
 
   const cancelInertia = () => {
-    if (inertiaAnimationFrame) cancelAnimationFrame(inertiaAnimationFrame);
+    if (inertiaAnimationFrame) {
+      cancelAnimationFrame(inertiaAnimationFrame);
+      inertiaAnimationFrame = 0;
+      surfaceInteraction.commit();
+      return;
+    }
     inertiaAnimationFrame = 0;
   };
 
@@ -322,6 +333,7 @@ function installWeightedMapDragging(
   const beginDrag = (pointerId: number, point: any, sourceEvent: PointerEvent | null = null) => {
     if (!point || pointers.size > 1) return;
     cancelInertia();
+    if (!surfaceInteraction.beginPointer(pointerId, "pan")) return;
     const zoom = map.getZoom();
     const center = map.project(map.getCenter(), zoom);
     drag = {
@@ -379,6 +391,7 @@ function installWeightedMapDragging(
       prefersReducedMotion() ||
       velocity.magnitude < (motion.STOP_VELOCITY_PX_PER_MS || 0.012)
     ) {
+      surfaceInteraction.commit();
       return;
     }
     cancelInertia();
@@ -389,7 +402,10 @@ function installWeightedMapDragging(
     const step = (now: number) => {
       inertiaAnimationFrame = 0;
       const magnitude = Math.hypot(velocityX, velocityY);
-      if (magnitude < (motion.STOP_VELOCITY_PX_PER_MS || 0.012)) return;
+      if (magnitude < (motion.STOP_VELOCITY_PX_PER_MS || 0.012)) {
+        surfaceInteraction.commit();
+        return;
+      }
 
       const elapsed = lastFrame ? Math.min(48, Math.max(1, now - lastFrame)) : 16;
       lastFrame = now;
@@ -399,6 +415,8 @@ function installWeightedMapDragging(
 
       if (Math.hypot(velocityX, velocityY) >= (motion.STOP_VELOCITY_PX_PER_MS || 0.012)) {
         inertiaAnimationFrame = requestAnimationFrame(step);
+      } else {
+        surfaceInteraction.commit();
       }
     };
 
@@ -419,6 +437,7 @@ function installWeightedMapDragging(
 
     if (pointers.size > 1) {
       cancelDrag();
+      surfaceInteraction.cancel("aborted");
       return;
     }
     if (!blocked) beginDrag(event.pointerId, pointers.get(event.pointerId), event);
@@ -432,6 +451,7 @@ function installWeightedMapDragging(
     }
     if (pointers.size > 1) {
       cancelDrag();
+      surfaceInteraction.cancel("aborted");
       return;
     }
     applyWeightedDrag(event);
@@ -446,11 +466,18 @@ function installWeightedMapDragging(
     if (ownsDrag) {
       drag = null;
       releasePointerCapture(event.pointerId);
-      if (event.type !== "pointercancel" && finishedDrag?.moved) {
-        const velocity = motion.estimatePointerVectorVelocity(finishedDrag.samples);
-        suppressClickUntil = performance.now() + MAP_CLICK_SUPPRESSION_MS;
-        void motion.pulseHaptic?.("release");
-        requestAnimationFrame(() => startInertia(velocity));
+      if (event.type === "pointercancel") {
+        surfaceInteraction.cancel("pointercancel");
+      } else {
+        surfaceInteraction.releasePointer(event.pointerId);
+        if (finishedDrag?.moved) {
+          const velocity = motion.estimatePointerVectorVelocity(finishedDrag.samples);
+          suppressClickUntil = performance.now() + MAP_CLICK_SUPPRESSION_MS;
+          void motion.pulseHaptic?.("release");
+          requestAnimationFrame(() => startInertia(velocity));
+        } else {
+          surfaceInteraction.commit();
+        }
       }
     }
 
@@ -468,6 +495,7 @@ function installWeightedMapDragging(
 
   const abortInteraction = () => {
     cancelInertia();
+    surfaceInteraction.cancel("aborted");
     const pointerIds = Array.from(pointers.keys());
     drag = null;
     pointers.clear();
