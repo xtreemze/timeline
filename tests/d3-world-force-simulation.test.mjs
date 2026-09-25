@@ -84,11 +84,22 @@ test("cluster lifecycle detaches links, gathers with D3, then scatters from the 
   const collapsed = distance(simulation.getSnapshot(), alice, bob);
   assert.ok(collapsed < expandedBefore, "D3 gathers the detached place group");
 
-  simulation.setClusteredPlaceIds([]);
+  simulation.setClusteredPlaceIds([], ["stockholm"]);
   simulation.apply(topologyRequest());
   for (let index = 0; index < 180; index += 1) simulation.step(1000 / 60);
-  const expandedAfter = distance(simulation.getSnapshot(), alice, bob);
-  assert.ok(expandedAfter > collapsed, "D3 rejection/link forces spread retained members again");
+  const expandedDetached = distance(simulation.getSnapshot(), alice, bob);
+  assert.ok(
+    expandedDetached > collapsed,
+    "D3 rejection scatters retained members while relationship links remain detached",
+  );
+
+  simulation.setClusteredPlaceIds([], []);
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 60; index += 1) simulation.step(1000 / 60);
+  assert.ok(
+    distance(simulation.getSnapshot(), alice, bob) > collapsed,
+    "restoring links happens only after the free scatter phase",
+  );
 });
 
 test("D3 DAG targets remain soft guidance outside collapsed clusters", () => {
