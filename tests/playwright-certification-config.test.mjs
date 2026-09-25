@@ -254,7 +254,9 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
 
   assert.match(showcaseDocs, /five desktop scenes/i);
   assert.match(showcaseDocs, /five mobile scenes/i);
-  assert.match(showcaseDocs, /59 actual decoded frames per second/i);
+  assert.match(showcaseDocs, /minimum 59 fps source cadence/i);
+  assert.match(showcaseDocs, /raw VP8 WebM/i);
+  assert.match(showcaseDocs, /95% recording-window coverage/i);
   assert.match(showcaseDocs, /60 fps animated WebP/i);
   assert.match(showcaseDocs, /lum-desktop-highlight\.mp4/);
   assert.match(showcaseDocs, /lum-mobile-highlight\.mp4/);
