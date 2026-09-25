@@ -3,7 +3,10 @@ import {
   type InteractionCoordinator,
 } from "../src/interaction/interaction-coordinator.ts";
 import { createSurfaceInteractionController } from "../src/interaction/surface-controller.ts";
-import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
+import {
+  surfaceKeyboardMayNavigate,
+  surfacePointerMayStartDirectManipulation,
+} from "../src/interaction/surface-input-policy.ts";
 import { Leaflet } from "../src/leaflet-entry.js";
 
 /**
@@ -29,6 +32,17 @@ const PRESENTATION_FLY_DURATION_SECONDS = 7;
 const PRESENTATION_WORLD_DWELL_MS = 450;
 const MAP_DRAG_MOVE_TOLERANCE_PX = 8;
 const MAP_CLICK_SUPPRESSION_MS = 350;
+const MAP_DISCRETE_COMMIT_MS = 180;
+const MAP_KEYBOARD_CAMERA_KEYS = new Set([
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "ArrowDown",
+  "+",
+  "=",
+  "-",
+  "_",
+]);
 const motion = globalThis.TimelineMotion;
 
 interface PointCoord {
@@ -302,6 +316,7 @@ function installWeightedMapDragging(
   const surfaceInteraction = createSurfaceInteractionController("map", interaction);
   let drag: DragState | null = null;
   let inertiaAnimationFrame = 0;
+  let discreteCommitTimer: ReturnType<typeof globalThis.setTimeout> | 0 = 0;
   let suppressClickUntil = 0;
 
   const releasePointerCapture = (pointerId: number) => {
@@ -330,6 +345,30 @@ function installWeightedMapDragging(
           ".leaflet-control, .leaflet-marker-icon, button, a, input, select, textarea",
         ),
     );
+
+  const finishDiscreteInput = (): void => {
+    if (discreteCommitTimer) {
+      globalThis.clearTimeout(discreteCommitTimer);
+      discreteCommitTimer = 0;
+    }
+    const snapshot = surfaceInteraction.snapshot();
+    if (
+      snapshot.owner === "map" &&
+      snapshot.phase === "owned" &&
+      snapshot.pointerIds.length === 0 &&
+      (snapshot.gesture === "wheel" || snapshot.gesture === "keyboard")
+    ) {
+      surfaceInteraction.finishDiscrete();
+    }
+  };
+
+  const scheduleDiscreteCommit = (): void => {
+    if (discreteCommitTimer) globalThis.clearTimeout(discreteCommitTimer);
+    discreteCommitTimer = globalThis.setTimeout(() => {
+      discreteCommitTimer = 0;
+      finishDiscreteInput();
+    }, MAP_DISCRETE_COMMIT_MS);
+  };
 
   const beginDrag = (pointerId: number, point: any, sourceEvent: PointerEvent | null = null) => {
     if (!point || pointers.size > 1) return;
@@ -426,6 +465,7 @@ function installWeightedMapDragging(
 
   const onPointerDown = (event: PointerEvent) => {
     if (!surfacePointerMayStartDirectManipulation(event)) return;
+    finishDiscreteInput();
     cancelInertia();
     const blocked = targetBlocksCameraDrag(event.target);
     pointers.set(event.pointerId, {
@@ -437,8 +477,13 @@ function installWeightedMapDragging(
     });
 
     if (pointers.size > 1) {
+      if (!surfaceInteraction.beginPointer(event.pointerId, "pinch")) {
+        pointers.delete(event.pointerId);
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
       cancelDrag();
-      surfaceInteraction.cancel("aborted");
       return;
     }
     if (!blocked) beginDrag(event.pointerId, pointers.get(event.pointerId), event);
@@ -452,7 +497,7 @@ function installWeightedMapDragging(
     }
     if (pointers.size > 1) {
       cancelDrag();
-      surfaceInteraction.cancel("aborted");
+      surfaceInteraction.claimGesture("pinch");
       return;
     }
     applyWeightedDrag(event);
@@ -464,25 +509,29 @@ function installWeightedMapDragging(
     if (finishedDrag) motion.appendPointerVectorSamples(finishedDrag.samples, event);
     pointers.delete(event.pointerId);
 
+    if (event.type === "pointercancel") {
+      drag = null;
+      releasePointerCapture(event.pointerId);
+      surfaceInteraction.cancel("pointercancel");
+      return;
+    }
+
     if (ownsDrag) {
       drag = null;
       releasePointerCapture(event.pointerId);
-      if (event.type === "pointercancel") {
-        surfaceInteraction.cancel("pointercancel");
-      } else {
-        surfaceInteraction.releasePointer(event.pointerId);
-        if (finishedDrag?.moved) {
-          const velocity = motion.estimatePointerVectorVelocity(finishedDrag.samples);
-          suppressClickUntil = performance.now() + MAP_CLICK_SUPPRESSION_MS;
-          void motion.pulseHaptic?.("release");
-          requestAnimationFrame(() => startInertia(velocity));
-        } else {
-          surfaceInteraction.commit();
-        }
-      }
     }
 
-    if (event.type !== "pointercancel" && event.pointerType === "touch" && pointers.size === 1) {
+    const released = surfaceInteraction.releasePointer(event.pointerId);
+    if (ownsDrag && finishedDrag?.moved) {
+      const velocity = motion.estimatePointerVectorVelocity(finishedDrag.samples);
+      suppressClickUntil = performance.now() + MAP_CLICK_SUPPRESSION_MS;
+      void motion.pulseHaptic?.("release");
+      requestAnimationFrame(() => startInertia(velocity));
+    } else if (released && surfaceInteraction.snapshot().phase === "settling") {
+      surfaceInteraction.commit();
+    }
+
+    if (event.pointerType === "touch" && pointers.size === 1) {
       const remaining = Array.from(pointers.values())[0];
       if (remaining && !remaining.blocked) {
         requestAnimationFrame(() => {
@@ -517,6 +566,34 @@ function installWeightedMapDragging(
     event.stopImmediatePropagation();
   };
 
+  const onWheelCapture = (event: WheelEvent) => {
+    finishDiscreteInput();
+    cancelInertia();
+    if (!surfaceInteraction.beginDiscrete("wheel")) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    scheduleDiscreteCommit();
+  };
+
+  const onKeyDownCapture = (event: KeyboardEvent) => {
+    if (
+      !MAP_KEYBOARD_CAMERA_KEYS.has(event.key) ||
+      !surfaceKeyboardMayNavigate(event)
+    ) {
+      return;
+    }
+    finishDiscreteInput();
+    cancelInertia();
+    if (!surfaceInteraction.beginDiscrete("keyboard")) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    scheduleDiscreteCommit();
+  };
+
   const onVisibilityChange = () => {
     if (document.visibilityState === "hidden") abortInteraction();
   };
@@ -527,7 +604,8 @@ function installWeightedMapDragging(
   container.addEventListener("pointercancel", finishPointer as EventListener);
   container.addEventListener("lostpointercapture", onLostPointerCapture);
   container.addEventListener("click", onClickCapture, { capture: true });
-  container.addEventListener("wheel", cancelInertia, { passive: true });
+  container.addEventListener("wheel", onWheelCapture, { capture: true, passive: false });
+  container.addEventListener("keydown", onKeyDownCapture, true);
   globalThis.addEventListener?.("blur", abortInteraction);
   globalThis.addEventListener?.("orientationchange", abortInteraction);
   document.addEventListener("visibilitychange", onVisibilityChange);
@@ -540,7 +618,9 @@ function installWeightedMapDragging(
     container.removeEventListener("pointercancel", finishPointer as EventListener);
     container.removeEventListener("lostpointercapture", onLostPointerCapture);
     container.removeEventListener("click", onClickCapture, true);
-    container.removeEventListener("wheel", cancelInertia);
+    container.removeEventListener("wheel", onWheelCapture, true);
+    container.removeEventListener("keydown", onKeyDownCapture, true);
+    finishDiscreteInput();
     globalThis.removeEventListener?.("blur", abortInteraction);
     globalThis.removeEventListener?.("orientationchange", abortInteraction);
     document.removeEventListener("visibilitychange", onVisibilityChange);
