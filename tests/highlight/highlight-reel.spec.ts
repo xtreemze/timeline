@@ -28,6 +28,7 @@ type ShowcaseSegment = SceneIntent & {
   motionDurationSeconds: number | null;
   requestedFps: number | null;
   capturedFps: number | null;
+  browserFrameClockFps: number | null;
 };
 
 const SCENES: readonly SceneIntent[] = [
@@ -204,6 +205,58 @@ async function probeCapturedVideo(
   };
 }
 
+async function startCaptureHeartbeat(page: Page) {
+  await page.evaluate(() => {
+    document.querySelector("#lum-showcase-capture-heartbeat")?.remove();
+
+    const heartbeat = document.createElement("div");
+    heartbeat.id = "lum-showcase-capture-heartbeat";
+    heartbeat.setAttribute("aria-hidden", "true");
+    Object.assign(heartbeat.style, {
+      position: "fixed",
+      left: "0",
+      bottom: "0",
+      width: "1px",
+      height: "1px",
+      background: "rgba(255, 255, 255, 0.08)",
+      opacity: "0.08",
+      pointerEvents: "none",
+      zIndex: "2147483647",
+      willChange: "transform",
+    });
+    heartbeat.dataset.frames = "0";
+    heartbeat.dataset.startedAt = String(performance.now());
+    document.documentElement.append(heartbeat);
+
+    const tick = () => {
+      const frame = Number(heartbeat.dataset.frames ?? "0") + 1;
+      heartbeat.dataset.frames = String(frame);
+      heartbeat.style.transform = `translate3d(${String(frame % 2)}px, 0, 0)`;
+      heartbeat.dataset.rafId = String(requestAnimationFrame(tick));
+    };
+    heartbeat.dataset.rafId = String(requestAnimationFrame(tick));
+  });
+}
+
+async function stopCaptureHeartbeat(page: Page) {
+  return page.evaluate(() => {
+    const heartbeat = document.querySelector<HTMLElement>("#lum-showcase-capture-heartbeat");
+    if (!heartbeat) {
+      return { frames: 0, durationMs: 0, fps: 0 };
+    }
+
+    const rafId = Number(heartbeat.dataset.rafId);
+    if (Number.isFinite(rafId)) cancelAnimationFrame(rafId);
+
+    const frames = Number(heartbeat.dataset.frames ?? "0");
+    const startedAt = Number(heartbeat.dataset.startedAt ?? performance.now());
+    const durationMs = Math.max(0, performance.now() - startedAt);
+    const fps = durationMs > 0 ? (frames * 1000) / durationMs : 0;
+    heartbeat.remove();
+    return { frames, durationMs, fps };
+  });
+}
+
 async function loadSample(page: Page) {
   await page.goto("/");
   await page.locator("#project-menu-toggle").click();
@@ -272,6 +325,7 @@ async function recordSegment(
 
   let motionDurationSeconds: number | null = null;
   let capturedFps: number | null = null;
+  let browserFrameClockFps: number | null = null;
 
   if (scene.mediaMode === "motion") {
     const actions = await page.screencast.showActions({
@@ -313,6 +367,7 @@ async function recordSegment(
         duration: 900,
       });
 
+      await startCaptureHeartbeat(page);
       const started = (await session.send("Page.startScreenRecording", {
         audio: false,
         maxWidth: captureSize.width,
@@ -331,6 +386,8 @@ async function recordSegment(
       });
 
       const captureStoppedAt = Date.now();
+      const browserFrameClock = await stopCaptureHeartbeat(page);
+      browserFrameClockFps = browserFrameClock.fps;
       const stopped = (await session.send("Page.stopScreenRecording")) as { stream?: string };
       recordingStarted = false;
       const streamHandle = stopped.stream ?? started.stream;
@@ -353,6 +410,7 @@ async function recordSegment(
       motionDurationSeconds = stats.durationSeconds;
       capturedFps = stats.capturedFps;
     } finally {
+      await stopCaptureHeartbeat(page).catch(() => {});
       if (recordingStarted) {
         await session.send("Page.stopScreenRecording").catch(() => {});
       }
@@ -378,6 +436,7 @@ async function recordSegment(
     motionDurationSeconds,
     requestedFps: scene.mediaMode === "motion" ? CAPTURE_FPS : null,
     capturedFps,
+    browserFrameClockFps,
   };
 }
 
