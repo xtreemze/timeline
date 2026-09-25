@@ -722,6 +722,9 @@ function positionViewControls() {
   const triggerRect = els.viewControlsToggle.getBoundingClientRect();
   const toolbarRect = els.viewControls.getBoundingClientRect();
   const dockRect = els.appToolDock.getBoundingClientRect();
+  const timelineSurfaceRect = els.timelineViewRoot
+    .querySelector<HTMLElement>(".timeline-surface")
+    ?.getBoundingClientRect();
   const titleRect = els.timelineViewRoot
     .querySelector<HTMLElement>(".timeline-project-heading")
     ?.getBoundingClientRect();
@@ -731,12 +734,26 @@ function positionViewControls() {
   const edge = 8;
   const availableWidth = Math.max(1, viewport.width - edge * 2);
   const availableHeight = Math.max(1, viewport.height - edge * 2);
+  const worldLeft = viewport.left + edge;
+  const worldTop = viewport.top + edge;
+  const worldRight =
+    orientation === "vertical" && timelineSurfaceRect
+      ? Math.max(worldLeft + 1, timelineSurfaceRect.left - gap)
+      : viewport.left + viewport.width - edge;
+  const worldBottom =
+    orientation === "horizontal" && timelineSurfaceRect
+      ? Math.max(worldTop + 1, timelineSurfaceRect.top - gap)
+      : Math.max(worldTop + 1, dockRect.top - gap);
+  const worldWidth = Math.max(1, worldRight - worldLeft);
+  const worldHeight = Math.max(1, worldBottom - worldTop);
   const measuredWidth = Math.min(
     availableWidth,
+    worldWidth,
     Math.max(1, toolbarRect.width || els.viewControls.offsetWidth || 1),
   );
   const measuredHeight = Math.min(
     availableHeight,
+    worldHeight,
     Math.max(1, toolbarRect.height || els.viewControls.offsetHeight || 1),
   );
   const anchor = {
@@ -748,19 +765,19 @@ function positionViewControls() {
     orientation === "vertical"
       ? [
           {
-            id: "timeline-left",
+            id: "world-left-of-timeline",
             rect: {
-              x: triggerRect.left - gap - measuredWidth,
-              y: anchor.y - measuredHeight / 2,
+              x: worldRight - measuredWidth,
+              y: worldBottom - measuredHeight,
               width: measuredWidth,
               height: measuredHeight,
             },
           },
           {
-            id: "timeline-below",
+            id: "world-top-left",
             rect: {
-              x: triggerRect.right - measuredWidth,
-              y: triggerRect.bottom + gap,
+              x: worldRight - measuredWidth,
+              y: worldTop,
               width: measuredWidth,
               height: measuredHeight,
             },
@@ -768,19 +785,19 @@ function positionViewControls() {
         ]
       : [
           {
-            id: "timeline-below",
+            id: "world-above-timeline",
             rect: {
-              x: triggerRect.right - measuredWidth,
-              y: triggerRect.bottom + gap,
+              x: Math.min(worldRight - measuredWidth, triggerRect.right - measuredWidth),
+              y: worldBottom - measuredHeight,
               width: measuredWidth,
               height: measuredHeight,
             },
           },
           {
-            id: "timeline-left",
+            id: "world-top-right",
             rect: {
-              x: triggerRect.left - gap - measuredWidth,
-              y: triggerRect.top,
+              x: worldRight - measuredWidth,
+              y: worldTop,
               width: measuredWidth,
               height: measuredHeight,
             },
@@ -806,6 +823,19 @@ function positionViewControls() {
           height: dockRect.height,
         },
       },
+      ...(timelineSurfaceRect
+        ? [
+            {
+              id: "timeline-surface",
+              rect: {
+                x: timelineSurfaceRect.left,
+                y: timelineSurfaceRect.top,
+                width: timelineSurfaceRect.width,
+                height: timelineSurfaceRect.height,
+              },
+            },
+          ]
+        : []),
       ...(titleRect
         ? [
             {
@@ -827,30 +857,29 @@ function positionViewControls() {
   const selectedCandidate = candidates.find((candidate) => candidate.id === selected.id);
   if (!selectedCandidate) return;
 
-  const boundedInlineSize = Math.floor(Math.min(availableWidth, Math.max(1, measuredWidth)));
-  const boundedBlockSize = Math.floor(Math.min(availableHeight, Math.max(1, measuredHeight)));
+  const boundedInlineSize = Math.floor(Math.min(worldWidth, Math.max(1, measuredWidth)));
+  const boundedBlockSize = Math.floor(Math.min(worldHeight, Math.max(1, measuredHeight)));
 
   els.viewControls.style.setProperty("--view-controls-inline-size", `${boundedInlineSize}px`);
   els.viewControls.style.setProperty("--view-controls-block-size", `${boundedBlockSize}px`);
   els.viewControls.style.width = `${boundedInlineSize}px`;
-  els.viewControls.style.maxWidth = `${availableWidth}px`;
-  els.viewControls.style.maxHeight = `${availableHeight}px`;
+  els.viewControls.style.maxWidth = `${worldWidth}px`;
+  els.viewControls.style.maxHeight = `${worldHeight}px`;
 
   const constrainedRect = els.viewControls.getBoundingClientRect();
-  const actualInlineSize = Math.min(availableWidth, Math.max(1, constrainedRect.width));
-  const actualBlockSize = Math.min(availableHeight, Math.max(1, constrainedRect.height));
-  const minLeft = viewport.left + edge;
-  const minTop = viewport.top + edge;
-  const maxLeft = Math.max(minLeft, viewport.left + viewport.width - edge - actualInlineSize);
-  const maxTop = Math.max(minTop, viewport.top + viewport.height - edge - actualBlockSize);
+  const actualInlineSize = Math.min(worldWidth, Math.max(1, constrainedRect.width));
+  const actualBlockSize = Math.min(worldHeight, Math.max(1, constrainedRect.height));
+  const minLeft = worldLeft;
+  const minTop = worldTop;
+  const maxLeft = Math.max(minLeft, worldRight - actualInlineSize);
+  const maxTop = Math.max(minTop, worldBottom - actualBlockSize);
   const preferredLeft =
-    selectedCandidate.id === "timeline-left"
-      ? triggerRect.left - gap - actualInlineSize
-      : triggerRect.right - actualInlineSize;
-  const preferredTop =
-    selectedCandidate.id === "timeline-left"
-      ? anchor.y - actualBlockSize / 2
-      : triggerRect.bottom + gap;
+    orientation === "vertical"
+      ? worldRight - actualInlineSize
+      : Math.min(worldRight - actualInlineSize, triggerRect.right - actualInlineSize);
+  const prefersTop =
+    selectedCandidate.id === "world-top-left" || selectedCandidate.id === "world-top-right";
+  const preferredTop = prefersTop ? worldTop : worldBottom - actualBlockSize;
   const boundedLeft = Math.min(maxLeft, Math.max(minLeft, preferredLeft));
   const boundedTop = Math.min(maxTop, Math.max(minTop, preferredTop));
 
@@ -1751,7 +1780,7 @@ function syncApplicationSurfaces() {
     els.browserSheet.setAttribute("aria-hidden", String(!ui.browserOpen));
   }
   if (els.presentationStage) els.presentationStage.inert = Boolean(ui.browserOpen || editing);
-  if (els.appToolDock) els.appToolDock.inert = Boolean(ui.browserOpen);
+  if (els.appToolDock) els.appToolDock.inert = false;
   if (els.title) {
     els.title.readOnly = !editing;
     els.title.tabIndex = editing ? 0 : -1;
