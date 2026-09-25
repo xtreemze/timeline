@@ -373,6 +373,55 @@ test("detail zoom repositions co-located semantic labels before hiding them", ()
   assert.equal(labels.props.getTextAnchor, "middle");
 });
 
+
+test("dense detail scenes keep only collision-free labels and reveal interaction context", () => {
+  const h = harness();
+  const instances = Array.from({ length: 24 }, (_, index) =>
+    instance(index, {
+      geographicAnchors: [
+        {
+          placeId: `dense-place-${index}`,
+          label: `Dense place ${index}`,
+          longitude: 10,
+          latitude: 50,
+          influence: 1,
+        },
+      ],
+      localOffset: { eastMeters: 0, northMeters: 0 },
+    }),
+  );
+  const surface = new DeckWorldSurface({}, h.runtime, {
+    ...WORKING_CAMERA,
+    longitude: 10,
+    latitude: 50,
+    zoom: 9,
+  });
+  surface.setProjection(createWorldProjection({ instances, edges: [] }));
+
+  const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const visibleEntityIds = new Set(
+    labels.props.data
+      .filter((datum) => datum.kind === "entity-label")
+      .map((datum) => datum.entityId),
+  );
+  assert.ok(
+    labels.props.data.length < instances.length * 2,
+    "detail zoom no longer forces overlapping labels back into the scene",
+  );
+
+  const hidden = instances.find((candidate) => !visibleEntityIds.has(candidate.canonicalId));
+  assert.ok(hidden, "dense co-located fixture leaves at least one optional entity label hidden");
+
+  surface.setSelection({ kind: "entity", id: hidden.canonicalId });
+  const selectedLabels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.ok(
+    selectedLabels.some(
+      (datum) => datum.kind === "entity-label" && datum.entityId === hidden.canonicalId,
+    ),
+    "selection still reveals a suppressed label without restoring the surrounding clutter",
+  );
+});
+
 test("large marker labels clear the rendered node footprint", () => {
   const h = harness();
   const large = instance(0, {
@@ -396,18 +445,20 @@ test("large marker labels clear the rendered node footprint", () => {
   );
 });
 
-test("clustered overview shows only place labels", () => {
+test("clustered overview replaces nearby member labels with aggregate context", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
   surface.setProjection(directedProjection());
 
   const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
   assert.ok(labels.props.data.length > 0);
-  assert.ok(labels.props.data.every((datum) => datum.kind === "place-label"));
-  assert.deepEqual(labels.props.data.map((datum) => labels.props.getText(datum)).sort(), [
-    "Place 0",
-    "Place 1",
-  ]);
+  assert.ok(
+    labels.props.data.every((datum) => datum.kind === "cluster-label"),
+    "collapsed nearby places expose aggregate context instead of duplicating member labels",
+  );
+  assert.ok(
+    labels.props.data.some((datum) => datum.text.includes("2 places") && datum.text.includes("2 nodes")),
+  );
 });
 
 test("same-place overview retains members at the cluster origin while hiding member topology", () => {
