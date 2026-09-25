@@ -368,11 +368,6 @@
 }
 
 @media (min-width: 700px) {
-  #app-shell.is-event-focused #presentation-stage {
-    --focus-timeline-block-size: clamp(112px, 24%, 184px);
-    --focus-timeline-inline-size: clamp(92px, 18%, 132px);
-  }
-
   #app-shell.is-event-focused
     #presentation-stage[data-timeline-orientation="horizontal"]
     > .timeline-focus-sidebar:not([hidden]) {
@@ -390,7 +385,6 @@
     max-inline-size: calc(100% - var(--focus-timeline-inline-size) - 1.1rem);
     max-block-size: calc(100% - 1.1rem);
   }
-
 }
 
 /* Persistent footer control plane.
