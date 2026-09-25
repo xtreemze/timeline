@@ -51,6 +51,11 @@ interface ScaleReport {
   readonly incrementalUpdate: {
     readonly smallDeltaSyncMs: number;
     readonly smallDeltaMs: number;
+    readonly sustainedSingleNodeSync: {
+      readonly p50Ms: number;
+      readonly p95Ms: number;
+      readonly samples: number;
+    };
     readonly fullSwapMs: number;
   } | null;
   readonly sustainedNavigation: {
@@ -195,6 +200,47 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
           const smallDeltaMs = performance.now() - deltaStart;
 
+          // Repeated one-node sparse updates approximate the synchronous CPU
+          // work of sustained drag/post-drop frames without including fixture
+          // diff construction or a full projection readback in each sample.
+          const current = harness.getProjection();
+          let movingInstance = current.instances[0];
+          if (!movingInstance) throw new Error("World performance fixture has no instances.");
+          const singleNodeSamples: number[] = [];
+          const sampleCount =
+            base.instances.length >= 50_000 ? 8 : base.instances.length >= 10_000 ? 16 : 30;
+          for (let index = 0; index < sampleCount; index++) {
+            const previousOffset = movingInstance.localOffset ?? {
+              eastMeters: 0,
+              northMeters: 0,
+            };
+            const nextInstance = Object.freeze({
+              ...movingInstance,
+              localOffset: Object.freeze({
+                eastMeters: previousOffset.eastMeters + 250 + index,
+                northMeters: previousOffset.northMeters - 125 - index,
+              }),
+            });
+            const positionDelta = Object.freeze({
+              addedInstances: Object.freeze([]),
+              updatedInstances: Object.freeze([nextInstance]),
+              removedInstanceIds: Object.freeze([]),
+              addedEdges: Object.freeze([]),
+              updatedEdges: Object.freeze([]),
+              removedEdgeIds: Object.freeze([]),
+            });
+            const sampleStart = performance.now();
+            harness.applyProjectionDelta(positionDelta);
+            singleNodeSamples.push(performance.now() - sampleStart);
+            movingInstance = nextInstance;
+          }
+          singleNodeSamples.sort((left, right) => left - right);
+          const sustainedSingleNodeSync = {
+            p50Ms: singleNodeSamples[Math.floor(singleNodeSamples.length * 0.5)] ?? 0,
+            p95Ms: singleNodeSamples[Math.floor(singleNodeSamples.length * 0.95)] ?? 0,
+            samples: singleNodeSamples.length,
+          };
+
           const swap = generateWorldProjectionFixture({
             entityCount: base.instances.length,
             seed: 999,
@@ -209,7 +255,7 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
           harness.surface.setProjection(base);
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-          return { smallDeltaSyncMs, smallDeltaMs, fullSwapMs };
+          return { smallDeltaSyncMs, smallDeltaMs, sustainedSingleNodeSync, fullSwapMs };
         });
 
         // --- Sustained navigation: repeated camera changes, memory proxy. ---
