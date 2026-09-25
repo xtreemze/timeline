@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("retained timeline preserves weighted drag response and decaying release inertia", async () => {
+test("retained timeline preserves direct drag response and decaying release inertia", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
   assert.match(source, /TimelineMotion as motion/);
@@ -11,7 +11,9 @@ test("retained timeline preserves weighted drag response and decaying release in
     source,
     /motion\.appendPointerSamples\(this\.pointerDrag\.samples, event, this\.orientation\)/,
   );
-  assert.match(source, /motion\.responseForElapsed\(now - drag\.lastTime\)/);
+  assert.match(source, /const temporalDelta = -\(delta \/ usable\) \* span/);
+  assert.match(source, /this\.viewport = target/);
+  assert.match(source, /this\.interactionVelocity = -\(\(pointerVelocity \/ usable\) \* span\)/);
   assert.match(source, /motion\.estimatePointerVelocity\(drag\.samples\)/);
   assert.match(
     source,
