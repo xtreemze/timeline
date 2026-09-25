@@ -84,6 +84,9 @@ on:
       - 'src/performance/retained-timeline-metrics.ts'
       - 'benchmarks/retained-timeline.mjs'
       - 'benchmarks/graph-data.mjs'
+      - 'benchmarks/hosted-persistence.mjs'
+      - 'experiments/hosted-persistence/**'
+      - 'tests/hosted-persistence-spike.test.mjs'
       - 'benchmarks/world-force.mjs'
       - 'docs/CONTRIBUTOR-ARCHITECTURE.md'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
@@ -180,6 +183,9 @@ on:
       - 'src/performance/retained-timeline-metrics.ts'
       - 'benchmarks/retained-timeline.mjs'
       - 'benchmarks/graph-data.mjs'
+      - 'benchmarks/hosted-persistence.mjs'
+      - 'experiments/hosted-persistence/**'
+      - 'tests/hosted-persistence-spike.test.mjs'
       - 'benchmarks/world-force.mjs'
       - 'docs/CONTRIBUTOR-ARCHITECTURE.md'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
@@ -239,6 +245,8 @@ jobs:
       - run: pnpm test:retained-timeline-metrics
       - run: pnpm benchmark:retained-timeline
       - run: pnpm benchmark:graph-data
+      - run: pnpm test:hosted-persistence
+      - run: pnpm benchmark:hosted-persistence
       - run: pnpm benchmark:world-force
       - name: Certify world DAG layout quality
         run: pnpm benchmark:world-dag -- --check
