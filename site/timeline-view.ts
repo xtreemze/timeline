@@ -3444,6 +3444,7 @@ export class TimelineViewController {
     evidenceTab.setAttribute("role", "tab");
     evidenceTab.setAttribute("aria-selected", "false");
     evidenceTab.setAttribute("aria-controls", "timeline-focus-evidence-panel");
+    evidenceTab.tabIndex = -1;
     const close = document.createElement("button");
     close.type = "button";
     close.className = "button primary timeline-focus-close";
@@ -3462,6 +3463,8 @@ export class TimelineViewController {
         evidenceTab.classList.toggle("is-active", evidenceActive);
         overviewTab.setAttribute("aria-selected", String(!evidenceActive));
         evidenceTab.setAttribute("aria-selected", String(evidenceActive));
+        overviewTab.tabIndex = evidenceActive ? -1 : 0;
+        evidenceTab.tabIndex = evidenceActive ? 0 : -1;
       };
       if (
         !this.reducedMotionQuery?.matches &&
@@ -3493,7 +3496,9 @@ export class TimelineViewController {
       if (currentIndex < 0) return;
 
       let nextIndex = currentIndex;
-      if (event.key === "ArrowLeft") nextIndex = (currentIndex + tabButtons.length - 1) % tabButtons.length;
+      if (event.key === "ArrowLeft") {
+        nextIndex = (currentIndex + tabButtons.length - 1) % tabButtons.length;
+      }
       else if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabButtons.length;
       else if (event.key === "Home") nextIndex = 0;
       else if (event.key === "End") nextIndex = tabButtons.length - 1;
@@ -3642,7 +3647,7 @@ export class TimelineViewController {
     this.focusReturnTarget = null;
     requestAnimationFrame(() => {
       if (this.focusedId !== null) return;
-      if (returnTarget?.isConnected) {
+      if (returnTarget?.isConnected && returnTarget !== document.body) {
         returnTarget.focus({ preventScroll: true });
       } else {
         this.surface.focus({ preventScroll: true });
