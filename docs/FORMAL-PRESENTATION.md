@@ -180,7 +180,7 @@ For product demonstrations, release reviews, talks, and slide/web presentations,
 - `artifacts/e2e-media/reels/lum-desktop-highlight.mp4`;
 - `artifacts/e2e-media/reels/lum-mobile-highlight.mp4`;
 - source-resolution PNG screenshots for static product states;
-- source-dimension, verified 60 fps animated WebP for motion scenes, emitted only after Chromium compositor timestamps sustain at least 59 actual source fps with 95% recording-window coverage and the VP8 WebM preserves the same frame count.
+- source-dimension, verified 60 fps animated WebP for motion scenes, emitted only after the exact-size X11 framebuffer decodes at at least 59 actual source fps with 95% recording-window coverage and the independent browser frame clock also sustains at least 59 fps.
 
 The desktop and mobile collections demonstrate the same five product capabilities with layout-appropriate interactions. Stable mixed showcase media lives under `/timeline/showcase/desktop/` and `/timeline/showcase/mobile/`. Static states should remain screenshots; animation is reserved for interactions where motion itself communicates behavior.
 
