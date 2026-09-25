@@ -1,11 +1,13 @@
+import { extendSampleCase } from "./sample-case-additions.ts";
+
 /**
- * Sample timeline case: Three classic tales — parallel fictional casebook
+ * Sample timeline case: Six classic tales — distributed fictional casebook
  * Provides example data for timeline demonstration
  */
 
 const SAMPLE = {
   version: 2,
-  title: "Three classic tales — parallel fictional casebook",
+  title: "Six classic tales — distributed fictional casebook",
   categories: [
     {
       id: "context",
@@ -83,8 +85,8 @@ const SAMPLE = {
       type: "note",
       title: "Narrative consistency note",
       sourceName: "Timeline demo",
-      note: "The three tales use synthetic dates and fictional map anchors while preserving internal temporal, spatial, and relational consistency.",
-      publishedAt: "1000-04-05",
+      note: "The six tales use synthetic dates and fictional map anchors while preserving internal temporal, spatial, and relational consistency across overlapping and deliberately separated story cycles.",
+      publishedAt: "1043-05-22",
     },
   ],
   items: [
@@ -6318,6 +6320,8 @@ const SAMPLE = {
     },
   ],
 };
+
+extendSampleCase(SAMPLE);
 
 globalThis.TimelineSampleCase = Object.freeze(SAMPLE);
 
