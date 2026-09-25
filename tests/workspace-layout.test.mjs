@@ -158,21 +158,21 @@ test("snapshot exposes every normalized candidate and stable rejection reasons",
   assert.equal(snapshot.selected?.id, "open");
 });
 
-test("view controls consume the renderer-neutral workspace planner instead of owning a second clamping policy", async () => {
-  const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
-  const start = app.indexOf("function positionViewControls()");
-  const end = app.indexOf("function mountFullscreenToolDock()", start);
-  assert.ok(start >= 0 && end > start);
-  const source = app.slice(start, end);
+test("persistent View controls no longer require overlay placement planning", async () => {
+  const [app, html] = await Promise.all([
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+  ]);
 
-  assert.match(
+  assert.doesNotMatch(app, /positionViewControls|viewControlsAreOpen|viewControlsToggle/);
+  assert.doesNotMatch(
     app,
     /import \{ planWorkspacePlacement \} from ["']\.\.\/src\/layout\/workspace-layout\.ts["']/,
   );
-  assert.match(source, /planWorkspacePlacement\(/);
-  assert.match(source, /exclusionZones:\s*\[[\s\S]*id:\s*"app-tool-dock"/);
-  assert.match(source, /safeInsets:\s*\{ top: edge, right: edge, bottom: edge, left: edge \}/);
-  assert.match(source, /dataset\.placementValid = String\(snapshot\.fullySatisfiesConstraints\)/);
-  assert.doesNotMatch(source, /left = Math\.min\(Math\.max/);
-  assert.doesNotMatch(source, /top = Math\.min\(Math\.max/);
+  assert.match(
+    html,
+    /app-footer-timeline timeline-local-toolbar"[\s\S]*id="timeline-view-toolbar"[\s\S]*app-footer-view-controls/,
+  );
+  assert.doesNotMatch(html, /id="timeline-view-toolbar"[^>]*popover=/);
+  assert.doesNotMatch(html, /timeline-view-controls-toggle/);
 });
