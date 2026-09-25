@@ -100,6 +100,11 @@ function measureSourceCadence(segment, formFactor) {
   if (!capture || capture.targetFps !== SHOWCASE_FPS) {
     throw new Error(`${formFactor}/${segment.name} does not target ${SHOWCASE_FPS} fps.`);
   }
+  if (capture.method !== "ffmpeg-x11grab-vp8") {
+    throw new Error(
+      `${formFactor}/${segment.name} used ${String(capture.method)}; expected the raw X11 framebuffer capture path.`,
+    );
+  }
   const timestamps = capture.frameTimestampsMs;
   if (!Array.isArray(timestamps) || timestamps.length < 2) {
     throw new Error(`${formFactor}/${segment.name} has no source frame timing evidence.`);
