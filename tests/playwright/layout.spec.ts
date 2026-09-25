@@ -188,9 +188,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       const actions = dock.locator(".app-footer-primary > .app-tool");
       await expect(actions).toHaveCount(3);
 
-      const worldControls = dock.locator(
-        "#world-footer-controls .world-camera-control:visible",
-      );
+      const worldControls = dock.locator("#world-footer-controls .world-camera-control:visible");
       await expect(worldControls).toHaveCount(4);
 
       const dockBox = await expectInsideViewport(dock, viewport);
@@ -218,9 +216,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       }
 
       expect(worldBox.x).toBeLessThan(dockBox.x + dockBox.width / 2);
-      expect(viewButtonBox.x + viewButtonBox.width).toBeGreaterThan(
-        dockBox.x + dockBox.width / 2,
-      );
+      expect(viewButtonBox.x + viewButtonBox.width).toBeGreaterThan(dockBox.x + dockBox.width / 2);
       expect(dockBox.x).toBeLessThanOrEqual(2);
       expect(dockBox.width).toBeGreaterThanOrEqual(viewport.width - 4);
       expect(dockBox.height).toBeGreaterThanOrEqual(56);
@@ -335,7 +331,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       expect(panelAfter.height).toBeLessThan(panelBefore.height);
       expect(
         Math.abs(
-          (panelBefore.height - panelAfter.height) - (footerAfter.height - footerBefore.height),
+          panelBefore.height - panelAfter.height - (footerAfter.height - footerBefore.height),
         ),
       ).toBeLessThanOrEqual(2);
       expect(panelAfter.y + panelAfter.height).toBeLessThanOrEqual(footerAfter.y + 1);
