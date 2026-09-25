@@ -60,7 +60,7 @@ test("dense local places stay clustered longer and resolve progressively", () =>
   );
 });
 
-test("nearby singleton places stay clustered until their screen neighbourhood separates", () => {
+test("nearby sparse places may expand their nodes when the shared region has enough room", () => {
   const make = (id, longitude) =>
     createProjectedWorldInstance({
       id: worldInstanceId(id, `occ-${id}`),
@@ -83,13 +83,36 @@ test("nearby singleton places stay clustered until their screen neighbourhood se
 
   assert.deepEqual(
     clusterTargetPlaceIds(instances, [], 6, 16, 320, "expanded"),
-    ["place-a", "place-b"],
-    "regional zoom keeps the two visually adjacent authored places aggregated",
-  );
-  assert.deepEqual(
-    clusterTargetPlaceIds(instances, [], 8, 16, 320, "expanded"),
     [],
-    "zooming in resolves the same singleton places once their screen-space separation is readable",
+    "proximity alone does not hide sparse topology when its combined semantic load fits",
+  );
+});
+
+test("nearby dense places still collapse when their combined semantic load exceeds the region", () => {
+  const instances = Array.from({ length: 64 }, (_, index) =>
+    createProjectedWorldInstance({
+      id: worldInstanceId(`dense-${index}`, `occ-dense-${index}`),
+      canonicalId: `dense-${index}`,
+      occurrenceId: `occ-dense-${index}`,
+      geographicAnchors: [
+        {
+          placeId: index < 32 ? "dense-a" : "dense-b",
+          longitude: index < 32 ? 0 : 0.2,
+          latitude: 0,
+          sourceAltitude: 0,
+          influence: 1,
+        },
+      ],
+      temporalWeight: 1,
+      visualWeight: 1,
+      retained: false,
+    }),
+  );
+
+  assert.deepEqual(
+    clusterTargetPlaceIds(instances, [], 8, 16, 180, "expanded"),
+    ["dense-a", "dense-b"],
+    "a nearby component remains collapsed when the combined node load cannot fit",
   );
 });
 

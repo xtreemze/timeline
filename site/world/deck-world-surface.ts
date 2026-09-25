@@ -533,7 +533,9 @@ export function clusterTargetPlaceIds(
     Number.isFinite(availableLocalRadiusPx) && availableLocalRadiusPx > 0
       ? availableLocalRadiusPx
       : 0;
-  const nearby = new Set<PlaceId>();
+  const neighbours = new Map<PlaceId, Set<PlaceId>>(
+    groups.map((group) => [group.placeId, new Set<PlaceId>()] as const),
+  );
   const maxRequired = groups.reduce(
     (maximum, group) => Math.max(maximum, group.requiredRadiusPx),
     0,
@@ -587,8 +589,8 @@ export function clusterTargetPlaceIds(
             if (angularDistanceDegrees(group.anchor, other.anchor) > pairThresholdDegrees) {
               continue;
             }
-            nearby.add(group.placeId);
-            nearby.add(other.placeId);
+            neighbours.get(group.placeId)?.add(other.placeId);
+            neighbours.get(other.placeId)?.add(group.placeId);
           }
         }
       }
@@ -599,14 +601,64 @@ export function clusterTargetPlaceIds(
     }
   }
 
+  const groupById = new Map(groups.map((group) => [group.placeId, group] as const));
+  const components: Group[][] = [];
+  const componentIndexByPlace = new Map<PlaceId, number>();
+  const visited = new Set<PlaceId>();
+  for (const group of groups) {
+    if (visited.has(group.placeId)) continue;
+    const component: Group[] = [];
+    const pending: PlaceId[] = [group.placeId];
+    while (pending.length > 0) {
+      const placeId = pending.pop();
+      if (!placeId || visited.has(placeId)) continue;
+      const member = groupById.get(placeId);
+      if (!member) continue;
+      visited.add(placeId);
+      component.push(member);
+      for (const neighbour of neighbours.get(placeId) ?? []) {
+        if (!visited.has(neighbour)) pending.push(neighbour);
+      }
+    }
+    const index = components.length;
+    component.sort((left, right) => String(left.placeId).localeCompare(String(right.placeId)));
+    for (const member of component) componentIndexByPlace.set(member.placeId, index);
+    components.push(component);
+  }
+
+  const componentEdgeCounts = new Array<number>(components.length).fill(0);
+  for (const edge of edges) {
+    const sourcePlace = placeByInstance.get(edge.sourceInstanceId);
+    const targetPlace = placeByInstance.get(edge.targetInstanceId);
+    if (!sourcePlace || !targetPlace) continue;
+    const sourceComponent = componentIndexByPlace.get(sourcePlace);
+    const targetComponent = componentIndexByPlace.get(targetPlace);
+    if (
+      sourceComponent !== undefined &&
+      sourceComponent === targetComponent
+    ) {
+      componentEdgeCounts[sourceComponent] = (componentEdgeCounts[sourceComponent] ?? 0) + 1;
+    }
+  }
+
+  const targets = new Set<PlaceId>();
+  for (const [index, component] of components.entries()) {
+    const memberCount = component.reduce((sum, group) => sum + group.count, 0);
+    const edgeCount = componentEdgeCounts[index] ?? 0;
+    const required = clusterRequiredLocalRadiusPx(nodeRadiusPx, memberCount, edgeCount);
+
+    // Nearby places share one local graph region. Proximity alone is not a
+    // reason to hide topology: if their combined semantic load fits, let D3
+    // use the available whitespace and reserve clustering for the place pins.
+    if (required * hysteresis <= available) continue;
+
+    for (const group of component) {
+      if (component.length > 1 || group.count > 1) targets.add(group.placeId);
+    }
+  }
+
   return Object.freeze(
-    groups
-      .filter(
-        (group) =>
-          nearby.has(group.placeId) ||
-          (group.count > 1 && group.requiredRadiusPx * hysteresis > available),
-      )
-      .map((group) => group.placeId),
+    [...targets].sort((left, right) => String(left).localeCompare(String(right))),
   );
 }
 
@@ -628,6 +680,8 @@ const DENSE_CLUSTER_ZOOM_THRESHOLD = 5.5;
  * globe depth surface instead of being clipped through its lower half.
  */
 const WORLD_PLACE_ICON_LIFT_PX = 2;
+/** Place pins closer than this remain one aggregate marker even when nodes can expand. */
+const WORLD_PLACE_MARKER_CLUSTER_MERGE_PX = 64;
 /** Pickup feedback is presentation-only and never feeds back into force state. */
 const WORLD_DRAG_PICKUP_LIFT_PX = 7;
 const WORLD_DRAG_PICKUP_FLASH_MS = 160;
@@ -1071,12 +1125,11 @@ function worldThemeColors(palette: WorldGraphPalette): WorldThemeColors {
     graticule: worldColorBytes(palette.muted, 60),
     coastline: worldColorBytes(palette.muted, 210),
     border: worldColorBytes(palette.muted, 110),
-    // Clusters are an interaction/LOD envelope around a place, not a
-    // replacement glyph. Keep their interior transparent so the authored
-    // place marker remains visible, and use a neutral outline rather than
-    // the story-purple fill that previously covered places.
-    cluster: [0, 0, 0, 0] as Rgba,
-    clusterBorder: worldColorBytes(palette.muted, 150),
+    // A cluster is the aggregate marker when place pins or member topology
+    // are folded. A light neutral fill makes that ownership legible without
+    // competing with authored node/category colours.
+    cluster: worldColorBytes(palette.muted, 34),
+    clusterBorder: worldColorBytes(palette.muted, 190),
     hit: [0, 0, 0, 0] as Rgba,
     tether: worldColorBytes(palette.muted, WORLD_TETHER_ALPHA),
     labelText: worldColorBytes(palette.ink),
@@ -1445,10 +1498,9 @@ function placeDatums(
 function placeDatumsForClusterPresentation(
   places: readonly DeckWorldPlaceDatum[],
   clusters: readonly DeckWorldClusterDatum[],
-  clustered: boolean,
   focus: WorldLabelFocus | null,
 ): readonly DeckWorldPlaceDatum[] {
-  if (!clustered || clusters.length === 0) return places;
+  if (clusters.length === 0) return places;
   const representedPlaceIds = new Set<PlaceId>();
   for (const cluster of clusters) {
     for (const placeId of cluster.placeIds ?? []) representedPlaceIds.add(placeId);
@@ -2104,6 +2156,8 @@ function labelDatums(input: {
   readonly selection: WorldSelection | null;
   readonly hoverSelection: WorldSelection | null;
   readonly hoveredClusterId: string | null;
+  readonly contextEntityIds: ReadonlySet<EntityId>;
+  readonly contextRelationshipIds: ReadonlySet<RelationshipId>;
   readonly previous: ReadonlyMap<string, DeckWorldLabelDatum>;
   readonly entityMarkerRadiusPx: (instanceId: WorldInstanceId) => number;
   readonly placeMarkerRadiusPx: (placeId: PlaceId) => number;
@@ -2212,9 +2266,7 @@ function labelDatums(input: {
   }
 
   const places = selectPrioritizedLabels(
-    input.places.filter(
-      (place) => place.label && (!input.clustered || !clusteredPlaceIds.has(place.placeId)),
-    ),
+    input.places.filter((place) => place.label && !clusteredPlaceIds.has(place.placeId)),
     {
       budget: Math.max(budget, WORLD_PLACE_LABEL_FLOOR),
       isPinned: (place) => focused("place", place.placeId),
@@ -2375,10 +2427,10 @@ function labelDatums(input: {
     byKey.set(key, interactionDatum);
   }
 
-  const interactionEntityIds = new Set<EntityId>();
+  const interactionEntityIds = new Set<EntityId>(input.contextEntityIds);
   if (input.selection?.kind === "entity") interactionEntityIds.add(input.selection.id);
   if (input.hoverSelection?.kind === "entity") interactionEntityIds.add(input.hoverSelection.id);
-  if (!input.clustered && interactionEntityIds.size > 0) {
+  if (interactionEntityIds.size > 0) {
     for (const entity of input.entities) {
       if (!entity.label || !interactionEntityIds.has(entity.entityId)) continue;
       const key = `entity:${entity.worldInstanceId}`;
@@ -2413,13 +2465,13 @@ function labelDatums(input: {
     }
   }
 
-  const interactionRelationshipIds = new Set<RelationshipId>();
+  const interactionRelationshipIds = new Set<RelationshipId>(input.contextRelationshipIds);
   if (input.selection?.kind === "relationship") interactionRelationshipIds.add(input.selection.id);
   if (input.hoverSelection?.kind === "relationship") {
     interactionRelationshipIds.add(input.hoverSelection.id);
   }
   if (input.focus?.kind === "relationship") interactionRelationshipIds.add(input.focus.id);
-  if (!input.clustered && interactionRelationshipIds.size > 0) {
+  if (interactionRelationshipIds.size > 0) {
     for (const relationship of input.relationships) {
       if (!relationship.label || !interactionRelationshipIds.has(relationship.relationshipId)) {
         continue;
@@ -2515,6 +2567,25 @@ function interactionNeighborhood(
 
     if (selection.kind === "place") {
       placeIds.add(selection.id);
+      const selectedInstanceIds = new Set<WorldInstanceId>();
+      for (const instance of projection.instances) {
+        if (!instance.geographicAnchors.some((anchor) => anchor.placeId === selection.id)) continue;
+        selectedInstanceIds.add(instance.id);
+        entityIds.add(instance.canonicalId);
+      }
+      for (const edge of projection.edges) {
+        if (
+          !selectedInstanceIds.has(edge.sourceInstanceId) &&
+          !selectedInstanceIds.has(edge.targetInstanceId)
+        ) {
+          continue;
+        }
+        relationshipIds.add(edge.id);
+        const source = entityByInstance.get(edge.sourceInstanceId);
+        const target = entityByInstance.get(edge.targetInstanceId);
+        if (source) entityIds.add(source);
+        if (target) entityIds.add(target);
+      }
       continue;
     }
 
@@ -2544,6 +2615,34 @@ function interactionNeighborhood(
   }
 
   return Object.freeze({ entityIds, relationshipIds, placeIds });
+}
+
+interface WorldPlaceInteractionReveal {
+  readonly instanceIds: ReadonlySet<WorldInstanceId>;
+  readonly relationshipIds: ReadonlySet<RelationshipId>;
+}
+
+function placeInteractionReveal(
+  projection: WorldProjection,
+  selection: WorldSelection | null,
+): WorldPlaceInteractionReveal {
+  const instanceIds = new Set<WorldInstanceId>();
+  const relationshipIds = new Set<RelationshipId>();
+  if (selection?.kind !== "place") return Object.freeze({ instanceIds, relationshipIds });
+
+  const direct = new Set<WorldInstanceId>();
+  for (const instance of projection.instances) {
+    if (!instance.geographicAnchors.some((anchor) => anchor.placeId === selection.id)) continue;
+    direct.add(instance.id);
+    instanceIds.add(instance.id);
+  }
+  for (const edge of projection.edges) {
+    if (!direct.has(edge.sourceInstanceId) && !direct.has(edge.targetInstanceId)) continue;
+    relationshipIds.add(edge.id);
+    instanceIds.add(edge.sourceInstanceId);
+    instanceIds.add(edge.targetInstanceId);
+  }
+  return Object.freeze({ instanceIds, relationshipIds });
 }
 
 function worldHitFromPicking(info: DeckRuntimePickingInfo | null): WorldHit | null {
@@ -2811,7 +2910,9 @@ export class DeckWorldSurface implements WorldSurface {
   ): "grab" | "grabbing" | "pointer" | "zoom-in" {
     const intent =
       this.#hoverClusterId !== null
-        ? "cluster"
+        ? this.#hoverClusterId.startsWith("cluster:place:")
+          ? "action"
+          : "cluster"
         : this.#hoverSelection?.kind === "entity" && this.#nodeDragSink
           ? "draggable"
           : this.#hoverSelection
@@ -2855,7 +2956,18 @@ export class DeckWorldSurface implements WorldSurface {
     }
     const cluster = clusterPositionFromPicking(info);
     if (cluster) {
-      this.#focusCluster(cluster, clusterMemberCountFromPicking(info));
+      const object = isRecord(info.object) ? info.object : null;
+      const placeIds =
+        object && Array.isArray(object.placeIds)
+          ? object.placeIds.filter((value): value is PlaceId => typeof value === "string")
+          : [];
+      const [placeId] = placeIds;
+      if (placeIds.length === 1 && placeId) {
+        const next = { kind: "place", id: placeId } as const;
+        this.setSelection(selectionEquals(next, this.#selection) ? null : next);
+      } else {
+        this.#focusCluster(cluster, clusterMemberCountFromPicking(info));
+      }
       void pulseHaptic("selection");
       return;
     }
@@ -3231,7 +3343,7 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #clusterTargetPlaceIds(): readonly PlaceId[] {
-    return clusterTargetPlaceIds(
+    const targets = clusterTargetPlaceIds(
       this.#projection.instances,
       this.#projection.edges,
       this.#camera.zoom,
@@ -3239,6 +3351,8 @@ export class DeckWorldSurface implements WorldSurface {
       this.#availableLocalGraphRadiusPx(),
       this.#clusterPhase,
     );
+    if (this.#selection?.kind !== "place") return targets;
+    return Object.freeze(targets.filter((placeId) => placeId !== this.#selection?.id));
   }
 
   #sameClusterPlaces(placeIds: readonly PlaceId[]): boolean {
@@ -3399,6 +3513,7 @@ export class DeckWorldSurface implements WorldSurface {
       return;
     }
     this.#selection = selection;
+    this.#syncClusterLifecycle();
     this.#render();
   }
 
@@ -4180,6 +4295,7 @@ export class DeckWorldSurface implements WorldSurface {
     );
 
     const clusterPlaces = new Set(this.#clusterPlaceIds);
+    const placeReveal = placeInteractionReveal(this.#projection, this.#selection);
     const memberIds = new Set<WorldInstanceId>(
       this.#projection.instances
         .filter((instance) => {
@@ -4218,42 +4334,67 @@ export class DeckWorldSurface implements WorldSurface {
     const temporalRelationships = this.#temporalRelationshipDatums(relationships);
     const activeTemporalRelationships = temporalRelationships.filter((datum) => {
       const edge = this.#temporalRelationshipStateFor(datum).edge;
-      return !edgeIsClusterAffected(edge) || showActiveClusterEdges;
+      return (
+        !edgeIsClusterAffected(edge) ||
+        showActiveClusterEdges ||
+        placeReveal.relationshipIds.has(edge.relationshipId)
+      );
     });
     const releasingRelationships = showReleasingClusterEdges
-      ? relationships.filter(edgeIsClusterAffected)
+      ? relationships.filter(
+          (relationship) =>
+            edgeIsClusterAffected(relationship) &&
+            !placeReveal.relationshipIds.has(relationship.relationshipId),
+        )
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const releasingSegments = releasingRelationshipSegments(releasingRelationships);
 
-    // Only places selected by semantic density or unreadable screen-space
-    // proximity belong to the collapsed representation. Sparse/singleton
-    // places resolve independently only after their neighbourhood separates.
-    const clusteredEntitySource = entityResult.datums.filter((entity) =>
-      memberIds.has(entity.worldInstanceId),
+    // Only topology that exceeds the shared readability budget belongs to the
+    // collapsed representation. Very-near place pins are handled separately,
+    // so sparse nodes can use surrounding whitespace without losing location
+    // aggregation.
+    const clusteredEntitySource = entityResult.datums.filter(
+      (entity) =>
+        memberIds.has(entity.worldInstanceId) &&
+        !placeReveal.instanceIds.has(entity.worldInstanceId),
     );
     const unclusteredEntities = entityResult.datums.filter(
-      (entity) => !memberIds.has(entity.worldInstanceId),
+      (entity) =>
+        !memberIds.has(entity.worldInstanceId) ||
+        placeReveal.instanceIds.has(entity.worldInstanceId),
     );
     const placeClusters = clusterEntityDatumsByPlace(
       clusteredEntitySource,
       this.#projection.instances,
       worldPixelsToDegrees(this.#clusterMergeRadiusPx(), this.#camera.zoom),
     );
+    const topologyClusters = placeClusters.filter(
+      (datum): datum is DeckWorldClusterDatum => datum.kind === "cluster",
+    );
+    const placeMarkerClusters =
+      clusterPhase === "expanded"
+        ? Object.freeze(
+            clusterEntityDatumsByPlace(
+              entityResult.datums,
+              this.#projection.instances,
+              worldPixelsToDegrees(WORLD_PLACE_MARKER_CLUSTER_MERGE_PX, this.#camera.zoom),
+            ).filter((datum): datum is DeckWorldClusterDatum => datum.kind === "cluster"),
+          )
+        : Object.freeze([] as DeckWorldClusterDatum[]);
     const entities: readonly DeckWorldEntityRenderDatum[] =
       clusterPhase === "collapsed"
         ? Object.freeze([...placeClusters, ...unclusteredEntities])
-        : Object.freeze(
-            entityResult.datums.filter(
+        : Object.freeze([
+            ...entityResult.datums.filter(
               (entity) => !memberIds.has(entity.worldInstanceId) || showMembers,
             ),
-          );
-    const renderedPlaceClusters = placeClusters.filter(
-      (datum): datum is DeckWorldClusterDatum => datum.kind === "cluster",
-    );
+            ...placeMarkerClusters,
+          ]);
+    const renderedPlaceClusters =
+      clusterPhase === "collapsed" ? topologyClusters : placeMarkerClusters;
     const renderedPlaces = placeDatumsForClusterPresentation(
       places,
       renderedPlaceClusters,
-      clusterPhase === "collapsed",
       this.#focus,
     );
 
@@ -4295,7 +4436,10 @@ export class DeckWorldSurface implements WorldSurface {
           ? WORLD_EMPHASIZED_EDGE_ALPHA
           : WORLD_INACTIVE_EDGE_ALPHA;
     const visibleDirectionRelationships = relationships.filter(
-      (relationship) => !edgeIsClusterAffected(relationship) || showActiveClusterEdges,
+      (relationship) =>
+        !edgeIsClusterAffected(relationship) ||
+        showActiveClusterEdges ||
+        placeReveal.relationshipIds.has(relationship.relationshipId),
     );
     const directionResult = directionDatums(
       visibleDirectionRelationships,
@@ -4321,11 +4465,24 @@ export class DeckWorldSurface implements WorldSurface {
       (focus?.kind === "entity" && focus.id === entity.entityId) ||
       (this.#selection?.kind === "entity" && this.#selection.id === entity.entityId);
     const edgeExpansion = (
-      edge: Pick<DeckWorldRelationshipDatum, "sourceInstanceId" | "targetInstanceId">,
-    ): number => (!edgeIsClusterAffected(edge) || showActiveClusterEdges ? 1 : 0);
+      edge: Pick<
+        DeckWorldRelationshipDatum,
+        "relationshipId" | "sourceInstanceId" | "targetInstanceId"
+      >,
+    ): number =>
+      !edgeIsClusterAffected(edge) ||
+      showActiveClusterEdges ||
+      placeReveal.relationshipIds.has(edge.relationshipId)
+        ? 1
+        : 0;
     const entityExpansion = (entity: DeckWorldEntityDatum): number =>
-      memberIds.has(entity.worldInstanceId) && !showMembers ? 0 : 1;
-    const clusterVisibility = clusterPhase === "collapsed" ? 1 : 0;
+      memberIds.has(entity.worldInstanceId) &&
+      !showMembers &&
+      !placeReveal.instanceIds.has(entity.worldInstanceId)
+        ? 0
+        : 1;
+    const clusterVisibility =
+      clusterPhase === "collapsed" || placeMarkerClusters.length > 0 ? 1 : 0;
     const iconSource = entities.filter(
       (datum): datum is DeckWorldEntityDatum => datum.kind === "entity",
     );
@@ -4390,6 +4547,12 @@ export class DeckWorldSurface implements WorldSurface {
           selection: this.#selection,
           hoverSelection: this.#hoverSelection,
           hoveredClusterId: this.#hoverClusterId,
+          contextEntityIds: new Set(
+            entityResult.datums
+              .filter((entity) => placeReveal.instanceIds.has(entity.worldInstanceId))
+              .map((entity) => entity.entityId),
+          ),
+          contextRelationshipIds: placeReveal.relationshipIds,
           previous: this.#labelDatumCache,
           entityMarkerRadiusPx: visibleEntityRadiusPx,
           placeMarkerRadiusPx: (placeId) => {

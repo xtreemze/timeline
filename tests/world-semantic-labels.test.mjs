@@ -277,6 +277,157 @@ test("place marker rendering uses the authored icon, fill, border, width, and sh
   );
 });
 
+
+test("very near places share one aggregate marker while readable nodes remain expanded", () => {
+  const h = harness();
+  const left = instance(0, {
+    geographicAnchors: [
+      {
+        placeId: "near-a",
+        label: "Near A",
+        longitude: 12,
+        latitude: 41,
+        influence: 1,
+      },
+    ],
+  });
+  const right = instance(1, {
+    geographicAnchors: [
+      {
+        placeId: "near-b",
+        label: "Near B",
+        longitude: 12.02,
+        latitude: 41,
+        influence: 1,
+      },
+    ],
+  });
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 8 });
+  surface.setProjection(createWorldProjection({ instances: [left, right], edges: [] }));
+
+  const layers = h.lastLayers();
+  const entities = layer(layers, DECK_WORLD_LAYER_IDS.entities);
+  const aggregate = entities.props.data.find((datum) => datum.kind === "cluster");
+  assert.ok(aggregate, "very near place pins use one aggregate marker");
+  assert.deepEqual([...aggregate.placeIds].sort(), ["near-a", "near-b"]);
+  assert.equal(
+    entities.props.data.filter((datum) => datum.kind === "entity").length,
+    2,
+    "node topology stays expanded because the sparse component fits",
+  );
+  assert.ok(
+    entities.props.data
+      .filter((datum) => datum.kind === "entity")
+      .every((datum) => entities.props.getRadius(datum) > 0),
+    "expanded member nodes remain visibly pickable",
+  );
+  assert.equal(layer(layers, DECK_WORLD_LAYER_IDS.placeIcons).props.data.length, 0);
+  assert.ok(
+    layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.some(
+      (datum) =>
+        datum.kind === "cluster-label" &&
+        datum.text.includes("2 places") &&
+        datum.text.includes("2 nodes"),
+    ),
+    "the aggregate marker communicates that nearby locations contain nodes",
+  );
+});
+
+test("selecting a clustered place reveals its incident nodes and edges without opening neighbors", () => {
+  const h = harness();
+  const make = (index, placeId, longitude) =>
+    instance(index, {
+      geographicAnchors: [
+        {
+          placeId,
+          label: placeId === "place-a" ? "Place A" : "Place B",
+          longitude,
+          latitude: 41,
+          influence: 1,
+        },
+      ],
+    });
+  const a1 = make(0, "place-a", 12);
+  const a2 = make(1, "place-a", 12);
+  const b1 = make(2, "place-b", 12.03);
+  const b2 = make(3, "place-b", 12.03);
+  const b3 = make(4, "place-b", 12.03);
+  const projection = createWorldProjection({
+    instances: [a1, a2, b1, b2, b3],
+    edges: [
+      createProjectedWorldEdge({
+        id: "a-internal",
+        label: "knows",
+        sourceInstanceId: a1.id,
+        targetInstanceId: a2.id,
+        temporalWeight: 1,
+        visible: true,
+        retained: false,
+      }),
+      createProjectedWorldEdge({
+        id: "a-to-b",
+        label: "visits",
+        sourceInstanceId: a1.id,
+        targetInstanceId: b1.id,
+        temporalWeight: 1,
+        visible: true,
+        retained: false,
+      }),
+    ],
+  });
+
+  const originalSetTimeout = globalThis.setTimeout;
+  try {
+    globalThis.setTimeout = (callback) => {
+      callback();
+      return 0;
+    };
+    const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
+    surface.setProjection(projection);
+    surface.setSelection({ kind: "place", id: "place-a" });
+
+    const layers = h.lastLayers();
+    const entities = layer(layers, DECK_WORLD_LAYER_IDS.entities);
+    const visibleEntityIds = entities.props.data
+      .filter((datum) => datum.kind === "entity" && entities.props.getRadius(datum) > 0)
+      .map((datum) => datum.entityId);
+
+    assert.ok(visibleEntityIds.includes(a1.canonicalId));
+    assert.ok(visibleEntityIds.includes(a2.canonicalId));
+    assert.ok(
+      visibleEntityIds.includes(b1.canonicalId),
+      "the one-hop node connected from the selected location is revealed from its cluster",
+    );
+    assert.ok(
+      entities.props.data.some(
+        (datum) =>
+          datum.kind === "cluster" &&
+          datum.placeIds?.includes("place-b") &&
+          datum.clusterMembers.length === 2,
+      ),
+      "unrelated members of the neighboring place stay aggregated",
+    );
+
+    const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+    const cross = relationships.props.data.find(
+      (datum) => datum.relationshipId === "a-to-b",
+    );
+    assert.ok(cross);
+    assert.ok(
+      relationships.props.getWidth(cross) > 0,
+      "the selected location reveals its incident edge into the remaining cluster",
+    );
+    assert.ok(
+      layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.some(
+        (datum) => datum.kind === "relationship-label" && datum.relationshipId === "a-to-b",
+      ),
+      "revealed incident relationships retain semantic labels",
+    );
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
+});
+
 test("entity and place labels come from renderer-neutral WorldProjection metadata", () => {
   const h = harness();
   // Close zoom: these fixtures sit 0.5 degrees apart, which screen-space
