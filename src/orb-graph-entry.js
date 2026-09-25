@@ -31,6 +31,18 @@ const GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX = -280;
 const GRAPH_MIN_ZOOM = 0.002;
 const GRAPH_MAX_ZOOM = 2.5;
 const GRAPH_KEYBOARD_PAN_PX = 72;
+const GRAPH_KEYBOARD_CAMERA_KEYS = new Set([
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "ArrowDown",
+  "+",
+  "=",
+  "-",
+  "_",
+  "Home",
+  "0",
+]);
 const GRAPH_DISCRETE_COMMIT_MS = 180;
 const DRAG_FEEDBACK_FLASH_MS = 150;
 const DRAG_Z_INDEX_OFFSET = 3;
@@ -1260,6 +1272,7 @@ function create(container, handlers = {}) {
     clearCompetingGestureResumeTimer();
     simulationCoordinator.resume("competing-surface");
   };
+  const onOrientationChange = () => abortTouchInteraction("orientationchange");
   const onVisibilityChange = () => {
     if (document.visibilityState === "hidden") {
       simulationCoordinator.suspend("hidden");
@@ -1285,9 +1298,20 @@ function create(container, handlers = {}) {
     scheduleDiscreteCommit();
   };
   const onGraphKeyDown = (event) => {
-    if (event.target !== container || !surfaceKeyboardMayNavigate(event)) return;
-    let handled = true;
+    if (
+      event.target !== container ||
+      !surfaceKeyboardMayNavigate(event) ||
+      !GRAPH_KEYBOARD_CAMERA_KEYS.has(event.key)
+    ) {
+      return;
+    }
     prepareSurfaceInput();
+    if (!surfaceInteraction.beginDiscrete("keyboard")) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+
     switch (event.key) {
       case "ArrowLeft":
         applyCameraPan(GRAPH_KEYBOARD_PAN_PX, 0);
@@ -1316,15 +1340,8 @@ function create(container, handlers = {}) {
         releaseCameraToAutoFit();
         orb.recenter();
         break;
-      default:
-        handled = false;
     }
-    if (!handled) return;
-    if (!surfaceInteraction.beginDiscrete("keyboard")) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      return;
-    }
+
     event.preventDefault();
     surfaceInteraction.finishDiscrete();
   };
@@ -1347,9 +1364,7 @@ function create(container, handlers = {}) {
   container.addEventListener("touchend", onTouchEnd);
   container.addEventListener("touchcancel", onTouchEnd);
   globalThis.addEventListener?.("blur", onWindowBlur);
-  globalThis.addEventListener?.("orientationchange", () =>
-    abortTouchInteraction("orientationchange"),
-  );
+  globalThis.addEventListener?.("orientationchange", onOrientationChange);
   document.addEventListener("visibilitychange", onVisibilityChange);
   document.addEventListener("pointerdown", onCompetingPointerDown, true);
   document.addEventListener("pointerup", onCompetingPointerEnd, true);
@@ -1965,7 +1980,9 @@ function create(container, handlers = {}) {
       return simulationCoordinator.getState();
     },
     destroy() {
-      cancelCameraInertia();
+      finishDiscreteInput();
+      cancelCameraInertia({ commit: false });
+      surfaceInteraction.cancel("aborted");
       cameraGesture = null;
       finishTouchGesture();
       clearInteractionSettleTimer();
@@ -1985,6 +2002,7 @@ function create(container, handlers = {}) {
       container.removeEventListener("touchend", onTouchEnd);
       container.removeEventListener("touchcancel", onTouchEnd);
       globalThis.removeEventListener?.("blur", onWindowBlur);
+      globalThis.removeEventListener?.("orientationchange", onOrientationChange);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       document.removeEventListener("pointerdown", onCompetingPointerDown, true);
       document.removeEventListener("pointerup", onCompetingPointerEnd, true);
@@ -1997,6 +2015,7 @@ function create(container, handlers = {}) {
       orb.events.off(OrbEventType.NODE_DRAG_END, onNodeDragEnd);
       orb.events.off(OrbEventType.SIMULATION_START, onSimulationStart);
       orb.events.off(OrbEventType.SIMULATION_END, onSimulationEnd);
+      delete container.dataset.surfaceKeyboardNavigation;
       orb.destroy();
     },
   });
