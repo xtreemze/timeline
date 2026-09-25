@@ -937,7 +937,6 @@ test("canonical focus crosses the active cluster threshold before framing an ent
   );
 });
 
-
 test("canonical focus crosses density threshold for a crowded place", () => {
   const { runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime, {
