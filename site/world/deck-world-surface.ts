@@ -37,6 +37,7 @@ import {
   type WorldNodeStyle,
   worldColorBytes,
   worldEdgeStyle,
+  worldNodeFootprintRadiusPx,
   worldNodeStyle,
   worldNodeVisualFootprintRadiusPx,
   worldPlaceStyle,
@@ -4436,8 +4437,11 @@ export class DeckWorldSurface implements WorldSurface {
     const visibleEntityRadiusPx = (instanceId: WorldInstanceId): number => {
       const entity = entityResult.byId.get(instanceId);
       if (!entity) return WORLD_ENTITY_MIN_HIT_RADIUS_PX;
-      const style = this.#entityStyle(entity);
-      return worldNodeMarker(style).size / 2;
+      return worldNodeFootprintRadiusPx({
+        ...(entity.entityKind === undefined ? {} : { type: entity.entityKind }),
+        attributes: entity.style ? { style: entity.style } : undefined,
+        visualWeight: entity.visualWeight,
+      });
     };
     const edgeFallbackColor = (edge: DeckWorldRelationshipDatum): string | undefined => {
       const endpointColor = (entity: DeckWorldEntityDatum | undefined): string | undefined => {
@@ -4805,9 +4809,10 @@ export class DeckWorldSurface implements WorldSurface {
               )
             : datum.position,
         // Individual entities are drawn by the styled marker layer; this
-        // layer is their (invisible) pick/drag target. A collapsed cluster is
-        // the aggregate marker for both its member entities and represented
-        // place anchors, so duplicate place pins are omitted underneath it.
+        // layer mirrors that exact visible footprint for picking/dragging.
+        // A collapsed cluster is the aggregate marker for both its member
+        // entities and represented place anchors, so duplicate place pins are
+        // omitted underneath it.
         getRadius: (datum: DeckWorldEntityRenderDatum) => {
           if (datum.kind === "cluster") {
             const memberRadius = datum.clusterMembers.reduce(
@@ -4821,9 +4826,9 @@ export class DeckWorldSurface implements WorldSurface {
           }
           const expansion = entityExpansion(datum);
           if (expansion <= 0) return 0;
-          const visibleRadius =
-            this.#entityStyle(datum).radius + this.#entityStyle(datum).borderWidth;
-          return Math.max(WORLD_ENTITY_MIN_HIT_RADIUS_PX, visibleRadius * expansion);
+          // Rendering, picking, and force collision share one physical node
+          // radius. There is no invisible oversized node hit body.
+          return visibleEntityRadiusPx(datum.worldInstanceId) * expansion;
         },
         stroked: true,
         lineWidthUnits: "pixels",
