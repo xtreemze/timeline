@@ -3995,10 +3995,12 @@ export class DeckWorldSurface implements WorldSurface {
       this.#selection?.id ?? "",
       this.#hoverSelection?.kind ?? "",
       this.#hoverSelection?.id ?? "",
+      this.#hoverClusterId ?? "",
       this.#focus?.kind ?? "",
       this.#focus?.id ?? "",
     ].join(":");
     const labelInteractionEmphasized = (datum: DeckWorldLabelDatum): boolean => {
+      if (datum.kind === "cluster-label") return datum.emphasized;
       if (datum.kind === "place-label") {
         return (
           neighborhood.placeIds.has(datum.placeId) ||
@@ -4029,6 +4031,9 @@ export class DeckWorldSurface implements WorldSurface {
         })
       : null;
     const labelEntities = iconSource;
+    const labelClusters = entities.filter(
+      (datum): datum is DeckWorldClusterDatum => datum.kind === "cluster",
+    );
     const labelRelationships = relationships.filter(
       (relationship) =>
         !edgeIsClusterAffected(relationship) || showActiveClusterEdges || showReleasingClusterEdges,
@@ -4036,6 +4041,7 @@ export class DeckWorldSurface implements WorldSurface {
     const labelResult = this.#runtime.createTextLayer
       ? labelDatums({
           places,
+          clusters: labelClusters,
           relationships: labelRelationships,
           entities: labelEntities,
           clustered: clusterPhase === "collapsed",
@@ -4043,11 +4049,19 @@ export class DeckWorldSurface implements WorldSurface {
           focus: this.#focus,
           selection: this.#selection,
           hoverSelection: this.#hoverSelection,
+          hoveredClusterId: this.#hoverClusterId,
           previous: this.#labelDatumCache,
           entityMarkerRadiusPx: visibleEntityRadiusPx,
           placeMarkerRadiusPx: (placeId) => {
             const place = placeResult.byId.get(placeId);
             return place ? worldNodeMarker(this.#placeStyle(place)).size / 2 : 0;
+          },
+          clusterMarkerRadiusPx: (cluster) => {
+            const memberRadius = cluster.clusterMembers.reduce(
+              (radius, member) => Math.max(radius, visibleEntityRadiusPx(member.worldInstanceId)),
+              0,
+            );
+            return worldClusterMarkerRadiusPx(memberRadius, cluster.clusterMembers.length);
           },
         })
       : null;
@@ -4473,13 +4487,16 @@ export class DeckWorldSurface implements WorldSurface {
               getColor: (datum: DeckWorldLabelDatum) => {
                 const base = labelInteractionEmphasized(datum)
                   ? this.#theme.labelEmphasis
-                  : datum.kind === "place-label"
+                  : datum.kind === "place-label" || datum.kind === "cluster-label"
                     ? this.#theme.labelPlace
                     : datum.kind === "relationship-label"
                       ? this.#theme.labelRelationship
                       : this.#theme.labelText;
                 const facing = this.#cameraFacingOpacity(datum.position);
                 if (datum.kind === "place-label") return scaleAlpha(base, facing);
+                if (datum.kind === "cluster-label") {
+                  return scaleAlpha(base, facing * clusterVisibility);
+                }
                 if (datum.kind === "relationship-label") {
                   const edge = relationshipResult.byId.get(datum.relationshipId);
                   return scaleAlpha(base, facing * (edge ? edgeExpansion(edge) : 0));
