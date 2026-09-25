@@ -2959,8 +2959,9 @@ export class DeckWorldSurface implements WorldSurface {
         object && Array.isArray(object.placeIds)
           ? object.placeIds.filter((value): value is PlaceId => typeof value === "string")
           : [];
-      if (placeIds.length === 1) {
-        this.setSelection({ kind: "place", id: placeIds[0] });
+      const [placeId] = placeIds;
+      if (placeIds.length === 1 && placeId) {
+        this.setSelection({ kind: "place", id: placeId });
       } else {
         this.#focusCluster(cluster, clusterMemberCountFromPicking(info));
       }
@@ -4337,7 +4338,11 @@ export class DeckWorldSurface implements WorldSurface {
       );
     });
     const releasingRelationships = showReleasingClusterEdges
-      ? relationships.filter(edgeIsClusterAffected)
+      ? relationships.filter(
+          (relationship) =>
+            edgeIsClusterAffected(relationship) &&
+            !placeReveal.relationshipIds.has(relationship.relationshipId),
+        )
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const releasingSegments = releasingRelationshipSegments(releasingRelationships);
 
@@ -4363,15 +4368,15 @@ export class DeckWorldSurface implements WorldSurface {
       (datum): datum is DeckWorldClusterDatum => datum.kind === "cluster",
     );
     const placeMarkerClusters =
-      clusterPhase === "collapsed"
-        ? Object.freeze([] as DeckWorldClusterDatum[])
-        : Object.freeze(
+      clusterPhase === "expanded"
+        ? Object.freeze(
             clusterEntityDatumsByPlace(
               entityResult.datums,
               this.#projection.instances,
               worldPixelsToDegrees(WORLD_PLACE_MARKER_CLUSTER_MERGE_PX, this.#camera.zoom),
             ).filter((datum): datum is DeckWorldClusterDatum => datum.kind === "cluster"),
-          );
+          )
+        : Object.freeze([] as DeckWorldClusterDatum[]);
     const entities: readonly DeckWorldEntityRenderDatum[] =
       clusterPhase === "collapsed"
         ? Object.freeze([...placeClusters, ...unclusteredEntities])
