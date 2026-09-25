@@ -1,15 +1,15 @@
 /// <reference path="../types/d3-force.d.ts" />
 
 import {
+  type ForceLink,
+  type ForceX,
+  type ForceY,
   forceCollide,
   forceLink,
   forceManyBody,
   forceSimulation,
   forceX,
   forceY,
-  type ForceLink,
-  type ForceX,
-  type ForceY,
   type Simulation,
   type SimulationLinkDatum,
   type SimulationNodeDatum,
@@ -306,7 +306,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
 
     this.#running = true;
     this.#settled = false;
-    const alpha = Math.max(request.excitation, request.reheat ? DEFAULT_ALPHA : DRAG_MOVE_ALPHA_FLOOR);
+    const alpha = Math.max(
+      request.excitation,
+      request.reheat ? DEFAULT_ALPHA : DRAG_MOVE_ALPHA_FLOOR,
+    );
     const interactionGroup =
       interactionReason && this.#interactionGroupKey !== null
         ? (this.#groups.get(this.#interactionGroupKey) ?? null)
@@ -330,8 +333,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     finiteNonNegative(deltaMs, "D3 world force delta");
 
     const ticks = Math.max(1, Math.min(2, Math.round(deltaMs / (1000 / 60)) || 1));
-    const interactionReason =
-      this.#requestReason === "drag" || this.#requestReason === "post-drop";
+    const interactionReason = this.#requestReason === "drag" || this.#requestReason === "post-drop";
     const interactionGroup =
       interactionReason && this.#interactionGroupKey !== null
         ? (this.#groups.get(this.#interactionGroupKey) ?? null)
@@ -431,8 +433,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     for (const [key, nodes] of grouped) {
       const placeId = nodes[0]?.placeId ?? null;
       const collapsed = placeId !== null && this.#clusteredPlaces.has(String(placeId));
-      const linksDetached =
-        placeId !== null && this.#detachedLinkPlaces.has(String(placeId));
+      const linksDetached = placeId !== null && this.#detachedLinkPlaces.has(String(placeId));
 
       const memberIds = new Set(nodes.map((node) => node.id));
       const links: D3WorldLink[] = linksDetached
@@ -523,11 +524,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     this.#groups = nextGroups;
   }
 
-  #linkStrength(
-    groupKey: string,
-    maximumRadiusMeters: number,
-    link: D3WorldLink,
-  ): number {
+  #linkStrength(groupKey: string, maximumRadiusMeters: number, link: D3WorldLink): number {
     const baseStrength = Math.max(0, link.edge.strength);
     const interactionLimited =
       this.#interactionGroupKey === groupKey &&
@@ -585,8 +582,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         this.#linkStrength(group.key, group.maximumRadiusMeters, link),
       );
     }
-    const collapsed =
-      group.placeId !== null && this.#clusteredPlaces.has(String(group.placeId));
+    const collapsed = group.placeId !== null && this.#clusteredPlaces.has(String(group.placeId));
     group.anchorXForce.strength((state) => this.#anchorStrength(group.key, collapsed, state));
     group.anchorYForce.strength((state) => this.#anchorStrength(group.key, collapsed, state));
     group.dagXForce.strength((state) => this.#dagStrength(group.key, collapsed, state));
