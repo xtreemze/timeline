@@ -3,13 +3,10 @@
  *
  * The lightweight factory is published synchronously so app startup selects
  * WorldView, while deck.gl/luma.gl and the real WorldSurface are imported only
- * when a world view is instantiated. If that import or construction path is
- * unavailable, the deferred legacy Orb factory remains the fallback.
+ * when a world view is instantiated. Without WebGL 2 nothing is registered and
+ * the application shows an explicit "globe unavailable" status instead.
  */
-import {
-  createDeferredSpatialViewFactory,
-  type DeferredSpatialViewFactory,
-} from "./deferred-spatial-view.ts";
+import { createDeferredSpatialViewFactory } from "./deferred-spatial-view.ts";
 
 function supportsWebGL2(): boolean {
   try {
@@ -18,14 +15,6 @@ function supportsWebGL2(): boolean {
   } catch {
     return false;
   }
-}
-
-function legacySpatialFactory(): DeferredSpatialViewFactory | null {
-  const candidate = Reflect.get(globalThis, "TemporalGraphView");
-  if (!candidate || typeof candidate !== "object") return null;
-  return typeof Reflect.get(candidate, "create") === "function"
-    ? (candidate as DeferredSpatialViewFactory)
-    : null;
 }
 
 if (supportsWebGL2()) {
@@ -38,9 +27,8 @@ if (supportsWebGL2()) {
       return registerTimelineWorldView(await loadRealDeckWorldBindings());
     },
     {
-      fallback: legacySpatialFactory,
       onError(error) {
-        console.error("Failed to initialize the deck.gl world view; falling back to Orb.", error);
+        console.error("Failed to initialize the deck.gl world view.", error);
       },
     },
   );

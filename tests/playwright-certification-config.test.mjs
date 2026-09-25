@@ -84,7 +84,6 @@ test("CI discovers core browser contracts and runs each browser lane fatally", (
     "semantic-chronology.spec.ts",
     "playwright/layout.spec.ts",
     "playwright/interaction.spec.ts",
-    "playwright/graph-touch.spec.ts",
   ]) {
     assert.ok(workflow.includes(spec), `workflow discovery gate is missing ${spec}`);
   }
@@ -104,7 +103,6 @@ test("CI discovers core browser contracts and runs each browser lane fatally", (
     "pages-runtime-browser:",
     "application-shell-browser:",
     "interaction-browser:",
-    "graph-touch-browser:",
   ]) {
     assert.ok(workflow.includes(lane), `missing fatal browser lane: ${lane}`);
   }
@@ -120,11 +118,10 @@ test("compiled Pages runtime is owned only by the production preview config", ()
   assert.doesNotMatch(developmentTestMatch, /pages-runtime\.spec\.ts/);
 });
 
-test("graph touch certification covers portrait and landscape phone projects", () => {
-  const command = packageJson.scripts?.["test:graph-touch-browser"] || "";
-  for (const project of ["Mobile Chrome", "Mobile Chrome Landscape", "Tablet Touch"]) {
-    assert.ok(command.includes(`--project="${project}"`), `graph touch missing ${project}`);
-  }
+test("the deprecated Orb graph-touch lane is gone", () => {
+  // WorldSurface touch is certified by world-interaction-coverage instead.
+  assert.equal(packageJson.scripts?.["test:graph-touch-browser"], undefined);
+  assert.doesNotMatch(workflow, /graph-touch/);
 });
 
 test("CI produces separate desktop and mobile visual showcase evidence", () => {

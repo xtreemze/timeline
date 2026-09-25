@@ -1874,18 +1874,12 @@
 }
 
 .timeline-focus-place-backdrop .presentation-map,
-.timeline-focus-place-backdrop .leaflet-control-container,
 .timeline-focus-relations-backdrop .temporal-graph-canvas {
   pointer-events: auto;
 }
 
 .timeline-focus-place-backdrop .presentation-map {
   touch-action: none;
-}
-
-.timeline-focus-place-backdrop .leaflet-control-attribution {
-  max-width: calc(100% - 0.5rem);
-  font-size: 8px;
 }
 
 ::view-transition-group(timeline-event-detail-shared),
@@ -3883,7 +3877,7 @@
     min-height: 44px;
   }
 
-    .timeline-view[data-orientation="portrait"] .timeline-zoom-controls {
+  .timeline-view[data-orientation="portrait"] .timeline-zoom-controls {
     width: 100%;
     min-width: 0;
     padding-inline: 0.25rem;
@@ -4496,10 +4490,7 @@
   );
 }
 
-.timeline-focus-place-backdrop .presentation-map,
-.timeline-focus-place-backdrop .presentation-map .leaflet-container,
-.timeline-focus-place-backdrop .presentation-map .leaflet-control-container,
-.timeline-focus-place-backdrop .presentation-map .leaflet-marker-pane {
+.timeline-focus-place-backdrop .presentation-map {
   pointer-events: auto;
 }
 

@@ -10,6 +10,7 @@ export interface DeckWorldBindings {
   readonly iconLayer?: (props: Readonly<Record<string, unknown>>) => unknown;
   readonly solidPolygonLayer?: (props: Readonly<Record<string, unknown>>) => unknown;
   readonly collisionFilterExtension?: () => unknown;
+  readonly dashedPathExtension?: () => unknown;
 }
 
 export function createDeckWorldRuntime(bindings: DeckWorldBindings): DeckWorldRuntime {
@@ -58,6 +59,13 @@ export function createDeckWorldRuntime(bindings: DeckWorldBindings): DeckWorldRu
       ? {
           createCollisionFilterExtension() {
             return bindings.collisionFilterExtension?.() ?? null;
+          },
+        }
+      : {}),
+    ...(bindings.dashedPathExtension
+      ? {
+          createDashedPathExtension() {
+            return bindings.dashedPathExtension?.() ?? null;
           },
         }
       : {}),

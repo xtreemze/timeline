@@ -14,9 +14,9 @@ Lūm uses Vite 8 as its single application build pipeline.
 
 ## Runtime dependencies
 
-Memgraph Orb, Leaflet, PDF.js, deck.gl and luma.gl participate in the same Vite module graph. Heavy modules may be split by Vite/Rolldown as ordinary ESM chunks rather than maintained as independent build products.
+PDF.js, deck.gl and luma.gl participate in the same Vite module graph. Heavy modules may be split by Vite/Rolldown as ordinary ESM chunks rather than maintained as independent build products.
 
-The legacy `site/orb-graph.bundle.js`, `site/leaflet.bundle.js`, `site/evidence-extraction.bundle.js`, and copied `site/pdf.worker.mjs` artifacts are retired. `site/leaflet.css` is now a Vite-owned source stylesheet that imports Leaflet's package CSS; it is no longer a generated build artifact.
+The legacy `site/orb-graph.bundle.js`, `site/leaflet.bundle.js`, `site/evidence-extraction.bundle.js`, and copied `site/pdf.worker.mjs` artifacts are retired. Memgraph Orb and Leaflet are deprecated and removed: the WorldSurface is the only spatial view, and place maps reuse its deck.gl globe stack (`site/world/place-map.ts`).
 
 ## Build contract
 

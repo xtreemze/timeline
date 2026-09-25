@@ -85,12 +85,13 @@ test("deferred spatial view reports renderer state replay failures", async () =>
   assert.match(String(errors[0]), /projection replay failed/);
 });
 
-test("production entrypoints keep PDF, deck/luma, and Orb behind dynamic imports", async () => {
-  const [app, worldShim, worldBindings, legacyShim] = await Promise.all([
+test("production entrypoints keep PDF and deck/luma behind dynamic imports", async () => {
+  const [app, worldShim, worldBindings, html, pkg] = await Promise.all([
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/world-view-shim.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/world/deck-world-bindings.ts", import.meta.url), "utf8"),
-    readFile(new URL("../site/temporal-graph-view-shim.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../package.json", import.meta.url), "utf8").then(JSON.parse),
   ]);
 
   assert.doesNotMatch(app, /from\s+["']\.\.\/src\/evidence-extraction-entry\.js["']/);
@@ -104,9 +105,10 @@ test("production entrypoints keep PDF, deck/luma, and Orb behind dynamic imports
   );
   assert.match(worldBindings, /import\(["']@luma\.gl\/webgpu["']\)/);
 
-  assert.doesNotMatch(legacyShim, /from\s+["']\.\.\/src\/orb-graph-entry\.js["']/);
-  assert.doesNotMatch(legacyShim, /from\s+["']\.\/temporal-graph-view\.ts["']/);
-  assert.match(legacyShim, /import\(["']\.\/temporal-graph-view\.ts["']\)/);
+  // The deprecated Orb graph renderer is gone; WorldView is the only spatial view.
+  assert.doesNotMatch(html, /temporal-graph-view-shim/);
+  assert.equal(pkg.dependencies?.["@memgraph/orb"], undefined);
+  assert.equal(pkg.devDependencies?.["@memgraph/orb"], undefined);
 });
 
 test("Vite keeps the 500 kB warning meaningful instead of raising its threshold", async () => {

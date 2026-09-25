@@ -17,7 +17,6 @@ on:
       - 'site/index.html'
       - 'package.json'
       - 'pnpm-lock.yaml'
-      - 'src/orb-graph-entry.js'
       - 'src/leaflet-entry.js'
       - 'src/domain/**'
       - 'src/application/**'
@@ -36,7 +35,6 @@ on:
       - 'site/timeline-motion.js'
       - 'site/timeline-navigation.js'
       - 'site/timeline-graph.js'
-      - 'site/temporal-graph-view.js'
       - 'site/timeline-view.css'
       - 'site/time-scale.js'
       - 'site/interchange-adapter.js'
@@ -99,8 +97,6 @@ on:
       - 'tests/temporal-graph-runtime-contracts.test.mjs'
       - 'tests/timeline-projection-runtime.test.mjs'
       - 'tests/graph-editor.test.mjs'
-      - 'tests/graph-surface-contracts.test.mjs'
-      - 'tests/graph-simulation-coordinator.test.mjs'
       - '.github/workflows/timeline-view.yml'
       - '.github/workflows/pages.yml'
   push:
@@ -120,7 +116,6 @@ on:
       - 'site/index.html'
       - 'package.json'
       - 'pnpm-lock.yaml'
-      - 'src/orb-graph-entry.js'
       - 'src/leaflet-entry.js'
       - 'src/domain/**'
       - 'src/application/**'
@@ -135,7 +130,6 @@ on:
       - 'site/timeline-motion.js'
       - 'site/timeline-navigation.js'
       - 'site/timeline-graph.js'
-      - 'site/temporal-graph-view.js'
       - 'site/timeline-view.css'
       - 'site/time-scale.js'
       - 'site/interchange-adapter.js'
@@ -163,7 +157,6 @@ on:
       - 'tests/retained-structural-composition-runtime.test.mjs'
       - 'tests/browser/retained-structural-composition.spec.ts'
       - 'tests/browser/semantic-chronology.spec.ts'
-      - 'tests/playwright/graph-touch.spec.ts'
       - 'tests/playwright/interaction.spec.ts'
       - 'tests/playwright/layout.spec.ts'
       - 'tests/retained-timeline-metrics-runtime.test.mjs'
@@ -195,8 +188,6 @@ on:
       - 'tests/temporal-graph-runtime-contracts.test.mjs'
       - 'tests/timeline-projection-runtime.test.mjs'
       - 'tests/graph-editor.test.mjs'
-      - 'tests/graph-surface-contracts.test.mjs'
-      - 'tests/graph-simulation-coordinator.test.mjs'
       - '.github/workflows/timeline-view.yml'
 
 concurrency:
@@ -227,7 +218,6 @@ jobs:
       - run: test -s dist/index.html && test -d dist/assets
       - run: test "$(find dist/assets -type f -name '*.js' | wc -l)" -gt 0
       - run: "! grep -Eq '(orb-graph|leaflet|evidence-extraction)\\.bundle\\.js' dist/index.html"
-      - run: node --check src/orb-graph-entry.js
       - run: node --check src/evidence-extraction-entry.js
       - run: pnpm test:architecture
       - run: pnpm test:browser-certification-config
@@ -251,8 +241,6 @@ jobs:
       - run: pnpm test:semantic-hierarchy-runtime
       - run: pnpm test:retained-context-runtime
       - run: pnpm test:graph-runtime-contracts
-      - run: pnpm test:graph-surface-contracts
-      - run: pnpm test:graph-simulation-coordinator
       - run: pnpm test
       - run: pnpm test:webmcp-lifecycle-runtime
       - run: pnpm test:timeline-projection-runtime
@@ -275,7 +263,6 @@ jobs:
           grep -F 'focus-sidebar.spec.ts' /tmp/playwright-list.txt
           grep -F 'playwright/layout.spec.ts' /tmp/playwright-list.txt
           grep -F 'playwright/interaction.spec.ts' /tmp/playwright-list.txt
-          grep -F 'playwright/graph-touch.spec.ts' /tmp/playwright-list.txt
           grep -F '[Desktop Chrome]' /tmp/playwright-list.txt
           grep -F '[Mobile Chrome]' /tmp/playwright-list.txt
           grep -F '[Mobile Chrome Landscape]' /tmp/playwright-list.txt
@@ -513,15 +500,3 @@ jobs:
           path: tests/browser/world-performance-report.json
           if-no-files-found: error
           retention-days: 14
-
-  graph-touch-browser:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm test:graph-touch-browser

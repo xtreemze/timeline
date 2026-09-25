@@ -34,22 +34,16 @@ export default defineConfig({
         codeSplitting: {
           includeDependenciesRecursively: false,
           groups: [
-            // Shared modules claimed first, so the optional-runtime groups below
-            // (which capture their dependencies recursively) cannot absorb
-            // them and drag those runtimes into the initial import closure.
+            // Claimed first so Vite's preload helper never lands inside an
+            // optional-runtime chunk and pulls that runtime into startup.
             {
               name: "preload-helper",
               test: /^\0vite[\\/]preload-helper/,
               priority: 50,
             },
             {
-              name: "map-runtime",
-              test: /node_modules[\\/]leaflet[\\/]/,
-              priority: 40,
-            },
-            {
               name: "luma-webgpu",
-              test: /node_modules[\\/]@luma\\.gl[\\/]webgpu[\\/]/,
+              test: /node_modules[\\/]@luma\.gl[\\/]webgpu[\\/]/,
               maxSize: 300_000,
               priority: 40,
             },
@@ -70,12 +64,6 @@ export default defineConfig({
               name: "sample-case",
               test: /[\\/]site[\\/]sample-case\.ts$/,
               priority: 15,
-            },
-            {
-              name: "legacy-graph",
-              test: /node_modules[\\/]@memgraph[\\/]orb[\\/]/,
-              maxSize: 400_000,
-              priority: 20,
             },
             {
               name: "application",

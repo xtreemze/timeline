@@ -2028,7 +2028,7 @@ export class TimelineViewController {
     const corrections = this.pendingSideCorrections.splice(0).map(({ node, terminal }) => {
       const anchor = node.getBoundingClientRect().left;
       const end = terminal.getBoundingClientRect();
-      // Rects include any in-flight correction; mirror the untransformed box.
+      // Rects include an in-flight correction; mirror the untransformed box.
       const existing = this.layoutCorrectionAnimations.get(terminal);
       const progress = existing
         ? clamp(Number(existing.animation.effect?.getComputedTiming().progress ?? 0), 0, 1)

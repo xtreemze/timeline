@@ -35,11 +35,6 @@
       "asAny": 0,
       "nonNull": 0
     },
-    "site/temporal-graph-view.ts": {
-      "any": 6,
-      "asAny": 0,
-      "nonNull": 0
-    },
     "site/temporal-standards.ts": {
       "any": 54,
       "asAny": 54,
@@ -121,8 +116,8 @@
       "nonNull": 0
     },
     "site/location-map.ts": {
-      "any": 24,
-      "asAny": 2,
+      "any": 0,
+      "asAny": 0,
       "nonNull": 0
     },
     "site/memgraph-interchange-shim.ts": {
@@ -151,11 +146,6 @@
       "nonNull": 0
     },
     "site/spatial-shim.ts": {
-      "any": 0,
-      "asAny": 0,
-      "nonNull": 0
-    },
-    "site/temporal-graph-view-shim.ts": {
       "any": 0,
       "asAny": 0,
       "nonNull": 0
@@ -343,7 +333,7 @@
       "site/graph-inference-shim.ts": 1,
       "site/graph-inference.ts": 3,
       "site/location-map-shim.ts": 1,
-      "site/location-map.ts": 3,
+      "site/location-map.ts": 1,
       "site/sample-case-shim.ts": 1,
       "site/sample-case.ts": 1,
       "site/timeline-graph-shim.ts": 1,
@@ -355,15 +345,6 @@
       "site/app.ts": 18,
       "site/webmcp.ts": 2
     },
-    "legacyInputHandlers": {
-      "src/orb-graph-entry.js": {
-        "addEventListener(\"touchmove\"": 1,
-        "addEventListener(\"touchend\"": 1,
-        "addEventListener(\"touchcancel\"": 1,
-        "removeEventListener(\"touchmove\"": 1,
-        "removeEventListener(\"touchend\"": 1,
-        "removeEventListener(\"touchcancel\"": 1
-      }
-    }
+    "legacyInputHandlers": {}
   }
 }

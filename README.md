@@ -100,7 +100,7 @@ application commands + view state
 
 Derived layout, force positions, camera state, clustering, GPU resources, DOM state, and renderer-specific IDs are disposable. Stable canonical IDs and validated domain records cross projection boundaries.
 
-The current implementation is TypeScript/Vite based, with Lit for bounded UI, deck.gl/luma.gl for the world surface, Leaflet for map compatibility surfaces, d3-dag for organizational layout support, and Playwright/Node tests for interaction, architecture, and performance contracts. The production browser target is encoded in `vite.config.ts`; CI certification is Chromium-based.
+The current implementation is TypeScript/Vite based, with Lit for bounded UI, deck.gl/luma.gl for the world surface and place maps, d3-dag for organizational layout support, and Playwright/Node tests for interaction, architecture, and performance contracts. The production browser target is encoded in `vite.config.ts`; CI certification is Chromium-based.
 
 See [Architecture boundaries](docs/ARCHITECTURE-BOUNDARIES.md) and the [Contributor architecture contract](docs/CONTRIBUTOR-ARCHITECTURE.md).
 

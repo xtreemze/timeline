@@ -28,7 +28,6 @@ const evidenceStore = TimelineEvidence;
 const graphInference = TimelineGraphInference;
 const temporalGraphFactory = selectPrimarySpatialViewFactory(
   Reflect.get(globalThis, "TimelineWorldView"),
-  globalThis.TemporalGraphView,
 );
 const presentationLayout = globalThis.TimelinePresentationLayout;
 const caseReasoning = globalThis.TimelineCaseReasoning;
@@ -630,7 +629,7 @@ let temporalGraphView: ReturnType<typeof temporalGraphFactory.create> | null = n
 try {
   temporalGraphView = temporalGraphFactory.create(els.graphViewRoot);
 } catch (error) {
-  console.error("Failed to initialize TemporalGraphView:", error);
+  console.error("Failed to initialize the world view:", error);
 }
 const dateRangePicker = dateRangeFactory.create({
   input: els.itemDateRange,
@@ -693,7 +692,10 @@ function restoreMapSurface() {
 }
 
 function mountMapBackdrop() {
-  const slot = els.timelineViewRoot?.querySelector("[data-focus-map-slot]");
+  // The focus view is the timeline's sibling, not its descendant.
+  const slot =
+    document.querySelector("#timeline-focus-view [data-focus-map-slot]") ??
+    els.timelineViewRoot?.querySelector("[data-focus-map-slot]");
   if (!slot || !els.presentationMap) {
     restoreMapSurface();
     return false;
@@ -721,15 +723,26 @@ function destroyPresentationMap() {
   if (els.presentationMapPanel) els.presentationMapPanel.hidden = true;
 }
 
+/**
+ * Title, colour and place of every record handed to the timeline, keyed by
+ * its timeline id. Covers stored items and relationship-derived occurrences
+ * alike, so the focused-event place map finds either.
+ */
+const timelineFocusRecords = new Map<
+  string,
+  { title: string; color: string; location: PlaceRecord | null }
+>();
+
 function focusedPresentationItem() {
   const id = timelineView?.focusedItemId?.();
-  return id ? getItem(id) : null;
+  return id ? (timelineFocusRecords.get(String(id)) ?? null) : null;
 }
 
 function renderPresentationMap() {
+  const focusedId = timelineView?.focusedItemId?.() ?? null;
   const item = focusedPresentationItem();
   const mapApi = globalThis.TimelineLocationMap;
-  const place = item ? placeForItem(item.id) : null;
+  const place = item?.location ?? null;
   if (!item || !place || !mapApi?.hasRenderableGeometry?.(place)) {
     destroyPresentationMap();
     return false;
@@ -748,7 +761,7 @@ function renderPresentationMap() {
     !Array.isArray(spatialReferenceFrame) &&
     (spatialReferenceFrame as Record<string, unknown>).fictional === true;
   const mapKey = JSON.stringify({
-    id: item.id,
+    id: focusedId,
     place,
     fictionalReferenceFrame,
   });
@@ -764,12 +777,11 @@ function renderPresentationMap() {
 
   const name = place.name || place.geographicIdentifier || place.address || item.title;
   if (els.presentationMapLabel) els.presentationMapLabel.textContent = name;
-  const category = getCategory(item.categoryId);
   presentationMap =
     mapApi.createReadOnly?.({
       container: els.presentationMap,
       location: place,
-      color: category?.color || "#315fbd",
+      color: item.color || "#315fbd",
       iconName: place.icon || "place",
       markerShape: place.markerShape || "pin",
       label: name,
@@ -1881,155 +1893,159 @@ function renderTimeline() {
   ].filter(Number.isFinite);
 
   try {
-    timelineView?.setItems(
-      [
-        ...visible.map((item) => {
-          const category = getCategory(item.categoryId);
-          const itemTime = temporal.sortKey(item.time?.start || item.start);
-          const eventViewport = Number.isFinite(itemTime)
-            ? { start: itemTime, end: itemTime }
-            : timelineView?.getViewport?.();
-          return {
-            id: item.id,
-            kind: item.kind,
-            title: item.title,
-            description: item.description,
-            categoryName: category.name,
-            color: category.color,
-            start: temporal.sortKey(item.time?.start || item.start),
-            end: item.end ? temporal.sortKey(item.time?.end || item.end) : null,
-            startLabel: formatDateInline(item.start),
-            endLabel: item.end ? formatDateInline(item.end) : "",
-            locationName:
-              placeForItem(item.id)?.name || placeForItem(item.id)?.geographicIdentifier || "",
-            location: placeForItem(item.id) || null,
-            media: item.media || [],
-            tags: item.tags || [],
-            layoutVariant: item.presentation?.variant || "hero-split",
-            terminalShape: item.presentation?.terminalShape || "rounded",
-            connectorStyle: item.presentation?.connectorStyle || "solid",
-            connectorRouting: item.presentation?.connectorRouting || "straight",
-            connectorWeight: item.presentation?.connectorWeight || "normal",
-            connectorEndpoint: item.presentation?.connectorEndpoint || "none",
-            lane: Number.isInteger(item.presentation?.lane) ? item.presentation.lane : null,
-            evidence: (item.evidenceIds || [])
-              .map((id) => state.evidence.find((record) => record.id === id))
-              .filter(Boolean),
-            relations: state.relationships
-              .filter((relationship) =>
-                (relationship.itemIds || []).some((id) => String(id) === String(item.id)),
-              )
-              .map((relationship) => ({
-                id: relationship.id,
-                predicate: relationship.predicate,
-                role: relationship.role || "",
-                subjectId: relationship.subjectId,
-                objectId: relationship.objectId,
-                subjectName: entityOrItemName(relationship.subjectId),
-                objectName: entityOrItemName(relationship.objectId),
-                time: relationship.time || null,
-              })),
-            relationChanges: (item.relationChanges || []).map((change) => {
-              const relationship = relationshipById.get(change.relationshipId);
-              return {
-                ...change,
-                predicate: change.predicate || relationship?.predicate || "",
-                subjectName: relationship ? entityOrItemName(relationship.subjectId) : "",
-                objectName: relationship ? entityOrItemName(relationship.objectId) : "",
-              };
-            }),
-            graphContext: (() => {
-              try {
-                return graph.neighborhoodGraph(graphInput, item.id, eventViewport, {
-                  depth: 1,
-                  limit: 28,
-                });
-              } catch (error) {
-                console.error("Failed to generate neighborhood graph:", error);
-                return { nodes: [], edges: [] };
-              }
-            })(),
-          };
-        }),
-        ...derivedTimelineOccurrences.map((occurrence) => {
-          const relationship = relationshipById.get(occurrence.relationshipId);
-          const place = occurrence.placeId
-            ? state.places.find((candidate) => String(candidate.id) === occurrence.placeId) || null
-            : null;
-          const eventViewport = {
-            start: occurrence.start,
-            end: occurrence.end ?? occurrence.start,
-          };
-          return {
-            id: occurrence.occurrenceId,
-            kind: occurrence.end === null ? "event" : "range",
-            title: occurrence.title,
-            description: relationship?.role
-              ? `${occurrence.subjectName} ${occurrence.predicate} ${occurrence.objectName} · ${relationship.role}`
-              : `${occurrence.subjectName} ${occurrence.predicate} ${occurrence.objectName}`,
-            categoryName: "Relation",
-            color: "var(--accent)",
-            start: occurrence.start,
-            end: occurrence.end,
-            startLabel: occurrence.startLabel,
-            endLabel: occurrence.endLabel,
-            locationName: place?.name || place?.geographicIdentifier || "",
-            location: place,
-            media: [],
-            tags: [],
-            layoutVariant: "hero-split",
-            terminalShape: "rounded",
-            connectorStyle: "solid",
-            connectorRouting: "straight",
-            connectorWeight: "normal",
-            connectorEndpoint: "none",
-            lane: null,
-            editable: false,
-            evidence: [],
-            relations: relationship
-              ? [
-                  {
-                    id: relationship.id,
-                    predicate: relationship.predicate,
-                    role: relationship.role || "",
-                    subjectId: relationship.subjectId,
-                    objectId: relationship.objectId,
-                    subjectName: occurrence.subjectName,
-                    objectName: occurrence.objectName,
-                    time: relationship.time || null,
-                  },
-                ]
-              : [],
-            relationChanges: [],
-            graphContext: (() => {
-              try {
-                return graph.neighborhoodGraph(
-                  graphInput,
-                  occurrence.relationshipId,
-                  eventViewport,
-                  { depth: 1, limit: 28 },
-                );
-              } catch (error) {
-                console.error("Failed to generate relationship occurrence graph:", error);
-                return { nodes: [], edges: [] };
-              }
-            })(),
-          };
-        }),
-      ],
-      {
-        focusId: storyCurrentId,
-        allCoordinates: allTimelineCoordinates,
-        relationships: (() => {
-          try {
-            return graph.temporalRelationProjection(state.relationships, temporal);
-          } catch (error) {
-            console.error("Failed to generate temporal relation projection:", error);
-            return [];
-          }
-        })(),
-      },
-    );
+    const timelineItems = [
+      ...visible.map((item) => {
+        const category = getCategory(item.categoryId);
+        const itemTime = temporal.sortKey(item.time?.start || item.start);
+        const eventViewport = Number.isFinite(itemTime)
+          ? { start: itemTime, end: itemTime }
+          : timelineView?.getViewport?.();
+        return {
+          id: item.id,
+          kind: item.kind,
+          title: item.title,
+          description: item.description,
+          categoryName: category.name,
+          color: category.color,
+          start: temporal.sortKey(item.time?.start || item.start),
+          end: item.end ? temporal.sortKey(item.time?.end || item.end) : null,
+          startLabel: formatDateInline(item.start),
+          endLabel: item.end ? formatDateInline(item.end) : "",
+          locationName:
+            placeForItem(item.id)?.name || placeForItem(item.id)?.geographicIdentifier || "",
+          location: placeForItem(item.id) || null,
+          media: item.media || [],
+          tags: item.tags || [],
+          layoutVariant: item.presentation?.variant || "hero-split",
+          terminalShape: item.presentation?.terminalShape || "rounded",
+          connectorStyle: item.presentation?.connectorStyle || "solid",
+          connectorRouting: item.presentation?.connectorRouting || "straight",
+          connectorWeight: item.presentation?.connectorWeight || "normal",
+          connectorEndpoint: item.presentation?.connectorEndpoint || "none",
+          lane: Number.isInteger(item.presentation?.lane) ? item.presentation.lane : null,
+          evidence: (item.evidenceIds || [])
+            .map((id) => state.evidence.find((record) => record.id === id))
+            .filter(Boolean),
+          relations: state.relationships
+            .filter((relationship) =>
+              (relationship.itemIds || []).some((id) => String(id) === String(item.id)),
+            )
+            .map((relationship) => ({
+              id: relationship.id,
+              predicate: relationship.predicate,
+              role: relationship.role || "",
+              subjectId: relationship.subjectId,
+              objectId: relationship.objectId,
+              subjectName: entityOrItemName(relationship.subjectId),
+              objectName: entityOrItemName(relationship.objectId),
+              time: relationship.time || null,
+            })),
+          relationChanges: (item.relationChanges || []).map((change) => {
+            const relationship = relationshipById.get(change.relationshipId);
+            return {
+              ...change,
+              predicate: change.predicate || relationship?.predicate || "",
+              subjectName: relationship ? entityOrItemName(relationship.subjectId) : "",
+              objectName: relationship ? entityOrItemName(relationship.objectId) : "",
+            };
+          }),
+          graphContext: (() => {
+            try {
+              return graph.neighborhoodGraph(graphInput, item.id, eventViewport, {
+                depth: 1,
+                limit: 28,
+              });
+            } catch (error) {
+              console.error("Failed to generate neighborhood graph:", error);
+              return { nodes: [], edges: [] };
+            }
+          })(),
+        };
+      }),
+      ...derivedTimelineOccurrences.map((occurrence) => {
+        const relationship = relationshipById.get(occurrence.relationshipId);
+        const place = occurrence.placeId
+          ? state.places.find((candidate) => String(candidate.id) === occurrence.placeId) || null
+          : null;
+        const eventViewport = {
+          start: occurrence.start,
+          end: occurrence.end ?? occurrence.start,
+        };
+        return {
+          id: occurrence.occurrenceId,
+          kind: occurrence.end === null ? "event" : "range",
+          title: occurrence.title,
+          description: relationship?.role
+            ? `${occurrence.subjectName} ${occurrence.predicate} ${occurrence.objectName} · ${relationship.role}`
+            : `${occurrence.subjectName} ${occurrence.predicate} ${occurrence.objectName}`,
+          categoryName: "Relation",
+          color: "var(--accent)",
+          start: occurrence.start,
+          end: occurrence.end,
+          startLabel: occurrence.startLabel,
+          endLabel: occurrence.endLabel,
+          locationName: place?.name || place?.geographicIdentifier || "",
+          location: place,
+          media: [],
+          tags: [],
+          layoutVariant: "hero-split",
+          terminalShape: "rounded",
+          connectorStyle: "solid",
+          connectorRouting: "straight",
+          connectorWeight: "normal",
+          connectorEndpoint: "none",
+          lane: null,
+          editable: false,
+          evidence: [],
+          relations: relationship
+            ? [
+                {
+                  id: relationship.id,
+                  predicate: relationship.predicate,
+                  role: relationship.role || "",
+                  subjectId: relationship.subjectId,
+                  objectId: relationship.objectId,
+                  subjectName: occurrence.subjectName,
+                  objectName: occurrence.objectName,
+                  time: relationship.time || null,
+                },
+              ]
+            : [],
+          relationChanges: [],
+          graphContext: (() => {
+            try {
+              return graph.neighborhoodGraph(graphInput, occurrence.relationshipId, eventViewport, {
+                depth: 1,
+                limit: 28,
+              });
+            } catch (error) {
+              console.error("Failed to generate relationship occurrence graph:", error);
+              return { nodes: [], edges: [] };
+            }
+          })(),
+        };
+      }),
+    ];
+    timelineFocusRecords.clear();
+    for (const record of timelineItems) {
+      timelineFocusRecords.set(String(record.id), {
+        title: record.title,
+        color: record.color,
+        location: record.location,
+      });
+    }
+    timelineView?.setItems(timelineItems, {
+      focusId: storyCurrentId,
+      allCoordinates: allTimelineCoordinates,
+      relationships: (() => {
+        try {
+          return graph.temporalRelationProjection(state.relationships, temporal);
+        } catch (error) {
+          console.error("Failed to generate temporal relation projection:", error);
+          return [];
+        }
+      })(),
+    });
   } catch (error) {
     console.error("Failed to set timeline items:", error);
   }

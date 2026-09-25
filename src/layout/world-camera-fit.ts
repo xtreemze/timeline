@@ -44,10 +44,17 @@ function smallestLongitudeArc(longitudes: readonly number[]): {
   return { center, span };
 }
 
+export interface WorldCameraFitLimits {
+  /** Smallest extent fitted, so a lone point is not framed at street level. */
+  readonly minSpanDegrees?: number;
+  readonly maxZoom?: number;
+}
+
 export function fitWorldCamera(
   positions: readonly WorldRenderPosition[],
   viewport: WorldViewportSize,
   current: WorldCameraState,
+  { minSpanDegrees = MIN_SPAN_DEGREES, maxZoom = MAX_FIT_ZOOM }: WorldCameraFitLimits = {},
 ): WorldCameraState | null {
   const finite = positions.filter(
     (position) => Number.isFinite(position[0]) && Number.isFinite(position[1]),
@@ -72,14 +79,14 @@ export function fitWorldCamera(
   const zoomFor = (degrees: number, pixels: number) =>
     Math.log2((Math.max(1, pixels) * FILL_RATIO) / (pixelsPerDegreeAtZoom0 * degrees));
   const zoom = Math.min(
-    zoomFor(Math.max(MIN_SPAN_DEGREES, longitudeSpan), viewport.width),
-    zoomFor(Math.max(MIN_SPAN_DEGREES, north - south) / latitudeScale, viewport.height),
+    zoomFor(Math.max(minSpanDegrees, longitudeSpan), viewport.width),
+    zoomFor(Math.max(minSpanDegrees, north - south) / latitudeScale, viewport.height),
   );
 
   return createWorldCameraState({
     longitude,
     latitude,
-    zoom: Math.min(MAX_FIT_ZOOM, Math.max(MIN_FIT_ZOOM, zoom)),
+    zoom: Math.min(maxZoom, Math.max(MIN_FIT_ZOOM, zoom)),
     bearing: current.bearing,
     pitch: current.pitch,
   });

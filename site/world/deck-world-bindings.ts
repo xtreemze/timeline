@@ -8,7 +8,7 @@
  * interface with the actual `@deck.gl/core` / `@deck.gl/layers` classes.
  */
 import { Deck, _GlobeView as GlobeView, MapView } from "@deck.gl/core";
-import { CollisionFilterExtension } from "@deck.gl/extensions";
+import { CollisionFilterExtension, PathStyleExtension } from "@deck.gl/extensions";
 import {
   IconLayer,
   PathLayer,
@@ -113,6 +113,9 @@ function createRealDeckWorldBindings(webgpuAdapter?: WebGpuAdapter): DeckWorldBi
     },
     textLayer(props) {
       return new TextLayer(props as ConstructorParameters<typeof TextLayer>[0]);
+    },
+    dashedPathExtension() {
+      return new PathStyleExtension({ dash: true });
     },
     // CollisionFilterExtension currently relies on WebGL picking passes.
     // Keep WebGPU on the existing CPU semantic/declutter fallback until the

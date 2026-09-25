@@ -264,10 +264,9 @@ test("presentation map renders semantic GeoJSON features instead of an empty poi
 });
 
 test("graph exploration is chrome-free and selection-only", async () => {
-  const [html, styles, graphView] = await Promise.all([
+  const [html, styles] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
-    readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8"),
   ]);
   const graphMarkup = html.slice(
     html.indexOf('id="graph-lens"'),
@@ -282,8 +281,6 @@ test("graph exploration is chrome-free and selection-only", async () => {
     styles,
     /\.graph-lens > summary,[\s\S]*\.temporal-graph-toolbar,[\s\S]*\.temporal-graph-detail[\s\S]*display:\s*none/,
   );
-  assert.match(graphView, /graphselectionchange/);
-  assert.doesNotMatch(graphView, /renderDetail|temporal-graph-detail-list/);
 });
 
 test("fullscreen restores the focused event popover after the browser changes top-layer state", async () => {

@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { selectPrimarySpatialViewFactory } from "../site/world/world-view-selection.ts";
+import {
+  selectPrimarySpatialViewFactory,
+  unavailableSpatialViewFactory,
+  WORLD_VIEW_UNAVAILABLE_MESSAGE,
+} from "../site/world/world-view-selection.ts";
 
 await import("../site/temporal-standards-shim.ts");
 await import("../site/timeline-graph-shim.ts");
@@ -272,37 +276,6 @@ test("timed relation visibility uses viewport intersection rather than midpoint 
   assert.equal(data.edges[0].temporalState, "active");
 });
 
-test("graph clicks only select nodes or edges without invoking an inspector or navigation", async () => {
-  const { readFile } = await import("node:fs/promises");
-  const [view, bridge] = await Promise.all([
-    readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8"),
-    readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8"),
-  ]);
-  assert.match(view, /graphselectionchange/);
-  assert.match(view, /kind:\s*"node"/);
-  assert.match(view, /kind:\s*"edge"/);
-  assert.doesNotMatch(
-    view,
-    /renderDetail|detailRows|fallbackEventId|graphnodefocus|graphentityfocus|graphedgefocus/,
-  );
-  assert.match(bridge, /function selectGraphObject\(object\)/);
-  assert.match(bridge, /onNodeClick[\s\S]*selectGraphObject\(node\)/);
-  assert.match(bridge, /onEdgeClick[\s\S]*selectGraphObject\(edge\)/);
-  assert.match(bridge, /select\(kind, id\)/);
-});
-
-test("temporal graph stages topology deltas through GraphSurface after first render", async () => {
-  const { readFile } = await import("node:fs/promises");
-  const source = await readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8");
-
-  assert.match(source, /hasRenderedData\s*=\s*false/);
-  assert.match(source, /this\.surface\.transitionProjection\(projection\)/);
-  assert.match(
-    source,
-    /this\.surface\.setProjection\(projection\)[\s\S]*this\.hasRenderedData\s*=\s*true/,
-  );
-});
-
 test("open-ended relationship intervals intersect only the appropriate timeline side", () => {
   const afterStart = {
     id: "open-end",
@@ -428,48 +401,45 @@ test("bounded unknown relationship time uses only its declared bounds for window
   );
 });
 
-test("clearing all graph records bypasses topology transitions through GraphSurface", async () => {
-  const source = await readFile(new URL("../site/temporal-graph-view.ts", import.meta.url), "utf8");
-
-  assert.match(
-    source,
-    /const graphIsEmpty = data\.nodes\.length === 0 && data\.edges\.length === 0/,
-  );
-  assert.match(
-    source,
-    /if \(this\.hasRenderedData\) \{[\s\S]{0,500}if \(graphIsEmpty\) this\.surface\.setProjection\(projection\)[\s\S]{0,300}else this\.surface\.transitionProjection\(projection\)/,
-  );
-  assert.doesNotMatch(source, /this\.orb\./);
-});
-
 test("application spatial-view selection prefers the globe WorldView factory", () => {
   const world = {
     create() {
       return { kind: "world" };
     },
   };
-  const legacy = {
-    create() {
-      return { kind: "legacy" };
-    },
-  };
 
-  assert.equal(selectPrimarySpatialViewFactory(world, legacy), world);
+  assert.equal(selectPrimarySpatialViewFactory(world), world);
 });
 
-test("application spatial-view selection retains Orb graph fallback during migration", () => {
-  const legacy = {
-    create() {
-      return { kind: "legacy" };
+test("without a WorldView the app shows an explicit accessible unavailable status", () => {
+  const factory = selectPrimarySpatialViewFactory(null);
+  assert.equal(factory, unavailableSpatialViewFactory);
+
+  const appended = [];
+  const root = {
+    dataset: {},
+    ownerDocument: {
+      createElement: () => ({
+        attributes: {},
+        setAttribute(name, value) {
+          this.attributes[name] = value;
+        },
+        remove() {
+          this.removed = true;
+        },
+      }),
     },
+    append: (node) => appended.push(node),
   };
-
-  assert.equal(selectPrimarySpatialViewFactory(null, legacy), legacy);
-});
-
-test("application spatial-view selection fails explicitly when no compatible surface exists", () => {
-  assert.throws(
-    () => selectPrimarySpatialViewFactory(null, null),
-    /WorldView or legacy TemporalGraphView/,
-  );
+  const view = factory.create(root);
+  assert.equal(root.dataset.worldView, "unavailable");
+  assert.equal(appended[0].attributes.role, "status");
+  assert.equal(appended[0].textContent, WORLD_VIEW_UNAVAILABLE_MESSAGE);
+  assert.equal(view.hasContext(), false);
+  view.setModel({});
+  view.setWindow({ start: 0, end: 1 });
+  view.setFocus(null);
+  view.destroy();
+  assert.equal(appended[0].removed, true);
+  assert.equal(root.dataset.worldView, undefined);
 });

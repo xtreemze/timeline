@@ -4,7 +4,10 @@ import test from "node:test";
 
 import { realDeckWorldBindings } from "../site/world/deck-world-bindings.ts";
 import { registerTimelineWorldView } from "../site/world/world-view-registration.ts";
-import { selectPrimarySpatialViewFactory } from "../site/world/world-view-selection.ts";
+import {
+  selectPrimarySpatialViewFactory,
+  unavailableSpatialViewFactory,
+} from "../site/world/world-view-selection.ts";
 
 test("registering the real deck.gl bindings produces a usable WorldView factory", () => {
   const target = {};
@@ -14,33 +17,17 @@ test("registering the real deck.gl bindings produces a usable WorldView factory"
   assert.equal(target.TimelineWorldView, factory);
 });
 
-test("app startup selects TimelineWorldView over the legacy Orb factory once registered", () => {
+test("app startup selects TimelineWorldView once registered", () => {
   const target = {};
   registerTimelineWorldView(realDeckWorldBindings, {}, target);
 
-  const legacyOrbFactory = Object.freeze({
-    create() {
-      throw new Error(
-        "Orb fallback should not be selected when the real world view is registered.",
-      );
-    },
-  });
-
-  const selected = selectPrimarySpatialViewFactory(target.TimelineWorldView, legacyOrbFactory);
+  const selected = selectPrimarySpatialViewFactory(target.TimelineWorldView);
 
   assert.equal(selected, target.TimelineWorldView);
 });
 
-test("Orb remains the fallback when no world view has been registered", () => {
-  const legacyOrbFactory = Object.freeze({
-    create() {
-      return null;
-    },
-  });
-
-  const selected = selectPrimarySpatialViewFactory(undefined, legacyOrbFactory);
-
-  assert.equal(selected, legacyOrbFactory);
+test("an unregistered world view selects the explicit unavailable surface", () => {
+  assert.equal(selectPrimarySpatialViewFactory(undefined), unavailableSpatialViewFactory);
 });
 
 test("registerTimelineWorldView wires real deck.gl constructors without invoking WebGL at registration time", () => {
@@ -90,4 +77,3 @@ test("production footer exposes separate DAG reorganization and force relaxation
   assert.match(factory, /scheduledView\.reorganizeDag\(\)/);
   assert.match(factory, /scheduledView\.relaxForce\(\)/);
 });
-

@@ -275,8 +275,8 @@ Examples:
 
 - `WorldSurface` -> deck.gl/luma.gl globe-first reference implementation;
 - `ForceSimulation` -> worker reference / cosmos.gl-derived GPU integration / future measured alternatives;
-- compatibility `GraphSurface` -> Orb/Sigma during migration;
-- compatibility map/editor surface -> Leaflet during migration;
+- place maps (item editor, focused-event place) -> the same deck.gl globe stack as `WorldSurface`;
+- deprecated and removed: the Orb `GraphSurface` fallback and the Leaflet map surfaces (without WebGL 2 the app shows an explicit "globe unavailable" status);
 - `GraphIndex` -> Graphology;
 - `InteractionSource` -> Pointer Events or mjolnir adapter;
 - `InferenceProvider` -> built-in/browser/remote models;

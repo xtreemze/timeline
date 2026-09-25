@@ -70,7 +70,6 @@ jobs:
       - name: Build native ESM site
         run: |
           pnpm build
-          node --check src/orb-graph-entry.js
           node --check src/evidence-extraction-core.js
           node --check src/evidence-extraction-entry.js
           test -s dist/index.html

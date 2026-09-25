@@ -185,6 +185,8 @@ export interface DeckWorldRuntime {
   createIconLayer?(props: Readonly<Record<string, unknown>>): unknown;
   createSolidPolygonLayer?(props: Readonly<Record<string, unknown>>): unknown;
   createCollisionFilterExtension?(): unknown;
+  /** deck PathStyleExtension with dashes, for authored dashed paths. */
+  createDashedPathExtension?(): unknown;
   createDeck(props: Readonly<Record<string, unknown>>): DeckRuntimeInstance;
 }
 
@@ -1100,7 +1102,7 @@ const WORLD_INACTIVE_EDGE_ALPHA = 72;
 const WORLD_EMPHASIZED_EDGE_ALPHA = 242;
 const WORLD_CAMERA_FACING_FADE_END = 0.08;
 
-interface WorldThemeColors {
+export interface WorldThemeColors {
   readonly earth: Rgba;
   readonly graticule: Rgba;
   readonly coastline: Rgba;
@@ -1116,7 +1118,7 @@ interface WorldThemeColors {
   readonly labelHalo: Rgba;
 }
 
-function worldThemeColors(palette: WorldGraphPalette): WorldThemeColors {
+export function worldThemeColors(palette: WorldGraphPalette): WorldThemeColors {
   return Object.freeze({
     // Vector-only globe: the earth is invisible but still writes depth, so
     // the far hemisphere's lines and marks stay hidden behind it.
@@ -1144,7 +1146,7 @@ function worldThemeColors(palette: WorldGraphPalette): WorldThemeColors {
  * properties) from the container, falling back to the built-in light or
  * dark palette by the user's colour-scheme preference.
  */
-function resolveWorldPalette(container: HTMLElement): WorldGraphPalette {
+export function resolveWorldPalette(container: HTMLElement): WorldGraphPalette {
   const view = container.ownerDocument?.defaultView;
   const dark = Boolean(view?.matchMedia?.("(prefers-color-scheme: dark)").matches);
   const fallback = dark ? WORLD_DARK_PALETTE : WORLD_LIGHT_PALETTE;
@@ -1167,7 +1169,7 @@ function resolveWorldPalette(container: HTMLElement): WorldGraphPalette {
 }
 
 /** A single world-covering polygon slightly below the surface. */
-const EARTH_POLYGON = Object.freeze([
+export const EARTH_POLYGON = Object.freeze([
   [
     [-180, 90, -2_000],
     [0, 90, -2_000],
