@@ -68,6 +68,84 @@ function usableFrameRate(value) {
   return typeof value === "string" && value.length > 0 && value !== "0/0";
 }
 
+function frameRateNumber(value) {
+  if (!usableFrameRate(value)) return Number.NaN;
+  if (!value.includes("/")) return Number.parseFloat(value);
+  const [numerator, denominator] = value.split("/").map(Number);
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) {
+    return Number.NaN;
+  }
+  return numerator / denominator;
+}
+
+async function probeFrameTimestamps(filePath) {
+  const stdout = await capture(ffprobe, [
+    "-v",
+    "error",
+    "-select_streams",
+    "v:0",
+    "-show_frames",
+    "-show_entries",
+    "frame=best_effort_timestamp_time",
+    "-of",
+    "csv=p=0",
+    filePath,
+  ]);
+  return stdout
+    .split(/\r?\n/u)
+    .map((value) => Number(value.trim()))
+    .filter((value) => Number.isFinite(value));
+}
+
+async function verifyMeasuredCapture(videoPath, manifest) {
+  const timingPath = `${videoPath}.frames.json`;
+  const timing = JSON.parse(await readFile(timingPath, "utf8"));
+  const timestamps = Array.isArray(timing.timestamps)
+    ? timing.timestamps.filter((value) => Number.isFinite(value))
+    : [];
+  if (timestamps.length < 2) {
+    throw new Error(`Measured capture timestamps missing for ${videoPath}`);
+  }
+
+  const captureDuration = (timestamps.at(-1) - timestamps[0]) / 1000;
+  if (!Number.isFinite(captureDuration) || captureDuration <= 0) {
+    throw new Error(`Invalid measured capture duration for ${videoPath}`);
+  }
+  const measuredFps = (timestamps.length - 1) / captureDuration;
+  const minimumFps = manifest.minimumMeasuredCaptureFps ?? manifest.captureFps - 1;
+  if (measuredFps < minimumFps) {
+    throw new Error(
+      `${videoPath} captured ${String(timestamps.length)} actual Chromium frames across ${captureDuration.toFixed(3)}s (${measuredFps.toFixed(2)} fps); expected at least ${Number(minimumFps).toFixed(2)} fps before encoding.`,
+    );
+  }
+
+  const decodedTimestamps = await probeFrameTimestamps(videoPath);
+  if (decodedTimestamps.length < 2) {
+    throw new Error(`Could not decode raw WebM frame timestamps for ${videoPath}`);
+  }
+  if (decodedTimestamps.length !== timing.encodedFrames) {
+    throw new Error(
+      `${videoPath} decoded ${String(decodedTimestamps.length)} frames but capture selected ${String(timing.encodedFrames)}; encoder duplication or loss is not allowed.`,
+    );
+  }
+  const decodedDuration = decodedTimestamps.at(-1) - decodedTimestamps[0];
+  const decodedFps = (decodedTimestamps.length - 1) / decodedDuration;
+  if (!Number.isFinite(decodedFps) || decodedFps < minimumFps) {
+    throw new Error(
+      `${videoPath} decoded raw cadence is ${decodedFps.toFixed(2)} fps; expected at least ${Number(minimumFps).toFixed(2)} fps.`,
+    );
+  }
+
+  return {
+    timingPath,
+    capturedFrames: timestamps.length,
+    encodedFrames: decodedTimestamps.length,
+    capturedDuration: captureDuration,
+    measuredFps,
+    decodedFps,
+  };
+}
+
 async function probeVisualSource(filePath) {
   const stdout = await capture(ffprobe, [
     "-v",
@@ -99,6 +177,12 @@ async function probeVisualSource(filePath) {
 
 function assertManifest(manifest, formFactor) {
   if (manifest.formFactor !== formFactor) throw new Error(`Expected ${formFactor} manifest`);
+  if (manifest.captureFps !== 60) {
+    throw new Error(`${formFactor} manifest must request a 60 fps showcase capture`);
+  }
+  if (manifest.minimumMeasuredCaptureFps !== 59) {
+    throw new Error(`${formFactor} manifest must require at least 59 measured source frames per second`);
+  }
   if (!Array.isArray(manifest.segments) || manifest.segments.length !== 5) {
     throw new Error(`${formFactor} manifest must contain exactly five showcase scenes`);
   }
@@ -128,9 +212,23 @@ async function renderFormFactor(formFactor, manifest) {
     const screenshot = await probeVisualSource(screenshotPath);
     if (segment.mediaMode === "motion") {
       const videoPath = path.resolve(workspace, segment.video);
+      const captureVerification = await verifyMeasuredCapture(videoPath, manifest);
       const video = await probeVisualSource(videoPath);
       if (!video.fps) throw new Error(`Could not determine source FPS for ${videoPath}`);
-      sources.push({ segment, screenshotPath, screenshot, videoPath, video });
+      const rawFps = frameRateNumber(video.fps);
+      if (!Number.isFinite(rawFps) || rawFps < manifest.minimumMeasuredCaptureFps) {
+        throw new Error(
+          `${videoPath} reports only ${String(video.fps)} fps after raw encoding; expected at least ${String(manifest.minimumMeasuredCaptureFps)} fps`,
+        );
+      }
+      sources.push({
+        segment,
+        screenshotPath,
+        screenshot,
+        videoPath,
+        video,
+        captureVerification,
+      });
     } else {
       sources.push({ segment, screenshotPath, screenshot, videoPath: null, video: null });
     }
@@ -141,7 +239,7 @@ async function renderFormFactor(formFactor, manifest) {
   const reelProfile = {
     width: firstMotion.video.width,
     height: firstMotion.video.height,
-    fps: firstMotion.video.fps,
+    fps: String(manifest.captureFps),
   };
 
   const sequence = [];
@@ -218,7 +316,7 @@ async function renderFormFactor(formFactor, manifest) {
       "-loop",
       "0",
       "-r",
-      video.fps,
+      String(manifest.captureFps),
       webpOutput,
     ]);
 
@@ -232,8 +330,21 @@ async function renderFormFactor(formFactor, manifest) {
         width: video.width,
         height: video.height,
         fps: video.fps,
+        targetFps: manifest.captureFps,
+        measuredCaptureFps: entry.captureVerification.measuredFps,
+        decodedRawFps: entry.captureVerification.decodedFps,
+        capturedFrames: entry.captureVerification.capturedFrames,
+        encodedFrames: entry.captureVerification.encodedFrames,
       },
     });
+
+    const publishedWebp = await probeVisualSource(webpOutput);
+    const publishedWebpFps = frameRateNumber(publishedWebp.fps);
+    if (!Number.isFinite(publishedWebpFps) || publishedWebpFps < manifest.minimumMeasuredCaptureFps) {
+      throw new Error(
+        `${webpOutput} is not a verified 60 fps presentation derivative (${String(publishedWebp.fps)})`,
+      );
+    }
 
     const clipOutput = path.join(factorWorkDir, `${stem}-motion.mp4`);
     await run(ffmpeg, [
@@ -289,6 +400,8 @@ async function renderFormFactor(formFactor, manifest) {
     filters.join(";"),
     "-map",
     `[${currentLabel}]`,
+    "-r",
+    String(manifest.captureFps),
     "-an",
     "-c:v",
     "libx264",
@@ -303,6 +416,13 @@ async function renderFormFactor(formFactor, manifest) {
     reelPath,
   );
   await run(ffmpeg, args);
+  const reelProbe = await probeVisualSource(reelPath);
+  const reelFps = frameRateNumber(reelProbe.fps);
+  if (!Number.isFinite(reelFps) || reelFps < manifest.minimumMeasuredCaptureFps) {
+    throw new Error(
+      `${reelPath} is not a verified 60 fps reel (${String(reelProbe.fps)})`,
+    );
+  }
 
   const mediaByName = new Map(mediaRecords.map((record) => [record.name, record]));
   return {
@@ -362,7 +482,7 @@ const pagesBase = process.env.SHOWCASE_BASE_URL ?? "https://xtreemze.github.io/t
 const markdown = [
   "## Lūm showcase",
   "",
-  "These assets are generated from the real Chromium application exercised by CI. Motion stays at the source recording dimensions and frame rate as animated WebP; static states use source-resolution PNG screenshots.",
+  "These assets are generated from the real Chromium application exercised by CI. Motion capture targets 60 fps and CI verifies at least 59 actual browser-presented frames per second before encoding; raw WebM, animated WebP, and highlight reels are then verified at 60 fps. Static states use source-resolution PNG screenshots.",
   "",
   ...formFactors.flatMap((formFactor) => [
     `### ${formFactor === "desktop" ? "Desktop" : "Mobile"}`,
@@ -385,7 +505,9 @@ for (const formFactor of formFactors) {
   console.log(`\n${formFactor.toUpperCase()} showcase sizes`);
   for (const media of rendered[formFactor].media) {
     const dimensions = `${media.source.width}x${media.source.height}`;
-    const rate = media.source.fps ? ` @ ${media.source.fps} fps` : "";
+    const rate = media.source.fps
+      ? ` @ ${media.source.fps} fps (measured ${media.source.measuredCaptureFps.toFixed(2)} fps before encoding)`
+      : "";
     console.log(`${media.name} (${media.mediaMode}): ${media.bytes} bytes, ${dimensions}${rate}`);
   }
   console.log(`${formFactor} total: ${rendered[formFactor].totalShowcaseBytes} bytes`);
