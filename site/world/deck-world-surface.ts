@@ -154,6 +154,7 @@ export interface DeckWorldCameraInteractionSink {
   begin(gesture: DeckWorldCameraGesture): boolean;
   update(gesture: DeckWorldCameraGesture): boolean;
   finish(): void;
+  commit(): void;
   cancel(): void;
 }
 
@@ -2468,6 +2469,7 @@ export class DeckWorldSurface implements WorldSurface {
   #nodeDragSink: DeckWorldNodeDragSink | null = null;
   #cameraInteractionSink: DeckWorldCameraInteractionSink | null = null;
   #cameraInteractionActive = false;
+  #cameraInteractionSettling = false;
   #cameraInteractionBlocked = false;
   #clusterForceSink: DeckWorldClusterForceSink | null = null;
   #clusterPhase: WorldClusterLifecyclePhase = "expanded";
@@ -2746,6 +2748,10 @@ export class DeckWorldSurface implements WorldSurface {
 
     const gesture = this.#cameraGestureFromInteractionState(state);
     if (gesture) {
+      if (this.#cameraInteractionSettling) {
+        this.#cameraInteractionSink?.commit();
+        this.#cameraInteractionSettling = false;
+      }
       if (!this.#cameraInteractionActive) {
         this.#cameraInteractionActive = true;
         this.#cameraInteractionBlocked =
@@ -2759,10 +2765,21 @@ export class DeckWorldSurface implements WorldSurface {
       return;
     }
 
-    if (!this.#cameraInteractionActive) return;
-    if (!this.#cameraInteractionBlocked) this.#cameraInteractionSink?.finish();
-    this.#cameraInteractionActive = false;
-    this.#cameraInteractionBlocked = false;
+    if (this.#cameraInteractionActive) {
+      if (!this.#cameraInteractionBlocked) {
+        this.#cameraInteractionSink?.finish();
+        this.#cameraInteractionSettling = state.inTransition === true;
+        if (!this.#cameraInteractionSettling) this.#cameraInteractionSink?.commit();
+      }
+      this.#cameraInteractionActive = false;
+      this.#cameraInteractionBlocked = false;
+      return;
+    }
+
+    if (this.#cameraInteractionSettling && state.inTransition !== true) {
+      this.#cameraInteractionSink?.commit();
+      this.#cameraInteractionSettling = false;
+    }
   };
 
   constructor(container: HTMLElement, runtime: DeckWorldRuntime, initialCamera?: WorldCameraState) {
@@ -3224,6 +3241,7 @@ export class DeckWorldSurface implements WorldSurface {
     }
     this.#cameraInteractionSink = sink;
     this.#cameraInteractionActive = false;
+    this.#cameraInteractionSettling = false;
     this.#cameraInteractionBlocked = false;
   }
 
@@ -3575,10 +3593,14 @@ export class DeckWorldSurface implements WorldSurface {
     this.#clearClusterTimers();
     this.#clearDragFlash({ render: false });
     this.#clearDragClickSuppression();
-    if (this.#cameraInteractionActive && !this.#cameraInteractionBlocked) {
+    if (
+      (this.#cameraInteractionActive && !this.#cameraInteractionBlocked) ||
+      this.#cameraInteractionSettling
+    ) {
       this.#cameraInteractionSink?.cancel();
     }
     this.#cameraInteractionActive = false;
+    this.#cameraInteractionSettling = false;
     this.#cameraInteractionBlocked = false;
     this.#touchHold.clear();
     this.#container.removeEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
