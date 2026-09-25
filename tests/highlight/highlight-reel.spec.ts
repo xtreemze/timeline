@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { CDPSession, Locator, Page, TestInfo } from "@playwright/test";
+import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 const OUTPUT_ROOT = path.resolve(process.env.E2E_MEDIA_DIR ?? "artifacts/e2e-media");
@@ -439,12 +439,12 @@ async function recordSegment(
       const minimumDurationSeconds = expectedDurationSeconds * MIN_CAPTURE_COVERAGE;
       if (cadence.durationSeconds < minimumDurationSeconds) {
         throw new Error(
-          `${formFactor}/${scene.name} compositor frames cover only ${cadence.durationSeconds.toFixed(3)}s of a ${expectedDurationSeconds.toFixed(3)}s recording window; expected at least ${minimumDurationSeconds.toFixed(3)}s.`,
+          `${formFactor}/${scene.name} framebuffer samples cover only ${cadence.durationSeconds.toFixed(3)}s of a ${expectedDurationSeconds.toFixed(3)}s recording window; expected at least ${minimumDurationSeconds.toFixed(3)}s.`,
         );
       }
       if (cadence.fps < MIN_CAPTURE_FPS) {
         throw new Error(
-          `${formFactor}/${scene.name} captured ${cadence.fps.toFixed(2)} actual compositor fps; expected at least ${MIN_CAPTURE_FPS}.`,
+          `${formFactor}/${scene.name} captured ${cadence.fps.toFixed(2)} actual framebuffer fps; expected at least ${MIN_CAPTURE_FPS}.`,
         );
       }
 
@@ -461,7 +461,9 @@ async function recordSegment(
     } finally {
       await stopCaptureHeartbeat(page).catch(() => {});
       if (screenCapture) await stopX11Capture(screenCapture).catch(() => {});
-      await page.evaluate(() => document.querySelector("#lum-showcase-capture-brand")?.remove()).catch(() => {});
+      await page
+        .evaluate(() => document.querySelector("#lum-showcase-capture-brand")?.remove())
+        .catch(() => {});
     }
   } else {
     await body();
