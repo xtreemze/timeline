@@ -9,6 +9,8 @@ import { expect, test } from "@playwright/test";
 const OUTPUT_ROOT = path.resolve(process.env.E2E_MEDIA_DIR ?? "artifacts/e2e-media");
 const SHOWCASE_FPS = 60;
 const MIN_CAPTURE_FPS = 59;
+const ACTIVE_FRAME_GAP_MS = 100;
+const MIN_ACTIVE_FRAME_INTERVALS = Math.ceil(SHOWCASE_FPS / 2);
 
 type FormFactor = "desktop" | "mobile";
 
@@ -101,6 +103,29 @@ function projectSettings(testInfo: TestInfo) {
   const settings = PROJECTS[testInfo.project.name as keyof typeof PROJECTS];
   if (!settings) throw new Error(`Unexpected showcase project: ${testInfo.project.name}`);
   return settings;
+}
+
+function measureActiveFrameCadence(timestamps: readonly number[]) {
+  const activeIntervals: number[] = [];
+  for (let index = 1; index < timestamps.length; index += 1) {
+    const previous = timestamps[index - 1];
+    const current = timestamps[index];
+    if (previous === undefined || current === undefined) continue;
+    const interval = current - previous;
+    if (interval > 0 && interval <= ACTIVE_FRAME_GAP_MS) activeIntervals.push(interval);
+  }
+  if (activeIntervals.length < MIN_ACTIVE_FRAME_INTERVALS) {
+    throw new Error(
+      `Only ${String(activeIntervals.length)} active source-frame intervals were captured; expected at least ${String(MIN_ACTIVE_FRAME_INTERVALS)}.`,
+    );
+  }
+  const activeDurationSeconds =
+    activeIntervals.reduce((sum, interval) => sum + interval, 0) / 1_000;
+  return {
+    activeIntervals: activeIntervals.length,
+    activeDurationSeconds,
+    fps: activeIntervals.length / activeDurationSeconds,
+  };
 }
 
 function normalizeFramesToTargetRate(
@@ -328,15 +353,15 @@ async function recordSegment(
     if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
       throw new Error(`${formFactor}/${scene.name} source frame duration is invalid.`);
     }
-    const measuredFps = (frameTimestampsMs.length - 1) / durationSeconds;
-    if (measuredFps < MIN_CAPTURE_FPS) {
+    const cadence = measureActiveFrameCadence(frameTimestampsMs);
+    if (cadence.fps < MIN_CAPTURE_FPS) {
       throw new Error(
-        `${formFactor}/${scene.name} captured ${measuredFps.toFixed(2)} actual source fps; expected at least ${MIN_CAPTURE_FPS}.`,
+        `${formFactor}/${scene.name} captured ${cadence.fps.toFixed(2)} actual source fps during active motion; expected at least ${MIN_CAPTURE_FPS}.`,
       );
     }
     capture = {
       targetFps: SHOWCASE_FPS,
-      measuredFps,
+      measuredFps: cadence.fps,
       frameCount: frameTimestampsMs.length,
       durationSeconds,
       frameTimestampsMs,
@@ -518,6 +543,7 @@ test("records source-native Lūm showcase media per form factor", async ({ page 
         captureViewport: settings.size,
         captureFps: SHOWCASE_FPS,
         minimumMeasuredCaptureFps: MIN_CAPTURE_FPS,
+        activeFrameGapThresholdMs: ACTIVE_FRAME_GAP_MS,
         transitionSeconds: 0.28,
         stillSeconds: 0.9,
         motionSceneCount: segments.filter((segment) => segment.mediaMode === "motion").length,
