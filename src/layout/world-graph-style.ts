@@ -234,12 +234,30 @@ interface WorldPlaceMarkerMetrics {
 function worldPlaceMarkerMetrics(placeStyle: unknown): WorldPlaceMarkerMetrics {
   const own = record(placeStyle) ?? {};
   const marker = record(own["marker"]) ?? {};
-  const metrics = worldPlaceMarkerMetrics(placeStyle);
+  const ownShape = text(
+    marker["shape"] ?? marker["markerShape"] ?? own["markerShape"] ?? own["shape"],
+    16,
+  )?.toLowerCase();
+  const borderWidth =
+    number(marker["borderWidth"], 0, 8) ??
+    number(marker["strokeWidth"], 0, 8) ??
+    number(marker["weight"], 0, 8) ??
+    number(own["borderWidth"], 0, 8) ??
+    2;
+  const authoredDiameter =
+    number(marker["size"], 8, 64) ??
+    number(marker["diameter"], 8, 64) ??
+    number(own["size"], 8, 64) ??
+    number(own["diameter"], 8, 64);
+  const authoredRadius =
+    number(marker["radius"], 4, 32) ??
+    number(own["radius"], 4, 32) ??
+    (authoredDiameter === null ? 12 : authoredDiameter / 2);
 
   return Object.freeze({
-    radius: metrics.radius,
-    borderWidth: metrics.borderWidth,
-    shape: metrics.shape,
+    radius: Math.round(authoredRadius),
+    borderWidth,
+    shape: SHAPES.includes(ownShape as WorldNodeShape) ? (ownShape as WorldNodeShape) : "pin",
   });
 }
 
@@ -267,10 +285,7 @@ export function worldPlaceStyle(
 ): WorldNodeStyle {
   const own = record(placeStyle) ?? {};
   const marker = record(own["marker"]) ?? {};
-  const ownShape = text(
-    marker["shape"] ?? marker["markerShape"] ?? own["markerShape"] ?? own["shape"],
-    16,
-  )?.toLowerCase();
+  const metrics = worldPlaceMarkerMetrics(placeStyle);
   const fill =
     color(marker["fillColor"]) ??
     color(marker["fill"]) ??
@@ -285,32 +300,17 @@ export function worldPlaceStyle(
     color(own["stroke"]) ??
     color(marker["color"]) ??
     palette.paper;
-  const borderWidth =
-    number(marker["borderWidth"], 0, 8) ??
-    number(marker["strokeWidth"], 0, 8) ??
-    number(marker["weight"], 0, 8) ??
-    number(own["borderWidth"], 0, 8) ??
-    2;
-  const authoredDiameter =
-    number(marker["size"], 8, 64) ??
-    number(marker["diameter"], 8, 64) ??
-    number(own["size"], 8, 64) ??
-    number(own["diameter"], 8, 64);
-  const authoredRadius =
-    number(marker["radius"], 4, 32) ??
-    number(own["radius"], 4, 32) ??
-    (authoredDiameter === null ? 12 : authoredDiameter / 2);
   return Object.freeze({
     fill,
     border,
-    borderWidth,
-    shape: SHAPES.includes(ownShape as WorldNodeShape) ? (ownShape as WorldNodeShape) : "pin",
+    borderWidth: metrics.borderWidth,
+    shape: metrics.shape,
     icon: text(marker["icon"] ?? own["icon"], 48) ?? "place",
     image: text(marker["image"] ?? marker["imageUrl"] ?? own["image"] ?? own["imageUrl"], 2048),
     // The visible marker respects authored geometry. The renderer maintains
     // the separate >=44px acquisition target, so a deliberately small marker
     // does not have to be visually inflated for touch accessibility.
-    radius: Math.round(authoredRadius),
+    radius: metrics.radius,
   });
 }
 
