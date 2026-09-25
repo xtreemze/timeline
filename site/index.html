@@ -26,30 +26,32 @@
   <main id="workspace">
     <section id="app-shell" class="app-shell" aria-label="Lūm application" data-mode="view" data-editor-open="false" data-browser-open="false" data-graph-open="true" data-view-controls-open="false">
       <nav class="app-tool-dock app-footer-bar" aria-label="Workspace controls">
-        <div class="app-footer-zone app-footer-world" data-world-controls-slot aria-label="World view controls"></div>
+        <div class="app-footer-zone app-footer-world" data-world-controls-slot></div>
         <div class="app-footer-zone app-footer-actions" role="group" aria-label="Application actions">
           <button id="project-menu-toggle" class="app-tool app-project-tool project-menu-toggle" type="button" popovertarget="project-menu" aria-haspopup="menu" aria-controls="project-menu" aria-expanded="false" aria-label="Project actions" title="Project actions">
             <img src="./icon.svg" alt="" width="24" height="24">
             <span class="app-tool-label">Project</span>
           </button>
-          <button id="editor-toggle" class="app-tool" type="button" data-semantic-icon="note" aria-controls="control-panel" aria-expanded="false" aria-pressed="false">
+          <button id="editor-toggle" class="app-tool" type="button" data-semantic-icon="note" aria-controls="control-panel" aria-expanded="false">
             <span class="app-tool-label">Edit</span>
           </button>
           <button id="timeline-browser-toggle" class="app-tool" type="button" data-semantic-icon="search" aria-controls="timeline-browser-sheet" aria-expanded="false">
             <span class="app-tool-label">Browse</span>
           </button>
         </div>
-        <div class="app-footer-zone app-footer-timeline timeline-local-toolbar" role="toolbar" aria-label="Timeline controls">
-          <button id="timeline-focus-prev" class="timeline-local-button timeline-context-action" type="button" data-semantic-icon="chevron-left" aria-label="Previous event" title="Previous event" hidden>
-            <span class="sr-only">Previous event</span>
-          </button>
-          <button id="timeline-focus-next" class="timeline-local-button timeline-context-action" type="button" data-semantic-icon="chevron-right" aria-label="Next event" title="Next event" hidden>
-            <span class="sr-only">Next event</span>
-          </button>
-          <button id="timeline-focus-edit" class="timeline-local-button timeline-context-action" type="button" data-semantic-icon="note" aria-label="Edit focused event" title="Edit focused event" aria-controls="control-panel" hidden>
-            <span class="sr-only">Edit focused event</span>
-          </button>
-          <button id="timeline-view-controls-toggle" class="timeline-local-button app-view-tool" type="button" data-semantic-icon="magic" popovertarget="timeline-view-toolbar" popovertargetaction="toggle" aria-controls="timeline-view-toolbar" aria-expanded="false" title="View controls">
+        <div class="app-footer-zone app-footer-timeline timeline-local-toolbar" role="group" aria-label="Timeline controls">
+          <div class="app-footer-context-actions">
+            <button id="timeline-focus-prev" class="timeline-local-button timeline-context-action" type="button" data-semantic-icon="chevron-left" aria-label="Previous event" title="Previous event" hidden>
+              <span class="sr-only">Previous event</span>
+            </button>
+            <button id="timeline-focus-next" class="timeline-local-button timeline-context-action" type="button" data-semantic-icon="chevron-right" aria-label="Next event" title="Next event" hidden>
+              <span class="sr-only">Next event</span>
+            </button>
+            <button id="timeline-focus-edit" class="timeline-local-button timeline-context-action" type="button" data-semantic-icon="note" aria-label="Edit focused event" title="Edit focused event" aria-controls="control-panel" hidden>
+              <span class="sr-only">Edit focused event</span>
+            </button>
+          </div>
+          <button id="timeline-view-controls-toggle" class="timeline-local-button app-view-tool" type="button" data-semantic-icon="magic" popovertarget="timeline-view-toolbar" popovertargetaction="toggle" aria-controls="timeline-view-toolbar" aria-expanded="false" aria-label="View controls" title="View controls">
             <span class="sr-only">View controls</span>
           </button>
         </div>
