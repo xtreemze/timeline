@@ -332,6 +332,10 @@ function itemOverlapsViewport(
   return itemOverlapsWindow(item, viewport);
 }
 
+function dragVelocityResponse(drag: PointerDragState, now: number): number {
+  return motion.responseForElapsed(now - drag.lastTime);
+}
+
 function stableLane(id: string, explicit: number | null | undefined): number {
   if (Number.isInteger(explicit)) return Number(explicit);
   let hash = 0;
@@ -822,10 +826,14 @@ export class TimelineViewController {
         end: drag.viewport.end + temporalDelta,
       };
 
-      drag.lastTime = Number(event.timeStamp) || performance.now();
+      const now = Number(event.timeStamp) || performance.now();
+      const response = dragVelocityResponse(drag, now);
+      drag.lastTime = now;
       this.viewport = target;
       const pointerVelocity = motion.estimatePointerVelocity(drag.samples);
-      this.interactionVelocity = -((pointerVelocity / usable) * span);
+      const instantaneousVelocity = -((pointerVelocity / usable) * span);
+      this.interactionVelocity +=
+        (instantaneousVelocity - this.interactionVelocity) * response;
       this.markInputForNextRender();
       this.scheduleInteractionRender();
     });
@@ -2795,8 +2803,7 @@ export class TimelineViewController {
     record.range?.classList.toggle("is-selected", selected);
   }
 
-  positionRecord(
-    record: SceneRecord,
+  positionRecord(record: SceneRecord,
     _primaryLength: number,
     axisCross: number,
     padding: number,
