@@ -950,8 +950,8 @@ function prefersReducedMotion(): boolean {
  * this file does not reimplement that gesture handling. What deck.gl
  * does *not* default to "on" is inertia, so it is set explicitly here and
  * tied to the platform's reduced-motion preference. `doubleClickZoom` is
- * left off (deck.gl's own default) because this surface wires its own
- * double-tap/double-click focus gesture (see `#handleDoubleClick`) instead.
+ * explicitly disabled because this surface wires its own double-tap/double-click
+ * focus gesture (see `#handleDoubleClick`) instead.
  */
 function deckControllerOptions(
   mode: WorldSpatialMode = "globe",
