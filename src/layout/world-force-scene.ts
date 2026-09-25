@@ -10,7 +10,11 @@ import type {
   WorldForceNode,
   WorldForceScene,
 } from "./world-force-simulation.ts";
-import { WORLD_ENTITY_MIN_HIT_RADIUS_PX, worldNodeFootprintRadiusPx } from "./world-graph-style.ts";
+import {
+  WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+  worldNodeFootprintRadiusPx,
+  worldPlaceFootprintRadiusPx,
+} from "./world-graph-style.ts";
 
 export interface WorldForceScenePolicy {
   readonly baseMass: number;
@@ -152,8 +156,29 @@ export function createWorldForceScene(
         ] as const,
     ),
   );
+  const placeSizes = new Map();
+  for (const instance of projection.instances) {
+    for (const anchor of instance.geographicAnchors) {
+      const footprintPx = worldPlaceFootprintRadiusPx(anchor.style);
+      const radiusMeters =
+        policy.baseCollisionRadiusMeters * (footprintPx / WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+      const diameterMeters = radiusMeters * 2;
+      const previous = placeSizes.get(anchor.placeId);
+      if (!previous || previous.widthMeters < diameterMeters) {
+        placeSizes.set(
+          anchor.placeId,
+          Object.freeze({
+            widthMeters: diameterMeters,
+            heightMeters: diameterMeters,
+          }),
+        );
+      }
+    }
+  }
+
   const dagLayout = createWorldDagLayout(projection, {
     nodeSizes,
+    placeSizes,
     reorganize: options.reorganizeDag === true,
   });
   const dagTargets = new Map(
