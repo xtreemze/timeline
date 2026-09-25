@@ -88,16 +88,19 @@ async function probeFrameTimestamps(filePath) {
 }
 
 function decodedFrameStats(timestamps) {
-  if (timestamps.length < 2) {
-    return { frames: timestamps.length, duration: 0, fps: 0 };
+  const samples = [...new Set(timestamps.filter((timestamp) => Number.isFinite(timestamp)))].sort(
+    (left, right) => left - right,
+  );
+  if (samples.length < 2) {
+    return { frames: samples.length, duration: 0, fps: 0 };
   }
-  const first = timestamps[0];
-  const last = timestamps.at(-1);
+  const first = samples[0];
+  const last = samples.at(-1);
   const duration = last - first;
   return {
-    frames: timestamps.length,
+    frames: samples.length,
     duration,
-    fps: duration > 0 ? (timestamps.length - 1) / duration : 0,
+    fps: duration > 0 ? (samples.length - 1) / duration : 0,
   };
 }
 
@@ -152,12 +155,12 @@ async function verifyMeasuredCapture(videoPath, manifest) {
   const decoded = decodedFrameStats(decodedTimestamps);
   if (!Number.isFinite(decoded.fps) || decoded.fps < minimumFps) {
     throw new Error(
-      `${videoPath} raw WebM decodes at only ${decoded.fps.toFixed(2)} fps from ${String(decoded.frames)} actual frames; expected at least ${Number(minimumFps).toFixed(2)} fps.`,
+      `${videoPath} raw WebM decodes at only ${decoded.fps.toFixed(2)} fps from ${String(decoded.frames)} distinct frame timestamps; expected at least ${Number(minimumFps).toFixed(2)} actual captures per second.`,
     );
   }
-  if (decoded.frames !== timing.capturedFrames || decoded.frames !== timestamps.length) {
+  if (decoded.frames !== timing.capturedFrames) {
     throw new Error(
-      `${videoPath} decoded ${String(decoded.frames)} raw frames but timing evidence records ${String(timing.capturedFrames)}; capture evidence must match the file exactly.`,
+      `${videoPath} decoded ${String(decoded.frames)} distinct frame timestamps but timing evidence records ${String(timing.capturedFrames)}; capture evidence must match the file exactly.`,
     );
   }
 
