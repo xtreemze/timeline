@@ -1,5 +1,5 @@
 import type { CanonicalEntity, ValidationResult } from "./entity.ts";
-import type { EntityId, PlaceId, RelationshipId, SourceId, TimelineId } from "./ids.ts";
+import type { EntityId, OccurrenceId, PlaceId, RelationshipId, SourceId } from "./ids.ts";
 
 export interface CanonicalTemporalExtent {
   readonly type: "instant" | "interval";
@@ -16,7 +16,7 @@ export interface CanonicalRelationship {
   readonly predicate: string;
   readonly role?: string;
   readonly placeId?: PlaceId;
-  readonly itemIds: readonly TimelineId<"occurrence">[];
+  readonly itemIds: readonly OccurrenceId[];
   readonly sourceIds: readonly SourceId[];
   readonly confidence: number | null;
   readonly time: CanonicalTemporalExtent | null;
