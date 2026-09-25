@@ -3,6 +3,8 @@
  * Main entry point coordinating all modules, UI state, and persistence
  */
 
+// Import ESM modules
+import { createInteractionCoordinator } from "../src/interaction/interaction-coordinator.ts";
 import { planWorkspacePlacement } from "../src/layout/workspace-layout.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
@@ -15,8 +17,6 @@ import {
   reconcileStoryContext,
   storyIdsForItem,
 } from "./story-authoring.js";
-// Import ESM modules
-import { createInteractionCoordinator } from "../src/interaction/interaction-coordinator.ts";
 import { TimelineTemporal } from "./temporal-standards.ts";
 import { createSettledTemporalWindowSink } from "./world/settled-temporal-window.ts";
 import { selectPrimarySpatialViewFactory } from "./world/world-view-selection.ts";
