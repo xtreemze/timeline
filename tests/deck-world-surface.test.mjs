@@ -1543,10 +1543,10 @@ test("refresh and destruction delegate to Deck lifecycle exactly once", () => {
 });
 
 test("world spatial mode uses hysteresis around the local precision threshold", () => {
-  assert.equal(selectWorldSpatialMode({ zoom: 11.4 }, "globe"), "globe");
-  assert.equal(selectWorldSpatialMode({ zoom: 11.5 }, "globe"), "local");
-  assert.equal(selectWorldSpatialMode({ zoom: 11.0 }, "local"), "local");
-  assert.equal(selectWorldSpatialMode({ zoom: 10.5 }, "local"), "globe");
+  assert.equal(selectWorldSpatialMode({ zoom: 12.74 }, "globe"), "globe");
+  assert.equal(selectWorldSpatialMode({ zoom: 12.75 }, "globe"), "local");
+  assert.equal(selectWorldSpatialMode({ zoom: 12.4 }, "local"), "local");
+  assert.equal(selectWorldSpatialMode({ zoom: 12 }, "local"), "globe");
 });
 
 test("DeckWorldSurface switches to local geographic view only at high zoom", () => {
@@ -1565,7 +1565,7 @@ test("DeckWorldSurface switches to local geographic view only at high zoom", () 
   surface.setCamera({
     longitude: 18.0686,
     latitude: 59.3293,
-    zoom: 11.5,
+    zoom: 12.75,
     bearing: 0,
     pitch: 20,
   });
@@ -1586,7 +1586,7 @@ test("DeckWorldSurface switches to local geographic view only at high zoom", () 
   surface.setCamera({
     longitude: 18.0686,
     latitude: 59.3293,
-    zoom: 11,
+    zoom: 12.4,
     bearing: 0,
     pitch: 20,
   });
@@ -1598,7 +1598,7 @@ test("DeckWorldSurface switches to local geographic view only at high zoom", () 
   surface.setCamera({
     longitude: 18.0686,
     latitude: 59.3293,
-    zoom: 10.5,
+    zoom: 12,
     bearing: 0,
     pitch: 20,
   });
@@ -2349,11 +2349,11 @@ test("crossing into local precision mode preserves the current canonical selecti
   surface.setProjection(projection());
   surface.setSelection({ kind: "entity", id: "alice" });
 
-  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 11.5, bearing: 0, pitch: 20 });
+  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 12.75, bearing: 0, pitch: 20 });
 
   assert.deepEqual(surface.getAccessibleSnapshot().selection, { kind: "entity", id: "alice" });
 
-  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 10.5, bearing: 0, pitch: 20 });
+  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 12, bearing: 0, pitch: 20 });
 
   assert.deepEqual(surface.getAccessibleSnapshot().selection, { kind: "entity", id: "alice" });
 });
@@ -2362,7 +2362,7 @@ test("a globe<->local view switch carries the current camera into the new view's
   const { calls, runtime } = harnessWithLocalView();
   const surface = new DeckWorldSurface({}, runtime);
 
-  const nextCamera = { longitude: 18.0686, latitude: 59.3293, zoom: 11.5, bearing: 0, pitch: 20 };
+  const nextCamera = { longitude: 18.0686, latitude: 59.3293, zoom: 12.75, bearing: 0, pitch: 20 };
   surface.setCamera(nextCamera);
 
   const viewSwitch = calls.setProps.find((props) => props.views?.[0]?.type === "map");
@@ -2382,7 +2382,7 @@ test("a spatial-mode crossing with no drag in flight does not touch the drag sin
     cancel: (reason) => dragCalls.push(reason),
   });
 
-  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 11.5, bearing: 0, pitch: 20 });
+  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 12.75, bearing: 0, pitch: 20 });
 
   assert.deepEqual(dragCalls, []);
 });
@@ -2410,7 +2410,7 @@ test("an in-flight node drag is cleanly cancelled when a spatial-mode crossing o
   );
   assert.equal(begun, true);
 
-  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 11.5, bearing: 0, pitch: 20 });
+  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 12.75, bearing: 0, pitch: 20 });
 
   assert.deepEqual(dragCalls, ["pointercancel"]);
 
@@ -2428,16 +2428,15 @@ test("a spatial-mode crossing alone does not re-render or invalidate memoized da
   const surface = new DeckWorldSurface({}, runtime);
   surface.setProjection(projection());
   surface.setSelection({ kind: "entity", id: "alice" });
-  // Start just below the local-entry zoom (11.5). Local offsets are
-  // magnified in quarter-octave bands of zoom; for this fixture (one 150 m
-  // offset at 59.3°N) zooms 11.463–11.713 share a band, so 11.49 and 11.5
-  // differ only by the spatial-mode crossing under test.
-  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 11.49, bearing: 0, pitch: 20 });
+  // Start just below the local-entry zoom. These values remain in the same
+  // fine-grained screen-scale step, so the view swap itself is the behavior
+  // under test rather than an unrelated LOD or presentation-scale update.
+  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 12.74, bearing: 0, pitch: 20 });
 
   const beforeEntities = calls.setProps.filter((props) => props.layers).at(-1).layers[2].props.data;
   const renderCallCountBefore = calls.setProps.filter((props) => props.layers).length;
 
-  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 11.5, bearing: 0, pitch: 20 });
+  surface.setCamera({ longitude: 18.0686, latitude: 59.3293, zoom: 12.75, bearing: 0, pitch: 20 });
 
   const renderCallCountAfter = calls.setProps.filter((props) => props.layers).length;
   assert.equal(renderCallCountAfter, renderCallCountBefore);
