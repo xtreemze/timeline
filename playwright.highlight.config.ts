@@ -22,6 +22,8 @@ export default defineConfig({
         "--disable-backgrounding-occluded-windows",
         "--disable-frame-rate-limit",
         "--disable-gpu-vsync",
+        "--enable-experimental-web-platform-features",
+        "--auto-accept-this-tab-capture",
       ],
     },
   },
