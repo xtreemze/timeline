@@ -92,6 +92,8 @@ export interface WorldSimulationDiagnostics {
 
 export interface WorldForceSimulationBackend {
   setScene(scene: WorldForceScene): void;
+  /** Presentation-only place clustering: detach local links and gather members at their anchor. */
+  setClusteredPlaceIds?(placeIds: readonly PlaceId[]): void;
   setPin(pin: WorldForcePin | null): void;
   apply(request: WorldSimulationRequest): void;
   stop(): void;
