@@ -1154,19 +1154,21 @@ test("Tab and Shift+Tab remain native on the focused graph surface", () => {
   }
 });
 
-test("Enter focuses the camera on an explicitly selected object", () => {
-  const { calls, runtime } = harness();
-  const { surface, listeners } = keyboardHarness(runtime);
-  surface.setProjection(projection());
-  surface.setSelection({ kind: "entity", id: "alice" });
-  const onKeyDown = listeners.get("keydown");
+test("Enter and Space focus the camera on an explicitly selected object", () => {
+  for (const key of ["Enter", " "]) {
+    const { calls, runtime } = harness();
+    const { surface, listeners } = keyboardHarness(runtime);
+    surface.setProjection(projection());
+    surface.setSelection({ kind: "entity", id: "alice" });
+    const onKeyDown = listeners.get("keydown");
 
-  const enterEvent = keyEvent("Enter");
-  const setPropsBefore = calls.setProps.length;
-  onKeyDown(enterEvent);
+    const activationEvent = keyEvent(key);
+    const setPropsBefore = calls.setProps.length;
+    onKeyDown(activationEvent);
 
-  assert.ok(enterEvent.defaultPrevented);
-  assert.ok(calls.setProps.length > setPropsBefore);
+    assert.ok(activationEvent.defaultPrevented);
+    assert.ok(calls.setProps.length > setPropsBefore);
+  }
 });
 
 test("Enter is a no-op when nothing is selected", () => {
