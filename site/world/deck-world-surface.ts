@@ -1127,21 +1127,23 @@ function worldThemeColors(palette: WorldGraphPalette): WorldThemeColors {
     // Vector-only globe: the earth is invisible but still writes depth, so
     // the far hemisphere's lines and marks stay hidden behind it.
     earth: [0, 0, 0, 0] as Rgba,
-    graticule: worldColorBytes(palette.muted, 60),
-    coastline: worldColorBytes(palette.muted, 210),
-    border: worldColorBytes(palette.muted, 110),
-    // A cluster is the aggregate marker when place pins or member topology
-    // are folded. A light neutral fill makes that ownership legible without
-    // competing with authored node/category colours.
-    cluster: worldColorBytes(palette.muted, 34),
-    clusterBorder: worldColorBytes(palette.muted, 190),
+    // Geographic context should orient the graph without competing with its
+    // semantic topology. Keep the earth scaffolding visibly quieter than
+    // nodes, edges, and labels in both themes.
+    graticule: worldColorBytes(palette.muted, 44),
+    coastline: worldColorBytes(palette.muted, 170),
+    border: worldColorBytes(palette.muted, 82),
+    // Clusters are aggregate graph objects, not map furniture. Give them a
+    // slightly firmer body while keeping them neutral against authored colors.
+    cluster: worldColorBytes(palette.muted, 52),
+    clusterBorder: worldColorBytes(palette.muted, 172),
     hit: [0, 0, 0, 0] as Rgba,
     tether: worldColorBytes(palette.muted, WORLD_TETHER_ALPHA),
     labelText: worldColorBytes(palette.ink),
-    labelPlace: worldColorBytes(palette.muted),
-    labelRelationship: worldColorBytes(palette.muted),
+    labelPlace: worldColorBytes(palette.muted, 235),
+    labelRelationship: worldColorBytes(palette.muted, 210),
     labelEmphasis: worldColorBytes(palette.focus),
-    labelHalo: worldColorBytes(palette.paper, 230),
+    labelHalo: worldColorBytes(palette.paper, 215),
   });
 }
 
@@ -1920,7 +1922,7 @@ function labelDatumUnchanged(
  * are clustered individual labels are suppressed because their positions are
  * presentation-merged into clusters.
  */
-const LABEL_HALO_PX = 3;
+const LABEL_HALO_PX = 2;
 /** Same family as the app shell (site/styles.css) instead of deck's monospace default. */
 /**
  * The app's own face (site/timeline-view.css). deck bakes glyphs into an
@@ -4737,6 +4739,9 @@ export class DeckWorldSurface implements WorldSurface {
         dataComparator: sameDatumSequence,
         pickable: true,
         widthUnits: "pixels",
+        widthMinPixels: 0.75,
+        jointRounded: true,
+        capRounded: true,
         getPath: (datum: DeckWorldTemporalRelationshipDatum) =>
           this.#temporalRelationshipStateFor(datum).edge.path,
         // Colour/width by relationship type (Orb semantics) unless the
@@ -4780,6 +4785,9 @@ export class DeckWorldSurface implements WorldSurface {
               data: releasingSegments,
               pickable: false,
               widthUnits: "pixels",
+              widthMinPixels: 0.75,
+              jointRounded: true,
+              capRounded: true,
               getPath: (segment: DeckWorldReleasingRelationshipSegment) => segment.path,
               getWidth: (segment: DeckWorldReleasingRelationshipSegment) =>
                 Math.max(
@@ -4998,7 +5006,7 @@ export class DeckWorldSurface implements WorldSurface {
               characterSet: "auto",
               sizeUnits: "pixels",
               fontFamily: this.#labelFontFamily,
-              fontWeight: 700,
+              fontWeight: 600,
               fontSettings: { sdf: true, fontSize: 64, buffer: 8, radius: 16 },
               outlineWidth: LABEL_HALO_PX,
               outlineColor: this.#theme.labelHalo,
@@ -5020,9 +5028,11 @@ export class DeckWorldSurface implements WorldSurface {
               getColor: (datum: DeckWorldLabelDatum) => {
                 const base = labelInteractionEmphasized(datum)
                   ? this.#theme.labelEmphasis
-                  : datum.kind === "place-label" || datum.kind === "cluster-label"
-                    ? this.#theme.labelPlace
-                    : datum.kind === "relationship-label"
+                  : datum.kind === "cluster-label"
+                    ? this.#theme.labelText
+                    : datum.kind === "place-label"
+                      ? this.#theme.labelPlace
+                      : datum.kind === "relationship-label"
                       ? this.#theme.labelRelationship
                       : this.#theme.labelText;
                 const facing = this.#cameraFacingOpacity(datum.position);
