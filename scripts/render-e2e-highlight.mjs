@@ -72,28 +72,43 @@ function usableFrameRate(value) {
   return typeof value === "string" && value.length > 0 && value !== "0/0";
 }
 
-function numericFrameRate(value) {
-  if (!usableFrameRate(value)) return Number.NaN;
-  const [numerator, denominator = "1"] = value.split("/");
-  const numeratorValue = Number(numerator);
-  const denominatorValue = Number(denominator);
-  if (
-    !Number.isFinite(numeratorValue) ||
-    !Number.isFinite(denominatorValue) ||
-    denominatorValue <= 0
-  ) {
-    return Number.NaN;
+async function probeDecodedFrameRate(filePath) {
+  const stdout = await capture(ffprobe, [
+    "-v",
+    "error",
+    "-select_streams",
+    "v:0",
+    "-show_frames",
+    "-show_entries",
+    "frame=best_effort_timestamp_time",
+    "-of",
+    "json",
+    filePath,
+  ]);
+  const timestamps = JSON.parse(stdout)
+    .frames?.map((frame) => Number.parseFloat(frame.best_effort_timestamp_time))
+    .filter(Number.isFinite);
+  if (!Array.isArray(timestamps) || timestamps.length < 2) {
+    throw new Error(`Could not decode frame timestamps for ${filePath}`);
   }
-  return numeratorValue / denominatorValue;
+  const first = timestamps[0];
+  const last = timestamps.at(-1);
+  const durationSeconds = last - first;
+  const fps = (timestamps.length - 1) / durationSeconds;
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0 || !Number.isFinite(fps)) {
+    throw new Error(`Decoded frame timestamps are invalid for ${filePath}`);
+  }
+  return { fps, frameCount: timestamps.length, durationSeconds };
 }
 
-function assertHighFrameRate(value, label) {
-  const fps = numericFrameRate(value);
-  if (!Number.isFinite(fps) || fps < MIN_CAPTURE_FPS) {
+async function assertDecodedFrameRate(filePath, label) {
+  const decoded = await probeDecodedFrameRate(filePath);
+  if (decoded.fps < MIN_CAPTURE_FPS) {
     throw new Error(
-      `${label} reports ${String(value)} fps; expected at least ${MIN_CAPTURE_FPS} fps.`,
+      `${label} decodes at ${decoded.fps.toFixed(2)} fps; expected at least ${MIN_CAPTURE_FPS} fps.`,
     );
   }
+  return decoded;
 }
 
 function assertMeasuredCapture(segment, formFactor) {
@@ -204,7 +219,7 @@ async function renderFormFactor(formFactor, manifest) {
       const videoPath = path.resolve(workspace, segment.video);
       const video = await probeVisualSource(videoPath);
       if (!video.fps) throw new Error(`Could not determine source FPS for ${videoPath}`);
-      assertHighFrameRate(video.fps, `${formFactor}/${segment.name} normalized WebM`);
+      await assertDecodedFrameRate(videoPath, `${formFactor}/${segment.name} normalized WebM`);
       if (video.codec !== "vp8") {
         throw new Error(
           `${formFactor}/${segment.name} raw WebM must use VP8, found ${String(video.codec)}.`,
@@ -303,7 +318,7 @@ async function renderFormFactor(formFactor, manifest) {
     ]);
 
     const webp = await probeVisualSource(webpOutput);
-    assertHighFrameRate(webp.fps, `${formFactor}/${segment.name} animated WebP`);
+    await assertDecodedFrameRate(webpOutput, `${formFactor}/${segment.name} animated WebP`);
     if (webp.width !== video.width || webp.height !== video.height) {
       throw new Error(`${formFactor}/${segment.name} animated WebP changed source dimensions.`);
     }
@@ -389,7 +404,7 @@ async function renderFormFactor(formFactor, manifest) {
   );
   await run(ffmpeg, args);
   const reel = await probeVisualSource(reelPath);
-  assertHighFrameRate(reel.fps, `${formFactor} highlight reel`);
+  await assertDecodedFrameRate(reelPath, `${formFactor} highlight reel`);
   if (reel.width !== reelProfile.width || reel.height !== reelProfile.height) {
     throw new Error(`${formFactor} highlight reel changed source dimensions.`);
   }
