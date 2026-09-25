@@ -151,8 +151,11 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
 
   assert.match(highlightSpec, /records source-native Lūm showcase media per form factor/);
   assert.match(highlightSpec, /page\.screencast\.start/);
-  assert.match(highlightSpec, /fps:\s*SHOWCASE_FPS/);
   assert.match(highlightSpec, /onFrame/);
+  assert.match(highlightSpec, /encodeCapturedFrames/);
+  assert.match(highlightSpec, /"-c:v"/);
+  assert.match(highlightSpec, /"libvpx"/);
+  assert.doesNotMatch(highlightSpec, /path:\s*videoPath/);
   assert.match(highlightSpec, /frameTimestampsMs/);
   assert.match(highlightSpec, /minimumMeasuredCaptureFps/);
   assert.match(highlightSpec, /page\.screencast\.showChapter/);
@@ -190,6 +193,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(mediaWorkflow, /pnpm verify:e2e:showcase/);
   assert.match(highlightVerifier, /MIN_CAPTURE_FPS = 59/);
   assert.match(highlightVerifier, /frameTimestampsMs/);
+  assert.match(highlightVerifier, /codec_name/);
   assert.match(highlightVerifier, /animated WebP/);
   assert.match(mediaWorkflow, /raw\/desktop/);
   assert.match(mediaWorkflow, /raw\/mobile/);
