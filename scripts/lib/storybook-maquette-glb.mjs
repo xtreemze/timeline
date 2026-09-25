@@ -87,13 +87,17 @@ function includedAtLod(primitive, lod) {
 
 function toFloat32Bytes(values) {
   const buffer = Buffer.alloc(values.length * 4);
-  values.forEach((value, index) => buffer.writeFloatLE(value, index * 4));
+  values.forEach((value, index) => {
+    buffer.writeFloatLE(value, index * 4);
+  });
   return buffer;
 }
 
 function toUint16Bytes(values) {
   const buffer = Buffer.alloc(values.length * 2);
-  values.forEach((value, index) => buffer.writeUInt16LE(value, index * 2));
+  values.forEach((value, index) => {
+    buffer.writeUInt16LE(value, index * 2);
+  });
   return buffer;
 }
 
