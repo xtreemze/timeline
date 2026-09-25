@@ -21,6 +21,14 @@ export interface WorldForceScenePolicy {
   readonly anchorInfluenceScale: number;
 }
 
+export interface WorldForceSceneBuildOptions {
+  /**
+   * Recompute local d3-dag targets without cached stability hysteresis.
+   * Anchors remain geographic constraints and never become force nodes.
+   */
+  readonly reorganizeDag?: boolean;
+}
+
 /**
  * Physical graph spacing is deliberately independent from screen marker scale.
  * Compact markers must not collapse the force layout or DAG target geometry.
@@ -127,6 +135,7 @@ function anchorsFromInstance(
 export function createWorldForceScene(
   projection: WorldProjection,
   inputPolicy: WorldForceScenePolicy = DEFAULT_WORLD_FORCE_SCENE_POLICY,
+  options: WorldForceSceneBuildOptions = {},
 ): WorldForceScene {
   const policy = validatePolicy(inputPolicy);
 
@@ -143,7 +152,10 @@ export function createWorldForceScene(
         ] as const,
     ),
   );
-  const dagLayout = createWorldDagLayout(projection, { nodeSizes });
+  const dagLayout = createWorldDagLayout(projection, {
+    nodeSizes,
+    reorganize: options.reorganizeDag === true,
+  });
   const dagTargets = new Map(
     dagLayout.targets.map((target) => [target.instanceId, target] as const),
   );
