@@ -128,7 +128,8 @@ test.describe("production WorldSurface in the app", () => {
       .toBe(true);
 
     // Visible camera controls: zoom in changes the view, fit restores it.
-    const controls = page.getByRole("toolbar", { name: "Globe camera" });
+    // Grouped (not a toolbar) since the controls moved into the persistent footer.
+    const controls = page.getByRole("group", { name: "Globe camera controls" });
     await expect(controls).toBeVisible();
     const beforeZoom = await page.screenshot({ clip });
     await controls.getByRole("button", { name: "Zoom in" }).click();
