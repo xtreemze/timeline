@@ -330,6 +330,7 @@ async function recordSegment(
         scale: "css",
       });
 
+      const captureStoppedAt = Date.now();
       const stopped = (await session.send("Page.stopScreenRecording")) as { stream?: string };
       recordingStarted = false;
       const streamHandle = stopped.stream ?? started.stream;
@@ -342,7 +343,7 @@ async function recordSegment(
       }
       await writeFile(videoPath, video);
 
-      const expectedDurationSeconds = (Date.now() - captureStartedAt) / 1000;
+      const expectedDurationSeconds = (captureStoppedAt - captureStartedAt) / 1000;
       const stats = await probeCapturedVideo(
         videoPath,
         scene.name,
