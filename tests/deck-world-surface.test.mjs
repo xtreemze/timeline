@@ -332,6 +332,36 @@ function projection() {
   });
 }
 
+function clusterableProjection() {
+  const base = projection();
+  const charlieId = worldInstanceId("charlie", "meeting");
+  return createWorldProjection({
+    instances: [
+      ...base.instances,
+      createProjectedWorldInstance({
+        id: charlieId,
+        canonicalId: "charlie",
+        occurrenceId: "meeting",
+        geographicAnchors: [
+          {
+            placeId: "stockholm",
+            longitude: 18.0686,
+            latitude: 59.3293,
+            sourceAltitude: 20,
+            influence: 1,
+          },
+        ],
+        temporalWeight: 1,
+        visualWeight: 0.75,
+        retained: false,
+        visualAltitude: 1100,
+        localOffset: { eastMeters: -150, northMeters: 0 },
+      }),
+    ],
+    edges: base.edges,
+  });
+}
+
 test("world graph label scale matches the compact interface hierarchy", () => {
   assert.equal(worldGraphLabelSize({ kind: "place-label", emphasized: false }), 14);
   assert.equal(worldGraphLabelSize({ kind: "cluster-label", emphasized: false }), 14);
@@ -2200,7 +2230,7 @@ test("incremental render only replaces datums whose selection actually changed",
   assert.equal(secondEntities.find((datum) => datum.entityId === "entity-10").selected, true);
 });
 
-test("default overview keeps same-place topology clustered without covering the place", () => {
+test("default overview keeps a same-place pair fully unclustered", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
   surface.setProjection(projection());
@@ -2210,10 +2240,37 @@ test("default overview keeps same-place topology clustered without covering the 
     (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities,
   );
   assert.ok(layer);
+  assert.equal(layer.props.data.some((datum) => datum.kind === "cluster"), false);
+
+  const members = layer.props.data.filter((datum) => datum.kind === "entity");
+  assert.equal(members.length, 2);
+  assert.ok(members.every((datum) => layer.props.getRadius(datum) > 0));
+
+  const relationships = render.layers.find(
+    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships,
+  );
+  const meeting = relationships.props.data.find((datum) => datum.relationshipId === "meeting");
+  assert.ok(meeting);
+  assert.ok(
+    relationships.props.getWidth(meeting) > 0,
+    "a two-node pair keeps its relationship visible instead of entering cluster lifecycle",
+  );
+});
+
+test("default overview clusters three same-place nodes without covering the place", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setProjection(clusterableProjection());
+
+  const render = calls.setProps.at(-1);
+  const layer = render.layers.find(
+    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities,
+  );
+  assert.ok(layer);
 
   const cluster = layer.props.data.find((datum) => datum.kind === "cluster");
   assert.ok(cluster);
-  assert.equal(cluster.clusterMembers.length, 2);
+  assert.equal(cluster.clusterMembers.length, 3);
   const clusterRadius = layer.props.getRadius(cluster);
   assert.ok(
     clusterRadius >= 28 && clusterRadius <= 38,
@@ -2226,13 +2283,13 @@ test("default overview keeps same-place topology clustered without covering the 
   );
 
   const retainedMembers = layer.props.data.filter((datum) => datum.kind === "entity");
-  assert.equal(retainedMembers.length, 2);
+  assert.equal(retainedMembers.length, 3);
   assert.ok(retainedMembers.every((datum) => layer.props.getRadius(datum) === 0));
 });
 
 test("cluster envelope clears large retained markers without growing without bound", () => {
   const { calls, runtime } = harness();
-  const base = projection();
+  const base = clusterableProjection();
   const instances = base.instances.map((instance, index) =>
     createProjectedWorldInstance({
       ...instance,
@@ -2257,7 +2314,7 @@ test("cluster envelope clears large retained markers without growing without bou
 test("partially revealed entities retain the 44px acquisition target", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
-  surface.setProjection(projection());
+  surface.setProjection(clusterableProjection());
 
   let observedPartialReveal = false;
   for (const zoom of [4.75, 5, 5.25, 5.5, 5.75, 6, 6.25, 6.5, 6.75, 7]) {
@@ -2280,7 +2337,7 @@ test("partially revealed entities retain the 44px acquisition target", () => {
 test("zooming out groups nearby entities without losing canonical identity", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
-  surface.setProjection(projection());
+  surface.setProjection(clusterableProjection());
   surface.setCamera({ longitude: 0, latitude: 0, zoom: 0, bearing: 0, pitch: 0 });
 
   const render = calls.setProps.at(-1);
@@ -2290,13 +2347,13 @@ test("zooming out groups nearby entities without losing canonical identity", () 
   const cluster = layer.props.data.find((datum) => datum.kind === "cluster");
   assert.ok(cluster);
   const memberIds = cluster.clusterMembers.map((member) => member.entityId).sort();
-  assert.deepEqual(memberIds, ["alice", "bob"]);
+  assert.deepEqual(memberIds, ["alice", "bob", "charlie"]);
 });
 
 test("picking a cluster resolves to one of its real canonical member entities", () => {
   const { calls, runtime, setPickResult } = harness();
   const surface = new DeckWorldSurface({}, runtime);
-  surface.setProjection(projection());
+  surface.setProjection(clusterableProjection());
   surface.setCamera({ longitude: 0, latitude: 0, zoom: 0, bearing: 0, pitch: 0 });
 
   const render = calls.setProps.at(-1);
@@ -2310,13 +2367,13 @@ test("picking a cluster resolves to one of its real canonical member entities", 
   const hit = surface.pick({ x: 1, y: 2 });
 
   assert.equal(hit.kind, "entity");
-  assert.ok(["alice", "bob"].includes(hit.entityId));
+  assert.ok(["alice", "bob", "charlie"].includes(hit.entityId));
 });
 
 test("detail zoom fades the retained place-cluster envelope to zero and restores members", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
-  surface.setProjection(projection());
+  surface.setProjection(clusterableProjection());
   surface.setCamera({ longitude: 0, latitude: 0, zoom: 8, bearing: 0, pitch: 0 });
 
   const render = calls.setProps.at(-1);
@@ -2328,7 +2385,7 @@ test("detail zoom fades the retained place-cluster envelope to zero and restores
 
   assert.ok(cluster, "cluster row stays retained for reversible motion");
   assert.equal(layer.props.getRadius(cluster), 0, "expanded place cluster is no longer visible");
-  assert.equal(members.length, 2);
+  assert.equal(members.length, 3);
   assert.ok(members.every((datum) => layer.props.getRadius(datum) > 0));
 });
 
