@@ -532,7 +532,7 @@ const pagesBase = process.env.SHOWCASE_BASE_URL ?? "https://xtreemze.github.io/t
 const markdown = [
   "## Lūm showcase",
   "",
-  "These assets are generated from the real Chromium application exercised by CI. Motion capture targets 60 fps by sampling the headed Xvfb framebuffer directly. CI requires at least 59 decoded raw WebM frames per second and at least 59 browser animation frames per second before publication encoding; animated WebP and highlight reels are then independently verified for 60 fps cadence. Static states use source-resolution PNG screenshots.",
+  "These assets are generated from the real Chromium application exercised by CI. Motion must be display-paced at native 60 fps: browser animation timing and raw X11 capture must both remain within 59–61 fps, and publication preserves source timestamps instead of manufacturing cadence with FFmpeg frame-rate normalization. Static states use source-resolution PNG screenshots.",
   "",
   ...formFactors.flatMap((formFactor) => [
     `### ${formFactor === "desktop" ? "Desktop" : "Mobile"}`,
