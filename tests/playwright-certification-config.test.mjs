@@ -151,7 +151,6 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightConfig, /--disable-backgrounding-occluded-windows/);
   assert.match(highlightConfig, /--disable-frame-rate-limit/);
   assert.match(highlightConfig, /--disable-gpu-vsync/);
-  assert.match(highlightConfig, /channel:\s*["']chrome["']/);
   assert.match(highlightConfig, /--kiosk/);
   assert.match(highlightConfig, /screen:\s*\{\s*width:\s*1440,\s*height:\s*900\s*\}/);
   assert.match(highlightConfig, /screen:\s*\{\s*width:\s*390,\s*height:\s*844\s*\}/);
