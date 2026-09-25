@@ -320,20 +320,15 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       );
       expect(overlapWidth * overlapHeight).toBeLessThanOrEqual(4);
 
-      const viewButtonBox = await viewButton.boundingBox();
-      expect(viewButtonBox).not.toBeNull();
-      if (!viewButtonBox) throw new Error("Timeline View invoker has no live bounds.");
-      const inlineGap = Math.max(
-        0,
-        viewButtonBox.x - (viewControlsBox.x + viewControlsBox.width),
-        viewControlsBox.x - (viewButtonBox.x + viewButtonBox.width),
-      );
-      const blockGap = Math.max(
-        0,
-        viewButtonBox.y - (viewControlsBox.y + viewControlsBox.height),
-        viewControlsBox.y - (viewButtonBox.y + viewButtonBox.height),
-      );
-      expect(Math.min(inlineGap, blockGap)).toBeLessThanOrEqual(12);
+      if (orientation === "portrait") {
+        expect(viewControlsBox.x + viewControlsBox.width).toBeLessThanOrEqual(
+          timelineSurfaceBox.x + 2,
+        );
+      } else {
+        expect(viewControlsBox.y + viewControlsBox.height).toBeLessThanOrEqual(
+          timelineSurfaceBox.y + 2,
+        );
+      }
 
       await page.keyboard.press("Escape");
       await expect(viewButton).toHaveAttribute("aria-expanded", "false");
