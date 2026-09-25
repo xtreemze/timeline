@@ -355,16 +355,12 @@ async function installCaptureBrand(page: Page, formFactor: FormFactor) {
       pointerEvents: "none",
     });
 
-    if (strong) {
-      strong.style.fontSize = "15px";
-      strong.style.letterSpacing = ".06em";
-    }
-    if (label) {
-      label.style.fontSize = "10px";
-      label.style.opacity = ".72";
-      label.style.textTransform = "uppercase";
-      label.style.letterSpacing = ".12em";
-    }
+    strong.style.fontSize = "15px";
+    strong.style.letterSpacing = ".06em";
+    label.style.fontSize = "10px";
+    label.style.opacity = ".72";
+    label.style.textTransform = "uppercase";
+    label.style.letterSpacing = ".12em";
     document.documentElement.append(brand);
   }, formFactor);
 }
@@ -490,13 +486,13 @@ async function recordSegment(
         );
       }
 
-      await encodeSourceCapture(sourcePath, videoPath, captureSize);
       await page.screenshot({
         path: screenshotPath,
         animations: "disabled",
         scale: "css",
         timeout: 30_000,
       });
+      await encodeSourceCapture(sourcePath, videoPath, captureSize);
 
       capture = {
         targetFps: SHOWCASE_FPS,
