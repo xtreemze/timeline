@@ -28,6 +28,7 @@ export class WorldRenderTopologyIndex {
   #entityByInstance = new Map<WorldInstanceId, EntityId>();
   #edgeById = new Map<RelationshipId, WorldProjectionEdge>();
   #edgesByEntity = new Map<EntityId, readonly WorldProjectionEdge[]>();
+  #placeMemberCounts = new Map<PlaceId, number>();
   #lanes = new Map<RelationshipId, number>();
 
   constructor(projection: WorldProjection) {
@@ -50,6 +51,10 @@ export class WorldRenderTopologyIndex {
     return this.#edgesByEntity;
   }
 
+  get placeMemberCounts(): ReadonlyMap<PlaceId, number> {
+    return this.#placeMemberCounts;
+  }
+
   get lanes(): ReadonlyMap<RelationshipId, number> {
     return this.#lanes;
   }
@@ -57,9 +62,12 @@ export class WorldRenderTopologyIndex {
   replace(projection: WorldProjection): void {
     const instanceById = new Map<WorldInstanceId, ProjectedWorldInstance>();
     const entityByInstance = new Map<WorldInstanceId, EntityId>();
+    const placeMemberCounts = new Map<PlaceId, number>();
     for (const instance of projection.instances) {
       instanceById.set(instance.id, instance);
       entityByInstance.set(instance.id, instance.canonicalId);
+      const placeId = instance.geographicAnchors[0]?.placeId;
+      if (placeId) placeMemberCounts.set(placeId, (placeMemberCounts.get(placeId) ?? 0) + 1);
     }
 
     const edgeById = new Map<RelationshipId, WorldProjectionEdge>();
@@ -113,6 +121,7 @@ export class WorldRenderTopologyIndex {
     this.#edgesByEntity = new Map(
       [...mutableEdgesByEntity].map(([entityId, edges]) => [entityId, Object.freeze([...edges])]),
     );
+    this.#placeMemberCounts = placeMemberCounts;
     this.#lanes = lanes;
   }
 
@@ -131,7 +140,11 @@ export class WorldRenderTopologyIndex {
 
     for (const instance of delta.updatedInstances) {
       const previous = this.#instanceById.get(instance.id);
-      if (!previous || previous.canonicalId !== instance.canonicalId) {
+      if (
+        !previous ||
+        previous.canonicalId !== instance.canonicalId ||
+        previous.geographicAnchors[0]?.placeId !== instance.geographicAnchors[0]?.placeId
+      ) {
         this.replace(projection);
         return;
       }
