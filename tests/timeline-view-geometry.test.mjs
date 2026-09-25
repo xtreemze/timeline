@@ -44,14 +44,15 @@ test("trackpad pinch keeps wheel units but amplifies Ctrl-modified deltas like d
   assert.equal(geometry.normalizeWheelDelta({ deltaY: 1, deltaMode: 2, ctrlKey: false }, 800), 800);
 });
 
-test("selected events use a shell-owned six-column detail surface with timeline-owned controls", async () => {
+test("selected events use a shell-owned six-column detail surface with footer-owned controls", async () => {
   const [html, js, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/spatial-shell.css", import.meta.url), "utf8"),
   ]);
   assert.match(html, /id="timeline-focus-view"/);
-  assert.match(html, /class="timeline-local-toolbar"/);
+  assert.match(html, /data-world-controls-slot/);
+  assert.match(html, /class="app-footer-zone app-footer-timeline timeline-local-toolbar"/);
   assert.match(html, /id="timeline-view-controls-toggle"/);
   assert.match(html, /id="timeline-focus-prev"/);
   assert.match(html, /id="timeline-focus-next"/);
@@ -62,7 +63,15 @@ test("selected events use a shell-owned six-column detail surface with timeline-
   assert.match(js, /createFocusHero/);
   assert.match(js, /focusNavigationState\(\)/);
   assert.doesNotMatch(js, /timeline-focus-nav-prev|timeline-focus-nav-next|Edit event/);
-  assert.match(css, /Spatial timeline chrome and content-first focused detail/);
+  assert.match(css, /Persistent footer control plane/);
+  assert.match(
+    css,
+    /\.app-footer-world \.world-camera-controls[\s\S]*position:\s*static[\s\S]*flex-direction:\s*row/,
+  );
+  assert.match(
+    css,
+    /#app-shell\.is-event-focused[\s\S]*#presentation-stage > \.timeline-view,[\s\S]*inset:\s*0[\s\S]*inline-size:\s*100%[\s\S]*block-size:\s*100%/,
+  );
   assert.match(
     css,
     /\.timeline-focus-sidebar:not\(\[hidden\]\)\s*\{[\s\S]*grid-template-columns:\s*repeat\(6,/,
@@ -71,17 +80,6 @@ test("selected events use a shell-owned six-column detail surface with timeline-
     css,
     /\.timeline-focus-sidebar:not\(\[hidden\]\)\s*\{[\s\S]*grid-template-columns:\s*repeat\(12,/,
   );
-  assert.match(
-    css,
-    /#app-shell\.is-event-focused[\s\S]*timeline-focus-sidebar:not\(\[hidden\]\)[\s\S]*position:\s*absolute[\s\S]*z-index:\s*1080[\s\S]*inline-size:\s*min\(560px/,
-  );
-  assert.match(css, /#presentation-stage > \.timeline-local-toolbar[\s\S]*z-index:\s*1100/);
-  assert.match(
-    css,
-    /data-timeline-orientation="horizontal"[\s\S]*timeline-local-toolbar[\s\S]*inset-block-end:\s*calc\(var\(--workspace-footer-block-size,\s*64px\)\s*\+\s*0\.35rem\)/,
-  );
-  assert.match(css, /--focus-timeline-block-size/);
-  assert.match(css, /--focus-timeline-inline-size/);
   assert.doesNotMatch(css, /position-anchor:\s*--timeline-detail-anchor/);
 });
 
