@@ -17,7 +17,9 @@ import {
   createRetainedTimelineMetrics,
   type RetainedTimelineSummary,
 } from "../src/performance/retained-timeline-metrics.ts";
-import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
+import {
+  surfacePointerMayStartDirectManipulation,
+} from "../src/interaction/surface-input-policy.ts";
 import { activeOccurrenceIds } from "../src/projection/spatiotemporal-projection.ts";
 import {
   beginRetention,
