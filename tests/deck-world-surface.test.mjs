@@ -691,20 +691,21 @@ test("selection updates presentation data while preserving canonical IDs", () =>
   assert.equal(entities.find((datum) => datum.entityId === "bob").selected, false);
 });
 
-test("world surface owns a stable cursor while deck inherits it", () => {
+test("deck.gl is the sole world cursor authority", () => {
   const { calls, runtime } = harness();
-  const container = { style: {} };
+  const container = { style: { cursor: "crosshair" } };
   const surface = new DeckWorldSurface(container, runtime);
 
-  assert.equal(container.style.cursor, "grab");
-  assert.equal(calls.deckProps.getCursor({ isDragging: false, isHovering: false }), "inherit");
-  assert.equal(calls.deckProps.getCursor({ isDragging: true, isHovering: true }), "inherit");
+  assert.equal(container.style.cursor, "crosshair");
+  assert.equal(calls.deckProps.getCursor({ isDragging: false, isHovering: false }), "grab");
+  assert.equal(calls.deckProps.getCursor({ isDragging: true, isHovering: false }), "grabbing");
 
   calls.deckProps.onHover({});
-  assert.equal(container.style.cursor, "grab");
+  assert.equal(calls.deckProps.getCursor({ isDragging: false, isHovering: false }), "grab");
+  assert.equal(container.style.cursor, "crosshair");
 
   surface.destroy();
-  assert.equal(container.style.cursor, "");
+  assert.equal(container.style.cursor, "crosshair");
 });
 
 test("hover and selection emphasize without changing graph geometry, and repeated click toggles selection", () => {
@@ -783,7 +784,7 @@ test("hover and selection emphasize without changing graph geometry, and repeate
   );
   assert.equal(relationshipsLayer.props.getWidth(relationship), initialRelationshipWidth);
   assert.ok(relationshipsLayer.props.getColor(relationship)[3] > initialRelationshipAlpha);
-  assert.equal(container.style.cursor, "pointer");
+  assert.equal(calls.deckProps.getCursor({ isDragging: false, isHovering: true }), "pointer");
   assert.equal(surface.getAccessibleSnapshot().selection, null);
 
   calls.deckProps.onClick(entityPick);
@@ -816,7 +817,7 @@ test("hover and selection emphasize without changing graph geometry, and repeate
   render = calls.setProps.at(-1);
   entities = render.layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities).props
     .data;
-  assert.equal(container.style.cursor, "grab");
+  assert.equal(calls.deckProps.getCursor({ isDragging: false, isHovering: false }), "grab");
   assert.ok(entities.every((datum) => datum.emphasized === false));
 });
 
@@ -866,7 +867,7 @@ test("overview clusters drill into their members instead of selecting an arbitra
   assert.ok(cluster);
 
   calls.deckProps.onHover({ object: cluster });
-  assert.equal(container.style.cursor, "zoom-in");
+  assert.equal(calls.deckProps.getCursor({ isDragging: false, isHovering: true }), "zoom-in");
   assert.equal(surface.getAccessibleSnapshot().selection, null);
 
   calls.deckProps.onClick({ object: cluster });
@@ -1521,6 +1522,9 @@ test("deck entity drag callbacks resolve screen motion into world-local drag int
     .at(-1);
   const alice = entityLayer.props.data.find((datum) => datum.entityId === "alice");
 
+  calls.deckProps.onHover({ object: alice });
+  assert.equal(calls.deckProps.getCursor({ isDragging: false, isHovering: true }), "grab");
+
   assert.equal(
     entityLayer.props.onDragStart(
       { object: alice, x: 118.0786, y: 259.3393 },
@@ -1533,6 +1537,11 @@ test("deck entity drag callbacks resolve screen motion into world-local drag int
   assert.equal(dragCalls[0][2], alice.worldInstanceId);
   assert.ok(dragCalls[0][3].eastMeters > 0);
   assert.ok(dragCalls[0][3].northMeters > 0);
+  assert.equal(
+    calls.deckProps.getCursor({ isDragging: false, isHovering: true }),
+    "grabbing",
+    "custom node drag state is reflected through deck.gl's cursor callback",
+  );
 
   assert.equal(
     entityLayer.props.onDrag(
@@ -1551,6 +1560,7 @@ test("deck entity drag callbacks resolve screen motion into world-local drag int
     true,
   );
   assert.deepEqual(dragCalls.at(-1), ["release", 7]);
+  assert.equal(calls.deckProps.getCursor({ isDragging: false, isHovering: true }), "grab");
 });
 
 test("node, edge, arrow, icon, tether, and label geometry always update without transitions", () => {

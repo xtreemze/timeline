@@ -2576,7 +2576,6 @@ export class DeckWorldSurface implements WorldSurface {
     this.#clearDragFlash({ render: false });
     this.#setActiveDragInstance(null);
     this.#dragCameraLock = null;
-    this.#setPointerCursor(this.#hoverSelection);
   };
 
   readonly #handleLostPointerCapture = (event: PointerEvent): void => {
@@ -2588,20 +2587,22 @@ export class DeckWorldSurface implements WorldSurface {
     this.#clearDragFlash({ render: false });
     this.#setActiveDragInstance(null);
     this.#dragCameraLock = null;
-    this.#setPointerCursor(this.#hoverSelection);
   };
 
-  #setPointerCursor(selection: WorldSelection | null, cluster = false): void {
-    const style = (this.#container as HTMLElement).style;
-    if (!style) return;
-    const intent = cluster
-      ? "cluster"
-      : selection?.kind === "entity" && this.#nodeDragSink
-        ? "draggable"
-        : selection
-          ? "action"
-          : "background";
-    style.cursor = surfaceCursor(intent, { dragging: this.#activeDragPointerId !== null });
+  #deckCursor(
+    state: Readonly<{ readonly isDragging?: boolean }>,
+  ): "grab" | "grabbing" | "pointer" | "zoom-in" {
+    const intent =
+      this.#hoverClusterId !== null
+        ? "cluster"
+        : this.#hoverSelection?.kind === "entity" && this.#nodeDragSink
+          ? "draggable"
+          : this.#hoverSelection
+            ? "action"
+            : "background";
+    return surfaceCursor(intent, {
+      dragging: state.isDragging === true || this.#activeDragPointerId !== null,
+    });
   }
 
   #selectionFromPickingInfo(info: DeckRuntimePickingInfo): WorldSelection | null {
@@ -2623,7 +2624,6 @@ export class DeckWorldSurface implements WorldSurface {
     const selectionUnchanged =
       next === null ? this.#hoverSelection === null : selectionEquals(next, this.#hoverSelection);
     const clusterUnchanged = nextClusterId === this.#hoverClusterId;
-    this.#setPointerCursor(next, cluster !== null);
     if (selectionUnchanged && clusterUnchanged) return;
     this.#hoverSelection = next;
     this.#hoverClusterId = nextClusterId;
@@ -2710,10 +2710,10 @@ export class DeckWorldSurface implements WorldSurface {
       controller: deckControllerOptions(this.#spatialMode),
       initialViewState: this.#camera,
       pickingRadius: WORLD_PICKING_RADIUS_PX,
-      // Keep one cursor owner. deck.gl otherwise writes its own grab/pointer
-      // cursor onto the canvas while hover picking writes the host cursor,
-      // which makes the visible cursor oscillate as picking state changes.
-      getCursor: () => "inherit",
+      // deck.gl is the sole cursor authority for the world surface. Application
+      // hover/drag state feeds this callback, but no host element competes by
+      // writing cursor styles independently.
+      getCursor: (state: Readonly<{ readonly isDragging?: boolean }>) => this.#deckCursor(state),
       layers: [],
       onHover: (info: DeckRuntimePickingInfo) => this.#handleDeckHover(info),
       onClick: (info: DeckRuntimePickingInfo) => this.#handleDeckClick(info),
@@ -2744,9 +2744,6 @@ export class DeckWorldSurface implements WorldSurface {
         }
       },
     });
-
-    // The host owns cursor semantics; deck's canvas inherits this value.
-    this.#setPointerCursor(null);
 
     this.#container.addEventListener?.("pointercancel", this.#handlePointerCancel);
     this.#container.addEventListener?.(
@@ -3139,7 +3136,6 @@ export class DeckWorldSurface implements WorldSurface {
       this.#activeDragPointerId = null;
       this.#dragCameraLock = null;
     }
-    this.#setPointerCursor(this.#hoverSelection);
     this.#render();
   }
 
@@ -3497,8 +3493,6 @@ export class DeckWorldSurface implements WorldSurface {
     this.#container.removeEventListener?.("keydown", this.#handleKeyDown as EventListener);
     this.#liveRegion?.remove?.();
     this.#accessibleMirror?.destroy();
-    const style = (this.#container as HTMLElement).style;
-    if (style) style.cursor = "";
     this.#deck.finalize();
   }
 
@@ -3551,7 +3545,6 @@ export class DeckWorldSurface implements WorldSurface {
     const claimed = sink.begin(pointerId, target.instanceId, target.position);
     if (claimed) {
       if (touch) this.#touchHold.commit(pointerId);
-      this.#setPointerCursor(this.#hoverSelection);
       if (!touch) void pulseHaptic("tick");
       this.#render();
       if (this.#camera.zoom >= WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM) {
@@ -3596,7 +3589,6 @@ export class DeckWorldSurface implements WorldSurface {
     this.#clearDragFlash({ render: false });
     this.#setActiveDragInstance(null);
     this.#dragCameraLock = null;
-    this.#setPointerCursor(this.#hoverSelection);
     void pulseHaptic("release");
     return released;
   }
