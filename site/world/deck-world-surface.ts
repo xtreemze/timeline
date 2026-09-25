@@ -3236,7 +3236,11 @@ export class DeckWorldSurface implements WorldSurface {
 
   setCameraInteractionSink(sink: DeckWorldCameraInteractionSink | null): void {
     this.#assertAlive();
-    if (this.#cameraInteractionActive && this.#cameraInteractionSink && !this.#cameraInteractionBlocked) {
+    if (
+      ((this.#cameraInteractionActive && !this.#cameraInteractionBlocked) ||
+        this.#cameraInteractionSettling) &&
+      this.#cameraInteractionSink
+    ) {
       this.#cameraInteractionSink.cancel();
     }
     this.#cameraInteractionSink = sink;
