@@ -1018,6 +1018,63 @@ function sameDatumSequence(next: unknown, previous: unknown): boolean {
   return next.every((value, index) => value === previous[index]);
 }
 
+interface DeckDataDiffRange {
+  readonly startRow: number;
+  readonly endRow: number;
+}
+
+function entityRenderDatumKey(value: unknown): string | null {
+  if (!isRecord(value)) return null;
+  if (value.kind === "entity" && typeof value.worldInstanceId === "string") {
+    return `entity:${value.worldInstanceId}`;
+  }
+  if (value.kind === "cluster" && typeof value.clusterId === "string") {
+    return `cluster:${value.clusterId}`;
+  }
+  return null;
+}
+
+/**
+ * deck.gl's experimental _dataDiff only rewrites the specified attribute
+ * rows. It is safe here because entity/cluster rows have fixed vertex counts.
+ * Structural changes fall back to a full data range.
+ */
+function changedEntityDatumRanges(next: unknown, previous: unknown): readonly DeckDataDiffRange[] {
+  if (!Array.isArray(next) || !Array.isArray(previous)) return Object.freeze([]);
+  if (next.length !== previous.length) {
+    return next.length === 0
+      ? Object.freeze([])
+      : Object.freeze([{ startRow: 0, endRow: next.length }]);
+  }
+
+  const ranges: DeckDataDiffRange[] = [];
+  let rangeStart = -1;
+  for (let index = 0; index < next.length; index += 1) {
+    const nextValue = next[index];
+    const previousValue = previous[index];
+    const nextKey = entityRenderDatumKey(nextValue);
+    const previousKey = entityRenderDatumKey(previousValue);
+    if (nextKey === null || previousKey === null || nextKey !== previousKey) {
+      return next.length === 0
+        ? Object.freeze([])
+        : Object.freeze([{ startRow: 0, endRow: next.length }]);
+    }
+
+    if (nextValue !== previousValue) {
+      if (rangeStart < 0) rangeStart = index;
+      continue;
+    }
+    if (rangeStart >= 0) {
+      ranges.push(Object.freeze({ startRow: rangeStart, endRow: index }));
+      rangeStart = -1;
+    }
+  }
+  if (rangeStart >= 0) {
+    ranges.push(Object.freeze({ startRow: rangeStart, endRow: next.length }));
+  }
+  return Object.freeze(ranges);
+}
+
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -2104,13 +2161,12 @@ function labelDatums(input: {
             emphasized: true,
           });
     const footprint = labelFootprint(datum);
-    const offset =
-      labelOffsetCandidates(
-        datum,
-        footprint.width,
-        footprint.height,
-        input.placeMarkerRadiusPx(place.placeId),
-      )[0] ?? [0, 0];
+    const offset = labelOffsetCandidates(
+      datum,
+      footprint.width,
+      footprint.height,
+      input.placeMarkerRadiusPx(place.placeId),
+    )[0] ?? [0, 0];
     const interactionDatum = withLabelPixelOffset(datum, offset);
     interactionLabels.push(interactionDatum);
     placedByKey.set(key, interactionDatum);
@@ -2142,13 +2198,12 @@ function labelDatums(input: {
               emphasized,
             });
       const footprint = labelFootprint(datum);
-      const offset =
-        labelOffsetCandidates(
-          datum,
-          footprint.width,
-          footprint.height,
-          input.entityMarkerRadiusPx(entity.worldInstanceId),
-        )[0] ?? [0, 0];
+      const offset = labelOffsetCandidates(
+        datum,
+        footprint.width,
+        footprint.height,
+        input.entityMarkerRadiusPx(entity.worldInstanceId),
+      )[0] ?? [0, 0];
       const interactionDatum = withLabelPixelOffset(datum, offset);
       interactionLabels.push(interactionDatum);
       placedByKey.set(key, interactionDatum);
@@ -2186,8 +2241,9 @@ function labelDatums(input: {
               emphasized: true,
             });
       const footprint = labelFootprint(datum);
-      const offset =
-        labelOffsetCandidates(datum, footprint.width, footprint.height, 0)[0] ?? [0, 0];
+      const offset = labelOffsetCandidates(datum, footprint.width, footprint.height, 0)[0] ?? [
+        0, 0,
+      ];
       const interactionDatum = withLabelPixelOffset(datum, offset);
       interactionLabels.push(interactionDatum);
       placedByKey.set(key, interactionDatum);
@@ -2201,9 +2257,7 @@ function labelDatums(input: {
     else byKey.delete(key);
   }
   const datums =
-    interactionLabels.length === 0
-      ? placed
-      : Object.freeze([...placed, ...interactionLabels]);
+    interactionLabels.length === 0 ? placed : Object.freeze([...placed, ...interactionLabels]);
   return { datums, byKey };
 }
 
@@ -3012,10 +3066,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#clusterEdgeReleaseTimer = null;
       if (this.#destroyed || this.#clusterPhase !== "releasing") return;
       this.#clusterPhase = "collapsing";
-      this.#clusterForceSink?.setClusteredPlaceIds(
-        this.#clusterPlaceIds,
-        this.#clusterPlaceIds,
-      );
+      this.#clusterForceSink?.setClusteredPlaceIds(this.#clusterPlaceIds, this.#clusterPlaceIds);
       this.#render();
       this.#clusterSettleTimer = globalThis.setTimeout(
         () => {
@@ -3076,10 +3127,7 @@ export class DeckWorldSurface implements WorldSurface {
     if (!this.#sameClusterPlaces(placeIds)) {
       this.#clusterPlaceIds = Object.freeze([...placeIds]);
       if (this.#clusterPhase === "collapsing" || this.#clusterPhase === "collapsed") {
-        this.#clusterForceSink?.setClusteredPlaceIds(
-          this.#clusterPlaceIds,
-          this.#clusterPlaceIds,
-        );
+        this.#clusterForceSink?.setClusteredPlaceIds(this.#clusterPlaceIds, this.#clusterPlaceIds);
       }
     }
   }
@@ -3231,10 +3279,8 @@ export class DeckWorldSurface implements WorldSurface {
     ).length;
     const destinationZoom = Math.max(
       this.#detailFocusZoom(),
-      clusterZoomThresholdForPlaceDensity(
-        this.#clusterEntityFootprintRadiusPx(),
-        memberCount,
-      ) + 0.25,
+      clusterZoomThresholdForPlaceDensity(this.#clusterEntityFootprintRadiusPx(), memberCount) +
+        0.25,
     );
     this.#focusPosition(
       placeDatums(this.#projection.instances, this.#selection, this.#placeDatumCache).datums.find(
@@ -4352,6 +4398,7 @@ export class DeckWorldSurface implements WorldSurface {
         id: DECK_WORLD_LAYER_IDS.entities,
         data: entities,
         dataComparator: sameDatumSequence,
+        _dataDiff: changedEntityDatumRanges,
         pickable: true,
         radiusUnits: "pixels",
         getPosition: (datum: DeckWorldEntityRenderDatum) =>
@@ -4441,6 +4488,7 @@ export class DeckWorldSurface implements WorldSurface {
               id: DECK_WORLD_LAYER_IDS.entityIcons,
               data: this.#cameraFacingEntities(iconDatums),
               dataComparator: sameDatumSequence,
+              _dataDiff: changedEntityDatumRanges,
               pickable: true,
               billboard: true,
               sizeUnits: "pixels",
