@@ -16,7 +16,7 @@ Desktop uses the 1440×900 product layout. Mobile uses the explicit touch-capabl
 
 The showcase distinguishes motion from static presentation. Timeline navigation and relation-graph navigation are motion scenes. Focused context, evidence, and story browsing are static scenes.
 
-Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes collect Chromium's browser-presented JPEG frames together with their presentation timestamps at the full 1440×900 or 390×844 viewport. The capture step refuses to encode if those timestamps measure below 59 actual frames per second. Only after that source-cadence check are the frames encoded as a variable-timestamp VP8 WebM intermediary; the renderer independently decodes and re-measures that WebM before producing 60 fps presentation media.
+Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes collect Chromium's native full-tab screen-recording frames at the full 1440×900 or 390×844 viewport. The capture step refuses to encode if those timestamps measure below 59 actual frames per second. Chromium writes the raw capture directly to its DevTools IO stream as MP4 at a 60 fps target; the capture step decodes that native file and refuses it below 59 actual frames per second. The renderer independently decodes and re-measures the same raw recording before producing 60 fps presentation media.
 
 ## Output contract
 
@@ -56,7 +56,7 @@ artifacts/e2e-media/
 └── playwright/
 ```
 
-Each form factor publishes two 60 fps animated WebP motion assets and three PNG stills. Raw VP8 WebM exists only for motion scenes; every scene keeps a raw PNG capture. The root manifest records each published asset's byte size, the source dimensions, the 60 fps target, and the measured browser-presented source cadence for motion scenes.
+Each form factor publishes two 60 fps animated WebP motion assets and three PNG stills. Raw Chromium MP4 exists only for motion scenes; every scene keeps a raw PNG capture. The root manifest records each published asset's byte size, the source dimensions, the 60 fps target, and the measured browser-presented source cadence for motion scenes.
 
 ## Capture architecture
 
@@ -69,7 +69,7 @@ The showcase config contains two structural projects:
 
 The shared scene metadata defines feature title, explanation, expected state, alt text, stable output stem, and whether the scene is `motion` or `static`. Desktop and mobile interaction routines remain separate so touch UI is not forced to mimic desktop input mechanics.
 
-Motion capture explicitly passes the certified viewport size to the screencast frame stream so Chromium supplies full 1440×900 desktop frames and full 390×844 mobile frames rather than Playwright's smaller default screencast bounds. Static capture uses a CSS-pixel Playwright screenshot of the same real reached state. Dedicated showcase Chromium runs disable background, renderer, occlusion, frame-rate, and GPU-vsync throttling so CI does not silently reduce source cadence.
+Motion capture uses Chromium 153's native experimental `Page.startScreenRecording` DevTools API with an explicit 60 fps target and the certified 1440×900 desktop or 390×844 mobile bounds. This avoids Playwright 1.63's path-based screencast recorder and its JPEG-frame delivery bottleneck. Static capture uses a CSS-pixel Playwright screenshot of the same real reached state. Dedicated showcase Chromium runs disable background, renderer, occlusion, frame-rate, and GPU-vsync throttling so CI does not silently reduce source cadence.
 
 Playwright native screencast overlays provide restrained Lūm branding and action annotations without modifying production UI only for recording. Chapter cards run before the measured motion window so a static title hold cannot make an otherwise healthy high-cadence capture fail. Static screenshots remain product-state captures rather than chapter cards.
 
@@ -78,7 +78,7 @@ Playwright native screencast overlays provide restrained Lūm branding and actio
 `scripts/render-e2e-highlight.mjs` uses FFmpeg rather than adding a second browser/video framework. It:
 
 - probes every visual source with FFprobe;
-- decodes raw WebM frame timestamps and requires at least 59 actual decoded frames per second before any 60 fps normalization;
+- decodes raw native-recording frame timestamps and requires at least 59 actual decoded frames per second before any 60 fps normalization;
 - verifies that raw motion and static screenshots match the certified desktop/mobile viewport dimensions;
 - copies static PNG captures directly into the published showcase;
 - renders motion scenes as 60 fps animated WebP at the source viewport dimensions;
@@ -88,7 +88,7 @@ Playwright native screencast overlays provide restrained Lūm branding and actio
 - emits README-ready markup from the same manifest metadata;
 - measures individual and aggregate showcase payloads.
 
-There is no GIF palette stage, no reduced GIF frame rate, and no fixed GIF width. The raw VP8 intermediary preserves browser presentation timing for certification; presentation derivatives are normalized to 60 fps only after the raw source passes the minimum-cadence gate.
+There is no GIF palette stage, no reduced GIF frame rate, and no fixed GIF width. The raw Chromium recording is the cadence evidence used for certification; presentation derivatives are normalized to 60 fps only after the raw source passes the minimum-cadence gate.
 
 ## CI and publication
 
