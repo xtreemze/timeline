@@ -265,7 +265,7 @@ Required vocabulary:
 
 Continuous direct manipulation uses Pointer Events, coalesced samples when available, and requestAnimationFrame. The pure `InteractionCoordinator` owns epochs; `SurfaceInteractionController` adapts a named surface to that epoch; input policy maps raw pointer/keyboard affordances without importing DOM constructors.
 
-Renderer-native camera recognizers remain authoritative. deck.gl/mjolnir interaction state is bridged into the epoch, including its post-release transition/inertia period; Leaflet retains native pinch/wheel/keyboard mechanics; the retained timeline implements its temporal pan/pinch/wheel physics against the same lifecycle. A renderer adapter reports recognized intent and lifecycle state—it does not duplicate the renderer's recognizer.
+Renderer-native camera recognizers remain authoritative. deck.gl/mjolnir interaction state is bridged into the epoch, including its post-release transition/inertia period; Leaflet retains native pinch/wheel/keyboard mechanics while a capture-only ownership bridge acquires the shared epoch before native handling; the retained timeline implements its temporal pan/pinch/wheel physics against the same lifecycle. Application-level presentation navigation yields whenever focus is inside a surface that owns local camera/navigation keys. A renderer adapter may arbitrate ownership, but it does not duplicate the renderer's camera mechanics.
 
 WAAPI is appropriate for cancelable local/discrete animation. View Transitions are appropriate for structural state transitions. Neither owns continuous gesture physics.
 
