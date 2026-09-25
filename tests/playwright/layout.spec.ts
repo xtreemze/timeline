@@ -88,13 +88,9 @@ async function expectNoPrimaryDocumentScroll(page, viewport) {
 }
 
 async function toggleTimelineOrientation(page) {
-  const toolbar = page.locator("#timeline-view-toolbar:popover-open");
-  if ((await toolbar.count()) === 0) {
-    await page.locator("#timeline-view-controls-toggle").click();
-  }
-  const orientationToggle = page.locator(
-    "#timeline-view-toolbar:popover-open #timeline-orientation-toggle",
-  );
+  const toolbar = page.locator("#timeline-view-toolbar");
+  await expect(toolbar).toBeVisible();
+  const orientationToggle = toolbar.locator("#timeline-orientation-toggle");
   await expect(orientationToggle).toBeVisible();
   await orientationToggle.click();
 }
@@ -202,8 +198,10 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       ]) {
         await expect(dock.locator(selector)).toBeVisible();
       }
-      const viewControl = page.locator("#timeline-view-controls-toggle");
-      await expect(viewControl).toBeVisible();
+      const viewControls = dock.locator("#timeline-view-toolbar");
+      await expect(viewControls).toBeVisible();
+      await expect(viewControls).not.toHaveAttribute("popover", /.+/);
+      await expect(page.locator("#timeline-view-controls-toggle")).toHaveCount(0);
       await expect(page.locator(".timeline-local-toolbar")).toBeVisible();
       await expect(dock.locator(".app-footer-world .world-camera-controls")).toBeVisible();
       const layoutControls = dock.locator(".app-footer-world .world-layout-controls");
@@ -212,28 +210,30 @@ test.describe("Mobile-first Timeline layout contracts", () => {
 
       const visibleFooterButtons = dock.locator("button:visible");
       const visibleFooterButtonCount = await visibleFooterButtons.count();
-      expect(visibleFooterButtonCount).toBeGreaterThanOrEqual(8);
+      expect(visibleFooterButtonCount).toBeGreaterThanOrEqual(10);
       for (let index = 0; index < visibleFooterButtonCount; index += 1) {
-        const buttonBox = await visibleFooterButtons.nth(index).boundingBox();
+        const button = visibleFooterButtons.nth(index);
+        await expect(button).toHaveClass(/toolbar-control/);
+        const buttonBox = await button.boundingBox();
         expect(buttonBox).not.toBeNull();
         if (!buttonBox) throw new Error("Visible footer button has no bounds.");
         expect(buttonBox.width).toBeGreaterThanOrEqual(44);
         expect(buttonBox.height).toBeGreaterThanOrEqual(44);
       }
 
-      const [worldZoneBox, actionsZoneBox, timelineZoneBox, viewControlBox] =
+      const [worldZoneBox, actionsZoneBox, timelineZoneBox, viewControlsBox] =
         await Promise.all([
           dock.locator(".app-footer-world").boundingBox(),
           dock.locator(".app-footer-actions").boundingBox(),
           dock.locator(".app-footer-timeline").boundingBox(),
-          viewControl.boundingBox(),
+          viewControls.boundingBox(),
         ]);
       expect(worldZoneBox).not.toBeNull();
       expect(actionsZoneBox).not.toBeNull();
       expect(timelineZoneBox).not.toBeNull();
-      expect(viewControlBox).not.toBeNull();
-      if (!worldZoneBox || !actionsZoneBox || !timelineZoneBox || !viewControlBox) {
-        throw new Error("Footer zones and View control must all have live bounds.");
+      expect(viewControlsBox).not.toBeNull();
+      if (!worldZoneBox || !actionsZoneBox || !timelineZoneBox || !viewControlsBox) {
+        throw new Error("Footer zones and inline View controls must all have live bounds.");
       }
       expect(worldZoneBox.x).toBeLessThan(actionsZoneBox.x);
       expect(worldZoneBox.x + worldZoneBox.width).toBeLessThanOrEqual(actionsZoneBox.x + 2);
@@ -241,13 +241,10 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       expect(
         Math.abs(actionsZoneBox.x + actionsZoneBox.width / 2 - viewport.width / 2),
       ).toBeLessThanOrEqual(2);
-      expect(
-        Math.abs(
-          viewControlBox.x +
-            viewControlBox.width -
-            (timelineZoneBox.x + timelineZoneBox.width),
-        ),
-      ).toBeLessThanOrEqual(6);
+      expect(viewControlsBox.y).toBeGreaterThanOrEqual(timelineZoneBox.y - 1);
+      expect(viewControlsBox.y + viewControlsBox.height).toBeLessThanOrEqual(
+        timelineZoneBox.y + timelineZoneBox.height + 1,
+      );
 
       expect(dockBox.x).toBeLessThanOrEqual(2);
       expect(dockBox.width).toBeGreaterThanOrEqual(viewport.width - 4);
@@ -320,46 +317,24 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       await page.keyboard.press("Escape");
       await expect(projectButton).toHaveAttribute("aria-expanded", "false");
 
-      const viewButton = page.locator("#timeline-view-controls-toggle");
-      await viewButton.click();
-      const viewControls = page.locator("#timeline-view-toolbar:popover-open");
-      const viewControlsBox = await expectInsideViewport(viewControls, viewport);
-      await expect(viewControls).toHaveAttribute(
-        "data-anchor-placement",
-        /world-(?:above-timeline|top-right|left-of-timeline|top-left)/,
-      );
+      const viewControls = page.locator("#timeline-view-toolbar");
+      await expect(viewControls).toBeVisible();
+      await expect(viewControls).not.toHaveAttribute("popover", /.+/);
+      await expect(page.locator("#timeline-view-controls-toggle")).toHaveCount(0);
 
-      const timelineSurfaceBox = await page.locator(".timeline-surface").boundingBox();
-      expect(timelineSurfaceBox).not.toBeNull();
-      if (!timelineSurfaceBox) throw new Error("Timeline surface has no live bounds.");
-      const overlapWidth = Math.max(
-        0,
-        Math.min(
-          viewControlsBox.x + viewControlsBox.width,
-          timelineSurfaceBox.x + timelineSurfaceBox.width,
-        ) - Math.max(viewControlsBox.x, timelineSurfaceBox.x),
-      );
-      const overlapHeight = Math.max(
-        0,
-        Math.min(
-          viewControlsBox.y + viewControlsBox.height,
-          timelineSurfaceBox.y + timelineSurfaceBox.height,
-        ) - Math.max(viewControlsBox.y, timelineSurfaceBox.y),
-      );
-      expect(overlapWidth * overlapHeight).toBeLessThanOrEqual(4);
-
-      if (orientation === "portrait") {
-        expect(viewControlsBox.x + viewControlsBox.width).toBeLessThanOrEqual(
-          timelineSurfaceBox.x + 2,
-        );
-      } else {
-        expect(viewControlsBox.y + viewControlsBox.height).toBeLessThanOrEqual(
-          timelineSurfaceBox.y + 2,
-        );
+      const [viewControlsBox, dockAfterUtilities] = await Promise.all([
+        viewControls.boundingBox(),
+        page.locator(".app-tool-dock").boundingBox(),
+      ]);
+      expect(viewControlsBox).not.toBeNull();
+      expect(dockAfterUtilities).not.toBeNull();
+      if (!viewControlsBox || !dockAfterUtilities) {
+        throw new Error("Persistent View/footer geometry is unavailable.");
       }
-
-      await page.keyboard.press("Escape");
-      await expect(viewButton).toHaveAttribute("aria-expanded", "false");
+      expect(viewControlsBox.y).toBeGreaterThanOrEqual(dockAfterUtilities.y - 1);
+      expect(viewControlsBox.y + viewControlsBox.height).toBeLessThanOrEqual(
+        dockAfterUtilities.y + dockAfterUtilities.height + 1,
+      );
     });
   }
 
@@ -456,18 +431,19 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     const projectButton = toolDock.locator("#project-menu-toggle");
     const editorButton = toolDock.locator("#editor-toggle");
     const browseButton = toolDock.locator("#timeline-browser-toggle");
-    const viewButton = page.locator("#timeline-view-controls-toggle");
+    const viewControls = toolDock.locator("#timeline-view-toolbar");
 
     await editorButton.click();
     await expect(page.locator("#control-panel")).toBeVisible();
     await expect(page.locator("#app-shell")).toHaveAttribute("data-mode", "edit");
-    await expect(editorButton.locator(".app-tool-label")).toHaveText("Done");
+    await expect(editorButton).toHaveAttribute("aria-label", "Done editing");
 
     await expect(projectButton).toBeVisible();
     await expect(browseButton).toBeVisible();
-    await expect(viewButton).toBeVisible();
+    await expect(viewControls).toBeVisible();
     await expect(browseButton).toBeDisabled();
-    await expect(viewButton).toBeDisabled();
+    await expect(viewControls.locator("#timeline-orientation-toggle")).toBeDisabled();
+    await expect(viewControls.locator("#timeline-zoom-level")).toBeDisabled();
 
     await projectButton.click();
     const menu = page.locator("#project-menu:popover-open");
@@ -604,11 +580,11 @@ test.describe("Persistent footer and focus geometry", () => {
       await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
       await expect(page.locator("#timeline-focus-view")).toBeVisible();
 
-      const focusedViewControl = page.locator("#timeline-view-controls-toggle");
+      const focusedViewControls = page.locator("#timeline-view-toolbar");
       const focusedTimelineZone = page.locator(".app-footer-timeline");
-      await expect(focusedViewControl).toBeVisible();
+      await expect(focusedViewControls).toBeVisible();
       const [focusedViewBox, focusedTimelineZoneBox] = await Promise.all([
-        focusedViewControl.boundingBox(),
+        focusedViewControls.boundingBox(),
         focusedTimelineZone.boundingBox(),
       ]);
       expect(focusedViewBox).not.toBeNull();
@@ -616,13 +592,15 @@ test.describe("Persistent footer and focus geometry", () => {
       if (!focusedViewBox || !focusedTimelineZoneBox) {
         throw new Error("Focused footer controls lost their layout bounds.");
       }
-      expect(
-        Math.abs(
-          focusedViewBox.x +
-            focusedViewBox.width -
-            (focusedTimelineZoneBox.x + focusedTimelineZoneBox.width),
-        ),
-      ).toBeLessThanOrEqual(6);
+      expect(focusedViewBox.y).toBeGreaterThanOrEqual(focusedTimelineZoneBox.y - 1);
+      expect(focusedViewBox.y + focusedViewBox.height).toBeLessThanOrEqual(
+        focusedTimelineZoneBox.y + focusedTimelineZoneBox.height + 1,
+      );
+      await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
+      await expect(page.locator("#editor-toggle")).toHaveAttribute(
+        "aria-label",
+        "Edit focused event",
+      );
 
       const contextActions = page.locator(
         ".app-footer-context-actions .timeline-context-action:visible",
@@ -688,7 +666,8 @@ test.describe("Persistent footer and focus geometry", () => {
     if (!editDock) throw new Error("Footer disappeared under Edit.");
     expect(Math.abs(editDock.y - baseline.y)).toBeLessThanOrEqual(2);
     expect(Math.abs(editDock.height - baseline.height)).toBeLessThanOrEqual(2);
-    await expect(page.locator("#timeline-view-controls-toggle")).toBeVisible();
+    await expect(page.locator("#timeline-view-toolbar")).toBeVisible();
+    await expect(page.locator("#timeline-orientation-toggle")).toBeDisabled();
     await expect(page.locator("[data-world-controls-slot] .world-camera-controls")).toBeVisible();
   });
 });
