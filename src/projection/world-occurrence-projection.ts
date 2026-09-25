@@ -29,7 +29,7 @@ export interface WorldOccurrenceProjectionOptions {
 function relationshipStyle(
   relationship: CanonicalRelationship,
 ): Readonly<Record<string, unknown>> | undefined {
-  const style = relationship.attributes?.style;
+  const style = relationship.attributes?.["style"];
   return typeof style === "object" && style !== null && !Array.isArray(style)
     ? (style as Readonly<Record<string, unknown>>)
     : undefined;
@@ -65,6 +65,10 @@ function mergeGeographicAnchors(target: SpatialAnchor[], incoming: readonly Spat
     }
 
     const existing = target[existingIndex];
+    if (existing === undefined) {
+      target[existingIndex] = anchor;
+      continue;
+    }
     const existingCertainty = existing.certainty ?? -1;
     const incomingCertainty = anchor.certainty ?? -1;
     if (

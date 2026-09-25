@@ -21,12 +21,12 @@ function record(value: unknown): Readonly<Record<string, unknown>> | null {
 
 export function worldPointerDragMayStart(event: unknown): boolean {
   const outer = record(event);
-  const source = record(outer?.srcEvent) ?? outer;
+  const source = record(outer?.["srcEvent"]) ?? outer;
   if (!source) return true;
 
-  if (source.ctrlKey === true) return false;
+  if (source["ctrlKey"] === true) return false;
 
-  const button = source.button;
+  const button = source["button"];
   if (button === undefined || button === null) return true;
   const numericButton = Number(button);
   return Number.isFinite(numericButton) && numericButton === 0;

@@ -1901,7 +1901,7 @@ function fillItemStoryContext(selectedStoryId = "") {
   const preferred =
     selectedStoryId ||
     (!els.itemId.value && state.stories.some((story) => story.id === ui.activeStoryId)
-      ? ui.activeStoryId
+      ? (ui.activeStoryId ?? "")
       : "");
   els.itemStoryContext.value = state.stories.some((story) => story.id === preferred)
     ? preferred

@@ -122,7 +122,7 @@ function parseEndpoint(value: unknown): number | null {
   }
 
   const endpoint = value as Readonly<Record<string, unknown>>;
-  const direct = endpoint.value;
+  const direct = endpoint["value"];
   if (typeof direct === "string") {
     const parsed = Date.parse(direct);
     if (Number.isFinite(parsed)) {
@@ -131,8 +131,8 @@ function parseEndpoint(value: unknown): number | null {
   }
 
   const earliest =
-    typeof endpoint.earliest === "string" ? Date.parse(endpoint.earliest) : Number.NaN;
-  const latest = typeof endpoint.latest === "string" ? Date.parse(endpoint.latest) : Number.NaN;
+    typeof endpoint["earliest"] === "string" ? Date.parse(endpoint["earliest"]) : Number.NaN;
+  const latest = typeof endpoint["latest"] === "string" ? Date.parse(endpoint["latest"]) : Number.NaN;
   if (Number.isFinite(earliest) && Number.isFinite(latest)) {
     return earliest + (latest - earliest) / 2;
   }
@@ -342,13 +342,13 @@ export function parseAnalyticalLens(input: unknown): AnalyticalLensParseResult {
   }
 
   const record = input as Readonly<Record<string, unknown>>;
-  const schemaVersion = parseFiniteNumber(record.schemaVersion);
+  const schemaVersion = parseFiniteNumber(record["schemaVersion"]);
   if (schemaVersion !== ANALYTICAL_LENS_SCHEMA_VERSION) {
     return {
       lens: null,
       errors: Object.freeze([
         "Unsupported analytical lens schema version: " +
-          String(record.schemaVersion ?? "missing") +
+          String(record["schemaVersion"] ?? "missing") +
           ".",
       ]),
       warnings: Object.freeze([]),
@@ -356,41 +356,41 @@ export function parseAnalyticalLens(input: unknown): AnalyticalLensParseResult {
   }
 
   const filterInput =
-    record.filters && typeof record.filters === "object" && !Array.isArray(record.filters)
-      ? (record.filters as Readonly<Record<string, unknown>>)
+    record["filters"] && typeof record["filters"] === "object" && !Array.isArray(record["filters"])
+      ? (record["filters"] as Readonly<Record<string, unknown>>)
       : {};
 
   const timeInput =
-    filterInput.timeWindow &&
-    typeof filterInput.timeWindow === "object" &&
-    !Array.isArray(filterInput.timeWindow)
-      ? (filterInput.timeWindow as Readonly<Record<string, unknown>>)
+    filterInput["timeWindow"] &&
+    typeof filterInput["timeWindow"] === "object" &&
+    !Array.isArray(filterInput["timeWindow"])
+      ? (filterInput["timeWindow"] as Readonly<Record<string, unknown>>)
       : null;
 
   const neighborhoodInput =
-    filterInput.neighborhood &&
-    typeof filterInput.neighborhood === "object" &&
-    !Array.isArray(filterInput.neighborhood)
-      ? (filterInput.neighborhood as Readonly<Record<string, unknown>>)
+    filterInput["neighborhood"] &&
+    typeof filterInput["neighborhood"] === "object" &&
+    !Array.isArray(filterInput["neighborhood"])
+      ? (filterInput["neighborhood"] as Readonly<Record<string, unknown>>)
       : null;
 
-  const start = timeInput ? parseFiniteNumber(timeInput.start) : null;
-  const end = timeInput ? parseFiniteNumber(timeInput.end) : null;
-  const untimed = timeInput?.untimed === "exclude" ? "exclude" : "include";
-  const neighborhoodDepth = neighborhoodInput ? parseFiniteNumber(neighborhoodInput.depth) : null;
+  const start = timeInput ? parseFiniteNumber(timeInput["start"]) : null;
+  const end = timeInput ? parseFiniteNumber(timeInput["end"]) : null;
+  const untimed = timeInput?.["untimed"] === "exclude" ? "exclude" : "include";
+  const neighborhoodDepth = neighborhoodInput ? parseFiniteNumber(neighborhoodInput["depth"]) : null;
 
-  const entityIds = stringList(filterInput.entityIds);
+  const entityIds = stringList(filterInput["entityIds"]);
   const relationshipPredicates = uniqueSorted(
-    stringList(filterInput.relationshipPredicates).map(semanticKey),
+    stringList(filterInput["relationshipPredicates"]).map(semanticKey),
   );
-  const categoryIds = stringList(filterInput.categoryIds);
-  const placeIds = stringList(filterInput.placeIds);
+  const categoryIds = stringList(filterInput["categoryIds"]);
+  const placeIds = stringList(filterInput["placeIds"]);
 
   const filters: AnalyticalLensFilters = {
     ...(entityIds.length > 0 ? { entityIds } : {}),
-    ...(filterInput.entityMatch === "both-endpoints"
+    ...(filterInput["entityMatch"] === "both-endpoints"
       ? { entityMatch: "both-endpoints" as const }
-      : filterInput.entityMatch === "either-endpoint"
+      : filterInput["entityMatch"] === "either-endpoint"
         ? { entityMatch: "either-endpoint" as const }
         : {}),
     ...(relationshipPredicates.length > 0 ? { relationshipPredicates } : {}),
@@ -400,19 +400,19 @@ export function parseAnalyticalLens(input: unknown): AnalyticalLensParseResult {
     ...(neighborhoodInput && neighborhoodDepth !== null
       ? {
           neighborhood: {
-            seedEntityIds: stringList(neighborhoodInput.seedEntityIds),
+            seedEntityIds: stringList(neighborhoodInput["seedEntityIds"]),
             depth: Math.trunc(neighborhoodDepth),
           },
         }
       : {}),
   };
 
-  const description = text(record.description, 1000);
-  const storyId = text(record.storyId, 120);
+  const description = text(record["description"], 1000);
+  const storyId = text(record["storyId"], 120);
   const lens: AnalyticalLens = {
     schemaVersion: ANALYTICAL_LENS_SCHEMA_VERSION,
-    id: text(record.id, 120),
-    name: text(record.name, 180),
+    id: text(record["id"], 120),
+    name: text(record["name"], 180),
     ...(description ? { description } : {}),
     filters,
     ...(storyId ? { storyId } : {}),
