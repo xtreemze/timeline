@@ -107,8 +107,15 @@ async function verifyMeasuredCapture(videoPath, manifest) {
   const timestamps = Array.isArray(timing.timestamps)
     ? timing.timestamps.filter((value) => Number.isFinite(value))
     : [];
+  const browserTimestamps = Array.isArray(timing.browserTimestamps)
+    ? timing.browserTimestamps.filter((value) => Number.isFinite(value))
+    : [];
+
   if (timestamps.length < 2) {
-    throw new Error(`Measured current-tab capture timestamps missing for ${videoPath}`);
+    throw new Error(`Measured raw X11 timestamps missing for ${videoPath}`);
+  }
+  if (browserTimestamps.length < 2) {
+    throw new Error(`Measured browser animation timestamps missing for ${videoPath}`);
   }
   if (timing.requestedFps !== manifest.captureFps) {
     throw new Error(`${videoPath} timing evidence does not match the requested capture rate`);
@@ -116,16 +123,29 @@ async function verifyMeasuredCapture(videoPath, manifest) {
   if (timing.minimumFps !== manifest.minimumMeasuredCaptureFps) {
     throw new Error(`${videoPath} timing evidence does not match the minimum capture rate`);
   }
-  if (!String(timing.mimeType ?? "").toLowerCase().includes("vp8")) {
-    throw new Error(`${videoPath} raw capture did not use the preferred VP8 codec`);
+  if (timing.codec !== "vp8") {
+    throw new Error(`${videoPath} timing evidence must identify the raw capture codec as VP8`);
   }
 
-  const captureStats = decodedFrameStats(timestamps);
   const minimumFps = manifest.minimumMeasuredCaptureFps;
-  if (!Number.isFinite(captureStats.fps) || captureStats.fps < minimumFps) {
+  const captured = decodedFrameStats(timestamps);
+  if (!Number.isFinite(captured.fps) || captured.fps < minimumFps) {
     throw new Error(
-      `${videoPath} current-tab stream delivered ${String(captureStats.frames)} frames across ${captureStats.duration.toFixed(3)}s (${captureStats.fps.toFixed(2)} fps); expected at least ${Number(minimumFps).toFixed(2)} fps before publication encoding.`,
+      `${videoPath} raw X11 timing evidence is only ${captured.fps.toFixed(2)} fps; expected at least ${Number(minimumFps).toFixed(2)} fps before publication encoding.`,
     );
+  }
+
+  const browserSeconds = browserTimestamps.map((timestamp) => timestamp / 1000);
+  const browser = decodedFrameStats(browserSeconds);
+  if (!Number.isFinite(browser.fps) || browser.fps < minimumFps) {
+    throw new Error(
+      `${videoPath} browser animation clock is only ${browser.fps.toFixed(2)} fps; expected at least ${Number(minimumFps).toFixed(2)} fps while recording.`,
+    );
+  }
+
+  const video = await probeVisualSource(videoPath);
+  if (video.codec !== "vp8") {
+    throw new Error(`${videoPath} raw WebM codec is ${String(video.codec)}; expected VP8`);
   }
 
   const decodedTimestamps = await probeFrameTimestamps(videoPath);
@@ -135,19 +155,20 @@ async function verifyMeasuredCapture(videoPath, manifest) {
       `${videoPath} raw WebM decodes at only ${decoded.fps.toFixed(2)} fps from ${String(decoded.frames)} actual frames; expected at least ${Number(minimumFps).toFixed(2)} fps.`,
     );
   }
-  if (decoded.duration < captureStats.duration * 0.95) {
+  if (decoded.frames !== timing.capturedFrames || decoded.frames !== timestamps.length) {
     throw new Error(
-      `${videoPath} raw WebM covers only ${decoded.duration.toFixed(3)}s of a ${captureStats.duration.toFixed(3)}s measured current-tab capture.`,
+      `${videoPath} decoded ${String(decoded.frames)} raw frames but timing evidence records ${String(timing.capturedFrames)}; capture evidence must match the file exactly.`,
     );
   }
 
   return {
     timingPath,
-    capturedFrames: captureStats.frames,
+    capturedFrames: decoded.frames,
     encodedFrames: decoded.frames,
-    capturedDuration: captureStats.duration,
-    measuredFps: captureStats.fps,
+    capturedDuration: decoded.duration,
+    measuredFps: decoded.fps,
     decodedFps: decoded.fps,
+    browserFps: browser.fps,
   };
 }
 
@@ -158,7 +179,7 @@ async function probeVisualSource(filePath) {
     "-select_streams",
     "v:0",
     "-show_entries",
-    "stream=width,height,avg_frame_rate,r_frame_rate",
+    "stream=width,height,codec_name,avg_frame_rate,r_frame_rate",
     "-of",
     "json",
     filePath,
@@ -176,6 +197,7 @@ async function probeVisualSource(filePath) {
   return {
     width: stream.width,
     height: stream.height,
+    codec: stream.codec_name ?? null,
     fps,
   };
 }
@@ -331,6 +353,7 @@ async function renderFormFactor(formFactor, manifest) {
         targetFps: manifest.captureFps,
         measuredCaptureFps: entry.captureVerification.measuredFps,
         decodedRawFps: entry.captureVerification.decodedFps,
+        browserFps: entry.captureVerification.browserFps,
         capturedFrames: entry.captureVerification.capturedFrames,
         encodedFrames: entry.captureVerification.encodedFrames,
       },
@@ -483,7 +506,7 @@ const pagesBase = process.env.SHOWCASE_BASE_URL ?? "https://xtreemze.github.io/t
 const markdown = [
   "## Lūm showcase",
   "",
-  "These assets are generated from the real Chromium application exercised by CI. Motion capture targets 60 fps and CI verifies at least 59 actual current-tab capture frames per second before publication encoding; decoded raw WebM, animated WebP, and highlight reels are then independently verified for 60 fps cadence. Static states use source-resolution PNG screenshots.",
+  "These assets are generated from the real Chromium application exercised by CI. Motion capture targets 60 fps by sampling the headed Xvfb framebuffer directly. CI requires at least 59 decoded raw WebM frames per second and at least 59 browser animation frames per second before publication encoding; animated WebP and highlight reels are then independently verified for 60 fps cadence. Static states use source-resolution PNG screenshots.",
   "",
   ...formFactors.flatMap((formFactor) => [
     `### ${formFactor === "desktop" ? "Desktop" : "Mobile"}`,
@@ -507,7 +530,7 @@ for (const formFactor of formFactors) {
   for (const media of rendered[formFactor].media) {
     const dimensions = `${media.source.width}x${media.source.height}`;
     const rate = media.source.fps
-      ? ` @ ${media.source.fps} fps (measured ${media.source.measuredCaptureFps.toFixed(2)} fps before encoding)`
+      ? ` @ ${media.source.fps} fps (raw ${media.source.measuredCaptureFps.toFixed(2)} fps; browser ${media.source.browserFps.toFixed(2)} fps)`
       : "";
     console.log(`${media.name} (${media.mediaMode}): ${media.bytes} bytes, ${dimensions}${rate}`);
   }
