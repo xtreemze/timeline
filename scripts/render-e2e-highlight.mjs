@@ -90,7 +90,7 @@ function assertHighFrameRate(value, label) {
 
 function assertMeasuredCapture(segment, formFactor) {
   const capture = segment.capture;
-  if (!capture || capture.requestedFps !== SHOWCASE_FPS) {
+  if (!capture || capture.targetFps !== SHOWCASE_FPS) {
     throw new Error(`${formFactor}/${segment.name} is missing the ${SHOWCASE_FPS} fps source-capture contract.`);
   }
   const timestamps = capture.frameTimestampsMs;
@@ -115,7 +115,7 @@ async function probeVisualSource(filePath) {
     "-select_streams",
     "v:0",
     "-show_entries",
-    "stream=width,height,avg_frame_rate,r_frame_rate",
+    "stream=width,height,avg_frame_rate,r_frame_rate,codec_name",
     "-of",
     "json",
     filePath,
@@ -134,6 +134,7 @@ async function probeVisualSource(filePath) {
     width: stream.width,
     height: stream.height,
     fps,
+    codec: stream.codec_name ?? null,
   };
 }
 
@@ -175,6 +176,9 @@ async function renderFormFactor(formFactor, manifest) {
       const video = await probeVisualSource(videoPath);
       if (!video.fps) throw new Error(`Could not determine source FPS for ${videoPath}`);
       assertHighFrameRate(video.fps, `${formFactor}/${segment.name} normalized WebM`);
+      if (video.codec !== "vp8") {
+        throw new Error(`${formFactor}/${segment.name} raw WebM must use VP8, found ${String(video.codec)}.`);
+      }
       sources.push({ segment, screenshotPath, screenshot, videoPath, video });
     } else {
       sources.push({ segment, screenshotPath, screenshot, videoPath: null, video: null });
