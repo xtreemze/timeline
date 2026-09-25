@@ -178,7 +178,10 @@ function assertManifest(manifest, formFactor) {
     if (segment.requestedFps !== manifest.captureFps) {
       throw new Error(`Motion scene ${segment.name} did not request the showcase capture cadence`);
     }
-    if (!Number.isFinite(segment.capturedFps) || segment.capturedFps < manifest.minimumCapturedFps) {
+    if (
+      !Number.isFinite(segment.capturedFps) ||
+      segment.capturedFps < manifest.minimumCapturedFps
+    ) {
       throw new Error(`Motion scene ${segment.name} did not measure the required source cadence`);
     }
   }
