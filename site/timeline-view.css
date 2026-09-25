@@ -4938,10 +4938,9 @@
   border: 0;
 }
 
-#app-shell #timeline-view .timeline-surface,
-#app-shell #timeline-view.is-event-focused .timeline-surface,
-#app-shell #timeline-view.is-event-focused[data-orientation="portrait"] .timeline-surface,
-#app-shell #timeline-view.is-event-focused[data-orientation="landscape"] .timeline-surface {
+/* This base reset deliberately does not add focus-state specificity.
+   Relation-docking rules own the chronology rail geometry in every selection state. */
+#app-shell #timeline-view .timeline-surface {
   position: absolute;
   inset: 0;
   width: 100%;
