@@ -73,6 +73,7 @@ export class LuumEventCardElement extends LitElement {
         type="button"
         class="timeline-event-terminal"
         data-id=${item.id}
+        data-surface-interaction="action"
         aria-label=${ariaLabel}
         aria-controls="timeline-focus-view"
         aria-expanded="false"
