@@ -199,12 +199,16 @@ function projection() {
   });
 }
 
-test("world graph label scale matches sidebar reading typography", () => {
-  assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: false }), 18);
-  assert.equal(worldGraphLabelSize({ kind: "place-label", emphasized: false }), 18);
-  assert.equal(worldGraphLabelSize({ kind: "cluster-label", emphasized: false }), 18);
-  assert.equal(worldGraphLabelSize({ kind: "relationship-label", emphasized: false }), 18);
-  assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: true }), 18);
+test("world graph label scale matches the compact interface hierarchy", () => {
+  assert.equal(worldGraphLabelSize({ kind: "place-label", emphasized: false }), 14);
+  assert.equal(worldGraphLabelSize({ kind: "cluster-label", emphasized: false }), 14);
+  assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: false }), 13);
+  assert.equal(worldGraphLabelSize({ kind: "relationship-label", emphasized: false }), 12);
+  assert.equal(
+    worldGraphLabelSize({ kind: "entity-label", emphasized: true }),
+    13,
+    "interaction must not resize labels and destabilize declutter placement",
+  );
 });
 
 test("world label collision priority preserves semantic order and interaction emphasis", () => {
