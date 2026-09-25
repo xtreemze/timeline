@@ -88,7 +88,7 @@ function createWorldLayoutControls(
   ): HTMLButtonElement => {
     const element = doc.createElement("button");
     element.type = "button";
-    element.className = "world-layout-control";
+    element.className = "toolbar-control world-layout-control";
     element.setAttribute("aria-label", label);
     element.title = title;
     element.append(createIcon(icon, { size: 20 }));

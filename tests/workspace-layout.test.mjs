@@ -158,21 +158,11 @@ test("snapshot exposes every normalized candidate and stable rejection reasons",
   assert.equal(snapshot.selected?.id, "open");
 });
 
-test("view controls consume the renderer-neutral workspace planner instead of owning a second clamping policy", async () => {
+test("inline View controls no longer require floating workspace placement", async () => {
   const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
-  const start = app.indexOf("function positionViewControls()");
-  const end = app.indexOf("function mountFullscreenToolDock()", start);
-  assert.ok(start >= 0 && end > start);
-  const source = app.slice(start, end);
+  const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
 
-  assert.match(
-    app,
-    /import \{ planWorkspacePlacement \} from ["']\.\.\/src\/layout\/workspace-layout\.ts["']/,
-  );
-  assert.match(source, /planWorkspacePlacement\(/);
-  assert.match(source, /exclusionZones:\s*\[[\s\S]*id:\s*"app-tool-dock"/);
-  assert.match(source, /safeInsets:\s*\{ top: edge, right: edge, bottom: edge, left: edge \}/);
-  assert.match(source, /dataset\.placementValid = String\(snapshot\.fullySatisfiesConstraints\)/);
-  assert.doesNotMatch(source, /left = Math\.min\(Math\.max/);
-  assert.doesNotMatch(source, /top = Math\.min\(Math\.max/);
+  assert.doesNotMatch(app, /positionViewControls|viewControlsToggle|planWorkspacePlacement/);
+  assert.match(html, /id="timeline-view-toolbar"/);
+  assert.doesNotMatch(html, /id="timeline-view-toolbar"[^>]*popover=/);
 });
