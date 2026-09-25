@@ -26,6 +26,8 @@ export interface WorldDagLayoutNodeSize {
 
 export interface WorldDagLayoutOptions {
   readonly nodeSizes?: ReadonlyMap<WorldInstanceId, WorldDagLayoutNodeSize>;
+  /** Layout-only footprint reserved around each authored geographic anchor. */
+  readonly placeSizes?: ReadonlyMap<PlaceId, WorldDagLayoutNodeSize>;
   /**
    * Explicit operator-requested reorganization. Bypasses the per-place result
    * cache and stability hysteresis for this pass, but remains deterministic.
@@ -118,6 +120,13 @@ interface LayoutIndex {
   readonly primaryPlaceByInstance: ReadonlyMap<WorldInstanceId, PlaceId>;
   readonly structuralEdges: readonly ProjectedWorldEdge[];
   readonly crossPlaceInstanceIds: ReadonlySet<WorldInstanceId>;
+}
+
+interface DagPlaceObstacle {
+  readonly id: string;
+  readonly placeId: PlaceId;
+  readonly nodeIds: readonly WorldInstanceId[];
+  readonly size: readonly [number, number];
 }
 
 interface RawTarget {
@@ -398,6 +407,10 @@ function localAcyclicEdges(
   return Object.freeze(accepted);
 }
 
+function placeObstacleId(placeId: PlaceId): string {
+  return `__lum-place:${JSON.stringify(String(placeId))}`;
+}
+
 function finitePositiveSize(size: WorldDagLayoutNodeSize | undefined): readonly [number, number] {
   const width = size?.widthMeters;
   const height = size?.heightMeters;
@@ -434,9 +447,11 @@ function topologyKey(
   nodeIds: readonly WorldInstanceId[],
   edges: readonly LocalDagEdge[],
   sizes: ReadonlyMap<string, readonly [number, number]>,
+  placeSize: readonly [number, number],
 ): string {
   return JSON.stringify([
     String(placeId),
+    [Math.round(placeSize[0]), Math.round(placeSize[1])],
     nodeIds.map((id) => {
       const [width, height] = sizes.get(String(id)) ?? [
         DAG_FALLBACK_NODE_SIZE_METERS,
@@ -447,6 +462,12 @@ function topologyKey(
     // Layout invalidation follows the accepted DAG structure, not continuously
     // changing temporal weights or their candidate ordering. Weight/retained
     // changes that alter cycle priority still invalidate by changing this set.
+    [...new Set(nodeIds.map((id) => places.get(id)).filter((id): id is PlaceId => id !== undefined))]
+      .sort((left, right) => String(left).localeCompare(String(right)))
+      .map((placeId) => {
+        const [width, height] = finitePositiveSize(placeSizes?.get(placeId));
+        return [String(placeId), Math.round(width), Math.round(height)];
+      }),
     edges
       .map((edge) => [String(edge.relationshipId), String(edge.sourceId), String(edge.targetId)])
       .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
@@ -794,16 +815,41 @@ function runLayoutCandidate(
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
   layering: "longest" | "simplex",
   decross: "opt" | "two-layer",
+  placeObstacles: readonly DagPlaceObstacle[] = Object.freeze([]),
+  rootSize: readonly [number, number] = Object.freeze([1, 1]),
 ): CandidateLayout {
-  const rootId = "__lum-place-root__";
+  const rootId = "__lum-layout-root__";
   const indegree = new Map<WorldInstanceId, number>(nodeIds.map((id) => [id, 0] as const));
   for (const edge of edges) {
     indegree.set(edge.targetId, (indegree.get(edge.targetId) ?? 0) + 1);
   }
 
+  const layoutSizes = new Map<string, readonly [number, number]>(sizes);
+  layoutSizes.set(rootId, rootSize);
+  for (const obstacle of placeObstacles) layoutSizes.set(obstacle.id, obstacle.size);
+
   const links: DagLinkData[] = [];
-  for (const id of nodeIds) {
-    if ((indegree.get(id) ?? 0) === 0) links.push([rootId, String(id), null]);
+  if (placeObstacles.length === 0) {
+    for (const id of nodeIds) {
+      if ((indegree.get(id) ?? 0) === 0) links.push([rootId, String(id), null]);
+    }
+  } else {
+    for (const obstacle of placeObstacles) {
+      links.push([rootId, obstacle.id, null]);
+      const members = obstacle.nodeIds.filter((id) => indegree.has(id));
+      const roots = members.filter((id) => (indegree.get(id) ?? 0) === 0);
+      const entryNodes =
+        roots.length > 0
+          ? roots
+          : [...members]
+              .sort(
+                (left, right) =>
+                  (indegree.get(left) ?? 0) - (indegree.get(right) ?? 0) ||
+                  String(left).localeCompare(String(right)),
+              )
+              .slice(0, 1);
+      for (const id of entryNodes) links.push([obstacle.id, String(id), null]);
+    }
   }
   for (const edge of edges) {
     links.push([String(edge.sourceId), String(edge.targetId), edge.relationshipId]);
@@ -818,7 +864,7 @@ function runLayoutCandidate(
     .layering(layering === "longest" ? layeringLongestPath() : layeringSimplex())
     .decross(decross === "opt" ? decrossOpt() : twoLayer)
     .coord(coordGreedy())
-    .nodeSize((node: GraphNode<string, DagLinkData>) => sizes.get(node.data) ?? [1, 1])
+    .nodeSize((node: GraphNode<string, DagLinkData>) => layoutSizes.get(node.data) ?? [1, 1])
     .gap(gap);
   const dimensions = layout(graph);
 
@@ -838,10 +884,8 @@ function runLayoutCandidate(
     });
   }
 
-  const originalIds = new Map(nodeIds.map((id) => [String(id), id] as const));
   const targets = Object.freeze(
     graphNodes
-      .filter((node) => node.data !== rootId && originalIds.has(node.data))
       .map((node) =>
         Object.freeze({
           id: node.data,
@@ -892,8 +936,8 @@ function runLayoutCandidate(
       width: dimensions.width,
       height: dimensions.height,
     },
-    nodeIds.length,
-    sizes,
+    nodeIds.length + placeObstacles.length,
+    layoutSizes,
     previousTargets,
   );
 }
@@ -930,8 +974,12 @@ function chooseCandidate(
   sizes: ReadonlyMap<string, readonly [number, number]>,
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
   previousAlgorithm?: string,
+  placeObstacles: readonly DagPlaceObstacle[] = Object.freeze([]),
+  rootSize: readonly [number, number] = Object.freeze([1, 1]),
 ): CandidateLayout {
-  const gap = layoutGap(sizes);
+  const gapSizes = new Map<string, readonly [number, number]>(sizes);
+  for (const obstacle of placeObstacles) gapSizes.set(obstacle.id, obstacle.size);
+  const gap = layoutGap(gapSizes);
   const previousName = stableAlgorithmName(previousAlgorithm);
 
   if (nodeIds.length === 0) {
@@ -961,6 +1009,8 @@ function chooseCandidate(
           previousTargets,
           "longest",
           "opt",
+          placeObstacles,
+          rootSize,
         ),
       );
     } catch {
@@ -976,6 +1026,8 @@ function chooseCandidate(
         previousTargets,
         "longest",
         "two-layer",
+        placeObstacles,
+        rootSize,
       ),
       runLayoutCandidate(
         "simplex-two-layer-greedy",
@@ -986,6 +1038,8 @@ function chooseCandidate(
         previousTargets,
         "simplex",
         "two-layer",
+        placeObstacles,
+        rootSize,
       ),
     );
     return preferPreviousCandidate(previousAlgorithm, candidates);
@@ -1009,6 +1063,8 @@ function chooseCandidate(
         previousTargets,
         "longest",
         "two-layer",
+        placeObstacles,
+        rootSize,
       ),
       runLayoutCandidate(
         "simplex-two-layer-greedy",
@@ -1019,6 +1075,8 @@ function chooseCandidate(
         previousTargets,
         "simplex",
         "two-layer",
+        placeObstacles,
+        rootSize,
       ),
     ]);
   }
@@ -1038,6 +1096,8 @@ function chooseCandidate(
     previousTargets,
     useSimplexLayering ? "simplex" : "longest",
     "two-layer",
+    placeObstacles,
+    rootSize,
   );
 }
 
@@ -1052,6 +1112,7 @@ function layoutPlace(
   const nodeIds = instances.map((instance) => instance.id);
   const nodeIdSet = new Set(nodeIds);
   const sizes = nodeSizeMap(nodeIds, options.nodeSizes);
+  const placeSize = finitePositiveSize(options.placeSizes?.get(placeId));
   const edges = localAcyclicEdges(nodeIdSet, candidateEdges);
   const structuredNodeSet = new Set<WorldInstanceId>();
   for (const edge of edges) {
@@ -1062,7 +1123,7 @@ function layoutPlace(
     if (nodeIdSet.has(id)) structuredNodeSet.add(id);
   }
   const structuredNodeIds = nodeIds.filter((id) => structuredNodeSet.has(id));
-  const key = topologyKey(placeId, nodeIds, edges, sizes);
+  const key = topologyKey(placeId, nodeIds, edges, sizes, placeSize);
   const cacheKey = String(placeId);
   const cached = placeCache.get(cacheKey);
 
@@ -1082,6 +1143,8 @@ function layoutPlace(
     sizes,
     previousTargets,
     options.reorganize ? undefined : cached?.result.metrics.algorithm,
+    Object.freeze([]),
+    placeSize,
   );
   const originalIds = new Map(nodeIds.map((id) => [String(id), id] as const));
 
@@ -1168,6 +1231,7 @@ function crossPlaceTopologyKey(
   edges: readonly LocalDagEdge[],
   sizes: ReadonlyMap<string, readonly [number, number]>,
   places: ReadonlyMap<WorldInstanceId, PlaceId>,
+  placeSizes: ReadonlyMap<PlaceId, WorldDagLayoutNodeSize> | undefined,
 ): string {
   return JSON.stringify([
     "cross-place",
@@ -1207,7 +1271,32 @@ function layoutCrossPlaceTopology(
   );
   const edges = localAcyclicEdges(nodeIdSet, candidateEdges);
   const sizes = nodeSizeMap(nodeIds, options.nodeSizes);
-  const key = crossPlaceTopologyKey(nodeIds, edges, sizes, index.primaryPlaceByInstance);
+  const placeIds = [
+    ...new Set(
+      nodeIds
+        .map((id) => index.primaryPlaceByInstance.get(id))
+        .filter((id): id is PlaceId => id !== undefined),
+    ),
+  ].sort((left, right) => String(left).localeCompare(String(right)));
+  const placeObstacles = Object.freeze(
+    placeIds.map((placeId) =>
+      Object.freeze({
+        id: placeObstacleId(placeId),
+        placeId,
+        nodeIds: Object.freeze(
+          nodeIds.filter((id) => index.primaryPlaceByInstance.get(id) === placeId),
+        ),
+        size: finitePositiveSize(options.placeSizes?.get(placeId)),
+      }),
+    ),
+  );
+  const key = crossPlaceTopologyKey(
+    nodeIds,
+    edges,
+    sizes,
+    index.primaryPlaceByInstance,
+    options.placeSizes,
+  );
 
   if (!options.reorganize && crossPlaceCache?.topologyKey === key) {
     crossPlaceCache = { ...crossPlaceCache, lastSeenRevision: revision };
@@ -1225,6 +1314,7 @@ function layoutCrossPlaceTopology(
     sizes,
     previousTargets,
     options.reorganize ? undefined : crossPlaceCache?.algorithm,
+    placeObstacles,
   );
   if (candidate.targets.length === 0) {
     crossPlaceCache = {
@@ -1238,33 +1328,25 @@ function layoutCrossPlaceTopology(
   }
 
   const rawById = new Map(candidate.targets.map((target) => [target.id, target] as const));
-  const centers = new Map<PlaceId, { east: number; north: number; count: number }>();
-  for (const id of nodeIds) {
-    const raw = rawById.get(String(id));
-    const placeId = index.primaryPlaceByInstance.get(id);
-    if (!raw || !placeId) continue;
-    const center = centers.get(placeId);
-    if (center) {
-      center.east += raw.eastMeters;
-      center.north += raw.northMeters;
-      center.count += 1;
-    } else {
-      centers.set(placeId, { east: raw.eastMeters, north: raw.northMeters, count: 1 });
-    }
-  }
+  const placeOrigins = new Map(
+    placeObstacles.flatMap((obstacle) => {
+      const origin = rawById.get(obstacle.id);
+      return origin ? [[obstacle.placeId, origin] as const] : [];
+    }),
+  );
 
   const centeredTargets = Object.freeze(
     nodeIds.flatMap((instanceId) => {
       const raw = rawById.get(String(instanceId));
       const placeId = index.primaryPlaceByInstance.get(instanceId);
-      const center = placeId ? centers.get(placeId) : undefined;
-      if (!raw || !placeId || !center) return [];
+      const origin = placeId ? placeOrigins.get(placeId) : undefined;
+      if (!raw || !placeId || !origin) return [];
       return [
         Object.freeze({
           instanceId,
           placeId,
-          eastMeters: raw.eastMeters - center.east / center.count,
-          northMeters: raw.northMeters - center.north / center.count,
+          eastMeters: raw.eastMeters - origin.eastMeters,
+          northMeters: raw.northMeters - origin.northMeters,
         }),
       ];
     }),
@@ -1275,10 +1357,8 @@ function layoutCrossPlaceTopology(
       const sourcePlace = index.primaryPlaceByInstance.get(route.sourceId);
       const targetPlace = index.primaryPlaceByInstance.get(route.targetId);
       if (!sourcePlace || sourcePlace !== targetPlace) return [];
-      const center = centers.get(sourcePlace);
-      if (!center) return [];
-      const centerEast = center.east / center.count;
-      const centerNorth = center.north / center.count;
+      const origin = placeOrigins.get(sourcePlace);
+      if (!origin) return [];
       return [
         Object.freeze({
           relationshipId: route.relationshipId,
@@ -1288,8 +1368,8 @@ function layoutCrossPlaceTopology(
           points: Object.freeze(
             route.points.map((point) =>
               Object.freeze({
-                eastMeters: point.eastMeters - centerEast,
-                northMeters: point.northMeters - centerNorth,
+                eastMeters: point.eastMeters - origin.eastMeters,
+                northMeters: point.northMeters - origin.northMeters,
               }),
             ),
           ),
@@ -1320,9 +1400,10 @@ function prunePlaceCache(revision: number): void {
  * Derive deterministic, size-aware Sugiyama organization while keeping each
  * primary geographic anchor authoritative. Local-only neighborhoods are laid
  * out per place. Any connected component that crosses a place boundary is
- * additionally laid out as one structural DAG, then recentered into each
- * node's own place-local frame so topology can propagate through geography
- * without relocating authored anchors.
+ * additionally laid out as one structural DAG containing layout-only place
+ * obstacles. Entity coordinates are measured from their corresponding place
+ * obstacle so topology and decrossing can propagate through geography without
+ * relocating authored anchors or promoting places into semantic graph nodes.
  */
 export function createWorldDagLayout(
   projection: WorldProjection,
