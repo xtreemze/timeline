@@ -55,6 +55,35 @@ test("deferred spatial view replays state after its renderer loads", async () =>
   ]);
 });
 
+test("deferred spatial view preserves interaction options across lazy loading", async () => {
+  let resolveFactory;
+  let receivedOptions = null;
+  const interaction = { token: "workspace-interaction" };
+  const factory = createDeferredSpatialViewFactory(
+    () =>
+      new Promise((resolve) => {
+        resolveFactory = resolve;
+      }),
+  );
+
+  const view = factory.create({}, { interaction });
+  assert.ok(view);
+  await Promise.resolve();
+  resolveFactory({
+    create(_root, options) {
+      receivedOptions = options;
+      return {
+        setModel() {},
+        setWindow() {},
+        setFocus() {},
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(receivedOptions?.interaction, interaction);
+});
+
 test("deferred spatial view reports renderer state replay failures", async () => {
   const errors = [];
   const factory = createDeferredSpatialViewFactory(

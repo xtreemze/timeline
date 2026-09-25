@@ -10,7 +10,7 @@ export interface CompatibleSpatialView {
 }
 
 export interface CompatibleSpatialViewFactory {
-  create(root: HTMLElement | null): CompatibleSpatialView | null;
+  create(root: HTMLElement | null, options?: unknown): CompatibleSpatialView | null;
 }
 
 function compatibleFactory(value: unknown): CompatibleSpatialViewFactory | null {

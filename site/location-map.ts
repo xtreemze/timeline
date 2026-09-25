@@ -1,4 +1,10 @@
 import {
+  createInteractionCoordinator,
+  type InteractionCoordinator,
+} from "../src/interaction/interaction-coordinator.ts";
+import { createSurfaceInteractionController } from "../src/interaction/surface-controller.ts";
+import {
+  surfaceKeyboardMayNavigate,
   surfacePointerMayStartDirectManipulation,
 } from "../src/interaction/surface-input-policy.ts";
 import { Leaflet } from "../src/leaflet-entry.js";
@@ -26,6 +32,17 @@ const PRESENTATION_FLY_DURATION_SECONDS = 7;
 const PRESENTATION_WORLD_DWELL_MS = 450;
 const MAP_DRAG_MOVE_TOLERANCE_PX = 8;
 const MAP_CLICK_SUPPRESSION_MS = 350;
+const MAP_DISCRETE_COMMIT_MS = 180;
+const MAP_KEYBOARD_CAMERA_KEYS = new Set([
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "ArrowDown",
+  "+",
+  "=",
+  "-",
+  "_",
+]);
 const motion = globalThis.TimelineMotion;
 
 interface PointCoord {
@@ -112,6 +129,7 @@ interface ReadOnlyLocationMapOptions {
   interactive?: boolean;
   countryContextIntro?: boolean;
   fictionalReferenceFrame?: boolean;
+  interaction?: InteractionCoordinator;
 }
 
 interface LocationMapControllerOptions {
@@ -123,6 +141,7 @@ interface LocationMapControllerOptions {
   source?: HTMLInputElement;
   geolocation?: HTMLElement;
   clearButton?: HTMLElement;
+  interaction?: InteractionCoordinator;
 }
 
 function loadLeaflet(): Promise<any> {
@@ -289,12 +308,15 @@ function installWeightedMapDragging(
   map: any,
   container: HTMLElement,
   interactive = true,
+  interaction: InteractionCoordinator = createInteractionCoordinator(),
 ): () => void {
   if (!interactive || !map || !container || !weightedMapDragAvailable()) return () => {};
 
   const pointers = new Map<number, PointerState>();
+  const surfaceInteraction = createSurfaceInteractionController("map", interaction);
   let drag: DragState | null = null;
   let inertiaAnimationFrame = 0;
+  let discreteCommitTimer: ReturnType<typeof globalThis.setTimeout> | 0 = 0;
   let suppressClickUntil = 0;
 
   const releasePointerCapture = (pointerId: number) => {
@@ -307,7 +329,12 @@ function installWeightedMapDragging(
   };
 
   const cancelInertia = () => {
-    if (inertiaAnimationFrame) cancelAnimationFrame(inertiaAnimationFrame);
+    if (inertiaAnimationFrame) {
+      cancelAnimationFrame(inertiaAnimationFrame);
+      inertiaAnimationFrame = 0;
+      surfaceInteraction.commit();
+      return;
+    }
     inertiaAnimationFrame = 0;
   };
 
@@ -319,9 +346,34 @@ function installWeightedMapDragging(
         ),
     );
 
+  const finishDiscreteInput = (): void => {
+    if (discreteCommitTimer) {
+      globalThis.clearTimeout(discreteCommitTimer);
+      discreteCommitTimer = 0;
+    }
+    const snapshot = surfaceInteraction.snapshot();
+    if (
+      snapshot.owner === "map" &&
+      snapshot.phase === "owned" &&
+      snapshot.pointerIds.length === 0 &&
+      (snapshot.gesture === "wheel" || snapshot.gesture === "keyboard")
+    ) {
+      surfaceInteraction.finishDiscrete();
+    }
+  };
+
+  const scheduleDiscreteCommit = (): void => {
+    if (discreteCommitTimer) globalThis.clearTimeout(discreteCommitTimer);
+    discreteCommitTimer = globalThis.setTimeout(() => {
+      discreteCommitTimer = 0;
+      finishDiscreteInput();
+    }, MAP_DISCRETE_COMMIT_MS);
+  };
+
   const beginDrag = (pointerId: number, point: any, sourceEvent: PointerEvent | null = null) => {
     if (!point || pointers.size > 1) return;
     cancelInertia();
+    if (!surfaceInteraction.beginPointer(pointerId, "pan")) return;
     const zoom = map.getZoom();
     const center = map.project(map.getCenter(), zoom);
     drag = {
@@ -379,6 +431,7 @@ function installWeightedMapDragging(
       prefersReducedMotion() ||
       velocity.magnitude < (motion.STOP_VELOCITY_PX_PER_MS || 0.012)
     ) {
+      surfaceInteraction.commit();
       return;
     }
     cancelInertia();
@@ -389,7 +442,10 @@ function installWeightedMapDragging(
     const step = (now: number) => {
       inertiaAnimationFrame = 0;
       const magnitude = Math.hypot(velocityX, velocityY);
-      if (magnitude < (motion.STOP_VELOCITY_PX_PER_MS || 0.012)) return;
+      if (magnitude < (motion.STOP_VELOCITY_PX_PER_MS || 0.012)) {
+        surfaceInteraction.commit();
+        return;
+      }
 
       const elapsed = lastFrame ? Math.min(48, Math.max(1, now - lastFrame)) : 16;
       lastFrame = now;
@@ -399,6 +455,8 @@ function installWeightedMapDragging(
 
       if (Math.hypot(velocityX, velocityY) >= (motion.STOP_VELOCITY_PX_PER_MS || 0.012)) {
         inertiaAnimationFrame = requestAnimationFrame(step);
+      } else {
+        surfaceInteraction.commit();
       }
     };
 
@@ -407,6 +465,7 @@ function installWeightedMapDragging(
 
   const onPointerDown = (event: PointerEvent) => {
     if (!surfacePointerMayStartDirectManipulation(event)) return;
+    finishDiscreteInput();
     cancelInertia();
     const blocked = targetBlocksCameraDrag(event.target);
     pointers.set(event.pointerId, {
@@ -418,6 +477,12 @@ function installWeightedMapDragging(
     });
 
     if (pointers.size > 1) {
+      if (!surfaceInteraction.beginPointer(event.pointerId, "pinch")) {
+        pointers.delete(event.pointerId);
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
       cancelDrag();
       return;
     }
@@ -432,6 +497,7 @@ function installWeightedMapDragging(
     }
     if (pointers.size > 1) {
       cancelDrag();
+      surfaceInteraction.claimGesture("pinch");
       return;
     }
     applyWeightedDrag(event);
@@ -443,18 +509,29 @@ function installWeightedMapDragging(
     if (finishedDrag) motion.appendPointerVectorSamples(finishedDrag.samples, event);
     pointers.delete(event.pointerId);
 
+    if (event.type === "pointercancel") {
+      drag = null;
+      releasePointerCapture(event.pointerId);
+      surfaceInteraction.cancel("pointercancel");
+      return;
+    }
+
     if (ownsDrag) {
       drag = null;
       releasePointerCapture(event.pointerId);
-      if (event.type !== "pointercancel" && finishedDrag?.moved) {
-        const velocity = motion.estimatePointerVectorVelocity(finishedDrag.samples);
-        suppressClickUntil = performance.now() + MAP_CLICK_SUPPRESSION_MS;
-        void motion.pulseHaptic?.("release");
-        requestAnimationFrame(() => startInertia(velocity));
-      }
     }
 
-    if (event.type !== "pointercancel" && event.pointerType === "touch" && pointers.size === 1) {
+    const released = surfaceInteraction.releasePointer(event.pointerId);
+    if (ownsDrag && finishedDrag?.moved) {
+      const velocity = motion.estimatePointerVectorVelocity(finishedDrag.samples);
+      suppressClickUntil = performance.now() + MAP_CLICK_SUPPRESSION_MS;
+      void motion.pulseHaptic?.("release");
+      requestAnimationFrame(() => startInertia(velocity));
+    } else if (released && surfaceInteraction.snapshot().phase === "settling") {
+      surfaceInteraction.commit();
+    }
+
+    if (event.pointerType === "touch" && pointers.size === 1) {
       const remaining = Array.from(pointers.values())[0];
       if (remaining && !remaining.blocked) {
         requestAnimationFrame(() => {
@@ -468,6 +545,7 @@ function installWeightedMapDragging(
 
   const abortInteraction = () => {
     cancelInertia();
+    surfaceInteraction.cancel("aborted");
     const pointerIds = Array.from(pointers.keys());
     drag = null;
     pointers.clear();
@@ -479,12 +557,38 @@ function installWeightedMapDragging(
     if (drag?.pointerId !== pe.pointerId) return;
     drag = null;
     pointers.delete(pe.pointerId);
+    surfaceInteraction.cancel("lostpointercapture");
   };
 
   const onClickCapture = (event: MouseEvent) => {
     if (performance.now() >= suppressClickUntil) return;
     event.preventDefault();
     event.stopImmediatePropagation();
+  };
+
+  const onWheelCapture = (event: WheelEvent) => {
+    finishDiscreteInput();
+    cancelInertia();
+    if (!surfaceInteraction.beginDiscrete("wheel")) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    scheduleDiscreteCommit();
+  };
+
+  const onKeyDownCapture = (event: KeyboardEvent) => {
+    if (!MAP_KEYBOARD_CAMERA_KEYS.has(event.key) || !surfaceKeyboardMayNavigate(event)) {
+      return;
+    }
+    finishDiscreteInput();
+    cancelInertia();
+    if (!surfaceInteraction.beginDiscrete("keyboard")) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    scheduleDiscreteCommit();
   };
 
   const onVisibilityChange = () => {
@@ -497,7 +601,8 @@ function installWeightedMapDragging(
   container.addEventListener("pointercancel", finishPointer as EventListener);
   container.addEventListener("lostpointercapture", onLostPointerCapture);
   container.addEventListener("click", onClickCapture, { capture: true });
-  container.addEventListener("wheel", cancelInertia, { passive: true });
+  container.addEventListener("wheel", onWheelCapture, { capture: true, passive: false });
+  container.addEventListener("keydown", onKeyDownCapture, true);
   globalThis.addEventListener?.("blur", abortInteraction);
   globalThis.addEventListener?.("orientationchange", abortInteraction);
   document.addEventListener("visibilitychange", onVisibilityChange);
@@ -510,7 +615,9 @@ function installWeightedMapDragging(
     container.removeEventListener("pointercancel", finishPointer as EventListener);
     container.removeEventListener("lostpointercapture", onLostPointerCapture);
     container.removeEventListener("click", onClickCapture, true);
-    container.removeEventListener("wheel", cancelInertia);
+    container.removeEventListener("wheel", onWheelCapture, true);
+    container.removeEventListener("keydown", onKeyDownCapture, true);
+    finishDiscreteInput();
     globalThis.removeEventListener?.("blur", abortInteraction);
     globalThis.removeEventListener?.("orientationchange", abortInteraction);
     document.removeEventListener("visibilitychange", onVisibilityChange);
@@ -754,6 +861,7 @@ class ReadOnlyLocationMap {
   interactive: boolean;
   countryContextIntro: boolean;
   fictionalReferenceFrame: boolean;
+  interaction: InteractionCoordinator;
   map: any;
   placePlaceholder: HTMLElement | null;
   layers: any[];
@@ -785,6 +893,7 @@ class ReadOnlyLocationMap {
     this.interactive = options.interactive === true;
     this.countryContextIntro = options.countryContextIntro === true;
     this.fictionalReferenceFrame = options.fictionalReferenceFrame === true;
+    this.interaction = options.interaction ?? createInteractionCoordinator();
     this.map = null;
     this.placePlaceholder = null;
     this.layers = [];
@@ -886,10 +995,12 @@ class ReadOnlyLocationMap {
         touchZoom: true,
         ...mapMotionOptions(this.interactive),
       });
+      if (this.interactive) this.container.dataset.surfaceKeyboardNavigation = "camera";
       this.weightedDragCleanup = installWeightedMapDragging(
         this.map,
         this.container,
         this.interactive,
+        this.interaction,
       );
       this.resizeCleanup = observeMapSize(this.map, this.container, () => {
         this.confirmGeometryVisible();
@@ -1160,7 +1271,10 @@ class ReadOnlyLocationMap {
     this.basemapCleanup = null;
     this.clearPlacePlaceholder();
     this.container?.classList.remove("is-fictional-map");
-    if (this.container) delete this.container.dataset.referenceFrame;
+    if (this.container) {
+      delete this.container.dataset.referenceFrame;
+      delete this.container.dataset.surfaceKeyboardNavigation;
+    }
     this.layers = [];
     this.map?.remove();
     this.map = null;
@@ -1183,6 +1297,7 @@ class LocationMapController {
   resizeCleanup: (() => void) | null;
   basemapCleanup: (() => void) | null;
   providers: MapProvider[];
+  interaction: InteractionCoordinator;
 
   constructor(options: LocationMapControllerOptions) {
     this.container = options.container;
@@ -1193,6 +1308,7 @@ class LocationMapController {
     this.source = options.source;
     this.geolocation = options.geolocation;
     this.clearButton = options.clearButton;
+    this.interaction = options.interaction ?? createInteractionCoordinator();
     this.map = null;
     this.marker = null;
     this.weightedDragCleanup = null;
@@ -1250,7 +1366,13 @@ class LocationMapController {
         dragging: !weightedDrag,
         ...mapMotionOptions(true),
       }).setView([20, 0], 2);
-      this.weightedDragCleanup = installWeightedMapDragging(this.map, this.container, true);
+      this.container.dataset.surfaceKeyboardNavigation = "camera";
+      this.weightedDragCleanup = installWeightedMapDragging(
+        this.map,
+        this.container,
+        true,
+        this.interaction,
+      );
       this.resizeCleanup = observeMapSize(this.map, this.container, () => {
         this.updateFromInputs(false);
       });
@@ -1344,6 +1466,7 @@ class LocationMapController {
     this.marker = null;
     this.map?.remove();
     this.map = null;
+    delete this.container.dataset.surfaceKeyboardNavigation;
   }
 }
 

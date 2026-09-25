@@ -2,9 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createInteractionCoordinator } from "../src/interaction/interaction-coordinator.ts";
+import { createSurfaceInteractionController } from "../src/interaction/surface-controller.ts";
 import {
   surfaceActivationFromKeyboard,
   surfaceCursor,
+  surfaceKeyboardMayNavigate,
+  surfaceKeyboardTargetOwnsNavigation,
+  surfaceNavigationFromKeyboard,
   surfacePointerMayStartDirectManipulation,
   surfacePointerType,
 } from "../src/interaction/surface-input-policy.ts";
@@ -99,7 +103,6 @@ test("stale releases and commits from non-owners cannot mutate state", () => {
   assert.deepEqual(coordinator.snapshot(), before);
 });
 
-
 test("all surfaces share primary pointer acquisition semantics", () => {
   assert.equal(surfacePointerMayStartDirectManipulation({ pointerType: "mouse", button: 0 }), true);
   assert.equal(
@@ -135,4 +138,121 @@ test("surface cursors use one direct-manipulation vocabulary", () => {
   assert.equal(surfaceCursor("action"), "pointer");
   assert.equal(surfaceCursor("cluster"), "zoom-in");
   assert.equal(surfaceCursor("draggable", { dragging: true }), "grabbing");
+});
+
+test("owned pan can promote to pinch and return to pan without a second epoch", () => {
+  const coordinator = createInteractionCoordinator();
+  const timeline = createSurfaceInteractionController("timeline", coordinator);
+
+  assert.equal(timeline.beginPointer(1, "pan"), true);
+  assert.equal(coordinator.snapshot().phase, "owned");
+  assert.equal(timeline.beginPointer(2, "pinch"), true);
+  assert.deepEqual(coordinator.snapshot().pointerIds, [1, 2]);
+  assert.equal(coordinator.snapshot().gesture, "pinch");
+
+  assert.equal(timeline.releasePointer(2), true);
+  assert.equal(timeline.claimGesture("pan"), true);
+  assert.deepEqual(coordinator.snapshot().pointerIds, [1]);
+  assert.equal(coordinator.snapshot().gesture, "pan");
+
+  assert.equal(timeline.releasePointer(1, { commit: true }), true);
+  assert.equal(coordinator.snapshot().phase, "committed");
+});
+
+test("node drag remains exclusive when a second pointer arrives", () => {
+  const coordinator = createInteractionCoordinator();
+  const world = createSurfaceInteractionController("world", coordinator);
+
+  assert.equal(world.beginPointer(4, "node-drag"), true);
+  assert.equal(world.beginPointer(5, "pinch"), false);
+  assert.equal(coordinator.snapshot().gesture, "node-drag");
+  assert.deepEqual(coordinator.snapshot().pointerIds, [4]);
+
+  assert.equal(world.releasePointer(5), false);
+  assert.equal(world.releasePointer(4, { commit: true }), true);
+});
+
+test("unclaimed tap intent can promote to pan after movement tolerance", () => {
+  const coordinator = createInteractionCoordinator();
+  const timeline = createSurfaceInteractionController("timeline", coordinator);
+
+  assert.equal(timeline.beginPointer(8, "tap", { claim: false }), true);
+  assert.equal(coordinator.snapshot().phase, "classification");
+  assert.equal(coordinator.snapshot().gesture, "tap");
+
+  assert.equal(timeline.claimGesture("pan"), true);
+  assert.equal(coordinator.snapshot().phase, "owned");
+  assert.equal(coordinator.snapshot().gesture, "pan");
+});
+
+test("discrete camera input shares ownership with pointer gestures", () => {
+  const coordinator = createInteractionCoordinator();
+  const timeline = createSurfaceInteractionController("timeline", coordinator);
+  const world = createSurfaceInteractionController("world", coordinator);
+
+  assert.equal(timeline.beginDiscrete("wheel"), true);
+  assert.equal(timeline.beginDiscrete("wheel"), true, "wheel bursts reuse one epoch");
+  assert.equal(world.beginDiscrete("keyboard"), false, "another surface cannot steal the epoch");
+  assert.equal(timeline.finishDiscrete(), true);
+  assert.equal(coordinator.snapshot().phase, "committed");
+
+  assert.equal(world.beginDiscrete("keyboard"), true);
+  assert.equal(world.finishDiscrete(), true);
+});
+
+test("shared keyboard navigation ignores controls and platform shortcuts", () => {
+  assert.equal(
+    surfaceKeyboardMayNavigate({ key: "ArrowLeft", target: { tagName: "input" } }),
+    false,
+  );
+  assert.equal(
+    surfaceKeyboardMayNavigate({
+      key: "ArrowLeft",
+      target: { tagName: "DIV", isContentEditable: true },
+    }),
+    false,
+  );
+  assert.equal(surfaceKeyboardMayNavigate({ key: "ArrowLeft", metaKey: true }), false);
+  assert.equal(surfaceKeyboardMayNavigate({ key: "ArrowLeft", ctrlKey: true }), false);
+  assert.equal(surfaceKeyboardMayNavigate({ key: "ArrowLeft", target: { tagName: "DIV" } }), true);
+});
+
+test("application navigation yields to a focused camera surface", () => {
+  const cameraSurface = {};
+  const target = {
+    closest(selector) {
+      return selector === '[data-surface-keyboard-navigation="camera"]' ? cameraSurface : null;
+    },
+  };
+  assert.equal(surfaceKeyboardTargetOwnsNavigation({ key: "ArrowRight", target }), true);
+  assert.equal(
+    surfaceKeyboardTargetOwnsNavigation({
+      key: "ArrowRight",
+      target: { closest: () => null },
+    }),
+    false,
+  );
+});
+
+test("retained surfaces use the same renderer-style keyboard camera vocabulary", () => {
+  assert.equal(surfaceNavigationFromKeyboard({ key: "ArrowLeft" }, "horizontal"), "pan-negative");
+  assert.equal(surfaceNavigationFromKeyboard({ key: "ArrowRight" }, "horizontal"), "pan-positive");
+  assert.equal(surfaceNavigationFromKeyboard({ key: "ArrowUp" }, "horizontal"), null);
+  assert.equal(surfaceNavigationFromKeyboard({ key: "ArrowUp" }, "vertical"), "pan-negative");
+  assert.equal(surfaceNavigationFromKeyboard({ key: "ArrowDown" }, "vertical"), "pan-positive");
+  assert.equal(surfaceNavigationFromKeyboard({ key: "+" }, "horizontal"), "zoom-in");
+  assert.equal(surfaceNavigationFromKeyboard({ key: "=" }, "horizontal"), "zoom-in");
+  assert.equal(surfaceNavigationFromKeyboard({ key: "-" }, "horizontal"), "zoom-out");
+  assert.equal(surfaceNavigationFromKeyboard({ key: "Home" }, "horizontal"), "fit-visible");
+  assert.equal(
+    surfaceNavigationFromKeyboard({ key: "Home", shiftKey: true }, "horizontal"),
+    "fit-all",
+  );
+  assert.equal(
+    surfaceNavigationFromKeyboard(
+      { key: "ArrowRight", target: { tagName: "BUTTON" } },
+      "horizontal",
+    ),
+    null,
+  );
 });

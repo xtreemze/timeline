@@ -3,6 +3,8 @@
  * Main entry point coordinating all modules, UI state, and persistence
  */
 
+// Import ESM modules
+import { createInteractionCoordinator } from "../src/interaction/interaction-coordinator.ts";
 import { planWorkspacePlacement } from "../src/layout/workspace-layout.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
@@ -15,7 +17,6 @@ import {
   reconcileStoryContext,
   storyIdsForItem,
 } from "./story-authoring.js";
-// Import ESM modules
 import { TimelineTemporal } from "./temporal-standards.ts";
 import { createSettledTemporalWindowSink } from "./world/settled-temporal-window.ts";
 import { selectPrimarySpatialViewFactory } from "./world/world-view-selection.ts";
@@ -628,10 +629,16 @@ function setSemanticControlIcon(element, iconName, label) {
 
 decorateSemanticControls();
 
-const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
+const surfaceInteractionCoordinator = createInteractionCoordinator();
+const timelineView =
+  globalThis.TimelineView?.create(els.timelineViewRoot, {
+    interaction: surfaceInteractionCoordinator,
+  }) || null;
 let temporalGraphView: ReturnType<typeof temporalGraphFactory.create> | null = null;
 try {
-  temporalGraphView = temporalGraphFactory.create(els.graphViewRoot);
+  temporalGraphView = temporalGraphFactory.create(els.graphViewRoot, {
+    interaction: surfaceInteractionCoordinator,
+  });
 } catch (error) {
   console.error("Failed to initialize TemporalGraphView:", error);
 }
@@ -967,6 +974,7 @@ function renderPresentationMap() {
       interactive: true,
       countryContextIntro: true,
       fictionalReferenceFrame,
+      interaction: surfaceInteractionCoordinator,
     }) || null;
   presentationMapKey = presentationMap ? mapKey : "";
   return Boolean(presentationMap);
@@ -1148,6 +1156,7 @@ const locationMap =
     source: els.itemLocationSource,
     geolocation: els.itemGeolocation,
     clearButton: els.itemLocationClear,
+    interaction: surfaceInteractionCoordinator,
   }) || null;
 
 function newId(prefix = "id") {
@@ -1904,7 +1913,7 @@ function fillItemStoryContext(selectedStoryId = "") {
       ? ui.activeStoryId
       : "");
   els.itemStoryContext.value = state.stories.some((story) => story.id === preferred)
-    ? preferred
+    ? (preferred ?? "")
     : "";
 }
 

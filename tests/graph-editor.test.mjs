@@ -506,20 +506,20 @@ test("activated touch long press directly drives the Orb simulator instead of de
   );
 });
 
-test("active touch node drag keeps exclusive camera ownership and releases when its owning finger lifts", async () => {
+test("second touch cancels graph node drag and promotes the same surface to pinch camera ownership", async () => {
   const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
 
   assert.match(
     bridge,
-    /activeTouchPointers\.size > 1[\s\S]*touchHold\?\.activated[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)[\s\S]*return/,
+    /activeTouchPointers\.size > 1[\s\S]*activeNodePointerId[\s\S]*finishActiveTouchNodeDrag\(\)[\s\S]*surfaceInteraction\.cancel\("aborted"\)[\s\S]*beginPointer\(activeNodePointerId, "pan"\)[\s\S]*beginPointer\(event\.pointerId, "pinch"\)/,
   );
   assert.match(
     bridge,
-    /const ownsActiveNodeDrag = Boolean\([\s\S]*touchHold\?\.activated && touchHold\.pointerId === event\.pointerId/,
+    /surfaceInteraction\.claimGesture\("node-drag"\)[\s\S]*touchHold\.activated = true/,
   );
   assert.match(
     bridge,
-    /if \(ownsActiveNodeDrag\)[\s\S]*finishActiveTouchNodeDrag\(\)[\s\S]*finishTouchGesture\(\)[\s\S]*activeTouchPointers\.size[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)/,
+    /activeTouchPointers\.size === 1[\s\S]*surfaceInteraction\.snapshot\(\)\.gesture === "pinch"[\s\S]*surfaceInteraction\.claimGesture\("pan"\)/,
   );
 });
 
@@ -554,12 +554,29 @@ test("graph touch ownership keeps D3 zoom state synchronized and recovers from i
   );
   assert.match(
     bridge,
-    /function abortTouchInteraction\(\)[\s\S]*cancelCameraInertia\(\)[\s\S]*activeTouchPointers\.clear\(\)[\s\S]*finishTouchGesture\(\)/,
+    /function abortTouchInteraction\(reason = "aborted"\)[\s\S]*cancelCameraInertia\(\{ commit: false \}\)[\s\S]*surfaceInteraction\.cancel\(reason\)[\s\S]*activeTouchPointers\.clear\(\)[\s\S]*finishTouchGesture\(\)/,
   );
   assert.match(bridge, /addEventListener\?\.\("blur", onWindowBlur\)/);
   assert.match(bridge, /document\.addEventListener\("visibilitychange", onVisibilityChange\)/);
   assert.match(bridge, /removeEventListener\?\.\("blur", onWindowBlur\)/);
   assert.match(bridge, /document\.removeEventListener\("visibilitychange", onVisibilityChange\)/);
+});
+
+test("legacy graph camera and direct manipulation use the shared surface interaction controller", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(bridge, /createSurfaceInteractionController\("graph", interaction\)/);
+  assert.match(bridge, /surfaceInteraction\.beginPointer\(event\.pointerId, "pan"\)/);
+  assert.match(
+    bridge,
+    /surfaceInteraction\.beginPointer\(event\.pointerId, "tap", \{ claim: false \}\)/,
+  );
+  assert.match(bridge, /surfaceInteraction\.beginPointer\(event\.pointerId, "pinch"\)/);
+  assert.match(bridge, /surfaceInteraction\.claimGesture\("node-drag"\)/);
+  assert.match(bridge, /surfaceInteraction\.beginDiscrete\("wheel"\)/);
+  assert.match(bridge, /surfaceInteraction\.beginDiscrete\("keyboard"\)/);
+  assert.match(bridge, /surfaceKeyboardNavigation = "camera"/);
+  assert.match(bridge, /surfaceInteraction\.cancel\("lostpointercapture"\)/);
 });
 
 test("graph camera gestures have explicit keyboard equivalents", async () => {

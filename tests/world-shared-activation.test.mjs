@@ -229,3 +229,13 @@ test("a new transient burst never replays a stale settled viewport", () => {
 
   assert.deepEqual(applied, [first, second]);
 });
+
+test("application bootstrap injects one interaction coordinator into timeline and world", async () => {
+  const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
+  assert.match(app, /const surfaceInteractionCoordinator = createInteractionCoordinator\(\)/);
+  assert.match(app, /TimelineView\?\.create\([\s\S]*interaction: surfaceInteractionCoordinator/);
+  assert.match(
+    app,
+    /temporalGraphFactory\.create\([\s\S]*interaction: surfaceInteractionCoordinator/,
+  );
+});

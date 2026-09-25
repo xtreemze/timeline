@@ -4,6 +4,7 @@
  */
 
 import { entityId, relationshipId } from "../src/domain/ids.ts";
+import type { InteractionCoordinator } from "../src/interaction/interaction-coordinator.ts";
 import type {
   CanonicalSelection,
   GraphEdgeProjection,
@@ -434,9 +435,15 @@ class TemporalGraphViewController {
   }
 }
 
-export function create(root: HTMLElement | null): TemporalGraphViewController | null {
+export function create(
+  root: HTMLElement | null,
+  options: Readonly<{ interaction?: InteractionCoordinator }> = {},
+): TemporalGraphViewController | null {
   if (!root) return null;
-  return new TemporalGraphViewController(root, createOrbGraphSurfaceFactory(getOrbFactory()));
+  return new TemporalGraphViewController(
+    root,
+    createOrbGraphSurfaceFactory(getOrbFactory(), options.interaction),
+  );
 }
 
 const TemporalGraphViewObj = { create } as const;

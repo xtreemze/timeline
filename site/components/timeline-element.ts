@@ -1,4 +1,5 @@
 import { LitElement, noChange } from "lit";
+import type { InteractionCoordinator } from "../../src/interaction/interaction-coordinator.ts";
 import { TimelineViewController } from "../timeline-view.ts";
 
 /**
@@ -18,9 +19,11 @@ export class LuumTimelineElement extends LitElement {
     return noChange;
   }
 
-  ensureTimelineController(): TimelineViewController {
+  ensureTimelineController(interaction?: InteractionCoordinator): TimelineViewController {
     if (!this.timelineController) {
-      this.timelineController = new TimelineViewController(this);
+      this.timelineController = new TimelineViewController(this, interaction);
+    } else if (interaction) {
+      this.timelineController.setInteractionCoordinator(interaction);
     }
     return this.timelineController;
   }

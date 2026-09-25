@@ -6,6 +6,7 @@
  */
 
 import type { EntityId, RelationshipId } from "../domain/ids.ts";
+import type { InteractionCoordinator } from "../interaction/interaction-coordinator.ts";
 import type {
   CanonicalSelection,
   GraphEdgeProjection,
@@ -43,6 +44,7 @@ interface OrbSimulationState {
 }
 
 interface OrbFactoryOptions {
+  interaction?: InteractionCoordinator;
   onNodeClick?: (node: OrbNode) => void;
   onNodeLongPress?: (node: OrbNode) => void;
   onEdgeClick?: (edge: OrbEdge) => void;
@@ -99,9 +101,11 @@ export class OrbGraphSurface implements GraphSurface {
     container: HTMLElement,
     orbFactory: OrbFactory,
     eventListener: GraphSurfaceEventListener,
+    interaction?: InteractionCoordinator,
   ) {
     this.eventListener = eventListener;
     this.orb = orbFactory.create(container, {
+      interaction,
       onNodeClick: (node) => this.handleNodeClick(node),
       onNodeLongPress: (node) => this.handleNodeLongPress(node),
       onEdgeClick: (edge) => this.handleEdgeClick(edge),
@@ -200,10 +204,13 @@ export class OrbGraphSurface implements GraphSurface {
   }
 }
 
-export function createOrbGraphSurfaceFactory(orbFactory: OrbFactory): GraphSurfaceFactory {
+export function createOrbGraphSurfaceFactory(
+  orbFactory: OrbFactory,
+  interaction?: InteractionCoordinator,
+): GraphSurfaceFactory {
   return {
     create(container, eventListener) {
-      return new OrbGraphSurface(container, orbFactory, eventListener);
+      return new OrbGraphSurface(container, orbFactory, eventListener, interaction);
     },
   };
 }

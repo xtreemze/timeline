@@ -1,3 +1,5 @@
+import { surfaceKeyboardTargetOwnsNavigation } from "../src/interaction/surface-input-policy.ts";
+
 /**
  * Timeline navigation and auto-advance controls
  * Keyboard/gamepad input handling, auto-play state management
@@ -26,7 +28,7 @@ export function commandFromKeyboard(event: unknown, activeNavigation: boolean): 
   if (["MediaTrackNext", "ChannelUp"].includes(key)) return "next";
   if (["MediaTrackPrevious", "ChannelDown"].includes(key)) return "previous";
   if (["BrowserBack", "Escape"].includes(key)) return "back";
-  if (!activeNavigation) return null;
+  if (!activeNavigation || surfaceKeyboardTargetOwnsNavigation(event)) return null;
   if (key === "ArrowLeft") return "previous";
   if (key === "ArrowRight") return "next";
   if (key === "ArrowUp") return "previous-media";

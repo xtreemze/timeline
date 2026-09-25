@@ -48,12 +48,24 @@ test("pinch can hand off continuously to one-finger pan", async () => {
 
 test("interrupted touch gestures clear capture state and commit the retained epoch", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
-  assert.match(source, /const abortSurfaceGesture = \(\): void =>/);
+  assert.match(source, /const abortSurfaceGesture = \([\s\S]*InteractionCompletionReason/);
   assert.match(source, /this\.touchPointers\.clear\(\)/);
   assert.match(source, /this\.pinch = null/);
-  assert.match(source, /window\.addEventListener\("blur", abortSurfaceGesture\)/);
-  assert.match(source, /document\.addEventListener\("visibilitychange"/);
-  assert.match(source, /window\.addEventListener\("orientationchange", abortSurfaceGesture\)/);
-  assert.match(source, /visualViewport\?\.addEventListener\("resize"/);
+  assert.match(source, /abortSurfaceGesture\("blur"\)/);
+  assert.match(source, /abortSurfaceGesture\("visibilitychange"\)/);
+  assert.match(source, /abortSurfaceGesture\("orientationchange"\)/);
+  assert.match(source, /abortSurfaceGesture\("aborted"\)/);
+  assert.match(source, /this\.surfaceInteraction\.cancel\(reason\)/);
   assert.match(source, /this\.commitInteraction\(\)/);
+});
+
+test("timeline direct manipulation participates in the shared surface controller", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+  assert.match(source, /createSurfaceInteractionController\("timeline", interaction\)/);
+  assert.match(source, /beginDiscrete\("wheel"\)/);
+  assert.match(source, /beginPointer\(pointerId, "pan"\)/);
+  assert.match(source, /beginPointer\(event\.pointerId, "pinch"\)/);
+  assert.match(source, /beginPointer\(event\.pointerId, "tap", \{ claim: false \}\)/);
+  assert.match(source, /surfaceNavigationFromKeyboard/);
+  assert.match(source, /beginDiscrete\("keyboard"\)/);
 });

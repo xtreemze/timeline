@@ -114,6 +114,39 @@ test("interactive maps use the timeline weighted drag response and shared releas
   assert.match(source, /pointers\.size > 1[\s\S]*cancelDrag\(\)/);
   assert.match(source, /pointers\.size === 1[\s\S]*beginDrag\(remaining\.pointerId, remaining\)/);
   assert.match(source, /prefersReducedMotion\(\)/);
+  assert.match(source, /createSurfaceInteractionController\([\s\S]*"map"/);
+  assert.match(source, /surfaceInteraction\.beginPointer\(pointerId, "pan"\)/);
+  assert.match(source, /surfaceInteraction\.beginPointer\(event\.pointerId, "pinch"\)/);
+  assert.match(source, /surfaceInteraction\.claimGesture\("pinch"\)/);
+  assert.match(source, /surfaceInteraction\.releasePointer\(event\.pointerId\)/);
+  assert.match(source, /surfaceInteraction\.beginDiscrete\("wheel"\)/);
+  assert.match(source, /surfaceInteraction\.beginDiscrete\("keyboard"\)/);
+  assert.match(source, /surfaceInteraction\.cancel\("lostpointercapture"\)/);
+  assert.match(
+    source,
+    /addEventListener\("wheel", onWheelCapture, \{ capture: true, passive: false \}\)/,
+  );
+  assert.match(source, /addEventListener\("keydown", onKeyDownCapture, true\)/);
+  assert.match(
+    source,
+    /installWeightedMapDragging\([\s\S]*interaction: InteractionCoordinator = createInteractionCoordinator\(\)/,
+  );
+  assert.match(source, /createSurfaceInteractionController\("map", interaction\)/);
+});
+
+test("application injects the workspace interaction coordinator into embedded maps", async () => {
+  const [mapSource, appSource] = await Promise.all([
+    readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(mapSource, /interaction\?: InteractionCoordinator/);
+  assert.match(mapSource, /installWeightedMapDragging\([\s\S]*this\.interaction/);
+  assert.match(appSource, /createReadOnly\?\.\([\s\S]*interaction: surfaceInteractionCoordinator/);
+  assert.match(
+    appSource,
+    /TimelineLocationMap\?\.create\([\s\S]*interaction: surfaceInteractionCoordinator/,
+  );
 });
 
 test("map touch targets match the coarse-pointer interaction floor and editing has non-drag alternatives", async () => {
