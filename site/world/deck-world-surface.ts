@@ -981,6 +981,15 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function hasAuthoredPlaceMarkerGeometry(style: WorldPresentationStyle | undefined): boolean {
+  if (!isRecord(style)) return false;
+  const marker = isRecord(style["marker"]) ? style["marker"] : null;
+  return ["size", "diameter", "radius"].some((key) => {
+    const value = marker?.[key] ?? style[key];
+    return typeof value === "number" && Number.isFinite(value) && value > 0;
+  });
+}
+
 function isNativeInteractiveKeyboardTarget(target: EventTarget | null): boolean {
   if (!isRecord(target)) return false;
   const tagName = typeof target.tagName === "string" ? target.tagName.toLowerCase() : "";
@@ -3853,8 +3862,12 @@ export class DeckWorldSurface implements WorldSurface {
               getPosition: (datum: DeckWorldPlaceDatum) =>
                 liftedPlaceIconPosition(datum.position, this.#camera.zoom),
               getIcon: (datum: DeckWorldPlaceDatum) => worldNodeMarker(this.#placeStyle(datum)),
-              getSize: (datum: DeckWorldPlaceDatum) =>
-                worldNodeMarker(this.#placeStyle(datum)).size,
+              getSize: (datum: DeckWorldPlaceDatum) => {
+                const marker = worldNodeMarker(this.#placeStyle(datum));
+                return hasAuthoredPlaceMarkerGeometry(datum.style)
+                  ? marker.size
+                  : Math.max(WORLD_ENTITY_MIN_HIT_RADIUS_PX * 2, marker.size);
+              },
               getColor: (datum: DeckWorldPlaceDatum) => [
                 255,
                 255,
