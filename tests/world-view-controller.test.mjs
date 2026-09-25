@@ -393,3 +393,48 @@ test("subsequent projection revisions use WorldSurface delta updates when suppor
     ["alice"],
   );
 });
+
+test("manual DAG reorganization rebuilds targets and routes while retaining geographic anchors", () => {
+  const { calls, controller } = harness();
+  controller.setProjection(projection());
+  const initialScene = calls.find(([name]) => name === "force:scene")?.[1];
+  assert.ok(initialScene);
+
+  calls.length = 0;
+  assert.equal(controller.reorganizeDag(), true);
+
+  const sceneCall = calls.find(([name]) => name === "force:scene");
+  const routeCall = calls.find(([name]) => name === "surface:routes");
+  const applyCall = calls.find(([name]) => name === "force:apply");
+
+  assert.ok(sceneCall);
+  assert.ok(routeCall);
+  assert.ok(applyCall);
+  assert.deepEqual(sceneCall[1].anchors, initialScene.anchors);
+  assert.equal(applyCall[1].reason, "topology");
+  assert.equal(applyCall[1].reheat, true);
+  assert.ok(applyCall[1].excitation > 0);
+});
+
+test("manual force relaxation reheats the existing scene without rebuilding geographic ownership", () => {
+  const { calls, controller } = harness();
+  controller.setProjection(projection());
+
+  calls.length = 0;
+  assert.equal(controller.relaxForce(), true);
+
+  assert.equal(calls.some(([name]) => name === "force:scene"), false);
+  const applyCall = calls.find(([name]) => name === "force:apply");
+  assert.ok(applyCall);
+  assert.equal(applyCall[1].reason, "topology");
+  assert.equal(applyCall[1].reheat, true);
+});
+
+test("manual layout commands are inert until a world projection exists", () => {
+  const { calls, controller } = harness();
+
+  assert.equal(controller.reorganizeDag(), false);
+  assert.equal(controller.relaxForce(), false);
+  assert.deepEqual(calls, []);
+});
+

@@ -77,3 +77,17 @@ test("cluster lifecycle contains no renderer position interpolation contract", a
   assert.match(source, /#clusterPhase = "collapsing"/);
   assert.match(source, /#clusterPhase = "expanding"/);
 });
+
+test("production footer exposes separate DAG reorganization and force relaxation controls", async () => {
+  const factory = await readFile(
+    new URL("../site/world/world-view-factory.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(factory, /aria-label", "Graph layout controls"/);
+  assert.match(factory, /Reorganize relationship layout \(D3 DAG\)/);
+  assert.match(factory, /Relax graph forces \(D3 force\)/);
+  assert.match(factory, /scheduledView\.reorganizeDag\(\)/);
+  assert.match(factory, /scheduledView\.relaxForce\(\)/);
+});
+

@@ -498,3 +498,168 @@
     var(--focus-timeline-inline-size)
   );
 }
+
+/* Footer control normalization: consistent semantics, focus, targets, and edge ownership. */
+.app-footer-bar {
+  --app-footer-control-size: 44px;
+  --app-footer-control-radius: 0.58rem;
+  --app-footer-control-gap: 0.14rem;
+}
+
+.app-footer-zone {
+  gap: var(--app-footer-control-gap);
+  padding-inline: 0.12rem;
+}
+
+.app-footer-actions {
+  gap: var(--app-footer-control-gap);
+}
+
+.app-footer-actions > .app-tool {
+  flex: 0 1 clamp(52px, 7vw, 76px);
+  min-inline-size: 52px;
+  min-block-size: 52px;
+  padding: 0.32rem 0.38rem;
+  border: 1px solid transparent;
+  border-radius: var(--app-footer-control-radius);
+  touch-action: manipulation;
+}
+
+.app-footer-actions .app-tool-label {
+  max-inline-size: 100%;
+  overflow: hidden;
+  font-size: clamp(0.6rem, calc(0.56rem + 0.1vw), 0.66rem);
+  line-height: 1.05;
+  text-overflow: ellipsis;
+}
+
+.app-footer-timeline.timeline-local-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  justify-content: stretch;
+  gap: var(--app-footer-control-gap);
+  overflow: visible;
+}
+
+.app-footer-context-actions {
+  display: flex;
+  justify-content: flex-end;
+  min-inline-size: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+
+.app-footer-context-actions::-webkit-scrollbar {
+  display: none;
+}
+
+.app-footer-timeline .app-view-tool {
+  flex: 0 0 auto;
+  margin-inline-start: 0;
+}
+
+.app-footer-timeline .timeline-local-button,
+.app-footer-world .world-camera-control,
+.app-footer-world .world-layout-control {
+  inline-size: var(--app-footer-control-size);
+  block-size: var(--app-footer-control-size);
+  min-inline-size: var(--app-footer-control-size);
+  min-block-size: var(--app-footer-control-size);
+  border: 1px solid transparent;
+  border-radius: var(--app-footer-control-radius);
+  background: transparent;
+  color: var(--muted);
+  touch-action: manipulation;
+}
+
+.app-footer-world .world-camera-controls {
+  gap: 0;
+}
+
+.app-footer-world .world-layout-controls {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--app-footer-control-gap);
+  margin-inline-start: 0.12rem;
+  padding-inline-start: 0.12rem;
+  border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.app-footer-world .world-layout-control {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.app-footer-world .world-layout-control .semantic-icon {
+  inline-size: 20px;
+  block-size: 20px;
+  stroke-width: 1.9;
+}
+
+.app-footer-world .world-camera-control + .world-camera-control {
+  border-block-start: 1px solid transparent;
+  border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.app-footer-actions > .app-tool:hover,
+.app-footer-timeline .timeline-local-button:hover,
+.app-footer-world .world-camera-control:hover,
+.app-footer-world .world-layout-control:hover {
+  border-color: color-mix(in srgb, var(--line-strong) 70%, transparent);
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.app-footer-actions > .app-tool:focus-visible,
+.app-footer-timeline .timeline-local-button:focus-visible,
+.app-footer-world .world-camera-control:focus-visible,
+.app-footer-world .world-layout-control:focus-visible {
+  border-color: transparent;
+  background: var(--paper-2);
+  color: var(--ink);
+  outline: 2px solid var(--focus);
+  outline-offset: -3px;
+  box-shadow: none;
+}
+
+#app-shell[data-editor-open="true"] .app-footer-actions > #editor-toggle,
+#app-shell[data-browser-open="true"] .app-footer-actions > #timeline-browser-toggle,
+#app-shell[data-view-controls-open="true"] .app-footer-timeline > #timeline-view-controls-toggle,
+.app-footer-actions > #project-menu-toggle[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--line-strong) 82%, transparent);
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.app-footer-actions > .app-tool:disabled,
+.app-footer-timeline .timeline-local-button:disabled,
+.app-footer-world .world-camera-control:disabled,
+.app-footer-world .world-layout-control:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+@media (max-width: 420px) {
+  .app-footer-zone {
+    padding-inline: 0.06rem;
+  }
+
+  .app-footer-actions > .app-tool {
+    min-inline-size: 48px;
+    padding-inline: 0.22rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .app-footer-actions > .app-tool:focus-visible,
+  .app-footer-timeline .timeline-local-button:focus-visible,
+  .app-footer-world .world-camera-control:focus-visible,
+  .app-footer-world .world-layout-control:focus-visible {
+    outline-color: Highlight;
+  }
+}

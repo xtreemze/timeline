@@ -2,6 +2,7 @@ import { D3WorldForceSimulation } from "../../src/layout/d3-world-force-simulati
 import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
 import type { WorldForceSimulationBackend } from "../../src/layout/world-force-simulation.ts";
 import { LuumWorldSurfaceElement } from "../components/world-surface-element.ts";
+import { createIcon } from "../event-presentation.ts";
 import { createDeckWorldRuntime, type DeckWorldBindings } from "./deck-world-runtime.ts";
 import { DeckWorldSurface } from "./deck-world-surface.ts";
 import { loadWorldBasemap } from "./world-basemap.ts";
@@ -26,6 +27,8 @@ export interface WorldApplicationView {
   setPresentationMode(active: boolean): void;
   hasContext(): boolean;
   refreshLayout(): void;
+  reorganizeDag(): boolean;
+  relaxForce(): boolean;
   destroy(): void;
 }
 
@@ -65,10 +68,59 @@ function browserScheduler(): WorldFrameScheduler {
   });
 }
 
+function createWorldLayoutControls(
+  doc: Document,
+  actions: {
+    readonly reorganizeDag: () => boolean;
+    readonly relaxForce: () => boolean;
+  },
+): HTMLElement {
+  const group = doc.createElement("div");
+  group.className = "world-layout-controls";
+  group.setAttribute("role", "group");
+  group.setAttribute("aria-label", "Graph layout controls");
+
+  const button = (
+    label: string,
+    title: string,
+    icon: string,
+    action: () => boolean,
+  ): HTMLButtonElement => {
+    const element = doc.createElement("button");
+    element.type = "button";
+    element.className = "world-layout-control";
+    element.setAttribute("aria-label", label);
+    element.title = title;
+    element.append(createIcon(icon, { size: 20 }));
+    element.addEventListener("click", (event) => {
+      event.stopPropagation();
+      action();
+    });
+    return element;
+  };
+
+  group.append(
+    button(
+      "Reorganize relationship layout",
+      "Reorganize relationship layout (D3 DAG)",
+      "relation",
+      actions.reorganizeDag,
+    ),
+    button(
+      "Relax graph forces",
+      "Relax graph forces (D3 force)",
+      "magic",
+      actions.relaxForce,
+    ),
+  );
+  return group;
+}
+
 class ScheduledWorldProjectionView implements WorldApplicationView {
   readonly #view: WorldProjectionView;
   readonly #runtime: WorldViewRuntimeController;
   readonly #scheduler: WorldFrameScheduler;
+  readonly #cleanup?: () => void;
 
   #frame = 0;
   #lastFrameAt = 0;
@@ -81,10 +133,12 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
     view: WorldProjectionView,
     runtime: WorldViewRuntimeController,
     scheduler: WorldFrameScheduler,
+    cleanup?: () => void,
   ) {
     this.#view = view;
     this.#runtime = runtime;
     this.#scheduler = scheduler;
+    this.#cleanup = cleanup;
   }
 
   setModel(model: WorldViewModel): void {
@@ -124,6 +178,26 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
     this.#view.refreshLayout();
   }
 
+  reorganizeDag(): boolean {
+    this.#assertAlive();
+    const changed = this.#runtime.reorganizeDag();
+    if (changed) {
+      this.#restartBudget();
+      this.#schedule();
+    }
+    return changed;
+  }
+
+  relaxForce(): boolean {
+    this.#assertAlive();
+    const changed = this.#runtime.relaxForce();
+    if (changed) {
+      this.#restartBudget();
+      this.#schedule();
+    }
+    return changed;
+  }
+
   wake(): void {
     this.#assertAlive();
     this.#restartBudget();
@@ -143,6 +217,7 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
     this.#frame = 0;
     this.#lastFrameAt = 0;
     this.#view.destroy();
+    this.#cleanup?.();
   }
 
   /**
@@ -247,7 +322,19 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
           : {}),
       });
       const view = new WorldProjectionView(runtime);
-      const scheduledView = new ScheduledWorldProjectionView(view, runtime, scheduler);
+      let layoutControls: HTMLElement | null = null;
+      const scheduledView = new ScheduledWorldProjectionView(view, runtime, scheduler, () => {
+        layoutControls?.remove();
+        layoutControls = null;
+      });
+
+      if (footerSlot && root.ownerDocument) {
+        layoutControls = createWorldLayoutControls(root.ownerDocument, {
+          reorganizeDag: () => scheduledView.reorganizeDag(),
+          relaxForce: () => scheduledView.relaxForce(),
+        });
+        footerSlot.appendChild(layoutControls);
+      }
 
       if (root instanceof LuumWorldSurfaceElement) {
         root.adoptView(scheduledView);

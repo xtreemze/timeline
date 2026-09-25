@@ -2967,8 +2967,8 @@ export class DeckWorldSurface implements WorldSurface {
     const bar = doc.createElement("div");
     if (typeof bar.append !== "function") return null;
     bar.className = "world-camera-controls";
-    bar.setAttribute("role", "toolbar");
-    bar.setAttribute("aria-label", "Globe camera");
+    bar.setAttribute("role", "group");
+    bar.setAttribute("aria-label", "Globe camera controls");
     const button = (label: string, text: string, action: () => void) => {
       const element = doc.createElement("button");
       element.type = "button";

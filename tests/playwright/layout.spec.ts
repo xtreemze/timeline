@@ -202,20 +202,38 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       ]) {
         await expect(dock.locator(selector)).toBeVisible();
       }
-      await expect(page.locator("#timeline-view-controls-toggle")).toBeVisible();
+      const viewControl = page.locator("#timeline-view-controls-toggle");
+      await expect(viewControl).toBeVisible();
       await expect(page.locator(".timeline-local-toolbar")).toBeVisible();
       await expect(dock.locator(".app-footer-world .world-camera-controls")).toBeVisible();
+      const layoutControls = dock.locator(".app-footer-world .world-layout-controls");
+      await expect(layoutControls).toBeVisible();
+      await expect(layoutControls.locator(".world-layout-control")).toHaveCount(2);
 
-      const [worldZoneBox, actionsZoneBox, timelineZoneBox] = await Promise.all([
-        dock.locator(".app-footer-world").boundingBox(),
-        dock.locator(".app-footer-actions").boundingBox(),
-        dock.locator(".app-footer-timeline").boundingBox(),
-      ]);
+      const visibleFooterButtons = dock.locator("button:visible");
+      const visibleFooterButtonCount = await visibleFooterButtons.count();
+      expect(visibleFooterButtonCount).toBeGreaterThanOrEqual(8);
+      for (let index = 0; index < visibleFooterButtonCount; index += 1) {
+        const buttonBox = await visibleFooterButtons.nth(index).boundingBox();
+        expect(buttonBox).not.toBeNull();
+        if (!buttonBox) throw new Error("Visible footer button has no bounds.");
+        expect(buttonBox.width).toBeGreaterThanOrEqual(44);
+        expect(buttonBox.height).toBeGreaterThanOrEqual(44);
+      }
+
+      const [worldZoneBox, actionsZoneBox, timelineZoneBox, viewControlBox] =
+        await Promise.all([
+          dock.locator(".app-footer-world").boundingBox(),
+          dock.locator(".app-footer-actions").boundingBox(),
+          dock.locator(".app-footer-timeline").boundingBox(),
+          viewControl.boundingBox(),
+        ]);
       expect(worldZoneBox).not.toBeNull();
       expect(actionsZoneBox).not.toBeNull();
       expect(timelineZoneBox).not.toBeNull();
-      if (!worldZoneBox || !actionsZoneBox || !timelineZoneBox) {
-        throw new Error("Footer zones must all have live bounds.");
+      expect(viewControlBox).not.toBeNull();
+      if (!worldZoneBox || !actionsZoneBox || !timelineZoneBox || !viewControlBox) {
+        throw new Error("Footer zones and View control must all have live bounds.");
       }
       expect(worldZoneBox.x).toBeLessThan(actionsZoneBox.x);
       expect(worldZoneBox.x + worldZoneBox.width).toBeLessThanOrEqual(actionsZoneBox.x + 2);
@@ -223,6 +241,13 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       expect(
         Math.abs(actionsZoneBox.x + actionsZoneBox.width / 2 - viewport.width / 2),
       ).toBeLessThanOrEqual(2);
+      expect(
+        Math.abs(
+          viewControlBox.x +
+            viewControlBox.width -
+            (timelineZoneBox.x + timelineZoneBox.width),
+        ),
+      ).toBeLessThanOrEqual(6);
 
       expect(dockBox.x).toBeLessThanOrEqual(2);
       expect(dockBox.width).toBeGreaterThanOrEqual(viewport.width - 4);
@@ -578,6 +603,39 @@ test.describe("Persistent footer and focus geometry", () => {
       await terminal.evaluate((button: HTMLButtonElement) => button.click());
       await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
       await expect(page.locator("#timeline-focus-view")).toBeVisible();
+
+      const focusedViewControl = page.locator("#timeline-view-controls-toggle");
+      const focusedTimelineZone = page.locator(".app-footer-timeline");
+      await expect(focusedViewControl).toBeVisible();
+      const [focusedViewBox, focusedTimelineZoneBox] = await Promise.all([
+        focusedViewControl.boundingBox(),
+        focusedTimelineZone.boundingBox(),
+      ]);
+      expect(focusedViewBox).not.toBeNull();
+      expect(focusedTimelineZoneBox).not.toBeNull();
+      if (!focusedViewBox || !focusedTimelineZoneBox) {
+        throw new Error("Focused footer controls lost their layout bounds.");
+      }
+      expect(
+        Math.abs(
+          focusedViewBox.x +
+            focusedViewBox.width -
+            (focusedTimelineZoneBox.x + focusedTimelineZoneBox.width),
+        ),
+      ).toBeLessThanOrEqual(6);
+
+      const contextActions = page.locator(
+        ".app-footer-context-actions .timeline-context-action:visible",
+      );
+      const contextActionCount = await contextActions.count();
+      expect(contextActionCount).toBeGreaterThan(0);
+      for (let index = 0; index < contextActionCount; index += 1) {
+        const actionBox = await contextActions.nth(index).boundingBox();
+        expect(actionBox).not.toBeNull();
+        if (!actionBox) throw new Error("Focused event action has no bounds.");
+        expect(actionBox.width).toBeGreaterThanOrEqual(44);
+        expect(actionBox.height).toBeGreaterThanOrEqual(44);
+      }
 
       const afterTimeline = await timeline.boundingBox();
       const afterSurface = await surface.boundingBox();
