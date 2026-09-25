@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { Locator, Page, TestInfo } from "@playwright/test";
+import type { CDPSession, Locator, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 const OUTPUT_ROOT = path.resolve(process.env.E2E_MEDIA_DIR ?? "artifacts/e2e-media");
@@ -30,12 +30,6 @@ type ShowcaseSegment = SceneIntent & {
   capturedFps: number | null;
 };
 
-type CapturedFrame = {
-  data: Buffer;
-  timestamp: number;
-  viewportWidth: number;
-  viewportHeight: number;
-};
 
 const SCENES: readonly SceneIntent[] = [
   {
@@ -103,120 +97,106 @@ function projectSettings(testInfo: TestInfo) {
   return settings;
 }
 
-function run(command: string, args: string[], cwd = process.cwd()) {
-  return new Promise<void>((resolve, reject) => {
+function capture(command: string, args: string[], cwd = process.cwd()) {
+  return new Promise<string>((resolve, reject) => {
     const child = spawn(command, args, {
       cwd,
-      stdio: ["ignore", "inherit", "inherit"],
+      stdio: ["ignore", "pipe", "inherit"],
       env: process.env,
+    });
+    let stdout = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
     });
     child.on("error", reject);
     child.on("exit", (code, signal) => {
-      if (code === 0) resolve();
+      if (code === 0) resolve(stdout);
       else reject(new Error(`${command} exited with ${String(code ?? signal)}`));
     });
   });
 }
 
-async function encodeCapturedFrames(
-  rawDir: string,
-  sceneName: string,
+async function readCdpStream(session: CDPSession, handle: string) {
+  const chunks: Buffer[] = [];
+  try {
+    for (;;) {
+      const response = (await session.send("IO.read", {
+        handle,
+        size: 1_048_576,
+      })) as {
+        base64Encoded?: boolean;
+        data: string;
+        eof?: boolean;
+      };
+      chunks.push(
+        Buffer.from(response.data, response.base64Encoded === true ? "base64" : "latin1"),
+      );
+      if (response.eof) break;
+    }
+  } finally {
+    await session.send("IO.close", { handle }).catch(() => {});
+  }
+  return Buffer.concat(chunks);
+}
+
+async function probeCapturedVideo(
   videoPath: string,
-  frames: CapturedFrame[],
+  sceneName: string,
   captureSize: { width: number; height: number },
 ) {
-  if (frames.length < 2) {
-    throw new Error(`${sceneName} produced too few browser-presented frames to certify cadence.`);
+  const stdout = await capture(process.env.FFPROBE_BIN ?? "ffprobe", [
+    "-v",
+    "error",
+    "-select_streams",
+    "v:0",
+    "-show_frames",
+    "-show_entries",
+    "stream=width,height,codec_name:frame=best_effort_timestamp_time",
+    "-of",
+    "json",
+    videoPath,
+  ]);
+  const parsed = JSON.parse(stdout) as {
+    streams?: Array<{ width?: number; height?: number; codec_name?: string }>;
+    frames?: Array<{ best_effort_timestamp_time?: string }>;
+  };
+  const stream = parsed.streams?.[0];
+  if (stream?.width !== captureSize.width || stream?.height !== captureSize.height) {
+    throw new Error(
+      `${sceneName} captured ${String(stream?.width)}x${String(stream?.height)} instead of ${String(captureSize.width)}x${String(captureSize.height)}.`,
+    );
   }
 
-  for (const frame of frames) {
-    if (frame.viewportWidth !== captureSize.width || frame.viewportHeight !== captureSize.height) {
-      throw new Error(
-        `${sceneName} captured ${String(frame.viewportWidth)}x${String(frame.viewportHeight)} instead of ${String(captureSize.width)}x${String(captureSize.height)}.`,
-      );
-    }
+  const timestamps = (parsed.frames ?? [])
+    .map((frame) => Number(frame.best_effort_timestamp_time))
+    .filter((value) => Number.isFinite(value));
+  const firstTimestamp = timestamps[0];
+  const lastTimestamp = timestamps.at(-1);
+  if (
+    timestamps.length < 2 ||
+    firstTimestamp === undefined ||
+    lastTimestamp === undefined ||
+    lastTimestamp <= firstTimestamp
+  ) {
+    throw new Error(`${sceneName} does not contain enough decoded source frames to certify cadence.`);
   }
 
-  const firstTimestamp = frames[0]?.timestamp;
-  const lastTimestamp = frames.at(-1)?.timestamp;
-  if (firstTimestamp === undefined || lastTimestamp === undefined) {
-    throw new Error(`${sceneName} is missing browser frame timestamps.`);
-  }
-  const durationSeconds = (lastTimestamp - firstTimestamp) / 1000;
-  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
-    throw new Error(`${sceneName} has an invalid browser-presented capture duration.`);
-  }
-  const capturedFps = (frames.length - 1) / durationSeconds;
+  const durationSeconds = lastTimestamp - firstTimestamp;
+  const capturedFps = (timestamps.length - 1) / durationSeconds;
   if (capturedFps < MIN_CAPTURE_FPS) {
     throw new Error(
-      `${sceneName} delivered ${capturedFps.toFixed(2)} actual browser-presented fps; expected at least ${String(MIN_CAPTURE_FPS)} before encoding.`,
+      `${sceneName} contains ${String(timestamps.length)} actual decoded source frames across ${durationSeconds.toFixed(3)}s (${capturedFps.toFixed(2)} fps); expected at least ${String(MIN_CAPTURE_FPS)} fps before FFmpeg normalization.`,
     );
   }
 
-  const frameDir = path.join(rawDir, `.${sceneName}-frames`);
-  await rm(frameDir, { recursive: true, force: true });
-  await mkdir(frameDir, { recursive: true });
-
-  try {
-    const concatLines = ["ffconcat version 1.0"];
-    for (let index = 0; index < frames.length; index += 1) {
-      const frame = frames[index];
-      if (!frame) continue;
-      const name = `frame-${String(index).padStart(6, "0")}.jpg`;
-      await writeFile(path.join(frameDir, name), frame.data);
-      concatLines.push(`file '${name}'`);
-      const next = frames[index + 1];
-      if (next) {
-        const deltaSeconds = (next.timestamp - frame.timestamp) / 1000;
-        if (!Number.isFinite(deltaSeconds) || deltaSeconds <= 0) {
-          throw new Error(`${sceneName} contains non-monotonic browser frame timestamps.`);
-        }
-        concatLines.push(`duration ${deltaSeconds.toFixed(9)}`);
-      }
-    }
-
-    await writeFile(path.join(frameDir, "frames.ffconcat"), `${concatLines.join("\n")}\n`);
-    await run(
-      process.env.FFMPEG_BIN ?? "ffmpeg",
-      [
-        "-y",
-        "-v",
-        "error",
-        "-f",
-        "concat",
-        "-safe",
-        "0",
-        "-i",
-        "frames.ffconcat",
-        "-fps_mode",
-        "vfr",
-        "-an",
-        "-c:v",
-        "libvpx",
-        "-deadline",
-        "realtime",
-        "-cpu-used",
-        "8",
-        "-qmin",
-        "0",
-        "-qmax",
-        "50",
-        "-crf",
-        "8",
-        "-b:v",
-        "12M",
-        "-pix_fmt",
-        "yuv420p",
-        videoPath,
-      ],
-      frameDir,
-    );
-  } finally {
-    await rm(frameDir, { recursive: true, force: true });
-  }
-
-  return { durationSeconds, capturedFps };
+  return {
+    durationSeconds,
+    capturedFps,
+    codec: stream.codec_name ?? null,
+    frames: timestamps.length,
+  };
 }
+
 
 async function loadSample(page: Page) {
   await page.goto("/");
@@ -281,14 +261,13 @@ async function recordSegment(
 ): Promise<ShowcaseSegment> {
   const rawDir = path.join(OUTPUT_ROOT, "raw", formFactor);
   await mkdir(rawDir, { recursive: true });
-  const videoPath = path.join(rawDir, `${scene.name}.webm`);
+  const videoPath = path.join(rawDir, `${scene.name}.mp4`);
   const screenshotPath = path.join(rawDir, `${scene.name}.png`);
 
   let motionDurationSeconds: number | null = null;
   let capturedFps: number | null = null;
 
   if (scene.mediaMode === "motion") {
-    const frames: CapturedFrame[] = [];
     const actions = await page.screencast.showActions({
       position: formFactor === "mobile" ? "bottom-right" : "top-right",
       duration: 500,
@@ -319,40 +298,51 @@ async function recordSegment(
         </span>
       </div>
     `);
+    const session = await page.context().newCDPSession(page);
+    let recordingStarted = false;
 
     try {
       await page.screencast.showChapter(scene.title, {
         description: scene.description,
         duration: 900,
       });
-      await page.screencast.start({
-        quality: 92,
-        size: captureSize,
-        onFrame: ({ data, timestamp, viewportWidth, viewportHeight }) => {
-          frames.push({
-            data: Buffer.from(data),
-            timestamp,
-            viewportWidth,
-            viewportHeight,
-          });
-        },
-      });
-      try {
-        await body();
-        await page.waitForTimeout(450);
-        await page.screenshot({
-          path: screenshotPath,
-          animations: "disabled",
-          scale: "css",
-        });
-      } finally {
-        if (!page.isClosed()) await page.screencast.stop().catch(() => {});
-      }
 
-      const stats = await encodeCapturedFrames(rawDir, scene.name, videoPath, frames, captureSize);
+      const started = (await session.send("Page.startScreenRecording", {
+        audio: false,
+        maxWidth: captureSize.width,
+        maxHeight: captureSize.height,
+        frameRate: CAPTURE_FPS,
+      })) as { stream?: string };
+      recordingStarted = true;
+
+      await body();
+      await page.waitForTimeout(450);
+      await page.screenshot({
+        path: screenshotPath,
+        animations: "disabled",
+        scale: "css",
+      });
+
+      const stopped = (await session.send("Page.stopScreenRecording")) as { stream?: string };
+      recordingStarted = false;
+      const streamHandle = stopped.stream ?? started.stream;
+      if (!streamHandle) {
+        throw new Error(`${scene.name} Chromium screen recording returned no IO stream.`);
+      }
+      const video = await readCdpStream(session, streamHandle);
+      if (video.byteLength === 0) {
+        throw new Error(`${scene.name} Chromium screen recording was empty.`);
+      }
+      await writeFile(videoPath, video);
+
+      const stats = await probeCapturedVideo(videoPath, scene.name, captureSize);
       motionDurationSeconds = stats.durationSeconds;
       capturedFps = stats.capturedFps;
     } finally {
+      if (recordingStarted) {
+        await session.send("Page.stopScreenRecording").catch(() => {});
+      }
+      await session.detach().catch(() => {});
       await brand.dispose().catch(() => {});
       await actions.dispose().catch(() => {});
     }
