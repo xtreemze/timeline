@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-
-import { createInteractionCoordinator } from "../src/interaction/interaction-coordinator.ts";
 import { createDeckWorldRuntime } from "../site/world/deck-world-runtime.ts";
 import { createWorldViewFactory } from "../site/world/world-view-factory.ts";
 import { registerTimelineWorldView } from "../site/world/world-view-registration.ts";
+import { createInteractionCoordinator } from "../src/interaction/interaction-coordinator.ts";
 
 test("deck world runtime factory forwards every adapter construction through explicit bindings", () => {
   const calls = [];
@@ -378,7 +377,6 @@ test("deck world runtime exposes MapView only when the binding is supplied", () 
   });
   assert.deepEqual(calls, [{ id: "local" }]);
 });
-
 
 test("world factory uses an injected coordinator for deck camera ownership", () => {
   const harness = compositionHarness();
