@@ -5,6 +5,7 @@ import { TimelineMotion } from "../site/timeline-motion.ts";
 import {
   CLUSTER_ZOOM_THRESHOLD,
   clusterZoomThresholdForNodeRadius,
+  clusterZoomThresholdForPlaceDensity,
   DECK_WORLD_LAYER_IDS,
   DeckWorldSurface,
   shouldClusterEntityDatums,
@@ -35,6 +36,26 @@ test("cluster zoom responds to visible marker size within bounded limits", () =>
   assert.equal(clusterZoomThresholdForNodeRadius(56), CLUSTER_ZOOM_THRESHOLD + 1.5);
   assert.equal(shouldClusterEntityDatums(100, 5, 32), true);
   assert.equal(shouldClusterEntityDatums(100, 5.25, 32), false);
+});
+
+test("dense local places stay clustered longer and resolve progressively", () => {
+  const base = clusterZoomThresholdForPlaceDensity(16, 2);
+  const smallGroup = clusterZoomThresholdForPlaceDensity(16, 4);
+  const storyGroup = clusterZoomThresholdForPlaceDensity(16, 16);
+  const veryDenseGroup = clusterZoomThresholdForPlaceDensity(16, 64);
+
+  assert.equal(base, CLUSTER_ZOOM_THRESHOLD);
+  assert.ok(smallGroup > base);
+  assert.ok(storyGroup > smallGroup);
+  assert.ok(veryDenseGroup > storyGroup);
+  assert.ok(
+    storyGroup > 6,
+    "a dense story location must not explode into member topology at the old overview threshold",
+  );
+  assert.ok(
+    veryDenseGroup <= CLUSTER_ZOOM_THRESHOLD + 2.75,
+    "density adjustment remains bounded so zoom can always resolve the cluster",
+  );
 });
 
 test("world camera controls meet the 44px touch-target floor", async () => {
