@@ -5240,18 +5240,19 @@ export class DeckWorldSurface implements WorldSurface {
                   datum.worldInstanceId,
                   temporalProgress,
                 );
+                const emphasisAlpha = datum.selected ? 255 : datum.emphasized ? 245 : 230;
                 const color = entering
                   ? mixWorldColorBytes(
                       this.#palette.muted,
                       style.border,
                       temporalProgress.node,
-                      255 * visibility,
+                      emphasisAlpha * visibility,
                     )
                   : mixWorldColorBytes(
                       style.border,
                       this.#palette.muted,
                       temporalProgress.node,
-                      255 * visibility,
+                      emphasisAlpha * visibility,
                     );
                 return scaleAlpha(color, this.#cameraFacingOpacity(datum.position));
               },
