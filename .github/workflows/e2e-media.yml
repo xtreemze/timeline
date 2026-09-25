@@ -85,6 +85,8 @@ jobs:
           test -s artifacts/e2e-media/reels/lum-mobile-highlight.mp4
           test "$(find artifacts/e2e-media/raw/desktop -type f -name '*.webm' | wc -l)" -eq 2
           test "$(find artifacts/e2e-media/raw/mobile -type f -name '*.webm' | wc -l)" -eq 2
+          test "$(find artifacts/e2e-media/raw/desktop -type f -name '*.frames.json' | wc -l)" -eq 2
+          test "$(find artifacts/e2e-media/raw/mobile -type f -name '*.frames.json' | wc -l)" -eq 2
           test "$(find artifacts/e2e-media/raw/desktop -type f -name '*.png' | wc -l)" -eq 5
           test "$(find artifacts/e2e-media/raw/mobile -type f -name '*.png' | wc -l)" -eq 5
           test "$(find artifacts/e2e-media/showcase/desktop -type f -name '*.webp' | wc -l)" -eq 2
