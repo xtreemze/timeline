@@ -3,7 +3,6 @@
  * Main entry point coordinating all modules, UI state, and persistence
  */
 
-import { planWorkspacePlacement } from "../src/layout/workspace-layout.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
@@ -374,10 +373,8 @@ const els = {
   browserStoryList: requiredElement<HTMLElement>("#browser-story-list"),
   browserStoryCount: requiredElement<HTMLElement>("#browser-story-count"),
   viewControls: requiredElement<HTMLElement>("#timeline-view-toolbar"),
-  viewControlsToggle: requiredElement<HTMLButtonElement>("#timeline-view-controls-toggle"),
   focusPrev: requiredElement<HTMLButtonElement>("#timeline-focus-prev"),
   focusNext: requiredElement<HTMLButtonElement>("#timeline-focus-next"),
-  focusEdit: requiredElement<HTMLButtonElement>("#timeline-focus-edit"),
   loadSample: requiredElement<HTMLButtonElement>("#load-sample"),
   importJson: requiredElement<HTMLInputElement>("#import-json"),
   importInterchange: requiredElement<HTMLInputElement>("#import-interchange"),
@@ -662,7 +659,6 @@ const graphEdgeDatePicker = dateRangeFactory.create({
   mode: "range",
 });
 let presentationResizeObserver: ResizeObserver | null = null;
-let viewControlsResizeObserver: ResizeObserver | null = null;
 let presentationResizeFrame = 0;
 let timelineOrientationBeforeFullscreen = null;
 let presentationMap: PresentationMapController | null = null;
@@ -674,222 +670,6 @@ els.presentationMap.after(presentationMapAnchor);
 
 const appToolDockAnchor = document.createComment("timeline-tool-dock-home");
 els.appToolDock.after(appToolDockAnchor);
-
-function workspaceToolViewport() {
-  const visualViewport = window.visualViewport;
-  const layoutWidth = Math.max(
-    1,
-    document.documentElement.clientWidth || window.innerWidth || visualViewport?.width || 1,
-  );
-  const layoutHeight = Math.max(
-    1,
-    document.documentElement.clientHeight || window.innerHeight || visualViewport?.height || 1,
-  );
-  return {
-    width: Math.max(1, Math.min(layoutWidth, visualViewport?.width || layoutWidth)),
-    height: Math.max(1, Math.min(layoutHeight, visualViewport?.height || layoutHeight)),
-    left: Math.max(0, Math.min(visualViewport?.offsetLeft || 0, layoutWidth - 1)),
-    top: Math.max(0, Math.min(visualViewport?.offsetTop || 0, layoutHeight - 1)),
-  };
-}
-
-function clearViewControlsPosition() {
-  if (!els.viewControls) return;
-  for (const property of [
-    "--view-controls-left",
-    "--view-controls-top",
-    "--view-controls-right",
-    "--view-controls-bottom",
-    "--view-controls-inline-size",
-    "--view-controls-block-size",
-    "width",
-    "max-width",
-    "max-height",
-  ]) {
-    els.viewControls.style.removeProperty(property);
-  }
-}
-
-function positionViewControls() {
-  if (!viewControlsAreOpen()) return;
-
-  if (presentationIsFullscreen()) {
-    clearViewControlsPosition();
-    els.viewControls.dataset.anchorPlacement = "fullscreen";
-    return;
-  }
-
-  const triggerRect = els.viewControlsToggle.getBoundingClientRect();
-  const toolbarRect = els.viewControls.getBoundingClientRect();
-  const dockRect = els.appToolDock.getBoundingClientRect();
-  const timelineSurfaceRect = els.timelineViewRoot
-    .querySelector<HTMLElement>(".timeline-surface")
-    ?.getBoundingClientRect();
-  const titleRect = els.timelineViewRoot
-    .querySelector<HTMLElement>(".timeline-project-heading")
-    ?.getBoundingClientRect();
-  const viewport = workspaceToolViewport();
-  const orientation = timelineView?.getOrientation?.() || "horizontal";
-  const gap = 8;
-  const edge = 8;
-  const availableWidth = Math.max(1, viewport.width - edge * 2);
-  const availableHeight = Math.max(1, viewport.height - edge * 2);
-  const worldLeft = viewport.left + edge;
-  const worldTop = viewport.top + edge;
-  const worldRight =
-    orientation === "vertical" && timelineSurfaceRect
-      ? Math.max(worldLeft + 1, timelineSurfaceRect.left - gap)
-      : viewport.left + viewport.width - edge;
-  const worldBottom =
-    orientation === "horizontal" && timelineSurfaceRect
-      ? Math.max(worldTop + 1, timelineSurfaceRect.top - gap)
-      : Math.max(worldTop + 1, dockRect.top - gap);
-  const worldWidth = Math.max(1, worldRight - worldLeft);
-  const worldHeight = Math.max(1, worldBottom - worldTop);
-  const measuredWidth = Math.min(
-    availableWidth,
-    worldWidth,
-    Math.max(1, toolbarRect.width || els.viewControls.offsetWidth || 1),
-  );
-  const measuredHeight = Math.min(
-    availableHeight,
-    worldHeight,
-    Math.max(1, toolbarRect.height || els.viewControls.offsetHeight || 1),
-  );
-  const anchor = {
-    x: triggerRect.left + triggerRect.width / 2,
-    y: triggerRect.top + triggerRect.height / 2,
-  };
-
-  const candidates =
-    orientation === "vertical"
-      ? [
-          {
-            id: "world-left-of-timeline",
-            rect: {
-              x: worldRight - measuredWidth,
-              y: worldBottom - measuredHeight,
-              width: measuredWidth,
-              height: measuredHeight,
-            },
-          },
-          {
-            id: "world-top-left",
-            rect: {
-              x: worldRight - measuredWidth,
-              y: worldTop,
-              width: measuredWidth,
-              height: measuredHeight,
-            },
-          },
-        ]
-      : [
-          {
-            id: "world-above-timeline",
-            rect: {
-              x: Math.min(worldRight - measuredWidth, triggerRect.right - measuredWidth),
-              y: worldBottom - measuredHeight,
-              width: measuredWidth,
-              height: measuredHeight,
-            },
-          },
-          {
-            id: "world-top-right",
-            rect: {
-              x: worldRight - measuredWidth,
-              y: worldTop,
-              width: measuredWidth,
-              height: measuredHeight,
-            },
-          },
-        ];
-
-  const snapshot = planWorkspacePlacement({
-    viewport: {
-      x: viewport.left,
-      y: viewport.top,
-      width: viewport.width,
-      height: viewport.height,
-      safeInsets: { top: edge, right: edge, bottom: edge, left: edge },
-    },
-    anchor,
-    exclusionZones: [
-      {
-        id: "app-tool-dock",
-        rect: {
-          x: dockRect.left,
-          y: dockRect.top,
-          width: dockRect.width,
-          height: dockRect.height,
-        },
-      },
-      ...(timelineSurfaceRect
-        ? [
-            {
-              id: "timeline-surface",
-              rect: {
-                x: timelineSurfaceRect.left,
-                y: timelineSurfaceRect.top,
-                width: timelineSurfaceRect.width,
-                height: timelineSurfaceRect.height,
-              },
-            },
-          ]
-        : []),
-      ...(titleRect
-        ? [
-            {
-              id: "timeline-project-heading",
-              rect: {
-                x: titleRect.left,
-                y: titleRect.top,
-                width: titleRect.width,
-                height: titleRect.height,
-              },
-            },
-          ]
-        : []),
-    ],
-    candidates,
-  });
-  const selected = snapshot.selected;
-  if (!selected) return;
-  const selectedCandidate = candidates.find((candidate) => candidate.id === selected.id);
-  if (!selectedCandidate) return;
-
-  const boundedInlineSize = Math.floor(Math.min(worldWidth, Math.max(1, measuredWidth)));
-  const boundedBlockSize = Math.floor(Math.min(worldHeight, Math.max(1, measuredHeight)));
-
-  els.viewControls.style.setProperty("--view-controls-inline-size", `${boundedInlineSize}px`);
-  els.viewControls.style.setProperty("--view-controls-block-size", `${boundedBlockSize}px`);
-  els.viewControls.style.width = `${boundedInlineSize}px`;
-  els.viewControls.style.maxWidth = `${worldWidth}px`;
-  els.viewControls.style.maxHeight = `${worldHeight}px`;
-
-  const constrainedRect = els.viewControls.getBoundingClientRect();
-  const actualInlineSize = Math.min(worldWidth, Math.max(1, constrainedRect.width));
-  const actualBlockSize = Math.min(worldHeight, Math.max(1, constrainedRect.height));
-  const minLeft = worldLeft;
-  const minTop = worldTop;
-  const maxLeft = Math.max(minLeft, worldRight - actualInlineSize);
-  const maxTop = Math.max(minTop, worldBottom - actualBlockSize);
-  const preferredLeft =
-    orientation === "vertical"
-      ? worldRight - actualInlineSize
-      : Math.min(worldRight - actualInlineSize, triggerRect.right - actualInlineSize);
-  const prefersTop =
-    selectedCandidate.id === "world-top-left" || selectedCandidate.id === "world-top-right";
-  const preferredTop = prefersTop ? worldTop : worldBottom - actualBlockSize;
-  const boundedLeft = Math.min(maxLeft, Math.max(minLeft, preferredLeft));
-  const boundedTop = Math.min(maxTop, Math.max(minTop, preferredTop));
-
-  els.viewControls.dataset.anchorPlacement = selected.id;
-  els.viewControls.dataset.placementValid = String(snapshot.fullySatisfiesConstraints);
-  els.viewControls.style.setProperty("--view-controls-left", `${Math.round(boundedLeft)}px`);
-  els.viewControls.style.setProperty("--view-controls-top", `${Math.round(boundedTop)}px`);
-  els.viewControls.style.setProperty("--view-controls-right", "auto");
-  els.viewControls.style.setProperty("--view-controls-bottom", "auto");
-}
 
 function mountFullscreenToolDock() {
   if (!els.appToolDock || !els.presentationStage) return;
@@ -1074,7 +854,6 @@ function refreshPresentationGeometry({ recenterGraph = false } = {}) {
   updatePresentationStageLayout();
   timelineView?.refreshLayout?.();
   presentationMap?.refresh?.();
-  positionViewControls();
   if (recenterGraph) temporalGraphView?.refreshLayout?.();
 }
 
@@ -1116,7 +895,6 @@ function syncPresentationFullscreenState() {
       else els.presentationFullscreenToggle.prepend(icon);
     }
     syncContextualPresentationPanels();
-    syncViewControlsChrome();
     temporalGraphView?.setPresentationMode?.(presentationModeActive());
   });
   if (active && timelineView?.hasFocusedItem?.()) {
@@ -1740,35 +1518,14 @@ function setError(element, message = "") {
   element.hidden = !message;
 }
 
-function viewControlsAreOpen() {
-  return Boolean(els.viewControls?.matches(":popover-open"));
-}
-
-function syncViewControlsChrome() {
-  const open = viewControlsAreOpen();
-  if (els.appShell) els.appShell.dataset.viewControlsOpen = String(open);
-  if (els.viewControlsToggle) els.viewControlsToggle.setAttribute("aria-expanded", String(open));
-  return open;
-}
-
-function closeViewControls() {
-  if (!viewControlsAreOpen()) return;
-  try {
-    els.viewControls.hidePopover();
-  } catch {
-    // The native popover may already be transitioning; its toggle event will resync chrome.
-  }
-}
 function syncApplicationSurfaces() {
   if (ui.mode !== "edit") ui.editorOpen = false;
   const editing = ui.mode === "edit";
-  const viewControlsOpen = viewControlsAreOpen();
   if (els.appShell) {
     els.appShell.dataset.mode = ui.mode;
     els.appShell.dataset.editorOpen = String(ui.editorOpen);
     els.appShell.dataset.browserOpen = String(ui.browserOpen);
     els.appShell.dataset.graphOpen = "true";
-    els.appShell.dataset.viewControlsOpen = String(viewControlsOpen);
   }
 
   if (els.controlPanel) {
@@ -1788,18 +1545,18 @@ function syncApplicationSurfaces() {
   }
   if (els.editorToggle) {
     els.editorToggle.setAttribute("aria-expanded", String(ui.editorOpen));
-    const label = els.editorToggle.querySelector(".app-tool-label");
-    if (label) label.textContent = editing ? "Done" : "Edit";
   }
-  for (const control of [els.browserToggle, els.viewControlsToggle]) {
-    if (control) control.disabled = editing;
+  for (const control of els.viewControls.querySelectorAll<HTMLButtonElement | HTMLInputElement>(
+    "button, input",
+  )) {
+    control.disabled = editing;
   }
   for (const opener of els.panelOpeners) {
     opener.setAttribute("aria-expanded", String(ui.editorOpen));
   }
-  if (els.browserToggle) els.browserToggle.setAttribute("aria-expanded", String(ui.browserOpen));
-  if (els.viewControlsToggle) {
-    els.viewControlsToggle.setAttribute("aria-expanded", String(viewControlsOpen));
+  if (els.browserToggle) {
+    els.browserToggle.disabled = editing;
+    els.browserToggle.setAttribute("aria-expanded", String(ui.browserOpen));
   }
 
   temporalGraphView?.setPresentationMode?.(presentationModeActive());
@@ -1811,7 +1568,6 @@ function syncApplicationSurfaces() {
 function closeLargeUtilitySurfaces(except = "") {
   if (except !== "editor") ui.editorOpen = false;
   if (except !== "browser") ui.browserOpen = false;
-  if (except !== "view") closeViewControls();
 }
 
 function closeFocusedEventForUtility() {
@@ -1823,10 +1579,22 @@ function syncTimelineContextControls() {
   const navigation = focused ? timelineView?.focusNavigationState?.() : null;
   els.focusPrev.hidden = !focused;
   els.focusNext.hidden = !focused;
-  els.focusEdit.hidden = !focused;
   els.focusPrev.disabled = !focused || navigation?.previous !== true;
   els.focusNext.disabled = !focused || navigation?.next !== true;
-  els.focusEdit.disabled = !focused || navigation?.editable !== true;
+
+  if (els.editorToggle) {
+    const editableFocus = focused && navigation?.editable === true;
+    const label = ui.editorOpen
+      ? "Done editing"
+      : editableFocus
+        ? "Edit focused event"
+        : "Edit timeline";
+    els.editorToggle.disabled = false;
+    els.editorToggle.setAttribute("aria-label", label);
+    els.editorToggle.title = label;
+    const visibleLabel = els.editorToggle.querySelector(".app-tool-label");
+    if (visibleLabel) visibleLabel.textContent = ui.editorOpen ? "Done" : "Edit";
+  }
 }
 
 function setEditorSurfaceOpen(open) {
@@ -4214,21 +3982,7 @@ if (els.presentationStage && "ResizeObserver" in globalThis) {
 } else {
   window.addEventListener("resize", () => schedulePresentationGeometryRefresh());
 }
-if ("ResizeObserver" in globalThis && els.viewControls && els.viewControlsToggle) {
-  viewControlsResizeObserver = new ResizeObserver(() => {
-    if (viewControlsAreOpen()) positionViewControls();
-  });
-  viewControlsResizeObserver.observe(els.viewControls);
-  viewControlsResizeObserver.observe(els.viewControlsToggle);
-}
-
 updatePresentationStageLayout();
-requestAnimationFrame(() => {
-  positionViewControls();
-});
-window.addEventListener("resize", positionViewControls);
-window.visualViewport?.addEventListener("resize", positionViewControls);
-window.visualViewport?.addEventListener("scroll", positionViewControls);
 
 function collapseAllCategories() {
   ui.collapsedCategoryIds.clear();
@@ -4600,7 +4354,17 @@ els.projectMenu?.addEventListener("click", (event) => {
   queueMicrotask(closeProjectMenu);
 });
 
-els.editorToggle?.addEventListener("click", () => setEditorSurfaceOpen(!ui.editorOpen));
+els.editorToggle?.addEventListener("click", () => {
+  if (ui.editorOpen) {
+    setEditorSurfaceOpen(false);
+    return;
+  }
+  const focusedId = timelineView?.focusedItemId?.() || null;
+  const navigation = focusedId ? timelineView?.focusNavigationState?.() : null;
+  const focusedEditableId = focusedId && navigation?.editable === true ? focusedId : null;
+  setEditorSurfaceOpen(true);
+  if (focusedEditableId) beginItemEdit(focusedEditableId);
+});
 els.panelOpeners.forEach((button) => {
   button.addEventListener("click", () => setActivePanel(button.dataset.openPanel));
 });
@@ -4618,32 +4382,6 @@ els.focusNext.addEventListener("click", () => {
   advancePresentation(1);
   syncTimelineContextControls();
 });
-els.focusEdit.addEventListener("click", () => {
-  const id = timelineView?.focusedItemId?.();
-  if (!id) return;
-  setEditorSurfaceOpen(true);
-  beginItemEdit(id);
-});
-els.viewControlsToggle?.addEventListener("click", () => {
-  if (viewControlsAreOpen()) return;
-  closeLargeUtilitySurfaces("view");
-  closeProjectMenu();
-  syncApplicationSurfaces();
-});
-els.viewControls?.addEventListener("beforetoggle", (event) => {
-  if (event.newState === "open" && ui.mode === "edit") event.preventDefault();
-});
-els.viewControls?.addEventListener("toggle", () => {
-  const open = syncViewControlsChrome();
-  if (open) {
-    positionViewControls();
-    requestAnimationFrame(positionViewControls);
-  } else {
-    clearViewControlsPosition();
-  }
-  schedulePresentationGeometryRefresh({ recenterGraph: false });
-});
-
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   if (ui.editorOpen) {
@@ -4654,11 +4392,6 @@ document.addEventListener("keydown", (event) => {
   if (ui.browserOpen) {
     event.preventDefault();
     setBrowserSurfaceOpen(false);
-    return;
-  }
-  if (viewControlsAreOpen() && !presentationIsFullscreen()) {
-    event.preventDefault();
-    closeViewControls();
   }
 });
 
