@@ -21,6 +21,8 @@ export default defineConfig({
         "--disable-background-timer-throttling",
         "--disable-renderer-backgrounding",
         "--disable-backgrounding-occluded-windows",
+        "--auto-accept-this-tab-capture",
+        "--enable-experimental-web-platform-features",
         "--kiosk",
         "--start-maximized",
         "--window-position=0,0",
