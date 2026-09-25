@@ -2779,6 +2779,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#runtime = runtime;
     this.#labelCollisionExtension = runtime.createCollisionFilterExtension?.() ?? null;
     this.#container = container;
+    this.#container.dataset.surfaceKeyboardNavigation = "camera";
     // A caller-chosen camera is authoritative; otherwise the first projected
     // content fits the camera once (see #autoFitCamera).
     this.#cameraOwned = initialCamera !== undefined;
@@ -3607,6 +3608,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#accessibleMirror?.destroy();
     const style = (this.#container as HTMLElement).style;
     if (style) style.cursor = "";
+    delete this.#container.dataset.surfaceKeyboardNavigation;
     this.#deck.finalize();
   }
 
