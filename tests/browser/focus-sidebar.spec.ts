@@ -81,8 +81,9 @@ test("focused detail is shell-owned while contextual actions stay in the footer"
 
   await expect(page.locator("#timeline-focus-prev")).toBeVisible();
   await expect(page.locator("#timeline-focus-next")).toBeVisible();
-  await expect(page.locator("#timeline-focus-edit")).toBeVisible();
-  await expect(page.locator("#timeline-view-controls-toggle")).toBeVisible();
+  await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
+  await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-label", "Edit focused event");
+  await expect(page.locator("#timeline-view-toolbar")).toBeVisible();
 
   await focus.locator(".timeline-focus-close").click();
   await expect(focus).toBeHidden();
