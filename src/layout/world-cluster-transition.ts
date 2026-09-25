@@ -20,8 +20,7 @@ export function worldClusterWantsCollapsed(
   phase: WorldClusterLifecyclePhase,
 ): boolean {
   if (!Number.isFinite(zoom) || !Number.isFinite(threshold)) return false;
-  const clustered =
-    phase === "releasing" || phase === "collapsing" || phase === "collapsed";
+  const clustered = phase === "releasing" || phase === "collapsing" || phase === "collapsed";
   return clustered
     ? zoom < threshold + WORLD_CLUSTER_ZOOM_HYSTERESIS
     : zoom < threshold - WORLD_CLUSTER_ZOOM_HYSTERESIS;
