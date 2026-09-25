@@ -183,7 +183,9 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
     highlightSpec,
     /getDisplayMedia|MediaRecorder|Page\.startScreenRecording|Page\.startScreencast|page\.screencast\.start/,
   );
-  assert.match(highlightSpec, /page\.screenshot/);
+  assert.match(highlightSpec, /captureX11Still/);
+  assert.match(highlightSpec, /"-frames:v",\s*"1"/);
+  assert.doesNotMatch(highlightSpec, /page\.screenshot/);
   assert.match(highlightSpec, /touchDrag/);
   for (const scene of [
     "01-timeline-navigation",
