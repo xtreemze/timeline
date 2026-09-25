@@ -16,7 +16,7 @@ Desktop uses the 1440×900 product layout. Mobile uses the explicit touch-capabl
 
 The showcase distinguishes motion from static presentation. Timeline navigation and relation-graph navigation are motion scenes. Focused context, evidence, and story browsing are static scenes.
 
-Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes request a full-viewport 60 fps Playwright screencast and publish 60 fps animated WebP without scaling. The capture also records the browser-presented source-frame timestamps during each motion window and requires at least 59 actual source frames per second before rendering. This prevents Playwright/FFmpeg constant-frame-rate padding from turning a slower capture into a false 60 fps pass.
+Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes use Playwright's full-viewport screencast frame callback to collect the browser-presented JPEG frames and timestamps directly. The motion window must measure at least 59 actual source frames per second before any video encoding occurs. Only after that source check passes are the captured frames encoded as VP8 WebM at 60 fps and published as 60 fps animated WebP without scaling. This prevents a constant-frame-rate encoder from turning a slower capture into a false 60 fps pass.
 
 ## Output contract
 
@@ -69,9 +69,9 @@ The showcase config contains two structural projects:
 
 The shared scene metadata defines feature title, explanation, expected state, alt text, stable output stem, and whether the scene is `motion` or `static`. Desktop and mobile interaction routines remain separate so touch UI is not forced to mimic desktop input mechanics.
 
-Motion capture explicitly passes the project viewport as the screencast size (1440×900 desktop, 390×844 mobile) and requests 60 fps. Playwright otherwise defaults video recording to 25 fps and may choose a reduced recording size. Static capture uses a CSS-pixel Playwright screenshot of the real reached state.
+Motion capture explicitly passes the project viewport as the screencast size (1440×900 desktop, 390×844 mobile). Timeline intentionally does not use Playwright 1.63's built-in WebM path recorder because that stable release hard-codes its recorder to 25 fps. Instead, Timeline consumes the browser-presented frame callback, measures the source cadence, and then pipes the accepted frames to FFmpeg's real-time VP8 encoder at 60 fps. Static capture uses a CSS-pixel Playwright screenshot of the real reached state.
 
-The dedicated showcase Chromium process disables background timer throttling, renderer backgrounding, occluded-window backgrounding, frame-rate limiting, and GPU vsync. Playwright's recorder already uses a real-time VP8 encoder; unlike the Lemonade canvas recorder, Timeline does not negotiate VP8/VP9 through MediaRecorder.
+The dedicated showcase Chromium process disables background timer throttling, renderer backgrounding, occluded-window backgrounding, frame-rate limiting, and GPU vsync. VP8 is selected explicitly with FFmpeg's `libvpx` encoder; there is no VP9-first MediaRecorder negotiation path.
 
 Playwright native screencast overlays provide restrained Lūm branding and feature chapters for motion capture without modifying production UI only for recording. Static screenshots remain product-state captures rather than chapter cards.
 
