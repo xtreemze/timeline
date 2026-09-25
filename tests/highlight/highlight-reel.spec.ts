@@ -236,17 +236,33 @@ async function captureGeometry(
       `Showcase viewport is ${String(geometry.innerWidth)}x${String(geometry.innerHeight)}; expected ${String(captureSize.width)}x${String(captureSize.height)}`,
     );
   }
+
+  const x11Width = Number(process.env.LUM_SHOWCASE_X11_WIDTH ?? geometry.screenWidth);
+  const x11Height = Number(process.env.LUM_SHOWCASE_X11_HEIGHT ?? geometry.screenHeight);
   if (
-    geometry.x < 0 ||
-    geometry.y < 0 ||
-    geometry.x + geometry.width > geometry.screenWidth ||
-    geometry.y + geometry.height > geometry.screenHeight
+    !Number.isFinite(x11Width) ||
+    !Number.isFinite(x11Height) ||
+    x11Width <= 0 ||
+    x11Height <= 0
+  ) {
+    throw new Error("Showcase X11 display bounds are invalid");
+  }
+  const measuredGeometry = {
+    ...geometry,
+    screenWidth: x11Width,
+    screenHeight: x11Height,
+  };
+  if (
+    measuredGeometry.x < 0 ||
+    measuredGeometry.y < 0 ||
+    measuredGeometry.x + measuredGeometry.width > measuredGeometry.screenWidth ||
+    measuredGeometry.y + measuredGeometry.height > measuredGeometry.screenHeight
   ) {
     throw new Error(
-      `Showcase X11 capture region ${String(geometry.x)},${String(geometry.y)} ${String(geometry.width)}x${String(geometry.height)} exceeds ${String(geometry.screenWidth)}x${String(geometry.screenHeight)} display`,
+      `Showcase X11 capture region ${String(measuredGeometry.x)},${String(measuredGeometry.y)} ${String(measuredGeometry.width)}x${String(measuredGeometry.height)} exceeds ${String(measuredGeometry.screenWidth)}x${String(measuredGeometry.screenHeight)} display`,
     );
   }
-  return geometry;
+  return measuredGeometry;
 }
 
 async function startBrowserFrameClock(page: Page) {
@@ -347,12 +363,33 @@ async function startX11Capture(videoPath: string, geometry: CaptureGeometry) {
   };
 }
 
+async function probeSettledFrameTimestamps(videoPath: string) {
+  let timestamps = await probeFrameTimestamps(videoPath);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const first = timestamps[0];
+    const last = timestamps.at(-1);
+    if (
+      timestamps.length >= 2 &&
+      first !== undefined &&
+      last !== undefined &&
+      Number.isFinite(first) &&
+      Number.isFinite(last) &&
+      last > first
+    ) {
+      return timestamps;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
+    timestamps = await probeFrameTimestamps(videoPath);
+  }
+  return timestamps;
+}
+
 async function persistMeasuredCapture(
   videoPath: string,
   browserTimestamps: number[],
   geometry: CaptureGeometry,
 ) {
-  const timestamps = await probeFrameTimestamps(videoPath);
+  const timestamps = await probeSettledFrameTimestamps(videoPath);
   const captured = measureTimestamps(timestamps);
   if (captured.fps < MIN_CAPTURE_FPS) {
     throw new Error(

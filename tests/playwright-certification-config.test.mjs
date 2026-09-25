@@ -159,6 +159,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightSpec, /passthrough/);
   assert.match(highlightSpec, /libvpx/);
   assert.match(highlightSpec, /best_effort_timestamp_time/);
+  assert.match(highlightSpec, /probeSettledFrameTimestamps/);
   assert.match(highlightSpec, /requestAnimationFrame/);
   assert.match(highlightSpec, /CAPTURE_FPS\s*=\s*60/);
   assert.match(highlightSpec, /MIN_CAPTURE_FPS\s*=\s*CAPTURE_FPS\s*-\s*1/);
@@ -202,6 +203,8 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(mediaWorkflow, /Record source-native showcase media/);
   assert.match(mediaWorkflow, /xvfb-run/);
   assert.match(mediaWorkflow, /-screen 0 1920x1080x24/);
+  assert.match(mediaWorkflow, /LUM_SHOWCASE_X11_WIDTH:\s*["\']1920["\']/);
+  assert.match(mediaWorkflow, /LUM_SHOWCASE_X11_HEIGHT:\s*["\']1080["\']/);
   assert.match(mediaWorkflow, /pnpm test:e2e:showcase/);
   assert.match(mediaWorkflow, /pnpm render:e2e:showcase/);
   assert.match(mediaWorkflow, /raw\/desktop/);
