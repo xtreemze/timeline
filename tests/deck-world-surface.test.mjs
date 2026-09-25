@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -8,6 +9,7 @@ import {
   DeckWorldSurface,
   shouldClusterEntityDatums,
   WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM,
+  WORLD_PICKING_RADIUS_PX,
   worldGraphLabelSize,
   worldLabelCollisionPriority,
 } from "../site/world/deck-world-surface.ts";
@@ -34,6 +36,13 @@ test("cluster zoom responds to visible marker size within bounded limits", () =>
   assert.equal(clusterZoomThresholdForNodeRadius(56), CLUSTER_ZOOM_THRESHOLD + 1.5);
   assert.equal(shouldClusterEntityDatums(100, 5, 32), true);
   assert.equal(shouldClusterEntityDatums(100, 5.25, 32), false);
+});
+
+test("world camera controls meet the 44px touch-target floor", async () => {
+  const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
+  const rule = styles.match(/\.world-camera-control\s*\{[\s\S]*?\}/)?.[0] ?? "";
+  assert.match(rule, /inline-size:\s*2\.75rem/);
+  assert.match(rule, /block-size:\s*2\.75rem/);
 });
 
 function harness() {
@@ -285,6 +294,14 @@ test("deck controller uses timeline-weighted inertia and smooth pointer-anchored
     zoomAround: "pointer",
     inertia: TimelineMotion.INERTIA_TAU_MS,
   });
+});
+
+test("compact world marks keep a forgiving deck picking radius", () => {
+  const { calls, runtime } = harness();
+  new DeckWorldSurface({}, runtime);
+
+  assert.equal(WORLD_PICKING_RADIUS_PX, 8);
+  assert.equal(calls.deckProps.pickingRadius, WORLD_PICKING_RADIUS_PX);
 });
 
 test("deck controller disables inertia when prefers-reduced-motion is set", (t) => {
@@ -754,6 +771,124 @@ test("hover and selection emphasize without changing graph geometry, and repeate
   assert.equal(container.style.cursor, "");
   assert.ok(entities.every((datum) => datum.emphasized === false));
 });
+
+test("overview clusters drill into their members instead of selecting an arbitrary entity", () => {
+  const { calls, runtime } = harness();
+  const container = { style: {} };
+  const surface = new DeckWorldSurface(container, runtime, {
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 3,
+    bearing: 0,
+    pitch: 20,
+  });
+  const base = projection();
+  const charlieId = worldInstanceId("charlie", "meeting");
+  surface.setProjection(
+    createWorldProjection({
+      instances: [
+        ...base.instances,
+        createProjectedWorldInstance({
+          id: charlieId,
+          canonicalId: "charlie",
+          occurrenceId: "meeting",
+          geographicAnchors: [
+            {
+              placeId: "stockholm",
+              longitude: 18.0686,
+              latitude: 59.3293,
+              sourceAltitude: 20,
+              influence: 1,
+            },
+          ],
+          temporalWeight: 1,
+          visualWeight: 0.75,
+          retained: false,
+          localOffset: { eastMeters: -150, northMeters: 0 },
+        }),
+      ],
+      edges: base.edges,
+    }),
+  );
+
+  const entityLayer = calls.setProps
+    .at(-1)
+    .layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities);
+  const cluster = entityLayer.props.data.find((datum) => datum.kind === "cluster");
+  assert.ok(cluster);
+
+  calls.deckProps.onHover({ object: cluster });
+  assert.equal(container.style.cursor, "zoom-in");
+  assert.equal(surface.getAccessibleSnapshot().selection, null);
+
+  calls.deckProps.onClick({ object: cluster });
+  const camera = surface.getCamera();
+  assert.ok(camera.zoom > CLUSTER_ZOOM_THRESHOLD);
+  assert.equal(camera.longitude, cluster.position[0]);
+  assert.equal(camera.latitude, cluster.position[1]);
+  assert.equal(
+    surface.getAccessibleSnapshot().selection,
+    null,
+    "drilling into a cluster must not choose a hidden member",
+  );
+});
+
+test("canonical focus crosses the active cluster threshold before framing an entity", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime, {
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 3,
+    bearing: 0,
+    pitch: 20,
+  });
+  const base = projection();
+  const [alice, bob] = base.instances;
+  const charlieId = worldInstanceId("charlie", "meeting");
+  surface.setProjection(
+    createWorldProjection({
+      instances: [
+        createProjectedWorldInstance({
+          ...alice,
+          style: { size: 64 },
+        }),
+        bob,
+        createProjectedWorldInstance({
+          id: charlieId,
+          canonicalId: "charlie",
+          occurrenceId: "meeting",
+          geographicAnchors: [
+            {
+              placeId: "stockholm",
+              longitude: 18.0686,
+              latitude: 59.3293,
+              sourceAltitude: 20,
+              influence: 1,
+            },
+          ],
+          temporalWeight: 1,
+          visualWeight: 0.75,
+          retained: false,
+          localOffset: { eastMeters: -150, northMeters: 0 },
+        }),
+      ],
+      edges: base.edges,
+    }),
+  );
+
+  surface.focusEntity("alice");
+
+  const camera = surface.getCamera();
+  assert.equal(shouldClusterEntityDatums(3, camera.zoom, 34), false);
+  const entityLayer = calls.setProps
+    .at(-1)
+    .layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities);
+  assert.ok(
+    entityLayer.props.data.some((datum) => datum.kind === "entity" && datum.entityId === "alice"),
+    "focused entity must be exposed rather than left inside a cluster",
+  );
+});
+
 test("relationship and place selection are also reflected in their render datums (issue #445 Priority 4)", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
@@ -988,88 +1123,29 @@ function keyEvent(key, extra = {}) {
   };
 }
 
-function selectedIds(render) {
-  const [places, relationships, entities] = render.layers;
-  return {
-    place: places.props.data.find((datum) => datum.selected)?.placeId ?? null,
-    relationship: relationships.props.data.find((datum) => datum.selected)?.relationshipId ?? null,
-    entity: entities.props.data.find((datum) => datum.selected)?.entityId ?? null,
-  };
-}
-
-test("Tab cycles selection through places, then relationships, then entities (issue #445 Priority 4)", () => {
+test("Tab and Shift+Tab remain native on the focused graph surface", () => {
   const { calls, runtime } = harness();
   const { surface, listeners } = keyboardHarness(runtime);
   surface.setProjection(projection());
   const onKeyDown = listeners.get("keydown");
 
-  onKeyDown(keyEvent("Tab"));
-  assert.deepEqual(selectedIds(calls.setProps.at(-1)), {
-    place: "stockholm",
-    relationship: null,
-    entity: null,
-  });
-
-  onKeyDown(keyEvent("Tab"));
-  assert.deepEqual(selectedIds(calls.setProps.at(-1)), {
-    place: null,
-    relationship: "meeting",
-    entity: null,
-  });
-
-  onKeyDown(keyEvent("Tab"));
-  assert.deepEqual(selectedIds(calls.setProps.at(-1)), {
-    place: null,
-    relationship: null,
-    entity: "alice",
-  });
-
-  onKeyDown(keyEvent("Tab"));
-  assert.deepEqual(selectedIds(calls.setProps.at(-1)), {
-    place: null,
-    relationship: null,
-    entity: "bob",
-  });
-
-  // Wraps back to the first candidate (place "stockholm").
-  onKeyDown(keyEvent("Tab"));
-  assert.deepEqual(selectedIds(calls.setProps.at(-1)), {
-    place: "stockholm",
-    relationship: null,
-    entity: null,
-  });
+  for (const shiftKey of [false, true]) {
+    const before = calls.setProps.length;
+    const event = keyEvent("Tab", { shiftKey });
+    onKeyDown(event);
+    assert.equal(calls.setProps.length, before);
+    assert.ok(!event.defaultPrevented);
+    assert.equal(surface.getAccessibleSnapshot().selection, null);
+  }
 });
 
-test("Shift+Tab cycles backward and wraps to the last candidate", () => {
+test("Enter focuses the camera on an explicitly selected object", () => {
   const { calls, runtime } = harness();
   const { surface, listeners } = keyboardHarness(runtime);
   surface.setProjection(projection());
+  surface.setSelection({ kind: "entity", id: "alice" });
   const onKeyDown = listeners.get("keydown");
 
-  onKeyDown(keyEvent("Tab", { shiftKey: true }));
-  assert.deepEqual(selectedIds(calls.setProps.at(-1)), {
-    place: null,
-    relationship: null,
-    entity: "alice",
-  });
-
-  onKeyDown(keyEvent("Tab", { shiftKey: true }));
-  assert.deepEqual(selectedIds(calls.setProps.at(-1)), {
-    place: null,
-    relationship: "meeting",
-    entity: null,
-  });
-});
-
-test("Enter focuses the camera on the currently cycled selection", () => {
-  const { calls, runtime } = harness();
-  const { surface, listeners } = keyboardHarness(runtime);
-  surface.setProjection(projection());
-  const onKeyDown = listeners.get("keydown");
-
-  // Cycle until an entity is selected (entities are last in candidate order).
-  onKeyDown(keyEvent("Tab"));
-  onKeyDown(keyEvent("Tab"));
   const enterEvent = keyEvent("Enter");
   const setPropsBefore = calls.setProps.length;
   onKeyDown(enterEvent);
@@ -1089,16 +1165,19 @@ test("Enter is a no-op when nothing is selected", () => {
   assert.equal(calls.setProps.length, before);
 });
 
-test("Tab is a no-op with no renderable candidates", () => {
+test("Tab on a native interactive control is not hijacked by the graph surface", () => {
   const { calls, runtime } = harness();
-  const { listeners } = keyboardHarness(runtime);
+  const { surface, listeners } = keyboardHarness(runtime);
+  surface.setProjection(projection());
   const onKeyDown = listeners.get("keydown");
 
   const before = calls.setProps.length;
-  const event = keyEvent("Tab");
+  const event = keyEvent("Tab", { target: { tagName: "BUTTON" } });
   onKeyDown(event);
+
   assert.equal(calls.setProps.length, before);
   assert.ok(!event.defaultPrevented);
+  assert.equal(surface.getAccessibleSnapshot().selection, null);
 });
 
 test("destroying the surface removes the keydown listener", () => {
